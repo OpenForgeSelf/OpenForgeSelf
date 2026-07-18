@@ -1,0 +1,10 @@
+.user
+.codebuddy/
+.trae/
+.workbuddy/
+bin/
+obj/
+node_modules/
+XCode.config
+artifacts/
+forgeself-design/

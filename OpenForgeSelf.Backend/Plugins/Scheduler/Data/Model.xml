@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>OpenForgeSelf.Backend.Plugins.Scheduler.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>Scheduler</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="ScheduledTask" Description="计划任务">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="任务ID" />
+        <Column Name="Name" DataType="String" Master="True" Length="200" Nullable="False" Description="任务名称" />
+        <Column Name="Description" DataType="String" Length="1000" Description="描述" />
+        <Column Name="TaskType" DataType="Int32" Description="任务类型" />
+        <Column Name="TargetId" DataType="String" Length="500" Description="目标ID" />
+        <Column Name="ScheduleType" DataType="Int32" Description="调度类型" />
+        <Column Name="CronExpression" DataType="String" Length="100" Description="Cron表达式" />
+        <Column Name="IntervalMinutes" DataType="Int32" Description="间隔分钟" />
+        <Column Name="RunAt" DataType="DateTime" Description="执行时间" />
+        <Column Name="WeekDays" DataType="String" Length="100" Description="星期" />
+        <Column Name="DayOfMonth" DataType="Int32" Description="每月几号" />
+        <Column Name="TimeOfDay" DataType="String" Description="每天时间" />
+        <Column Name="TimeZone" DataType="String" Length="100" Description="时区" />
+        <Column Name="Status" DataType="Int32" Description="状态" />
+        <Column Name="LastRunTime" DataType="DateTime" Description="最后执行时间" />
+        <Column Name="NextRunTime" DataType="DateTime" Description="下次执行时间" />
+        <Column Name="RunCount" DataType="Int32" Description="执行次数" />
+        <Column Name="FailureCount" DataType="Int32" Description="失败次数" />
+        <Column Name="InputParameters" DataType="String" Length="2000" Description="输入参数" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Status" />
+        <Index Columns="NextRunTime" />
+      </Indexes>
+    </Table>
+    <Table Name="ScheduledTaskLog" Description="计划任务日志">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="日志ID" />
+        <Column Name="TaskId" DataType="Int64" Description="任务ID" />
+        <Column Name="StartTime" DataType="DateTime" Description="开始时间" />
+        <Column Name="EndTime" DataType="DateTime" Description="结束时间" />
+        <Column Name="Status" DataType="Int32" Description="状态" />
+        <Column Name="ResultMessage" DataType="String" Length="2000" Description="结果消息" />
+        <Column Name="ErrorMessage" DataType="String" Length="4000" Description="错误信息" />
+        <Column Name="DurationMs" DataType="Double" Description="持续时间（毫秒）" />
+      </Columns>
+      <Indexes>
+        <Index Columns="TaskId" />
+        <Index Columns="StartTime" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

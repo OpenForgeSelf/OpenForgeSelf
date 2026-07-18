@@ -1,0 +1,11 @@
+{
+  "id": "memorysystem.plugin",
+  "name": "记忆系统插件",
+  "version": "1.0.0",
+  "author": "OpenForgeSelf Team",
+  "description": "AI 记忆系统插件，支持短期记忆、长期记忆和语义搜索，让 AI 真正懂你。",
+  "iconUrl": "https://example.com/memory-icon.png",
+  "entryPoint": "OpenForgeSelf.Backend.Plugins.MemorySystem.MemorySystemPlugin, OpenForgeSelf.Backend",
+  "dependencies": [],
+  "permissions": [ "storage", "ai_integration" ]
+}

@@ -1,0 +1,12 @@
+{
+  "Id": "texttools.plugin",
+  "Name": "文本工具插件",
+  "Version": "1.0.0",
+  "Author": "OpenForgeSelf Team",
+  "Description": "提供文本格式化、编码转换、哈希计算和文本统计等常用文本处理工具。",
+  "IconUrl": "https://example.com/text-tools-icon.png",
+  "EntryAssembly": "OpenForgeSelf.Backend.dll",
+  "EntryType": "OpenForgeSelf.Backend.Plugins.TextTools.TextToolsPlugin",
+  "Dependencies": [],
+  "Permissions": []
+}

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>OpenForgeSelf.Backend.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>..\Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>OpenForgeSelf</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass>{name}Model</ModelClass>
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface>I{name}</ModelInterface>
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="ChatMessage" Description="聊天消息">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="消息ID" />
+        <Column Name="SessionId" DataType="String" Master="True" Nullable="False" Description="会话ID" />
+        <Column Name="Role" DataType="String" Length="20" Nullable="False" Description="消息角色（user/assistant/system）" />
+        <Column Name="Content" DataType="String" Length="2000" Nullable="False" Description="消息内容" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="SessionId" />
+        <Index Columns="CreateTime" />
+        <Index Columns="SessionId,CreateTime" />
+      </Indexes>
+    </Table>
+    <Table Name="UsageRecord" Description="使用记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="记录ID" />
+        <Column Name="PluginId" DataType="String" Length="100" Nullable="False" Description="插件ID" />
+        <Column Name="ToolId" DataType="String" Length="100" Nullable="False" Description="工具ID" />
+        <Column Name="ActionType" DataType="String" Nullable="False" Description="操作类型" />
+        <Column Name="UserAgent" DataType="String" Length="500" Description="用户代理" />
+        <Column Name="IpAddress" DataType="String" Description="IP地址" />
+        <Column Name="DurationMs" DataType="Int64" Description="持续时间（毫秒）" />
+        <Column Name="Timestamp" DataType="DateTime" Description="时间戳" />
+        <Column Name="MetadataJson" DataType="String" Length="2000" Description="元数据JSON" />
+        <Column Name="WorkflowExecutionId" DataType="Int64" Description="工作流执行ID" />
+        <Column Name="StepId" DataType="String" Length="100" Description="工作流步骤ID" />
+      </Columns>
+      <Indexes>
+        <Index Columns="PluginId" />
+        <Index Columns="ToolId" />
+        <Index Columns="Timestamp" />
+        <Index Columns="ActionType" />
+        <Index Columns="PluginId,ToolId,Timestamp" />
+      </Indexes>
+    </Table>
+    <Table Name="UsageDailySummary" Description="每日使用汇总">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="汇总记录ID" />
+        <Column Name="Date" DataType="DateTime" Description="日期" />
+        <Column Name="PluginId" DataType="String" Length="100" Nullable="False" Description="插件ID" />
+        <Column Name="ToolId" DataType="String" Length="100" Nullable="False" Description="工具ID" />
+        <Column Name="UseCount" DataType="Int32" Description="使用次数" />
+        <Column Name="TotalDurationMs" DataType="Int64" Description="总持续时间（毫秒）" />
+        <Column Name="UniqueUsers" DataType="Int32" Description="独立用户数" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Date" />
+        <Index Columns="PluginId" />
+        <Index Columns="ToolId" />
+        <Index Columns="Date,PluginId,ToolId" />
+        <Index Columns="PluginId,ToolId,Date" />
+      </Indexes>
+    </Table>
+    <Table Name="WorkflowUsageRecord" Description="工作流使用记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="记录ID" />
+        <Column Name="WorkflowId" DataType="Int64" Description="工作流ID" />
+        <Column Name="WorkflowName" DataType="String" Length="200" Nullable="False" Description="工作流名称" />
+        <Column Name="ExecutionId" DataType="Int64" Description="执行ID" />
+        <Column Name="StartTime" DataType="DateTime" Description="开始时间" />
+        <Column Name="EndTime" DataType="DateTime" Description="结束时间" />
+        <Column Name="Status" DataType="Int32" Description="状态（0成功 1失败 2取消）" />
+        <Column Name="DurationSeconds" DataType="Double" Description="持续时间（秒）" />
+        <Column Name="InputVariablesJson" DataType="String" Length="2000" Description="输入变量JSON" />
+        <Column Name="OutputResultJson" DataType="String" Length="2000" Description="输出结果JSON" />
+        <Column Name="ToolCallCount" DataType="Int32" Description="工具调用次数" />
+        <Column Name="StepCount" DataType="Int32" Description="步骤数" />
+        <Column Name="TriggeredBy" DataType="String" Length="100" Description="触发者" />
+        <Column Name="IpAddress" DataType="String" Description="IP地址" />
+        <Column Name="ErrorMessage" DataType="String" Length="500" Description="错误信息" />
+      </Columns>
+      <Indexes>
+        <Index Columns="WorkflowId" />
+        <Index Columns="ExecutionId" />
+        <Index Columns="StartTime" />
+        <Index Columns="Status" />
+        <Index Columns="WorkflowId,StartTime" />
+        <Index Columns="Status,StartTime" />
+      </Indexes>
+    </Table>
+    <Table Name="ChatRecord" Description="聊天记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="记录ID" />
+        <Column Name="SessionId" DataType="String" Length="50" Description="会话ID" />
+        <Column Name="Style" DataType="String" Length="30" Description="API风格" />
+        <Column Name="Model" DataType="String" Length="100" Description="模型名称" />
+        <Column Name="RequestMethod" DataType="String" Length="20" Description="请求方法" />
+        <Column Name="RequestPath" DataType="String" Length="200" Description="请求路径" />
+        <Column Name="RequestHeaders" DataType="String" Length="1000" Description="请求头JSON" />
+        <Column Name="RequestBody" DataType="String" Length="8000" Description="请求体JSON" />
+        <Column Name="ResponseStatus" DataType="Int32" Description="响应状态码" />
+        <Column Name="ResponseHeaders" DataType="String" Length="1000" Description="响应头JSON" />
+        <Column Name="ResponseBody" DataType="String" Length="8000" Description="响应体JSON" />
+        <Column Name="Temperature" DataType="Double" Description="温度参数" />
+        <Column Name="MaxTokens" DataType="Int32" Nullable="True" Description="最大token" />
+        <Column Name="MessageCount" DataType="Int32" Description="消息数量" />
+        <Column Name="ToolCallCount" DataType="Int32" Description="工具调用次数" />
+        <Column Name="HasReasoning" DataType="Boolean" Description="是否有reasoning" />
+        <Column Name="DurationMs" DataType="Int64" Description="调用耗时" />
+        <Column Name="CreatedTime" DataType="DateTime" Description="创建时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="SessionId" />
+        <Index Columns="CreatedTime" />
+        <Index Columns="Style" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

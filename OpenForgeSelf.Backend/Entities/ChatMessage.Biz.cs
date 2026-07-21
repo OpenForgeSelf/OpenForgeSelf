@@ -30,7 +30,8 @@ public partial class ChatMessage : Entity<ChatMessage>
 {
     #region 对象操作
     // 控制最大缓存数量，Find/FindAll查询方法在表行数小于该值时走实体缓存
-    private static Int32 MaxCacheCount = 1000;
+    // 聊天消息为追加型：写入后需立即可读（GetHistory），实体缓存会导致读到陈旧/空数据，故禁用
+    private static Int32 MaxCacheCount = 0;
 
     static ChatMessage()
     {
@@ -103,7 +104,7 @@ public partial class ChatMessage : Entity<ChatMessage>
     #endregion
 
     #region 业务操作
-    public IChatMessage ToModel()
+    public IChatMessageModel ToModel()
     {
         var model = new ChatMessage();
         model.Copy(this);

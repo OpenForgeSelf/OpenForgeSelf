@@ -121,6 +121,7 @@ public class WorkflowExecutor : IWorkflowExecutor
         if (steps.Count == 0)
         {
             execution.Status = WorkflowStatus.Completed;
+            execution.Progress = 100;
             AddLog(execution, null, null, "Info", "工作流没有步骤，直接完成");
             return;
         }
@@ -262,7 +263,9 @@ public class WorkflowExecutor : IWorkflowExecutor
             }
             else
             {
-                currentStepId = step.NextStepId ?? GetNextStepId(steps, step.Id);
+                // 无显式下一步的步骤即为终端步骤，工作流结束；
+                // 不再按列表顺序兜底，避免条件分支被误执行（如真分支后落到假分支步骤）
+                currentStepId = step.NextStepId;
             }
         }
 

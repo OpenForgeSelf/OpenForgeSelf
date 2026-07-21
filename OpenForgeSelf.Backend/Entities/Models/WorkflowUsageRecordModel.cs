@@ -60,7 +60,7 @@ public partial class WorkflowUsageRecordModel
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IWorkflowUsageRecord model)
+    public void Copy(IWorkflowUsageRecordModel model)
     {
         Id = model.Id;
         WorkflowId = model.WorkflowId;

@@ -18,7 +18,8 @@ public static class XCodeConfig
             ["Scheduler"] = configuration.GetConnectionString("Scheduler") ?? "Data Source=Data\\Scheduler.db",
             ["ScriptRunner"] = configuration.GetConnectionString("ScriptRunner") ?? "Data Source=Data\\ScriptRunner.db",
             ["WorkflowEngine"] = configuration.GetConnectionString("WorkflowEngine") ?? "Data Source=Data\\WorkflowEngine.db",
-            ["AIAgent"] = configuration.GetConnectionString("AIAgent") ?? "Data Source=Data\\AIAgent.db"
+            ["AIAgent"] = configuration.GetConnectionString("AIAgent") ?? "Data Source=Data\\AIAgent.db",
+            ["TodoTracker"] = configuration.GetConnectionString("TodoTracker") ?? "Data Source=Data\\TodoTracker.db"
         };
 
         foreach (var (name, connStr) in connStrings)
@@ -47,7 +48,8 @@ public static class XCodeConfig
             "Scheduler",
             "ScriptRunner",
             "WorkflowEngine",
-            "AIAgent"
+            "AIAgent",
+            "TodoTracker"
         };
 
         foreach (var connName in connNames)

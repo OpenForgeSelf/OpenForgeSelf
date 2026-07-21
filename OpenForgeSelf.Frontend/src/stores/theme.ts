@@ -81,6 +81,9 @@ export function applyThemeToRoot(
   root.setAttribute(ROOT_THEME_ATTRIBUTE, resolvedTheme)
   root.setAttribute(ROOT_THEME_MODE_ATTRIBUTE, mode)
   root.style.colorScheme = resolvedTheme
+
+  // Element Plus 暗色模式通过 html.dark class 激活
+  root.classList.toggle('dark', resolvedTheme === 'dark')
 }
 
 export const useThemeStore = defineStore('theme', () => {

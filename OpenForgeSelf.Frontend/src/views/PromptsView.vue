@@ -58,8 +58,12 @@
           <span class="editor-chars">{{ currentPrompt.chars }} 字符</span>
         </div>
         <div class="editor-header-right">
-          <ForgeSelect v-model="selectedRole" :options="roleOptions" />
-          <ForgeSelect v-model="selectedScope" :options="scopeOptions" />
+          <el-select v-model="selectedRole">
+            <el-option v-for="opt in roleOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+          <el-select v-model="selectedScope">
+            <el-option v-for="opt in scopeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </div>
       </div>
 
@@ -78,7 +82,7 @@
       <!-- Bottom Actions -->
       <div class="editor-footer">
         <div class="editor-footer-left">
-          <ForgeButton variant="primary" size="sm" @click="handleSave">
+          <el-button type="primary" size="small" @click="handleSave">
             <svg
               width="14"
               height="14"
@@ -94,8 +98,8 @@
               <polyline points="7 3 7 8 15 8" />
             </svg>
             保存
-          </ForgeButton>
-          <ForgeButton variant="ghost" size="sm" @click="handleReset">
+          </el-button>
+          <el-button size="small" @click="handleReset">
             <svg
               width="14"
               height="14"
@@ -110,8 +114,8 @@
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
             </svg>
             重置
-          </ForgeButton>
-          <ForgeButton variant="ghost" size="sm" @click="handleExport">
+          </el-button>
+          <el-button size="small" @click="handleExport">
             <svg
               width="14"
               height="14"
@@ -127,7 +131,7 @@
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
             导出
-          </ForgeButton>
+          </el-button>
         </div>
         <span class="editor-last-edited">上次编辑: 2 小时前</span>
       </div>
@@ -137,8 +141,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import ForgeButton from '@/components/forge/ForgeButton.vue'
-import ForgeSelect from '@/components/forge/ForgeSelect.vue'
 
 interface PromptItem {
   id: string

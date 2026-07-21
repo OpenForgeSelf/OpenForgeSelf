@@ -23,7 +23,7 @@ namespace OpenForgeSelf.Backend.Entities;
 [BindIndex("IX_UsageDailySummary_Date_PluginId_ToolId", false, "Date,PluginId,ToolId")]
 [BindIndex("IX_UsageDailySummary_PluginId_ToolId_Date", false, "PluginId,ToolId,Date")]
 [BindTable("UsageDailySummary", Description = "每日使用汇总", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class UsageDailySummary : IUsageDailySummary, IEntity<IUsageDailySummary>
+public partial class UsageDailySummary : IUsageDailySummaryModel, IEntity<IUsageDailySummaryModel>
 {
     #region 属性
     private Int64 _Id;
@@ -86,7 +86,7 @@ public partial class UsageDailySummary : IUsageDailySummary, IEntity<IUsageDaily
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IUsageDailySummary model)
+    public void Copy(IUsageDailySummaryModel model)
     {
         Id = model.Id;
         Date = model.Date;
@@ -144,7 +144,7 @@ public partial class UsageDailySummary : IUsageDailySummary, IEntity<IUsageDaily
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -160,7 +160,7 @@ public partial class UsageDailySummary : IUsageDailySummary, IEntity<IUsageDaily
         if (pluginId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.PluginId.EqualIgnoreCase(pluginId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.PluginId.EqualIgnoreCase(pluginId));
 
         return FindAll(_.PluginId == pluginId);
     }
@@ -173,7 +173,7 @@ public partial class UsageDailySummary : IUsageDailySummary, IEntity<IUsageDaily
         if (toolId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.ToolId.EqualIgnoreCase(toolId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ToolId.EqualIgnoreCase(toolId));
 
         return FindAll(_.ToolId == toolId);
     }

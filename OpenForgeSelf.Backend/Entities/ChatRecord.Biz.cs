@@ -57,7 +57,7 @@ public partial class ChatRecord : Entity<ChatRecord>
     #endregion
 
     #region 业务操作
-    public IChatRecord ToModel()
+    public IChatRecordModel ToModel()
     {
         var model = new ChatRecord();
         model.Copy(this);

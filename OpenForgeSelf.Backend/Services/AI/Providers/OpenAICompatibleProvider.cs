@@ -40,8 +40,7 @@ public class OpenAICompatibleProvider : IAIProvider
             httpRequest.Content = content;
             httpRequest.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
 
-            XTrace.Log.Info("[{0}] 发送 Chat 请求，模型: {1}, 消息数: {2}",
-                ProviderName, request.Model, request.Messages.Count);
+            XTrace.Log.Info($"[{ProviderName}] 发送 Chat 请求，模型: {request.Model}, 消息数: {request.Messages.Count}");
 
             var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -56,7 +55,7 @@ public class OpenAICompatibleProvider : IAIProvider
         }
         catch (Exception ex)
         {
-            XTrace.Log.Error("[{0}] Chat 请求失败: {1}", ProviderName, ex.Message);
+            XTrace.Log.Error($"[{ProviderName}] Chat 请求失败: {ex.Message}");
             throw;
         }
     }
@@ -78,7 +77,7 @@ public class OpenAICompatibleProvider : IAIProvider
         httpRequest.Content = content;
         httpRequest.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
 
-        XTrace.Log.Info("[{0}] 发送流式 Chat 请求，模型: {1}", ProviderName, request.Model);
+        XTrace.Log.Info($"[{ProviderName}] 发送流式 Chat 请求，模型: {request.Model}");
 
         var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -121,7 +120,7 @@ public class OpenAICompatibleProvider : IAIProvider
             }
             catch (JsonException ex)
             {
-                    XTrace.Log.Warn("[{0}] 解析流式响应失败: {1}", ProviderName, ex.Message);
+                    XTrace.Log.Warn($"[{ProviderName}] 解析流式响应失败: {ex.Message}");
                 continue;
             }
 
@@ -157,19 +156,128 @@ public class OpenAICompatibleProvider : IAIProvider
         }
     }
 
-    public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// 拉取上游模型列表：OpenAI/Custom 走 GET {Endpoint}/models（Bearer 认证）；
+    /// Anthropic 走 GET https://api.anthropic.com/v1/models（x-api-key + anthropic-version 认证）。
+    /// 解析 data[].id / owned_by 映射为 ModelInfo。失败抛异常由调用方转译为错误响应。
+    /// </summary>
+    public async Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
     {
-        var models = _config.SupportedModels.Select(m => new ModelInfo
+        try
         {
-            Id = m,
-            Name = m,
-            Owner = ProviderName,
-            Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            return _config.ProviderType switch
+            {
+                AIProviderType.Anthropic => await FetchAnthropicModelsAsync(cancellationToken),
+                _ => await FetchOpenAIModelsAsync(cancellationToken)
+            };
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error($"[{ProviderName}] 拉取上游模型列表失败: {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task<List<ModelInfo>> FetchOpenAIModelsAsync(CancellationToken cancellationToken)
+    {
+        // 从 Endpoint 推导 /models 路径：
+        // - "http://localhost:1234/v1/chat/completions" → "http://localhost:1234/v1/models"
+        // - "http://localhost:1234/v1"                 → "http://localhost:1234/v1/models"
+        // - "https://api.openai.com/v1"               → "https://api.openai.com/v1/models"
+        // - 已经是 .../models                          → 原样使用
+        var baseUrl = _config.Endpoint.TrimEnd('/');
+        var modelsUrl = DeriveModelsUrl(baseUrl);
+
+        XTrace.Log.Info($"[{ProviderName}] 拉取模型列表: Endpoint={_config.Endpoint}, ModelsUrl={modelsUrl}");
+
+        var req = new HttpRequestMessage(HttpMethod.Get, modelsUrl);
+        req.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
+
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(
+            Math.Min(_config.TimeoutSeconds > 0 ? _config.TimeoutSeconds : 120, 30)));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+
+        XTrace.Log.Info($"[{ProviderName}] 发送 GET {modelsUrl}");
+        var resp = await _httpClient.SendAsync(req, linked.Token);
+
+        XTrace.Log.Info($"[{ProviderName}] 响应状态码: {resp.StatusCode} (代码 {(int)resp.StatusCode})");
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync(linked.Token);
+        XTrace.Log.Info($"[{ProviderName}] 响应体长度: {json.Length} 字符");
+
+        var doc = JsonSerializer.Deserialize<OpenAIModelsResponse>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        if (doc?.Data == null)
+        {
+            XTrace.Log.Warn($"[{ProviderName}] 上游 /models 返回 data 为空");
+            return new List<ModelInfo>();
+        }
+
+        XTrace.Log.Info($"[{ProviderName}] 拉取到 {doc.Data.Count} 个模型");
+        return doc.Data.Select(d => new ModelInfo
+        {
+            Id = d.Id,
+            Name = d.Id,
+            Owner = d.OwnedBy ?? ProviderName,
+            Created = d.Created,
             ProviderName = ProviderName,
             SupportsStreaming = true
         }).ToList();
+    }
 
-        return Task.FromResult(models);
+    /// <summary>从 Endpoint 推导 /models 接口 URL</summary>
+    private static string DeriveModelsUrl(string endpoint)
+    {
+        // 去掉末尾 /
+        var url = endpoint.TrimEnd('/');
+
+        // 如果已经是 .../models，直接返回
+        if (url.EndsWith("/models", StringComparison.OrdinalIgnoreCase))
+            return url;
+
+        // 去掉 /chat/completions 尾缀（常见写法 http://x/v1/chat/completions）
+        if (url.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+            url = url[..^"/chat/completions".Length];
+
+        // 去掉 /v1 尾缀（统一续加 /v1/models）
+        if (url.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            return url + "/models";
+        // 没有 /v1 尾缀，直接追加 /v1/models（兼容上游差异）
+        return url.EndsWith("/v1/models", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : $"{url}/v1/models";
+    }
+
+    private async Task<List<ModelInfo>> FetchAnthropicModelsAsync(CancellationToken cancellationToken)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, "https://api.anthropic.com/v1/models");
+        req.Headers.Add("x-api-key", _config.ApiKey);
+        req.Headers.Add("anthropic-version", "2023-06-01");
+
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(
+            Math.Min(_config.TimeoutSeconds > 0 ? _config.TimeoutSeconds : 120, 30)));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+
+        var resp = await _httpClient.SendAsync(req, linked.Token);
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync(linked.Token);
+        var doc = JsonSerializer.Deserialize<AnthropicModelsResponse>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        if (doc?.Data == null) return new List<ModelInfo>();
+
+        return doc.Data.Select(d => new ModelInfo
+        {
+            Id = d.Id,
+            Name = d.Id,
+            Owner = d.OwnedBy ?? ProviderName,
+            Created = 0,
+            ProviderName = ProviderName,
+            SupportsStreaming = true
+        }).ToList();
     }
 
     private OpenAIChatRequest BuildOpenAIRequest(UnifiedChatRequest request)
@@ -240,7 +348,10 @@ public class OpenAICompatibleProvider : IAIProvider
             Temperature = request.Temperature,
             TopP = request.TopP,
             MaxTokens = request.MaxTokens,
-            Stream = request.Stream
+            Stream = request.Stream,
+            StreamOptions = request.StreamOptions == null
+                ? null
+                : new OpenAIStreamOptions { IncludeUsage = request.StreamOptions.IncludeUsage }
         };
 
         if (request.Tools != null && request.Tools.Count > 0)
@@ -386,6 +497,53 @@ public class OpenAICompatibleProvider : IAIProvider
 
 #region OpenAI DTOs
 
+/// <summary>OpenAI 兼容 /models 接口响应</summary>
+public class OpenAIModelsResponse
+{
+    [JsonPropertyName("object")]
+    public string? Object { get; set; }
+
+    [JsonPropertyName("data")]
+    public List<OpenAIModelItem>? Data { get; set; }
+}
+
+public class OpenAIModelItem
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("object")]
+    public string? Object { get; set; }
+
+    [JsonPropertyName("owned_by")]
+    public string? OwnedBy { get; set; }
+
+    [JsonPropertyName("created")]
+    public long Created { get; set; }
+}
+
+/// <summary>Anthropic /v1/models 接口响应</summary>
+public class AnthropicModelsResponse
+{
+    [JsonPropertyName("data")]
+    public List<AnthropicModelItem>? Data { get; set; }
+}
+
+public class AnthropicModelItem
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    [JsonPropertyName("display_name")]
+    public string? DisplayName { get; set; }
+
+    [JsonPropertyName("owned_by")]
+    public string? OwnedBy { get; set; }
+}
+
 public class OpenAIChatRequest
 {
     [JsonPropertyName("model")]
@@ -406,11 +564,20 @@ public class OpenAIChatRequest
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
 
+    [JsonPropertyName("stream_options")]
+    public OpenAIStreamOptions? StreamOptions { get; set; }
+
     [JsonPropertyName("tools")]
     public List<OpenAIToolDefinition>? Tools { get; set; }
 
     [JsonPropertyName("tool_choice")]
     public string? ToolChoice { get; set; }
+}
+
+public class OpenAIStreamOptions
+{
+    [JsonPropertyName("include_usage")]
+    public bool IncludeUsage { get; set; }
 }
 
 public class OpenAIMessage

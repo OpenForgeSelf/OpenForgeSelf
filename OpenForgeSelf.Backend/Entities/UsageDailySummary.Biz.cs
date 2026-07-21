@@ -128,7 +128,7 @@ public partial class UsageDailySummary : Entity<UsageDailySummary>
     #endregion
 
     #region 业务操作
-    public IUsageDailySummary ToModel()
+    public IUsageDailySummaryModel ToModel()
     {
         var model = new UsageDailySummary();
         model.Copy(this);

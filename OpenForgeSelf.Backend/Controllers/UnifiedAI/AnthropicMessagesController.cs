@@ -6,6 +6,7 @@ using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.AI;
 using OpenForgeSelf.Backend.Services.AI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -13,6 +14,7 @@ namespace OpenForgeSelf.Backend.Controllers.UnifiedAI;
 
 [ApiController]
 [Route("v1/anthropic")]
+[Authorize("ApiKeyPolicy")]
 public class AnthropicMessagesController : ControllerBase
 {
     private readonly AIProviderRegistry _registry;

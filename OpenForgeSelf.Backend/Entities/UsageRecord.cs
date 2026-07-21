@@ -23,7 +23,7 @@ namespace OpenForgeSelf.Backend.Entities;
 [BindIndex("IX_UsageRecord_ActionType", false, "ActionType")]
 [BindIndex("IX_UsageRecord_PluginId_ToolId_Timestamp", false, "PluginId,ToolId,Timestamp")]
 [BindTable("UsageRecord", Description = "使用记录", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
+public partial class UsageRecord : IUsageRecordModel, IEntity<IUsageRecordModel>
 {
     #region 属性
     private Int64 _Id;
@@ -118,7 +118,7 @@ public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IUsageRecord model)
+    public void Copy(IUsageRecordModel model)
     {
         Id = model.Id;
         PluginId = model.PluginId;
@@ -188,7 +188,7 @@ public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -204,7 +204,7 @@ public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
         if (pluginId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.PluginId.EqualIgnoreCase(pluginId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.PluginId.EqualIgnoreCase(pluginId));
 
         return FindAll(_.PluginId == pluginId);
     }
@@ -217,7 +217,7 @@ public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
         if (toolId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.ToolId.EqualIgnoreCase(toolId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ToolId.EqualIgnoreCase(toolId));
 
         return FindAll(_.ToolId == toolId);
     }
@@ -230,7 +230,7 @@ public partial class UsageRecord : IUsageRecord, IEntity<IUsageRecord>
         if (actionType.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.ActionType.EqualIgnoreCase(actionType));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ActionType.EqualIgnoreCase(actionType));
 
         return FindAll(_.ActionType == actionType);
     }

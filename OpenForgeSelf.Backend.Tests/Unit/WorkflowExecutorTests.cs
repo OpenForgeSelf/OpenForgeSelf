@@ -7,6 +7,7 @@ using WorkflowDefModel = OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models.Wor
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 
+[Collection("XCode")]
 public class WorkflowExecutorTests : IClassFixture<XCodeTestFixture>
 {
     private async Task<long> CreateTestWorkflowAsync(WorkflowDefModel workflow)
@@ -285,7 +286,8 @@ public class WorkflowExecutorTests : IClassFixture<XCodeTestFixture>
         var finalExecution = await executor.GetExecutionAsync(execution.Id);
         finalExecution!.Status.Should().Be(WorkflowStatus.Completed);
         finalExecution.Variables.Should().NotBeNull();
-        finalExecution.Variables!["greeting"].Should().Be("Hi");
+        // 从 DB 重载后变量值为 JsonElement，按字符串比较（兼顾字符串与 JsonElement）
+        finalExecution.Variables!["greeting"]?.ToString().Should().Be("Hi");
     }
 
     #endregion
@@ -365,17 +367,17 @@ public class WorkflowExecutorTests : IClassFixture<XCodeTestFixture>
                 },
                 new()
                 {
-                    Id = trueStepId,
-                    Name = "真分支",
-                    Type = WorkflowStepType.ToolCall,
-                    ToolName = "trueTool"
-                },
-                new()
-                {
                     Id = falseStepId,
                     Name = "假分支",
                     Type = WorkflowStepType.ToolCall,
                     ToolName = "falseTool"
+                },
+                new()
+                {
+                    Id = trueStepId,
+                    Name = "真分支",
+                    Type = WorkflowStepType.ToolCall,
+                    ToolName = "trueTool"
                 }
             },
             StartStepId = conditionStepId

@@ -124,7 +124,7 @@ public partial class WorkflowUsageRecord : Entity<WorkflowUsageRecord>
     #endregion
 
     #region 业务操作
-    public IWorkflowUsageRecord ToModel()
+    public IWorkflowUsageRecordModel ToModel()
     {
         var model = new WorkflowUsageRecord();
         model.Copy(this);

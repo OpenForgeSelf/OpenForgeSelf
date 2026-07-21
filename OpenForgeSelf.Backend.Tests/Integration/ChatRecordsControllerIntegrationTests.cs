@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;
 
+[Collection("XCode")]
 public class ChatRecordsControllerIntegrationTests : IClassFixture<XCodeTestFixture>
 {
     private readonly Mock<ILogService> _mockLogService;

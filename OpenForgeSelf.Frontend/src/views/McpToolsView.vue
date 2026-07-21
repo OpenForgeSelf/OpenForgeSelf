@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { mcpApi } from '@/services/mcpApi'
-import ForgeSwitch from '@/components/forge/ForgeSwitch.vue'
 import type { McpServerDto, McpToolDto, McpTestResultDto } from '@/types/mcp'
 
 const servers = ref<McpServerDto[]>([])
@@ -364,10 +363,10 @@ onMounted(() => {
             <span class="tool-desc-text">{{ tool.description }}</span>
           </div>
           <div class="col-status">
-            <ForgeSwitch
+            <el-switch
               :model-value="tool.isEnabled"
               :disabled="toggleLoading === tool.id"
-              @update:model-value="handleToggle(tool)"
+              @change="handleToggle(tool)"
             />
           </div>
           <div class="col-actions">

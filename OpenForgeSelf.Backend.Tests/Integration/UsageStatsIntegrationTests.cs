@@ -6,6 +6,7 @@ using OpenForgeSelf.Backend.Services.UsageStats;
 /// 使用统计服务集成测试
 /// 注意：这些测试使用真实的 XCode 数据库，不是 EF Core InMemory
 /// </summary>
+[Collection("XCode")]
 public class UsageStatsIntegrationTests : IClassFixture<XCodeTestFixture>
 {
     private readonly UsageStatsService _service;

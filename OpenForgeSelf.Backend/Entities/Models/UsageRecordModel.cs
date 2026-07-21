@@ -48,7 +48,7 @@ public partial class UsageRecordModel
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IUsageRecord model)
+    public void Copy(IUsageRecordModel model)
     {
         Id = model.Id;
         PluginId = model.PluginId;

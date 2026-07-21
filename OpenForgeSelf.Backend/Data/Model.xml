@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
     <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
@@ -28,7 +28,7 @@
     <!--模型类输出目录。默认当前目录的Models子目录-->
     <ModelsOutput>.\Models\</ModelsOutput>
     <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
-    <ModelInterface>I{name}</ModelInterface>
+    <ModelInterface>I{name}Model</ModelInterface>
     <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
     <InterfacesOutput>.\Interfaces\</InterfacesOutput>
     <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
@@ -126,7 +126,7 @@
     <Table Name="ChatRecord" Description="聊天记录">
       <Columns>
         <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="记录ID" />
-        <Column Name="SessionId" DataType="String" Length="50" Description="会话ID" />
+        <Column Name="SessionId" DataType="String" Description="会话ID" />
         <Column Name="Style" DataType="String" Length="30" Description="API风格" />
         <Column Name="Model" DataType="String" Length="100" Description="模型名称" />
         <Column Name="RequestMethod" DataType="String" Length="20" Description="请求方法" />
@@ -148,6 +148,59 @@
         <Index Columns="SessionId" />
         <Index Columns="CreatedTime" />
         <Index Columns="Style" />
+      </Indexes>
+    </Table>
+    <Table Name="AIProvider" Description="AI提供方配置">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="实体唯一标识" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Nullable="False" Description="提供方显示名（唯一）" />
+        <Column Name="ProviderType" DataType="String" Length="20" Nullable="False" Description="提供方类型（OpenAI/Anthropic/Custom）" />
+        <Column Name="Endpoint" DataType="String" Length="500" Nullable="False" Description="接入地址（base URL）" />
+        <Column Name="ApiKey" DataType="String" Length="500" Nullable="False" Description="访问密钥（加密存储）" />
+        <Column Name="SupportedModels" DataType="String" Length="2000" Description="支持模型列表（逗号分隔）" />
+        <Column Name="IsDefault" DataType="Boolean" Description="是否默认提供方" />
+        <Column Name="TimeoutSeconds" DataType="Int32" Description="请求超时（秒）" />
+        <Column Name="VisionModel" DataType="String" Length="100" Description="多模态视觉模型名" />
+        <Column Name="EnableMultimodal" DataType="Boolean" Description="是否启用多模态自动处理" />
+        <Column Name="VisionPromptTemplate" DataType="String" Length="1000" Description="图片识别系统提示词模板" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Name" />
+        <Index Columns="IsDefault" />
+      </Indexes>
+    </Table>
+    <Table Name="AIModel" Description="供应商模型记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="实体唯一标识" />
+        <Column Name="ProviderId" DataType="Int64" Description="归属供应商Id（AIProvider.Id）" />
+        <Column Name="ProviderName" DataType="String" Length="100" Nullable="False" Description="归属供应商名（拼接聊天id用，锁定不可编辑）" />
+        <Column Name="UpstreamModelId" DataType="String" Length="200" Nullable="False" Description="上游原始模型标识（如 gpt-4o），锁定不可编辑" />
+        <Column Name="ChatModelId" DataType="String" Length="320" Nullable="False" Description="项目聊天模型id：提供商:原始模型id（复制按钮输出）" />
+        <Column Name="Alias" DataType="String" Length="200" Description="显示别名/备注（用户可编辑）" />
+        <Column Name="Capabilities" DataType="String" Length="500" Description="能力标签（逗号分隔，如 vision,stream，用户可编辑）" />
+        <Column Name="Enabled" DataType="Boolean" Description="是否启用（已启用/已禁用），默认启用" />
+        <Column Name="Owner" DataType="String" Length="100" Description="上游返回的 owner/owned_by" />
+        <Column Name="LastSyncTime" DataType="DateTime" Description="最近同步（拉取）时间" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProviderId,UpstreamModelId" Unique="True" />
+        <Index Columns="ProviderId" />
+      </Indexes>
+    </Table>
+    <Table Name="ApiServerKey" Description="API服务器密钥">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="实体唯一标识" />
+        <Column Name="KeyCipher" DataType="String" Length="512" Nullable="False" Description="API密钥密文（AES-256-CBC加密存储）" />
+        <Column Name="IsActive" DataType="Boolean" Description="是否当前生效密钥" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="IsActive" />
       </Indexes>
     </Table>
   </Tables>

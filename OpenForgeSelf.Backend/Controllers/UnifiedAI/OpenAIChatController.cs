@@ -86,10 +86,13 @@ public class OpenAIChatController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            var provider = _registry.GetProviderByModel(request.Model);
+            // 解析提供方前缀和上游模型 ID（格式：provider:model_id）
+            var (provider, upstreamModelId) = ResolveProviderAndModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
 
+            // 使用上游模型 ID 替换请求中的模型名，确保上游 API 收到正确的模型名
+            request.Model = upstreamModelId;
             var unifiedRequest = ConvertToUnifiedRequest(request);
 
             // 检查并处理多模态图片
@@ -270,6 +273,30 @@ public class OpenAIChatController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// 解析模型名中的提供方前缀，返回 (提供方, 上游模型ID)。
+    /// 支持格式 "provider:model_id" 和 "model_id"（无前缀时使用默认提供方）。
+    /// </summary>
+    private (IAIProvider? Provider, string UpstreamModelId) ResolveProviderAndModel(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+            return (null, modelName);
+
+        var idx = modelName.IndexOf(':');
+        if (idx > 0)
+        {
+            var providerName = modelName[..idx];
+            var upstreamModelId = modelName[(idx + 1)..];
+            var provider = _registry.GetProviderByName(providerName);
+            if (provider != null)
+                return (provider, upstreamModelId);
+        }
+
+        // 无前缀或提供方不存在，回退到 GetProviderByModel
+        var fallbackProvider = _registry.GetProviderByModel(modelName);
+        return (fallbackProvider, modelName);
+    }
+
     private UnifiedChatRequest ConvertToUnifiedRequest(OpenAIChatCompletionRequest request)
     {
         var unified = new UnifiedChatRequest
@@ -279,6 +306,9 @@ public class OpenAIChatController : ControllerBase
             TopP = request.TopP,
             MaxTokens = request.MaxTokens,
             Stream = request.Stream,
+            StreamOptions = request.StreamOptions == null
+                ? null
+                : new UnifiedStreamOptions { IncludeUsage = request.StreamOptions.IncludeUsage },
             Messages = new List<UnifiedChatMessage>()
         };
 
@@ -481,6 +511,9 @@ public class OpenAIChatCompletionRequest
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
 
+    [JsonPropertyName("stream_options")]
+    public OpenAIStreamOptions? StreamOptions { get; set; }
+
     [JsonPropertyName("tools")]
     public List<OpenAITool>? Tools { get; set; }
 
@@ -498,6 +531,12 @@ public class OpenAIChatCompletionRequest
 
     [JsonPropertyName("frequency_penalty")]
     public double FrequencyPenalty { get; set; } = 0;
+}
+
+public class OpenAIStreamOptions
+{
+    [JsonPropertyName("include_usage")]
+    public bool IncludeUsage { get; set; }
 }
 
 public class OpenAIChatMessage

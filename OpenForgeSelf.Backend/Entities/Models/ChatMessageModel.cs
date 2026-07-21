@@ -33,7 +33,7 @@ public partial class ChatMessageModel
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IChatMessage model)
+    public void Copy(IChatMessageModel model)
     {
         Id = model.Id;
         SessionId = model.SessionId;

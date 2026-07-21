@@ -6,6 +6,7 @@ using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.AI;
 using OpenForgeSelf.Backend.Services.AI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -13,6 +14,7 @@ namespace OpenForgeSelf.Backend.Controllers.UnifiedAI;
 
 [ApiController]
 [Route("v1/responses")]
+[Authorize("ApiKeyPolicy")]
 public class OpenAIResponsesController : ControllerBase
 {
     private readonly AIProviderRegistry _registry;
@@ -40,10 +42,13 @@ public class OpenAIResponsesController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            var provider = _registry.GetProviderByModel(request.Model);
+            // 解析提供方前缀和上游模型 ID（格式：provider:model_id）
+            var (provider, upstreamModelId) = ResolveProviderAndModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
 
+            // 使用上游模型 ID 替换请求中的模型名，确保上游 API 收到正确的模型名
+            request.Model = upstreamModelId;
             var unifiedRequest = ConvertToUnifiedRequest(request);
 
             _logService.Info("Responses API 请求 - 模型: {0}, 提供者: {1}",
@@ -234,6 +239,30 @@ public class OpenAIResponsesController : ControllerBase
     {
         await Response.WriteAsync($"data: {data}\n\n");
         await Response.Body.FlushAsync();
+    }
+
+    /// <summary>
+    /// 解析模型名中的提供方前缀，返回 (提供方, 上游模型ID)。
+    /// 支持格式 "provider:model_id" 和 "model_id"（无前缀时使用默认提供方）。
+    /// </summary>
+    private (IAIProvider? Provider, string UpstreamModelId) ResolveProviderAndModel(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+            return (null, modelName);
+
+        var idx = modelName.IndexOf(':');
+        if (idx > 0)
+        {
+            var providerName = modelName[..idx];
+            var upstreamModelId = modelName[(idx + 1)..];
+            var provider = _registry.GetProviderByName(providerName);
+            if (provider != null)
+                return (provider, upstreamModelId);
+        }
+
+        // 无前缀或提供方不存在，回退到 GetProviderByModel
+        var fallbackProvider = _registry.GetProviderByModel(modelName);
+        return (fallbackProvider, modelName);
     }
 
     private UnifiedChatRequest ConvertToUnifiedRequest(OpenAIResponseRequest request)

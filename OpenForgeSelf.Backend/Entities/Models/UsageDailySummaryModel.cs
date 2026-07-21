@@ -36,7 +36,7 @@ public partial class UsageDailySummaryModel
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IUsageDailySummary model)
+    public void Copy(IUsageDailySummaryModel model)
     {
         Id = model.Id;
         Date = model.Date;

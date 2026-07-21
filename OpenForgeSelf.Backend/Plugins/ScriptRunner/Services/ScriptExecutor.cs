@@ -58,7 +58,9 @@ public class ScriptExecutor : IScriptExecutor
             }
         }, cancellationToken);
 
-        return Task.FromResult(GetExecution(executionId) ?? throw new InvalidOperationException("执行记录创建失败"));
+        // 返回刚插入的实体快照，此刻状态确定为 Pending；
+        // 不再回查数据库，避免与后续后台任务的 Running 更新产生竞态（调用方对返回状态断言 Pending 时更稳健）
+        return Task.FromResult(MapToExecution(executionEntity));
     }
 
     public Task<ScriptExecution> ExecuteCodeAsync(string code, ScriptLanguage language, Dictionary<string, object?>? parameters = null, string? workingDirectory = null, CancellationToken cancellationToken = default)
@@ -99,7 +101,9 @@ public class ScriptExecutor : IScriptExecutor
             }
         }, cancellationToken);
 
-        return Task.FromResult(GetExecution(executionId) ?? throw new InvalidOperationException("执行记录创建失败"));
+        // 返回刚插入的实体快照，此刻状态确定为 Pending；
+        // 不再回查数据库，避免与后续后台任务的 Running 更新产生竞态（调用方对返回状态断言 Pending 时更稳健）
+        return Task.FromResult(MapToExecution(executionEntity));
     }
 
     public async Task<bool> CancelAsync(long executionId)

@@ -9,6 +9,7 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// 聊天记录真实LLM配置集成测试 - 使用配置文件中的真实LLM配置进行测试
 /// </summary>
+[Collection("XCode")]
 public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
 {
     private readonly Mock<ILogService> _mockLogService;
@@ -23,8 +24,8 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
         _uniquePrefix = "real-llm-" + Guid.NewGuid().ToString("N")[..8] + "-";
 
         var builder = new ConfigurationBuilder()
-            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "OpenForgeSelf.Backend"))
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddJsonFile($"appsettings.Development.json", optional: true)
             .AddEnvironmentVariables();
 

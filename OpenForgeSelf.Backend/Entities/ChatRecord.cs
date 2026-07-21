@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Serialization;
@@ -13,15 +13,15 @@ using XCode.DataAccessLayer;
 
 namespace OpenForgeSelf.Backend.Entities;
 
-/// <summary>聊天记录。</summary>
+/// <summary>{name}。</summary>
 [Serializable]
 [DataObject]
-[Description("聊天记录。")]
+[Description("{name}。")]
 [BindIndex("IX_ChatRecord_SessionId", false, "SessionId")]
 [BindIndex("IX_ChatRecord_CreatedTime", false, "CreatedTime")]
 [BindIndex("IX_ChatRecord_Style", false, "Style")]
 [BindTable("ChatRecord", Description = "聊天记录", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
+public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 {
     #region 属性
     private Int64 _Id;
@@ -36,15 +36,15 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>会话ID</summary>
     [DisplayName("会话ID")]
     [Description("会话ID")]
-    [DataObjectField(false, false, false, 50)]
-    [BindColumn("SessionId", "会话ID", "", Master = true)]
+    [DataObjectField(false, false, true, 50)]
+    [BindColumn("SessionId", "会话ID", "")]
     public String SessionId { get => _SessionId; set { if (OnPropertyChanging("SessionId", value)) { _SessionId = value; OnPropertyChanged("SessionId"); } } }
 
     private String _Style;
     /// <summary>API风格</summary>
     [DisplayName("API风格")]
-    [Description("API风格：OpenAI_Chat / OpenAI_Responses / Anthropic_Messages")]
-    [DataObjectField(false, false, false, 30)]
+    [Description("API风格")]
+    [DataObjectField(false, false, true, 30)]
     [BindColumn("Style", "API风格", "")]
     public String Style { get => _Style; set { if (OnPropertyChanging("Style", value)) { _Style = value; OnPropertyChanged("Style"); } } }
 
@@ -52,7 +52,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>模型名称</summary>
     [DisplayName("模型名称")]
     [Description("模型名称")]
-    [DataObjectField(false, false, false, 100)]
+    [DataObjectField(false, false, true, 100)]
     [BindColumn("Model", "模型名称", "")]
     public String Model { get => _Model; set { if (OnPropertyChanging("Model", value)) { _Model = value; OnPropertyChanged("Model"); } } }
 
@@ -60,7 +60,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>请求方法</summary>
     [DisplayName("请求方法")]
     [Description("请求方法")]
-    [DataObjectField(false, false, false, 20)]
+    [DataObjectField(false, false, true, 20)]
     [BindColumn("RequestMethod", "请求方法", "")]
     public String RequestMethod { get => _RequestMethod; set { if (OnPropertyChanging("RequestMethod", value)) { _RequestMethod = value; OnPropertyChanged("RequestMethod"); } } }
 
@@ -68,7 +68,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>请求路径</summary>
     [DisplayName("请求路径")]
     [Description("请求路径")]
-    [DataObjectField(false, false, false, 200)]
+    [DataObjectField(false, false, true, 200)]
     [BindColumn("RequestPath", "请求路径", "")]
     public String RequestPath { get => _RequestPath; set { if (OnPropertyChanging("RequestPath", value)) { _RequestPath = value; OnPropertyChanged("RequestPath"); } } }
 
@@ -76,15 +76,15 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>请求头JSON</summary>
     [DisplayName("请求头JSON")]
     [Description("请求头JSON")]
-    [DataObjectField(false, false, false, 1000)]
+    [DataObjectField(false, false, true, 1000)]
     [BindColumn("RequestHeaders", "请求头JSON", "")]
     public String RequestHeaders { get => _RequestHeaders; set { if (OnPropertyChanging("RequestHeaders", value)) { _RequestHeaders = value; OnPropertyChanged("RequestHeaders"); } } }
 
     private String _RequestBody;
     /// <summary>请求体JSON</summary>
     [DisplayName("请求体JSON")]
-    [Description("请求体JSON（完整）")]
-    [DataObjectField(false, false, false, 8000)]
+    [Description("请求体JSON")]
+    [DataObjectField(false, false, true, 8000)]
     [BindColumn("RequestBody", "请求体JSON", "")]
     public String RequestBody { get => _RequestBody; set { if (OnPropertyChanging("RequestBody", value)) { _RequestBody = value; OnPropertyChanged("RequestBody"); } } }
 
@@ -100,15 +100,15 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>响应头JSON</summary>
     [DisplayName("响应头JSON")]
     [Description("响应头JSON")]
-    [DataObjectField(false, false, false, 1000)]
+    [DataObjectField(false, false, true, 1000)]
     [BindColumn("ResponseHeaders", "响应头JSON", "")]
     public String ResponseHeaders { get => _ResponseHeaders; set { if (OnPropertyChanging("ResponseHeaders", value)) { _ResponseHeaders = value; OnPropertyChanged("ResponseHeaders"); } } }
 
     private String _ResponseBody;
     /// <summary>响应体JSON</summary>
     [DisplayName("响应体JSON")]
-    [Description("响应体JSON（完整）")]
-    [DataObjectField(false, false, false, 8000)]
+    [Description("响应体JSON")]
+    [DataObjectField(false, false, true, 8000)]
     [BindColumn("ResponseBody", "响应体JSON", "")]
     public String ResponseBody { get => _ResponseBody; set { if (OnPropertyChanging("ResponseBody", value)) { _ResponseBody = value; OnPropertyChanged("ResponseBody"); } } }
 
@@ -124,7 +124,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     /// <summary>最大token</summary>
     [DisplayName("最大token")]
     [Description("最大token")]
-    [DataObjectField(false, false, false, 0)]
+    [DataObjectField(false, false, true, 0)]
     [BindColumn("MaxTokens", "最大token", "")]
     public Int32 MaxTokens { get => _MaxTokens; set { if (OnPropertyChanging("MaxTokens", value)) { _MaxTokens = value; OnPropertyChanged("MaxTokens"); } } }
 
@@ -172,7 +172,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IChatRecord model)
+    public void Copy(IChatRecordModel model)
     {
         Id = model.Id;
         SessionId = model.SessionId;
@@ -263,7 +263,7 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -279,9 +279,46 @@ public partial class ChatRecord : IChatRecord, IEntity<IChatRecord>
         if (sessionId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
 
         return FindAll(_.SessionId == sessionId);
+    }
+
+    /// <summary>根据API风格查找</summary>
+    /// <param name="style">API风格</param>
+    /// <returns>实体列表</returns>
+    public static IList<ChatRecord> FindAllByStyle(String style)
+    {
+        if (style.IsNullOrEmpty()) return [];
+
+        // 实体缓存
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Style.EqualIgnoreCase(style));
+
+        return FindAll(_.Style == style);
+    }
+    #endregion
+
+    #region 高级查询
+    /// <summary>高级查询</summary>
+    /// <param name="sessionId">会话ID</param>
+    /// <param name="style">API风格</param>
+    /// <param name="hasReasoning">是否有reasoning</param>
+    /// <param name="start">创建时间开始</param>
+    /// <param name="end">创建时间结束</param>
+    /// <param name="key">关键字</param>
+    /// <param name="page">分页参数信息。可携带统计和数据权限扩展查询等信息</param>
+    /// <returns>实体列表</returns>
+    public static IList<ChatRecord> Search(String sessionId, String style, Boolean? hasReasoning, DateTime start, DateTime end, String key, PageParameter page)
+    {
+        var exp = new WhereExpression();
+
+        if (!sessionId.IsNullOrEmpty()) exp &= _.SessionId == sessionId;
+        if (!style.IsNullOrEmpty()) exp &= _.Style == style;
+        if (hasReasoning != null) exp &= _.HasReasoning == hasReasoning;
+        exp &= _.CreatedTime.Between(start, end);
+        if (!key.IsNullOrEmpty()) exp &= SearchWhereByKeys(key);
+
+        return FindAll(exp, page);
     }
     #endregion
 

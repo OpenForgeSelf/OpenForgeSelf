@@ -1,45 +1,38 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Data;
+using Microsoft.Extensions.Configuration;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
+using XCode;
+using XCode.DataAccessLayer;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;
 
 /// <summary>
 /// ChatController集成测试
 /// </summary>
-public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+[Collection("XCode")]
+public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
     private HttpClient _client;
-    private OpenForgeSelfDbContext _dbContext = null!;
-    private readonly string _testDatabaseName;
+    private readonly string _tempDbDir;
 
     public ChatControllerIntegrationTests(WebApplicationFactory<Program> factory)
     {
-        _testDatabaseName = $"TestDb_{Guid.NewGuid():N}";
+        _tempDbDir = Path.Combine(Path.GetTempPath(), $"OpenForgeSelfChat_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDbDir);
+        var openForgeDb = Path.Combine(_tempDbDir, "OpenForgeSelf.db");
+
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                // 移除原有的DbContext配置
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<OpenForgeSelfDbContext>));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                // 添加内存数据库
-                services.AddDbContext<OpenForgeSelfDbContext>(options =>
-                    options.UseInMemoryDatabase(_testDatabaseName));
-
                 // 替换AIService为模拟服务
                 var aiDescriptor = services.SingleOrDefault(
                     d => d.ServiceType == typeof(IAIService));
@@ -48,31 +41,32 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
                     services.Remove(aiDescriptor);
                 }
 
-                // 注册模拟的AIService
-                services.AddSingleton<IAIService>(provider =>
-                {
-                    var mockAIService = new MockAIService();
-                    return mockAIService;
-                });
+                services.AddSingleton<IAIService>(_ => new MockAIService());
             });
 
-            // 配置环境为测试环境，禁用Swagger
             builder.UseEnvironment("Testing");
         });
 
         _client = _factory.CreateClient();
+
+        // 隔离 XCode 的 OpenForgeSelf 连接到临时库：
+        // 先触发宿主构建（AddXCode 此时已按配置/物理库注册连接），再覆盖为临时库，
+        // 避免聊天消息写入/读取落到持久库（历史数据污染、跨运行串扰）。
+        var _ = _factory.Services;
+        DAL.AddConnStr("OpenForgeSelf", $"Data Source={openForgeDb}", null, "SQLite");
+        EntityFactory.InitConnection("OpenForgeSelf");
     }
 
-    public async Task InitializeAsync()
+    public void Dispose()
     {
-        var scope = _factory.Services.CreateScope();
-        _dbContext = scope.ServiceProvider.GetRequiredService<OpenForgeSelfDbContext>();
-        await _dbContext.Database.EnsureCreatedAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _dbContext.Database.EnsureDeletedAsync();
+        try
+        {
+            if (Directory.Exists(_tempDbDir)) Directory.Delete(_tempDbDir, true);
+        }
+        catch
+        {
+            // 临时目录清理失败不影响测试
+        }
     }
 
     /// <summary>
@@ -213,8 +207,10 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
     public async Task GetHistory_WithValidSessionId_ShouldReturnMessages()
     {
         // Arrange
-        var sessionId = "history-test-session-" + Guid.NewGuid().ToString("N");
-        
+        // 使用合法的会话ID（≤50字符，与生产中 Guid.NewGuid().ToString("N") 风格一致），
+        // 避免超过 ChatMessage.SessionId 的字符长度限制导致插入失败（500）
+        var sessionId = "history-" + Guid.NewGuid().ToString("N")[..16];
+
         // 先发送一些消息
         await _client.PostAsync("/api/chat", CreateChatRequest("消息1", sessionId));
         await _client.PostAsync("/api/chat", CreateChatRequest("消息2", sessionId));
@@ -268,7 +264,7 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
     {
         // Arrange
         var sessionId = "limit-test-session";
-        
+
         // 发送多条消息
         for (int i = 0; i < 5; i++)
         {
@@ -300,11 +296,16 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        var messages = await _dbContext.ChatMessages
-            .Where(m => m.SessionId == sessionId)
-            .ToListAsync();
-        messages.Should().BeEmpty();
+
+        // 经历史接口验证消息已被删除（避免依赖 EF 内存库等无关实现）
+        var historyResponse = await _client.GetAsync($"/api/chat/history/{sessionId}");
+        var historyContent = await historyResponse.Content.ReadAsStringAsync();
+        var history = JsonSerializer.Deserialize<List<ChatResponse>>(historyContent, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        history.Should().NotBeNull();
+        history!.Should().BeEmpty();
     }
 
     [Fact]
@@ -368,7 +369,7 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var content = await response.Content.ReadAsStringAsync();
         var chatResponse = JsonSerializer.Deserialize<ChatResponse>(content, new JsonSerializerOptions
         {

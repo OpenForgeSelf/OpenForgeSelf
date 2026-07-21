@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using OpenForgeSelf.Backend.Data;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
@@ -9,14 +11,18 @@ using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Services;
 using OpenForgeSelf.Backend.Plugins.TextTools.Services;
+using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
 using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
 using OpenForgeSelf.Backend.Services;
+using Scalar.AspNetCore;
+using OpenForgeSelf.Backend.Security;
 using OpenForgeSelf.Backend.Services.AI;
 using OpenForgeSelf.Backend.Services.AI.Models;
 using OpenForgeSelf.Backend.Services.AI.Providers;
 using OpenForgeSelf.Backend.Services.Mcp;
 using OpenForgeSelf.Backend.Services.Skills;
 using OpenForgeSelf.Backend.Services.UsageStats;
+using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 using SchedulerTaskScheduler = OpenForgeSelf.Backend.Plugins.Scheduler.Services.TaskScheduler;
 using DevEncodingService = OpenForgeSelf.Backend.Plugins.DevTools.Services.EncodingService;
@@ -52,6 +58,25 @@ builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 
+// 注册 OpenAPI 文档生成服务（003-api-server-settings converge）
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+        {
+            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            In = Microsoft.OpenApi.ParameterLocation.Header,
+            BearerFormat = "sk-...",
+            Description = "输入你的 API 密钥（格式：sk-...）"
+        };
+        return Task.CompletedTask;
+    });
+});
+
 builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
 builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
 builder.Services.AddSingleton<IMcpService, McpService>();
@@ -69,6 +94,7 @@ builder.Services.AddScoped<IChatRecordService, ChatRecordService>();
 builder.Services.AddScoped<IMemoryService, MemoryServiceXCode>();
 builder.Services.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
 builder.Services.AddScoped<IQuickLinkService, QuickLinkService>();
+builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ISchedulerService, SchedulerService>();
 builder.Services.AddSingleton<ITaskScheduler, SchedulerTaskScheduler>();
 builder.Services.AddSingleton<WorkflowTaskHandler>();
@@ -124,31 +150,30 @@ builder.Services.AddScoped<ITextFormatterService, TextFormatterService>();
 builder.Services.AddScoped<ITextEncodingService, TextEncodingService>();
 builder.Services.AddScoped<ITextHashService, TextHashService>();
 
-// AI 网关服务
-builder.Services.AddSingleton<AIProviderRegistry>(sp =>
+// AI Provider 配置数据库化（001-ai-provider-config-db）
+builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
+builder.Services.AddScoped<IAIProviderRepository, AIProviderRepository>();
+builder.Services.AddScoped<IAIProviderService, AIProviderService>();
+builder.Services.AddScoped<IAIModelService, AIModelService>();
+
+// API 服务器密钥管理（003-api-server-settings）
+builder.Services.AddSingleton<ApiServerKeyService>();
+
+// Bearer API 密钥认证（003-api-server-settings）
+builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName, null);
+builder.Services.AddAuthorization(options =>
 {
-    var configService = sp.GetRequiredService<IConfigurationService>();
-    var registry = new AIProviderRegistry();
-
-    var providerConfigs = configService.GetAIProviderConfigs();
-    foreach (var config in providerConfigs)
+    options.AddPolicy("ApiKeyPolicy", policy =>
     {
-        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-        var httpClient = httpClientFactory.CreateClient();
-
-        IAIProvider provider = config.ProviderType switch
-        {
-            AIProviderType.OpenAI => new OpenAICompatibleProvider(config, httpClient),
-            AIProviderType.Anthropic => new OpenAICompatibleProvider(config, httpClient),
-            _ => new OpenAICompatibleProvider(config, httpClient)
-        };
-
-        registry.RegisterProvider(provider);
-    }
-
-    XTrace.Log.Info("AI 提供者注册表初始化完成，共 {0} 个提供者", providerConfigs.Count);
-    return registry;
+        policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
+        policy.RequireAuthenticatedUser();
+    });
 });
+
+// AI 网关服务：注册表单例初始为空，启动阶段从数据库重载（见 InitializeXCodeDatabase 之后）
+builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
 
 builder.Services.AddPluginManager();
 
@@ -177,11 +202,57 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// 003-api-server-settings converge：注册 OpenAPI 端点 + Scalar UI 供前端「API 文档」按钮使用
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
+{
+    options.WithTitle("OpenForgeSelf API 参考");
+    options.WithTheme(ScalarTheme.Purple);
+    options.WithDarkModeToggle(true);
+    options.AddPreferredSecuritySchemes("Bearer");
+    options.AddHttpAuthentication("Bearer", auth =>
+    {
+        auth.Token = "";
+    });
+});
+
 if (!app.Environment.IsEnvironment("Testing"))
 {
     app.InitializeXCodeDatabase(app.Environment);
     
     XTrace.Log.Info("数据库初始化完成");
+}
+
+// US2/US3：数据库就绪后，从 DB 加载 AI 提供方到网关；
+// 若 DB 为空，则从文件配置（ConfigurationService）播种一条默认提供方。
+try
+{
+    using var seedScope = app.Services.CreateScope();
+    var providerService = seedScope.ServiceProvider.GetRequiredService<IAIProviderService>();
+    var configService = seedScope.ServiceProvider.GetRequiredService<IConfigurationService>();
+    providerService.EnsureSeeded(configService.GetAIProviderConfigs());
+
+    var registry = seedScope.ServiceProvider.GetRequiredService<AIProviderRegistry>();
+    var httpClientFactory = seedScope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
+    registry.ReloadAsync(httpClientFactory, providerService.GetAllConfigs()).GetAwaiter().GetResult();
+    XTrace.Log.Info("AI 网关已从数据库加载提供方配置");
+}
+catch (Exception ex)
+{
+    XTrace.Log.Error("启动时加载 AI 提供方配置失败: {0}", ex.Message);
+}
+
+// API 服务器密钥（003-api-server-settings）：首次启动自动生成密钥并加密存储
+try
+{
+    using var keyScope = app.Services.CreateScope();
+    var keyService = keyScope.ServiceProvider.GetRequiredService<ApiServerKeyService>();
+    keyService.EnsureApiKeySeeded();
+    XTrace.Log.Info("API 服务器密钥已就绪");
+}
+catch (Exception ex)
+{
+    XTrace.Log.Error("API 服务器密钥播种失败: {0}", ex.Message);
 }
 
 try

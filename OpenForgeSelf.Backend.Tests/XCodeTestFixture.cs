@@ -11,7 +11,7 @@ namespace OpenForgeSelf.Backend.Tests;
 public class XCodeTestFixture : IDisposable
 {
     private readonly string _dbDir;
-    private readonly string[] _connNames = new[]
+    private static readonly string[] _connNames = new[]
     {
         "OpenForgeSelf",
         "MemorySystem",
@@ -39,35 +39,24 @@ public class XCodeTestFixture : IDisposable
         EnsureTablesCreated();
     }
 
+    /// <summary>
+    /// 注册连接串后，为每个连接名主动建表（反向工程）。
+    /// 用 <see cref="EntityFactory.InitConnection"/> 触发该连接名下所有实体的建表，
+    /// 避免测试运行期出现 "no such table" 错误。
+    /// 依据 DeepWiki（NewLifeX/NewLife.XCode）：InitConnection 会获取该连接的 DAL 实例，
+    /// 在 Migration 开启时调用 dal.SetTables(...) 创建/更新所有关联实体表。
+    /// </summary>
     private static void EnsureTablesCreated()
     {
-        var entityTypes = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic)
-            .SelectMany(a =>
-            {
-                try { return a.GetTypes(); }
-                catch { return Type.EmptyTypes; }
-            })
-            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(EntityBase)))
-            .ToList();
-
-        foreach (var entityType in entityTypes)
+        foreach (var connName in _connNames)
         {
             try
             {
-                var metaProp = entityType.GetProperty("Meta", BindingFlags.Static | BindingFlags.Public);
-                if (metaProp != null)
-                {
-                    var meta = metaProp.GetValue(null);
-                    if (meta != null)
-                    {
-                        var createTableMethod = meta.GetType().GetMethod("CreateTable", Type.EmptyTypes);
-                        createTableMethod?.Invoke(meta, null);
-                    }
-                }
+                EntityFactory.InitConnection(connName);
             }
             catch
             {
+                // 个别连接名可能暂无关联实体，忽略
             }
         }
     }

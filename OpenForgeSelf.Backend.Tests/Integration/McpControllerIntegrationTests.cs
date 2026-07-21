@@ -10,6 +10,7 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// McpController 集成测试
 /// </summary>
+[Collection("XCode")]
 public class McpControllerIntegrationTests : IClassFixture<XCodeTestFixture>
 {
     private readonly McpController _controller;

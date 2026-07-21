@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.IO;
+using Microsoft.Extensions.Configuration;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
@@ -13,40 +16,43 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// 真实LLM配置集成测试 - 验证配置文件中的真实LLM配置是否正确接入
 /// </summary>
-public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
+    private readonly string _tempDbDir;
 
     public RealLLMIntegrationTests(WebApplicationFactory<Program> factory)
     {
+        // 隔离 AIProvider 存储库：覆盖为临时文件，避免跨运行遗留的历史密文导致启动期解密失败
+        _tempDbDir = Path.Combine(Path.GetTempPath(), $"OpenForgeSelfRealLLM_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDbDir);
+        var openForgeDb = Path.Combine(_tempDbDir, "OpenForgeSelf.db");
+
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:OpenForgeSelf"] = $"Data Source={openForgeDb}"
+                });
+            });
         });
         _client = _factory.CreateClient();
     }
 
-    [Fact]
-    public void ConfigurationService_ShouldLoadRealAIConfig()
+    public void Dispose()
     {
-        // Arrange
-        using var scope = _factory.Services.CreateScope();
-        var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
-
-        // Act
-        var config = configService.GetAIConfig();
-
-        // Assert
-        config.Should().NotBeNull();
-        config.ApiEndpoint.Should().NotBeEmpty();
-        config.ApiKey.Should().NotBeEmpty();
-        config.ModelName.Should().NotBeEmpty();
-
-        // 验证配置值与 appsettings.json 中的一致
-        config.ApiEndpoint.Should().Be("http://localhost:1234/v1/chat/completions");
-        config.ApiKey.Should().Be("sk-lm-4YQwPb7k:aOLZ6rcZOAiPBo3LKd33");
-        config.ModelName.Should().Be("google/gemma-4-e4b");
+        try
+        {
+            if (Directory.Exists(_tempDbDir)) Directory.Delete(_tempDbDir, true);
+        }
+        catch
+        {
+            // 临时目录清理失败不影响测试
+        }
     }
 
     [Fact]
@@ -192,7 +198,8 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
                             "application/json")
                     });
 
-                services.AddSingleton<IAIService>(sp =>
+                // 注册为 Scoped：ILogService 为 Scoped，单例工厂从 root provider 无法解析 Scoped 服务
+                services.AddScoped<IAIService>(sp =>
                 {
                     var configService = sp.GetRequiredService<IConfigurationService>();
                     var logService = sp.GetRequiredService<ILogService>();

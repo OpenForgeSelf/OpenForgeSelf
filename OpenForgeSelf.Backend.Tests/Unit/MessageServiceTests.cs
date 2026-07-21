@@ -3,6 +3,7 @@ using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 
+[Collection("XCode")]
 public class MessageServiceTests : IClassFixture<XCodeTestFixture>
 {
     private readonly Mock<ILogService> _mockLogService;

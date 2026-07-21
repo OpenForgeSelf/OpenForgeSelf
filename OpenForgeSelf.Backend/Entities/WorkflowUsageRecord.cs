@@ -24,7 +24,7 @@ namespace OpenForgeSelf.Backend.Entities;
 [BindIndex("IX_WorkflowUsageRecord_WorkflowId_StartTime", false, "WorkflowId,StartTime")]
 [BindIndex("IX_WorkflowUsageRecord_Status_StartTime", false, "Status,StartTime")]
 [BindTable("WorkflowUsageRecord", Description = "工作流使用记录", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkflowUsageRecord>
+public partial class WorkflowUsageRecord : IWorkflowUsageRecordModel, IEntity<IWorkflowUsageRecordModel>
 {
     #region 属性
     private Int64 _Id;
@@ -151,7 +151,7 @@ public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkfl
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IWorkflowUsageRecord model)
+    public void Copy(IWorkflowUsageRecordModel model)
     {
         Id = model.Id;
         WorkflowId = model.WorkflowId;
@@ -233,7 +233,7 @@ public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkfl
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -249,7 +249,7 @@ public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkfl
         if (workflowId < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.WorkflowId == workflowId);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.WorkflowId == workflowId);
 
         return FindAll(_.WorkflowId == workflowId);
     }
@@ -262,7 +262,7 @@ public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkfl
         if (executionId < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.ExecutionId == executionId);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ExecutionId == executionId);
 
         return FindAll(_.ExecutionId == executionId);
     }
@@ -275,7 +275,7 @@ public partial class WorkflowUsageRecord : IWorkflowUsageRecord, IEntity<IWorkfl
         if (status < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Status == status);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Status == status);
 
         return FindAll(_.Status == status);
     }

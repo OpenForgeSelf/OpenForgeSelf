@@ -104,7 +104,9 @@ public class UsageStatsService : IUsageStatsService
             };
 
             var items = XCodeUsageRecord.FindAll(exp, pageParam);
-            var total = (int)pageParam.TotalCount;
+            // 显式 COUNT 取总数：pageParam.TotalCount 在部分 XCode 分页路径下不回填，
+            // 用 FindCount 保证总数准确且与实体缓存开关无关
+            var total = (int)XCodeUsageRecord.FindCount(exp);
 
             return Task.FromResult(new PagedResult<UsageRecord>
             {
@@ -743,7 +745,11 @@ public class UsageStatsService : IUsageStatsService
             UserAgent = entity.UserAgent,
             IpAddress = entity.IpAddress,
             DurationMs = entity.DurationMs,
-            Timestamp = entity.Timestamp,
+            // SQLite/XCode 读出 DateTime 时丢失 Kind（变为 Unspecified）；
+            // 写入侧始终用 DateTime.UtcNow，读出统一指定为 Utc，保证时间语义正确
+            Timestamp = entity.Timestamp.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(entity.Timestamp, DateTimeKind.Utc)
+                : entity.Timestamp.ToUniversalTime(),
             MetadataJson = entity.MetadataJson,
             WorkflowExecutionId = entity.WorkflowExecutionId > 0 ? entity.WorkflowExecutionId : null,
             StepId = entity.StepId

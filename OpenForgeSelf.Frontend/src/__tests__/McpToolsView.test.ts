@@ -79,10 +79,10 @@ function mountView() {
     global: {
       stubs: {
         Teleport: true,
-        ForgeSwitch: {
+        ElSwitch: {
           props: ['modelValue', 'disabled'],
-          emits: ['update:modelValue'],
-          template: '<div class="forge-switch-stub" :class="{ \'forge-switch-stub--on\': modelValue }" @click="$emit(\'update:modelValue\', !modelValue)">{{ modelValue ? \'ON\' : \'OFF\' }}</div>',
+          emits: ['change'],
+          template: '<div class="el-switch-stub" :class="{ \'el-switch-stub--on\': modelValue }" @click="$emit(\'change\', !modelValue)">{{ modelValue ? \'ON\' : \'OFF\' }}</div>',
         },
       },
     },
@@ -316,15 +316,15 @@ describe('McpToolsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const switches = wrapper.findAll('.forge-switch-stub')
+      const switches = wrapper.findAll('.el-switch-stub')
       expect(switches.length).toBe(3)
-      expect(switches[1].classes()).not.toContain('forge-switch-stub--on')
+      expect(switches[1].classes()).not.toContain('el-switch-stub--on')
 
       await switches[1].trigger('click')
       await flushPromises()
 
       expect(mcpApi.toggleTool).toHaveBeenCalledWith('tool_2')
-      expect(wrapper.findAll('.forge-switch-stub')[1].classes()).toContain('forge-switch-stub--on')
+      expect(wrapper.findAll('.el-switch-stub')[1].classes()).toContain('el-switch-stub--on')
       wrapper.unmount()
     })
   })

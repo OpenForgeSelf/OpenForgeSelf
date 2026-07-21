@@ -9,6 +9,7 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// SkillsController 集成测试
 /// </summary>
+[Collection("XCode")]
 public class SkillsControllerIntegrationTests : IClassFixture<XCodeTestFixture>
 {
     private readonly SkillsController _controller;

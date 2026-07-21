@@ -8,3 +8,18 @@ node_modules/
 XCode.config
 artifacts/
 forgeself-design/
+TestResults/
+
+# Playwright
+.playwright-browsers/
+OpenForgeSelf.Frontend/playwright-report/
+OpenForgeSelf.Frontend/test-results/
+.claude/
+.codegraph/
+.github/
+.vscode/settings.json 
+dist/
+screenshots/
+temp/
+auto-imports.d.ts
+TODO.md

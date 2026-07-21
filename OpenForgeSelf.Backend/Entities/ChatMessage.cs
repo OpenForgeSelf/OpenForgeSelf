@@ -21,7 +21,7 @@ namespace OpenForgeSelf.Backend.Entities;
 [BindIndex("IX_ChatMessage_CreateTime", false, "CreateTime")]
 [BindIndex("IX_ChatMessage_SessionId_CreateTime", false, "SessionId,CreateTime")]
 [BindTable("ChatMessage", Description = "聊天消息", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class ChatMessage : IChatMessage, IEntity<IChatMessage>
+public partial class ChatMessage : IChatMessageModel, IEntity<IChatMessageModel>
 {
     #region 属性
     private Int64 _Id;
@@ -76,7 +76,7 @@ public partial class ChatMessage : IChatMessage, IEntity<IChatMessage>
     #region 拷贝
     /// <summary>拷贝模型对象</summary>
     /// <param name="model">模型</param>
-    public void Copy(IChatMessage model)
+    public void Copy(IChatMessageModel model)
     {
         Id = model.Id;
         SessionId = model.SessionId;
@@ -131,7 +131,7 @@ public partial class ChatMessage : IChatMessage, IEntity<IChatMessage>
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -147,7 +147,7 @@ public partial class ChatMessage : IChatMessage, IEntity<IChatMessage>
         if (sessionId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
 
         return FindAll(_.SessionId == sessionId);
     }

@@ -1,42 +1,23 @@
-using System.Diagnostics;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Data;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
-using Microsoft.EntityFrameworkCore;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 
-public class ScriptRunnerTests : IDisposable
+[Collection("XCode")]
+public class ScriptRunnerTests : IClassFixture<XCodeTestFixture>
 {
-    private readonly string _testDbPath;
     private readonly Mock<IRuntimeDetector> _mockRuntimeDetector;
     private readonly ScriptExecutor _scriptExecutor;
 
-    public ScriptRunnerTests()
+    public ScriptRunnerTests(XCodeTestFixture fixture)
     {
-        _testDbPath = Path.Combine(Path.GetTempPath(), $"OpenForgeSelf_ScriptTest_{Guid.NewGuid():N}.db");
         _mockRuntimeDetector = new Mock<IRuntimeDetector>();
-        
-        using var dbContext = CreateDbContext();
-        dbContext.Database.EnsureCreated();
-        
-        // ScriptExecutor 只接受 IRuntimeDetector，使用 XCode 进行数据访问
-        _scriptExecutor = new ScriptExecutor(_mockRuntimeDetector.Object);
-    }
-    
-    private ScriptRunnerDbContext CreateDbContext()
-    {
-        var optionsBuilder = new DbContextOptionsBuilder<ScriptRunnerDbContext>();
-        optionsBuilder.UseSqlite($"Data Source={_testDbPath}");
-        return new ScriptRunnerDbContext(optionsBuilder.Options);
-    }
 
-    public void Dispose()
-    {
-        if (File.Exists(_testDbPath))
-        {
-            try { File.Delete(_testDbPath); } catch { }
-        }
+        // ScriptExecutor 通过 XCode 访问 ScriptRunner 连接；
+        // 复用 XCodeTestFixture 将 ScriptRunner 连接指向临时库并建表（走 XCode 而非 EF），
+        // 避免此前用 EF EnsureCreated 建到错误库导致 "no such table" 的脆弱写法
+        _scriptExecutor = new ScriptExecutor(_mockRuntimeDetector.Object);
     }
 
     #region ScriptExecutor - PowerShell Execution Tests

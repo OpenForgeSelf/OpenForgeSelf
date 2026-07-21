@@ -30,7 +30,9 @@ public partial class UsageRecord : Entity<UsageRecord>
 {
     #region 对象操作
     // 控制最大缓存数量，Find/FindAll查询方法在表行数小于该值时走实体缓存
-    private static Int32 MaxCacheCount = 1000;
+    // 统计/追加型表：高写入、需即时可见且分页查询依赖 pageParam.TotalCount；
+    // 实体缓存路径不回填 TotalCount、且会返回全量行忽略分页，故禁用全表缓存（设为 0）
+    private static Int32 MaxCacheCount = 0;
 
     static UsageRecord()
     {
@@ -139,7 +141,7 @@ public partial class UsageRecord : Entity<UsageRecord>
     #endregion
 
     #region 业务操作
-    public IUsageRecord ToModel()
+    public IUsageRecordModel ToModel()
     {
         var model = new UsageRecord();
         model.Copy(this);

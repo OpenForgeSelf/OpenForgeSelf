@@ -1,11 +1,17 @@
+using System.Net.Http;
+using Microsoft.Extensions.Http;
+using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services.AI.Models;
+using OpenForgeSelf.Backend.Services.AI.Providers;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Services.AI;
 
 public class AIProviderRegistry
 {
-    private readonly List<IAIProvider> _providers = new();
+    // 注意：非 readonly，重载时原子替换引用，保证进行中请求读到完整旧集合
+    private List<IAIProvider> _providers = new();
+    private readonly object _reloadLock = new();
 
     public AIProviderRegistry()
     {
@@ -24,10 +30,79 @@ public class AIProviderRegistry
             provider.ProviderName, provider.ProviderType, provider.SupportedModels.Count);
     }
 
+    /// <summary>
+    /// 从配置列表原子重载全部提供方。为每个配置经 <see cref="IHttpClientFactory"/> 构造
+    /// <see cref="OpenAICompatibleProvider"/>，加锁后引用替换内部集合，进行中请求不受影响。
+    /// 无 Endpoint 的配置不生效（与现有 ConfigurationService 行为一致）。
+    /// </summary>
+    /// <param name="httpClientFactory">HTTP 客户端工厂</param>
+    /// <param name="configs">运行期提供方配置（ApiKey 为明文）</param>
+    public Task ReloadAsync(IHttpClientFactory httpClientFactory, IReadOnlyList<AIProviderConfig> configs)
+    {
+        if (httpClientFactory == null) throw new System.ArgumentNullException(nameof(httpClientFactory));
+        if (configs == null) throw new System.ArgumentNullException(nameof(configs));
+
+        // 先构建新集合，再原子替换，避免重载过程中集合处于半初始化状态
+        var next = new List<IAIProvider>(configs.Count);
+        foreach (var cfg in configs)
+        {
+            if (string.IsNullOrWhiteSpace(cfg.Endpoint)) continue;
+            var httpClient = httpClientFactory.CreateClient();
+            next.Add(new OpenAICompatibleProvider(cfg, httpClient));
+        }
+
+        lock (_reloadLock)
+        {
+            _providers = next;
+        }
+
+        XTrace.Log.Info("AI 提供方注册表已重载，当前提供方数：{0}", _providers.Count);
+        return Task.CompletedTask;
+    }
+
     public IAIProvider? GetProviderByName(string name)
     {
         return _providers.FirstOrDefault(p =>
             p.ProviderName.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 按项目聊天模型 id（格式 <c>提供商:原始模型id</c>）定位提供方。
+    /// 取首个 ':' 之前的部分作为供应商名匹配，之后部分用于诊断。
+    /// 与 <see cref="GetProviderByModel"/> 并存：聊天接口可用此解析 <c>提供商:原始模型id</c> 格式。
+    /// 若该模型记录存在且被禁用（AIModel.Enabled=false），按 FR-013 不参与路由，返回 null。
+    /// </summary>
+    public IAIProvider? GetProviderByChatModelId(string chatModelId)
+    {
+        if (string.IsNullOrWhiteSpace(chatModelId)) return GetDefaultProvider();
+
+        var idx = chatModelId.IndexOf(':');
+        if (idx <= 0) return GetProviderByModel(chatModelId);
+
+        var providerName = chatModelId[..idx];
+        var upstreamModelId = chatModelId[(idx + 1)..];
+        var provider = GetProviderByName(providerName);
+        if (provider == null) return GetProviderByModel(chatModelId);
+
+        // FR-013：模型被禁用则不参与对话路由
+        if (!IsModelEnabled(providerName, upstreamModelId)) return null;
+
+        return provider;
+    }
+
+    /// <summary>
+    /// 判断某上游模型是否参与路由：库中存在且禁用 -> false；
+    /// 库中没有记录（走旧 SupportedModels 配置）或已启用 -> true（保持既有行为）。
+    /// </summary>
+    private static bool IsModelEnabled(string providerName, string upstreamModelId)
+    {
+        if (string.IsNullOrWhiteSpace(providerName) || string.IsNullOrWhiteSpace(upstreamModelId))
+            return true;
+
+        // 经 AIModel 实体查询（兼容小表实体缓存，避免热路径频繁打库）
+        var model = AIModel.FindByProviderNameAndUpstreamModelId(providerName, upstreamModelId);
+        // 无记录 -> 视为启用（兼容未拉取场景）；有记录则按其 Enabled 决定
+        return model == null || model.Enabled;
     }
 
     public IAIProvider? GetProviderByModel(string modelName)

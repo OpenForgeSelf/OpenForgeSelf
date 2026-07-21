@@ -74,6 +74,12 @@ public class UnifiedChatRequest
     public double TopP { get; set; } = 1.0;
     public int? MaxTokens { get; set; }
     public bool Stream { get; set; }
+
+    /// <summary>
+    /// 流式选项（如 include_usage），由客户端透传到上游
+    /// </summary>
+    public UnifiedStreamOptions? StreamOptions { get; set; }
+
     public List<UnifiedToolDefinition>? Tools { get; set; }
     public string? SystemPrompt { get; set; }
 
@@ -87,6 +93,11 @@ public class UnifiedChatRequest
     /// Anthropic 格式的多模态内容块（包含 type=image 而非 image_url）
     /// </summary>
     public List<ContentBlock>? OriginalContentBlocks { get; set; }
+}
+
+public class UnifiedStreamOptions
+{
+    public bool IncludeUsage { get; set; }
 }
 
 public class UnifiedToolDefinition

@@ -365,7 +365,7 @@ describe('SettingsView - Provider 模型集成（feature 004）', () => {
   })
 
   it('模型启停调用 toggleEnabled（API 层）', async () => {
-    fetchMock.mockImplementation(async (url: string, opts?: RequestInit) => {
+    fetchMock.mockImplementation(async (url: string, _opts?: RequestInit) => {
       if (String(url).includes('/enabled')) {
         return jsonResponse({ ...defaultModel(), enabled: false })
       }

@@ -202,7 +202,7 @@ describe('McpToolsView', () => {
       await servers[2].trigger('click')
       await flushPromises()
 
-      expect(wrapper.find('.search-input').element.value).toBe('')
+      expect((wrapper.find('.search-input').element as HTMLInputElement).value).toBe('')
       expect(wrapper.findAll('.filter-tab')[0].classes()).toContain('active')
       wrapper.unmount()
     })

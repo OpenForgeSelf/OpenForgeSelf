@@ -8,7 +8,7 @@ export interface ChatRecord {
   requestMethod: string
   requestPath: string
   requestHeaders: Record<string, string>
-  requestBody: unknown
+  requestBody: Record<string, any>
   responseStatus: number
   responseHeaders: Record<string, string>
   responseBody: unknown

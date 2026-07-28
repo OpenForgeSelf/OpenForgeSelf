@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useHomeStore } from '@/stores/home'
+import TodoEditDialog from '@/components/todo/TodoEditDialog.vue'
+import type { TodoCreateRequest, TodoItem, TodoUpdateRequest } from '@/types/todo'
 
 const router = useRouter()
 const homeStore = useHomeStore()
@@ -21,6 +23,30 @@ function submitQuickAsk() {
   if (!quickAskText.value.trim()) return
   router.push({ path: '/ai-agent', query: { q: quickAskText.value.trim() } })
   quickAskText.value = ''
+}
+
+// ===== 首页待办面板：快速添加 =====
+const todoDialogVisible = ref(false)
+
+function openTodoDialog() {
+  todoDialogVisible.value = true
+}
+
+async function handleTodoSubmit(payload: { id?: number; data: TodoCreateRequest | TodoUpdateRequest }): Promise<void> {
+  await homeStore.addTodo({
+    title: payload.data.title ?? '',
+    remark: payload.data.remark,
+    dueDate: payload.data.dueDate
+  })
+  todoDialogVisible.value = false
+}
+
+function handleTodoToggle(todo: TodoItem): void {
+  void homeStore.toggleTodo(todo.id)
+}
+
+function gotoTodoPage() {
+  router.push('/todo')
 }
 
 // 推荐动作
@@ -421,15 +447,62 @@ onUnmounted(() => {
           <section class="todo-panel">
             <div class="panel-header">
               <h2 class="panel-title">待办</h2>
+              <div class="panel-header-actions">
+                <button
+                  class="panel-action-btn"
+                  title="新建待办"
+                  aria-label="新建待办"
+                  @click="openTodoDialog"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  class="panel-action-btn panel-action-btn--link"
+                  title="查看全部"
+                  aria-label="查看全部待办"
+                  @click="gotoTodoPage"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="panel-body">
-              <div v-if="homeStore.todos.length === 0" class="empty-hint">暂无待办</div>
+              <div v-if="homeStore.recentTodos.length === 0" class="empty-hint">暂无待处理待办</div>
               <ul v-else class="todo-list">
-                <li v-for="todo in homeStore.todos" :key="todo.id" class="todo-item">
-                  <input v-model="todo.done" type="checkbox" class="todo-checkbox" />
-                  <span class="todo-text" :class="{ 'todo-text--done': todo.done }">{{ todo.text }}</span>
+                <li v-for="todo in homeStore.recentTodos" :key="todo.id" class="todo-item">
+                  <input
+                    type="checkbox"
+                    class="todo-checkbox"
+                    :checked="todo.status === 'Completed'"
+                    @change="handleTodoToggle(todo)"
+                  />
+                  <span class="todo-text" :class="{ 'todo-text--done': todo.status === 'Completed' }">{{ todo.title }}</span>
                 </li>
               </ul>
+              <div v-if="homeStore.todoPendingTotal > homeStore.recentTodos.length" class="panel-footer-link" @click="gotoTodoPage">
+                查看全部 {{ homeStore.todoPendingTotal }} 条 →
+              </div>
             </div>
           </section>
 
@@ -483,6 +556,14 @@ onUnmounted(() => {
         <span class="bottom-bar-clock">{{ currentTime }}</span>
       </div>
     </footer>
+
+    <!-- 首页快速添加待办弹窗 -->
+    <TodoEditDialog
+      :visible="todoDialogVisible"
+      :todo="null"
+      @update:visible="todoDialogVisible = $event"
+      @submit="handleTodoSubmit"
+    />
   </div>
 </template>
 
@@ -969,6 +1050,8 @@ onUnmounted(() => {
 .panel-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .panel-title {
@@ -976,6 +1059,56 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.panel-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast);
+}
+
+.panel-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.panel-action-btn:hover {
+  color: var(--primary-color);
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.panel-action-btn--link:hover {
+  color: var(--primary-color);
+}
+
+.panel-footer-link {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  cursor: pointer;
+  text-align: right;
+  transition: color var(--motion-fast);
+}
+
+.panel-footer-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
 }
 
 .panel-body {

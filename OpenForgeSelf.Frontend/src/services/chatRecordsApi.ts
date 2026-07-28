@@ -1,4 +1,4 @@
-import type { ChatRecord, ChatRecordSummary, ChatRecordsResponse } from '@/types/chatRecords'
+import type { ApiStyle, ChatRecord, ChatRecordSummary, ChatRecordsResponse } from '@/types/chatRecords'
 
 const API_BASE = '/api/chat-records'
 

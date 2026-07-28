@@ -180,6 +180,7 @@
         <Column Name="ChatModelId" DataType="String" Length="320" Nullable="False" Description="项目聊天模型id：提供商:原始模型id（复制按钮输出）" />
         <Column Name="Alias" DataType="String" Length="200" Description="显示别名/备注（用户可编辑）" />
         <Column Name="Capabilities" DataType="String" Length="500" Description="能力标签（逗号分隔，如 vision,stream，用户可编辑）" />
+        <Column Name="MaxContext" DataType="Int32" Description="最大上下文长度（token），0=未设置" />
         <Column Name="Enabled" DataType="Boolean" Description="是否启用（已启用/已禁用），默认启用" />
         <Column Name="Owner" DataType="String" Length="100" Description="上游返回的 owner/owned_by" />
         <Column Name="LastSyncTime" DataType="DateTime" Description="最近同步（拉取）时间" />
@@ -201,6 +202,24 @@
       </Columns>
       <Indexes>
         <Index Columns="IsActive" />
+      </Indexes>
+    </Table>
+    <Table Name="UpdateTrace" Description="更新操作记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" PrimaryKey="True" DataScale="time" Description="主键" AutoIncrement="true" />
+        <Column Name="PreVersion" DataType="String" Nullable="False" Description="更新前版本号" />
+        <Column Name="PostVersion" DataType="String" Description="更新后版本号" />
+        <Column Name="UpdateTime" DataType="DateTime" Nullable="False" Description="更新操作时间" />
+        <Column Name="Result" DataType="Int32" Description="结果状态：0=成功, 1=失败, 2=回滚" />
+        <Column Name="ErrorMessage" DataType="String" Length="500" Description="失败时的错误信息" />
+        <Column Name="RollbackVersion" DataType="String" Description="回滚到的版本号" />
+        <Column Name="DownloadUrl" DataType="String" Length="500" Description="更新包下载地址" />
+        <Column Name="PackageSize" DataType="Int64" Description="更新包大小" Default="0" />
+        <Column Name="DurationMs" DataType="Int64" Description="更新流程耗时(毫秒)" Default="0" />
+      </Columns>
+      <Indexes>
+        <Index Columns="UpdateTime" />
+        <Index Columns="Result" />
       </Indexes>
     </Table>
   </Tables>

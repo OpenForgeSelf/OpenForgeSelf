@@ -1,275 +1,268 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using OpenForgeSelf.Backend.Data;
-using OpenForgeSelf.Backend.Plugins;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.DevTools.Services;
-using OpenForgeSelf.Backend.Plugins.FileTools.Services;
-using OpenForgeSelf.Backend.Plugins.MemorySystem.Services;
-using OpenForgeSelf.Backend.Plugins.QuickLinks.Services;
-using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
-using OpenForgeSelf.Backend.Plugins.SystemMonitor.Services;
-using OpenForgeSelf.Backend.Plugins.TextTools.Services;
-using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
-using OpenForgeSelf.Backend.Services;
-using Scalar.AspNetCore;
-using OpenForgeSelf.Backend.Security;
-using OpenForgeSelf.Backend.Services.AI;
-using OpenForgeSelf.Backend.Services.AI.Models;
-using OpenForgeSelf.Backend.Services.AI.Providers;
-using OpenForgeSelf.Backend.Services.Mcp;
-using OpenForgeSelf.Backend.Services.Skills;
-using OpenForgeSelf.Backend.Services.UsageStats;
-using Microsoft.Extensions.DependencyInjection;
+using System.IO.Pipes;
+using System.Text;
+using NewLife.Agent;
 using NewLife.Log;
-using SchedulerTaskScheduler = OpenForgeSelf.Backend.Plugins.Scheduler.Services.TaskScheduler;
-using DevEncodingService = OpenForgeSelf.Backend.Plugins.DevTools.Services.EncodingService;
-using DevHashService = OpenForgeSelf.Backend.Plugins.DevTools.Services.HashService;
-using IDevEncodingService = OpenForgeSelf.Backend.Plugins.DevTools.Services.IEncodingService;
-using IDevHashService = OpenForgeSelf.Backend.Plugins.DevTools.Services.IHashService;
-using TextEncodingService = OpenForgeSelf.Backend.Plugins.TextTools.Services.EncodingService;
-using TextHashService = OpenForgeSelf.Backend.Plugins.TextTools.Services.HashService;
-using ITextEncodingService = OpenForgeSelf.Backend.Plugins.TextTools.Services.IEncodingService;
-using ITextHashService = OpenForgeSelf.Backend.Plugins.TextTools.Services.IHashService;
+using OpenForgeSelf.Backend;
+using OpenForgeSelf.Backend.Models;
+using OpenForgeSelf.Backend.Services;
+using System.Reflection;
+using System.Threading;
 
-var builder = WebApplication.CreateBuilder(args);
-
-XTrace.UseConsole();
-XTrace.Log.Level = NewLife.Log.LogLevel.Info;
-
-var connectionString = builder.Configuration.GetConnectionString("OpenForgeSelf") ?? "Data Source=Data\\OpenForgeSelf.db";
-XTrace.Log.Info("数据库连接字符串: {0}", connectionString);
-
-builder.Services.AddXCode(builder.Configuration);
-
-builder.Services.AddCors(options =>
+// 测试环境检测：WebApplicationFactory 调用入口点时，跳过 Mutex、服务和托盘逻辑，
+// 直接创建 WebApplication 让测试框架接管宿主生命周期。
+var entryAssembly = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+if (entryAssembly == "testhost" || entryAssembly == "testhost.exe")
 {
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+    var app = AppBuilder.CreateWebApplication(args);
+    app.Run();
+    return 0;
+}
 
-builder.Services.AddControllers();
-
-builder.Services.AddEndpointsApiExplorer();
-
-// 注册 OpenAPI 文档生成服务（003-api-server-settings converge）
-builder.Services.AddOpenApi(options =>
+// --tray 模式：服务模式下的托盘辅助进程，由 WindowsService 通过 CreateProcessAsUser 启动。
+// 此模式运行在用户会话中，通过命名管道与主服务通信，作为独立进程承载托盘图标。
+// 解决 Session 0 隔离问题：服务运行在 Session 0 无法直接显示 UI，需在用户会话中启动此进程。
+var trayArgIndex = Array.FindIndex(args, a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
+if (trayArgIndex >= 0)
 {
-    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    return RunTrayMode(args, trayArgIndex);
+}
+
+// 单实例保护：使用全局 Mutex 防止多实例冲突
+const string mutexName = @"Global\OpenForgeSelf-{B1C2D3E4-F5G6-7890-ABCD-EF1234567890}";
+using var mutex = new Mutex(true, mutexName, out var createdNew);
+if (!createdNew)
+{
+    Console.Error.WriteLine("错误：另一个实例已在运行，请勿重复启动。");
+    XTrace.Log.Error("另一个实例已在运行，退出。");
+    return 1;
+}
+
+// 解析命令行参数
+string? firstArg = args.Length > 0 ? args[0].ToLowerInvariant() : null;
+
+// install / uninstall 命令：安装或卸载 Windows 服务
+if (firstArg is "install" or "-install" or "--install")
+{
+    XTrace.Log.Info("正在安装 Windows 服务...");
+    new OpenForgeSelf.Backend.WindowsService().Main(args);
+    return 0;
+}
+
+if (firstArg is "uninstall" or "-uninstall" or "--uninstall")
+{
+    XTrace.Log.Info("正在卸载 Windows 服务...");
+    new OpenForgeSelf.Backend.WindowsService().Main(args);
+    return 0;
+}
+
+// --console 显式指定控制台调试模式
+if (firstArg == "--console")
+{
+    // 过滤掉 --console 参数，避免传递给 WebApplication
+    var consoleArgs = args.Where(a => !string.Equals(a, "--console", StringComparison.OrdinalIgnoreCase)).ToArray();
+    XTrace.UseConsole();
+    XTrace.Log.Level = NewLife.Log.LogLevel.Info;
+
+    var app = AppBuilder.CreateWebApplication(consoleArgs);
+    var trayIcon = StartTrayIcon(app);
+    app.Run();
+    trayIcon?.Hide();
+    return 0;
+}
+
+// 无参数：自动判断运行模式
+if (args.Length == 0)
+{
+    if (!Environment.UserInteractive)
     {
-        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
-        document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>();
-        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
+        // 服务模式：被 SCM 启动，委托给 NewLife.Agent 服务宿主
+        new OpenForgeSelf.Backend.WindowsService().Main(args);
+        return 0;
+    }
+
+    // 控制台调试模式：正常启动 WebApplication
+    XTrace.UseConsole();
+    XTrace.Log.Level = NewLife.Log.LogLevel.Info;
+
+    var app = AppBuilder.CreateWebApplication(args);
+    var trayIcon = StartTrayIcon(app);
+    app.Run();
+    trayIcon?.Hide();
+    return 0;
+}
+
+// 其他参数（如 -run, -start, -stop 等）委托给 NewLife.Agent 处理
+new OpenForgeSelf.Backend.WindowsService().Main(args);
+return 0;
+
+/// <summary>
+/// 托盘辅助进程入口点（--tray 模式）。
+/// 由 WindowsService 在服务模式下通过 <see cref="TrayProcessStarter"/> 启动到用户会话中。
+/// 解析 --pipe-name 和 --port 参数，创建 TrayIconManager 并通过命名管道与主服务通信。
+/// 当用户点击「退出」或收到主服务 shutdown 信号时退出。
+/// </summary>
+static int RunTrayMode(string[] args, int trayArgIndex)
+{
+    // 解析参数
+    var pipeName = "";
+    var port = 7102;
+
+    for (int i = trayArgIndex + 1; i < args.Length; i++)
+    {
+        if (args[i].Equals("--pipe-name", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            pipeName = args[++i];
+        else if (args[i].Equals("--port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            int.TryParse(args[++i], out port);
+    }
+
+    XTrace.UseConsole();
+    XTrace.Log.Level = NewLife.Log.LogLevel.Info;
+    XTrace.Log.Info("TrayMode: 托盘辅助进程启动 (pipe={0}, port={1})", pipeName, port);
+
+    // 创建 ServiceManager 用于菜单项
+    var serviceConfig = new ServiceConfig();
+    var serviceManager = new ServiceManager(serviceConfig);
+
+    // 创建 TrayIconManager（不依赖 DI 容器，直接构造）
+    using var trayIcon = new TrayIconManager(serviceManager, port);
+
+    // 标记退出信号
+    using var exitEvent = new ManualResetEventSlim(false);
+
+    // 配置回调
+    trayIcon.Configure(
+        onCheckUpdate: () =>
         {
-            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
-            Scheme = "bearer",
-            In = Microsoft.OpenApi.ParameterLocation.Header,
-            BearerFormat = "sk-...",
-            Description = "输入你的 API 密钥（格式：sk-...）"
-        };
-        return Task.CompletedTask;
-    });
-});
+            XTrace.Log.Info("TrayMode: 用户点击「检查更新」（由主服务处理）");
+        },
+        onExit: () =>
+        {
+            XTrace.Log.Info("TrayMode: 用户点击「退出」，托盘辅助进程退出");
+            exitEvent.Set();
+        });
 
-builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
-builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
-builder.Services.AddSingleton<IMcpService, McpService>();
-builder.Services.AddSingleton<ICronParser, CronParser>();
-builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
-builder.Services.AddHttpClient<IAIService, AIService>();
+    // 启动托盘图标
+    trayIcon.Show();
+    XTrace.Log.Info("TrayMode: 托盘图标已显示");
 
-builder.Services.AddScoped<ILogService, LogService>();
-builder.Services.AddScoped<IMessageService, MessageService>();
-builder.Services.AddScoped<IUsageStatsService, UsageStatsService>();
-builder.Services.AddScoped<IWorkflowUsageService, WorkflowUsageService>();
-builder.Services.AddScoped<IWorkflowRecommendationService, WorkflowRecommendationService>();
-builder.Services.AddScoped<IChatRecordService, ChatRecordService>();
-
-builder.Services.AddScoped<IMemoryService, MemoryServiceXCode>();
-builder.Services.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
-builder.Services.AddScoped<IQuickLinkService, QuickLinkService>();
-builder.Services.AddScoped<ITodoService, TodoService>();
-builder.Services.AddScoped<ISchedulerService, SchedulerService>();
-builder.Services.AddSingleton<ITaskScheduler, SchedulerTaskScheduler>();
-builder.Services.AddSingleton<WorkflowTaskHandler>();
-builder.Services.AddSingleton<HttpWebhookHandler>();
-builder.Services.AddSingleton<ITaskExecutor, TaskExecutor>();
-builder.Services.AddScoped<IScriptService, ScriptService>();
-builder.Services.AddScoped<IScriptExecutor, ScriptExecutor>();
-builder.Services.AddScoped<ICodeSnippetService, CodeSnippetService>();
-builder.Services.AddScoped<IWorkflowService, WorkflowService>();
-builder.Services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
-builder.Services.AddScoped<IWorkflowScheduler, WorkflowScheduler>();
-
-builder.Services.AddScoped<IAIAgentService, AIAgentService>();
-builder.Services.AddScoped<IPluginMessageService, PluginMessageService>();
-builder.Services.AddScoped<IAgentRegistryService, AgentRegistryService>();
-builder.Services.AddScoped<IAgentCoordinatorService, AgentCoordinatorService>();
-builder.Services.AddScoped<IAgentExecutorService, AgentExecutorService>();
-builder.Services.AddScoped<IProactivePlanningService, ProactivePlanningService>();
-builder.Services.AddScoped<IWorkflowPlannerService, WorkflowPlannerService>();
-builder.Services.AddScoped<IToolSelectorService, ToolSelectorService>();
-
-builder.Services.AddScoped<IScriptTemplateService, ScriptTemplateService>();
-
-// DevTools 插件服务
-builder.Services.AddScoped<IJsonFormatterService, JsonFormatterService>();
-builder.Services.AddScoped<IYamlFormatterService, YamlFormatterService>();
-builder.Services.AddScoped<IXmlFormatterService, XmlFormatterService>();
-builder.Services.AddScoped<global::OpenForgeSelf.Backend.Plugins.DevTools.Services.IEncodingService, global::OpenForgeSelf.Backend.Plugins.DevTools.Services.EncodingService>();
-builder.Services.AddScoped<global::OpenForgeSelf.Backend.Plugins.DevTools.Services.IHashService, global::OpenForgeSelf.Backend.Plugins.DevTools.Services.HashService>();
-builder.Services.AddScoped<IRegexService, RegexService>();
-builder.Services.AddScoped<ITimestampService, TimestampService>();
-builder.Services.AddScoped<IColorService, ColorService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IUuidService, UuidService>();
-builder.Services.AddScoped<IQrCodeService, QrCodeService>();
-
-// SystemMonitor 插件服务
-builder.Services.AddSingleton<ICpuMonitorService, CpuMonitorService>();
-builder.Services.AddSingleton<IMemoryMonitorService, MemoryMonitorService>();
-builder.Services.AddSingleton<IDiskMonitorService, DiskMonitorService>();
-builder.Services.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
-builder.Services.AddSingleton<IProcessMonitorService, ProcessMonitorService>();
-
-// FileTools 插件服务
-builder.Services.AddScoped<IFileStatsService, FileStatsService>();
-builder.Services.AddScoped<IArchiveService, ArchiveService>();
-builder.Services.AddScoped<ICleanupService, CleanupService>();
-builder.Services.AddScoped<IRenameService, RenameService>();
-
-// TextTools 插件服务
-builder.Services.AddScoped<ITextStatsService, TextStatsService>();
-builder.Services.AddScoped<ITextFormatterService, TextFormatterService>();
-builder.Services.AddScoped<ITextEncodingService, TextEncodingService>();
-builder.Services.AddScoped<ITextHashService, TextHashService>();
-
-// AI Provider 配置数据库化（001-ai-provider-config-db）
-builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
-builder.Services.AddScoped<IAIProviderRepository, AIProviderRepository>();
-builder.Services.AddScoped<IAIProviderService, AIProviderService>();
-builder.Services.AddScoped<IAIModelService, AIModelService>();
-
-// API 服务器密钥管理（003-api-server-settings）
-builder.Services.AddSingleton<ApiServerKeyService>();
-
-// Bearer API 密钥认证（003-api-server-settings）
-builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
-    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-        ApiKeyAuthenticationHandler.SchemeName, null);
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("ApiKeyPolicy", policy =>
+    // 连接到主服务的命名管道，监听 shutdown 信号
+    if (!string.IsNullOrEmpty(pipeName))
     {
-        policy.AuthenticationSchemes.Add(ApiKeyAuthenticationHandler.SchemeName);
-        policy.RequireAuthenticatedUser();
-    });
-});
+        Task.Run(async () =>
+        {
+            try
+            {
+                using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In);
+                await pipe.ConnectAsync(10000);
+                using var reader = new StreamReader(pipe, Encoding.UTF8);
 
-// AI 网关服务：注册表单例初始为空，启动阶段从数据库重载（见 InitializeXCodeDatabase 之后）
-builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
+                XTrace.Log.Info("TrayMode: 已连接到服务管道，等待信号...");
 
-builder.Services.AddPluginManager();
+                var message = await reader.ReadLineAsync();
+                if (message?.Trim().Equals("shutdown", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    XTrace.Log.Info("TrayMode: 收到主服务 shutdown 信号，退出");
+                    exitEvent.Set();
+                }
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("TrayMode: 管道连接失败或异常: {0}", ex.Message);
+            }
+        });
+    }
 
-builder.Services.AddSignalR();
-
-var app = builder.Build();
-
-var pluginManager = app.Services.GetRequiredService<PluginManager>();
-var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
-pluginManager.SetPluginsDirectory(pluginsPath);
-pluginManager.DiscoverPlugins();
-XTrace.Log.Info("已发现 {0} 个插件", pluginManager.LoadedPluginIds.Count());
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
+    // 等待退出信号（用户点击「退出」或服务发送 shutdown）
+    exitEvent.Wait();
+    trayIcon.Hide();
+    XTrace.Log.Info("TrayMode: 托盘辅助进程退出");
+    return 0;
 }
 
-app.UseCors("AllowAll");
-
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-// 003-api-server-settings converge：注册 OpenAPI 端点 + Scalar UI 供前端「API 文档」按钮使用
-app.MapOpenApi();
-app.MapScalarApiReference(options =>
+/// <summary>
+/// 在控制台模式下启动托盘图标管理器。
+/// 通过 DI 容器解析 ServiceManager 和 TrayIconManager，注册生命周期回调及更新检查，
+/// 在 STA 线程上启动托盘图标，并在后台触发启动时版本检查。
+/// </summary>
+/// <param name="app">已配置的 WebApplication 实例</param>
+/// <returns>TrayIconManager 实例，应用退出前应调用其 Hide() 方法</returns>
+static TrayIconManager? StartTrayIcon(WebApplication app)
 {
-    options.WithTitle("OpenForgeSelf API 参考");
-    options.WithTheme(ScalarTheme.Purple);
-    options.WithDarkModeToggle(true);
-    options.AddPreferredSecuritySchemes("Bearer");
-    options.AddHttpAuthentication("Bearer", auth =>
+    try
     {
-        auth.Token = "";
-    });
-});
+        var port = app.Configuration.GetValue<int>("Port", 7102);
 
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    app.InitializeXCodeDatabase(app.Environment);
-    
-    XTrace.Log.Info("数据库初始化完成");
+        // 从 DI 容器解析服务
+        var trayIconManager = app.Services.GetRequiredService<TrayIconManager>();
+        var updateService = app.Services.GetRequiredService<UpdateService>();
+
+        // 配置回调委托
+        trayIconManager.Configure(
+            onCheckUpdate: () =>
+            {
+                XTrace.Log.Info("TrayIconManager: 用户点击「检查更新」");
+                try
+                {
+                    var result = updateService.CheckForUpdatesAsync().GetAwaiter().GetResult();
+                    if (result.HasUpdate)
+                    {
+                        trayIconManager.ShowBalloonTip(
+                            "有新版本可用",
+                            $"版本 {result.LatestVersion} 已可用，请点击「检查更新」下载。",
+                            System.Windows.Forms.ToolTipIcon.Info);
+                    }
+                    else
+                    {
+                        trayIconManager.ShowBalloonTip(
+                            "已是最新版本",
+                            "当前已是最新版本。",
+                            System.Windows.Forms.ToolTipIcon.Info);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Error("检查更新失败: {0}", ex.Message);
+                }
+            },
+            onExit: () =>
+            {
+                XTrace.Log.Info("TrayIconManager: 用户点击「退出」，正在关闭应用...");
+                app.StopAsync().GetAwaiter().GetResult();
+            });
+
+        // 应用退出时清理托盘图标
+        var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+        lifetime.ApplicationStopping.Register(() => trayIconManager.Hide());
+
+        trayIconManager.Show();
+        XTrace.Log.Info("托盘图标已启动（端口: {0}）", port);
+
+        // 触发启动时更新检查（非阻塞，延迟 3 秒让应用完全就绪）
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(3000);
+                var result = await updateService.CheckForUpdatesAsync();
+                if (result.HasUpdate)
+                {
+                    trayIconManager.ShowBalloonTip(
+                        "发现新版本",
+                        $"版本 {result.LatestVersion} 已可用，请点击「检查更新」下载。",
+                        System.Windows.Forms.ToolTipIcon.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Error("启动时更新检查失败: {0}", ex.Message);
+            }
+        });
+
+        return trayIconManager;
+    }
+    catch (Exception ex)
+    {
+        XTrace.Log.Error("启动托盘图标失败: {0}", ex.Message);
+        return null;
+    }
 }
-
-// US2/US3：数据库就绪后，从 DB 加载 AI 提供方到网关；
-// 若 DB 为空，则从文件配置（ConfigurationService）播种一条默认提供方。
-try
-{
-    using var seedScope = app.Services.CreateScope();
-    var providerService = seedScope.ServiceProvider.GetRequiredService<IAIProviderService>();
-    var configService = seedScope.ServiceProvider.GetRequiredService<IConfigurationService>();
-    providerService.EnsureSeeded(configService.GetAIProviderConfigs());
-
-    var registry = seedScope.ServiceProvider.GetRequiredService<AIProviderRegistry>();
-    var httpClientFactory = seedScope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
-    registry.ReloadAsync(httpClientFactory, providerService.GetAllConfigs()).GetAwaiter().GetResult();
-    XTrace.Log.Info("AI 网关已从数据库加载提供方配置");
-}
-catch (Exception ex)
-{
-    XTrace.Log.Error("启动时加载 AI 提供方配置失败: {0}", ex.Message);
-}
-
-// API 服务器密钥（003-api-server-settings）：首次启动自动生成密钥并加密存储
-try
-{
-    using var keyScope = app.Services.CreateScope();
-    var keyService = keyScope.ServiceProvider.GetRequiredService<ApiServerKeyService>();
-    keyService.EnsureApiKeySeeded();
-    XTrace.Log.Info("API 服务器密钥已就绪");
-}
-catch (Exception ex)
-{
-    XTrace.Log.Error("API 服务器密钥播种失败: {0}", ex.Message);
-}
-
-try
-{
-    var taskScheduler = app.Services.GetRequiredService<ITaskScheduler>();
-    taskScheduler.StartAsync().Wait();
-    XTrace.Log.Info("任务调度器已启动");
-}
-catch (Exception ex)
-{
-    XTrace.Log.Error("启动任务调度器失败: {0}", ex.Message);
-}
-
-var port = builder.Configuration.GetValue<int>("Port", 7102);
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-XTrace.Log.Info("铸己匣 OpenForgeSelf 服务启动中...");
-XTrace.Log.Info("监听端口: {0}", port);
-
-app.Run();

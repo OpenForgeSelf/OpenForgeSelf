@@ -19,7 +19,8 @@ public class XCodeTestFixture : IDisposable
         "Scheduler",
         "ScriptRunner",
         "WorkflowEngine",
-        "AIAgent"
+        "AIAgent",
+        "TodoTracker"
     };
 
     public XCodeTestFixture()

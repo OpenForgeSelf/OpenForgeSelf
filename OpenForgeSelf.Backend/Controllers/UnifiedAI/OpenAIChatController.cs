@@ -6,6 +6,7 @@ using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.AI;
 using OpenForgeSelf.Backend.Services.AI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -13,6 +14,7 @@ namespace OpenForgeSelf.Backend.Controllers.UnifiedAI;
 
 [ApiController]
 [Route("v1")]
+[Authorize("ApiKeyPolicy")]
 public class OpenAIChatController : ControllerBase
 {
     private readonly AIProviderRegistry _registry;

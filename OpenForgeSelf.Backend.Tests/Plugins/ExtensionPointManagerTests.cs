@@ -1,7 +1,9 @@
 using System.Reflection;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;
 
@@ -254,6 +256,62 @@ public class ExtensionPointManagerTests
         var tools = _manager.GetExtensions<IToolFunctionExtension>().ToList();
         tools.Should().HaveCount(1);
         tools[0].Id.Should().Be("tool.test1");
+    }
+
+    [Fact]
+    public void DiscoverExtensionsFromPlugin_PluginWithToolExtensions_RegistersToToolRegistry()
+    {
+        // T032 验证：发现的工具扩展点须同步注册到全局 ToolRegistry
+        var toolRegistryMock = new Mock<IToolRegistry>();
+        var manager = new ExtensionPointManager(_pluginManager, toolRegistryMock.Object);
+
+        var plugin = new FakeToolPlugin
+        {
+            Id = "test.tool.plugin",
+            Name = "Test Tool Plugin"
+        };
+        plugin.AddToolExtension(new FakeToolFunctionExtension
+        {
+            Id = "tool.test1",
+            Name = "Test Tool 1",
+            PluginId = "test.tool.plugin"
+        });
+
+        InjectPluginIntoManager(plugin);
+
+        manager.DiscoverExtensionsFromPlugin("test.tool.plugin");
+
+        toolRegistryMock.Verify(
+            t => t.RegisterTool(It.Is<IToolFunctionExtension>(e => e.Id == "tool.test1")),
+            Times.Once);
+    }
+
+    [Fact]
+    public void RemovePluginExtensions_WithToolExtensions_UnregistersFromToolRegistry()
+    {
+        // T032 验证：插件禁用移除扩展点时，须同步从 ToolRegistry 注销工具
+        var toolRegistryMock = new Mock<IToolRegistry>();
+        var manager = new ExtensionPointManager(_pluginManager, toolRegistryMock.Object);
+
+        var plugin = new FakeToolPlugin
+        {
+            Id = "test.tool.plugin",
+            Name = "Test Tool Plugin"
+        };
+        plugin.AddToolExtension(new FakeToolFunctionExtension
+        {
+            Id = "tool.test1",
+            Name = "Test Tool 1",
+            PluginId = "test.tool.plugin"
+        });
+
+        InjectPluginIntoManager(plugin);
+
+        manager.DiscoverExtensionsFromPlugin("test.tool.plugin");
+        manager.RemovePluginExtensions("test.tool.plugin");
+
+        toolRegistryMock.Verify(t => t.RegisterTool(It.IsAny<IToolFunctionExtension>()), Times.Once);
+        toolRegistryMock.Verify(t => t.UnregisterTool("tool.test1"), Times.Once);
     }
 
     [Fact]

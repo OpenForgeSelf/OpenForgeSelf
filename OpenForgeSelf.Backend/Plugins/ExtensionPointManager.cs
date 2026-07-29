@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins;
@@ -11,14 +12,17 @@ public class ExtensionPointManager
 {
     private readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, IExtensionPoint>> _extensionPoints = new();
     private readonly PluginManager _pluginManager;
+    private readonly IToolRegistry? _toolRegistry;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="pluginManager">插件管理器</param>
-    public ExtensionPointManager(PluginManager pluginManager)
+    /// <param name="toolRegistry">全局工具注册表（可选，用于把工具函数扩展点桥接给 AI Agent / MCP）</param>
+    public ExtensionPointManager(PluginManager pluginManager, IToolRegistry? toolRegistry = null)
     {
         _pluginManager = pluginManager;
+        _toolRegistry = toolRegistry;
     }
 
     /// <summary>
@@ -161,10 +165,16 @@ public class ExtensionPointManager
                             var interfaces = extensionType.GetInterfaces()
                                 .Where(i => i != typeof(IExtensionPoint) && typeof(IExtensionPoint).IsAssignableFrom(i));
 
-                            foreach (var iface in interfaces)
-                            {
-                                RegisterExtensionInternal(iface, extension);
-                            }
+                        foreach (var iface in interfaces)
+                        {
+                            RegisterExtensionInternal(iface, extension);
+                        }
+
+                        // T032 修复：发现的工具函数扩展点同步注册到全局 ToolRegistry，使 AI Agent / MCP 可见
+                        if (_toolRegistry != null && extension is IToolFunctionExtension toolFunction)
+                        {
+                            _toolRegistry.RegisterTool(toolFunction);
+                        }
                         }
                     }
                 }
@@ -224,6 +234,11 @@ public class ExtensionPointManager
                 foreach (var extId in extensionsToRemove)
                 {
                     kvp.Value.TryRemove(extId, out _);
+                    // T032 修复：工具函数扩展点从全局 ToolRegistry 同步注销
+                    if (_toolRegistry != null && kvp.Key == typeof(IToolFunctionExtension))
+                    {
+                        _toolRegistry.UnregisterTool(extId);
+                    }
                     XTrace.Log.Debug("移除扩展点: [{0}] {1}", kvp.Key.Name, extId);
                 }
             }

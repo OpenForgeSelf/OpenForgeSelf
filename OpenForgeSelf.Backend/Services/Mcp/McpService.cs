@@ -88,19 +88,25 @@ public class McpService : IMcpService
         }
 
         // 从 ToolRegistry 获取真实工具数据补充到 MCP 工具列表
-        SupplementFromToolRegistry();
+        SyncToolsFromToolRegistry();
 
         // 更新各服务器的 toolCount
         RefreshServerToolCounts();
     }
 
-    private void SupplementFromToolRegistry()
+    /// <summary>
+    /// T032 修复：从 ToolRegistry 同步真实工具到本地缓存。
+    /// ToolRegistry 在插件启用/禁用时动态注册与注销，McpService 须在每次查询时重新同步，
+    /// 否则仅构建期的一次性快照无法反映运行期插件工具的变化。
+    /// </summary>
+    private void SyncToolsFromToolRegistry()
     {
         try
         {
             var realTools = _toolRegistry.GetAllTools().ToList();
-            if (realTools.Count == 0) return;
+            var validIds = new HashSet<string>(realTools.Select(t => t.Id));
 
+            // 新增：ToolRegistry 中存在但本地尚未收录的工具
             foreach (var rt in realTools)
             {
                 if (string.IsNullOrWhiteSpace(rt.Name)) continue;
@@ -120,11 +126,22 @@ public class McpService : IMcpService
                 });
             }
 
-            XTrace.Log.Info("[McpService] 从 ToolRegistry 补充了 {0} 个真实工具", realTools.Count);
+            // 清理：本地收录但 ToolRegistry 已注销的工具
+            foreach (var key in _tools.Keys.Where(k => k.StartsWith("mcp-tool-real-")).ToList())
+            {
+                var baseId = key["mcp-tool-real-".Length..];
+                if (!validIds.Contains(baseId))
+                {
+                    _tools.TryRemove(key, out _);
+                }
+            }
+
+            RefreshServerToolCounts();
+            XTrace.Log.Info("[McpService] 从 ToolRegistry 同步了 {0} 个真实工具", realTools.Count);
         }
         catch (Exception ex)
         {
-            XTrace.Log.Warn("[McpService] 从 ToolRegistry 补充工具失败: {0}", ex.Message);
+            XTrace.Log.Warn("[McpService] 从 ToolRegistry 同步工具失败: {0}", ex.Message);
         }
     }
 
@@ -141,11 +158,13 @@ public class McpService : IMcpService
 
     public Task<List<McpServerDto>> GetServersAsync()
     {
+        SyncToolsFromToolRegistry();
         return Task.FromResult(_servers.Values.OrderBy(s => s.Name).ToList());
     }
 
     public Task<List<McpToolDto>> GetToolsAsync(string serverId, string? keyword = null, string? category = null)
     {
+        SyncToolsFromToolRegistry();
         var query = _tools.Values.Where(t => t.ServerId == serverId);
 
         if (!string.IsNullOrWhiteSpace(keyword))

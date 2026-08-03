@@ -256,7 +256,26 @@ public static class AppBuilder
 
         app.UseStaticFiles();
 
-        app.UseRouting();
+        // SPA Fallback 中间件：非 API/OpenAPI/Scalar 路径的 404 请求，返回 index.html，
+        // 使 Vue Router 的前端路由（如 /agents）能正常加载
+        app.Use(async (context, next) =>
+        {
+            await next();
+            if (context.Response.StatusCode == 404 &&
+                !context.Request.Path.StartsWithSegments("/api") &&
+                !context.Request.Path.StartsWithSegments("/openapi") &&
+                !context.Request.Path.StartsWithSegments("/scalar"))
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = 200;
+                var indexPath = Path.Combine(app.Environment.WebRootPath, "index.html");
+                if (File.Exists(indexPath))
+                {
+                    context.Response.ContentType = "text/html";
+                    await context.Response.SendFileAsync(indexPath);
+                }
+            }
+        });
 
         app.UseAuthorization();
 

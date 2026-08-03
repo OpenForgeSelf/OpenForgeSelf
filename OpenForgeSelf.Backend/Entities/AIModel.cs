@@ -81,10 +81,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
 
     private Int32 _MaxContext;
     /// <summary>最大上下文长度（token），0=未设置</summary>
-    [DisplayName("最大上下文长度")]
+    [DisplayName("最大上下文长度（token）")]
     [Description("最大上下文长度（token），0=未设置")]
-    [DataObjectField(false, false, true, 0)]
-    [BindColumn("MaxContext", "最大上下文长度（token）", "")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("MaxContext", "最大上下文长度（token），0=未设置", "")]
     public Int32 MaxContext { get => _MaxContext; set { if (OnPropertyChanging("MaxContext", value)) { _MaxContext = value; OnPropertyChanged("MaxContext"); } } }
 
     private Boolean _Enabled;
@@ -293,7 +293,7 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
         /// <summary>能力标签（逗号分隔，如 vision,stream，用户可编辑）</summary>
         public static readonly Field Capabilities = FindByName("Capabilities");
 
-        /// <summary>最大上下文长度（token）</summary>
+        /// <summary>最大上下文长度（token），0=未设置</summary>
         public static readonly Field MaxContext = FindByName("MaxContext");
 
         /// <summary>是否启用（已启用/已禁用），默认启用</summary>
@@ -338,7 +338,7 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
         /// <summary>能力标签（逗号分隔，如 vision,stream，用户可编辑）</summary>
         public const String Capabilities = "Capabilities";
 
-        /// <summary>最大上下文长度（token）</summary>
+        /// <summary>最大上下文长度（token），0=未设置</summary>
         public const String MaxContext = "MaxContext";
 
         /// <summary>是否启用（已启用/已禁用），默认启用</summary>

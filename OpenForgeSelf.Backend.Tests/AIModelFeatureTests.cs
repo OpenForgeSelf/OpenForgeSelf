@@ -218,7 +218,7 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         var m = new AIModel { ProviderId = a.Id, ProviderName = "OpenAI", UpstreamModelId = "gpt-4o", ChatModelId = "OpenAI:gpt-4o", Enabled = true, CreateTime = DateTime.Now, UpdateTime = DateTime.Now };
         m.Insert();
 
-        MakeService().UpdateEditable(m.Id, "主力", new() { "vision", "stream" });
+        MakeService().UpdateEditable(m.Id, "主力", new() { "vision", "stream" }, null);
         var after = AIModel.FindById(m.Id)!;
         after.Alias.Should().Be("主力");
         after.Capabilities.Should().Be("vision,stream");

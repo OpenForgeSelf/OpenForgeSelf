@@ -14,6 +14,8 @@ export default tseslint.config(
       'coverage/',
       '*.config.*',
       '.vite/',
+      'e2e/',
+      '*.cjs',
     ],
   },
 

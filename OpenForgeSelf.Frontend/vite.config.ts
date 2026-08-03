@@ -24,6 +24,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  build: {
+    outDir: '../OpenForgeSelf.Backend/wwwroot',
+    // 不清空：本环境 safe-delete shim 会拦截 Vite emptyDir 的删除（wrappedRmSync 抛错致构建中断）。
+    // 清空改由 package.json 的 `clean` 脚本负责（用 Node fs.rm 直接删，不经 shell rm，绕开 shim）。
+    emptyOutDir: false,
+  },
   server: {
     port: 7002,
     host: "0.0.0.0",

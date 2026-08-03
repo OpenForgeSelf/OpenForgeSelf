@@ -19,7 +19,11 @@ OpenForgeSelf.Frontend/test-results/
 .github/
 .vscode/settings.json 
 dist/
+# 前端构建产物：vite build 输出至后端 wwwroot（纯生成物，非源码），含 assets/ 与 index.html 及历史孤儿产物
+OpenForgeSelf.Backend/wwwroot/
 screenshots/
 temp/
 auto-imports.d.ts
 TODO.md
+nul
+.atomcode-logs/

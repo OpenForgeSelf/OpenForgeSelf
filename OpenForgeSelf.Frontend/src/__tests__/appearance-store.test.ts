@@ -28,15 +28,14 @@ describe('clampOpacity', () => {
   })
 })
 
-describe('Appearance Store — backgroundOpacity', () => {
-  beforeEach(() => {
+describe('Appearance Store — backgroundOpacity', () => {  beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
   })
 
-  it('backgroundOpacity 默认值应为 60', () => {
+  it('backgroundOpacity 默认值应为 30', () => {
     const store = useAppearanceStore()
-    expect(store.backgroundOpacity).toBe(60)
+    expect(store.backgroundOpacity).toBe(30)
   })
 
   it('setBackgroundOpacity(80) 应更新值为 80', () => {
@@ -70,10 +69,10 @@ describe('Appearance Store — backgroundOpacity', () => {
     expect(store.backgroundOpacity).toBe(75)
   })
 
-  it('initialize() 应在 localStorage 无值时使用默认值 60', () => {
+  it('initialize() 应在 localStorage 无值时使用默认值 30', () => {
     const store = useAppearanceStore()
     store.initialize()
-    expect(store.backgroundOpacity).toBe(60)
+    expect(store.backgroundOpacity).toBe(30)
   })
 
   it('clearBackgroundImage() 不应清除 backgroundOpacity 值', () => {
@@ -94,11 +93,11 @@ describe('Appearance Store — backgroundOpacity', () => {
     expect(store.backgroundImage).toBe('https://example.com/new-bg.jpg')
   })
 
-  it('从未设置过透明度时，首次设置背景图透明度为默认值 60', () => {
+  it('从未设置过透明度时，首次设置背景图透明度为默认值 30', () => {
     const store = useAppearanceStore()
-    expect(store.backgroundOpacity).toBe(60)
+    expect(store.backgroundOpacity).toBe(30)
     store.setBackgroundImage('https://example.com/bg.jpg')
-    expect(store.backgroundOpacity).toBe(60)
+    expect(store.backgroundOpacity).toBe(30)
   })
 
   it('setBackgroundOpacity 浮点数应取整（45.7 → 46）', () => {
@@ -113,14 +112,14 @@ describe('Appearance Store — backgroundOpacity', () => {
     expect(store.backgroundOpacity).toBe(45)
   })
 
-  it('initialize() 在 localStorage 读取失败时回退到默认值 60', () => {
+  it('initialize() 在 localStorage 读取失败时回退到默认值 30', () => {
     // 模拟 localStorage 不可用（getStorage 返回 null）
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage unavailable')
     })
     const store = useAppearanceStore()
     store.initialize()
-    expect(store.backgroundOpacity).toBe(60)
+    expect(store.backgroundOpacity).toBe(30)
     vi.restoreAllMocks()
   })
 })

@@ -191,8 +191,8 @@ watch(() => props.filterFavorite, (val) => {
   display: flex;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-secondary, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color-page, #f9fafb);
 }
 
 .search-box {
@@ -205,29 +205,29 @@ watch(() => props.filterFavorite, (val) => {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   font-size: 13px;
 }
 
 .search-box input {
   width: 100%;
   padding: 8px 12px 8px 32px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 6px;
   font-size: 13px;
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1f2937);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-primary, #1f2937);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--primary-color, #3b82f6);
+  border-color: var(--el-color-primary, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .new-btn {
   padding: 8px 16px;
-  background: var(--primary-color, #3b82f6);
+  background: var(--el-color-primary, #3b82f6);
   color: white;
   border: none;
   border-radius: 6px;
@@ -240,15 +240,15 @@ watch(() => props.filterFavorite, (val) => {
 }
 
 .new-btn:hover {
-  background: var(--primary-hover, #2563eb);
+  background: var(--el-color-primary-light-3);
 }
 
 .filter-bar {
   display: flex;
   gap: 16px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-card, #fff);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
   flex-wrap: wrap;
 }
 
@@ -260,26 +260,26 @@ watch(() => props.filterFavorite, (val) => {
 
 .filter-group label {
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .filter-group select {
   padding: 4px 8px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 4px;
   font-size: 12px;
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1f2937);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-primary, #1f2937);
   cursor: pointer;
 }
 
 .filter-btn {
   padding: 4px 10px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 4px;
   font-size: 12px;
-  background: var(--bg-card, #fff);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-regular, #6b7280);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -295,9 +295,9 @@ watch(() => props.filterFavorite, (val) => {
 .list-info {
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--text-muted, #9ca3af);
-  background: var(--bg-secondary, #f9fafb);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  color: var(--el-text-color-secondary, #9ca3af);
+  background: var(--el-bg-color-page, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
 }
 
 .snippets-grid {
@@ -316,7 +316,7 @@ watch(() => props.filterFavorite, (val) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   gap: 12px;
 }
 
@@ -336,7 +336,7 @@ watch(() => props.filterFavorite, (val) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   gap: 12px;
 }
 
@@ -350,22 +350,22 @@ watch(() => props.filterFavorite, (val) => {
   justify-content: center;
   gap: 12px;
   padding: 12px;
-  border-top: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-card, #fff);
+  border-top: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
 }
 
 .page-btn {
   padding: 6px 12px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 4px;
-  background: var(--bg-card, #fff);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-regular, #6b7280);
   cursor: pointer;
   font-size: 12px;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--el-bg-color-page, #f3f4f6);
 }
 
 .page-btn:disabled {
@@ -375,6 +375,6 @@ watch(() => props.filterFavorite, (val) => {
 
 .page-info {
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 </style>

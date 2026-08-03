@@ -50,7 +50,7 @@ function closeTab(path: string): void {
 </script>
 
 <template>
-  <header class="h-10 flex items-center justify-between px-3 bg-[var(--el-bg-color)] border-b border-[var(--el-border-color)] shrink-0 z-50">
+  <header class="top-navbar h-10 flex items-center justify-between px-3 bg-[var(--topnav-bg,var(--el-bg-color))] border-b border-[var(--el-border-color)] shrink-0 z-50">
     <!-- 左区：Logo + Tab 标签条 -->
     <div class="flex items-center gap-3 min-w-0">
       <router-link to="/" class="flex items-center gap-2 no-underline shrink-0">

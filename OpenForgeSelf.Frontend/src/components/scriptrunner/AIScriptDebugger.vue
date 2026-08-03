@@ -186,7 +186,7 @@ function handleClose(): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -196,8 +196,8 @@ function handleClose(): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
 }
 
 .debugger-header h3 {
@@ -210,12 +210,12 @@ function handleClose(): void {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   padding: 4px 8px;
 }
 
 .btn-close:hover {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .debugger-body {
@@ -228,7 +228,7 @@ function handleClose(): void {
   display: flex;
   gap: 4px;
   margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .tab-btn {
@@ -236,19 +236,19 @@ function handleClose(): void {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 14px;
   margin-bottom: -1px;
 }
 
 .tab-btn:hover {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 .input-section {
@@ -269,10 +269,10 @@ function handleClose(): void {
 .form-group textarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
@@ -280,7 +280,7 @@ function handleClose(): void {
 
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .action-section {
@@ -310,7 +310,7 @@ function handleClose(): void {
 .result-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .result-section h4 {
@@ -362,7 +362,7 @@ function handleClose(): void {
 .fixed-code-section pre {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   overflow-x: auto;
   font-size: 13px;

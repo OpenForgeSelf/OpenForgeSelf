@@ -494,19 +494,19 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
 }
 
 .memory-header {
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -514,7 +514,7 @@ onMounted(async () => {
 
 .page-subtitle {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 14px;
 }
 
@@ -526,10 +526,10 @@ onMounted(async () => {
 
 .memory-sidebar {
   width: 240px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--el-border-color);
   padding: 16px;
   overflow-y: auto;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
 }
 
 .sidebar-section {
@@ -542,7 +542,7 @@ onMounted(async () => {
   align-items: center;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -562,17 +562,17 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 14px;
 }
 
 .category-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .category-item.active {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   color: white;
 }
 
@@ -598,7 +598,7 @@ onMounted(async () => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -606,12 +606,12 @@ onMounted(async () => {
 }
 
 .filter-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .filter-item.active {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   color: white;
 }
 
@@ -634,7 +634,7 @@ onMounted(async () => {
   align-items: center;
   gap: 16px;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .search-box {
@@ -648,22 +648,22 @@ onMounted(async () => {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .search-box input {
   width: 100%;
   padding: 8px 12px 8px 36px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .toolbar-actions {
@@ -675,8 +675,8 @@ onMounted(async () => {
   display: flex;
   gap: 24px;
   padding: 12px 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
 }
 
 .stat-item {
@@ -687,13 +687,13 @@ onMounted(async () => {
 
 .stat-label {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .stat-value {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .memory-list {
@@ -707,8 +707,8 @@ onMounted(async () => {
 }
 
 .memory-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
   padding: 16px;
   cursor: pointer;
@@ -719,7 +719,7 @@ onMounted(async () => {
 }
 
 .memory-card:hover {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
@@ -735,7 +735,7 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
 }
 
@@ -749,7 +749,7 @@ onMounted(async () => {
 
 .memory-content-preview {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin: 0;
   line-height: 1.5;
   display: -webkit-box;
@@ -767,14 +767,14 @@ onMounted(async () => {
 .memory-tag {
   font-size: 12px;
   padding: 2px 8px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-regular);
   border-radius: 4px;
 }
 
 .memory-tag-more {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .memory-card-footer {
@@ -782,14 +782,14 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-top: auto;
   padding-top: 10px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .memory-type {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -808,7 +808,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .empty-icon {
@@ -828,12 +828,12 @@ onMounted(async () => {
   justify-content: center;
   gap: 16px;
   padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .page-info {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .btn-page {
@@ -842,17 +842,17 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .btn-page:disabled {
@@ -874,7 +874,7 @@ onMounted(async () => {
 }
 
 .modal {
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
   border-radius: 12px;
   width: 90%;
   max-width: 500px;
@@ -893,13 +893,13 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
@@ -913,7 +913,7 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .form-group {
@@ -924,7 +924,7 @@ onMounted(async () => {
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 6px;
 }
 
@@ -933,10 +933,10 @@ onMounted(async () => {
 .form-group textarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
@@ -944,7 +944,7 @@ onMounted(async () => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .form-row {
@@ -959,8 +959,8 @@ onMounted(async () => {
   right: -400px;
   width: 400px;
   height: 100%;
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border-left: 1px solid var(--el-border-color);
   display: flex;
   flex-direction: column;
   z-index: 1001;
@@ -976,13 +976,13 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .drawer-header h3 {
   margin: 0;
   font-size: 18px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
   padding-right: 12px;
 }
@@ -1011,8 +1011,8 @@ onMounted(async () => {
 .detail-category {
   font-size: 12px;
   padding: 2px 10px;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-regular);
   border-radius: 12px;
 }
 
@@ -1025,13 +1025,13 @@ onMounted(async () => {
 
 .detail-content h4 {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 8px 0;
 }
 
 .detail-content p {
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -1039,7 +1039,7 @@ onMounted(async () => {
 .detail-info {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .info-item {
@@ -1050,24 +1050,24 @@ onMounted(async () => {
 }
 
 .info-label {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .info-value {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .drawer-footer {
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .btn {
   padding: 8px 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1077,18 +1077,18 @@ onMounted(async () => {
 }
 
 .btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .btn-primary {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
 }
 
 .btn-primary:disabled {
@@ -1097,8 +1097,8 @@ onMounted(async () => {
 }
 
 .btn-danger {
-  background: var(--danger-color);
-  border-color: var(--danger-color);
+  background: var(--el-color-danger);
+  border-color: var(--el-color-danger);
   color: white;
   width: 100%;
   justify-content: center;
@@ -1106,7 +1106,7 @@ onMounted(async () => {
 
 .btn-danger:hover {
   background: rgba(185, 28, 28, 0.8);
-  border-color: var(--danger-color);
+  border-color: var(--el-color-danger);
 }
 
 .btn-icon {
@@ -1117,14 +1117,14 @@ onMounted(async () => {
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .btn-icon:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 </style>

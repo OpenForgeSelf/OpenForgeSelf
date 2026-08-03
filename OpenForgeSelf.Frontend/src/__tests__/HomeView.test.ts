@@ -16,7 +16,11 @@ function createMockHomeStore(overrides: Record<string, any> = {}) {
     forgeLevel: 1,
     forgeProgress: 0,
     recentActivities: [],
-    todos: [],
+    // 待办相关：派生自 useTodoStore（Phase 5 T022 真实化）
+    recentTodos: [],
+    todoPendingTotal: 0,
+    toggleTodo: vi.fn(),
+    addTodo: vi.fn(),
     init: vi.fn(),
     ...overrides,
   }
@@ -254,12 +258,12 @@ describe('HomeView', () => {
 
     it('待办无数据时显示空状态', () => {
       mockHomeStoreRef.current = createMockHomeStore({
-        todos: [],
+        recentTodos: [],
       })
       const wrapper = mountView()
       const todoPanel = wrapper.find('.todo-panel')
       expect(todoPanel.exists()).toBe(true)
-      expect(todoPanel.text()).toContain('暂无待办')
+      expect(todoPanel.text()).toContain('暂无待处理待办')
       wrapper.unmount()
     })
 

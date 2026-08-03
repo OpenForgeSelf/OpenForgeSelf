@@ -554,8 +554,8 @@ function formatResult(content: string): string {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
 }
 
 .agent-main-layout {
@@ -573,8 +573,8 @@ function formatResult(content: string): string {
   flex-direction: column;
   flex-shrink: 0;
   overflow-y: auto;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-right: 1px solid var(--el-border-color);
 }
 
 .panel-header {
@@ -582,25 +582,25 @@ function formatResult(content: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .panel-header i {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .context-section {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .section-toggle {
@@ -613,11 +613,11 @@ function formatResult(content: string): string {
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .section-toggle:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .section-toggle-left {
@@ -628,18 +628,18 @@ function formatResult(content: string): string {
 
 .section-icon {
   font-size: 11px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   width: 14px;
 }
 
 .section-icon.muted-icon {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .section-label {
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .section-badge {
@@ -648,8 +648,8 @@ function formatResult(content: string): string {
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  color: var(--primary-color);
-  background: var(--primary-soft);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
   min-width: 18px;
   height: 18px;
   border-radius: var(--radius-pill);
@@ -657,8 +657,8 @@ function formatResult(content: string): string {
 }
 
 .section-badge.muted {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
 }
 
 .section-items {
@@ -674,17 +674,17 @@ function formatResult(content: string): string {
   justify-content: space-between;
   padding: 4px 8px;
   border-left: 2px solid transparent;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-radius: 0 var(--el-border-radius-small) var(--el-border-radius-small) 0;
 }
 
 .section-item:first-child {
-  border-left-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-left-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .item-name {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .item-name.mono {
@@ -697,10 +697,10 @@ function formatResult(content: string): string {
   gap: 4px;
   margin-top: 4px;
   font-size: 12px;
-  color: var(--info-color);
+  color: var(--el-color-info);
   text-decoration: none;
   padding: 2px 8px;
-  transition: color var(--motion-fast);
+  transition: color 150ms ease;
 }
 
 .section-manage i {
@@ -723,8 +723,8 @@ function formatResult(content: string): string {
   justify-content: space-between;
   height: 44px;
   padding: 0 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
@@ -735,9 +735,9 @@ function formatResult(content: string): string {
 }
 
 .chat-title {
-  font-size: var(--fs-text-base, 0.9375rem);
+  font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .status-indicator {
@@ -750,13 +750,13 @@ function formatResult(content: string): string {
   width: 6px;
   height: 6px;
   border-radius: var(--radius-pill);
-  background: var(--success-color);
+  background: var(--el-color-success);
   box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
 }
 
 .status-text {
   font-size: 12px;
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .chat-header-right {
@@ -770,25 +770,25 @@ function formatResult(content: string): string {
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-fill-color-light);
   cursor: pointer;
-  transition: border-color var(--motion-fast);
+  transition: border-color 150ms ease;
 }
 
 .model-selector i {
   font-size: 11px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .model-selector .fa-chevron-down {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .model-name {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-family-mono);
 }
 
@@ -797,7 +797,7 @@ function formatResult(content: string): string {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 
@@ -843,9 +843,9 @@ function formatResult(content: string): string {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
-  border: 2px solid var(--primary-color);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-fill-color-light);
+  border: 2px solid var(--el-color-primary);
   padding: 4px;
   flex-shrink: 0;
 }
@@ -854,7 +854,7 @@ function formatResult(content: string): string {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-pill);
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   margin-top: 2px;
 }
 
@@ -864,14 +864,14 @@ function formatResult(content: string): string {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-soft);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-color-primary-light-9);
   flex-shrink: 0;
 }
 
 .user-avatar i {
   font-size: 14px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .message-content {
@@ -889,37 +889,37 @@ function formatResult(content: string): string {
 
 .message-bubble {
   padding: 10px 14px;
-  border-radius: var(--radius-sm) var(--radius-sm) var(--radius-md) var(--radius-sm);
+  border-radius: var(--el-border-radius-small) var(--el-border-radius-small) var(--el-border-radius-base) var(--el-border-radius-small);
   line-height: 1.625;
 }
 
 .ai-bubble {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
-  border-left: 2px solid var(--primary-color);
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color-light);
+  border-left: 2px solid var(--el-color-primary);
   max-width: 85%;
 }
 
 .ai-bubble p {
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-primary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-primary);
   line-height: 1.625;
 }
 
 .ai-bubble .highlight {
   font-family: var(--font-family-mono);
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
 .user-bubble {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
 }
 
 .user-bubble p {
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-primary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-primary);
   line-height: 1.5;
 }
 
@@ -936,8 +936,8 @@ function formatResult(content: string): string {
   gap: 4px;
   padding: 2px 8px;
   font-size: 11px;
-  color: var(--primary-color);
-  background: var(--primary-soft);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
   border-radius: var(--radius-pill);
   font-family: var(--font-family-mono);
   font-weight: 500;
@@ -957,19 +957,19 @@ function formatResult(content: string): string {
 }
 
 .tool-list li {
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-primary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-primary);
   line-height: 1.5;
 }
 
 .tool-list li .mono {
   font-family: var(--font-family-mono);
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: 500;
 }
 
 .tool-list li .count {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* Streaming dots */
@@ -989,7 +989,7 @@ function formatResult(content: string): string {
   width: 6px;
   height: 6px;
   border-radius: var(--radius-pill);
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
   animation: pulse 1.4s infinite ease-in-out;
 }
 
@@ -1010,8 +1010,8 @@ function formatResult(content: string): string {
 .input-area {
   flex-shrink: 0;
   padding: 12px 24px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-top: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
 }
 
 .input-inner {
@@ -1029,18 +1029,18 @@ function formatResult(content: string): string {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
+  border: 1px solid var(--el-border-color);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color var(--motion-fast), color var(--motion-fast);
+  transition: border-color 150ms ease, color 150ms ease;
 }
 
 .input-btn:hover {
   border-color: var(--border-strong);
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .input-btn i {
@@ -1049,15 +1049,15 @@ function formatResult(content: string): string {
 
 .input-wrapper {
   flex: 1;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
   padding: 8px 12px;
-  transition: border-color var(--motion-fast);
+  transition: border-color 150ms ease;
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .input-wrapper textarea {
@@ -1066,8 +1066,8 @@ function formatResult(content: string): string {
   border: none;
   outline: none;
   resize: none;
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-primary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-primary);
   font-family: var(--font-family-base);
   line-height: 1.5;
 }
@@ -1078,17 +1078,17 @@ function formatResult(content: string): string {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-color);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-color-primary);
   border: none;
-  color: var(--primary-contrast);
+  color: var(--el-color-white);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .send-btn:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .send-btn i {
@@ -1104,8 +1104,8 @@ function formatResult(content: string): string {
   flex-direction: column;
   flex-shrink: 0;
   overflow-y: auto;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-left: 1px solid var(--el-border-color);
   scrollbar-width: thin;
 }
 
@@ -1114,7 +1114,7 @@ function formatResult(content: string): string {
   flex-direction: column;
   padding: 12px;
   gap: 10px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .right-section-header {
@@ -1125,14 +1125,14 @@ function formatResult(content: string): string {
 
 .right-section-header i {
   font-size: 12px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   width: 14px;
 }
 
 .right-section-header span {
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .session-name-row {
@@ -1140,13 +1140,13 @@ function formatResult(content: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
 }
 
 .session-name {
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-primary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-primary);
   font-weight: 500;
 }
 
@@ -1154,7 +1154,7 @@ function formatResult(content: string): string {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   padding: 2px;
   display: flex;
   align-items: center;
@@ -1179,12 +1179,12 @@ function formatResult(content: string): string {
 
 .stat-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .stat-value {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-weight: 500;
 }
 
@@ -1213,34 +1213,34 @@ function formatResult(content: string): string {
 
 .skill-name {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .skill-level {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 
 .skill-level.primary {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .progress-track {
   height: 4px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
   border-radius: var(--radius-pill);
 }
 
 .progress-fill.primary-fill {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
 }
 
 /* Agent list */
@@ -1257,45 +1257,45 @@ function formatResult(content: string): string {
   padding: 8px 10px;
   cursor: pointer;
   border-left: 2px solid transparent;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  transition: background var(--motion-fast);
+  border-radius: 0 var(--el-border-radius-small) var(--el-border-radius-small) 0;
+  transition: background 150ms ease;
 }
 
 .agent-item:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .agent-item.active {
-  background: var(--primary-soft);
-  border-left-color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  border-left-color: var(--el-color-primary);
 }
 
 .agent-dot {
   width: 6px;
   height: 6px;
   border-radius: var(--radius-pill);
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
 .agent-dot.active-dot {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
 }
 
 .agent-name-text {
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  color: var(--el-text-color-regular);
   flex: 1;
 }
 
 .agent-item.active .agent-name-text {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: 500;
 }
 
 .agent-current {
   font-size: 11px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   opacity: 0.7;
 }
 
@@ -1307,16 +1307,16 @@ function formatResult(content: string): string {
   padding: 8px 10px;
   margin-top: 4px;
   background: transparent;
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  border: 1px dashed var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
-  transition: border-color var(--motion-fast), color var(--motion-fast);
+  transition: border-color 150ms ease, color 150ms ease;
 }
 
 .create-agent-btn:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .create-agent-btn i {
@@ -1343,13 +1343,13 @@ function formatResult(content: string): string {
 }
 
 .modal {
-  background: var(--bg-card);
+  background: var(--el-bg-color);
   border-radius: 16px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
 }
 
 .modal-large {
@@ -1362,7 +1362,7 @@ function formatResult(content: string): string {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .modal-header h3 {
@@ -1372,22 +1372,22 @@ function formatResult(content: string): string {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-close {
   background: none;
   border: none;
   font-size: 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
 }
 
 .btn-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .modal-body {
@@ -1405,27 +1405,27 @@ function formatResult(content: string): string {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 8px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .coordination-input textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
   min-height: 100px;
   transition: all 0.2s;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 
 .coordination-input textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--el-color-primary-light-9);
 }
 
 .coordination-actions {
@@ -1446,12 +1446,12 @@ function formatResult(content: string): string {
 }
 
 .btn-primary {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-primary:disabled {
@@ -1463,7 +1463,7 @@ function formatResult(content: string): string {
 .result-section {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .plan-section h4,
@@ -1471,14 +1471,14 @@ function formatResult(content: string): string {
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .plan-info {
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   padding: 16px;
   border-radius: 12px;
   margin-bottom: 16px;
@@ -1487,7 +1487,7 @@ function formatResult(content: string): string {
 .plan-info p {
   margin: 0 0 8px 0;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .plan-info p:last-child {
@@ -1504,7 +1504,7 @@ function formatResult(content: string): string {
   display: flex;
   gap: 14px;
   padding: 14px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 12px;
 }
 
@@ -1512,8 +1512,8 @@ function formatResult(content: string): string {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1538,12 +1538,12 @@ function formatResult(content: string): string {
 .task-name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .task-agent {
   font-size: 12px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1552,16 +1552,16 @@ function formatResult(content: string): string {
 
 .task-priority {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .result-content {
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   padding: 20px;
   border-radius: 12px;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -1583,15 +1583,15 @@ function formatResult(content: string): string {
 }
 
 .result-content :deep(code) {
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
 }
 
 .result-content :deep(pre) {
-  background: var(--bg-code);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;

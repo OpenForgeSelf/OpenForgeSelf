@@ -65,8 +65,8 @@ function handleInput(event: Event): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -76,14 +76,14 @@ function handleInput(event: Event): void {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .input-title {
   font-weight: 500;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .input-actions {
@@ -94,22 +94,22 @@ function handleInput(event: Event): void {
 
 .char-count {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .action-btn {
   padding: 4px 10px;
   font-size: 12px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 4px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .action-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
   border-color: var(--border-strong);
 }
 
@@ -127,12 +127,12 @@ function handleInput(event: Event): void {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-primary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color);
 }
 
 .input-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .input-textarea:focus {

@@ -143,7 +143,7 @@ function onDelete() {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-card, #fff);
+  background: var(--el-bg-color, #fff);
 }
 
 .viewer-header {
@@ -151,7 +151,7 @@ function onDelete() {
   justify-content: space-between;
   align-items: flex-start;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
   gap: 12px;
 }
 
@@ -163,7 +163,7 @@ function onDelete() {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
 }
 
 .snippet-meta {
@@ -177,7 +177,7 @@ function onDelete() {
   display: inline-block;
   padding: 2px 10px;
   background: var(--primary-light, #dbeafe);
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
@@ -186,15 +186,15 @@ function onDelete() {
 .category-tag {
   display: inline-block;
   padding: 2px 10px;
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color-page, #f3f4f6);
+  color: var(--el-text-color-regular, #6b7280);
   border-radius: 4px;
   font-size: 12px;
 }
 
 .usage-info {
   font-size: 12px;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -208,10 +208,10 @@ function onDelete() {
 
 .action-btn {
   padding: 6px 12px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 6px;
-  background: var(--bg-card, #fff);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-regular, #6b7280);
   cursor: pointer;
   font-size: 12px;
   display: flex;
@@ -221,7 +221,7 @@ function onDelete() {
 }
 
 .action-btn:hover {
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--el-bg-color-page, #f3f4f6);
 }
 
 .action-btn.favorite-btn.active {
@@ -250,14 +250,14 @@ function onDelete() {
 
 .snippet-description {
   padding: 12px 16px;
-  background: var(--bg-secondary, #f9fafb);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color-page, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
 }
 
 .snippet-description p {
   margin: 0;
   font-size: 13px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
   line-height: 1.5;
 }
 
@@ -266,13 +266,13 @@ function onDelete() {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
 }
 
 .tag {
   font-size: 12px;
-  color: var(--text-muted, #9ca3af);
-  background: var(--bg-secondary, #f3f4f6);
+  color: var(--el-text-color-secondary, #9ca3af);
+  background: var(--el-bg-color-page, #f3f4f6);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -281,7 +281,7 @@ function onDelete() {
   flex: 1;
   overflow: auto;
   margin: 16px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--el-border-color, #e5e7eb);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -292,17 +292,17 @@ function onDelete() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: var(--bg-secondary, #f9fafb);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color-page, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
   font-size: 12px;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
 }
 
 .code-block {
   margin: 0;
   padding: 16px;
   overflow: auto;
-  background: var(--bg-code, #1e293b);
+  background: var(--el-bg-color, #1e293b);
   flex: 1;
 }
 
@@ -319,9 +319,9 @@ function onDelete() {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-top: 1px solid var(--border-color, #e5e7eb);
+  border-top: 1px solid var(--el-border-color, #e5e7eb);
   font-size: 12px;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   flex-wrap: wrap;
   gap: 8px;
 }

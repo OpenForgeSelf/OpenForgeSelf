@@ -84,7 +84,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   text-align: center;
   padding: 40px;
 }
@@ -97,13 +97,13 @@ defineExpose({
 .empty-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 12px;
 }
 
 .empty-description {
   font-size: 16px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   max-width: 400px;
 }
 
@@ -117,8 +117,8 @@ defineExpose({
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  background-color: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-base);
   margin: 12px 40px;
 }
 
@@ -130,7 +130,7 @@ defineExpose({
 .loading-dots span {
   width: 8px;
   height: 8px;
-  background-color: var(--primary-color);
+  background-color: var(--el-color-primary);
   border-radius: 50%;
   animation: bounce 1.4s infinite ease-in-out both;
 }
@@ -154,7 +154,7 @@ defineExpose({
 
 .loading-text {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* 消息动画 */

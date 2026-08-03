@@ -408,7 +408,7 @@ function formatDate(dateStr: string): string {
 <style scoped>
 .profile-view {
   min-height: 100%;
-  background-color: var(--bg-primary);
+  background-color: var(--el-bg-color);
 }
 
 .profile-header {
@@ -445,7 +445,7 @@ function formatDate(dateStr: string): string {
 .stat-card {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   padding: 16px;
   text-align: center;
 }
@@ -469,11 +469,11 @@ function formatDate(dateStr: string): string {
 }
 
 .section-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
+  background: var(--el-bg-color);
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
 }
 
 .section-header {
@@ -487,19 +487,19 @@ function formatDate(dateStr: string): string {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .section-header h3 i {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .badge {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   padding: 2px 10px;
   border-radius: var(--radius-pill);
   font-size: 12px;
@@ -509,16 +509,16 @@ function formatDate(dateStr: string): string {
 .btn-icon {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 14px;
 }
 
 .btn-icon:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .spinning {
@@ -544,13 +544,13 @@ function formatDate(dateStr: string): string {
 
 .style-desc {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
   margin: 0 0 16px 0;
 }
 
 .style-info {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
   padding-top: 12px;
 }
 
@@ -561,12 +561,12 @@ function formatDate(dateStr: string): string {
 }
 
 .info-label {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .info-value {
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .skills-list {
@@ -577,8 +577,8 @@ function formatDate(dateStr: string): string {
 
 .skill-item {
   padding: 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-base);
 }
 
 .skill-info {
@@ -590,22 +590,22 @@ function formatDate(dateStr: string): string {
 
 .skill-name {
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
 .skill-level {
   font-size: 12px;
   padding: 2px 8px;
-  background: var(--primary-soft);
-  color: var(--primary-color);
-  border-radius: var(--radius-sm);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  border-radius: var(--el-border-radius-small);
   font-weight: 500;
 }
 
 .skill-bar-bg {
   height: 8px;
-  background: var(--border-color);
+  background: var(--el-border-color);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -621,21 +621,21 @@ function formatDate(dateStr: string): string {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .empty-skills,
 .empty-suggestions {
   text-align: center;
   padding: 32px 16px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .empty-skills i,
 .empty-suggestions i {
   font-size: 36px;
   margin-bottom: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .empty-skills p,
@@ -647,7 +647,7 @@ function formatDate(dateStr: string): string {
 .empty-skills .hint,
 .empty-suggestions .hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .preferences-list {
@@ -658,20 +658,20 @@ function formatDate(dateStr: string): string {
 
 .preference-item {
   padding: 10px 12px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 10px;
 }
 
 .pref-key {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 4px;
 }
 
 .pref-value {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 6px;
 }
 
@@ -684,20 +684,20 @@ function formatDate(dateStr: string): string {
 .confidence-bar-bg {
   flex: 1;
   height: 4px;
-  background: var(--border-color);
+  background: var(--el-border-color);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .confidence-bar-fill {
   height: 100%;
-  background: var(--success-color);
+  background: var(--el-color-success);
   border-radius: 2px;
 }
 
 .pref-confidence span {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   min-width: 36px;
   text-align: right;
 }
@@ -709,22 +709,22 @@ function formatDate(dateStr: string): string {
 }
 
 .suggestion-card {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
   padding: 16px;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
 }
 
 .suggestion-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .suggestion-card.priority-2 {
-  border-left: 4px solid var(--warning-color);
+  border-left: 4px solid var(--el-color-warning);
 }
 
 .suggestion-card.priority-3 {
-  border-left: 4px solid var(--danger-color);
+  border-left: 4px solid var(--el-color-danger);
 }
 
 .suggestion-header {
@@ -738,11 +738,11 @@ function formatDate(dateStr: string): string {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-size: 16px;
   flex-shrink: 0;
 }
@@ -756,43 +756,43 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .suggestion-type {
   font-size: 11px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .priority-badge {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
 .priority-2 .priority-badge {
   background: rgba(217, 119, 6, 0.12);
-  color: var(--warning-color);
+  color: var(--el-color-warning);
 }
 
 .priority-3 .priority-badge {
   background: rgba(185, 28, 28, 0.12);
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .suggestion-desc {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
 
 .suggestion-content {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 12px;
   line-height: 1.6;
 }
@@ -808,7 +808,7 @@ function formatDate(dateStr: string): string {
 
 .btn {
   padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -816,7 +816,7 @@ function formatDate(dateStr: string): string {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
 }
 
 .btn-sm {
@@ -825,8 +825,8 @@ function formatDate(dateStr: string): string {
 }
 
 .btn-primary {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover {
@@ -836,12 +836,12 @@ function formatDate(dateStr: string): string {
 
 .btn-ghost {
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .btn-ghost:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .patterns-list {
@@ -852,8 +852,8 @@ function formatDate(dateStr: string): string {
 
 .pattern-item {
   padding: 14px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-base);
 }
 
 .pattern-header {
@@ -866,7 +866,7 @@ function formatDate(dateStr: string): string {
 .pattern-icon {
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -875,18 +875,18 @@ function formatDate(dateStr: string): string {
 }
 
 .pattern-temporal {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .pattern-frequency {
   background: rgba(4, 120, 87, 0.12);
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .pattern-sequential {
   background: rgba(217, 119, 6, 0.12);
-  color: var(--warning-color);
+  color: var(--el-color-warning);
 }
 
 .pattern-behavioral {
@@ -908,12 +908,12 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .pattern-type {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .pattern-confidence {
@@ -925,17 +925,17 @@ function formatDate(dateStr: string): string {
   display: block;
   font-size: 16px;
   font-weight: 700;
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .confidence-label {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .pattern-desc {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
@@ -944,7 +944,7 @@ function formatDate(dateStr: string): string {
   display: flex;
   gap: 16px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .pattern-meta span {
@@ -964,16 +964,16 @@ function formatDate(dateStr: string): string {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
 }
 
 .rank {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   font-size: 12px;
   font-weight: 700;
   display: flex;
@@ -982,12 +982,12 @@ function formatDate(dateStr: string): string {
 }
 
 .top-tool-item:nth-child(2) .rank {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   opacity: 0.8;
 }
 
 .top-tool-item:nth-child(3) .rank {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   opacity: 0.6;
 }
 
@@ -995,13 +995,13 @@ function formatDate(dateStr: string): string {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .empty-text {
   text-align: center;
   padding: 24px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 

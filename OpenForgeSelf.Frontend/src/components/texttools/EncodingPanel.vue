@@ -61,7 +61,7 @@ const encodingTypes: { value: EncodingType; label: string }[] = [
   flex-wrap: wrap;
   gap: 16px;
   padding: 16px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
   align-items: center;
 }
@@ -75,7 +75,7 @@ const encodingTypes: { value: EncodingType; label: string }[] = [
 .field-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   white-space: nowrap;
 }
 
@@ -87,23 +87,23 @@ const encodingTypes: { value: EncodingType; label: string }[] = [
 .type-btn {
   padding: 6px 14px;
   font-size: 13px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .type-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
   border-color: var(--border-strong);
 }
 
 .type-btn.active {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .panel-actions {
@@ -116,28 +116,28 @@ const encodingTypes: { value: EncodingType; label: string }[] = [
 .action-btn {
   padding: 8px 16px;
   font-size: 13px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .action-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
   border-color: var(--border-strong);
 }
 
 .action-btn.primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
 }
 
 .action-btn:disabled {

@@ -326,16 +326,16 @@ watch(() => route.params.id, (newId) => {
 .back-btn {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-size: 14px;
   cursor: pointer;
   padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  transition: background var(--motion-fast);
+  border-radius: var(--el-border-radius-small);
+  transition: background 150ms ease;
 }
 
 .back-btn:hover {
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
 }
 
 .loading-state,
@@ -347,14 +347,14 @@ watch(() => route.params.id, (newId) => {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -370,9 +370,9 @@ watch(() => route.params.id, (newId) => {
 }
 
 .detail-content {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border-radius: 12px;
+  border: 1px solid var(--el-border-color);
   overflow: hidden;
 }
 
@@ -380,15 +380,15 @@ watch(() => route.params.id, (newId) => {
   display: flex;
   gap: 24px;
   padding: 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   flex-wrap: wrap;
 }
 
 .plugin-icon-large {
   width: 80px;
   height: 80px;
-  border-radius: var(--radius-lg);
-  background: var(--primary-soft);
+  border-radius: 12px;
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -414,7 +414,7 @@ watch(() => route.params.id, (newId) => {
 .plugin-name {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
@@ -424,7 +424,7 @@ watch(() => route.params.id, (newId) => {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 12px;
 }
 
@@ -438,21 +438,21 @@ watch(() => route.params.id, (newId) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
 }
 
-.state-Running .state-dot { background: var(--success-color); }
-.state-Stopped .state-dot { background: var(--text-muted); }
-.state-Error .state-dot { background: var(--danger-color); }
-.state-Running .state-text { color: var(--success-color); }
-.state-Error .state-text { color: var(--danger-color); }
+.state-Running .state-dot { background: var(--el-color-success); }
+.state-Stopped .state-dot { background: var(--el-text-color-secondary); }
+.state-Error .state-dot { background: var(--el-color-danger); }
+.state-Running .state-text { color: var(--el-color-success); }
+.state-Error .state-text { color: var(--el-color-danger); }
 
 .plugin-stats {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .stat-item {
@@ -475,21 +475,21 @@ watch(() => route.params.id, (newId) => {
 .action-btn {
   padding: 10px 20px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
   white-space: nowrap;
 }
 
 .toggle-btn {
-  background: var(--success-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-success);
+  color: var(--el-color-white);
 }
 
 .toggle-btn.active {
-  background: var(--danger-color);
+  background: var(--el-color-danger);
 }
 
 .toggle-btn:hover:not(:disabled) {
@@ -497,8 +497,8 @@ watch(() => route.params.id, (newId) => {
 }
 
 .update-btn {
-  background: var(--warning-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-warning);
+  color: var(--el-color-white);
 }
 
 .update-btn:hover {
@@ -506,21 +506,21 @@ watch(() => route.params.id, (newId) => {
 }
 
 .uninstall-btn {
-  background: var(--bg-tertiary);
-  color: var(--danger-color);
-  border: 1px solid var(--border-color);
+  background: var(--el-fill-color-light);
+  color: var(--el-color-danger);
+  border: 1px solid var(--el-border-color);
 }
 
 .uninstall-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .tabs-nav {
   display: flex;
   gap: 4px;
   padding: 0 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-light);
 }
 
 .tab-btn {
@@ -528,20 +528,20 @@ watch(() => route.params.id, (newId) => {
   border: none;
   background: none;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
 }
 
 .tab-btn:hover {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
   font-weight: 500;
 }
 
@@ -560,13 +560,13 @@ watch(() => route.params.id, (newId) => {
 .section h3 {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
 .description-text {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.7;
   margin: 0;
 }
@@ -578,8 +578,8 @@ watch(() => route.params.id, (newId) => {
 }
 
 .category-tag {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
@@ -587,8 +587,8 @@ watch(() => route.params.id, (newId) => {
 }
 
 .tag-item {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
   padding: 4px 10px;
   border-radius: 10px;
   font-size: 12px;
@@ -597,13 +597,13 @@ watch(() => route.params.id, (newId) => {
 .release-notes pre {
   margin: 0;
   padding: 16px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-family: inherit;
 }
 
@@ -618,26 +618,26 @@ watch(() => route.params.id, (newId) => {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
   text-decoration: none;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
 }
 
 .link-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .license-badge {
   display: inline-block;
   padding: 6px 14px;
-  background: var(--primary-soft);
-  color: var(--primary-color);
-  border-radius: var(--radius-sm);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
   font-weight: 500;
 }
@@ -650,13 +650,13 @@ watch(() => route.params.id, (newId) => {
 
 .version-item {
   padding: 16px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 10px;
-  border-left: 3px solid var(--border-color);
+  border-left: 3px solid var(--el-border-color);
 }
 
 .version-item.latest {
-  border-left-color: var(--success-color);
+  border-left-color: var(--el-color-success);
   background: rgba(4, 120, 87, 0.08);
 }
 
@@ -670,13 +670,13 @@ watch(() => route.params.id, (newId) => {
 
 .version-number {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
 .latest-badge {
-  background: var(--success-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-success);
+  color: var(--el-color-white);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 11px;
@@ -685,12 +685,12 @@ watch(() => route.params.id, (newId) => {
 
 .version-date {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .version-notes {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
 }
 
@@ -703,7 +703,7 @@ watch(() => route.params.id, (newId) => {
 .screenshot-item {
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
 }
 
 .screenshot-item img {
@@ -719,18 +719,18 @@ watch(() => route.params.id, (newId) => {
 }
 
 .dependency-item {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
 }
 
 .extension-item {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
 }
 
@@ -748,10 +748,10 @@ watch(() => route.params.id, (newId) => {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .permission-icon {

@@ -88,23 +88,23 @@ function getStatusLabel(workflow: WorkflowDefinition): string {
 function getStatusColor(workflow: WorkflowDefinition): { text: string; bg: string; border: string } {
   switch (workflow.status) {
     case 'completed':
-      return { text: 'var(--success-color)', bg: 'rgba(52, 211, 153, 0.1)', border: 'var(--success-color)' }
+      return { text: 'var(--el-color-success)', bg: 'rgba(52, 211, 153, 0.1)', border: 'var(--el-color-success)' }
     case 'running':
-      return { text: 'var(--primary-color)', bg: 'var(--primary-soft)', border: 'var(--primary-color)' }
+      return { text: 'var(--el-color-primary)', bg: 'var(--el-color-primary-light-9)', border: 'var(--el-color-primary)' }
     case 'paused':
-      return { text: 'var(--text-muted)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--border-color)' }
+      return { text: 'var(--el-text-color-secondary)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--el-border-color)' }
     case 'ready':
-      return { text: 'var(--info-color)', bg: 'rgba(96, 165, 250, 0.1)', border: 'var(--info-color)' }
+      return { text: 'var(--el-color-info)', bg: 'rgba(96, 165, 250, 0.1)', border: 'var(--el-color-info)' }
     default:
-      return { text: 'var(--text-muted)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--border-color)' }
+      return { text: 'var(--el-text-color-secondary)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--el-border-color)' }
   }
 }
 
 function getLeftBorderColor(workflow: WorkflowDefinition): string {
   if (workflow.status === 'completed' || workflow.status === 'running') {
-    return 'var(--primary-color)'
+    return 'var(--el-color-primary)'
   }
-  return 'var(--border-color)'
+  return 'var(--el-border-color)'
 }
 
 function getActionButton(workflow: WorkflowDefinition): { label: string; variant: 'run' | 'pause' | 'resume' } {
@@ -425,7 +425,7 @@ onMounted(() => {
               height="18"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--success-color)"
+              stroke="var(--el-color-success)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -434,7 +434,7 @@ onMounted(() => {
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
             <!-- running: animated dot -->
-            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--primary-color)' }" />
+            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--el-color-primary)' }" />
             <!-- paused -->
             <svg
               v-else-if="workflow.status === 'paused'"
@@ -442,7 +442,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--text-muted)"
+              stroke="var(--el-text-color-secondary)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -469,7 +469,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--info-color)"
+              stroke="var(--el-color-info)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -484,7 +484,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--text-muted)"
+              stroke="var(--el-text-color-secondary)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -513,7 +513,7 @@ onMounted(() => {
                     'step-current': step.status === 'current',
                     'step-pending': step.status === 'pending'
                   }"
-                  :style="step.status === 'current' ? { borderColor: 'var(--primary-border)', background: 'var(--primary-soft)' } : {}"
+                  :style="step.status === 'current' ? { borderColor: 'var(--el-color-primary)', background: 'var(--el-color-primary-light-9)' } : {}"
                 >
                   <svg
                     v-if="step.status === 'completed'"
@@ -528,7 +528,7 @@ onMounted(() => {
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--primary-color)' }" />
+                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--el-color-primary)' }" />
                   {{ step.name }}
                 </span>
                 <svg
@@ -538,7 +538,7 @@ onMounted(() => {
                   height="12"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="var(--text-muted)"
+                  stroke="var(--el-text-color-secondary)"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -555,7 +555,7 @@ onMounted(() => {
                   class="progress-fill"
                   :style="{
                     width: getStepProgress(workflow).pct + '%',
-                    background: workflow.status === 'ready' ? 'var(--info-color)' : 'var(--text-muted)'
+                    background: workflow.status === 'ready' ? 'var(--el-color-info)' : 'var(--el-text-color-secondary)'
                   }"
                 />
               </div>
@@ -590,7 +590,7 @@ onMounted(() => {
               <span
                 :style="{
                   fontSize: 'var(--text-xs)',
-                  color: workflow.status === 'running' ? 'var(--primary-color)' : 'var(--text-secondary)',
+                  color: workflow.status === 'running' ? 'var(--el-color-primary)' : 'var(--el-text-color-regular)',
                   fontFamily: 'var(--font-family-mono)'
                 }"
               >{{ formatDuration(workflow) }}</span>
@@ -606,8 +606,8 @@ onMounted(() => {
                   'btn-action-resume': getActionButton(workflow).variant === 'resume'
                 }"
                 :style="getActionButton(workflow).variant === 'run' ? {} : 
-                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--warning-color)', borderColor: 'var(--primary-border)' } :
-                  { color: 'var(--info-color)', borderColor: 'rgba(96, 165, 250, 0.3)' }"
+                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--el-color-warning)', borderColor: 'var(--el-color-primary)' } :
+                  { color: 'var(--el-color-info)', borderColor: 'rgba(96, 165, 250, 0.3)' }"
                 @click="handlePauseResume(workflow)"
               >
                 {{ getActionButton(workflow).label }}
@@ -624,7 +624,7 @@ onMounted(() => {
             height="48"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="var(--text-muted)"
+            stroke="var(--el-text-color-secondary)"
             stroke-width="1"
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -745,7 +745,7 @@ onMounted(() => {
   height: 100%;
   overflow-y: auto;
   position: relative;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
 }
 
 .library-inner {
@@ -753,7 +753,7 @@ onMounted(() => {
   z-index: 1;
   max-width: 1100px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
+  padding: 24px 32px;
 }
 
 .ambient-glow {
@@ -762,7 +762,7 @@ onMounted(() => {
   left: 40px;
   width: 600px;
   height: 500px;
-  background: radial-gradient(ellipse at 30% 20%, var(--app-shell-glow-strong) 0%, transparent 70%);
+  background: radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--el-color-primary) 20%, transparent) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -772,34 +772,34 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  gap: 16px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   min-width: 0;
 }
 
 .header-icon {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   flex-shrink: 0;
 }
 
 .page-title {
   font-size: var(--text-xl, 1.375rem);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
 .workflow-count-badge {
   font-size: var(--text-xs, 0.75rem);
-  color: var(--primary-color);
-  background: var(--primary-soft);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
   padding: 2px 10px;
   border-radius: var(--radius-pill);
   font-weight: 600;
@@ -810,7 +810,7 @@ onMounted(() => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   flex-shrink: 0;
 }
 
@@ -818,21 +818,21 @@ onMounted(() => {
 .search-box {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   padding: 6px 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: border-color var(--motion-fast);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  transition: border-color 150ms ease;
 }
 
 .search-box:focus-within {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 2px var(--el-color-primary-light-9);
 }
 
 .search-icon {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -842,13 +842,13 @@ onMounted(() => {
   border: none;
   outline: none;
   font-size: var(--text-sm, 0.8125rem);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-family-base);
   width: 180px;
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .search-clear {
@@ -858,17 +858,17 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--bg-muted);
-  color: var(--text-muted);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
 }
 
 .search-clear:hover {
   background: var(--border-strong);
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* ===================== Buttons ===================== */
@@ -879,17 +879,17 @@ onMounted(() => {
   padding: 7px 14px;
   font-size: var(--text-sm, 0.8125rem);
   font-weight: 500;
-  color: var(--primary-contrast);
-  background: var(--primary-color);
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .btn-create:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-ghost {
@@ -898,88 +898,88 @@ onMounted(() => {
   gap: 4px;
   padding: 5px 10px;
   font-size: var(--text-xs, 0.75rem);
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   white-space: nowrap;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
 }
 
 .btn-ghost:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary-color);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  border-color: var(--el-color-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-ai-gen {
-  color: var(--primary-color);
-  border-color: var(--primary-border);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .btn-ai-gen:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 /* ===================== Filter Tabs ===================== */
 .filter-tabs {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-6);
+  gap: 4px;
+  border-bottom: 1px solid var(--el-border-color);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
 }
 
 .filter-tab {
   font-size: var(--text-sm, 0.8125rem);
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
   border: none;
   padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -11px;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .filter-tab:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+  color: var(--el-text-color-primary);
+  background: var(--el-fill-color);
 }
 
 .filter-tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--primary-color);
+  color: var(--el-text-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 /* ===================== Workflow Cards ===================== */
 .workflow-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .workflow-card {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: 16px;
   padding: 12px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-left: 3px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: border-color var(--motion-fast), background var(--motion-fast);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-left: 3px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  transition: border-color 150ms ease, background 150ms ease;
 }
 
 .workflow-card:hover {
-  border-color: var(--primary-border);
-  background: var(--bg-secondary);
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color-page);
 }
 
 /* Status icon */
@@ -1012,13 +1012,13 @@ onMounted(() => {
 .card-title-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .card-name {
   font-size: var(--text-sm, 0.8125rem);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .card-status-label {
@@ -1040,25 +1040,25 @@ onMounted(() => {
   gap: 4px;
   padding: 2px 8px;
   font-size: var(--text-xs, 0.75rem);
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
 
 .step-completed {
-  color: var(--success-color);
+  color: var(--el-color-success);
   background: rgba(52, 211, 153, 0.08);
 }
 
 .step-current {
-  color: var(--primary-color);
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-border);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary);
 }
 
 .step-pending {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
 }
 
 .step-dot {
@@ -1077,7 +1077,7 @@ onMounted(() => {
 .card-progress {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .progress-track {
@@ -1085,19 +1085,19 @@ onMounted(() => {
   max-width: 200px;
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  transition: width var(--motion-base);
+  transition: width 150ms ease;
 }
 
 .progress-text {
   font-size: var(--text-xs, 0.75rem);
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
@@ -1108,9 +1108,9 @@ onMounted(() => {
   gap: 4px;
   padding: 2px 6px;
   font-size: var(--text-xs, 0.75rem);
-  color: var(--info-color);
+  color: var(--el-color-info);
   background: rgba(96, 165, 250, 0.1);
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
@@ -1119,7 +1119,7 @@ onMounted(() => {
 .card-meta {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   flex-shrink: 0;
 }
 
@@ -1132,7 +1132,7 @@ onMounted(() => {
 
 .meta-time {
   font-size: var(--text-xs, 0.75rem);
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
@@ -1154,26 +1154,26 @@ onMounted(() => {
 }
 
 .empty-icon {
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
   opacity: 0.4;
 }
 
 .empty-state h3 {
   font-size: var(--text-lg, 1.125rem);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
 .empty-state p {
   font-size: var(--text-sm, 0.8125rem);
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0 0 20px 0;
 }
 
 .empty-actions {
   display: flex;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 /* ===================== Loading State ===================== */
@@ -1189,16 +1189,16 @@ onMounted(() => {
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .loading-state p {
   font-size: var(--text-sm, 0.8125rem);
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -1209,7 +1209,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--app-shell-glow-strong, rgba(0, 0, 0, 0.5));
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1218,8 +1218,8 @@ onMounted(() => {
 }
 
 .modal {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
+  background: var(--el-bg-color);
+  border-radius: 12px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -1238,7 +1238,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
   z-index: 1000;
 }
 
@@ -1264,7 +1264,7 @@ onMounted(() => {
 /* ===================== Responsive ===================== */
 @media (max-width: 768px) {
   .library-inner {
-    padding: var(--space-4);
+    padding: 16px;
   }
 
   .page-header {
@@ -1287,7 +1287,7 @@ onMounted(() => {
   .workflow-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: 12px;
   }
 
   .card-meta {

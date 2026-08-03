@@ -357,7 +357,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
 }
 
 .view-header {
@@ -365,8 +365,8 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
   gap: 16px;
   flex-shrink: 0;
 }
@@ -383,7 +383,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   font-size: 18px;
   cursor: pointer;
@@ -391,13 +391,13 @@ onMounted(() => {
 }
 
 .menu-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .view-title {
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -422,22 +422,22 @@ onMounted(() => {
 .search-input {
   width: 100%;
   padding: 10px 12px 10px 36px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   font-size: 14px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   transition: all 0.2s ease;
 }
 
 .search-input:hover {
   border-color: var(--border-strong);
-  background: var(--bg-card);
+  background: var(--el-bg-color);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  background: var(--bg-card);
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -463,22 +463,22 @@ onMounted(() => {
 
 .import-btn,
 .export-btn {
-  background: var(--bg-muted);
-  color: var(--text-secondary);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
 }
 
 .import-btn:hover,
 .export-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .add-btn {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .add-btn:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .view-content {
@@ -490,8 +490,8 @@ onMounted(() => {
 .sidebar {
   width: 280px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border-color);
-  background: var(--bg-card);
+  border-right: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   padding: 16px;
   overflow-y: auto;
 }
@@ -511,14 +511,14 @@ onMounted(() => {
   justify-content: center;
   padding: 60px 24px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--bg-muted);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-fill-color-light);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -537,22 +537,22 @@ onMounted(() => {
 
 .error-state p {
   margin: 0 0 16px 0;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .retry-btn {
   padding: 8px 20px;
   border: none;
   border-radius: 8px;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .retry-btn:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .empty-icon {
@@ -563,7 +563,7 @@ onMounted(() => {
 .empty-state h3 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
@@ -576,8 +576,8 @@ onMounted(() => {
   padding: 12px 24px;
   border: none;
   border-radius: 8px;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -585,7 +585,7 @@ onMounted(() => {
 }
 
 .add-first-btn:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .links-grid {
@@ -629,13 +629,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .modal-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -643,10 +643,10 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   font-size: 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -655,8 +655,8 @@ onMounted(() => {
 }
 
 .close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
@@ -670,7 +670,7 @@ onMounted(() => {
 .import-options h4 {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -685,15 +685,15 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mode-option:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .mode-option input[type="radio"] {
@@ -705,26 +705,26 @@ onMounted(() => {
 .mode-label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .mode-desc {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-left: auto;
 }
 
 .file-upload-area {
   position: relative;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .file-upload-area:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .file-input {
@@ -740,7 +740,7 @@ onMounted(() => {
 .upload-placeholder {
   padding: 40px 24px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   pointer-events: none;
 }
 
@@ -753,12 +753,12 @@ onMounted(() => {
 .upload-placeholder p {
   margin: 0 0 4px 0;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .upload-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .modal-enter-active,

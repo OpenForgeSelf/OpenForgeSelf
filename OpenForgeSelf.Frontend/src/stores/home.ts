@@ -10,7 +10,9 @@ import { useChatStore } from './chat'
 import { useWorkflowStore } from './workflow'
 import { useScriptRunnerStore } from './scriptRunner'
 import { useSystemMonitorStore } from './systemMonitor'
+import { useTodoStore } from './todo'
 import { skillsApi } from '@/services/skillsApi'
+import type { TodoItem, TodoCreateRequest } from '@/types/todo'
 
 /** 最近活动条目 */
 export interface ActivityItem {
@@ -20,18 +22,12 @@ export interface ActivityItem {
   timestamp: Date
 }
 
-/** 待办条目 */
-export interface TodoItem {
-  id: string
-  text: string
-  done: boolean
-}
-
 export const useHomeStore = defineStore('home', () => {
   const chatStore = useChatStore()
   const workflowStore = useWorkflowStore()
   const scriptRunnerStore = useScriptRunnerStore()
   const systemMonitorStore = useSystemMonitorStore()
+  const todoStore = useTodoStore()
 
   // AI Agent 状态
   const aiAgentStatus = computed(() => ({
@@ -86,12 +82,43 @@ export const useHomeStore = defineStore('home', () => {
   // 最近活动（聚合事件时间线，暂无真实数据源）
   const recentActivities = ref<ActivityItem[]>([])
 
-  // 待办（暂无真实数据源）
-  const todos = ref<TodoItem[]>([])
+  // 待办：派生自 useTodoStore 的真实数据，首页只展示最近 5 条待处理项
+  const recentTodos = computed<TodoItem[]>(() => todoStore.pendingItems.slice(0, 5))
+  const todoPendingTotal = computed(() => todoStore.total)
 
   /**
-   * 初始化首页聚合数据：拉取已启用技能数量。
-   * 失败时保持 0，不抛错。
+   * 切换待办完成状态：Pending → Complete / Complete → Reopen。
+   * 失败时静默（store 内部已记录 error）。
+   */
+  async function toggleTodo(id: number): Promise<void> {
+    const todo = todoStore.items.find(t => t.id === id)
+    if (!todo) return
+    try {
+      if (todo.status === 'Pending') {
+        await todoStore.markComplete(id)
+      } else {
+        await todoStore.markReopen(id)
+      }
+    } catch {
+      // 错误已在 store 中记录
+    }
+  }
+
+  /**
+   * 快速创建待办（首页面板入口）。
+   * 创建后 store 会自动 unshift 到 items 顶部。
+   */
+  async function addTodo(payload: TodoCreateRequest): Promise<void> {
+    try {
+      await todoStore.addTodo(payload)
+    } catch {
+      // 错误已在 store 中记录
+    }
+  }
+
+  /**
+   * 初始化首页聚合数据：拉取已启用技能数量 + 最近待办。
+   * 失败时保持 0/空，不抛错。
    */
   async function init(): Promise<void> {
     try {
@@ -100,6 +127,13 @@ export const useHomeStore = defineStore('home', () => {
     } catch {
       // skillsApi 不可用或失败时保持 0
       enabledSkillsCount.value = 0
+    }
+
+    // 加载待办（首页只看 Pending 第一页前 5 条；store 内部会自动切片）
+    try {
+      await todoStore.loadTodos({ status: 'Pending', page: 1, pageSize: 20 })
+    } catch {
+      // todoApi 不可用或失败时保持空
     }
   }
 
@@ -114,7 +148,10 @@ export const useHomeStore = defineStore('home', () => {
     forgeLevel,
     forgeProgress,
     recentActivities,
-    todos,
+    recentTodos,
+    todoPendingTotal,
+    toggleTodo,
+    addTodo,
     init,
   }
 })

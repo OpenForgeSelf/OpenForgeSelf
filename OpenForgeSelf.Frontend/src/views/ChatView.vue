@@ -208,7 +208,7 @@ function handleClearError() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
   position: relative;
   overflow: hidden;
   padding: 16px 20px;
@@ -225,17 +225,17 @@ function handleClearError() {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-  border: 1px solid var(--border-color);
-  border-left: 3px solid var(--primary-color);
-  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--el-bg-color-page) 0%, var(--el-fill-color-light) 100%);
+  border: 1px solid var(--el-border-color);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 0 50px rgba(245, 158, 11, 0.06), inset 0 1px 0 rgba(245, 158, 11, 0.04);
   transition: border-color 250ms ease, box-shadow 250ms ease;
 }
 
 .chat-anvil:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 60px rgba(245, 158, 11, 0.1), inset 0 1px 0 rgba(245, 158, 11, 0.06);
 }
 
@@ -245,7 +245,7 @@ function handleClearError() {
   justify-content: space-between;
   padding: 8px 16px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .chat-header-left {
@@ -259,18 +259,18 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
-  transition: background var(--motion-fast), color var(--motion-fast);
+  color: var(--el-text-color-regular);
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .menu-button:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .menu-button svg {
@@ -298,19 +298,19 @@ function handleClearError() {
 }
 
 .status-dot.connected {
-  background: var(--success-color);
+  background: var(--el-color-success);
   box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
 }
 
 .status-dot.disconnected {
-  background: var(--danger-color);
+  background: var(--el-color-danger);
   box-shadow: 0 0 6px rgba(248, 81, 73, 0.4);
 }
 
 .chat-agent-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
@@ -320,11 +320,11 @@ function handleClearError() {
 }
 
 .chat-status-text.connected {
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .chat-status-text:not(.connected) {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .chat-header-right {
@@ -339,16 +339,16 @@ function handleClearError() {
   gap: 4px;
   padding: 2px 8px;
   font-size: 0.75rem;
-  color: var(--text-muted);
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
 
 .model-badge svg {
   flex-shrink: 0;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .stats-badge {
@@ -357,16 +357,16 @@ function handleClearError() {
   gap: 4px;
   padding: 2px 8px;
   font-size: 0.75rem;
-  color: var(--text-muted);
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
 
 .stats-badge svg {
   flex-shrink: 0;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .chat-messages {
@@ -394,7 +394,7 @@ function handleClearError() {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--app-shell-glow, rgba(0, 0, 0, 0.5));
+  background-color: rgba(0, 0, 0, 0.5);
   z-index: 100;
 }
 
@@ -404,7 +404,7 @@ function handleClearError() {
   left: 0;
   bottom: 0;
   width: 280px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -413,7 +413,7 @@ function handleClearError() {
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .new-chat-button {
@@ -423,18 +423,18 @@ function handleClearError() {
   justify-content: center;
   gap: 8px;
   padding: 12px 16px;
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--motion-fast);
+  transition: background-color 150ms ease;
 }
 
 .new-chat-button:hover {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .new-chat-button svg {
@@ -452,24 +452,24 @@ function handleClearError() {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
-  transition: background-color var(--motion-fast);
+  transition: background-color 150ms ease;
   margin-bottom: 4px;
 }
 
 .conversation-item:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
 }
 
 .conversation-item.active {
-  background-color: var(--primary-soft);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .conversation-title {
   flex: 1;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -480,13 +480,13 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--motion-fast), background-color var(--motion-fast);
+  transition: opacity 150ms ease, background-color 150ms ease;
 }
 
 .conversation-item:hover .delete-button {
@@ -500,13 +500,13 @@ function handleClearError() {
 .delete-button svg {
   width: 16px;
   height: 16px;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .empty-conversations {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 14px;
 }
 
@@ -524,14 +524,14 @@ function handleClearError() {
   padding: 12px 20px;
   background-color: rgba(185, 28, 28, 0.12);
   border: 1px solid rgba(185, 28, 28, 0.3);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--el-border-radius-small);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
   z-index: 200;
 }
 
 .error-message {
   font-size: 14px;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .error-close {
@@ -541,12 +541,12 @@ function handleClearError() {
   background: transparent;
   cursor: pointer;
   font-size: 16px;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background-color var(--motion-fast);
+  transition: background-color 150ms ease;
 }
 
 .error-close:hover {

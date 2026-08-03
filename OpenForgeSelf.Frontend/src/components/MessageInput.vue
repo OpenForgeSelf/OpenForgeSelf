@@ -88,23 +88,23 @@ function adjustHeight() {
 <style scoped>
 .message-input {
   padding: 16px 20px;
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+  background-color: var(--el-bg-color-page);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .input-container {
   display: flex;
   gap: 12px;
   align-items: flex-end;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
   padding: 12px 16px;
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .input-container:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -117,13 +117,13 @@ function adjustHeight() {
   resize: none;
   outline: none;
   font-family: inherit;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   max-height: 200px;
   overflow-y: auto;
 }
 
 .input-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .input-textarea:disabled {
@@ -136,18 +136,18 @@ function adjustHeight() {
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: var(--radius-md);
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  border-radius: var(--el-border-radius-base);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--motion-fast), transform 0.1s ease;
+  transition: background-color 150ms ease, transform 0.1s ease;
 }
 
 .send-button:hover:not(.send-button-disabled) {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .send-button:active:not(.send-button-disabled) {
@@ -155,7 +155,7 @@ function adjustHeight() {
 }
 
 .send-button-disabled {
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   cursor: not-allowed;
 }
 
@@ -171,6 +171,6 @@ function adjustHeight() {
 
 .hint-text {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 </style>

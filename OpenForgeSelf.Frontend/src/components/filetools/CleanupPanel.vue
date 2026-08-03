@@ -370,8 +370,8 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .panel-section {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   min-height: 0;
@@ -389,7 +389,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -410,7 +410,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .form-label {
   display: block;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 4px;
 }
 
@@ -418,18 +418,18 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .form-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
   box-sizing: border-box;
 }
 
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -441,17 +441,17 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .rule-type-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 14px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
   cursor: pointer;
 }
 
 .rule-type-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -462,7 +462,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex: 1;
 }
 
@@ -490,7 +490,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .rule-card {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
   transition: opacity 0.2s;
@@ -505,8 +505,8 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .rule-title {
@@ -515,7 +515,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .rule-order {
@@ -524,8 +524,8 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   justify-content: center;
   width: 22px;
   height: 22px;
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
@@ -542,18 +542,18 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   transition: all 0.15s;
 }
 
 .icon-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .toggle-btn.active {
@@ -586,7 +586,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -597,14 +597,14 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .extra-options {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
 .options-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -618,7 +618,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 .preview-stats {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .preview-list {
@@ -626,7 +626,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
 }
 
@@ -634,10 +634,10 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   display: grid;
   grid-template-columns: 40px 1fr 80px 80px;
   padding: 10px 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   align-items: center;
   flex-shrink: 0;
 }
@@ -664,18 +664,18 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   display: grid;
   grid-template-columns: 40px 1fr 80px 80px;
   padding: 10px 12px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
   align-items: center;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .preview-item:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
 }
 
 .preview-item.selected {
-  background-color: var(--primary-soft);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .item-checkbox {
@@ -690,7 +690,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 .item-name {
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -698,7 +698,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 .item-path {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -708,7 +708,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .item-size {
   text-align: center;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .item-reason {
@@ -718,10 +718,10 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .reason-tag {
   display: inline-block;
   padding: 2px 8px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 10px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .action-bar {
@@ -729,7 +729,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   gap: 12px;
   justify-content: center;
   padding: 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -753,16 +753,16 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .btn-danger {
-  background-color: var(--danger-color);
+  background-color: var(--el-color-danger);
   color: #fff;
 }
 
@@ -771,8 +771,8 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .btn-secondary {
-  background-color: var(--text-muted);
-  color: var(--primary-contrast);
+  background-color: var(--el-text-color-secondary);
+  color: var(--el-color-white);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -798,7 +798,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .modal-dialog {
-  background-color: var(--bg-card);
+  background-color: var(--el-bg-color);
   border-radius: 8px;
   width: 90%;
   max-width: 450px;
@@ -807,27 +807,27 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 .modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .modal-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
   padding: 20px;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
 }
 
 .warning-options {
   margin: 16px 0;
   padding: 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 6px;
 }
 
@@ -844,7 +844,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 @media (max-width: 900px) {

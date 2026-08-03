@@ -59,18 +59,18 @@ const roleLabel = computed(() => {
   display: flex;
   gap: 12px;
   padding: 16px 20px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   margin-bottom: 12px;
-  transition: background-color var(--motion-fast);
+  transition: background-color 150ms ease;
 }
 
 .message-user {
-  background-color: var(--primary-soft);
+  background-color: var(--el-color-primary-light-9);
   margin-left: 40px;
 }
 
 .message-assistant {
-  background-color: var(--bg-tertiary);
+  background-color: var(--el-fill-color-light);
   margin-right: 40px;
 }
 
@@ -116,29 +116,29 @@ const roleLabel = computed(() => {
 .message-role {
   font-weight: 600;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .message-time {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .message-text {
   font-size: 15px;
   line-height: 1.6;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   word-wrap: break-word;
   white-space: pre-wrap;
 }
 
 .message-text.streaming {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .cursor-blink {
   animation: blink 1s infinite;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: bold;
 }
 

@@ -258,8 +258,8 @@ function handleExport(): void {
 .prompts-view {
   display: flex;
   height: 100%;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   overflow: hidden;
 }
 
@@ -271,8 +271,8 @@ function handleExport(): void {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-right: 1px solid var(--el-border-color);
   overflow: hidden;
 }
 
@@ -283,13 +283,13 @@ function handleExport(): void {
   height: 40px;
   padding: 0 12px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .sidebar-title {
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-new-prompts {
@@ -297,16 +297,16 @@ function handleExport(): void {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  font-size: var(--fs-text-xs, 0.75rem);
+  font-size: 0.75rem;
   font-weight: 500;
-  color: var(--primary-color);
-  background: var(--primary-soft);
-  border: 1px solid var(--primary-color);
-  border-radius: var(--fs-radius-sm, 4px);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary);
+  border-radius: 4px;
   cursor: pointer;
   transition:
-    background var(--fs-transition-fast, 150ms ease),
-    opacity var(--fs-transition-fast, 150ms ease);
+    background 150ms ease,
+    opacity 150ms ease;
 }
 
 .btn-new-prompts:hover {
@@ -332,29 +332,29 @@ function handleExport(): void {
   padding: 10px 12px;
   cursor: pointer;
   border-left: 3px solid transparent;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .prompt-item:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .prompt-item--active {
-  background: var(--primary-soft);
-  border-left-color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  border-left-color: var(--el-color-primary);
 }
 
 .prompt-item-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
   flex-shrink: 0;
   margin-top: 5px;
 }
 
 .prompt-item-dot--active {
-  background: var(--primary-color);
+  background: var(--el-color-primary);
 }
 
 .prompt-item-body {
@@ -366,16 +366,16 @@ function handleExport(): void {
 }
 
 .prompt-item-name {
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .prompt-item--active .prompt-item-name {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .prompt-item-meta {
@@ -396,32 +396,32 @@ function handleExport(): void {
 }
 
 .prompt-item-tag--system {
-  color: var(--primary-color);
-  background: var(--primary-soft);
-  border-color: var(--primary-border);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
 }
 
 .prompt-item-tag--professional {
-  color: var(--info-color);
+  color: var(--el-color-info);
   background: rgba(88, 166, 255, 0.1);
   border-color: rgba(88, 166, 255, 0.25);
 }
 
 .prompt-item-tag--task {
-  color: var(--success-color);
+  color: var(--el-color-success);
   background: rgba(52, 211, 153, 0.1);
   border-color: rgba(52, 211, 153, 0.25);
 }
 
 .prompt-item-tag--assist {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color);
 }
 
 .prompt-item-chars {
-  font-size: var(--fs-text-xs, 0.75rem);
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 
@@ -433,7 +433,7 @@ function handleExport(): void {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
 }
 
 /* Editor Header */
@@ -444,8 +444,8 @@ function handleExport(): void {
   height: 48px;
   padding: 0 24px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
 }
 
 .editor-header-left {
@@ -456,9 +456,9 @@ function handleExport(): void {
 }
 
 .editor-title {
-  font-size: var(--fs-text-base, 0.9375rem);
+  font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
@@ -474,32 +474,32 @@ function handleExport(): void {
 }
 
 .editor-tag--system {
-  color: var(--primary-color);
-  background: var(--primary-soft);
-  border-color: var(--primary-border);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
 }
 
 .editor-tag--professional {
-  color: var(--info-color);
+  color: var(--el-color-info);
   background: rgba(88, 166, 255, 0.1);
   border-color: rgba(88, 166, 255, 0.25);
 }
 
 .editor-tag--task {
-  color: var(--success-color);
+  color: var(--el-color-success);
   background: rgba(52, 211, 153, 0.1);
   border-color: rgba(52, 211, 153, 0.25);
 }
 
 .editor-tag--assist {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color);
 }
 
 .editor-chars {
-  font-size: var(--fs-text-xs, 0.75rem);
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 
@@ -519,10 +519,10 @@ function handleExport(): void {
 .editor-code-area {
   width: 100%;
   height: 100%;
-  background: var(--bg-code);
-  border: 1px solid var(--border-color);
-  border-left: 3px solid var(--primary-color);
-  border-radius: var(--fs-radius-md, 8px);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.15);
 }
@@ -535,15 +535,15 @@ function handleExport(): void {
   border: none;
   outline: none;
   resize: none;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-family-mono);
-  font-size: var(--fs-text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   line-height: 1.625;
   tab-size: 4;
 }
 
 .editor-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* Editor Footer */
@@ -554,8 +554,8 @@ function handleExport(): void {
   height: 44px;
   padding: 0 24px;
   flex-shrink: 0;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-top: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
 }
 
 .editor-footer-left {
@@ -565,8 +565,8 @@ function handleExport(): void {
 }
 
 .editor-last-edited {
-  font-size: var(--fs-text-xs, 0.75rem);
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 </style>

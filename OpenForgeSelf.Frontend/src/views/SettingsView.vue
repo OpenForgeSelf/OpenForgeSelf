@@ -35,9 +35,10 @@ const navItems: NavItem[] = [
 
 <template>
   <div class="p-6 h-full min-h-0 overflow-y-auto">
-    <div class="flex gap-6 max-w-[900px] mx-auto">
+    <!-- 统一半透明面板：导航 + 内容在同一 surface 上，模仿 VS Code 设置页整体感 -->
+    <div class="settings-surface flex gap-6 max-w-[900px] mx-auto rounded-xl p-4">
       <!-- 左侧导航 -->
-      <nav class="w-[180px] shrink-0 space-y-1" aria-label="设置分类">
+      <nav class="settings-cat-nav w-[180px] shrink-0 space-y-1" aria-label="设置分类">
         <button
           v-for="item in navItems"
           :key="item.key"

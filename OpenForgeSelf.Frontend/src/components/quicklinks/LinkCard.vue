@@ -109,8 +109,8 @@ function handleDragEnd(): void {
 
 <style scoped>
 .link-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   padding: 16px;
   cursor: pointer;
@@ -123,13 +123,13 @@ function handleDragEnd(): void {
 }
 
 .link-card:hover {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 4px 12px var(--primary-light);
   transform: translateY(-2px);
 }
 
 .link-card:focus-visible {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -147,7 +147,7 @@ function handleDragEnd(): void {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,7 +167,7 @@ function handleDragEnd(): void {
 .link-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -176,7 +176,7 @@ function handleDragEnd(): void {
 
 .link-url {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,7 +193,7 @@ function handleDragEnd(): void {
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
@@ -204,7 +204,7 @@ function handleDragEnd(): void {
 }
 
 .action-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .edit-btn:hover {
@@ -221,7 +221,7 @@ function handleDragEnd(): void {
 
 .link-description {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -235,7 +235,7 @@ function handleDragEnd(): void {
   align-items: center;
   justify-content: flex-end;
   padding-top: 12px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .click-count {
@@ -243,7 +243,7 @@ function handleDragEnd(): void {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .click-icon {

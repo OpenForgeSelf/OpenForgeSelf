@@ -141,13 +141,13 @@ onMounted(() => {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
 }
 
 .page-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -167,22 +167,22 @@ onMounted(() => {
 }
 
 .refresh-btn {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .update-all-btn {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .update-all-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .action-btn:disabled {
@@ -204,8 +204,8 @@ onMounted(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-light);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-border-color-light);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -217,12 +217,12 @@ onMounted(() => {
 
 .loading-state p,
 .empty-state p {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
 .error-state p {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   margin: 0 0 16px 0;
 }
 
@@ -235,14 +235,14 @@ onMounted(() => {
 .empty-state h3 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -260,14 +260,14 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   transition: all 0.2s;
 }
 
 .update-card:hover {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 2px 8px var(--primary-light);
 }
 
@@ -281,7 +281,7 @@ onMounted(() => {
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,7 +299,7 @@ onMounted(() => {
 .plugin-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
 }
 
@@ -311,22 +311,22 @@ onMounted(() => {
 }
 
 .current-version {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .arrow {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .new-version {
-  color: var(--success-color);
+  color: var(--el-color-success);
   font-weight: 500;
 }
 
 .update-btn {
   padding: 10px 24px;
   background: #ffc107;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   border: none;
   border-radius: 8px;
   font-size: 14px;

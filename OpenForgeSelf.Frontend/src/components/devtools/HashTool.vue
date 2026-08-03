@@ -134,7 +134,7 @@ function copyToClipboard(text: string): void {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -142,7 +142,7 @@ function copyToClipboard(text: string): void {
   padding: 8px 14px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
@@ -151,13 +151,13 @@ function copyToClipboard(text: string): void {
 }
 
 .type-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .type-btn.active {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .action-group {
@@ -170,9 +170,9 @@ function copyToClipboard(text: string): void {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
-  color: var(--text-secondary);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
@@ -181,7 +181,7 @@ function copyToClipboard(text: string): void {
 }
 
 .tool-btn:hover:not(:disabled) {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-color: var(--border-strong);
 }
 
@@ -191,19 +191,19 @@ function copyToClipboard(text: string): void {
 }
 
 .tool-btn.primary {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .tool-btn.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
 }
 
 .all-hashes {
   padding: 16px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -211,7 +211,7 @@ function copyToClipboard(text: string): void {
   margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .hash-grid {
@@ -229,7 +229,7 @@ function copyToClipboard(text: string): void {
 .hash-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .hash-value-row {
@@ -241,21 +241,21 @@ function copyToClipboard(text: string): void {
 .hash-value {
   flex: 1;
   padding: 8px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 12px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   word-break: break-all;
   line-height: 1.4;
 }
 
 .copy-btn {
   padding: 6px 10px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
-  color: var(--text-muted);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-secondary);
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
@@ -263,8 +263,8 @@ function copyToClipboard(text: string): void {
 }
 
 .copy-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .editors {
@@ -279,8 +279,8 @@ function copyToClipboard(text: string): void {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -290,21 +290,21 @@ function copyToClipboard(text: string): void {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .editor-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .clear-btn {
   padding: 4px 10px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
@@ -312,8 +312,8 @@ function copyToClipboard(text: string): void {
 }
 
 .clear-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .editor-textarea {
@@ -324,12 +324,12 @@ function copyToClipboard(text: string): void {
   font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-primary);
-  background: var(--bg-card);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
   outline: none;
 }
 
 .editor-textarea.output {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
 }
 </style>

@@ -505,8 +505,8 @@ function cancelExecute(): void {
 .panel-section {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   min-height: 0;
@@ -524,7 +524,7 @@ function cancelExecute(): void {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -534,9 +534,9 @@ function cancelExecute(): void {
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   border-radius: 8px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -544,8 +544,8 @@ function cancelExecute(): void {
 
 .drop-zone:hover,
 .drop-zone.drag-over {
-  border-color: var(--primary-color);
-  background-color: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .drop-icon {
@@ -555,13 +555,13 @@ function cancelExecute(): void {
 
 .drop-text {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 4px;
 }
 
 .drop-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .file-list {
@@ -578,8 +578,8 @@ function cancelExecute(): void {
   align-items: center;
   padding: 8px 0;
   font-size: 13px;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-color);
+  color: var(--el-text-color-secondary);
+  border-bottom: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
@@ -599,7 +599,7 @@ function cancelExecute(): void {
 }
 
 .file-item:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
 }
 
 .file-icon {
@@ -610,7 +610,7 @@ function cancelExecute(): void {
 .file-name {
   flex: 1;
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -619,7 +619,7 @@ function cancelExecute(): void {
 .file-remove {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
@@ -633,7 +633,7 @@ function cancelExecute(): void {
 }
 
 .file-remove:hover {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .add-rule-bar {
@@ -644,17 +644,17 @@ function cancelExecute(): void {
 .rule-type-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 14px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
   cursor: pointer;
 }
 
 .rule-type-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -664,7 +664,7 @@ function cancelExecute(): void {
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex: 1;
 }
 
@@ -687,7 +687,7 @@ function cancelExecute(): void {
 }
 
 .rule-card {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
   transition: opacity 0.2s;
@@ -702,8 +702,8 @@ function cancelExecute(): void {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .rule-title {
@@ -712,7 +712,7 @@ function cancelExecute(): void {
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .rule-order {
@@ -721,8 +721,8 @@ function cancelExecute(): void {
   justify-content: center;
   width: 22px;
   height: 22px;
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
@@ -739,18 +739,18 @@ function cancelExecute(): void {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   transition: all 0.15s;
 }
 
 .icon-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .icon-btn:disabled {
@@ -785,23 +785,23 @@ function cancelExecute(): void {
 
 .form-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .form-input,
 .form-select {
   padding: 6px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
 }
 
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -810,7 +810,7 @@ function cancelExecute(): void {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -820,7 +820,7 @@ function cancelExecute(): void {
 
 .format-hint {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   padding: 4px 0;
 }
 
@@ -829,7 +829,7 @@ function cancelExecute(): void {
   gap: 12px;
   justify-content: center;
   padding: 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -853,12 +853,12 @@ function cancelExecute(): void {
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .btn-success {
@@ -871,8 +871,8 @@ function cancelExecute(): void {
 }
 
 .btn-secondary {
-  background-color: var(--text-muted);
-  color: var(--primary-contrast);
+  background-color: var(--el-text-color-secondary);
+  color: var(--el-color-white);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -886,7 +886,7 @@ function cancelExecute(): void {
 
 .btn-link {
   background: none;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   padding: 4px 8px;
 }
 
@@ -895,8 +895,8 @@ function cancelExecute(): void {
 }
 
 .preview-section {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   flex-shrink: 0;
@@ -908,13 +908,13 @@ function cancelExecute(): void {
 
 .preview-stats {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .preview-table {
   flex: 1;
   overflow: auto;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
 }
 
@@ -922,10 +922,10 @@ function cancelExecute(): void {
   display: grid;
   grid-template-columns: 1fr 40px 1fr 100px;
   padding: 10px 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -935,13 +935,13 @@ function cancelExecute(): void {
   display: grid;
   grid-template-columns: 1fr 40px 1fr 100px;
   padding: 8px 12px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
   font-size: 13px;
   align-items: center;
 }
 
 .preview-row:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
 }
 
 .preview-row.invalid {
@@ -952,12 +952,12 @@ function cancelExecute(): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .preview-arrow {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .preview-status {
@@ -970,7 +970,7 @@ function cancelExecute(): void {
 }
 
 .status-error {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .modal-overlay {
@@ -987,7 +987,7 @@ function cancelExecute(): void {
 }
 
 .modal-dialog {
-  background-color: var(--bg-card);
+  background-color: var(--el-bg-color);
   border-radius: 8px;
   width: 90%;
   max-width: 400px;
@@ -996,20 +996,20 @@ function cancelExecute(): void {
 
 .modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .modal-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
   padding: 20px;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
 }
 
@@ -1026,7 +1026,7 @@ function cancelExecute(): void {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 @media (max-width: 900px) {

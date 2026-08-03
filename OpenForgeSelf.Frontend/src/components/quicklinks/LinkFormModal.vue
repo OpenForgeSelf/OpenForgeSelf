@@ -279,7 +279,7 @@ onUnmounted(() => {
 }
 
 .modal-container {
-  background: var(--bg-card);
+  background: var(--el-bg-color);
   border-radius: 16px;
   width: 100%;
   max-width: 480px;
@@ -295,14 +295,14 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
   flex-shrink: 0;
 }
 
 .modal-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -310,10 +310,10 @@ onUnmounted(() => {
   width: 32px;
   height: 32px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   font-size: 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -322,8 +322,8 @@ onUnmounted(() => {
 }
 
 .close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .modal-form {
@@ -356,12 +356,12 @@ onUnmounted(() => {
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 6px;
 }
 
 .required {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .form-input,
@@ -369,11 +369,11 @@ onUnmounted(() => {
 .form-textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text-primary);
-  background: var(--bg-card);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
   transition: all 0.2s ease;
   font-family: inherit;
 }
@@ -388,14 +388,14 @@ onUnmounted(() => {
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .form-input.has-error,
 .form-select.has-error,
 .form-textarea.has-error {
-  border-color: var(--danger-color);
+  border-color: var(--el-color-danger);
 }
 
 .form-input.has-error:focus,
@@ -411,13 +411,13 @@ onUnmounted(() => {
 
 .error-message {
   font-size: 12px;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   margin: 4px 0 0 0;
 }
 
 .modal-footer {
   padding: 16px 24px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -443,21 +443,21 @@ onUnmounted(() => {
 }
 
 .btn-secondary {
-  background: var(--bg-muted);
-  color: var(--text-secondary);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .btn-primary {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-loading {

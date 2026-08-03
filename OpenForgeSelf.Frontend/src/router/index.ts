@@ -18,6 +18,7 @@ import SettingsView from '@/views/SettingsView.vue'
 import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
+import TodoView from '@/views/TodoView.vue'
 import type { PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 
@@ -83,6 +84,11 @@ const router = createRouter({
       path: '/workflows',
       name: 'workflows',
       component: WorkflowLibrary
+    },
+    {
+      path: '/todo',
+      name: 'todo',
+      component: TodoView
     },
     {
       path: '/profile',

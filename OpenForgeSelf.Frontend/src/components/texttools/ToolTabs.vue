@@ -45,7 +45,7 @@ const tabs: TabItem[] = [
   display: flex;
   gap: 4px;
   padding: 8px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 8px;
   overflow-x: auto;
 }
@@ -58,7 +58,7 @@ const tabs: TabItem[] = [
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 14px;
   white-space: nowrap;
   transition: all 0.2s ease;
@@ -66,13 +66,13 @@ const tabs: TabItem[] = [
 }
 
 .tab-item:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .tab-item.active {
-  background-color: var(--bg-card);
-  color: var(--primary-color);
+  background-color: var(--el-bg-color);
+  color: var(--el-color-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-weight: 500;
 }

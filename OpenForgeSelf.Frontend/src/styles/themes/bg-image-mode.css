@@ -1,0 +1,100 @@
+/* ============================================================
+   铸己匣 OpenForgeSelf — 背景图片模式（仅重写官方 --el-* 变量）
+   ------------------------------------------------------------
+   本文件是「背景图片模式」样式的【唯一来源】，从主题文件 workshop-forge.css
+   拆出独立存放。与核心主题文件解耦，方便维护与日后删除。
+
+   ⚠️ 铁律（来自 forgeself-design/spec.md）：
+   - 0 自定义 token：本文件【不引入任何 --surface-* / --forge-* / --fs-* / --app-* 等
+     中间 token 层】。所有弱化/半透明值直接用官方 --el-* + CSS color-mix() 派生，
+     以官方 --el-text-color-primary 为基准（自动反色：暗色=淡白、亮色=淡黑）。
+   - 主题=仅重写样式：本文件只覆盖官方 --el-* 变量（旧 token 兼容层 legacy-compat.css 已移除，页面均直接引用官方 --el-*）。
+     各页面直接用 Element Plus 组件即可自动享受主题变化，0 手写 CSS。
+   - Tailwind v4 红线：严禁在 @theme 之外写 --color-*（生产构建报错）；也别指望覆盖 --el-*
+     让 @theme 的 --color-* 自动跟随（自定义属性在 :root 计算后继承，不按元素重解析）。
+     ⇒ 受影响的 Tailwind 表面工具类，在本文件【直接覆盖选择器】并引用官方 --el-*。
+
+   ⚠️ 复合 token 重解析陷阱（关键，否则黑边框）：
+   --el-border 在 base.css 定义为 `var(--el-border-width) var(--el-border-style) var(--el-border-color)`，
+   在 :root 声明时内部 var() 已解析为当时计算值（如暗色 #30363D），作为字符串继承。
+   后代覆盖 --el-border-color 后，--el-border 不会重解析。
+   ⇒ 本文件必须同步重链式声明：--el-border: var(--el-border-width) var(--el-border-style) var(--el-border-color);
+     这样它按本作用域已覆盖的 --el-border-color 重新求值（官方公式，0 自定义 token）。
+
+   加载顺序：main.ts 中本文件【最后】引入（在 tailwind.css 之后），确保覆盖作用在 @theme 之上。
+   激活钩子：App.vue 在 .app-layout 上挂 .has-bg-image（由 appearanceStore.backgroundImage 控制）。
+   ============================================================ */
+
+.app-layout.has-bg-image {
+  /* ===== 容器/面板底色透明（透出背景图）；用官方 --el-* 派生半透明（color-mix 自动反色） ===== */
+  --el-bg-color: transparent;
+  --el-bg-color-page: transparent;
+  --el-fill-color-blank: transparent;
+
+  /* ===== 边框：官方 --el-border-color 系列 → 由官方文字色派生的半透明（自动反色） ===== */
+  --el-border-color:           color-mix(in srgb, var(--el-text-color-primary) 12%, transparent);
+  --el-border-color-light:     color-mix(in srgb, var(--el-text-color-primary) 8%,  transparent);
+  --el-border-color-lighter:   transparent;
+  --el-border-color-dark:      color-mix(in srgb, var(--el-text-color-primary) 18%, transparent);
+  --el-border-color-darker:    color-mix(in srgb, var(--el-text-color-primary) 25%, transparent);
+  --el-border-color-extra-light: color-mix(in srgb, var(--el-text-color-primary) 8%, transparent);
+  --el-border-color-hover:     color-mix(in srgb, var(--el-text-color-primary) 18%, transparent);
+
+  /* ⚠️ 复合 token 重链式：让 --el-border 跟随上方已覆盖的 --el-border-color（官方公式，0 自定义） */
+  --el-border: var(--el-border-width) var(--el-border-style) var(--el-border-color);
+
+  /* ===== 填充：官方 --el-fill-color 系列 → 由官方文字色派生的极淡半透明 ===== */
+  --el-fill-color:           color-mix(in srgb, var(--el-text-color-primary) 6%, transparent);
+  --el-fill-color-light:     color-mix(in srgb, var(--el-text-color-primary) 4%, transparent);
+  --el-fill-color-lighter:   color-mix(in srgb, var(--el-text-color-primary) 4%, transparent);
+  --el-fill-color-dark:      color-mix(in srgb, var(--el-text-color-primary) 6%, transparent);
+  --el-fill-color-darker:    color-mix(in srgb, var(--el-text-color-primary) 6%, transparent);
+  --el-fill-color-extra-light: color-mix(in srgb, var(--el-text-color-primary) 4%, transparent);
+
+  /* ===== 输入控件底色：官方 --el-input-bg-color 是 input wrapper 实际引用的变量（var(--el-input-bg-color, var(--el-fill-color-blank))），
+     半透化保证可读又透出背景；--el-bg-color-overlay 一并半透以覆盖其他浮层组件（teleport 到 body 的弹层不继承，保持实底） ===== */
+  --el-bg-color-overlay: color-mix(in srgb, var(--el-text-color-primary) 12%, transparent);
+
+  background-image: none; /* 取消 .app-layout 默认径向渐变，让真实背景图透出 */
+}
+
+/* ===== Tailwind 工具类覆盖（生产安全：不碰 --color-* 命名空间，引用官方 --el-*） ===== */
+.app-layout.has-bg-image .border-border             { border-color: var(--el-border-color); }
+.app-layout.has-bg-image .border-border-light       { border-color: var(--el-border-color-light); }
+.app-layout.has-bg-image .border-border-dark        { border-color: var(--el-border-color-dark); }
+.app-layout.has-bg-image .border-border-lighter     { border-color: var(--el-border-color-lighter); }
+.app-layout.has-bg-image .border-border-darker      { border-color: var(--el-border-color-darker); }
+.app-layout.has-bg-image .border-border-extra-light { border-color: var(--el-border-color-extra-light); }
+.app-layout.has-bg-image .bg-fill,
+.app-layout.has-bg-image .hover\:bg-fill:hover       { background-color: var(--el-fill-color); }
+.app-layout.has-bg-image .bg-fill-light             { background-color: var(--el-fill-color-light); }
+
+/* 卡片：el-card 自身声明 --el-card-bg-color（暗色指向 --el-bg-color-overlay 实块），
+   重置透明；保留细边框维持可读性。精确挂在 .app-layout.has-bg-image 下，
+   避免影响 teleport 到 body 之外的弹层/菜单。 */
+.app-layout.has-bg-image .el-card,
+.app-layout.has-bg-image .el-card__body {
+  --el-card-bg-color: transparent;
+  background-color: transparent;
+  border-color: var(--el-border-color-light);
+}
+.app-layout.has-bg-image .el-card.is-never-shadow,
+.app-layout.has-bg-image .el-card.is-always-shadow,
+.app-layout.has-bg-image .el-card.shadow-hover {
+  box-shadow: none;
+}
+
+/* 输入框：input wrapper 实际用 var(--el-input-bg-color, var(--el-fill-color-blank))，
+   该引用链在背景图模式下继承脆弱（注入 .app-layout 的覆盖到不了 wrapper）。
+   直接用官方 --el-bg-color-overlay（本模式已半透化）显式设置背景，特异性 (0,3,0) 盖过 EP (0,1,0)，
+   稳定可靠、0 自定义 token。teleport 到 body 的弹层(dropdown/menu)不继承 .app-layout，保持实底。 */
+.app-layout.has-bg-image .el-input__wrapper,
+.app-layout.has-bg-image .el-textarea__inner {
+  background-color: var(--el-bg-color-overlay);
+}
+
+/* 遗留原生 .search-input（系统监控页等尚未迁移为 <el-input> 的输入框）可读性兜底：
+   引用官方 --el-bg-color-overlay（本模式已半透化），不引入自定义 token。 */
+.app-layout.has-bg-image .search-input {
+  background-color: var(--el-bg-color-overlay);
+}

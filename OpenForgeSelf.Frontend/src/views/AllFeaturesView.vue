@@ -34,8 +34,8 @@ const features: FeatureItem[] = [
     icon: 'bot',
     category: 'ai',
     categoryLabel: 'AI',
-    color: 'var(--primary-color)',
-    bgColor: 'var(--primary-soft)',
+    color: 'var(--el-color-primary)',
+    bgColor: 'var(--el-color-primary-light-9)',
     description: 'AI代理核心，自然语言操控工具，自动规划执行复杂任务链',
     stats: '50+ 工具函数',
     extraInfo: '支持多模型',
@@ -47,7 +47,7 @@ const features: FeatureItem[] = [
     icon: 'link',
     category: 'tools',
     categoryLabel: '工具',
-    color: 'var(--info-color)',
+    color: 'var(--el-color-info)',
     bgColor: 'rgba(29, 78, 216, 0.12)',
     description: '一键打开常用网址，支持分组管理',
     stats: '12 个链接',
@@ -59,7 +59,7 @@ const features: FeatureItem[] = [
     icon: 'type',
     category: 'tools',
     categoryLabel: '工具',
-    color: 'var(--info-color)',
+    color: 'var(--el-color-info)',
     bgColor: 'rgba(29, 78, 216, 0.12)',
     description: '格式化、编码转换、哈希计算等文本处理工具集',
     stats: '8 个工具',
@@ -71,7 +71,7 @@ const features: FeatureItem[] = [
     icon: 'folder-open',
     category: 'tools',
     categoryLabel: '工具',
-    color: 'var(--info-color)',
+    color: 'var(--el-color-info)',
     bgColor: 'rgba(29, 78, 216, 0.12)',
     description: '批量重命名、清理、压缩解压等文件管理工具',
     stats: '5 个工具',
@@ -83,7 +83,7 @@ const features: FeatureItem[] = [
     icon: 'monitor',
     category: 'system',
     categoryLabel: '系统',
-    color: 'var(--success-color)',
+    color: 'var(--el-color-success)',
     bgColor: 'rgba(4, 120, 87, 0.12)',
     description: 'CPU、内存、磁盘实时监控，进程管理',
     stats: '5 个监控项',
@@ -282,8 +282,8 @@ function lucideIconSvg(name: string): string {
               <!-- Status + Actions -->
               <div class="card-footer">
                 <div class="status-indicator">
-                  <div class="status-dot-sm" :style="{ background: 'var(--success-color)' }" />
-                  <span class="status-text" :style="{ color: 'var(--success-color)' }">已启用</span>
+                  <div class="status-dot-sm" :style="{ background: 'var(--el-color-success)' }" />
+                  <span class="status-text" :style="{ color: 'var(--el-color-success)' }">已启用</span>
                 </div>
                 <div class="card-actions">
                   <button class="btn btn--primary">打开</button>
@@ -309,7 +309,7 @@ function lucideIconSvg(name: string): string {
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                style="color: var(--primary-color);"
+                style="color: var(--el-color-primary);"
               >
                 <path d="M12 3v12" />
                 <path d="M8 8l4 4 4-4" />
@@ -348,7 +348,7 @@ function lucideIconSvg(name: string): string {
 .all-features-view {
   height: 100%;
   overflow-y: auto;
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
   display: flex;
   flex-direction: column;
 }
@@ -356,59 +356,59 @@ function lucideIconSvg(name: string): string {
 .bg-grid {
   flex: 1;
   background-image:
-    repeating-linear-gradient(0deg, var(--border-light) 0px, var(--border-light) 1px, transparent 1px, transparent 48px),
-    repeating-linear-gradient(90deg, var(--border-light) 0px, var(--border-light) 1px, transparent 1px, transparent 48px);
+    repeating-linear-gradient(0deg, var(--el-border-color-light) 0px, var(--el-border-color-light) 1px, transparent 1px, transparent 48px),
+    repeating-linear-gradient(90deg, var(--el-border-color-light) 0px, var(--el-border-color-light) 1px, transparent 1px, transparent 48px);
   background-size: 48px 48px;
 }
 
 /* ===== Page Header ===== */
 .page-header {
-  padding: var(--space-10) var(--space-6) var(--space-6);
+  padding: 40px 24px 24px;
 }
 
 @media (min-width: 1024px) {
   .page-header {
-    padding: var(--space-12) var(--space-12) var(--space-6);
+    padding: 48px 48px 24px;
   }
 }
 
 .page-title {
   font-size: 2.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.2;
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
   overflow-wrap: break-word;
   word-break: keep-all;
 }
 
 .page-subtitle {
-  font-size: var(--space-4);
-  color: var(--text-secondary);
+  font-size: 16px;
+  color: var(--el-text-color-regular);
   line-height: 1.625;
-  margin-bottom: var(--space-6);
+  margin-bottom: 24px;
 }
 
 /* ===== Search ===== */
 .search-box {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   max-width: 36rem;
-  margin-bottom: var(--space-5);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  padding: var(--space-3) var(--space-4);
-  transition: border-color var(--motion-fast);
+  margin-bottom: 20px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-page);
+  padding: 12px 16px;
+  transition: border-color 150ms ease;
 }
 
 .search-box:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .search-icon {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -417,20 +417,20 @@ function lucideIconSvg(name: string): string {
   border: none;
   outline: none;
   flex: 1;
-  font-size: var(--space-3-5, 0.875rem);
-  color: var(--text-primary);
+  font-size: 0.875rem;
+  color: var(--el-text-color-primary);
   font-family: var(--font-family-base);
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* ===== Filter Pills ===== */
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-wrap: nowrap;
   overflow-x: auto;
 }
@@ -448,52 +448,52 @@ function lucideIconSvg(name: string): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-1-5, 0.375rem) var(--space-3);
+  padding: 0.375rem 12px;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: var(--space-3-5, 0.875rem);
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
   transition:
-    background var(--motion-fast),
-    color var(--motion-fast),
-    border-color var(--motion-fast);
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 
 .filter-pill:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .filter-pill--active {
-  color: var(--primary-contrast);
-  background: var(--primary-color);
-  border-color: var(--primary-color);
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .filter-pill--active:hover {
-  background: var(--primary-hover);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary-light-3);
+  color: var(--el-color-white);
 }
 
 /* ===== Feature Grid ===== */
 .grid-section {
-  padding: 0 var(--space-6) var(--space-12);
+  padding: 0 24px 48px;
 }
 
 @media (min-width: 1024px) {
   .grid-section {
-    padding: 0 var(--space-12) var(--space-12);
+    padding: 0 48px 48px;
   }
 }
 
 .feature-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 @media (min-width: 768px) {
@@ -513,9 +513,9 @@ function lucideIconSvg(name: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-16) 0;
-  color: var(--text-muted);
-  font-size: var(--space-4);
+  padding: 64px 0;
+  color: var(--el-text-color-secondary);
+  font-size: 16px;
 }
 
 /* ===== Feature Card ===== */
@@ -523,9 +523,9 @@ function lucideIconSvg(name: string): string {
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: var(--el-bg-color-page);
   overflow: hidden;
   transition:
     transform 150ms cubic-bezier(.2,.8,.2,1),
@@ -534,13 +534,13 @@ function lucideIconSvg(name: string): string {
 
 .feature-card:hover {
   transform: translateY(-2px);
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .status-dot {
   position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
+  top: 12px;
+  right: 12px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -556,15 +556,15 @@ function lucideIconSvg(name: string): string {
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: var(--space-5);
+  padding: 20px;
 }
 
 /* Header row */
 .card-header-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .card-icon-wrap {
@@ -573,7 +573,7 @@ function lucideIconSvg(name: string): string {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   flex-shrink: 0;
 }
 
@@ -587,14 +587,14 @@ function lucideIconSvg(name: string): string {
 .card-title-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-0-5, 2px);
+  gap: 2px;
   min-width: 0;
 }
 
 .card-title {
-  font-size: var(--space-4-5, 1.125rem);
+  font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -604,12 +604,12 @@ function lucideIconSvg(name: string): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-0-5, 2px) var(--space-2);
+  padding: 2px 8px;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: var(--space-3, 0.75rem);
+  font-size: 0.75rem;
   font-weight: 500;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   width: fit-content;
 }
 
@@ -619,10 +619,10 @@ function lucideIconSvg(name: string): string {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: var(--space-3-5, 0.875rem);
-  color: var(--text-secondary);
+  font-size: 0.875rem;
+  color: var(--el-text-color-regular);
   line-height: 1.625;
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .card-spacer {
@@ -633,13 +633,13 @@ function lucideIconSvg(name: string): string {
 .card-stats {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .stat-item {
-  font-size: var(--space-3, 0.75rem);
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 
@@ -657,7 +657,7 @@ function lucideIconSvg(name: string): string {
 .status-indicator {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5, 6px);
+  gap: 6px;
 }
 
 .status-dot-sm {
@@ -667,14 +667,14 @@ function lucideIconSvg(name: string): string {
 }
 
 .status-text {
-  font-size: var(--space-3, 0.75rem);
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
 .card-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 /* Buttons */
@@ -682,46 +682,46 @@ function lucideIconSvg(name: string): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-1-5, 6px) var(--space-3);
+  padding: 6px 12px;
   white-space: nowrap;
-  font-size: var(--space-3, 0.75rem);
+  font-size: 0.75rem;
   font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   transition:
-    background var(--motion-fast),
-    color var(--motion-fast),
-    border-color var(--motion-fast);
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
 }
 
 .btn--primary {
-  color: var(--primary-contrast);
-  background: var(--primary-color);
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
   border: none;
 }
 
 .btn--primary:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn--ghost {
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
   background: transparent;
 }
 
 .btn--ghost:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 /* ===== CTA Section ===== */
 .cta-section {
-  padding: 0 var(--space-6) var(--space-12);
+  padding: 0 24px 48px;
 }
 
 @media (min-width: 1024px) {
   .cta-section {
-    padding: 0 var(--space-12) var(--space-12);
+    padding: 0 48px 48px;
   }
 }
 
@@ -729,11 +729,11 @@ function lucideIconSvg(name: string): string {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
-  padding: var(--space-6) var(--space-8);
+  gap: 16px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  background: var(--el-bg-color-page);
+  padding: 24px 32px;
 }
 
 @media (min-width: 640px) {
@@ -746,7 +746,7 @@ function lucideIconSvg(name: string): string {
 .cta-content {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   min-width: 0;
 }
 
@@ -756,8 +756,8 @@ function lucideIconSvg(name: string): string {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--primary-soft);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-color-primary-light-9);
   flex-shrink: 0;
 }
 
@@ -766,17 +766,17 @@ function lucideIconSvg(name: string): string {
 }
 
 .cta-title {
-  font-size: var(--space-3-5, 0.875rem);
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .cta-subtitle {
-  font-size: var(--space-3, 0.75rem);
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -785,23 +785,23 @@ function lucideIconSvg(name: string): string {
 .cta-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  gap: 8px;
+  padding: 8px 16px;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: var(--space-3-5, 0.875rem);
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
   transition:
-    background var(--motion-fast),
-    color var(--motion-fast);
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .cta-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 </style>

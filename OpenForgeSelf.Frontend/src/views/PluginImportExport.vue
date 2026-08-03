@@ -280,13 +280,13 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
 }
 
 .page-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -294,7 +294,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   display: flex;
   gap: 4px;
   margin-bottom: 24px;
-  border-bottom: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--el-border-color-light);
 }
 
 .tab-btn {
@@ -302,7 +302,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   border: none;
   background: none;
   font-size: 15px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -311,23 +311,23 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .tab-btn:hover {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 .tab-content {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   padding: 24px;
 }
 
 .drop-zone {
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   border-radius: 12px;
   padding: 48px 24px;
   text-align: center;
@@ -337,13 +337,13 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .drop-zone.dragging {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .drop-zone.has-file {
   border-style: solid;
-  border-color: var(--success-color);
+  border-color: var(--el-color-success);
   background: rgba(4, 120, 87, 0.06);
 }
 
@@ -355,18 +355,18 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .drop-content h3 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
 .drop-content p {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0 0 4px 0;
 }
 
 .format-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .file-info {
@@ -388,22 +388,22 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 .file-name {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .file-size {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .remove-btn {
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 50%;
   font-size: 18px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -411,7 +411,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .remove-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .install-result {
@@ -436,8 +436,8 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .install-btn {
   width: 100%;
   padding: 14px;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 10px;
   font-size: 16px;
@@ -451,7 +451,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .install-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .install-btn:disabled {
@@ -486,7 +486,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -506,22 +506,22 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .export-selected-btn {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
 }
 
 .export-selected-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .export-all-btn {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .export-all-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .action-btn:disabled {
@@ -542,27 +542,27 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .plugin-item:hover {
-  border-color: var(--primary-color);
-  background: var(--bg-secondary);
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color-page);
 }
 
 .plugin-item.selected {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .plugin-icon {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -578,28 +578,28 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .plugin-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 2px 0;
 }
 
 .plugin-version {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-category {
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 @media (max-width: 640px) {

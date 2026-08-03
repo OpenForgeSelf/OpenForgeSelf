@@ -86,7 +86,7 @@ const store = useDevToolsStore()
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -94,7 +94,7 @@ const store = useDevToolsStore()
   padding: 8px 16px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
@@ -103,13 +103,13 @@ const store = useDevToolsStore()
 }
 
 .switch-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .switch-btn.active {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .tool-btn {
@@ -117,9 +117,9 @@ const store = useDevToolsStore()
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
-  color: var(--text-secondary);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
@@ -128,7 +128,7 @@ const store = useDevToolsStore()
 }
 
 .tool-btn:hover:not(:disabled) {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-color: var(--border-strong);
 }
 
@@ -138,14 +138,14 @@ const store = useDevToolsStore()
 }
 
 .tool-btn.primary {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .tool-btn.primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
 }
 
 .editors {
@@ -160,8 +160,8 @@ const store = useDevToolsStore()
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -171,14 +171,14 @@ const store = useDevToolsStore()
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .editor-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .clear-btn,
@@ -186,7 +186,7 @@ const store = useDevToolsStore()
   padding: 4px 10px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
@@ -195,8 +195,8 @@ const store = useDevToolsStore()
 
 .clear-btn:hover,
 .swap-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .editor-textarea {
@@ -207,12 +207,12 @@ const store = useDevToolsStore()
   font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-primary);
-  background: var(--bg-card);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
   outline: none;
 }
 
 .editor-textarea.output {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
 }
 </style>

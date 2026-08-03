@@ -200,7 +200,7 @@ onMounted(() => {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   display: flex;
   align-items: center;
@@ -213,14 +213,14 @@ onMounted(() => {
 
 .view-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
 .filter-bar {
   flex-shrink: 0;
   padding: 16px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -243,22 +243,22 @@ onMounted(() => {
 .filter-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .filter-input,
 .filter-select {
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 14px;
-  background: var(--bg-card);
+  background: var(--el-bg-color);
 }
 
 .filter-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .filter-actions {
@@ -281,17 +281,17 @@ onMounted(() => {
 }
 
 .search-btn {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .search-btn:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .reset-btn {
-  background: var(--text-muted);
-  color: var(--primary-contrast);
+  background: var(--el-text-color-secondary);
+  color: var(--el-color-white);
 }
 
 .reset-btn:hover {
@@ -320,8 +320,8 @@ onMounted(() => {
   flex: 0 0 38%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -331,15 +331,15 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
 .detail-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -347,15 +347,15 @@ onMounted(() => {
   padding: 6px 10px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: var(--border-color);
-  color: var(--text-secondary);
+  background: var(--el-border-color);
+  color: var(--el-text-color-regular);
 }
 
 .detail-content {
@@ -371,14 +371,14 @@ onMounted(() => {
   justify-content: center;
   gap: 12px;
   height: 100%;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

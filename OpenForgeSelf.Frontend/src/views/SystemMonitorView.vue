@@ -39,7 +39,7 @@ function sortIcon(field: string) {
 // CPU gauge conic gradient style
 function cpuGaugeStyle(pct: number) {
   const deg = (pct / 100) * 360
-  return { background: `conic-gradient(var(--primary-color) ${deg}deg, var(--bg-muted) ${deg}deg)` }
+  return { background: `conic-gradient(var(--el-color-primary) ${deg}deg, var(--el-fill-color-light) ${deg}deg)` }
 }
 
 // Memory breakdown (approximate from overview)
@@ -188,11 +188,11 @@ onUnmounted(() => {
               <span class="stat-dim">{{ store.overview?.memory ? systemMonitorApi.formatBytes(store.overview.memory.total, 1) : '--' }}</span>
             </div>
             <div class="h-bar-track">
-              <div class="h-bar-fill" :style="{ width: (store.overview?.memory.usagePercent || 0) + '%', background: 'var(--info-color)' }" />
+              <div class="h-bar-fill" :style="{ width: (store.overview?.memory.usagePercent || 0) + '%', background: 'var(--el-color-info)' }" />
             </div>
             <div class="h-bar-labels">
               <span>{{ (store.overview?.memory.usagePercent || 0).toFixed(0) }}% 已用</span>
-              <span style="color: var(--info-color);">{{ store.overview?.memory ? systemMonitorApi.formatBytes(store.overview.memory.available, 1) : '--' }} 可用</span>
+              <span style="color: var(--el-color-info);">{{ store.overview?.memory ? systemMonitorApi.formatBytes(store.overview.memory.available, 1) : '--' }} 可用</span>
             </div>
           </div>
         </div>
@@ -224,11 +224,11 @@ onUnmounted(() => {
               <span class="stat-dim">{{ store.overview?.disks ? systemMonitorApi.formatBytes(store.overview.disks.reduce((s, d) => s + d.totalSize, 0), 1) : '--' }}</span>
             </div>
             <div class="h-bar-track">
-              <div class="h-bar-fill" :style="{ width: Math.min(100, (store.overview?.disks?.reduce((s, d) => s + d.usedSpace, 0) || 0) / Math.max(1, (store.overview?.disks?.reduce((s, d) => s + d.totalSize, 0) || 1)) * 100) + '%', background: 'var(--success-color)' }" />
+              <div class="h-bar-fill" :style="{ width: Math.min(100, (store.overview?.disks?.reduce((s, d) => s + d.usedSpace, 0) || 0) / Math.max(1, (store.overview?.disks?.reduce((s, d) => s + d.totalSize, 0) || 1)) * 100) + '%', background: 'var(--el-color-success)' }" />
             </div>
             <div class="h-bar-labels">
               <span>{{ (store.overview?.disks?.reduce((s, d) => s + d.usagePercent, 0) ?? 0) / Math.max(1, store.overview?.disks?.length ?? 1) }}% 已用</span>
-              <span style="color: var(--success-color);">{{ store.overview?.disks ? systemMonitorApi.formatBytes(store.overview.disks.reduce((s, d) => s + d.freeSpace, 0), 1) : '--' }} 可用</span>
+              <span style="color: var(--el-color-success);">{{ store.overview?.disks ? systemMonitorApi.formatBytes(store.overview.disks.reduce((s, d) => s + d.freeSpace, 0), 1) : '--' }} 可用</span>
             </div>
           </div>
         </div>
@@ -316,7 +316,7 @@ onUnmounted(() => {
           </div>
           <div class="bar-axis">
             <span>24s 前</span>
-            <span style="color: var(--primary-color);">当前</span>
+            <span style="color: var(--el-color-primary);">当前</span>
           </div>
         </div>
 
@@ -341,36 +341,36 @@ onUnmounted(() => {
           <div class="stacked-bar-track">
             <div
               class="stacked-bar-seg"
-              :style="{ width: (memoryBreakdown.system / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--info-color)' }"
+              :style="{ width: (memoryBreakdown.system / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--el-color-info)' }"
             >
               {{ systemMonitorApi.formatBytes(memoryBreakdown.system, 1) }}
             </div>
             <div
               class="stacked-bar-seg"
-              :style="{ width: (memoryBreakdown.app / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--primary-color)' }"
+              :style="{ width: (memoryBreakdown.app / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--el-color-primary)' }"
             >
               {{ systemMonitorApi.formatBytes(memoryBreakdown.app, 1) }}
             </div>
             <div
               class="stacked-bar-seg seg-last"
-              :style="{ width: (memoryBreakdown.cache / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--success-color)' }"
+              :style="{ width: (memoryBreakdown.cache / Math.max(1, (store.overview?.memory.total || 1)) * 100) + '%', background: 'var(--el-color-success)' }"
             >
               {{ systemMonitorApi.formatBytes(memoryBreakdown.cache, 1) }}
             </div>
           </div>
           <div class="legend">
             <div class="legend-item">
-              <span class="legend-dot" style="background: var(--info-color);" />
+              <span class="legend-dot" style="background: var(--el-color-info);" />
               <span class="legend-label">系统</span>
               <span class="legend-value">{{ systemMonitorApi.formatBytes(memoryBreakdown.system, 1) }}</span>
             </div>
             <div class="legend-item">
-              <span class="legend-dot" style="background: var(--primary-color);" />
+              <span class="legend-dot" style="background: var(--el-color-primary);" />
               <span class="legend-label">应用</span>
               <span class="legend-value">{{ systemMonitorApi.formatBytes(memoryBreakdown.app, 1) }}</span>
             </div>
             <div class="legend-item">
-              <span class="legend-dot" style="background: var(--success-color);" />
+              <span class="legend-dot" style="background: var(--el-color-success);" />
               <span class="legend-label">缓存</span>
               <span class="legend-value">{{ systemMonitorApi.formatBytes(memoryBreakdown.cache, 1) }}</span>
             </div>
@@ -509,14 +509,14 @@ onUnmounted(() => {
 }
 
 .header-icon {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   flex-shrink: 0;
 }
 
 .page-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -527,7 +527,7 @@ onUnmounted(() => {
   padding: 2px 8px;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--success-color);
+  color: var(--el-color-success);
   background: rgba(52, 211, 153, 0.1);
   border: 1px solid rgba(52, 211, 153, 0.2);
   border-radius: 999px;
@@ -537,7 +537,7 @@ onUnmounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--success-color);
+  background: var(--el-color-success);
   animation: pulse-green 2s ease-in-out infinite;
 }
 
@@ -548,7 +548,7 @@ onUnmounted(() => {
 
 .refresh-hint {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 
@@ -563,15 +563,15 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 999px;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .connection-status.connected {
   background: rgba(52, 211, 153, 0.1);
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .status-dot {
@@ -583,7 +583,7 @@ onUnmounted(() => {
 
 .update-time {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
 }
 
@@ -595,8 +595,8 @@ onUnmounted(() => {
   padding: 10px 14px;
   background: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.2);
-  border-radius: var(--radius-md);
-  color: var(--danger-color);
+  border-radius: var(--el-border-radius-base);
+  color: var(--el-color-danger);
   margin-bottom: 16px;
   font-size: 0.875rem;
 }
@@ -606,7 +606,7 @@ onUnmounted(() => {
 .error-close {
   background: none;
   border: none;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   cursor: pointer;
   opacity: 0.7;
   font-size: 14px;
@@ -624,15 +624,15 @@ onUnmounted(() => {
 }
 
 .stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .stat-card:hover {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 16px rgba(245, 158, 11, 0.06);
 }
 
@@ -641,7 +641,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .stat-label {
@@ -649,7 +649,7 @@ onUnmounted(() => {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .stat-body {
@@ -673,14 +673,14 @@ onUnmounted(() => {
   font-family: var(--font-family-mono);
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   line-height: 1;
 }
 
 .stat-sub {
   font-family: var(--font-family-mono);
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-top: 2px;
 }
 
@@ -694,19 +694,19 @@ onUnmounted(() => {
   font-family: var(--font-family-mono);
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .stat-divider {
   font-family: var(--font-family-mono);
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .stat-dim {
   font-family: var(--font-family-mono);
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* ===== CPU GAUGE ===== */
@@ -726,7 +726,7 @@ onUnmounted(() => {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: var(--bg-card);
+  background: var(--el-bg-color);
   position: absolute;
 }
 
@@ -736,7 +736,7 @@ onUnmounted(() => {
   font-family: var(--font-family-mono);
   font-weight: 700;
   font-size: 1rem;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 /* ===== HORIZONTAL BAR ===== */
@@ -744,14 +744,14 @@ onUnmounted(() => {
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   overflow: hidden;
 }
 
 .h-bar-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width var(--motion-base);
+  transition: width 150ms ease;
 }
 
 .h-bar-labels {
@@ -759,7 +759,7 @@ onUnmounted(() => {
   justify-content: space-between;
   font-family: var(--font-family-mono);
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* ===== NETWORK ROWS ===== */
@@ -769,21 +769,21 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.net-up-icon { color: var(--primary-color); display: flex; }
-.net-down-icon { color: var(--info-color); display: flex; }
+.net-up-icon { color: var(--el-color-primary); display: flex; }
+.net-down-icon { color: var(--el-color-info); display: flex; }
 
 .net-up-value {
   font-family: var(--font-family-mono);
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .net-down-value {
   font-family: var(--font-family-mono);
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--info-color);
+  color: var(--el-color-info);
 }
 
 /* ===== MIDDLE GRID ===== */
@@ -795,10 +795,10 @@ onUnmounted(() => {
 }
 
 .section-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  padding: 20px;
 }
 
 .section-card-header {
@@ -806,18 +806,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .section-card-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .section-card-badge {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
   margin-left: auto;
 }
@@ -835,9 +835,9 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
   border-radius: 3px 3px 0 0;
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   opacity: 0.6;
-  transition: opacity var(--motion-fast), height var(--motion-base);
+  transition: opacity 150ms ease, height 150ms ease;
   position: relative;
 }
 
@@ -856,15 +856,15 @@ onUnmounted(() => {
   margin-top: 8px;
   font-family: var(--font-family-mono);
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* ===== STACKED BAR ===== */
 .stacked-bar-track {
   width: 100%;
   height: 20px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-muted);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-fill-color-light);
   overflow: hidden;
   display: flex;
   margin-bottom: 16px;
@@ -872,19 +872,19 @@ onUnmounted(() => {
 
 .stacked-bar-seg {
   height: 100%;
-  transition: width var(--motion-base);
+  transition: width 150ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   font-family: var(--font-family-mono);
   font-weight: 500;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--el-text-color-primary);
+  border-radius: var(--el-border-radius-small) 0 0 var(--el-border-radius-small);
 }
 
 .seg-last {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-radius: 0 var(--el-border-radius-small) var(--el-border-radius-small) 0;
 }
 
 /* ===== LEGEND ===== */
@@ -909,7 +909,7 @@ onUnmounted(() => {
 
 .legend-label {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .legend-value {
@@ -917,7 +917,7 @@ onUnmounted(() => {
   font-family: var(--font-family-mono);
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 /* ===== PROCESS TABLE ===== */
@@ -926,29 +926,29 @@ onUnmounted(() => {
 }
 
 .search-input {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
   padding: 4px 10px;
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   width: 140px;
   outline: none;
-  transition: border-color var(--motion-fast);
+  transition: border-color 150ms ease;
 }
 
 .search-input:focus {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
 }
 
 .process-table {
@@ -958,15 +958,15 @@ onUnmounted(() => {
 }
 
 .process-table thead th {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 10px 14px;
   text-align: left;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .th-btn {
@@ -982,7 +982,7 @@ onUnmounted(() => {
 }
 
 .th-btn:hover {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .sort-icon {
@@ -992,10 +992,10 @@ onUnmounted(() => {
 
 .process-table tbody td {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
   font-family: var(--font-family-mono);
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .process-table tbody td:first-child {
@@ -1010,7 +1010,7 @@ onUnmounted(() => {
 }
 
 .cell-high {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -1019,7 +1019,7 @@ onUnmounted(() => {
 }
 
 .process-table tbody tr:hover {
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
 }
 
 /* ===== STATUS ===== */
@@ -1033,7 +1033,7 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--success-color);
+  background: var(--el-color-success);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -1041,12 +1041,12 @@ onUnmounted(() => {
 .kill-btn {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 13px;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  transition: color var(--motion-fast), background var(--motion-fast);
+  border-radius: var(--el-border-radius-small);
+  transition: color 150ms ease, background 150ms ease;
   opacity: 0;
 }
 
@@ -1055,18 +1055,18 @@ onUnmounted(() => {
 }
 
 .kill-btn:hover {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   background: rgba(248, 113, 113, 0.1);
 }
 
 .empty-cell {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   padding: 32px 14px !important;
 }
 
 .bottom-spacer {
-  height: var(--space-8);
+  height: 32px;
 }
 
 /* ===== RESPONSIVE ===== */

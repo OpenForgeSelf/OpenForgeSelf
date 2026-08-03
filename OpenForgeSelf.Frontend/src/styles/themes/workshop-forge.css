@@ -73,11 +73,11 @@
   --el-text-color-disabled: #B0B8C1;
 
   /* 边框 */
-  --el-border-color: #D0D7DE;
-  --el-border-color-light: #E8ECF0;
-  --el-border-color-lighter: #F0F3F6;
-  --el-border-color-dark: #D0D7DE;
-  --el-border-color-darker: #B6BDC5;
+  --el-border-color: #C4CDD5;        /* 主边框：保证在白色背景上可见，不偏白 */
+  --el-border-color-light: #D0D7DE;  /* 浅一层但仍可见，拒绝“白线条” */
+  --el-border-color-lighter: #D0D7DE;/* 卡片/面板/分割线最常用，必须看得见 */
+  --el-border-color-dark: #B6BDC5;
+  --el-border-color-darker: #9BA5AF;
 
   /* 字体 */
   --el-font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
@@ -161,20 +161,28 @@ html.dark {
   --el-fill-color-lighter: #282E36;
   --el-fill-color-blank: #0D1117;
 
-  --el-text-color-primary: #E6EDF3;
-  --el-text-color-regular: #8B949E;
-  --el-text-color-secondary: #828C97;
-  --el-text-color-placeholder: #828C97;
+  --el-text-color-primary: #FFFFFF;       /* VS Code 暗色：主文字纯白 */
+  --el-text-color-regular: #C9D1D9;       /* 常规文字提亮（原 #8B949E 偏灰黑） */
+  --el-text-color-secondary: #9DA7B3;     /* 次要/描述文字：比主文字灰一点，保留层次 */
+  --el-text-color-placeholder: #7D8590;
   --el-text-color-disabled: #484F58;
 
-  --el-border-color: #30363D;
-  --el-border-color-light: #21262D;
-  --el-border-color-lighter: #1C2128;
-  --el-border-color-dark: #30363D;
-  --el-border-color-darker: #484F58;
+  --el-border-color: #30363D;        /* 主边框：比暗色背景明显可见 */
+  --el-border-color-light: #3D444D;  /* 卡片/面板/分割线常用，提亮拒绝“黑线条” */
+  --el-border-color-lighter: #3D444D;/* 最轻量分隔也要看得见 */
+  --el-border-color-dark: #484F58;
+  --el-border-color-darker: #6E7681;
 
   --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.2);
   --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.24);
   --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
   --el-box-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.48);
 }
+
+/* ============================================================
+   背景图片模式（适配层已迁出）
+   ------------------------------------------------------------
+   背景图片模式的「表面透明 / 弱化」规则已整体迁移到独立文件
+   src/styles/themes/bg-image-mode.css（唯一来源，含 surface 层与适配清单）。
+   本主题文件只负责 --el-* 色值，不掺杂背景图模式覆盖，避免漂移。
+   ============================================================ */

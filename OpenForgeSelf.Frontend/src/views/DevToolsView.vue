@@ -105,7 +105,7 @@ function handleTabChange(tab: DevToolTab): void {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   display: flex;
   align-items: center;
@@ -118,7 +118,7 @@ function handleTabChange(tab: DevToolTab): void {
 
 .view-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -126,7 +126,7 @@ function handleTabChange(tab: DevToolTab): void {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -139,7 +139,7 @@ function handleTabChange(tab: DevToolTab): void {
   padding: 8px 16px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
@@ -148,13 +148,13 @@ function handleTabChange(tab: DevToolTab): void {
 }
 
 .tab-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .error-banner {
@@ -164,8 +164,8 @@ function handleTabChange(tab: DevToolTab): void {
   padding: 12px 16px;
   background: rgba(185, 28, 28, 0.08);
   border: 1px solid rgba(185, 28, 28, 0.2);
-  border-radius: var(--radius-md, 8px);
-  color: var(--danger-color);
+  border-radius: var(--el-border-radius-base, 8px);
+  color: var(--el-color-danger);
   flex-shrink: 0;
 }
 
@@ -181,7 +181,7 @@ function handleTabChange(tab: DevToolTab): void {
 .error-close {
   background: none;
   border: none;
-  color: var(--danger-color);
+  color: var(--el-color-danger);
   cursor: pointer;
   font-size: 16px;
   padding: 4px;

@@ -146,7 +146,7 @@ function handleClose(): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -156,8 +156,8 @@ function handleClose(): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
 }
 
 .generator-header h3 {
@@ -170,12 +170,12 @@ function handleClose(): void {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   padding: 4px 8px;
 }
 
 .btn-close:hover {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .generator-body {
@@ -199,10 +199,10 @@ function handleClose(): void {
 .form-group textarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
@@ -211,7 +211,7 @@ function handleClose(): void {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .btn-generate {
@@ -238,7 +238,7 @@ function handleClose(): void {
 .result-section {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .result-header {
@@ -276,11 +276,11 @@ function handleClose(): void {
 
 .param-name {
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .param-type {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
 }
 
@@ -291,7 +291,7 @@ function handleClose(): void {
 .result-code pre {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   overflow-x: auto;
   font-size: 13px;

@@ -525,7 +525,7 @@ function getSkillIcon(name: string): string {
   z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
+  padding: 24px 32px;
 }
 
 /* ===== Breadcrumb ===== */
@@ -533,28 +533,28 @@ function getSkillIcon(name: string): string {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: var(--space-5);
+  margin-bottom: 20px;
 }
 
 .breadcrumb-link {
   font-size: 0.8125rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   text-decoration: none;
-  transition: color var(--motion-fast);
+  transition: color 150ms ease;
 }
 
 .breadcrumb-link:hover {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .breadcrumb-chevron {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
 .breadcrumb-current {
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-weight: 500;
 }
 
@@ -562,21 +562,21 @@ function getSkillIcon(name: string): string {
 .page-header {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  gap: 16px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .page-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
@@ -587,10 +587,10 @@ function getSkillIcon(name: string): string {
   min-width: 24px;
   height: 24px;
   border-radius: var(--radius-pill);
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-family: var(--font-family-mono);
   padding: 0 8px;
 }
@@ -598,7 +598,7 @@ function getSkillIcon(name: string): string {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   margin-left: auto;
 }
 
@@ -608,40 +608,40 @@ function getSkillIcon(name: string): string {
   gap: 6px;
   height: 32px;
   padding: 0 14px;
-  border-radius: var(--radius-md);
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   font-size: 0.8125rem;
   font-weight: 500;
   font-family: var(--font-family-base);
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .btn-create:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   height: 32px;
   padding: 0 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .search-box:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--primary-light);
 }
 
 .search-icon {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -650,13 +650,13 @@ function getSkillIcon(name: string): string {
   border: none;
   outline: none;
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-family-base);
   width: 180px;
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 /* ===== State Messages ===== */
@@ -665,14 +665,14 @@ function getSkillIcon(name: string): string {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  padding: var(--space-16) var(--space-4);
-  color: var(--text-muted);
+  gap: 12px;
+  padding: 64px 16px;
+  color: var(--el-text-color-secondary);
   font-size: 0.875rem;
 }
 
 .state-message.state-error {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .spin-icon {
@@ -684,49 +684,49 @@ function getSkillIcon(name: string): string {
 }
 
 .btn-retry {
-  margin-top: var(--space-2);
+  margin-top: 8px;
   padding: 6px 16px;
-  border-radius: var(--radius-md);
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   font-size: 0.8125rem;
   cursor: pointer;
 }
 
 .btn-retry:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 /* ===== Skills Grid ===== */
 .skills-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 /* ===== Skill Card ===== */
 .skill-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  transition: border-color var(--motion-fast), background var(--motion-fast);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  padding: 20px;
+  transition: border-color 150ms ease, background 150ms ease;
   border-left: 2px solid transparent;
 }
 
 .skill-card--enabled {
-  border-left-color: var(--primary-color);
+  border-left-color: var(--el-color-primary);
 }
 
 .skill-card:hover {
-  background: var(--bg-secondary);
-  border-color: var(--primary-border);
+  background: var(--el-bg-color-page);
+  border-color: var(--el-color-primary);
 }
 
 .skill-card:hover .btn-ghost {
-  border-color: var(--primary-border);
-  color: var(--primary-color);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 /* Card Top */
@@ -734,14 +734,14 @@ function getSkillIcon(name: string): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .card-name-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   min-width: 0;
 }
 
@@ -751,21 +751,21 @@ function getSkillIcon(name: string): string {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-fill-color);
   flex-shrink: 0;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .card-icon--enabled {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .card-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -784,13 +784,13 @@ function getSkillIcon(name: string): string {
 }
 
 .status-badge--enabled {
-  color: var(--success-color);
+  color: var(--el-color-success);
   background: rgba(63, 185, 80, 0.1);
 }
 
 .status-badge--disabled {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
 }
 
 .status-dot {
@@ -800,19 +800,19 @@ function getSkillIcon(name: string): string {
 }
 
 .status-dot--enabled {
-  background: var(--success-color);
+  background: var(--el-color-success);
 }
 
 .status-dot--disabled {
-  background: var(--text-muted);
+  background: var(--el-text-color-secondary);
 }
 
 /* Description */
 .card-desc {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.5;
-  margin-bottom: var(--space-3);
+  margin-bottom: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -823,7 +823,7 @@ function getSkillIcon(name: string): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .card-tools {
@@ -836,36 +836,36 @@ function getSkillIcon(name: string): string {
 
 .tools-label {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .tool-tag {
   font-size: 0.75rem;
-  color: var(--info-color);
+  color: var(--el-color-info);
   background: rgba(88, 166, 255, 0.12);
   padding: 1px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
 }
 
 .tool-tag--empty {
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
 }
 
 .card-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .usage-count {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -873,21 +873,21 @@ function getSkillIcon(name: string): string {
 
 .btn-ghost {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
   padding: 2px 10px;
   cursor: pointer;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
   font-family: var(--font-family-base);
   white-space: nowrap;
 }
 
 .btn-ghost:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .btn-ghost:disabled {
@@ -904,32 +904,32 @@ function getSkillIcon(name: string): string {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--space-4);
+  padding: 16px;
 }
 
 .modal-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--border-color);
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .modal-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-close {
@@ -938,59 +938,59 @@ function getSkillIcon(name: string): string {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
+  transition: background 150ms ease, color 150ms ease;
 }
 
 .modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
-  padding: var(--space-5) var(--space-6);
+  padding: 20px 24px;
 }
 
 .form-field {
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .form-label {
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-2);
+  color: var(--el-text-color-regular);
+  margin-bottom: 8px;
 }
 
 .required {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color);
+  color: var(--el-text-color-primary);
   font-size: 0.875rem;
   font-family: var(--font-family-base);
-  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .form-input:focus {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--primary-light);
   outline: none;
 }
 
 .form-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .form-textarea {
@@ -1007,52 +1007,52 @@ function getSkillIcon(name: string): string {
   padding: 8px 12px;
   background: rgba(248, 81, 73, 0.1);
   border: 1px solid rgba(248, 81, 73, 0.3);
-  border-radius: var(--radius-md);
-  color: var(--danger-color);
+  border-radius: var(--el-border-radius-base);
+  color: var(--el-color-danger);
   font-size: 0.8125rem;
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .form-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
-  padding-top: var(--space-2);
+  gap: 12px;
+  padding-top: 8px;
 }
 
 .btn-cancel {
   padding: 8px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  border: 1px solid var(--el-border-color);
+  color: var(--el-text-color-regular);
   font-size: 0.875rem;
   font-family: var(--font-family-base);
   cursor: pointer;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
 }
 
 .btn-cancel:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .btn-submit {
   padding: 8px 20px;
-  border-radius: var(--radius-md);
-  background: var(--primary-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-color-primary);
   border: none;
-  color: var(--primary-contrast);
+  color: var(--el-color-white);
   font-size: 0.875rem;
   font-weight: 500;
   font-family: var(--font-family-base);
   cursor: pointer;
-  transition: background var(--motion-fast);
+  transition: background 150ms ease;
 }
 
 .btn-submit:hover {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-submit:disabled {

@@ -211,17 +211,17 @@ onMounted(() => {
   width: 240px;
   height: 100vh;
   background:
-    linear-gradient(180deg, var(--app-shell-glow-strong), transparent 18rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary) 20%, transparent), transparent 18rem),
     var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
   transition:
-    width var(--motion-base),
-    background-color var(--motion-base),
-    border-color var(--motion-base);
+    width 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
   overflow: hidden;
 }
 
@@ -242,31 +242,31 @@ onMounted(() => {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin: 0;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .collapse-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-base);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
   transition:
-    background-color var(--motion-fast),
-    border-color var(--motion-fast),
-    color var(--motion-fast),
-    transform var(--motion-fast);
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
 }
 
 .collapse-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
   border-color: var(--border-strong);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   transform: translateY(-1px);
 }
 
@@ -289,31 +289,31 @@ onMounted(() => {
   align-items: center;
   margin: 0 10px;
   padding: 12px 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   text-decoration: none;
   cursor: pointer;
   transition:
-    background-color var(--motion-fast),
-    color var(--motion-fast),
-    border-color var(--motion-fast);
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
   gap: 12px;
   border: 1px solid transparent;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
 }
 
 .menu-link:hover,
 .submenu-link:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .menu-link.active,
 .submenu-link.active {
   background:
-    linear-gradient(135deg, var(--primary-soft), transparent 80%),
-    var(--bg-tertiary);
-  border-color: var(--primary-border);
-  color: var(--primary-color);
+    linear-gradient(135deg, var(--el-color-primary-light-9), transparent 80%),
+    var(--el-fill-color-light);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
   box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.08);
 }
 
@@ -333,7 +333,7 @@ onMounted(() => {
 
 .menu-arrow {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .submenu-list {
@@ -349,7 +349,7 @@ onMounted(() => {
   padding: 14px 16px 18px;
   border-top: 1px solid var(--sidebar-border);
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -361,35 +361,35 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  background: var(--bg-tertiary);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: var(--el-fill-color-light);
 }
 
 .theme-btn {
   min-width: 34px;
   height: 30px;
   border: none;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 12px;
   font-weight: 600;
   transition:
-    background-color var(--motion-fast),
-    color var(--motion-fast),
-    transform var(--motion-fast);
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
 }
 
 .theme-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .theme-btn.active {
-  background: var(--primary-color);
-  color: var(--primary-contrast);
-  box-shadow: var(--shadow-sm);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-status {

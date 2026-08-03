@@ -196,7 +196,7 @@ function onSave() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-card, #fff);
+  background: var(--el-bg-color, #fff);
   overflow: hidden;
 }
 
@@ -205,14 +205,14 @@ function onSave() {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
 }
 
 .editor-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
 }
 
 .editor-actions {
@@ -232,12 +232,12 @@ function onSave() {
 }
 
 .btn-primary {
-  background: var(--primary-color, #3b82f6);
+  background: var(--el-color-primary, #3b82f6);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover, #2563eb);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-primary:disabled {
@@ -246,12 +246,12 @@ function onSave() {
 }
 
 .btn-secondary {
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color-page, #f3f4f6);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-muted, #e5e7eb);
+  background: var(--el-fill-color-light, #e5e7eb);
 }
 
 .editor-body {
@@ -272,7 +272,7 @@ function onSave() {
 .form-group label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary, #374151);
+  color: var(--el-text-color-regular, #374151);
 }
 
 .required {
@@ -282,18 +282,18 @@ function onSave() {
 .form-group input,
 .form-group textarea {
   padding: 8px 12px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 6px;
   font-size: 13px;
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1f2937);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-primary, #1f2937);
   font-family: inherit;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color, #3b82f6);
+  border-color: var(--el-color-primary, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -313,14 +313,14 @@ function onSave() {
   flex-wrap: wrap;
   gap: 6px;
   padding: 6px 8px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--el-border-color, #d1d5db);
   border-radius: 6px;
   min-height: 40px;
   align-items: center;
 }
 
 .tags-input:focus-within {
-  border-color: var(--primary-color, #3b82f6);
+  border-color: var(--el-color-primary, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -329,24 +329,24 @@ function onSave() {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--el-bg-color-page, #f3f4f6);
   border-radius: 4px;
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .remove-tag {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   font-size: 14px;
   padding: 0;
   line-height: 1;
 }
 
 .remove-tag:hover {
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .tags-input input {
@@ -380,9 +380,9 @@ function onSave() {
   line-height: 1.6;
   resize: none;
   tab-size: 2;
-  background: var(--bg-code, #1e293b);
+  background: var(--el-bg-color, #1e293b);
   color: #e2e8f0;
-  border-color: var(--border-color, #334155);
+  border-color: var(--el-border-color, #334155);
 }
 
 .code-info {
@@ -391,9 +391,9 @@ function onSave() {
   gap: 16px;
   padding: 6px 8px;
   font-size: 11px;
-  color: var(--text-muted, #9ca3af);
-  background: var(--bg-secondary, #f9fafb);
-  border: 1px solid var(--border-color, #e5e7eb);
+  color: var(--el-text-color-secondary, #9ca3af);
+  background: var(--el-bg-color-page, #f9fafb);
+  border: 1px solid var(--el-border-color, #e5e7eb);
   border-top: none;
   border-radius: 0 0 6px 6px;
 }

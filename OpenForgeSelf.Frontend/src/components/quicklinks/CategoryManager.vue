@@ -257,7 +257,7 @@ function handleDragEnd(): void {
 
 <style scoped>
 .category-manager {
-  background: var(--bg-card);
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -271,13 +271,13 @@ function handleDragEnd(): void {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .manager-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -285,10 +285,10 @@ function handleDragEnd(): void {
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   font-size: 18px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -297,8 +297,8 @@ function handleDragEnd(): void {
 }
 
 .close-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .category-list {
@@ -321,12 +321,12 @@ function handleDragEnd(): void {
 }
 
 .category-item:hover {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
 }
 
 .category-item.active {
-  background: var(--primary-soft);
-  border-color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary);
 }
 
 .category-item.dragging {
@@ -334,8 +334,8 @@ function handleDragEnd(): void {
 }
 
 .category-item.drag-over {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .all-category {
@@ -344,7 +344,7 @@ function handleDragEnd(): void {
 
 .drag-handle {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: grab;
   flex-shrink: 0;
   user-select: none;
@@ -362,7 +362,7 @@ function handleDragEnd(): void {
 .category-name {
   flex: 1;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -370,16 +370,16 @@ function handleDragEnd(): void {
 
 .category-count {
   font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-muted);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   padding: 2px 8px;
   border-radius: 10px;
   flex-shrink: 0;
 }
 
 .category-item.active .category-count {
-  background: var(--bg-card);
-  color: var(--primary-color);
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
 }
 
 .category-actions {
@@ -396,7 +396,7 @@ function handleDragEnd(): void {
   width: 24px;
   height: 24px;
   border: none;
-  background: var(--bg-card);
+  background: var(--el-bg-color);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -407,7 +407,7 @@ function handleDragEnd(): void {
 }
 
 .action-btn:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .edit-form {
@@ -420,7 +420,7 @@ function handleDragEnd(): void {
 .icon-input {
   width: 36px;
   padding: 4px 6px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 14px;
   text-align: center;
@@ -429,7 +429,7 @@ function handleDragEnd(): void {
 .name-input {
   flex: 1;
   padding: 4px 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 14px;
 }
@@ -437,7 +437,7 @@ function handleDragEnd(): void {
 .icon-input:focus,
 .name-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--primary-light);
 }
 
@@ -478,7 +478,7 @@ function handleDragEnd(): void {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -488,19 +488,19 @@ function handleDragEnd(): void {
   justify-content: center;
   gap: 6px;
   padding: 10px 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   background: transparent;
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .add-category-btn:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .add-icon {

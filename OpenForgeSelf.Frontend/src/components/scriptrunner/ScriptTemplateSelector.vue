@@ -230,7 +230,7 @@ function handleClosePreview(): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-secondary);
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -240,8 +240,8 @@ function handleClosePreview(): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
 }
 
 .selector-header h3 {
@@ -254,12 +254,12 @@ function handleClosePreview(): void {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   padding: 4px 8px;
 }
 
 .btn-close:hover {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .selector-body {
@@ -275,17 +275,17 @@ function handleClosePreview(): void {
 .search-box input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   margin-bottom: 12px;
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .filter-row {
@@ -296,10 +296,10 @@ function handleClosePreview(): void {
 .filter-row select {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
@@ -313,15 +313,15 @@ function handleClosePreview(): void {
   display: flex;
   gap: 12px;
   padding: 14px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .template-card:hover {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -334,7 +334,7 @@ function handleClosePreview(): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
@@ -352,7 +352,7 @@ function handleClosePreview(): void {
 .template-desc {
   margin: 0 0 8px 0;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -364,7 +364,7 @@ function handleClosePreview(): void {
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 6px;
 }
 
@@ -376,17 +376,17 @@ function handleClosePreview(): void {
 
 .tag {
   padding: 2px 8px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 4px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .empty-state,
 .loading-state {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .preview-overlay {
@@ -404,7 +404,7 @@ function handleClosePreview(): void {
 }
 
 .preview-panel {
-  background: var(--bg-primary);
+  background: var(--el-bg-color);
   border-radius: 12px;
   width: 100%;
   max-width: 700px;
@@ -419,7 +419,7 @@ function handleClosePreview(): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .preview-header h4 {
@@ -442,18 +442,18 @@ function handleClosePreview(): void {
 .preview-section strong {
   display: block;
   margin-bottom: 6px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .preview-section p {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .lang-badge {
   display: inline-block;
   padding: 4px 10px;
-  background: var(--primary-color);
+  background: var(--el-color-primary);
   color: white;
   border-radius: 4px;
   font-size: 12px;
@@ -471,11 +471,11 @@ function handleClosePreview(): void {
 
 .param-name {
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .param-type {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 12px;
 }
 
@@ -489,7 +489,7 @@ function handleClosePreview(): void {
 .code-preview {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   overflow-x: auto;
   font-size: 12px;
@@ -507,6 +507,6 @@ function handleClosePreview(): void {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 </style>

@@ -181,33 +181,33 @@ onMounted(async () => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-primary, #f9fafb);
+  background: var(--el-bg-color, #f9fafb);
 }
 
 .view-header {
   padding: 20px 24px;
-  background: var(--bg-card, #fff);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
 }
 
 .view-header h2 {
   margin: 0 0 4px 0;
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .view-header h2 i {
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
 }
 
 .view-subtitle {
   margin: 0;
   font-size: 14px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .view-content {
@@ -220,8 +220,8 @@ onMounted(async () => {
   width: 400px;
   min-width: 320px;
   max-width: 500px;
-  border-right: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-card, #fff);
+  border-right: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -248,7 +248,7 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   gap: 12px;
 }
 

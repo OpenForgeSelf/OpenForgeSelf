@@ -76,7 +76,7 @@ async function handleCopy(): Promise<void> {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -90,7 +90,7 @@ async function handleCopy(): Promise<void> {
 .field-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   white-space: nowrap;
 }
 
@@ -103,23 +103,23 @@ async function handleCopy(): Promise<void> {
 .type-btn {
   padding: 6px 14px;
   font-size: 13px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .type-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
   border-color: var(--border-strong);
 }
 
 .type-btn.active {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .panel-actions {
@@ -131,28 +131,28 @@ async function handleCopy(): Promise<void> {
 .action-btn {
   padding: 8px 16px;
   font-size: 13px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-card);
+  border: 1px solid var(--el-border-color);
+  background-color: var(--el-bg-color);
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .action-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
   border-color: var(--border-strong);
 }
 
 .action-btn.primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
 }
 
 .action-btn:disabled {
@@ -162,14 +162,14 @@ async function handleCopy(): Promise<void> {
 
 .hash-result {
   padding: 12px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
 }
 
 .result-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 8px;
 }
 
@@ -177,9 +177,9 @@ async function handleCopy(): Promise<void> {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   word-break: break-all;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   padding: 8px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 4px;
 }
 </style>

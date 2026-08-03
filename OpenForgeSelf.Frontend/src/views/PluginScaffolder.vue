@@ -203,13 +203,13 @@ onMounted(() => {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
 }
 
 .page-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -222,14 +222,14 @@ onMounted(() => {
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 16px 0;
 }
 
 .left-panel,
 .right-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   padding: 24px;
 }
@@ -242,7 +242,7 @@ onMounted(() => {
 }
 
 .template-card {
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--el-border-color);
   border-radius: 10px;
   padding: 16px;
   cursor: pointer;
@@ -250,13 +250,13 @@ onMounted(() => {
 }
 
 .template-card:hover {
-  border-color: var(--primary-color);
-  background: var(--bg-secondary);
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color-page);
 }
 
 .template-card.selected {
-  border-color: var(--primary-color);
-  background: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .template-icon {
@@ -267,13 +267,13 @@ onMounted(() => {
 .template-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
 }
 
 .template-desc {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
@@ -285,22 +285,22 @@ onMounted(() => {
 }
 
 .tag {
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .template-preview {
   padding-top: 20px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .preview-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -312,7 +312,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .plugin-form {
@@ -330,31 +330,31 @@ onMounted(() => {
 .form-label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .required {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .form-input,
 .form-textarea,
 .form-select {
   padding: 10px 14px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   transition: border-color 0.2s;
   font-family: inherit;
-  background: var(--bg-card);
+  background: var(--el-bg-color);
 }
 
 .form-input:focus,
 .form-textarea:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
 }
 
 .form-textarea {
@@ -382,8 +382,8 @@ onMounted(() => {
 .generate-btn {
   width: 100%;
   padding: 14px;
-  background: var(--primary-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 10px;
   font-size: 16px;
@@ -397,7 +397,7 @@ onMounted(() => {
 }
 
 .generate-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: var(--el-color-primary-light-3);
 }
 
 .generate-btn:disabled {
@@ -421,13 +421,13 @@ onMounted(() => {
 .usage-guide {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .guide-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -435,7 +435,7 @@ onMounted(() => {
   margin: 0;
   padding-left: 20px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.8;
 }
 

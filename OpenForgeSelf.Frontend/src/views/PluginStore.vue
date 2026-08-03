@@ -320,8 +320,8 @@ onMounted(() => {
 .sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  background: var(--el-bg-color-page);
+  border-right: 1px solid var(--el-border-color);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -329,25 +329,25 @@ onMounted(() => {
 
 .sidebar-header {
   padding: 20px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .sidebar-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .sidebar-section {
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .section-title {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 10px 0;
@@ -367,20 +367,20 @@ onMounted(() => {
   padding: 10px 12px;
   border: none;
   background: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
   text-align: left;
   width: 100%;
 }
 
 .category-item:hover {
-  background: var(--bg-hover);
+  background: var(--el-fill-color);
 }
 
 .category-item.active {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .category-icon {
@@ -396,15 +396,15 @@ onMounted(() => {
 
 .category-count {
   font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
 .category-item.active .category-count {
   background: var(--primary-light);
-  color: var(--primary-color);
+  color: var(--el-color-primary);
 }
 
 .nav-item {
@@ -412,20 +412,20 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   text-decoration: none;
-  color: var(--text-secondary);
-  transition: all var(--motion-fast);
+  color: var(--el-text-color-regular);
+  transition: all 150ms ease;
 }
 
 .nav-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .nav-item.router-link-active {
-  background: var(--primary-soft);
-  color: var(--primary-color);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .nav-icon {
@@ -439,8 +439,8 @@ onMounted(() => {
 }
 
 .nav-badge {
-  background: var(--danger-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-danger);
+  color: var(--el-color-white);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
@@ -472,7 +472,7 @@ onMounted(() => {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -484,16 +484,16 @@ onMounted(() => {
 
 .sort-label {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .sort-select {
   padding: 6px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
-  color: var(--text-primary);
-  background: var(--bg-primary);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
   cursor: pointer;
 }
 
@@ -501,7 +501,7 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   margin-bottom: 16px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--el-border-color);
 }
 
 .tab-btn {
@@ -509,36 +509,36 @@ onMounted(() => {
   border: none;
   background: none;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
   font-weight: 500;
 }
 
 .tab-btn:hover {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 .search-bar {
   position: relative;
   display: flex;
   align-items: center;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
   padding: 0 12px;
-  transition: border-color var(--motion-base), box-shadow var(--motion-base);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .search-bar:focus-within {
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -553,21 +553,21 @@ onMounted(() => {
   border: none;
   background: transparent;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .clear-btn {
   width: 22px;
   height: 22px;
   border: none;
-  background: var(--bg-tertiary);
+  background: var(--el-fill-color-light);
   border-radius: 50%;
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -575,12 +575,12 @@ onMounted(() => {
 }
 
 .clear-btn:hover {
-  background: var(--bg-muted);
+  background: var(--el-fill-color-light);
 }
 
 .results-info {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 16px;
 }
 
@@ -591,20 +591,20 @@ onMounted(() => {
 }
 
 .plugin-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
   padding: 18px;
   cursor: pointer;
-  transition: all var(--motion-base);
+  transition: all 150ms ease;
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
 .plugin-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transform: translateY(-2px);
 }
 
@@ -619,7 +619,7 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: var(--primary-soft);
+  background: var(--el-color-primary-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -645,22 +645,22 @@ onMounted(() => {
 
 .plugin-status-badge.running {
   background: rgba(4, 120, 87, 0.15);
-  color: var(--success-color);
+  color: var(--el-color-success);
 }
 
 .plugin-status-badge.stopped {
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-status-badge.error {
   background: rgba(185, 28, 28, 0.15);
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .plugin-status-badge.notloaded {
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
 }
 
 .card-body {
@@ -671,13 +671,13 @@ onMounted(() => {
 .plugin-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
 }
 
 .plugin-desc {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -691,7 +691,7 @@ onMounted(() => {
   gap: 14px;
   margin-bottom: 14px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .meta-item {
@@ -709,36 +709,36 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: 14px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .plugin-version {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 
 .toggle-btn {
   padding: 6px 14px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
-  transition: all var(--motion-fast);
+  transition: all 150ms ease;
 }
 
 .toggle-btn:hover:not(:disabled) {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .toggle-btn.active {
-  background: var(--bg-tertiary);
-  border-color: var(--danger-color);
-  color: var(--danger-color);
+  background: var(--el-fill-color-light);
+  border-color: var(--el-color-danger);
+  color: var(--el-color-danger);
 }
 
 .toggle-btn.active:hover {
@@ -754,8 +754,8 @@ onMounted(() => {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: var(--warning-color);
-  color: var(--primary-contrast);
+  background: var(--el-color-warning);
+  color: var(--el-color-white);
   font-size: 11px;
   font-weight: 600;
   padding: 3px 8px;
@@ -775,8 +775,8 @@ onMounted(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -787,7 +787,7 @@ onMounted(() => {
 }
 
 .loading-state p {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -799,12 +799,12 @@ onMounted(() => {
 .empty-state h3 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
 }
 
 .empty-state p {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 

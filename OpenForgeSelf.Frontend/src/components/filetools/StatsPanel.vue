@@ -162,7 +162,7 @@ function setDemoDirectory(): void {
 .form-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .input-group {
@@ -173,16 +173,16 @@ function setDemoDirectory(): void {
 .form-input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -205,17 +205,17 @@ function setDemoDirectory(): void {
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .btn-secondary {
-  background-color: var(--text-muted);
-  color: var(--primary-contrast);
+  background-color: var(--el-text-color-secondary);
+  color: var(--el-color-white);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -234,7 +234,7 @@ function setDemoDirectory(): void {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .loading-spinner,
@@ -269,8 +269,8 @@ function setDemoDirectory(): void {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
 }
 
@@ -289,13 +289,13 @@ function setDemoDirectory(): void {
 .card-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.2;
 }
 
 .card-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .stats-grid {
@@ -310,8 +310,8 @@ function setDemoDirectory(): void {
 .stats-section {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   min-height: 0;
@@ -321,7 +321,7 @@ function setDemoDirectory(): void {
 .section-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 16px 0;
   flex-shrink: 0;
 }
@@ -353,7 +353,7 @@ function setDemoDirectory(): void {
   align-items: center;
   gap: 8px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .type-dot {
@@ -365,12 +365,12 @@ function setDemoDirectory(): void {
 
 .type-stats {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .type-bar {
   height: 6px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -383,7 +383,7 @@ function setDemoDirectory(): void {
 
 .type-percentage {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   text-align: right;
 }
 
@@ -400,7 +400,7 @@ function setDemoDirectory(): void {
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .large-file-item:last-child {
@@ -413,11 +413,11 @@ function setDemoDirectory(): void {
   justify-content: center;
   width: 24px;
   height: 24px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -444,7 +444,7 @@ function setDemoDirectory(): void {
 .file-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -452,7 +452,7 @@ function setDemoDirectory(): void {
 
 .file-path {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -462,7 +462,7 @@ function setDemoDirectory(): void {
 .file-size {
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 

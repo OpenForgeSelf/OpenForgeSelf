@@ -109,7 +109,7 @@ function handleTabChange(tab: FileToolTab): void {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   display: flex;
   align-items: center;
@@ -122,7 +122,7 @@ function handleTabChange(tab: FileToolTab): void {
 
 .view-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -130,7 +130,7 @@ function handleTabChange(tab: FileToolTab): void {
   display: flex;
   gap: 4px;
   padding: 8px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 8px;
   overflow-x: auto;
   flex-shrink: 0;
@@ -144,7 +144,7 @@ function handleTabChange(tab: FileToolTab): void {
   border: none;
   background: transparent;
   border-radius: 6px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 14px;
   white-space: nowrap;
   transition: all 0.2s ease;
@@ -152,13 +152,13 @@ function handleTabChange(tab: FileToolTab): void {
 }
 
 .tab-item:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .tab-item.active {
-  background-color: var(--bg-card);
-  color: var(--primary-color);
+  background-color: var(--el-bg-color);
+  color: var(--el-color-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-weight: 500;
 }
@@ -178,8 +178,8 @@ function handleTabChange(tab: FileToolTab): void {
   padding: 12px 16px;
   background: rgba(180, 83, 9, 0.08);
   border: 1px solid rgba(180, 83, 9, 0.2);
-  border-radius: var(--radius-md, 8px);
-  color: var(--warning-color);
+  border-radius: var(--el-border-radius-base, 8px);
+  color: var(--el-color-warning);
   flex-shrink: 0;
 }
 
@@ -197,7 +197,7 @@ function handleTabChange(tab: FileToolTab): void {
   background: none;
   border: none;
   font-size: 16px;
-  color: var(--warning-color);
+  color: var(--el-color-warning);
   cursor: pointer;
   padding: 4px;
   line-height: 1;
@@ -211,7 +211,7 @@ function handleTabChange(tab: FileToolTab): void {
 
 .progress-bar {
   height: 4px;
-  background-color: var(--border-color);
+  background-color: var(--el-border-color);
   border-radius: 2px;
   overflow: hidden;
   flex-shrink: 0;
@@ -219,7 +219,7 @@ function handleTabChange(tab: FileToolTab): void {
 
 .progress-fill {
   height: 100%;
-  background-color: var(--primary-color);
+  background-color: var(--el-color-primary);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -235,12 +235,12 @@ function handleTabChange(tab: FileToolTab): void {
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+  background-color: var(--el-bg-color-page);
+  border-top: 1px solid var(--el-border-color);
   border-radius: 0 0 8px 8px;
   flex-shrink: 0;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .status-left {
@@ -255,7 +255,7 @@ function handleTabChange(tab: FileToolTab): void {
 }
 
 .status-processing {
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-weight: 500;
 }
 

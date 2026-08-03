@@ -456,7 +456,7 @@ watch(() => growthCurve.value, () => {
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  background: var(--bg-primary, #f9fafb);
+  background: var(--el-bg-color, #f9fafb);
 }
 
 .view-header {
@@ -464,8 +464,8 @@ watch(() => growthCurve.value, () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: var(--bg-card, #fff);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
   flex-wrap: wrap;
   gap: 16px;
 }
@@ -474,20 +474,20 @@ watch(() => growthCurve.value, () => {
   margin: 0 0 4px 0;
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .header-left h2 i {
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
 }
 
 .view-subtitle {
   margin: 0;
   font-size: 14px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .header-right {
@@ -498,7 +498,7 @@ watch(() => growthCurve.value, () => {
 
 .time-range-selector {
   display: flex;
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--el-bg-color-page, #f3f4f6);
   border-radius: 8px;
   padding: 3px;
 }
@@ -507,7 +507,7 @@ watch(() => growthCurve.value, () => {
   padding: 6px 14px;
   border: none;
   background: transparent;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
   font-size: 12px;
   cursor: pointer;
   border-radius: 6px;
@@ -515,16 +515,16 @@ watch(() => growthCurve.value, () => {
 }
 
 .range-btn.active {
-  background: var(--bg-card, #fff);
-  color: var(--primary-color, #3b82f6);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-color-primary, #3b82f6);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .refresh-btn {
   padding: 8px 14px;
-  border: 1px solid var(--border-color, #d1d5db);
-  background: var(--bg-card, #fff);
-  color: var(--text-secondary, #6b7280);
+  border: 1px solid var(--el-border-color, #d1d5db);
+  background: var(--el-bg-color, #fff);
+  color: var(--el-text-color-regular, #6b7280);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
@@ -534,7 +534,7 @@ watch(() => growthCurve.value, () => {
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--el-bg-color-page, #f3f4f6);
 }
 
 .view-content {
@@ -555,8 +555,8 @@ watch(() => growthCurve.value, () => {
   align-items: center;
   gap: 14px;
   padding: 18px;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
+  border: 1px solid var(--el-border-color, #e5e7eb);
   border-radius: 10px;
 }
 
@@ -582,43 +582,43 @@ watch(() => growthCurve.value, () => {
 .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
   margin-top: 2px;
 }
 
 .chart-section,
 .ranking-card,
 .time-saved-section {
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--el-bg-color, #fff);
+  border: 1px solid var(--el-border-color, #e5e7eb);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .section-header {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: var(--bg-secondary, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color-page, #f9fafb);
 }
 
 .section-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .section-header h3 i {
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
   font-size: 13px;
 }
 
@@ -638,7 +638,7 @@ watch(() => growthCurve.value, () => {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.8);
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
 }
 
 .rankings-grid {
@@ -657,7 +657,7 @@ watch(() => growthCurve.value, () => {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-light, #f3f4f6);
+  border-bottom: 1px solid var(--el-border-color-light, #f3f4f6);
 }
 
 .ranking-item:last-child {
@@ -673,8 +673,8 @@ watch(() => growthCurve.value, () => {
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-secondary, #6b7280);
+  background: var(--el-bg-color-page, #f3f4f6);
+  color: var(--el-text-color-regular, #6b7280);
   flex-shrink: 0;
 }
 
@@ -690,7 +690,7 @@ watch(() => growthCurve.value, () => {
 .rank-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -698,21 +698,21 @@ watch(() => growthCurve.value, () => {
 
 .rank-subtitle {
   font-size: 11px;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   margin-top: 2px;
 }
 
 .rank-value {
   font-size: 12px;
   font-weight: 500;
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
   flex-shrink: 0;
 }
 
 .empty-ranking {
   padding: 30px;
   text-align: center;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   font-size: 13px;
 }
 
@@ -732,7 +732,7 @@ watch(() => growthCurve.value, () => {
 .time-saved-value {
   font-size: 36px;
   font-weight: 700;
-  color: var(--primary-color, #3b82f6);
+  color: var(--el-color-primary, #3b82f6);
   line-height: 1;
 }
 
@@ -744,7 +744,7 @@ watch(() => growthCurve.value, () => {
 
 .time-saved-label {
   font-size: 13px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
   margin-top: 6px;
 }
 
@@ -759,18 +759,18 @@ watch(() => growthCurve.value, () => {
   display: flex;
   justify-content: space-between;
   padding: 10px 12px;
-  background: var(--bg-secondary, #f9fafb);
+  background: var(--el-bg-color-page, #f9fafb);
   border-radius: 6px;
   font-size: 12px;
 }
 
 .breakdown-category {
-  color: var(--text-secondary, #6b7280);
+  color: var(--el-text-color-regular, #6b7280);
 }
 
 .breakdown-value {
   font-weight: 500;
-  color: var(--text-primary, #1f2937);
+  color: var(--el-text-color-primary, #1f2937);
 }
 
 .error-state {
@@ -779,7 +779,7 @@ watch(() => growthCurve.value, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, #9ca3af);
+  color: var(--el-text-color-secondary, #9ca3af);
   gap: 16px;
 }
 
@@ -795,7 +795,7 @@ watch(() => growthCurve.value, () => {
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--primary-color, #3b82f6);
+  background: var(--el-color-primary, #3b82f6);
   color: white;
   border: none;
   border-radius: 6px;
@@ -804,6 +804,6 @@ watch(() => growthCurve.value, () => {
 }
 
 .retry-btn:hover {
-  background: var(--primary-hover, #2563eb);
+  background: var(--el-color-primary-light-3);
 }
 </style>

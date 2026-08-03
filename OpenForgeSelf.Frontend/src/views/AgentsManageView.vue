@@ -171,7 +171,7 @@ function memoryCount(agent: AgentDefinition): number {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--fs-space-8, 2rem) var(--fs-space-6, 1.5rem);
+  padding: 2rem 1.5rem;
 }
 
 /* ================================
@@ -181,33 +181,33 @@ function memoryCount(agent: AgentDefinition): number {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--fs-space-8, 2rem);
+  margin-bottom: 2rem;
   flex-shrink: 0;
 }
 
 .page-header-left {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-3, 0.75rem);
+  gap: 0.75rem;
 }
 
 .page-title {
   margin: 0;
-  font-size: var(--fs-text-2xl, 1.75rem);
-  font-weight: var(--fs-weight-bold, 700);
-  color: var(--fs-color-text-primary, var(--text-primary));
-  line-height: var(--fs-leading-tight, 1.2);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+  line-height: 1.2;
 }
 
 .agent-count-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  font-size: var(--fs-text-xs, 0.75rem);
-  font-weight: var(--fs-weight-medium, 500);
-  border-radius: var(--fs-radius-md, 8px);
-  background: var(--fs-color-primary-light, var(--primary-soft));
-  color: var(--fs-color-primary, var(--primary-color));
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   border: 1px solid rgba(245, 158, 11, 0.2);
   line-height: 1.5;
 }
@@ -215,23 +215,23 @@ function memoryCount(agent: AgentDefinition): number {
 .btn-create {
   display: inline-flex;
   align-items: center;
-  gap: var(--fs-space-2, 0.5rem);
-  padding: var(--fs-space-2, 0.5rem) var(--fs-space-4, 1rem);
-  font-size: var(--fs-text-sm, 0.8125rem);
-  font-weight: var(--fs-weight-medium, 500);
-  font-family: var(--fs-font-body, inherit);
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
   border: none;
-  border-radius: var(--fs-radius-lg, 12px);
+  border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
-  background: var(--fs-color-primary, var(--primary-color));
-  color: var(--fs-color-text-inverse, var(--primary-contrast));
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   transition:
-    background var(--fs-transition-fast, 150ms ease);
+    background 150ms ease;
 }
 
 .btn-create:hover {
-  background: var(--fs-color-primary-hover, var(--primary-hover));
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-create svg {
@@ -247,8 +247,8 @@ function memoryCount(agent: AgentDefinition): number {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--fs-color-text-tertiary, var(--text-muted));
+  font-size: 0.8125rem;
+  color: var(--el-text-color-secondary);
 }
 
 /* ================================
@@ -258,7 +258,7 @@ function memoryCount(agent: AgentDefinition): number {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--fs-space-3, 0.75rem);
+  gap: 0.75rem;
   overflow-y: auto;
 }
 
@@ -267,22 +267,22 @@ function memoryCount(agent: AgentDefinition): number {
    ================================ */
 .agent-card {
   position: relative;
-  border-radius: var(--fs-radius-xl, 12px);
-  border: 1px solid var(--fs-color-border-default, var(--border-color));
-  background: var(--fs-surface-card, var(--bg-secondary));
+  border-radius: 12px;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
   transition:
-    background var(--fs-transition-fast, 150ms ease),
-    box-shadow var(--fs-transition-fast, 150ms ease);
+    background 150ms ease,
+    box-shadow 150ms ease;
   cursor: pointer;
 }
 
 .agent-card:hover {
-  background: var(--fs-surface-card-hover, var(--bg-tertiary));
+  background: var(--el-fill-color-light);
 }
 
 /* Active (enabled) state: amber left border + glow */
 .agent-card--active {
-  border-left: 3px solid var(--fs-color-primary, var(--primary-color));
+  border-left: 3px solid var(--el-color-primary);
   box-shadow: 0 0 16px rgba(245, 158, 11, 0.06);
 }
 
@@ -293,8 +293,8 @@ function memoryCount(agent: AgentDefinition): number {
 .agent-card-inner {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-5, 1.25rem);
-  padding: var(--fs-space-5, 1.25rem);
+  gap: 1.25rem;
+  padding: 1.25rem;
 }
 
 /* ================================
@@ -304,16 +304,16 @@ function memoryCount(agent: AgentDefinition): number {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: var(--fs-radius-full, 9999px);
+  border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fs-color-primary, var(--primary-color));
+  color: var(--el-color-primary);
   background: rgba(245, 158, 11, 0.15);
 }
 
 .agent-icon--programmer {
-  color: var(--fs-color-accent, var(--info-color));
+  color: var(--el-color-info);
   background: rgba(88, 166, 255, 0.15);
 }
 
@@ -348,14 +348,14 @@ function memoryCount(agent: AgentDefinition): number {
 .agent-info-top {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-2, 0.5rem);
-  margin-bottom: var(--fs-space-1, 0.25rem);
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .agent-name {
-  font-size: var(--fs-text-base, 0.9375rem);
-  font-weight: var(--fs-weight-semibold, 600);
-  color: var(--fs-color-text-primary, var(--text-primary));
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -365,16 +365,16 @@ function memoryCount(agent: AgentDefinition): number {
   display: inline-flex;
   align-items: center;
   padding: 2px 6px;
-  font-size: var(--fs-text-xs, 0.75rem);
-  font-weight: var(--fs-weight-medium, 500);
-  border-radius: var(--fs-radius-sm, 4px);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
   flex-shrink: 0;
   line-height: 1.4;
 }
 
 .agent-tag--default {
-  background: var(--fs-color-primary-light, var(--primary-soft));
-  color: var(--fs-color-primary, var(--primary-color));
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .agent-tag--type {
@@ -383,9 +383,9 @@ function memoryCount(agent: AgentDefinition): number {
 }
 
 .agent-desc {
-  margin: 0 0 var(--fs-space-2, 0.5rem);
-  font-size: var(--fs-text-sm, 0.8125rem);
-  color: var(--fs-color-text-secondary, var(--text-secondary));
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--el-text-color-regular);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -394,18 +394,18 @@ function memoryCount(agent: AgentDefinition): number {
 .agent-meta {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-4, 1rem);
-  font-size: var(--fs-text-xs, 0.75rem);
-  color: var(--fs-color-text-tertiary, var(--text-muted));
-  font-family: var(--fs-font-mono, monospace);
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--el-text-color-secondary);
+  font-family: monospace;
 }
 
 .agent-meta-value {
-  color: var(--fs-color-text-secondary, var(--text-secondary));
+  color: var(--el-text-color-regular);
 }
 
 .meta-sep {
-  color: var(--fs-color-border-default, var(--border-color));
+  color: var(--el-border-color);
 }
 
 /* ================================
@@ -416,72 +416,72 @@ function memoryCount(agent: AgentDefinition): number {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--fs-space-3, 0.75rem);
+  gap: 0.75rem;
 }
 
 .agent-stats {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-4, 1rem);
-  font-size: var(--fs-text-xs, 0.75rem);
-  font-family: var(--fs-font-mono, monospace);
-  color: var(--fs-color-text-tertiary, var(--text-muted));
+  gap: 1rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: var(--el-text-color-secondary);
 }
 
 .agent-stats-value {
-  color: var(--fs-color-text-primary, var(--text-primary));
+  color: var(--el-text-color-primary);
 }
 
 .agent-buttons {
   display: flex;
   align-items: center;
-  gap: var(--fs-space-2, 0.5rem);
+  gap: 0.5rem;
 }
 
 .btn-config {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
-  font-size: var(--fs-text-xs, 0.75rem);
-  font-weight: var(--fs-weight-medium, 500);
-  font-family: var(--fs-font-body, inherit);
-  border-radius: var(--fs-radius-lg, 12px);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background var(--fs-transition-fast, 150ms ease),
-    border-color var(--fs-transition-fast, 150ms ease),
-    color var(--fs-transition-fast, 150ms ease);
-  color: var(--fs-color-text-secondary, var(--text-secondary));
-  border: 1px solid var(--fs-color-border-default, var(--border-color));
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color);
   background: transparent;
 }
 
 .btn-config:hover {
-  border-color: var(--fs-color-text-tertiary, var(--text-muted));
-  color: var(--fs-color-text-primary, var(--text-primary));
+  border-color: var(--el-text-color-secondary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-chat {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
-  font-size: var(--fs-text-xs, 0.75rem);
-  font-weight: var(--fs-weight-medium, 500);
-  font-family: var(--fs-font-body, inherit);
-  border-radius: var(--fs-radius-lg, 12px);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background var(--fs-transition-fast, 150ms ease),
-    border-color var(--fs-transition-fast, 150ms ease);
-  color: var(--fs-color-primary, var(--primary-color));
+    background 150ms ease,
+    border-color 150ms ease;
+  color: var(--el-color-primary);
   border: 1px solid rgba(245, 158, 11, 0.3);
   background: transparent;
 }
 
 .btn-chat:hover {
-  background: var(--fs-color-primary-light, var(--primary-soft));
+  background: var(--el-color-primary-light-9);
   border-color: rgba(245, 158, 11, 0.5);
 }
 </style>

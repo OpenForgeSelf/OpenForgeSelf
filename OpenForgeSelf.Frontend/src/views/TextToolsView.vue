@@ -80,7 +80,7 @@ function handleTabChange(tab: TextToolTab): void {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   display: flex;
   align-items: center;
@@ -93,7 +93,7 @@ function handleTabChange(tab: TextToolTab): void {
 
 .view-subtitle {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -104,8 +104,8 @@ function handleTabChange(tab: TextToolTab): void {
   padding: 12px 16px;
   background: rgba(180, 83, 9, 0.08);
   border: 1px solid rgba(180, 83, 9, 0.2);
-  border-radius: var(--radius-md, 8px);
-  color: var(--warning-color);
+  border-radius: var(--el-border-radius-base, 8px);
+  color: var(--el-color-warning);
   flex-shrink: 0;
 }
 
@@ -123,7 +123,7 @@ function handleTabChange(tab: TextToolTab): void {
   background: none;
   border: none;
   font-size: 16px;
-  color: var(--warning-color);
+  color: var(--el-color-warning);
   cursor: pointer;
   padding: 4px;
   line-height: 1;

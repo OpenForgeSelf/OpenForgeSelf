@@ -420,7 +420,7 @@ async function handleExtract(): Promise<void> {
   display: flex;
   gap: 8px;
   padding: 6px;
-  background-color: var(--bg-muted);
+  background-color: var(--el-fill-color-light);
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -433,18 +433,18 @@ async function handleExtract(): Promise<void> {
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mode-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--el-fill-color);
 }
 
 .mode-btn.active {
-  background-color: var(--bg-card);
-  color: var(--primary-color);
+  background-color: var(--el-bg-color);
+  color: var(--el-color-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -459,8 +459,8 @@ async function handleExtract(): Promise<void> {
 .panel-section {
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   min-height: 0;
@@ -478,7 +478,7 @@ async function handleExtract(): Promise<void> {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -488,9 +488,9 @@ async function handleExtract(): Promise<void> {
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   border-radius: 8px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -498,8 +498,8 @@ async function handleExtract(): Promise<void> {
 
 .drop-zone:hover,
 .drop-zone.drag-over {
-  border-color: var(--primary-color);
-  background-color: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .drop-icon {
@@ -509,13 +509,13 @@ async function handleExtract(): Promise<void> {
 
 .drop-text {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 4px;
 }
 
 .drop-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .file-list {
@@ -532,8 +532,8 @@ async function handleExtract(): Promise<void> {
   align-items: center;
   padding: 8px 0;
   font-size: 13px;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-color);
+  color: var(--el-text-color-secondary);
+  border-bottom: 1px solid var(--el-border-color);
   flex-shrink: 0;
 }
 
@@ -553,7 +553,7 @@ async function handleExtract(): Promise<void> {
 }
 
 .file-item:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
 }
 
 .file-icon {
@@ -564,7 +564,7 @@ async function handleExtract(): Promise<void> {
 .file-name {
   flex: 1;
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -573,7 +573,7 @@ async function handleExtract(): Promise<void> {
 .file-remove {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 14px;
   padding: 4px;
@@ -587,7 +587,7 @@ async function handleExtract(): Promise<void> {
 }
 
 .file-remove:hover {
-  color: var(--danger-color);
+  color: var(--el-color-danger);
 }
 
 .settings-form {
@@ -606,25 +606,25 @@ async function handleExtract(): Promise<void> {
 .form-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .form-input,
 .form-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
+  color: var(--el-text-color-regular);
+  background-color: var(--el-bg-color);
   box-sizing: border-box;
 }
 
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
@@ -664,17 +664,17 @@ async function handleExtract(): Promise<void> {
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--el-border-color);
   border-radius: 8px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .archive-select:hover {
-  border-color: var(--primary-color);
-  background-color: var(--primary-soft);
+  border-color: var(--el-color-primary);
+  background-color: var(--el-color-primary-light-9);
 }
 
 .archive-icon {
@@ -684,7 +684,7 @@ async function handleExtract(): Promise<void> {
 
 .archive-placeholder {
   font-size: 14px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .archive-info {
@@ -694,13 +694,13 @@ async function handleExtract(): Promise<void> {
 .archive-name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 4px;
 }
 
 .archive-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .archive-details {
@@ -712,7 +712,7 @@ async function handleExtract(): Promise<void> {
 .details-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -727,26 +727,26 @@ async function handleExtract(): Promise<void> {
   flex-direction: column;
   gap: 4px;
   padding: 10px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 6px;
 }
 
 .detail-label {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
 }
 
 .detail-value {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .action-bar {
   display: flex;
   justify-content: center;
   padding: 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
   flex-shrink: 0;
 }
@@ -770,17 +770,17 @@ async function handleExtract(): Promise<void> {
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  color: var(--primary-contrast);
+  background-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .btn-secondary {
-  background-color: var(--text-muted);
-  color: var(--primary-contrast);
+  background-color: var(--el-text-color-secondary);
+  color: var(--el-color-white);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -799,7 +799,7 @@ async function handleExtract(): Promise<void> {
 
 .btn-link {
   background: none;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   padding: 4px 8px;
 }
 
@@ -808,8 +808,8 @@ async function handleExtract(): Promise<void> {
 }
 
 .progress-section {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 16px;
   flex-shrink: 0;
@@ -819,20 +819,20 @@ async function handleExtract(): Promise<void> {
   display: flex;
   justify-content: space-between;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 8px;
 }
 
 .progress-bar-large {
   height: 8px;
-  background-color: var(--border-color);
+  background-color: var(--el-border-color);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background-color: var(--primary-color);
+  background-color: var(--el-color-primary);
   border-radius: 4px;
   transition: width 0.3s ease;
 }

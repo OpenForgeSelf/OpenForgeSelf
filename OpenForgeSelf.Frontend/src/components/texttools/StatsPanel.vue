@@ -62,7 +62,7 @@ const statsItems = computed(() => [
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background-color: var(--bg-secondary);
+  background-color: var(--el-bg-color-page);
   border-radius: 8px;
 }
 
@@ -76,8 +76,8 @@ const statsItems = computed(() => [
   display: flex;
   gap: 12px;
   padding: 16px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   transition: box-shadow 0.2s;
 }
@@ -99,26 +99,26 @@ const statsItems = computed(() => [
 .stat-value {
   font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   margin-bottom: 8px;
 }
 
 .stat-bar {
   height: 4px;
-  background-color: var(--border-color);
+  background-color: var(--el-border-color);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .stat-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3));
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -126,9 +126,9 @@ const statsItems = computed(() => [
 .stats-tip {
   padding: 10px 14px;
   font-size: 12px;
-  color: var(--text-muted);
-  background-color: var(--bg-card);
-  border: 1px dashed var(--border-color);
+  color: var(--el-text-color-secondary);
+  background-color: var(--el-bg-color);
+  border: 1px dashed var(--el-border-color);
   border-radius: 6px;
 }
 </style>

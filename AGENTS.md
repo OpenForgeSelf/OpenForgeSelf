@@ -124,6 +124,7 @@
 - 样式：使用 Element Plus 组件 + Tailwind 布局类，颜色只走 `--el-*` 变量
 - 类型：所有新代码必须有 TypeScript 类型，不用 `any`
 - 测试（TDD 优先）：新增逻辑先写 vitest 测试定义预期行为，再写实现使测试通过；修改逻辑先补/改测试覆盖新行为，再改实现
+- 全屏背景图：用固定定位 `<img>` 元素（`position:fixed; inset:0; object-fit:cover; z-index:0; pointer-events:none`）+ 内容层 `z-index` 叠放，**不要**用 CSS `background-image: url(外链)`。本环境外链背景图不渲染（已验证：手动注入 `!important` 后截图仍纯白），`<img>` 方案可稳定显示
 
 **后端：**
 - 遵循现有 Controllers/Services/Entities 分层
@@ -278,6 +279,55 @@ Verify 失败
 - 设计稿中 `partials/app-shell.js` 提供共享外壳，`themes/` 提供 tokens
 - 新增设置项 SOP：app-shell.js categories 加条目 → 复制现有设置页改 active 和内容区
 - 设计稿 file:// 协议下禁止跨目录引用 CSS，主题文件须在 `forgeself-design/themes/` 放本地副本
+
+---
+
+## 9. speckit SDD 开发流程
+
+功能开发走 speckit 的规格驱动开发（SDD）流程，命令文件位于 `.codebuddy/commands/speckit.*.md`：
+
+```
+specify → plan → tasks → implement → （analyze/converge 一致性检查）
+```
+
+### 9.1 流程与产物
+
+每步产物都生成在当前功能目录 `specs/NNN-功能名/` 下（以 `005-todo-tracker` 为完整示例）：
+
+| 步骤 | 命令文件 | 生成产物 |
+|------|----------|----------|
+| specify | `speckit.specify.md` | `spec.md`（功能规格）、`checklists/requirements.md`（质量清单） |
+| plan | `speckit.plan.md` | `plan.md`（技术计划）、`research.md`（调研决策）、`data-model.md`（数据模型）、`contracts/`（接口契约）、`quickstart.md`（验证指南） |
+| tasks | `speckit.tasks.md` | `tasks.md`（分阶段任务清单，格式 `- [ ] T00N [P] [USx] 描述 + 文件路径`） |
+| implement | `speckit.implement.md` | 按 `tasks.md` 逐条执行并把完成项勾选为 `[X]` |
+
+### 9.2 当前在做哪个 spec
+
+记录在 `.specify/feature.json` 的 `feature_directory` 字段，例如：
+
+```json
+{ "feature_directory": "specs/005-todo-tracker" }
+```
+
+plan / tasks / implement 等后续命令都通过此文件定位当前功能目录。
+
+### 9.3 判断进行到哪一步、下一步做什么
+
+根据当前功能目录下已存在的产物判断：
+
+| 功能目录已有产物 | 进度判断 | 下一步 |
+|------------------|----------|--------|
+| 仅 `spec.md`（+`checklists/`） | specify 完成 | 运行 plan |
+| 有 `plan.md` / `research.md` / `data-model.md` | plan 完成 | 运行 tasks |
+| 有 `tasks.md`，含未勾选 `- [ ]` | tasks 完成或 implement 进行中 | 运行 implement |
+| `tasks.md` 全部 `- [X]` | implement 完成 | Verify / converge |
+
+### 9.4 纪律
+
+- 四步必须顺序执行，**不得跳步**：禁止出了 `spec.md` 就直接写代码
+- 以「产物是否生成」判断本步完成，再进入下一步
+- implement 步逐条执行任务，每完成一条把 `- [ ]` 改为 `- [X]`
+- **implement 阶段禁止用 `git stash` / `git checkout` / `git reset` 等会改动工作区的命令**去"验证预先存在的状态"（如确认某个构建失败在本次变更前就有）。调度可能中途超时，此类操作会把未提交的工作一起卷走。需要对比基线时只用只读命令：`git diff` / `git show` / `git log`。
 
 ---
 

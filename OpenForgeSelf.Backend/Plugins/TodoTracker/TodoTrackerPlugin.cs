@@ -32,7 +32,7 @@ public class TodoTrackerPlugin : IPlugin
             _serviceProvider = services;
 
             RegisterMenuExtensions();
-            // AI 工具函数将在 Phase 6 (US4) 中注册
+            RegisterToolExtensions();
 
             XTrace.Log.Info("待办追踪插件初始化完成");
         }
@@ -105,6 +105,59 @@ public class TodoTrackerPlugin : IPlugin
         });
 
         XTrace.Log.Debug("待办追踪插件已注册菜单扩展点");
+    }
+
+    private void RegisterToolExtensions()
+    {
+        ToolExtensions.Add(new CreateTodoToolFunction(_serviceProvider)
+        {
+            Id = "todotracker.tool.create_todo",
+            Name = "create_todo",
+            PluginId = Id,
+            Description = "创建一个新的待办事项。必填参数：title（标题，最长 200 字符）。可选：remark（备注，最长 1000 字符）、dueDate（截止日期 ISO 8601）。",
+            ParametersJsonSchema = @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""title"": { ""type"": ""string"", ""description"": ""待办标题（最长 200 字符）"" },
+    ""remark"": { ""type"": ""string"", ""description"": ""备注说明（最长 1000 字符）"" },
+    ""dueDate"": { ""type"": ""string"", ""description"": ""截止日期 ISO 8601 格式，如 2026-12-31T23:59:59"" }
+  },
+  ""required"": [""title""]
+}"
+        });
+
+        ToolExtensions.Add(new ListTodosToolFunction(_serviceProvider)
+        {
+            Id = "todotracker.tool.list_todos",
+            Name = "list_todos",
+            PluginId = Id,
+            Description = "列出待办事项，支持按状态过滤与分页。可选参数：status（Pending/Completed）、page（页码，默认 1）、pageSize（每页条数，默认 20，最大 100）。",
+            ParametersJsonSchema = @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""status"": { ""type"": ""string"", ""enum"": [""Pending"", ""Completed""], ""description"": ""按状态过滤；不传则返回全部"" },
+    ""page"": { ""type"": ""integer"", ""description"": ""页码（从 1 开始），默认 1"", ""minimum"": 1 },
+    ""pageSize"": { ""type"": ""integer"", ""description"": ""每页条数（最大 100），默认 20"", ""minimum"": 1, ""maximum"": 100 }
+  }
+}"
+        });
+
+        ToolExtensions.Add(new CompleteTodoToolFunction(_serviceProvider)
+        {
+            Id = "todotracker.tool.complete_todo",
+            Name = "complete_todo",
+            PluginId = Id,
+            Description = "标记指定待办事项为已完成。必填参数：id（待办 ID）。",
+            ParametersJsonSchema = @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""id"": { ""type"": ""integer"", ""description"": ""待办 ID"", ""minimum"": 1 }
+  },
+  ""required"": [""id""]
+}"
+        });
+
+        XTrace.Log.Debug("待办追踪插件已注册 {0} 个 AI 工具函数扩展点", ToolExtensions.Count);
     }
 
     private void EnsureTablesCreated()

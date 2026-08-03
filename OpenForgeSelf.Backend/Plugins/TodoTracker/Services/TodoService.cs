@@ -33,7 +33,8 @@ public class TodoService : ITodoService
             {
                 PageIndex = page - 1,
                 PageSize = pageSize,
-                Sort = "CreatedAt DESC, Id DESC"
+                Sort = "CreatedAt DESC, Id DESC",
+                RetrieveTotalCount = true
             };
 
             var list = Todo.FindAll(exp, pageParam);

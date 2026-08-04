@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Controllers;
@@ -23,9 +25,10 @@ public class ApiServerController : ControllerBase
 
     /// <summary>
     /// 获取 API 服务器配置状态。
-    /// 返回 API 地址、掩码密钥、授权标头示例、是否已配置密钥。
+    /// 返回 API 地址、明文密钥、授权标头示例、是否已配置密钥。
     /// </summary>
     [HttpGet("status")]
+    [Authorize("ApiKeyPolicy")]
     public ActionResult<object> GetStatus()
     {
         var plainKey = _keyService.GetActiveKeyPlain();
@@ -37,8 +40,7 @@ public class ApiServerController : ControllerBase
             ? $"{Request.Scheme}://{Request.Host}/v1"
             : $"{publicBaseUrl.TrimEnd('/')}/v1";
 
-        var apiKeyMasked = hasKey ? _keyService.GetActiveKeyMasked() : "";
-        var authHeader = hasKey ? $"Authorization: Bearer {apiKeyMasked}" : "";
+        var authHeader = hasKey ? $"Authorization: Bearer {plainKey}" : "";
 
         return Ok(new
         {
@@ -46,9 +48,41 @@ public class ApiServerController : ControllerBase
             data = new
             {
                 apiBaseUrl,
-                apiKeyMasked,
+                apiKeyMasked = hasKey ? _keyService.GetActiveKeyMasked() : "",
+                apiKeyPlain = hasKey ? plainKey : "",
                 authHeader,
                 hasKey,
+            },
+        });
+    }
+
+    /// <summary>
+    /// 获取初始 API 密钥（无认证，仅首次调用有效）。
+    /// 通过 ForgeSetting.IsFirstInit 判断是否为首次，是则返回 token 并修改状态，否则 403。
+    /// 从 ForgeSetting 读密文后解密返回明文。
+    /// </summary>
+    [HttpGet("init-token")]
+    public ActionResult<object> GetInitToken()
+    {
+        var setting = Models.ForgeSetting.Current;
+        if (!setting.IsFirstInit)
+            return StatusCode(403, new { success = false, error = "首次初始化已完成，请使用 status 接口获取密钥" });
+
+        var plainKey = _keyService.GetActiveKeyPlain();
+        if (string.IsNullOrEmpty(plainKey))
+            return Ok(new { success = false, data = (object?)null });
+
+        // 标记为已初始化
+        setting.IsFirstInit = false;
+        setting.Save();
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                apiKeyPlain = plainKey,
+                authHeader = $"Authorization: Bearer {plainKey}",
             },
         });
     }
@@ -57,6 +91,7 @@ public class ApiServerController : ControllerBase
     /// 重新生成 API 密钥。旧密钥立即失效。
     /// </summary>
     [HttpPost("regenerate")]
+    [Authorize("ApiKeyPolicy")]
     public ActionResult<object> Regenerate()
     {
         try
@@ -76,6 +111,7 @@ public class ApiServerController : ControllerBase
                 {
                     apiBaseUrl,
                     apiKeyMasked = result.MaskedKey,
+                    apiKeyPlain = result.PlainKey,
                     authHeader = result.AuthHeader,
                     hasKey = true,
                 },

@@ -1,0 +1,44 @@
+/**
+ * 统一 HTTP 请求封装。
+ * 自动从 localStorage 读取 token，注入 Authorization 头。
+ */
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+export const STORAGE_KEY = 'forge_api_token';
+
+/** 获取当前存储的 token */
+export function getStoredToken(): string | null {
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+/** 存储 token */
+export function setStoredToken(token: string): void {
+  localStorage.setItem(STORAGE_KEY, token);
+}
+
+/** 清除 token */
+export function clearStoredToken(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+/** 带 token 的 fetch 封装 */
+export async function request<T = any>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    throw new Error(`请求失败: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}

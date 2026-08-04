@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import { useAppearanceStore } from './stores/appearance'
 import { useThemeStore } from './stores/theme'
+import { initAuthToken } from './services/authInit'
 
 /* 样式引入顺序（后加载优先级更高）：
    1. Element Plus 官方暗色变量基础
@@ -24,5 +25,8 @@ app.use(router)
 
 useThemeStore(pinia).initialize()
 useAppearanceStore(pinia).initialize()
+
+// 初始化 API token（异步，不阻塞应用挂载）
+initAuthToken()
 
 app.mount('#app')

@@ -3,13 +3,13 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenForgeSelf.Backend.Entities;
+using OpenForgeSelf.Backend.Models;
 
 namespace OpenForgeSelf.Backend.Security;
 
 /// <summary>
 /// 自定义 Bearer API 密钥认证 Handler。
-/// 从 Authorization: Bearer <token> 头部取令牌，与数据库活跃 ApiServerKey 解密后定长比较。
+/// 从 Authorization: Bearer <token> 头部取令牌，与 ForgeSetting 中加密密钥解密后定长比较。
 /// </summary>
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
 {
@@ -41,11 +41,11 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return Task.FromResult(AuthenticateResult.Fail("Bearer token is empty"));
         }
 
-        // 2. 查活跃密钥
-        var activeKey = ApiServerKey.Find(ApiServerKey._.IsActive == true);
-        if (activeKey == null || string.IsNullOrEmpty(activeKey.KeyCipher))
+        // 2. 从 ForgeSetting 取密文
+        var cipher = ForgeSetting.Current.ApiToken;
+        if (string.IsNullOrEmpty(cipher))
         {
-            return Task.FromResult(AuthenticateResult.Fail("No active API key configured"));
+            return Task.FromResult(AuthenticateResult.Fail("No API key configured"));
         }
 
         // 3. 解密后定长比较
@@ -55,11 +55,10 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return Task.FromResult(AuthenticateResult.Fail("Encryption service not available"));
         }
 
-        // 获取解密后的明文密钥
         string? plainKey = null;
         try
         {
-            plainKey = encryption.Decrypt(activeKey.KeyCipher);
+            plainKey = encryption.Decrypt(cipher);
         }
         catch
         {

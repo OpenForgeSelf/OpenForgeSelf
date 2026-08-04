@@ -1,13 +1,13 @@
 using System.Security.Cryptography;
 using NewLife.Log;
-using OpenForgeSelf.Backend.Entities;
+using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Security;
 
 namespace OpenForgeSelf.Backend.Services;
 
 /// <summary>
 /// API 服务器密钥管理服务。
-/// 负责密钥自动生成（启动播种）、读取、轮换。
+/// 密钥加密后存储在 ForgeSetting 配置中，不再使用数据库表。
 /// </summary>
 public class ApiServerKeyService
 {
@@ -20,60 +20,55 @@ public class ApiServerKeyService
     }
 
     /// <summary>
-    /// 启动时幂等播种：表空则生成并加密存储一条活跃密钥。
-    /// MUST 在 InitializeXCodeDatabase 之后执行。
+    /// 启动时幂等播种：ForgeSetting.ApiToken 空则生成并加密存储。
     /// </summary>
     public void EnsureApiKeySeeded()
     {
-        // 幂等：已有记录则跳过
-        var exists = ApiServerKey.FindCount(ApiServerKey._.Id > 0) > 0;
-        if (exists) return;
+        if (!string.IsNullOrEmpty(ForgeSetting.Current.ApiToken)) return;
 
         var plainKey = GenerateKey();
         var cipher = _encryption.Encrypt(plainKey);
 
-        var entity = new ApiServerKey
-        {
-            KeyCipher = cipher,
-            IsActive = true,
-            CreateTime = DateTime.UtcNow,
-            UpdateTime = DateTime.UtcNow,
-        };
-        entity.Insert();
+        ForgeSetting.Current.ApiToken = cipher;
+        ForgeSetting.Current.Save();
 
         XTrace.Log.Info("API 服务器密钥已自动生成并加密存储");
     }
 
     /// <summary>
-    /// 获取当前活跃密钥的密文。
-    /// 若无活跃密钥返回 null。
+    /// 从 ForgeSetting 获取加密密钥的密文。
     /// </summary>
-    public string? GetActiveKeyCipher()
-    {
-        var active = ApiServerKey.Find(ApiServerKey._.IsActive == true);
-        return active?.KeyCipher;
-    }
+    public string? GetActiveKeyCipher() => ForgeSetting.Current.ApiToken;
 
     /// <summary>
-    /// 获取当前活跃密钥的明文。
-    /// 若无活跃密钥返回 null。
+    /// 从 ForgeSetting 获取明文密钥。
+    /// 若密文为空或解密失败，自动生成并更新密钥。
     /// </summary>
     public string? GetActiveKeyPlain()
     {
-        var cipher = GetActiveKeyCipher();
-        if (string.IsNullOrEmpty(cipher)) return null;
-        try
+        var cipher = ForgeSetting.Current.ApiToken;
+        if (!string.IsNullOrEmpty(cipher))
         {
-            return _encryption.Decrypt(cipher);
+            try { return _encryption.Decrypt(cipher); } catch { }
         }
-        catch
-        {
-            return null;
-        }
+
+        // 密文为空或解密失败 → 自动生成并更新
+        return AutoGenerateAndSave();
+    }
+
+    /// <summary>生成新密钥，加密保存到 ForgeSetting，返回明文</summary>
+    private string AutoGenerateAndSave()
+    {
+        var plainKey = GenerateKey();
+        var cipher = _encryption.Encrypt(plainKey);
+        ForgeSetting.Current.ApiToken = cipher;
+        ForgeSetting.Current.Save();
+        XTrace.Log.Info("API 服务器密钥已自动重新生成并存储");
+        return plainKey;
     }
 
     /// <summary>
-    /// 获取当前活跃密钥的掩码展示。
+    /// 获取当前密钥的掩码展示。
     /// </summary>
     public string GetActiveKeyMasked()
     {
@@ -83,8 +78,7 @@ public class ApiServerKeyService
     }
 
     /// <summary>
-    /// 重新生成密钥：旧密钥立即失效，新密钥加密存储。
-    /// 并发防护使用简单锁，防止多次快速轮换导致旧密钥残留。
+    /// 重新生成密钥，旧密钥立即失效。
     /// </summary>
     public ApiServerKeyRegenerateResult Regenerate()
     {
@@ -93,27 +87,8 @@ public class ApiServerKeyService
             var plainKey = GenerateKey();
             var cipher = _encryption.Encrypt(plainKey);
 
-            // 轮换策略：原地更新活跃行的 KeyCipher（见 data-model.md 决策）
-            var active = ApiServerKey.Find(ApiServerKey._.IsActive == true);
-            if (active != null)
-            {
-                // 更新现有行的密钥密文与更新时间
-                active.KeyCipher = cipher;
-                active.UpdateTime = DateTime.UtcNow;
-                active.Update();
-            }
-            else
-            {
-                // 无活跃行则新建
-                active = new ApiServerKey
-                {
-                    KeyCipher = cipher,
-                    IsActive = true,
-                    CreateTime = DateTime.UtcNow,
-                    UpdateTime = DateTime.UtcNow,
-                };
-                active.Insert();
-            }
+            ForgeSetting.Current.ApiToken = cipher;
+            ForgeSetting.Current.Save();
 
             return new ApiServerKeyRegenerateResult
             {
@@ -124,10 +99,10 @@ public class ApiServerKeyService
         }
     }
 
-    /// <summary>生成密码学随机 sk-... 密钥</summary>
+    /// <summary>生成密码学随机 sk-... 密钥（16字节 → 32位hex）</summary>
     private static string GenerateKey()
     {
-        var bytes = new byte[32];
+        var bytes = new byte[16];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(bytes);
         var suffix = Convert.ToHexString(bytes).ToLowerInvariant();

@@ -256,15 +256,13 @@ public static class AppBuilder
 
         app.UseStaticFiles();
 
-        // SPA Fallback 中间件：非 API/OpenAPI/Scalar 路径的 404 请求，返回 index.html，
-        // 使 Vue Router 的前端路由（如 /agents）能正常加载
+        // SPA Fallback 中间件：前端路由（如 /agents、/settings）的 404 请求返回 index.html。
+        // 判断规则：不拦截带文件后缀的请求（.js/.css/.png 等静态资源），
+        // 不拦截已知 API 前缀（/api、/v1、/openapi、/scalar、/swagger 等）的请求。
         app.Use(async (context, next) =>
         {
             await next();
-            if (context.Response.StatusCode == 404 &&
-                !context.Request.Path.StartsWithSegments("/api") &&
-                !context.Request.Path.StartsWithSegments("/openapi") &&
-                !context.Request.Path.StartsWithSegments("/scalar"))
+            if (context.Response.StatusCode == 404 && !IsApiOrStaticRequest(context.Request.Path))
             {
                 context.Response.Clear();
                 context.Response.StatusCode = 200;
@@ -276,6 +274,23 @@ public static class AppBuilder
                 }
             }
         });
+
+        // 判断请求路径是否为 API 调用或静态资源请求
+        static bool IsApiOrStaticRequest(PathString path)
+        {
+            var pathStr = path.Value ?? "";
+            // 带文件后缀的请求（.html .js .css .png .ico .svg .json .webp .woff2 等）→ 静态资源，不拦截
+            if (Path.HasExtension(pathStr))
+                return true;
+            // 已知 API 前缀的请求
+            var apiPrefixes = new[] { "/api", "/v1", "/v2", "/v3", "/openapi", "/scalar", "/swagger" };
+            foreach (var prefix in apiPrefixes)
+            {
+                if (path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
 
         app.UseAuthorization();
 

@@ -27,3 +27,6 @@ auto-imports.d.ts
 TODO.md
 nul
 .atomcode-logs/
+tsconfig.app.tsbuildinfo
+publish/
+OpenForgeSelf.Frontend/playwright-report-published/

@@ -21,7 +21,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:published": "playwright test --config=playwright.e2e-published.config.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

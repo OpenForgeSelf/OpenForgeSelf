@@ -40,40 +40,6 @@ public class OpenAIChatController : ControllerBase
         }
     }
 
-    [HttpGet("models")]
-    public async Task<IActionResult> ListModels(CancellationToken cancellationToken)
-    {
-        var allModels = await _registry.GetAllModelsAsync(cancellationToken);
-        var response = new
-        {
-            @object = "list",
-            data = allModels.Select(m => new
-            {
-                id = m.Id,
-                @object = "model",
-                created = m.Created,
-                owned_by = m.Owner
-            }).ToList()
-        };
-        return Ok(response);
-    }
-
-    [HttpGet("models/{model}")]
-    public IActionResult GetModel(string model)
-    {
-        var modelInfo = _registry.GetModelById(model);
-        if (modelInfo == null)
-            return NotFound(new { error = new { message = $"Model '{model}' not found", type = "not_found" } });
-
-        return Ok(new
-        {
-            id = modelInfo.Id,
-            @object = "model",
-            created = modelInfo.Created,
-            owned_by = modelInfo.Owner
-        });
-    }
-
     [HttpPost("chat/completions")]
     public async Task<IActionResult> ChatCompletions([FromBody] OpenAIChatCompletionRequest request, CancellationToken cancellationToken)
     {

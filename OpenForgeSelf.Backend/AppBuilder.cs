@@ -100,6 +100,7 @@ public static class AppBuilder
         builder.Services.AddSingleton<IMcpService, McpService>();
         builder.Services.AddSingleton<ICronParser, CronParser>();
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
+        builder.Services.AddSingleton<ISkillsService, SkillsService>();
         builder.Services.AddHttpClient<IAIService, AIService>();
 
         builder.Services.AddScoped<ILogService, LogService>();

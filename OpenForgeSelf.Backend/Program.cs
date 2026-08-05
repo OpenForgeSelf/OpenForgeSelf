@@ -65,8 +65,11 @@ if (firstArg == "--console")
 
     var app = AppBuilder.CreateWebApplication(consoleArgs);
     var trayIcon = StartTrayIcon(app);
+    XTrace.Log.Info("Main: 开始 app.Run()（--console 模式）");
     app.Run();
+    XTrace.Log.Info("Main: app.Run() 已返回（--console 模式），清理托盘");
     trayIcon?.Hide();
+    XTrace.Log.Info("Main: 进程退出（--console 模式）");
     return 0;
 }
 
@@ -86,8 +89,11 @@ if (args.Length == 0)
 
     var app = AppBuilder.CreateWebApplication(args);
     var trayIcon = StartTrayIcon(app);
+    XTrace.Log.Info("Main: 开始 app.Run()（普通模式）");
     app.Run();
+    XTrace.Log.Info("Main: app.Run() 已返回（普通模式），清理托盘");
     trayIcon?.Hide();
+    XTrace.Log.Info("Main: 进程退出（普通模式）");
     return 0;
 }
 
@@ -142,7 +148,7 @@ static int RunTrayMode(string[] args, int trayArgIndex)
         },
         onExit: () =>
         {
-            XTrace.Log.Info("TrayMode: 用户点击「退出」，托盘辅助进程退出");
+            XTrace.Log.Info("TrayMode: 用户点击「退出」（线程 ID={0}），设置退出信号", Environment.CurrentManagedThreadId);
             exitEvent.Set();
         });
 
@@ -179,6 +185,7 @@ static int RunTrayMode(string[] args, int trayArgIndex)
 
     // 等待退出信号（用户点击「退出」或服务发送 shutdown）
     exitEvent.Wait();
+    XTrace.Log.Info("TrayMode: 收到退出信号，开始清理托盘");
     trayIcon.Hide();
     XTrace.Log.Info("TrayMode: 托盘辅助进程退出");
     return 0;
@@ -231,23 +238,34 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
             },
             onExit: () =>
             {
-                XTrace.Log.Info("TrayIconManager: 用户点击「退出」，正在关闭应用...");
+                XTrace.Log.Info("TrayIconManager: 用户点击「退出」，正在关闭应用...（线程 ID={0}）", Environment.CurrentManagedThreadId);
                 // 修复托盘退出死锁：不能在此（托盘 STA 线程）同步等待 StopAsync()。
                 // StopAsync 触发 ApplicationStopping → trayIconManager.Hide() → _hiddenForm.Invoke(...)
                 // 需要 STA 线程处理消息，而 STA 线程正被 GetAwaiter().GetResult() 阻塞 → 死锁，
                 // 表现为提示「正在退出」但进程不退、web 仍可访问、托盘菜单无响应。
                 // 先同步关闭托盘（当前就在 STA 线程，InvokeRequired=false 直接执行），
                 // 再异步触发 host 停止，避免阻塞托盘消息循环。
-                trayIconManager.Hide();
+                try
+                {
+                    trayIconManager.Hide();
+                    XTrace.Log.Info("TrayIconManager: 托盘图标已隐藏，准备异步停止 host");
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Error("TrayIconManager: Hide() 抛异常: {0}", ex);
+                }
+
                 _ = Task.Run(async () =>
                 {
                     try
                     {
+                        XTrace.Log.Info("TrayIconManager: 调用 app.StopAsync() 开始（线程 ID={0}）", Environment.CurrentManagedThreadId);
                         await app.StopAsync();
+                        XTrace.Log.Info("TrayIconManager: app.StopAsync() 已完成");
                     }
                     catch (Exception ex)
                     {
-                        XTrace.Log.Error("停止应用异常: {0}", ex.Message);
+                        XTrace.Log.Error("停止应用异常: {0}", ex);
                     }
                 });
             });

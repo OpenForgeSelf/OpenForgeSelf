@@ -44,6 +44,9 @@ public class TrayIconManager : IDisposable
     {
         _onCheckUpdate = onCheckUpdate;
         _onExit = onExit;
+        XTrace.Log.Info("TrayIconManager.Configure: onCheckUpdate={0}, onExit={1}",
+            onCheckUpdate != null ? "已注入" : "null",
+            onExit != null ? "已注入" : "null");
     }
 
     /// <summary>
@@ -109,14 +112,22 @@ public class TrayIconManager : IDisposable
     /// </summary>
     public void Hide()
     {
+        XTrace.Log.Info("TrayIconManager.Hide: 进入（线程 ID={0}, IsBackground={1}, _hiddenForm 有效={2}, _disposed={3}）",
+            Environment.CurrentManagedThreadId,
+            Thread.CurrentThread.IsBackground,
+            _hiddenForm is { IsDisposed: false },
+            _disposed);
+
         if (_hiddenForm is { IsDisposed: false })
         {
             if (_hiddenForm.InvokeRequired)
             {
+                XTrace.Log.Info("TrayIconManager.Hide: 通过 Invoke 封送到 STA 线程");
                 _hiddenForm.Invoke(() => HideInternal());
             }
             else
             {
+                XTrace.Log.Info("TrayIconManager.Hide: 当前已在 STA 线程，直接执行");
                 HideInternal();
             }
 
@@ -124,13 +135,19 @@ public class TrayIconManager : IDisposable
             // 跳过 Join 避免 join 自身导致死锁/超时
             if (_staThread != null && _staThread != Thread.CurrentThread)
             {
+                XTrace.Log.Info("TrayIconManager.Hide: 等待 STA 线程退出（Join 3000ms）");
                 _staThread.Join(3000);
             }
+        }
+        else
+        {
+            XTrace.Log.Warn("TrayIconManager.Hide: _hiddenForm 无效或已释放，跳过清理（_staThread 为 null={0}）", _staThread == null);
         }
 
         _hiddenForm = null;
         _trayIcon = null;
         _staThread = null;
+        XTrace.Log.Info("TrayIconManager.Hide: 完成");
     }
 
     /// <summary>
@@ -190,6 +207,8 @@ public class TrayIconManager : IDisposable
     /// </summary>
     private void StaThreadMain()
     {
+        XTrace.Log.Info("TrayIconManager: STA 线程启动（线程 ID={0}）", Environment.CurrentManagedThreadId);
+
         _hiddenForm = new Form
         {
             WindowState = FormWindowState.Minimized,
@@ -202,7 +221,9 @@ public class TrayIconManager : IDisposable
         _hiddenForm.Load += OnHiddenFormLoad;
         _hiddenForm.FormClosing += OnHiddenFormClosing;
 
+        XTrace.Log.Info("TrayIconManager: 进入 WinForms 消息循环");
         Application.Run(_hiddenForm);
+        XTrace.Log.Info("TrayIconManager: WinForms 消息循环已退出");
     }
 
     private void OnHiddenFormLoad(object? sender, EventArgs e)
@@ -272,7 +293,21 @@ public class TrayIconManager : IDisposable
         menu.Items.Add(new PopupMenuItem("关于(&A)", (_, _) => ShowAboutDialog()));
 
         // ── 退出 ──
-        menu.Items.Add(new PopupMenuItem("退出(&X)", (_, _) => _onExit?.Invoke()));
+        menu.Items.Add(new PopupMenuItem("退出(&X)", (_, _) =>
+        {
+            XTrace.Log.Info("TrayIconManager: 菜单「退出」被点击（线程 ID={0}, _onExit 为 null={1}）",
+                Environment.CurrentManagedThreadId,
+                _onExit == null);
+
+            // 关键：不能在此（菜单命令回调）同步执行清理，否则死锁。
+            // H.NotifyIcon 的菜单命令在托盘消息窗口的消息循环内执行：
+            //   1) 本线程同步调用 _onExit → Hide() → _hiddenForm.Invoke(线程17 执行 HideInternal)
+            //   2) HideInternal 里 _trayIcon.Dispose() 会向托盘消息窗口 SendMessage 并等待处理
+            //   3) 而托盘消息窗口正被本次菜单命令占用（等待步骤 1 返回）→ 互相等待 → 进程不退
+            // 表现为日志停在 HideInternal: 开始，无后续输出。
+            // 解决：延迟到线程池执行，让菜单命令回调先返回，消息循环恢复处理 Dispose 的消息。
+            _ = Task.Run(() => _onExit?.Invoke());
+        }));
 
         return menu;
     }
@@ -392,9 +427,11 @@ public class TrayIconManager : IDisposable
     /// </summary>
     private void HideInternal()
     {
+        XTrace.Log.Info("TrayIconManager.HideInternal: 开始（线程 ID={0}）", Environment.CurrentManagedThreadId);
         _trayIcon?.Dispose();
         _trayIcon = null;
         _hiddenForm?.Close();
         _hiddenForm = null;
+        XTrace.Log.Info("TrayIconManager.HideInternal: 完成");
     }
 }

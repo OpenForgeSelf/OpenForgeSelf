@@ -139,7 +139,8 @@ test.describe('SPA Fallback - 控制台无异常', () => {
     });
 
     await page.goto('/ai-agent');
-    await page.waitForTimeout(2000);
+    // 等待 Vue 挂载并渲染核心内容（替代固定等待，收集渲染期错误）
+    await expect(page.locator('.agent-view')).toBeVisible();
 
     // 允许超时类错误（如网络请求超时），不允许其他错误
     const criticalErrors = consoleErrors.filter(e => !e.includes('net::ERR_TIMEOUT'));

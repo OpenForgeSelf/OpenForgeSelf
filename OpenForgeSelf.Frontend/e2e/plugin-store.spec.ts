@@ -23,9 +23,7 @@ test.describe('插件商店', () => {
     await expect(searchInput).toBeVisible()
 
     await searchInput.fill('测试')
-    
-    await page.waitForTimeout(500)
-    
+
     const resultsInfo = page.locator('.results-info')
     await expect(resultsInfo).toBeVisible()
   })

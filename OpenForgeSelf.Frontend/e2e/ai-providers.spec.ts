@@ -153,7 +153,7 @@ async function installMocks(page: Page): Promise<MockState> {
 
     // GET /api/ai-providers  → 列表
     if (method === 'GET' && /\/api\/ai-providers\/?$/.test(url)) {
-      const [, payload] = recordAndJson(state, method, url, body, ok(state.providers.map(p => structuredClone(p))))
+      const [status, payload] = recordAndJson(state, method, url, body, ok(state.providers.map(p => structuredClone(p))))
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) })
     }
 
@@ -163,7 +163,7 @@ async function installMocks(page: Page): Promise<MockState> {
       const id = Number(getMatch[1])
       const found = state.providers.find(p => p.id === id)
       if (!found) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ success: false, message: 'Provider not found' }) })
-      const [, payload] = recordAndJson(state, method, url, body, ok(structuredClone(found)))
+      const [status, payload] = recordAndJson(state, method, url, body, ok(structuredClone(found)))
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) })
     }
 
@@ -212,7 +212,7 @@ async function installMocks(page: Page): Promise<MockState> {
         updateTime: new Date().toISOString(),
       }
       state.providers[idx] = updated
-      const [, payload] = recordAndJson(state, method, url, body, ok(structuredClone(updated)))
+      const [status, payload] = recordAndJson(state, method, url, body, ok(structuredClone(updated)))
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) })
     }
 
@@ -229,13 +229,13 @@ async function installMocks(page: Page): Promise<MockState> {
 
     // POST /api/ai-providers/{id}/test  → 测试连接
     if (method === 'POST' && /\/api\/ai-providers\/(\d+)\/test\/?$/.test(url)) {
-      const [, payload] = recordAndJson(state, method, url, body, ok(state.testResult))
+      const [status, payload] = recordAndJson(state, method, url, body, ok(state.testResult))
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) })
     }
 
     // POST /api/ai-providers/{id}/fetch-models  → 拉取模型
     if (method === 'POST' && /\/api\/ai-providers\/(\d+)\/fetch-models\/?$/.test(url)) {
-      const [, payload] = recordAndJson(state, method, url, body, ok(state.fetchResult))
+      const [status, payload] = recordAndJson(state, method, url, body, ok(state.fetchResult))
       return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) })
     }
 

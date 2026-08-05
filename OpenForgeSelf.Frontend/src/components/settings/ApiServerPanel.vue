@@ -10,7 +10,7 @@ import { Refresh, Document, Edit, Check, Key, Lock } from '@element-plus/icons-v
 import { apiServerApi } from '@/services/apiServerApi';
 import { portConfigApi } from '@/services/portConfigApi';
 import { pollForRestart, formatPollDuration } from '@/services/applicationRestart';
-import { getStoredToken, setStoredToken, clearStoredToken } from '@/services/request';
+import { getStoredToken, setStoredToken } from '@/services/request';
 import type { ApiServerConfig } from '@/types/apiServer';
 import type { PortConfig } from '@/types/portConfig';
 

@@ -44,9 +44,6 @@ test.describe('Token 再生流程', () => {
 
     await page.goto('/settings');
     await page.getByRole('button', { name: /API 服务器/ }).first().click();
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
 
     const regenerateButton = page.getByText('重新生成 Token');
     await expect(regenerateButton).toBeVisible();
@@ -75,9 +72,6 @@ test.describe('Token 再生流程', () => {
 
     await page.goto('/settings');
     await page.getByRole('button', { name: /API 服务器/ }).first().click();
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
 
     await page.getByText('重新生成 Token').click();
     await page.getByText('取消').click();
@@ -99,9 +93,6 @@ test.describe('Token 再生流程', () => {
 
     await page.goto('/settings');
     await page.getByRole('button', { name: /API 服务器/ }).first().click();
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
-    await page.waitForTimeout(500);
 
     await page.getByText('重新生成 Token').click();
     await page.getByText('确认再生').click();

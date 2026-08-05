@@ -14,8 +14,11 @@ export default tseslint.config(
       'coverage/',
       '*.config.*',
       '.vite/',
-      'e2e/',
       '*.cjs',
+      // Playwright 产物目录（报告、trace、测试结果），非源码
+      'playwright-report/',
+      'playwright-report-published/',
+      'test-results/',
     ],
   },
 
@@ -75,11 +78,39 @@ export default tseslint.config(
     },
   },
 
+  // Playwright E2E 测试文件（运行于 Node 环境，globals 为 Node + 浏览器 API）
+  {
+    files: ['e2e/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+    },
+  },
+
   // Config files
   {
     files: ['*.config.*'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
+  // Node 脚本（scripts/*.mjs 等）
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 )

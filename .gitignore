@@ -14,6 +14,8 @@ TestResults/
 .playwright-browsers/
 OpenForgeSelf.Frontend/playwright-report/
 OpenForgeSelf.Frontend/test-results/
+# vitest 覆盖率报告
+OpenForgeSelf.Frontend/coverage/
 .claude/
 .codegraph/
 .github/
@@ -27,6 +29,7 @@ auto-imports.d.ts
 TODO.md
 nul
 .atomcode-logs/
-tsconfig.app.tsbuildinfo
+# vue-tsc -b 增量构建缓存（app/node/e2e 各项目一个）
+*.tsbuildinfo
 publish/
 OpenForgeSelf.Frontend/playwright-report-published/

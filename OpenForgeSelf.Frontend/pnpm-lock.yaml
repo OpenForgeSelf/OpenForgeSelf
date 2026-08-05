@@ -28,7 +28,7 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.7.0(jiti@2.7.0))
       '@playwright/test':
-        specifier: ^1.52.0
+        specifier: ^1.61.1
         version: 1.61.1
       '@tailwindcss/vite':
         specifier: ^4.3.3
@@ -60,9 +60,6 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
-      playwright:
-        specifier: ^1.61.1
-        version: 1.61.1
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3

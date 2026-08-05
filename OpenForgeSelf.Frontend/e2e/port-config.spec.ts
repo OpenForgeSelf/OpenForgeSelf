@@ -43,12 +43,11 @@ async function injectApiKey(page: Page) {
   }, REAL_API_KEY);
 }
 
-/** 导航到 API 服务器面板 */
+/** 导航到 API 服务器面板（auto-waiting：等待按钮可点击、面板加载完成） */
 async function navigateToApiServer(page: Page) {
   await page.goto('/settings');
-  await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'API 服务器' }).click();
-  await page.waitForTimeout(500);
+  await expect(page.getByText('端口配置')).toBeVisible();
 }
 
 /** 从真实后端读取当前配置端口 */

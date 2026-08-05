@@ -22,7 +22,6 @@ export interface MockUpstreamRequest {
   method: string
   url: string
   headers: http.IncomingHttpHeaders
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body: any
 }
 
@@ -50,7 +49,6 @@ export function startMockUpstream(port = 18080): Promise<MockUpstream> {
     req.on('data', (c: Buffer) => chunks.push(c))
     req.on('end', () => {
       const bodyStr = Buffer.concat(chunks).toString('utf8')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let body: any = null
       if (bodyStr) {
         try {

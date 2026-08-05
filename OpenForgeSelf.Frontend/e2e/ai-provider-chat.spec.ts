@@ -117,7 +117,7 @@ test.describe('AI 提供者 → 模型列表 → 聊天请求（真实后端 + L
     }
   })
 
-  test('通过 API 服务展示的接口：用新加模型的 chatModelId 真实请求聊天并得到回复', async ({ page }) => {
+  test('通过 API 服务展示的接口：用新加模型的 chatModelId 真实请求聊天并得到回复', async () => {
     const testName = `E2E-Chat-${Date.now()}`
     const createdId = await createTestProvider(testName)
     try {

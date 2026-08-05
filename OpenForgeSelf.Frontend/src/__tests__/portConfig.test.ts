@@ -20,15 +20,17 @@ vi.mock('@/services/portConfigApi', () => ({
   },
 }))
 
-const { mockGetConfig, mockRestart } = vi.hoisted(() => ({
+const { mockGetConfig, mockRestart, mockInitToken } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
   mockRestart: vi.fn(),
+  mockInitToken: vi.fn(),
 }))
 vi.mock('@/services/apiServerApi', () => ({
   apiServerApi: {
     getConfig: (...args: unknown[]) => mockGetConfig(...args),
     restart: (...args: unknown[]) => mockRestart(...args),
     regenerateKey: vi.fn(),
+    initToken: (...args: unknown[]) => mockInitToken(...args),
   },
 }))
 
@@ -82,6 +84,10 @@ describe('ApiServerPanel — 端口配置编辑与检测', () => {
     mockPollForRestart.mockResolvedValue(true)
     mockFormatPollDuration.mockReturnValue('5秒')
     mockElMessageBox.confirm.mockResolvedValue(undefined)
+
+    // 默认无 token：init-token 返回 null（视为无需初始化/不可用）
+    localStorage.removeItem('forge_api_token')
+    mockInitToken.mockResolvedValue(null)
   })
 
   function mountPanel() {
@@ -288,5 +294,46 @@ describe('ApiServerPanel — 端口配置编辑与检测', () => {
 
     // 恢复显示原始端口
     expect(wrapper.text()).toContain('http://localhost:7102/v1')
+  })
+
+  it('首次打开且无 token 时，先请求 init-token 获取并保存 token，再加载配置', async () => {
+    localStorage.removeItem('forge_api_token')
+    // 模拟真实 initToken 封装行为：请求后端后保存 token 到 localStorage
+    mockInitToken.mockImplementation(() => {
+      localStorage.setItem('forge_api_token', 'sk-init-token-abc')
+      return Promise.resolve('sk-init-token-abc')
+    })
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    // 无 token → 调用了 initToken 初始化
+    expect(mockInitToken).toHaveBeenCalled()
+    // token 已保存，可携带认证继续加载配置
+    expect(localStorage.getItem('forge_api_token')).toBe('sk-init-token-abc')
+    expect(mockGetConfig).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('端口配置')
+  })
+
+  it('已有 token 时不重复请求 init-token，直接加载配置', async () => {
+    localStorage.setItem('forge_api_token', 'sk-existing-token')
+
+    await mountPanel()
+    await flushPromises()
+
+    expect(mockInitToken).not.toHaveBeenCalled()
+    expect(mockGetConfig).toHaveBeenCalled()
+  })
+
+  it('init-token 请求失败（如 403 首次初始化已完成）时不阻塞页面，仍加载配置', async () => {
+    localStorage.removeItem('forge_api_token')
+    mockInitToken.mockRejectedValue(new Error('NEED_MANUAL_TOKEN'))
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    // 初始化失败不影响页面加载，由 401 分支提示手动输入密钥
+    expect(mockGetConfig).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('端口配置')
   })
 })

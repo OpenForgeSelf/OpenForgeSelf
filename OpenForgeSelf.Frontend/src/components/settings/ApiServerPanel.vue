@@ -219,8 +219,23 @@ function openApiDocs() {
   window.open('/scalar/v1', '_blank', 'noopener,noreferrer');
 }
 
-onMounted(() => {
-  loadConfig();
+/**
+ * 确保存在 API token：首次打开页面且本地无 token 时，
+ * 通过后端 init-token 一次性接口获取初始密钥并保存。
+ * 失败（如 403 首次初始化已完成）不阻塞页面，由 loadConfig 的 401 分支提示手动输入。
+ */
+async function ensureToken() {
+  if (getStoredToken()) return;
+  try {
+    await apiServerApi.initToken();
+  } catch {
+    // initToken 失败（NEED_MANUAL_TOKEN / 网络异常）：忽略，交由 401 分支处理
+  }
+}
+
+onMounted(async () => {
+  await ensureToken();
+  await loadConfig();
 });
 </script>
 

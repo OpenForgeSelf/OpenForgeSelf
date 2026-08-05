@@ -67,7 +67,8 @@ public class ApiServerController : ControllerBase
 
     /// <summary>
     /// 获取初始 API 密钥（无认证，仅首次调用有效）。
-    /// 通过 ForgeSetting.IsFirstInit 判断是否为首次，是则返回 token 并修改状态，否则 403。
+    /// 通过 ForgeSetting.IsFirstInit 判断是否为首次，是则返回 token 并修改状态，
+    /// 否则返回 success=false（HTTP 200，避免浏览器对非 2xx 响应打印控制台错误）。
     /// 从 ForgeSetting 读密文后解密返回明文。
     /// </summary>
     [HttpGet("init-token")]
@@ -75,7 +76,7 @@ public class ApiServerController : ControllerBase
     {
         var setting = Models.ForgeSetting.Current;
         if (!setting.IsFirstInit)
-            return StatusCode(403, new { success = false, error = "首次初始化已完成，请使用 status 接口获取密钥" });
+            return Ok(new { success = false, data = (object?)null, error = "首次初始化已完成，请使用 status 接口获取密钥" });
 
         var plainKey = _keyService.GetActiveKeyPlain();
         if (string.IsNullOrEmpty(plainKey))

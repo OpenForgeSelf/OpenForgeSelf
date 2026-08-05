@@ -1,37 +1,20 @@
 import { test, expect } from '@playwright/test'
+import { injectRealApiKey } from './helpers/real-auth'
 
 /**
- * 首页冒烟测试 —— 验证 / 首页核心区域渲染与推荐动作跳转。
+ * 首页冒烟测试 —— 验证 / 首页核心区域渲染与推荐动作跳转（真实后端、无 mock）。
  *
  * 设计原则（对齐 Playwright 官方最佳实践）：
- * - ✅ 语义化 Locator：getByRole / getByText / getByPlaceholder，避免宽泛 CSS selector
+ * - ✅ 零 mock：不拦截任何 /api/* 请求，首页 homeStore 数据来自真实后端
+ * - ✅ 真实认证：注入 ForgeSetting.config 解密出的真实 API 密钥
+ * - ✅ 语义化 Locator：getByRole / getByText / getByPlaceholder
  * - ✅ 无 waitForTimeout：全部用 auto-waiting（expect(locator).toBeVisible()）
- * - ✅ 无状态依赖：每个用例独立，无共享状态
- * - ✅ Mock 依赖 API（/api/skills、/api/todos），不依赖真实后端
+ * - ✅ 断言不依赖具体数据量：只验证区域渲染与入口存在性，避免真实数据波动导致 flaky
  */
 
-/** 包装为后端 ApiResponse<T> 成功响应体 */
-function ok<T>(data: T) {
-  return { code: 0, message: 'ok', success: true, data }
-}
-
-test.describe('首页 /', () => {
+test.describe('首页 /（真实后端）', () => {
   test.beforeEach(async ({ page }) => {
-    // 首页 homeStore.init() 会拉取已启用技能数与待办列表，统一 mock 为空数据
-    await page.route('**/api/skills**', route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(ok([])),
-      })
-    )
-    await page.route('**/api/todos**', route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(ok({ items: [], total: 0, page: 1, pageSize: 20 })),
-      })
-    )
+    await injectRealApiKey(page)
     await page.goto('/')
   })
 

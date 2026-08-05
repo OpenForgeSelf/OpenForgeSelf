@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { startMockUpstream, type MockUpstream } from './helpers/mock-upstream'
+import { getRealApiKey } from './helpers/real-auth'
 
 /**
  * OpenForgeSelf API 网关 E2E 测试 —— Playwright 官方 request fixture 最佳实践。
@@ -9,20 +10,23 @@ import { startMockUpstream, type MockUpstream } from './helpers/mock-upstream'
  *   Playwright E2E（本文件） → 覆盖真实 HTTP 全链路：认证中间件 → 路由 → 控制器 → 响应序列化
  *
  * 环境变量：
- *   - OPENFORGE_API_KEY（必填）：API 网关 Bearer Token
+ *   - OPENFORGE_API_KEY（可选）：API 网关 Bearer Token；缺省时从 ForgeSetting.config
+ *     运行时解密当前真实密钥（真实认证，密钥轮换后自动跟随）
  *   - OPENFORGE_BACKEND_URL（可选）：后端地址，默认 http://localhost:7102
  *   - OPENFORGE_E2E_MOCK_PROVIDER（可选）：触发测试组 2，值为后端预配置的 provider 名（如 e2e-mock）
  *
  * 测试组 2 前置条件：
  *   后端需预配置一个名为 `${OPENFORGE_E2E_MOCK_PROVIDER}` 的 provider，
  *   其 Endpoint 指向 http://localhost:18080/v1/chat/completions（mock upstream 监听端口）。
+ *   说明：mock upstream 模拟的是外部 LLM 上游（网关 → 上游请求在后端进程内发起，
+ *   浏览器拦截不到），属外部依赖模拟，非本项目后端 API mock；测试组 1 全走真实后端。
  *
  * 运行方式：
  *   pnpm test:e2e e2e/api-gateway.spec.ts
  *   OPENFORGE_API_KEY=sk-xxx OPENFORGE_E2E_MOCK_PROVIDER=e2e-mock pnpm test:e2e e2e/api-gateway.spec.ts
  */
 
-const API_KEY = process.env.OPENFORGE_API_KEY
+const API_KEY = process.env.OPENFORGE_API_KEY ?? getRealApiKey()
 const BACKEND_URL = process.env.OPENFORGE_BACKEND_URL ?? 'http://localhost:7102'
 const MOCK_PROVIDER = process.env.OPENFORGE_E2E_MOCK_PROVIDER
 
@@ -103,7 +107,7 @@ test.describe('API 网关冒烟测试', () => {
     expect(resp.status()).toBe(400)
   })
 
-  test('未知 provider 前缀返回 400（provider 路由失败）', async ({ request }) => {
+  test('未知 provider 前缀返回错误响应（provider 路由失败）', async ({ request }) => {
     const resp = await request.post(`${BACKEND_URL}/v1/chat/completions`, {
       headers: authHeaders(),
       data: {
@@ -111,10 +115,13 @@ test.describe('API 网关冒烟测试', () => {
         messages: [{ role: 'user', content: 'hi' }],
       },
     })
-    // 后端 ResolveProviderAndModel 找不到 provider 时回退到 GetProviderByModel，
-    // 若默认 provider 也不支持该模型，返回 400；若默认 provider 兜底，则 200/500。
-    // 这里只断言响应是确定的（非 5xx），不锁死状态码，避免环境差异导致 flaky。
-    expect(resp.status()).toBeLessThan(500)
+    // 真实后端行为：未知 provider 前缀回退 GetProviderByModel 默认 provider，
+    // 上游不可用时（如 LM Studio 未就绪）网关将上游错误包装为 5xx。
+    // 只断言响应是确定的错误响应（4xx/5xx 且含 error 结构），不锁死状态码，避免环境差异导致 flaky。
+    expect(resp.status()).toBeGreaterThanOrEqual(400)
+    expect(resp.status()).toBeLessThan(600)
+    const body = await resp.json()
+    expect(body.error).toBeDefined()
   })
 })
 

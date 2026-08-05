@@ -1,103 +1,88 @@
 import { test, expect } from '@playwright/test';
+import { injectRealApiKey, getRealApiKey, clearRealApiKeyCache } from './helpers/real-auth';
 
 /**
- * Token 再生 E2E 测试 —— Playwright 官方最佳实践。
+ * Token 再生 E2E 测试 —— 对接真实后端 API（无 mock、真实认证）。
  *
  * 设计原则：
- * - **完全 mock 后端 API**：用 page.route() 拦截所有 /api/api-server/* 请求
- * - **无 waitForTimeout**：全部用 Playwright auto-waiting
- * - **数据隔离**：每个用例独立 mock 数据
- * - **语义化 selector**：优先 getByRole/getByText/getByLabel
+ * - **零 mock**：不拦截任何 /api/* 请求，全部走真实后端（http://localhost:7102）
+ * - **真实认证**：注入 ForgeSetting.config 解密出的真实 API 密钥
+ * - **无 waitForTimeout**：全部用 auto-waiting + waitForResponse
+ * - **串行执行**：真实 regenerate 会轮换密钥（旧密钥立即失效），
+ *   且会更新 ForgeSetting.config，故本文件内用例串行执行
+ * - **副作用提示**：成功用例会真实轮换 API 密钥。运行全套 e2e 时
+ *   建议串行（--workers=1）或单独运行本文件，避免与其他用例的注入密钥竞态。
  *
  * 覆盖范围：
- * - 再生 Token 流程
- * - 再生确认对话框
- * - 再生成功提示
- * - 再生失败处理
+ * - 再生 Token 成功流程（真实 POST /api/api-server/regenerate → 200）
+ * - 再生成功后 localStorage 更新为新密钥，且新密钥可真实认证 status
+ * - 无认证时再生失败（真实 401 → 前端提示认证失败）
+ *
+ * 注意：真实 ApiServerPanel 的「重新生成」按钮无确认弹窗，点击即发起请求；
+ * 原 mock 版的「确认再生/取消」交互为虚构，已按真实 UI 重写。
  */
-
-// ============================================================
-// Mock 数据
-// ============================================================
-
-const MOCK_NEW_TOKEN = 'sk-new-token-1234567890abcdef';
 
 // ============================================================
 // 测试用例
 // ============================================================
 
-test.describe('Token 再生流程', () => {
-  test('再生 Token 成功流程', async ({ page }) => {
-    let regenerateCalled = false;
+test.describe('Token 再生流程（真实后端）', () => {
+  test.describe.configure({ mode: 'serial' });
 
-    await page.route('**/api/api-server/regenerate', async (route) => {
-      regenerateCalled = true;
-      await route.fulfill({
-        status: 200,
-        json: {
-          success: true,
-          message: 'Token 已重新生成',
-          newToken: MOCK_NEW_TOKEN,
-        },
-      });
-    });
+  test('再生 Token 成功：真实 regenerate 返回 200，localStorage 更新且新密钥可认证', async ({ page }) => {
+    const oldKey = getRealApiKey();
+    await injectRealApiKey(page);
 
     await page.goto('/settings');
     await page.getByRole('button', { name: /API 服务器/ }).first().click();
+    await expect(page.getByText('端口配置')).toBeVisible();
 
-    const regenerateButton = page.getByText('重新生成 Token');
-    await expect(regenerateButton).toBeVisible();
-    await regenerateButton.click();
+    // 点击「重新生成」（真实按钮，无确认弹窗）→ 真实 POST regenerate
+    const regResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/api-server/regenerate') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: '重新生成' }).click();
+    const regResponse = await regResponsePromise;
 
-    await expect(page.getByText('确认重新生成')).toBeVisible();
-    await expect(page.getByText('将使旧 Token 失效')).toBeVisible();
+    expect(regResponse.status()).toBe(200);
 
-    await page.getByText('确认再生').click();
+    // 成功提示
+    await expect(page.getByText('密钥已重新生成')).toBeVisible();
 
-    await expect(page.getByText('Token 已重新生成')).toBeVisible();
+    // localStorage 已更新为新密钥（不再是旧密钥）
+    const stored = await page.evaluate(() => localStorage.getItem('forge_api_token'));
+    expect(stored).not.toBe(oldKey);
+    expect(stored).toMatch(/^sk-/);
 
-    expect(regenerateCalled).toBe(true);
+    // 新密钥可真实认证 status（旧密钥已失效，新密钥必须可用）
+    const statusRes = await fetch('http://localhost:7102/api/api-server/status', {
+      headers: { Authorization: `Bearer ${stored}` },
+    });
+    expect(statusRes.status).toBe(200);
+
+    // 密钥已轮换 → 清除解密缓存，让后续用例从配置文件读取新密钥
+    clearRealApiKeyCache();
   });
 
-  test('取消 Token 再生', async ({ page }) => {
-    let regenerateCalled = false;
-
-    await page.route('**/api/api-server/regenerate', async (route) => {
-      regenerateCalled = true;
-      await route.fulfill({
-        status: 200,
-        json: { success: true, message: 'Token 已重新生成' },
-      });
-    });
+  test('无认证时再生失败：真实 401 → 前端提示认证失败', async ({ page }) => {
+    // 不注入 token → 无 Authorization 头 → regenerate 返回 401
+    await page.addInitScript(() => localStorage.removeItem('forge_api_token'));
 
     await page.goto('/settings');
     await page.getByRole('button', { name: /API 服务器/ }).first().click();
+    await expect(page.getByText('端口配置')).toBeVisible();
 
-    await page.getByText('重新生成 Token').click();
-    await page.getByText('取消').click();
+    const regResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/api-server/regenerate') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: '重新生成' }).click();
+    const regResponse = await regResponsePromise;
 
-    expect(regenerateCalled).toBe(false);
-    await expect(page.getByText('Token 已重新生成')).not.toBeVisible();
-  });
+    // 真实后端无认证 → 401
+    expect(regResponse.status()).toBe(401);
 
-  test('Token 再生失败处理', async ({ page }) => {
-    await page.route('**/api/api-server/regenerate', async (route) => {
-      await route.fulfill({
-        status: 400,
-        json: {
-          success: false,
-          message: '再生失败：权限不足',
-        },
-      });
-    });
-
-    await page.goto('/settings');
-    await page.getByRole('button', { name: /API 服务器/ }).first().click();
-
-    await page.getByText('重新生成 Token').click();
-    await page.getByText('确认再生').click();
-
-    await expect(page.getByText('再生失败')).toBeVisible();
-    await expect(page.getByText('权限不足')).toBeVisible();
+    // 前端捕获 401 → 提示认证失败，并出现认证失败警告
+    await expect(page.getByText('认证失败，请检查 API 密钥是否正确')).toBeVisible();
+    await expect(page.getByText(/API 密钥验证失败/)).toBeVisible();
   });
 });

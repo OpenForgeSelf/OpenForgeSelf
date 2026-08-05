@@ -2,15 +2,18 @@ import { test, expect, Page } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getRealApiKey } from './helpers/real-auth';
 
 /**
  * 端口配置 E2E 测试 —— 对接真实后端 API。
  *
  * 设计原则：
- * - 注入真实 API 密钥到 localStorage，使认证请求通过
+ * - 注入真实 API 密钥到 localStorage（运行时从 ForgeSetting.config 解密，
+ *   不硬编码——密钥轮换后硬编码值会失效导致 status 401），使认证请求通过
  * - 所有 API 调用走真实后端，不 mock
- * - 仅 mock 重启端点（POST /api/api-server/restart），避免服务实际重启破坏开发环境
- * - 健康轮询也 mock 模拟，避免等待真实重启
+ * - 仅 mock 重启端点（POST /api/api-server/restart）与健康轮询：真实重启会
+ *   把端口从 7102 改为 9090 并中断并行测试、破坏开发环境，属防破坏隔离；
+ *   其余接口全部真实请求
  * - 保存测试会真实修改后端端口配置，测试后通过 API / 配置文件恢复，保证可重复运行
  *
  * 覆盖范围：
@@ -23,9 +26,9 @@ import { fileURLToPath } from 'node:url';
  */
 
 // ============================================================
-// 真实后端 API 密钥（从 ForgeSetting.config 解密获得）
+// 真实后端 API 密钥（运行时从 ForgeSetting.config 解密）
 // ============================================================
-const REAL_API_KEY = 'sk-LEAK_FIXED_BY_AUDIT_20260921';
+const REAL_API_KEY = getRealApiKey();
 const BACKEND_URL = 'http://localhost:7102';
 /** 后端配置文件路径（发布版），用于恢复被测试保存污染的端口 */
 const BACKEND_CONFIG_PATH =

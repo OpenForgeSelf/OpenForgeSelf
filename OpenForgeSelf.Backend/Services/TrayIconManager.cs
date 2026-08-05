@@ -120,8 +120,12 @@ public class TrayIconManager : IDisposable
                 HideInternal();
             }
 
-            // 等待 STA 线程退出
-            _staThread?.Join(3000);
+            // 等待 STA 线程退出；若当前线程就是 STA 线程（如托盘菜单回调中直接调用），
+            // 跳过 Join 避免 join 自身导致死锁/超时
+            if (_staThread != null && _staThread != Thread.CurrentThread)
+            {
+                _staThread.Join(3000);
+            }
         }
 
         _hiddenForm = null;

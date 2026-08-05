@@ -203,7 +203,7 @@
       <Indexes>
         <Index Columns="IsActive" />
       </Indexes>
-    </Table>
+    </Table>    
     <Table Name="UpdateTrace" Description="更新操作记录">
       <Columns>
         <Column Name="Id" DataType="Int64" PrimaryKey="True" DataScale="time" Description="主键" AutoIncrement="true" />

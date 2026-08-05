@@ -1,5 +1,5 @@
 import type { ApiServerConfig } from '@/types/apiServer';
-import { request, getStoredToken, setStoredToken, STORAGE_KEY } from './request';
+import { request, setStoredToken, getStoredToken } from './request';
 
 const API_BASE = '/api/api-server';
 
@@ -23,5 +23,40 @@ export const apiServerApi = {
       setStoredToken(config.apiKeyPlain);
     }
     return config;
+  },
+
+  /**
+   * 初始化 API 密钥
+   * @returns 返回新密钥，如果已有密钥则返回 null
+   */
+  async initToken(): Promise<string | null> {
+    // 先检查本地是否有 token
+    const existingToken = getStoredToken();
+    if (existingToken) {
+      return null; // 已有 token，不需要初始化
+    }
+
+    // 没有 token，尝试请求初始化（GET 方法）
+    try {
+      const json = await request(`${API_BASE}/init-token`);
+      const config = json.data as ApiServerConfig;
+      if (config?.apiKeyPlain) {
+        setStoredToken(config.apiKeyPlain);
+        return config.apiKeyPlain;
+      }
+      return null;
+    } catch (error) {
+      // 如果是 403 错误，说明需要手动输入 token
+      if (error instanceof Error && error.message.includes('403')) {
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error('NEED_MANUAL_TOKEN');
+      }
+      throw error;
+    }
+  },
+
+  /** 重启 API 服务器（用于端口更改后） */
+  async restart(): Promise<void> {
+    await request(`${API_BASE}/restart`, { method: 'POST' });
   },
 };

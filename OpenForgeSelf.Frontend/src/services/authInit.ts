@@ -2,7 +2,7 @@
  * 应用启动时初始化 token。
  * 检查 localStorage 是否有 token，没有则通过后端 init-token 接口获取。
  */
-import { getStoredToken, setStoredToken, STORAGE_KEY } from './request';
+import { getStoredToken, setStoredToken } from './request';
 
 /** 后端 init-token 接口（无认证，后端首次返回初始密钥） */
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';

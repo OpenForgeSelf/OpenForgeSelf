@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed } from 'vue';
 import {
   ElButton,
   ElRadioGroup,
@@ -9,75 +9,73 @@ import {
   ElMessageBox,
   ElMessage,
   ElCard
-} from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { useTodoStore } from '@/stores/todo'
-import type { TodoStatus, TodoCreateRequest, TodoUpdateRequest } from '@/types/todo'
-import TodoListItem from '@/components/todo/TodoListItem.vue'
-import TodoEditDialog from '@/components/todo/TodoEditDialog.vue'
+} from 'element-plus';
+import { Plus } from '@element-plus/icons-vue';
+import { useTodoStore } from '@/stores/todo';
+import type { TodoStatus, TodoCreateRequest, TodoUpdateRequest } from '@/types/todo';
+import TodoListItem from '@/components/todo/TodoListItem.vue';
+import TodoEditDialog from '@/components/todo/TodoEditDialog.vue';
 
-const store = useTodoStore()
+const store = useTodoStore();
 
-const dialogVisible = ref(false)
-const editingId = ref<number | null>(null)
+const dialogVisible = ref(false);
+const editingId = ref<number | null>(null);
 
 const statusFilter = computed<TodoStatus | undefined>({
   get: () => store.statusFilter,
   set: (value) => {
-    store.setStatusFilter(value)
-    store.loadTodos()
+    store.setStatusFilter(value);
+    store.loadTodos();
   }
-})
+});
 
 const editingTodo = computed(() =>
-  editingId.value !== null
-    ? store.items.find(t => t.id === editingId.value) ?? null
-    : null
-)
+  editingId.value !== null ? (store.items.find((t) => t.id === editingId.value) ?? null) : null
+);
 
 function openCreateDialog() {
-  editingId.value = null
-  dialogVisible.value = true
+  editingId.value = null;
+  dialogVisible.value = true;
 }
 
 function openEditDialog(id: number) {
-  editingId.value = id
-  dialogVisible.value = true
+  editingId.value = id;
+  dialogVisible.value = true;
 }
 
 function closeDialog() {
-  dialogVisible.value = false
-  editingId.value = null
+  dialogVisible.value = false;
+  editingId.value = null;
 }
 
 async function handleSubmit(payload: { id?: number; data: TodoCreateRequest | TodoUpdateRequest }) {
   try {
     if (payload.id) {
-      await store.editTodo(payload.id, payload.data as TodoUpdateRequest)
-      ElMessage.success('更新待办成功')
+      await store.editTodo(payload.id, payload.data as TodoUpdateRequest);
+      ElMessage.success({ message: '更新待办成功', offset: 60 });
     } else {
-      await store.addTodo(payload.data as TodoCreateRequest)
-      ElMessage.success('创建待办成功')
+      await store.addTodo(payload.data as TodoCreateRequest);
+      ElMessage.success({ message: '创建待办成功', offset: 60 });
     }
-    closeDialog()
+    closeDialog();
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    ElMessage.error({ message: e instanceof Error ? e.message : '操作失败', offset: 60 });
   }
 }
 
 async function handleToggleStatus(id: number) {
-  const todo = store.items.find(t => t.id === id)
-  if (!todo) return
+  const todo = store.items.find((t) => t.id === id);
+  if (!todo) return;
   try {
     if (todo.status === 'Pending') {
-      await store.markComplete(id)
-      ElMessage.success('标记完成成功')
+      await store.markComplete(id);
+      ElMessage.success({ message: '标记完成成功', offset: 60 });
     } else {
-      await store.markReopen(id)
-      ElMessage.success('重新打开成功')
+      await store.markReopen(id);
+      ElMessage.success({ message: '重新打开成功', offset: 60 });
     }
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    ElMessage.error({ message: e instanceof Error ? e.message : '操作失败', offset: 60 });
   }
 }
 
@@ -88,36 +86,30 @@ async function handleDelete(id: number) {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
       confirmButtonClass: 'el-button--danger'
-    })
-    await store.removeTodo(id)
-    ElMessage.success('删除待办成功')
+    });
+    await store.removeTodo(id);
+    ElMessage.success('删除待办成功');
   } catch (e) {
-    if (e === 'cancel' || e === 'close') return
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e instanceof Error ? e.message : '删除失败');
   }
 }
 
 function handlePageChange(p: number) {
-  store.setPage(p)
-  store.loadTodos()
+  store.setPage(p);
+  store.loadTodos();
 }
 
 onMounted(() => {
-  store.loadTodos()
-})
+  store.loadTodos();
+});
 </script>
 
 <template>
   <div v-loading="store.loading" class="todo-view p-6 max-w-4xl mx-auto">
     <header class="flex items-center justify-between mb-4">
       <h1 class="!text-2xl !font-bold !m-0 text-[var(--el-text-color-primary)]">待办追踪</h1>
-      <ElButton
-        type="primary"
-        :icon="Plus"
-        @click="openCreateDialog"
-      >
-        新建待办
-      </ElButton>
+      <ElButton type="primary" :icon="Plus" @click="openCreateDialog">新建待办</ElButton>
     </header>
 
     <ElCard shadow="never" class="!mb-4" body-class="!py-3">
@@ -130,21 +122,14 @@ onMounted(() => {
 
         <div class="text-sm text-[var(--el-text-color-secondary)]">
           共 {{ store.total }} 条
-          <span v-if="store.pendingCount > 0" class="!ml-2">
-            待处理 {{ store.pendingCount }}
-          </span>
+          <span v-if="store.pendingCount > 0" class="!ml-2">待处理 {{ store.pendingCount }}</span>
         </div>
       </div>
     </ElCard>
 
     <ElCard shadow="never" body-class="!p-0">
-      <ElEmpty
-        v-if="store.items.length === 0 && !store.loading"
-        description="暂无待办事项"
-      >
-        <ElButton type="primary" :icon="Plus" @click="openCreateDialog">
-          新建第一个待办
-        </ElButton>
+      <ElEmpty v-if="store.items.length === 0 && !store.loading" description="暂无待办事项">
+        <ElButton type="primary" :icon="Plus" @click="openCreateDialog">新建第一个待办</ElButton>
       </ElEmpty>
 
       <div v-else class="todo-list">
@@ -154,21 +139,18 @@ onMounted(() => {
           :todo="todo"
           @toggle-status="handleToggleStatus"
           @edit="openEditDialog"
-          @delete="handleDelete"
-        />
+          @delete="handleDelete" />
       </div>
 
       <div
         v-if="store.total > store.pageSize"
-        class="!py-3 flex justify-center border-t border-[var(--el-border-color-lighter)]"
-      >
+        class="!py-3 flex justify-center border-t border-[var(--el-border-color-lighter)]">
         <ElPagination
           :current-page="store.page"
           :page-size="store.pageSize"
           :total="store.total"
           layout="prev, pager, next"
-          @current-change="handlePageChange"
-        />
+          @current-change="handlePageChange" />
       </div>
     </ElCard>
 
@@ -176,7 +158,6 @@ onMounted(() => {
       v-model:visible="dialogVisible"
       :todo="editingTodo"
       @submit="handleSubmit"
-      @cancel="closeDialog"
-    />
+      @cancel="closeDialog" />
   </div>
 </template>

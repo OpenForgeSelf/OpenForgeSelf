@@ -105,7 +105,8 @@ static int RunTrayMode(string[] args, int trayArgIndex)
 {
     // 解析参数
     var pipeName = "";
-    var port = 7102;
+    // 优先从参数读取端口，否则使用 ForgeSetting 配置的端口
+    var port = 0;
 
     for (int i = trayArgIndex + 1; i < args.Length; i++)
     {
@@ -114,6 +115,10 @@ static int RunTrayMode(string[] args, int trayArgIndex)
         else if (args[i].Equals("--port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             int.TryParse(args[++i], out port);
     }
+
+    // 如果参数未提供端口，使用 ForgeSetting 配置的端口
+    if (port == 0)
+        port = ForgeSetting.Current.PortNumber;
 
     XTrace.UseConsole();
     XTrace.Log.Level = NewLife.Log.LogLevel.Info;
@@ -227,7 +232,24 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
             onExit: () =>
             {
                 XTrace.Log.Info("TrayIconManager: 用户点击「退出」，正在关闭应用...");
-                app.StopAsync().GetAwaiter().GetResult();
+                // 修复托盘退出死锁：不能在此（托盘 STA 线程）同步等待 StopAsync()。
+                // StopAsync 触发 ApplicationStopping → trayIconManager.Hide() → _hiddenForm.Invoke(...)
+                // 需要 STA 线程处理消息，而 STA 线程正被 GetAwaiter().GetResult() 阻塞 → 死锁，
+                // 表现为提示「正在退出」但进程不退、web 仍可访问、托盘菜单无响应。
+                // 先同步关闭托盘（当前就在 STA 线程，InvokeRequired=false 直接执行），
+                // 再异步触发 host 停止，避免阻塞托盘消息循环。
+                trayIconManager.Hide();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await app.StopAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        XTrace.Log.Error("停止应用异常: {0}", ex.Message);
+                    }
+                });
             });
 
         // 应用退出时清理托盘图标

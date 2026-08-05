@@ -177,6 +177,11 @@ public static class AppBuilder
         // API 服务器密钥管理（003-api-server-settings）
         builder.Services.AddSingleton<ApiServerKeyService>();
 
+        // 端口配置管理（009-web-port-token-security）- 基于配置文件
+        builder.Services.AddSingleton<IPortConfigurationService, PortConfigurationService>();
+        builder.Services.AddSingleton<IApplicationRestartService, ApplicationRestartService>();
+        builder.Services.AddSingleton<IPortAvailabilityService, PortAvailabilityService>();
+
         // ── 托盘图标 + 服务管理 + 自动更新服务注册（008-tray-service-autoupdate） ──
 
         // 绑定配置节
@@ -213,7 +218,7 @@ public static class AppBuilder
         builder.Services.AddSingleton<TrayIconManager>(sp =>
         {
             var serviceManager = sp.GetRequiredService<IServiceManager>();
-            var port = sp.GetRequiredService<IConfiguration>().GetValue<int>("Port", 7102);
+            var port = ForgeSetting.Current.PortNumber;
             return new TrayIconManager(serviceManager, port);
         });
 
@@ -358,7 +363,8 @@ public static class AppBuilder
             XTrace.Log.Error("启动任务调度器失败: {0}", ex.Message);
         }
 
-        var port = app.Configuration.GetValue<int>("Port", 7102);
+        // 使用 ForgeSetting 配置的端口号（支持动态修改，重启生效）
+        var port = ForgeSetting.Current.PortNumber;
         app.Urls.Add($"http://0.0.0.0:{port}");
 
         XTrace.Log.Info("铸己匣 OpenForgeSelf 服务启动中...");

@@ -70,8 +70,8 @@ public class WindowsService : ServiceBase
 
             XTrace.Log.Info("WindowsService: Service.ShowTrayInServiceMode=true，准备启动托盘辅助进程");
 
-            // 获取端口和可执行文件路径
-            var port = _app.Configuration.GetValue<int>("Port", 7102);
+            // 获取端口和可执行文件路径（使用 ForgeSetting 配置的端口）
+            var port = ForgeSetting.Current.PortNumber;
             var executablePath = Environment.ProcessPath
                 ?? throw new InvalidOperationException("无法确定可执行文件路径");
 

@@ -1,24 +1,41 @@
 <script setup lang="ts">
-import { ref, markRaw } from 'vue'
-import type { Component } from 'vue'
-import { Setting, Monitor, Grid, Connection, Link, Brush, Coin, InfoFilled } from '@element-plus/icons-vue'
-import GeneralPanel from '@/components/settings/GeneralPanel.vue'
-import AiAgentPanel from '@/components/settings/AiAgentPanel.vue'
-import PluginsPanel from '@/components/settings/PluginsPanel.vue'
-import AiProvidersPanel from '@/components/settings/AiProvidersPanel.vue'
-import ApiServerPanel from '@/components/settings/ApiServerPanel.vue'
-import AppearancePanel from '@/components/settings/AppearancePanel.vue'
-import DataStoragePanel from '@/components/settings/DataStoragePanel.vue'
-import AboutPanel from '@/components/settings/AboutPanel.vue'
+import { ref, markRaw } from 'vue';
+import type { Component } from 'vue';
+import {
+  Setting,
+  Monitor,
+  Grid,
+  Connection,
+  Link,
+  Brush,
+  Coin,
+  InfoFilled
+} from '@element-plus/icons-vue';
+import GeneralPanel from '@/components/settings/GeneralPanel.vue';
+import AiAgentPanel from '@/components/settings/AiAgentPanel.vue';
+import PluginsPanel from '@/components/settings/PluginsPanel.vue';
+import AiProvidersPanel from '@/components/settings/AiProvidersPanel.vue';
+import ApiServerPanel from '@/components/settings/ApiServerPanel.vue';
+import AppearancePanel from '@/components/settings/AppearancePanel.vue';
+import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
+import AboutPanel from '@/components/settings/AboutPanel.vue';
 
-type SettingsCategory = 'general' | 'ai-agent' | 'plugins' | 'ai-providers' | 'api-server' | 'appearance' | 'data' | 'about'
+type SettingsCategory =
+  | 'general'
+  | 'ai-agent'
+  | 'plugins'
+  | 'ai-providers'
+  | 'api-server'
+  | 'appearance'
+  | 'data'
+  | 'about';
 
-const activeCategory = ref<SettingsCategory>('general')
+const activeCategory = ref<SettingsCategory>('general');
 
 interface NavItem {
-  key: SettingsCategory
-  label: string
-  icon: Component
+  key: SettingsCategory;
+  label: string;
+  icon: Component;
 }
 
 const navItems: NavItem[] = [
@@ -29,8 +46,8 @@ const navItems: NavItem[] = [
   { key: 'api-server', label: 'API 服务器', icon: markRaw(Link) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
-  { key: 'about', label: '关于', icon: markRaw(InfoFilled) },
-]
+  { key: 'about', label: '关于', icon: markRaw(InfoFilled) }
+];
 </script>
 
 <template>
@@ -43,11 +60,12 @@ const navItems: NavItem[] = [
           v-for="item in navItems"
           :key="item.key"
           class="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-r-md border-l-[3px] transition-colors cursor-pointer bg-transparent border-none font-inherit"
-          :class="activeCategory === item.key
-            ? '!border-l-[var(--el-color-primary)] bg-primary/10 text-primary font-medium'
-            : '!border-l-transparent text-text-regular hover:bg-fill hover:text-text'"
-          @click="activeCategory = item.key"
-        >
+          :class="
+            activeCategory === item.key
+              ? '!border-l-[var(--el-color-primary)] bg-primary/10 text-primary font-medium'
+              : '!border-l-transparent text-text-regular hover:bg-fill hover:text-text'
+          "
+          @click="activeCategory = item.key">
           <el-icon :size="18"><component :is="item.icon" /></el-icon>
           <span class="text-sm truncate">{{ item.label }}</span>
         </button>

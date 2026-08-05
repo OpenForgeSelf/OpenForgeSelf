@@ -116,8 +116,9 @@ function loadLinkData(): void {
   if (props.link) {
     name.value = props.link.name
     url.value = props.link.url
-    icon.value = props.link.icon
-    description.value = props.link.description
+    // 后端 Icon/Description 可空，回填 null 时兜底为空串，避免保存时 trim() 崩溃
+    icon.value = props.link.icon ?? ''
+    description.value = props.link.description ?? ''
     categoryId.value = props.link.categoryId
   } else {
     resetForm()

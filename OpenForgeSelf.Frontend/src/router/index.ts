@@ -19,6 +19,7 @@ import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
 import TodoView from '@/views/TodoView.vue'
+import QuickLinksView from '@/views/QuickLinksView.vue'
 import type { PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 
@@ -124,6 +125,11 @@ const router = createRouter({
       path: '/chat-records',
       name: 'chat-records',
       component: ChatRecordsView
+    },
+    {
+      path: '/quick-links',
+      name: 'quick-links',
+      component: QuickLinksView
     }
   ]
 })

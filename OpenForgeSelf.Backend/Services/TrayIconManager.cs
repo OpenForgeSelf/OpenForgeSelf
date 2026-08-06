@@ -272,6 +272,11 @@ public class TrayIconManager : IDisposable
     {
         var menu = new PopupMenu();
 
+        // ── 应用标题（仅展示应用中文名，点击无操作） ──
+        menu.Items.Add(new PopupMenuItem("铸己匣", (_, _) => { }));
+
+        menu.Items.Add(new PopupMenuSeparator());
+
         // ── 打开主界面 ──
         menu.Items.Add(new PopupMenuItem("打开主界面(&O)", OnOpenMainPage));
 

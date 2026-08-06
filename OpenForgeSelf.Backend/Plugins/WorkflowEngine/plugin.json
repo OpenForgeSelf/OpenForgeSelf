@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "AI工作流引擎插件，支持可视化工作流编排、条件判断、循环、并行执行、错误重试等功能。",
   "IconUrl": "https://example.com/workflow-icon.png",
-  "EntryAssembly": "OpenForgeSelf.Backend.dll",
+  "EntryAssembly": "OpenForgeSelf.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.WorkflowEngine.WorkflowEnginePlugin",
   "Dependencies": [],
   "Permissions": [

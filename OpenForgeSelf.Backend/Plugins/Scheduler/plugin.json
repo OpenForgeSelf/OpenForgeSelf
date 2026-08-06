@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "定时任务调度插件，支持Cron表达式、间隔执行、单次执行等多种调度方式，可定时执行工作流、系统命令和HTTP Webhook。",
   "IconUrl": "https://example.com/scheduler-icon.png",
-  "EntryAssembly": "OpenForgeSelf.Backend.dll",
+  "EntryAssembly": "OpenForgeSelf.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.Scheduler.SchedulerPlugin",
   "Dependencies": [
     "workflow.engine.plugin"

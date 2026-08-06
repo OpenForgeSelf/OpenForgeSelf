@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "待办事项追踪插件，提供 CRUD REST API、独立管理页与 AI 工具函数。",
   "IconUrl": "https://example.com/todotracker-icon.png",
-  "EntryAssembly": "OpenForgeSelf.Backend.dll",
+  "EntryAssembly": "OpenForgeSelf.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.TodoTracker.TodoTrackerPlugin",
   "Dependencies": [],
   "Permissions": [

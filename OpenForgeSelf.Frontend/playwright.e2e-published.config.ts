@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const publishDir = resolve(root, '../publish');
-const backendExe = resolve(publishDir, 'OpenForgeSelf.Backend.exe');
+const backendExe = resolve(publishDir, 'OpenForgeSelf.exe');
 
 /**
  * Playwright 发布模式 E2E 测试配置。
@@ -45,7 +45,7 @@ export default defineConfig({
   ],
   // 后端由外部启动（手动或 CI 前置步骤），
   // Playwright 不管理后端进程生命周期。
-  // 启动方式：cd publish && .\OpenForgeSelf.Backend.exe --console
+  // 启动方式：cd publish && .\OpenForgeSelf.exe --console
   webServer: {
     command: `"${backendExe}" --console`,
     url: 'http://localhost:7102/api/health',

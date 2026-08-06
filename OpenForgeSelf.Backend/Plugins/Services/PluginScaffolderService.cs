@@ -151,7 +151,7 @@ public class PluginScaffolderService
           "IconUrl": "",
           "Category": "{{{category}}}",
           "Tags": ["{{{category}}}"],
-          "EntryAssembly": "OpenForgeSelf.Backend.dll",
+          "EntryAssembly": "OpenForgeSelf.dll",
           "EntryType": "OpenForgeSelf.Backend.Plugins.{{{pluginName}}}.{{{pluginName}}}Plugin",
           "Dependencies": [],
           "Permissions": [],

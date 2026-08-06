@@ -103,6 +103,6 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "  打包完成！" -ForegroundColor Yellow
 Write-Host "  耗时: $($stopwatch.Elapsed.TotalSeconds.ToString('0.0')) 秒" -ForegroundColor Green
 Write-Host "  发布目录: $publishDir" -ForegroundColor Green
-Write-Host "  可直接运行: $publishDir\OpenForgeSelf.Backend.exe" -ForegroundColor Green
-Write-Host "  或安装为服务: $publishDir\OpenForgeSelf.Backend.exe --install" -ForegroundColor Green
+Write-Host "  可直接运行: $publishDir\OpenForgeSelf.exe" -ForegroundColor Green
+Write-Host "  或安装为服务: $publishDir\OpenForgeSelf.exe --install" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Cyan

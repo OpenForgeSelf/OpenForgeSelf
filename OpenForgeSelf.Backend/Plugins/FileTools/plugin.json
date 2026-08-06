@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "提供批量重命名、文件清理、压缩解压、文件统计等常用文件处理工具。",
   "IconUrl": "https://example.com/file-tools-icon.png",
-  "EntryAssembly": "OpenForgeSelf.Backend.dll",
+  "EntryAssembly": "OpenForgeSelf.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.FileTools.FileToolsPlugin",
   "Dependencies": [],
   "Permissions": []

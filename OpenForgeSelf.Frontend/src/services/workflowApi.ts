@@ -69,9 +69,16 @@ export const workflowApi = {
     }
 
     const data = await response.json()
+    // 后端返回 ApiResponse 包装：{ data: { items, total, page, pageSize } }
+    const payload = (data.data ?? data) as {
+      items?: unknown[]
+      total?: number
+      page?: number
+      pageSize?: number
+    }
     return {
-      items: (data.items || data).map(parseWorkflow),
-      total: data.total ?? (data.items || data).length
+      items: (payload.items ?? []).map((item) => parseWorkflow(item as Record<string, unknown>)),
+      total: payload.total ?? 0
     }
   },
 

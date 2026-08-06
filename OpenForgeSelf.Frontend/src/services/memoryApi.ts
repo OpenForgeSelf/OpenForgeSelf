@@ -37,7 +37,11 @@ export const memoryApi = {
     if (params.page) queryParams.append('page', String(params.page))
     if (params.pageSize) queryParams.append('pageSize', String(params.pageSize))
 
-    const response = await fetch(`${API_BASE_URL}/memory/search?${queryParams}`)
+    const response = await fetch(`${API_BASE_URL}/memory/search?${queryParams}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
     return unwrap<MemorySearchResult>(response)
   },
 

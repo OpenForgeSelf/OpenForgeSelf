@@ -51,11 +51,18 @@ export const codeSnippetApi = {
     }
 
     const data = await response.json()
+    // 后端返回 ApiResponse 包装：{ data: { items, total, page, pageSize } }
+    const payload = (data.data ?? data) as {
+      items?: unknown[]
+      total?: number
+      page?: number
+      pageSize?: number
+    }
     return {
-      items: (data.items || data.data || []).map(parseCodeSnippet),
-      total: data.total ?? 0,
-      page: data.page ?? 1,
-      pageSize: data.pageSize ?? 20
+      items: (payload.items ?? []).map((item) => parseCodeSnippet(item as Record<string, unknown>)),
+      total: payload.total ?? 0,
+      page: payload.page ?? 1,
+      pageSize: payload.pageSize ?? 20
     }
   },
 

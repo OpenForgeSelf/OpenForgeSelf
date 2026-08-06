@@ -66,7 +66,8 @@ public class MemoryServiceXCode : IMemoryService
 
     public Task<MemoryDto?> GetByIdAsync(long id)
     {
-        var entity = Memory.FindByKey(id);
+        // 删除为软删除（IsDeleted=true），查询必须过滤，否则已删除记忆仍可被 GET 命中
+        var entity = Memory.Find(Memory._.Id == id & Memory._.IsDeleted == false);
         return Task.FromResult(entity == null ? null : ToDto(entity));
     }
 

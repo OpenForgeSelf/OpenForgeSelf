@@ -25,8 +25,8 @@
         <i class="fa-solid fa-play" />
         {{ snippet.usageCount }} 次使用
       </span>
-      <span class="source-badge" :class="'source-' + snippet.source.toLowerCase()">
-        {{ getSourceText(snippet.source) }}
+      <span class="source-badge" :class="'source-' + sourceName(props.snippet.source).toLowerCase()">
+        {{ getSourceText(props.snippet.source) }}
       </span>
     </div>
   </div>
@@ -50,6 +50,18 @@ function getSourceText(source: CodeSnippetSource): string {
     AIGenerated: 'AI生成'
   }
   return sourceMap[source] || source
+}
+
+/** 后端 CodeSnippetSource 枚举序列化为数字（0=Manual/1=Script/2=AIGenerated），映射为字符串名称避免 .toLowerCase() 崩溃 */
+const SOURCE_NAMES: Record<number, string> = {
+  0: 'Manual',
+  1: 'Script',
+  2: 'AIGenerated'
+}
+
+function sourceName(source: CodeSnippetSource | number): string {
+  if (typeof source === 'string') return source
+  return SOURCE_NAMES[source] ?? 'Manual'
 }
 
 function toggleFavorite() {

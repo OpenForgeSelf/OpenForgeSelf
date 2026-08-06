@@ -332,6 +332,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useMemoryStore } from '@/stores/memory'
 import {
   MemoryType,
@@ -353,6 +354,7 @@ function asMemoryImportance(val: number): MemoryImportance {
   return val as MemoryImportance
 }
 
+// state 用 storeToRefs 保持响应性（直接解构 setup store 会丢失响应性，列表不更新）
 const {
   memories,
   stats,
@@ -364,7 +366,10 @@ const {
   total,
   currentPage,
   pageSize,
-  sortedCategories,
+  sortedCategories
+} = storeToRefs(store)
+
+const {
   loadMemories,
   loadCategories,
   loadStats,
@@ -403,7 +408,7 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 function debounceSearch() {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
-    setSearchKeyword(searchKeyword)
+    setSearchKeyword(searchKeyword.value)
     loadMemories()
   }, 300)
 }

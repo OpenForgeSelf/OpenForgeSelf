@@ -10,7 +10,58 @@ import type {
 } from '@/types/systemMonitor'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
-const MONITOR_API_BASE = `${API_BASE_URL}/system-monitor`
+// 后端 SystemMonitorController 路由前缀为 api/monitor（此前误用 api/system-monitor 导致 404 后 fallback mock）
+const MONITOR_API_BASE = `${API_BASE_URL}/monitor`
+
+/** 解包后端 ApiResponse 包装（{ data: T } 或直接 T），否则 store 拿到的 overview 结构错误 */
+async function unwrap<T>(response: Response): Promise<T> {
+  const json = (await response.json()) as { data?: T }
+  return (json?.data ?? json) as T
+}
+
+/** 后端 overview 字段名与前端类型不一致（totalUsagePercent vs totalUsage 等），统一映射为前端结构 */
+function mapOverview(raw: unknown): MonitorOverview {
+  const d = (raw ?? {}) as Record<string, any>
+  const cpu = (d.cpu ?? {}) as Record<string, any>
+  const memory = (d.memory ?? {}) as Record<string, any>
+  const network = (d.network ?? {}) as Record<string, any>
+  const disks = Array.isArray(d.disks)
+    ? (d.disks as Record<string, any>[]).map((disk) => ({
+        name: String(disk.driveName ?? disk.name ?? ''),
+        label: String(disk.volumeLabel ?? disk.label ?? ''),
+        totalSize: Number(disk.totalSizeBytes ?? disk.totalSize ?? 0),
+        freeSpace: Number(disk.availableFreeSpaceBytes ?? disk.freeSpace ?? 0),
+        usedSpace: Number(disk.usedSpaceBytes ?? disk.usedSpace ?? 0),
+        usagePercent: Number(disk.usagePercent ?? 0),
+        readSpeed: Number(disk.readSpeed ?? 0),
+        writeSpeed: Number(disk.writeSpeed ?? 0),
+      }))
+    : []
+
+  return {
+    cpu: {
+      totalUsage: Number(cpu.totalUsagePercent ?? cpu.totalUsage ?? 0),
+      perCoreUsage: Array.isArray(cpu.perCoreUsage)
+        ? (cpu.perCoreUsage as Record<string, any>[]).map((c) => Number(c.usagePercent ?? c))
+        : [],
+      timestamp: Number(cpu.timestamp ?? Date.now()),
+    },
+    memory: {
+      total: Number(memory.totalMemoryBytes ?? memory.total ?? 0),
+      used: Number(memory.usedMemoryBytes ?? memory.used ?? 0),
+      available: Number(memory.availableMemoryBytes ?? memory.available ?? 0),
+      usagePercent: Number(memory.usagePercent ?? 0),
+      timestamp: Number(memory.timestamp ?? Date.now()),
+    },
+    disks,
+    network: {
+      uploadSpeed: Number(network.uploadSpeedBytesPerSecond ?? network.uploadSpeed ?? 0),
+      downloadSpeed: Number(network.downloadSpeedBytesPerSecond ?? network.downloadSpeed ?? 0),
+      timestamp: Number(network.timestamp ?? Date.now()),
+    },
+    timestamp: Number(d.timestamp ?? Date.now()),
+  }
+}
 
 function generateMockCpuUsage(): CpuUsage {
   const coreCount = 8
@@ -122,7 +173,7 @@ async function getCpuUsage(): Promise<CpuUsage> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/cpu`)
     if (!response.ok) throw new Error('获取CPU数据失败')
-    return response.json()
+    return unwrap<CpuUsage>(response)
   } catch {
     return generateMockCpuUsage()
   }
@@ -135,7 +186,7 @@ async function getCpuHistory(duration?: number): Promise<MonitorHistory> {
       : `${MONITOR_API_BASE}/cpu/history`
     const response = await fetch(url)
     if (!response.ok) throw new Error('获取CPU历史失败')
-    return response.json()
+    return unwrap<MonitorHistory>(response)
   } catch {
     return generateMockHistory(duration)
   }
@@ -145,7 +196,7 @@ async function getMemoryUsage(): Promise<MemoryInfo> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/memory`)
     if (!response.ok) throw new Error('获取内存数据失败')
-    return response.json()
+    return unwrap<MemoryInfo>(response)
   } catch {
     return generateMockMemory()
   }
@@ -158,7 +209,7 @@ async function getMemoryHistory(duration?: number): Promise<MonitorHistory> {
       : `${MONITOR_API_BASE}/memory/history`
     const response = await fetch(url)
     if (!response.ok) throw new Error('获取内存历史失败')
-    return response.json()
+    return unwrap<MonitorHistory>(response)
   } catch {
     return generateMockHistory(duration)
   }
@@ -168,7 +219,7 @@ async function getDiskDrives(): Promise<DiskDrive[]> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/disks`)
     if (!response.ok) throw new Error('获取磁盘数据失败')
-    return response.json()
+    return unwrap<DiskDrive[]>(response)
   } catch {
     return generateMockDisks()
   }
@@ -178,7 +229,7 @@ async function getDiskIO(driveName: string): Promise<{ readSpeed: number; writeS
   try {
     const response = await fetch(`${MONITOR_API_BASE}/disks/${encodeURIComponent(driveName)}/io`)
     if (!response.ok) throw new Error('获取磁盘IO失败')
-    return response.json()
+    return unwrap<{ readSpeed: number; writeSpeed: number }>(response)
   } catch {
     return {
       readSpeed: Math.random() * 100 * 1024 * 1024,
@@ -191,7 +242,7 @@ async function getNetworkSpeed(): Promise<NetworkSpeed> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/network/speed`)
     if (!response.ok) throw new Error('获取网络速度失败')
-    return response.json()
+    return unwrap<NetworkSpeed>(response)
   } catch {
     return generateMockNetworkSpeed()
   }
@@ -201,7 +252,7 @@ async function getNetworkConnections(): Promise<NetworkConnection[]> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/network/connections`)
     if (!response.ok) throw new Error('获取网络连接失败')
-    return response.json()
+    return unwrap<NetworkConnection[]>(response)
   } catch {
     return generateMockConnections()
   }
@@ -214,7 +265,7 @@ async function getNetworkHistory(duration?: number): Promise<MonitorHistory> {
       : `${MONITOR_API_BASE}/network/history`
     const response = await fetch(url)
     if (!response.ok) throw new Error('获取网络历史失败')
-    return response.json()
+    return unwrap<MonitorHistory>(response)
   } catch {
     return generateMockHistory(duration)
   }
@@ -231,7 +282,7 @@ async function getProcesses(sortBy?: string, keyword?: string): Promise<ProcessI
       : `${MONITOR_API_BASE}/processes`
     const response = await fetch(url)
     if (!response.ok) throw new Error('获取进程列表失败')
-    return response.json()
+    return unwrap<ProcessInfo[]>(response)
   } catch {
     let processes = generateMockProcesses()
     if (keyword) {
@@ -260,7 +311,8 @@ async function getOverview(): Promise<MonitorOverview> {
   try {
     const response = await fetch(`${MONITOR_API_BASE}/overview`)
     if (!response.ok) throw new Error('获取概览数据失败')
-    return response.json()
+    const raw = await unwrap<unknown>(response)
+    return mapOverview(raw)
   } catch {
     return {
       cpu: generateMockCpuUsage(),

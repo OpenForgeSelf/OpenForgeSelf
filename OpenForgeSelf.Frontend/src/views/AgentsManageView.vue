@@ -46,9 +46,9 @@
       >
         <div class="agent-card-inner">
           <!-- Icon -->
-          <div class="agent-icon" :class="`agent-icon--${agent.type.toLowerCase()}`">
+          <div class="agent-icon" :class="`agent-icon--${agentTypeName(agent.type).toLowerCase()}`">
             <svg
-              v-if="agent.type === 'Generalist' || agent.type === 'Coordinator'"
+              v-if="agentTypeName(agent.type) === 'Generalist' || agentTypeName(agent.type) === 'Coordinator'"
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -67,7 +67,7 @@
               /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
             </svg>
             <svg
-              v-else-if="agent.type === 'Programmer'"
+              v-else-if="agentTypeName(agent.type) === 'Programmer'"
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -80,7 +80,7 @@
               <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
             </svg>
             <svg
-              v-else-if="agent.type === 'Analyst'"
+              v-else-if="agentTypeName(agent.type) === 'Analyst'"
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -114,7 +114,7 @@
               <span
                 class="agent-tag"
                 :class="agent.isBuiltin ? 'agent-tag--default' : 'agent-tag--type'"
-              >{{ agent.isBuiltin ? '默认' : store.getAgentTypeLabel(agent.type) }}</span>
+              >{{ agent.isBuiltin ? '默认' : store.getAgentTypeLabel(agentTypeName(agent.type) as import('@/types/agent').AgentType) }}</span>
             </div>
             <p class="agent-desc">{{ agent.description }}</p>
             <div class="agent-meta">
@@ -162,6 +162,22 @@ function memoryCount(agent: AgentDefinition): number {
     return agent.personality.strengths.length * 2
   }
   return 0
+}
+
+/** 后端 AgentType 枚举序列化为数字（0-5、99），统一映射为字符串名称，避免模板 .toLowerCase()/比较崩溃 */
+const AGENT_TYPE_NAMES: Record<number, string> = {
+  0: 'Coordinator',
+  1: 'Researcher',
+  2: 'Writer',
+  3: 'Programmer',
+  4: 'Analyst',
+  5: 'Critic',
+  99: 'Generalist',
+}
+
+function agentTypeName(type: number | string): string {
+  if (typeof type === 'string') return type
+  return AGENT_TYPE_NAMES[type] ?? 'Generalist'
 }
 </script>
 

@@ -21,12 +21,18 @@ export const chatApi = {
    * 发送消息（非流式）
    */
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
-    const response = await fetch(`${API_BASE_URL}/chat/message`, {
+    // 后端 ChatController 路由为 [Route("api/[controller]")] + [HttpPost] → POST /api/chat
+    // ChatRequest 契约：{ message, sessionId, stream }；前端 SendMessageRequest 为 { content, conversationId }
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        message: request.content,
+        sessionId: request.conversationId,
+        stream: false,
+      }),
     })
 
     if (!response.ok) {

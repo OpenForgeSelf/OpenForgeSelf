@@ -59,7 +59,7 @@ public partial class Script
     /// <summary>代码</summary>
     [DisplayName("代码")]
     [Description("代码")]
-    [DataObjectField(false, false, true, 8000)]
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("Code", "代码", "")]
     public String Code { get => _Code; set { if (OnPropertyChanging("Code", value)) { _Code = value; OnPropertyChanged("Code"); } } }
 
@@ -196,7 +196,7 @@ public partial class Script
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -212,7 +212,7 @@ public partial class Script
         if (category.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Category.EqualIgnoreCase(category));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Category.EqualIgnoreCase(category));
 
         return FindAll(_.Category == category);
     }
@@ -225,7 +225,7 @@ public partial class Script
         if (language < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Language == language);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Language == language);
 
         return FindAll(_.Language == language);
     }

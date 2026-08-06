@@ -84,7 +84,7 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     /// <summary>请求体JSON</summary>
     [DisplayName("请求体JSON")]
     [Description("请求体JSON")]
-    [DataObjectField(false, false, true, 8000)]
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("RequestBody", "请求体JSON", "")]
     public String RequestBody { get => _RequestBody; set { if (OnPropertyChanging("RequestBody", value)) { _RequestBody = value; OnPropertyChanged("RequestBody"); } } }
 
@@ -108,7 +108,7 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     /// <summary>响应体JSON</summary>
     [DisplayName("响应体JSON")]
     [Description("响应体JSON")]
-    [DataObjectField(false, false, true, 8000)]
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("ResponseBody", "响应体JSON", "")]
     public String ResponseBody { get => _ResponseBody; set { if (OnPropertyChanging("ResponseBody", value)) { _ResponseBody = value; OnPropertyChanged("ResponseBody"); } } }
 

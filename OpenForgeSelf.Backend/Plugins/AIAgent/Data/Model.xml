@@ -46,7 +46,7 @@
         <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="消息ID" />
         <Column Name="SessionId" DataType="String" Master="True" Nullable="False" Description="会话ID" />
         <Column Name="Role" DataType="String" Length="20" Nullable="False" Description="角色（user/assistant/system）" />
-        <Column Name="Content" DataType="String" Length="8000" Nullable="False" Description="内容" />
+        <Column Name="Content" DataType="String" Length="-1" Nullable="False" Description="内容" />
         <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
         <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
       </Columns>

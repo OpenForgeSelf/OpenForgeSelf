@@ -47,7 +47,7 @@
         <Column Name="Name" DataType="String" Master="True" Length="200" Nullable="False" Description="名称" />
         <Column Name="Description" DataType="String" Length="1000" Description="描述" />
         <Column Name="Language" DataType="Int32" Description="语言" />
-        <Column Name="Code" DataType="String" Length="8000" Description="代码" />
+        <Column Name="Code" DataType="String" Length="-1" Description="代码" />
         <Column Name="Category" DataType="String" Length="100" Description="分类" />
         <Column Name="TagsJson" DataType="String" Length="1000" Description="标签JSON" />
         <Column Name="IsFavorite" DataType="Boolean" Description="是否收藏" />
@@ -72,7 +72,7 @@
         <Column Name="StartTime" DataType="DateTime" Description="开始时间" />
         <Column Name="EndTime" DataType="DateTime" Description="结束时间" />
         <Column Name="ExitCode" DataType="Int32" Description="退出码" />
-        <Column Name="Output" DataType="String" Length="8000" Description="标准输出" />
+        <Column Name="Output" DataType="String" Length="-1" Description="标准输出" />
         <Column Name="ErrorOutput" DataType="String" Length="4000" Description="错误输出" />
         <Column Name="DurationMs" DataType="Int64" Description="持续时间（毫秒）" />
         <Column Name="ParametersJson" DataType="String" Length="2000" Description="参数JSON" />
@@ -89,7 +89,7 @@
         <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="片段ID" />
         <Column Name="Title" DataType="String" Master="True" Length="200" Nullable="False" Description="标题" />
         <Column Name="Description" DataType="String" Length="1000" Description="描述" />
-        <Column Name="Code" DataType="String" Length="8000" Description="代码" />
+        <Column Name="Code" DataType="String" Length="-1" Description="代码" />
         <Column Name="Language" DataType="String" Description="语言" />
         <Column Name="Category" DataType="String" Length="100" Description="分类" />
         <Column Name="TagsJson" DataType="String" Length="1000" Description="标签JSON" />

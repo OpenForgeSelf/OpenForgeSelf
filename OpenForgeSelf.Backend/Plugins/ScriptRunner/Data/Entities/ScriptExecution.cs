@@ -84,7 +84,7 @@ public partial class ScriptExecution
     /// <summary>标准输出</summary>
     [DisplayName("标准输出")]
     [Description("标准输出")]
-    [DataObjectField(false, false, true, 8000)]
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("Output", "标准输出", "")]
     public String Output { get => _Output; set { if (OnPropertyChanging("Output", value)) { _Output = value; OnPropertyChanged("Output"); } } }
 
@@ -177,7 +177,7 @@ public partial class ScriptExecution
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -193,7 +193,7 @@ public partial class ScriptExecution
         if (scriptId < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.ScriptId == scriptId);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ScriptId == scriptId);
 
         return FindAll(_.ScriptId == scriptId);
     }
@@ -206,7 +206,7 @@ public partial class ScriptExecution
         if (status < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Status == status);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Status == status);
 
         return FindAll(_.Status == status);
     }

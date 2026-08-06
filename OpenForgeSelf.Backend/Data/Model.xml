@@ -132,10 +132,10 @@
         <Column Name="RequestMethod" DataType="String" Length="20" Description="请求方法" />
         <Column Name="RequestPath" DataType="String" Length="200" Description="请求路径" />
         <Column Name="RequestHeaders" DataType="String" Length="1000" Description="请求头JSON" />
-        <Column Name="RequestBody" DataType="String" Length="8000" Description="请求体JSON" />
+        <Column Name="RequestBody" DataType="String" Length="-1" Description="请求体JSON" />
         <Column Name="ResponseStatus" DataType="Int32" Description="响应状态码" />
         <Column Name="ResponseHeaders" DataType="String" Length="1000" Description="响应头JSON" />
-        <Column Name="ResponseBody" DataType="String" Length="8000" Description="响应体JSON" />
+        <Column Name="ResponseBody" DataType="String" Length="-1" Description="响应体JSON" />
         <Column Name="Temperature" DataType="Double" Description="温度参数" />
         <Column Name="MaxTokens" DataType="Int32" Nullable="True" Description="最大token" />
         <Column Name="MessageCount" DataType="Int32" Description="消息数量" />
@@ -203,7 +203,7 @@
       <Indexes>
         <Index Columns="IsActive" />
       </Indexes>
-    </Table>    
+    </Table>
     <Table Name="UpdateTrace" Description="更新操作记录">
       <Columns>
         <Column Name="Id" DataType="Int64" PrimaryKey="True" DataScale="time" Description="主键" AutoIncrement="true" />

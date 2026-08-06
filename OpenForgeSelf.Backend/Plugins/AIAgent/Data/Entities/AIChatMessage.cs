@@ -52,7 +52,7 @@ public partial class AIChatMessage
     /// <summary>内容</summary>
     [DisplayName("内容")]
     [Description("内容")]
-    [DataObjectField(false, false, false, 8000)]
+    [DataObjectField(false, false, false, -1)]
     [BindColumn("Content", "内容", "")]
     public String Content { get => _Content; set { if (OnPropertyChanging("Content", value)) { _Content = value; OnPropertyChanged("Content"); } } }
 
@@ -117,7 +117,7 @@ public partial class AIChatMessage
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -133,7 +133,7 @@ public partial class AIChatMessage
         if (sessionId.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
 
         return FindAll(_.SessionId == sessionId);
     }

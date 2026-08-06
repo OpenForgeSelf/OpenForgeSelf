@@ -237,7 +237,7 @@ public class TrayIconManager : IDisposable
             _trayIcon = new TrayIconWithContextMenu
             {
                 Icon = SystemIcons.Application.Handle,
-                ToolTip = _appName,
+                ToolTip = "铸己匣",
             };
 
             // 构建右键菜单

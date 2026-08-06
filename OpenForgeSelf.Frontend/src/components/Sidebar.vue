@@ -123,6 +123,13 @@ onMounted(() => {
         </li>
 
         <li class="menu-item">
+          <router-link to="/chat-records" class="menu-link" :class="{ active: route.path.startsWith('/chat-records') }">
+            <span class="menu-icon">📜</span>
+            <span v-if="!isCollapsed" class="menu-text">聊天记录</span>
+          </router-link>
+        </li>
+
+        <li class="menu-item">
           <router-link to="/memory" class="menu-link" :class="{ active: route.path === '/memory' }">
             <span class="menu-icon">🧠</span>
             <span v-if="!isCollapsed" class="menu-text">记忆管理</span>

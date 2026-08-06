@@ -202,7 +202,7 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
 {
     try
     {
-        var port = app.Configuration.GetValue<int>("Port", 7102);
+        var port = ForgeSetting.Current.PortNumber;
 
         // 从 DI 容器解析服务
         var trayIconManager = app.Services.GetRequiredService<TrayIconManager>();

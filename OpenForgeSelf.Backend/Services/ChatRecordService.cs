@@ -50,13 +50,16 @@ public class ChatRecordService : IChatRecordService
         {
             record.Insert();
             _logService.Info("聊天记录已保存，ID: {0}, SessionId: {1}, Style: {2}", record.Id, record.SessionId, record.Style);
-            return Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            _logService.Error("保存聊天记录失败: {0}", ex.Message);
-            throw;
+            // 持久化是尽力而为（best-effort）：保存失败绝不影响对外接口响应
+            // （非流式路径已在拿到 AI 结果后才保存；流式路径的 SSE 响应已先行返回）。
+            // 例如 RequestBody/ResponseBody 超长被 XCode 校验拦截时，仅记录日志，不向上抛出异常。
+            _logService.Error("保存聊天记录失败（不影响接口响应）: {0}", ex.Message);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

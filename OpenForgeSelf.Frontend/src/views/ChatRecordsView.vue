@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { ChatRecord, ChatRecordsResponse } from '@/types/chatRecords'
 import { chatRecordsApi } from '@/services/chatRecordsApi'
 import ChatRecordsList from '@/components/chatrecords/ChatRecordsList.vue'
@@ -18,6 +18,41 @@ const loading = ref(false)
 const selectedRecord = ref<ChatRecord | null>(null)
 const detailLoading = ref(false)
 const showDetail = ref(false)
+
+// 实时自动刷新：默认每 5 秒拉取一次最新聊天记录
+const autoRefresh = ref(true)
+const lastUpdatedAt = ref<Date | null>(null)
+const REFRESH_INTERVAL_MS = 5000
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+function startAutoRefresh(): void {
+  if (refreshTimer !== null) return
+  refreshTimer = setInterval(() => {
+    if (autoRefresh.value && !document.hidden) {
+      void fetchRecords()
+    }
+  }, REFRESH_INTERVAL_MS)
+}
+
+function stopAutoRefresh(): void {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function handleVisibilityChange(): void {
+  if (document.hidden) {
+    stopAutoRefresh()
+  } else if (autoRefresh.value) {
+    void fetchRecords()
+    startAutoRefresh()
+  }
+}
 
 const styleOptions = [
   { value: '', label: '全部' },
@@ -43,6 +78,7 @@ async function fetchRecords() {
     console.error('获取聊天记录失败:', err)
   } finally {
     loading.value = false
+    lastUpdatedAt.value = new Date()
   }
 }
 
@@ -83,7 +119,15 @@ function handleReset() {
 }
 
 onMounted(() => {
-  fetchRecords()
+  fetchRecords().then(() => {
+    startAutoRefresh()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  })
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -95,6 +139,14 @@ onMounted(() => {
         聊天记录查看
       </h1>
       <p class="view-subtitle">查看和管理 API 调用记录，包括 OpenAI Chat、OpenAI Responses 和 Anthropic Messages 格式</p>
+      <div class="live-indicator">
+        <span class="live-dot" :class="{ active: autoRefresh }" />
+        <span class="live-text">{{ autoRefresh ? '实时更新中' : '实时已暂停' }}</span>
+        <button class="live-toggle" type="button" @click="autoRefresh = !autoRefresh">
+          {{ autoRefresh ? '暂停' : '开启' }}
+        </button>
+        <span v-if="lastUpdatedAt" class="live-time">更新于 {{ formatTime(lastUpdatedAt) }}</span>
+      </div>
     </header>
 
     <div class="filter-bar">
@@ -215,6 +267,65 @@ onMounted(() => {
   font-size: 14px;
   color: var(--el-text-color-secondary);
   margin: 0;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--el-text-color-disabled);
+  transition: background-color 150ms ease;
+}
+
+.live-dot.active {
+  background: var(--el-color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-success) 25%, transparent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.live-text {
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+}
+
+.live-toggle {
+  padding: 4px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.live-toggle:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+
+.live-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--el-text-color-secondary);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .filter-bar {

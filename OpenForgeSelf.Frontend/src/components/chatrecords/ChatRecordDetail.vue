@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { ChatRecord } from '@/types/chatRecords'
 import TruncatedContent from './TruncatedContent.vue'
+import StreamingText from './StreamingText.vue'
 
 const props = defineProps<{
   record: ChatRecord
@@ -10,6 +11,7 @@ const props = defineProps<{
 const basicInfoExpanded = ref(true)
 const requestExpanded = ref(true)
 const toolCallsExpanded = ref(true)
+const aiReplyExpanded = ref(true)
 const responseExpanded = ref(true)
 
 const requestBodyStr = computed(() => JSON.stringify(props.record.requestBody, null, 2))
@@ -55,7 +57,7 @@ const anthropicMessagesFields = computed(() => {
   }
 })
 
-function toggleSection(section: 'basicInfo' | 'request' | 'toolCalls' | 'response') {
+function toggleSection(section: 'basicInfo' | 'request' | 'toolCalls' | 'aiReply' | 'response') {
   switch (section) {
     case 'basicInfo':
       basicInfoExpanded.value = !basicInfoExpanded.value
@@ -65,6 +67,9 @@ function toggleSection(section: 'basicInfo' | 'request' | 'toolCalls' | 'respons
       break
     case 'toolCalls':
       toolCallsExpanded.value = !toolCallsExpanded.value
+      break
+    case 'aiReply':
+      aiReplyExpanded.value = !aiReplyExpanded.value
       break
     case 'response':
       responseExpanded.value = !responseExpanded.value
@@ -77,6 +82,66 @@ function formatDuration(ms: number): string {
   if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`
   return `${(ms / 60000).toFixed(2)}分钟`
 }
+
+// 从原始响应体中抽取 LLM 回复的可读文本，用于「流式回放」
+interface StreamContentBlock {
+  text?: unknown
+}
+interface StreamChoice {
+  message?: { content?: unknown }
+}
+interface StreamOutputItem {
+  text?: string
+  content?: unknown
+}
+interface RawResponseBody {
+  choices?: StreamChoice[]
+  output?: StreamOutputItem[]
+  content?: unknown
+  text?: string
+  [key: string]: unknown
+}
+
+function extractTextFromContentBlocks(content: unknown): string {
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((block) => {
+      if (block && typeof block === 'object' && 'text' in block) {
+        const t = (block as StreamContentBlock).text
+        return typeof t === 'string' ? t : ''
+      }
+      return ''
+    })
+    .join('')
+}
+
+function extractAssistantText(style: string, body: unknown): string {
+  if (!body || typeof body !== 'object') return ''
+  const b = body as RawResponseBody
+  if (style === 'OpenAI_Chat') {
+    const content = b.choices?.[0]?.message?.content
+    if (typeof content === 'string') return content
+    if (content && typeof content === 'object') return JSON.stringify(content)
+    return ''
+  }
+  if (style === 'OpenAI_Responses') {
+    if (typeof b.text === 'string') return b.text
+    if (Array.isArray(b.output)) {
+      return b.output
+        .map((o) => (typeof o.text === 'string' ? o.text : extractTextFromContentBlocks(o.content)))
+        .filter((t) => t.length > 0)
+        .join('\n\n')
+    }
+    return ''
+  }
+  if (style === 'Anthropic_Messages') {
+    return extractTextFromContentBlocks(b.content)
+  }
+  return ''
+}
+
+const assistantText = computed(() => extractAssistantText(props.record.style, props.record.responseBody))
+const hasAssistantText = computed(() => assistantText.value.trim().length > 0)
 </script>
 
 <template>
@@ -250,6 +315,21 @@ function formatDuration(ms: number): string {
             </div>
           </template>
         </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" @click="toggleSection('aiReply')">
+        <span class="section-icon">{{ aiReplyExpanded ? '▼' : '▶' }}</span>
+        <span class="section-title">AI 回复</span>
+        <span v-if="!hasAssistantText" class="section-meta">无纯文本内容</span>
+        <span v-else class="section-meta">流式回放</span>
+      </div>
+      <div v-show="aiReplyExpanded" class="section-content">
+        <StreamingText v-if="hasAssistantText" :text="assistantText" />
+        <p v-else class="empty-reply">
+          该记录没有可流式展示的纯文本回复（可能为工具调用或结构化响应），请查看下方「响应体」原始数据。
+        </p>
       </div>
     </div>
 
@@ -446,5 +526,15 @@ function formatDuration(ms: number): string {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.empty-reply {
+  margin: 0;
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6c757d;
+  line-height: 1.6;
 }
 </style>

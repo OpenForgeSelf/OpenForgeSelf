@@ -26,6 +26,31 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
+  // Element Plus 组件禁止显式导入（type 导入除外）：
+  // 组件样式依赖 unplugin-vue-components 按需注入，显式 import 会绕过自动解析导致组件无样式。
+  // 统一在模板中使用 <ElXxx>，由 unplugin-vue-components 自动解析并注入样式。
+  // 例外：ElMessage/ElMessageBox/ElNotification/ElLoading 是 API 调用型组件（JS 中 ElMessage.success()
+  // 等调用，unplugin 不解析 JS 调用），必须显式导入，列入 allowImportNames 白名单。
+  {
+    files: ['src/**/*.{ts,tsx,vue}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'element-plus',
+              message:
+                '禁止显式导入 ElXxx 组件（会绕过按需样式注入导致组件无样式）。请在模板中使用 <ElXxx> 由 unplugin-vue-components 自动解析；type 导入（如 FormInstance/FormRules）与 API 调用组件（ElMessage/ElMessageBox/ElNotification/ElLoading）除外。',
+              allowTypeImports: true,
+              allowImportNames: ['ElMessage', 'ElMessageBox', 'ElNotification', 'ElLoading'],
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Vue files
   ...pluginVue.configs['flat/recommended'],
   {

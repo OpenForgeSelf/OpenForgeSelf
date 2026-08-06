@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import {
-  ElButton,
-  ElRadioGroup,
-  ElRadioButton,
-  ElPagination,
-  ElEmpty,
-  ElMessageBox,
-  ElMessage,
-  ElCard
-} from 'element-plus';
+// 模板组件（ElButton/ElRadioGroup 等）由 unplugin-vue-components 自动解析；
+// 仅保留 API 调用组件 ElMessage/ElMessageBox（JS 中 ElMessage.success()/ElMessageBox.confirm() 调用）
+import { ElMessageBox, ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { useTodoStore } from '@/stores/todo';
 import type { TodoStatus, TodoCreateRequest, TodoUpdateRequest } from '@/types/todo';

@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import {
-  ElDialog,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElDatePicker,
-  ElButton,
-  ElAlert,
-  type FormInstance,
-  type FormRules
-} from 'element-plus'
+// 组件交由 unplugin-vue-components 自动解析并注入样式（显式 import 会绕过按需样式，导致弹窗/表单无样式）
+import type { FormInstance, FormRules } from 'element-plus'
 import type { TodoItem, TodoCreateRequest, TodoUpdateRequest } from '@/types/todo'
 
 const props = defineProps<{

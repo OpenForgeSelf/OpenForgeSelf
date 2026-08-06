@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElCheckbox, ElButton, ElTag, ElTooltip, ElText } from 'element-plus'
+// Element Plus 组件由 unplugin-vue-components 自动解析（显式导入会绕过按需样式注入）
 import { Delete, Edit, Calendar } from '@element-plus/icons-vue'
 import type { TodoItem } from '@/types/todo'
 

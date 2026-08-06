@@ -122,6 +122,7 @@
 **前端：**
 - 组件拆分：每个面板/功能区独立 `.vue` 文件，不允许大文件堆多面板逻辑
 - 样式：使用 Element Plus 组件 + Tailwind 布局类，颜色只走 `--el-*` 变量
+- **Element Plus 组件禁止显式 `import { ElXxx } from 'element-plus'`**（type 导入如 `FormInstance`/`FormRules` 除外）：本项目组件样式依赖 unplugin-vue-components 按需注入，显式导入会绕过自动解析导致组件无样式（已验证：TodoEditDialog 显式导入 ElDialog 致弹窗背景透明/无圆角）。统一在模板中使用 `<ElXxx>`，由 unplugin-vue-components 自动解析并注入样式
 - 类型：所有新代码必须有 TypeScript 类型，不用 `any`
 - 测试（TDD 优先）：新增逻辑先写 vitest 测试定义预期行为，再写实现使测试通过；修改逻辑先补/改测试覆盖新行为，再改实现
 - 全屏背景图：用固定定位 `<img>` 元素（`position:fixed; inset:0; object-fit:cover; z-index:0; pointer-events:none`）+ 内容层 `z-index` 叠放，**不要**用 CSS `background-image: url(外链)`。本环境外链背景图不渲染（已验证：手动注入 `!important` 后截图仍纯白），`<img>` 方案可稳定显示

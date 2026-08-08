@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { ChatRecord, ChatRecordsResponse } from '@/types/chatRecords'
+import type { StreamMessageChunk } from '@/types/chat'
 import { chatRecordsApi } from '@/services/chatRecordsApi'
+import { wsService } from '@/services/websocket'
 import ChatRecordsList from '@/components/chatrecords/ChatRecordsList.vue'
 import ChatRecordDetail from '@/components/chatrecords/ChatRecordDetail.vue'
 
@@ -19,38 +21,108 @@ const selectedRecord = ref<ChatRecord | null>(null)
 const detailLoading = ref(false)
 const showDetail = ref(false)
 
-// 实时自动刷新：默认每 5 秒拉取一次最新聊天记录
-const autoRefresh = ref(true)
+// WebSocket 连接状态：连上时用推送驱动更新；未连接时仅手动查询
+const wsConnected = ref(false)
 const lastUpdatedAt = ref<Date | null>(null)
-const REFRESH_INTERVAL_MS = 5000
-let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-function startAutoRefresh(): void {
-  if (refreshTimer !== null) return
-  refreshTimer = setInterval(() => {
-    if (autoRefresh.value && !document.hidden) {
-      void fetchRecords()
-    }
-  }, REFRESH_INTERVAL_MS)
+interface LiveStream {
+  requestId: string
+  sessionId: string
+  text: string
+  done: boolean
+  error: boolean
+  finishedAt: number
 }
 
-function stopAutoRefresh(): void {
-  if (refreshTimer !== null) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
+// 实时流式：来自后端的 chat_record_chunk / chat_record_completed 推送（扁平 payload，无 .data 包裹）
+const liveStreams = ref<Record<string, LiveStream>>({})
+const liveStreamList = computed(() => Object.values(liveStreams.value))
+const hasLiveStreams = computed(() => liveStreamList.value.length > 0)
+
+interface ChatRecordWsData {
+  requestId: string
+  sessionId: string
+  text?: string
+  error?: boolean
+  recordId?: number
+}
+
+function handleWsMessage(msg: StreamMessageChunk): void {
+  if (msg.type !== 'chat_record_chunk' && msg.type !== 'chat_record_completed') return
+  // 后端 IWebSocketBroadcaster 广播的就是扁平对象本身，字段在 msg 顶层
+  const data = msg as unknown as ChatRecordWsData
+  if (!data || !data.requestId) return
+
+  if (msg.type === 'chat_record_chunk') {
+    const existing = liveStreams.value[data.requestId]
+    if (existing) {
+      existing.text += data.text || ''
+      existing.done = false
+    } else {
+      liveStreams.value[data.requestId] = {
+        requestId: data.requestId,
+        sessionId: data.sessionId,
+        text: data.text || '',
+        done: false,
+        error: false,
+        finishedAt: 0
+      }
+    }
+  } else {
+    // chat_record_completed：定稿。把新记录推到列表顶部（不整页刷新）
+    const existing = liveStreams.value[data.requestId]
+    if (existing) {
+      existing.done = true
+      existing.error = !!data.error
+      existing.finishedAt = Date.now()
+    } else {
+      liveStreams.value[data.requestId] = {
+        requestId: data.requestId,
+        sessionId: data.sessionId,
+        text: '',
+        done: true,
+        error: !!data.error,
+        finishedAt: Date.now()
+      }
+    }
+    // 用 recordId 精准拉取新记录并插入列表顶部
+    if (typeof data.recordId === 'number') {
+      void prependNewRecord(data.recordId)
+    } else {
+      void fetchRecords()
+    }
+    const rid = data.requestId
+    window.setTimeout(() => {
+      const cur = liveStreams.value[rid]
+      if (cur && cur.done && !cur.error) delete liveStreams.value[rid]
+    }, 8000)
   }
 }
 
-function handleVisibilityChange(): void {
-  if (document.hidden) {
-    stopAutoRefresh()
-  } else if (autoRefresh.value) {
+async function prependNewRecord(recordId: number): Promise<void> {
+  try {
+    const rec = await chatRecordsApi.getRecordById(recordId)
+    const exists = records.value.some((r) => r.id === rec.id)
+    if (!exists) {
+      records.value = [{
+        id: rec.id,
+        sessionId: rec.sessionId,
+        style: rec.style,
+        model: rec.model,
+        messageCount: rec.messageCount,
+        toolCallCount: rec.toolCallCount,
+        createdTime: rec.createdTime,
+        summary: ''
+      }, ...records.value]
+      total.value += 1
+    }
+  } catch (err) {
+    console.error('拉取新记录失败，降级全量刷新:', err)
     void fetchRecords()
-    startAutoRefresh()
   }
 }
 
@@ -99,11 +171,6 @@ function handlePageChange(newPage: number) {
   fetchRecords()
 }
 
-function closeDetail() {
-  showDetail.value = false
-  selectedRecord.value = null
-}
-
 function handleSearch() {
   page.value = 1
   fetchRecords()
@@ -119,15 +186,25 @@ function handleReset() {
 }
 
 onMounted(() => {
-  fetchRecords().then(() => {
-    startAutoRefresh()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+  // 首次一次性加载历史记录（非轮询）；之后靠 WS 推送增量更新
+  fetchRecords()
+  // 注册 WS 连接状态回调：实时推送
+  wsService.connect({
+    onOpen: () => {
+      wsConnected.value = true
+    },
+    onClose: () => {
+      wsConnected.value = false
+    },
+    onError: () => {
+      wsConnected.value = false
+    }
   })
+  wsService.subscribe(handleWsMessage)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  wsService.unsubscribe(handleWsMessage)
 })
 </script>
 
@@ -140,14 +217,29 @@ onUnmounted(() => {
       </h1>
       <p class="view-subtitle">查看和管理 API 调用记录，包括 OpenAI Chat、OpenAI Responses 和 Anthropic Messages 格式</p>
       <div class="live-indicator">
-        <span class="live-dot" :class="{ active: autoRefresh }" />
-        <span class="live-text">{{ autoRefresh ? '实时更新中' : '实时已暂停' }}</span>
-        <button class="live-toggle" type="button" @click="autoRefresh = !autoRefresh">
-          {{ autoRefresh ? '暂停' : '开启' }}
-        </button>
+        <span class="live-dot" :class="{ active: wsConnected }" />
+        <span class="live-text">
+          {{ wsConnected ? 'WebSocket 实时推送中' : '未连接（仅手动查询）' }}
+        </span>
         <span v-if="lastUpdatedAt" class="live-time">更新于 {{ formatTime(lastUpdatedAt) }}</span>
       </div>
     </header>
+
+    <div v-if="hasLiveStreams" class="live-streams">
+      <div class="live-streams-head">
+        <span class="live-streams-title">⚡ 实时流式响应</span>
+        <span class="live-streams-count">{{ liveStreamList.length }} 路进行中</span>
+      </div>
+      <div v-for="ls in liveStreamList" :key="ls.requestId" class="live-stream-card">
+        <div class="live-stream-meta">
+          <span class="live-badge" :class="{ done: ls.done, error: ls.error }">
+            {{ ls.error ? '失败' : ls.done ? '完成' : '进行中' }}
+          </span>
+          <span class="live-rid">请求 {{ ls.requestId.slice(0, 8) }}</span>
+        </div>
+        <p class="live-text-preview">{{ ls.text || '（等待内容…）' }}</p>
+      </div>
+    </div>
 
     <div class="filter-bar">
       <div class="filter-row">
@@ -203,7 +295,7 @@ onUnmounted(() => {
     </div>
 
     <div class="content-area">
-      <div class="list-section" :class="{ 'with-detail': showDetail }">
+      <div class="list-section">
         <ChatRecordsList
           :records="records"
           :total="total"
@@ -214,23 +306,25 @@ onUnmounted(() => {
           @page-change="handlePageChange"
         />
       </div>
-
-      <div v-if="showDetail" class="detail-section">
-        <div class="detail-header">
-          <h3 class="detail-title">详情</h3>
-          <button class="close-btn" @click="closeDetail">
-            <i class="fa-solid fa-xmark" />
-          </button>
-        </div>
-        <div class="detail-content">
-          <div v-if="detailLoading" class="detail-loading">
-            <div class="spinner" />
-            <span>加载中...</span>
-          </div>
-          <ChatRecordDetail v-else-if="selectedRecord" :record="selectedRecord" />
-        </div>
-      </div>
     </div>
+
+    <!-- 详情改为弹窗展示 -->
+    <ElDialog
+      v-model="showDetail"
+      :title="`聊天记录详情 #${selectedRecord?.id ?? ''}`"
+      width="82%"
+      top="4vh"
+      class="record-detail-dialog"
+      append-to-body
+    >
+      <div class="dialog-body">
+        <div v-if="detailLoading" class="detail-loading">
+          <div class="spinner" />
+          <span>加载中...</span>
+        </div>
+        <ChatRecordDetail v-else-if="selectedRecord" :record="selectedRecord" />
+      </div>
+    </ElDialog>
   </div>
 </template>
 
@@ -297,22 +391,6 @@ onUnmounted(() => {
   color: var(--el-text-color-regular);
 }
 
-.live-toggle {
-  padding: 4px 12px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-regular);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.live-toggle:hover {
-  border-color: var(--el-color-primary);
-  color: var(--el-color-primary);
-}
-
 .live-time {
   font-variant-numeric: tabular-nums;
   color: var(--el-text-color-secondary);
@@ -326,6 +404,84 @@ onUnmounted(() => {
   50% {
     opacity: 0.4;
   }
+}
+
+.live-streams {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+}
+
+.live-streams-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.live-streams-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.live-streams-count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.live-stream-card {
+  padding: 10px 12px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+}
+
+.live-stream-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.live-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+}
+
+.live-badge.done {
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+}
+
+.live-badge.error {
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+}
+
+.live-rid {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-text-preview {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--el-text-color-regular);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: hidden;
 }
 
 .filter-bar {
@@ -423,56 +579,11 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.list-section.with-detail {
-  flex: 0 0 60%;
-}
-
-.detail-section {
-  flex: 0 0 38%;
+.dialog-body {
+  height: 72vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--el-bg-color-page);
-  border-bottom: 1px solid var(--el-border-color);
-  flex-shrink: 0;
-}
-
-.detail-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0;
-}
-
-.close-btn {
-  padding: 6px 10px;
-  border: none;
-  background: transparent;
-  color: var(--el-text-color-secondary);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--el-border-color);
-  color: var(--el-text-color-regular);
-}
-
-.detail-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .detail-loading {

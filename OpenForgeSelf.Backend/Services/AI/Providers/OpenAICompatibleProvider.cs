@@ -17,6 +17,11 @@ public class OpenAICompatibleProvider : IAIProvider
     public List<string> SupportedModels => _config.SupportedModels;
     public bool IsDefault => _config.IsDefault;
 
+    /// <summary>
+    /// 暴露底层提供方配置，供需要直连上游（如 Agent Framework 测试接口）的场景读取 Endpoint/ApiKey。
+    /// </summary>
+    public AIProviderConfig Config => _config;
+
     public OpenAICompatibleProvider(AIProviderConfig config, HttpClient httpClient)
     {
         _config = config;
@@ -73,7 +78,8 @@ public class OpenAICompatibleProvider : IAIProvider
         });
 
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, _config.Endpoint);
+        var endpoint = GetChatEndpointByProviderType(_config.ProviderType, _config.Endpoint);
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
         httpRequest.Content = content;
         httpRequest.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
 
@@ -120,7 +126,7 @@ public class OpenAICompatibleProvider : IAIProvider
             }
             catch (JsonException ex)
             {
-                    XTrace.Log.Warn($"[{ProviderName}] 解析流式响应失败: {ex.Message}");
+                XTrace.Log.Warn($"[{ProviderName}] 解析流式响应失败: {ex.Message}");
                 continue;
             }
 
@@ -153,6 +159,111 @@ public class OpenAICompatibleProvider : IAIProvider
             }
 
             yield return unifiedChunk;
+        }
+    }
+
+    /// <summary>
+    /// 根据 ProviderType 和 Endpoint 推导出 Chat 接口的 URL。
+    /// </summary>
+    /// <param name="providerType">AI 服务提供商类型</param>
+    /// <param name="endpoint">用户配置的基础终结点，可能是完整 URL、带路径的前缀，或仅域名</param>
+    /// <returns>推导后的 Chat 接口完整 URL；若无法推导则返回 null</returns>
+    private string? GetChatEndpointByProviderType(AIProviderType providerType, string endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return null;
+
+        // 1. 先尝试识别是否已经是完整的 chat 接口地址，若是则直接返回（去除尾部斜杠）
+        string trimmedEndpoint = endpoint.TrimEnd('/');
+        if (IsAlreadyChatEndpoint(providerType, trimmedEndpoint))
+            return trimmedEndpoint;
+
+        // 2. 自动补全协议（若无）
+        if (!trimmedEndpoint.Contains("://"))
+            trimmedEndpoint = "https://" + trimmedEndpoint;
+
+        // 3. 尝试解析为绝对 URI
+        if (!Uri.TryCreate(trimmedEndpoint, UriKind.Absolute, out Uri? uri))
+            return null;
+
+        // 4. 提取基础部分：协议 + 主机 + 路径（去除尾部斜杠），忽略查询和片段
+        string basePath = uri.AbsolutePath.TrimEnd('/');
+        string baseUrl = $"{uri.Scheme}://{uri.Authority}{basePath}";
+
+        // 5. 获取当前提供商的路径前缀和后缀
+        if (!TryGetProviderPathParts(providerType, out string prefix, out string suffix))
+            return null; // 对于无法自动拼接的提供商（如 Azure），返回 null
+
+        // 6. 判断路径是否已包含版本前缀（即 basePath 非空且非根）
+        bool hasCustomPath = !string.IsNullOrEmpty(basePath) && basePath != "/";
+
+        // 7. 构造需要追加的完整路径
+        string fullPathToAppend;
+        if (hasCustomPath)
+        {
+            // 用户已提供路径（如 /v5），只追加接口后缀
+            fullPathToAppend = suffix;
+        }
+        else
+        {
+            // 用户未提供路径，追加标准前缀和后缀
+            fullPathToAppend = prefix + suffix;
+        }
+
+        // 8. 组合最终 URL，避免重复添加
+        if (baseUrl.EndsWith(fullPathToAppend, StringComparison.OrdinalIgnoreCase))
+            return baseUrl;
+
+        // 注意：fullPathToAppend 以 '/' 开头，直接拼接即可
+        return baseUrl + fullPathToAppend;
+    }
+
+    /// <summary>
+    /// 检查当前终结点是否已经是对应提供商的完整 chat 路径。
+    /// </summary>
+    private bool IsAlreadyChatEndpoint(AIProviderType providerType, string endpoint)
+    {
+        return providerType switch
+        {
+            AIProviderType.OpenAI => endpoint.Contains("/chat/completions", StringComparison.OrdinalIgnoreCase),
+            AIProviderType.Anthropic => endpoint.Contains("/messages", StringComparison.OrdinalIgnoreCase),
+            // 可扩展其他提供商（如 Ollama、Google 等）
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// 获取提供商的路径前缀和接口后缀。
+    /// </summary>
+    /// <returns>成功获取返回 true，无法自动拼接（如缺少必要参数）返回 false</returns>
+    private bool TryGetProviderPathParts(AIProviderType providerType, out string prefix, out string suffix)
+    {
+        switch (providerType)
+        {
+            case AIProviderType.OpenAI:
+                prefix = "/v1";
+                suffix = "/chat/completions";
+                return true;
+
+            case AIProviderType.Anthropic:
+                prefix = "/v1";
+                suffix = "/messages";
+                return true;
+
+            // 其他提供商可继续添加：
+            // case AIProviderType.Ollama:
+            //     prefix = "/api";
+            //     suffix = "/chat";
+            //     return true;
+
+            // case AIProviderType.AzureOpenAI:
+            //     // Azure OpenAI 需要部署名和 API 版本，无法仅靠 endpoint 自动拼接，需由调用方提供完整 URL
+            //     prefix = null;
+            //     suffix = null;
+            //     return false;
+
+            default:
+                throw new NotImplementedException($"不支持的 AIProviderType: {providerType}");
         }
     }
 
@@ -402,7 +513,7 @@ public class OpenAICompatibleProvider : IAIProvider
                 var imageObj = new Dictionary<string, object>
                 {
                     { "type", "image_url" },
-                    { "image_url", new { url = block.ImageUrl } }
+                    { "image_url", new Dictionary<string, object> { ["url"] = block.ImageUrl } }
                 };
                 if (!string.IsNullOrEmpty(block.ImageDetail))
                 {

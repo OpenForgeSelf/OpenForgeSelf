@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.AI;
@@ -20,14 +22,23 @@ public class OpenAIChatController : ControllerBase
     private readonly AIProviderRegistry _registry;
     private readonly ILogService _logService;
     private readonly IChatRecordService _chatRecordService;
+    private readonly IChatRecordStreamRecorder _streamRecorder;
     private readonly MultimodalProcessor? _multimodalProcessor;
 
-    public OpenAIChatController(AIProviderRegistry registry, ILogService logService, IChatRecordService chatRecordService)
+    // 序列化选项：保留非 ASCII 字符（中文等）不被转义为 \uXXXX，同时仍转义 HTML 敏感字符以防 XSS
+    private static readonly JsonSerializerOptions StreamSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+    };
+
+    public OpenAIChatController(AIProviderRegistry registry, ILogService logService, IChatRecordService chatRecordService, IChatRecordStreamRecorder streamRecorder)
     {
         _registry = registry;
         _logService = logService;
         _chatRecordService = chatRecordService;
-
+        _streamRecorder = streamRecorder;
         // 尝试获取多模态处理器
         var defaultConfig = registry.GetDefaultProvider()?.GetType()
             .GetField("_config", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
@@ -142,12 +153,14 @@ public class OpenAIChatController : ControllerBase
         var id = $"chatcmpl-{Guid.NewGuid():N}";
         var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var responseBody = new StringBuilder();
+        ChatRecordStreamSession? session = null;
 
         try
         {
+            session = await _streamRecorder.BeginAsync(record);
             var firstChunk = CreateStreamChunk(id, modelName, created, 0, role: "assistant");
             await WriteSseAsync(firstChunk);
-            responseBody.Append(JsonSerializer.Serialize(firstChunk));
+            responseBody.Append(JsonSerializer.Serialize(firstChunk, StreamSerializerOptions));
 
             await foreach (var chunk in provider.ChatStreamAsync(request, cancellationToken))
             {
@@ -168,14 +181,32 @@ public class OpenAIChatController : ControllerBase
                             Delta = new OpenAIStreamDelta
                             {
                                 Content = string.IsNullOrEmpty(chunk.DeltaContent) ? null : chunk.DeltaContent,
-                                Role = chunk.DeltaRole
+                                Role = chunk.DeltaRole,
+                                ToolCalls = chunk.DeltaToolCall == null
+                                    ? null
+                                    : new List<OpenAIToolCall>
+                                    {
+                                        new()
+                                        {
+                                            Index = chunk.ChoiceIndex,
+                                            Id = chunk.DeltaToolCall.Id,
+                                            Type = "function",
+                                            Function = new OpenAIFunctionCall
+                                            {
+                                                Name = chunk.DeltaToolCall.Name,
+                                                Arguments = chunk.DeltaToolCall.Arguments
+                                            }
+                                        }
+                                    }
                             },
                             FinishReason = chunk.FinishReason
                         }
                     }
                 };
                 await WriteSseAsync(streamChunk);
-                responseBody.Append(JsonSerializer.Serialize(streamChunk));
+                responseBody.Append(JsonSerializer.Serialize(streamChunk, StreamSerializerOptions));
+                if (session != null)
+                    await session.AppendChunkAsync(chunk.DeltaContent);
             }
 
             var doneChunk = CreateStreamChunk(id, modelName, created, 0, finishReason: "stop");
@@ -189,7 +220,10 @@ public class OpenAIChatController : ControllerBase
             record.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
             record.ResponseBody = responseBody.ToString();
             record.DurationMs = stopwatch.ElapsedMilliseconds;
-            await _chatRecordService.SaveRecordAsync(record);
+            if (session != null)
+                await session.CompleteAsync(responseBody.ToString(), 200, stopwatch.ElapsedMilliseconds);
+            else
+                await _chatRecordService.SaveRecordAsync(record);
         }
         catch (Exception ex)
         {
@@ -198,19 +232,18 @@ public class OpenAIChatController : ControllerBase
             // 更新错误记录
             stopwatch.Stop();
             record.ResponseStatus = 500;
-            record.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+            record.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message }, StreamSerializerOptions);
             record.DurationMs = stopwatch.ElapsedMilliseconds;
-            await _chatRecordService.SaveRecordAsync(record);
+            if (session != null)
+                await session.FailAsync(500, stopwatch.ElapsedMilliseconds);
+            else
+                await _chatRecordService.SaveRecordAsync(record);
         }
     }
 
     private async Task WriteSseAsync<T>(T data)
     {
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        });
+        var json = JsonSerializer.Serialize(data, StreamSerializerOptions);
         await Response.WriteAsync($"data: {json}\n\n");
         await Response.Body.FlushAsync();
     }
@@ -620,6 +653,9 @@ public class OpenAIFunctionDef
 
 public class OpenAIToolCall
 {
+    [JsonPropertyName("index")]
+    public int Index { get; set; }
+
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 

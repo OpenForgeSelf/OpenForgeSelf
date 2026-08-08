@@ -226,9 +226,16 @@ public class MultimodalProcessor
         var prompt = _config?.VisionPromptTemplate ?? "请描述这张图片的内容。";
         prompt = prompt.Replace("{image_count}", images.Count.ToString());
 
+        // 视觉模型配置可能带 "提供商:上游模型id" 前缀（用于显式路由到指定提供方），
+        // 但转发给上游时只需裸上游模型 id，须剥离前缀，否则上游不识别。
+        var visionModelId = _config!.VisionModel!;
+        var prefixIdx = visionModelId.IndexOf(':');
+        if (prefixIdx > 0)
+            visionModelId = visionModelId[(prefixIdx + 1)..];
+
         var visionRequest = new UnifiedChatRequest
         {
-            Model = _config!.VisionModel!,
+            Model = visionModelId,
             SystemPrompt = "你是一个专业的图片识别助手。请详细描述用户提供的图片内容。"
         };
 

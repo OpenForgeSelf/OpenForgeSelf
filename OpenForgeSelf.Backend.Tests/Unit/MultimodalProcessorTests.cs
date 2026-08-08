@@ -322,6 +322,45 @@ public class MultimodalProcessorTests
         userMessage!.Content.Should().NotContain("https://example.com/image.jpg");
         userMessage.Content.Should().Contain("[图片]");
     }
+
+    [Fact]
+    public async Task ProcessAsync_VisionModelWithProviderPrefix_RoutesAndStripsPrefix()
+    {
+        // 验证 VisionModel="default:qwen/qwen3-vl-4b" 既能经前缀路由到 default 提供方，
+        // 又能在上游请求中剥离 "default:" 前缀，仅用裸上游模型 id（否则上游不识别）。
+        var capturing = new CapturingVisionProvider("default", AIProviderType.OpenAI, new[] { "qwythos-9b-v2" });
+        _registry.RegisterProvider(capturing);
+
+        var prefixedConfig = new AIProviderConfig
+        {
+            Name = "gpustack",
+            VisionModel = "default:qwen/qwen3-vl-4b",
+            EnableMultimodal = true,
+            VisionPromptTemplate = "请描述这张图片"
+        };
+
+        var processor = new MultimodalProcessor(_registry, prefixedConfig);
+        var request = new UnifiedChatRequest
+        {
+            Model = "qwythos-9b-v2",
+            Messages = new List<UnifiedChatMessage>
+            {
+                new() { Role = "user", ContentBlocks = new List<ContentBlock>
+                {
+                    new() { Type = "image_url", ImageUrl = "https://example.com/test.jpg" }
+                }}
+            }
+        };
+
+        // Act
+        var result = await processor.ProcessAsync(request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.SystemPrompt.Should().Contain("[多模态图片识别结果]");
+        // 上游收到的必须是裸模型 id，而非带 provider: 前缀
+        capturing.LastModel.Should().Be("qwen/qwen3-vl-4b");
+    }
 }
 
 /// <summary>
@@ -377,4 +416,50 @@ public class MockVisionProvider : IAIProvider
             ProviderName = ProviderName
         }).ToList());
     }
+}
+
+/// <summary>
+/// 捕获上游请求模型名的 Mock 视觉提供方，用于验证 VisionModel 前缀剥离。
+/// </summary>
+public class CapturingVisionProvider : IAIProvider
+{
+    public string ProviderName { get; }
+    public AIProviderType ProviderType { get; }
+    public List<string> SupportedModels { get; }
+    public bool IsDefault { get; set; }
+    public string? LastModel { get; private set; }
+
+    public CapturingVisionProvider(string name, AIProviderType type, string[] models)
+    {
+        ProviderName = name;
+        ProviderType = type;
+        SupportedModels = models.ToList();
+    }
+
+    public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
+    {
+        LastModel = request.Model;
+        return Task.FromResult(new UnifiedChatResponse
+        {
+            Id = "cap-" + Guid.NewGuid().ToString("N")[..8],
+            Model = request.Model,
+            Choices = new List<UnifiedChatMessage> { new() { Role = "assistant", Content = "识别结果" } }
+        });
+    }
+
+    public async IAsyncEnumerable<UnifiedStreamChunk> ChatStreamAsync(UnifiedChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await Task.CompletedTask;
+        yield return new UnifiedStreamChunk { Id = "cap", Model = request.Model, ChoiceIndex = 0, DeltaContent = "识别结果" };
+    }
+
+    public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(SupportedModels.Select(m => new ModelInfo
+        {
+            Id = m,
+            Name = m,
+            Owner = ProviderName,
+            Created = 0,
+            ProviderName = ProviderName
+        }).ToList());
 }

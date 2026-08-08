@@ -107,6 +107,26 @@ public class AIProviderRegistry
 
     public IAIProvider? GetProviderByModel(string modelName)
     {
+        // 支持 "提供商:上游模型id" 前缀显式指定提供方（与 GetProviderByChatModelId 一致）：
+        // 多模态视觉模型、Anthropic/Responses 等直接传模型名时也能按前缀路由。
+        if (!string.IsNullOrWhiteSpace(modelName))
+        {
+            var idx = modelName.IndexOf(':');
+            if (idx > 0)
+            {
+                var providerName = modelName[..idx];
+                var upstreamModelId = modelName[(idx + 1)..];
+                var byName = GetProviderByName(providerName);
+                if (byName != null)
+                {
+                    // FR-013：模型被禁用则不参与路由
+                    if (IsModelEnabled(providerName, upstreamModelId))
+                        return byName;
+                    return null;
+                }
+            }
+        }
+
         var exactMatch = _providers.FirstOrDefault(p =>
             p.SupportedModels.Any(m => m.Equals(modelName, StringComparison.OrdinalIgnoreCase)));
 

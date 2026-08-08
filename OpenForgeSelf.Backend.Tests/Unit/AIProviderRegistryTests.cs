@@ -245,6 +245,41 @@ public class AIProviderRegistryTests
         // Assert
         result.Should().HaveCount(3);
     }
+
+    [Fact]
+    public void GetProviderByModel_ProviderPrefix_ShouldRouteToNamedProvider()
+    {
+        // 验证 "提供商:上游模型id" 前缀能显式路由到指定提供方（多模态视觉模型场景）：
+        // 视觉模型不在任何提供方 SupportedModels 时，前缀仍能命中命名提供方。
+        var local = new MockAIProvider("default", AIProviderType.OpenAI, new[] { "qwythos-9b-v2" });
+        var remote = new MockAIProvider("gpustack", AIProviderType.OpenAI, new[] { "qwen3-vl" });
+        remote.IsDefault = true;
+        _registry.RegisterProvider(local);
+        _registry.RegisterProvider(remote);
+
+        // Act
+        var result = _registry.GetProviderByModel("default:qwen/qwen3-vl-4b");
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.ProviderName.Should().Be("default");
+    }
+
+    [Fact]
+    public void GetProviderByModel_ProviderPrefixUnknownProvider_FallsBackToDefault()
+    {
+        // 前缀中的提供方不存在时，应回退到默认提供方，而非抛异常。
+        var remote = new MockAIProvider("gpustack", AIProviderType.OpenAI, new[] { "qwen3-vl" });
+        remote.IsDefault = true;
+        _registry.RegisterProvider(remote);
+
+        // Act
+        var result = _registry.GetProviderByModel("unknownprovider:qwen/qwen3-vl-4b");
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.ProviderName.Should().Be("gpustack");
+    }
 }
 
 /// <summary>

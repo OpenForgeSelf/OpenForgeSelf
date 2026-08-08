@@ -14,7 +14,8 @@ import {
   Delete,
   Edit,
   CopyDocument,
-  Link
+  Link,
+  Picture
 } from '@element-plus/icons-vue';
 import { aiProvidersApi } from '@/services/aiProvidersApi';
 import { aiModelsApi } from '@/services/aiModelsApi';
@@ -357,6 +358,14 @@ onMounted(() => {
                   {{ p.providerType }}
                 </el-tag>
                 <el-tag v-if="p.isDefault" size="small" type="warning" effect="dark">默认</el-tag>
+                <el-tag
+                  v-if="p.enableMultimodal && p.visionModel"
+                  size="small"
+                  type="success"
+                  effect="light"
+                  class="inline-flex items-center gap-0.5">
+                  <el-icon :size="12"><Picture /></el-icon>多模态
+                </el-tag>
               </div>
               <div class="text-xs text-[var(--el-text-color-secondary)] mt-0.5 font-mono truncate">
                 {{ p.endpoint }}

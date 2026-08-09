@@ -136,6 +136,8 @@
         <Column Name="ResponseStatus" DataType="Int32" Description="响应状态码" />
         <Column Name="ResponseHeaders" DataType="String" Length="1000" Description="响应头JSON" />
         <Column Name="ResponseBody" DataType="String" Length="-1" Description="响应体JSON" />
+        <Column Name="RequestId" DataType="String" Length="64" Description="流式请求关联ID（用于流式期间按同一请求追加更新）" />
+        <Column Name="ResponseText" DataType="String" Length="-1" Description="实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）" />
         <Column Name="Temperature" DataType="Double" Description="温度参数" />
         <Column Name="MaxTokens" DataType="Int32" Nullable="True" Description="最大token" />
         <Column Name="MessageCount" DataType="Int32" Description="消息数量" />
@@ -148,6 +150,7 @@
         <Index Columns="SessionId" />
         <Index Columns="CreatedTime" />
         <Index Columns="Style" />
+        <Index Columns="RequestId" />
       </Indexes>
     </Table>
     <Table Name="AIProvider" Description="AI提供方配置">

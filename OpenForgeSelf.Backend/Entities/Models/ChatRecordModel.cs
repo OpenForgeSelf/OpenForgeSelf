@@ -44,6 +44,12 @@ public partial class ChatRecordModel
     /// <summary>响应体JSON</summary>
     public String ResponseBody { get; set; }
 
+    /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+    public String RequestId { get; set; }
+
+    /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+    public String ResponseText { get; set; }
+
     /// <summary>温度参数</summary>
     public Double Temperature { get; set; }
 
@@ -82,6 +88,8 @@ public partial class ChatRecordModel
         ResponseStatus = model.ResponseStatus;
         ResponseHeaders = model.ResponseHeaders;
         ResponseBody = model.ResponseBody;
+        RequestId = model.RequestId;
+        ResponseText = model.ResponseText;
         Temperature = model.Temperature;
         MaxTokens = model.MaxTokens;
         MessageCount = model.MessageCount;

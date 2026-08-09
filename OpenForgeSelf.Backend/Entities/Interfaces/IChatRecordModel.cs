@@ -44,6 +44,12 @@ public partial interface IChatRecordModel
     /// <summary>响应体JSON</summary>
     String ResponseBody { get; set; }
 
+    /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+    String RequestId { get; set; }
+
+    /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+    String ResponseText { get; set; }
+
     /// <summary>温度参数</summary>
     Double Temperature { get; set; }
 

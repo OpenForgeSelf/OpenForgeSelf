@@ -20,6 +20,7 @@ namespace OpenForgeSelf.Backend.Entities;
 [BindIndex("IX_ChatRecord_SessionId", false, "SessionId")]
 [BindIndex("IX_ChatRecord_CreatedTime", false, "CreatedTime")]
 [BindIndex("IX_ChatRecord_Style", false, "Style")]
+[BindIndex("IX_ChatRecord_RequestId", false, "RequestId")]
 [BindTable("ChatRecord", Description = "聊天记录", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
 public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 {
@@ -112,6 +113,22 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     [BindColumn("ResponseBody", "响应体JSON", "")]
     public String ResponseBody { get => _ResponseBody; set { if (OnPropertyChanging("ResponseBody", value)) { _ResponseBody = value; OnPropertyChanged("ResponseBody"); } } }
 
+    private String _RequestId;
+    /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+    [DisplayName("流式请求关联ID（用于流式期间按同一请求追加更新）")]
+    [Description("流式请求关联ID（用于流式期间按同一请求追加更新）")]
+    [DataObjectField(false, false, true, 64)]
+    [BindColumn("RequestId", "流式请求关联ID（用于流式期间按同一请求追加更新）", "")]
+    public String RequestId { get => _RequestId; set { if (OnPropertyChanging("RequestId", value)) { _RequestId = value; OnPropertyChanged("RequestId"); } } }
+
+    private String _ResponseText;
+    /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+    [DisplayName("实时_增量纯文本回复（流式期间逐批更新")]
+    [Description("实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("ResponseText", "实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）", "")]
+    public String ResponseText { get => _ResponseText; set { if (OnPropertyChanging("ResponseText", value)) { _ResponseText = value; OnPropertyChanged("ResponseText"); } } }
+
     private Double _Temperature;
     /// <summary>温度参数</summary>
     [DisplayName("温度参数")]
@@ -185,6 +202,8 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
         ResponseStatus = model.ResponseStatus;
         ResponseHeaders = model.ResponseHeaders;
         ResponseBody = model.ResponseBody;
+        RequestId = model.RequestId;
+        ResponseText = model.ResponseText;
         Temperature = model.Temperature;
         MaxTokens = model.MaxTokens;
         MessageCount = model.MessageCount;
@@ -214,6 +233,8 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
             "ResponseStatus" => _ResponseStatus,
             "ResponseHeaders" => _ResponseHeaders,
             "ResponseBody" => _ResponseBody,
+            "RequestId" => _RequestId,
+            "ResponseText" => _ResponseText,
             "Temperature" => _Temperature,
             "MaxTokens" => _MaxTokens,
             "MessageCount" => _MessageCount,
@@ -238,6 +259,8 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
                 case "ResponseStatus": _ResponseStatus = value.ToInt(); break;
                 case "ResponseHeaders": _ResponseHeaders = Convert.ToString(value); break;
                 case "ResponseBody": _ResponseBody = Convert.ToString(value); break;
+                case "RequestId": _RequestId = Convert.ToString(value); break;
+                case "ResponseText": _ResponseText = Convert.ToString(value); break;
                 case "Temperature": _Temperature = value.ToDouble(); break;
                 case "MaxTokens": _MaxTokens = value.ToInt(); break;
                 case "MessageCount": _MessageCount = value.ToInt(); break;
@@ -296,24 +319,39 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 
         return FindAll(_.Style == style);
     }
+
+    /// <summary>根据流式请求关联ID（用于流式期间按同一请求追加更新）查找</summary>
+    /// <param name="requestId">流式请求关联ID（用于流式期间按同一请求追加更新）</param>
+    /// <returns>实体列表</returns>
+    public static IList<ChatRecord> FindAllByRequestId(String requestId)
+    {
+        if (requestId.IsNullOrEmpty()) return [];
+
+        // 实体缓存
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.RequestId.EqualIgnoreCase(requestId));
+
+        return FindAll(_.RequestId == requestId);
+    }
     #endregion
 
     #region 高级查询
     /// <summary>高级查询</summary>
     /// <param name="sessionId">会话ID</param>
     /// <param name="style">API风格</param>
+    /// <param name="requestId">流式请求关联ID（用于流式期间按同一请求追加更新）</param>
     /// <param name="hasReasoning">是否有reasoning</param>
     /// <param name="start">创建时间开始</param>
     /// <param name="end">创建时间结束</param>
     /// <param name="key">关键字</param>
     /// <param name="page">分页参数信息。可携带统计和数据权限扩展查询等信息</param>
     /// <returns>实体列表</returns>
-    public static IList<ChatRecord> Search(String sessionId, String style, Boolean? hasReasoning, DateTime start, DateTime end, String key, PageParameter page)
+    public static IList<ChatRecord> Search(String sessionId, String style, String requestId, Boolean? hasReasoning, DateTime start, DateTime end, String key, PageParameter page)
     {
         var exp = new WhereExpression();
 
         if (!sessionId.IsNullOrEmpty()) exp &= _.SessionId == sessionId;
         if (!style.IsNullOrEmpty()) exp &= _.Style == style;
+        if (!requestId.IsNullOrEmpty()) exp &= _.RequestId == requestId;
         if (hasReasoning != null) exp &= _.HasReasoning == hasReasoning;
         exp &= _.CreatedTime.Between(start, end);
         if (!key.IsNullOrEmpty()) exp &= SearchWhereByKeys(key);
@@ -358,6 +396,12 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 
         /// <summary>响应体JSON</summary>
         public static readonly Field ResponseBody = FindByName("ResponseBody");
+
+        /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+        public static readonly Field RequestId = FindByName("RequestId");
+
+        /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+        public static readonly Field ResponseText = FindByName("ResponseText");
 
         /// <summary>温度参数</summary>
         public static readonly Field Temperature = FindByName("Temperature");
@@ -418,6 +462,12 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 
         /// <summary>响应体JSON</summary>
         public const String ResponseBody = "ResponseBody";
+
+        /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+        public const String RequestId = "RequestId";
+
+        /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+        public const String ResponseText = "ResponseText";
 
         /// <summary>温度参数</summary>
         public const String Temperature = "Temperature";

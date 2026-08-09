@@ -16,6 +16,12 @@ public interface IChatRecordService
     Task SaveRecordAsync(ChatRecord record);
 
     /// <summary>
+    /// 写入记录：若 Id 已存在（流式期间已插入首条）则更新，否则插入。
+    /// 用于流式响应“同一请求 Id 追加更新”的场景。
+    /// </summary>
+    Task UpsertRecordAsync(ChatRecord record);
+
+    /// <summary>
     /// 获取单条记录
     /// </summary>
     Task<ChatRecord> GetByIdAsync(long id);
@@ -57,6 +63,28 @@ public class ChatRecordService : IChatRecordService
             // （非流式路径已在拿到 AI 结果后才保存；流式路径的 SSE 响应已先行返回）。
             // 例如 RequestBody/ResponseBody 超长被 XCode 校验拦截时，仅记录日志，不向上抛出异常。
             _logService.Error("保存聊天记录失败（不影响接口响应）: {0}", ex.Message);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 写入记录：若 Id 已存在（流式期间已插入首条）则更新，否则插入。
+    /// 用于流式响应“同一请求 Id 追加更新”的场景。
+    /// </summary>
+    public Task UpsertRecordAsync(ChatRecord record)
+    {
+        try
+        {
+            if (record.Id > 0)
+                record.Update();
+            else
+                record.Insert();
+        }
+        catch (Exception ex)
+        {
+            // 同 SaveRecordAsync：持久化尽力而为，失败仅记录日志，不向上抛。
+            _logService.Error("写入聊天记录失败（不影响接口响应）: {0}", ex.Message);
         }
 
         return Task.CompletedTask;

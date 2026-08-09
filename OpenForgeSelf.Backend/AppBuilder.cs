@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Net.WebSockets;
 using Microsoft.AspNetCore.Authentication;
 using OpenForgeSelf.Backend.Data;
 using OpenForgeSelf.Backend.Plugins;
@@ -109,6 +110,8 @@ public static class AppBuilder
         builder.Services.AddScoped<IWorkflowUsageService, WorkflowUsageService>();
         builder.Services.AddScoped<IWorkflowRecommendationService, WorkflowRecommendationService>();
         builder.Services.AddScoped<IChatRecordService, ChatRecordService>();
+        builder.Services.AddSingleton<IWebSocketBroadcaster, WebSocketBroadcaster>();
+        builder.Services.AddScoped<IChatRecordStreamRecorder, ChatRecordStreamRecorder>();
 
         builder.Services.AddScoped<IMemoryService, MemoryServiceXCode>();
         builder.Services.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
@@ -260,6 +263,31 @@ public static class AppBuilder
 
         app.UseCors("AllowAll");
 
+        app.UseWebSockets();
+
+        // 聊天记录实时流式推送：WebSocket 端点 /ws（前端 wsService 已连接此地址）。
+        // 仅作为服务端→客户端的实时事件广播通道；暂不对客户端消息做业务处理。
+        var wsBroadcaster = app.Services.GetRequiredService<IWebSocketBroadcaster>();
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path == "/ws")
+            {
+                if (context.WebSockets.IsWebSocketRequest)
+                {
+                    using var ws = await context.WebSockets.AcceptWebSocketAsync();
+                    wsBroadcaster.Add(ws);
+                    await ChatRecordWebSocketLoop(ws, wsBroadcaster);
+                    return;
+                }
+
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("WebSocket expected");
+                return;
+            }
+
+            await next();
+        });
+
         app.UseStaticFiles();
 
         // SPA Fallback 中间件：前端路由（如 /agents、/settings）的 404 请求返回 index.html。
@@ -372,5 +400,36 @@ public static class AppBuilder
         XTrace.Log.Info("监听端口: {0}", port);
 
         return app;
+    }
+
+    /// <summary>
+    /// /ws WebSocket 连接循环：保持连接、读取客户端消息（当前忽略）、断开时清理。
+    /// </summary>
+    private static async Task ChatRecordWebSocketLoop(WebSocket ws, IWebSocketBroadcaster broadcaster)
+    {
+        var buffer = new byte[4096];
+        try
+        {
+            while (ws.State == WebSocketState.Open)
+            {
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    break;
+                // 来自客户端的消息（如聊天指令）当前忽略，仅保持连接存活
+            }
+        }
+        catch (WebSocketException) { }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+        finally
+        {
+            broadcaster.Remove(ws);
+            try
+            {
+                if (ws.State != WebSocketState.Closed && ws.State != WebSocketState.Aborted)
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
+            }
+            catch { }
+        }
     }
 }

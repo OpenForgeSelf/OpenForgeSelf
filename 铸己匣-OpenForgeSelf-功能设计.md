@@ -1,11 +1,12 @@
 ---
 title: "铸己匣 OpenForgeSelf 功能设计"
-version: "v0.1"
-last_updated: "2026-05-12"
+version: "v0.2"
+last_updated: "2026-08-07"
 status: "active"
 type: "design"
 req_ids: ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016", "REQ-017", "REQ-018", "REQ-019"]
-modules: ["PluginManager", "Quicklinks", "Monitor", "CronJob", "TextTool", "FileTool", "AIAgent", "ScriptRunner", "PluginStore"]
+# 功能清单（单一真源 = 前端 src/data/features.ts；下表为其镜像，新增功能须先登记 features.ts）
+modules: ["ai-agent", "quick-links", "text-tools", "file-tools", "system-monitor", "workflow", "scheduler", "script-runner", "dev-tools", "chat", "chat-records", "prompts", "skills", "mcp", "memory", "agents", "code-snippets", "todo", "profile", "plugins", "settings"]
 affects: ["src/", "OpenForgeSelf.Backend/", "OpenForgeSelf.Frontend/"]
 author: "human"
 reviewed_by: ""
@@ -65,16 +66,31 @@ reviewed_by: ""
 
 ## 四、功能模块
 
-| 模块 | 说明 |
-|------|------|
-| 快捷链接 | 分类管理常用网址，一键打开 |
-| 系统监控 | 进程、网络、CPU、内存实时监控 |
-| 定时任务 | Cron 表达式支持，自动化执行 |
-| 文本工具 | 格式化、加密、转换 |
-| 文件工具 | 批量重命名、清理、压缩 |
-| AI 代理 | 自然语言操控，任务规划执行 |
-| 脚本运行 | 自定义脚本快速执行 |
-| 插件商店 | 启用/禁用/管理插件 |
+> 本表为 `OpenForgeSelf.Frontend/src/data/features.ts` 的镜像。新增功能必须先在该文件登记（含 `signals` 代码产物键），再由 `scripts/check-features.mjs` 在 CI 中校验代码与清单一致性。**单一真源以 `features.ts` 为准**，本表仅作文档展示。
+
+| 模块 | 分类 | 说明 |
+|------|------|------|
+| AI 代理 | AI | 自然语言操控工具，自动规划执行复杂任务链（50+ 工具函数） |
+| 核心聊天 | AI | 多轮对话聊天页面，对接 AI 提供方实时流式回复 |
+| 聊天记录 | AI | 查看与管理历史对话记录，支持回顾与检索 |
+| 提示词 | AI | 管理可复用的提示词模板 |
+| 技能 | AI | 管理与编排 Agent 技能 |
+| MCP 工具 | AI | 接入 MCP 工具服务器，扩展 Agent 工具集 |
+| 记忆 | AI | 长期记忆系统，跨会话沉淀知识与上下文 |
+| 多 Agent 管理 | AI | 管理多个专业 Agent 与其协作 |
+| 快捷链接 | 工具 | 分类管理常用网址，一键打开 |
+| 文本工具 | 工具 | 格式化、编码转换、哈希计算等文本处理 |
+| 文件工具 | 工具 | 批量重命名、清理、压缩解压等文件管理 |
+| 待办事项 | 工具 | 本地待办清单，跟踪个人任务 |
+| 系统监控 | 系统 | 进程、网络、CPU、内存实时监控 |
+| 个人档案 | 系统 | 个人能力画像与成长曲线，沉淀使用数据 |
+| 插件商店 | 系统 | 浏览、安装、更新与管理插件生态 |
+| 设置 | 系统 | AI 提供方、API 服务、背景图与端口安全配置 |
+| 工作流引擎 | 编排 | 多工具编排，任务链自动执行，支持条件分支 |
+| 定时任务 | 编排 | Cron 表达式支持，自动化执行 |
+| 脚本运行器 | 开发 | PowerShell/Python/Node 脚本运行，支持 AI 生成 |
+| 开发者工具箱 | 开发 | JSON/YAML/Base64/哈希/正则/时间戳等 25+ 开发工具 |
+| 代码片段库 | 开发 | 个人代码片段管理与复用 |
 
 ---
 

@@ -18,6 +18,8 @@ OpenForgeSelf.Frontend/test-results/
 OpenForgeSelf.Frontend/coverage/
 .claude/
 .codegraph/
+# 含明文 MCP 凭据，禁止提交到仓库
+.mcp.json
 .github/
 .vscode/settings.json 
 dist/

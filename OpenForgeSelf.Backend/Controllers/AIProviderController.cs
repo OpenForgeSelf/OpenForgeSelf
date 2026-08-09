@@ -1,4 +1,5 @@
 using System.Net.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Http;
 using NewLife.Log;
@@ -17,6 +18,7 @@ namespace OpenForgeSelf.Backend.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/ai-providers")]
+[Authorize("ApiKeyPolicy")]
 public class AIProviderController : ControllerBase
 {
     private readonly IAIProviderService _service;

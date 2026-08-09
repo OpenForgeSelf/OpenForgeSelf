@@ -20,12 +20,14 @@ public class OpenAIResponsesController : ControllerBase
     private readonly AIProviderRegistry _registry;
     private readonly ILogService _logService;
     private readonly IChatRecordService _chatRecordService;
+    private readonly IChatRecordStreamRecorder _streamRecorder;
 
-    public OpenAIResponsesController(AIProviderRegistry registry, ILogService logService, IChatRecordService chatRecordService)
+    public OpenAIResponsesController(AIProviderRegistry registry, ILogService logService, IChatRecordService chatRecordService, IChatRecordStreamRecorder streamRecorder)
     {
         _registry = registry;
         _logService = logService;
         _chatRecordService = chatRecordService;
+        _streamRecorder = streamRecorder;
     }
 
     [HttpPost]
@@ -122,9 +124,11 @@ public class OpenAIResponsesController : ControllerBase
         var responseId = $"resp_{Guid.NewGuid():N}";
         var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var responseBody = new StringBuilder();
+        ChatRecordStreamSession? session = null;
 
         try
         {
+            session = await _streamRecorder.BeginAsync(record);
             var createdEvent = new
             {
                 type = "response.created",
@@ -169,6 +173,9 @@ public class OpenAIResponsesController : ControllerBase
                     await WriteSseAsync(deltaEvent);
                     responseBody.Append(JsonSerializer.Serialize(deltaEvent));
                 }
+
+                if (session != null)
+                    await session.AppendChunkAsync(chunk.DeltaContent);
             }
 
             var completedEvent = new
@@ -209,7 +216,10 @@ public class OpenAIResponsesController : ControllerBase
             record.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
             record.ResponseBody = responseBody.ToString();
             record.DurationMs = stopwatch.ElapsedMilliseconds;
-            await _chatRecordService.SaveRecordAsync(record);
+            if (session != null)
+                await session.CompleteAsync(responseBody.ToString(), 200, stopwatch.ElapsedMilliseconds);
+            else
+                await _chatRecordService.SaveRecordAsync(record);
         }
         catch (Exception ex)
         {
@@ -220,7 +230,10 @@ public class OpenAIResponsesController : ControllerBase
             record.ResponseStatus = 500;
             record.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
             record.DurationMs = stopwatch.ElapsedMilliseconds;
-            await _chatRecordService.SaveRecordAsync(record);
+            if (session != null)
+                await session.FailAsync(500, stopwatch.ElapsedMilliseconds);
+            else
+                await _chatRecordService.SaveRecordAsync(record);
         }
     }
 

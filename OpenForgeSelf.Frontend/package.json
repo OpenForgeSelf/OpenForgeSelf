@@ -17,6 +17,7 @@
     "lint:fix": "eslint . --ext .vue,.ts,.tsx --fix",
     "type-check": "vue-tsc -b",
     "check": "vue-tsc -b && eslint . --ext .vue,.ts,.tsx",
+    "check:features": "node scripts/check-features.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",

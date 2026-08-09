@@ -38,7 +38,16 @@ export async function request<T = any>(
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
-    throw new Error(`请求失败: ${res.status} ${res.statusText}`);
+    // 优先取后端返回的错误信息（message / title），同时保留状态码便于调用方判断
+    let detail = '';
+    try {
+      const errBody = await res.json();
+      detail = errBody?.message || errBody?.title || '';
+    } catch {
+      // 响应体非 JSON 时忽略
+    }
+    const reason = detail || res.statusText || '未知错误';
+    throw new Error(`请求失败(${res.status}): ${reason}`);
   }
   return res.json();
 }

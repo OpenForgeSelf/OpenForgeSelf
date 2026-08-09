@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { usePluginStore } from '@/stores/plugin'
 import { useThemeStore } from '@/stores/theme'
 import type { ThemeMode } from '@/stores/theme'
 import { setupPluginRoutes } from '@/router'
 import type { PluginMenuItem } from '@/types/plugin'
 import { getPluginRoutePrefix, generatePluginRouteName } from '@/router/pluginRoutes'
+import { useOpenPage } from '@/composables/useOpenPage'
 
 interface MenuTreeItem extends PluginMenuItem {
   children?: MenuTreeItem[]
@@ -14,8 +15,8 @@ interface MenuTreeItem extends PluginMenuItem {
 
 const pluginStore = usePluginStore()
 const themeStore = useThemeStore()
-const router = useRouter()
 const route = useRoute()
+const { openPage } = useOpenPage()
 
 const isCollapsed = ref(false)
 const expandedMenus = ref<Set<string>>(new Set())
@@ -88,7 +89,7 @@ function navigateTo(item: PluginMenuItem): void {
     toggleSubmenu(item.id)
   } else {
     const path = getMenuPath(item)
-    router.push(path)
+    openPage(path, item.name)
   }
 }
 
@@ -116,45 +117,45 @@ onMounted(() => {
     <nav class="sidebar-nav">
       <ul class="menu-list">
         <li class="menu-item">
-          <router-link to="/" class="menu-link" :class="{ active: route.path === '/' }">
+          <div class="menu-link" :class="{ active: route.path === '/' }" @click="openPage('/', '聊天')">
             <span class="menu-icon">💬</span>
             <span v-if="!isCollapsed" class="menu-text">聊天</span>
-          </router-link>
+          </div>
         </li>
 
         <li class="menu-item">
-          <router-link to="/chat-records" class="menu-link" :class="{ active: route.path.startsWith('/chat-records') }">
+          <div class="menu-link" :class="{ active: route.path.startsWith('/chat-records') }" @click="openPage('/chat-records', '聊天记录')">
             <span class="menu-icon">📜</span>
             <span v-if="!isCollapsed" class="menu-text">聊天记录</span>
-          </router-link>
+          </div>
         </li>
 
         <li class="menu-item">
-          <router-link to="/memory" class="menu-link" :class="{ active: route.path === '/memory' }">
+          <div class="menu-link" :class="{ active: route.path === '/memory' }" @click="openPage('/memory', '记忆管理')">
             <span class="menu-icon">🧠</span>
             <span v-if="!isCollapsed" class="menu-text">记忆管理</span>
-          </router-link>
+          </div>
         </li>
 
         <li class="menu-item">
-          <router-link to="/agents" class="menu-link" :class="{ active: route.path === '/agents' }">
+          <div class="menu-link" :class="{ active: route.path === '/agents' }" @click="openPage('/agents', 'Agent 团队')">
             <span class="menu-icon">👥</span>
             <span v-if="!isCollapsed" class="menu-text">Agent 团队</span>
-          </router-link>
+          </div>
         </li>
 
         <li class="menu-item">
-          <router-link to="/profile" class="menu-link" :class="{ active: route.path === '/profile' }">
+          <div class="menu-link" :class="{ active: route.path === '/profile' }" @click="openPage('/profile', '我的画像')">
             <span class="menu-icon">🧬</span>
             <span v-if="!isCollapsed" class="menu-text">我的画像</span>
-          </router-link>
+          </div>
         </li>
 
         <li class="menu-item">
-          <router-link to="/plugins" class="menu-link" :class="{ active: route.path.startsWith('/plugins') }">
+          <div class="menu-link" :class="{ active: route.path.startsWith('/plugins') }" @click="openPage('/plugins', '插件商店')">
             <span class="menu-icon">🏪</span>
             <span v-if="!isCollapsed" class="menu-text">插件商店</span>
-          </router-link>
+          </div>
         </li>
 
         <li v-for="item in menuTree" :key="item.id" class="menu-item">
@@ -179,14 +180,14 @@ onMounted(() => {
             class="submenu-list"
           >
             <li v-for="child in item.children" :key="child.id" class="submenu-item">
-              <router-link
-                :to="getMenuPath(child)"
+              <div
                 class="submenu-link"
                 :class="{ active: isMenuActive(child) }"
+                @click="openPage(getMenuPath(child), child.name)"
               >
                 <span class="menu-icon">{{ child.icon || '📄' }}</span>
                 <span class="menu-text">{{ child.name }}</span>
-              </router-link>
+              </div>
             </li>
           </ul>
         </li>

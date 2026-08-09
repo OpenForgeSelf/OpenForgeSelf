@@ -1,143 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-
-interface FeatureItem {
-  id: string
-  name: string
-  icon: string
-  category: string
-  categoryLabel: string
-  color: string
-  bgColor: string
-  description: string
-  stats: string
-  extraInfo?: string
-  enabled: boolean
-}
-
-const categories = [
-  { key: 'all', label: '全部' },
-  { key: 'tools', label: '工具类' },
-  { key: 'ai', label: 'AI类' },
-  { key: 'system', label: '系统类' },
-  { key: 'orchestration', label: '编排类' },
-  { key: 'dev', label: '开发类' },
-]
+import { features, categories, type FeatureItem } from '@/data/features'
+import { useOpenPage } from '@/composables/useOpenPage'
 
 const activeCategory = ref('all')
 const searchQuery = ref('')
-
-const features: FeatureItem[] = [
-  {
-    id: 'ai-agent',
-    name: 'AI Agent',
-    icon: 'bot',
-    category: 'ai',
-    categoryLabel: 'AI',
-    color: 'var(--el-color-primary)',
-    bgColor: 'var(--el-color-primary-light-9)',
-    description: 'AI代理核心，自然语言操控工具，自动规划执行复杂任务链',
-    stats: '50+ 工具函数',
-    extraInfo: '支持多模型',
-    enabled: true,
-  },
-  {
-    id: 'quick-links',
-    name: '快捷链接',
-    icon: 'link',
-    category: 'tools',
-    categoryLabel: '工具',
-    color: 'var(--el-color-info)',
-    bgColor: 'rgba(29, 78, 216, 0.12)',
-    description: '一键打开常用网址，支持分组管理',
-    stats: '12 个链接',
-    enabled: true,
-  },
-  {
-    id: 'text-tools',
-    name: '文本工具',
-    icon: 'type',
-    category: 'tools',
-    categoryLabel: '工具',
-    color: 'var(--el-color-info)',
-    bgColor: 'rgba(29, 78, 216, 0.12)',
-    description: '格式化、编码转换、哈希计算等文本处理工具集',
-    stats: '8 个工具',
-    enabled: true,
-  },
-  {
-    id: 'file-tools',
-    name: '文件工具',
-    icon: 'folder-open',
-    category: 'tools',
-    categoryLabel: '工具',
-    color: 'var(--el-color-info)',
-    bgColor: 'rgba(29, 78, 216, 0.12)',
-    description: '批量重命名、清理、压缩解压等文件管理工具',
-    stats: '5 个工具',
-    enabled: true,
-  },
-  {
-    id: 'system-monitor',
-    name: '系统监控',
-    icon: 'monitor',
-    category: 'system',
-    categoryLabel: '系统',
-    color: 'var(--el-color-success)',
-    bgColor: 'rgba(4, 120, 87, 0.12)',
-    description: 'CPU、内存、磁盘实时监控，进程管理',
-    stats: '5 个监控项',
-    enabled: true,
-  },
-  {
-    id: 'workflow',
-    name: '工作流引擎',
-    icon: 'git-branch',
-    category: 'orchestration',
-    categoryLabel: '编排',
-    color: '#A78BFA',
-    bgColor: 'rgba(167, 139, 250, 0.12)',
-    description: '多工具编排，任务链自动执行，支持条件分支',
-    stats: '12 个工作流',
-    enabled: true,
-  },
-  {
-    id: 'scheduler',
-    name: '定时任务',
-    icon: 'clock',
-    category: 'orchestration',
-    categoryLabel: '编排',
-    color: '#2DD4BF',
-    bgColor: 'rgba(45, 212, 191, 0.12)',
-    description: 'Cron表达式管理，定时执行脚本和工作流',
-    stats: '5 个任务',
-    enabled: true,
-  },
-  {
-    id: 'script-runner',
-    name: '脚本运行器',
-    icon: 'terminal',
-    category: 'dev',
-    categoryLabel: '开发',
-    color: '#2DD4BF',
-    bgColor: 'rgba(45, 212, 191, 0.12)',
-    description: 'PowerShell/Python/Node脚本运行，支持AI生成',
-    stats: '支持 3 种语言',
-    enabled: true,
-  },
-  {
-    id: 'dev-tools',
-    name: '开发者工具箱',
-    icon: 'wrench',
-    category: 'dev',
-    categoryLabel: '开发',
-    color: '#2DD4BF',
-    bgColor: 'rgba(45, 212, 191, 0.12)',
-    description: 'JSON/YAML/Base64/哈希/正则/时间戳等25+开发工具',
-    stats: '25+ 工具',
-    enabled: true,
-  },
-]
 
 const filteredFeatures = computed(() => {
   return features.filter((f) => {
@@ -156,6 +23,13 @@ function setCategory(key: string): void {
   activeCategory.value = key
 }
 
+const { openPage } = useOpenPage()
+
+// 「配置」按钮目标标签文案：指向 /settings 时显示「设置」，否则显示功能名
+function configLabel(item: FeatureItem): string {
+  return item.configPath === '/settings' ? '设置' : item.name
+}
+
 function lucideIconSvg(name: string): string {
   const icons: Record<string, string> = {
     bot: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
@@ -167,6 +41,18 @@ function lucideIconSvg(name: string): string {
     clock: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     terminal: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
     wrench: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+    'message-circle': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg>',
+    'message-square': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    'file-text': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>',
+    sparkles: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>',
+    plug: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>',
+    brain: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.142 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.142 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg>',
+    users: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    code: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>',
+    'check-square': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="m9 12 2 2 4-4"/></svg>',
+    user: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    package: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+    settings: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
   }
   return icons[name] || ''
 }
@@ -179,7 +65,7 @@ function lucideIconSvg(name: string): string {
       <!-- Page Header -->
       <section class="page-header">
         <h1 class="page-title">所有功能</h1>
-        <p class="page-subtitle">9 个插件 · 50+ 工具函数 · 持续扩展中</p>
+        <p class="page-subtitle">{{ features.length }} 个功能 · 持续扩展中</p>
 
         <!-- Search -->
         <div class="search-box">
@@ -286,8 +172,16 @@ function lucideIconSvg(name: string): string {
                   <span class="status-text" :style="{ color: 'var(--el-color-success)' }">已启用</span>
                 </div>
                 <div class="card-actions">
-                  <button class="btn btn--primary">打开</button>
-                  <button class="btn btn--ghost">配置</button>
+                  <button
+                    class="btn btn--primary"
+                    :disabled="!item.path"
+                    @click="openPage(item.path as string, item.name)"
+                  >打开</button>
+                  <button
+                    class="btn btn--ghost"
+                    :disabled="!item.path"
+                    @click="openPage((item.configPath ?? item.path) as string, configLabel(item))"
+                  >配置</button>
                 </div>
               </div>
             </div>

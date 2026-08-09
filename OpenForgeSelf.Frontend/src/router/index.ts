@@ -7,6 +7,11 @@ import PluginUpdates from '@/views/PluginUpdates.vue'
 import PluginImportExport from '@/views/PluginImportExport.vue'
 import PluginScaffolder from '@/views/PluginScaffolder.vue'
 import MemoryView from '@/views/MemoryView.vue'
+import ChatView from '@/views/ChatView.vue'
+import TextToolsView from '@/views/TextToolsView.vue'
+import FileToolsView from '@/views/FileToolsView.vue'
+import DevToolsView from '@/views/DevToolsView.vue'
+import ScriptLibrary from '@/views/ScriptLibrary.vue'
 import AgentView from '@/views/AgentView.vue'
 import AgentsManageView from '@/views/AgentsManageView.vue'
 import AllFeaturesView from '@/views/AllFeaturesView.vue'
@@ -130,6 +135,31 @@ const router = createRouter({
       path: '/quick-links',
       name: 'quick-links',
       component: QuickLinksView
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: ChatView
+    },
+    {
+      path: '/text-tools',
+      name: 'text-tools',
+      component: TextToolsView
+    },
+    {
+      path: '/file-tools',
+      name: 'file-tools',
+      component: FileToolsView
+    },
+    {
+      path: '/dev-tools',
+      name: 'dev-tools',
+      component: DevToolsView
+    },
+    {
+      path: '/script-runner',
+      name: 'script-runner',
+      component: ScriptLibrary
     }
   ]
 })

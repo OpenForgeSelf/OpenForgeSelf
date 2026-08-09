@@ -1,39 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Grid, Setting } from '@element-plus/icons-vue'
+import { useTabsStore } from '@/stores/tabs'
+import { useOpenPage } from '@/composables/useOpenPage'
 
 const router = useRouter()
 const route = useRoute()
+const tabsStore = useTabsStore()
+const { openPage } = useOpenPage()
 
-interface NavTab {
-  key: string
-  label: string
-  path: string
-}
-
-const allTabs: NavTab[] = [
-  { key: 'home', label: '首页', path: '/' },
-  { key: 'ai-agent', label: 'AI Agent', path: '/ai-agent' },
-  { key: 'skills', label: '技能管理', path: '/skills' },
-  { key: 'mcp-tools', label: 'MCP 工具', path: '/mcp-tools' },
-  { key: 'system-monitor', label: '系统监控', path: '/system-monitor' },
-]
-
-const visiblePaths = ref<string[]>(allTabs.map(t => t.path))
-
-const navTabs = computed(() =>
-  allTabs.filter(t => visiblePaths.value.includes(t.path))
-)
+// 标签栏改为统一从 tabs store 读取（基础标签 + 动态打开的页）
+const navTabs = computed(() => tabsStore.tabs)
 
 const activeTab = computed(() => {
   const path = route.path
-  for (const tab of navTabs.value) {
-    if (path === tab.path) return tab.path
-  }
+  const match = navTabs.value.find((t) => t.path === path)
+  if (match) return match.path
   if (path.startsWith('/agents')) return '/ai-agent'
-  if (path.startsWith('/settings')) return ''
-  return '/'
+  // 动态打开的页（/text-tools 等）已登记在 store.tabs 中，由上面 find 命中
+  return ''
 })
 
 function navigateTo(path: string): void {
@@ -42,7 +28,7 @@ function navigateTo(path: string): void {
 
 function closeTab(path: string): void {
   if (path === '/') return
-  visiblePaths.value = visiblePaths.value.filter(p => p !== path)
+  tabsStore.closeTab(path)
   if (activeTab.value === path) {
     router.push('/')
   }
@@ -95,7 +81,7 @@ function closeTab(path: string): void {
         class="flex items-center justify-center w-8 h-8 rounded-md text-[var(--el-text-color-secondary)] hover:text-[var(--el-text-color-primary)] hover:bg-[var(--el-fill-color)] transition-colors cursor-pointer border-none bg-transparent"
         title="所有功能"
         aria-label="所有功能"
-        @click="router.push('/all-features')"
+        @click="openPage('/all-features', '所有功能')"
       >
         <el-icon :size="16"><Grid /></el-icon>
       </button>
@@ -103,7 +89,7 @@ function closeTab(path: string): void {
         class="flex items-center justify-center w-8 h-8 rounded-md text-[var(--el-text-color-secondary)] hover:text-[var(--el-text-color-primary)] hover:bg-[var(--el-fill-color)] transition-colors cursor-pointer border-none bg-transparent"
         title="设置"
         aria-label="设置"
-        @click="router.push('/settings')"
+        @click="openPage('/settings', '设置')"
       >
         <el-icon :size="16"><Setting /></el-icon>
       </button>

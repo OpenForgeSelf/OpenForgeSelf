@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import TopNavbar from '@/components/TopNavbar.vue'
 import { useAppearanceStore } from '@/stores/appearance'
@@ -9,6 +9,11 @@ const appearanceStore = useAppearanceStore()
 onMounted(() => {
   appearanceStore.initialize()
 })
+
+// 背景图模式标记挂到 <body>：让 bg-image-mode.css 能选中 teleport 到 body 的弹窗（ElDialog append-to-body）
+watch(() => appearanceStore.backgroundImage, (val) => {
+  document.body.classList.toggle('app-bg-image-mode', !!val)
+}, { immediate: true })
 </script>
 
 <template>

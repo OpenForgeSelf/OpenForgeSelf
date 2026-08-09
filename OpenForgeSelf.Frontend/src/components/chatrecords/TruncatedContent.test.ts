@@ -42,9 +42,13 @@ describe('TruncatedContent 超长展开/收起 + 滚动', () => {
   })
 
   it('复制按钮：触发后显示「已复制」', async () => {
-    // 模拟剪贴板
+    // 模拟剪贴板（navigator.clipboard 在 jsdom 下只读，需用 defineProperty 注入）
     const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+      writable: true,
+    })
     const wrapper = mount(TruncatedContent, { props: { content: LONG, maxLength: 500 } })
     const copyBtn = wrapper.findAll('.act-btn')[1]
     await copyBtn.trigger('click')

@@ -53,6 +53,7 @@ function getStyleBadgeClass(style: string): string {
           <th class="col-session">SessionId</th>
           <th class="col-style">Style</th>
           <th class="col-model">Model</th>
+          <th class="col-summary">摘要</th>
           <th class="col-messages">消息数</th>
           <th class="col-tools">工具调用</th>
           <th class="col-time">时间</th>
@@ -71,17 +72,20 @@ function getStyleBadgeClass(style: string): string {
             </span>
           </td>
           <td class="col-model">{{ record.model }}</td>
+          <td class="col-summary">
+            <span class="summary-text" :title="record.summary">{{ record.summary || '—' }}</span>
+          </td>
           <td class="col-messages">{{ record.messageCount }}</td>
           <td class="col-tools">{{ record.toolCallCount }}</td>
           <td class="col-time">{{ formatDate(record.createdTime) }}</td>
           <td class="col-action">
-            <button class="detail-btn" @click="emit('view-detail', record.id)">
+            <button class="detail-btn" type="button" @click="emit('view-detail', record.id)">
               查看详情
             </button>
           </td>
         </tr>
         <tr v-if="records.length === 0 && !loading">
-          <td colspan="8" class="empty-row">暂无数据</td>
+          <td colspan="9" class="empty-row">暂无数据</td>
         </tr>
       </tbody>
     </table>
@@ -93,6 +97,7 @@ function getStyleBadgeClass(style: string): string {
       <div class="pagination-controls">
         <button
           class="page-btn"
+          type="button"
           :disabled="page <= 1"
           @click="emit('page-change', page - 1)"
         >
@@ -100,6 +105,7 @@ function getStyleBadgeClass(style: string): string {
         </button>
         <button
           class="page-btn"
+          type="button"
           :disabled="page >= Math.ceil(total / pageSize)"
           @click="emit('page-change', page + 1)"
         >
@@ -130,15 +136,15 @@ function getStyleBadgeClass(style: string): string {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--el-bg-color) 80%, transparent);
   z-index: 10;
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #dee2e6;
-  border-top-color: #0d6efd;
+  border: 3px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -159,20 +165,20 @@ function getStyleBadgeClass(style: string): string {
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+  color: var(--el-text-color-primary);
+  background: var(--el-fill-color-light);
+  border-bottom: 2px solid var(--el-border-color);
   white-space: nowrap;
 }
 
 .records-table td {
   padding: 12px 8px;
-  border-bottom: 1px solid #dee2e6;
-  color: #212529;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-primary);
 }
 
 .record-row:hover {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .col-id {
@@ -191,6 +197,7 @@ function getStyleBadgeClass(style: string): string {
   white-space: nowrap;
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .col-style {
@@ -206,21 +213,34 @@ function getStyleBadgeClass(style: string): string {
 }
 
 .badge-openai {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
+  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 30%, transparent);
 }
 
 .badge-responses {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-success) 30%, transparent);
 }
 
 .badge-anthropic {
-  background: #fef3c7;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-warning) 32%, transparent);
+}
+
+.col-summary {
+  max-width: 220px;
+}
+
+.summary-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--el-text-color-regular);
 }
 
 .col-model {
@@ -247,9 +267,9 @@ function getStyleBadgeClass(style: string): string {
 
 .detail-btn {
   padding: 6px 12px;
-  border: 1px solid #0d6efd;
-  background: white;
-  color: #0d6efd;
+  border: 1px solid var(--el-color-primary);
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
   font-size: 13px;
   border-radius: 6px;
   cursor: pointer;
@@ -257,13 +277,13 @@ function getStyleBadgeClass(style: string): string {
 }
 
 .detail-btn:hover {
-  background: #0d6efd;
-  color: white;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .empty-row {
   text-align: center;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   padding: 40px 8px !important;
 }
 
@@ -276,7 +296,7 @@ function getStyleBadgeClass(style: string): string {
 
 .pagination-info {
   font-size: 14px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .pagination-controls {
@@ -286,9 +306,9 @@ function getStyleBadgeClass(style: string): string {
 
 .page-btn {
   padding: 8px 16px;
-  border: 1px solid #dee2e6;
-  background: white;
-  color: #495057;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   font-size: 14px;
   border-radius: 6px;
   cursor: pointer;
@@ -296,8 +316,8 @@ function getStyleBadgeClass(style: string): string {
 }
 
 .page-btn:hover:not(:disabled) {
-  background: #f8f9fa;
-  border-color: #ced4da;
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .page-btn:disabled {

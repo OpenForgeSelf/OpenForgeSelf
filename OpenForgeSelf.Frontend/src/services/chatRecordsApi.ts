@@ -1,6 +1,54 @@
 import type { ApiStyle, ChatRecord, ChatRecordSummary, ChatRecordsResponse } from '@/types/chatRecords'
+import { parseJsonSequence } from '@/utils/jsonSequence'
 
 const API_BASE = '/api/chat-records'
+
+// 从请求体（可能是单个 JSON 对象或流式拼接）中提取一条可读摘要：
+// 优先取首个 user/system 消息文本；其次 OpenAI Responses 的 input message；再次 Anthropic 的顶层 system。
+function summarizeRequest(reqBodyRaw: unknown): string {
+  try {
+    const parsed = parseJsonSequence(typeof reqBodyRaw === 'string' ? reqBodyRaw : JSON.stringify(reqBodyRaw))
+    const first = parsed[0] as Record<string, unknown> | undefined
+    if (!first) return ''
+
+    const strip = (t: unknown): string => {
+      if (typeof t !== 'string') return ''
+      return t.replace(/\s+/g, ' ').substring(0, 100)
+    }
+    const arrayText = (content: unknown): string => {
+      if (!Array.isArray(content)) return ''
+      return content
+        .map((p) => (p && typeof p === 'object' && 'text' in p ? (p as { text?: unknown }).text : ''))
+        .filter((t) => typeof t === 'string' && t)
+        .join(' ')
+    }
+
+    const msgs = first['messages']
+    if (Array.isArray(msgs)) {
+      for (const m of msgs as Record<string, unknown>[]) {
+        const role = m['role']
+        if (role === 'user' || role === 'system') {
+          const c = m['content']
+          const txt = typeof c === 'string' ? c : arrayText(c)
+          if (txt.trim()) return strip(txt)
+        }
+      }
+    }
+    const input = first['input']
+    if (Array.isArray(input)) {
+      for (const it of input as Record<string, unknown>[]) {
+        if (it['type'] === 'message') {
+          const txt = arrayText(it['content'])
+          if (txt.trim()) return strip(txt)
+        }
+      }
+    }
+    if (typeof first['system'] === 'string') return strip(first['system'])
+  } catch {
+    // 解析失败则回退为空摘要
+  }
+  return ''
+}
 
 export const chatRecordsApi = {
   async getRecords(params: {
@@ -29,7 +77,7 @@ export const chatRecordsApi = {
         messageCount: item.messageCount as number,
         toolCallCount: item.toolCallCount as number,
         createdTime: item.createdTime as string,
-        summary: (item.requestBody as { messages?: { content?: unknown }[] })?.messages?.[0]?.content?.toString().substring(0, 100) || ''
+        summary: summarizeRequest(item.requestBody)
       })),
       total: json.total || 0,
       page: json.page || 1,
@@ -49,10 +97,12 @@ export const chatRecordsApi = {
       requestMethod: data.requestMethod,
       requestPath: data.requestPath,
       requestHeaders: typeof data.requestHeaders === 'string' ? JSON.parse(data.requestHeaders || '{}') : (data.requestHeaders || {}),
-      requestBody: typeof data.requestBody === 'string' ? JSON.parse(data.requestBody || '{}') : (data.requestBody || {}),
+      // 请求体恒为单对象：取序列首对象
+      requestBody: parseJsonSequence(data.requestBody as string | null)[0] ?? {},
       responseStatus: data.responseStatus,
       responseHeaders: typeof data.responseHeaders === 'string' ? JSON.parse(data.responseHeaders || '{}') : (data.responseHeaders || {}),
-      responseBody: typeof data.responseBody === 'string' ? JSON.parse(data.responseBody || '{}') : (data.responseBody || {}),
+      // 响应体可能是「单对象 / 流式分片拼接 / 错误对象」：保留为对象数组，由详情组件归一化
+      responseBody: parseJsonSequence(data.responseBody as string | null),
       temperature: data.temperature,
       maxTokens: data.maxTokens,
       messageCount: data.messageCount,

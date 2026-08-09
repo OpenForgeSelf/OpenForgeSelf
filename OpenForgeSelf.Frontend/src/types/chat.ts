@@ -23,7 +23,10 @@ export interface SendMessageResponse {
 }
 
 export interface StreamMessageChunk {
-  type: 'content' | 'done' | 'error'
+  // 主聊天流：content/done/error（ChatController / UnifiedAI 网关推送）
+  // 聊天记录实时流：chat_record_chunk/chat_record_completed（ChatRecordStreamRecorder 推送）
+  // 二者共用同一 WebSocket 分发，故联合类型需覆盖全部事件名
+  type: 'content' | 'done' | 'error' | 'chat_record_chunk' | 'chat_record_completed'
   content?: string
   messageId?: string
   error?: string

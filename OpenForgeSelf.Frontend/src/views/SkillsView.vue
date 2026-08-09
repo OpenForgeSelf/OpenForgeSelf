@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import type { SkillItemDto, CreateSkillDto, UpdateSkillDto } from '@/types/skills'
 import { skillsApi } from '@/services/skillsApi'
+import { useOpenPage } from '@/composables/useOpenPage'
 
 // ===== State =====
 const skills = ref<SkillItemDto[]>([])
@@ -13,6 +14,11 @@ const editingSkill = ref<SkillItemDto | null>(null)
 const formSubmitting = ref(false)
 const formError = ref('')
 const togglingIds = ref<Set<string>>(new Set())
+
+const { openPage } = useOpenPage()
+function goHome(): void {
+  openPage('/', '首页')
+}
 
 // Form fields
 const formName = ref('')
@@ -167,7 +173,7 @@ function getSkillIcon(name: string): string {
     <div class="skills-page">
       <!-- ===== Breadcrumb ===== -->
       <nav class="breadcrumb" aria-label="面包屑导航">
-        <a href="/" class="breadcrumb-link" @click.prevent="$router.push('/')">首页</a>
+        <a href="/" class="breadcrumb-link" @click.prevent="goHome()">首页</a>
         <svg
           width="12"
           height="12"

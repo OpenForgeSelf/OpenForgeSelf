@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { usePluginStore } from '@/stores/plugin'
+import { useOpenPage } from '@/composables/useOpenPage'
 import type { PluginInfo, PluginCategory } from '@/types/plugin'
 import { PluginState } from '@/types/plugin'
 
-const router = useRouter()
+const { openPage } = useOpenPage()
 const pluginStore = usePluginStore()
 
 const activeTab = ref<'all' | 'recommended' | 'popular' | 'installed'>('all')
@@ -87,7 +87,7 @@ function handleCategoryChange(category: string): void {
 }
 
 function handleCardClick(plugin: PluginInfo): void {
-  router.push(`/plugins/${plugin.id}`)
+  openPage(`/plugins/${plugin.id}`, plugin.name)
 }
 
 async function handleToggle(plugin: PluginInfo): Promise<void> {

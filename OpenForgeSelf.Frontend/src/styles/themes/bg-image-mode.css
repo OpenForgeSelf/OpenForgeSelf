@@ -98,3 +98,31 @@
 .app-layout.has-bg-image .search-input {
   background-color: var(--el-bg-color-overlay);
 }
+
+/* ===== Teleported 弹层（ElDialog append-to-body 等 teleport 到 <body> 的元素）
+   不在 .app-layout 内，需通过 <body>.app-bg-image-mode 全局选中。
+   弹窗需要半透明底色以透出背景图；遮罩层保持半透明深色以保证弹窗可读性。
+   dropdown/menu 等小型浮层保持实底（已在上方注释说明理由）。 ===== */
+body.app-bg-image-mode .el-overlay-dialog {
+  background-color: rgba(0, 0, 0, 0.45);
+}
+
+body.app-bg-image-mode .el-dialog {
+  /* 弹窗容器：半透明底色透背景图，无多余边框/描边 */
+  --el-bg-color-overlay: color-mix(in srgb, var(--el-text-color-primary) 10%, transparent);
+  background-color: var(--el-bg-color-overlay);
+  border: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+body.app-bg-image-mode .el-dialog__header {
+  /* 标题栏：无边框分隔线，保持简洁 */
+  border-bottom: none;
+  padding-bottom: 8px;
+}
+
+body.app-bg-image-mode .el-dialog__body {
+  /* 内容区：继承弹窗半透明底 */
+  background: transparent;
+  padding: 12px 20px;
+}

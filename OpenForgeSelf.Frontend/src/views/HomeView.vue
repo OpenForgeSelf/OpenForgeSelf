@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useHomeStore } from '@/stores/home'
+import { useOpenPage } from '@/composables/useOpenPage'
 import TodoEditDialog from '@/components/todo/TodoEditDialog.vue'
 import type { TodoCreateRequest, TodoItem, TodoUpdateRequest } from '@/types/todo'
 
-const router = useRouter()
+const { openPage } = useOpenPage()
 const homeStore = useHomeStore()
 
 // 时段问候语
@@ -21,7 +21,7 @@ const quickAskText = ref('')
 
 function submitQuickAsk() {
   if (!quickAskText.value.trim()) return
-  router.push({ path: '/ai-agent', query: { q: quickAskText.value.trim() } })
+  openPage({ path: '/ai-agent', query: { q: quickAskText.value.trim() } }, 'AI Agent')
   quickAskText.value = ''
 }
 
@@ -46,7 +46,7 @@ function handleTodoToggle(todo: TodoItem): void {
 }
 
 function gotoTodoPage() {
-  router.push('/todo')
+  openPage('/todo', '待办事项')
 }
 
 // 推荐动作
@@ -57,8 +57,8 @@ const recommendedActions = [
   { label: '查看工作流', path: '/workflows' }
 ]
 
-function goAction(path: string) {
-  router.push(path)
+function goAction(path: string, label: string) {
+  openPage(path, label)
 }
 
 // ===== 功能快捷网格 =====
@@ -162,7 +162,7 @@ function isHot(key: string): boolean {
 function clickEntry(entry: QuickEntry) {
   recordUsage(entry.key)
   if (entry.path && entry.path !== '#') {
-    router.push(entry.path)
+    openPage(entry.path, entry.label)
   }
 }
 
@@ -284,7 +284,7 @@ onUnmounted(() => {
             v-for="action in recommendedActions"
             :key="action.path"
             class="action-chip"
-            @click="goAction(action.path)"
+            @click="goAction(action.path, action.label)"
           >
             {{ action.label }}
           </button>

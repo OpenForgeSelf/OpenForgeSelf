@@ -256,12 +256,7 @@ onMounted(async () => {
     <el-skeleton v-if="loading && !config" :rows="4" animated />
 
     <!-- 错误提示 -->
-    <el-alert
-      v-if="error && !loading"
-      :title="error"
-      type="error"
-      show-icon
-      :closable="false" />
+    <el-alert v-if="error && !loading" :title="error" type="error" show-icon :closable="false" />
 
     <!-- 认证失败提示 -->
     <el-alert
@@ -389,7 +384,9 @@ onMounted(async () => {
             class="font-mono mb-3"
             show-password />
           <div class="flex gap-2">
-            <el-button type="primary" @click="submitManualKey" :loading="loading">保存密钥</el-button>
+            <el-button type="primary" :loading="loading" @click="submitManualKey">
+              保存密钥
+            </el-button>
             <el-button v-if="showKeyInput" @click="cancelManualKeyInput">取消</el-button>
           </div>
         </template>

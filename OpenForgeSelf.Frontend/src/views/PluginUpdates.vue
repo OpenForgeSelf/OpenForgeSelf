@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { usePluginStore } from '@/stores/plugin'
-import { useRouter } from 'vue-router'
+import { useOpenPage } from '@/composables/useOpenPage'
 
 const pluginStore = usePluginStore()
-const router = useRouter()
+const { openPage } = useOpenPage()
 
 const updatingPluginIds = ref<Set<string>>(new Set())
 
@@ -34,7 +34,7 @@ async function handleUpdateAll(): Promise<void> {
 }
 
 function handleViewDetail(pluginId: string): void {
-  router.push(`/plugins/${pluginId}`)
+  openPage(`/plugins/${pluginId}`, '插件商店')
 }
 
 function handleRefresh(): void {

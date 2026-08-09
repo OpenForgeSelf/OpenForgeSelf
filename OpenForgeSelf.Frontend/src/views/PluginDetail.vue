@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { usePluginStore } from '@/stores/plugin'
+import { useOpenPage } from '@/composables/useOpenPage'
 import { PluginState } from '@/types/plugin'
 
 const route = useRoute()
-const router = useRouter()
+const { openPage } = useOpenPage()
 const pluginStore = usePluginStore()
 
 const isToggling = ref(false)
@@ -62,7 +63,7 @@ async function handleUninstall(): Promise<void> {
 
   try {
     await pluginStore.uninstallPlugin(plugin.value.id)
-    router.push('/plugins')
+    openPage('/plugins', '插件商店')
   } catch (e) {
     console.error('卸载插件失败:', e)
   }
@@ -78,7 +79,7 @@ async function handleUpdate(): Promise<void> {
 }
 
 function handleBack(): void {
-  router.back()
+  openPage('/plugins', '插件商店')
 }
 
 onMounted(() => {

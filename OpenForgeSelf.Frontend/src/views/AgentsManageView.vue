@@ -224,7 +224,7 @@ function agentTypeName(type: number | string): string {
   border-radius: 8px;
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 20%, transparent);
   line-height: 1.5;
 }
 
@@ -299,11 +299,11 @@ function agentTypeName(type: number | string): string {
 /* Active (enabled) state: amber left border + glow */
 .agent-card--active {
   border-left: 3px solid var(--el-color-primary);
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.06);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--el-color-primary) 6%, transparent);
 }
 
 .agent-card--active:hover {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--el-color-primary) 10%, transparent);
 }
 
 .agent-card-inner {
@@ -325,32 +325,32 @@ function agentTypeName(type: number | string): string {
   align-items: center;
   justify-content: center;
   color: var(--el-color-primary);
-  background: rgba(245, 158, 11, 0.15);
+  background: color-mix(in srgb, var(--el-color-primary) 15%, transparent);
 }
 
 .agent-icon--programmer {
   color: var(--el-color-info);
-  background: rgba(88, 166, 255, 0.15);
+  background: color-mix(in srgb, var(--el-color-info) 15%, transparent);
 }
 
 .agent-icon--analyst {
-  color: #BC8CFF;
-  background: rgba(188, 140, 255, 0.15);
+  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--el-color-primary) 15%, transparent);
 }
 
 .agent-icon--researcher {
-  color: var(--state-success, #3FB950);
-  background: rgba(63, 185, 80, 0.15);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 15%, transparent);
 }
 
 .agent-icon--writer {
-  color: #F472B6;
-  background: rgba(244, 114, 182, 0.15);
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
 }
 
 .agent-icon--critic {
-  color: var(--state-warning, #D29922);
-  background: rgba(210, 153, 34, 0.15);
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 15%, transparent);
 }
 
 /* ================================
@@ -394,8 +394,8 @@ function agentTypeName(type: number | string): string {
 }
 
 .agent-tag--type {
-  background: rgba(63, 185, 80, 0.12);
-  color: #3FB950;
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
 }
 
 .agent-desc {
@@ -492,12 +492,12 @@ function agentTypeName(type: number | string): string {
     background 150ms ease,
     border-color 150ms ease;
   color: var(--el-color-primary);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 30%, transparent);
   background: transparent;
 }
 
 .btn-chat:hover {
   background: var(--el-color-primary-light-9);
-  border-color: rgba(245, 158, 11, 0.5);
+  border-color: color-mix(in srgb, var(--el-color-primary) 50%, transparent);
 }
 </style>

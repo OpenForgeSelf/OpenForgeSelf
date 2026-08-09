@@ -125,8 +125,8 @@ function handleKeydown(event: KeyboardEvent): void {
 
 <style scoped>
 .plugin-card {
-  background: #fff;
-  border: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   padding: 16px;
   cursor: pointer;
@@ -138,14 +138,14 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .plugin-card:hover {
-  border-color: #1976d2;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.12);
+  border-color: var(--el-color-info);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--el-color-info) 12%, transparent);
   transform: translateY(-2px);
 }
 
 .plugin-card:focus-visible {
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+  border-color: var(--el-color-info);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-info) 20%, transparent);
 }
 
 .plugin-card.disabled {
@@ -153,7 +153,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .plugin-card.error {
-  border-color: #dc3545;
+  border-color: var(--el-color-danger);
 }
 
 .card-header {
@@ -166,7 +166,7 @@ function handleKeydown(event: KeyboardEvent): void {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #f0f7ff;
+  background: var(--el-color-info-light-9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -192,7 +192,7 @@ function handleKeydown(event: KeyboardEvent): void {
 .plugin-name {
   font-size: 15px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -201,7 +201,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 .plugin-version {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-state {
@@ -216,35 +216,35 @@ function handleKeydown(event: KeyboardEvent): void {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #6c757d;
+  background: var(--el-text-color-secondary);
 }
 
 .state-enabled .state-dot {
-  background: #28a745;
+  background: var(--el-color-success);
 }
 
 .state-disabled .state-dot {
-  background: #6c757d;
+  background: var(--el-text-color-secondary);
 }
 
 .state-error .state-dot {
-  background: #dc3545;
+  background: var(--el-color-danger);
 }
 
 .state-installed .state-dot {
-  background: #17a2b8;
+  background: var(--el-color-info);
 }
 
 .state-text {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .state-enabled .state-text {
-  color: #28a745;
+  color: var(--el-color-success);
 }
 
 .state-error .state-text {
-  color: #dc3545;
+  color: var(--el-color-danger);
 }
 
 .card-body {
@@ -253,7 +253,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 .plugin-description {
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -268,7 +268,7 @@ function handleKeydown(event: KeyboardEvent): void {
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .plugin-meta {
@@ -276,22 +276,22 @@ function handleKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   gap: 8px;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-author {
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .plugin-category {
-  background: #f1f3f5;
+  background: var(--el-fill-color-light);
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
 }
 
 .plugin-usage {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .toggle-switch {
@@ -311,14 +311,14 @@ function handleKeydown(event: KeyboardEvent): void {
   display: block;
   width: 44px;
   height: 24px;
-  background: #dee2e6;
+  background: var(--el-border-color);
   border-radius: 12px;
   position: relative;
   transition: background-color 0.2s ease;
 }
 
 .toggle-switch.active .toggle-slider {
-  background: #28a745;
+  background: var(--el-color-success);
 }
 
 .toggle-knob {
@@ -327,7 +327,7 @@ function handleKeydown(event: KeyboardEvent): void {
   left: 2px;
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 50%;
   transition: transform 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);

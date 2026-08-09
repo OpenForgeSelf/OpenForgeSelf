@@ -4,19 +4,21 @@ import { fileToolsApi } from '@/services/fileToolsApi'
 
 const store = useFileToolsStore()
 
-const typeColors = [
-  '#1976d2',
-  '#28a745',
-  '#ffc107',
-  '#dc3545',
-  '#6f42c1',
-  '#fd7e14',
-  '#20c997',
-  '#6c757d'
+// 图表调色板：运行时读取官方 --el-color-*（canvas 不解析 CSS 变量，故取计算值），零自定义 token
+const TYPE_COLOR_VARS = [
+  '--el-color-primary',
+  '--el-color-success',
+  '--el-color-warning',
+  '--el-color-danger',
+  '--el-color-info',
+  '--el-color-primary-light-3',
+  '--el-color-success-light-3',
+  '--el-color-info-light-3'
 ]
 
 function getTypeColor(index: number): string {
-  return typeColors[index % typeColors.length]
+  const name = TYPE_COLOR_VARS[index % TYPE_COLOR_VARS.length]
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888888'
 }
 
 function setDemoDirectory(): void {
@@ -422,18 +424,18 @@ function setDemoDirectory(): void {
 }
 
 .large-file-item:nth-child(1) .file-rank {
-  background-color: #ffd700;
-  color: #856404;
+  background-color: var(--el-color-warning);
+  color: var(--el-color-warning-dark-2);
 }
 
 .large-file-item:nth-child(2) .file-rank {
-  background-color: #c0c0c0;
-  color: #495057;
+  background-color: var(--el-border-color-darker);
+  color: var(--el-text-color-regular);
 }
 
 .large-file-item:nth-child(3) .file-rank {
-  background-color: #cd7f32;
-  color: #fff;
+  background-color: var(--el-color-warning-dark-2);
+  color: var(--el-color-white);
 }
 
 .file-info {

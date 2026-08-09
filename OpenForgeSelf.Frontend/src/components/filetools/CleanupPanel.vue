@@ -557,15 +557,15 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .toggle-btn.active {
-  background-color: #d4edda;
-  border-color: #c3e6cb;
-  color: #155724;
+  background-color: var(--el-color-success-light-9);
+  border-color: var(--el-color-success-light-8);
+  color: var(--el-color-success-dark-2);
 }
 
 .delete-btn:hover:not(:disabled) {
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  color: #721c24;
+  background-color: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger-light-8);
+  color: var(--el-color-danger-dark-2);
 }
 
 .rule-body {
@@ -763,11 +763,11 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 .btn-danger {
   background-color: var(--el-color-danger);
-  color: #fff;
+  color: var(--el-color-white);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #c82333;
+  background-color: var(--el-color-danger-dark-2);
 }
 
 .btn-secondary {
@@ -832,8 +832,8 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 }
 
 .modal-warning {
-  color: #856404;
-  background-color: #fff3cd;
+  color: var(--el-color-warning-dark-2);
+  background-color: var(--el-color-warning-light-9);
   padding: 8px 12px;
   border-radius: 6px;
   margin-top: 12px;

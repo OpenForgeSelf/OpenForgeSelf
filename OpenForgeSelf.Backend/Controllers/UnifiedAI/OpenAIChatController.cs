@@ -167,42 +167,62 @@ public class OpenAIChatController : ControllerBase
                 if (cancellationToken.IsCancellationRequested)
                     break;
 
+                var hasContent = !string.IsNullOrEmpty(chunk.DeltaContent)
+                    || chunk.DeltaRole != null
+                    || chunk.DeltaToolCall != null
+                    || chunk.FinishReason != null;
+
                 var streamChunk = new OpenAIStreamChunk
                 {
                     Id = chunk.Id ?? id,
                     Object = "chat.completion.chunk",
                     Created = chunk.Created > 0 ? chunk.Created : created,
                     Model = chunk.Model ?? modelName,
-                    Choices = new List<OpenAIStreamChoice>
-                    {
-                        new()
+                    // usage 哨兵分片（上游末尾，choices 为空）保持空 choices，贴合 OpenAI 语义；其余按内容构造 choices
+                    Choices = hasContent
+                        ? new List<OpenAIStreamChoice>
                         {
-                            Index = chunk.ChoiceIndex,
-                            Delta = new OpenAIStreamDelta
+                            new()
                             {
-                                Content = string.IsNullOrEmpty(chunk.DeltaContent) ? null : chunk.DeltaContent,
-                                Role = chunk.DeltaRole,
-                                ToolCalls = chunk.DeltaToolCall == null
-                                    ? null
-                                    : new List<OpenAIToolCall>
-                                    {
-                                        new()
+                                Index = chunk.ChoiceIndex,
+                                Delta = new OpenAIStreamDelta
+                                {
+                                    Content = string.IsNullOrEmpty(chunk.DeltaContent) ? null : chunk.DeltaContent,
+                                    Role = chunk.DeltaRole,
+                                    ToolCalls = chunk.DeltaToolCall == null
+                                        ? null
+                                        : new List<OpenAIToolCall>
                                         {
-                                            Index = chunk.ChoiceIndex,
-                                            Id = chunk.DeltaToolCall.Id,
-                                            Type = "function",
-                                            Function = new OpenAIFunctionCall
+                                            new()
                                             {
-                                                Name = chunk.DeltaToolCall.Name,
-                                                Arguments = chunk.DeltaToolCall.Arguments
+                                                Index = chunk.ChoiceIndex,
+                                                Id = chunk.DeltaToolCall.Id,
+                                                Type = "function",
+                                                Function = new OpenAIFunctionCall
+                                                {
+                                                    Name = chunk.DeltaToolCall.Name,
+                                                    Arguments = chunk.DeltaToolCall.Arguments
+                                                }
                                             }
                                         }
-                                    }
-                            },
-                            FinishReason = chunk.FinishReason
+                                },
+                                FinishReason = chunk.FinishReason
+                            }
                         }
-                    }
+                        : new List<OpenAIStreamChoice>()
                 };
+
+                // 透传 usage（已用 token 字段）：上游哨兵分片或带 usage 的内容分片均回填
+                if (chunk.Usage != null)
+                {
+                    streamChunk.Usage = new OpenAIUsage
+                    {
+                        PromptTokens = chunk.Usage.PromptTokens,
+                        CompletionTokens = chunk.Usage.CompletionTokens,
+                        TotalTokens = chunk.Usage.TotalTokens
+                    };
+                }
+
                 await WriteSseAsync(streamChunk);
                 responseBody.Append(JsonSerializer.Serialize(streamChunk, StreamSerializerOptions));
                 if (session != null)
@@ -691,6 +711,27 @@ public class OpenAIStreamChunk
 
     [JsonPropertyName("choices")]
     public List<OpenAIStreamChoice>? Choices { get; set; }
+
+    /// <summary>
+    /// 流式用量（已用 token）。上游在 include_usage=true 时于末尾发送 usage 哨兵分片，网关需透传，否则前端拿不到 token 统计。
+    /// </summary>
+    [JsonPropertyName("usage")]
+    public OpenAIUsage? Usage { get; set; }
+}
+
+/// <summary>
+/// 流式 / 非流式共用的 token 用量结构（prompt / completion / total）。
+/// </summary>
+public class OpenAIUsage
+{
+    [JsonPropertyName("prompt_tokens")]
+    public int PromptTokens { get; set; }
+
+    [JsonPropertyName("completion_tokens")]
+    public int CompletionTokens { get; set; }
+
+    [JsonPropertyName("total_tokens")]
+    public int TotalTokens { get; set; }
 }
 
 public class OpenAIStreamChoice

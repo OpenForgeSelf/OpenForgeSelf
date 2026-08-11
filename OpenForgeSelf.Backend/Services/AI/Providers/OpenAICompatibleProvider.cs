@@ -131,7 +131,28 @@ public class OpenAICompatibleProvider : IAIProvider
             }
 
             if (chunk?.Choices == null || chunk.Choices.Count == 0)
+            {
+                // OpenAI 在 stream_options.include_usage=true 时，于末尾发送一个 choices 为空、携带 usage 的哨兵分片；
+                // 必须捕获 usage，否则已用 token 字段在流式场景下丢失。
+                if (chunk?.Usage != null)
+                {
+                    yield return new UnifiedStreamChunk
+                    {
+                        Id = chunk.Id ?? id,
+                        Model = chunk.Model ?? request.Model,
+                        Created = chunk.Created ?? created,
+                        ChoiceIndex = 0,
+                        Usage = new UnifiedUsage
+                        {
+                            PromptTokens = chunk.Usage.PromptTokens,
+                            CompletionTokens = chunk.Usage.CompletionTokens,
+                            TotalTokens = chunk.Usage.TotalTokens
+                        }
+                    };
+                }
+
                 continue;
+            }
 
             var choice = chunk.Choices[0];
             var delta = choice.Delta;
@@ -460,9 +481,13 @@ public class OpenAICompatibleProvider : IAIProvider
             TopP = request.TopP,
             MaxTokens = request.MaxTokens,
             Stream = request.Stream,
-            StreamOptions = request.StreamOptions == null
-                ? null
-                : new OpenAIStreamOptions { IncludeUsage = request.StreamOptions.IncludeUsage }
+            // 流式场景强制请求 usage，确保网关始终能回填「已用 token」字段；
+            // 非流式沿用客户端透传的 stream_options。
+            StreamOptions = request.Stream
+                ? new OpenAIStreamOptions { IncludeUsage = true }
+                : (request.StreamOptions == null
+                    ? null
+                    : new OpenAIStreamOptions { IncludeUsage = request.StreamOptions.IncludeUsage })
         };
 
         if (request.Tools != null && request.Tools.Count > 0)
@@ -866,6 +891,12 @@ public class OpenAIStreamChunk
 
     [JsonPropertyName("choices")]
     public List<OpenAIStreamChoice>? Choices { get; set; }
+
+    /// <summary>
+    /// 流式用量（已用 token）。OpenAI 在 stream_options.include_usage=true 时，于末尾发送一个 choices 为空、携带 usage 的哨兵分片。
+    /// </summary>
+    [JsonPropertyName("usage")]
+    public OpenAIUsage? Usage { get; set; }
 }
 
 public class OpenAIStreamChoice

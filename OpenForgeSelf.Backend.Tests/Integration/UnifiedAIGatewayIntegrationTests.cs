@@ -291,6 +291,36 @@ public class UnifiedAIGatewayIntegrationTests
         provider.LastRequest!.StreamOptions!.IncludeUsage.Should().BeTrue("include_usage=true 必须被透传");
     }
 
+    [Fact]
+    public async Task ChatCompletions_Streaming_PropagatesUsageField()
+    {
+        // Arrange：provider 在流式末端吐出 usage 哨兵分片
+        var (controller, provider) = CreateControllerWithProvider();
+        provider.EmitUsage = true;
+        controller.Response.Body = new MemoryStream();
+
+        var request = new OpenAIChatCompletionRequest
+        {
+            Model = "gpt-4",
+            Messages = new List<OpenAIChatMessage>
+            {
+                new() { Role = "user", Content = "hi" }
+            },
+            Stream = true
+        };
+
+        // Act：流式分支把 SSE 写入 Response.Body
+        await controller.ChatCompletions(request, CancellationToken.None);
+
+        // Assert：响应流必须包含 usage（已用 token）字段及 token 分项
+        controller.Response.Body.Position = 0;
+        var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
+        body.Should().Contain("\"usage\"", "流式响应必须透传 usage 字段");
+        body.Should().Contain("prompt_tokens", "usage 必须包含 prompt_tokens");
+        body.Should().Contain("completion_tokens", "usage 必须包含 completion_tokens");
+        body.Should().Contain("total_tokens", "usage 必须包含 total_tokens");
+    }
+
     }
 
 /// <summary>
@@ -309,6 +339,12 @@ public class TestAIProvider : IAIProvider
         ProviderType = type;
         SupportedModels = models.ToList();
     }
+
+    /// <summary>
+    /// 测试开关：为 true 时，流式响应末尾额外吐出一个 usage 哨兵分片（模拟 OpenAI include_usage=true）。
+    /// 用于验证网关是否把「已用 token」字段透传到 SSE 流。
+    /// </summary>
+    public bool EmitUsage { get; set; }
 
     public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
     {
@@ -351,6 +387,23 @@ public class TestAIProvider : IAIProvider
             DeltaContent = " stream",
             FinishReason = "stop"
         };
+
+        // 模拟 OpenAI include_usage=true 末端 usage 哨兵分片（choices 为空、携带 usage）
+        if (EmitUsage)
+        {
+            yield return new UnifiedStreamChunk
+            {
+                Id = "test-" + Guid.NewGuid().ToString("N")[..8],
+                Model = request.Model,
+                ChoiceIndex = 0,
+                Usage = new UnifiedUsage
+                {
+                    PromptTokens = 10,
+                    CompletionTokens = 5,
+                    TotalTokens = 15
+                }
+            };
+        }
     }
 
     public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)

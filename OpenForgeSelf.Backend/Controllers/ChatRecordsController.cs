@@ -4,28 +4,34 @@ using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Controllers;
 
+/// <summary>
+/// 聊天会话视图 API：以「会话」为维度列出/查看，会话下挂轮次（ChatTurn）明细。
+/// app 自有聊天（Source=App）与代理录制（Source=Proxy）统一在此聚合。
+/// </summary>
 [ApiController]
-[Route("api/chat-records")]
+[Route("api/chat-sessions")]
 public class ChatRecordsController : ControllerBase
 {
-    private readonly IChatRecordService _chatRecordService;
+    private readonly IChatSessionService _chatSessionService;
     private readonly ILogService _logService;
 
-    public ChatRecordsController(IChatRecordService chatRecordService, ILogService logService)
+    public ChatRecordsController(IChatSessionService chatSessionService, ILogService logService)
     {
-        _chatRecordService = chatRecordService;
+        _chatSessionService = chatSessionService;
         _logService = logService;
     }
 
     /// <summary>
-    /// 获取聊天记录列表（支持分页和过滤）
+    /// 分页列出会话。支持来源(App/Proxy/All)、客户端类型、API 风格、时间区间与关键字过滤。
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetRecords(
-        [FromQuery] string? sessionId,
+    public async Task<IActionResult> GetSessions(
+        [FromQuery] string? source,
+        [FromQuery] string? clientKind,
         [FromQuery] string? style,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
+        [FromQuery] string? key,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -35,12 +41,12 @@ public class ChatRecordsController : ControllerBase
             if (pageSize < 1) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            var (records, total) = await _chatRecordService.GetRecordsAsync(sessionId, style, from, to, page, pageSize);
+            var (sessions, total) = await _chatSessionService.GetSessionsAsync(source, clientKind, style, from, to, key, page, pageSize);
 
             return Ok(new
             {
                 success = true,
-                data = records,
+                data = sessions,
                 total,
                 page,
                 pageSize,
@@ -49,31 +55,31 @@ public class ChatRecordsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logService.Error("获取聊天记录列表失败: {0}", ex.Message);
+            _logService.Error("获取会话列表失败: {0}", ex.Message);
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
 
     /// <summary>
-    /// 获取聊天记录详情
+    /// 获取单个会话及其轮次明细（按 TurnIndex 升序）。
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(long id)
+    public async Task<IActionResult> GetSession(long id)
     {
         try
         {
-            var record = await _chatRecordService.GetByIdAsync(id);
+            var (session, turns) = await _chatSessionService.GetSessionAsync(id);
 
-            if (record == null)
+            if (session == null)
             {
-                return NotFound(new { success = false, message = $"聊天记录不存在，ID: {id}" });
+                return NotFound(new { success = false, message = $"会话不存在，ID: {id}" });
             }
 
-            return Ok(new { success = true, data = record });
+            return Ok(new { success = true, data = new { session, turns } });
         }
         catch (Exception ex)
         {
-            _logService.Error("获取聊天记录详情失败: {0}", ex.Message);
+            _logService.Error("获取会话详情失败: {0}", ex.Message);
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }

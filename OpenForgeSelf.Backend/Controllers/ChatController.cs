@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -16,15 +17,17 @@ public class ChatController : ControllerBase
     private readonly IAIService _aiService;
     private readonly IMessageService _messageService;
     private readonly ILogService _logService;
+    private readonly IChatSessionService _chatSessionService;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    public ChatController(IAIService aiService, IMessageService messageService, ILogService logService)
+    public ChatController(IAIService aiService, IMessageService messageService, ILogService logService, IChatSessionService chatSessionService)
     {
         _aiService = aiService;
         _messageService = messageService;
         _logService = logService;
+        _chatSessionService = chatSessionService;
     }
 
     /// <summary>
@@ -56,6 +59,9 @@ public class ChatController : ControllerBase
 
             // 获取历史消息
             var history = await _messageService.GetHistoryAsync(sessionId);
+
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行）
+            await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
 
             // 构建AI请求消息
             var aiMessages = history.Select(m => new AIChatMessage
@@ -119,6 +125,9 @@ public class ChatController : ControllerBase
 
             // 获取历史消息
             var history = await _messageService.GetHistoryAsync(sessionId);
+
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行）
+            await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
 
             // 构建AI请求消息
             var aiMessages = history.Select(m => new AIChatMessage

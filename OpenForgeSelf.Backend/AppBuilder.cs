@@ -109,9 +109,10 @@ public static class AppBuilder
         builder.Services.AddScoped<IUsageStatsService, UsageStatsService>();
         builder.Services.AddScoped<IWorkflowUsageService, WorkflowUsageService>();
         builder.Services.AddScoped<IWorkflowRecommendationService, WorkflowRecommendationService>();
-        builder.Services.AddScoped<IChatRecordService, ChatRecordService>();
+        builder.Services.AddScoped<IChatTurnService, ChatTurnService>();
+        builder.Services.AddScoped<IChatSessionService, ChatSessionService>();
         builder.Services.AddSingleton<IWebSocketBroadcaster, WebSocketBroadcaster>();
-        builder.Services.AddScoped<IChatRecordStreamRecorder, ChatRecordStreamRecorder>();
+        builder.Services.AddScoped<IChatTurnStreamRecorder, ChatTurnStreamRecorder>();
 
         builder.Services.AddScoped<IMemoryService, MemoryServiceXCode>();
         builder.Services.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
@@ -243,6 +244,10 @@ public static class AppBuilder
 
         // AI 网关服务：注册表单例初始为空，启动阶段从数据库重载
         builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
+
+        // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 Data/ImageRecognitionCache
+        var imageCacheRoot = Path.Combine(builder.Environment.ContentRootPath, "Data", "ImageRecognitionCache");
+        builder.Services.AddSingleton<IImageRecognitionCache>(new LocalFileImageRecognitionCache(imageCacheRoot));
 
         builder.Services.AddPluginManager();
 

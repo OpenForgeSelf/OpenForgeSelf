@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { ChatRecord } from '@/types/chatRecords'
+import type { ChatTurn } from '@/types/chatRecords'
 import { parseJsonSequence } from '@/utils/jsonSequence'
 import TruncatedContent from './TruncatedContent.vue'
 import JsonTreeView from './JsonTreeView.vue'
 
 const props = defineProps<{
-  record: ChatRecord
+  record: ChatTurn
 }>()
 
 // ===== 通用类型：把三种风格的请求结构归一化为「消息 + 内容块」 =====
@@ -45,7 +45,17 @@ const responseChunks = computed<Record<string, unknown>[]>(() => {
   return []
 })
 
-const requestBody = computed<Record<string, unknown>>(() => (props.record.requestBody || {}) as Record<string, unknown>)
+const requestBody = computed<Record<string, unknown>>(() => {
+  const rb = props.record.requestBody
+  if (typeof rb === 'string') {
+    try {
+      return JSON.parse(rb) as Record<string, unknown>
+    } catch {
+      return {}
+    }
+  }
+  return (rb || {}) as Record<string, unknown>
+})
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
@@ -346,7 +356,7 @@ function systemContent(msg: MessageBlock): string {
     </div>
     <div class="head-meta">
       <span><b>Model</b> {{ record.model }}</span>
-      <span><b>Session</b> {{ record.sessionId.slice(0, 12) }}…</span>
+      <span><b>Session</b> {{ record.sessionKey.slice(0, 12) }}…</span>
       <span><b>耗时</b> {{ formatDuration(record.durationMs) }}</span>
       <span><b>消息</b> {{ record.messageCount }}</span>
       <span><b>工具</b> {{ record.toolCallCount }}</span>
@@ -431,7 +441,7 @@ function systemContent(msg: MessageBlock): string {
       <details :open="rawExpanded" class="raw-block">
         <summary class="raw-summary">基本信息</summary>
         <div class="info-grid">
-          <div class="info-item"><span class="info-label">SessionId</span><span class="info-value">{{ record.sessionId }}</span></div>
+          <div class="info-item"><span class="info-label">SessionKey</span><span class="info-value">{{ record.sessionKey }}</span></div>
           <div class="info-item"><span class="info-label">Style</span><span class="info-value">{{ record.style }}</span></div>
           <div class="info-item"><span class="info-label">Model</span><span class="info-value">{{ record.model }}</span></div>
           <div class="info-item"><span class="info-label">创建时间</span><span class="info-value">{{ record.createdTime }}</span></div>

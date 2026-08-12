@@ -7,20 +7,25 @@ using Microsoft.Extensions.Configuration;
 namespace OpenForgeSelf.Backend.Tests.Integration;
 
 /// <summary>
-/// 聊天记录真实LLM配置集成测试 - 使用配置文件中的真实LLM配置进行测试
+/// 聊天记录真实LLM配置集成测试 - 使用配置文件中的真实LLM配置进行测试。
+/// 会话化重构适配：记录保存走 ChatTurnService（ChatTurn + SessionKey），
+/// 控制器走会话视图（ChatRecordsController 依赖 IChatSessionService：GetSessions/GetSession）。
+/// 除配置断言外，各用例不真正调用 LLM，仅用配置值构造仿真请求/响应体。
 /// </summary>
 [Collection("XCode")]
 public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
 {
     private readonly Mock<ILogService> _mockLogService;
-    private readonly ChatRecordService _chatRecordService;
+    private readonly ChatTurnService _chatTurnService;
+    private readonly ChatSessionService _chatSessionService;
     private readonly IConfiguration _configuration;
     private readonly string _uniquePrefix;
 
     public ChatRecordRealLLMTests(XCodeTestFixture fixture)
     {
         _mockLogService = new Mock<ILogService>();
-        _chatRecordService = new ChatRecordService(_mockLogService.Object);
+        _chatTurnService = new ChatTurnService(_mockLogService.Object);
+        _chatSessionService = new ChatSessionService(_mockLogService.Object);
         _uniquePrefix = "real-llm-" + Guid.NewGuid().ToString("N")[..8] + "-";
 
         var builder = new ConfigurationBuilder()
@@ -34,7 +39,7 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
 
     private ChatRecordsController CreateController()
     {
-        return new ChatRecordsController(_chatRecordService, _mockLogService.Object);
+        return new ChatRecordsController(_chatSessionService, _mockLogService.Object);
     }
 
     [Fact]
@@ -52,11 +57,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task ChatRecordService_ShouldSaveRecordWithRealStyleFormat()
+    public async Task ChatTurnService_ShouldSaveTurnWithRealStyleFormat()
     {
         // Arrange
-        var controller = CreateController();
-        var sessionId = _uniquePrefix + "real-style";
+        var sessionKey = _uniquePrefix + "real-style";
         var model = _configuration["AI:ModelName"] ?? "gpt-4";
         var apiEndpoint = _configuration["AI:ApiEndpoint"] ?? "http://localhost:1234/v1/chat/completions";
 
@@ -90,9 +94,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
             usage = new { prompt_tokens = 10, completion_tokens = 20, total_tokens = 30 }
         };
 
-        var record = new ChatRecord
+        var turn = new ChatTurn
         {
-            SessionId = sessionId,
+            SessionKey = sessionKey,
+            TurnIndex = 1,
             Style = "OpenAI_Chat",
             Model = model,
             RequestMethod = "POST",
@@ -112,32 +117,38 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
         };
 
         // Act
-        await _chatRecordService.SaveRecordAsync(record);
+        await _chatTurnService.SaveTurnAsync(turn);
 
         // Assert
-        var savedRecord = await _chatRecordService.GetByIdAsync(record.Id);
-        savedRecord.Should().NotBeNull();
-        savedRecord!.SessionId.Should().Be(sessionId);
-        savedRecord.Style.Should().Be("OpenAI_Chat");
-        savedRecord.Model.Should().Be(model);
-        savedRecord.RequestBody.Should().Contain("messages");
-        savedRecord.ResponseBody.Should().Contain("assistant");
-        savedRecord.Temperature.Should().Be(0.7);
-        savedRecord.MaxTokens.Should().Be(100);
-        savedRecord.DurationMs.Should().Be(350);
+        var savedTurn = await _chatTurnService.GetByIdAsync(turn.Id);
+        savedTurn.Should().NotBeNull();
+        savedTurn!.SessionKey.Should().Be(sessionKey);
+        savedTurn.Style.Should().Be("OpenAI_Chat");
+        savedTurn.Model.Should().Be(model);
+        savedTurn.RequestBody.Should().Contain("messages");
+        savedTurn.ResponseBody.Should().Contain("assistant");
+        savedTurn.Temperature.Should().Be(0.7);
+        savedTurn.MaxTokens.Should().Be(100);
+        savedTurn.DurationMs.Should().Be(350);
     }
 
     [Fact]
-    public async Task ChatRecordsController_ShouldReturnRecordWithAllFields()
+    public async Task ChatRecordsController_ShouldReturnSessionWithAllFields()
     {
-        // Arrange
+        // Arrange：先 upsert 会话 + 保存一轮，再走控制器详情接口
         var controller = CreateController();
-        var sessionId = _uniquePrefix + "all-fields";
+        var sessionKey = _uniquePrefix + "all-fields";
         var model = _configuration["AI:ModelName"] ?? "test-model";
 
-        var record = new ChatRecord
+        var session = await _chatSessionService.UpsertSessionAsync(
+            sessionKey, SessionSource.Proxy, model, ClientKind.Other, "OpenAI_Chat", "hi", 2, provider: "test-provider");
+        session.Id.Should().BeGreaterThan(0);
+
+        await _chatTurnService.SaveTurnAsync(new ChatTurn
         {
-            SessionId = sessionId,
+            ChatSessionId = session.Id,
+            TurnIndex = 1,
+            SessionKey = sessionKey,
             Style = "OpenAI_Chat",
             Model = model,
             RequestMethod = "POST",
@@ -154,12 +165,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
             HasReasoning = false,
             DurationMs = 200,
             CreatedTime = DateTime.Now
-        };
-
-        await _chatRecordService.SaveRecordAsync(record);
+        });
 
         // Act
-        var result = await controller.GetById(record.Id);
+        var result = await controller.GetSession(session.Id);
 
         // Assert
         result.Should().BeOfType<OkObjectResult>();
@@ -168,13 +177,14 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task ChatRecord_WithOpenAIResponsesStyle_ShouldSaveCorrectly()
+    public async Task ChatTurn_WithOpenAIResponsesStyle_ShouldSaveCorrectly()
     {
         // Arrange
-        var sessionId = _uniquePrefix + "responses-style";
-        var record = new ChatRecord
+        var sessionKey = _uniquePrefix + "responses-style";
+        var turn = new ChatTurn
         {
-            SessionId = sessionId,
+            SessionKey = sessionKey,
+            TurnIndex = 1,
             Style = "OpenAI_Responses",
             Model = "gpt-4o",
             RequestMethod = "POST",
@@ -194,10 +204,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
         };
 
         // Act
-        await _chatRecordService.SaveRecordAsync(record);
+        await _chatTurnService.SaveTurnAsync(turn);
 
         // Assert
-        var saved = await _chatRecordService.GetByIdAsync(record.Id);
+        var saved = await _chatTurnService.GetByIdAsync(turn.Id);
         saved.Should().NotBeNull();
         saved!.Style.Should().Be("OpenAI_Responses");
         saved.RequestBody.Should().Contain("instructions");
@@ -205,13 +215,14 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task ChatRecord_WithAnthropicStyle_ShouldSaveCorrectly()
+    public async Task ChatTurn_WithAnthropicStyle_ShouldSaveCorrectly()
     {
         // Arrange
-        var sessionId = _uniquePrefix + "anthropic-style";
-        var record = new ChatRecord
+        var sessionKey = _uniquePrefix + "anthropic-style";
+        var turn = new ChatTurn
         {
-            SessionId = sessionId,
+            SessionKey = sessionKey,
+            TurnIndex = 1,
             Style = "Anthropic_Messages",
             Model = "claude-3-opus",
             RequestMethod = "POST",
@@ -231,10 +242,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
         };
 
         // Act
-        await _chatRecordService.SaveRecordAsync(record);
+        await _chatTurnService.SaveTurnAsync(turn);
 
         // Assert
-        var saved = await _chatRecordService.GetByIdAsync(record.Id);
+        var saved = await _chatTurnService.GetByIdAsync(turn.Id);
         saved.Should().NotBeNull();
         saved!.Style.Should().Be("Anthropic_Messages");
         saved.HasReasoning.Should().BeTrue();
@@ -242,10 +253,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task ChatRecord_WithToolCalls_ShouldSaveCorrectly()
+    public async Task ChatTurn_WithToolCalls_ShouldSaveCorrectly()
     {
         // Arrange
-        var sessionId = _uniquePrefix + "tool-calls";
+        var sessionKey = _uniquePrefix + "tool-calls";
         var requestBody = new
         {
             model = "gpt-4",
@@ -290,9 +301,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
             }
         };
 
-        var record = new ChatRecord
+        var turn = new ChatTurn
         {
-            SessionId = sessionId,
+            SessionKey = sessionKey,
+            TurnIndex = 1,
             Style = "OpenAI_Chat",
             Model = "gpt-4",
             RequestMethod = "POST",
@@ -312,10 +324,10 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
         };
 
         // Act
-        await _chatRecordService.SaveRecordAsync(record);
+        await _chatTurnService.SaveTurnAsync(turn);
 
         // Assert
-        var saved = await _chatRecordService.GetByIdAsync(record.Id);
+        var saved = await _chatTurnService.GetByIdAsync(turn.Id);
         saved.Should().NotBeNull();
         saved!.ToolCallCount.Should().Be(1);
         saved.RequestBody.Should().Contain("tools");
@@ -323,55 +335,39 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task ChatRecordsApi_ShouldReturnPagedResults()
+    public async Task ChatSessionsApi_ShouldReturnPagedResults()
     {
-        // Arrange
+        // Arrange：15 个会话（原用例为 15 条记录，会话化后每 key 一会话）
         var controller = CreateController();
-        var sessionId = _uniquePrefix + "paged";
+        var sessionKey = _uniquePrefix + "paged";
 
         for (int i = 0; i < 15; i++)
         {
-            await _chatRecordService.SaveRecordAsync(new ChatRecord
-            {
-                SessionId = sessionId + i,
-                Style = "OpenAI_Chat",
-                Model = "test-model",
-                RequestMethod = "POST",
-                RequestPath = "/v1/chat/completions",
-                RequestBody = "{}",
-                ResponseStatus = 200,
-                ResponseBody = "{}",
-                Temperature = 0.7,
-                MaxTokens = 100,
-                MessageCount = 1,
-                ToolCallCount = 0,
-                HasReasoning = false,
-                DurationMs = 100 + i,
-                CreatedTime = DateTime.Now.AddMinutes(-i)
-            });
+            await _chatSessionService.UpsertSessionAsync(
+                sessionKey + i, SessionSource.Proxy, "test-model", ClientKind.Other, "OpenAI_Chat", null, 1);
         }
 
         // Act
-        var result = await controller.GetRecords(null, null, null, null, 1, 10);
+        var result = await controller.GetSessions(null, null, null, null, null, sessionKey, 1, 10);
 
         // Assert
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
         okResult.Value.Should().NotBeNull();
-        
+
         // 验证响应中包含数据属性
         var resultType = okResult.Value!.GetType();
         resultType.GetProperty("success").Should().NotBeNull();
     }
 
     [Fact]
-    public async Task ChatRecordsController_GetById_NonExisting_ShouldReturnNotFound()
+    public async Task ChatRecordsController_GetSession_NonExisting_ShouldReturnNotFound()
     {
         // Arrange
         var controller = CreateController();
 
         // Act
-        var result = await controller.GetById(999999999);
+        var result = await controller.GetSession(999999999);
 
         // Assert
         result.Should().BeOfType<NotFoundObjectResult>();

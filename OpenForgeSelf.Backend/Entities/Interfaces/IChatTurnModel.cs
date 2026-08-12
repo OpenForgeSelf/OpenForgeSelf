@@ -7,15 +7,21 @@ using System.Xml.Serialization;
 
 namespace OpenForgeSelf.Backend.Entities;
 
-/// <summary>{name}。</summary>
-public partial interface IChatRecordModel
+/// <summary>聊天轮次模型接口（XCode 生成分部）。</summary>
+public partial interface IChatTurnModel
 {
     #region 属性
-    /// <summary>记录ID</summary>
+    /// <summary>轮次ID</summary>
     Int64 Id { get; set; }
 
-    /// <summary>会话ID</summary>
-    String SessionId { get; set; }
+    /// <summary>所属会话ID</summary>
+    Int64 ChatSessionId { get; set; }
+
+    /// <summary>轮次序号</summary>
+    Int32 TurnIndex { get; set; }
+
+    /// <summary>会话键</summary>
+    String SessionKey { get; set; }
 
     /// <summary>API风格</summary>
     String Style { get; set; }
@@ -44,11 +50,32 @@ public partial interface IChatRecordModel
     /// <summary>响应体JSON</summary>
     String ResponseBody { get; set; }
 
-    /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
+    /// <summary>流式请求关联ID</summary>
     String RequestId { get; set; }
 
-    /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
+    /// <summary>实时回复文本</summary>
     String ResponseText { get; set; }
+
+    /// <summary>用户消息速览</summary>
+    String UserPreview { get; set; }
+
+    /// <summary>助手回复速览</summary>
+    String AssistantPreview { get; set; }
+
+    /// <summary>输入Tokens</summary>
+    Int32 PromptTokens { get; set; }
+
+    /// <summary>输出Tokens</summary>
+    Int32 CompletionTokens { get; set; }
+
+    /// <summary>总Tokens</summary>
+    Int32 TotalTokens { get; set; }
+
+    /// <summary>首Token延迟</summary>
+    Int64 FirstTokenMs { get; set; }
+
+    /// <summary>失败原因</summary>
+    String ErrorMessage { get; set; }
 
     /// <summary>温度参数</summary>
     Double Temperature { get; set; }

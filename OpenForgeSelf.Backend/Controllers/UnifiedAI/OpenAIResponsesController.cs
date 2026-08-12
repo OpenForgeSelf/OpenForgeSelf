@@ -19,22 +19,25 @@ public class OpenAIResponsesController : ControllerBase
 {
     private readonly AIProviderRegistry _registry;
     private readonly ILogService _logService;
-    private readonly IChatRecordService _chatRecordService;
-    private readonly IChatRecordStreamRecorder _streamRecorder;
+    private readonly IChatTurnService _chatTurnService;
+    private readonly IChatTurnStreamRecorder _streamRecorder;
+    private readonly IChatSessionService _chatSessionService;
 
-    public OpenAIResponsesController(AIProviderRegistry registry, ILogService logService, IChatRecordService chatRecordService, IChatRecordStreamRecorder streamRecorder)
+    public OpenAIResponsesController(AIProviderRegistry registry, ILogService logService, IChatTurnService chatTurnService, IChatTurnStreamRecorder streamRecorder, IChatSessionService chatSessionService)
     {
         _registry = registry;
         _logService = logService;
-        _chatRecordService = chatRecordService;
+        _chatTurnService = chatTurnService;
         _streamRecorder = streamRecorder;
+        _chatSessionService = chatSessionService;
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateResponse([FromBody] OpenAIResponseRequest request, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        ChatRecord? record = null;
+        ChatTurn? turn = null;
+        ChatSession? chatSession = null;
 
         try
         {
@@ -56,11 +59,19 @@ public class OpenAIResponsesController : ControllerBase
             _logService.Info("Responses API 请求 - 模型: {0}, 提供者: {1}",
                 request.Model, provider.ProviderName);
 
-            // 创建聊天记录
-            var sessionId = Request.Headers["X-Session-Id"].FirstOrDefault() ?? Guid.NewGuid().ToString("N");
-            record = new ChatRecord
+            // 会话归并
+            var conversationKey = ChatSessionResolver.ResolveConversationKey(Request, request);
+            var clientKind = ChatSessionResolver.DeriveClientKind(Request);
+            var firstUserMsg = ChatSessionResolver.ExtractFirstUserMessage(request);
+            chatSession = await _chatSessionService.UpsertSessionAsync(conversationKey, SessionSource.Proxy, request.Model, clientKind, "OpenAI_Responses", firstUserMsg, 1, provider: provider.ProviderName);
+
+            // 创建聊天轮次
+            turn = new ChatTurn
             {
-                SessionId = sessionId,
+                ChatSessionId = chatSession.Id,
+                TurnIndex = chatSession.RequestCount,
+                SessionKey = chatSession.SessionKey,
+                UserPreview = ChatSessionResolver.Truncate(firstUserMsg, 500),
                 Style = "OpenAI_Responses",
                 Model = request.Model,
                 RequestMethod = "POST",
@@ -77,7 +88,7 @@ public class OpenAIResponsesController : ControllerBase
 
             if (request.Stream)
             {
-                await HandleStreamAsync(unifiedRequest, provider, request.Model, record, stopwatch, cancellationToken);
+                await HandleStreamAsync(unifiedRequest, provider, request.Model, turn, stopwatch, cancellationToken);
                 return new EmptyResult();
             }
             else
@@ -85,13 +96,18 @@ public class OpenAIResponsesController : ControllerBase
                 var response = await provider.ChatAsync(unifiedRequest, cancellationToken);
                 var responsesResponse = ConvertToResponsesResponse(response, request.Model);
 
-                // 更新记录
+                // 更新轮次
                 stopwatch.Stop();
-                record.ResponseStatus = 200;
-                record.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
-                record.ResponseBody = JsonSerializer.Serialize(responsesResponse, new JsonSerializerOptions { WriteIndented = false });
-                record.DurationMs = stopwatch.ElapsedMilliseconds;
-                await _chatRecordService.SaveRecordAsync(record);
+                turn.ResponseStatus = 200;
+                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+                turn.ResponseBody = JsonSerializer.Serialize(responsesResponse, new JsonSerializerOptions { WriteIndented = false });
+                turn.DurationMs = stopwatch.ElapsedMilliseconds;
+                turn.PromptTokens = response.Usage?.PromptTokens ?? 0;
+                turn.CompletionTokens = response.Usage?.CompletionTokens ?? 0;
+                turn.TotalTokens = response.Usage?.TotalTokens ?? 0;
+                turn.AssistantPreview = ChatSessionResolver.Truncate(response.Choices.FirstOrDefault()?.Content, 500);
+                await _chatTurnService.SaveTurnAsync(turn);
+                await _chatSessionService.RecordTurnStatsAsync(chatSession.Id, 200, turn.PromptTokens, turn.CompletionTokens);
 
                 return Ok(responsesResponse);
             }
@@ -100,13 +116,15 @@ public class OpenAIResponsesController : ControllerBase
         {
             stopwatch.Stop();
 
-            // 更新错误记录
-            if (record != null)
+            // 更新错误轮次
+            if (turn != null)
             {
-                record.ResponseStatus = 500;
-                record.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
-                record.DurationMs = stopwatch.ElapsedMilliseconds;
-                await _chatRecordService.SaveRecordAsync(record);
+                turn.ResponseStatus = 500;
+                turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+                turn.DurationMs = stopwatch.ElapsedMilliseconds;
+                turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+                await _chatTurnService.SaveTurnAsync(turn);
+                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, 500, 0, 0);
             }
 
             _logService.Error("Responses API 处理失败: {0}", ex.Message);
@@ -114,7 +132,7 @@ public class OpenAIResponsesController : ControllerBase
         }
     }
 
-    private async Task HandleStreamAsync(UnifiedChatRequest request, IAIProvider provider, string modelName, ChatRecord record, Stopwatch stopwatch, CancellationToken cancellationToken)
+    private async Task HandleStreamAsync(UnifiedChatRequest request, IAIProvider provider, string modelName, ChatTurn turn, Stopwatch stopwatch, CancellationToken cancellationToken)
     {
         Response.Headers.Append("Content-Type", "text/event-stream");
         Response.Headers.Append("Cache-Control", "no-cache");
@@ -124,11 +142,11 @@ public class OpenAIResponsesController : ControllerBase
         var responseId = $"resp_{Guid.NewGuid():N}";
         var created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var responseBody = new StringBuilder();
-        ChatRecordStreamSession? session = null;
+        ChatTurnStreamSession? streamSession = null;
 
         try
         {
-            session = await _streamRecorder.BeginAsync(record);
+            streamSession = await _streamRecorder.BeginAsync(turn);
             var createdEvent = new
             {
                 type = "response.created",
@@ -174,8 +192,11 @@ public class OpenAIResponsesController : ControllerBase
                     responseBody.Append(JsonSerializer.Serialize(deltaEvent));
                 }
 
-                if (session != null)
-                    await session.AppendChunkAsync(chunk.DeltaContent);
+                if (streamSession != null)
+                    await streamSession.AppendChunkAsync(chunk.DeltaContent);
+
+                if (turn.FirstTokenMs == 0 && !string.IsNullOrEmpty(chunk.DeltaContent))
+                    turn.FirstTokenMs = stopwatch.ElapsedMilliseconds;
             }
 
             var completedEvent = new
@@ -210,30 +231,44 @@ public class OpenAIResponsesController : ControllerBase
             await WriteSseRawAsync("[DONE]");
             responseBody.Append("[DONE]");
 
-            // 更新记录
+            // 更新轮次
             stopwatch.Stop();
-            record.ResponseStatus = 200;
-            record.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
-            record.ResponseBody = responseBody.ToString();
-            record.DurationMs = stopwatch.ElapsedMilliseconds;
-            if (session != null)
-                await session.CompleteAsync(responseBody.ToString(), 200, stopwatch.ElapsedMilliseconds);
+            turn.ResponseStatus = 200;
+            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+            turn.ResponseBody = responseBody.ToString();
+            turn.DurationMs = stopwatch.ElapsedMilliseconds;
+            turn.AssistantPreview = ChatSessionResolver.Truncate(turn.ResponseText, 500);
+            if (streamSession != null)
+            {
+                await streamSession.CompleteAsync(responseBody.ToString(), 200, stopwatch.ElapsedMilliseconds);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 200, turn.PromptTokens, turn.CompletionTokens);
+            }
             else
-                await _chatRecordService.SaveRecordAsync(record);
+            {
+                await _chatTurnService.SaveTurnAsync(turn);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 200, turn.PromptTokens, turn.CompletionTokens);
+            }
         }
         catch (Exception ex)
         {
             _logService.Error("Responses API 流式响应异常: {0}", ex.Message);
 
-            // 更新错误记录
+            // 更新错误轮次
             stopwatch.Stop();
-            record.ResponseStatus = 500;
-            record.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
-            record.DurationMs = stopwatch.ElapsedMilliseconds;
-            if (session != null)
-                await session.FailAsync(500, stopwatch.ElapsedMilliseconds);
+            turn.ResponseStatus = 500;
+            turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+            turn.DurationMs = stopwatch.ElapsedMilliseconds;
+            turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+            if (streamSession != null)
+            {
+                await streamSession.FailAsync(500, stopwatch.ElapsedMilliseconds);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+            }
             else
-                await _chatRecordService.SaveRecordAsync(record);
+            {
+                await _chatTurnService.SaveTurnAsync(turn);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+            }
         }
     }
 

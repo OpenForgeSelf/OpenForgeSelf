@@ -5,63 +5,64 @@ using OpenForgeSelf.Backend.Entities;
 namespace OpenForgeSelf.Backend.Services;
 
 /// <summary>
-/// 聊天记录流式录制器。
+/// 聊天轮次流式录制器。
 /// 在代理 LLM 流式响应时，一边由控制器把分片回给调用方，
 /// 一边通过本服务把纯文本增量落库（每满 1000 字符或 500ms 落一次）+ WebSocket 推送给前端实时展示。
-/// 同一请求生成唯一 RequestId，按该 Id 追加更新同一条记录；流结束只保留最后一批（完整响应体）。
+/// 同一请求生成唯一 RequestId，按该 Id 追加更新同一条轮次；流结束只保留最后一批（完整响应体）。
+/// 轮次归属的会话（ChatSessionId/ChatSessionId/SessionKey/TurnIndex）由控制器在调用前填好。
 /// </summary>
-public interface IChatRecordStreamRecorder
+public interface IChatTurnStreamRecorder
 {
-    Task<ChatRecordStreamSession> BeginAsync(ChatRecord record);
+    Task<ChatTurnStreamSession> BeginAsync(ChatTurn turn);
 }
 
-public class ChatRecordStreamRecorder : IChatRecordStreamRecorder
+public class ChatTurnStreamRecorder : IChatTurnStreamRecorder
 {
-    private readonly IChatRecordService _service;
+    private readonly IChatTurnService _service;
     private readonly IWebSocketBroadcaster _broadcaster;
 
-    public ChatRecordStreamRecorder(IChatRecordService service, IWebSocketBroadcaster broadcaster)
+    public ChatTurnStreamRecorder(IChatTurnService service, IWebSocketBroadcaster broadcaster)
     {
         _service = service;
         _broadcaster = broadcaster;
     }
 
-    public async Task<ChatRecordStreamSession> BeginAsync(ChatRecord record)
+    public async Task<ChatTurnStreamSession> BeginAsync(ChatTurn turn)
     {
-        var session = new ChatRecordStreamSession(record, _service, _broadcaster);
+        var session = new ChatTurnStreamSession(turn, _service, _broadcaster);
         await session.InitializeAsync();
         return session;
     }
 }
 
 /// <summary>
-/// 单次流式请求的会话状态：持有记录引用、累加纯文本、节流落库、推送前端。
+/// 单次流式请求的会话状态：持有轮次引用、累加纯文本、节流落库、推送前端。
 /// </summary>
-public class ChatRecordStreamSession
+public class ChatTurnStreamSession
 {
-    private readonly IChatRecordService _service;
+    private readonly IChatTurnService _service;
     private readonly IWebSocketBroadcaster _broadcaster;
     private readonly StringBuilder _sb = new();
     private int _flushedLength;
     private DateTime _lastFlush = DateTime.UtcNow;
     private bool _finalized;
 
-    public ChatRecord Record { get; }
+    public ChatTurn Turn { get; }
     public string RequestId { get; }
 
-    public ChatRecordStreamSession(ChatRecord record, IChatRecordService service, IWebSocketBroadcaster broadcaster)
+    public ChatTurnStreamSession(ChatTurn turn, IChatTurnService service, IWebSocketBroadcaster broadcaster)
     {
-        Record = record;
+        Turn = turn;
         _service = service;
         _broadcaster = broadcaster;
         RequestId = Guid.NewGuid().ToString("N");
-        Record.RequestId = RequestId;
+        Turn.RequestId = RequestId;
     }
 
     internal async Task InitializeAsync()
     {
-        // 首条插入：让记录立即落库（含 RequestId），前端可尽早关联到该请求。
-        await _service.UpsertRecordAsync(Record);
+        // 首条插入：让轮次立即落库（含 RequestId），前端可尽早关联到该请求。
+        await _service.UpsertTurnAsync(Turn);
     }
 
     /// <summary>
@@ -78,7 +79,7 @@ public class ChatRecordStreamSession
         await _broadcaster.BroadcastAsync("chat_record_chunk", new
         {
             requestId = RequestId,
-            sessionId = Record.SessionId,
+            sessionId = Turn.SessionKey,
             text,
             isDone = false
         });
@@ -91,8 +92,8 @@ public class ChatRecordStreamSession
     {
         _flushedLength = _sb.Length;
         _lastFlush = DateTime.UtcNow;
-        Record.ResponseText = _sb.ToString();
-        await _service.UpsertRecordAsync(Record);
+        Turn.ResponseText = _sb.ToString();
+        await _service.UpsertTurnAsync(Turn);
     }
 
     /// <summary>
@@ -104,25 +105,25 @@ public class ChatRecordStreamSession
             return;
         _finalized = true;
 
-        Record.ResponseBody = finalResponseBody;
-        Record.ResponseText = _sb.ToString();
-        Record.ResponseStatus = status;
-        Record.DurationMs = durationMs;
-        Record.RequestId = RequestId;
-        await _service.UpsertRecordAsync(Record);
+        Turn.ResponseBody = finalResponseBody;
+        Turn.ResponseText = _sb.ToString();
+        Turn.ResponseStatus = status;
+        Turn.DurationMs = durationMs;
+        Turn.RequestId = RequestId;
+        await _service.UpsertTurnAsync(Turn);
 
         await _broadcaster.BroadcastAsync("chat_record_completed", new
         {
             requestId = RequestId,
-            sessionId = Record.SessionId,
-            recordId = Record.Id,
+            sessionId = Turn.SessionKey,
+            recordId = Turn.Id,
             isDone = true
         });
     }
 
     /// <summary>
     /// 流异常结束：保留已增量写入的纯文本，把错误体定稿，并通知前端「完成（错误）」。
-    /// 调用方需先把 Record.ResponseBody 写为错误 JSON。
+    /// 调用方需先把 Turn.ResponseBody 写为错误 JSON。
     /// </summary>
     public async Task FailAsync(int status, long durationMs)
     {
@@ -130,17 +131,17 @@ public class ChatRecordStreamSession
             return;
         _finalized = true;
 
-        Record.ResponseText = _sb.ToString();
-        Record.ResponseStatus = status;
-        Record.DurationMs = durationMs;
-        Record.RequestId = RequestId;
-        await _service.UpsertRecordAsync(Record);
+        Turn.ResponseText = _sb.ToString();
+        Turn.ResponseStatus = status;
+        Turn.DurationMs = durationMs;
+        Turn.RequestId = RequestId;
+        await _service.UpsertTurnAsync(Turn);
 
         await _broadcaster.BroadcastAsync("chat_record_completed", new
         {
             requestId = RequestId,
-            sessionId = Record.SessionId,
-            recordId = Record.Id,
+            sessionId = Turn.SessionKey,
+            recordId = Turn.Id,
             isDone = true,
             error = true
         });

@@ -13,16 +13,21 @@ public class MultimodalProcessor
     private readonly AIProviderRegistry _registry;
     private readonly IAIProvider? _visionProvider;
     private readonly AIProviderConfig? _config;
+    private readonly IImageRecognitionCache? _cache;
+
+    // 识别失败占位结果前缀（与 RecognizeImagesAsync 的异常返回保持一致），失败结果不写入缓存
+    private const string FailurePrefix = "[图片识别失败";
 
     // 图片 URL 正则表达式
     private static readonly Regex ImageUrlPattern = new(
         @"https?://[^\s""'<>]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)(\?[^\s""'<>]*)?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public MultimodalProcessor(AIProviderRegistry registry, AIProviderConfig? config)
+    public MultimodalProcessor(AIProviderRegistry registry, AIProviderConfig? config, IImageRecognitionCache? cache = null)
     {
         _registry = registry;
         _config = config;
+        _cache = cache;
 
         // 获取视觉模型提供者
         if (!string.IsNullOrEmpty(config?.VisionModel))
@@ -80,9 +85,12 @@ public class MultimodalProcessor
     }
 
     /// <summary>
-    /// 处理多模态请求：检测图片 -> 调用视觉模型识别 -> 注入结果到消息
+    /// 处理多模态请求：检测图片 -> 调用视觉模型识别 -> 注入结果到消息。
+    /// 传入 <paramref name="sessionId"/> 且构造时注入了缓存时，启用按会话分区的图片识别缓存：
+    /// 每张图片先查本地缓存，未命中才调用视觉模型（逐图识别），成功结果写回缓存，
+    /// 同一会话内相同图片后续请求直接复用缓存结果。
     /// </summary>
-    public async Task<UnifiedChatRequest> ProcessAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
+    public async Task<UnifiedChatRequest> ProcessAsync(UnifiedChatRequest request, string? sessionId = null, CancellationToken cancellationToken = default)
     {
         if (!HasImages(request))
         {
@@ -100,8 +108,60 @@ public class MultimodalProcessor
         // 提取所有图片信息
         var imageInfos = await ExtractImageInfosAsync(request, cancellationToken);
 
-        // 调用视觉模型识别
-        var visionResult = await RecognizeImagesAsync(imageInfos, cancellationToken);
+        // 调用视觉模型识别（启用缓存时逐图处理：命中缓存的图片跳过模型调用）
+        string visionResult;
+        if (_cache != null && !string.IsNullOrWhiteSpace(sessionId) && imageInfos.Count > 0)
+        {
+            var parts = new List<string>(imageInfos.Count);
+            var cacheHits = 0;
+            foreach (var img in imageInfos)
+            {
+                var imageKey = ImageRecognitionCacheKey.Compute(img, _config?.VisionModel);
+
+                string? cached = null;
+                try
+                {
+                    cached = await _cache.TryGetAsync(sessionId!, imageKey, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Warn("读取图片识别缓存失败（按未命中处理）: {0}", ex.Message);
+                }
+
+                if (cached != null)
+                {
+                    parts.Add(cached);
+                    cacheHits++;
+                    continue;
+                }
+
+                var single = await RecognizeImagesAsync(new List<ImageInfo> { img }, cancellationToken);
+
+                // 仅缓存成功且非空的识别结果，失败占位结果不缓存（下次重试）
+                if (single.Length > 0 && !single.StartsWith(FailurePrefix, StringComparison.Ordinal))
+                {
+                    try
+                    {
+                        await _cache.SetAsync(sessionId!, imageKey, single, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        XTrace.Log.Warn("写入图片识别缓存失败（不影响本次响应）: {0}", ex.Message);
+                    }
+                }
+
+                parts.Add(single);
+            }
+
+            if (cacheHits > 0)
+                XTrace.Log.Info("图片识别缓存命中 {0}/{1}", cacheHits, imageInfos.Count);
+
+            visionResult = string.Join("\n\n", parts);
+        }
+        else
+        {
+            visionResult = await RecognizeImagesAsync(imageInfos, cancellationToken);
+        }
 
         // 构建新的请求，将图片描述注入到系统提示
         var processedRequest = BuildProcessedRequest(request, imageInfos, visionResult);

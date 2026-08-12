@@ -13,33 +13,52 @@ using XCode.DataAccessLayer;
 
 namespace OpenForgeSelf.Backend.Entities;
 
-/// <summary>{name}。</summary>
+/// <summary>聊天轮次（会话内的一轮请求-响应）。原 ChatRecord 改名而来。</summary>
 [Serializable]
 [DataObject]
-[Description("{name}。")]
-[BindIndex("IX_ChatRecord_SessionId", false, "SessionId")]
-[BindIndex("IX_ChatRecord_CreatedTime", false, "CreatedTime")]
-[BindIndex("IX_ChatRecord_Style", false, "Style")]
-[BindIndex("IX_ChatRecord_RequestId", false, "RequestId")]
-[BindTable("ChatRecord", Description = "聊天记录", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
-public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
+[Description("聊天轮次。")]
+[BindIndex("IX_ChatTurn_ChatSessionId", false, "ChatSessionId")]
+[BindIndex("IX_ChatTurn_ChatSessionId_Turn", false, "ChatSessionId,TurnIndex")]
+[BindIndex("IX_ChatTurn_SessionKey", false, "SessionKey")]
+[BindIndex("IX_ChatTurn_CreatedTime", false, "CreatedTime")]
+[BindIndex("IX_ChatTurn_Style", false, "Style")]
+[BindIndex("IX_ChatTurn_Model", false, "Model")]
+[BindIndex("IX_ChatTurn_RequestId", false, "RequestId")]
+[BindTable("ChatTurn", Description = "聊天轮次", ConnName = "OpenForgeSelf", DbType = DatabaseType.None)]
+public partial class ChatTurn : IChatTurnModel, IEntity<IChatTurnModel>
 {
     #region 属性
     private Int64 _Id;
-    /// <summary>记录ID</summary>
-    [DisplayName("记录ID")]
-    [Description("记录ID")]
+    /// <summary>轮次ID</summary>
+    [DisplayName("轮次ID")]
+    [Description("轮次ID")]
     [DataObjectField(true, true, false, 0)]
-    [BindColumn("Id", "记录ID", "")]
+    [BindColumn("Id", "轮次ID", "")]
     public Int64 Id { get => _Id; set { if (OnPropertyChanging("Id", value)) { _Id = value; OnPropertyChanged("Id"); } } }
 
-    private String _SessionId;
-    /// <summary>会话ID</summary>
-    [DisplayName("会话ID")]
-    [Description("会话ID")]
-    [DataObjectField(false, false, true, 50)]
-    [BindColumn("SessionId", "会话ID", "")]
-    public String SessionId { get => _SessionId; set { if (OnPropertyChanging("SessionId", value)) { _SessionId = value; OnPropertyChanged("SessionId"); } } }
+    private Int64 _ChatSessionId;
+    /// <summary>所属会话ID（→ ChatSession.Id）</summary>
+    [DisplayName("所属会话ID")]
+    [Description("所属会话ID")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("ChatSessionId", "所属会话ID", "")]
+    public Int64 ChatSessionId { get => _ChatSessionId; set { if (OnPropertyChanging("ChatSessionId", value)) { _ChatSessionId = value; OnPropertyChanged("ChatSessionId"); } } }
+
+    private Int32 _TurnIndex;
+    /// <summary>会话内第几轮（从 1 递增）</summary>
+    [DisplayName("轮次序号")]
+    [Description("会话内第几轮")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("TurnIndex", "会话内第几轮", "")]
+    public Int32 TurnIndex { get => _TurnIndex; set { if (OnPropertyChanging("TurnIndex", value)) { _TurnIndex = value; OnPropertyChanged("TurnIndex"); } } }
+
+    private String _SessionKey;
+    /// <summary>统一会话键（= ChatSession.SessionKey，冗余以便列表/WS 免 JOIN）</summary>
+    [DisplayName("会话键")]
+    [Description("统一会话键")]
+    [DataObjectField(false, false, false, 64)]
+    [BindColumn("SessionKey", "统一会话键", "")]
+    public String SessionKey { get => _SessionKey; set { if (OnPropertyChanging("SessionKey", value)) { _SessionKey = value; OnPropertyChanged("SessionKey"); } } }
 
     private String _Style;
     /// <summary>API风格</summary>
@@ -82,7 +101,7 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     public String RequestHeaders { get => _RequestHeaders; set { if (OnPropertyChanging("RequestHeaders", value)) { _RequestHeaders = value; OnPropertyChanged("RequestHeaders"); } } }
 
     private String _RequestBody;
-    /// <summary>请求体JSON</summary>
+    /// <summary>请求体JSON（含 messages 数组，便于后续分析）</summary>
     [DisplayName("请求体JSON")]
     [Description("请求体JSON")]
     [DataObjectField(false, false, true, -1)]
@@ -115,19 +134,75 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
 
     private String _RequestId;
     /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
-    [DisplayName("流式请求关联ID（用于流式期间按同一请求追加更新）")]
-    [Description("流式请求关联ID（用于流式期间按同一请求追加更新）")]
+    [DisplayName("流式请求关联ID")]
+    [Description("流式请求关联ID")]
     [DataObjectField(false, false, true, 64)]
-    [BindColumn("RequestId", "流式请求关联ID（用于流式期间按同一请求追加更新）", "")]
+    [BindColumn("RequestId", "流式请求关联ID", "")]
     public String RequestId { get => _RequestId; set { if (OnPropertyChanging("RequestId", value)) { _RequestId = value; OnPropertyChanged("RequestId"); } } }
 
     private String _ResponseText;
-    /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
-    [DisplayName("实时_增量纯文本回复（流式期间逐批更新")]
-    [Description("实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）")]
+    /// <summary>实时/增量纯文本回复</summary>
+    [DisplayName("实时回复文本")]
+    [Description("实时/增量纯文本回复")]
     [DataObjectField(false, false, true, -1)]
-    [BindColumn("ResponseText", "实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）", "")]
+    [BindColumn("ResponseText", "实时/增量纯文本回复", "")]
     public String ResponseText { get => _ResponseText; set { if (OnPropertyChanging("ResponseText", value)) { _ResponseText = value; OnPropertyChanged("ResponseText"); } } }
+
+    private String _UserPreview;
+    /// <summary>用户消息速览（列表展示用）</summary>
+    [DisplayName("用户消息速览")]
+    [Description("用户消息速览")]
+    [DataObjectField(false, false, true, 500)]
+    [BindColumn("UserPreview", "用户消息速览", "")]
+    public String UserPreview { get => _UserPreview; set { if (OnPropertyChanging("UserPreview", value)) { _UserPreview = value; OnPropertyChanged("UserPreview"); } } }
+
+    private String _AssistantPreview;
+    /// <summary>助手回复速览（列表展示用）</summary>
+    [DisplayName("助手回复速览")]
+    [Description("助手回复速览")]
+    [DataObjectField(false, false, true, 500)]
+    [BindColumn("AssistantPreview", "助手回复速览", "")]
+    public String AssistantPreview { get => _AssistantPreview; set { if (OnPropertyChanging("AssistantPreview", value)) { _AssistantPreview = value; OnPropertyChanged("AssistantPreview"); } } }
+
+    private Int32 _PromptTokens;
+    /// <summary>本轮输入 tokens（分析用，直接落列）</summary>
+    [DisplayName("输入Tokens")]
+    [Description("本轮输入tokens")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("PromptTokens", "本轮输入tokens", "")]
+    public Int32 PromptTokens { get => _PromptTokens; set { if (OnPropertyChanging("PromptTokens", value)) { _PromptTokens = value; OnPropertyChanged("PromptTokens"); } } }
+
+    private Int32 _CompletionTokens;
+    /// <summary>本轮输出 tokens</summary>
+    [DisplayName("输出Tokens")]
+    [Description("本轮输出tokens")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("CompletionTokens", "本轮输出tokens", "")]
+    public Int32 CompletionTokens { get => _CompletionTokens; set { if (OnPropertyChanging("CompletionTokens", value)) { _CompletionTokens = value; OnPropertyChanged("CompletionTokens"); } } }
+
+    private Int32 _TotalTokens;
+    /// <summary>本轮总 tokens</summary>
+    [DisplayName("总Tokens")]
+    [Description("本轮总tokens")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("TotalTokens", "本轮总tokens", "")]
+    public Int32 TotalTokens { get => _TotalTokens; set { if (OnPropertyChanging("TotalTokens", value)) { _TotalTokens = value; OnPropertyChanged("TotalTokens"); } } }
+
+    private Int64 _FirstTokenMs;
+    /// <summary>首 token 延迟（流式场景，分析响应速度）</summary>
+    [DisplayName("首Token延迟")]
+    [Description("首token延迟")]
+    [DataObjectField(false, false, true, 0)]
+    [BindColumn("FirstTokenMs", "首token延迟", "")]
+    public Int64 FirstTokenMs { get => _FirstTokenMs; set { if (OnPropertyChanging("FirstTokenMs", value)) { _FirstTokenMs = value; OnPropertyChanged("FirstTokenMs"); } } }
+
+    private String _ErrorMessage;
+    /// <summary>失败原因（便于失败率分析）</summary>
+    [DisplayName("失败原因")]
+    [Description("失败原因")]
+    [DataObjectField(false, false, true, 1000)]
+    [BindColumn("ErrorMessage", "失败原因", "")]
+    public String ErrorMessage { get => _ErrorMessage; set { if (OnPropertyChanging("ErrorMessage", value)) { _ErrorMessage = value; OnPropertyChanged("ErrorMessage"); } } }
 
     private Double _Temperature;
     /// <summary>温度参数</summary>
@@ -146,7 +221,7 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     public Int32 MaxTokens { get => _MaxTokens; set { if (OnPropertyChanging("MaxTokens", value)) { _MaxTokens = value; OnPropertyChanged("MaxTokens"); } } }
 
     private Int32 _MessageCount;
-    /// <summary>消息数量</summary>
+    /// <summary>本轮请求携带的消息数量（= 该会话当前完整长度）</summary>
     [DisplayName("消息数量")]
     [Description("消息数量")]
     [DataObjectField(false, false, false, 0)]
@@ -187,12 +262,12 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     #endregion
 
     #region 拷贝
-    /// <summary>拷贝模型对象</summary>
-    /// <param name="model">模型</param>
-    public void Copy(IChatRecordModel model)
+    public void Copy(IChatTurnModel model)
     {
         Id = model.Id;
-        SessionId = model.SessionId;
+        ChatSessionId = model.ChatSessionId;
+        TurnIndex = model.TurnIndex;
+        SessionKey = model.SessionKey;
         Style = model.Style;
         Model = model.Model;
         RequestMethod = model.RequestMethod;
@@ -204,6 +279,13 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
         ResponseBody = model.ResponseBody;
         RequestId = model.RequestId;
         ResponseText = model.ResponseText;
+        UserPreview = model.UserPreview;
+        AssistantPreview = model.AssistantPreview;
+        PromptTokens = model.PromptTokens;
+        CompletionTokens = model.CompletionTokens;
+        TotalTokens = model.TotalTokens;
+        FirstTokenMs = model.FirstTokenMs;
+        ErrorMessage = model.ErrorMessage;
         Temperature = model.Temperature;
         MaxTokens = model.MaxTokens;
         MessageCount = model.MessageCount;
@@ -215,15 +297,14 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     #endregion
 
     #region 获取/设置 字段值
-    /// <summary>获取/设置 字段值</summary>
-    /// <param name="name">字段名</param>
-    /// <returns></returns>
     public override Object this[String name]
     {
         get => name switch
         {
             "Id" => _Id,
-            "SessionId" => _SessionId,
+            "ChatSessionId" => _ChatSessionId,
+            "TurnIndex" => _TurnIndex,
+            "SessionKey" => _SessionKey,
             "Style" => _Style,
             "Model" => _Model,
             "RequestMethod" => _RequestMethod,
@@ -235,6 +316,13 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
             "ResponseBody" => _ResponseBody,
             "RequestId" => _RequestId,
             "ResponseText" => _ResponseText,
+            "UserPreview" => _UserPreview,
+            "AssistantPreview" => _AssistantPreview,
+            "PromptTokens" => _PromptTokens,
+            "CompletionTokens" => _CompletionTokens,
+            "TotalTokens" => _TotalTokens,
+            "FirstTokenMs" => _FirstTokenMs,
+            "ErrorMessage" => _ErrorMessage,
             "Temperature" => _Temperature,
             "MaxTokens" => _MaxTokens,
             "MessageCount" => _MessageCount,
@@ -249,7 +337,9 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
             switch (name)
             {
                 case "Id": _Id = value.ToLong(); break;
-                case "SessionId": _SessionId = Convert.ToString(value); break;
+                case "ChatSessionId": _ChatSessionId = value.ToLong(); break;
+                case "TurnIndex": _TurnIndex = value.ToInt(); break;
+                case "SessionKey": _SessionKey = Convert.ToString(value); break;
                 case "Style": _Style = Convert.ToString(value); break;
                 case "Model": _Model = Convert.ToString(value); break;
                 case "RequestMethod": _RequestMethod = Convert.ToString(value); break;
@@ -261,6 +351,13 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
                 case "ResponseBody": _ResponseBody = Convert.ToString(value); break;
                 case "RequestId": _RequestId = Convert.ToString(value); break;
                 case "ResponseText": _ResponseText = Convert.ToString(value); break;
+                case "UserPreview": _UserPreview = Convert.ToString(value); break;
+                case "AssistantPreview": _AssistantPreview = Convert.ToString(value); break;
+                case "PromptTokens": _PromptTokens = value.ToInt(); break;
+                case "CompletionTokens": _CompletionTokens = value.ToInt(); break;
+                case "TotalTokens": _TotalTokens = value.ToInt(); break;
+                case "FirstTokenMs": _FirstTokenMs = value.ToLong(); break;
+                case "ErrorMessage": _ErrorMessage = Convert.ToString(value); break;
                 case "Temperature": _Temperature = value.ToDouble(); break;
                 case "MaxTokens": _MaxTokens = value.ToInt(); break;
                 case "MessageCount": _MessageCount = value.ToInt(); break;
@@ -274,220 +371,116 @@ public partial class ChatRecord : IChatRecordModel, IEntity<IChatRecordModel>
     }
     #endregion
 
-    #region 关联映射
-    #endregion
-
     #region 扩展查询
-    /// <summary>根据记录ID查找</summary>
-    /// <param name="id">记录ID</param>
-    /// <returns>实体对象</returns>
-    public static ChatRecord FindById(Int64 id)
+    public static ChatTurn FindById(Int64 id)
     {
         if (id < 0) return null;
-
-        // 实体缓存
         if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
-
-        // 单对象缓存
         return Meta.SingleCache[id];
-
-        //return Find(_.Id == id);
     }
 
-    /// <summary>根据会话ID查找</summary>
-    /// <param name="sessionId">会话ID</param>
-    /// <returns>实体列表</returns>
-    public static IList<ChatRecord> FindAllBySessionId(String sessionId)
+    /// <summary>按所属会话ID查找轮次</summary>
+    public static IList<ChatTurn> FindAllByChatSessionId(Int64 chatSessionId)
     {
-        if (sessionId.IsNullOrEmpty()) return [];
-
-        // 实体缓存
-        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId));
-
-        return FindAll(_.SessionId == sessionId);
+        if (chatSessionId <= 0) return [];
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.ChatSessionId == chatSessionId);
+        return FindAll(_.ChatSessionId == chatSessionId);
     }
 
-    /// <summary>根据API风格查找</summary>
-    /// <param name="style">API风格</param>
-    /// <returns>实体列表</returns>
-    public static IList<ChatRecord> FindAllByStyle(String style)
+    public static IList<ChatTurn> FindAllByStyle(String style)
     {
         if (style.IsNullOrEmpty()) return [];
-
-        // 实体缓存
         if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Style.EqualIgnoreCase(style));
-
         return FindAll(_.Style == style);
     }
 
-    /// <summary>根据流式请求关联ID（用于流式期间按同一请求追加更新）查找</summary>
-    /// <param name="requestId">流式请求关联ID（用于流式期间按同一请求追加更新）</param>
-    /// <returns>实体列表</returns>
-    public static IList<ChatRecord> FindAllByRequestId(String requestId)
+    public static IList<ChatTurn> FindAllByRequestId(String requestId)
     {
         if (requestId.IsNullOrEmpty()) return [];
-
-        // 实体缓存
         if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.RequestId.EqualIgnoreCase(requestId));
-
         return FindAll(_.RequestId == requestId);
     }
     #endregion
 
     #region 高级查询
-    /// <summary>高级查询</summary>
-    /// <param name="sessionId">会话ID</param>
-    /// <param name="style">API风格</param>
-    /// <param name="requestId">流式请求关联ID（用于流式期间按同一请求追加更新）</param>
-    /// <param name="hasReasoning">是否有reasoning</param>
-    /// <param name="start">创建时间开始</param>
-    /// <param name="end">创建时间结束</param>
-    /// <param name="key">关键字</param>
-    /// <param name="page">分页参数信息。可携带统计和数据权限扩展查询等信息</param>
-    /// <returns>实体列表</returns>
-    public static IList<ChatRecord> Search(String sessionId, String style, String requestId, Boolean? hasReasoning, DateTime start, DateTime end, String key, PageParameter page)
+    public static IList<ChatTurn> Search(Int64 chatSessionId, String style, String requestId, Boolean? hasReasoning, DateTime start, DateTime end, String key, PageParameter page)
     {
         var exp = new WhereExpression();
-
-        if (!sessionId.IsNullOrEmpty()) exp &= _.SessionId == sessionId;
+        if (chatSessionId > 0) exp &= _.ChatSessionId == chatSessionId;
         if (!style.IsNullOrEmpty()) exp &= _.Style == style;
         if (!requestId.IsNullOrEmpty()) exp &= _.RequestId == requestId;
         if (hasReasoning != null) exp &= _.HasReasoning == hasReasoning;
         exp &= _.CreatedTime.Between(start, end);
         if (!key.IsNullOrEmpty()) exp &= SearchWhereByKeys(key);
-
         return FindAll(exp, page);
     }
     #endregion
 
     #region 字段名
-    /// <summary>取得聊天记录字段信息的快捷方式</summary>
     public partial class _
     {
-        /// <summary>记录ID</summary>
         public static readonly Field Id = FindByName("Id");
-
-        /// <summary>会话ID</summary>
-        public static readonly Field SessionId = FindByName("SessionId");
-
-        /// <summary>API风格</summary>
+        public static readonly Field ChatSessionId = FindByName("ChatSessionId");
+        public static readonly Field TurnIndex = FindByName("TurnIndex");
+        public static readonly Field SessionKey = FindByName("SessionKey");
         public static readonly Field Style = FindByName("Style");
-
-        /// <summary>模型名称</summary>
         public static readonly Field Model = FindByName("Model");
-
-        /// <summary>请求方法</summary>
         public static readonly Field RequestMethod = FindByName("RequestMethod");
-
-        /// <summary>请求路径</summary>
         public static readonly Field RequestPath = FindByName("RequestPath");
-
-        /// <summary>请求头JSON</summary>
         public static readonly Field RequestHeaders = FindByName("RequestHeaders");
-
-        /// <summary>请求体JSON</summary>
         public static readonly Field RequestBody = FindByName("RequestBody");
-
-        /// <summary>响应状态码</summary>
         public static readonly Field ResponseStatus = FindByName("ResponseStatus");
-
-        /// <summary>响应头JSON</summary>
         public static readonly Field ResponseHeaders = FindByName("ResponseHeaders");
-
-        /// <summary>响应体JSON</summary>
         public static readonly Field ResponseBody = FindByName("ResponseBody");
-
-        /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
         public static readonly Field RequestId = FindByName("RequestId");
-
-        /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
         public static readonly Field ResponseText = FindByName("ResponseText");
-
-        /// <summary>温度参数</summary>
+        public static readonly Field UserPreview = FindByName("UserPreview");
+        public static readonly Field AssistantPreview = FindByName("AssistantPreview");
+        public static readonly Field PromptTokens = FindByName("PromptTokens");
+        public static readonly Field CompletionTokens = FindByName("CompletionTokens");
+        public static readonly Field TotalTokens = FindByName("TotalTokens");
+        public static readonly Field FirstTokenMs = FindByName("FirstTokenMs");
+        public static readonly Field ErrorMessage = FindByName("ErrorMessage");
         public static readonly Field Temperature = FindByName("Temperature");
-
-        /// <summary>最大token</summary>
         public static readonly Field MaxTokens = FindByName("MaxTokens");
-
-        /// <summary>消息数量</summary>
         public static readonly Field MessageCount = FindByName("MessageCount");
-
-        /// <summary>工具调用次数</summary>
         public static readonly Field ToolCallCount = FindByName("ToolCallCount");
-
-        /// <summary>是否有reasoning</summary>
         public static readonly Field HasReasoning = FindByName("HasReasoning");
-
-        /// <summary>调用耗时</summary>
         public static readonly Field DurationMs = FindByName("DurationMs");
-
-        /// <summary>创建时间</summary>
         public static readonly Field CreatedTime = FindByName("CreatedTime");
-
         static Field FindByName(String name) => Meta.Table.FindByName(name);
     }
 
-    /// <summary>取得聊天记录字段名称的快捷方式</summary>
     public partial class __
     {
-        /// <summary>记录ID</summary>
         public const String Id = "Id";
-
-        /// <summary>会话ID</summary>
-        public const String SessionId = "SessionId";
-
-        /// <summary>API风格</summary>
+        public const String ChatSessionId = "ChatSessionId";
+        public const String TurnIndex = "TurnIndex";
+        public const String SessionKey = "SessionKey";
         public const String Style = "Style";
-
-        /// <summary>模型名称</summary>
         public const String Model = "Model";
-
-        /// <summary>请求方法</summary>
         public const String RequestMethod = "RequestMethod";
-
-        /// <summary>请求路径</summary>
         public const String RequestPath = "RequestPath";
-
-        /// <summary>请求头JSON</summary>
         public const String RequestHeaders = "RequestHeaders";
-
-        /// <summary>请求体JSON</summary>
         public const String RequestBody = "RequestBody";
-
-        /// <summary>响应状态码</summary>
         public const String ResponseStatus = "ResponseStatus";
-
-        /// <summary>响应头JSON</summary>
         public const String ResponseHeaders = "ResponseHeaders";
-
-        /// <summary>响应体JSON</summary>
         public const String ResponseBody = "ResponseBody";
-
-        /// <summary>流式请求关联ID（用于流式期间按同一请求追加更新）</summary>
         public const String RequestId = "RequestId";
-
-        /// <summary>实时/增量纯文本回复（流式期间逐批更新，便于前端实时展示）</summary>
         public const String ResponseText = "ResponseText";
-
-        /// <summary>温度参数</summary>
+        public const String UserPreview = "UserPreview";
+        public const String AssistantPreview = "AssistantPreview";
+        public const String PromptTokens = "PromptTokens";
+        public const String CompletionTokens = "CompletionTokens";
+        public const String TotalTokens = "TotalTokens";
+        public const String FirstTokenMs = "FirstTokenMs";
+        public const String ErrorMessage = "ErrorMessage";
         public const String Temperature = "Temperature";
-
-        /// <summary>最大token</summary>
         public const String MaxTokens = "MaxTokens";
-
-        /// <summary>消息数量</summary>
         public const String MessageCount = "MessageCount";
-
-        /// <summary>工具调用次数</summary>
         public const String ToolCallCount = "ToolCallCount";
-
-        /// <summary>是否有reasoning</summary>
         public const String HasReasoning = "HasReasoning";
-
-        /// <summary>调用耗时</summary>
         public const String DurationMs = "DurationMs";
-
-        /// <summary>创建时间</summary>
         public const String CreatedTime = "CreatedTime";
     }
     #endregion

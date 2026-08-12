@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { ChatRecord, ChatRecordsResponse } from '@/types/chatRecords'
+import type { ChatSessionSummary, ChatSessionDetail, ChatSessionsResponse, ChatTurn } from '@/types/chatRecords'
 import type { StreamMessageChunk } from '@/types/chat'
 import { chatRecordsApi } from '@/services/chatRecordsApi'
 import { wsService } from '@/services/websocket'
 import ChatRecordsList from '@/components/chatrecords/ChatRecordsList.vue'
 import ChatRecordDetail from '@/components/chatrecords/ChatRecordDetail.vue'
 
-const sessionId = ref('')
+const source = ref('')
+const clientKind = ref('')
+const key = ref('')
 const style = ref('')
 const fromDate = ref('')
 const toDate = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 
-const records = ref<ChatRecordsResponse['records']>([])
+const sessions = ref<ChatSessionsResponse['sessions']>([])
 const total = ref(0)
 const loading = ref(false)
-const selectedRecord = ref<ChatRecord | null>(null)
+const selectedSession = ref<ChatSessionSummary | null>(null)
+const selectedTurns = ref<ChatTurn[]>([])
 const detailLoading = ref(false)
 const showDetail = ref(false)
 
@@ -27,6 +30,12 @@ const lastUpdatedAt = ref<Date | null>(null)
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`
+  return `${(ms / 60000).toFixed(2)}分钟`
 }
 
 interface LiveStream {
@@ -73,7 +82,7 @@ function handleWsMessage(msg: StreamMessageChunk): void {
       }
     }
   } else {
-    // chat_record_completed：定稿。把新记录推到列表顶部（不整页刷新）
+    // chat_record_completed：定稿。标记 live 卡片并刷新会话列表（计数/新会话可能变化）。
     const existing = liveStreams.value[data.requestId]
     if (existing) {
       existing.done = true
@@ -89,12 +98,7 @@ function handleWsMessage(msg: StreamMessageChunk): void {
         finishedAt: Date.now()
       }
     }
-    // 用 recordId 精准拉取新记录并插入列表顶部
-    if (typeof data.recordId === 'number') {
-      void prependNewRecord(data.recordId)
-    } else {
-      void fetchRecords()
-    }
+    void fetchSessions()
     const rid = data.requestId
     window.setTimeout(() => {
       const cur = liveStreams.value[rid]
@@ -103,51 +107,37 @@ function handleWsMessage(msg: StreamMessageChunk): void {
   }
 }
 
-async function prependNewRecord(recordId: number): Promise<void> {
-  try {
-    const rec = await chatRecordsApi.getRecordById(recordId)
-    const exists = records.value.some((r) => r.id === rec.id)
-    if (!exists) {
-      records.value = [{
-        id: rec.id,
-        sessionId: rec.sessionId,
-        style: rec.style,
-        model: rec.model,
-        messageCount: rec.messageCount,
-        toolCallCount: rec.toolCallCount,
-        createdTime: rec.createdTime,
-        summary: ''
-      }, ...records.value]
-      total.value += 1
-    }
-  } catch (err) {
-    console.error('拉取新记录失败，降级全量刷新:', err)
-    void fetchRecords()
-  }
-}
+const sourceOptions = [
+  { value: '', label: '全部' },
+  { value: 'App', label: 'App 自有聊天' },
+  { value: 'Proxy', label: '代理录制' }
+]
 
 const styleOptions = [
   { value: '', label: '全部' },
   { value: 'OpenAI_Chat', label: 'OpenAI Chat' },
   { value: 'OpenAI_Responses', label: 'OpenAI Responses' },
-  { value: 'Anthropic_Messages', label: 'Anthropic Messages' }
+  { value: 'Anthropic_Messages', label: 'Anthropic Messages' },
+  { value: 'AppChat', label: 'App Chat' }
 ]
 
-async function fetchRecords() {
+async function fetchSessions() {
   loading.value = true
   try {
-    const response = await chatRecordsApi.getRecords({
-      sessionId: sessionId.value || undefined,
+    const response = await chatRecordsApi.getSessions({
+      source: source.value || undefined,
+      clientKind: clientKind.value || undefined,
       style: style.value || undefined,
       from: fromDate.value || undefined,
       to: toDate.value || undefined,
+      key: key.value || undefined,
       page: page.value,
       pageSize: pageSize.value
     })
-    records.value = response.records
+    sessions.value = response.sessions
     total.value = response.total
   } catch (err) {
-    console.error('获取聊天记录失败:', err)
+    console.error('获取会话列表失败:', err)
   } finally {
     loading.value = false
     lastUpdatedAt.value = new Date()
@@ -158,9 +148,11 @@ async function handleViewDetail(id: number) {
   detailLoading.value = true
   showDetail.value = true
   try {
-    selectedRecord.value = await chatRecordsApi.getRecordById(id)
+    const detail: ChatSessionDetail = await chatRecordsApi.getSessionById(id)
+    selectedSession.value = detail.session
+    selectedTurns.value = detail.turns
   } catch (err) {
-    console.error('获取记录详情失败:', err)
+    console.error('获取会话详情失败:', err)
   } finally {
     detailLoading.value = false
   }
@@ -168,26 +160,28 @@ async function handleViewDetail(id: number) {
 
 function handlePageChange(newPage: number) {
   page.value = newPage
-  fetchRecords()
+  fetchSessions()
 }
 
 function handleSearch() {
   page.value = 1
-  fetchRecords()
+  fetchSessions()
 }
 
 function handleReset() {
-  sessionId.value = ''
+  source.value = ''
+  clientKind.value = ''
+  key.value = ''
   style.value = ''
   fromDate.value = ''
   toDate.value = ''
   page.value = 1
-  fetchRecords()
+  fetchSessions()
 }
 
 onMounted(() => {
-  // 首次一次性加载历史记录（非轮询）；之后靠 WS 推送增量更新
-  fetchRecords()
+  // 首次一次性加载历史会话（非轮询）；之后靠 WS 推送增量更新
+  fetchSessions()
   // 注册 WS 连接状态回调：实时推送
   wsService.connect({
     onOpen: () => {
@@ -213,9 +207,9 @@ onUnmounted(() => {
     <header class="view-header">
       <h1 class="view-title">
         <span class="title-icon">💬</span>
-        聊天记录查看
+        聊天会话查看
       </h1>
-      <p class="view-subtitle">查看和管理 API 调用记录，包括 OpenAI Chat、OpenAI Responses 和 Anthropic Messages 格式</p>
+      <p class="view-subtitle">以「会话」维度查看 API 调用与 App 自有聊天，会话下按轮次（ChatTurn）展开明细</p>
       <div class="live-indicator">
         <span class="live-dot" :class="{ active: wsConnected }" />
         <span class="live-text">
@@ -244,12 +238,32 @@ onUnmounted(() => {
     <div class="filter-bar">
       <div class="filter-row">
         <div class="filter-item">
-          <label class="filter-label">SessionId</label>
+          <label class="filter-label">来源</label>
+          <select v-model="source" class="filter-select">
+            <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">客户端</label>
           <input
-            v-model="sessionId"
+            v-model="clientKind"
             type="text"
             class="filter-input"
-            placeholder="输入 SessionId"
+            placeholder="客户端类型"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">会话键</label>
+          <input
+            v-model="key"
+            type="text"
+            class="filter-input"
+            placeholder="输入会话键"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -297,7 +311,7 @@ onUnmounted(() => {
     <div class="content-area">
       <div class="list-section">
         <ChatRecordsList
-          :records="records"
+          :records="sessions"
           :total="total"
           :page="page"
           :page-size="pageSize"
@@ -308,10 +322,10 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 详情改为弹窗展示 -->
+    <!-- 详情改为弹窗展示：会话头 + 轮次明细 -->
     <ElDialog
       v-model="showDetail"
-      :title="`聊天记录详情 #${selectedRecord?.id ?? ''}`"
+      :title="`会话详情 #${selectedSession?.id ?? ''}`"
       width="82%"
       top="4vh"
       class="record-detail-dialog"
@@ -322,7 +336,30 @@ onUnmounted(() => {
           <div class="spinner" />
           <span>加载中...</span>
         </div>
-        <ChatRecordDetail v-else-if="selectedRecord" :record="selectedRecord" />
+        <template v-else-if="selectedSession">
+          <div class="session-head">
+            <div class="session-meta">
+              <span><b>来源</b> {{ selectedSession.source }}</span>
+              <span><b>模型</b> {{ selectedSession.model || '—' }}</span>
+              <span><b>风格</b> {{ selectedSession.style || '—' }}</span>
+              <span><b>客户端</b> {{ selectedSession.clientKind }}</span>
+              <span><b>轮次</b> {{ selectedSession.requestCount }}</span>
+              <span><b>消息</b> {{ selectedSession.messageCount }}</span>
+              <span><b>末态</b> {{ selectedSession.lastStatus }}</span>
+            </div>
+            <div class="session-key"><b>会话键</b> {{ selectedSession.sessionKey }}</div>
+            <div v-if="selectedSession.firstUserMsg" class="session-first">「{{ selectedSession.firstUserMsg }}」</div>
+          </div>
+          <div class="turns-list">
+            <div v-for="turn in selectedTurns" :key="turn.id" class="turn-block">
+              <div class="turn-head">
+                轮次 #{{ turn.turnIndex }} · 模型 {{ turn.model || '—' }} · HTTP {{ turn.responseStatus }} · {{ formatDuration(turn.durationMs) }}
+              </div>
+              <ChatRecordDetail :record="turn" />
+            </div>
+            <div v-if="selectedTurns.length === 0" class="empty-hint">该会话暂无轮次明细</div>
+          </div>
+        </template>
       </div>
     </ElDialog>
   </div>
@@ -584,6 +621,7 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
 .detail-loading {
@@ -609,5 +647,67 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 会话头 */
+.session-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+}
+.session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.session-meta b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
+.session-key {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-family: 'Monaco', 'Menlo', monospace;
+  word-break: break-all;
+}
+.session-key b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
+.session-first {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+/* 轮次明细 */
+.turns-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.turn-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.turn-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.empty-hint {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  text-align: center;
+  padding: 24px 0;
 }
 </style>

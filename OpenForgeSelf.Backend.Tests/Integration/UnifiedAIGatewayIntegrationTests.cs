@@ -17,20 +17,34 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 public class UnifiedAIGatewayIntegrationTests
 {
     private readonly Mock<ILogService> _mockLogService;
-    private readonly Mock<IChatRecordService> _mockChatRecordService;
-    private readonly Mock<IChatRecordStreamRecorder> _mockStreamRecorder;
+    private readonly Mock<IChatTurnService> _mockChatTurnService;
+    private readonly Mock<IChatTurnStreamRecorder> _mockStreamRecorder;
+    private readonly Mock<IChatSessionService> _mockChatSessionService;
+    private readonly Mock<IImageRecognitionCache> _mockImageRecognitionCache;
     private readonly AIProviderRegistry _registry;
 
     public UnifiedAIGatewayIntegrationTests()
     {
         _mockLogService = new Mock<ILogService>();
-        _mockChatRecordService = new Mock<IChatRecordService>();
-        _mockStreamRecorder = new Mock<IChatRecordStreamRecorder>();
-        // 返回 null 会话：本集成测试只验证控制器逻辑，流式路径回退到 SaveRecordAsync（已 mock）。
-        _mockStreamRecorder.Setup(r => r.BeginAsync(It.IsAny<ChatRecord>())).ReturnsAsync((ChatRecordStreamSession)null!);
+        _mockChatTurnService = new Mock<IChatTurnService>();
+        _mockStreamRecorder = new Mock<IChatTurnStreamRecorder>();
+        _mockChatSessionService = new Mock<IChatSessionService>();
+        _mockImageRecognitionCache = new Mock<IImageRecognitionCache>();
+        // 返回 null 会话：本集成测试只验证控制器逻辑，流式路径回退到 SaveTurnAsync（已 mock）。
+        _mockStreamRecorder.Setup(r => r.BeginAsync(It.IsAny<ChatTurn>())).ReturnsAsync((ChatTurnStreamSession)null!);
         // 非泛型 Task 返回方法，Moq 默认返回 null，会导致控制器 await null 抛 NRE；
-        // 必须显式返回已完成的 Task，否则 ChatCompletions 内部保存记录时 500
-        _mockChatRecordService.Setup(s => s.SaveRecordAsync(It.IsAny<ChatRecord>())).Returns(Task.CompletedTask);
+        // 必须显式返回已完成的 Task，否则 ChatCompletions 内部保存轮次时 500
+        _mockChatTurnService.Setup(s => s.SaveTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
+        _mockChatTurnService.Setup(s => s.UpsertTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
+        // 控制器流程会解引用 UpsertSessionAsync 的返回值（chatSession.Id），必须返回非 null 会话
+        _mockChatSessionService
+            .Setup(s => s.UpsertSessionAsync(
+                It.IsAny<string>(), It.IsAny<SessionSource>(), It.IsAny<string?>(), It.IsAny<ClientKind>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>()))
+            .ReturnsAsync(new ChatSession { Id = 1, SessionKey = "test-session", RequestCount = 1 });
+        _mockChatSessionService
+            .Setup(s => s.RecordTurnStatsAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(Task.CompletedTask);
         _registry = new AIProviderRegistry();
 
         // 注册模拟提供者
@@ -40,7 +54,9 @@ public class UnifiedAIGatewayIntegrationTests
 
     private OpenAIChatController CreateController()
     {
-        var controller = new OpenAIChatController(_registry, _mockLogService.Object, _mockChatRecordService.Object, _mockStreamRecorder.Object);
+        var controller = new OpenAIChatController(
+            _registry, _mockLogService.Object, _mockChatTurnService.Object,
+            _mockStreamRecorder.Object, _mockChatSessionService.Object, _mockImageRecognitionCache.Object);
         // 直接调用控制器方法（不走 HTTP 管道），必须注入 HttpContext，否则方法内访问 Request.Headers 会 NRE
         controller.ControllerContext = new ControllerContext
         {
@@ -54,7 +70,9 @@ public class UnifiedAIGatewayIntegrationTests
         var testProvider = new TestAIProvider("test", AIProviderType.OpenAI, new[] { "gpt-4", "gpt-3.5" });
         var registry = new AIProviderRegistry();
         registry.RegisterProvider(testProvider);
-        var controller = new OpenAIChatController(registry, _mockLogService.Object, _mockChatRecordService.Object, _mockStreamRecorder.Object);
+        var controller = new OpenAIChatController(
+            registry, _mockLogService.Object, _mockChatTurnService.Object,
+            _mockStreamRecorder.Object, _mockChatSessionService.Object, _mockImageRecognitionCache.Object);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

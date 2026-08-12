@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ChatRecordSummary } from '@/types/chatRecords'
+import type { ChatSessionSummary } from '@/types/chatRecords'
 
 defineProps<{
-  records: ChatRecordSummary[]
+  records: ChatSessionSummary[]
   total: number
   page: number
   pageSize: number
@@ -37,6 +37,17 @@ function getStyleBadgeClass(style: string): string {
       return ''
   }
 }
+
+function getSourceBadgeClass(source: string): string {
+  switch (source) {
+    case 'App':
+      return 'badge-app'
+    case 'Proxy':
+      return 'badge-proxy'
+    default:
+      return ''
+  }
+}
 </script>
 
 <template>
@@ -50,13 +61,14 @@ function getStyleBadgeClass(style: string): string {
       <thead>
         <tr>
           <th class="col-id">ID</th>
-          <th class="col-session">SessionId</th>
+          <th class="col-session">会话键</th>
+          <th class="col-source">来源</th>
           <th class="col-style">Style</th>
           <th class="col-model">Model</th>
-          <th class="col-summary">摘要</th>
+          <th class="col-summary">首条消息</th>
+          <th class="col-turns">轮次</th>
           <th class="col-messages">消息数</th>
-          <th class="col-tools">工具调用</th>
-          <th class="col-time">时间</th>
+          <th class="col-time">更新时间</th>
           <th class="col-action">操作</th>
         </tr>
       </thead>
@@ -64,20 +76,25 @@ function getStyleBadgeClass(style: string): string {
         <tr v-for="record in records" :key="record.id" class="record-row">
           <td class="col-id">{{ record.id }}</td>
           <td class="col-session">
-            <span class="session-id" :title="record.sessionId">{{ record.sessionId.slice(0, 8) }}...</span>
+            <span class="session-id" :title="record.sessionKey">{{ record.sessionKey.slice(0, 8) }}...</span>
           </td>
-          <td class="col-style">
-            <span class="style-badge" :class="getStyleBadgeClass(record.style)">
-              {{ record.style }}
+          <td class="col-source">
+            <span class="source-badge" :class="getSourceBadgeClass(record.source)">
+              {{ record.source }}
             </span>
           </td>
-          <td class="col-model">{{ record.model }}</td>
-          <td class="col-summary">
-            <span class="summary-text" :title="record.summary">{{ record.summary || '—' }}</span>
+          <td class="col-style">
+            <span class="style-badge" :class="getStyleBadgeClass(record.style || '')">
+              {{ record.style || '—' }}
+            </span>
           </td>
+          <td class="col-model">{{ record.model || '—' }}</td>
+          <td class="col-summary">
+            <span class="summary-text" :title="record.firstUserMsg ?? ''">{{ record.firstUserMsg || '—' }}</span>
+          </td>
+          <td class="col-turns">{{ record.requestCount }}</td>
           <td class="col-messages">{{ record.messageCount }}</td>
-          <td class="col-tools">{{ record.toolCallCount }}</td>
-          <td class="col-time">{{ formatDate(record.createdTime) }}</td>
+          <td class="col-time">{{ formatDate(record.updatedTime) }}</td>
           <td class="col-action">
             <button class="detail-btn" type="button" @click="emit('view-detail', record.id)">
               查看详情
@@ -85,7 +102,7 @@ function getStyleBadgeClass(style: string): string {
           </td>
         </tr>
         <tr v-if="records.length === 0 && !loading">
-          <td colspan="9" class="empty-row">暂无数据</td>
+          <td colspan="10" class="empty-row">暂无数据</td>
         </tr>
       </tbody>
     </table>
@@ -230,6 +247,26 @@ function getStyleBadgeClass(style: string): string {
   border: 1px solid color-mix(in srgb, var(--el-color-warning) 32%, transparent);
 }
 
+.source-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-app {
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-success) 30%, transparent);
+}
+
+.badge-proxy {
+  color: var(--el-color-info);
+  background: color-mix(in srgb, var(--el-color-info) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-info) 30%, transparent);
+}
+
 .col-summary {
   max-width: 220px;
 }
@@ -250,7 +287,7 @@ function getStyleBadgeClass(style: string): string {
   white-space: nowrap;
 }
 
-.col-messages, .col-tools {
+.col-messages, .col-turns, .col-source {
   width: 80px;
   text-align: center;
 }

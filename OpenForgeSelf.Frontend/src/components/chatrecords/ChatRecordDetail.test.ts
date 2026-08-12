@@ -1,21 +1,35 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ChatRecordDetail from './ChatRecordDetail.vue'
-import type { ChatRecord } from '@/types/chatRecords'
+import type { ChatTurn } from '@/types/chatRecords'
 
-function makeRecord(partial: Partial<ChatRecord>): ChatRecord {
+// 后端落库的 requestBody / responseBody 为 JSON 字符串，测试同样以字符串传入。
+const j = (o: unknown): string => JSON.stringify(o)
+
+function makeRecord(partial: Partial<ChatTurn> = {}): ChatTurn {
   return {
     id: 1,
-    sessionId: 'sess-0001',
+    chatSessionId: 1,
+    turnIndex: 1,
+    sessionKey: 'sess-0001',
     style: 'OpenAI_Chat',
     model: 'gpt-4o',
     requestMethod: 'POST',
     requestPath: '/v1/chat/completions',
-    requestHeaders: {},
-    requestBody: {},
+    requestHeaders: null,
+    requestBody: null,
     responseStatus: 200,
-    responseHeaders: {},
-    responseBody: {},
+    responseHeaders: null,
+    responseBody: null,
+    requestId: null,
+    responseText: null,
+    userPreview: null,
+    assistantPreview: null,
+    promptTokens: 10,
+    completionTokens: 5,
+    totalTokens: 15,
+    firstTokenMs: null,
+    errorMessage: null,
     temperature: 0.7,
     maxTokens: 1024,
     messageCount: 2,
@@ -24,10 +38,10 @@ function makeRecord(partial: Partial<ChatRecord>): ChatRecord {
     durationMs: 1234,
     createdTime: '2026-08-07T10:00:00Z',
     ...partial
-  } as ChatRecord
+  } as ChatTurn
 }
 
-describe('ChatRecordDetail 对话气泡模式', () => {
+describe('ChatRecordDetail 轮次对话气泡模式', () => {
   it('头部展示 id / model / style / session / HTTP 状态', () => {
     const wrapper = mount(ChatRecordDetail, { props: { record: makeRecord({}) } })
     const text = wrapper.text()
@@ -44,13 +58,13 @@ describe('ChatRecordDetail 对话气泡模式', () => {
     const wrapper = mount(ChatRecordDetail, {
       props: {
         record: makeRecord({
-          requestBody: {
+          requestBody: j({
             messages: [
               { role: 'user', content: '北京天气？' },
               { role: 'assistant', content: '好的' }
             ]
-          },
-          responseBody: { choices: [{ finish_reason: 'stop', message: { content: '已查询' } }] }
+          }),
+          responseBody: j({ choices: [{ finish_reason: 'stop', message: { content: '已查询' } }] })
         })
       }
     })
@@ -73,7 +87,7 @@ describe('ChatRecordDetail 对话气泡模式', () => {
     const wrapper = mount(ChatRecordDetail, {
       props: {
         record: makeRecord({
-          requestBody: { messages: [{ role: 'system', content: '你是助手' }] }
+          requestBody: j({ messages: [{ role: 'system', content: '你是助手' }] })
         })
       }
     })
@@ -86,7 +100,7 @@ describe('ChatRecordDetail 对话气泡模式', () => {
     const wrapper = mount(ChatRecordDetail, {
       props: {
         record: makeRecord({
-          requestBody: {
+          requestBody: j({
             messages: [
               { role: 'user', content: '查天气' },
               {
@@ -96,11 +110,11 @@ describe('ChatRecordDetail 对话气泡模式', () => {
               },
               { role: 'tool', tool_call_id: 'call_1', content: '晴 26°C' }
             ]
-          },
-          responseBody: {
+          }),
+          responseBody: j({
             choices: [{ finish_reason: 'stop', message: { content: '已查询' } }],
             usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
-          },
+          }),
           toolCallCount: 1
         })
       }
@@ -123,7 +137,7 @@ describe('ChatRecordDetail 对话气泡模式', () => {
     const wrapper = mount(ChatRecordDetail, {
       props: {
         record: makeRecord({
-          requestBody: { messages: [{ role: 'user', content: 'hi' }] }
+          requestBody: j({ messages: [{ role: 'user', content: 'hi' }] })
         })
       }
     })
@@ -146,12 +160,12 @@ describe('ChatRecordDetail 对话气泡模式', () => {
     const wrapper = mount(ChatRecordDetail, {
       props: {
         record: makeRecord({
-          responseBody: [
+          responseBody: j([
             { choices: [{ delta: { role: 'assistant' } }] },
             { choices: [{ delta: { content: '你好' } }] },
             { choices: [{ delta: { content: '世界' } }] },
             { choices: [{ delta: {}, finish_reason: 'stop' }] }
-          ]
+          ])
         })
       }
     })
@@ -166,7 +180,7 @@ describe('ChatRecordDetail 对话气泡模式', () => {
       props: {
         record: makeRecord({
           responseStatus: 500,
-          responseBody: [{ error: 'Response status code does not indicate success: 500 (Internal Server Error).' }]
+          responseBody: j([{ error: 'Response status code does not indicate success: 500 (Internal Server Error).' }])
         })
       }
     })
@@ -178,7 +192,7 @@ describe('ChatRecordDetail 对话气泡模式', () => {
 
   it('空响应体：占位提示，不崩溃', () => {
     const wrapper = mount(ChatRecordDetail, {
-      props: { record: makeRecord({ responseBody: [] }) }
+      props: { record: makeRecord({ responseBody: j([]) }) }
     })
     const text = wrapper.text()
     expect(text).toContain('无结构化对话内容')

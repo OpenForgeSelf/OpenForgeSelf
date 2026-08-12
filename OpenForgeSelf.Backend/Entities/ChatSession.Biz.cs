@@ -1,13 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web;
 using System.Web.Script.Serialization;
 using System.Xml.Serialization;
 using NewLife;
@@ -16,7 +8,6 @@ using NewLife.Log;
 using NewLife.Model;
 using NewLife.Reflection;
 using NewLife.Threading;
-using NewLife.Web;
 using XCode;
 using XCode.Cache;
 using XCode.Configuration;
@@ -26,12 +17,12 @@ using XCode.Shards;
 
 namespace OpenForgeSelf.Backend.Entities;
 
-public partial class ChatRecord : Entity<ChatRecord>
+public partial class ChatSession : Entity<ChatSession>
 {
     #region 对象操作
     private static Int32 MaxCacheCount = 1000;
 
-    static ChatRecord()
+    static ChatSession()
     {
         Meta.Interceptors.Add<TimeInterceptor>();
     }
@@ -42,7 +33,7 @@ public partial class ChatRecord : Entity<ChatRecord>
     {
         if (!HasDirty) return true;
 
-        if (SessionId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(SessionId), "会话ID不能为空！");
+        if (SessionKey.IsNullOrEmpty()) throw new ArgumentNullException(nameof(SessionKey), "会话键不能为空！");
 
         if (!base.Valid(method)) return false;
 
@@ -57,9 +48,9 @@ public partial class ChatRecord : Entity<ChatRecord>
     #endregion
 
     #region 业务操作
-    public IChatRecordModel ToModel()
+    public IChatSessionModel ToModel()
     {
-        var model = new ChatRecord();
+        var model = new ChatSession();
         model.Copy(this);
 
         return model;

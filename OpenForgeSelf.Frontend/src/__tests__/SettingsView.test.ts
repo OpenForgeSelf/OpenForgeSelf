@@ -384,3 +384,136 @@ describe('SettingsView - Provider 模型集成（feature 004）', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('OpenAI:gpt-4o')
   })
 })
+
+// ===== 默认模型下拉：动态拉取实际模型列表 + 持久化（来源:用户输入）=====
+describe('SettingsView - 默认模型下拉（动态列表）', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+  let matchMediaMock: ReturnType<typeof createMatchMediaMock>
+
+  function jsonResponse(data: unknown, ok = true, status = 200): Response {
+    return { ok, status, json: async () => ({ data }) } as unknown as Response
+  }
+
+  function mockModelsAndSettings(defaultModel = 'OpenAI:gpt-4o') {
+    fetchMock.mockImplementation(async (url: string, opts?: RequestInit) => {
+      const method = opts?.method ?? 'GET'
+      if (String(url).includes('/api/ai-models')) {
+        return jsonResponse({
+          groups: [
+            {
+              providerId: 1,
+              providerName: 'OpenAI',
+              models: [
+                {
+                  id: 10,
+                  providerId: 1,
+                  providerName: 'OpenAI',
+                  upstreamModelId: 'gpt-4o',
+                  chatModelId: 'OpenAI:gpt-4o',
+                  alias: 'GPT-4o',
+                  capabilities: ['vision', 'stream'],
+                  enabled: true,
+                  owner: 'openai',
+                  lastSyncTime: '',
+                  createTime: '',
+                  updateTime: '',
+                },
+                {
+                  id: 11,
+                  providerId: 1,
+                  providerName: 'OpenAI',
+                  upstreamModelId: 'gpt-4o-mini',
+                  chatModelId: 'OpenAI:gpt-4o-mini',
+                  alias: null,
+                  capabilities: ['stream'],
+                  enabled: true,
+                  owner: 'openai',
+                  lastSyncTime: '',
+                  createTime: '',
+                  updateTime: '',
+                },
+              ],
+            },
+          ],
+        })
+      }
+      if (String(url).includes('/api/settings') && method === 'GET') {
+        return jsonResponse({ defaultModel })
+      }
+      return jsonResponse({}, false, 404)
+    })
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    document.documentElement.removeAttribute(ROOT_THEME_ATTRIBUTE)
+    document.documentElement.removeAttribute(ROOT_THEME_MODE_ATTRIBUTE)
+    document.documentElement.style.colorScheme = ''
+    matchMediaMock = createMatchMediaMock(false)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn(() => matchMediaMock),
+    })
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('通用设置：默认 AI 模型下拉拉取实际模型，不再写死', async () => {
+    mockModelsAndSettings()
+    const { default: GeneralPanel } = await import('@/components/settings/GeneralPanel.vue')
+    const wrapper = mount(GeneralPanel, { attachTo: document.body })
+    await flushPromises()
+
+    // 实际调用了模型列表接口（enabledOnly）
+    const calledModels = fetchMock.mock.calls.some(
+      (c) => String(c[0]).includes('/api/ai-models') && String(c[0]).includes('enabledOnly=true'),
+    )
+    expect(calledModels).toBe(true)
+
+    // 选项数据来自接口，非写死
+    expect((wrapper.vm as any).models.length).toBe(2)
+    expect((wrapper.vm as any).defaultModel).toBe('OpenAI:gpt-4o')
+
+    // 写死的旧选项文案已移除
+    const text = wrapper.text()
+    expect(text).not.toContain('Gemma 2B 本地')
+    expect(text).not.toContain('DeepSeek API')
+  })
+
+  it('通用设置：切换默认模型持久化到 ForgeSetting', async () => {
+    mockModelsAndSettings()
+    const { settingsApi } = await import('@/services/settingsApi')
+    const spy = vi.spyOn(settingsApi, 'updateSettings')
+    const { default: GeneralPanel } = await import('@/components/settings/GeneralPanel.vue')
+    const wrapper = mount(GeneralPanel, { attachTo: document.body })
+    await flushPromises()
+
+    await (wrapper.vm as any).onDefaultModelChange('OpenAI:gpt-4o-mini')
+    await flushPromises()
+
+    expect(spy).toHaveBeenCalledWith({ defaultModel: 'OpenAI:gpt-4o-mini' })
+  })
+
+  it('AI Agent 配置：默认模型下拉同样拉取实际模型，不再写死', async () => {
+    mockModelsAndSettings()
+    const { default: AiAgentPanel } = await import('@/components/settings/AiAgentPanel.vue')
+    const wrapper = mount(AiAgentPanel, { attachTo: document.body })
+    await flushPromises()
+
+    const calledModels = fetchMock.mock.calls.some(
+      (c) => String(c[0]).includes('/api/ai-models') && String(c[0]).includes('enabledOnly=true'),
+    )
+    expect(calledModels).toBe(true)
+    expect((wrapper.vm as any).models.length).toBe(2)
+
+    const text = wrapper.text()
+    expect(text).not.toContain('Gemma 2B 本地')
+    expect(text).not.toContain('Qwen 7B 本地')
+  })
+})

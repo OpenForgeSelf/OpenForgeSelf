@@ -1,11 +1,58 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { aiModelsApi } from '@/services/aiModelsApi'
+import { settingsApi } from '@/services/settingsApi'
+import type { AIModel } from '@/types/aiModel'
 
-const agentDefaultModel = ref('gemma-2b')
 const localModelPath = ref('~/.forgeself/models')
 const maxContext = ref(4096)
 const temperature = ref(0.7)
 const systemPrompt = ref('你是一个高效的个人 AI 助手，专注于工具调用和任务执行。')
+
+// ===== 默认模型（动态拉取实际模型列表，持久化到 ForgeSetting）=====
+const models = ref<AIModel[]>([])
+const defaultModel = ref('')
+const modelLoading = ref(false)
+
+/** 下拉展示名：优先别名，否则用 chatModelId */
+function modelLabel(m: AIModel): string {
+  return m.alias || m.chatModelId
+}
+
+async function loadModels() {
+  modelLoading.value = true
+  try {
+    const groups = await aiModelsApi.list({ enabledOnly: true })
+    models.value = groups.flatMap((g) => g.models)
+  } catch {
+    models.value = []
+  } finally {
+    modelLoading.value = false
+  }
+}
+
+async function loadDefaultModel() {
+  try {
+    const settings = await settingsApi.getSettings()
+    defaultModel.value = settings.defaultModel
+  } catch {
+    defaultModel.value = ''
+  }
+}
+
+async function onDefaultModelChange(val: string) {
+  defaultModel.value = val
+  try {
+    await settingsApi.updateSettings({ defaultModel: val })
+  } catch {
+    // 保存失败静默处理，下拉仍反映本次选择
+  }
+}
+
+onMounted(() => {
+  loadModels()
+  loadDefaultModel()
+})
 </script>
 
 <template>
@@ -26,9 +73,19 @@ const systemPrompt = ref('你是一个高效的个人 AI 助手，专注于工�
           <span class="text-sm font-medium text-text">默认模型</span>
           <p class="text-xs text-text-secondary mt-0.5 mb-0">推理使用的模型</p>
         </div>
-        <el-select v-model="agentDefaultModel" class="w-[160px]">
-          <el-option value="gemma-2b" label="Gemma 2B 本地" />
-          <el-option value="qwen-7b" label="Qwen 7B 本地" />
+        <el-select
+          v-model="defaultModel"
+          class="w-[200px]"
+          :loading="modelLoading"
+          placeholder="请选择默认模型"
+          @change="onDefaultModelChange"
+        >
+          <el-option
+            v-for="m in models"
+            :key="m.chatModelId"
+            :value="m.chatModelId"
+            :label="modelLabel(m)"
+          />
         </el-select>
       </div>
 

@@ -22,5 +22,10 @@ public class ForgeSetting : Config<ForgeSetting>
   [Description("应用监听端口号（1024-65535），默认 7102")]
   [Category("网络")]
   public Int32 PortNumber { get; set; } = 7102;
+
+  /// <summary>默认 AI 推理模型。存储 chatModelId（格式：提供商:上游模型id），空表示未设置</summary>
+  [Description("默认 AI 推理模型（chatModelId）")]
+  [Category("AI")]
+  public String DefaultModel { get; set; } = "";
   #endregion
 }

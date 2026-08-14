@@ -28,10 +28,18 @@ Write-Host ""
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 # ── 第 1 步：清理 publish 目录 ──
-Write-Host "[1] 清理旧发布目录..." -ForegroundColor Cyan
+# 仅删除发布目录下的文件（含子目录中的文件），保留所有文件夹结构。
+Write-Host "[1] 清理旧发布目录（仅删除文件，保留文件夹）..." -ForegroundColor Cyan
 if (Test-Path $publishDir) {
-    Remove-Item -Path $publishDir -Recurse -Force
-    Write-Host "    已删除 $publishDir" -ForegroundColor Gray
+    $deleted = 0
+    # 递归列出所有文件并删除，目录本身保留
+    Get-ChildItem -Path $publishDir -Recurse -File | ForEach-Object {
+        Remove-Item -Path $_.FullName -Force
+        $deleted++
+    }
+    Write-Host "    已删除 $deleted 个文件（文件夹保留）" -ForegroundColor Gray
+} else {
+    Write-Host "    发布目录不存在，跳过清理" -ForegroundColor Gray
 }
 New-Item -Path $publishDir -ItemType Directory -Force | Out-Null
 Write-Host "    完成" -ForegroundColor Green

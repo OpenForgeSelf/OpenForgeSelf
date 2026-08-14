@@ -195,7 +195,10 @@
     <div v-if="showAddMemory" class="modal-overlay" @click.self="showAddMemory = false">
       <div class="modal modal-lg">
         <div class="modal-header">
-          <h3>新建记忆</h3>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h3>新建记忆</h3>
+          </div>
           <button class="btn-icon" @click="showAddMemory = false">
             <i class="fa-solid fa-xmark" />
           </button>
@@ -255,7 +258,10 @@
     <div v-if="showAddCategory" class="modal-overlay" @click.self="showAddCategory = false">
       <div class="modal">
         <div class="modal-header">
-          <h3>新建分类</h3>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h3>新建分类</h3>
+          </div>
           <button class="btn-icon" @click="showAddCategory = false">
             <i class="fa-solid fa-xmark" />
           </button>
@@ -332,6 +338,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { storeToRefs } from 'pinia'
 import { useMemoryStore } from '@/stores/memory'
 import {

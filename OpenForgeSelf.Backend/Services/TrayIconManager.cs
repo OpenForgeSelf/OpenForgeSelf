@@ -32,6 +32,7 @@ public class TrayIconManager : IDisposable
     private Thread? _staThread;
     private TrayIconWithContextMenu? _trayIcon;
     private Form? _hiddenForm;
+    private Icon? _appIcon; // 自定义应用图标，保持引用防止句柄被 GC 回收
     private readonly ManualResetEventSlim _readyEvent = new(false);
     private bool _disposed;
 
@@ -194,6 +195,7 @@ public class TrayIconManager : IDisposable
 
         _disposed = true;
         Hide();
+        _appIcon?.Dispose();
         _readyEvent.Dispose();
         GC.SuppressFinalize(this);
     }
@@ -232,11 +234,25 @@ public class TrayIconManager : IDisposable
         {
             XTrace.Log.Info("TrayIconManager: 创建托盘图标");
 
-            // TODO: 使用自定义应用图标替换 SystemIcons.Application
-            // 可在项目中添加 .ico 资源文件，例如 OpenForgeSelf.ico
+            // 使用自定义应用图标替换 SystemIcons.Application。
+            // 从 exe 内嵌的 ApplicationIcon 提取（与发布后的 exe 图标一致），提取失败则回退系统图标。
+            var iconHandle = SystemIcons.Application.Handle;
+            try
+            {
+                _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (_appIcon != null)
+                {
+                    iconHandle = _appIcon.Handle;
+                }
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("TrayIconManager: 提取应用图标失败，回退系统图标: {0}", ex.Message);
+            }
+
             _trayIcon = new TrayIconWithContextMenu
             {
-                Icon = SystemIcons.Application.Handle,
+                Icon = iconHandle,
                 ToolTip = "铸己匣",
             };
 

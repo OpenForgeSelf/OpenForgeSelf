@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import type { QuickLink, QuickLinkCreateRequest, ImportMode } from '@/types/quickLinks'
 import { useQuickLinksStore } from '@/stores/quickLinks'
 import LinkCard from '@/components/quicklinks/LinkCard.vue'
@@ -299,7 +300,10 @@ onMounted(() => {
         >
           <div class="modal-container import-modal">
             <div class="modal-header">
-              <h2 class="modal-title">导入链接</h2>
+              <div class="flex items-center gap-2">
+                <AppLogo :size="20" />
+                <h2 class="modal-title">导入链接</h2>
+              </div>
               <button class="close-btn" aria-label="关闭" @click="closeImportModal">
                 ×
               </button>

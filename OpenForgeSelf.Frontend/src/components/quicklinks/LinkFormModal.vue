@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from '@/components/AppLogo.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { QuickLink, QuickLinkCreateRequest } from '@/types/quickLinks'
 import { useQuickLinksStore } from '@/stores/quickLinks'
@@ -160,7 +161,10 @@ onUnmounted(() => {
       >
         <div class="modal-container" role="document">
           <div class="modal-header">
-            <h2 class="modal-title">{{ modalTitle }}</h2>
+            <div class="flex items-center gap-2">
+              <AppLogo :size="20" />
+              <h2 class="modal-title">{{ modalTitle }}</h2>
+            </div>
             <button class="close-btn" aria-label="关闭" @click="handleClose">
               ×
             </button>

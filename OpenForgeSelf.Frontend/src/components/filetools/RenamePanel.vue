@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { useFileToolsStore } from '@/stores/fileTools'
 import type { RenameRuleType } from '@/types/fileTools'
 
@@ -471,7 +472,10 @@ function cancelExecute(): void {
     <div v-if="showConfirmDialog" class="modal-overlay" @click.self="cancelExecute">
       <div class="modal-dialog">
         <div class="modal-header">
-          <h4 class="modal-title">确认执行</h4>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h4 class="modal-title">确认执行</h4>
+          </div>
         </div>
         <div class="modal-body">
           <p>确定要对 <strong>{{ store.validPreviewCount }}</strong> 个文件执行重命名操作吗？</p>

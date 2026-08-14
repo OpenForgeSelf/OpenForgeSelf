@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { useScriptRunnerStore } from '@/stores/scriptRunner'
 import { scriptHub } from '@/services/scriptHub'
 import type { Script, ScriptParameter, ScriptExecutionLog, ScriptListParams } from '@/types/scriptRunner'
@@ -442,7 +443,10 @@ onUnmounted(() => {
     <div v-if="showParameterForm" class="modal-overlay" @click.self="handleParameterFormCancel">
       <div class="modal modal-medium">
         <div class="modal-header">
-          <h3>配置参数</h3>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h3>配置参数</h3>
+          </div>
           <button class="modal-close" aria-label="关闭" @click="handleParameterFormCancel">
             <svg
               width="16"

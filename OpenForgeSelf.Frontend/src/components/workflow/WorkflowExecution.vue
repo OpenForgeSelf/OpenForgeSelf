@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import type { WorkflowExecution } from '@/types/workflow'
 import StepTimeline from './StepTimeline.vue'
 import ExecutionLog from './ExecutionLog.vue'
@@ -104,6 +105,7 @@ function handleClose(): void {
         <button class="back-btn" aria-label="返回" @click="handleClose">
           ←
         </button>
+        <AppLogo :size="20" />
         <div class="header-info">
           <h2>{{ execution?.workflowName || '工作流执行' }}</h2>
           <div class="execution-meta">

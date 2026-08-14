@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Grid, Setting } from '@element-plus/icons-vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { useTabsStore } from '@/stores/tabs'
 import { useOpenPage } from '@/composables/useOpenPage'
 
@@ -40,12 +41,7 @@ function closeTab(path: string): void {
     <!-- 左区：Logo + Tab 标签条 -->
     <div class="flex items-center gap-3 min-w-0">
       <router-link to="/" class="flex items-center gap-2 no-underline shrink-0">
-        <svg width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <rect x="3" y="14" width="22" height="8" rx="2" fill="var(--el-color-primary)" opacity="0.9" />
-          <rect x="6" y="8" width="16" height="8" rx="2" fill="var(--el-color-primary)" opacity="0.7" />
-          <rect x="9" y="3" width="10" height="7" rx="2" fill="var(--el-color-primary)" />
-          <rect x="12" y="22" width="4" height="3" rx="1" fill="var(--el-text-color-secondary)" />
-        </svg>
+        <AppLogo :size="28" />
         <span class="text-[13px] font-bold text-[var(--el-text-color-primary)]">铸己匣</span>
       </router-link>
 

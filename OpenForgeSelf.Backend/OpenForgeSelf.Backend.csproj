@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>OpenForgeSelf</AssemblyName>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\OpenForgeSelf.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

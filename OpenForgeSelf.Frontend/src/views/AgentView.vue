@@ -393,10 +393,13 @@
     <div v-if="showCoordination" class="modal-overlay" @click.self="showCoordination = false">
       <div class="modal modal-large">
         <div class="modal-header">
-          <h3>
-            <i class="fa-solid fa-users" />
-            多 Agent 协作
-          </h3>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h3>
+              <i class="fa-solid fa-users" />
+              多 Agent 协作
+            </h3>
+          </div>
           <button class="btn-close" @click="showCoordination = false">
             <i class="fa-solid fa-xmark" />
           </button>
@@ -470,6 +473,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import { useChatStore } from '@/stores/chat'

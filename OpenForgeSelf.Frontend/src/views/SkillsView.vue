@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import type { SkillItemDto, CreateSkillDto, UpdateSkillDto } from '@/types/skills'
 import { skillsApi } from '@/services/skillsApi'
 import { useOpenPage } from '@/composables/useOpenPage'
@@ -454,7 +455,10 @@ function getSkillIcon(name: string): string {
       <div v-if="showFormModal" class="modal-overlay" @click.self="closeFormModal">
         <div class="modal-panel">
           <div class="modal-header">
-            <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
+            <div class="flex items-center gap-2">
+              <AppLogo :size="20" />
+              <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
+            </div>
             <button class="modal-close" @click="closeFormModal">
               <svg
                 width="16"

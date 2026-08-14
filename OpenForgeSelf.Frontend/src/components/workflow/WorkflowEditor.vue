@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import type { WorkflowDefinition, WorkflowStep, WorkflowVariable, WorkflowStepType } from '@/types/workflow'
 import ScriptStepEditor from './ScriptStepEditor.vue'
 
@@ -160,7 +161,10 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 <template>
   <div class="workflow-editor">
     <div class="editor-header">
-      <h2>{{ workflow ? '编辑工作流' : '创建工作流' }}</h2>
+      <div class="flex items-center gap-2">
+        <AppLogo :size="20" />
+        <h2>{{ workflow ? '编辑工作流' : '创建工作流' }}</h2>
+      </div>
       <div class="header-actions">
         <button class="btn btn-secondary" @click="handleCancel">取消</button>
         <button class="btn btn-primary" :disabled="!name.trim()" @click="handleSave">

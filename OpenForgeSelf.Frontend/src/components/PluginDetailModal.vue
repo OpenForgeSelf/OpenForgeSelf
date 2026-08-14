@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from '@/components/AppLogo.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { PluginDetail } from '@/types/plugin'
 import { PluginState, PluginPermission } from '@/types/plugin'
@@ -148,6 +149,7 @@ onUnmounted(() => {
       >
         <div class="modal-container" role="document">
           <div class="modal-header">
+            <AppLogo :size="20" />
             <button class="close-btn" aria-label="关闭" @click="handleClose">
               ×
             </button>
@@ -290,7 +292,7 @@ onUnmounted(() => {
 
 .modal-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 12px 16px 0;
   flex-shrink: 0;
 }

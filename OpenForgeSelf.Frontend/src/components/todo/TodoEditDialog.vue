@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 // 组件交由 unplugin-vue-components 自动解析并注入样式（显式 import 会绕过按需样式，导致弹窗/表单无样式）
 import type { FormInstance, FormRules } from 'element-plus'
 import type { TodoItem, TodoCreateRequest, TodoUpdateRequest } from '@/types/todo'
@@ -95,12 +96,17 @@ defineExpose({ errorMessage })
 <template>
   <ElDialog
     :model-value="visible"
-    :title="title"
     width="500"
     append-to-body
     @update:model-value="(v: boolean) => emit('update:visible', v)"
     @close="errorMessage = null"
   >
+    <template #header>
+      <div class="flex items-center gap-2">
+        <AppLogo :size="20" />
+        <span class="font-bold text-[var(--el-text-color-primary)]">{{ title }}</span>
+      </div>
+    </template>
     <ElAlert
       v-if="errorMessage"
       :title="errorMessage"

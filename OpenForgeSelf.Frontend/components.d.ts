@@ -16,6 +16,7 @@ declare module 'vue' {
     AIWorkflowGenerator: typeof import('./src/components/workflow/AIWorkflowGenerator.vue')['default']
     ApiServerPanel: typeof import('./src/components/settings/ApiServerPanel.vue')['default']
     AppearancePanel: typeof import('./src/components/settings/AppearancePanel.vue')['default']
+    AppLogo: typeof import('./src/components/AppLogo.vue')['default']
     ArchivePanel: typeof import('./src/components/filetools/ArchivePanel.vue')['default']
     CategoryManager: typeof import('./src/components/quicklinks/CategoryManager.vue')['default']
     ChatRecordDetail: typeof import('./src/components/chatrecords/ChatRecordDetail.vue')['default']

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import AppLogo from '@/components/AppLogo.vue'
 import { useFileToolsStore } from '@/stores/fileTools'
 import { fileToolsApi } from '@/services/fileToolsApi'
 import type { CleanupFilterType } from '@/types/fileTools'
@@ -325,7 +326,10 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
     <div v-if="showConfirmDialog" class="modal-overlay" @click.self="cancelExecute">
       <div class="modal-dialog">
         <div class="modal-header">
-          <h4 class="modal-title">确认清理</h4>
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h4 class="modal-title">确认清理</h4>
+          </div>
         </div>
         <div class="modal-body">
           <p>

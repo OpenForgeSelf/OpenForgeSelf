@@ -10,7 +10,7 @@
 
 - [ ] 全功能 e2e 覆盖：功能清单 21 项全部有 Playwright e2e 测试且通过（已覆盖 11 项 + 新增 10 项 spec 共 36 用例，剩余项待收尾）
 - [ ] 聊天 UI 动态模型选择：从 `/api/ai-models` 加载模型，替代静态硬编码（见 TODO.md 已知问题）
-- [ ] AI 提供方 CRUD 接口鉴权：与 `/api/api-server` 一致加 `ApiKeyPolicy`（TODO.md 待办）
+- [x] AI 提供方 CRUD 接口鉴权：已加 `[Authorize("ApiKeyPolicy")]`，列表/详情仅返回掩码 ApiKey（代码落地于 `Controllers/AIProviderController.cs`，待运行时回归验证）
 
 **验证方式**：`pnpm run check` + `pnpm run test` + `dotnet build` + `dotnet test` + Playwright e2e 全部绿。
 

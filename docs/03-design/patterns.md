@@ -1,0 +1,16 @@
+# 03-design — 设计规范
+
+> 状态：部分（核心模式已下沉到具体功能文档，2026-08-12）
+> 最后更新：2026-08-12
+
+本目录收纳**跨功能共享的设计模式**。当前核心模式已在对应文档落地，避免重复：
+
+| 模式 | 落点文档 |
+|------|----------|
+| 零自定义 token 样式体系 / 背景图 `<img>` 方案 / canvas 取色 | `02-features/006-background-image.md` |
+| 前端组件/导航/API 封装规范 | `04-standards/engineering.md` §1 |
+| 统一 AI 网关多风格归一（OpenAI / Anthropic / Responses + Agent Framework 实验接口）/ 模型前缀路由 | `02-features/004-provider-models-integration.md` |
+| 聊天会话聚合（ChatSession/ChatTurn） | `02-features/010-chat-session-aggregation.md` |
+| 多模态图片缓存（分区键/原子写/容错） | `02-features/011-multimodal-image-cache.md` |
+
+新功能若提炼出可复用的通用设计模式，在此补独立小节，并同步 `docs/README.md` 索引。

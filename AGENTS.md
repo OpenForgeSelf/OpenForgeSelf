@@ -420,6 +420,23 @@ Verify 失败
 6. **编号冲突处理**（多代理/并发会话）：若发现同一天已有相同「输入 N」编号（如子代理与主会话并发写入），**保留各自完整内容**并在其中一条加注说明（如「（注：另有并发写入的同编号条目，已保留各自内容）」），**不得互相覆盖或删除**——保证可追溯性优先于编号唯一性
 7. **子代理（worker）任务边界**：派发子代理执行待办时，在任务说明中明确「只做编译/单元验证，不做运行时验证（重启后端/跑 e2e/git 提交）」，运行时验证由主代理完成后在 TODO 标注「（已实现，待运行时验证）」→ 验证通过后移除待办
 
+### 7.5.6 文档反向同步（docs/ 落后于代码时）
+
+> 详规与完整校验清单见 `docs/04-standards/doc-reverse-sync-sop.md`（代码→文档闭环）。本节仅列铁律与触发条件，换 AI 也照此执行。
+
+**触发**：发现 `docs/` 与代码实现不一致（端口/类名/路由/状态过时或缺失）时，按 SOP 以代码为准反向更新 `docs/`，不急于求成、按 `docs/` 编号顺序（00→01→02→…→README）增量推进。
+
+**铁律（写文档前必守）：**
+1. **代码是唯一事实源**：文档中端口/类名/路由/路径/状态必须 `grep` 代码确认，禁止凭记忆或猜测；`specs/` 不纳入（开发期产物，职责分离）。
+2. **不臆造**：代码没有的能力不写；已实现但文档缺失的，补；已变而过时的，改；缺口功能如实标「后端缺口/待补」并记 TODO。
+3. **核心校验点（每篇必查）**：
+   - **端口**：后端 `7102`、前端 dev `7002`（§2.3 已对；勿沿用任何过时值）。
+   - **路由/端点须 grep 实际 `[Route]`/`[Http*]`**：`[Route("api/[controller]")]` 实际路径 = `api/` + 小写控制器名（如 `PortConfigurationController`→`api/portconfiguration`，勿臆造连字符 `api/port-config`）；`ChatController` 仅 `api/chat`/`api/chat/stream`/`api/chat/history/{sessionId}`/`api/chat/session/{sessionId}`，会话列表/详情归 `ChatRecordsController`(`api/chat-sessions`)。
+   - **UnifiedAI 网关列全**：含 `AgentChatController`(`v1/agent/chat/completions`)，不止 OpenAI/Anthropic/Responses/Models 四者。
+   - **实体字段表**须 `grep "BindColumn"` 取全量，避免只列部分。
+   - **插件路由前缀**须 `grep "[Route("` 取真实前缀（`Plugins/<Name>/Controllers/*.cs` → `api/<plugin>`）；注意 `Glob Plugins/*` 不递归会误判"无子插件"，须 `Grep`/`Glob Plugins/**` 确认真实子目录。
+4. **登记**：新建文档须在 `docs/README.md` 速查表 + 已归档内容表登记；不顺手改本增量范围外的文档/代码。
+
 ---
 
 ## 8. 设计稿工作流

@@ -38,11 +38,11 @@
 | D | 03-09（design/standards/guides/security/operations） | ✅ 已完成 |
 | E | 10-16（testing/troubleshooting/faq/glossary/onboarding/roadmap/reference/changelog） | ✅ 已完成 |
 | F | README 最终校验 + 全量一致性扫雷 | ✅ 已完成 |
-| G | SOP 沉淀进 MEMORY 长期规律（AGENTS.md §7.5 改动待用户拍板） | ✅ 已完成 |
+| G | SOP 沉淀进 MEMORY 长期规律 + AGENTS.md §7.5.6 已融入（见 7.5.6） | ✅ 已完成 |
 
 ## 4. 已知漂移（沉淀，复核时重点查）
 
-- **端口**：后端默认 `7102`（`Models/ForgeSetting.cs` `PortNumber=7102`）、前端 dev `7002`；AGENTS.md 旧注 `7300/7380` 已过时——文档若提端口须用 7102/7002，并可在脚注标注旧值过时。
+- **端口**：后端默认 `7102`（`Models/ForgeSetting.cs` `PortNumber=7102`）、前端 dev `7002`；AGENTS.md §2.3 已更正为 7102/7002（旧值 `7300/7380` 已无残留）——文档若提端口须用 7102/7002，旧值仅作历史对照。
 - **AIProvider 鉴权**：`[Authorize("ApiKeyPolicy")]` 已落地（原 TODO"待运行时验证"已变代码事实）。
 - **ChatRecord→ChatTurn + ChatSession 聚合**：已实现（代码已提交至 `9d84e48`，旧 607 行不迁移）。
 - **多模态图片识别缓存**：`IImageRecognitionCache`+`LocalFileImageRecognitionCache` 已实现（同 commit）。

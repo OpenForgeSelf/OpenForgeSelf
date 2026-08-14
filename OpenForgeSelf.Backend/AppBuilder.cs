@@ -54,7 +54,19 @@ public static class AppBuilder
     /// <returns>已配置好所有中间件和服务的 WebApplication，尚未启动。</returns>
     public static WebApplication CreateWebApplication(string[] args)
     {
-        var builder = WebApplication.CreateBuilder(args);
+        // 显式固定 WebRoot 为「程序所在目录（exe 目录）下的 wwwroot」，兼容开发期项目目录 wwwroot。
+        // 必须在 CreateBuilder 阶段通过 WebApplicationOptions 设定：若在 CreateBuilder 之后调用
+        // builder.WebHost.UseWebRoot，ASP.NET Core 会抛 NotSupportedException
+        // （"Changing the host configuration using WebApplicationBuilder.WebHost is not supported"）。
+        // 以 exe 目录为基准：从其他文件夹启动（如直接运行 publish/OpenForgeSelf.exe）时，
+        // ContentRootPath/CWD 会偏离，默认 WebRootPath 解析可能找不到 wwwroot（2026-08-14 实战坑）。
+        // 候选基准：exe 目录 + 当前工作目录（dotnet run 开发期 CWD=项目目录，wwwroot 建于此）。
+        var webRoot = ResolveWebRootPath(AppContext.BaseDirectory, Directory.GetCurrentDirectory());
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            WebRootPath = webRoot,
+        });
 
         XTrace.Log.Level = NewLife.Log.LogLevel.Info;
 
@@ -303,11 +315,14 @@ public static class AppBuilder
             await next();
             if (context.Response.StatusCode == 404 && !IsApiOrStaticRequest(context.Request.Path))
             {
-                context.Response.Clear();
-                context.Response.StatusCode = 200;
-                var indexPath = Path.Combine(app.Environment.WebRootPath, "index.html");
+                // WebRootPath 在服务启动时解析：若当时 wwwroot 不存在则为 null（且不会因后续目录出现而自动补正）。
+                // 此处兜底到 ContentRootPath/wwwroot，与 UseStaticFiles 内部对 null WebRootPath 的处理一致；
+                // 仅当 index.html 确实存在时才改写响应，避免返回空 200。
+                var indexPath = Path.Combine(ResolveSpaWebRootPath(app.Environment.WebRootPath, app.Environment.ContentRootPath), "index.html");
                 if (File.Exists(indexPath))
                 {
+                    context.Response.Clear();
+                    context.Response.StatusCode = 200;
                     context.Response.ContentType = "text/html";
                     await context.Response.SendFileAsync(indexPath);
                 }
@@ -436,5 +451,49 @@ public static class AppBuilder
             }
             catch { }
         }
+    }
+
+    /// <summary>
+    /// 解析 SPA 静态根目录路径。
+    /// <see cref="WebRootPath"/> 在 WebApplication 启动时按 {ContentRoot}/wwwroot 解析：
+    /// 若启动时该目录尚不存在，则该属性保持 <c>null</c>（且不会因后续目录出现而自动补正），
+    /// 直接导致 SPA Fallback 中间件 <c>Path.Combine(null, "index.html")</c> 抛 <see cref="ArgumentNullException"/>。
+    /// 此处对空值兜底到 {ContentRoot}/wwwroot，与 <c>UseStaticFiles</c> 内部对 null WebRootPath 的处理一致。
+    /// </summary>
+    /// <param name="webRootPath">环境变量中的 WebRootPath（可能为 null 或空）。</param>
+    /// <param name="contentRootPath">环境变量中的 ContentRootPath（始终非空）。</param>
+    /// <returns>用于查找 index.html 的 SPA 根目录绝对路径。</returns>
+    public static string ResolveSpaWebRootPath(string? webRootPath, string contentRootPath)
+        => string.IsNullOrWhiteSpace(webRootPath)
+            ? Path.Combine(contentRootPath, "wwwroot")
+            : webRootPath;
+
+    /// <summary>
+    /// 解析 WebRoot（静态资源根目录）的绝对路径。
+    /// 必须以「程序所在目录（exe 目录，<see cref="AppContext.BaseDirectory"/>）」为基准，
+    /// 避免从其他文件夹启动（例如直接运行 publish/OpenForgeSelf.exe）时，
+    /// 因 ContentRootPath/CWD 偏差而找不到 wwwroot。
+    /// 同时兼容开发期：dotnet run 的 CWD 是项目目录，wwwroot 建于项目级 OpenForgeSelf.Backend/wwwroot（构建时会复制到输出目录）。
+    /// 优先返回「存在且含 index.html」的候选；若都不存在则回退到首个候选基准下的 wwwroot
+    /// （保证 WebRootPath 非空，避免 SPA Fallback 的 Path.Combine(null) 崩溃）。
+    /// </summary>
+    /// <param name="candidateBases">候选基准目录集合（按优先级排列，通常为 exe 目录、当前工作目录等）。</param>
+    /// <returns>用于托管静态资源与 SPA 的 wwwroot 绝对路径。</returns>
+    public static string ResolveWebRootPath(params string[] candidateBases)
+    {
+        var candidates = new List<string>();
+        foreach (var baseDir in candidateBases)
+        {
+            if (!string.IsNullOrWhiteSpace(baseDir))
+                candidates.Add(Path.Combine(baseDir!, "wwwroot"));
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(Path.Combine(candidate, "index.html")))
+                return candidate;
+        }
+
+        return candidates.Count > 0 ? candidates[0] : Path.Combine(AppContext.BaseDirectory, "wwwroot");
     }
 }

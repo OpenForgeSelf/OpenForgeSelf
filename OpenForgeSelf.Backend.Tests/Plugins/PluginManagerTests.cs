@@ -1,6 +1,8 @@
 using System.Reflection;
 using OpenForgeSelf.Backend.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;
@@ -206,26 +208,6 @@ public class PluginManagerTests : IDisposable
     }
 
     [Fact]
-    public void StartPlugin_PluginNotLoaded_ReturnsFalse()
-    {
-        var manager = CreateManager();
-
-        var result = manager.StartPlugin("nonexistent");
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    public void StopPlugin_PluginNotLoaded_ReturnsFalse()
-    {
-        var manager = CreateManager();
-
-        var result = manager.StopPlugin("nonexistent");
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
     public void DestroyPlugin_PluginNotLoaded_ReturnsFalse()
     {
         var manager = CreateManager();
@@ -401,9 +383,254 @@ public class PluginManagerTests : IDisposable
         sorted[0].Id.Should().Be("plugin.a");
     }
 
+    private interface IMarker { }
+    private sealed class Marker : IMarker { }
+
+    [Fact]
+    public void InitializePlugin_HotEnablePath_ProvidesServiceCollection()
+    {
+        // 热启用路径（RegisterAllServices 后，再对单独插件 InitializePlugin）
+        // 必须为该插件注入独立的 ServiceCollection（非宿主集合），供插件 DI 自注册。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var services = new ServiceCollection();
+        manager.RegisterAllServices(services);
+
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.hotenable");
+        InjectPlugin(manager, "test.hotenable", metadata, plugin);
+
+        var result = manager.InitializePlugin("test.hotenable");
+
+        result.Should().BeTrue();
+        plugin.Context.Should().NotBeNull();
+        plugin.Context!.Get<IServiceCollection>().Should().NotBeNull();
+        plugin.Context!.Get<IServiceCollection>().Should().NotBeSameAs(services);
+    }
+
+    [Fact]
+    public void ProvideHostServices_SeedsCuratedContracts_IntoPluginFiberContext()
+    {
+        // 启动后 ProvideHostServices(app.Services) 把宿主应提供的契约 seed 进插件根上下文：
+        // 派生 Fiber 的 Get<T>() 应能经父级链解析到（对标 Cordis app.service + 派生上下文继承）。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var services = new ServiceCollection();
+        // ICronParser 在「宿主 → 插件」契约清单内（curated），应被 seed。
+        services.AddSingleton<ICronParser>(new FakeCronParser());
+        // IMarker 不在清单内，验证 seed 是精选而非把宿主全部服务透传。
+        services.AddSingleton<IMarker, Marker>();
+        services.AddSingleton(new ExtensionPointManager(manager));
+        manager.RegisterAllServices(services);
+
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.bridge");
+        InjectPlugin(manager, "test.bridge", metadata, plugin);
+        manager.InitializePlugin("test.bridge");
+
+        var hostProvider = services.BuildServiceProvider();
+        manager.ProvideHostServices(hostProvider);
+
+        // curated 契约：插件上下文经父级链继承到宿主 seed 的实例。
+        var cronParser = plugin.Context!.Get<ICronParser>();
+        cronParser.Should().NotBeNull();
+        cronParser.Should().BeSameAs(hostProvider.GetRequiredService<ICronParser>());
+
+        // 非 curated 服务：不回落宿主 DI，返回 null（证明已移除透传）。
+        plugin.Context!.Get<IMarker>().Should().BeNull();
+    }
+
+    private sealed class FakeCronParser : ICronParser
+    {
+        public bool IsValid(string cronExpression) => true;
+        public DateTime? GetNextRunTime(string cronExpression, DateTime afterTime, TimeZoneInfo? timeZone = null)
+            => afterTime.AddMinutes(1);
+        public List<DateTime> GetNextRunTimes(string cronExpression, DateTime afterTime, int count, TimeZoneInfo? timeZone = null)
+            => Enumerable.Range(1, count).Select(i => afterTime.AddMinutes(i)).ToList();
+    }
+
+    [Fact]
+    public void DiscoverAllExtensions_DiscoversExtensions_ForLoadedPlugins()
+    {
+        // 启动路径接线：DiscoverAllExtensions 应对所有已加载插件发现扩展点，
+        // 修复「启动后菜单/工具扩展为空」的缺陷（缺陷2）。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var extensionManager = new ExtensionPointManager(manager);
+        var services = new ServiceCollection();
+        services.AddSingleton(extensionManager);
+        manager.RegisterAllServices(services);
+
+        var plugin = new FakeMenuPlugin();
+        plugin.AddMenuExtension(new FakeMenuExtension
+        {
+            Id = "menu.hot",
+            Name = "Hot Menu",
+            PluginId = "test.ext"
+        });
+        var metadata = PluginManifestGenerator.CreateBasic("test.ext");
+        InjectPlugin(manager, "test.ext", metadata, plugin);
+        manager.InitializePlugin("test.ext");
+
+        manager.DiscoverAllExtensions(extensionManager);
+
+        extensionManager.GetExtensions<IMenuExtension>()
+            .Should().ContainSingle(m => m.Id == "menu.hot");
+    }
+
+    [Fact]
+    public void DiscoverAllExtensions_IsIdempotent_DoesNotDuplicate()
+    {
+        // 缺陷2 要求 discover 幂等：重复发现不产生重复条目（扩展点注册使用 TryAdd）。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var extensionManager = new ExtensionPointManager(manager);
+        var services = new ServiceCollection();
+        services.AddSingleton(extensionManager);
+        manager.RegisterAllServices(services);
+
+        var plugin = new FakeMenuPlugin();
+        plugin.AddMenuExtension(new FakeMenuExtension
+        {
+            Id = "menu.idempotent",
+            Name = "Idempotent Menu",
+            PluginId = "test.idempotent"
+        });
+        var metadata = PluginManifestGenerator.CreateBasic("test.idempotent");
+        InjectPlugin(manager, "test.idempotent", metadata, plugin);
+        manager.InitializePlugin("test.idempotent");
+
+        manager.DiscoverAllExtensions(extensionManager);
+        manager.DiscoverAllExtensions(extensionManager);
+
+        extensionManager.GetExtensions<IMenuExtension>()
+            .Should().ContainSingle(m => m.Id == "menu.idempotent");
+    }
+
+    [Fact]
+    public void RegisterPluginApplicationParts_ThenDestroyPlugin_RemovesApplicationPart()
+    {
+        // 动态端点移除：注册 → 销毁后 ApplicationParts 不再包含该插件的程序集，且变更通知各触发一次。
+        var manager = CreateManager();
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.parts");
+        InjectPlugin(manager, "test.parts", metadata, plugin);
+        var assembly = typeof(PluginManager).Assembly;
+        InjectPluginAssembly(manager, "test.parts", assembly);
+
+        var partManager = new ApplicationPartManager();
+        var notified = 0;
+        manager.RegisterPluginApplicationParts(partManager, () => notified++);
+
+        var matchingParts = partManager.ApplicationParts.OfType<AssemblyPart>().Count(ap => ReferenceEquals(ap.Assembly, assembly));
+        matchingParts.Should().Be(1);
+        notified.Should().Be(1, "注册新增部件应触发一次刷新通知");
+
+        var destroyed = manager.DestroyPlugin("test.parts");
+
+        destroyed.Should().BeTrue();
+        var remainingParts = partManager.ApplicationParts.OfType<AssemblyPart>().Count(ap => ReferenceEquals(ap.Assembly, assembly));
+        remainingParts.Should().Be(0);
+        partManager.ApplicationParts.Should().BeEmpty();
+        notified.Should().Be(2, "移除部件应再触发一次刷新通知");
+    }
+
+    [Fact]
+    public void RegisterPluginApplicationParts_IsIdempotent_DoesNotDuplicateParts()
+    {
+        // 幂等：重复注册不产生重复部件，且只有首次实际新增时触发通知。
+        var manager = CreateManager();
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.idem");
+        InjectPlugin(manager, "test.idem", metadata, plugin);
+        InjectPluginAssembly(manager, "test.idem", typeof(PluginManager).Assembly);
+
+        var partManager = new ApplicationPartManager();
+        var notified = 0;
+        manager.RegisterPluginApplicationParts(partManager, () => notified++);
+        manager.RegisterPluginApplicationParts(partManager, () => notified++);
+
+        partManager.ApplicationParts.Should().ContainSingle();
+        notified.Should().Be(1);
+    }
+
+    [Fact]
+    public void DestroyPlugin_WithoutPartManager_DoesNotThrow()
+    {
+        // 未设置 ApplicationPartManager（null 跳过）：卸载不炸；重复卸载返回 false 且不炸（幂等）。
+        var manager = CreateManager();
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.nopm");
+        InjectPlugin(manager, "test.nopm", metadata, plugin);
+
+        manager.DestroyPlugin("test.nopm").Should().BeTrue();
+        manager.DestroyPlugin("test.nopm").Should().BeFalse();
+    }
+
+    [Fact]
+    public void DestroyPlugin_UnregisteredApplicationPart_DoesNotThrowAndLeavesPartsUntouched()
+    {
+        // 已设置 partManager 但该插件从未注册过部件：卸载不炸，且不影响已注册的其他部件。
+        var manager = CreateManager();
+        var plugin = new FakePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.unreg");
+        InjectPlugin(manager, "test.unreg", metadata, plugin);
+
+        var partManager = new ApplicationPartManager();
+        manager.RegisterPluginApplicationParts(partManager);
+
+        manager.DestroyPlugin("test.unreg").Should().BeTrue();
+
+        partManager.ApplicationParts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemovePluginAssembly_ReturnsAssembly_AndIsIdempotent()
+    {
+        // RemovePluginAssembly 返回并移除该插件的独立程序集；重复调用返回 null 不抛异常。
+        var manager = CreateManager();
+        var assembly = typeof(PluginManager).Assembly;
+        InjectPluginAssembly(manager, "test.asm", assembly);
+
+        manager.RemovePluginAssembly("test.asm").Should().BeSameAs(assembly);
+        manager.RemovePluginAssembly("test.asm").Should().BeNull();
+    }
+
     private PluginManager CreateManager()
     {
         return new PluginManager(_serviceProvider, _mockPermissionChecker.Object);
+    }
+
+    private static void InjectPlugin(PluginManager manager, string pluginId, PluginMetadata metadata, IPlugin plugin)
+    {
+        var pluginsField = typeof(PluginManager).GetField("_plugins", BindingFlags.NonPublic | BindingFlags.Instance);
+        var statesField = typeof(PluginManager).GetField("_pluginStates", BindingFlags.NonPublic | BindingFlags.Instance);
+        var metadatasField = typeof(PluginManager).GetField("_metadatas", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        pluginsField.Should().NotBeNull();
+        statesField.Should().NotBeNull();
+        metadatasField.Should().NotBeNull();
+
+        var plugins = (System.Collections.Concurrent.ConcurrentDictionary<string, IPlugin>)pluginsField!.GetValue(manager)!;
+        var states = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginState>)statesField!.GetValue(manager)!;
+        var metadatas = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginMetadata>)metadatasField!.GetValue(manager)!;
+
+        plugins.TryAdd(pluginId, plugin);
+        states.TryAdd(pluginId, PluginState.Loaded);
+        metadatas.TryAdd(pluginId, metadata);
+    }
+
+    private static void InjectPluginAssembly(PluginManager manager, string pluginId, Assembly assembly)
+    {
+        var assembliesField = typeof(PluginManager).GetField("_pluginAssemblies", BindingFlags.NonPublic | BindingFlags.Instance);
+        assembliesField.Should().NotBeNull();
+
+        var assemblies = (System.Collections.Concurrent.ConcurrentDictionary<string, Assembly>)assembliesField!.GetValue(manager)!;
+        assemblies.TryAdd(pluginId, assembly);
     }
 
     private static List<PluginMetadata> InvokeTopologicalSort(List<PluginMetadata> metadatas)

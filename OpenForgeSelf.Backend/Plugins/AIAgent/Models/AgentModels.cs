@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Models;
 

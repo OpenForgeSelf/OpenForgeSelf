@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
+using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 

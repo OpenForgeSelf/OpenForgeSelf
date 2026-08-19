@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -11,86 +10,28 @@ namespace OpenForgeSelf.Backend.Plugins.WorkflowEngine;
 
 public class WorkflowEnginePlugin : IPlugin
 {
-    public string Id => "workflow.engine.plugin";
-    public string Name => "工作流引擎插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "AI工作流引擎插件，支持可视化工作流编排、条件判断、循环、并行执行、错误重试等功能。";
-    public string IconUrl => "https://example.com/workflow-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
-    private IServiceProvider? _serviceProvider;
     private IWorkflowExecutor? _workflowExecutor;
     private IWorkflowScheduler? _workflowScheduler;
     private IWorkflowService? _workflowService;
 
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("初始化工作流引擎插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("初始化工作流引擎插件");
 
-            RegisterServices(services);
-            RegisterMenuExtensions();
-            RegisterToolExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IWorkflowService, WorkflowService>();
+        services?.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
+        services?.AddScoped<IWorkflowScheduler, WorkflowScheduler>();
 
-            XTrace.Log.Info("工作流引擎插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("工作流引擎插件初始化失败: {0}", ex.Message);
-            throw;
-        }
-    }
+        RegisterServices(ctx);
+        RegisterMenuExtensions(pluginId);
+        RegisterToolExtensions(pluginId, ctx);
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("启动工作流引擎插件");
-
-            EnsureDatabaseCreated();
-
-            XTrace.Log.Info("工作流引擎插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("工作流引擎插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("停止工作流引擎插件");
-            XTrace.Log.Info("工作流引擎插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("工作流引擎插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("销毁工作流引擎插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("工作流引擎插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("工作流引擎插件销毁失败: {0}", ex.Message);
-            throw;
-        }
+        XTrace.Log.Info("工作流引擎插件初始化完成");
     }
 
     private void RegisterServices(IServiceProvider services)
@@ -102,13 +43,13 @@ public class WorkflowEnginePlugin : IPlugin
         XTrace.Log.Debug("工作流引擎插件服务已注册");
     }
 
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         MenuExtensions.Add(new WorkflowMenuExtension
         {
             Id = "workflow.menu.main",
             Name = "工作流",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-project-diagram",
             Path = "/workflows",
             Order = 80,
@@ -118,13 +59,13 @@ public class WorkflowEnginePlugin : IPlugin
         XTrace.Log.Debug("工作流引擎插件已注册菜单扩展点");
     }
 
-    private void RegisterToolExtensions()
+    private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {
-        ToolExtensions.Add(new CreateWorkflowToolFunction(_serviceProvider)
+        ToolExtensions.Add(new CreateWorkflowToolFunction(services)
         {
             Id = "workflow.tool.create",
             Name = "create_workflow",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "创建一个新的工作流定义",
             ParametersJsonSchema = @"
 {
@@ -147,11 +88,11 @@ public class WorkflowEnginePlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new GetWorkflowToolFunction(_serviceProvider)
+        ToolExtensions.Add(new GetWorkflowToolFunction(services)
         {
             Id = "workflow.tool.get",
             Name = "get_workflow",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "获取指定工作流的详细信息，包括步骤定义、变量配置等",
             ParametersJsonSchema = @"
 {
@@ -166,11 +107,11 @@ public class WorkflowEnginePlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new ExecuteWorkflowToolFunction(_serviceProvider)
+        ToolExtensions.Add(new ExecuteWorkflowToolFunction(services)
         {
             Id = "workflow.tool.execute",
             Name = "execute_workflow",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "执行指定的工作流",
             ParametersJsonSchema = @"
 {
@@ -189,11 +130,11 @@ public class WorkflowEnginePlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new GetWorkflowStatusToolFunction(_serviceProvider)
+        ToolExtensions.Add(new GetWorkflowStatusToolFunction(services)
         {
             Id = "workflow.tool.get_status",
             Name = "get_workflow_status",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "获取工作流执行状态",
             ParametersJsonSchema = @"
 {
@@ -208,11 +149,11 @@ public class WorkflowEnginePlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new ListWorkflowsToolFunction(_serviceProvider)
+        ToolExtensions.Add(new ListWorkflowsToolFunction(services)
         {
             Id = "workflow.tool.list",
             Name = "list_workflows",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "获取工作流列表",
             ParametersJsonSchema = @"
 {
@@ -244,17 +185,6 @@ public class WorkflowEnginePlugin : IPlugin
         XTrace.Log.Debug("工作流引擎插件已注册AI工具函数扩展点，共 {0} 个工具", ToolExtensions.Count);
     }
 
-    private void EnsureDatabaseCreated()
-    {
-        try
-        {
-            XTrace.Log.Info("工作流引擎插件数据库初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("工作流引擎插件数据库初始化失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class WorkflowMenuExtension : IMenuExtension
@@ -333,7 +263,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["workflowId"] = workflow.Id,
                 ["workflowName"] = workflow.Name
@@ -346,7 +276,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[WorkflowEngine] 执行 create_workflow 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -355,29 +285,6 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[WorkflowEngine] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetWorkflowToolFunction : IToolFunctionExtension
@@ -459,7 +366,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["workflowId"] = workflowId,
                 ["workflowName"] = workflow.Name
@@ -472,7 +379,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[WorkflowEngine] 执行 get_workflow 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -481,29 +388,6 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[WorkflowEngine] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ExecuteWorkflowToolFunction : IToolFunctionExtension
@@ -567,7 +451,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["workflowId"] = workflowId,
                 ["executionId"] = execution.Id
@@ -580,7 +464,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[WorkflowEngine] 执行 execute_workflow 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -589,29 +473,6 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[WorkflowEngine] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetWorkflowStatusToolFunction : IToolFunctionExtension
@@ -671,7 +532,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["executionId"] = executionId
             });
@@ -683,7 +544,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[WorkflowEngine] 执行 get_workflow_status 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -692,29 +553,6 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[WorkflowEngine] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ListWorkflowsToolFunction : IToolFunctionExtension
@@ -787,7 +625,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["keyword"] = keyword ?? string.Empty,
                 ["category"] = category ?? string.Empty,
@@ -801,7 +639,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[WorkflowEngine] 执行 list_workflows 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -810,27 +648,4 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[WorkflowEngine] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

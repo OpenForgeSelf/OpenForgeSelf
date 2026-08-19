@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 

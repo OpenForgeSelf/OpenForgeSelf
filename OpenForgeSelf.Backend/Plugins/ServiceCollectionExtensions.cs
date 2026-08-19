@@ -14,12 +14,25 @@ public static class PluginServiceCollectionExtensions
     /// 添加插件管理器服务
     /// </summary>
     /// <param name="services">服务集合</param>
+    /// <param name="existing">已构造的 <see cref="PluginManager"/> 实例（启动装载时复用 bootstrap 创建的实例，避免重复注册）。为 null 时按类型注册。</param>
     /// <param name="pluginsDirectory">插件目录路径</param>
     /// <returns>服务集合</returns>
-    public static IServiceCollection AddPluginManager(this IServiceCollection services, string? pluginsDirectory = null)
+    public static IServiceCollection AddPluginManager(
+        this IServiceCollection services,
+        PluginManager? existing = null,
+        string? pluginsDirectory = null)
     {
         services.AddSingleton<IPermissionChecker, DefaultPermissionChecker>();
-        services.AddSingleton<PluginManager>();
+
+        if (existing != null)
+        {
+            services.AddSingleton(existing);
+        }
+        else
+        {
+            services.AddSingleton<PluginManager>();
+        }
+
         services.AddSingleton<ExtensionPointManager>();
         services.AddSingleton<PluginVersionService>();
         services.AddSingleton<PluginPackagerService>();

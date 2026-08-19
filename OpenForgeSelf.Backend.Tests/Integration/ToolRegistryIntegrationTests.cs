@@ -1,6 +1,6 @@
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Backend.Services;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Tests.Plugins;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;

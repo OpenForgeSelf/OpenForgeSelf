@@ -5,9 +5,16 @@
   "Author": "OpenForgeSelf Team",
   "Description": "AI聊天代理插件，支持对话、流式响应和工具函数调用。",
   "IconUrl": "https://example.com/ai-agent-icon.png",
-  "EntryAssembly": "OpenForgeSelf.dll",
+  "EntryAssembly": "AIAgent.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.AIAgent.AIAgentPlugin",
   "Dependencies": [],
+  "Provides": [
+    "chat.completion",
+    "tool.calling"
+  ],
+  "Consumes": [
+    "config.read"
+  ],
   "Permissions": [
     "read_config",
     "write_config",

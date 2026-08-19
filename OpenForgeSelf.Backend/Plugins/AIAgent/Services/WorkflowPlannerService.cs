@@ -1,7 +1,8 @@
 using System.Text;
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Core;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
@@ -13,11 +14,12 @@ public class WorkflowPlannerService : IWorkflowPlannerService
     private readonly IAIAgentService _aiAgentService;
 
     public WorkflowPlannerService(
-        IToolRegistry toolRegistry,
+        IContext ctx,
         IToolSelectorService toolSelectorService,
         IAIAgentService aiAgentService)
     {
-        _toolRegistry = toolRegistry;
+        // 宿主契约（IToolRegistry）经 Cordis 上下文在运行期获取；插件自有服务（工具选择器/AI 代理）保持构造注入。
+        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化工作流规划器");
         _toolSelectorService = toolSelectorService;
         _aiAgentService = aiAgentService;
     }

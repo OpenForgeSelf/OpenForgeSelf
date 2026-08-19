@@ -4,7 +4,11 @@ using NewLife.Log;
 using XCode;
 using ScheduledTaskEntity = OpenForgeSelf.Backend.Plugins.Scheduler.Entities.ScheduledTask;
 using ScheduledTaskLogEntity = OpenForgeSelf.Backend.Plugins.Scheduler.Entities.ScheduledTaskLog;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
+using OpenForgeSelf.Core;
+// 注意：Abstractions 与 Scheduler.Models 均有 PagedResult<T>（结构一致）。
+// 为保持 ISchedulerService 公开签名不变，本文件对 PagedResult<T> 使用全限定名引用 Scheduler.Models 版本。
 
 namespace OpenForgeSelf.Backend.Plugins.Scheduler.Services;
 
@@ -14,8 +18,8 @@ public interface ISchedulerService
     Task<ScheduledTaskDto?> UpdateTaskAsync(long id, UpdateScheduledTaskRequest request);
     Task<bool> DeleteTaskAsync(long id);
     Task<ScheduledTaskDto?> GetTaskAsync(long id);
-    Task<PagedResult<ScheduledTaskDto>> ListTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20);
-    Task<PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20);
+    Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>> ListTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20);
+    Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20);
     Task<ScheduledTaskDto?> ToggleTaskStatusAsync(long id, bool enabled);
     Task<bool> RunNowAsync(long id);
     CronParseResult ParseCron(string cronExpression, int count = 5, string? timeZone = null);
@@ -26,9 +30,10 @@ public class SchedulerService : ISchedulerService
     private readonly ICronParser _cronParser;
     private readonly ITaskScheduler _taskScheduler;
 
-    public SchedulerService(ICronParser cronParser, ITaskScheduler taskScheduler)
+    public SchedulerService(IContext ctx, ITaskScheduler taskScheduler)
     {
-        _cronParser = cronParser;
+        // 宿主契约（ICronParser）经 Cordis 上下文在运行期获取；插件自有服务（任务调度器）保持构造注入。
+        _cronParser = ctx.Get<ICronParser>() ?? throw new InvalidOperationException("宿主未提供 ICronParser 契约，无法初始化定时任务服务");
         _taskScheduler = taskScheduler;
     }
 
@@ -167,7 +172,7 @@ public class SchedulerService : ISchedulerService
         }
     }
 
-    public Task<PagedResult<ScheduledTaskDto>> ListTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20)
+    public Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>> ListTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20)
     {
         try
         {
@@ -202,7 +207,7 @@ public class SchedulerService : ISchedulerService
 
             XTrace.Log.Info("[SchedulerService] 获取定时任务列表成功，总数: {0}, 当前页数量: {1}", total, items.Count);
 
-            return Task.FromResult(new PagedResult<ScheduledTaskDto>
+            return Task.FromResult(new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>
             {
                 Items = items,
                 Total = total,
@@ -217,7 +222,7 @@ public class SchedulerService : ISchedulerService
         }
     }
 
-    public Task<PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20)
+    public Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20)
     {
         try
         {
@@ -240,7 +245,7 @@ public class SchedulerService : ISchedulerService
 
             XTrace.Log.Debug("[SchedulerService] 获取任务执行日志成功，总数: {0}", total);
 
-            return Task.FromResult(new PagedResult<ScheduledTaskLogDto>
+            return Task.FromResult(new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>
             {
                 Items = items,
                 Total = total,

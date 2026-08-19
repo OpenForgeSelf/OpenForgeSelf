@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DevTools</AssemblyName>
+    <RootNamespace>OpenForgeSelf.Backend.Plugins.DevTools</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\OpenForgeSelf.Core\OpenForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\..\OpenForgeSelf.Abstractions\OpenForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,5 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 

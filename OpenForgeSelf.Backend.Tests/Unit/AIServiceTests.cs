@@ -1,8 +1,12 @@
 using System.Net;
+using OpenForgeSelf.Abstractions;
 using System.Text;
 using System.Text.Json;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
+// 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
+using LegacyAIChatMessage = OpenForgeSelf.Backend.Models.AIChatMessage;
+using LegacyAIChatMessageDelta = OpenForgeSelf.Backend.Models.AIChatMessageDelta;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 
@@ -62,7 +66,7 @@ public class AIServiceTests
                 new AIChatChoice
                 {
                     Index = 0,
-                    Message = new AIChatMessageDelta
+                    Message = new LegacyAIChatMessageDelta
                     {
                         Role = "assistant",
                         Content = content
@@ -88,9 +92,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "你好" }
+            new LegacyAIChatMessage { Role = "user", Content = "你好" }
         };
 
         // Act
@@ -119,9 +123,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         // Act
@@ -145,9 +149,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         // Act
@@ -173,11 +177,11 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "你好" },
-            new AIChatMessage { Role = "assistant", Content = "你好！有什么可以帮助你的？" },
-            new AIChatMessage { Role = "user", Content = "请介绍一下你自己" }
+            new LegacyAIChatMessage { Role = "user", Content = "你好" },
+            new LegacyAIChatMessage { Role = "assistant", Content = "你好！有什么可以帮助你的？" },
+            new LegacyAIChatMessage { Role = "user", Content = "请介绍一下你自己" }
         };
 
         // Act
@@ -210,9 +214,9 @@ public class AIServiceTests
         var httpClient = new HttpClient(handlerMock.Object);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         // Act
@@ -237,9 +241,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "你好" }
+            new LegacyAIChatMessage { Role = "user", Content = "你好" }
         };
 
         // Act
@@ -266,9 +270,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         // Act
@@ -296,9 +300,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         var cts = new CancellationTokenSource();
@@ -339,9 +343,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "测试" }
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
         };
 
         // Act
@@ -369,9 +373,9 @@ public class AIServiceTests
         var httpClient = CreateMockHttpClient(httpResponse);
         var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
 
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
-            new AIChatMessage { Role = "user", Content = "" }
+            new LegacyAIChatMessage { Role = "user", Content = "" }
         };
 
         // Act

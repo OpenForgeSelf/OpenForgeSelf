@@ -4,7 +4,7 @@ using System.Text.Json;
 using ScriptEntity = OpenForgeSelf.Backend.Plugins.ScriptRunner.Entities.Script;
 using ScriptExecutionEntity = OpenForgeSelf.Backend.Plugins.ScriptRunner.Entities.ScriptExecution;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Hubs;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
@@ -12,13 +12,21 @@ namespace OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
 public class ScriptExecutor : IScriptExecutor
 {
     private readonly IRuntimeDetector _runtimeDetector;
+    private readonly ScriptExecutionBroadcaster? _broadcaster;
     private readonly Dictionary<long, ProcessExecutionContext> _runningExecutions = [];
     private readonly object _lock = new();
 
-    public ScriptExecutor(IRuntimeDetector runtimeDetector)
+    public ScriptExecutor(IRuntimeDetector runtimeDetector, ScriptExecutionBroadcaster? broadcaster = null)
     {
         _runtimeDetector = runtimeDetector;
+        _broadcaster = broadcaster;
     }
+
+    private Task BroadcastStatusAsync(long executionId, ScriptExecutionStatus status)
+        => _broadcaster?.BroadcastStatusUpdateAsync(executionId, status) ?? Task.CompletedTask;
+
+    private Task BroadcastLogAsync(long executionId, ScriptExecutionLog log)
+        => _broadcaster?.BroadcastOutputLogAsync(executionId, log) ?? Task.CompletedTask;
 
     public Task<ScriptExecution> ExecuteAsync(long scriptId, Dictionary<string, object?>? parameters = null, CancellationToken cancellationToken = default)
     {
@@ -241,7 +249,7 @@ public class ScriptExecutor : IScriptExecutor
                     {
                         outputLogs.Add(log);
                     }
-                    _ = ScriptExecutionHub.BroadcastOutputLogAsync(executionId, log);
+                    _ = BroadcastLogAsync(executionId, log);
                 }
             };
 
@@ -260,7 +268,7 @@ public class ScriptExecutor : IScriptExecutor
                     {
                         outputLogs.Add(log);
                     }
-                    _ = ScriptExecutionHub.BroadcastOutputLogAsync(executionId, log);
+                    _ = BroadcastLogAsync(executionId, log);
                 }
             };
 
@@ -268,7 +276,7 @@ public class ScriptExecutor : IScriptExecutor
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            await ScriptExecutionHub.BroadcastStatusUpdateAsync(executionId, ScriptExecutionStatus.Running);
+            await BroadcastStatusAsync(executionId, ScriptExecutionStatus.Running);
 
             var tcs = new TaskCompletionSource<bool>();
             process.Exited += (sender, e) => tcs.TrySetResult(true);
@@ -324,7 +332,7 @@ public class ScriptExecutor : IScriptExecutor
             }
             catch { }
 
-            await ScriptExecutionHub.BroadcastStatusUpdateAsync(executionId, status);
+            await BroadcastStatusAsync(executionId, status);
         }
         catch (OperationCanceledException)
         {
@@ -338,7 +346,7 @@ public class ScriptExecutor : IScriptExecutor
                 outputBuilder.ToString(), errorBuilder.ToString(),
                 stopwatch.ElapsedMilliseconds, outputLogsJson);
 
-            await ScriptExecutionHub.BroadcastStatusUpdateAsync(executionId, status);
+            await BroadcastStatusAsync(executionId, status);
         }
         catch (Exception ex)
         {
@@ -350,7 +358,7 @@ public class ScriptExecutor : IScriptExecutor
                 outputBuilder.ToString(), errorBuilder.ToString(),
                 stopwatch.ElapsedMilliseconds, outputLogsJson);
 
-            await ScriptExecutionHub.BroadcastStatusUpdateAsync(executionId, ScriptExecutionStatus.Failed);
+            await BroadcastStatusAsync(executionId, ScriptExecutionStatus.Failed);
         }
         finally
         {

@@ -1,8 +1,7 @@
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Models.UsageStats;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Data;
-using Microsoft.EntityFrameworkCore;
 using NewLife;
 using NewLife.Data;
 using NewLife.Log;
@@ -15,8 +14,18 @@ namespace OpenForgeSelf.Backend.Services.UsageStats;
 
 public class WorkflowRecommendationService : IWorkflowRecommendationService
 {
+    private readonly IScriptLibraryStatsProvider? _scriptStatsProvider;
+
     public WorkflowRecommendationService()
     {
+    }
+
+    /// <summary>
+    /// 经共享契约读取脚本库统计（ADR D2），插件未加载时安全降级为空推荐。
+    /// </summary>
+    public WorkflowRecommendationService(IServiceProvider serviceProvider)
+    {
+        _scriptStatsProvider = serviceProvider.GetService<IScriptLibraryStatsProvider>();
     }
 
     public async Task<List<WorkflowRecommendationDto>> GetRecommendedWorkflowsAsync(
@@ -222,23 +231,17 @@ public class WorkflowRecommendationService : IWorkflowRecommendationService
 
             try
             {
-                var scriptRunnerDbPath = Path.Combine(AppContext.BaseDirectory, "scriptrunner.db");
-                var optionsBuilder = new DbContextOptionsBuilder<Plugins.ScriptRunner.Data.ScriptRunnerDbContext>();
-                optionsBuilder.UseSqlite($"Data Source={scriptRunnerDbPath}");
-
-                using var scriptDb = new Plugins.ScriptRunner.Data.ScriptRunnerDbContext(optionsBuilder.Options);
+                if (_scriptStatsProvider == null)
+                    throw new InvalidOperationException("脚本库统计提供者未注册");
 
                 var contextKeywords = ExtractKeywords(context);
 
-                var allScripts = await scriptDb.Scripts
-                    .OrderByDescending(s => s.UsageCount)
-                    .Take(50)
-                    .ToListAsync();
+                var allScripts = await _scriptStatsProvider.GetTopScriptsAsync(50);
 
                 var recommendedScripts = new List<RecommendedScriptItem>();
                 foreach (var script in allScripts)
                 {
-                    var nameKeywords = ExtractKeywords(script.Name);
+                    var nameKeywords = ExtractKeywords(script.ScriptName);
                     var descKeywords = ExtractKeywords(script.Description);
                     var allScriptKeywords = nameKeywords.Concat(descKeywords).ToList();
 
@@ -254,9 +257,9 @@ public class WorkflowRecommendationService : IWorkflowRecommendationService
 
                         recommendedScripts.Add(new RecommendedScriptItem
                         {
-                            ScriptId = script.Id,
-                            ScriptName = script.Name,
-                            Language = ((Plugins.ScriptRunner.Models.ScriptLanguage)script.Language).ToString(),
+                            ScriptId = script.ScriptId,
+                            ScriptName = script.ScriptName,
+                            Language = script.Language,
                             MatchScore = score,
                             MatchReason = matchCount > 0 ? "内容相关" : "常用脚本",
                             UsageCount = script.UsageCount
@@ -269,10 +272,7 @@ public class WorkflowRecommendationService : IWorkflowRecommendationService
                     .Take(request.Limit)
                     .ToList();
 
-                var allSnippets = await scriptDb.CodeSnippets
-                    .OrderByDescending(s => s.UsageCount)
-                    .Take(50)
-                    .ToListAsync();
+                var allSnippets = await _scriptStatsProvider.GetTopCodeSnippetsAsync(50);
 
                 var recommendedSnippets = new List<RecommendedSnippetItem>();
                 foreach (var snippet in allSnippets)
@@ -293,7 +293,7 @@ public class WorkflowRecommendationService : IWorkflowRecommendationService
 
                         recommendedSnippets.Add(new RecommendedSnippetItem
                         {
-                            SnippetId = snippet.Id,
+                            SnippetId = snippet.SnippetId,
                             Title = snippet.Title,
                             Language = snippet.Language,
                             MatchScore = score,

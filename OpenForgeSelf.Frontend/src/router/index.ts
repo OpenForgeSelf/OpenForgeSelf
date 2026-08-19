@@ -25,8 +25,10 @@ import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
 import TodoView from '@/views/TodoView.vue'
 import QuickLinksView from '@/views/QuickLinksView.vue'
-import type { PluginMenuItem } from '@/types/plugin'
+import CaptureView from '@/views/CaptureView.vue'
+import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
+import { registerManifestRoutes } from './dynamicPlugins'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -160,12 +162,25 @@ const router = createRouter({
       path: '/script-runner',
       name: 'script-runner',
       component: ScriptLibrary
+    },
+    {
+      path: '/capture',
+      name: 'capture',
+      component: CaptureView
     }
   ]
 })
 
 export function setupPluginRoutes(menuItems: PluginMenuItem[]): void {
   registerPluginRoutes(router, menuItems)
+}
+
+/**
+ * 清单驱动的动态视图挂载：根据后端前端清单（route + views）注册懒加载路由。
+ * 清单失败/为空时 registerManifestRoutes 不注入任何路由，回退到静态路由表。
+ */
+export function setupManifestRoutes(manifest: PluginFrontendManifest[]): void {
+  registerManifestRoutes(router, manifest)
 }
 
 export default router

@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Models;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.Extensions.Configuration;
 

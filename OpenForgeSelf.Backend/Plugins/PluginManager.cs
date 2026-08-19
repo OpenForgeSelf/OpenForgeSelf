@@ -1,8 +1,13 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.Plugins;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Backend.Services;
+using OpenForgeSelf.Core;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins;
@@ -16,9 +21,55 @@ public class PluginManager
     private readonly ConcurrentDictionary<string, IPlugin> _plugins = new();
     private readonly ConcurrentDictionary<string, PluginMetadata> _metadatas = new();
     private readonly ConcurrentDictionary<string, PluginState> _pluginStates = new();
+    private readonly ConcurrentDictionary<string, Fiber> _fibers = new();
+    private readonly ConcurrentDictionary<string, Assembly> _pluginAssemblies = new();
     private readonly IPermissionChecker _permissionChecker;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IPluginServiceRegistry _serviceRegistry;
+    private readonly Context _rootContext = new();
+    private readonly ConcurrentDictionary<string, IServiceCollection> _pluginServices = new();
     private string _pluginsDirectory = string.Empty;
+
+    // 动态端点移除（卸载插件时移除其控制器 AssemblyPart）：
+    // _partManager 为宿主 MVC ApplicationPartManager（启动接线时设置，可选为 null）；
+    // _registeredApplicationParts 记录「插件 → 已注册的 AssemblyPart」，保证注册/移除幂等；
+    // _applicationPartsChanged 为部件集合实际变更后的通知回调（宿主用于触发 ActionDescriptor 刷新），可选为 null。
+    private ApplicationPartManager? _partManager;
+    private readonly ConcurrentDictionary<string, AssemblyPart> _registeredApplicationParts = new();
+    private Action? _applicationPartsChanged;
+
+    /// <summary>
+    /// 事件总线（P3 事件总线贯穿）：宿主启动时注入平台 <c>IEventBus</c> 单例。
+    /// 为 null 时不发事件（保持单元测试与独立构造场景兼容）。
+    /// </summary>
+    public OpenForgeSelf.Core.IEventBus? EventBus { get; set; }
+
+    /// <summary>
+    /// 发插件生命周期事件（plugin/loaded / plugin/unloaded）。EventBus 为 null 时静默跳过。
+    /// </summary>
+    private void EmitLifecycleEvent(PluginMetadata metadata, string action)
+    {
+        if (EventBus == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var evt = new OpenForgeSelf.Abstractions.PluginLifecycleEvent
+            {
+                PluginId = metadata.Id,
+                Name = metadata.Name,
+                Version = metadata.Version,
+                Action = action
+            };
+            EventBus.EmitAsync(action == "loaded" ? "plugin/loaded" : "plugin/unloaded", evt);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("发插件生命周期事件失败 [{0}]: {1}", metadata.Id, ex.Message);
+        }
+    }
 
     /// <summary>
     /// 插件目录
@@ -31,14 +82,26 @@ public class PluginManager
     public IEnumerable<string> LoadedPluginIds => _plugins.Keys;
 
     /// <summary>
-    /// 构造函数
+    /// 构造函数（无注册表时自建默认注册表，供单元测试与独立构造场景）。
     /// </summary>
     /// <param name="serviceProvider">服务提供程序</param>
     /// <param name="permissionChecker">权限校验器</param>
     public PluginManager(IServiceProvider serviceProvider, IPermissionChecker permissionChecker)
+        : this(serviceProvider, permissionChecker, new PluginServiceRegistry())
+    {
+    }
+
+    /// <summary>
+    /// 构造函数（注入宿主单例注册表，保证 AppBuilder 与热插拔共享同一份可变 DI 容器）。
+    /// </summary>
+    /// <param name="serviceProvider">服务提供程序</param>
+    /// <param name="permissionChecker">权限校验器</param>
+    /// <param name="serviceRegistry">插件服务注册表（宿主单例）</param>
+    public PluginManager(IServiceProvider serviceProvider, IPermissionChecker permissionChecker, IPluginServiceRegistry serviceRegistry)
     {
         _serviceProvider = serviceProvider;
         _permissionChecker = permissionChecker;
+        _serviceRegistry = serviceRegistry;
     }
 
     /// <summary>
@@ -49,6 +112,84 @@ public class PluginManager
     {
         _pluginsDirectory = pluginsDirectory;
         XTrace.Log.Info("插件目录设置为: {0}", pluginsDirectory);
+    }
+
+    /// <summary>
+    /// 把宿主应提供给插件的服务（能力接缝契约）在初始化阶段 seed 进插件根上下文。
+    /// 对标 Cordis 的 <c>app.service(name, instance)</c>：宿主显式「提供」契约实例，
+    /// 各 Fiber 派生上下文经父级链继承消费，无需回落宿主 MS DI 容器。
+    /// 调用时机：宿主应用构建完成后（<c>app.Services</c>）一次。
+    /// </summary>
+    /// <remarks>
+    /// 仅 seed 精选的「宿主 → 插件」契约集（<see cref="HostProvidedServiceContracts"/>），而非把宿主全部服务透传。
+    /// 其中 Scoped 契约（如 <see cref="ILlmRuntime"/>）在上下文中以单一稳定实例存在（Cordis 语义：能力即实例），
+    /// 不再随每次解析创建新实例，消除了此前宿主透传对 Scoped 语义的失真。
+    /// </remarks>
+    /// <param name="hostServices">宿主应用的服务提供程序。</param>
+    public void ProvideHostServices(IServiceProvider hostServices)
+    {
+        ArgumentNullException.ThrowIfNull(hostServices);
+
+        // Scoped 契约（如 ILlmRuntime）不能从 root provider 直接解析，须经 scope 获取；
+        // Cordis 语义「能力即实例」：Scoped 接缝以单一稳定实例 seed 进根 Context（见类注释与契约清单注释）。
+        using var scope = hostServices.CreateScope();
+        foreach (var contract in HostProvidedServiceContracts)
+        {
+            var instance = scope.ServiceProvider.GetService(contract);
+            if (instance is not null)
+            {
+                _rootContext.Register(contract, instance);
+            }
+            else
+            {
+                // 清单中的契约若未在宿主 DI 注册，seed 会静默跳过。输出警告以便发现漏注册。
+                XTrace.Log.Warn("宿主 seed 契约未在宿主 DI 注册（已跳过）：{0}", contract.FullName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 宿主应提供给插件的契约集（对标 Cordis <c>app.service</c> 显式提供的能力）。
+    /// 子插件经父级上下文链继承消费；新增「宿主 → 插件」接缝时在此登记。
+    /// </summary>
+    /// <remarks>
+    /// 仅含<b>宿主拥有</b>的能力接缝（已在宿主 DI 注册者）。由插件自身提供的接缝（如 <see cref="ISchedulerHost"/>、
+    /// <see cref="IWorkflowExecutor"/>、<see cref="IScriptTemplateService"/> 等）由各插件在 <c>Apply</c> 内
+    /// <c>ctx.Register</c> 到自身上下文，不在此列表（宿主不拥有它们）。
+    /// Scoped 接缝（<see cref="ILlmRuntime"/>、<see cref="ILogService"/>）按 Cordis 语义以<b>单实例</b> seed 进根 Context
+    /// （已知代价：失去 per-request 作用域）。
+    /// 新增「宿主 → 插件」接缝时在此登记；<see cref="ProvideHostServices"/> 会对未注册（解析为 null）的契约输出警告，防止漏注册。
+    /// </remarks>
+    private static readonly Type[] HostProvidedServiceContracts =
+    {
+        typeof(IConfigurationService),
+        typeof(IToolRegistry),
+        typeof(ICronParser),
+        typeof(ISessionStore),
+        typeof(IAgentLoop),
+        typeof(IInbox),
+        typeof(ILlmRuntime),
+        typeof(ILogService),
+        typeof(IWebSocketBroadcaster),
+    };
+
+    /// <summary>
+    /// 对所有已加载插件发现并注册扩展点（启动路径接线，修复「启动后菜单/工具扩展为空」缺陷）。
+    /// 幂等：扩展点注册使用 TryAdd，重复发现不会产生重复条目。
+    /// 注意：<see cref="ExtensionPointManager"/> 构造依赖 <see cref="PluginManager"/>，
+    /// 为避免 PluginManager ↔ ExtensionPointManager 构造循环依赖，此处由调用方注入 DI 单例实例。
+    /// </summary>
+    /// <param name="extensionPointManager">扩展点管理器（DI 单例）。</param>
+    public void DiscoverAllExtensions(ExtensionPointManager extensionPointManager)
+    {
+        ArgumentNullException.ThrowIfNull(extensionPointManager);
+
+        XTrace.Log.Info("开始发现所有已加载插件的扩展点");
+        foreach (var pluginId in _plugins.Keys)
+        {
+            extensionPointManager.DiscoverExtensionsFromPlugin(pluginId);
+        }
+        XTrace.Log.Info("所有插件扩展点发现完成");
     }
 
     /// <summary>
@@ -153,45 +294,23 @@ public class PluginManager
             XTrace.Log.Info("开始加载插件: {0}", pluginId);
             _pluginStates[pluginId] = PluginState.Loaded;
 
-            var assemblyPath = Path.Combine(metadata.PluginDirectory, metadata.EntryAssembly);
-            if (!File.Exists(assemblyPath))
-            {
-                XTrace.Log.Error("插件程序集不存在: {0}", assemblyPath);
-                _pluginStates[pluginId] = PluginState.Error;
-                return false;
-            }
-
-            var loadContext = new PluginLoadContext(assemblyPath, pluginId);
-            var assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
-
-            var pluginType = assembly.GetType(metadata.EntryType);
-            if (pluginType == null)
-            {
-                XTrace.Log.Error("插件入口类型不存在: {0}", metadata.EntryType);
-                _pluginStates[pluginId] = PluginState.Error;
-                return false;
-            }
-
-            if (!typeof(IPlugin).IsAssignableFrom(pluginType))
-            {
-                XTrace.Log.Error("插件类型未实现 IPlugin 接口: {0}", metadata.EntryType);
-                _pluginStates[pluginId] = PluginState.Error;
-                return false;
-            }
-
-            var plugin = (IPlugin?)Activator.CreateInstance(pluginType);
+            var plugin = ResolvePluginInstance(metadata, out var loadContext);
             if (plugin == null)
             {
-                XTrace.Log.Error("创建插件实例失败: {0}", metadata.EntryType);
                 _pluginStates[pluginId] = PluginState.Error;
                 return false;
             }
 
-            _loadContexts.TryAdd(pluginId, loadContext);
+            if (loadContext != null)
+            {
+                _loadContexts.TryAdd(pluginId, loadContext);
+            }
+
             _plugins.TryAdd(pluginId, plugin);
             _pluginStates[pluginId] = PluginState.Loaded;
 
-            XTrace.Log.Info("插件加载成功: {0} v{1}", plugin.Name, plugin.Version);
+            XTrace.Log.Info("插件加载成功: {0} v{1}", metadata.Name, metadata.Version);
+            EmitLifecycleEvent(metadata, "loaded");
             return true;
         }
         catch (Exception ex)
@@ -200,6 +319,192 @@ public class PluginManager
             _pluginStates[pluginId] = PluginState.Error;
             return false;
         }
+    }
+
+    /// <summary>
+    /// 解析插件入口实例：优先从插件目录下的独立程序集加载；
+    /// 若程序集文件不存在（内嵌插件），则从主程序集解析入口类型（T032）。
+    /// </summary>
+    /// <param name="metadata">插件元数据</param>
+    /// <param name="loadContext">独立程序集加载上下文；内嵌插件时为 null</param>
+    /// <returns>插件实例；解析失败时返回 null</returns>
+    private IPlugin? ResolvePluginInstance(PluginMetadata metadata, out PluginLoadContext? loadContext)
+    {
+        loadContext = null;
+        try
+        {
+            // side-by-side 版本目录 / 旧版扁平布局优先；均无独立 DLL 时回退主程序集（内嵌插件）。
+            var assemblyPath = PluginVersionLayout.ResolveEntryAssemblyPath(metadata);
+            Assembly assembly;
+            if (!string.IsNullOrWhiteSpace(assemblyPath) && File.Exists(assemblyPath))
+            {
+                loadContext = new PluginLoadContext(assemblyPath, metadata.Id);
+                assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
+                _pluginAssemblies[metadata.Id] = assembly;
+            }
+            else
+            {
+                // 内嵌插件：从主程序集解析入口类型（解决 T032）
+                assembly = typeof(PluginManager).Assembly;
+            }
+
+            var pluginType = assembly.GetType(metadata.EntryType);
+            if (pluginType == null)
+            {
+                XTrace.Log.Error("插件入口类型不存在: {0}", metadata.EntryType);
+                return null;
+            }
+
+            if (!typeof(IPlugin).IsAssignableFrom(pluginType))
+            {
+                XTrace.Log.Error("插件类型未实现 IPlugin 接口: {0}", metadata.EntryType);
+                return null;
+            }
+
+            var plugin = (IPlugin?)Activator.CreateInstance(pluginType);
+            if (plugin == null)
+            {
+                XTrace.Log.Error("创建插件实例失败: {0}", metadata.EntryType);
+                return null;
+            }
+
+            // 运行期加载/热重载路径（partManager 已设置）：把新程序集注册为 MVC ApplicationPart，
+            // 使拆独立程序集插件的控制器在启用/重载后仍被路由发现；启动期（partManager 为 null）由
+            // RegisterPluginApplicationParts 统一注册，此处自动跳过。
+            RegisterApplicationPart(metadata.Id);
+
+            return plugin;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("解析插件实例失败 [{0}]: {1}", metadata.Id, ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 获取已从独立程序集加载的插件程序集（供宿主注册 MVC ApplicationPart，使其控制器被路由发现）。
+    /// </summary>
+    public IEnumerable<Assembly> GetLoadedPluginAssemblies() => _pluginAssemblies.Values;
+
+    /// <summary>
+    /// 设置 MVC <see cref="ApplicationPartManager"/> 引用与「部件集合变更」通知回调（动态端点移除）。
+    /// 两者均可为 null：null 时跳过对应行为（不注册/不移除部件、不通知刷新）。
+    /// </summary>
+    /// <param name="partManager">宿主 MVC 部件管理器；null 时禁用动态部件注册/移除。</param>
+    /// <param name="onPartsChanged">部件集合实际变更后的通知回调（宿主用于触发 ActionDescriptor 刷新）；null 时不通知。</param>
+    public void SetApplicationPartManager(ApplicationPartManager? partManager, Action? onPartsChanged = null)
+    {
+        _partManager = partManager;
+        _applicationPartsChanged = onPartsChanged;
+    }
+
+    /// <summary>
+    /// 将当前所有「已从独立程序集加载」的插件程序集注册为 MVC ApplicationPart（启动路径接线）。
+    /// 同时捕获 <paramref name="partManager"/> 引用与变更通知回调，供后续 <see cref="DestroyPlugin"/> 移除部件。
+    /// 幂等：重复调用不会产生重复部件；未加载独立程序集的插件（内嵌插件）自动跳过。
+    /// </summary>
+    /// <param name="partManager">宿主 MVC 部件管理器。</param>
+    /// <param name="onPartsChanged">部件集合实际变更后的通知回调（宿主用于触发 ActionDescriptor 刷新）；null 时不通知。</param>
+    public void RegisterPluginApplicationParts(ApplicationPartManager partManager, Action? onPartsChanged = null)
+    {
+        ArgumentNullException.ThrowIfNull(partManager);
+
+        SetApplicationPartManager(partManager, onPartsChanged);
+
+        foreach (var pluginId in _pluginAssemblies.Keys)
+        {
+            RegisterApplicationPart(pluginId);
+        }
+    }
+
+    /// <summary>
+    /// 从追踪表中移除指定插件的独立程序集并返回之；未加载独立程序集的插件返回 null。
+    /// 幂等：重复调用返回 null，不抛异常。
+    /// </summary>
+    /// <param name="pluginId">插件ID</param>
+    /// <returns>被移除的程序集；不存在时为 null。</returns>
+    public Assembly? RemovePluginAssembly(string pluginId)
+    {
+        _pluginAssemblies.TryRemove(pluginId, out var assembly);
+        return assembly;
+    }
+
+    /// <summary>
+    /// 将指定插件的独立程序集注册为 MVC ApplicationPart（若尚未注册）。
+    /// 未设置 partManager、插件无独立程序集或已注册时静默跳过（幂等）。
+    /// </summary>
+    private void RegisterApplicationPart(string pluginId)
+    {
+        if (_partManager == null || _registeredApplicationParts.ContainsKey(pluginId))
+            return;
+
+        if (!_pluginAssemblies.TryGetValue(pluginId, out var assembly))
+            return;
+
+        var part = new AssemblyPart(assembly);
+        if (_registeredApplicationParts.TryAdd(pluginId, part))
+        {
+            _partManager.ApplicationParts.Add(part);
+            _applicationPartsChanged?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// 移除指定插件的 MVC ApplicationPart（若已注册）。未注册/未设置 partManager 时静默跳过（幂等）。
+    /// </summary>
+    private void UnregisterApplicationPart(string pluginId)
+    {
+        if (_partManager == null)
+            return;
+
+        if (_registeredApplicationParts.TryRemove(pluginId, out var part))
+        {
+            _partManager.ApplicationParts.Remove(part);
+            _applicationPartsChanged?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// 按依赖拓扑顺序注册所有插件的 DI 服务（插件自注册）。
+    /// 每个插件使用独立的 <see cref="ServiceCollection"/>（不注入宿主集合），
+    /// 插件 <see cref="IPlugin.Apply"/> 自注册进该子集合后，再挂载到可变 DI 注册表。
+    /// </summary>
+    /// <param name="services">应用服务集合（保留签名兼容；插件服务不再注入宿主集合）。</param>
+    public void RegisterAllServices(IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        XTrace.Log.Info("开始注册所有插件的服务");
+
+        var metadatas = TopologicalSort(DiscoverPlugins());
+
+        foreach (var metadata in metadatas)
+        {
+            try
+            {
+                var plugin = ResolvePluginInstance(metadata, out var loadContext);
+                if (plugin == null)
+                {
+                    _pluginStates[metadata.Id] = PluginState.Error;
+                    continue;
+                }
+
+                var perPluginServices = new ServiceCollection();
+                MountPlugin(metadata, plugin, loadContext, perPluginServices);
+                _pluginServices[metadata.Id] = perPluginServices;
+                _serviceRegistry.Mount(metadata.Id, perPluginServices);
+
+                XTrace.Log.Info("插件服务注册成功: {0} v{1}", metadata.Name, metadata.Version);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Error("注册插件服务失败 [{0}]: {1}", metadata.Id, ex.Message);
+                _pluginStates[metadata.Id] = PluginState.Error;
+            }
+        }
+
+        XTrace.Log.Info("所有插件服务注册完成");
     }
 
     /// <summary>
@@ -222,14 +527,32 @@ public class PluginManager
             return true;
         }
 
+        if (!_metadatas.TryGetValue(pluginId, out var metadata))
+        {
+            XTrace.Log.Error("插件元数据缺失，无法初始化: {0}", pluginId);
+            return false;
+        }
+
         try
         {
             XTrace.Log.Info("开始初始化插件: {0}", pluginId);
             _pluginStates[pluginId] = PluginState.Initializing;
 
-            plugin.Initialize(_serviceProvider);
+            // 热启用路径不再二次 Apply：已挂载则复用（幂等）；否则用保存的 per-plugin 集合挂载；
+            // 再否则（全新插件，此前从未 Apply）首次 Apply 并挂载。
+            if (!_serviceRegistry.IsMounted(pluginId))
+            {
+                if (!_pluginServices.TryGetValue(pluginId, out var perPluginServices))
+                {
+                    perPluginServices = new ServiceCollection();
+                    MountPlugin(metadata, plugin, null, perPluginServices);
+                    _pluginServices[pluginId] = perPluginServices;
+                }
 
-            _pluginStates[pluginId] = PluginState.Initialized;
+                _serviceRegistry.Mount(pluginId, perPluginServices);
+            }
+
+            _pluginStates[pluginId] = PluginState.Running;
             XTrace.Log.Info("插件初始化成功: {0}", pluginId);
             return true;
         }
@@ -242,96 +565,44 @@ public class PluginManager
     }
 
     /// <summary>
-    /// 启动指定插件
+    /// 统一 Fiber 装配：为插件创建 Fiber、注册元数据与该插件的独立服务集合、执行 Apply，并登记实例/状态/加载上下文。
+    /// 插件在 Apply 中通过 <c>ctx.Get&lt;IServiceCollection&gt;()</c> 拿到的即此独立子集合，自注册其 DI 服务。
     /// </summary>
-    /// <param name="pluginId">插件ID</param>
-    /// <returns>是否启动成功</returns>
-    public bool StartPlugin(string pluginId)
+    /// <param name="metadata">插件元数据。</param>
+    /// <param name="plugin">插件实例。</param>
+    /// <param name="loadContext">独立程序集加载上下文；内嵌插件为 null。</param>
+    /// <param name="services">该插件的独立服务集合（不注入宿主集合）。</param>
+    private void MountPlugin(PluginMetadata metadata, IPlugin plugin, PluginLoadContext? loadContext, IServiceCollection? services)
     {
-        if (!_plugins.TryGetValue(pluginId, out var plugin))
+        var fiber = new Fiber(_rootContext);
+        fiber.Context.Register(metadata);
+        if (services != null)
         {
-            XTrace.Log.Error("插件未加载，无法启动: {0}", pluginId);
-            return false;
+            fiber.Context.Register(services);
+            // 让插件 Service 构造函数可注入 IContext，运行期经 ctx.Get<T>() 取宿主 seed 契约（Cordis 模式）。
+            services.AddSingleton<IContext>(fiber.Context);
         }
 
-        if (_pluginStates[pluginId] == PluginState.Running)
-        {
-            XTrace.Log.Warn("插件已在运行: {0}", pluginId);
-            return true;
-        }
+        fiber.Mount(plugin.Apply);
 
-        if (_pluginStates[pluginId] != PluginState.Initialized &&
-            _pluginStates[pluginId] != PluginState.Stopped)
-        {
-            XTrace.Log.Error("插件状态不允许启动: {0} (当前状态: {1})", pluginId, _pluginStates[pluginId]);
-            return false;
-        }
+        _plugins[metadata.Id] = plugin;
+        _fibers[metadata.Id] = fiber;
+        _pluginStates[metadata.Id] = PluginState.Running;
 
-        try
+        if (loadContext != null)
         {
-            XTrace.Log.Info("启动插件: {0}", pluginId);
-            _pluginStates[pluginId] = PluginState.Starting;
-
-            plugin.Start();
-
-            _pluginStates[pluginId] = PluginState.Running;
-            XTrace.Log.Info("插件启动成功: {0}", pluginId);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("启动插件失败 [{0}]: {1}", pluginId, ex.Message);
-            _pluginStates[pluginId] = PluginState.Error;
-            return false;
+            _loadContexts.TryAdd(metadata.Id, loadContext);
         }
     }
 
     /// <summary>
-    /// 停止指定插件
-    /// </summary>
-    /// <param name="pluginId">插件ID</param>
-    /// <returns>是否停止成功</returns>
-    public bool StopPlugin(string pluginId)
-    {
-        if (!_plugins.TryGetValue(pluginId, out var plugin))
-        {
-            XTrace.Log.Error("插件未加载，无法停止: {0}", pluginId);
-            return false;
-        }
-
-        if (_pluginStates[pluginId] != PluginState.Running)
-        {
-            XTrace.Log.Warn("插件未在运行，无需停止: {0} (当前状态: {1})", pluginId, _pluginStates[pluginId]);
-            return true;
-        }
-
-        try
-        {
-            XTrace.Log.Info("停止插件: {0}", pluginId);
-            _pluginStates[pluginId] = PluginState.Stopping;
-
-            plugin.Stop();
-
-            _pluginStates[pluginId] = PluginState.Stopped;
-            XTrace.Log.Info("插件停止成功: {0}", pluginId);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("停止插件失败 [{0}]: {1}", pluginId, ex.Message);
-            _pluginStates[pluginId] = PluginState.Error;
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 销毁指定插件
+    /// 销毁指定插件（释放 Fiber 副作用并卸载程序集加载上下文）
     /// </summary>
     /// <param name="pluginId">插件ID</param>
     /// <returns>是否销毁成功</returns>
     public bool DestroyPlugin(string pluginId)
     {
-        if (!_plugins.TryGetValue(pluginId, out var plugin))
+        if (!_plugins.TryGetValue(pluginId, out _))
         {
             XTrace.Log.Error("插件未加载，无法销毁: {0}", pluginId);
             return false;
@@ -340,15 +611,22 @@ public class PluginManager
         try
         {
             XTrace.Log.Info("销毁插件: {0}", pluginId);
-            var currentState = _pluginStates[pluginId];
             _pluginStates[pluginId] = PluginState.Destroying;
 
-            if (currentState == PluginState.Running)
-            {
-                plugin.Stop();
-            }
+            // 动态端点移除：先把该插件注册的 MVC ApplicationPart 摘除并触发 ActionDescriptor 刷新，
+            // 再摘除独立程序集追踪。若保留 AssemblyPart，其控制器 [Route] 端点卸载后仍会被路由发现。
+            UnregisterApplicationPart(pluginId);
+            RemovePluginAssembly(pluginId);
 
-            plugin.Destroy();
+            // 先摘除 DI 子容器索引（此后宿主解析该插件服务即失败），再释放 Fiber 副作用与卸载程序集。
+            _serviceRegistry.Unmount(pluginId);
+            _pluginServices.TryRemove(pluginId, out _);
+
+            if (_fibers.TryRemove(pluginId, out var fiber))
+            {
+                fiber.Dispose();
+                XTrace.Log.Debug("插件 Fiber 已释放: {0}", pluginId);
+            }
 
             _pluginStates[pluginId] = PluginState.Destroyed;
 
@@ -361,6 +639,10 @@ public class PluginManager
             }
 
             XTrace.Log.Info("插件销毁成功: {0}", pluginId);
+            if (_metadatas.TryGetValue(pluginId, out var destroyedMetadata))
+            {
+                EmitLifecycleEvent(destroyedMetadata, "unloaded");
+            }
             return true;
         }
         catch (Exception ex)
@@ -395,7 +677,6 @@ public class PluginManager
                 if (LoadPlugin(metadata.Id))
                 {
                     InitializePlugin(metadata.Id);
-                    StartPlugin(metadata.Id);
                 }
             }
             catch (Exception ex)
@@ -501,6 +782,106 @@ public class PluginManager
     }
 
     /// <summary>
+    /// 解析指定插件当前生效的入口程序集磁盘路径；内嵌插件（无独立 DLL）返回 null。
+    /// 供版本服务在切换 current 指针前后探测旧 DLL 句柄是否可释放。
+    /// </summary>
+    /// <param name="pluginId">插件ID</param>
+    /// <returns>入口程序集绝对路径；无独立程序集时为 null。</returns>
+    public string? GetPluginEntryAssemblyPath(string pluginId)
+    {
+        if (!_metadatas.TryGetValue(pluginId, out var metadata))
+            return null;
+
+        return PluginVersionLayout.ResolveEntryAssemblyPath(metadata);
+    }
+
+    /// <summary>
+    /// 从磁盘重新读取插件活动清单并刷新内存中的元数据。
+    /// 优先读取 side-by-side 当前版本目录下的 <c>plugin.json</c>，回退到插件根目录清单。
+    /// 供热更新切换 current 指针 / FileSystemWatcher 变更后同步版本号与入口信息。
+    /// </summary>
+    /// <param name="pluginId">插件ID</param>
+    /// <returns>刷新后的元数据；插件不存在或清单不可读时返回原值。</returns>
+    public PluginMetadata? RefreshMetadataFromDisk(string pluginId)
+    {
+        if (!_metadatas.TryGetValue(pluginId, out var existing))
+            return null;
+
+        var pluginDir = existing.PluginDirectory;
+        if (string.IsNullOrWhiteSpace(pluginDir) || !Directory.Exists(pluginDir))
+            return existing;
+
+        var manifestPath = Path.Combine(pluginDir, "plugin.json");
+        var current = PluginVersionLayout.ReadCurrentVersion(pluginDir);
+        if (!string.IsNullOrWhiteSpace(current))
+        {
+            var versionManifest = Path.Combine(
+                pluginDir, PluginVersionLayout.VersionsFolderName, current, "plugin.json");
+            if (File.Exists(versionManifest))
+                manifestPath = versionManifest;
+        }
+
+        if (!File.Exists(manifestPath))
+            return existing;
+
+        var metadata = LoadPluginManifest(manifestPath);
+        if (metadata == null)
+            return existing;
+
+        metadata.PluginDirectory = pluginDir;
+        _metadatas[pluginId] = metadata;
+        _pluginStates.TryAdd(pluginId, PluginState.NotLoaded);
+        return metadata;
+    }
+
+    /// <summary>
+    /// 热重载插件：停用旧 Fiber → 卸载 ALC → 强制回收 → 刷新元数据 → 重载新版。
+    /// 加载新版失败时回退上一可用版本（若存在 current 指针）并尽力重载旧版，不抛异常、
+    /// 不影响宿主与其它插件。此方法为 FileSystemWatcher 自动 reload 的可测单元。
+    /// </summary>
+    /// <param name="pluginId">插件ID</param>
+    /// <returns>是否重载成功（内嵌插件或未运行插件刷新元数据后返回 true）。</returns>
+    public bool ReloadPlugin(string pluginId)
+    {
+        XTrace.Log.Info("热重载插件: {0}", pluginId);
+
+        if (!_metadatas.TryGetValue(pluginId, out var metadata))
+        {
+            XTrace.Log.Error("热重载失败：插件不存在: {0}", pluginId);
+            return false;
+        }
+
+        var previousVersion = PluginVersionLayout.ReadCurrentVersion(metadata.PluginDirectory);
+        var wasRunning = _pluginStates.TryGetValue(pluginId, out var state) && state == PluginState.Running;
+
+        if (wasRunning && !DestroyPlugin(pluginId))
+        {
+            XTrace.Log.Error("热重载失败：停用旧版失败: {0}", pluginId);
+            return false;
+        }
+
+        if (wasRunning)
+            PluginAssemblyUnloader.ForceCollect();
+
+        RefreshMetadataFromDisk(pluginId);
+
+        if (!wasRunning)
+            return true;
+
+        if (EnablePlugin(pluginId))
+            return true;
+
+        // 回退上一可用版本（若存在 current 指针），避免坏版本长期生效。
+        XTrace.Log.Error("热重载失败：加载新版失败，回退到 {0}", previousVersion ?? "(内嵌主程序集)");
+        if (!string.IsNullOrWhiteSpace(previousVersion))
+            PluginVersionLayout.WriteCurrentVersion(metadata.PluginDirectory, previousVersion);
+
+        RefreshMetadataFromDisk(pluginId);
+        EnablePlugin(pluginId);
+        return false;
+    }
+
+    /// <summary>
     /// 获取插件状态
     /// </summary>
     /// <param name="pluginId">插件ID</param>
@@ -523,10 +904,7 @@ public class PluginManager
         if (!LoadPlugin(pluginId))
             return false;
 
-        if (!InitializePlugin(pluginId))
-            return false;
-
-        return StartPlugin(pluginId);
+        return InitializePlugin(pluginId);
     }
 
     /// <summary>

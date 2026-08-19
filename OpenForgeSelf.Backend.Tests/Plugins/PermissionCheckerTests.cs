@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;

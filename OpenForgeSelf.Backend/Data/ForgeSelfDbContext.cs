@@ -1,3 +1,4 @@
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.UsageStats;
 using Microsoft.EntityFrameworkCore;
 

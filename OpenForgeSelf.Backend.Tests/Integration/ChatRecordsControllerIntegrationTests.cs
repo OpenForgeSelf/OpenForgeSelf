@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Controllers;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Mvc;

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using OpenForgeSelf.Backend.Entities;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.UsageStats;
 using NewLife;
 using NewLife.Data;

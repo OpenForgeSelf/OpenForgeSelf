@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.WorkflowEngine.Hubs;
@@ -10,7 +9,6 @@ public class WorkflowHub : Hub
     private static readonly HashSet<string> ConnectedConnections = new();
     private static readonly Dictionary<long, List<string>> ExecutionSubscriptions = new();
     private static readonly object _lock = new();
-    private static IServiceProvider? _serviceProvider;
 
     public override async Task OnConnectedAsync()
     {
@@ -83,139 +81,6 @@ public class WorkflowHub : Hub
 
         XTrace.Log.Debug("[WorkflowHub] 客户端 {0} 取消订阅执行 {1}", Context.ConnectionId, executionId);
         await Task.CompletedTask;
-    }
-
-    public static void SetServiceProvider(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
-
-    private static IHubContext<WorkflowHub>? GetHubContext()
-    {
-        return _serviceProvider?.GetService<IHubContext<WorkflowHub>>();
-    }
-
-    public static async Task BroadcastExecutionUpdateAsync(WorkflowExecution execution)
-    {
-        var context = GetHubContext();
-        if (context == null) return;
-
-        List<string>? connections;
-        lock (_lock)
-        {
-            if (ExecutionSubscriptions.TryGetValue(execution.Id, out var connList))
-            {
-                connections = new List<string>(connList);
-            }
-            else
-            {
-                connections = new List<string>(ConnectedConnections);
-            }
-        }
-
-        if (connections.Count == 0) return;
-
-        var update = new WorkflowExecutionUpdate
-        {
-            ExecutionId = execution.Id,
-            WorkflowId = execution.WorkflowId,
-            WorkflowName = execution.WorkflowName,
-            Status = execution.Status,
-            Progress = execution.Progress,
-            CurrentStepId = execution.CurrentStepId,
-            ErrorMessage = execution.ErrorMessage,
-            StartTime = execution.StartTime,
-            EndTime = execution.EndTime,
-            Timestamp = DateTime.Now
-        };
-
-        foreach (var connId in connections)
-        {
-            try
-            {
-                await context.Clients.Client(connId).SendAsync("ReceiveExecutionUpdate", update);
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Debug("[WorkflowHub] 发送执行更新到 {0} 失败: {1}", connId, ex.Message);
-            }
-        }
-    }
-
-    public static async Task BroadcastStepUpdateAsync(long executionId, string stepId, string stepName, WorkflowStepStatus stepStatus, string? message = null)
-    {
-        var context = GetHubContext();
-        if (context == null) return;
-
-        List<string>? connections;
-        lock (_lock)
-        {
-            if (ExecutionSubscriptions.TryGetValue(executionId, out var connList))
-            {
-                connections = new List<string>(connList);
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        if (connections.Count == 0) return;
-
-        var stepUpdate = new WorkflowStepUpdate
-        {
-            ExecutionId = executionId,
-            StepId = stepId,
-            StepName = stepName,
-            StepStatus = stepStatus,
-            Message = message,
-            Timestamp = DateTime.Now
-        };
-
-        foreach (var connId in connections)
-        {
-            try
-            {
-                await context.Clients.Client(connId).SendAsync("ReceiveStepUpdate", stepUpdate);
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Debug("[WorkflowHub] 发送步骤更新到 {0} 失败: {1}", connId, ex.Message);
-            }
-        }
-    }
-
-    public static async Task BroadcastExecutionLogAsync(long executionId, ExecutionLogEntry logEntry)
-    {
-        var context = GetHubContext();
-        if (context == null) return;
-
-        List<string>? connections;
-        lock (_lock)
-        {
-            if (ExecutionSubscriptions.TryGetValue(executionId, out var connList))
-            {
-                connections = new List<string>(connList);
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        if (connections.Count == 0) return;
-
-        foreach (var connId in connections)
-        {
-            try
-            {
-                await context.Clients.Client(connId).SendAsync("ReceiveExecutionLog", logEntry);
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Debug("[WorkflowHub] 发送执行日志到 {0} 失败: {1}", connId, ex.Message);
-            }
-        }
     }
 }
 

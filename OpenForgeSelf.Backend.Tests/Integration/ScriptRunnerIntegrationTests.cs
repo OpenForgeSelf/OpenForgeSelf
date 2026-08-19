@@ -1,7 +1,8 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Controllers;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
+using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 

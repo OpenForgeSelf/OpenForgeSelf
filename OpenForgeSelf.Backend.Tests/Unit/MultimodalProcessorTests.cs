@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Services.AI;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Services.AI.Models;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;

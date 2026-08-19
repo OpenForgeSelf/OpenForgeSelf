@@ -1,14 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Models.UsageStats;
-
-public enum WorkflowExecutionStatus
-{
-    Success = 0,
-    Failed = 1,
-    Cancelled = 2
-}
 
 public class WorkflowUsageRecord
 {

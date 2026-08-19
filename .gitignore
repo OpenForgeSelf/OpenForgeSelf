@@ -34,3 +34,4 @@ nul
 *.tsbuildinfo
 publish/
 OpenForgeSelf.Frontend/playwright-report-published/
+.trash/

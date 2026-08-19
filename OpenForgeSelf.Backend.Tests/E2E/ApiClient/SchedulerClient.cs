@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
 
 namespace OpenForgeSelf.Backend.Tests.E2E.ApiClient;
@@ -15,7 +15,7 @@ public class SchedulerClient : BaseApiClient
     /// <summary>
     /// 获取任务列表
     /// </summary>
-    public async Task<PagedResult<ScheduledTaskDto>?> GetTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20)
+    public async Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>?> GetTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20)
     {
         var queryParams = new Dictionary<string, string>
         {
@@ -29,7 +29,7 @@ public class SchedulerClient : BaseApiClient
         if (status.HasValue)
             queryParams["status"] = ((int)status.Value).ToString();
 
-        return await GetAsync<PagedResult<ScheduledTaskDto>>("api/scheduler/tasks", queryParams);
+        return await GetAsync<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>("api/scheduler/tasks", queryParams);
     }
 
     /// <summary>
@@ -85,9 +85,9 @@ public class SchedulerClient : BaseApiClient
     /// <summary>
     /// 获取任务执行日志
     /// </summary>
-    public async Task<PagedResult<ScheduledTaskLogDto>?> GetTaskLogsAsync(long id, int page = 1, int pageSize = 20)
+    public async Task<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>?> GetTaskLogsAsync(long id, int page = 1, int pageSize = 20)
     {
-        return await GetAsync<PagedResult<ScheduledTaskLogDto>>($"api/scheduler/tasks/{id}/logs", new Dictionary<string, string>
+        return await GetAsync<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>>($"api/scheduler/tasks/{id}/logs", new Dictionary<string, string>
         {
             ["page"] = page.ToString(),
             ["pageSize"] = pageSize.ToString()

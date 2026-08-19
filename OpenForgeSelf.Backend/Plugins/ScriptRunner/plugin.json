@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "多语言脚本运行器插件，支持 PowerShell、Python、Node.js、Shell、Cmd 等脚本的管理、执行和实时输出。",
   "IconUrl": "https://example.com/script-runner-icon.png",
-  "EntryAssembly": "OpenForgeSelf.dll",
+  "EntryAssembly": "ScriptRunner.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.ScriptRunner.ScriptRunnerPlugin",
   "Dependencies": [],
   "Permissions": []

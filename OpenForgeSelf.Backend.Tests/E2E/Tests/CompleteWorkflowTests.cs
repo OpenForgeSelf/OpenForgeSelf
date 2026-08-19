@@ -1,5 +1,5 @@
 using FluentAssertions;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.E2E.Tests;
 

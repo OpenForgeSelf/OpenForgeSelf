@@ -1,16 +1,10 @@
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;
 
 public class FakeToolPlugin : FakePlugin
 {
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
-
-    public FakeToolPlugin()
-    {
-        Id = "test.tool.plugin";
-        Name = "Fake Tool Plugin";
-    }
 
     public void AddToolExtension(IToolFunctionExtension extension)
     {

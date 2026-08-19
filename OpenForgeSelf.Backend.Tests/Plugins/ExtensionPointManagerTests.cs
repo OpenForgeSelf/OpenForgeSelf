@@ -1,7 +1,8 @@
 using System.Reflection;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
+using OpenForgeSelf.Backend.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -207,11 +208,7 @@ public class ExtensionPointManagerTests
     [Fact]
     public void DiscoverExtensionsFromPlugin_PluginWithMenuExtensions_DiscoversExtensions()
     {
-        var plugin = new FakeMenuPlugin
-        {
-            Id = "test.menu.plugin",
-            Name = "Test Menu Plugin"
-        };
+        var plugin = new FakeMenuPlugin();
         plugin.AddMenuExtension(new FakeMenuExtension
         {
             Id = "menu.test1",
@@ -225,7 +222,7 @@ public class ExtensionPointManagerTests
             PluginId = "test.menu.plugin"
         });
 
-        InjectPluginIntoManager(plugin);
+        InjectPluginIntoManager("test.menu.plugin", plugin);
 
         _manager.DiscoverExtensionsFromPlugin("test.menu.plugin");
 
@@ -237,11 +234,7 @@ public class ExtensionPointManagerTests
     [Fact]
     public void DiscoverExtensionsFromPlugin_PluginWithToolExtensions_DiscoversExtensions()
     {
-        var plugin = new FakeToolPlugin
-        {
-            Id = "test.tool.plugin",
-            Name = "Test Tool Plugin"
-        };
+        var plugin = new FakeToolPlugin();
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
@@ -249,7 +242,7 @@ public class ExtensionPointManagerTests
             PluginId = "test.tool.plugin"
         });
 
-        InjectPluginIntoManager(plugin);
+        InjectPluginIntoManager("test.tool.plugin", plugin);
 
         _manager.DiscoverExtensionsFromPlugin("test.tool.plugin");
 
@@ -265,11 +258,7 @@ public class ExtensionPointManagerTests
         var toolRegistryMock = new Mock<IToolRegistry>();
         var manager = new ExtensionPointManager(_pluginManager, toolRegistryMock.Object);
 
-        var plugin = new FakeToolPlugin
-        {
-            Id = "test.tool.plugin",
-            Name = "Test Tool Plugin"
-        };
+        var plugin = new FakeToolPlugin();
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
@@ -277,7 +266,7 @@ public class ExtensionPointManagerTests
             PluginId = "test.tool.plugin"
         });
 
-        InjectPluginIntoManager(plugin);
+        InjectPluginIntoManager("test.tool.plugin", plugin);
 
         manager.DiscoverExtensionsFromPlugin("test.tool.plugin");
 
@@ -293,11 +282,7 @@ public class ExtensionPointManagerTests
         var toolRegistryMock = new Mock<IToolRegistry>();
         var manager = new ExtensionPointManager(_pluginManager, toolRegistryMock.Object);
 
-        var plugin = new FakeToolPlugin
-        {
-            Id = "test.tool.plugin",
-            Name = "Test Tool Plugin"
-        };
+        var plugin = new FakeToolPlugin();
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
@@ -305,7 +290,7 @@ public class ExtensionPointManagerTests
             PluginId = "test.tool.plugin"
         });
 
-        InjectPluginIntoManager(plugin);
+        InjectPluginIntoManager("test.tool.plugin", plugin);
 
         manager.DiscoverExtensionsFromPlugin("test.tool.plugin");
         manager.RemovePluginExtensions("test.tool.plugin");
@@ -388,7 +373,7 @@ public class ExtensionPointManagerTests
         extensions.Select(e => e.Id).Should().BeEquivalentTo("menu1", "tool1");
     }
 
-    private void InjectPluginIntoManager(IPlugin plugin)
+    private void InjectPluginIntoManager(string pluginId, IPlugin plugin)
     {
         var pluginsField = typeof(PluginManager).GetField(
             "_plugins",
@@ -408,13 +393,13 @@ public class ExtensionPointManagerTests
         var states = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginState>)statesField!.GetValue(_pluginManager)!;
         var metadatas = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginMetadata>)metadatasField!.GetValue(_pluginManager)!;
 
-        plugins.TryAdd(plugin.Id, plugin);
-        states.TryAdd(plugin.Id, PluginState.Running);
-        metadatas.TryAdd(plugin.Id, new PluginMetadata
+        plugins.TryAdd(pluginId, plugin);
+        states.TryAdd(pluginId, PluginState.Running);
+        metadatas.TryAdd(pluginId, new PluginMetadata
         {
-            Id = plugin.Id,
-            Name = plugin.Name,
-            Version = plugin.Version
+            Id = pluginId,
+            Name = pluginId,
+            Version = "1.0.0"
         });
     }
 }

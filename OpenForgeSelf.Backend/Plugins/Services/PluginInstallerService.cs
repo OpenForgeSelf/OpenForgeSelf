@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using NewLife.Log;
 

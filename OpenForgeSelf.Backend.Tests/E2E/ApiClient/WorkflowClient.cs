@@ -1,5 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.E2E.ApiClient;
 

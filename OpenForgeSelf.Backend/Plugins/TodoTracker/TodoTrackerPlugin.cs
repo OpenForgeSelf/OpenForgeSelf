@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Entities;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Models;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -12,92 +12,33 @@ namespace OpenForgeSelf.Backend.Plugins.TodoTracker;
 
 public class TodoTrackerPlugin : IPlugin
 {
-    public string Id => "todotracker.plugin";
-    public string Name => "待办追踪插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "待办事项追踪插件，提供 CRUD REST API、独立管理页与 AI 工具函数。";
-    public string IconUrl => "https://example.com/todotracker-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("初始化待办追踪插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("初始化待办追踪插件");
 
-            RegisterMenuExtensions();
-            RegisterToolExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<ITodoService, TodoService>();
 
-            XTrace.Log.Info("待办追踪插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("待办追踪插件初始化失败: {0}", ex.Message);
-            throw;
-        }
+        RegisterMenuExtensions(pluginId);
+        RegisterToolExtensions(pluginId, ctx);
+
+        // 确保表已创建（XCodeConfig.EnsureTablesCreated 会自动通过 EntityBase 反射调用 Meta.CreateTable）
+        EnsureTablesCreated();
+
+        XTrace.Log.Info("待办追踪插件初始化完成");
     }
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("启动待办追踪插件");
-
-            // 确保表已创建（XCodeConfig.EnsureTablesCreated 会自动通过 EntityBase 反射调用 Meta.CreateTable）
-            EnsureTablesCreated();
-
-            XTrace.Log.Info("待办追踪插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("待办追踪插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("停止待办追踪插件");
-            XTrace.Log.Info("待办追踪插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("待办追踪插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("销毁待办追踪插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("待办追踪插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("待办追踪插件销毁失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         MenuExtensions.Add(new TodoTrackerMenuExtension
         {
             Id = "todotracker.menu.main",
             Name = "待办追踪",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-check-square",
             Path = "/todo",
             Order = 200,
@@ -107,13 +48,13 @@ public class TodoTrackerPlugin : IPlugin
         XTrace.Log.Debug("待办追踪插件已注册菜单扩展点");
     }
 
-    private void RegisterToolExtensions()
+    private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {
-        ToolExtensions.Add(new CreateTodoToolFunction(_serviceProvider)
+        ToolExtensions.Add(new CreateTodoToolFunction(services)
         {
             Id = "todotracker.tool.create_todo",
             Name = "create_todo",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "创建一个新的待办事项。必填参数：title（标题，最长 200 字符）。可选：remark（备注，最长 1000 字符）、dueDate（截止日期 ISO 8601）。",
             ParametersJsonSchema = @"{
   ""type"": ""object"",
@@ -126,11 +67,11 @@ public class TodoTrackerPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new ListTodosToolFunction(_serviceProvider)
+        ToolExtensions.Add(new ListTodosToolFunction(services)
         {
             Id = "todotracker.tool.list_todos",
             Name = "list_todos",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "列出待办事项，支持按状态过滤与分页。可选参数：status（Pending/Completed）、page（页码，默认 1）、pageSize（每页条数，默认 20，最大 100）。",
             ParametersJsonSchema = @"{
   ""type"": ""object"",
@@ -142,11 +83,11 @@ public class TodoTrackerPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new CompleteTodoToolFunction(_serviceProvider)
+        ToolExtensions.Add(new CompleteTodoToolFunction(services)
         {
             Id = "todotracker.tool.complete_todo",
             Name = "complete_todo",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "标记指定待办事项为已完成。必填参数：id（待办 ID）。",
             ParametersJsonSchema = @"{
   ""type"": ""object"",

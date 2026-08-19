@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>OpenForgeSelf.Abstractions</RootNamespace>
+    <AssemblyName>OpenForgeSelf.Abstractions</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ToolFunctionUsageReportingExtensions 使用 CreateScope/GetService（DI 抽象扩展方法），
+         与宿主 EF Core 10.0.8 同版本线，避免版本漂移 -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenForgeSelf.Core\OpenForgeSelf.Core.csproj" />
+  </ItemGroup>
+
+</Project>

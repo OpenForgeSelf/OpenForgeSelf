@@ -1,9 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
-using OpenForgeSelf.Backend.Services.UsageStats;
+using OpenForgeSelf.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -101,7 +98,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("generate_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "generate_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["language"] = language,
                 ["codeLength"] = result.Code.Length
@@ -114,7 +111,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] generate_script 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("generate_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "generate_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -128,29 +125,6 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
@@ -234,7 +208,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("analyze_script_error", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "analyze_script_error", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["language"] = language
             });
@@ -246,7 +220,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] analyze_script_error 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("analyze_script_error", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "analyze_script_error", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -260,29 +234,6 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class SuggestScriptFixToolFunction : IToolFunctionExtension
@@ -367,7 +318,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("suggest_script_fix", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "suggest_script_fix", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["language"] = language
             });
@@ -379,7 +330,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] suggest_script_fix 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("suggest_script_fix", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "suggest_script_fix", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -393,29 +344,6 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ListScriptTemplatesToolFunction : IToolFunctionExtension
@@ -508,7 +436,7 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_script_templates", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_script_templates", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["total"] = templates.Count,
                 ["category"] = category ?? string.Empty
@@ -521,7 +449,7 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] list_script_templates 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_script_templates", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_script_templates", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -535,27 +463,4 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

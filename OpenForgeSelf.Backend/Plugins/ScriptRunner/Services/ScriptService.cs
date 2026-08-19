@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ScriptEntity = OpenForgeSelf.Backend.Plugins.ScriptRunner.Entities.Script;
 using ScriptExecutionEntity = OpenForgeSelf.Backend.Plugins.ScriptRunner.Entities.ScriptExecution;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
+using OpenForgeSelf.Abstractions;
 using NewLife.Data;
 using NewLife.Log;
 using XCode;

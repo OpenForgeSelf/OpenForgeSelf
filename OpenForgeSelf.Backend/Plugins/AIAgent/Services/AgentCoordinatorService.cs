@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
 using NewLife.Log;
 

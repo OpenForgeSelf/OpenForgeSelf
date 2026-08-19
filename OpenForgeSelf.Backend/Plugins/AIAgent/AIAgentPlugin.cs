@@ -1,10 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -12,82 +10,32 @@ namespace OpenForgeSelf.Backend.Plugins.AIAgent;
 
 public class AIAgentPlugin : IPlugin
 {
-    public string Id => "aiagent.plugin";
-    public string Name => "AI代理插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "AI聊天代理插件，支持对话、流式响应和工具函数调用。";
-    public string IconUrl => "https://example.com/ai-agent-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("[AIAgentPlugin] 初始化AI代理插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
 
-            RegisterMenuExtensions();
-            RegisterToolFunctionExtensions();
+        XTrace.Log.Info("[AIAgentPlugin] 初始化AI代理插件");
 
-            XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] AI代理插件初始化失败: {0}", ex.Message);
-            throw;
-        }
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IAIAgentService, AIAgentService>();
+        services?.AddScoped<IPluginMessageService, PluginMessageService>();
+        services?.AddScoped<IAgentRegistryService, AgentRegistryService>();
+        services?.AddScoped<IAgentCoordinatorService, AgentCoordinatorService>();
+        services?.AddScoped<IAgentExecutorService, AgentExecutorService>();
+        services?.AddScoped<IProactivePlanningService, ProactivePlanningService>();
+        services?.AddScoped<IWorkflowPlannerService, WorkflowPlannerService>();
+        services?.AddScoped<IToolSelectorService, ToolSelectorService>();
+
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
+
+        XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
     }
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("[AIAgentPlugin] 启动AI代理插件");
-            XTrace.Log.Info("[AIAgentPlugin] AI代理插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] AI代理插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("[AIAgentPlugin] 停止AI代理插件");
-            XTrace.Log.Info("[AIAgentPlugin] AI代理插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] AI代理插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("[AIAgentPlugin] 销毁AI代理插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("[AIAgentPlugin] AI代理插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] AI代理插件销毁失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[AIAgentPlugin] 注册菜单扩展点");
 
@@ -95,7 +43,7 @@ public class AIAgentPlugin : IPlugin
         {
             Id = "aiagent.menu.main",
             Name = "AI聊天",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-robot",
             Path = "/ai-chat",
             Order = 10,
@@ -105,16 +53,16 @@ public class AIAgentPlugin : IPlugin
         XTrace.Log.Debug("[AIAgentPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[AIAgentPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new GetCurrentTimeToolFunction(Id));
-        ToolExtensions.Add(new CalculateToolFunction(Id));
-        ToolExtensions.Add(new PlanWorkflowToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ExecuteWorkflowToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GetWorkflowStatusToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ListWorkflowsToolFunction(Id, _serviceProvider));
+        ToolExtensions.Add(new GetCurrentTimeToolFunction(pluginId));
+        ToolExtensions.Add(new CalculateToolFunction(pluginId));
+        ToolExtensions.Add(new PlanWorkflowToolFunction(pluginId, services));
+        ToolExtensions.Add(new ExecuteWorkflowToolFunction(pluginId, services));
+        ToolExtensions.Add(new GetWorkflowStatusToolFunction(pluginId, services));
+        ToolExtensions.Add(new ListWorkflowsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[AIAgentPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
@@ -375,7 +323,7 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("plan_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "plan_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["stepCount"] = workflow.Steps.Count,
                 ["userRequestLength"] = userRequest.Length
@@ -388,7 +336,7 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[AIAgentPlugin] plan_workflow 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("plan_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "plan_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -397,29 +345,6 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[AIAgentPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ExecuteWorkflowToolFunction : IToolFunctionExtension
@@ -542,7 +467,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["executionId"] = execution.Id,
                 ["workflowId"] = execution.WorkflowId
@@ -555,7 +480,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[AIAgentPlugin] execute_workflow 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -564,29 +489,6 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[AIAgentPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetWorkflowStatusToolFunction : IToolFunctionExtension
@@ -670,7 +572,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["executionId"] = executionId
             });
@@ -682,7 +584,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[AIAgentPlugin] get_workflow_status 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -691,29 +593,6 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[AIAgentPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ListWorkflowsToolFunction : IToolFunctionExtension
@@ -828,7 +707,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["keyword"] = keyword ?? string.Empty,
                 ["category"] = category ?? string.Empty,
@@ -842,7 +721,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[AIAgentPlugin] list_workflows 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -851,27 +730,4 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[AIAgentPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

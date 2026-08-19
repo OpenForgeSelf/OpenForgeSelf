@@ -5,11 +5,17 @@
   "Author": "OpenForgeSelf Team",
   "Description": "快捷链接管理插件，支持链接分类、排序、导入导出等功能。",
   "IconUrl": "https://example.com/quicklinks-icon.png",
-  "EntryAssembly": "OpenForgeSelf.dll",
+  "EntryAssembly": "QuickLinks.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.QuickLinks.QuickLinksPlugin",
   "Dependencies": [],
   "Permissions": [
     "read_config",
     "write_config"
-  ]
+  ],
+  "frontend": {
+    "views": ["QuickLinksView"],
+    "menu": "快捷链接",
+    "route": "/quick-links",
+    "icon": "fa-link"
+  }
 }

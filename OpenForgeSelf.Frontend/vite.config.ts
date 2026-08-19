@@ -35,15 +35,15 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       '/api': {
-        target: 'http://localhost:51888',
+        target: 'http://localhost:7102',
         changeOrigin: true
       },
       '/openapi': {
-        target: 'http://localhost:51888',
+        target: 'http://localhost:7102',
         changeOrigin: true
       },
       '/scalar': {
-        target: 'http://localhost:51888',
+        target: 'http://localhost:7102',
         changeOrigin: true
       }
     }

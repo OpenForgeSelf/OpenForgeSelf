@@ -1,5 +1,5 @@
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.Mcp;
-using OpenForgeSelf.Backend.Models.Plugins;
 using OpenForgeSelf.Backend.Services.Mcp;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;

@@ -1,7 +1,10 @@
 using System.Runtime.CompilerServices;
+using OpenForgeSelf.Abstractions;
 using System.Text;
 using System.Text.Json;
 using OpenForgeSelf.Backend.Models;
+// 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
+using LegacyAIChatMessage = OpenForgeSelf.Backend.Models.AIChatMessage;
 
 namespace OpenForgeSelf.Backend.Services;
 
@@ -13,12 +16,12 @@ public interface IAIService
     /// <summary>
     /// 发送聊天消息并获取响应
     /// </summary>
-    Task<string> ChatAsync(List<AIChatMessage> messages);
+    Task<string> ChatAsync(List<LegacyAIChatMessage> messages);
 
     /// <summary>
     /// 发送聊天消息并获取流式响应
     /// </summary>
-    IAsyncEnumerable<string> ChatStreamAsync(List<AIChatMessage> messages, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -48,7 +51,7 @@ public class AIService : IAIService
     /// <summary>
     /// 发送聊天消息并获取响应
     /// </summary>
-    public async Task<string> ChatAsync(List<AIChatMessage> messages)
+    public async Task<string> ChatAsync(List<LegacyAIChatMessage> messages)
     {
         try
         {
@@ -110,7 +113,7 @@ public class AIService : IAIService
         }
     }
 
-    private string GetFallbackResponse(List<AIChatMessage> messages)
+    private string GetFallbackResponse(List<LegacyAIChatMessage> messages)
     {
         var lastMessage = messages.LastOrDefault()?.Content ?? "你好";
         return $"这是一个模拟的AI回复。你说的是：「{lastMessage}」。当前AI服务未连接，这是降级响应。";
@@ -119,7 +122,7 @@ public class AIService : IAIService
     /// <summary>
     /// 发送聊天消息并获取流式响应
     /// </summary>
-    public async IAsyncEnumerable<string> ChatStreamAsync(List<AIChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var request = new AIChatRequest
         {

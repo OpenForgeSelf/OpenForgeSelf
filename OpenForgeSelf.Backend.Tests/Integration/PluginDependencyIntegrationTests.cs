@@ -1,4 +1,5 @@
 using System.Reflection;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using OpenForgeSelf.Backend.Tests.Plugins;
@@ -205,23 +206,18 @@ public class PluginDependencyIntegrationTests : IDisposable
     public void LoadAndStartAllPlugins_FollowsDependencyOrder()
     {
         var manager = CreateManager();
-        var initOrder = new List<string>();
 
-        var pluginA = new FakePlugin { Id = "dep.a" };
-        var pluginB = new FakePlugin { Id = "dep.b" };
-        var pluginC = new FakePlugin { Id = "dep.c" };
-
-        pluginA.InitializeException = null;
-        pluginB.InitializeException = null;
-        pluginC.InitializeException = null;
+        var pluginA = new FakePlugin();
+        var pluginB = new FakePlugin();
+        var pluginC = new FakePlugin();
 
         var metadataA = PluginManifestGenerator.CreateBasic("dep.a");
         var metadataB = PluginManifestGenerator.CreateBasic("dep.b").WithDependencies("dep.a");
         var metadataC = PluginManifestGenerator.CreateBasic("dep.c").WithDependencies("dep.b");
 
-        SetupPluginWithMetadata(manager, pluginA, metadataA);
-        SetupPluginWithMetadata(manager, pluginB, metadataB);
-        SetupPluginWithMetadata(manager, pluginC, metadataC);
+        SetupPluginWithMetadata(manager, metadataA);
+        SetupPluginWithMetadata(manager, metadataB);
+        SetupPluginWithMetadata(manager, metadataC);
 
         var metadatas = new List<PluginMetadata> { metadataC, metadataA, metadataB };
         var sorted = InvokeTopologicalSort(metadatas);
@@ -229,14 +225,13 @@ public class PluginDependencyIntegrationTests : IDisposable
         foreach (var metadata in sorted)
         {
             if (metadata.Id == "dep.a")
-                LoadPluginDirectly(manager, pluginA, metadataA);
+                LoadPluginDirectly(manager, "dep.a", pluginA);
             else if (metadata.Id == "dep.b")
-                LoadPluginDirectly(manager, pluginB, metadataB);
+                LoadPluginDirectly(manager, "dep.b", pluginB);
             else if (metadata.Id == "dep.c")
-                LoadPluginDirectly(manager, pluginC, metadataC);
+                LoadPluginDirectly(manager, "dep.c", pluginC);
 
             manager.InitializePlugin(metadata.Id);
-            manager.StartPlugin(metadata.Id);
         }
 
         manager.GetPluginState("dep.a").Should().Be(PluginState.Running);
@@ -339,7 +334,7 @@ public class PluginDependencyIntegrationTests : IDisposable
         return (List<PluginMetadata>)result!;
     }
 
-    private static void SetupPluginWithMetadata(PluginManager manager, IPlugin plugin, PluginMetadata metadata)
+    private static void SetupPluginWithMetadata(PluginManager manager, PluginMetadata metadata)
     {
         var metadatasField = typeof(PluginManager).GetField("_metadatas", BindingFlags.NonPublic | BindingFlags.Instance);
         var pluginStatesField = typeof(PluginManager).GetField("_pluginStates", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -351,7 +346,7 @@ public class PluginDependencyIntegrationTests : IDisposable
         pluginStatesDict.AddOrUpdate(metadata.Id, PluginState.NotLoaded, (_, _) => PluginState.NotLoaded);
     }
 
-    private static bool LoadPluginDirectly(PluginManager manager, IPlugin plugin, PluginMetadata metadata)
+    private static void LoadPluginDirectly(PluginManager manager, string pluginId, IPlugin plugin)
     {
         var pluginsField = typeof(PluginManager).GetField("_plugins", BindingFlags.NonPublic | BindingFlags.Instance);
         var pluginStatesField = typeof(PluginManager).GetField("_pluginStates", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -359,10 +354,8 @@ public class PluginDependencyIntegrationTests : IDisposable
         var pluginsDict = (System.Collections.Concurrent.ConcurrentDictionary<string, IPlugin>)pluginsField!.GetValue(manager)!;
         var pluginStatesDict = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginState>)pluginStatesField!.GetValue(manager)!;
 
-        pluginsDict.AddOrUpdate(metadata.Id, plugin, (_, _) => plugin);
-        pluginStatesDict.AddOrUpdate(metadata.Id, PluginState.Loaded, (_, _) => PluginState.Loaded);
-
-        return true;
+        pluginsDict.AddOrUpdate(pluginId, plugin, (_, _) => plugin);
+        pluginStatesDict.AddOrUpdate(pluginId, PluginState.Loaded, (_, _) => PluginState.Loaded);
     }
 
     public void Dispose()

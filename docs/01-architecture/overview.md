@@ -89,6 +89,8 @@
 
 宿主通过 `Plugins/Abstractions/IPlugin` + `ExtensionPointManager` 在运行时发现并加载 `Plugins/*`（每插件含 `*.csproj` + 控制器）。`PluginController` 暴露市场/安装/更新/卸载/版本回滚等 REST。内嵌插件（随主程序发布）的启用逻辑存在已知阻塞（见 TODO.md T032）。
 
+> 演进方向：以新增的 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）把插件体系重构为「一切皆插件」——设计见 [`cordis-kernel.md`](cordis-kernel.md)，功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)。
+
 ---
 
 ## 4. 前后端协作约定

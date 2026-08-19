@@ -14,12 +14,12 @@
 | 了解项目**为什么存在、要去哪** | [`00-vision/01-vision.md`](00-vision/01-vision.md) |
 | 看项目**现在处于哪个阶段、目标是什么** | [`00-vision/02-goals.md`](00-vision/02-goals.md) |
 | 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md) |
-| 理解/修改**某个功能**（需求+设计+使用） | `02-features/`（[001](02-features/001-ai-provider-config.md) AI提供方 / [002](02-features/002-ai-models-list.md) 模型 / [003](02-features/003-api-server-settings.md) API服务器 / [004](02-features/004-provider-models-integration.md) 网关集成 / [005](02-features/005-todo-tracker.md) 待办 / [006](02-features/006-background-image.md) 背景图 / [007](02-features/007-background-visibility-opacity.md) 透明度 / [008](02-features/008-tray-service-autoupdate.md) 托盘自更新 / [009](02-features/009-web-port-token-security.md) 端口令牌 / [010](02-features/010-chat-session-aggregation.md) 会话聚合 / [011](02-features/011-multimodal-image-cache.md) 多模态缓存 / [100](02-features/100-secret-encryption.md) 密钥加密） |
+| 理解/修改**某个功能**（需求+设计+使用） | `02-features/`（[001](02-features/001-ai-provider-config.md) AI提供方 / [002](02-features/002-ai-models-list.md) 模型 / [003](02-features/003-api-server-settings.md) API服务器 / [004](02-features/004-provider-models-integration.md) 网关集成 / [005](02-features/005-todo-tracker.md) 待办 / [006](02-features/006-background-image.md) 背景图 / [007](02-features/007-background-visibility-opacity.md) 透明度 / [008](02-features/008-tray-service-autoupdate.md) 托盘自更新 / [009](02-features/009-web-port-token-security.md) 端口令牌 / [010](02-features/010-chat-session-aggregation.md) 会话聚合 / [011](02-features/011-multimodal-image-cache.md) 多模态缓存 / [027](02-features/027-cordis-kernel.md) Cordis内核 / [100](02-features/100-secret-encryption.md) 密钥加密） |
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
-| 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sop.md) 文档反向同步 SOP） |
+| 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
-| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（暂无，单功能调研在 `specs/NNN-*/research.md`） |
-| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（暂无 ADR，待补） |
+| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；单功能调研在 `specs/NNN-*/research.md`） |
+| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)） |
 | 涉及**密钥/权限/敏感数据**的操作 | [`08-security/baseline.md`](08-security/baseline.md) |
 | **部署/发布/运维**服务器 | [`09-operations/deployment.md`](09-operations/deployment.md) |
 | 写测试前了解**测试策略与铁律** | [`10-testing/strategy.md`](10-testing/strategy.md) |
@@ -27,7 +27,7 @@
 | 有**高频疑问**想快速查答 | [`12-faq/index.md`](12-faq/index.md) |
 | 遇到**不懂的术语** | [`13-glossary/terms.md`](13-glossary/terms.md) |
 | **第一次接触项目**（环境搭建/上手路径） | [`14-onboarding/getting-started.md`](14-onboarding/getting-started.md) |
-| 决定**下一步做什么**（排期/backlog） | [`15-roadmap/index.md`](15-roadmap/index.md)（活队列在 TODO.md） |
+| 决定**下一步做什么**（排期/backlog） | [`15-roadmap/index.md`](15-roadmap/index.md)（活队列在 TODO.md；Cordis 内核改造见 [`15-roadmap/plugin-architecture.md`](15-roadmap/plugin-architecture.md)） |
 | 查**接口契约/字段**（快速速查） | [`16-reference/api.md`](16-reference/api.md) |
 | 看**版本演进/变更摘要** | [`17-changelog/index.md`](17-changelog/index.md) |
 | **要写新文档**（格式模板） | `18-templates/feature.md` |
@@ -328,7 +328,8 @@
 | 024 | [`02-features/024-usage-stats.md`](02-features/024-usage-stats.md) | 已实现（核心服务，无独立控制器） |
 | 025 | [`02-features/025-user-profile.md`](02-features/025-user-profile.md) | 前端已实现；后端暂无独立模块（缺口） |
 | 026 | [`02-features/026-plugin-marketplace.md`](02-features/026-plugin-marketplace.md) | 已实现 |
+| 027 | [`02-features/027-cordis-kernel.md`](02-features/027-cordis-kernel.md) | 已实现（内核/契约/插件自注册/热更新/前端清单驱动；剩余项见档案） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 
-> 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
+> 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
 > 另有 `docs/chat-record-session-redesign.md` 为 010 会话聚合的**根因分析稿**（ChatRecord→ChatTurn 重构方案），已随 010 落地，其顶部"落地状态"段指向 `010-chat-session-aggregation.md`。

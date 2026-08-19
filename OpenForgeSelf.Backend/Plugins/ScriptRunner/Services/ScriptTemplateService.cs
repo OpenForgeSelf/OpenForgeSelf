@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;

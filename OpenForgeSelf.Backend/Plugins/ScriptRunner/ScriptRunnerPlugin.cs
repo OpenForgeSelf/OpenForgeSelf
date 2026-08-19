@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Hubs;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 using XCode.DataAccessLayer;
@@ -13,104 +12,46 @@ namespace OpenForgeSelf.Backend.Plugins.ScriptRunner;
 
 public class ScriptRunnerPlugin : IPlugin
 {
-    public string Id => "scriptrunner.plugin";
-    public string Name => "脚本运行器插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "多语言脚本运行器插件，支持 PowerShell、Python、Node.js、Shell、Cmd 等脚本的管理、执行和实时输出。";
-    public string IconUrl => "https://example.com/script-runner-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = [];
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = [];
 
-    private IServiceProvider? _serviceProvider;
-    private IRuntimeDetector? _runtimeDetector;
-    private IScriptService? _scriptService;
-    private IScriptExecutor? _scriptExecutor;
     private IScriptTemplateService? _scriptTemplateService;
     private ICodeSnippetService? _codeSnippetService;
 
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("[ScriptRunnerPlugin] 初始化脚本运行器插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("[ScriptRunnerPlugin] 初始化脚本运行器插件");
 
-            RegisterServices();
-            RegisterMenuExtensions();
-            RegisterToolFunctionExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IScriptService, ScriptService>();
+        services?.AddScoped<IScriptExecutor, ScriptExecutor>();
+        services?.AddScoped<ICodeSnippetService, CodeSnippetService>();
+        services?.AddScoped<IScriptTemplateService, ScriptTemplateService>();
+        services?.AddSingleton<ScriptExecutionBroadcaster>();
+        // 宿主 UsageStats / Recommendation 服务跨程序集消费脚本库统计（ADR D2）。
+        services?.AddScoped<IScriptLibraryStatsProvider, ScriptLibraryStatsProvider>();
 
-            XTrace.Log.Info("[ScriptRunnerPlugin] 脚本运行器插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[ScriptRunnerPlugin] 脚本运行器插件初始化失败: {0}", ex.Message);
-            throw;
-        }
-    }
+        RegisterServices();
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("[ScriptRunnerPlugin] 启动脚本运行器插件");
+        EnsureDatabaseCreated();
 
-            EnsureDatabaseCreated();
-
-            ScriptExecutionHub.SetServiceProvider(_serviceProvider!);
-
-            XTrace.Log.Info("[ScriptRunnerPlugin] 脚本运行器插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[ScriptRunnerPlugin] 脚本运行器插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("[ScriptRunnerPlugin] 停止脚本运行器插件");
-            XTrace.Log.Info("[ScriptRunnerPlugin] 脚本运行器插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[ScriptRunnerPlugin] 脚本运行器插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("[ScriptRunnerPlugin] 销毁脚本运行器插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("[ScriptRunnerPlugin] 脚本运行器插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[ScriptRunnerPlugin] 脚本运行器插件销毁失败: {0}", ex.Message);
-            throw;
-        }
+        XTrace.Log.Info("[ScriptRunnerPlugin] 脚本运行器插件初始化完成");
     }
 
     private void RegisterServices()
     {
-        _runtimeDetector = new RuntimeDetector();
-        _scriptExecutor = new ScriptExecutor(_runtimeDetector);
-        _scriptService = new ScriptService();
+        // IRuntimeDetector 由宿主 DI 提供（AppBuilder 注册单例），插件不直接构造宿主实现类；
+        // ScriptExecutor/ScriptService 由 DI 按需解析（插件自注册 + 宿主服务回落）。
         _scriptTemplateService = new ScriptTemplateService();
         _codeSnippetService = new CodeSnippetService();
 
         XTrace.Log.Debug("[ScriptRunnerPlugin] 服务已注册");
     }
 
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[ScriptRunnerPlugin] 注册菜单扩展点");
 
@@ -118,7 +59,7 @@ public class ScriptRunnerPlugin : IPlugin
         {
             Id = "scriptrunner.menu.main",
             Name = "脚本运行器",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-terminal",
             Path = "/script-runner",
             Order = 50,
@@ -129,7 +70,7 @@ public class ScriptRunnerPlugin : IPlugin
                 {
                     Id = "scriptrunner.menu.library",
                     Name = "脚本库",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-book",
                     Path = "/script-runner/library",
                     Order = 1,
@@ -139,7 +80,7 @@ public class ScriptRunnerPlugin : IPlugin
                 {
                     Id = "scriptrunner.menu.codesnippets",
                     Name = "代码片段",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-code",
                     Path = "/script-runner/code-snippets",
                     Order = 2,
@@ -152,21 +93,21 @@ public class ScriptRunnerPlugin : IPlugin
         XTrace.Log.Debug("[ScriptRunnerPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[ScriptRunnerPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new RunScriptToolFunction(Id, _serviceProvider, _scriptService!, _scriptExecutor!));
-        ToolExtensions.Add(new ListScriptsToolFunction(Id, _serviceProvider, _scriptService!));
-        ToolExtensions.Add(new ExecuteCodeToolFunction(Id, _serviceProvider, _scriptExecutor!));
-        ToolExtensions.Add(new GenerateScriptToolFunction(Id, _serviceProvider, _scriptTemplateService!));
-        ToolExtensions.Add(new AnalyzeScriptErrorToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new SuggestScriptFixToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ListScriptTemplatesToolFunction(Id, _serviceProvider, _scriptTemplateService!));
-        ToolExtensions.Add(new ListCodeSnippetsToolFunction(Id, _serviceProvider, _codeSnippetService!));
-        ToolExtensions.Add(new CreateCodeSnippetToolFunction(Id, _serviceProvider, _codeSnippetService!));
-        ToolExtensions.Add(new GetPersonalStatsToolFunction(Id, _serviceProvider!));
-        ToolExtensions.Add(new GetRecommendationsToolFunction(Id, _serviceProvider!));
+        ToolExtensions.Add(new RunScriptToolFunction(pluginId, services));
+        ToolExtensions.Add(new ListScriptsToolFunction(pluginId, services));
+        ToolExtensions.Add(new ExecuteCodeToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateScriptToolFunction(pluginId, services, _scriptTemplateService!));
+        ToolExtensions.Add(new AnalyzeScriptErrorToolFunction(pluginId, services));
+        ToolExtensions.Add(new SuggestScriptFixToolFunction(pluginId, services));
+        ToolExtensions.Add(new ListScriptTemplatesToolFunction(pluginId, services, _scriptTemplateService!));
+        ToolExtensions.Add(new ListCodeSnippetsToolFunction(pluginId, services, _codeSnippetService!));
+        ToolExtensions.Add(new CreateCodeSnippetToolFunction(pluginId, services, _codeSnippetService!));
+        ToolExtensions.Add(new GetPersonalStatsToolFunction(pluginId, services));
+        ToolExtensions.Add(new GetRecommendationsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[ScriptRunnerPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
@@ -175,12 +116,12 @@ public class ScriptRunnerPlugin : IPlugin
     {
         try
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "scriptrunner.db");
-            var connStr = $"Data Source={dbPath}";
+            // 连接串由宿主统一注册（XCodeConfig.AddXCode：Data\ScriptRunner.db），此处仅校验连通性，
+            // 不自注册 AddConnStr，避免与宿主注册的路径（AppContext.BaseDirectory/scriptrunner.db）不一致。
+            var dal = DAL.Create("ScriptRunner");
+            dal.Session.Query("SELECT 1");
 
-            DAL.AddConnStr("ScriptRunner", connStr, null, "SQLite");
-
-            XTrace.Log.Info("[ScriptRunnerPlugin] 数据库初始化完成，数据库路径: {0}", dbPath);
+            XTrace.Log.Info("[ScriptRunnerPlugin] 数据库初始化完成");
         }
         catch (Exception ex)
         {
@@ -204,8 +145,6 @@ public class ScriptRunnerMenuExtension : IMenuExtension
 public class RunScriptToolFunction : IToolFunctionExtension
 {
     private readonly IServiceProvider? _serviceProvider;
-    private readonly IScriptService _scriptService;
-    private readonly IScriptExecutor _scriptExecutor;
 
     public string Id => "scriptrunner.run_script";
     public string Name => "run_script";
@@ -228,12 +167,10 @@ public class RunScriptToolFunction : IToolFunctionExtension
     ""required"": [""scriptId""]
 }";
 
-    public RunScriptToolFunction(string pluginId, IServiceProvider? serviceProvider, IScriptService scriptService, IScriptExecutor scriptExecutor)
+    public RunScriptToolFunction(string pluginId, IServiceProvider? serviceProvider)
     {
         PluginId = pluginId;
         _serviceProvider = serviceProvider;
-        _scriptService = scriptService;
-        _scriptExecutor = scriptExecutor;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -242,6 +179,15 @@ public class RunScriptToolFunction : IToolFunctionExtension
         try
         {
             XTrace.Log.Info("[ScriptRunnerPlugin] 执行 run_script 工具函数");
+
+            if (_serviceProvider == null)
+            {
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+            }
+
+            using var scope = _serviceProvider.CreateScope();
+            var scriptService = scope.ServiceProvider.GetRequiredService<IScriptService>();
+            var scriptExecutor = scope.ServiceProvider.GetRequiredService<IScriptExecutor>();
 
             var paramsDoc = JsonDocument.Parse(parameters);
             var scriptId = paramsDoc.RootElement.GetProperty("scriptId").GetInt64();
@@ -252,14 +198,14 @@ public class RunScriptToolFunction : IToolFunctionExtension
                 scriptParams = JsonSerializer.Deserialize<Dictionary<string, object?>>(paramsProp.GetRawText());
             }
 
-            var script = await _scriptService.GetScriptAsync(scriptId);
+            var script = await scriptService.GetScriptAsync(scriptId);
             if (script == null)
             {
                 return JsonSerializer.Serialize(new { success = false, error = "脚本不存在" });
             }
 
-            var execution = await _scriptExecutor.ExecuteAsync(scriptId, scriptParams);
-            await _scriptService.IncrementUsageAsync(scriptId);
+            var execution = await scriptExecutor.ExecuteAsync(scriptId, scriptParams);
+            await scriptService.IncrementUsageAsync(scriptId);
 
             var response = new
             {
@@ -275,7 +221,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("run_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "run_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["scriptId"] = scriptId,
                 ["scriptName"] = script.Name,
@@ -289,7 +235,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] run_script 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("run_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "run_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -303,35 +249,11 @@ public class RunScriptToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ListScriptsToolFunction : IToolFunctionExtension
 {
     private readonly IServiceProvider? _serviceProvider;
-    private readonly IScriptService _scriptService;
 
     public string Id => "scriptrunner.list_scripts";
     public string Name => "list_scripts";
@@ -373,11 +295,10 @@ public class ListScriptsToolFunction : IToolFunctionExtension
     ""required"": []
 }";
 
-    public ListScriptsToolFunction(string pluginId, IServiceProvider? serviceProvider, IScriptService scriptService)
+    public ListScriptsToolFunction(string pluginId, IServiceProvider? serviceProvider)
     {
         PluginId = pluginId;
         _serviceProvider = serviceProvider;
-        _scriptService = scriptService;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -386,6 +307,14 @@ public class ListScriptsToolFunction : IToolFunctionExtension
         try
         {
             XTrace.Log.Info("[ScriptRunnerPlugin] 执行 list_scripts 工具函数");
+
+            if (_serviceProvider == null)
+            {
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+            }
+
+            using var scope = _serviceProvider.CreateScope();
+            var scriptService = scope.ServiceProvider.GetRequiredService<IScriptService>();
 
             var paramsDoc = JsonDocument.Parse(parameters);
             var root = paramsDoc.RootElement;
@@ -420,7 +349,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
             if (root.TryGetProperty("pageSize", out var pageSizeProp))
                 pageSize = pageSizeProp.GetInt32();
 
-            var result = await _scriptService.ListScriptsAsync(keyword, category, language, isFavorite, page, pageSize);
+            var result = await scriptService.ListScriptsAsync(keyword, category, language, isFavorite, page, pageSize);
 
             var response = new
             {
@@ -447,7 +376,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_scripts", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_scripts", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["keyword"] = keyword ?? string.Empty,
                 ["category"] = category ?? string.Empty,
@@ -461,7 +390,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] list_scripts 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_scripts", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_scripts", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -475,35 +404,11 @@ public class ListScriptsToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ExecuteCodeToolFunction : IToolFunctionExtension
 {
     private readonly IServiceProvider? _serviceProvider;
-    private readonly IScriptExecutor _scriptExecutor;
 
     public string Id => "scriptrunner.execute_code";
     public string Name => "execute_code";
@@ -535,11 +440,10 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
     ""required"": [""code"", ""language""]
 }";
 
-    public ExecuteCodeToolFunction(string pluginId, IServiceProvider? serviceProvider, IScriptExecutor scriptExecutor)
+    public ExecuteCodeToolFunction(string pluginId, IServiceProvider? serviceProvider)
     {
         PluginId = pluginId;
         _serviceProvider = serviceProvider;
-        _scriptExecutor = scriptExecutor;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -548,6 +452,14 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
         try
         {
             XTrace.Log.Info("[ScriptRunnerPlugin] 执行 execute_code 工具函数");
+
+            if (_serviceProvider == null)
+            {
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+            }
+
+            using var scope = _serviceProvider.CreateScope();
+            var scriptExecutor = scope.ServiceProvider.GetRequiredService<IScriptExecutor>();
 
             var paramsDoc = JsonDocument.Parse(parameters);
             var root = paramsDoc.RootElement;
@@ -572,7 +484,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
                 workingDirectory = wdProp.GetString();
             }
 
-            var execution = await _scriptExecutor.ExecuteCodeAsync(code, language, scriptParams, workingDirectory);
+            var execution = await scriptExecutor.ExecuteCodeAsync(code, language, scriptParams, workingDirectory);
 
             var response = new
             {
@@ -586,7 +498,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_code", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_code", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["language"] = language.ToString(),
                 ["executionId"] = execution.Id
@@ -599,7 +511,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[ScriptRunnerPlugin] execute_code 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("execute_code", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "execute_code", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -613,27 +525,4 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[ScriptRunnerPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

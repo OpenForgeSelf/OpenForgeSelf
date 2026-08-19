@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Controllers;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
@@ -22,7 +22,7 @@ public class SchedulerIntegrationTests
     public async Task GetTasks_ValidRequest_ReturnsOk()
     {
         // Arrange
-        var pagedResult = new PagedResult<ScheduledTaskDto>
+        var pagedResult = new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>
         {
             Items = new List<ScheduledTaskDto>(),
             Total = 0,
@@ -38,7 +38,7 @@ public class SchedulerIntegrationTests
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();
         var okResult = result.Result as OkObjectResult;
-        var response = okResult!.Value as ApiResponse<PagedResult<ScheduledTaskDto>>;
+        var response = okResult!.Value as ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>;
         response!.Success.Should().BeTrue();
     }
 
@@ -46,7 +46,7 @@ public class SchedulerIntegrationTests
     public async Task GetTasks_WithKeyword_ReturnsOk()
     {
         // Arrange
-        var pagedResult = new PagedResult<ScheduledTaskDto>
+        var pagedResult = new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>
         {
             Items = new List<ScheduledTaskDto>
             {
@@ -65,7 +65,7 @@ public class SchedulerIntegrationTests
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();
         var okResult = result.Result as OkObjectResult;
-        var response = okResult!.Value as ApiResponse<PagedResult<ScheduledTaskDto>>;
+        var response = okResult!.Value as ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>;
         response!.Success.Should().BeTrue();
         response.Data!.Items.Should().HaveCount(1);
     }
@@ -74,7 +74,7 @@ public class SchedulerIntegrationTests
     public async Task GetTasks_WithStatusFilter_ReturnsOk()
     {
         // Arrange
-        var pagedResult = new PagedResult<ScheduledTaskDto>
+        var pagedResult = new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>
         {
             Items = new List<ScheduledTaskDto>
             {
@@ -93,7 +93,7 @@ public class SchedulerIntegrationTests
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();
         var okResult = result.Result as OkObjectResult;
-        var response = okResult!.Value as ApiResponse<PagedResult<ScheduledTaskDto>>;
+        var response = okResult!.Value as ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>;
         response!.Success.Should().BeTrue();
         response.Data!.Items.Should().HaveCount(1);
     }
@@ -395,7 +395,7 @@ public class SchedulerIntegrationTests
     public async Task GetTaskLogs_ValidRequest_ReturnsOk()
     {
         // Arrange
-        var pagedResult = new PagedResult<ScheduledTaskLogDto>
+        var pagedResult = new OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>
         {
             Items = new List<ScheduledTaskLogDto>(),
             Total = 0,

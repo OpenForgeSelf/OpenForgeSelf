@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using OpenForgeSelf.Backend.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Services;
 

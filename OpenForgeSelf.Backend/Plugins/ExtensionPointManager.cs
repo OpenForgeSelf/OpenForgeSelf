@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Backend.Services;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins;

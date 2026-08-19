@@ -1,6 +1,7 @@
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Core;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
@@ -39,11 +40,12 @@ public class AIWorkflowAssistant : IAIWorkflowAssistant
 
     public AIWorkflowAssistant(
         IAIAgentService aiAgentService,
-        IToolRegistry toolRegistry,
+        IContext ctx,
         IToolSelectorService toolSelectorService)
     {
         _aiAgentService = aiAgentService;
-        _toolRegistry = toolRegistry;
+        // 宿主契约（IToolRegistry）经 Cordis 上下文在运行期获取；插件自有服务保持构造注入。
+        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化工作流助手");
         _toolSelectorService = toolSelectorService;
     }
 

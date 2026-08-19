@@ -1,7 +1,9 @@
 using NewLife.Log;
 using XCode;
 using ScheduledTaskEntity = OpenForgeSelf.Backend.Plugins.Scheduler.Entities.ScheduledTask;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
+using OpenForgeSelf.Core;
 
 namespace OpenForgeSelf.Backend.Plugins.Scheduler.Services;
 
@@ -17,7 +19,7 @@ public interface ITaskScheduler
     DateTime? GetNextRunTime(ScheduledTask task);
 }
 
-public class TaskScheduler : ITaskScheduler
+public class TaskScheduler : ITaskScheduler, ISchedulerHost
 {
     private readonly ITaskExecutor _taskExecutor;
     private readonly ICronParser _cronParser;
@@ -27,10 +29,11 @@ public class TaskScheduler : ITaskScheduler
     private readonly object _lock = new();
     private readonly HashSet<long> _runningTasks = new();
 
-    public TaskScheduler(ITaskExecutor taskExecutor, ICronParser cronParser)
+    public TaskScheduler(ITaskExecutor taskExecutor, IContext ctx)
     {
         _taskExecutor = taskExecutor;
-        _cronParser = cronParser;
+        // 宿主契约（ICronParser）经 Cordis 上下文在运行期获取；插件自有服务（任务执行器）保持构造注入。
+        _cronParser = ctx.Get<ICronParser>() ?? throw new InvalidOperationException("宿主未提供 ICronParser 契约，无法初始化任务调度器");
     }
 
     public async Task StartAsync()

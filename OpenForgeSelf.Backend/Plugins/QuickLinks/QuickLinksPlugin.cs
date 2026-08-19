@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.QuickLinks.Entities;
 using OpenForgeSelf.Backend.Plugins.QuickLinks.Models;
 using OpenForgeSelf.Backend.Plugins.QuickLinks.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 using XCode.DataAccessLayer;
@@ -13,91 +13,31 @@ namespace OpenForgeSelf.Backend.Plugins.QuickLinks;
 
 public class QuickLinksPlugin : IPlugin
 {
-    public string Id => "quicklinks.plugin";
-    public string Name => "快捷链接插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "快捷链接管理插件，支持链接分类、排序、导入导出等功能。";
-    public string IconUrl => "https://example.com/quicklinks-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("初始化快捷链接插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("初始化快捷链接插件");
 
-            RegisterMenuExtensions();
-            RegisterToolExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IQuickLinkService, QuickLinkService>();
 
-            XTrace.Log.Info("快捷链接插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("快捷链接插件初始化失败: {0}", ex.Message);
-            throw;
-        }
+        RegisterMenuExtensions(pluginId);
+        RegisterToolExtensions(pluginId, ctx);
+        EnsureDatabaseCreated();
+
+        XTrace.Log.Info("快捷链接插件初始化完成");
     }
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("启动快捷链接插件");
-
-            EnsureDatabaseCreated();
-
-            XTrace.Log.Info("快捷链接插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("快捷链接插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("停止快捷链接插件");
-            XTrace.Log.Info("快捷链接插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("快捷链接插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("销毁快捷链接插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("快捷链接插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("快捷链接插件销毁失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         MenuExtensions.Add(new QuickLinksMenuExtension
         {
             Id = "quicklinks.menu.main",
             Name = "快捷链接",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-link",
             Path = "/quicklinks",
             Order = 100,
@@ -107,13 +47,13 @@ public class QuickLinksPlugin : IPlugin
         XTrace.Log.Debug("快捷链接插件已注册菜单扩展点");
     }
 
-    private void RegisterToolExtensions()
+    private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {
-        ToolExtensions.Add(new SearchLinksToolFunction(_serviceProvider)
+        ToolExtensions.Add(new SearchLinksToolFunction(services)
         {
             Id = "quicklinks.tool.search",
             Name = "search_links",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "搜索快捷链接，根据关键词查找相关的链接，支持按分类筛选和限制返回数量",
             ParametersJsonSchema = @"
 {
@@ -137,11 +77,11 @@ public class QuickLinksPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new OpenLinkToolFunction(_serviceProvider)
+        ToolExtensions.Add(new OpenLinkToolFunction(services)
         {
             Id = "quicklinks.tool.open",
             Name = "open_link",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "打开指定的快捷链接，并记录点击次数",
             ParametersJsonSchema = @"
 {
@@ -156,11 +96,11 @@ public class QuickLinksPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new GetCategoriesToolFunction(_serviceProvider)
+        ToolExtensions.Add(new GetCategoriesToolFunction(services)
         {
             Id = "quicklinks.tool.get_categories",
             Name = "get_categories",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "获取所有快捷链接分类列表",
             ParametersJsonSchema = @"
 {
@@ -170,11 +110,11 @@ public class QuickLinksPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new CreateLinkToolFunction(_serviceProvider)
+        ToolExtensions.Add(new CreateLinkToolFunction(services)
         {
             Id = "quicklinks.tool.create",
             Name = "create_link",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "创建一个新的快捷链接",
             ParametersJsonSchema = @"
 {
@@ -303,7 +243,7 @@ public class SearchLinksToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("search", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "search", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["keyword"] = keyword,
                 ["categoryId"] = categoryId ?? 0,
@@ -318,7 +258,7 @@ public class SearchLinksToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[QuickLinks] 执行 search_links 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("search", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "search", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -327,29 +267,6 @@ public class SearchLinksToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[QuickLinks] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class OpenLinkToolFunction : IToolFunctionExtension
@@ -384,7 +301,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
             if (link == null)
             {
                 stopwatch.Stop();
-                await RecordUsageAsync("open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+                await this.RecordUsageAsync(_serviceProvider, "open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
                     ["linkId"] = linkId,
                     ["error"] = "链接不存在"
@@ -411,7 +328,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["linkId"] = linkId,
                 ["linkName"] = link.Name
@@ -424,7 +341,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
             XTrace.Log.Error("执行 open_link 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -433,29 +350,6 @@ public class OpenLinkToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[QuickLinks] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetCategoriesToolFunction : IToolFunctionExtension
@@ -501,7 +395,7 @@ public class GetCategoriesToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_categories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_categories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["categoryCount"] = categories.Count
             });
@@ -513,7 +407,7 @@ public class GetCategoriesToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[QuickLinks] 执行 get_categories 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_categories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_categories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -522,29 +416,6 @@ public class GetCategoriesToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[QuickLinks] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class CreateLinkToolFunction : IToolFunctionExtension
@@ -642,7 +513,7 @@ public class CreateLinkToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_link", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_link", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["linkId"] = link.Id,
                 ["linkName"] = link.Name,
@@ -656,7 +527,7 @@ public class CreateLinkToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[QuickLinks] 执行 create_link 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_link", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_link", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -665,27 +536,4 @@ public class CreateLinkToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[QuickLinks] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

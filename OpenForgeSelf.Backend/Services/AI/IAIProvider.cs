@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Services.AI.Models;
 
 namespace OpenForgeSelf.Backend.Services.AI;

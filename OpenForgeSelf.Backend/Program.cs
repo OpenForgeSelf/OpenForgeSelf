@@ -27,14 +27,30 @@ if (trayArgIndex >= 0)
     return RunTrayMode(args, trayArgIndex);
 }
 
-// 单实例保护：使用全局 Mutex 防止多实例冲突
+// 单实例保护：使用全局 Mutex 防止多实例冲突。
+// 注意废弃态（abandoned）：上一实例被强杀（taskkill /F）或崩溃后，Global Mutex 未被释放，
+// 此时 new Mutex 返回 createdNew=false 但并无存活实例真实持有它，直接报错会导致应用无法重启。
+// 处理：Mutex 已存在时用 WaitOne(0) 探测——被其它存活进程真实持有则拒绝启动；
+// 持有者已消亡（废弃态）会抛 AbandonedMutexException，此时本线程已接管所有权，视为可启动。
 const string mutexName = @"Global\OpenForgeSelf-{B1C2D3E4-F5G6-7890-ABCD-EF1234567890}";
 using var mutex = new Mutex(true, mutexName, out var createdNew);
 if (!createdNew)
 {
-    Console.Error.WriteLine("错误：另一个实例已在运行，请勿重复启动。");
-    XTrace.Log.Error("另一个实例已在运行，退出。");
-    return 1;
+    try
+    {
+        // WaitOne(0) 立即探测：被存活进程持有返回 false；废弃态抛 AbandonedMutexException
+        if (!mutex.WaitOne(0))
+        {
+            Console.Error.WriteLine("错误：另一个实例已在运行，请勿重复启动。");
+            XTrace.Log.Error("另一个实例已在运行，退出。");
+            return 1;
+        }
+    }
+    catch (AbandonedMutexException)
+    {
+        // 上一实例异常退出（强杀/崩溃）遗留的废弃 Mutex，无真实实例在运行 → 本实例接管，继续启动
+        XTrace.Log.Warn("检测到废弃的全局 Mutex（疑似上一实例异常退出），本实例已接管启动。");
+    }
 }
 
 // 解析命令行参数

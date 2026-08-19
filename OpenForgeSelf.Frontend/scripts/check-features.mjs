@@ -30,6 +30,9 @@ const CONTROLLER_DENY = new Set([
   'OpenAIChat', // 统一 AI 网关内部
   'AnthropicMessages', // 统一 AI 网关内部
   'Models', // 统一 AI 网关内部（UnifiedAI/ModelsController.cs）
+  'AgentChat', // 统一 AI 网关内部（UnifiedAI/AgentChatController.cs，Agent Framework 实验通道）
+  'AgentDemoTools', // Agent Framework 实验性演示工具（非控制器）
+  'AgentStreamTranslator', // Agent Framework 实验性流翻译器（非控制器）
 ])
 const PLUGIN_DENY = new Set(['Abstractions', 'Services', 'SamplePlugin'])
 const VIEW_DENY = new Set(['HomeView', 'AllFeaturesView', 'PluginPage'])
@@ -139,7 +142,8 @@ function scanControllers(dir) {
       continue
     }
     if (!entry.endsWith('.cs')) continue
-    const key = entry.replace(/Controller\.cs$/, '')
+    // key 归一：先去 .cs 再去 Controller 后缀，使非控制器 .cs 文件（如 AgentDemoTools.cs）也能正确匹配 DENY/登记
+    const key = entry.replace(/\.cs$/, '').replace(/Controller$/, '')
     if (CONTROLLER_DENY.has(key)) continue
     if (!listedControllers.has(key))
       fail(`控制器 ${entry} 未在任何功能的 signals.controllers 中登记（孤儿）。`)

@@ -167,68 +167,23 @@ public class PluginScaffolderService
     private string GeneratePluginMainClass(string pluginId, string pluginName, 
         string namespaceName, string description, string pluginType)
     {
-        var menuRegistration = pluginType == "Tool" ? """
-            
-            _menuExtension = new MenuExtension
-            {
-                Id = pluginId + ".menu",
-                Name = pluginName,
-                Icon = "📦",
-                Path = "/plugins/" + pluginId.ToLower(),
-                Order = 100,
-                PluginId = pluginId
-            };
-            ExtensionPointManager.RegisterMenuExtension(_menuExtension);
-            """ : "";
-
-        var toolRegistration = pluginType == "AI" ? """
-            
-            var toolFunctions = serviceProvider.GetRequiredService<IToolFunctions>();
-            ExtensionPointManager.RegisterToolFunction(pluginId + ".example", 
-                "示例工具函数", "这是一个示例AI工具函数", "{}", toolFunctions.ExecuteExampleAsync);
-            """ : "";
-
         return $$$"""
-        using OpenForgeSelf.Backend.Plugins.Abstractions;
-        using OpenForgeSelf.Backend.Plugins.Services;
-        using Microsoft.Extensions.DependencyInjection;
-        using NewLife.Log;
+        using OpenForgeSelf.Abstractions;
+        using OpenForgeSelf.Core;
 
         namespace {{{namespaceName}}};
 
         public class {{{pluginName}}}Plugin : IPlugin
         {
-            public string Id => "{{{pluginId}}}";
-            public string Name => "{{{pluginName}}}";
-            public string Version => "1.0.0";
-            public string Author => "{{{pluginName}}} Author";
-            public string Description => "{{{description}}}";
-            public string IconUrl => "";
-
-            private IServiceProvider? _serviceProvider;
-            private IMenuExtension? _menuExtension;
-
-            public void Initialize(IServiceProvider serviceProvider)
+            public void Apply(IContext ctx)
             {
-                _serviceProvider = serviceProvider;
-                XTrace.Log.Info("{{{pluginName}}} 插件初始化");
-                {{{menuRegistration.Trim()}}}
-                {{{toolRegistration.Trim()}}}
-            }
+                // 插件元数据单一真源在 plugin.json，插件 Id 通过 ctx.Get<PluginMetadata>()?.Id 获取
+                // var pluginId = ctx.Get<PluginMetadata>()?.Id;
 
-            public void Start()
-            {
-                XTrace.Log.Info("{{{pluginName}}} 插件启动");
-            }
+                // 注册 DI 服务：var services = ctx.Get<Microsoft.Extensions.DependencyInjection.IServiceCollection>();
+                // services?.AddScoped<...>();
 
-            public void Stop()
-            {
-                XTrace.Log.Info("{{{pluginName}}} 插件停止");
-            }
-
-            public void Destroy()
-            {
-                XTrace.Log.Info("{{{pluginName}}} 插件销毁");
+                // 注册菜单/工具扩展、ctx.Effect(...) 等
             }
         }
         """;
@@ -276,7 +231,7 @@ public class PluginScaffolderService
         var routeName = pluginName.ToLower();
         return $$$"""
         using Microsoft.AspNetCore.Mvc;
-        using OpenForgeSelf.Backend.Models.Plugins;
+        using OpenForgeSelf.Abstractions;
         using {{{namespaceName}}}.Services;
         using NewLife.Log;
 
@@ -403,7 +358,7 @@ public class PluginScaffolderService
         var routeName = pluginName.ToLower();
         return $$$"""
         using Microsoft.AspNetCore.Mvc;
-        using OpenForgeSelf.Backend.Models.Plugins;
+        using OpenForgeSelf.Abstractions;
         using {{{namespaceName}}}.Services;
         using NewLife.Log;
 

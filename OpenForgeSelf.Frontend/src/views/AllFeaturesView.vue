@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { features, categories, type FeatureItem } from '@/data/features'
+import { ref, computed, onMounted } from 'vue'
+import { categories, mergeFeatureList, type FeatureItem } from '@/data/features'
+import { usePluginManifestStore } from '@/stores/pluginManifest'
 import { useOpenPage } from '@/composables/useOpenPage'
+
+const manifestStore = usePluginManifestStore()
 
 const activeCategory = ref('all')
 const searchQuery = ref('')
 
+// 优先读插件清单（mergeFeatureList 在清单为空/未就绪时回退到内置 features.ts）。
+const effectiveFeatures = computed(() => mergeFeatureList(manifestStore.menus))
+
 const filteredFeatures = computed(() => {
-  return features.filter((f) => {
+  return effectiveFeatures.value.filter((f) => {
     const matchesCategory = activeCategory.value === 'all' || f.category === activeCategory.value
     const q = searchQuery.value.trim().toLowerCase()
     const matchesSearch =
@@ -17,6 +23,10 @@ const filteredFeatures = computed(() => {
       f.categoryLabel.toLowerCase().includes(q)
     return matchesCategory && matchesSearch
   })
+})
+
+onMounted(() => {
+  void manifestStore.loadManifest()
 })
 
 function setCategory(key: string): void {
@@ -65,7 +75,7 @@ function lucideIconSvg(name: string): string {
       <!-- Page Header -->
       <section class="page-header">
         <h1 class="page-title">所有功能</h1>
-        <p class="page-subtitle">{{ features.length }} 个功能 · 持续扩展中</p>
+        <p class="page-subtitle">{{ effectiveFeatures.length }} 个功能 · 持续扩展中</p>
 
         <!-- Search -->
         <div class="search-box">

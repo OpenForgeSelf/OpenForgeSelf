@@ -1,6 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Newtonsoft.Json;
 

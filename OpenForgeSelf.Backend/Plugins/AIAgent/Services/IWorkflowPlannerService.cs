@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 

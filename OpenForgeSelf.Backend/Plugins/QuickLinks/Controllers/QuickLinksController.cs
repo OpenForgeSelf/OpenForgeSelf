@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.QuickLinks.Models;
 using OpenForgeSelf.Backend.Plugins.QuickLinks.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,7 @@ public class QuickLinksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<QuickLinkDto>>>> GetLinks(
+    public async Task<ActionResult<ApiResponse<OpenForgeSelf.Backend.Plugins.QuickLinks.Models.PagedResult<QuickLinkDto>>>> GetLinks(
         [FromQuery] long? categoryId = null,
         [FromQuery] string? keyword = null,
         [FromQuery] int page = 1,
@@ -29,12 +29,12 @@ public class QuickLinksController : ControllerBase
             XTrace.Log.Info("获取快捷链接列表，categoryId={0}, keyword={1}, page={2}, pageSize={3}", categoryId, keyword, page, pageSize);
 
             var result = await _quickLinkService.GetLinksAsync(categoryId, keyword, page, pageSize);
-            return Ok(ApiResponse<PagedResult<QuickLinkDto>>.Ok(result, "获取快捷链接列表成功"));
+            return Ok(ApiResponse<OpenForgeSelf.Backend.Plugins.QuickLinks.Models.PagedResult<QuickLinkDto>>.Ok(result, "获取快捷链接列表成功"));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("获取快捷链接列表失败: {0}", ex.Message);
-            return StatusCode(500, ApiResponse<PagedResult<QuickLinkDto>>.Error("获取快捷链接列表失败: " + ex.Message));
+            return StatusCode(500, ApiResponse<OpenForgeSelf.Backend.Plugins.QuickLinks.Models.PagedResult<QuickLinkDto>>.Error("获取快捷链接列表失败: " + ex.Message));
         }
     }
 

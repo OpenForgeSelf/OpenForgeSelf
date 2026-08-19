@@ -1,19 +1,11 @@
 using System.Security.Claims;
 using System.Net.WebSockets;
 using Microsoft.AspNetCore.Authentication;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Data;
 using OpenForgeSelf.Backend.Plugins;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-using OpenForgeSelf.Backend.Plugins.DevTools.Services;
-using OpenForgeSelf.Backend.Plugins.FileTools.Services;
-using OpenForgeSelf.Backend.Plugins.MemorySystem.Services;
-using OpenForgeSelf.Backend.Plugins.QuickLinks.Services;
-using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
-using OpenForgeSelf.Backend.Plugins.SystemMonitor.Services;
-using OpenForgeSelf.Backend.Plugins.TextTools.Services;
-using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
+using OpenForgeSelf.Backend.Plugins.Services;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 using Scalar.AspNetCore;
@@ -27,15 +19,6 @@ using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NewLife.Log;
-using SchedulerTaskScheduler = OpenForgeSelf.Backend.Plugins.Scheduler.Services.TaskScheduler;
-using DevEncodingService = OpenForgeSelf.Backend.Plugins.DevTools.Services.EncodingService;
-using DevHashService = OpenForgeSelf.Backend.Plugins.DevTools.Services.HashService;
-using IDevEncodingService = OpenForgeSelf.Backend.Plugins.DevTools.Services.IEncodingService;
-using IDevHashService = OpenForgeSelf.Backend.Plugins.DevTools.Services.IHashService;
-using TextEncodingService = OpenForgeSelf.Backend.Plugins.TextTools.Services.EncodingService;
-using TextHashService = OpenForgeSelf.Backend.Plugins.TextTools.Services.HashService;
-using ITextEncodingService = OpenForgeSelf.Backend.Plugins.TextTools.Services.IEncodingService;
-using ITextHashService = OpenForgeSelf.Backend.Plugins.TextTools.Services.IHashService;
 
 namespace OpenForgeSelf.Backend;
 
@@ -109,12 +92,19 @@ public static class AppBuilder
         });
 
         builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
+        // 平台级共享事件总线（027-cordis-kernel）：工具执行管道 tools/* 拦截点（pre-execute / execute / post-execute）
+        builder.Services.AddSingleton<IEventBus>(new EventBus());
         builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
         builder.Services.AddSingleton<IMcpService, McpService>();
         builder.Services.AddSingleton<ICronParser, CronParser>();
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
         builder.Services.AddSingleton<ISkillsService, SkillsService>();
         builder.Services.AddHttpClient<IAIService, AIService>();
+        // P4 会话/LLM 接缝接线：注册真实实现（消费者经接缝调用，替换 Provider 零改动）
+        builder.Services.AddSingleton<ISessionStore, InMemorySessionStore>();
+        builder.Services.AddScoped<ILlmRuntime, AIServiceLlmRuntime>();
+        builder.Services.AddSingleton<IAgentLoop, InMemoryAgentLoop>();
+        builder.Services.AddSingleton<IInbox, InMemoryInbox>();
 
         builder.Services.AddScoped<ILogService, LogService>();
         builder.Services.AddScoped<IMessageService, MessageService>();
@@ -125,65 +115,6 @@ public static class AppBuilder
         builder.Services.AddScoped<IChatSessionService, ChatSessionService>();
         builder.Services.AddSingleton<IWebSocketBroadcaster, WebSocketBroadcaster>();
         builder.Services.AddScoped<IChatTurnStreamRecorder, ChatTurnStreamRecorder>();
-
-        builder.Services.AddScoped<IMemoryService, MemoryServiceXCode>();
-        builder.Services.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
-        builder.Services.AddScoped<IQuickLinkService, QuickLinkService>();
-        builder.Services.AddScoped<ITodoService, TodoService>();
-        builder.Services.AddScoped<ISchedulerService, SchedulerService>();
-        builder.Services.AddSingleton<ITaskScheduler, SchedulerTaskScheduler>();
-        builder.Services.AddSingleton<WorkflowTaskHandler>();
-        builder.Services.AddSingleton<HttpWebhookHandler>();
-        builder.Services.AddSingleton<ITaskExecutor, TaskExecutor>();
-        builder.Services.AddScoped<IScriptService, ScriptService>();
-        builder.Services.AddScoped<IScriptExecutor, ScriptExecutor>();
-        builder.Services.AddScoped<ICodeSnippetService, CodeSnippetService>();
-        builder.Services.AddScoped<IWorkflowService, WorkflowService>();
-        builder.Services.AddScoped<IWorkflowExecutor, WorkflowExecutor>();
-        builder.Services.AddScoped<IWorkflowScheduler, WorkflowScheduler>();
-
-        builder.Services.AddScoped<IAIAgentService, AIAgentService>();
-        builder.Services.AddScoped<IPluginMessageService, PluginMessageService>();
-        builder.Services.AddScoped<IAgentRegistryService, AgentRegistryService>();
-        builder.Services.AddScoped<IAgentCoordinatorService, AgentCoordinatorService>();
-        builder.Services.AddScoped<IAgentExecutorService, AgentExecutorService>();
-        builder.Services.AddScoped<IProactivePlanningService, ProactivePlanningService>();
-        builder.Services.AddScoped<IWorkflowPlannerService, WorkflowPlannerService>();
-        builder.Services.AddScoped<IToolSelectorService, ToolSelectorService>();
-
-        builder.Services.AddScoped<IScriptTemplateService, ScriptTemplateService>();
-
-        // DevTools 插件服务
-        builder.Services.AddScoped<IJsonFormatterService, JsonFormatterService>();
-        builder.Services.AddScoped<IYamlFormatterService, YamlFormatterService>();
-        builder.Services.AddScoped<IXmlFormatterService, XmlFormatterService>();
-        builder.Services.AddScoped<global::OpenForgeSelf.Backend.Plugins.DevTools.Services.IEncodingService, global::OpenForgeSelf.Backend.Plugins.DevTools.Services.EncodingService>();
-        builder.Services.AddScoped<global::OpenForgeSelf.Backend.Plugins.DevTools.Services.IHashService, global::OpenForgeSelf.Backend.Plugins.DevTools.Services.HashService>();
-        builder.Services.AddScoped<IRegexService, RegexService>();
-        builder.Services.AddScoped<ITimestampService, TimestampService>();
-        builder.Services.AddScoped<IColorService, ColorService>();
-        builder.Services.AddScoped<IJwtService, JwtService>();
-        builder.Services.AddScoped<IUuidService, UuidService>();
-        builder.Services.AddScoped<IQrCodeService, QrCodeService>();
-
-        // SystemMonitor 插件服务
-        builder.Services.AddSingleton<ICpuMonitorService, CpuMonitorService>();
-        builder.Services.AddSingleton<IMemoryMonitorService, MemoryMonitorService>();
-        builder.Services.AddSingleton<IDiskMonitorService, DiskMonitorService>();
-        builder.Services.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
-        builder.Services.AddSingleton<IProcessMonitorService, ProcessMonitorService>();
-
-        // FileTools 插件服务
-        builder.Services.AddScoped<IFileStatsService, FileStatsService>();
-        builder.Services.AddScoped<IArchiveService, ArchiveService>();
-        builder.Services.AddScoped<ICleanupService, CleanupService>();
-        builder.Services.AddScoped<IRenameService, RenameService>();
-
-        // TextTools 插件服务
-        builder.Services.AddScoped<ITextStatsService, TextStatsService>();
-        builder.Services.AddScoped<ITextFormatterService, TextFormatterService>();
-        builder.Services.AddScoped<ITextEncodingService, TextEncodingService>();
-        builder.Services.AddScoped<ITextHashService, TextHashService>();
 
         // AI Provider 配置数据库化（001-ai-provider-config-db）
         builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
@@ -261,17 +192,66 @@ public static class AppBuilder
         var imageCacheRoot = Path.Combine(builder.Environment.ContentRootPath, "Data", "ImageRecognitionCache");
         builder.Services.AddSingleton<IImageRecognitionCache>(new LocalFileImageRecognitionCache(imageCacheRoot));
 
+        // 插件可变 MS DI 容器（Option A）：先注册注册表单例，使 PluginManager 可构造注入同一份实例。
+        var pluginServiceRegistry = new PluginServiceRegistry();
+        builder.Services.AddSingleton<IPluginServiceRegistry>(pluginServiceRegistry);
+
         builder.Services.AddPluginManager();
+
+        var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
+        PluginManager pluginManager;
+        using (var bootstrap = builder.Services.BuildServiceProvider())
+        {
+            pluginManager = bootstrap.GetRequiredService<PluginManager>();
+            pluginManager.SetPluginsDirectory(pluginsPath);
+            pluginManager.RegisterAllServices(builder.Services);
+            // P3 事件总线贯穿：注入平台 IEventBus 单例，插件加载/卸载时发 plugin/loaded / plugin/unloaded。
+            pluginManager.EventBus = bootstrap.GetService<OpenForgeSelf.Core.IEventBus>();
+        }
+        builder.Services.AddPluginManager(pluginManager);
+
+        // 把插件服务类型转发到可变容器：宿主按需经 registry.Resolve 解析；插件卸载后即解析失败。
+        foreach (var descriptor in pluginServiceRegistry.CollectForwardDescriptors())
+        {
+            builder.Services.Add(descriptor);
+        }
+
+        // 插件文件级热更新监听（side-by-side 版本目录 + FileSystemWatcher 自动 reload）。
+        // 单独在此注册一次：AddPluginManager 被调用两次，若把 IHostedService 放进它会重复启动。
+        // 测试环境（Testing）下 StartAsync 自动跳过，不干扰 WebApplicationFactory 集成测试。
+        builder.Services.AddSingleton<PluginHotReloadWatcher>();
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<PluginHotReloadWatcher>());
 
         builder.Services.AddSignalR();
 
+        // 动态端点移除：ApplicationPartManager 的 ApplicationParts 集合变更不会自动触发 ActionDescriptor 刷新
+        // （框架无内置 ChangeToken 通知），注册自定义 IActionDescriptorChangeProvider，由 PluginManager
+        // 在卸载插件移除 AssemblyPart 后主动 NotifyChange 刷新路由。
+        builder.Services.AddSingleton<MvcActionDescriptorChangeProvider>();
+        builder.Services.AddSingleton<Microsoft.AspNetCore.Mvc.Infrastructure.IActionDescriptorChangeProvider>(
+            sp => sp.GetRequiredService<MvcActionDescriptorChangeProvider>());
+
         var app = builder.Build();
 
-        var pluginManager = app.Services.GetRequiredService<PluginManager>();
-        var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
-        pluginManager.SetPluginsDirectory(pluginsPath);
-        pluginManager.DiscoverPlugins();
-        XTrace.Log.Info("已发现 {0} 个插件", pluginManager.LoadedPluginIds.Count());
+        // 宿主 Build 完成后，为所有已挂载插件构建子 provider（仅插件自身注册的服务，含 IContext）。
+        // 插件服务的宿主依赖经 Cordis Context 运行期 ctx.Get<T>() 获取，无需宿主转发。必须在第一次请求前完成。
+        pluginServiceRegistry.BuildAll();
+
+        // 初始化阶段：把宿主应提供的服务（能力接缝契约）seed 进插件根上下文，
+        // 子插件经父级链继承消费（彻底 Cordis 模式，对标 app.service）。
+        pluginManager.ProvideHostServices(app.Services);
+
+        // 启动路径接线：对所有已加载插件发现扩展点（菜单/工具），
+        // 修复「启动后菜单/工具扩展为空」的缺陷（缺陷2：发现仅挂在 PluginController.EnablePlugin）。
+        var extensionPointManager = app.Services.GetRequiredService<ExtensionPointManager>();
+        pluginManager.DiscoverAllExtensions(extensionPointManager);
+
+        // 把独立程序集插件的控制器程序集加入 MVC 部件，使其 [Route] 控制器被路由发现（修复拆独立程序集后的 404）。
+        // 同时把 partManager 与 ActionDescriptor 刷新通知交给 PluginManager：卸载插件时移除对应 AssemblyPart
+        // 并主动触发刷新（动态端点移除）。
+        var partManager = app.Services.GetRequiredService<Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPartManager>();
+        var actionDescriptorRefresh = app.Services.GetRequiredService<MvcActionDescriptorChangeProvider>();
+        pluginManager.RegisterPluginApplicationParts(partManager, actionDescriptorRefresh.NotifyChange);
 
         if (app.Environment.IsDevelopment())
         {
@@ -403,7 +383,8 @@ public static class AppBuilder
 
         try
         {
-            var taskScheduler = app.Services.GetRequiredService<ITaskScheduler>();
+            // 经共享宿主契约启动调度器（Scheduler 插件注册 DI 单例，ADR D2），避免宿主直接依赖插件程序集。
+            var taskScheduler = app.Services.GetRequiredService<ISchedulerHost>();
             taskScheduler.StartAsync().Wait();
             XTrace.Log.Info("任务调度器已启动");
         }

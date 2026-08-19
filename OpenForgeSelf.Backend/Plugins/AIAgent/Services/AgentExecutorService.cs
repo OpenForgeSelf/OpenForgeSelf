@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
 using NewLife.Log;
 

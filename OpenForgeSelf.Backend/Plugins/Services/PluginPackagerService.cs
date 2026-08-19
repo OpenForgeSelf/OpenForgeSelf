@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.Services;

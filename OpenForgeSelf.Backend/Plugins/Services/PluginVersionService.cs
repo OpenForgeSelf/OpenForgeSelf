@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using NewLife.Log;
 
@@ -8,6 +9,9 @@ namespace OpenForgeSelf.Backend.Plugins.Services;
 
 public class PluginVersionService
 {
+    /// <summary>side-by-side 保留的最近版本数（当前 + 上一版）。</summary>
+    private const int MaxRetainedVersions = 2;
+
     private readonly PluginManager _pluginManager;
     private string _backupsDirectory = string.Empty;
 
@@ -149,49 +153,48 @@ public class PluginVersionService
             return true;
         }
 
+        var pluginDir = metadata.PluginDirectory;
+        var sourceDir = Path.Combine(backupDir, latestVersion);
+
+        // 1. 下载/解包到新版本目录（side-by-side，绝不覆盖正在加载的 DLL）
+        if (!StageVersion(pluginId, latestVersion, sourceDir))
+            return false;
+
+        // 2. 记录旧版入口程序集路径（供破锁探测与延迟删除）
+        var oldEntryPath = _pluginManager.GetPluginEntryAssemblyPath(pluginId);
+        var wasRunning = _pluginManager.GetPluginState(pluginId) == PluginState.Running;
+
         try
         {
-            BackupPlugin(pluginId);
-
-            var sourceDir = Path.Combine(backupDir, latestVersion);
-            var targetDir = metadata.PluginDirectory;
-
-            var wasRunning = _pluginManager.GetPluginState(pluginId) == PluginState.Running;
+            // 3. 停用旧版（fiber.Dispose + ALC Unload）
             if (wasRunning)
-            {
                 _pluginManager.DisablePlugin(pluginId);
-            }
 
-            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            // 4. 强制回收，释放旧 DLL 句柄
+            PluginAssemblyUnloader.ForceCollect();
+
+            // 5. 确认旧 DLL 句柄可释放（未锁则后续可删；仍锁则交给延迟删除，绝不阻塞）
+            if (!string.IsNullOrWhiteSpace(oldEntryPath))
             {
-                var relativePath = Path.GetRelativePath(sourceDir, file);
-                var destFile = Path.Combine(targetDir, relativePath);
-                var destDir = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                {
-                    Directory.CreateDirectory(destDir);
-                }
-                File.Copy(file, destFile, true);
+                if (PluginAssemblyUnloader.TryOpenExclusive(oldEntryPath))
+                    XTrace.Log.Info("旧 DLL 句柄已释放: {0}", oldEntryPath);
+                else
+                    XTrace.Log.Warn("旧 DLL 仍被占用，延迟删除: {0}", oldEntryPath);
             }
 
-            var manifestPath = Path.Combine(targetDir, "plugin.json");
-            if (File.Exists(manifestPath))
-            {
-                var json = File.ReadAllText(manifestPath);
-                var updatedMetadata = JsonSerializer.Deserialize<PluginMetadata>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-                if (updatedMetadata != null)
-                {
-                    updatedMetadata.PluginDirectory = targetDir;
-                }
-            }
+            // 6. 切换 current 指针到新版本
+            PluginVersionLayout.WriteCurrentVersion(pluginDir, latestVersion);
 
+            // 7. 同步活动清单 plugin.json（使 DiscoverPlugins / 下次启动读到新版本元数据）
+            SyncActiveManifest(pluginId, latestVersion);
+
+            // 8. 刷新内存元数据并加载新版
+            _pluginManager.RefreshMetadataFromDisk(pluginId);
             if (wasRunning)
-            {
                 _pluginManager.EnablePlugin(pluginId);
-            }
+
+            // 9. 保留最近 N 个版本，更旧版本延迟删除（不阻塞）
+            PruneVersions(pluginId);
 
             XTrace.Log.Info("插件更新成功: {0} v{1}", pluginId, latestVersion);
             return true;
@@ -214,28 +217,82 @@ public class PluginVersionService
             return false;
         }
 
-        var backupDir = Path.Combine(_backupsDirectory, pluginId, version);
-        if (!Directory.Exists(backupDir))
+        var pluginDir = metadata.PluginDirectory;
+        var targetVersionDir = PluginVersionLayout.VersionDirectory(pluginDir, version);
+
+        // 目标版本若未安装，尝试从备份目录 stage 进来（side-by-side，不覆盖现有）
+        if (!Directory.Exists(targetVersionDir))
         {
-            XTrace.Log.Error("备份版本不存在: {0} {1}", pluginId, version);
-            return false;
+            var backupDir = Path.Combine(_backupsDirectory, pluginId, version);
+            if (!Directory.Exists(backupDir))
+            {
+                XTrace.Log.Error("目标版本不存在: {0} {1}", pluginId, version);
+                return false;
+            }
+
+            if (!StageVersion(pluginId, version, backupDir))
+                return false;
         }
+
+        var wasRunning = _pluginManager.GetPluginState(pluginId) == PluginState.Running;
+        var oldEntryPath = _pluginManager.GetPluginEntryAssemblyPath(pluginId);
 
         try
         {
-            BackupPlugin(pluginId);
-
-            var wasRunning = _pluginManager.GetPluginState(pluginId) == PluginState.Running;
             if (wasRunning)
-            {
                 _pluginManager.DisablePlugin(pluginId);
+
+            PluginAssemblyUnloader.ForceCollect();
+
+            if (!string.IsNullOrWhiteSpace(oldEntryPath) &&
+                !PluginAssemblyUnloader.TryOpenExclusive(oldEntryPath))
+            {
+                XTrace.Log.Warn("旧 DLL 仍被占用，延迟删除: {0}", oldEntryPath);
             }
 
-            var targetDir = metadata.PluginDirectory;
+            PluginVersionLayout.WriteCurrentVersion(pluginDir, version);
+            SyncActiveManifest(pluginId, version);
+            _pluginManager.RefreshMetadataFromDisk(pluginId);
+            if (wasRunning)
+                _pluginManager.EnablePlugin(pluginId);
 
-            foreach (var file in Directory.GetFiles(backupDir, "*", SearchOption.AllDirectories))
+            XTrace.Log.Info("插件回滚成功: {0} v{1}", pluginId, version);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("回滚插件失败 [{0}]: {1}", pluginId, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 将源目录（下载/解包产物或备份目录）复制到 side-by-side 版本目录，
+    /// 目标为全新版本目录，绝不覆盖正在被 ALC 加载的 DLL。
+    /// </summary>
+    private bool StageVersion(string pluginId, string version, string sourceDir)
+    {
+        try
+        {
+            var metadata = _pluginManager.GetPluginMetadata(pluginId);
+            if (metadata == null || string.IsNullOrWhiteSpace(metadata.PluginDirectory))
             {
-                var relativePath = Path.GetRelativePath(backupDir, file);
+                XTrace.Log.Error("插件元数据缺失，无法写入版本目录: {0}", pluginId);
+                return false;
+            }
+
+            if (!Directory.Exists(sourceDir))
+            {
+                XTrace.Log.Error("版本源目录不存在: {0}", sourceDir);
+                return false;
+            }
+
+            var targetDir = PluginVersionLayout.VersionDirectory(metadata.PluginDirectory, version);
+            Directory.CreateDirectory(targetDir);
+
+            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(sourceDir, file);
                 var destFile = Path.Combine(targetDir, relativePath);
                 var destDir = Path.GetDirectoryName(destFile);
                 if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
@@ -245,18 +302,66 @@ public class PluginVersionService
                 File.Copy(file, destFile, true);
             }
 
-            if (wasRunning)
-            {
-                _pluginManager.EnablePlugin(pluginId);
-            }
-
-            XTrace.Log.Info("插件回滚成功: {0} v{1}", pluginId, version);
+            XTrace.Log.Info("版本目录写入成功: {0} v{1}", pluginId, version);
             return true;
         }
         catch (Exception ex)
         {
-            XTrace.Log.Error("回滚插件失败 [{0}]: {1}", pluginId, ex.Message);
+            XTrace.Log.Error("写入版本目录失败 [{0}] v{1}: {2}", pluginId, version, ex.Message);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 把当前版本目录下的 plugin.json 同步到插件根目录活动清单，
+    /// 使 <see cref="PluginManager.DiscoverPlugins"/> / 下次启动读到新版本元数据。
+    /// plugin.json 为小文本文件且仅整读，覆盖不会触发文件锁。
+    /// </summary>
+    private void SyncActiveManifest(string pluginId, string version)
+    {
+        var metadata = _pluginManager.GetPluginMetadata(pluginId);
+        if (metadata == null || string.IsNullOrWhiteSpace(metadata.PluginDirectory))
+            return;
+
+        var versionManifest = Path.Combine(
+            PluginVersionLayout.VersionDirectory(metadata.PluginDirectory, version), "plugin.json");
+        if (!File.Exists(versionManifest))
+            return;
+
+        var activeManifest = Path.Combine(metadata.PluginDirectory, "plugin.json");
+        File.Copy(versionManifest, activeManifest, true);
+    }
+
+    /// <summary>
+    /// 保留最近 <see cref="MaxRetainedVersions"/> 个版本（当前 + 上一版），
+    /// 更旧版本走 <see cref="PluginAssemblyUnloader.TryDeleteDirectory"/> 延迟删除：
+    /// 被占用则跳过（下轮再试），绝不阻塞。
+    /// </summary>
+    private void PruneVersions(string pluginId)
+    {
+        var metadata = _pluginManager.GetPluginMetadata(pluginId);
+        if (metadata == null || string.IsNullOrWhiteSpace(metadata.PluginDirectory))
+            return;
+
+        var versionsDir = PluginVersionLayout.VersionsDirectory(metadata.PluginDirectory);
+        if (!Directory.Exists(versionsDir))
+            return;
+
+        var current = PluginVersionLayout.ReadCurrentVersion(metadata.PluginDirectory);
+        var versionDirs = Directory.GetDirectories(versionsDir)
+            .Where(d => !string.IsNullOrEmpty(Path.GetFileName(d)))
+            .OrderByDescending(d => Path.GetFileName(d), new VersionComparer())
+            .ToList();
+
+        foreach (var dir in versionDirs.Skip(MaxRetainedVersions))
+        {
+            if (string.Equals(Path.GetFileName(dir), current, StringComparison.OrdinalIgnoreCase))
+                continue; // 防御：绝不删除当前生效版本
+
+            if (PluginAssemblyUnloader.TryDeleteDirectory(dir))
+                XTrace.Log.Info("删除旧版本目录: {0}", dir);
+            else
+                XTrace.Log.Warn("旧版本目录仍被占用，延迟删除: {0}", dir);
         }
     }
 

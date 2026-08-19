@@ -1,16 +1,10 @@
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;
 
 public class FakeMenuPlugin : FakePlugin
 {
     public List<IMenuExtension> MenuExtensions { get; } = new();
-
-    public FakeMenuPlugin()
-    {
-        Id = "test.menu.plugin";
-        Name = "Fake Menu Plugin";
-    }
 
     public void AddMenuExtension(IMenuExtension extension)
     {

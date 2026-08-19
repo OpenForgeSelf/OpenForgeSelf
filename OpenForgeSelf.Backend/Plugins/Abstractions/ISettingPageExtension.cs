@@ -1,3 +1,5 @@
+using OpenForgeSelf.Abstractions;
+
 namespace OpenForgeSelf.Backend.Plugins.Abstractions;
 
 /// <summary>

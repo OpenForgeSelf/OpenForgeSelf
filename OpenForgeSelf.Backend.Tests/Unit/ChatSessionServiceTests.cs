@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Entities;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;

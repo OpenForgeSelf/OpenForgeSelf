@@ -1,4 +1,5 @@
 using System.Reflection;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using OpenForgeSelf.Backend.Tests.Plugins;
@@ -24,60 +25,47 @@ public class PluginLifecycleIntegrationTests : IDisposable
     public void FullLifecycle_SinglePlugin_TransitionsCorrectly()
     {
         var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.lifecycle" };
+        var plugin = new FakePlugin();
         var metadata = PluginManifestGenerator.CreateBasic("test.lifecycle");
-        SetupPluginWithMetadata(manager, plugin, metadata);
+        SetupPluginWithMetadata(manager, "test.lifecycle", metadata);
+        LoadPluginDirectly(manager, "test.lifecycle", plugin);
 
-        manager.GetPluginState("test.lifecycle").Should().Be(PluginState.NotLoaded);
-
-        var loadResult = LoadPluginDirectly(manager, plugin, metadata);
-        loadResult.Should().BeTrue();
         manager.GetPluginState("test.lifecycle").Should().Be(PluginState.Loaded);
-        plugin.InitializeCalled.Should().BeFalse();
+        plugin.ApplyCalled.Should().BeFalse();
 
         var initResult = manager.InitializePlugin("test.lifecycle");
         initResult.Should().BeTrue();
-        manager.GetPluginState("test.lifecycle").Should().Be(PluginState.Initialized);
-        plugin.InitializeCalled.Should().BeTrue();
-        plugin.StartCalled.Should().BeFalse();
-
-        var startResult = manager.StartPlugin("test.lifecycle");
-        startResult.Should().BeTrue();
         manager.GetPluginState("test.lifecycle").Should().Be(PluginState.Running);
-        plugin.StartCalled.Should().BeTrue();
-        plugin.StopCalled.Should().BeFalse();
+        plugin.ApplyCalled.Should().BeTrue();
+        plugin.Context.Should().NotBeNull();
 
-        var stopResult = manager.StopPlugin("test.lifecycle");
-        stopResult.Should().BeTrue();
-        manager.GetPluginState("test.lifecycle").Should().Be(PluginState.Stopped);
-        plugin.StopCalled.Should().BeTrue();
-        plugin.DestroyCalled.Should().BeFalse();
+        // 插件在 Apply 中可通过 ctx.Get<PluginMetadata>() 拿到自身 Id
+        plugin.Context!.Get<PluginMetadata>()!.Id.Should().Be("test.lifecycle");
 
         var destroyResult = manager.DestroyPlugin("test.lifecycle");
         destroyResult.Should().BeTrue();
         manager.GetPluginState("test.lifecycle").Should().Be(PluginState.Destroyed);
-        plugin.DestroyCalled.Should().BeTrue();
         manager.GetPlugin("test.lifecycle").Should().BeNull();
     }
 
     [Fact]
-    public void FullLifecycle_MultiplePlugins_LoadAndStartAll()
+    public void FullLifecycle_MultiplePlugins_InitializeAll()
     {
         var manager = CreateManager();
-        var plugin1 = new FakePlugin { Id = "test.multi1" };
-        var plugin2 = new FakePlugin { Id = "test.multi2" };
-        var plugin3 = new FakePlugin { Id = "test.multi3" };
+        var plugin1 = new FakePlugin();
+        var plugin2 = new FakePlugin();
+        var plugin3 = new FakePlugin();
         var metadata1 = PluginManifestGenerator.CreateBasic("test.multi1");
         var metadata2 = PluginManifestGenerator.CreateBasic("test.multi2");
         var metadata3 = PluginManifestGenerator.CreateBasic("test.multi3");
 
-        SetupPluginWithMetadata(manager, plugin1, metadata1);
-        SetupPluginWithMetadata(manager, plugin2, metadata2);
-        SetupPluginWithMetadata(manager, plugin3, metadata3);
+        SetupPluginWithMetadata(manager, "test.multi1", metadata1);
+        SetupPluginWithMetadata(manager, "test.multi2", metadata2);
+        SetupPluginWithMetadata(manager, "test.multi3", metadata3);
 
-        LoadPluginDirectly(manager, plugin1, metadata1);
-        LoadPluginDirectly(manager, plugin2, metadata2);
-        LoadPluginDirectly(manager, plugin3, metadata3);
+        LoadPluginDirectly(manager, "test.multi1", plugin1);
+        LoadPluginDirectly(manager, "test.multi2", plugin2);
+        LoadPluginDirectly(manager, "test.multi3", plugin3);
 
         manager.LoadedPluginIds.Should().HaveCount(3);
 
@@ -85,142 +73,59 @@ public class PluginLifecycleIntegrationTests : IDisposable
         manager.InitializePlugin("test.multi2");
         manager.InitializePlugin("test.multi3");
 
-        manager.StartPlugin("test.multi1");
-        manager.StartPlugin("test.multi2");
-        manager.StartPlugin("test.multi3");
-
         manager.GetPluginState("test.multi1").Should().Be(PluginState.Running);
         manager.GetPluginState("test.multi2").Should().Be(PluginState.Running);
         manager.GetPluginState("test.multi3").Should().Be(PluginState.Running);
 
-        plugin1.StartCalled.Should().BeTrue();
-        plugin2.StartCalled.Should().BeTrue();
-        plugin3.StartCalled.Should().BeTrue();
+        plugin1.ApplyCalled.Should().BeTrue();
+        plugin2.ApplyCalled.Should().BeTrue();
+        plugin3.ApplyCalled.Should().BeTrue();
     }
 
     [Fact]
-    public void Lifecycle_InitializeException_StateGoesToError()
+    public void Lifecycle_ApplyException_StateGoesToError()
     {
         var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.init.error" };
-        plugin.InitializeException = new InvalidOperationException("Init failed");
-        var metadata = PluginManifestGenerator.CreateBasic("test.init.error");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        LoadPluginDirectly(manager, plugin, metadata);
+        var plugin = new FakePlugin();
+        plugin.ApplyException = new InvalidOperationException("Apply failed");
+        var metadata = PluginManifestGenerator.CreateBasic("test.apply.error");
+        SetupPluginWithMetadata(manager, "test.apply.error", metadata);
+        LoadPluginDirectly(manager, "test.apply.error", plugin);
 
-        var result = manager.InitializePlugin("test.init.error");
+        var result = manager.InitializePlugin("test.apply.error");
 
         result.Should().BeFalse();
-        manager.GetPluginState("test.init.error").Should().Be(PluginState.Error);
-        plugin.InitializeCalled.Should().BeTrue();
+        manager.GetPluginState("test.apply.error").Should().Be(PluginState.Error);
+        plugin.ApplyCalled.Should().BeTrue();
     }
 
     [Fact]
-    public void Lifecycle_StartException_StateGoesToError()
+    public void Lifecycle_InitializeWithoutMetadata_Fails()
     {
         var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.start.error" };
-        plugin.StartException = new InvalidOperationException("Start failed");
-        var metadata = PluginManifestGenerator.CreateBasic("test.start.error");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        LoadPluginDirectly(manager, plugin, metadata);
-        manager.InitializePlugin("test.start.error");
+        var plugin = new FakePlugin();
+        LoadPluginDirectly(manager, "test.nometadata", plugin);
 
-        var result = manager.StartPlugin("test.start.error");
+        var result = manager.InitializePlugin("test.nometadata");
 
         result.Should().BeFalse();
-        manager.GetPluginState("test.start.error").Should().Be(PluginState.Error);
-        plugin.StartCalled.Should().BeTrue();
+        plugin.ApplyCalled.Should().BeFalse();
     }
 
     [Fact]
-    public void Lifecycle_StopException_StateGoesToError()
+    public void Lifecycle_DisablePlugin_DestroysAndRemoves()
     {
         var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.stop.error" };
-        plugin.StopException = new InvalidOperationException("Stop failed");
-        var metadata = PluginManifestGenerator.CreateBasic("test.stop.error");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        LoadPluginDirectly(manager, plugin, metadata);
-        manager.InitializePlugin("test.stop.error");
-        manager.StartPlugin("test.stop.error");
-
-        var result = manager.StopPlugin("test.stop.error");
-
-        result.Should().BeFalse();
-        manager.GetPluginState("test.stop.error").Should().Be(PluginState.Error);
-        plugin.StopCalled.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Lifecycle_StartWithoutInitialized_Fails()
-    {
-        var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.start.noinit" };
-        var metadata = PluginManifestGenerator.CreateBasic("test.start.noinit");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        LoadPluginDirectly(manager, plugin, metadata);
-
-        var result = manager.StartPlugin("test.start.noinit");
-
-        result.Should().BeFalse();
-        manager.GetPluginState("test.start.noinit").Should().Be(PluginState.Loaded);
-        plugin.StartCalled.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Lifecycle_RestartAfterStop_Succeeds()
-    {
-        var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.restart" };
-        var metadata = PluginManifestGenerator.CreateBasic("test.restart");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        LoadPluginDirectly(manager, plugin, metadata);
-        manager.InitializePlugin("test.restart");
-        manager.StartPlugin("test.restart");
-
-        manager.StopPlugin("test.restart");
-        manager.GetPluginState("test.restart").Should().Be(PluginState.Stopped);
-
-        plugin.Reset();
-        var restartResult = manager.StartPlugin("test.restart");
-
-        restartResult.Should().BeTrue();
-        manager.GetPluginState("test.restart").Should().Be(PluginState.Running);
-        plugin.StartCalled.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Lifecycle_EnablePlugin_FullLifecycle()
-    {
-        var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.enable" };
-        var metadata = PluginManifestGenerator.CreateBasic("test.enable");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-
-        var result = EnablePluginDirectly(manager, plugin, metadata);
-
-        result.Should().BeTrue();
-        manager.GetPluginState("test.enable").Should().Be(PluginState.Running);
-        plugin.InitializeCalled.Should().BeTrue();
-        plugin.StartCalled.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Lifecycle_DisablePlugin_FromRunningToDestroyed()
-    {
-        var manager = CreateManager();
-        var plugin = new FakePlugin { Id = "test.disable" };
+        var plugin = new FakePlugin();
         var metadata = PluginManifestGenerator.CreateBasic("test.disable");
-        SetupPluginWithMetadata(manager, plugin, metadata);
-        EnablePluginDirectly(manager, plugin, metadata);
+        SetupPluginWithMetadata(manager, "test.disable", metadata);
+        LoadPluginDirectly(manager, "test.disable", plugin);
+        manager.InitializePlugin("test.disable");
 
         var result = manager.DisablePlugin("test.disable");
 
         result.Should().BeTrue();
         manager.GetPluginState("test.disable").Should().Be(PluginState.Destroyed);
-        plugin.StopCalled.Should().BeTrue();
-        plugin.DestroyCalled.Should().BeTrue();
         manager.GetPlugin("test.disable").Should().BeNull();
     }
 
@@ -229,38 +134,34 @@ public class PluginLifecycleIntegrationTests : IDisposable
     {
         var manager = CreateManager();
 
-        var plugin1 = new FakePlugin { Id = "test.order1" };
-        var plugin2 = new FakePlugin { Id = "test.order2" };
-        var plugin3 = new FakePlugin { Id = "test.order3" };
+        var plugin1 = new FakePlugin();
+        var plugin2 = new FakePlugin();
+        var plugin3 = new FakePlugin();
 
         var metadata1 = PluginManifestGenerator.CreateBasic("test.order1");
         var metadata2 = PluginManifestGenerator.CreateBasic("test.order2");
         var metadata3 = PluginManifestGenerator.CreateBasic("test.order3");
 
-        SetupPluginWithMetadata(manager, plugin1, metadata1);
-        SetupPluginWithMetadata(manager, plugin2, metadata2);
-        SetupPluginWithMetadata(manager, plugin3, metadata3);
+        SetupPluginWithMetadata(manager, "test.order1", metadata1);
+        SetupPluginWithMetadata(manager, "test.order2", metadata2);
+        SetupPluginWithMetadata(manager, "test.order3", metadata3);
 
-        LoadPluginDirectly(manager, plugin1, metadata1);
-        LoadPluginDirectly(manager, plugin2, metadata2);
-        LoadPluginDirectly(manager, plugin3, metadata3);
+        LoadPluginDirectly(manager, "test.order1", plugin1);
+        LoadPluginDirectly(manager, "test.order2", plugin2);
+        LoadPluginDirectly(manager, "test.order3", plugin3);
 
         manager.InitializePlugin("test.order1");
         manager.InitializePlugin("test.order2");
         manager.InitializePlugin("test.order3");
-
-        manager.StartPlugin("test.order1");
-        manager.StartPlugin("test.order2");
-        manager.StartPlugin("test.order3");
 
         manager.LoadedPluginIds.Should().HaveCount(3);
 
         manager.StopAndUnloadAllPlugins();
 
         manager.LoadedPluginIds.Should().BeEmpty();
-        plugin1.DestroyCalled.Should().BeTrue();
-        plugin2.DestroyCalled.Should().BeTrue();
-        plugin3.DestroyCalled.Should().BeTrue();
+        manager.GetPluginState("test.order1").Should().Be(PluginState.Destroyed);
+        manager.GetPluginState("test.order2").Should().Be(PluginState.Destroyed);
+        manager.GetPluginState("test.order3").Should().Be(PluginState.Destroyed);
     }
 
     [Fact]
@@ -286,7 +187,7 @@ public class PluginLifecycleIntegrationTests : IDisposable
         return new PluginManager(_serviceProvider, _mockPermissionChecker.Object);
     }
 
-    private static void SetupPluginWithMetadata(PluginManager manager, IPlugin plugin, PluginMetadata metadata)
+    private static void SetupPluginWithMetadata(PluginManager manager, string pluginId, PluginMetadata metadata)
     {
         var metadatasField = typeof(PluginManager).GetField("_metadatas", BindingFlags.NonPublic | BindingFlags.Instance);
         var pluginStatesField = typeof(PluginManager).GetField("_pluginStates", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -297,14 +198,13 @@ public class PluginLifecycleIntegrationTests : IDisposable
         var metadatasDict = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginMetadata>)metadatasField!.GetValue(manager)!;
         var pluginStatesDict = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginState>)pluginStatesField!.GetValue(manager)!;
 
-        metadatasDict.AddOrUpdate(metadata.Id, metadata, (_, _) => metadata);
-        pluginStatesDict.AddOrUpdate(metadata.Id, PluginState.NotLoaded, (_, _) => PluginState.NotLoaded);
+        metadatasDict.AddOrUpdate(pluginId, metadata, (_, _) => metadata);
+        pluginStatesDict.AddOrUpdate(pluginId, PluginState.NotLoaded, (_, _) => PluginState.NotLoaded);
     }
 
-    private static bool LoadPluginDirectly(PluginManager manager, IPlugin plugin, PluginMetadata metadata)
+    private static void LoadPluginDirectly(PluginManager manager, string pluginId, IPlugin plugin)
     {
         var pluginsField = typeof(PluginManager).GetField("_plugins", BindingFlags.NonPublic | BindingFlags.Instance);
-        var loadContextsField = typeof(PluginManager).GetField("_loadContexts", BindingFlags.NonPublic | BindingFlags.Instance);
         var pluginStatesField = typeof(PluginManager).GetField("_pluginStates", BindingFlags.NonPublic | BindingFlags.Instance);
 
         pluginsField.Should().NotBeNull();
@@ -313,17 +213,8 @@ public class PluginLifecycleIntegrationTests : IDisposable
         var pluginsDict = (System.Collections.Concurrent.ConcurrentDictionary<string, IPlugin>)pluginsField!.GetValue(manager)!;
         var pluginStatesDict = (System.Collections.Concurrent.ConcurrentDictionary<string, PluginState>)pluginStatesField!.GetValue(manager)!;
 
-        pluginsDict.AddOrUpdate(metadata.Id, plugin, (_, _) => plugin);
-        pluginStatesDict.AddOrUpdate(metadata.Id, PluginState.Loaded, (_, _) => PluginState.Loaded);
-
-        return true;
-    }
-
-    private static bool EnablePluginDirectly(PluginManager manager, IPlugin plugin, PluginMetadata metadata)
-    {
-        LoadPluginDirectly(manager, plugin, metadata);
-        manager.InitializePlugin(metadata.Id);
-        return manager.StartPlugin(metadata.Id);
+        pluginsDict.AddOrUpdate(pluginId, plugin, (_, _) => plugin);
+        pluginStatesDict.AddOrUpdate(pluginId, PluginState.Loaded, (_, _) => PluginState.Loaded);
     }
 
     public void Dispose()

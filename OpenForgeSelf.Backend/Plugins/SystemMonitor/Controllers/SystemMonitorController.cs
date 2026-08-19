@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Models;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Services;
-using OpenForgeSelf.Backend.Models.Plugins;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.SystemMonitor.Controllers;

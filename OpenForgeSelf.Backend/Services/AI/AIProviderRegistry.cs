@@ -1,4 +1,5 @@
 using System.Net.Http;
+using OpenForgeSelf.Abstractions;
 using Microsoft.Extensions.Http;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services.AI.Models;

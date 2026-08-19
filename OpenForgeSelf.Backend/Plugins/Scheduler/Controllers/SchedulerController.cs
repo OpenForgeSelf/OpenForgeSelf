@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,7 @@ public class SchedulerController : ControllerBase
     }
 
     [HttpGet("tasks")]
-    public async Task<ActionResult<ApiResponse<PagedResult<ScheduledTaskDto>>>> GetTasks(
+    public async Task<ActionResult<ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>>> GetTasks(
         [FromQuery] string? keyword = null,
         [FromQuery] ScheduledTaskStatus? status = null,
         [FromQuery] int page = 1,
@@ -30,12 +30,12 @@ public class SchedulerController : ControllerBase
                 keyword, status, page, pageSize);
 
             var result = await _schedulerService.ListTasksAsync(keyword, status, page, pageSize);
-            return Ok(ApiResponse<PagedResult<ScheduledTaskDto>>.Ok(result, "获取任务列表成功"));
+            return Ok(ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>.Ok(result, "获取任务列表成功"));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[Scheduler] 获取任务列表失败: {0}", ex.Message);
-            return StatusCode(500, ApiResponse<PagedResult<ScheduledTaskDto>>.Error("获取任务列表失败: " + ex.Message));
+            return StatusCode(500, ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>>.Error("获取任务列表失败: " + ex.Message));
         }
     }
 
@@ -183,7 +183,7 @@ public class SchedulerController : ControllerBase
     }
 
     [HttpGet("tasks/{id}/logs")]
-    public async Task<ActionResult<ApiResponse<PagedResult<ScheduledTaskLogDto>>>> GetTaskLogs(
+    public async Task<ActionResult<ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>>>> GetTaskLogs(
         long id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -193,12 +193,12 @@ public class SchedulerController : ControllerBase
             XTrace.Log.Info("[Scheduler] 获取任务执行日志，taskId={0}, page={1}, pageSize={2}", id, page, pageSize);
 
             var result = await _schedulerService.GetTaskLogsAsync(id, page, pageSize);
-            return Ok(ApiResponse<PagedResult<ScheduledTaskLogDto>>.Ok(result, "获取执行日志成功"));
+            return Ok(ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>>.Ok(result, "获取执行日志成功"));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[Scheduler] 获取任务执行日志失败 [{0}]: {1}", id, ex.Message);
-            return StatusCode(500, ApiResponse<PagedResult<ScheduledTaskLogDto>>.Error("获取执行日志失败: " + ex.Message));
+            return StatusCode(500, ApiResponse<OpenForgeSelf.Backend.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>>.Error("获取执行日志失败: " + ex.Message));
         }
     }
 

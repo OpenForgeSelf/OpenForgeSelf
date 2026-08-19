@@ -315,9 +315,23 @@ public class HashServiceTests
         var wrongKey = "wrongkey12345678";
         var encrypted = await _service.AesEncryptAsync(original, key);
 
-        // Act & Assert
-        var act = () => _service.AesDecryptAsync(encrypted, wrongKey);
-        await act.Should().ThrowAsync<ArgumentException>();
+        // Act
+        // 根因：CBC+PKCS7 无认证，错误密钥有约 1/256 概率解出合法 padding（末字节恰为 0x01）
+        // 而不抛异常，此时会返回乱码明文。因此断言放宽为「抛异常 或 明文不等于原文」二者之一成立，
+        // 避免该概率性场景导致测试偶发失败。
+        string? decrypted = null;
+        Exception? thrown = null;
+        try
+        {
+            decrypted = await _service.AesDecryptAsync(encrypted, wrongKey);
+        }
+        catch (Exception ex)
+        {
+            thrown = ex;
+        }
+
+        // Assert
+        (thrown is not null || decrypted != original).Should().BeTrue();
     }
 
     [Fact]

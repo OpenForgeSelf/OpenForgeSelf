@@ -12,6 +12,8 @@
 // path:        功能主页面路由（「打开」按钮目标）。无独立页面（如仅后端插件）填 null。
 // configPath:  功能配置页路由（「配置」按钮目标）。省略则回落到 path。
 
+import type { PluginMenuContribution } from '@/types/plugin'
+
 export type CategoryKey = 'tools' | 'ai' | 'system' | 'orchestration' | 'dev'
 
 export interface FeatureSignals {
@@ -174,6 +176,20 @@ export const features: FeatureItem[] = [
     enabled: true,
     path: '/dev-tools',
     signals: { plugins: ['DevTools'], views: ['DevToolsView'] },
+  },
+  {
+    id: 'proxy-capture',
+    name: '抓包代理',
+    icon: 'network',
+    category: 'dev',
+    categoryLabel: '开发',
+    color: '#0EA5E9',
+    bgColor: 'rgba(14, 165, 233, 0.12)',
+    description: '反向代理抓包监听：完整记录 HTTP/HTTPS 请求（HTTPS 经 MITM 解密），可原样转发到目标地址',
+    stats: '抓包监听',
+    enabled: true,
+    path: '/capture',
+    signals: { plugins: ['ProxyCapture'], views: ['CaptureView'] },
   },
   {
     id: 'chat',
@@ -352,7 +368,39 @@ export const features: FeatureItem[] = [
     configPath: '/settings',
     signals: {
       views: ['SettingsView'],
-      controllers: ['AIProvider', 'AIModel', 'ApiServer', 'PortConfiguration'],
+      controllers: ['AIProvider', 'AIModel', 'ApiServer', 'PortConfiguration', 'Settings'],
     },
   },
 ]
+
+/**
+ * 「内置特性 + 运行期清单补充」合并：
+ * 以硬编码 features 为 fallback，把插件清单贡献出的菜单（未被内置特性覆盖的路由）
+ * 追加为补充特性。若清单未就绪/为空（contributions 为空数组），等价于直接返回 features，
+ * 从而不破坏现有界面。
+ *
+ * 去重依据是 path/route：插件清单 route 与内置 path 相同（如 /memory）时跳过，
+ * 避免已硬编码的插件菜单重复出现。
+ */
+export function mergeFeatureList(contributions: PluginMenuContribution[]): FeatureItem[] {
+  const existingPaths = new Set<string>(features.flatMap((f) => (f.path ? [f.path] : [])))
+
+  const supplemental: FeatureItem[] = contributions
+    .filter((c) => c.route != null && !existingPaths.has(c.route))
+    .map((c) => ({
+      id: c.id,
+      name: c.menu,
+      icon: c.icon ?? 'package',
+      category: 'tools',
+      categoryLabel: '插件',
+      color: 'var(--el-color-info)',
+      bgColor: 'rgba(29, 78, 216, 0.12)',
+      description: '由插件清单贡献的功能',
+      stats: '插件贡献',
+      enabled: true,
+      path: c.route,
+      signals: { plugins: [c.id], views: c.views },
+    }))
+
+  return [...features, ...supplemental]
+}

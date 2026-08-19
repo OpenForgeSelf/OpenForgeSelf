@@ -1,5 +1,4 @@
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;

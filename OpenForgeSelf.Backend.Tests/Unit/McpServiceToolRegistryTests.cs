@@ -1,5 +1,5 @@
-using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.Mcp;
 using OpenForgeSelf.Backend.Tests.Plugins;
 using Moq;

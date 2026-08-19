@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.Skills;
 using OpenForgeSelf.Backend.Services.Skills;
 using Microsoft.AspNetCore.Mvc;

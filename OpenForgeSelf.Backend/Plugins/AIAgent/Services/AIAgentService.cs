@@ -2,28 +2,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using OpenForgeSelf.Backend.Models.UsageStats;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
-using OpenForgeSelf.Backend.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
+using OpenForgeSelf.Core;
 using NewLife.Log;
-using CoreAIConfig = OpenForgeSelf.Backend.Models.AIConfig;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
-
-public interface IAIAgentService
-{
-    Task<string> ChatAsync(List<AIChatMessage> messages, bool enableTools = true);
-    IAsyncEnumerable<string> ChatStreamAsync(List<AIChatMessage> messages, bool enableTools = true, CancellationToken cancellationToken = default);
-    Task<List<AIChatMessage>> ChatWithToolsAsync(List<AIChatMessage> messages, CancellationToken cancellationToken = default);
-    Task<List<WorkflowRecommendationDto>> GetRecommendedWorkflowsAsync(string userMessage, int limit = 5);
-    Task<GenerateScriptResponse> GenerateScriptAsync(string language, string description, string? requirements = null);
-    Task<AnalyzeScriptErrorResponse> AnalyzeScriptErrorAsync(string language, string code, string errorMessage);
-    Task<SuggestScriptFixResponse> SuggestScriptFixAsync(string language, string code, string errorMessage);
-    Task<List<ScriptTemplate>> GetScriptTemplatesAsync(string? category = null);
-}
 
 public class AIAgentService : IAIAgentService
 {
@@ -36,17 +20,16 @@ public class AIAgentService : IAIAgentService
     private readonly AIConfig _aiConfig;
 
     public AIAgentService(
-        IConfigurationService configService,
-        ILogService logService,
-        HttpClient httpClient,
-        IToolRegistry toolRegistry,
+        IContext ctx,
         IWorkflowRecommendationService? workflowRecommendationService = null,
         IScriptTemplateService? scriptTemplateService = null)
     {
-        _configService = configService;
-        _logService = logService;
-        _httpClient = httpClient;
-        _toolRegistry = toolRegistry;
+        // 宿主契约（配置/日志/工具注册表）经 Cordis 上下文在运行期获取；HttpClient 为无状态 HTTP 客户端由本服务自建；
+        // 推荐服务与脚本模板服务为可选扩展（未注册时置空、运行期降级），保持可选注入。
+        _configService = ctx.Get<IConfigurationService>() ?? throw new InvalidOperationException("宿主未提供 IConfigurationService 契约，无法初始化 AI 代理");
+        _logService = ctx.Get<ILogService>() ?? throw new InvalidOperationException("宿主未提供 ILogService 契约，无法初始化 AI 代理");
+        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化 AI 代理");
+        _httpClient = new HttpClient();
         _workflowRecommendationService = workflowRecommendationService;
         _scriptTemplateService = scriptTemplateService;
         var coreConfig = _configService.GetAIConfig();

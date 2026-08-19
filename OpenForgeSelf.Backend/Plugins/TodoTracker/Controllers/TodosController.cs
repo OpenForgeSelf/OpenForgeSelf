@@ -1,4 +1,4 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Models;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,7 @@ public class TodosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<TodoDto>>>> GetTodos(
+    public async Task<ActionResult<ApiResponse<OpenForgeSelf.Backend.Plugins.TodoTracker.Models.PagedResult<TodoDto>>>> GetTodos(
         [FromQuery] string? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -29,17 +29,17 @@ public class TodosController : ControllerBase
 
             if (!string.IsNullOrEmpty(status) && status != "Pending" && status != "Completed")
             {
-                return BadRequest(ApiResponse<PagedResult<TodoDto>>.Error(
+                return BadRequest(ApiResponse<OpenForgeSelf.Backend.Plugins.TodoTracker.Models.PagedResult<TodoDto>>.Error(
                     "status 参数无效，仅支持 Pending 或 Completed", 400));
             }
 
             var result = await _todoService.GetTodosAsync(status, page, pageSize);
-            return Ok(ApiResponse<PagedResult<TodoDto>>.Ok(result, "获取待办列表成功"));
+            return Ok(ApiResponse<OpenForgeSelf.Backend.Plugins.TodoTracker.Models.PagedResult<TodoDto>>.Ok(result, "获取待办列表成功"));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("获取待办列表失败: {0}", ex.Message);
-            return StatusCode(500, ApiResponse<PagedResult<TodoDto>>.Error("获取待办列表失败: " + ex.Message));
+            return StatusCode(500, ApiResponse<OpenForgeSelf.Backend.Plugins.TodoTracker.Models.PagedResult<TodoDto>>.Error("获取待办列表失败: " + ex.Message));
         }
     }
 

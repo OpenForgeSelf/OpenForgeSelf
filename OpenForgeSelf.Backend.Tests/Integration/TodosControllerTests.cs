@@ -1,6 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Controllers;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Models;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
@@ -35,7 +35,7 @@ public class TodosControllerTests : IClassFixture<XCodeTestFixture>
 
         result.Result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result.Result!;
-        var resp = (ApiResponse<PagedResult<TodoDto>>)ok.Value!;
+        var resp = (ApiResponse<OpenForgeSelf.Backend.Plugins.TodoTracker.Models.PagedResult<TodoDto>>)ok.Value!;
         resp.Success.Should().BeTrue();
         resp.Data.Should().NotBeNull();
     }

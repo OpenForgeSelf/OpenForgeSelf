@@ -1,37 +1,46 @@
 using Microsoft.AspNetCore.SignalR;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
+using OpenForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.ScriptRunner.Hubs;
 
-public class ScriptExecutionHub : Hub
+/// <summary>
+/// 脚本执行状态广播器（宿主 DI 单例）。
+/// 持有 SignalR <see cref="IHubContext{ScriptExecutionHub}"/> 与连接/订阅路由状态，
+/// 供 <see cref="ScriptExecutor"/> 等消费方通过实例方法推送执行状态与输出日志。
+/// 取代原先「静态 SetServiceProvider + 静态访问」模式：不再以静态字段长期持有插件 Fiber 上下文，
+/// 避免插件卸载后因静态根引用导致 ALC 无法被 GC 回收。
+/// </summary>
+public class ScriptExecutionBroadcaster
 {
-    private static readonly HashSet<string> ConnectedConnections = [];
-    private static readonly Dictionary<long, List<string>> ExecutionSubscriptions = [];
-    private static readonly object _lock = new();
-    private static IServiceProvider? _serviceProvider;
+    private readonly IHubContext<ScriptExecutionHub> _hubContext;
+    private readonly HashSet<string> _connectedConnections = [];
+    private readonly Dictionary<long, List<string>> _executionSubscriptions = [];
+    private readonly object _lock = new();
 
-    public override async Task OnConnectedAsync()
+    public ScriptExecutionBroadcaster(IHubContext<ScriptExecutionHub> hubContext)
     {
-        lock (_lock)
-        {
-            ConnectedConnections.Add(Context.ConnectionId);
-        }
-
-        XTrace.Log.Info("[ScriptExecutionHub] 客户端连接: {0}", Context.ConnectionId);
-        await base.OnConnectedAsync();
+        _hubContext = hubContext;
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
+    public void OnConnected(string connectionId)
     {
         lock (_lock)
         {
-            ConnectedConnections.Remove(Context.ConnectionId);
+            _connectedConnections.Add(connectionId);
+        }
+    }
+
+    public void OnDisconnected(string connectionId)
+    {
+        lock (_lock)
+        {
+            _connectedConnections.Remove(connectionId);
 
             var executionsToRemove = new List<long>();
-            foreach (var kvp in ExecutionSubscriptions)
+            foreach (var kvp in _executionSubscriptions)
             {
-                kvp.Value.Remove(Context.ConnectionId);
+                kvp.Value.Remove(connectionId);
                 if (kvp.Value.Count == 0)
                 {
                     executionsToRemove.Add(kvp.Key);
@@ -39,76 +48,54 @@ public class ScriptExecutionHub : Hub
             }
             foreach (var execId in executionsToRemove)
             {
-                ExecutionSubscriptions.Remove(execId);
+                _executionSubscriptions.Remove(execId);
             }
         }
-
-        XTrace.Log.Info("[ScriptExecutionHub] 客户端断开连接: {0}", Context.ConnectionId);
-        await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task SubscribeToExecution(long executionId)
+    public void Subscribe(long executionId, string connectionId)
     {
         lock (_lock)
         {
-            if (!ExecutionSubscriptions.TryGetValue(executionId, out var connections))
+            if (!_executionSubscriptions.TryGetValue(executionId, out var connections))
             {
                 connections = [];
-                ExecutionSubscriptions[executionId] = connections;
+                _executionSubscriptions[executionId] = connections;
             }
-            if (!connections.Contains(Context.ConnectionId))
+            if (!connections.Contains(connectionId))
             {
-                connections.Add(Context.ConnectionId);
+                connections.Add(connectionId);
             }
         }
-
-        XTrace.Log.Debug("[ScriptExecutionHub] 客户端 {0} 订阅执行 {1}", Context.ConnectionId, executionId);
-        await Task.CompletedTask;
     }
 
-    public async Task UnsubscribeFromExecution(long executionId)
+    public void Unsubscribe(long executionId, string connectionId)
     {
         lock (_lock)
         {
-            if (ExecutionSubscriptions.TryGetValue(executionId, out var connections))
+            if (_executionSubscriptions.TryGetValue(executionId, out var connections))
             {
-                connections.Remove(Context.ConnectionId);
+                connections.Remove(connectionId);
                 if (connections.Count == 0)
                 {
-                    ExecutionSubscriptions.Remove(executionId);
+                    _executionSubscriptions.Remove(executionId);
                 }
             }
         }
-
-        XTrace.Log.Debug("[ScriptExecutionHub] 客户端 {0} 取消订阅执行 {1}", Context.ConnectionId, executionId);
-        await Task.CompletedTask;
     }
 
-    public static void SetServiceProvider(IServiceProvider serviceProvider)
+    public async Task BroadcastStatusUpdateAsync(long executionId, ScriptExecutionStatus status)
     {
-        _serviceProvider = serviceProvider;
-    }
-
-    private static IHubContext<ScriptExecutionHub>? GetHubContext()
-    {
-        return _serviceProvider?.GetService<IHubContext<ScriptExecutionHub>>();
-    }
-
-    public static async Task BroadcastStatusUpdateAsync(long executionId, ScriptExecutionStatus status)
-    {
-        var context = GetHubContext();
-        if (context == null) return;
-
         List<string> connections;
         lock (_lock)
         {
-            if (ExecutionSubscriptions.TryGetValue(executionId, out var connList))
+            if (_executionSubscriptions.TryGetValue(executionId, out var connList))
             {
                 connections = new List<string>(connList);
             }
             else
             {
-                connections = new List<string>(ConnectedConnections);
+                connections = new List<string>(_connectedConnections);
             }
         }
 
@@ -125,7 +112,7 @@ public class ScriptExecutionHub : Hub
         {
             try
             {
-                await context.Clients.Client(connId).SendAsync("ReceiveStatusUpdate", update);
+                await _hubContext.Clients.Client(connId).SendAsync("ReceiveStatusUpdate", update);
             }
             catch (Exception ex)
             {
@@ -134,15 +121,12 @@ public class ScriptExecutionHub : Hub
         }
     }
 
-    public static async Task BroadcastOutputLogAsync(long executionId, ScriptExecutionLog logEntry)
+    public async Task BroadcastOutputLogAsync(long executionId, ScriptExecutionLog logEntry)
     {
-        var context = GetHubContext();
-        if (context == null) return;
-
         List<string> connections;
         lock (_lock)
         {
-            if (ExecutionSubscriptions.TryGetValue(executionId, out var connList))
+            if (_executionSubscriptions.TryGetValue(executionId, out var connList))
             {
                 connections = new List<string>(connList);
             }
@@ -158,13 +142,55 @@ public class ScriptExecutionHub : Hub
         {
             try
             {
-                await context.Clients.Client(connId).SendAsync("ReceiveOutputLog", logEntry);
+                await _hubContext.Clients.Client(connId).SendAsync("ReceiveOutputLog", logEntry);
             }
             catch (Exception ex)
             {
                 XTrace.Log.Debug("[ScriptExecutionHub] 发送输出日志到 {0} 失败: {1}", connId, ex.Message);
             }
         }
+    }
+}
+
+public class ScriptExecutionHub : Hub
+{
+    private readonly ScriptExecutionBroadcaster _broadcaster;
+
+    public ScriptExecutionHub(ScriptExecutionBroadcaster broadcaster)
+    {
+        _broadcaster = broadcaster;
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        _broadcaster.OnConnected(Context.ConnectionId);
+
+        XTrace.Log.Info("[ScriptExecutionHub] 客户端连接: {0}", Context.ConnectionId);
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        _broadcaster.OnDisconnected(Context.ConnectionId);
+
+        XTrace.Log.Info("[ScriptExecutionHub] 客户端断开连接: {0}", Context.ConnectionId);
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    public async Task SubscribeToExecution(long executionId)
+    {
+        _broadcaster.Subscribe(executionId, Context.ConnectionId);
+
+        XTrace.Log.Debug("[ScriptExecutionHub] 客户端 {0} 订阅执行 {1}", Context.ConnectionId, executionId);
+        await Task.CompletedTask;
+    }
+
+    public async Task UnsubscribeFromExecution(long executionId)
+    {
+        _broadcaster.Unsubscribe(executionId, Context.ConnectionId);
+
+        XTrace.Log.Debug("[ScriptExecutionHub] 客户端 {0} 取消订阅执行 {1}", Context.ConnectionId, executionId);
+        await Task.CompletedTask;
     }
 }
 

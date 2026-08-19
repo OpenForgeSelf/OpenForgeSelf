@@ -5,7 +5,7 @@
   "Author": "OpenForgeSelf Team",
   "Description": "提供CPU、内存、磁盘、网络、进程等系统资源的实时监控和历史数据分析功能。",
   "IconUrl": "https://example.com/system-monitor-icon.png",
-  "EntryAssembly": "OpenForgeSelf.dll",
+  "EntryAssembly": "SystemMonitor.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.SystemMonitor.SystemMonitorPlugin",
   "Dependencies": [],
   "Permissions": []

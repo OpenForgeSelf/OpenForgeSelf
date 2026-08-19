@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Models;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Services;
 using OpenForgeSelf.Backend.Plugins.SystemMonitor.Hubs;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -12,33 +12,47 @@ namespace OpenForgeSelf.Backend.Plugins.SystemMonitor;
 
 public class SystemMonitorPlugin : IPlugin
 {
-    public string Id => "systemmonitor.plugin";
-    public string Name => "系统监控插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "提供CPU、内存、磁盘、网络、进程等系统资源的实时监控和历史数据分析功能。";
-    public string IconUrl => "https://example.com/system-monitor-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
-    private IServiceProvider? _serviceProvider;
     private ICpuMonitorService? _cpuMonitorService;
     private IMemoryMonitorService? _memoryMonitorService;
     private IDiskMonitorService? _diskMonitorService;
     private INetworkMonitorService? _networkMonitorService;
     private IProcessMonitorService? _processMonitorService;
 
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         XTrace.Log.Info("[SystemMonitorPlugin] 初始化系统监控插件");
 
-        InitializeServices(services);
-        RegisterMenuExtensions();
-        RegisterToolFunctionExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddSingleton<ICpuMonitorService, CpuMonitorService>();
+        services?.AddSingleton<IMemoryMonitorService, MemoryMonitorService>();
+        services?.AddSingleton<IDiskMonitorService, DiskMonitorService>();
+        services?.AddSingleton<INetworkMonitorService, NetworkMonitorService>();
+        services?.AddSingleton<IProcessMonitorService, ProcessMonitorService>();
+        services?.AddSingleton<MonitorBroadcaster>();
 
-        MonitorHub.SetServiceProvider(services);
+        InitializeServices(ctx);
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
+
+        ctx.Effect(() =>
+        {
+            _cpuMonitorService?.StartSampling();
+            _memoryMonitorService?.StartSampling();
+            _diskMonitorService?.StartSampling();
+            _networkMonitorService?.StartSampling();
+
+            return new ActionDisposable(() =>
+            {
+                _cpuMonitorService?.StopSampling();
+                _memoryMonitorService?.StopSampling();
+                _diskMonitorService?.StopSampling();
+                _networkMonitorService?.StopSampling();
+            });
+        });
 
         XTrace.Log.Info("[SystemMonitorPlugin] 系统监控插件初始化完成");
     }
@@ -61,75 +75,7 @@ public class SystemMonitorPlugin : IPlugin
         }
     }
 
-    public void Start()
-    {
-        XTrace.Log.Info("[SystemMonitorPlugin] 启动系统监控插件");
-
-        try
-        {
-            _cpuMonitorService?.StartSampling();
-            _memoryMonitorService?.StartSampling();
-            _diskMonitorService?.StartSampling();
-            _networkMonitorService?.StartSampling();
-
-            XTrace.Log.Info("[SystemMonitorPlugin] 系统监控采样已启动");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[SystemMonitorPlugin] 启动监控采样失败: {0}", ex.Message);
-        }
-
-        XTrace.Log.Info("[SystemMonitorPlugin] 系统监控插件启动完成");
-    }
-
-    public void Stop()
-    {
-        XTrace.Log.Info("[SystemMonitorPlugin] 停止系统监控插件");
-
-        try
-        {
-            _cpuMonitorService?.StopSampling();
-            _memoryMonitorService?.StopSampling();
-            _diskMonitorService?.StopSampling();
-            _networkMonitorService?.StopSampling();
-
-            XTrace.Log.Info("[SystemMonitorPlugin] 系统监控采样已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[SystemMonitorPlugin] 停止监控采样失败: {0}", ex.Message);
-        }
-
-        XTrace.Log.Info("[SystemMonitorPlugin] 系统监控插件已停止");
-    }
-
-    public void Destroy()
-    {
-        XTrace.Log.Info("[SystemMonitorPlugin] 销毁系统监控插件");
-
-        try
-        {
-            if (_cpuMonitorService is IDisposable cpuDisposable)
-                cpuDisposable.Dispose();
-            if (_memoryMonitorService is IDisposable memoryDisposable)
-                memoryDisposable.Dispose();
-            if (_diskMonitorService is IDisposable diskDisposable)
-                diskDisposable.Dispose();
-            if (_networkMonitorService is IDisposable networkDisposable)
-                networkDisposable.Dispose();
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 销毁服务时发生异常: {0}", ex.Message);
-        }
-
-        MenuExtensions.Clear();
-        ToolExtensions.Clear();
-
-        XTrace.Log.Info("[SystemMonitorPlugin] 系统监控插件已销毁");
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[SystemMonitorPlugin] 注册菜单扩展点");
 
@@ -137,7 +83,7 @@ public class SystemMonitorPlugin : IPlugin
         {
             Id = "systemmonitor.menu.main",
             Name = "系统监控",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-gauge-high",
             Path = "/system-monitor",
             Order = 400,
@@ -148,7 +94,7 @@ public class SystemMonitorPlugin : IPlugin
                 {
                     Id = "systemmonitor.menu.overview",
                     Name = "概览",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-chart-line",
                     Path = "/system-monitor/overview",
                     Order = 1,
@@ -158,7 +104,7 @@ public class SystemMonitorPlugin : IPlugin
                 {
                     Id = "systemmonitor.menu.processes",
                     Name = "进程管理",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-microchip",
                     Path = "/system-monitor/processes",
                     Order = 2,
@@ -168,7 +114,7 @@ public class SystemMonitorPlugin : IPlugin
                 {
                     Id = "systemmonitor.menu.disks",
                     Name = "磁盘信息",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-hard-drive",
                     Path = "/system-monitor/disks",
                     Order = 3,
@@ -178,7 +124,7 @@ public class SystemMonitorPlugin : IPlugin
                 {
                     Id = "systemmonitor.menu.network",
                     Name = "网络状态",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-network-wired",
                     Path = "/system-monitor/network",
                     Order = 4,
@@ -191,17 +137,26 @@ public class SystemMonitorPlugin : IPlugin
         XTrace.Log.Debug("[SystemMonitorPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[SystemMonitorPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new GetCpuUsageToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GetMemoryUsageToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GetDiskInfoToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GetProcessListToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new KillProcessToolFunction(Id, _serviceProvider));
+        ToolExtensions.Add(new GetCpuUsageToolFunction(pluginId, services));
+        ToolExtensions.Add(new GetMemoryUsageToolFunction(pluginId, services));
+        ToolExtensions.Add(new GetDiskInfoToolFunction(pluginId, services));
+        ToolExtensions.Add(new GetProcessListToolFunction(pluginId, services));
+        ToolExtensions.Add(new KillProcessToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[SystemMonitorPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
+    }
+
+    private sealed class ActionDisposable : IDisposable
+    {
+        private Action? _action;
+
+        public ActionDisposable(Action action) => _action = action;
+
+        public void Dispose() => Interlocked.Exchange(ref _action, null)?.Invoke();
     }
 }
 
@@ -264,7 +219,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_cpu_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_cpu_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["totalUsagePercent"] = cpuUsage.TotalUsagePercent
             });
@@ -276,7 +231,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[SystemMonitorPlugin] get_cpu_usage 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_cpu_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_cpu_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -297,29 +252,6 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
         return scope.ServiceProvider.GetService<ICpuMonitorService>();
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetMemoryUsageToolFunction : IToolFunctionExtension
@@ -371,7 +303,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_memory_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_memory_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["usagePercent"] = memoryInfo.UsagePercent
             });
@@ -383,7 +315,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[SystemMonitorPlugin] get_memory_usage 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_memory_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_memory_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -404,29 +336,6 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
         return scope.ServiceProvider.GetService<IMemoryMonitorService>();
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetDiskInfoToolFunction : IToolFunctionExtension
@@ -485,7 +394,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_disk_info", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_disk_info", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["diskCount"] = disks.Count,
                 ["lowSpaceCount"] = disks.Count(d => d.IsLowSpaceWarning)
@@ -498,7 +407,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[SystemMonitorPlugin] get_disk_info 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_disk_info", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_disk_info", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -519,29 +428,6 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
         return scope.ServiceProvider.GetService<IDiskMonitorService>();
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class GetProcessListToolFunction : IToolFunctionExtension
@@ -655,7 +541,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_process_list", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_process_list", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["totalCount"] = result.TotalCount,
                 ["returnedCount"] = result.Processes.Count,
@@ -670,7 +556,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[SystemMonitorPlugin] get_process_list 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("get_process_list", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "get_process_list", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -691,29 +577,6 @@ public class GetProcessListToolFunction : IToolFunctionExtension
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class KillProcessToolFunction : IToolFunctionExtension
@@ -777,7 +640,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("kill_process", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "kill_process", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["processId"] = processId,
                 ["force"] = force,
@@ -791,7 +654,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[SystemMonitorPlugin] kill_process 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("kill_process", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "kill_process", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -812,27 +675,4 @@ public class KillProcessToolFunction : IToolFunctionExtension
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[SystemMonitorPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

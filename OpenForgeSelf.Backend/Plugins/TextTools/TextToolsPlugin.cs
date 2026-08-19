@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.TextTools.Models;
 using OpenForgeSelf.Backend.Plugins.TextTools.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -11,50 +11,27 @@ namespace OpenForgeSelf.Backend.Plugins.TextTools;
 
 public class TextToolsPlugin : IPlugin
 {
-    public string Id => "texttools.plugin";
-    public string Name => "文本工具插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "提供文本格式化、编码转换、哈希计算和文本统计等常用文本处理工具。";
-    public string IconUrl => "https://example.com/text-tools-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         XTrace.Log.Info("[TextToolsPlugin] 初始化文本工具插件");
 
-        RegisterMenuExtensions();
-        RegisterToolFunctionExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<ITextStatsService, TextStatsService>();
+        services?.AddScoped<ITextFormatterService, TextFormatterService>();
+        services?.AddScoped<IEncodingService, EncodingService>();
+        services?.AddScoped<IHashService, HashService>();
+
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
 
         XTrace.Log.Info("[TextToolsPlugin] 文本工具插件初始化完成");
     }
 
-    public void Start()
-    {
-        XTrace.Log.Info("[TextToolsPlugin] 启动文本工具插件");
-        XTrace.Log.Info("[TextToolsPlugin] 文本工具插件启动完成");
-    }
-
-    public void Stop()
-    {
-        XTrace.Log.Info("[TextToolsPlugin] 停止文本工具插件");
-        XTrace.Log.Info("[TextToolsPlugin] 文本工具插件已停止");
-    }
-
-    public void Destroy()
-    {
-        XTrace.Log.Info("[TextToolsPlugin] 销毁文本工具插件");
-        MenuExtensions.Clear();
-        ToolExtensions.Clear();
-        XTrace.Log.Info("[TextToolsPlugin] 文本工具插件已销毁");
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[TextToolsPlugin] 注册菜单扩展点");
 
@@ -62,7 +39,7 @@ public class TextToolsPlugin : IPlugin
         {
             Id = "texttools.menu.main",
             Name = "文本工具",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-font",
             Path = "/text-tools",
             Order = 200,
@@ -73,7 +50,7 @@ public class TextToolsPlugin : IPlugin
                 {
                     Id = "texttools.menu.formatter",
                     Name = "格式化工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-indent",
                     Path = "/text-tools/formatter",
                     Order = 1,
@@ -83,7 +60,7 @@ public class TextToolsPlugin : IPlugin
                 {
                     Id = "texttools.menu.encoding",
                     Name = "编码转换",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-code",
                     Path = "/text-tools/encoding",
                     Order = 2,
@@ -93,7 +70,7 @@ public class TextToolsPlugin : IPlugin
                 {
                     Id = "texttools.menu.hash",
                     Name = "哈希计算",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-fingerprint",
                     Path = "/text-tools/hash",
                     Order = 3,
@@ -103,7 +80,7 @@ public class TextToolsPlugin : IPlugin
                 {
                     Id = "texttools.menu.stats",
                     Name = "文本统计",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-chart-bar",
                     Path = "/text-tools/stats",
                     Order = 4,
@@ -116,15 +93,15 @@ public class TextToolsPlugin : IPlugin
         XTrace.Log.Debug("[TextToolsPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[TextToolsPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new FormatJsonToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new EncodeBase64ToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new DecodeBase64ToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ComputeHashToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new TextStatsToolFunction(Id, _serviceProvider));
+        ToolExtensions.Add(new FormatJsonToolFunction(pluginId, services));
+        ToolExtensions.Add(new EncodeBase64ToolFunction(pluginId, services));
+        ToolExtensions.Add(new DecodeBase64ToolFunction(pluginId, services));
+        ToolExtensions.Add(new ComputeHashToolFunction(pluginId, services));
+        ToolExtensions.Add(new TextStatsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[TextToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
@@ -201,7 +178,7 @@ public class FormatJsonToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("format_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "format_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["indentSize"] = indentSize,
                 ["inputLength"] = text.Length
@@ -214,7 +191,7 @@ public class FormatJsonToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[TextToolsPlugin] format_json 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("format_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "format_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -228,29 +205,6 @@ public class FormatJsonToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TextToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class EncodeBase64ToolFunction : IToolFunctionExtension
@@ -304,7 +258,7 @@ public class EncodeBase64ToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("encode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "encode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["inputLength"] = text.Length,
                 ["outputLength"] = result.Length
@@ -317,7 +271,7 @@ public class EncodeBase64ToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[TextToolsPlugin] encode_base64 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("encode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "encode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -331,29 +285,6 @@ public class EncodeBase64ToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TextToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class DecodeBase64ToolFunction : IToolFunctionExtension
@@ -407,7 +338,7 @@ public class DecodeBase64ToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("decode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "decode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["inputLength"] = text.Length,
                 ["outputLength"] = result.Length
@@ -420,7 +351,7 @@ public class DecodeBase64ToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[TextToolsPlugin] decode_base64 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("decode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "decode_base64", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -434,29 +365,6 @@ public class DecodeBase64ToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TextToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ComputeHashToolFunction : IToolFunctionExtension
@@ -537,7 +445,7 @@ public class ComputeHashToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("compute_hash", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "compute_hash", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["algorithm"] = algorithm,
                 ["inputLength"] = text.Length
@@ -550,7 +458,7 @@ public class ComputeHashToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[TextToolsPlugin] compute_hash 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("compute_hash", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "compute_hash", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -564,29 +472,6 @@ public class ComputeHashToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TextToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class TextStatsToolFunction : IToolFunctionExtension
@@ -642,7 +527,7 @@ public class TextStatsToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("text_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "text_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["charCount"] = stats.CharCount,
                 ["wordCount"] = stats.WordCount,
@@ -656,7 +541,7 @@ public class TextStatsToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[TextToolsPlugin] text_stats 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("text_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "text_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -670,27 +555,4 @@ public class TextStatsToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TextToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

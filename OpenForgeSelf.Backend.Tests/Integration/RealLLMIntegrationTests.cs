@@ -1,4 +1,5 @@
 using System.Net;
+using OpenForgeSelf.Abstractions;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +8,8 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
+// 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
+using LegacyAIChatMessage = OpenForgeSelf.Backend.Models.AIChatMessage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -111,7 +114,7 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         var httpClient = new HttpClient(handlerMock.Object);
 
         var aiService = new AIService(configService, logService, httpClient);
-        var messages = new List<AIChatMessage>
+        var messages = new List<LegacyAIChatMessage>
         {
             new() { Role = "user", Content = "你好" }
         };
@@ -262,7 +265,7 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
             var request = new AIChatRequest
             {
                 Model = aiConfig.ModelName,
-                Messages = new List<AIChatMessage>
+                Messages = new List<LegacyAIChatMessage>
                 {
                     new() { Role = "user", Content = "Hello, this is a connection test." }
                 },

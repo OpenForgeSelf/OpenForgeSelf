@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.Mcp;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
+using OpenForgeSelf.Backend.Services;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Services.Mcp;

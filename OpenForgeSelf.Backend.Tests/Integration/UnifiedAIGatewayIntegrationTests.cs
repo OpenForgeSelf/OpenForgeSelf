@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Controllers.UnifiedAI;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Services;
 using OpenForgeSelf.Backend.Services.AI;

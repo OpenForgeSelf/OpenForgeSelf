@@ -1,7 +1,10 @@
 using System.Text.Json;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Entities;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
+// 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
+using LegacyAIChatMessage = OpenForgeSelf.Backend.Models.AIChatMessage;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -18,16 +21,18 @@ public class ChatController : ControllerBase
     private readonly IMessageService _messageService;
     private readonly ILogService _logService;
     private readonly IChatSessionService _chatSessionService;
+    private readonly OpenForgeSelf.Abstractions.ISessionStore? _sessionStore;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    public ChatController(IAIService aiService, IMessageService messageService, ILogService logService, IChatSessionService chatSessionService)
+    public ChatController(IAIService aiService, IMessageService messageService, ILogService logService, IChatSessionService chatSessionService, OpenForgeSelf.Abstractions.ISessionStore? sessionStore = null)
     {
         _aiService = aiService;
         _messageService = messageService;
         _logService = logService;
         _chatSessionService = chatSessionService;
+        _sessionStore = sessionStore;
     }
 
     /// <summary>
@@ -56,6 +61,8 @@ public class ChatController : ControllerBase
 
             // 保存用户消息
             await _messageService.SaveMessageAsync(sessionId, "user", userMessage);
+            // P4 会话接缝：追加用户消息到仅追加事件日志（模型可见 = 已记录）
+            _sessionStore?.Append(sessionId, new OpenForgeSelf.Abstractions.SessionEvent { Type = "user", Payload = userMessage });
 
             // 获取历史消息
             var history = await _messageService.GetHistoryAsync(sessionId);
@@ -64,7 +71,7 @@ public class ChatController : ControllerBase
             await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
 
             // 构建AI请求消息
-            var aiMessages = history.Select(m => new AIChatMessage
+            var aiMessages = history.Select(m => new LegacyAIChatMessage
             {
                 Role = m.Role,
                 Content = m.Content
@@ -75,6 +82,8 @@ public class ChatController : ControllerBase
 
             // 保存AI响应
             var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", aiResponse);
+            // P4 会话接缝：追加 AI 响应到仅追加事件日志（模型可见 = 已记录）
+            _sessionStore?.Append(sessionId, new OpenForgeSelf.Abstractions.SessionEvent { Type = "assistant", Payload = aiResponse });
 
             var response = new ChatResponse
             {
@@ -130,7 +139,7 @@ public class ChatController : ControllerBase
             await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
 
             // 构建AI请求消息
-            var aiMessages = history.Select(m => new AIChatMessage
+            var aiMessages = history.Select(m => new LegacyAIChatMessage
             {
                 Role = m.Role,
                 Content = m.Content

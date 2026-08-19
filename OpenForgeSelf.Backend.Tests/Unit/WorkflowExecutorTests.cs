@@ -1,9 +1,8 @@
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Entities;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
 using WorkflowDefEntity = OpenForgeSelf.Backend.Plugins.WorkflowEngine.Entities.WorkflowDefinition;
-using WorkflowDefModel = OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models.WorkflowDefinition;
+using WorkflowDefModel = OpenForgeSelf.Abstractions.WorkflowDefinition;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 

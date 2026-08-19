@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.FileTools.Models;
 using OpenForgeSelf.Backend.Plugins.FileTools.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -11,56 +11,27 @@ namespace OpenForgeSelf.Backend.Plugins.FileTools;
 
 public class FileToolsPlugin : IPlugin
 {
-    public string Id => "filetools.plugin";
-    public string Name => "文件工具插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "提供批量重命名、文件清理、压缩解压、文件统计等常用文件处理工具。";
-    public string IconUrl => "https://example.com/file-tools-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         XTrace.Log.Info("[FileToolsPlugin] 初始化文件工具插件");
 
-        RegisterServices();
-        RegisterMenuExtensions();
-        RegisterToolFunctionExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IFileStatsService, FileStatsService>();
+        services?.AddScoped<IArchiveService, ArchiveService>();
+        services?.AddScoped<ICleanupService, CleanupService>();
+        services?.AddScoped<IRenameService, RenameService>();
+
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
 
         XTrace.Log.Info("[FileToolsPlugin] 文件工具插件初始化完成");
     }
 
-    public void Start()
-    {
-        XTrace.Log.Info("[FileToolsPlugin] 启动文件工具插件");
-        XTrace.Log.Info("[FileToolsPlugin] 文件工具插件启动完成");
-    }
-
-    public void Stop()
-    {
-        XTrace.Log.Info("[FileToolsPlugin] 停止文件工具插件");
-        XTrace.Log.Info("[FileToolsPlugin] 文件工具插件已停止");
-    }
-
-    public void Destroy()
-    {
-        XTrace.Log.Info("[FileToolsPlugin] 销毁文件工具插件");
-        MenuExtensions.Clear();
-        ToolExtensions.Clear();
-        XTrace.Log.Info("[FileToolsPlugin] 文件工具插件已销毁");
-    }
-
-    private void RegisterServices()
-    {
-        XTrace.Log.Debug("[FileToolsPlugin] 注册服务");
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[FileToolsPlugin] 注册菜单扩展点");
 
@@ -68,7 +39,7 @@ public class FileToolsPlugin : IPlugin
         {
             Id = "filetools.menu.main",
             Name = "文件工具",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-folder-open",
             Path = "/file-tools",
             Order = 300,
@@ -79,7 +50,7 @@ public class FileToolsPlugin : IPlugin
                 {
                     Id = "filetools.menu.rename",
                     Name = "批量重命名",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-pen-to-square",
                     Path = "/file-tools/rename",
                     Order = 1,
@@ -89,7 +60,7 @@ public class FileToolsPlugin : IPlugin
                 {
                     Id = "filetools.menu.cleanup",
                     Name = "批量清理",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-broom",
                     Path = "/file-tools/cleanup",
                     Order = 2,
@@ -99,7 +70,7 @@ public class FileToolsPlugin : IPlugin
                 {
                     Id = "filetools.menu.archive",
                     Name = "压缩解压",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-file-zipper",
                     Path = "/file-tools/archive",
                     Order = 3,
@@ -109,7 +80,7 @@ public class FileToolsPlugin : IPlugin
                 {
                     Id = "filetools.menu.stats",
                     Name = "文件统计",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-chart-pie",
                     Path = "/file-tools/stats",
                     Order = 4,
@@ -122,15 +93,15 @@ public class FileToolsPlugin : IPlugin
         XTrace.Log.Debug("[FileToolsPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[FileToolsPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new FileRenameToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new FileCleanupToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new FileCompressToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new FileExtractToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new FileStatsToolFunction(Id, _serviceProvider));
+        ToolExtensions.Add(new FileRenameToolFunction(pluginId, services));
+        ToolExtensions.Add(new FileCleanupToolFunction(pluginId, services));
+        ToolExtensions.Add(new FileCompressToolFunction(pluginId, services));
+        ToolExtensions.Add(new FileExtractToolFunction(pluginId, services));
+        ToolExtensions.Add(new FileStatsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[FileToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
@@ -282,7 +253,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
                 var json = JsonSerializer.Serialize(response);
 
                 stopwatch.Stop();
-                await RecordUsageAsync("file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+                await this.RecordUsageAsync(_serviceProvider, "file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
                     ["fileCount"] = files.Count,
                     ["ruleCount"] = rules.Count,
@@ -305,7 +276,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
                 var json = JsonSerializer.Serialize(response);
 
                 stopwatch.Stop();
-                await RecordUsageAsync("file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+                await this.RecordUsageAsync(_serviceProvider, "file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
                     ["fileCount"] = files.Count,
                     ["ruleCount"] = rules.Count,
@@ -320,7 +291,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[FileToolsPlugin] file_rename 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -334,29 +305,6 @@ public class FileRenameToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[FileToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class FileCleanupToolFunction : IToolFunctionExtension
@@ -550,7 +498,7 @@ public class FileCleanupToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_cleanup", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_cleanup", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["directory"] = directory,
                 ["action"] = metadataAction,
@@ -564,7 +512,7 @@ public class FileCleanupToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[FileToolsPlugin] file_cleanup 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_cleanup", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_cleanup", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -578,29 +526,6 @@ public class FileCleanupToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[FileToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class FileCompressToolFunction : IToolFunctionExtension
@@ -755,7 +680,7 @@ public class FileCompressToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_compress", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_compress", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["action"] = action
             });
@@ -767,7 +692,7 @@ public class FileCompressToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[FileToolsPlugin] file_compress 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_compress", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_compress", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -781,29 +706,6 @@ public class FileCompressToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[FileToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class FileStatsToolFunction : IToolFunctionExtension
@@ -962,7 +864,7 @@ public class FileStatsToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["action"] = action,
                 ["directory"] = directory
@@ -975,7 +877,7 @@ public class FileStatsToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[FileToolsPlugin] file_stats 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -989,29 +891,6 @@ public class FileStatsToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[FileToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class FileExtractToolFunction : IToolFunctionExtension
@@ -1101,7 +980,7 @@ public class FileExtractToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_extract", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_extract", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["fileCount"] = extractResult.FileCount,
                 ["outputPath"] = outputPath
@@ -1114,7 +993,7 @@ public class FileExtractToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[FileToolsPlugin] file_extract 执行失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("file_extract", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "file_extract", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -1128,27 +1007,4 @@ public class FileExtractToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[FileToolsPlugin] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

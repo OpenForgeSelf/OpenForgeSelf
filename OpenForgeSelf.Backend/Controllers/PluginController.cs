@@ -1,6 +1,7 @@
 using System.Text;
 using OpenForgeSelf.Backend.Models.Plugins;
 using OpenForgeSelf.Backend.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
 using OpenForgeSelf.Backend.Plugins.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -294,6 +295,38 @@ public class PluginController : ControllerBase
         {
             XTrace.Log.Error("获取菜单项失败: {0}", ex.Message);
             return StatusCode(500, ApiResponse<List<PluginMenuItemDto>>.Error("获取菜单项失败: " + ex.Message));
+        }
+    }
+
+    [HttpGet("frontend-manifest")]
+    public ActionResult<ApiResponse<List<PluginFrontendManifestDto>>> GetFrontendManifest()
+    {
+        try
+        {
+            XTrace.Log.Info("获取前端插件清单");
+
+            var metadatas = _pluginManager.GetAllMetadatas().ToList();
+
+            var manifest = metadatas.Select(m =>
+            {
+                var state = _pluginManager.GetPluginState(m.Id);
+                return new PluginFrontendManifestDto
+                {
+                    Id = m.Id,
+                    Name = m.Name,
+                    Frontend = m.Frontend,
+                    IsEnabled = state == PluginState.Running
+                };
+            })
+            .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+            return Ok(ApiResponse<List<PluginFrontendManifestDto>>.Ok(manifest, "获取前端插件清单成功"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("获取前端插件清单失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<List<PluginFrontendManifestDto>>.Error("获取前端插件清单失败: " + ex.Message));
         }
     }
 

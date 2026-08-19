@@ -1,7 +1,5 @@
-using OpenForgeSelf.Backend.Models.Plugins;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Controllers;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Models;
-using OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 

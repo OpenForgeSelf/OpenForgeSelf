@@ -1,6 +1,5 @@
-using OpenForgeSelf.Backend.Plugins.Abstractions;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Models;
-using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 

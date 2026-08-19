@@ -1,4 +1,5 @@
 using OpenForgeSelf.Backend.Entities;
+using OpenForgeSelf.Abstractions;
 using ChatMessageModel = OpenForgeSelf.Backend.Models.ChatMessageModel;
 using NewLife;
 using NewLife.Log;

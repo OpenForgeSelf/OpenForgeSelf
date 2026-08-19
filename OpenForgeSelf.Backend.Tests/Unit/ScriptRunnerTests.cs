@@ -1,6 +1,8 @@
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Data;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Models;
 using OpenForgeSelf.Backend.Plugins.ScriptRunner.Services;
+using OpenForgeSelf.Backend.Services;
 
 namespace OpenForgeSelf.Backend.Tests.Unit;
 

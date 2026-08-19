@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
@@ -18,9 +19,10 @@ public class ToolSelectorService : IToolSelectorService
         ["workflow"] = new() { "工作流", "workflow", "流程", "执行", "execute", "计划", "plan", "调度", "schedule" }
     };
 
-    public ToolSelectorService(IToolRegistry toolRegistry)
+    public ToolSelectorService(IContext ctx)
     {
-        _toolRegistry = toolRegistry;
+        // 宿主契约（IToolRegistry）经 Cordis 上下文在运行期获取，而非 MS DI 构造注入。
+        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化工具选择器");
     }
 
     public List<IToolFunctionExtension> SelectTools(string taskDescription)

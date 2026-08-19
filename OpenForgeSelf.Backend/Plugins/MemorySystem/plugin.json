@@ -1,11 +1,21 @@
 {
-  "id": "memorysystem.plugin",
-  "name": "记忆系统插件",
-  "version": "1.0.0",
-  "author": "OpenForgeSelf Team",
-  "description": "AI 记忆系统插件，支持短期记忆、长期记忆和语义搜索，让 AI 真正懂你。",
-  "iconUrl": "https://example.com/memory-icon.png",
-  "entryPoint": "OpenForgeSelf.Backend.Plugins.MemorySystem.MemorySystemPlugin, OpenForgeSelf.Backend",
-  "dependencies": [],
-  "permissions": [ "storage", "ai_integration" ]
+  "Id": "memorysystem.plugin",
+  "Name": "记忆系统插件",
+  "Version": "1.0.0",
+  "Author": "OpenForgeSelf Team",
+  "Description": "AI 记忆系统插件，支持短期记忆、长期记忆和语义搜索，让 AI 真正懂你。",
+  "IconUrl": "https://example.com/memory-icon.png",
+  "EntryAssembly": "MemorySystem.dll",
+  "EntryType": "OpenForgeSelf.Backend.Plugins.MemorySystem.MemorySystemPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "storage",
+    "ai_integration"
+  ],
+  "frontend": {
+    "views": ["MemoryView"],
+    "menu": "记忆",
+    "route": "/memory",
+    "icon": "fa-brain"
+  }
 }

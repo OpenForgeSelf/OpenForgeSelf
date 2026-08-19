@@ -2,10 +2,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Models;
 using OpenForgeSelf.Backend.Plugins.TodoTracker.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 
 namespace OpenForgeSelf.Backend.Plugins.TodoTracker;
 
@@ -86,7 +85,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
             var created = await todoService.CreateTodoAsync(request);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["todoId"] = created.Id,
                 ["title"] = created.Title
@@ -98,7 +97,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
         {
             stopwatch.Stop();
             XTrace.Log.Warn("[TodoTracker] create_todo 执行失败: {0}", ex.Message);
-            await RecordUsageAsync("create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -106,24 +105,6 @@ public class CreateTodoToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(PluginId, Id, actionType, durationMs, metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TodoTracker] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 /// <summary>
@@ -189,7 +170,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
             var result = await todoService.GetTodosAsync(status, page, pageSize);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["status"] = status ?? "all",
                 ["page"] = page,
@@ -204,7 +185,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
         {
             stopwatch.Stop();
             XTrace.Log.Warn("[TodoTracker] list_todos 执行失败: {0}", ex.Message);
-            await RecordUsageAsync("list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -212,24 +193,6 @@ public class ListTodosToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(PluginId, Id, actionType, durationMs, metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TodoTracker] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 /// <summary>
@@ -286,7 +249,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
             if (updated == null)
             {
                 stopwatch.Stop();
-                await RecordUsageAsync("complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+                await this.RecordUsageAsync(_serviceProvider, "complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
                     ["todoId"] = id,
                     ["notFound"] = true
@@ -295,7 +258,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
             }
 
             stopwatch.Stop();
-            await RecordUsageAsync("complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["todoId"] = id,
                 ["title"] = updated.Title
@@ -307,7 +270,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
         {
             stopwatch.Stop();
             XTrace.Log.Warn("[TodoTracker] complete_todo 执行失败: {0}", ex.Message);
-            await RecordUsageAsync("complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -315,22 +278,4 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(PluginId, Id, actionType, durationMs, metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[TodoTracker] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

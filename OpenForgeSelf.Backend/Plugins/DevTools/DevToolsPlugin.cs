@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.DevTools.Models;
 using OpenForgeSelf.Backend.Plugins.DevTools.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -11,56 +11,34 @@ namespace OpenForgeSelf.Backend.Plugins.DevTools;
 
 public class DevToolsPlugin : IPlugin
 {
-    public string Id => "devtools.plugin";
-    public string Name => "开发者工具插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "提供JSON/YAML/XML格式化、编码转换、哈希计算、加密解密等开发者常用工具集合。";
-    public string IconUrl => "https://example.com/devtools-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         XTrace.Log.Info("[DevToolsPlugin] 初始化开发者工具插件");
 
-        RegisterServices();
-        RegisterMenuExtensions();
-        RegisterToolFunctionExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IJsonFormatterService, JsonFormatterService>();
+        services?.AddScoped<IYamlFormatterService, YamlFormatterService>();
+        services?.AddScoped<IXmlFormatterService, XmlFormatterService>();
+        services?.AddScoped<IEncodingService, EncodingService>();
+        services?.AddScoped<IHashService, HashService>();
+        services?.AddScoped<IRegexService, RegexService>();
+        services?.AddScoped<ITimestampService, TimestampService>();
+        services?.AddScoped<IColorService, ColorService>();
+        services?.AddScoped<IJwtService, JwtService>();
+        services?.AddScoped<IUuidService, UuidService>();
+        services?.AddScoped<IQrCodeService, QrCodeService>();
+
+        RegisterMenuExtensions(pluginId);
+        RegisterToolFunctionExtensions(pluginId, ctx);
 
         XTrace.Log.Info("[DevToolsPlugin] 开发者工具插件初始化完成");
     }
 
-    public void Start()
-    {
-        XTrace.Log.Info("[DevToolsPlugin] 启动开发者工具插件");
-        XTrace.Log.Info("[DevToolsPlugin] 开发者工具插件启动完成");
-    }
-
-    public void Stop()
-    {
-        XTrace.Log.Info("[DevToolsPlugin] 停止开发者工具插件");
-        XTrace.Log.Info("[DevToolsPlugin] 开发者工具插件已停止");
-    }
-
-    public void Destroy()
-    {
-        XTrace.Log.Info("[DevToolsPlugin] 销毁开发者工具插件");
-        MenuExtensions.Clear();
-        ToolExtensions.Clear();
-        XTrace.Log.Info("[DevToolsPlugin] 开发者工具插件已销毁");
-    }
-
-    private void RegisterServices()
-    {
-        XTrace.Log.Debug("[DevToolsPlugin] 注册服务");
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         XTrace.Log.Debug("[DevToolsPlugin] 注册菜单扩展点");
 
@@ -68,7 +46,7 @@ public class DevToolsPlugin : IPlugin
         {
             Id = "devtools.menu.main",
             Name = "开发者工具",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-solid fa-wrench",
             Path = "/dev-tools",
             Order = 250,
@@ -79,7 +57,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.json",
                     Name = "JSON工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-braille",
                     Path = "/dev-tools/json",
                     Order = 1,
@@ -89,7 +67,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.yaml",
                     Name = "YAML工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-list-ul",
                     Path = "/dev-tools/yaml",
                     Order = 2,
@@ -99,7 +77,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.xml",
                     Name = "XML工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-code",
                     Path = "/dev-tools/xml",
                     Order = 3,
@@ -109,7 +87,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.converter",
                     Name = "格式转换",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-right-left",
                     Path = "/dev-tools/converter",
                     Order = 4,
@@ -119,7 +97,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.encoding",
                     Name = "编码转换",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-keyboard",
                     Path = "/dev-tools/encoding",
                     Order = 5,
@@ -129,7 +107,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.hash",
                     Name = "哈希计算",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-fingerprint",
                     Path = "/dev-tools/hash",
                     Order = 6,
@@ -139,7 +117,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.encrypt",
                     Name = "加密解密",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-lock",
                     Path = "/dev-tools/encrypt",
                     Order = 7,
@@ -149,7 +127,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.regex",
                     Name = "正则测试",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-code-branch",
                     Path = "/dev-tools/regex",
                     Order = 8,
@@ -159,7 +137,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.timestamp",
                     Name = "时间戳",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-clock",
                     Path = "/dev-tools/timestamp",
                     Order = 9,
@@ -169,7 +147,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.color",
                     Name = "颜色工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-palette",
                     Path = "/dev-tools/color",
                     Order = 10,
@@ -179,7 +157,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.jwt",
                     Name = "JWT工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-key",
                     Path = "/dev-tools/jwt",
                     Order = 11,
@@ -189,7 +167,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.uuid",
                     Name = "UUID/ID生成",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-fingerprint",
                     Path = "/dev-tools/uuid",
                     Order = 12,
@@ -199,7 +177,7 @@ public class DevToolsPlugin : IPlugin
                 {
                     Id = "devtools.menu.qrcode",
                     Name = "二维码工具",
-                    PluginId = Id,
+                    PluginId = pluginId,
                     Icon = "fa-solid fa-qrcode",
                     Path = "/dev-tools/qrcode",
                     Order = 13,
@@ -212,36 +190,36 @@ public class DevToolsPlugin : IPlugin
         XTrace.Log.Debug("[DevToolsPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions()
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
     {
         XTrace.Log.Debug("[DevToolsPlugin] 注册AI工具函数扩展点");
 
-        ToolExtensions.Add(new FormatJsonToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ValidateJsonToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ConvertJsonYamlToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new JsonPathQueryToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new FormatXmlToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new Base64EncodeToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new Base64DecodeToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new UrlEncodeToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new UrlDecodeToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ComputeHashToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ComputeHmacToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new AesEncryptToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new AesDecryptToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new TestRegexToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateRegexToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new RegexReplaceToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ConvertTimestampToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ConvertColorToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateColorPaletteToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new CheckColorContrastToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new DecodeJwtToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new ValidateJwtToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateJwtToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateUuidToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateSnowflakeIdToolFunction(Id, _serviceProvider));
-        ToolExtensions.Add(new GenerateQrCodeToolFunction(Id, _serviceProvider));
+        ToolExtensions.Add(new FormatJsonToolFunction(pluginId, services));
+        ToolExtensions.Add(new ValidateJsonToolFunction(pluginId, services));
+        ToolExtensions.Add(new ConvertJsonYamlToolFunction(pluginId, services));
+        ToolExtensions.Add(new JsonPathQueryToolFunction(pluginId, services));
+        ToolExtensions.Add(new FormatXmlToolFunction(pluginId, services));
+        ToolExtensions.Add(new Base64EncodeToolFunction(pluginId, services));
+        ToolExtensions.Add(new Base64DecodeToolFunction(pluginId, services));
+        ToolExtensions.Add(new UrlEncodeToolFunction(pluginId, services));
+        ToolExtensions.Add(new UrlDecodeToolFunction(pluginId, services));
+        ToolExtensions.Add(new ComputeHashToolFunction(pluginId, services));
+        ToolExtensions.Add(new ComputeHmacToolFunction(pluginId, services));
+        ToolExtensions.Add(new AesEncryptToolFunction(pluginId, services));
+        ToolExtensions.Add(new AesDecryptToolFunction(pluginId, services));
+        ToolExtensions.Add(new TestRegexToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateRegexToolFunction(pluginId, services));
+        ToolExtensions.Add(new RegexReplaceToolFunction(pluginId, services));
+        ToolExtensions.Add(new ConvertTimestampToolFunction(pluginId, services));
+        ToolExtensions.Add(new ConvertColorToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateColorPaletteToolFunction(pluginId, services));
+        ToolExtensions.Add(new CheckColorContrastToolFunction(pluginId, services));
+        ToolExtensions.Add(new DecodeJwtToolFunction(pluginId, services));
+        ToolExtensions.Add(new ValidateJwtToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateJwtToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateUuidToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateSnowflakeIdToolFunction(pluginId, services));
+        ToolExtensions.Add(new GenerateQrCodeToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[DevToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }

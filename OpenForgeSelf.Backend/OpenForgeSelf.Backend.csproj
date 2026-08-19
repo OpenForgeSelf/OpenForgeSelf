@@ -9,6 +9,75 @@
     <ApplicationIcon>Assets\OpenForgeSelf.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- MemorySystem/TodoTracker/QuickLinks/TextTools 已拆分为独立程序集（ADR D2），Backend 不再编译其源码，
+       避免默认 ALC 重复加载；同时排除其嵌套 bin/obj，防止 Web SDK 默认 glob 把这些构建产物当 Content/None
+       复制进输出目录。
+       第二批（FileTools/DevTools/SystemMonitor，ADR D2 续）同模式拆分
+       第三批（Scheduler/ScriptRunner/WorkflowEngine，ADR D2 续）同模式拆分
+       第四批（AIAgent，ADR D2 续）同模式拆分 -->
+  <ItemGroup>
+    <Compile Remove="Plugins\MemorySystem\**\*.cs" />
+    <Compile Remove="Plugins\TodoTracker\**\*.cs" />
+    <Compile Remove="Plugins\QuickLinks\**\*.cs" />
+    <Compile Remove="Plugins\TextTools\**\*.cs" />
+    <Compile Remove="Plugins\FileTools\**\*.cs" />
+    <Compile Remove="Plugins\DevTools\**\*.cs" />
+    <Compile Remove="Plugins\SystemMonitor\**\*.cs" />
+    <Compile Remove="Plugins\Scheduler\**\*.cs" />
+    <Compile Remove="Plugins\ScriptRunner\**\*.cs" />
+    <Compile Remove="Plugins\WorkflowEngine\**\*.cs" />
+    <Compile Remove="Plugins\AIAgent\**\*.cs" />
+    <Compile Remove="Plugins\ProxyCapture\**\*.cs" />
+    <Content Remove="Plugins\MemorySystem\bin\**" />
+    <Content Remove="Plugins\MemorySystem\obj\**" />
+    <Content Remove="Plugins\TodoTracker\bin\**" />
+    <Content Remove="Plugins\TodoTracker\obj\**" />
+    <Content Remove="Plugins\QuickLinks\bin\**" />
+    <Content Remove="Plugins\QuickLinks\obj\**" />
+    <Content Remove="Plugins\TextTools\bin\**" />
+    <Content Remove="Plugins\TextTools\obj\**" />
+    <Content Remove="Plugins\FileTools\bin\**" />
+    <Content Remove="Plugins\FileTools\obj\**" />
+    <Content Remove="Plugins\DevTools\bin\**" />
+    <Content Remove="Plugins\DevTools\obj\**" />
+    <Content Remove="Plugins\SystemMonitor\bin\**" />
+    <Content Remove="Plugins\SystemMonitor\obj\**" />
+    <Content Remove="Plugins\Scheduler\bin\**" />
+    <Content Remove="Plugins\Scheduler\obj\**" />
+    <Content Remove="Plugins\ScriptRunner\bin\**" />
+    <Content Remove="Plugins\ScriptRunner\obj\**" />
+    <Content Remove="Plugins\WorkflowEngine\bin\**" />
+    <Content Remove="Plugins\WorkflowEngine\obj\**" />
+    <Content Remove="Plugins\AIAgent\bin\**" />
+    <Content Remove="Plugins\AIAgent\obj\**" />
+    <Content Remove="Plugins\ProxyCapture\bin\**" />
+    <Content Remove="Plugins\ProxyCapture\obj\**" />
+    <None Remove="Plugins\MemorySystem\bin\**" />
+    <None Remove="Plugins\MemorySystem\obj\**" />
+    <None Remove="Plugins\TodoTracker\bin\**" />
+    <None Remove="Plugins\TodoTracker\obj\**" />
+    <None Remove="Plugins\QuickLinks\bin\**" />
+    <None Remove="Plugins\QuickLinks\obj\**" />
+    <None Remove="Plugins\TextTools\bin\**" />
+    <None Remove="Plugins\TextTools\obj\**" />
+    <None Remove="Plugins\FileTools\bin\**" />
+    <None Remove="Plugins\FileTools\obj\**" />
+    <None Remove="Plugins\DevTools\bin\**" />
+    <None Remove="Plugins\DevTools\obj\**" />
+    <None Remove="Plugins\SystemMonitor\bin\**" />
+    <None Remove="Plugins\SystemMonitor\obj\**" />
+    <None Remove="Plugins\Scheduler\bin\**" />
+    <None Remove="Plugins\Scheduler\obj\**" />
+    <None Remove="Plugins\ScriptRunner\bin\**" />
+    <None Remove="Plugins\ScriptRunner\obj\**" />
+    <None Remove="Plugins\WorkflowEngine\bin\**" />
+    <None Remove="Plugins\WorkflowEngine\obj\**" />
+    <None Remove="Plugins\AIAgent\bin\**" />
+    <None Remove="Plugins\AIAgent\obj\**" />
+    <None Remove="Plugins\ProxyCapture\bin\**" />
+    <None Remove="Plugins\ProxyCapture\obj\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon" Version="2.4.1" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.6.1" />
@@ -29,5 +98,135 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenForgeSelf.Core\OpenForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\OpenForgeSelf.Abstractions\OpenForgeSelf.Abstractions.csproj" />
+    <!-- 仅建立构建顺序（插件先于 Backend 编译），不编译引用、不复制到输出根目录，
+         避免插件类型进入默认 ALC 造成与 PluginLoadContext 的双重加载。 -->
+    <ProjectReference Include="Plugins\MemorySystem\MemorySystem.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\TodoTracker\TodoTracker.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\QuickLinks\QuickLinks.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\TextTools\TextTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\FileTools\FileTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\DevTools\DevTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\SystemMonitor\SystemMonitor.csproj" ReferenceOutputAssembly="false" />
+    <!-- 第三批（Scheduler/ScriptRunner/WorkflowEngine，ADR D2 续） -->
+    <ProjectReference Include="Plugins\Scheduler\Scheduler.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\ScriptRunner\ScriptRunner.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\WorkflowEngine\WorkflowEngine.csproj" ReferenceOutputAssembly="false" />
+    <!-- 第四批（AIAgent，ADR D2 续） -->
+    <ProjectReference Include="Plugins\AIAgent\AIAgent.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\ProxyCapture\ProxyCapture.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- 将插件 DLL 复制到 Backend 输出的 Plugins/<Name>/ 目录，供 PluginManager 隔离加载 -->
+  <Target Name="StageMemorySystemPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_MemorySystemDll Include="Plugins\MemorySystem\bin\$(Configuration)\net10.0\MemorySystem.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_MemorySystemDll)"
+          DestinationFolder="$(OutDir)Plugins\MemorySystem\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageTodoTrackerPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_TodoTrackerDll Include="Plugins\TodoTracker\bin\$(Configuration)\net10.0\TodoTracker.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_TodoTrackerDll)"
+          DestinationFolder="$(OutDir)Plugins\TodoTracker\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageQuickLinksPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_QuickLinksDll Include="Plugins\QuickLinks\bin\$(Configuration)\net10.0\QuickLinks.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_QuickLinksDll)"
+          DestinationFolder="$(OutDir)Plugins\QuickLinks\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageTextToolsPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_TextToolsDll Include="Plugins\TextTools\bin\$(Configuration)\net10.0\TextTools.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_TextToolsDll)"
+          DestinationFolder="$(OutDir)Plugins\TextTools\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageFileToolsPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_FileToolsDll Include="Plugins\FileTools\bin\$(Configuration)\net10.0\FileTools.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FileToolsDll)"
+          DestinationFolder="$(OutDir)Plugins\FileTools\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageDevToolsPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_DevToolsDll Include="Plugins\DevTools\bin\$(Configuration)\net10.0\DevTools.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DevToolsDll)"
+          DestinationFolder="$(OutDir)Plugins\DevTools\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageSystemMonitorPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_SystemMonitorDll Include="Plugins\SystemMonitor\bin\$(Configuration)\net10.0\SystemMonitor.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SystemMonitorDll)"
+          DestinationFolder="$(OutDir)Plugins\SystemMonitor\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageSchedulerPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_SchedulerDll Include="Plugins\Scheduler\bin\$(Configuration)\net10.0\Scheduler.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SchedulerDll)"
+          DestinationFolder="$(OutDir)Plugins\Scheduler\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageScriptRunnerPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_ScriptRunnerDll Include="Plugins\ScriptRunner\bin\$(Configuration)\net10.0\ScriptRunner.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ScriptRunnerDll)"
+          DestinationFolder="$(OutDir)Plugins\ScriptRunner\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageWorkflowEnginePlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_WorkflowEngineDll Include="Plugins\WorkflowEngine\bin\$(Configuration)\net10.0\WorkflowEngine.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_WorkflowEngineDll)"
+          DestinationFolder="$(OutDir)Plugins\WorkflowEngine\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageAIAgentPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_AIAgentDll Include="Plugins\AIAgent\bin\$(Configuration)\net10.0\AIAgent.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AIAgentDll)"
+          DestinationFolder="$(OutDir)Plugins\AIAgent\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageProxyCapturePlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_ProxyCaptureDll Include="Plugins\ProxyCapture\bin\$(Configuration)\net10.0\ProxyCapture.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ProxyCaptureDll)"
+          DestinationFolder="$(OutDir)Plugins\ProxyCapture\"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

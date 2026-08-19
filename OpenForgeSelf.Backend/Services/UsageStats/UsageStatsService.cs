@@ -2,9 +2,8 @@ using System.Text.Json;
 using XCodeUsageRecord = OpenForgeSelf.Backend.Entities.UsageRecord;
 using XCodeUsageDailySummary = OpenForgeSelf.Backend.Entities.UsageDailySummary;
 using XCodeWorkflowUsageRecord = OpenForgeSelf.Backend.Entities.WorkflowUsageRecord;
+using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Models.UsageStats;
-using OpenForgeSelf.Backend.Plugins.ScriptRunner.Data;
-using Microsoft.EntityFrameworkCore;
 using NewLife;
 using NewLife.Data;
 using NewLife.Log;
@@ -18,14 +17,21 @@ namespace OpenForgeSelf.Backend.Services.UsageStats;
 /// </summary>
 public class UsageStatsService : IUsageStatsService
 {
-    private readonly string _scriptRunnerDbPath;
+    private readonly IScriptLibraryStatsProvider? _scriptStatsProvider;
 
     /// <summary>
-    /// 构造函数
+    /// 构造函数（测试/无插件场景：脚本库统计不可用，返回默认值）
     /// </summary>
     public UsageStatsService()
     {
-        _scriptRunnerDbPath = Path.Combine(AppContext.BaseDirectory, "scriptrunner.db");
+    }
+
+    /// <summary>
+    /// 构造函数：经共享契约读取脚本库统计（ADR D2），插件未加载时安全降级为空统计。
+    /// </summary>
+    public UsageStatsService(IServiceProvider serviceProvider)
+    {
+        _scriptStatsProvider = serviceProvider.GetService<IScriptLibraryStatsProvider>();
     }
 
     /// <inheritdoc />
@@ -424,26 +430,14 @@ public class UsageStatsService : IUsageStatsService
 
             try
             {
-                using var scriptDb = CreateScriptRunnerDbContext();
-                stats.ScriptCount = await scriptDb.Scripts.CountAsync();
-                stats.CodeSnippetCount = await scriptDb.CodeSnippets.CountAsync();
-                var favoriteScripts = await scriptDb.Scripts.CountAsync(s => s.IsFavorite);
-                var favoriteSnippets = await scriptDb.CodeSnippets.CountAsync(s => s.IsFavorite);
-                stats.FavoriteCount = favoriteScripts + favoriteSnippets;
-
-                var topScripts = await scriptDb.Scripts
-                    .OrderByDescending(s => s.UsageCount)
-                    .Take(10)
-                    .Select(s => new TopScriptItem
-                    {
-                        ScriptId = s.Id,
-                        ScriptName = s.Name,
-                        Language = ((Plugins.ScriptRunner.Models.ScriptLanguage)s.Language).ToString(),
-                        UsageCount = s.UsageCount,
-                        LastUsedAt = s.LastUsedAt
-                    })
-                    .ToListAsync();
-                stats.TopScripts = topScripts;
+                if (_scriptStatsProvider != null)
+                {
+                    var libraryStats = await _scriptStatsProvider.GetLibraryStatsAsync();
+                    stats.ScriptCount = libraryStats.ScriptCount;
+                    stats.CodeSnippetCount = libraryStats.CodeSnippetCount;
+                    stats.FavoriteCount = libraryStats.FavoriteCount;
+                    stats.TopScripts = libraryStats.TopScripts;
+                }
             }
             catch (Exception ex)
             {
@@ -556,19 +550,13 @@ public class UsageStatsService : IUsageStatsService
 
             try
             {
-                using var scriptDb = CreateScriptRunnerDbContext();
-
-                newScriptsByDate = await scriptDb.Scripts
-                    .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate.AddDays(1))
-                    .GroupBy(s => s.CreatedAt.Date)
-                    .Select(g => new { Date = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(r => r.Date, r => r.Count);
-
-                newSnippetsByDate = await scriptDb.CodeSnippets
-                    .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate.AddDays(1))
-                    .GroupBy(s => s.CreatedAt.Date)
-                    .Select(g => new { Date = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(r => r.Date, r => r.Count);
+                if (_scriptStatsProvider != null)
+                {
+                    // 与旧 EF 查询一致：结束时间取 endDate.AddDays(1)（闭区间）。
+                    var creationStats = await _scriptStatsProvider.GetCreationStatsAsync(startDate, endDate.AddDays(1));
+                    newScriptsByDate = creationStats.NewScriptsByDate;
+                    newSnippetsByDate = creationStats.NewCodeSnippetsByDate;
+                }
             }
             catch (Exception ex)
             {
@@ -663,30 +651,32 @@ public class UsageStatsService : IUsageStatsService
 
             try
             {
-                using var scriptDb = CreateScriptRunnerDbContext();
-                var totalScriptUsage = await scriptDb.Scripts.SumAsync(s => s.UsageCount);
-                var scriptSavedSeconds = totalScriptUsage * averageSavedSecondsPerScriptUse;
-                totalSavedSeconds += scriptSavedSeconds;
-                totalUsageCount += totalScriptUsage;
-
-                byCategory.Add(new TimeSavedCategoryItem
+                if (_scriptStatsProvider != null)
                 {
-                    Category = "脚本",
-                    UsageCount = totalScriptUsage,
-                    TimeSavedSeconds = scriptSavedSeconds
-                });
+                    var totals = await _scriptStatsProvider.GetUsageTotalsAsync();
 
-                var totalSnippetUsage = await scriptDb.CodeSnippets.SumAsync(s => s.UsageCount);
-                var snippetSavedSeconds = totalSnippetUsage * 60.0;
-                totalSavedSeconds += snippetSavedSeconds;
-                totalUsageCount += totalSnippetUsage;
+                    var scriptSavedSeconds = totals.ScriptUsageCount * averageSavedSecondsPerScriptUse;
+                    totalSavedSeconds += scriptSavedSeconds;
+                    totalUsageCount += totals.ScriptUsageCount;
 
-                byCategory.Add(new TimeSavedCategoryItem
-                {
-                    Category = "代码片段",
-                    UsageCount = totalSnippetUsage,
-                    TimeSavedSeconds = snippetSavedSeconds
-                });
+                    byCategory.Add(new TimeSavedCategoryItem
+                    {
+                        Category = "脚本",
+                        UsageCount = totals.ScriptUsageCount,
+                        TimeSavedSeconds = scriptSavedSeconds
+                    });
+
+                    var snippetSavedSeconds = totals.CodeSnippetUsageCount * 60.0;
+                    totalSavedSeconds += snippetSavedSeconds;
+                    totalUsageCount += totals.CodeSnippetUsageCount;
+
+                    byCategory.Add(new TimeSavedCategoryItem
+                    {
+                        Category = "代码片段",
+                        UsageCount = totals.CodeSnippetUsageCount,
+                        TimeSavedSeconds = snippetSavedSeconds
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -725,13 +715,6 @@ public class UsageStatsService : IUsageStatsService
             XTrace.Log.Error("获取节省时间估算失败: {0}", ex.Message);
             throw;
         }
-    }
-
-    private ScriptRunnerDbContext CreateScriptRunnerDbContext()
-    {
-        var optionsBuilder = new DbContextOptionsBuilder<ScriptRunnerDbContext>();
-        optionsBuilder.UseSqlite($"Data Source={_scriptRunnerDbPath}");
-        return new ScriptRunnerDbContext(optionsBuilder.Options);
     }
 
     private static UsageRecord ToModel(XCodeUsageRecord entity)

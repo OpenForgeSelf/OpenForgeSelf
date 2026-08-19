@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Data;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Models;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -13,89 +13,32 @@ namespace OpenForgeSelf.Backend.Plugins.MemorySystem;
 
 public class MemorySystemPlugin : IPlugin
 {
-    public string Id => "memorysystem.plugin";
-    public string Name => "记忆系统插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "AI 记忆系统插件，支持短期记忆、长期记忆和语义搜索，让 AI 真正懂你。";
-    public string IconUrl => "https://example.com/memory-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
-    private IServiceProvider? _serviceProvider;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("[MemorySystem] 初始化记忆系统插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("[MemorySystem] 初始化记忆系统插件");
 
-            RegisterMenuExtensions();
-            RegisterToolExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<IMemoryService, MemoryServiceXCode>();
+        services?.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
 
-            XTrace.Log.Info("[MemorySystem] 记忆系统插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[MemorySystem] 记忆系统插件初始化失败: {0}", ex.Message);
-            throw;
-        }
+        RegisterMenuExtensions(pluginId);
+        RegisterToolExtensions(pluginId, ctx);
+        EnsureDatabaseCreated();
+
+        XTrace.Log.Info("[MemorySystem] 记忆系统插件初始化完成");
     }
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("[MemorySystem] 启动记忆系统插件");
-            EnsureDatabaseCreated();
-            XTrace.Log.Info("[MemorySystem] 记忆系统插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[MemorySystem] 记忆系统插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("[MemorySystem] 停止记忆系统插件");
-            XTrace.Log.Info("[MemorySystem] 记忆系统插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[MemorySystem] 记忆系统插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("[MemorySystem] 销毁记忆系统插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("[MemorySystem] 记忆系统插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[MemorySystem] 记忆系统插件销毁失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         MenuExtensions.Add(new MemorySystemMenuExtension
         {
             Id = "memorysystem.menu.main",
             Name = "记忆管理",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-brain",
             Path = "/memory",
             Order = 50,
@@ -105,13 +48,13 @@ public class MemorySystemPlugin : IPlugin
         XTrace.Log.Debug("[MemorySystem] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolExtensions()
+    private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {
-        ToolExtensions.Add(new GetRelevantMemoriesToolFunction(_serviceProvider)
+        ToolExtensions.Add(new GetRelevantMemoriesToolFunction(services)
         {
             Id = "memorysystem.tool.get_relevant_memories",
             Name = "get_relevant_memories",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "从长期记忆中检索与当前问题相关的记忆，支持语义相似度搜索",
             ParametersJsonSchema = @"
 {
@@ -136,11 +79,11 @@ public class MemorySystemPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new AddMemoryToolFunction(_serviceProvider)
+        ToolExtensions.Add(new AddMemoryToolFunction(services)
         {
             Id = "memorysystem.tool.add_memory",
             Name = "add_memory",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "添加一条新的长期记忆，保存重要信息供以后使用",
             ParametersJsonSchema = @"
 {
@@ -178,11 +121,11 @@ public class MemorySystemPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new SearchMemoriesToolFunction(_serviceProvider)
+        ToolExtensions.Add(new SearchMemoriesToolFunction(services)
         {
             Id = "memorysystem.tool.search_memories",
             Name = "search_memories",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "搜索记忆，支持按关键词、类型、分类、标签等条件筛选",
             ParametersJsonSchema = @"
 {
@@ -215,11 +158,11 @@ public class MemorySystemPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new UpdateMemoryToolFunction(_serviceProvider)
+        ToolExtensions.Add(new UpdateMemoryToolFunction(services)
         {
             Id = "memorysystem.tool.update_memory",
             Name = "update_memory",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "更新已有的记忆条目",
             ParametersJsonSchema = @"
 {
@@ -251,11 +194,11 @@ public class MemorySystemPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new GetMemoryStatsToolFunction(_serviceProvider)
+        ToolExtensions.Add(new GetMemoryStatsToolFunction(services)
         {
             Id = "memorysystem.tool.get_memory_stats",
             Name = "get_memory_stats",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "获取记忆系统的统计信息，包括记忆总数、分类统计、最近记忆等",
             ParametersJsonSchema = @"
 {

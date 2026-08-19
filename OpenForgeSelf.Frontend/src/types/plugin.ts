@@ -167,3 +167,37 @@ export interface PluginListParams {
 export interface PluginSettings {
   [key: string]: unknown
 }
+
+/**
+ * 插件前端贡献协议（与后端 PluginMetadata.Frontend 对应）。
+ * 声明插件希望前端渲染的视图、菜单、路由与图标。
+ */
+export interface FrontendContributes {
+  views: string[]
+  menu?: string
+  route?: string
+  icon?: string
+}
+
+/**
+ * 前端插件清单条目（对应 GET /api/plugin/frontend-manifest）。
+ */
+export interface PluginFrontendManifest {
+  id: string
+  name: string
+  frontend: FrontendContributes | null
+  isEnabled: boolean
+}
+
+/**
+ * 由清单归一化出的菜单贡献条目（store 的 menus getter 输出）。
+ * 供 features.ts 做「内置特性 + 运行期清单补充」合并。
+ */
+export interface PluginMenuContribution {
+  id: string
+  name: string
+  menu: string
+  route: string | null
+  icon: string | null
+  views: string[]
+}

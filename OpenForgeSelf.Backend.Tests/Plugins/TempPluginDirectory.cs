@@ -1,5 +1,5 @@
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
 
 namespace OpenForgeSelf.Backend.Tests.Plugins;
 

@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using OpenForgeSelf.Backend.Plugins.Abstractions;
+using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Models;
 using OpenForgeSelf.Backend.Plugins.Scheduler.Services;
-using OpenForgeSelf.Backend.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 using XCode.DataAccessLayer;
@@ -12,96 +12,42 @@ namespace OpenForgeSelf.Backend.Plugins.Scheduler;
 
 public class SchedulerPlugin : IPlugin
 {
-    public string Id => "scheduler.plugin";
-    public string Name => "定时任务插件";
-    public string Version => "1.0.0";
-    public string Author => "OpenForgeSelf Team";
-    public string Description => "定时任务调度插件，支持Cron表达式、间隔执行、单次执行等多种调度方式，可定时执行工作流、系统命令和HTTP Webhook。";
-    public string IconUrl => "https://example.com/scheduler-icon.png";
-
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
-    private IServiceProvider? _serviceProvider;
-    private ITaskScheduler? _taskScheduler;
-
-    public void Initialize(IServiceProvider services)
+    public void Apply(IContext ctx)
     {
-        try
-        {
-            XTrace.Log.Info("初始化定时任务插件");
-            _serviceProvider = services;
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        XTrace.Log.Info("初始化定时任务插件");
 
-            RegisterMenuExtensions();
-            RegisterToolExtensions();
+        var services = ctx.Get<IServiceCollection>();
+        services?.AddScoped<ISchedulerService, SchedulerService>();
+        services?.AddSingleton<ITaskScheduler, Services.TaskScheduler>();
+        // 宿主启动契约（ADR D2）：AppBuilder 经共享接口启动 DI 单例调度器，避免宿主引用插件程序集。
+        services?.AddSingleton<ISchedulerHost>(sp => (ISchedulerHost)sp.GetRequiredService<ITaskScheduler>());
+        services?.AddSingleton<WorkflowTaskHandler>();
+        services?.AddSingleton<HttpWebhookHandler>();
+        services?.AddSingleton<ITaskExecutor, TaskExecutor>();
 
-            XTrace.Log.Info("定时任务插件初始化完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("定时任务插件初始化失败: {0}", ex.Message);
-            throw;
-        }
+        RegisterMenuExtensions(pluginId);
+        RegisterToolExtensions(pluginId, ctx);
+
+        EnsureDatabaseCreated();
+
+        // 调度器的真正启动由 AppBuilder 对 DI 单例 ITaskScheduler 调用 StartAsync 负责（避免双实例）。
+        // 此处仅注册「停止」副作用：插件卸载时停止 DI 单例调度器，而不是立即启动独立实例。
+        ctx.Effect(() => new ActionDisposable(() => StopScheduler(ctx)));
+
+        XTrace.Log.Info("定时任务插件初始化完成");
     }
 
-    public void Start()
-    {
-        try
-        {
-            XTrace.Log.Info("启动定时任务插件");
-
-            EnsureDatabaseCreated();
-            StartScheduler();
-
-            XTrace.Log.Info("定时任务插件启动完成");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("定时任务插件启动失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Stop()
-    {
-        try
-        {
-            XTrace.Log.Info("停止定时任务插件");
-
-            StopScheduler();
-
-            XTrace.Log.Info("定时任务插件已停止");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("定时任务插件停止失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    public void Destroy()
-    {
-        try
-        {
-            XTrace.Log.Info("销毁定时任务插件");
-            MenuExtensions.Clear();
-            ToolExtensions.Clear();
-            XTrace.Log.Info("定时任务插件已销毁");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("定时任务插件销毁失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
-    private void RegisterMenuExtensions()
+    private void RegisterMenuExtensions(string pluginId)
     {
         MenuExtensions.Add(new SchedulerMenuExtension
         {
             Id = "scheduler.menu.main",
             Name = "定时任务",
-            PluginId = Id,
+            PluginId = pluginId,
             Icon = "fa-clock",
             Path = "/scheduler",
             Order = 90,
@@ -111,13 +57,13 @@ public class SchedulerPlugin : IPlugin
         XTrace.Log.Debug("定时任务插件已注册菜单扩展点");
     }
 
-    private void RegisterToolExtensions()
+    private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {
-        ToolExtensions.Add(new ScheduleTaskToolFunction(_serviceProvider)
+        ToolExtensions.Add(new ScheduleTaskToolFunction(services)
         {
             Id = "scheduler.tool.create_scheduled_task",
             Name = "create_scheduled_task",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "创建一个定时任务，支持工作流、系统命令和HTTP Webhook的定时执行",
             ParametersJsonSchema = @"
 {
@@ -171,11 +117,11 @@ public class SchedulerPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new ListScheduledTasksToolFunction(_serviceProvider)
+        ToolExtensions.Add(new ListScheduledTasksToolFunction(services)
         {
             Id = "scheduler.tool.list_scheduled_tasks",
             Name = "list_scheduled_tasks",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "列出所有定时任务，支持按关键词和状态筛选",
             ParametersJsonSchema = @"
 {
@@ -205,11 +151,11 @@ public class SchedulerPlugin : IPlugin
 }"
         });
 
-        ToolExtensions.Add(new PauseScheduledTaskToolFunction(_serviceProvider)
+        ToolExtensions.Add(new PauseScheduledTaskToolFunction(services)
         {
             Id = "scheduler.tool.pause_scheduled_task",
             Name = "pause_scheduled_task",
-            PluginId = Id,
+            PluginId = pluginId,
             Description = "暂停指定的定时任务",
             ParametersJsonSchema = @"
 {
@@ -242,37 +188,28 @@ public class SchedulerPlugin : IPlugin
         }
     }
 
-    private void StartScheduler()
+    private static void StopScheduler(IContext ctx)
     {
         try
         {
-            var cronParser = new CronParser();
-            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
-            var httpHandler = new HttpWebhookHandler();
-            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
-
-            _taskScheduler = new Services.TaskScheduler(taskExecutor, cronParser);
-            _taskScheduler.StartAsync().Wait();
-
-            XTrace.Log.Info("定时任务调度器已启动");
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("启动定时任务调度器失败: {0}", ex.Message);
-        }
-    }
-
-    private void StopScheduler()
-    {
-        try
-        {
-            _taskScheduler?.StopAsync().Wait();
+            // 经宿主提供的 ISchedulerHost（已在初始化阶段 seed 进插件根上下文）停止调度器，
+            // 避免直接依赖插件局部的 ITaskScheduler 完整契约（移除宿主服务透传后 ctx 不再回落宿主 DI）。
+            ctx.Get<ISchedulerHost>()?.StopAsync().Wait();
             XTrace.Log.Info("定时任务调度器已停止");
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("停止定时任务调度器失败: {0}", ex.Message);
         }
+    }
+
+    private sealed class ActionDisposable : IDisposable
+    {
+        private Action? _action;
+
+        public ActionDisposable(Action action) => _action = action;
+
+        public void Dispose() => Interlocked.Exchange(ref _action, null)?.Invoke();
     }
 }
 
@@ -343,12 +280,13 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
                 runAt = runAtValue;
             }
 
-            var cronParser = new CronParser();
+            // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
+            var ctx = (IContext)_serviceProvider!;
             var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
             var httpHandler = new HttpWebhookHandler();
             var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
-            var taskScheduler = new Services.TaskScheduler(taskExecutor, cronParser);
-            var service = new SchedulerService(cronParser, taskScheduler);
+            var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
+            var service = new SchedulerService(ctx, taskScheduler);
 
             var request = new CreateScheduledTaskRequest
             {
@@ -387,7 +325,7 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["taskId"] = task.Id,
                 ["taskName"] = task.Name,
@@ -401,7 +339,7 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[Scheduler] 执行 create_scheduled_task 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("create_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "create_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -410,29 +348,6 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[Scheduler] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class ListScheduledTasksToolFunction : IToolFunctionExtension
@@ -480,12 +395,13 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
             if (root.TryGetProperty("pageSize", out var pageSizeProp))
                 pageSize = pageSizeProp.GetInt32();
 
-            var cronParser = new CronParser();
+            // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
+            var ctx = (IContext)_serviceProvider!;
             var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
             var httpHandler = new HttpWebhookHandler();
             var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
-            var taskScheduler = new Services.TaskScheduler(taskExecutor, cronParser);
-            var service = new SchedulerService(cronParser, taskScheduler);
+            var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
+            var service = new SchedulerService(ctx, taskScheduler);
 
             var result = await service.ListTasksAsync(keyword, status, page, pageSize);
 
@@ -515,7 +431,7 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_scheduled_tasks", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_scheduled_tasks", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["keyword"] = keyword ?? string.Empty,
                 ["total"] = result.Total
@@ -528,7 +444,7 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[Scheduler] 执行 list_scheduled_tasks 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("list_scheduled_tasks", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "list_scheduled_tasks", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -537,29 +453,6 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[Scheduler] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }
 
 public class PauseScheduledTaskToolFunction : IToolFunctionExtension
@@ -588,12 +481,13 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
             var root = doc.RootElement;
             var taskId = root.GetProperty("taskId").GetInt64();
 
-            var cronParser = new CronParser();
+            // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
+            var ctx = (IContext)_serviceProvider!;
             var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
             var httpHandler = new HttpWebhookHandler();
             var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
-            var taskScheduler = new Services.TaskScheduler(taskExecutor, cronParser);
-            var service = new SchedulerService(cronParser, taskScheduler);
+            var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
+            var service = new SchedulerService(ctx, taskScheduler);
 
             var task = await service.ToggleTaskStatusAsync(taskId, false);
             if (task == null)
@@ -616,7 +510,7 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
             var json = JsonSerializer.Serialize(response);
 
             stopwatch.Stop();
-            await RecordUsageAsync("pause_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "pause_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["taskId"] = taskId
             });
@@ -628,7 +522,7 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[Scheduler] 执行 pause_scheduled_task 工具函数失败: {0}", ex.Message);
 
             stopwatch.Stop();
-            await RecordUsageAsync("pause_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(_serviceProvider, "pause_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });
@@ -637,27 +531,4 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
         }
     }
 
-    private async Task RecordUsageAsync(string actionType, long durationMs, Dictionary<string, object>? metadata = null)
-    {
-        try
-        {
-            if (_serviceProvider == null) return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
-            if (usageStatsService != null)
-            {
-                await usageStatsService.RecordUsageAsync(
-                    PluginId,
-                    Id,
-                    actionType,
-                    durationMs,
-                    metadata);
-            }
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[Scheduler] 记录使用统计失败: {0}", ex.Message);
-        }
-    }
 }

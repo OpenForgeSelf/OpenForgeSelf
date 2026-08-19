@@ -5,77 +5,75 @@ using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.SystemMonitor.Hubs;
 
-public class MonitorHub : Hub
+/// <summary>
+/// 系统监控数据广播器（宿主 DI 单例）。
+/// 持有 SignalR <see cref="IHubContext{MonitorHub}"/> 与连接/订阅路由状态，并负责后台实时广播循环。
+/// 取代原先「静态 SetServiceProvider + 静态访问」模式：不再以静态字段长期持有插件 Fiber 上下文，
+/// 避免插件卸载后因静态根引用导致 ALC 无法被 GC 回收。监控服务与 Hub 上下文均通过构造注入。
+/// </summary>
+public class MonitorBroadcaster
 {
+    private readonly IHubContext<MonitorHub> _hubContext;
     private readonly ICpuMonitorService _cpuMonitorService;
     private readonly IMemoryMonitorService _memoryMonitorService;
     private readonly IDiskMonitorService _diskMonitorService;
     private readonly INetworkMonitorService _networkMonitorService;
-    private readonly IProcessMonitorService _processMonitorService;
 
-    private static readonly HashSet<string> ConnectedConnections = new();
-    private static readonly Dictionary<string, List<string>> Subscriptions = new();
-    private static int _updateIntervalMs = 1000;
-    private static bool _isRunning;
-    private static CancellationTokenSource? _cts;
-    private static Task? _broadcastTask;
-    private static readonly object _lock = new();
+    private readonly HashSet<string> _connectedConnections = new();
+    private readonly Dictionary<string, List<string>> _subscriptions = new();
+    private int _updateIntervalMs = 1000;
+    private bool _isRunning;
+    private CancellationTokenSource? _cts;
+    private Task? _broadcastTask;
+    private readonly object _lock = new();
 
-    public MonitorHub(
+    public MonitorBroadcaster(
+        IHubContext<MonitorHub> hubContext,
         ICpuMonitorService cpuMonitorService,
         IMemoryMonitorService memoryMonitorService,
         IDiskMonitorService diskMonitorService,
-        INetworkMonitorService networkMonitorService,
-        IProcessMonitorService processMonitorService)
+        INetworkMonitorService networkMonitorService)
     {
+        _hubContext = hubContext;
         _cpuMonitorService = cpuMonitorService;
         _memoryMonitorService = memoryMonitorService;
         _diskMonitorService = diskMonitorService;
         _networkMonitorService = networkMonitorService;
-        _processMonitorService = processMonitorService;
     }
 
-    public override async Task OnConnectedAsync()
+    public void OnConnected(string connectionId)
     {
         lock (_lock)
         {
-            ConnectedConnections.Add(Context.ConnectionId);
-            Subscriptions[Context.ConnectionId] = new List<string>
+            _connectedConnections.Add(connectionId);
+            _subscriptions[connectionId] = new List<string>
             {
                 "cpu", "memory", "disks", "network", "processes"
             };
         }
 
-        XTrace.Log.Info("[MonitorHub] 客户端连接: {0}", Context.ConnectionId);
-
         StartBroadcasting();
-
-        await base.OnConnectedAsync();
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
+    public void OnDisconnected(string connectionId)
     {
         lock (_lock)
         {
-            ConnectedConnections.Remove(Context.ConnectionId);
-            Subscriptions.Remove(Context.ConnectionId);
+            _connectedConnections.Remove(connectionId);
+            _subscriptions.Remove(connectionId);
 
-            if (ConnectedConnections.Count == 0)
+            if (_connectedConnections.Count == 0)
             {
                 StopBroadcasting();
             }
         }
-
-        XTrace.Log.Info("[MonitorHub] 客户端断开连接: {0}", Context.ConnectionId);
-
-        await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task Subscribe(string dataType)
+    public void Subscribe(string connectionId, string dataType)
     {
         lock (_lock)
         {
-            if (Subscriptions.TryGetValue(Context.ConnectionId, out var subs))
+            if (_subscriptions.TryGetValue(connectionId, out var subs))
             {
                 if (!subs.Contains(dataType))
                 {
@@ -83,26 +81,20 @@ public class MonitorHub : Hub
                 }
             }
         }
-
-        XTrace.Log.Debug("[MonitorHub] 客户端 {0} 订阅: {1}", Context.ConnectionId, dataType);
-        await Task.CompletedTask;
     }
 
-    public async Task Unsubscribe(string dataType)
+    public void Unsubscribe(string connectionId, string dataType)
     {
         lock (_lock)
         {
-            if (Subscriptions.TryGetValue(Context.ConnectionId, out var subs))
+            if (_subscriptions.TryGetValue(connectionId, out var subs))
             {
                 subs.Remove(dataType);
             }
         }
-
-        XTrace.Log.Debug("[MonitorHub] 客户端 {0} 取消订阅: {1}", Context.ConnectionId, dataType);
-        await Task.CompletedTask;
     }
 
-    public async Task SetUpdateInterval(int intervalMs)
+    public void SetUpdateInterval(int intervalMs)
     {
         if (intervalMs < 100)
             intervalMs = 100;
@@ -110,26 +102,14 @@ public class MonitorHub : Hub
             intervalMs = 60000;
 
         _updateIntervalMs = intervalMs;
-        XTrace.Log.Debug("[MonitorHub] 更新间隔设置为: {0}ms", intervalMs);
-        await Task.CompletedTask;
     }
 
-    public async Task SetPageVisible(bool isVisible)
+    public void SetPageVisible(bool isVisible)
     {
-        if (isVisible)
-        {
-            _updateIntervalMs = 1000;
-        }
-        else
-        {
-            _updateIntervalMs = 5000;
-        }
-
-        XTrace.Log.Debug("[MonitorHub] 页面可见性: {0}, 更新间隔: {1}ms", isVisible, _updateIntervalMs);
-        await Task.CompletedTask;
+        _updateIntervalMs = isVisible ? 1000 : 5000;
     }
 
-    private static void StartBroadcasting()
+    private void StartBroadcasting()
     {
         lock (_lock)
         {
@@ -143,7 +123,7 @@ public class MonitorHub : Hub
         }
     }
 
-    private static void StopBroadcasting()
+    private void StopBroadcasting()
     {
         lock (_lock)
         {
@@ -164,7 +144,7 @@ public class MonitorHub : Hub
         }
     }
 
-    private static async Task BroadcastLoop(CancellationToken cancellationToken)
+    private async Task BroadcastLoop(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -188,45 +168,32 @@ public class MonitorHub : Hub
         }
     }
 
-    private static async Task BroadcastMonitorDataAsync()
+    private async Task BroadcastMonitorDataAsync()
     {
-        var context = GetHubContext();
-        if (context == null) return;
-
         List<string> connections;
         Dictionary<string, List<string>> subs;
 
         lock (_lock)
         {
-            connections = ConnectedConnections.ToList();
-            subs = new Dictionary<string, List<string>>(Subscriptions);
+            connections = _connectedConnections.ToList();
+            subs = new Dictionary<string, List<string>>(_subscriptions);
         }
 
         if (connections.Count == 0) return;
 
-        var serviceProvider = GetServiceProvider();
-        if (serviceProvider == null) return;
-
-        using var scope = serviceProvider.CreateScope();
-
         try
         {
-            var cpuService = scope.ServiceProvider.GetService<ICpuMonitorService>();
-            var memoryService = scope.ServiceProvider.GetService<IMemoryMonitorService>();
-            var diskService = scope.ServiceProvider.GetService<IDiskMonitorService>();
-            var networkService = scope.ServiceProvider.GetService<INetworkMonitorService>();
-
-            var cpuData = cpuService != null ? await cpuService.GetCpuUsageAsync() : null;
-            var memoryData = memoryService != null ? await memoryService.GetMemoryUsageAsync() : null;
-            var disksData = diskService != null ? await diskService.GetDiskDrivesAsync() : null;
-            var networkData = networkService != null ? await networkService.GetNetworkSpeedAsync() : null;
+            var cpuData = await _cpuMonitorService.GetCpuUsageAsync();
+            var memoryData = await _memoryMonitorService.GetMemoryUsageAsync();
+            var disksData = await _diskMonitorService.GetDiskDrivesAsync();
+            var networkData = await _networkMonitorService.GetNetworkSpeedAsync();
 
             var overview = new SystemOverview
             {
-                Cpu = cpuData ?? new CpuUsage(),
-                Memory = memoryData ?? new MemoryInfo(),
-                Disks = disksData ?? new List<DiskDriveInfo>(),
-                Network = networkData ?? new NetworkSpeedInfo(),
+                Cpu = cpuData,
+                Memory = memoryData,
+                Disks = disksData,
+                Network = networkData,
                 Timestamp = DateTime.Now
             };
 
@@ -236,27 +203,27 @@ public class MonitorHub : Hub
 
                 try
                 {
-                    if (subList.Contains("cpu") && cpuData != null)
+                    if (subList.Contains("cpu"))
                     {
-                        await context.Clients.Client(connId).SendAsync("ReceiveCpuData", cpuData);
+                        await _hubContext.Clients.Client(connId).SendAsync("ReceiveCpuData", cpuData);
                     }
 
-                    if (subList.Contains("memory") && memoryData != null)
+                    if (subList.Contains("memory"))
                     {
-                        await context.Clients.Client(connId).SendAsync("ReceiveMemoryData", memoryData);
+                        await _hubContext.Clients.Client(connId).SendAsync("ReceiveMemoryData", memoryData);
                     }
 
-                    if (subList.Contains("disks") && disksData != null)
+                    if (subList.Contains("disks"))
                     {
-                        await context.Clients.Client(connId).SendAsync("ReceiveDisksData", disksData);
+                        await _hubContext.Clients.Client(connId).SendAsync("ReceiveDisksData", disksData);
                     }
 
-                    if (subList.Contains("network") && networkData != null)
+                    if (subList.Contains("network"))
                     {
-                        await context.Clients.Client(connId).SendAsync("ReceiveNetworkData", networkData);
+                        await _hubContext.Clients.Client(connId).SendAsync("ReceiveNetworkData", networkData);
                     }
 
-                    await context.Clients.Client(connId).SendAsync("ReceiveOverview", overview);
+                    await _hubContext.Clients.Client(connId).SendAsync("ReceiveOverview", overview);
                 }
                 catch (Exception ex)
                 {
@@ -269,22 +236,62 @@ public class MonitorHub : Hub
             XTrace.Log.Warn("[MonitorHub] 获取监控数据失败: {0}", ex.Message);
         }
     }
+}
 
-    private static IHubContext<MonitorHub>? GetHubContext()
+public class MonitorHub : Hub
+{
+    private readonly MonitorBroadcaster _broadcaster;
+
+    public MonitorHub(MonitorBroadcaster broadcaster)
     {
-        var sp = GetServiceProvider();
-        return sp?.GetService<IHubContext<MonitorHub>>();
+        _broadcaster = broadcaster;
     }
 
-    private static IServiceProvider? _serviceProvider;
-
-    public static void SetServiceProvider(IServiceProvider serviceProvider)
+    public override async Task OnConnectedAsync()
     {
-        _serviceProvider = serviceProvider;
+        _broadcaster.OnConnected(Context.ConnectionId);
+
+        XTrace.Log.Info("[MonitorHub] 客户端连接: {0}", Context.ConnectionId);
+        await base.OnConnectedAsync();
     }
 
-    private static IServiceProvider? GetServiceProvider()
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        return _serviceProvider;
+        _broadcaster.OnDisconnected(Context.ConnectionId);
+
+        XTrace.Log.Info("[MonitorHub] 客户端断开连接: {0}", Context.ConnectionId);
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    public async Task Subscribe(string dataType)
+    {
+        _broadcaster.Subscribe(Context.ConnectionId, dataType);
+
+        XTrace.Log.Debug("[MonitorHub] 客户端 {0} 订阅: {1}", Context.ConnectionId, dataType);
+        await Task.CompletedTask;
+    }
+
+    public async Task Unsubscribe(string dataType)
+    {
+        _broadcaster.Unsubscribe(Context.ConnectionId, dataType);
+
+        XTrace.Log.Debug("[MonitorHub] 客户端 {0} 取消订阅: {1}", Context.ConnectionId, dataType);
+        await Task.CompletedTask;
+    }
+
+    public async Task SetUpdateInterval(int intervalMs)
+    {
+        _broadcaster.SetUpdateInterval(intervalMs);
+
+        XTrace.Log.Debug("[MonitorHub] 更新间隔设置为: {0}ms", intervalMs);
+        await Task.CompletedTask;
+    }
+
+    public async Task SetPageVisible(bool isVisible)
+    {
+        _broadcaster.SetPageVisible(isVisible);
+
+        XTrace.Log.Debug("[MonitorHub] 页面可见性: {0}", isVisible);
+        await Task.CompletedTask;
     }
 }

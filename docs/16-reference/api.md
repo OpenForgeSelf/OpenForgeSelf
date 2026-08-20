@@ -1,7 +1,7 @@
 # 16-reference — 接口参考（速查）
 
-> 状态：已实现（从 Controllers 反推，人工精简子集；全量见 openwiki/，2026-08-12）
-> 最后更新：2026-08-12
+> 状态：已实现（从 Controllers 反推，人工精简子集；全量见 openwiki/，2026-08-20）
+> 最后更新：2026-08-20
 
 > 本文件是常用 API 的**人工提炼速查**，非全量。全量契约以 `openwiki/`（CI 自动生成）为准。
 
@@ -30,7 +30,35 @@
 | GET/POST | `api/mcp/*` | MCP 服务器/工具管理 | — |
 | GET | `api/plugin/*` | 插件市场/安装/更新/卸载 | — |
 | GET | `api/todos` | 待办 CRUD（TodoTracker 插件） | — |
-| GET | `api/skills` `api/usagestats` `api/*` | 技能/用量等 | — |
+| GET | `api/skills` | 技能管理 | — |
+| GET | `api/usagestats` | 用量统计 | — |
+| GET | `api/settings` | 系统设置 | — |
+| GET | `api/health` | 健康检查 | — |
+| GET/POST | `api/mcp/*` | MCP 服务器/工具管理 | — |
+| GET | `api/plugin/*` | 插件市场/安装/更新/卸载 | — |
+| GET | `api/todos` | 待办 CRUD（TodoTracker 插件） | — |
+| GET | `api/portconfiguration` | 端口配置 | — |
+
+### 插件 Controller API
+
+| 方法 | 路径 | 插件 | 说明 |
+|------|------|------|------|
+| POST | `api/ai-agent/chat` | AIAgent | AI 代理聊天 |
+| POST | `api/ai-agent/script` | AIAgent | AI 生成脚本 |
+| POST | `api/ai-agent/workflow` | AIAgent | AI 生成工作流 |
+| GET | `api/ai-agent/agents` | AIAgent | 代理列表 |
+| POST | `api/ai-agent/plan` | AIAgent | 规划执行 |
+| GET | `api/dev-tools/*` | DevTools | 开发工具（JSON/YAML/加密/编码/正则等） |
+| GET | `api/file-tools/*` | FileTools | 文件工具（清理/重命名/统计/压缩） |
+| GET | `api/memory/*` | MemorySystem | 记忆系统 CRUD |
+| GET | `api/capture/*` | ProxyCapture | 代理抓包（监听器/会话/请求） |
+| GET | `api/quick-links/*` | QuickLinks | 快捷链接 CRUD |
+| GET | `api/scheduler/*` | Scheduler | 调度任务 CRUD |
+| GET | `api/code-snippets` | ScriptRunner | 代码片段 CRUD |
+| POST | `api/script-runner/execute` | ScriptRunner | 执行脚本 |
+| GET | `api/system-monitor/*` | SystemMonitor | 系统监控（CPU/内存/网络/进程） |
+| GET | `api/text-tools/*` | TextTools | 文本工具（统计/哈希/格式化/编码） |
+| GET | `api/workflows/*` | WorkflowEngine | 工作流 CRUD/执行/日志 |
 
 ## 2. 统一 AI 网关（Controllers/UnifiedAI/，向下兼容 LLM 客户端）
 
@@ -45,6 +73,36 @@
 - 请求 `model` 支持 `provider:upstream_model_id` 前缀路由；
 - 流式 SSE 透传 `usage`（`include_usage=true`）。
 
-## 3. 前端路由（src/router/index.ts，节选）
+## 3. 前端路由（src/router/index.ts，完整列表）
 
-`/` 首页 · `/chat` 聊天 · `/chat-records` 聊天记录 · `/ai-agent` `/prompts` `/skills` `/mcp-tools` `/settings` `/memory` `/agents` `/all-features` `/system-monitor` `/code-snippets` `/workflows` `/todo` `/profile` `/plugins`(`:id`/updates/import-export/scaffolder) · `/quick-links` `/text-tools` `/file-tools` `/dev-tools` `/script-runner`。
+| 路径 | 页面组件 | 说明 |
+|------|----------|------|
+| `/` | HomeView | 首页仪表盘 |
+| `/ai-agent` | AgentView | AI 代理聊天 |
+| `/prompts` | PromptsView | 提示词管理 |
+| `/skills` | SkillsView | 技能管理 |
+| `/mcp-tools` | McpToolsView | MCP 工具 |
+| `/settings` | SettingsView | 系统设置 |
+| `/memory` | MemoryView | 记忆系统 |
+| `/agents` | AgentsManageView | 代理管理 |
+| `/all-features` | AllFeaturesView | 全部功能 |
+| `/system-monitor` | SystemMonitorView | 系统监控 |
+| `/code-snippets` | CodeSnippetsView | 代码片段 |
+| `/workflows` | WorkflowLibrary | 工作流库 |
+| `/todo` | TodoView | 待办事项 |
+| `/profile` | ProfileView | 用户画像 |
+| `/plugins` | PluginStore | 插件市场 |
+| `/plugins/:id` | PluginDetail | 插件详情 |
+| `/plugins/updates` | PluginUpdates | 插件更新 |
+| `/plugins/import-export` | PluginImportExport | 插件导入导出 |
+| `/plugins/scaffolder` | PluginScaffolder | 插件脚手架 |
+| `/chat-records` | ChatRecordsView | 聊天记录 |
+| `/quick-links` | QuickLinksView | 快捷链接 |
+| `/chat` | ChatView | 聊天 |
+| `/text-tools` | TextToolsView | 文本工具 |
+| `/file-tools` | FileToolsView | 文件工具 |
+| `/dev-tools` | DevToolsView | 开发工具 |
+| `/script-runner` | ScriptLibrary | 脚本库 |
+| `/capture` | CaptureView | 代理抓包 |
+
+动态插件路由通过 `setupPluginRoutes(menuItems)` 和 `setupManifestRoutes(manifest)` 注册到 `/plugin-view` 命名空间。

@@ -2,7 +2,7 @@
 
 > 功能编号：—
 > 状态：已实现（与代码对齐，2026-08-12 反向更新）
-> 最后更新：2026-08-12
+> 最后更新：2026-08-19
 
 本文档从代码实现反推系统全貌：分层、模块关系、技术栈、核心数据流。**设计意图见 `00-vision/`**，**单功能设计见 `02-features/`**，**代码级细节以 `openwiki/`（CI 自动生成）为准**。
 
@@ -85,11 +85,24 @@
 - **应用聊天**：`ChatController`（路由 `api/chat`：`POST` 收发、`POST stream` 流式、`GET history/{sessionId}` 历史）收发消息时按 `SessionId` 字符串 upsert `ChatSession`（Source='App'）。
 - **会话视图**：`ChatRecordsController`（`api/chat-sessions` GET 列表 + `api/chat-sessions/{id}` 详情）为前端聊天记录面板提供聚合后的会话维度数据。
 
-### 3.3 插件体系
+### 3.3 插件体系（Cordis 内核驱动）
 
-宿主通过 `Plugins/Abstractions/IPlugin` + `ExtensionPointManager` 在运行时发现并加载 `Plugins/*`（每插件含 `*.csproj` + 控制器）。`PluginController` 暴露市场/安装/更新/卸载/版本回滚等 REST。内嵌插件（随主程序发布）的启用逻辑存在已知阻塞（见 TODO.md T032）。
+宿主通过 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）驱动「一切皆插件」架构。详见 [`cordis-kernel.md`](cordis-kernel.md) 完整设计。
 
-> 演进方向：以新增的 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）把插件体系重构为「一切皆插件」——设计见 [`cordis-kernel.md`](cordis-kernel.md)，功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)。
+**四层架构**：
+
+| 层 | 组件 | 职责 |
+|----|------|------|
+| 第1层 · 前端 | Vue 3 SPA（`pluginManifest store` + `dynamicPlugins.ts`） | 清单驱动菜单/视图，动态 import 挂载 `/plugin-view` 路由 |
+| 第2层 · 宿主 | `PluginManager` / `PluginServiceRegistry` / `ExtensionPointManager` | 插件发现/加载/Fiber 生命周期/热重载/可变 DI |
+| 第3层 · 内核 | `IContext` / `Context` / `Fiber` / `EventBus` + `Abstractions` 契约 | 服务定位 + 可逆副作用 + 事件总线 + 能力接缝 |
+| 第4层 · 插件 | 12 个独立插件（AIAgent/WorkflowEngine/Scheduler 等） | 各自 `Apply(IContext)` 自注册 DI + 扩展点 + 副作用 |
+
+**插件间服务互通**（2026-08-19 实施）：root 共享服务表 `ConcurrentDictionary<Type,(Instance,Provider)>`——`Register<T>` = 全局共享（对标 Cordis `provide()`，走 `Effect` 自动摘除），`RegisterLocal<T>` = 本地值（框架私有对象专用），`Get<T>` 解析顺序 = 本地值 → 共享表。首个落地案例：`IWorkflowAIAdvisor`（AIAgent → WorkflowEngine，软依赖），验证 988/988 全绿。
+
+**热更新**：side-by-side 版本目录（N=2）+ ALC 卸载 + `FileSystemWatcher` 自动 reload + dispose 测试门禁。
+
+> 完整架构图见 [`cordis-kernel.md`](cordis-kernel.md) 附录 SVG 源文件。功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)。
 
 ---
 

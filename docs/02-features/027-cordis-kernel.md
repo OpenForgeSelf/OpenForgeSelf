@@ -1,7 +1,7 @@
 # 027 · Cordis 内核（一切皆插件运行时）
 
 > 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、动态端点移除、事件总线贯穿、会话/LLM 接缝接线、11 插件全部拆独立程序集、前端清单驱动动态挂载均已落地；剩余项见「已知问题 / 待办」）
-> 最后更新：2026-08-18
+> 最后更新：2026-08-19
 
 ## 概述
 
@@ -102,6 +102,50 @@ AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解
 **建议动作**：
 - **短期**：维持现状，标记为「待实现」，不阻塞其他插件开发
 - **长期**：当 AI Agent 功能需要真实的 Agent 循环和消息队列时，实现 `InMemoryAgentLoop` 和 `InMemoryInbox`（或基于外部消息队列的实现）并注册进 DI
+
+### 4. 插件间服务不互通（`Context.Register` 语义偏差）——已实施
+
+**问题本质**：Cordis 原案中服务写入**全局共享 store**（`ReflectService.store`，root isolation map），默认所有插件可见（调研 §4.1）；本项目移植时 `Context.Register` 只写**自身字典**（`Context.cs:33-38`），`Get` 仅沿父链查找（`Context.cs:56-63`）——兄弟 Fiber 上下文互不可见。首个暴露案例：`IWorkflowAIAdvisor`（AIAgent 插件提供）→ `WorkflowExecutor`（WorkflowEngine 插件消费）解析恒为 null，AI 智能重试静默降级为默认重试。
+
+**方案（已定，依据调研 §5.6 权威裁决 A/D/E/F + §5.5 软依赖判例 + §6 偏差表；决策来源 = 调研文档 `06-research/001`，不自作设计）**：
+1. **Core 层（`Context`）**：引入 root 持有的共享服务表，条目 = `(实例, 提供者 Fiber)`；`Register<T>` 对标 Cordis `provide()`（调研 §5.6 裁决 A/F）——**eager 单例实例**写入共享表、记录归属，注册动作走 `ctx.Effect`（Fiber 逆序回滚即自动摘除，可逆 effect 语义）。fiber 私有框架对象（`PluginMetadata`/`IServiceCollection`，见 `PluginManager.cs:578/581`）改用**独立本地值 API**（如 `RegisterLocal<T>`），不复用 `Register`，避免泄漏进共享表。
+2. **解析顺序**：`Get<T>()` = 本地值 → 全局共享表（本地可遮蔽同名全局服务，调研 §5.6 裁决 D）。
+3. **服务生命周期**：服务 = 每上下文单例，`Apply` 时 **eager 构造**（调研 §5.6 裁决 F，推翻此前「懒解析委托」妥协）；不实现伪 Scoped。
+4. **AIAgent 插件**：`Apply` 补注册 `IAIWorkflowAssistant`/`IWorkflowAIAdvisor` 进子容器（供插件内部构造注入）+ **eager 构造** `AIWorkflowAdvisor` 并 `ctx.Register<IWorkflowAIAdvisor>(实例)` 提供到共享表。
+5. **WorkflowEngine 插件**：`WorkflowExecutor` 构造注入 `IContext`，`GetAIAdviceAsync` 改 `_ctx.Get<IWorkflowAIAdvisor>()`；**消费端保留 null → 默认重试降级**（软依赖范式：`Get` 探测、不声明依赖；消费者禁止缓存实例为字段，每次用每次 Get，防热重载悬空）。
+6. **PluginServiceRegistry**：`IWorkflowAIAdvisor` 等「插件→插件」契约**不进 `CollectForwardDescriptors`**（调研 §5.6 裁决 E），仅走 `ctx.Get`；registry 只保留各插件自身服务的子容器解析。
+7. **测试（dispose 门禁）**：提供后可解析 → 卸载后解析为 null 且走默认重试 → 重挂载恢复。
+
+**范围控制**：本次只做软依赖互通；`inject`/PENDING/自动重启（硬依赖机制，对标 `_refresh`/`_setEpoch`）待首个强依赖接缝出现时落地，`PluginMetadata.Provides/Consumes` 字段已预留。
+
+**实施完成（2026-08-19，来源:输入7 /spec）**：7 步方案全部落地并通过验证门禁。
+- 改动文件：`OpenForgeSelf.Core/IContext.cs`（新增 `RegisterLocal<T>`）、`Context.cs`（root 共享服务表 + `Register` 走 `Effect` + `RegisterLocal` + `Get` 本地→共享表）、`PluginManager.cs`（`MountPlugin` 两处 `Register` → `RegisterLocal`）、`AIAgentPlugin.cs`（补注册 `IAIWorkflowAssistant`/`IWorkflowAIAdvisor` + eager 构造提供 advisor）、`AIWorkflowAssistant.cs`/`AIAgentService.cs`/`ToolSelectorService.cs`（宿主契约懒解析，适配 Apply 先于 `ProvideHostServices` 的启动顺序）、`WorkflowExecutor.cs`（构造注入 `IContext` + `_ctx.Get<IWorkflowAIAdvisor>()`）、`PluginServiceRegistry.cs`（`IWorkflowAIAdvisor` 不进 `CollectForwardDescriptors`）。
+- 测试：新增 `KernelServiceInteropTests`（7 例 dispose 门禁：提供可解析 / 卸载为 null 默认重试 / 重挂载恢复 / 宿主契约不受影响 / 本地值不泄漏）；`FiberTests` 既有断言改用 `RegisterLocal` 保持意图。
+- 验证：`dotnet build` 0 错误；`dotnet test` 988/988 全绿（基线 981 + 新增 7 例，无回退）。
+
+### 5. 事件总线不跨上下文传播（偏差，待修）——详细设计
+
+**问题本质**：Cordis 事件沿上下文树传播——子上下文 emit，父上下文无 filter 的监听器默认接收（调研 §4.3）；本项目每个 `Context` 持有**独立 `EventBus`**（`Context.cs:21`），跨插件事件根本不通。当前仅平台级 `IEventBus` 单例接线 `tools/*`，插件间 waterfall 拦截点不可用。
+
+**根因（源码定位）**：`Context.cs:21` `private readonly EventBus _events = new()`——每个 `Context`（含 `PluginManager` 创建的每个 Fiber 派生上下文，`PluginManager.cs:577` `new Fiber(_rootContext)`）实例化**独立的 `EventBus`**；`Context.Events`（`Context.cs:28`）直接返回该私有实例。故插件 A 的 `ctx.Events.On(...)` 与插件 B 的 `ctx.Events.EmitAsync(...)` 操作的是**两个互不相干的 handler 集合**。
+
+**方案选型**：
+
+| 方案 | 机制 | 传播方向 | 改动 | 取舍 |
+|---|---|---|---|---|
+| A. 共享根总线 | `Derive`/Fiber 构造时把根 `EventBus` 传入子 `Context`，`Events` 返回同一实例 | 任意子上下文发/收**全局可见**（全插件共享一个总线） | 内核 `Context` 改 2 处 + 测试 | 简单、即插即用；但失去「上下文隔离」能力——任一插件 emit 全网收（Cordis 本有 filter 可隔离，A 方案无 filter） |
+| B. 父子链传递 + 冒泡 | 子 `Context` 持有 parent，`Events` 委托父链：emit 沿父冒泡，监听注册在自身+祖先 | 子 emit 父默认收；父 emit 子**不收**（不对称，匹配 Cordis） | 内核 `EventBus` 加 parent 指针 + 路由 + 测试 | 贴合 Cordis 语义、保留隔离；改动略大（需处理重复派发/环） |
+| C. filter/global 全量移植 | 完整复刻 Cordis：`On(name, h, {filter, global})` + `_resolve` 过滤 | 最贴近原案 | 最大（`IEventBus` 接口加参 + EventBus 路由） | 功能最全；对当前「单总线即可」的需求属过度设计 |
+
+**推荐：方案 B（父子链 + 冒泡），当前只做 `EmitAsync`/`ParallelAsync`/`WaterfallAsync`/`SerialAsync` 四种广播模式的向上冒泡，`filter`/`global` 留待确有隔离需求再加（Cordis 全套移植列为后续增强项）**。理由：贴合调研 §4.3 的「子 emit 父默认收」核心语义；改动集中在 `EventBus`（加 `_parent`），`Context` 仅把派生链的父总线传入；不改变 `IEventBus` 公开接口签名（`On/OnSerial/OnWaterfall` 不加参），兼容现有 `tools/*` 接线。
+
+**改动点（预估，供实施细化）**：
+1. **`EventBus`**：加 `private readonly EventBus? _parent` + 构造重载 `EventBus(EventBus? parent)`；新增 `IDisposable On` 时按「自身 handler 列表」注册；`EmitAsync`/`ParallelAsync`/`SerialAsync`/`WaterfallAsync` 派发完自身后**递归调 `_parent` 同方法**（payload 原样透传）；需防环（`_parent` 只指向根方向，天然无环）。
+2. **`Context`**：`_events` 构造改为可从派生链取父总线——`Context(Context? parent)` 时若 parent 非空则 `new EventBus(parent._events)`（或直接复用 parent 的 `_events` 引用，取决于是否要「子上下文可拥有额外私有监听器」：**方案 B 用「复用同一实例 + parent 指针在 EventBus 层」会混淆，更清晰做法是 EventBus 内部建 parent 链，Context 构造把父 Context 的 `_events` 传入**）。
+3. **`Fiber`**：`new Fiber(_rootContext)` 时子 Context 自动继承父 EventBus（依赖 Context 构造改动，无需另改）。
+4. **测试**（`EventBusTests` 扩展）：①父监听器收到子 emit 的广播事件（`EmitAsync`）；②父监听器收到子 `SerialAsync`/`WaterfallAsync` 的短路/改写结果；③根 `tools/*` 单例接线不受影响（回归）；④无环（多层嵌套链冒泡不重复/不死循环）。
+
+**与待办 4 的关系**：同属「内核 `Context` 语义修正」，可同批评估、独立落地；待办 4 改 `Context` 服务表、待办 5 改 `Context` 事件总线，两者互不依赖。**建议排期：先待办 4（服务互通，有明确业务诉求 `IWorkflowAIAdvisor`），待办 5 视跨插件事件是否真实需要再动**（当前除 `tools/*` 平台级接线外，尚无插件间事件消费方）。
 
 > 已解决（归档）：① 11 个插件全部拆独立程序集（批1-4，958/958）；② 动态端点移除（`MvcActionDescriptorChangeProvider` + `UnregisterApplicationPart`，958/958）；③ QuickLinks SQLite 表随启动创建恢复；④ `WorkflowHub` 去静态化。
 

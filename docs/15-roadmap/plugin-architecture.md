@@ -3,7 +3,7 @@
 > 本文是**唯一执行手册**：整合了 deepseek-harness 调研结论与原路线图落地步骤，并补齐「一切皆插件」缺失的架构支柱（共享 Context、能力接缝、类型化事件、可逆副作用、会话日志、Profile 配置层叠）。
 > 调研详情与机制细节见 `../06-research/001-deepseek-harness-plugin-architecture.md`，本文不再重复。
 > 定位：总路线图与执行手册，不替代各阶段 spec/tasks。
-> **状态（2026-08-16 更新）**：P0 已完成；P1 自注册/可变 DI/文件级热更新已实现（独立程序集仅 MemorySystem 已拆，动态端点移除未做）；P2 已完成；P3/P4 契约已迁入 Abstractions（Backend 侧 Provider 实现与 Profile 配置层叠未接线）；P5 前端动态 import 试点已落地（MemoryView/QuickLinksView/TodoView）。测试：后端 949+12+9、前端 424 全绿。剩余项见功能档案 [`../02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)「已知问题 / 待办」。
+> **状态（2026-08-19 更新）**：P0 已完成；P1 自注册/可变 DI/文件级热更新已实现（独立程序集仅 MemorySystem 已拆，动态端点移除未做）；P2 已完成；P3/P4 契约已迁入 Abstractions（Backend 侧 Provider 实现与 Profile 配置层叠未接线）；P5 前端动态 import 试点已落地（MemoryView/QuickLinksView/TodoView）；**P6 插件间服务互通（Cordis 共享服务表）待实施**。测试：后端 949+12+9、前端 424 全绿。剩余项见功能档案 [`../02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)「已知问题 / 待办」。
 
 ---
 
@@ -228,6 +228,21 @@ public class AIAgentPlugin : IPlugin
 **验证**：vitest 组件测试（动态挂载+卸载）；手动启停插件断言视图增减。✅ 前端 424/424 全绿（含 `dynamicPlugins.test.ts`/`pluginManifest.test.ts`）。
 **风险**：中（动态 import 需 `@vite-ignore` + 运行期 URL）。**回滚点**：前端保留本地菜单 fallback。✅ 清单失败/为空时回退静态路由。
 
+### P6 — 插件间服务互通（Cordis 共享服务表，2026-08-19 新增 · 服务互通部分已实施 ✅）
+
+**目标**：补 Cordis 原案「服务默认全局可见」语义——插件 A 提供的服务可被插件 B 经 `ctx.Get<T>()` 消费（当前兄弟 Fiber 上下文互不可见，`IWorkflowAIAdvisor` 因此解析恒为 null）。依赖调研 §4（ReflectService 全局 store）+ §5.5（软依赖判例）+ §5.6（服务可见性/生命周期权威裁决 A/D/E/F）+ §6（偏差对照表，重点偏差#1/#2/#4）。**决策来源 = 调研文档 `06-research/001`，不自作设计**。
+
+**动作**
+- **Core 层（`Context`）**：引入 root 持有的共享服务表，条目 = `(eager 单例实例, 提供者 Fiber)`；`Register<T>()` 对标 Cordis `provide()`——写共享表、走 `ctx.Effect` → Fiber 逆序回滚自动摘除（调研 §5.6 裁决 F）。fiber 私有状态（`PluginMetadata`/`IServiceCollection`）用独立本地值 API（`RegisterLocal`），不复用 `Register`（调研 §5.6 裁决 A）。`Get<T>()` 解析顺序 = 本地值 → 共享表（裁决 D）。
+- **软依赖规则**：可选能力 = `ctx.Get<T>()` 探测，null 走降级，**消费者禁止缓存实例为字段**（每次用每次 Get，防热重载悬空）。硬依赖（`Consumes` + PENDING 自动重启）机制缓建，首个强依赖接缝出现时落地（见待办）。
+- **AIAgent 插件**：`Apply` 补注册 `IAIWorkflowAssistant`/`IWorkflowAIAdvisor` 进子容器 + **eager 构造** `AIWorkflowAdvisor` 并 `ctx.Register<IWorkflowAIAdvisor>(实例)` 提供到共享表（调研 §5.6 裁决 F，非懒解析委托）。
+- **WorkflowEngine 插件**：`WorkflowExecutor` 构造注入 `IContext`，`GetAIAdviceAsync` 把 `_serviceProvider.GetService(typeof(IWorkflowAIAdvisor))` 改 `_ctx.Get<IWorkflowAIAdvisor>()`；null → 默认重试（保留现有降级语义）。
+- **PluginServiceRegistry**：`IWorkflowAIAdvisor` 等「插件→插件」契约**不进 `CollectForwardDescriptors`**（调研 §5.6 裁决 E），仅走 `ctx.Get`。
+- **事件总线传播**（配套修正，可同批或独立）：派生上下文共享根 `EventBus`（`Derive` 传递），详见功能档案待办 5。
+
+**验证（dispose 门禁）**：xUnit——AIAgent 提供后可 `ctx.Get<IWorkflowAIAdvisor>()` 解析 → 卸载 AIAgent 后解析为 null 且 WorkflowExecutor 走默认重试 → 重挂载后恢复；`dotnet build` + `dotnet test` 全量回归（现状 949+12+9 不得回退）。✅ **已实施（2026-08-19，来源:输入7 /spec）**：Core 共享服务表 + `RegisterLocal` + 解析顺序 + AIAgent eager 提供 + Executor 改 `ctx.Get` + 移除冗余转发全部落地；新增 `KernelServiceInteropTests` 7 例 dispose 门禁；`dotnet build` 0 错 + `dotnet test` 988/988 全绿（基线 981 无回退）。**事件传播修正（P6 配套）未实施**，独立排期（027 待办5）。
+**风险**：中（内核 `Context` 语义变更，影响全部插件；改动集中、测试可覆盖）。**回滚点**：`Context` 语义修改先落单测，再逐插件切消费端。
+
 ---
 
 ## 5. 统一插件契约（已决策：单一 Apply + Fiber）
@@ -290,11 +305,14 @@ P0 接缝抽象+Context+自注册 ──► P1 可逆注册+可变DI+动态端�
                                            │
                                            ▼
                               P3 Agent Loop+会话日志 ──► P4 LLM接缝+Profile ──► P5 前端插件
+                                           │
+                                           ▼
+                              P6 插件间服务互通（Cordis 共享服务表 + 事件传播修正）
 ```
 
-**完成度（2026-08-16）**：P0 ✅ / P1 🟡（自注册+可变 DI+版本目录+破锁+reload 已完成；独立程序集仅 MemorySystem，动态端点移除未做）/ P2 ✅ / P3-P4 🟡（契约已迁 Abstractions，Backend 侧实现未接线）/ P5 ✅（试点）。
+**完成度（2026-08-19）**：P0 ✅ / P1 🟡（自注册+可变 DI+版本目录+破锁+reload 已完成；独立程序集仅 MemorySystem，动态端点移除未做）/ P2 ✅ / P3-P4 🟡（契约已迁 Abstractions，Backend 侧实现未接线）/ P5 ✅（试点）/ **P6 🟡（服务互通 ✅ 已实施 2026-08-19，988/988 全绿；事件传播修正待排期）**。
 
-**建议**：先 P0→P1 打通「后端热更新闭环」（地基 + 高价值），再做 P2 让热插拔可靠，P3-P5 依次补齐架构支柱与前端。P5 可独立排期。→ 该路径已走通；剩余项（11 插件拆独立程序集、动态端点移除、P3/P4 实现接线、QuickLinks 表初始化、WorkflowHub 静态债）见功能档案「已知问题 / 待办」。
+**建议**：先 P0→P1 打通「后端热更新闭环」（地基 + 高价值），再做 P2 让热插拔可靠，P3-P5 依次补齐架构支柱与前端。P5 可独立排期。→ 该路径已走通；剩余项（11 插件拆独立程序集、动态端点移除、P3/P4 实现接线、QuickLinks 表初始化、WorkflowHub 静态债、**P6 事件传播修正**）见功能档案「已知问题 / 待办」。
 
 ---
 

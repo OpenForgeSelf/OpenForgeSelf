@@ -28,7 +28,7 @@
 | 遇到**不懂的术语** | [`13-glossary/terms.md`](13-glossary/terms.md) |
 | **第一次接触项目**（环境搭建/上手路径） | [`14-onboarding/getting-started.md`](14-onboarding/getting-started.md) |
 | 决定**下一步做什么**（排期/backlog） | [`15-roadmap/index.md`](15-roadmap/index.md)（活队列在 TODO.md；Cordis 内核改造见 [`15-roadmap/plugin-architecture.md`](15-roadmap/plugin-architecture.md)） |
-| 查**接口契约/字段**（快速速查） | [`16-reference/api.md`](16-reference/api.md) |
+| 查**接口契约/字段**（快速速查） | [`16-reference/api.md`](16-reference/api.md)（API 端点）、[`16-reference/data-model.md`](16-reference/data-model.md)（数据模型/实体字段）、[`16-reference/configuration.md`](16-reference/configuration.md)（配置项）、[`16-reference/backend-services.md`](16-reference/backend-services.md)（后端服务职责）、[`16-reference/frontend-architecture.md`](16-reference/frontend-architecture.md)（前端结构） |
 | 看**版本演进/变更摘要** | [`17-changelog/index.md`](17-changelog/index.md) |
 | **要写新文档**（格式模板） | `18-templates/feature.md` |
 | 找**已废弃的历史文档** | `19-archive/`（暂无） |
@@ -207,11 +207,11 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 接口/字段/常量的**人工提炼速查**：常用 API 契约、关键请求示例（是 openwiki 全量自动文档的精简子集） |
+| **做什么** | 接口/字段/常量的**人工提炼速查**：常用 API 契约（[`api.md`](16-reference/api.md)）、数据模型与实体字段（[`data-model.md`](16-reference/data-model.md)）、配置项结构（[`configuration.md`](16-reference/configuration.md)）、后端服务职责与依赖（[`backend-services.md`](16-reference/backend-services.md)）、前端组件/路由/store 结构（[`frontend-architecture.md`](16-reference/frontend-architecture.md)） |
 | **不做什么** | 不追求全量覆盖（全量在 `openwiki/`，CI 自动生成，勿手编） |
-| **解释什么** | "这个接口怎么调、字段怎么传" |
+| **解释什么** | "这个接口怎么调、字段怎么传、服务什么职责、前端什么结构" |
 | **不解释什么** | 不解释代码实现 → `openwiki/`；不解释功能设计 → `02-features/` |
-| **何时读** | 前端/测试写调用时快速查 |
+| **何时读** | 前端/测试写调用时快速查；新功能开发前了解现有结构 |
 
 ### 17-changelog/ — 变更记录
 

@@ -15,7 +15,7 @@ public class FiberTests
         var fiber = new Fiber(parent);
         var marker = new Marker();
 
-        fiber.Mount(ctx => ctx.Register<IMarker>(marker));
+        fiber.Mount(ctx => ctx.RegisterLocal<IMarker>(marker));
 
         Assert.Same(marker, fiber.Context.Get<IMarker>());
         Assert.Null(parent.Get<IMarker>());

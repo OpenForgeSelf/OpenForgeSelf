@@ -11,36 +11,57 @@ namespace OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 
 public class AIAgentService : IAIAgentService
 {
-    private readonly IConfigurationService _configService;
-    private readonly ILogService _logService;
+    private readonly IContext _ctx;
     private readonly HttpClient _httpClient;
-    private readonly IToolRegistry _toolRegistry;
     private readonly IWorkflowRecommendationService? _workflowRecommendationService;
     private readonly IScriptTemplateService? _scriptTemplateService;
-    private readonly AIConfig _aiConfig;
+    private IConfigurationService? _configService;
+    private ILogService? _logService;
+    private IToolRegistry? _toolRegistry;
+    private AIConfig? _aiConfig;
 
     public AIAgentService(
         IContext ctx,
         IWorkflowRecommendationService? workflowRecommendationService = null,
         IScriptTemplateService? scriptTemplateService = null)
     {
-        // 宿主契约（配置/日志/工具注册表）经 Cordis 上下文在运行期获取；HttpClient 为无状态 HTTP 客户端由本服务自建；
-        // 推荐服务与脚本模板服务为可选扩展（未注册时置空、运行期降级），保持可选注入。
-        _configService = ctx.Get<IConfigurationService>() ?? throw new InvalidOperationException("宿主未提供 IConfigurationService 契约，无法初始化 AI 代理");
-        _logService = ctx.Get<ILogService>() ?? throw new InvalidOperationException("宿主未提供 ILogService 契约，无法初始化 AI 代理");
-        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化 AI 代理");
+        // 宿主契约（配置/日志/工具注册表）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）：
+        // 不在构造时解析——宿主契约在 ProvideHostServices 阶段才 seed 进根上下文，晚于插件 Apply
+        // （本实例可能被 AIAgentPlugin 在 Apply 阶段 eager 构造），构造期 Get 恒为 null 会抛异常；
+        // 延迟到首次使用时解析（此时宿主契约已就绪）。
+        // HttpClient 为无状态 HTTP 客户端由本服务自建；推荐服务与脚本模板服务为可选扩展（未注册时置空、运行期降级）。
+        _ctx = ctx;
         _httpClient = new HttpClient();
         _workflowRecommendationService = workflowRecommendationService;
         _scriptTemplateService = scriptTemplateService;
-        var coreConfig = _configService.GetAIConfig();
-        _aiConfig = new AIConfig
-        {
-            ApiEndpoint = coreConfig.ApiEndpoint,
-            ApiKey = coreConfig.ApiKey,
-            ModelName = coreConfig.ModelName
-        };
-
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
+    }
+
+    private IConfigurationService ConfigService => _configService ??= _ctx.Get<IConfigurationService>()
+        ?? throw new InvalidOperationException("宿主未提供 IConfigurationService 契约，无法初始化 AI 代理");
+
+    private ILogService LogService => _logService ??= _ctx.Get<ILogService>()
+        ?? throw new InvalidOperationException("宿主未提供 ILogService 契约，无法初始化 AI 代理");
+
+    private IToolRegistry ToolRegistry => _toolRegistry ??= _ctx.Get<IToolRegistry>()
+        ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化 AI 代理");
+
+    private AIConfig AiConfig
+    {
+        get
+        {
+            if (_aiConfig == null)
+            {
+                var coreConfig = ConfigService.GetAIConfig();
+                _aiConfig = new AIConfig
+                {
+                    ApiEndpoint = coreConfig.ApiEndpoint,
+                    ApiKey = coreConfig.ApiKey,
+                    ModelName = coreConfig.ModelName
+                };
+            }
+            return _aiConfig;
+        }
     }
 
     public async Task<string> ChatAsync(List<AIChatMessage> messages, bool enableTools = true)
@@ -53,7 +74,7 @@ public class AIAgentService : IAIAgentService
         }
         catch (Exception ex)
         {
-            _logService.Error("[AIAgentPlugin] AI请求失败: {0}", ex.Message);
+            LogService.Error("[AIAgentPlugin] AI请求失败: {0}", ex.Message);
             throw;
         }
     }
@@ -65,14 +86,14 @@ public class AIAgentService : IAIAgentService
     {
         var request = new AIChatRequest
         {
-            Model = _aiConfig.ModelName,
+            Model = AiConfig.ModelName,
             Messages = messages,
             Stream = true
         };
 
         if (enableTools)
         {
-            var tools = _toolRegistry.GetToolDefinitions();
+            var tools = ToolRegistry.GetToolDefinitions();
             if (tools.Count > 0)
             {
                 request.Tools = tools;
@@ -83,11 +104,11 @@ public class AIAgentService : IAIAgentService
         var jsonContent = JsonSerializer.Serialize(request);
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, _aiConfig.ApiEndpoint);
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, AiConfig.ApiEndpoint);
         httpRequest.Content = content;
-        httpRequest.Headers.Add("Authorization", $"Bearer {_aiConfig.ApiKey}");
+        httpRequest.Headers.Add("Authorization", $"Bearer {AiConfig.ApiKey}");
 
-        XTrace.Log.Info("[AIAgentPlugin] 发送AI流式请求: {0}", _aiConfig.ApiEndpoint);
+        XTrace.Log.Info("[AIAgentPlugin] 发送AI流式请求: {0}", AiConfig.ApiEndpoint);
 
         HttpResponseMessage response;
         try
@@ -162,7 +183,7 @@ public class AIAgentService : IAIAgentService
         XTrace.Log.Info("[AIAgentPlugin] 初始消息数: {0}", allMessages.Count);
         XTrace.Log.Info("[AIAgentPlugin] 最大迭代次数: {0}", maxIterations);
 
-        var tools = _toolRegistry.GetToolDefinitions();
+        var tools = ToolRegistry.GetToolDefinitions();
         XTrace.Log.Info("[AIAgentPlugin] 可用工具数量: {0}", tools.Count);
         foreach (var tool in tools)
         {
@@ -178,7 +199,7 @@ public class AIAgentService : IAIAgentService
 
             var request = new AIChatRequest
             {
-                Model = _aiConfig.ModelName,
+                Model = AiConfig.ModelName,
                 Messages = allMessages,
                 Stream = false
             };
@@ -192,12 +213,12 @@ public class AIAgentService : IAIAgentService
             var jsonContent = JsonSerializer.Serialize(request);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _aiConfig.ApiEndpoint);
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, AiConfig.ApiEndpoint);
             httpRequest.Content = content;
-            httpRequest.Headers.Add("Authorization", $"Bearer {_aiConfig.ApiKey}");
+            httpRequest.Headers.Add("Authorization", $"Bearer {AiConfig.ApiKey}");
 
-            XTrace.Log.Info("[AIAgentPlugin] 发送AI请求到: {0}", _aiConfig.ApiEndpoint);
-            XTrace.Log.Debug("[AIAgentPlugin] 请求模型: {0}", _aiConfig.ModelName);
+            XTrace.Log.Info("[AIAgentPlugin] 发送AI请求到: {0}", AiConfig.ApiEndpoint);
+            XTrace.Log.Debug("[AIAgentPlugin] 请求模型: {0}", AiConfig.ModelName);
 
             try
             {
@@ -253,7 +274,7 @@ public class AIAgentService : IAIAgentService
                     XTrace.Log.Debug("[AIAgentPlugin]     工具ID: {0}", toolCall.Id);
                     XTrace.Log.Debug("[AIAgentPlugin]     工具参数: {0}", toolArgs);
 
-                    var toolResult = await _toolRegistry.ExecuteToolWithTimeoutAsync(toolName, toolArgs, 30, cancellationToken);
+                    var toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(toolName, toolArgs, 30, cancellationToken);
 
                     XTrace.Log.Info("[AIAgentPlugin] <<< 工具执行结果: {0} (耗时: {1}ms)",
                         toolResult.Success ? "成功" : "失败",
@@ -750,7 +771,7 @@ public class AIAgentService : IAIAgentService
                 query = query[..500];
 
             var toolParams = JsonSerializer.Serialize(new { query = query, limit = 5 });
-            var toolResult = await _toolRegistry.ExecuteToolWithTimeoutAsync(
+            var toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(
                 "get_relevant_memories",
                 toolParams,
                 15,

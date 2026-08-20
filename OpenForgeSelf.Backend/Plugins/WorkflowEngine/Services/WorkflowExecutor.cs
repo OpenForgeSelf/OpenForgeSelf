@@ -1,5 +1,6 @@
 using System.Text.Json;
 using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -12,14 +13,18 @@ namespace OpenForgeSelf.Backend.Plugins.WorkflowEngine.Services;
 public class WorkflowExecutor : IWorkflowExecutor
 {
     private readonly IServiceProvider? _serviceProvider;
+    private readonly IContext? _ctx;
 
     private static readonly Dictionary<long, WorkflowExecution> _runningExecutions = new();
     private static readonly Dictionary<long, CancellationTokenSource> _cancellationTokenSources = new();
     private static readonly object _lock = new();
 
-    public WorkflowExecutor(IServiceProvider? serviceProvider = null)
+    public WorkflowExecutor(IServiceProvider? serviceProvider = null, IContext? ctx = null)
     {
         _serviceProvider = serviceProvider;
+        // 兄弟插件提供的服务（如 AIAgent 的 IWorkflowAIAdvisor）经 Cordis 上下文 ctx.Get<T>() 解析
+        // （软依赖探测，缺失返回 null → 走默认重试）。WorkflowEnginePlugin 传的 serviceProvider 即 IContext。
+        _ctx = ctx ?? serviceProvider as IContext;
     }
 
     public async Task<WorkflowExecution> ExecuteAsync(long workflowId, Dictionary<string, object?>? inputVariables = null, string? triggeredBy = null)
@@ -274,11 +279,12 @@ public class WorkflowExecutor : IWorkflowExecutor
 
     private async Task<RetryAdvice?> GetAIAdviceAsync(WorkflowStep step, string errorMessage, int retryCount, WorkflowExecution execution)
     {
-        if (_serviceProvider == null) return null;
+        if (_ctx == null) return null;
 
         try
         {
-            var aiAdvisor = _serviceProvider.GetService(typeof(IWorkflowAIAdvisor)) as IWorkflowAIAdvisor;
+            // 软依赖探测：兄弟插件（AIAgent）未提供 advisor 时返回 null → 调用方走默认重试（降级语义保留）。
+            var aiAdvisor = _ctx.Get<IWorkflowAIAdvisor>();
             if (aiAdvisor == null) return null;
 
             XTrace.Log.Debug("[WorkflowExecutor] 获取AI重试建议，步骤: {0}", step.Name);

@@ -575,10 +575,11 @@ public class PluginManager
     private void MountPlugin(PluginMetadata metadata, IPlugin plugin, PluginLoadContext? loadContext, IServiceCollection? services)
     {
         var fiber = new Fiber(_rootContext);
-        fiber.Context.Register(metadata);
+        // PluginMetadata/IServiceCollection 为插件框架私有对象，注册为本地值（不进共享表，兄弟插件不可见；裁决 A）。
+        fiber.Context.RegisterLocal(metadata);
         if (services != null)
         {
-            fiber.Context.Register(services);
+            fiber.Context.RegisterLocal(services);
             // 让插件 Service 构造函数可注入 IContext，运行期经 ctx.Get<T>() 取宿主 seed 契约（Cordis 模式）。
             services.AddSingleton<IContext>(fiber.Context);
         }

@@ -35,7 +35,7 @@ public class RetrySuggestion
 public class AIWorkflowAssistant : IAIWorkflowAssistant
 {
     private readonly IAIAgentService _aiAgentService;
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IContext _ctx;
     private readonly IToolSelectorService _toolSelectorService;
 
     public AIWorkflowAssistant(
@@ -44,8 +44,11 @@ public class AIWorkflowAssistant : IAIWorkflowAssistant
         IToolSelectorService toolSelectorService)
     {
         _aiAgentService = aiAgentService;
-        // 宿主契约（IToolRegistry）经 Cordis 上下文在运行期获取；插件自有服务保持构造注入。
-        _toolRegistry = ctx.Get<IToolRegistry>() ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化工作流助手");
+        // 宿主契约（IToolRegistry）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）。
+        // 不在构造时解析：宿主契约在 ProvideHostServices 阶段才 seed 进根上下文，晚于插件 Apply
+        // （本实例可能被 AIAgentPlugin 在 Apply 阶段 eager 构造），构造期 Get 恒为 null 会抛异常；
+        // 延迟到首次使用时解析（此时宿主契约已就绪）。
+        _ctx = ctx;
         _toolSelectorService = toolSelectorService;
     }
 
@@ -158,7 +161,9 @@ public class AIWorkflowAssistant : IAIWorkflowAssistant
         {
             XTrace.Log.Info("[AIWorkflowAssistant] 智能调整参数，步骤: {0}", step.Name);
 
-            var tool = _toolRegistry.GetTool(step.ToolName ?? string.Empty);
+            var toolRegistry = _ctx.Get<IToolRegistry>();
+            if (toolRegistry == null) return null;
+            var tool = toolRegistry.GetTool(step.ToolName ?? string.Empty);
             if (tool == null) return null;
 
             var systemPrompt = GetParamAdjustSystemPrompt();

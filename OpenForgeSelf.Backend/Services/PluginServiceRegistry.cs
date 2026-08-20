@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using OpenForgeSelf.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenForgeSelf.Backend.Services;
@@ -78,6 +79,12 @@ public sealed class PluginServiceRegistry : IPluginServiceRegistry
     {
         foreach (var serviceType in _index.Keys)
         {
+            // 「插件→插件」契约（如 IWorkflowAIAdvisor）不进宿主转发（调研 §5.6 裁决 E）：
+            // 消费方在兄弟插件内经 ctx.Get<T>() 于运行期解析，宿主转发会造成同一契约双通道解析
+            //（且 Transient 工厂会破坏 eager 单例语义）。
+            if (serviceType == typeof(IWorkflowAIAdvisor))
+                continue;
+
             yield return ServiceDescriptor.Describe(
                 serviceType,
                 _ => Resolve(serviceType) ?? throw new InvalidOperationException($"插件服务已卸载: {serviceType}"),

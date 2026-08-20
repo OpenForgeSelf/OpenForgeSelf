@@ -28,6 +28,21 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IProactivePlanningService, ProactivePlanningService>();
         services?.AddScoped<IWorkflowPlannerService, WorkflowPlannerService>();
         services?.AddScoped<IToolSelectorService, ToolSelectorService>();
+        // 补注册 AI 工作流助手与 AI 重试顾问（供插件内部构造注入）。
+        services?.AddScoped<IAIWorkflowAssistant, AIWorkflowAssistant>();
+        services?.AddScoped<IWorkflowAIAdvisor, AIWorkflowAdvisor>();
+
+        // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
+        // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
+        // 再 ctx.Register<IWorkflowAIAdvisor>(实例) 写入 root 共享服务表，供兄弟插件（WorkflowEngine）经 ctx.Get 消费。
+        if (services != null)
+        {
+            var advisorScope = services.BuildServiceProvider().CreateScope();
+            // 先注册 scope 释放 effect（早进列表，Dispose 逆序时后执行）→ 卸载时共享表条目先摘除、scope 后释放，避免 advisor 悬空引用已释放的服务。
+            ctx.Effect(() => advisorScope);
+            var advisor = advisorScope.ServiceProvider.GetRequiredService<IWorkflowAIAdvisor>();
+            ctx.Register<IWorkflowAIAdvisor>(advisor);
+        }
 
         RegisterMenuExtensions(pluginId);
         RegisterToolFunctionExtensions(pluginId, ctx);

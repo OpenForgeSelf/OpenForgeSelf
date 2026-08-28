@@ -95,10 +95,27 @@ public class ProxyCaptureE2ETests : IDisposable
         return false;
     }
 
-    private void StartListener(ListenerConfig cfg)
+    /// <summary>启动监听器并返回实际监听端口（失败自动换端口重试，规避端口竞态）。</summary>
+    private int StartListener(ListenerConfig cfg)
     {
-        CaptureEngine.Instance.StartListener(cfg);
-        _startedListeners.Add(cfg.Id);
+        // FreePort 取端口后存在竞态窗口（全量并行跑时端口可能被占用），
+        // 失败则换端口重试，保证测试在负载环境下稳定。
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                CaptureEngine.Instance.StartListener(cfg);
+                _startedListeners.Add(cfg.Id);
+                return cfg.ListenPort;
+            }
+            catch (SocketException)
+            {
+                // 端口被占：换端口重试
+                cfg.ListenPort = FreePort();
+            }
+        }
+
+        throw new InvalidOperationException($"无法在 5 次尝试内启动监听器（端口均被占用），最后端口 {cfg.ListenPort}");
     }
 
     [Fact]
@@ -108,12 +125,11 @@ public class ProxyCaptureE2ETests : IDisposable
         var (target, received) = StartTargetService();
         var targetPort = ((IPEndPoint)target.LocalEndpoint).Port;
 
-        var listenPort = FreePort();
-        StartListener(new ListenerConfig
+        var listenPort = StartListener(new ListenerConfig
         {
             Name = "e2e-fwd",
             ListenAddress = "127.0.0.1",
-            ListenPort = listenPort,
+            ListenPort = FreePort(),
             TargetHost = "127.0.0.1",
             TargetPort = targetPort,
             Enabled = true
@@ -149,12 +165,11 @@ public class ProxyCaptureE2ETests : IDisposable
     public async Task HttpRequest_WithoutTarget_Returns200AndCaptures()
     {
         // Arrange：无目标监听器（仅抓包）
-        var listenPort = FreePort();
-        StartListener(new ListenerConfig
+        var listenPort = StartListener(new ListenerConfig
         {
             Name = "e2e-nofwd",
             ListenAddress = "127.0.0.1",
-            ListenPort = listenPort,
+            ListenPort = FreePort(),
             Enabled = true
         });
 

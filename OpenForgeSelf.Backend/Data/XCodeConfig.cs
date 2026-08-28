@@ -8,51 +8,52 @@ namespace OpenForgeSelf.Backend.Data;
 
 public static class XCodeConfig
 {
-    public static void AddXCode(this IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// 全部 XCode 数据库连接名的唯一真源（name → 文件名）。
+    /// 新增库只需在此加一行，连接串注册与库初始化共用本字典，绝不漏设。
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> DbFiles { get; } = new Dictionary<string, string>
     {
-        var connStrings = new Dictionary<string, string>
-        {
-            ["OpenForgeSelf"] = configuration.GetConnectionString("OpenForgeSelf") ?? "Data Source=Data\\OpenForgeSelf.db",
-            ["MemorySystem"] = configuration.GetConnectionString("MemorySystem") ?? "Data Source=Data\\MemorySystem.db",
-            ["QuickLinks"] = configuration.GetConnectionString("QuickLinks") ?? "Data Source=Data\\QuickLinks.db",
-            ["Scheduler"] = configuration.GetConnectionString("Scheduler") ?? "Data Source=Data\\Scheduler.db",
-            ["ScriptRunner"] = configuration.GetConnectionString("ScriptRunner") ?? "Data Source=Data\\ScriptRunner.db",
-            ["WorkflowEngine"] = configuration.GetConnectionString("WorkflowEngine") ?? "Data Source=Data\\WorkflowEngine.db",
-            ["AIAgent"] = configuration.GetConnectionString("AIAgent") ?? "Data Source=Data\\AIAgent.db",
-            ["TodoTracker"] = configuration.GetConnectionString("TodoTracker") ?? "Data Source=Data\\TodoTracker.db"
-        };
+        ["OpenForgeSelf"] = "OpenForgeSelf.db",
+        ["MemorySystem"] = "MemorySystem.db",
+        ["QuickLinks"] = "QuickLinks.db",
+        ["Scheduler"] = "Scheduler.db",
+        ["ScriptRunner"] = "ScriptRunner.db",
+        ["WorkflowEngine"] = "WorkflowEngine.db",
+        ["AIAgent"] = "AIAgent.db",
+        ["TodoTracker"] = "TodoTracker.db"
+    };
 
-        foreach (var (name, connStr) in connStrings)
+    public static void AddXCode(this IServiceCollection services, IConfiguration configuration, string dataDirectory)
+    {
+        // 确保数据根目录存在
+        if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory);
+
+        // 仅登记文件名；连接串 Data Source 统一由 dataDirectory 派生绝对路径。
+        // 新增库只需在 DbFiles 加一行，路径绝不会漏设。
+        foreach (var (name, file) in DbFiles)
         {
+            // 若 appsettings 显式给连接串（用户自定义绝对路径），优先使用；否则统一派生到数据根
+            var connStr = configuration.GetConnectionString(name)
+                ?? $"Data Source={Path.Combine(dataDirectory, file)}";
             DAL.AddConnStr(name, connStr, null, "SQLite");
         }
 
         XCodeSetting.Current.ShowSQL = false;
     }
 
-    public static void InitializeXCodeDatabase(this IApplicationBuilder app, IWebHostEnvironment env)
+    public static void InitializeXCodeDatabase(this IApplicationBuilder app, IWebHostEnvironment env, string dataDirectory)
     {
         if (env.IsEnvironment("Testing")) return;
 
-        var dataDir = Path.Combine(env.ContentRootPath, "Data");
+        var dataDir = dataDirectory;
         if (!Directory.Exists(dataDir))
         {
             Directory.CreateDirectory(dataDir);
         }
 
-        var connNames = new[]
-        {
-            "OpenForgeSelf",
-            "MemorySystem",
-            "QuickLinks",
-            "Scheduler",
-            "ScriptRunner",
-            "WorkflowEngine",
-            "AIAgent",
-            "TodoTracker"
-        };
-
-        foreach (var connName in connNames)
+        // 与 AddXCode 共用 DbFiles 唯一真源，新增库不会漏初始化
+        foreach (var connName in DbFiles.Keys)
         {
             try
             {

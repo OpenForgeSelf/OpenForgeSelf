@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using NewLife.Configuration;
+using OpenForgeSelf.Backend.Data;
 using XCode.Configuration;
 
 namespace OpenForgeSelf.Backend.Models;
 
 /// <summary>铸己匣本地配置</summary>
 [Config("ForgeSetting")]
-public class ForgeSetting : Config<ForgeSetting>
+public class ForgeSetting : ForgeConfig<ForgeSetting>
 {
   #region 属性
   /// <summary>API令牌。用于API服务器认证的Bearer Token</summary>

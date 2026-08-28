@@ -16,9 +16,13 @@ namespace OpenForgeSelf.Backend.Plugins.ProxyCapture.Core;
 /// </summary>
 public class CaptureEngine
 {
-    /// <summary>插件独立数据目录（CA 证书与 capture.db 所在）。</summary>
-    public static string DataDirectory { get; } =
-        Path.Combine(AppContext.BaseDirectory, "ProxyCaptureData");
+    /// <summary>插件独立数据目录（CA 证书与 capture.db 所在）。默认程序目录 ProxyCaptureData，可由宿主按运行形态覆盖。</summary>
+    public static string DataDirectory => _dataDirectory ?? Path.Combine(AppContext.BaseDirectory, "ProxyCaptureData");
+
+    /// <summary>设置插件数据目录（须在 <see cref="Instance"/> 创建 / <see cref="StartAll"/> 前调用）。</summary>
+    public static void SetDataDirectory(string dir) => _dataDirectory = dir;
+
+    private static string? _dataDirectory;
 
     private static CaptureEngine? _instance;
     public static CaptureEngine Instance => _instance ??= new CaptureEngine();

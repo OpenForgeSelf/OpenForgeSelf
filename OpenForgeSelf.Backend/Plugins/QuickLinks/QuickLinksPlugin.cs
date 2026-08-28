@@ -26,7 +26,7 @@ public class QuickLinksPlugin : IPlugin
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);
-        EnsureDatabaseCreated();
+        EnsureDatabaseCreated(ctx.GetPluginDataDirectory());
 
         XTrace.Log.Info("快捷链接插件初始化完成");
     }
@@ -148,11 +148,11 @@ public class QuickLinksPlugin : IPlugin
         XTrace.Log.Debug("快捷链接插件已注册AI工具函数扩展点，共 {0} 个工具", ToolExtensions.Count);
     }
 
-    private void EnsureDatabaseCreated()
+    private void EnsureDatabaseCreated(string dataDirectory)
     {
         try
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "quicklinks.db");
+            var dbPath = Path.Combine(dataDirectory, "quicklinks.db");
             var connStr = $"Data Source={dbPath}";
 
             DAL.AddConnStr("QuickLinks", connStr, null, "SQLite");

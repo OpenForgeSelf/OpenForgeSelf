@@ -18,10 +18,12 @@ public interface IMemoryIntegrationService
 public class MemoryIntegrationService : IMemoryIntegrationService
 {
     private readonly IMemoryService _memoryService;
+    private readonly string _memoryDbDirectory;
 
-    public MemoryIntegrationService(IMemoryService memoryService)
+    public MemoryIntegrationService(IMemoryService memoryService, string memoryDbDirectory)
     {
         _memoryService = memoryService;
+        _memoryDbDirectory = memoryDbDirectory;
     }
 
     public async Task<string> GetRelevantMemoriesAsSystemPromptAsync(string userMessage, int limit = 5)
@@ -173,7 +175,7 @@ public class MemoryIntegrationService : IMemoryIntegrationService
     {
         try
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "memory.db");
+            var dbPath = Path.Combine(_memoryDbDirectory, "memory.db");
             var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
             optionsBuilder.UseSqlite($"Data Source={dbPath}");
 

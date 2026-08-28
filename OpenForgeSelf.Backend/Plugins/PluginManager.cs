@@ -171,6 +171,7 @@ public class PluginManager
         typeof(ILlmRuntime),
         typeof(ILogService),
         typeof(IWebSocketBroadcaster),
+        typeof(IDataLocationService),
     };
 
     /// <summary>

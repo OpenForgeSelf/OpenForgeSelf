@@ -23,7 +23,8 @@ public class MemorySystemPlugin : IPlugin
 
         var services = ctx.Get<IServiceCollection>();
         services?.AddScoped<IMemoryService, MemoryServiceXCode>();
-        services?.AddScoped<IMemoryIntegrationService, MemoryIntegrationService>();
+        services?.AddScoped<IMemoryIntegrationService>(sp =>
+            new MemoryIntegrationService(sp.GetRequiredService<IMemoryService>(), ctx.GetPluginDataDirectory()));
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);

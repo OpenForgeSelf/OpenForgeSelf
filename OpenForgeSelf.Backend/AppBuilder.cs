@@ -53,10 +53,19 @@ public static class AppBuilder
 
         XTrace.Log.Level = NewLife.Log.LogLevel.Info;
 
-        var connectionString = builder.Configuration.GetConnectionString("OpenForgeSelf") ?? "Data Source=Data\\OpenForgeSelf.db";
-        XTrace.Log.Info("数据库连接字符串: {0}", connectionString);
+        // 统一数据根服务：按运行形态解析（开发→程序目录 Data/，否则→用户主目录 ~/.forgeself）
+        var dataLocation = new DataLocationService(builder.Environment);
+        builder.Services.AddSingleton<IDataLocationService>(dataLocation);
+        XTrace.Log.Info("运行时数据根目录: {0}", dataLocation.GetHostDataDirectory());
 
-        builder.Services.AddXCode(builder.Configuration);
+        // 统一所有 NewLife Config<T> 配置文件落盘位置（XCode/Core/Agent/项目自有等），
+        // 必须早于 AddXCode（其内部访问 XCodeSetting.Current）及任何 .Current 访问，
+        // 避免配置文件散落到程序目录/输出目录。
+        var configRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "Config");
+        ConfigUnifier.UnifyAllConfigFiles(configRoot);
+        XTrace.Log.Info("配置文件统一目录: {0}", configRoot);
+
+        builder.Services.AddXCode(builder.Configuration, dataLocation.GetHostDataDirectory());
 
         builder.Services.AddCors(options =>
         {
@@ -189,7 +198,7 @@ public static class AppBuilder
         builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
 
         // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 Data/ImageRecognitionCache
-        var imageCacheRoot = Path.Combine(builder.Environment.ContentRootPath, "Data", "ImageRecognitionCache");
+        var imageCacheRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "ImageRecognitionCache");
         builder.Services.AddSingleton<IImageRecognitionCache>(new LocalFileImageRecognitionCache(imageCacheRoot));
 
         // 插件可变 MS DI 容器（Option A）：先注册注册表单例，使 PluginManager 可构造注入同一份实例。
@@ -346,7 +355,7 @@ public static class AppBuilder
 
         if (!app.Environment.IsEnvironment("Testing"))
         {
-            app.InitializeXCodeDatabase(app.Environment);
+            app.InitializeXCodeDatabase(app.Environment, app.Services.GetRequiredService<IDataLocationService>().GetHostDataDirectory());
             XTrace.Log.Info("数据库初始化完成");
         }
 

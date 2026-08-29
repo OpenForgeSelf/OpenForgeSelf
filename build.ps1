@@ -27,19 +27,16 @@ Write-Host ""
 # 临时记录开始时间
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-# ── 第 1 步：清理 publish 目录 ──
-# 仅删除发布目录下的文件（含子目录中的文件），保留所有文件夹结构。
-Write-Host "[1] 清理旧发布目录（仅删除文件，保留文件夹）..." -ForegroundColor Cyan
+# ── 第 1 步：清理 publish 目录（全量删除重建，发布即全新干净）──
+# 逐项由深到浅删除，占用/只读等错误静默跳过（避免单个文件被锁导致整目录删除中断），
+# 尽可能清空所有文件与目录后重建，确保不带历史运行时遗留（Data/、Log/、Config/）。
+Write-Host "[1] 清理旧发布目录（全量删除重建）..." -ForegroundColor Cyan
 if (Test-Path $publishDir) {
-    $deleted = 0
-    # 递归列出所有文件并删除，目录本身保留
-    Get-ChildItem -Path $publishDir -Recurse -File | ForEach-Object {
-        Remove-Item -Path $_.FullName -Force
-        $deleted++
-    }
-    Write-Host "    已删除 $deleted 个文件（文件夹保留）" -ForegroundColor Gray
-} else {
-    Write-Host "    发布目录不存在，跳过清理" -ForegroundColor Gray
+    Get-ChildItem -Path $publishDir -Recurse -Force |
+        Sort-Object { $_.FullName.Length } -Descending |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $publishDir -Force -ErrorAction SilentlyContinue
+    Write-Host "    已清空旧发布目录" -ForegroundColor Gray
 }
 New-Item -Path $publishDir -ItemType Directory -Force | Out-Null
 Write-Host "    完成" -ForegroundColor Green
@@ -88,6 +85,17 @@ if (-not $SkipPublish) {
                 if (Test-Path $src) {
                     Copy-Item -Path $src -Destination $publishDir -Force
                     Write-Host "    已复制 $file" -ForegroundColor Gray
+                }
+            }
+
+            # 排除运行时遗留目录，避免发布产物带上 Data/（运行时数据库）与 Log/（运行时日志）。
+            # 注意：Plugins/ 必须保留——它承载插件程序集，删除即导致发布版零插件。
+            # 插件 DLL 由 Backend.csproj 的 StagePluginsToPublish 目标在 Publish 后拷入。
+            foreach ($dir in @("Data", "Log")) {
+                $p = Join-Path $publishDir $dir
+                if (Test-Path $p) {
+                    Remove-Item $p -Recurse -Force
+                    Write-Host "    已排除 $dir/" -ForegroundColor Gray
                 }
             }
 

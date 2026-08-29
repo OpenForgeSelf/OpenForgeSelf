@@ -53,9 +53,18 @@
 
 ### ConnectionStrings
 
+> 数据库连接路径的**唯一真源是代码**（`OpenForgeSelf.Backend/Data/XCodeConfig.cs`），不是配置节。
+
 | 键 | 默认值 | 说明 |
 |---|--------|------|
-| `Default` | `Data Source=%LOCALAPPDATA%/OpenForgeSelf/OpenForgeSelf.db` | SQLite 数据库连接字符串。`%LOCALAPPDATA%` 在运行时被替换为实际路径 |
+| `ConnectionStrings:{连接名}` | 无（无需配置） | 可选覆盖。连接名取自 `XCodeConfig.DbFiles`：`OpenForgeSelf` + 各插件库名。**仅当 `Data Source=` 为绝对路径时生效**；相对路径会被忽略并输出告警（否则数据库会落到程序目录，发布目录下常因目录不存在报 SQLite Error 14） |
+
+落盘规则（由 `IDataLocationService` 按运行形态决定数据根）：
+
+| 运行形态 | 数据根 | 宿主库 | 插件库 |
+|----------|--------|--------|--------|
+| 开发（`ASPNETCORE_ENVIRONMENT=Development`） | `{程序目录}/Data` | `Data/OpenForgeSelf.db` | `Data/Plugins/{插件Id}/{库名}.db` |
+| 发布 exe / Windows 服务 | `~/.forgeself` | `~/.forgeself/OpenForgeSelf.db` | `~/.forgeself/Plugins/{插件Id}/{库名}.db` |
 
 ### AI — AI 网关配置
 

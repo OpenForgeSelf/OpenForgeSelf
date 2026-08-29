@@ -1,7 +1,7 @@
 {
   "Id": "ai-agent",
   "Name": "AI代理插件",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Author": "OpenForgeSelf Team",
   "Description": "AI聊天代理插件，支持对话、流式响应和工具函数调用。",
   "IconUrl": "https://example.com/ai-agent-icon.png",

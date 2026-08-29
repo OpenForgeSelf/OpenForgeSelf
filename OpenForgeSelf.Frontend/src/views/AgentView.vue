@@ -111,18 +111,47 @@
         <!-- Chat Header -->
         <div class="chat-header">
           <div class="chat-header-left">
-            <span class="chat-title">AI Agent</span>
+            <span class="chat-title">
+              AI Agent
+              <span v-if="pluginVersion" class="plugin-version">v{{ pluginVersion }}</span>
+            </span>
             <div class="status-indicator">
               <div class="status-dot" />
               <span class="status-text">就绪</span>
             </div>
           </div>
           <div class="chat-header-right">
-            <div class="model-selector">
-              <i class="fa-solid fa-microchip" />
-              <span class="model-name">Gemma 2B 本地</span>
-              <i class="fa-solid fa-chevron-down" />
-            </div>
+            <ElDropdown
+              trigger="click"
+              placement="bottom-end"
+              v-model:visible="modelDropdownOpen"
+              :disabled="modelMenuLoading"
+              @command="handleSelectModel"
+            >
+              <span class="model-selector" :class="{ 'is-loading': modelMenuLoading }">
+                <i class="fa-solid fa-microchip" />
+                <span class="model-name">{{ currentModelLabel }}</span>
+                <i class="fa-solid fa-chevron-down chevron" :class="{ rotated: modelDropdownOpen }" />
+              </span>
+              <template #dropdown>
+                <ElDropdownMenu>
+                  <ElDropdownItem v-if="availableModels.length === 0" disabled>
+                    暂无可用模型，请到 AI 设置启用
+                  </ElDropdownItem>
+                  <ElDropdownItem
+                    v-for="m in availableModels"
+                    :key="m.id"
+                    :command="m"
+                    :disabled="m.id === currentModelId"
+                  >
+                    <span class="model-menu-item">
+                      <span class="model-menu-name">{{ m.alias || m.upstreamModelId || m.chatModelId }}</span>
+                      <span class="model-menu-provider">{{ m.providerName }}</span>
+                    </span>
+                  </ElDropdownItem>
+                </ElDropdownMenu>
+              </template>
+            </ElDropdown>
             <span class="token-count">
               <i class="fa-solid fa-hashtag" />
               1.2k tokens
@@ -472,12 +501,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import AppLogo from '@/components/AppLogo.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import { useChatStore } from '@/stores/chat'
 import type { AgentType } from '@/types/agent'
+import { pluginApi } from '@/services/pluginApi'
+import { aiModelsApi } from '@/services/aiModelsApi'
+import type { AIModel } from '@/types/aiModel'
 
 const agentStore = useAgentStore()
 const chatStore = useChatStore()
@@ -490,6 +522,18 @@ const coordinationResult = ref('')
 const inputMessage = ref('')
 const messageListRef = ref<HTMLElement | null>(null)
 
+// 插件版本（标题后徽标）
+const pluginVersion = ref('')
+const CURRENT_PLUGIN_ID = 'ai-agent'  // 与 AIAgent/plugin.json 的 Id 对齐
+
+// 真实模型列表（替掉硬编码 "Gemma 2B 本地"）
+const availableModels = ref<AIModel[]>([])
+const currentModelId = ref<number | null>(null)
+const modelMenuLoading = ref(false)
+const modelDropdownOpen = ref(false)
+
+const LS_KEY_MODEL = 'forgeself-agent-current-model'
+
 const expandedSections = reactive({
   mcp: true,
   skills: true,
@@ -497,11 +541,62 @@ const expandedSections = reactive({
   memory: true,
 })
 
+const currentModelLabel = computed(() => {
+  const m = availableModels.value.find(x => x.id === currentModelId.value)
+  if (m) return m.alias || m.upstreamModelId || m.chatModelId || '请选择模型'
+  return '请选择模型'
+})
+
 function toggleSection(key: keyof typeof expandedSections) {
   expandedSections[key] = !expandedSections[key]
 }
 
-onMounted(() => {
+async function loadPluginVersion() {
+  try {
+    const list = await pluginApi.fetchPlugins()
+    const me = list.find(p => p.id === CURRENT_PLUGIN_ID)
+    pluginVersion.value = me?.version ?? ''
+  } catch (e) {
+    console.warn('[AgentView] 加载插件版本失败:', e)
+  }
+}
+
+async function loadAvailableModels() {
+  modelMenuLoading.value = true
+  try {
+    const groups = await aiModelsApi.list({ enabledOnly: true })
+    // 平铺：每个 group 内模型 + 附带 providerName/ProviderId
+    const flat: AIModel[] = []
+    for (const g of groups ?? []) {
+      for (const m of g.models ?? []) {
+        flat.push({ ...m, providerId: m.providerId ?? g.providerId, providerName: m.providerName ?? g.providerName })
+      }
+    }
+    availableModels.value = flat
+
+    // 恢复上次选择
+    const saved = Number(localStorage.getItem(LS_KEY_MODEL))
+    if (saved && flat.some(m => m.id === saved)) {
+      currentModelId.value = saved
+    } else if (flat.length > 0) {
+      currentModelId.value = flat[0].id ?? null
+      if (currentModelId.value !== null) localStorage.setItem(LS_KEY_MODEL, String(currentModelId.value))
+    }
+  } catch (e) {
+    console.warn('[AgentView] 加载模型列表失败:', e)
+    availableModels.value = []
+  } finally {
+    modelMenuLoading.value = false
+  }
+}
+
+function handleSelectModel(m: AIModel) {
+  if (!m?.id) return
+  currentModelId.value = m.id
+  localStorage.setItem(LS_KEY_MODEL, String(m.id))
+}
+
+onMounted(async () => {
   // 预填首页快速提问条携带的问题
   const q = route.query.q
   if (typeof q === 'string' && q.trim()) {
@@ -512,6 +607,9 @@ onMounted(() => {
 
   agentStore.loadAgents()
   agentStore.loadInstances()
+  // 并行拉：插件版本 + 可用模型列表
+  loadPluginVersion()
+  loadAvailableModels()
 })
 
 function getTypeIcon(type: AgentType | string): string {
@@ -807,6 +905,52 @@ function formatResult(content: string): string {
 
 .token-count i {
   font-size: 10px;
+}
+
+/* 标题后追加的插件版本徽标（实时反映 /api/plugins 拿到的 version） */
+.plugin-version {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-family-mono);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* 模型下拉 trigger：loading 状态 + chevron 旋转 */
+.model-selector.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.model-selector .chevron {
+  transition: transform 150ms ease;
+}
+.model-selector .chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* 模型下拉菜单项（每行：模型名 + 供应商名） */
+.model-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 2px 0;
+}
+.model-menu-name {
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  font-family: var(--font-family-mono);
+}
+.model-menu-provider {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
 }
 
 /* Message List */

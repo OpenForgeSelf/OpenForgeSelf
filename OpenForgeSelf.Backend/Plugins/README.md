@@ -22,7 +22,7 @@
 5. **应用（Apply）**：宿主 `Build()` 之后调用 `plugin.Apply(ctx)`。插件在此注册服务、`IMenuExtension` 菜单、`IToolFunctionExtension` 工具函数、控制器路由等。
 6. **运行（Run）**：控制器 / 工具函数经 DI 拿到插件服务实例；所有数据写入各自的数据目录（见第三节）。
 7. **数据落盘（Persist）**：见第三节 —— 库文件统一命名 `{连接名}.db`（连接名即数据库名，与 XCode 一致），落在 `{数据根}/Plugins/{插件Id}/`。
-8. **停用 / 移除（Unload）**：当前为发布期**静态加载**（非运行时热拔）；删除 `publish/Plugins/{目录}/` 即卸载该插件（其数据目录 `~/.forgeself/Plugins/{插件Id}/` 保留，可手动清理）。
+8. **停用 / 移除（Unload）**：运行时已支持**单插件热更新/热插拔，不重启宿主**（详见第九节「运行时热更新」）。低阶能力：删除 `publish/Plugins/{目录}/` 仍可"硬卸载"该插件（其数据目录 `~/.forgeself/Plugins/{插件Id}/` 保留，可手动清理）。
 
 ---
 
@@ -131,3 +131,90 @@
 - **`EntryType` 大小写 / 命名空间错** → `Type.GetType` 返回 `null` → 插件加载失败。
 - **漏建数据父目录** → SQLite 抛「unable to open database file」；务必经 `EnsurePluginDataDirectory()` / 宿主 `InitializeXCodeDatabase`。
 - **`Id` 含大写或点号** → 在 Linux 上数据目录名大小写敏感、前端路由解析异常；`Id` 只允许 kebab-case。
+- **想"不重启宿主"就更新某个插件** → 用 `scripts/publish-plugin.ps1 -Plugin <目录名PascalCase>` 把新版本 staged 到 `_backups/{id}/{ver}/`，再 `POST /api/plugins/update/{id}` 触发宿主运行时版本比较 + 切 current + 卸载旧 ALC + 加载新 DLL + 刷新 MVC 端点；详细流程见第九节。
+
+---
+
+## 九、运行时热更新（不重启宿主）
+
+> 本节描述**已实现**的"按插件单独发布、不重启宿主"能力。涵盖版本目录布局、三种触发方式、内部机制、失败回退与回滚。
+
+### 9.1 版本目录布局（side-by-side）
+
+每个插件在宿主运行根的 `Plugins/{id}/` 下，按如下结构存放：
+
+```
+Plugins/{id}/
+  plugin.json           # 活动清单（PascalCase 字段）
+  current               # 文本文件，存当前生效 semver，如 "1.2.0"（原子覆盖）
+  versions/
+    1.0.0/<entry.dll>   # 不可变版本快照
+    1.1.0/<entry.dll>
+    ...
+  _backups/
+    {id}/<ver>/...      # publish-plugin.ps1 staged 新版本的入口（详见 9.4）
+```
+
+宿主解析入口顺序：`versions/<current>/<entry>` → fallback 旧扁平布局 `<entry>`。**更新 = 把新版本 staged 到 `versions/<new>/`，把 `current` 指针改成新版本号（原子写）**。
+
+### 9.2 三种触发方式
+
+| 触发 | 入口 | 适用场景 |
+|---|---|---|
+| **HTTP API**（推荐，CI/手动） | `POST /api/plugins/update/{id}` | 自动化部署、精确控制触发时机 |
+| **FileSystemWatcher**（自动） | 修改 `Plugins/{id}/versions/<new>/` 或 `current` 指针 | 开发期、保存即生效 |
+| **`scripts/publish-plugin.ps1`** | `pwsh ./scripts/publish-plugin.ps1 -Plugin AIAgent` | CI 流水线、运维发布；脚本只负责"编译 + staged 复制"，运行时切换由宿主 API 触发 |
+
+HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugins`）：
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| `GET` | `/api/plugins` | 列出已加载插件（含 Version / 启用状态） |
+| `GET` | `/api/plugins/updates` | 检查 `_backups/` 中可用更新 |
+| `POST` | `/api/plugins/update/{id}` | 触发更新（版本比较 → 切 current → 卸载旧 ALC → 加载新 DLL → 刷新 MVC 端点） |
+| `POST` | `/api/plugins/rollback/{id}` | 回滚到指定版本（body `{"version":"1.0.0"}`） |
+| `POST` | `/api/plugins/enable/{id}` | 热启用已停用插件 |
+| `POST` | `/api/plugins/disable/{id}` | 热停用插件（保留数据） |
+
+### 9.3 内部机制（为什么"不重启"是可行的）
+
+- **可收集 ALC 隔离**：每个插件用 `AssemblyLoadContext(name, isCollectible: true)` 加载；卸载时不污染宿主或其他插件。
+- **端点动态刷新**：插件控制器以 `AssemblyPart` 注册进 `ApplicationPartManager`，结合 `IActionDescriptorChangeProvider.NotifyChange`，新端点**实时出现在路由表**，无需重启。
+- **DI 子容器隔离**：插件服务挂可变子容器（`IPluginServiceRegistry`），卸载时仅摘除该插件索引。
+- **DLL 文件锁处理**：`PluginAssemblyUnloader` 提供 `ForceCollect`（两轮 GC + 终结器）+ `TryOpenExclusive`（`FileShare.None` 探测句柄释放）+ `TryDeleteDirectory`（被占用就跳过、下轮重试），解决 Windows 下 DLL 句柄未释放导致覆盖失败。
+- **原子指针切换 + 失败回退**：`WriteCurrentVersion` 用临时文件 + `Move` 覆盖（半截写入不可见）。新版加载失败时自动回退上一版本，旧版本目录保留供回滚。
+- **API 监听（FileSystemWatcher）**：`PluginHotReloadWatcher` 监听整个 `Plugins/` 含子目录（忽略 `_backups`/`_trash`），300ms debounce 后调用 `ReloadPlugin`；保存文件即热重载。
+
+### 9.4 单独发布脚本 `scripts/publish-plugin.ps1`
+
+把"插件 csproj 编译产物"自动 staged 到 `Plugins/_backups/{id}/{ver}/` 的脚本。运行时切换由宿主 API 触发（脚本与运行时关注点分离）。
+
+```bash
+# 默认（dev 形态，PluginsRoot = 源 Plugins/_backups）
+./scripts/publish-plugin.ps1 -Plugin AIAgent
+
+# 指定发布形态的插件根
+./scripts/publish-plugin.ps1 -Plugin AIAgent -PluginsRoot "D:/deploy/Plugins"
+
+# 强制覆盖已存在的 staged
+./scripts/publish-plugin.ps1 -Plugin AIAgent -Force
+
+# 只打印不真改（CI 验证用）
+./scripts/publish-plugin.ps1 -Plugin AIAgent -DryRun
+```
+
+**参数约定**：`Plugin` 是**目录名**（PascalCase，如 `AIAgent`），不是 kebab-case id。脚本从 `plugin.json` 读 `Id`（`ai-agent`）用于构建 staged 路径。`Configuration` 默认 `Release`。
+
+**幂等行为**：若 `_backups/{id}/{ver}/` 已存在且 `-Force` 未传，脚本直接退出 0（不重跑 publish、不覆盖）—— 配合宿主运行时"版本未变不更新"语义（`PluginVersionService.UpdatePlugin` 内已实现 `VersionComparer.Compare(latestVersion, metadata.Version) <= 0` 跳过逻辑）。**真正版本增加**才会触发宿主运行时切 current 与热重载。
+
+**典型流程**：
+1. 改代码 + 改 `Plugins/AIAgent/plugin.json` 的 `Version`（如 `1.0.0` → `1.1.0`）；
+2. 跑 `publish-plugin.ps1 -Plugin AIAgent`（编译 + staged）；
+3. 宿主页运行中 → `curl.exe -X POST http://localhost:7102/api/plugins/update/ai-agent`（版本比较 → 切 current → 热重载）；
+4. 或停止宿主 → 重启时自动加载 `versions/1.1.0/`。
+
+### 9.5 失败回退与回滚
+
+- **加载失败自动回退**：`ReloadPlugin` 捕获异常后回退 `current` 到上一可用版本并重载。
+- **手动回滚**：`POST /api/plugins/rollback/{id}` + body `{"version":"1.0.0"}`（只要 `versions/1.0.0/` 目录仍在）。
+- **硬卸载**（清数据）：删除 `publish/Plugins/{目录}/` + `~/.forgeself/Plugins/{id}/`。

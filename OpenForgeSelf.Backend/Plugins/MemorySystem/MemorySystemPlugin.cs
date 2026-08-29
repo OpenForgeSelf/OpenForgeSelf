@@ -13,6 +13,14 @@ namespace OpenForgeSelf.Backend.Plugins.MemorySystem;
 
 public class MemorySystemPlugin : IPlugin
 {
+    /// <summary>
+    /// 插件数据目录（{数据根}/Plugins/{插件Id}），在 <see cref="Apply"/> 时由宿主数据位置服务解析。
+    /// 本插件的 memory-system.db 与 AI 工具函数（MemoryToolFunctionBase.CreateMemoryService）共用此目录，
+    /// 避免两处各自拼路径而产出两份互不可见的库。
+    /// </summary>
+    public static string DataDirectory { get; private set; }
+        = Path.Combine(AppContext.BaseDirectory, "MemorySystemData");
+
     public List<IMenuExtension> MenuExtensions { get; private set; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; private set; } = new();
 
@@ -21,6 +29,8 @@ public class MemorySystemPlugin : IPlugin
         var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         XTrace.Log.Info("[MemorySystem] 初始化记忆系统插件");
 
+        DataDirectory = ctx.EnsurePluginDataDirectory();
+
         var services = ctx.Get<IServiceCollection>();
         services?.AddScoped<IMemoryService, MemoryServiceXCode>();
         services?.AddScoped<IMemoryIntegrationService>(sp =>
@@ -28,7 +38,7 @@ public class MemorySystemPlugin : IPlugin
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);
-        EnsureDatabaseCreated();
+        EnsureDatabaseCreated(DataDirectory);
 
         XTrace.Log.Info("[MemorySystem] 记忆系统插件初始化完成");
     }
@@ -212,11 +222,14 @@ public class MemorySystemPlugin : IPlugin
         XTrace.Log.Debug("[MemorySystem] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
 
-    private void EnsureDatabaseCreated()
+    private void EnsureDatabaseCreated(string dataDirectory)
     {
         try
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "memory.db");
+            // 插件数据目录（{数据根}/Plugins/{插件Id}），与宿主注册的 MemorySystem.db 同目录；
+            // 不再写程序目录，避免发布目录下散落数据与只读安装目录写入失败。
+            Directory.CreateDirectory(dataDirectory);
+            var dbPath = Path.Combine(dataDirectory, "memory-system.db");
             var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
             optionsBuilder.UseSqlite($"Data Source={dbPath}");
 
@@ -306,7 +319,7 @@ public abstract class MemoryToolFunctionBase : IToolFunctionExtension
 
     protected static MemoryService CreateMemoryService()
     {
-        var dbPath = Path.Combine(AppContext.BaseDirectory, "memory.db");
+        var dbPath = Path.Combine(MemorySystemPlugin.DataDirectory, "memory-system.db");
         var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
         optionsBuilder.UseSqlite($"Data Source={dbPath}");
         var dbContext = new MemoryDbContext(optionsBuilder.Options);

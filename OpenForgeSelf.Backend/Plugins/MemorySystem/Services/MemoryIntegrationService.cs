@@ -175,7 +175,7 @@ public class MemoryIntegrationService : IMemoryIntegrationService
     {
         try
         {
-            var dbPath = Path.Combine(_memoryDbDirectory, "memory.db");
+            var dbPath = Path.Combine(_memoryDbDirectory, "memory-system.db");
             var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
             optionsBuilder.UseSqlite($"Data Source={dbPath}");
 

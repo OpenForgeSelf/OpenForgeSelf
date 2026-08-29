@@ -31,7 +31,7 @@ public class ProxyCaptureDbContext : DbContext
     /// <summary>构建指向插件独立库的上下文实例。</summary>
     public static ProxyCaptureDbContext Create()
     {
-        var dbPath = Path.Combine(CaptureEngine.DataDirectory, "capture.db");
+        var dbPath = Path.Combine(CaptureEngine.DataDirectory, "proxy-capture.db");
         // 注意：Microsoft.Data.Sqlite 不支持 'BusyTimeout' 连接串关键字（那是 System.Data.SQLite 的），
         // 会抛 ArgumentException；busy timeout 默认 30s，且 SaveRecord 已用 SemaphoreSlim 串行化，无需显式设置。
         var options = new DbContextOptionsBuilder<ProxyCaptureDbContext>()

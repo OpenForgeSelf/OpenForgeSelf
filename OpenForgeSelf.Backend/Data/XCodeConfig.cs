@@ -29,7 +29,8 @@ public static class XCodeConfig
         ["ScriptRunner"] = "script-runner",
         ["WorkflowEngine"] = "workflow-engine",
         ["AIAgent"] = "ai-agent",
-        ["TodoTracker"] = "todo-tracker"
+        ["TodoTracker"] = "todo-tracker",
+        ["ProxyCapture"] = "proxy-capture"
     };
 
     /// <summary>
@@ -48,8 +49,9 @@ public static class XCodeConfig
         var map = new Dictionary<string, string>();
         foreach (var host in HostDbs)
             map[host] = host + ".db";
+        // 库文件名 = 连接名 + .db（与 XCode 模型一致：连接名即数据库名）
         foreach (var (connName, pluginId) in PluginDbs)
-            map[connName] = Path.Combine(PluginDataRootName, pluginId, pluginId + ".db");
+            map[connName] = Path.Combine(PluginDataRootName, pluginId, connName + ".db");
         return map;
     }
 

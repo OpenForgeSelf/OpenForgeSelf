@@ -3,9 +3,9 @@ using System.Text.Json;
 using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Data;
+using OpenForgeSelf.Backend.Plugins.MemorySystem.Entities;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Models;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -15,7 +15,7 @@ public class MemorySystemPlugin : IPlugin
 {
     /// <summary>
     /// 插件数据目录（{数据根}/Plugins/{插件Id}），在 <see cref="Apply"/> 时由宿主数据位置服务解析。
-    /// 本插件的 memory-system.db 与 AI 工具函数（MemoryToolFunctionBase.CreateMemoryService）共用此目录，
+    /// 本插件的 MemorySystem.db 与 AI 工具函数（MemoryToolFunctionBase.CreateMemoryService）共用此目录，
     /// 避免两处各自拼路径而产出两份互不可见的库。
     /// </summary>
     public static string DataDirectory { get; private set; }
@@ -226,19 +226,11 @@ public class MemorySystemPlugin : IPlugin
     {
         try
         {
-            // 插件数据目录（{数据根}/Plugins/{插件Id}），与宿主注册的 MemorySystem.db 同目录；
-            // 不再写程序目录，避免发布目录下散落数据与只读安装目录写入失败。
+            // 插件数据目录（{数据根}/Plugins/{插件Id}），XCode 连接名 MemorySystem 的库 MemorySystem.db 落在此处；
+            // 表由宿主 XCodeConfig 在启动时 EnsureTablesCreated 创建，这里只确保目录存在并播种默认分类。
             Directory.CreateDirectory(dataDirectory);
-            var dbPath = Path.Combine(dataDirectory, "memory-system.db");
-            var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
-            optionsBuilder.UseSqlite($"Data Source={dbPath}");
-
-            using var dbContext = new MemoryDbContext(optionsBuilder.Options);
-            dbContext.Database.EnsureCreated();
-
-            SeedDefaultCategories(dbContext);
-
-            XTrace.Log.Info("[MemorySystem] 数据库初始化完成，路径: {0}", dbPath);
+            SeedDefaultCategories();
+            XTrace.Log.Info("[MemorySystem] 数据库初始化完成，路径: {0}", Path.Combine(dataDirectory, "MemorySystem.db"));
         }
         catch (Exception ex)
         {
@@ -246,11 +238,11 @@ public class MemorySystemPlugin : IPlugin
         }
     }
 
-    private static void SeedDefaultCategories(MemoryDbContext dbContext)
+    private static void SeedDefaultCategories()
     {
-        if (dbContext.MemoryCategories.Any()) return;
+        if (MemoryCategory.FindCount() > 0) return;
 
-        var defaultCategories = new List<MemoryCategoryEntity>
+        var defaultCategories = new List<MemoryCategory>
         {
             new() { Name = "个人信息", Icon = "fa-user", SortOrder = 1, Description = "个人基本信息和偏好" },
             new() { Name = "工作项目", Icon = "fa-briefcase", SortOrder = 2, Description = "工作相关的记忆和项目信息" },
@@ -259,8 +251,8 @@ public class MemorySystemPlugin : IPlugin
             new() { Name = "其他", Icon = "fa-folder", SortOrder = 100, Description = "其他分类的记忆" }
         };
 
-        dbContext.MemoryCategories.AddRange(defaultCategories);
-        dbContext.SaveChanges();
+        foreach (var category in defaultCategories)
+            category.Insert();
     }
 }
 
@@ -317,13 +309,10 @@ public abstract class MemoryToolFunctionBase : IToolFunctionExtension
         }
     }
 
-    protected static MemoryService CreateMemoryService()
+    protected IMemoryService CreateMemoryService()
     {
-        var dbPath = Path.Combine(MemorySystemPlugin.DataDirectory, "memory-system.db");
-        var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
-        optionsBuilder.UseSqlite($"Data Source={dbPath}");
-        var dbContext = new MemoryDbContext(optionsBuilder.Options);
-        return new MemoryService(dbContext);
+        // 走宿主注册的 XCode 实现（MemoryServiceXCode），与控制器 / AI 集成共用同一 MemorySystem 连接，避免双 ORM 双库。
+        return _serviceProvider!.GetRequiredService<IMemoryService>();
     }
 
     protected static MemoryType ParseMemoryType(string? typeStr)

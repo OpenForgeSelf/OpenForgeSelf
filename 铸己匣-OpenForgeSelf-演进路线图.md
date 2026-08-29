@@ -70,7 +70,7 @@
 
 **技术栈**:
 - 前端: Vue 3 + TypeScript + Pinia + Vue Router
-- 后端: .NET 10 + Entity Framework Core + NewLife.Core + NewLife.XCode
+- 后端: .NET 10 + NewLife.Core + NewLife.XCode（唯一 ORM）
 - 通信: REST API + WebSocket
 
 ---
@@ -399,7 +399,7 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3 + TypeScript + Pinia + Vue Router |
-| 后端 | .NET 10 + Entity Framework Core |
+| 后端 | .NET 10 + NewLife.XCode（唯一 ORM） |
 | 框架 | NewLife.Core + NewLife.XCode |
 | AI | Function Calling + 本地模型 (Gemma) |
 | 通信 | REST API + WebSocket (SignalR) |

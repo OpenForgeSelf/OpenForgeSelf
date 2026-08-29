@@ -43,13 +43,13 @@ public class HttpCaptureHandler : IProtocolHandler
             record.RequestBody = TryDecode(request.Body);
             record.RequestBytes = request.HeaderBytes.Length + request.Body.Length;
 
-            if (!string.IsNullOrEmpty(cfg.TargetHost) && cfg.TargetPort.HasValue)
+            if (!string.IsNullOrEmpty(cfg.TargetHost) && cfg.TargetPort > 0)
             {
                 // ── 原样转发到目标 ──
                 record.Forwarded = true;
-                record.Target = $"{cfg.TargetHost}:{cfg.TargetPort.Value}";
+                record.Target = $"{cfg.TargetHost}:{cfg.TargetPort}";
                 using var targetClient = new TcpClient();
-                await targetClient.ConnectAsync(cfg.TargetHost, cfg.TargetPort.Value);
+                await targetClient.ConnectAsync(cfg.TargetHost, cfg.TargetPort);
                 var targetStream = targetClient.GetStream();
                 Stream outStream = targetStream;
                 if (isTls)
@@ -70,7 +70,7 @@ public class HttpCaptureHandler : IProtocolHandler
 
                 // 读取并回写响应
                 var response = await HttpReader.ReadMessageAsync(outStream, ct);
-                record.StatusCode = ParseStatusCode(response.StartLine);
+                record.StatusCode = ParseStatusCode(response.StartLine) ?? 0;
                 record.ResponseHeaders = HeadersToJson(response.Headers);
                 record.ResponseBody = TryDecode(response.Body);
                 record.ResponseBytes = response.HeaderBytes.Length + response.Body.Length;

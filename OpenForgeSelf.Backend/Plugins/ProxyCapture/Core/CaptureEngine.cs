@@ -5,18 +5,19 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NewLife.Log;
-using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data.Entities;
+using System.Reflection;
+using XCode;
 
 namespace OpenForgeSelf.Backend.Plugins.ProxyCapture.Core;
 
 /// <summary>
 /// 抓包引擎（静态单例）：管理 TCP 监听器生命周期、嗅探协议并分发给对应处理器、
-/// 将抓包记录持久化到插件独立 SQLite 库。不使用 IHostedService，避免与宿主其他插件冲突。
+/// 将抓包记录持久化到插件独立 SQLite 库（XCode，连接名 ProxyCapture）。不使用 IHostedService，避免与宿主其他插件冲突。
 /// </summary>
 public class CaptureEngine
 {
-    /// <summary>插件独立数据目录（CA 证书与 capture.db 所在）。默认程序目录 ProxyCaptureData，可由宿主按运行形态覆盖。</summary>
+    /// <summary>插件独立数据目录（CA 证书与 ProxyCapture.db 所在）。默认程序目录 ProxyCaptureData，可由宿主按运行形态覆盖。</summary>
     public static string DataDirectory => _dataDirectory ?? Path.Combine(AppContext.BaseDirectory, "ProxyCaptureData");
 
     /// <summary>设置插件数据目录（须在 <see cref="Instance"/> 创建 / <see cref="StartAll"/> 前调用）。</summary>
@@ -52,9 +53,8 @@ public class CaptureEngine
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            db.Database.EnsureCreated();
-            foreach (var cfg in db.ListenerConfigs.Where(c => c.Enabled))
+            EnsureDatabase();
+            foreach (var cfg in ListenerConfig.FindAll(ListenerConfig._.Enabled == true))
             {
                 try
                 {
@@ -112,13 +112,24 @@ public class CaptureEngine
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            db.Database.EnsureCreated();
+            CreateTable<ListenerConfig>();
+            CreateTable<CaptureSession>();
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[ProxyCapture] 初始化数据库失败: {0}", ex.Message);
         }
+    }
+
+    /// <summary>通过反射调用实体 <c>Meta.CreateTable()</c>（XCode 的 <c>CreateTable</c> 是运行时方法，
+    /// 编译期不在 <c>Meta</c> 返回类型上直接可见；与 <see cref="OpenForgeSelf.Backend.Data.XCodeConfig"/> 同源做法）。</summary>
+    private static void CreateTable<T>() where T : Entity<T>, new()
+    {
+        var metaProp = typeof(T).GetProperty("Meta", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (metaProp == null) return;
+        var meta = metaProp.GetValue(null);
+        var createTable = meta?.GetType().GetMethod("CreateTable", Type.EmptyTypes);
+        createTable?.Invoke(meta, null);
     }
 
     /// <summary>停止指定监听器。</summary>
@@ -219,10 +230,8 @@ public class CaptureEngine
             _dbLock.Wait();
             try
             {
-                using var db = ProxyCaptureDbContext.Create();
                 record.DurationMs = (long)(DateTime.UtcNow - record.Timestamp).TotalMilliseconds;
-                db.CaptureSessions.Add(record);
-                db.SaveChanges();
+                record.Insert();
             }
             finally
             {

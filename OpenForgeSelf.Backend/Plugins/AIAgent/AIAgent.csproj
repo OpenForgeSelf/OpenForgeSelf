@@ -18,11 +18,7 @@
     <Using Include="Microsoft.AspNetCore.Http" />
   </ItemGroup>
 
-  <!-- AIAgentDbContext/ChatMessageEntity 是死代码（EF DbContext 未注册），不引 EF Sqlite，排除编译 -->
-  <ItemGroup>
-    <Compile Remove="Data\AIAgentDbContext.cs" />
-    <Compile Remove="Data\ChatMessageEntity.cs" />
-  </ItemGroup>
+  <!-- AIAgent 统一使用 XCode 作为 ORM（无 EF 上下文），故不引用 EF Sqlite -->
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />

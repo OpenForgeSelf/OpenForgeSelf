@@ -48,14 +48,14 @@ public class RawTunnelHandler : IProtocolHandler
             record.RawPreview = ToHexPreview(preview, 256);
             record.RequestBytes = preview.Length;
 
-            if (!string.IsNullOrEmpty(cfg.TargetHost) && cfg.TargetPort.HasValue)
+            if (!string.IsNullOrEmpty(cfg.TargetHost) && cfg.TargetPort > 0)
             {
                 // ── 透传到目标 ──
                 record.Forwarded = true;
-                record.Target = $"{cfg.TargetHost}:{cfg.TargetPort.Value}";
+                record.Target = $"{cfg.TargetHost}:{cfg.TargetPort}";
                 ns.ReadTimeout = 0; // 转发阶段不限时
                 using var targetClient = new TcpClient();
-                await targetClient.ConnectAsync(cfg.TargetHost, cfg.TargetPort.Value);
+                await targetClient.ConnectAsync(cfg.TargetHost, cfg.TargetPort);
                 var targetStream = targetClient.GetStream();
                 await targetStream.WriteAsync(preview, ct); // 先把预览字节发往目标
                 var (c2t, t2c) = await StreamTunnel.PipeAsync(inbound, targetStream, ct);

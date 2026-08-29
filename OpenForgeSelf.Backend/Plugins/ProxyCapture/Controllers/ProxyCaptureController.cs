@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NewLife.Log;
 using OpenForgeSelf.Abstractions;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Core;
-using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data.Entities;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Models;
+using XCode;
 
 namespace OpenForgeSelf.Backend.Plugins.ProxyCapture.Controllers;
 
@@ -33,8 +32,7 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var list = await db.ListenerConfigs.OrderBy(x => x.Id).ToListAsync();
+            var list = ListenerConfig.FindAll().OrderBy(x => x.Id).ToList();
             return Ok(ApiResponse<List<ListenerConfigDto>>.Ok(list.Select(ToDto).ToList()));
         }
         catch (Exception ex)
@@ -62,18 +60,14 @@ public class ProxyCaptureController : ControllerBase
                 ListenAddress = req.ListenAddress ?? "0.0.0.0",
                 ListenPort = req.ListenPort,
                 TargetHost = req.TargetHost,
-                TargetPort = req.TargetPort,
+                TargetPort = req.TargetPort ?? 0,
                 Enabled = req.Enabled,
                 Description = req.Description,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            using (var db = ProxyCaptureDbContext.Create())
-            {
-                db.ListenerConfigs.Add(cfg);
-                await db.SaveChangesAsync();
-            }
+            cfg.Insert();
 
             if (cfg.Enabled) CaptureEngine.Instance.StartListener(cfg);
             return StatusCode(201, ApiResponse<ListenerConfigDto>.Ok(ToDto(cfg), "创建成功"));
@@ -90,8 +84,7 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var cfg = await db.ListenerConfigs.FindAsync(id);
+            var cfg = ListenerConfig.Find(ListenerConfig._.Id == id);
             if (cfg == null) return NotFound(ApiResponse<ListenerConfigDto>.Error("监听器不存在", 404));
             if (!string.IsNullOrWhiteSpace(req.TargetHost) && (!req.TargetPort.HasValue || req.TargetPort <= 0))
                 return BadRequest(ApiResponse<ListenerConfigDto>.Error("配置了目标主机时必须填写目标端口", 400));
@@ -100,11 +93,11 @@ public class ProxyCaptureController : ControllerBase
             cfg.ListenAddress = req.ListenAddress ?? "0.0.0.0";
             cfg.ListenPort = req.ListenPort;
             cfg.TargetHost = req.TargetHost;
-            cfg.TargetPort = req.TargetPort;
+            cfg.TargetPort = req.TargetPort ?? 0;
             cfg.Enabled = req.Enabled;
             cfg.Description = req.Description;
             cfg.UpdatedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync();
+            cfg.Update();
 
             // 重启监听以套用变更
             CaptureEngine.Instance.StopListener(id);
@@ -124,13 +117,11 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var cfg = await db.ListenerConfigs.FindAsync(id);
+            var cfg = ListenerConfig.Find(ListenerConfig._.Id == id);
             if (cfg == null) return NotFound(ApiResponse.Error("监听器不存在", 404));
 
             CaptureEngine.Instance.StopListener(id);
-            db.ListenerConfigs.Remove(cfg);
-            await db.SaveChangesAsync();
+            cfg.Delete();
             return Ok(ApiResponse.Ok("删除成功"));
         }
         catch (Exception ex)
@@ -145,13 +136,12 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var cfg = db.ListenerConfigs.Find(id);
+            var cfg = ListenerConfig.Find(ListenerConfig._.Id == id);
             if (cfg == null) return NotFound(ApiResponse.Error("监听器不存在", 404));
 
             cfg.Enabled = true;
             cfg.UpdatedAt = DateTime.UtcNow;
-            db.SaveChanges();
+            cfg.Update();
             CaptureEngine.Instance.StartListener(cfg);
             return Ok(ApiResponse.Ok("已启动"));
         }
@@ -167,13 +157,12 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var cfg = db.ListenerConfigs.Find(id);
+            var cfg = ListenerConfig.Find(ListenerConfig._.Id == id);
             if (cfg == null) return NotFound(ApiResponse.Error("监听器不存在", 404));
 
             cfg.Enabled = false;
             cfg.UpdatedAt = DateTime.UtcNow;
-            db.SaveChanges();
+            cfg.Update();
             CaptureEngine.Instance.StopListener(id);
             return Ok(ApiResponse.Ok("已停止"));
         }
@@ -197,13 +186,12 @@ public class ProxyCaptureController : ControllerBase
             if (pageSize < 1) pageSize = 50;
             if (pageSize > 200) pageSize = 200;
 
-            using var db = ProxyCaptureDbContext.Create();
-            var q = db.CaptureSessions.AsQueryable();
+            var q = CaptureSession.FindAll().AsQueryable();
             if (listenerId.HasValue) q = q.Where(s => s.ListenerId == listenerId.Value);
             if (!string.IsNullOrWhiteSpace(protocol)) q = q.Where(s => s.Protocol == protocol);
 
-            var total = await q.CountAsync();
-            var items = await q.OrderByDescending(s => s.Id)
+            var total = q.Count();
+            var items = q.OrderByDescending(s => s.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(s => new CaptureSessionSummaryDto
@@ -222,7 +210,7 @@ public class ProxyCaptureController : ControllerBase
                     DurationMs = s.DurationMs,
                     Forwarded = s.Forwarded
                 })
-                .ToListAsync();
+                .ToList();
 
             return Ok(ApiResponse<PagedResult<CaptureSessionSummaryDto>>.Ok(new PagedResult<CaptureSessionSummaryDto>
             {
@@ -244,8 +232,7 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var s = await db.CaptureSessions.FindAsync(id);
+            var s = CaptureSession.Find(CaptureSession._.Id == id);
             if (s == null) return NotFound(ApiResponse<CaptureSessionDetailDto>.Error("记录不存在", 404));
 
             var dto = new CaptureSessionDetailDto
@@ -285,11 +272,11 @@ public class ProxyCaptureController : ControllerBase
     {
         try
         {
-            using var db = ProxyCaptureDbContext.Create();
-            var q = db.CaptureSessions.AsQueryable();
-            if (listenerId.HasValue) q = q.Where(s => s.ListenerId == listenerId.Value);
-            db.CaptureSessions.RemoveRange(q);
-            await db.SaveChangesAsync();
+            if (listenerId.HasValue)
+                CaptureSession.Delete(CaptureSession._.ListenerId == listenerId.Value);
+            else
+                CaptureSession.Delete(CaptureSession._.Id > 0);
+
             return Ok(ApiResponse.Ok("已清空抓包记录"));
         }
         catch (Exception ex)

@@ -62,12 +62,12 @@ public class XCodeConfigTests
         // 宿主库：数据根/OpenForgeSelf.db（用户诉求：宿主库必须在用户数据目录）
         XCodeConfig.DbFiles["OpenForgeSelf"].Should().Be("OpenForgeSelf.db");
 
-        // 插件库：Plugins/{插件Id}/{插件Id}.db，与插件 ctx.GetPluginDataDirectory() 完全重合
+        // 插件库：Plugins/{插件Id}/{连接名}.db（库文件名=连接名，与 XCode 一致：连接名即数据库名）
         foreach (var (connName, pluginId) in XCodeConfig.PluginDbs)
         {
             XCodeConfig.DbFiles[connName].Should().Be(
-                Path.Combine(XCodeConfig.PluginDataRootName, pluginId, pluginId + ".db"),
-                "插件库必须落在数据根/Plugins/{插件Id}/，不能平铺在数据根");
+                Path.Combine(XCodeConfig.PluginDataRootName, pluginId, connName + ".db"),
+                "插件库必须落在数据根/Plugins/{插件Id}/，且文件名即连接名");
         }
     }
 

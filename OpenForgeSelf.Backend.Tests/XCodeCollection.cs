@@ -29,7 +29,7 @@ public class XCodeCollection
 
 /// <summary>
 /// 共享进程级全局状态的测试集合：这些类不碰 XCode 连接串，但会改写其它进程级单例
-/// （<c>CaptureEngine.Instance</c> 静态单例 + 共享 proxy-capture.db、NewLife <c>Config&lt;T&gt;.Provider.FileName</c>）。
+/// （<c>CaptureEngine.Instance</c> 静态单例 + 共享 ProxyCapture.db、NewLife <c>Config&lt;T&gt;.Provider.FileName</c>）。
 /// </summary>
 /// <remarks>
 /// 与 <see cref="XCodeCollection"/> 分开的原因：两者冲突的资源不同（连接串 vs 其它单例），

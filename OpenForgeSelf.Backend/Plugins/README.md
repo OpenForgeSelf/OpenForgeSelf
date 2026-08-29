@@ -1,7 +1,7 @@
 # 插件体系（Plugins）
 
 > 本文件是插件开发的权威规范。涵盖一个插件从「诞生 → 发布 → 发现 → 加载 → 应用 → 数据落盘 → 停用」的完整生命周期（前世今生）、命名规范（两层身份模型）、数据落盘约定，以及如何新建插件。
-> 代码层（目录/程序集/EntryType）刻意使用 C# 原生 PascalCase，运行时层（Id/数据目录/路由/库文件）统一 kebab-case —— 这是**刻意设计而非不一致**，详见第四节。
+> 代码层（目录/程序集/EntryType）刻意使用 C# 原生 PascalCase；运行时层（Id/数据目录/路由）统一 kebab-case；**库文件名**则刻意取 XCode **连接名**（PascalCase，连接名即数据库名，与 XCode 模型一致）—— 这是**刻意设计而非不一致**，详见第四节。
 
 ---
 
@@ -21,7 +21,7 @@
 4. **加载（Load）**：经独立 `AssemblyLoadContext` 加载 `EntryAssembly`，再用 `Type.GetType(EntryType)` 反射出实现 `IPlugin` 的入口类。
 5. **应用（Apply）**：宿主 `Build()` 之后调用 `plugin.Apply(ctx)`。插件在此注册服务、`IMenuExtension` 菜单、`IToolFunctionExtension` 工具函数、控制器路由等。
 6. **运行（Run）**：控制器 / 工具函数经 DI 拿到插件服务实例；所有数据写入各自的数据目录（见第三节）。
-7. **数据落盘（Persist）**：见第三节 —— 库文件统一命名 `{插件Id}.db`，落在 `{数据根}/Plugins/{插件Id}/`。
+7. **数据落盘（Persist）**：见第三节 —— 库文件统一命名 `{连接名}.db`（连接名即数据库名，与 XCode 一致），落在 `{数据根}/Plugins/{插件Id}/`。
 8. **停用 / 移除（Unload）**：当前为发布期**静态加载**（非运行时热拔）；删除 `publish/Plugins/{目录}/` 即卸载该插件（其数据目录 `~/.forgeself/Plugins/{插件Id}/` 保留，可手动清理）。
 
 ---
@@ -31,10 +31,11 @@
 - **数据根（Data Root）**：由 `IDataLocationService` 解析。
   - 开发态（`BaseDirectory` 含 `Debug`/`Release`）：`{BaseDirectory}/Data/`
   - 发布 / 服务态：`%USERPROFILE%/.forgeself/`
-- **插件库路径（统一）**：`{数据根}/Plugins/{插件Id}/{插件Id}.db`
-  - 例：`memory-system` → `~/.forgeself/Plugins/memory-system/memory-system.db`
+- **插件库路径（统一）**：`{数据根}/Plugins/{插件Id}/{连接名}.db`
+  - 例：`memory-system` → `~/.forgeself/Plugins/memory-system/MemorySystem.db`（连接名 `MemorySystem`）
+  - 例：`proxy-capture` → `~/.forgeself/Plugins/proxy-capture/ProxyCapture.db`（连接名 `ProxyCapture`）
 - **父目录自建**：SQLite 不会自动创建父目录，宿主在 `AddXCode` / `InitializeXCodeDatabase` 时先 `EnsureDirectory`，插件侧也可用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录。
-- **库文件名铁律**：一律 `{插件Id}.db`（kebab，与 Id 同名），禁止任意命名（历史 `memory.db` / `capture.db` / `QuickLinks.db` 等混用写法已全部修正）。改名会生成第二份库，旧数据不可见。
+- **库文件名铁律**：一律 `{连接名}.db`（连接名即数据库名，与 XCode 模型一致）。所有插件统一用 XCode 作为 ORM，连接名取自 `XCodeConfig.PluginDbs`。禁止以 `Id` 或任意写法命名（历史 `memory.db` / `capture.db` / `QuickLinks.db` 等混用写法已全部修正）。改名会生成第二份库，旧数据不可见。
 
 ---
 
@@ -45,7 +46,8 @@
 | 身份层 | 作用域 | 命名风格 | 能否改 | 原因 |
 |---|---|---|---|---|
 | **代码身份** | 目录名、程序集 `.dll`、 `plugin.json` 的 `EntryType`（=`Namespace.PluginClass`） | C# 原生 **PascalCase**（`AIAgent` / `OpenForgeSelf.Backend.Plugins.MemorySystem.MemorySystemPlugin`） | 不可 | `EntryType` 须经反射 `Type.GetType("Namespace.Class")`，强制 PascalCase；且须符合 C# 命名约定 |
-| **运行时身份** | `plugin.json` 的 `Id`、数据目录名、`~/.forgeself/Plugins/{id}`、前端路由、库文件名 `{id}.db` | **kebab-case**（全小写 + 短横线，`^[a-z0-9]+(-[a-z0-9]+)*$`） | 不可 | `Id` 会用作**目录名**（Linux 大小写敏感）与**前端路由**，kebab 最稳、最不易混淆 |
+| **运行时身份** | `plugin.json` 的 `Id`、数据目录名、`~/.forgeself/Plugins/{id}`、前端路由 | **kebab-case**（全小写 + 短横线，`^[a-z0-9]+(-[a-z0-9]+)*$`） | 不可 | `Id` 会用作**目录名**（Linux 大小写敏感）与**前端路由**，kebab 最稳、最不易混淆 |
+| **连接名身份** | 库文件名 `{连接名}.db`、`XCodeConfig.PluginDbs` 的 key、`DAL.Create/AddConnStr` 的连接名 | C# 原生 **PascalCase**（与代码身份一致：目录名、类名、连接名同风格） | 不可 | **连接名即数据库名**（XCode 模型）：库文件必须与连接名同名，XCode 实体 `ConnName` 据此命名，避免生成第二份库 |
 
 **插件 Id 规范**：
 
@@ -62,21 +64,21 @@
 
 | 目录（PascalCase） | Id（kebab） | 库文件 | 数据访问方式 |
 |---|---|---|---|
-| `AIAgent` | `ai-agent` | `ai-agent.db` | XCode（`PluginDbs`） |
+| `AIAgent` | `ai-agent` | `AIAgent.db` | XCode（`PluginDbs`，连接名 `AIAgent`） |
 | `DevTools` | `dev-tools` | （无持久库） | — |
 | `FileTools` | `file-tools` | （无持久库） | — |
-| `MemorySystem` | `memory-system` | `memory-system.db` | XCode（`Memory`/`MemoryCategory` 实体）+ EF（`Memories`/`MemoryCategories`，同文件异表） |
-| `ProxyCapture` | `proxy-capture` | `proxy-capture.db` | EF（`ProxyCaptureDbContext`） |
-| `QuickLinks` | `quick-links` | `quick-links.db` | XCode（`PluginDbs`） |
+| `MemorySystem` | `memory-system` | `MemorySystem.db` | XCode（`Memory`/`MemoryCategory` 实体，连接名 `MemorySystem`） |
+| `ProxyCapture` | `proxy-capture` | `ProxyCapture.db` | XCode（`ListenerConfig`/`CaptureSession` 实体，连接名 `ProxyCapture`） |
+| `QuickLinks` | `quick-links` | `QuickLinks.db` | XCode（`PluginDbs`，连接名 `QuickLinks`） |
 | `SamplePlugin` | `sample` | （无持久库） | — |
-| `Scheduler` | `scheduler` | `scheduler.db` | XCode（`PluginDbs`） |
-| `ScriptRunner` | `script-runner` | `script-runner.db` | XCode（`PluginDbs`） |
+| `Scheduler` | `scheduler` | `Scheduler.db` | XCode（`PluginDbs`，连接名 `Scheduler`） |
+| `ScriptRunner` | `script-runner` | `ScriptRunner.db` | XCode（`PluginDbs`，连接名 `ScriptRunner`） |
 | `SystemMonitor` | `system-monitor` | （无持久库） | — |
 | `TextTools` | `text-tools` | （无持久库） | — |
-| `TodoTracker` | `todo-tracker` | `todo-tracker.db` | XCode（`PluginDbs`） |
-| `WorkflowEngine` | `workflow-engine` | `workflow-engine.db` | XCode（`PluginDbs`） |
+| `TodoTracker` | `todo-tracker` | `TodoTracker.db` | XCode（`PluginDbs`，连接名 `TodoTracker`） |
+| `WorkflowEngine` | `workflow-engine` | `WorkflowEngine.db` | XCode（`PluginDbs`，连接名 `WorkflowEngine`） |
 
-> 注：`MemorySystem` 同时有 XCode 实体（`Memory`/`MemoryCategory` 表）与 EF 上下文（`Memories`/`MemoryCategories` 表），二者**同落 `memory-system.db` 但表名不同、互不冲突**。XCode 管 CRUD（`MemoryServiceXCode`），EF 管 AI 集成抽取（`MemoryIntegrationService` / 工具函数）。
+> 注：本项目统一以 **XCode 作为唯一 ORM**，各插件库文件均按「连接名即数据库名」规则命名为 `{连接名}.db`。`MemorySystem` 用 XCode 实体（`Memory`/`MemoryCategory` 表，连接名 `MemorySystem`）承载 CRUD（`MemoryServiceXCode` 及 AI 集成抽取）；`ProxyCapture` 用 XCode 实体（`ListenerConfig`/`CaptureSession` 表，连接名 `ProxyCapture`）。不存在 EF 上下文。
 
 ---
 
@@ -116,16 +118,16 @@
 1. **生成骨架**：`PluginScaffolderService.Create("your-plugin-id")`（kebab），产出 `Plugins/YourPlugin/` 目录与示例 `IPlugin` 类。
 2. **登记引用**：在 `OpenForgeSelf.Backend.csproj` 添加 `<ProjectReference Include="Plugins/YourPlugin/YourPlugin.csproj" />`（目录名 PascalCase，与程序集一致）。
 3. **实现 Apply**：在 `IPlugin.Apply(IContext ctx)` 中注册服务 / 菜单 / 工具函数 / 路由。
-4. **数据读写**：用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录；库文件**必须**命名为 `{id}.db`（XCode 用 `DAL.Create("YourConnName")` 且 connName 在 `XCodeConfig.PluginDbs` 映射；EF 用 `UseSqlite("Data Source={dir}/{id}.db")`）。
+4. **数据读写**：用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录；库文件**必须**命名为 `{连接名}.db`（连接名即数据库名，与 XCode 一致）。XCode 插件：`connName` 必须在 `XCodeConfig.PluginDbs` 映射，实体 `ConnName` 与之同名，宿主自动 `DAL.Create`。
 5. **构建发布**：`build.ps1` 会把 `Plugins/` 整体拷贝到 `publish/Plugins/`（保留），并排除宿主 `Data/Log`；`Plugins/` 目录本身不被 `git` 忽略，随仓库提交。
-6. **验证**：启动后查 `~/.forgeself/Plugins/{id}/{id}.db` 是否生成、宿主日志是否无「插件目录不存在 / 加载失败 / 数据库初始化失败」。
+6. **验证**：启动后查 `~/.forgeself/Plugins/{id}/{连接名}.db` 是否生成、宿主日志是否无「插件目录不存在 / 加载失败 / 数据库初始化失败」。
 
 ---
 
 ## 八、常见坑（FAQ）
 
 - **目录改名但 `Backend.csproj` 的 `ProjectReference` 路径没改** → 构建失败（找不到 `.csproj`）。改名须同步 13 处引用。
-- **库文件名拼错**（如写成 `memory.db` 而非 `memory-system.db`）→ 生成第二份库，旧数据不可见；务必用 `{id}.db`。
+- **库文件名拼错**（如写成 `memory.db` 而非 `MemorySystem.db`）→ 生成第二份库，旧数据不可见；务必用 `{连接名}.db`。
 - **`EntryType` 大小写 / 命名空间错** → `Type.GetType` 返回 `null` → 插件加载失败。
 - **漏建数据父目录** → SQLite 抛「unable to open database file」；务必经 `EnsurePluginDataDirectory()` / 宿主 `InitializeXCodeDatabase`。
 - **`Id` 含大写或点号** → 在 Linux 上数据目录名大小写敏感、前端路由解析异常；`Id` 只允许 kebab-case。

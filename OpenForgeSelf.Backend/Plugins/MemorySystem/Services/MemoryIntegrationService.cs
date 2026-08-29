@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.Json;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Data;
 using OpenForgeSelf.Backend.Plugins.MemorySystem.Models;
-using Microsoft.EntityFrameworkCore;
 using NewLife.Log;
 
 namespace OpenForgeSelf.Backend.Plugins.MemorySystem.Services;
@@ -171,20 +170,16 @@ public class MemoryIntegrationService : IMemoryIntegrationService
 - 如果没有值得保存的信息，返回空数组 []";
     }
 
-    private async Task<List<ExtractedMemory>> ExtractMemoriesWithAIAsync(string prompt)
+    private Task<List<ExtractedMemory>> ExtractMemoriesWithAIAsync(string prompt)
     {
         try
         {
-            var dbPath = Path.Combine(_memoryDbDirectory, "memory-system.db");
-            var optionsBuilder = new DbContextOptionsBuilder<MemoryDbContext>();
-            optionsBuilder.UseSqlite($"Data Source={dbPath}");
-
-            return new List<ExtractedMemory>();
+            return Task.FromResult(new List<ExtractedMemory>());
         }
         catch (Exception ex)
         {
             XTrace.Log.Warn("[MemoryIntegration] AI提取记忆失败: {0}", ex.Message);
-            return new List<ExtractedMemory>();
+            return Task.FromResult(new List<ExtractedMemory>());
         }
     }
 

@@ -20,7 +20,8 @@ public class XCodeTestFixture : IDisposable
         "ScriptRunner",
         "WorkflowEngine",
         "AIAgent",
-        "TodoTracker"
+        "TodoTracker",
+        "ProxyCapture"
     };
 
     public XCodeTestFixture()

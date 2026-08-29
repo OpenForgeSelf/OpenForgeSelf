@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using System.Text;
 using FluentAssertions;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Core;
-using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data;
 using OpenForgeSelf.Backend.Plugins.ProxyCapture.Data.Entities;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;
@@ -11,7 +10,7 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// 抓包代理插件（ProxyCapture）真实端到端测试：
 /// 真实 TCP 监听 + 协议嗅探 + HTTP 解析 + 转发/200 占位 + SQLite 抓包入库，全链路真跑。
-/// （CaptureEngine 静态单例 + 共享 proxy-capture.db + 真实 TCP 端口绑定；
+/// （CaptureEngine 静态单例 + 共享 ProxyCapture.db + 真实 TCP 端口绑定；
 /// 归入 SharedGlobalState 集合与其它改写进程级单例的测试类串行，用例间以 URL 精确匹配隔离断言。）
 /// </summary>
 [Collection("SharedGlobalState")]
@@ -153,8 +152,7 @@ public class ProxyCaptureE2ETests : IDisposable
         }
 
         // Assert：抓包入库（URL/方法/状态/转发标记/目标）
-        using var db = ProxyCaptureDbContext.Create();
-        var rec = db.CaptureSessions.OrderByDescending(s => s.Id)
+        var rec = CaptureSession.FindAll().OrderByDescending(s => s.Id)
             .FirstOrDefault(s => s.Url == "/e2e/hello?x=1");
         rec.Should().NotBeNull();
         rec!.Forwarded.Should().BeTrue();
@@ -185,8 +183,7 @@ public class ProxyCaptureE2ETests : IDisposable
         body.Should().Contain("request captured");
 
         // Assert：抓包入库且未转发
-        using var db = ProxyCaptureDbContext.Create();
-        var rec = db.CaptureSessions.OrderByDescending(s => s.Id)
+        var rec = CaptureSession.FindAll().OrderByDescending(s => s.Id)
             .FirstOrDefault(s => s.Url == "/e2e/capture-only");
         rec.Should().NotBeNull();
         rec!.Forwarded.Should().BeFalse();

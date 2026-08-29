@@ -3,12 +3,10 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
-using OpenForgeSelf.Backend.Data;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Plugins.AIAgent.Services;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;
@@ -25,9 +23,6 @@ public class WorkflowPlanningIntegrationTests : IClassFixture<WebApplicationFact
             builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
             {
-                services.AddDbContext<OpenForgeSelfDbContext>(options =>
-                    options.UseInMemoryDatabase("WorkflowPlanningTestDb"));
-
                 var aiDescriptor = services.SingleOrDefault(
                     d => d.ServiceType == typeof(IAIService));
                 if (aiDescriptor != null)

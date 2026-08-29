@@ -68,7 +68,7 @@
 | 目录 | 用途 | 技术栈 |
 |------|------|--------|
 | `OpenForgeSelf.Frontend/` | Vue 3 SPA | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind 4 + Pinia + pnpm |
-| `OpenForgeSelf.Backend/` | ASP.NET Core API | .NET 10 + EF Core + SQLite + NewLife.XCode + 插件架构 |
+| `OpenForgeSelf.Backend/` | ASP.NET Core API | .NET 10 + SQLite + NewLife.XCode（唯一 ORM）+ 插件架构 |
 | `OpenForgeSelf.Backend.Tests/` | 后端测试 | xUnit + Moq + FluentAssertions + Coverlet |
 | `forgeself-design/` | 设计原型 | 自包含 HTML + Element Plus CDN + Tailwind CDN |
 | `specs/` | 功能规格 | 编号 001–005，spec → plan → tasks 流程 |

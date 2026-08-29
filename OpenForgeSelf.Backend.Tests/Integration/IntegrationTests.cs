@@ -2,11 +2,9 @@ using System.Collections.Generic;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using OpenForgeSelf.Backend.Data;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 
 namespace OpenForgeSelf.Backend.Tests.Integration;
 
@@ -25,10 +23,6 @@ public class IntegrationTests : IClassFixture<WebApplicationFactory<Program>>
             builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
             {
-                // 配置内存数据库
-                services.AddDbContext<OpenForgeSelfDbContext>(options =>
-                    options.UseInMemoryDatabase("IntegrationTestDb"));
-
                 // 替换AIService为模拟服务
                 var aiDescriptor = services.SingleOrDefault(
                     d => d.ServiceType == typeof(IAIService));

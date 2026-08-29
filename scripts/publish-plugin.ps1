@@ -24,7 +24,7 @@
 # Prereqs:
 #   - Host already running (so staged copy is picked up by FileSystemWatcher /
 #     reachable via /api/plugins/update). Otherwise next host start uses new version.
-#   - .NET 8 SDK (matches OpenForgeSelf.Backend)
+#   - .NET 8 SDK (matches ForgeSelf.Api)
 
 [CmdletBinding()]
 param(
@@ -41,11 +41,11 @@ $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
 
 # Default PluginsRoot = source Plugins (dev mode); release mode passed explicitly
 if (-not $PluginsRoot) {
-    $PluginsRoot = Join-Path $repoRoot 'OpenForgeSelf.Backend/Plugins'
+    $PluginsRoot = Join-Path $repoRoot 'ForgeSelf.Api/Plugins'
 }
 
-$csproj = Join-Path $repoRoot "OpenForgeSelf.Backend/Plugins/$Plugin/$Plugin.csproj"
-$sourceManifest = Join-Path $repoRoot "OpenForgeSelf.Backend/Plugins/$Plugin/plugin.json"
+$csproj = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/$Plugin.csproj"
+$sourceManifest = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/plugin.json"
 
 if (-not (Test-Path $csproj)) { throw "Plugin csproj not found: $csproj" }
 if (-not (Test-Path $sourceManifest)) { throw "Plugin manifest not found: $sourceManifest" }

@@ -39,8 +39,8 @@
 ## 4. 目录结构约定
 
 ```
-OpenForgeSelf.Backend/   后端（.NET 10 / XCode / 插件）
-OpenForgeSelf.Frontend/  前端（Vue3/Vite/Element Plus/Pinia）
+ForgeSelf.Api/   后端（.NET 10 / XCode / 插件）
+ForgeSelf.Web/  前端（Vue3/Vite/Element Plus/Pinia）
 specs/NNN-*/             speckit 产物（开发中功能）
 docs/                    人工沉淀知识（本体系）
 .forgeself/memory/       按天工作日记 + MEMORY

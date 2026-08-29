@@ -1,0 +1,12 @@
+{
+  "Id": "file-tools",
+  "Name": "文件工具插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "提供批量重命名、文件清理、压缩解压、文件统计等常用文件处理工具。",
+  "IconUrl": "https://example.com/file-tools-icon.png",
+  "EntryAssembly": "FileTools.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.FileTools.FileToolsPlugin",
+  "Dependencies": [],
+  "Permissions": []
+}

@@ -1,0 +1,23 @@
+{
+  "Id": "ai-agent",
+  "Name": "AI代理插件",
+  "Version": "1.1.0",
+  "Author": "ForgeSelf Team",
+  "Description": "AI聊天代理插件，支持对话、流式响应和工具函数调用。",
+  "IconUrl": "https://example.com/ai-agent-icon.png",
+  "EntryAssembly": "AIAgent.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.AIAgent.AIAgentPlugin",
+  "Dependencies": [],
+  "Provides": [
+    "chat.completion",
+    "tool.calling"
+  ],
+  "Consumes": [
+    "config.read"
+  ],
+  "Permissions": [
+    "read_config",
+    "write_config",
+    "http_request"
+  ]
+}

@@ -7,7 +7,7 @@
 ## 目录结构
 
 ```
-OpenForgeSelf.Frontend/src/
+ForgeSelf.Web/src/
 ├── __tests__/          # 单元测试（vitest）
 ├── components/         # 可复用组件（80+ 个 .vue）
 │   ├── capture/        # 代理抓包组件

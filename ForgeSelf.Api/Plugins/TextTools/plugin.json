@@ -1,0 +1,12 @@
+{
+  "Id": "text-tools",
+  "Name": "文本工具插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "提供文本格式化、编码转换、哈希计算和文本统计等常用文本处理工具。",
+  "IconUrl": "https://example.com/text-tools-icon.png",
+  "EntryAssembly": "TextTools.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin",
+  "Dependencies": [],
+  "Permissions": []
+}

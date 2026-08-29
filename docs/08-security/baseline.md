@@ -6,7 +6,7 @@
 ## 1. 密钥管理
 
 - 敏感凭据（AI Provider ApiKey、API 服务器密钥）**加密落库**（AES-256-CBC），详见 [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md)；
-- 密钥解析优先级：`Encryption:Key` 配置 → `OPENFORGE_ENCRYPTION_KEY` 环境变量 → 内置默认密钥（**仅开发默认，生产必须覆盖**）；
+- 密钥解析优先级：`Encryption:Key` 配置 → `FORGESELF_ENCRYPTION_KEY` 环境变量 → 内置默认密钥（**仅开发默认，生产必须覆盖**）；
 - 接口仅返回掩码（`Mask`：前 3 + 末 4，`****` 遮盖），绝不明文；
 - 明文仅在解密后用于上游请求（测试连接、转发），不持久化、不日志。
 

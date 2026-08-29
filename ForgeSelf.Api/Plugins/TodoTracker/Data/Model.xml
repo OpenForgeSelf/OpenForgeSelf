@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <BaseClass>Entity</BaseClass>
+    <Namespace>ForgeSelf.Api.Plugins.TodoTracker.Entities</Namespace>
+    <ExtendNameSpace />
+    <Output>Entities</Output>
+    <ChineseFileName>False</ChineseFileName>
+    <ModelNameForCopy />
+    <HasIModel>False</HasIModel>
+    <Nullable>False</Nullable>
+    <ConnName>TodoTracker</ConnName>
+    <ModelClass />
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <ModelInterface />
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <ModelNameForToModel />
+    <NameFormat>Default</NameFormat>
+    <DisplayName />
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="Todo" Description="待办事项">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="待办ID" />
+        <Column Name="Title" DataType="String" Master="True" Length="200" Nullable="False" Description="标题" />
+        <Column Name="Remark" DataType="String" Length="1000" Description="备注" />
+        <Column Name="Status" DataType="Int32" Description="状态 0=Pending 1=Completed" DefaultValue="0" />
+        <Column Name="DueDate" DataType="DateTime" Description="截止日期" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+        <Column Name="CompletedAt" DataType="DateTime" Description="完成时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Status" />
+        <Index Columns="CreatedAt" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

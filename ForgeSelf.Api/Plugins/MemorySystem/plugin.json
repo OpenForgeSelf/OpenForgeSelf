@@ -1,0 +1,21 @@
+{
+  "Id": "memory-system",
+  "Name": "记忆系统插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "AI 记忆系统插件，支持短期记忆、长期记忆和语义搜索，让 AI 真正懂你。",
+  "IconUrl": "https://example.com/memory-icon.png",
+  "EntryAssembly": "MemorySystem.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.MemorySystem.MemorySystemPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "storage",
+    "ai_integration"
+  ],
+  "frontend": {
+    "views": ["MemoryView"],
+    "menu": "记忆",
+    "route": "/memory",
+    "icon": "fa-brain"
+  }
+}

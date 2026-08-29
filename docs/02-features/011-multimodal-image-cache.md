@@ -41,7 +41,7 @@
 无需用户操作：多模态请求（带图）首次识别后，同会话同图再次请求直接命中缓存，token 消耗骤降。
 
 ## 4. 注意事项
-- 缓存目录：`OpenForgeSelf.Backend/.../Data/ImageRecognitionCache/<会话键>/<sha256>.json`（代码路径，已随 9d84e48 提交）；
+- 缓存目录：`ForgeSelf.Api/.../Data/ImageRecognitionCache/<会话键>/<sha256>.json`（代码路径，已随 9d84e48 提交）；
 - 运行实例无权限停止时，新增缓存需**重启后端**生效。
 
 ## 5. 测试覆盖

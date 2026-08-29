@@ -22,13 +22,13 @@
   "Update": {
     "CheckIntervalHours": 24,
     "DownloadPath": "updates",
-    "GithubOwner": "openforgeself",
-    "GithubRepo": "OpenForgeSelf",
+    "GithubOwner": "ForgeSelf",
+    "GithubRepo": "ForgeSelf",
     "GithubToken": ""
   },
   "Service": {
     "Port": 7102,
-    "PipeName": "OpenForgeSelf",
+    "PipeName": "ForgeSelf",
     "AutoStartTray": true,
     "EnableWebPort": true,
     "WebPort": 7002,
@@ -53,18 +53,18 @@
 
 ### ConnectionStrings
 
-> 数据库连接路径的**唯一真源是代码**（`OpenForgeSelf.Backend/Data/XCodeConfig.cs`），不是配置节。
+> 数据库连接路径的**唯一真源是代码**（`ForgeSelf.Api/Data/XCodeConfig.cs`），不是配置节。
 
 | 键 | 默认值 | 说明 |
 |---|--------|------|
-| `ConnectionStrings:{连接名}` | 无（无需配置） | 可选覆盖。连接名取自 `XCodeConfig.DbFiles`：`OpenForgeSelf` + 各插件库名。**仅当 `Data Source=` 为绝对路径时生效**；相对路径会被忽略并输出告警（否则数据库会落到程序目录，发布目录下常因目录不存在报 SQLite Error 14） |
+| `ConnectionStrings:{连接名}` | 无（无需配置） | 可选覆盖。连接名取自 `XCodeConfig.DbFiles`：`ForgeSelf` + 各插件库名。**仅当 `Data Source=` 为绝对路径时生效**；相对路径会被忽略并输出告警（否则数据库会落到程序目录，发布目录下常因目录不存在报 SQLite Error 14） |
 
 落盘规则（由 `IDataLocationService` 按运行形态决定数据根）：
 
 | 运行形态 | 数据根 | 宿主库 | 插件库 |
 |----------|--------|--------|--------|
-| 开发（`ASPNETCORE_ENVIRONMENT=Development`） | `{程序目录}/Data` | `Data/OpenForgeSelf.db` | `Data/Plugins/{插件Id}/{库名}.db` |
-| 发布 exe / Windows 服务 | `~/.forgeself` | `~/.forgeself/OpenForgeSelf.db` | `~/.forgeself/Plugins/{插件Id}/{库名}.db` |
+| 开发（`ASPNETCORE_ENVIRONMENT=Development`） | `{程序目录}/Data` | `Data/ForgeSelf.db` | `Data/Plugins/{插件Id}/{库名}.db` |
+| 发布 exe / Windows 服务 | `~/.forgeself` | `~/.forgeself/ForgeSelf.db` | `~/.forgeself/Plugins/{插件Id}/{库名}.db` |
 
 ### AI — AI 网关配置
 
@@ -94,7 +94,7 @@
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
 | `Port` | int | `7102` | 后端 API 监听端口 |
-| `PipeName` | string | `OpenForgeSelf` | 命名管道名称（用于托盘进程通信） |
+| `PipeName` | string | `ForgeSelf` | 命名管道名称前缀（用于托盘进程通信，运行时拼接为 `ForgeSelf-Tray-{进程Id}`） |
 | `AutoStartTray` | bool | `true` | 是否自动启动托盘图标 |
 | `EnableWebPort` | bool | `true` | 是否启用前端 Web 端口 |
 | `WebPort` | int | `7002` | 前端开发服务器端口 |

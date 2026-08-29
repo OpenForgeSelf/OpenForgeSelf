@@ -1,4 +1,4 @@
-# OpenForgeSelf 一键打包脚本
+# ForgeSelf 一键打包脚本
 # 构建前端 → 输出到后端 wwwroot → 发布后端
 #
 # 用法:
@@ -14,12 +14,12 @@ param(
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$frontendDir = Join-Path $root "OpenForgeSelf.Frontend"
-$backendDir  = Join-Path $root "OpenForgeSelf.Backend"
+$frontendDir = Join-Path $root "ForgeSelf.Web"
+$backendDir  = Join-Path $root "ForgeSelf.Api"
 $publishDir  = Join-Path $root "publish"
 
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host "  OpenForgeSelf 铸己匣 - 一键打包" -ForegroundColor Yellow
+Write-Host "  ForgeSelf 铸己匣 - 一键打包" -ForegroundColor Yellow
 Write-Host "  配置: $Config" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -45,7 +45,7 @@ Write-Host ""
 # ── 第 2 步：构建前端 ──
 if (-not $SkipFrontend) {
     Write-Host "[2/3] 构建前端 (pnpm run build)..." -ForegroundColor Cyan
-    Write-Host "      输出目标: OpenForgeSelf.Backend/wwwroot/" -ForegroundColor Gray
+    Write-Host "      输出目标: ForgeSelf.Api/wwwroot/" -ForegroundColor Gray
     Push-Location $frontendDir
     try {
         & pnpm run build
@@ -119,6 +119,6 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host "  打包完成！" -ForegroundColor Yellow
 Write-Host "  耗时: $($stopwatch.Elapsed.TotalSeconds.ToString('0.0')) 秒" -ForegroundColor Green
 Write-Host "  发布目录: $publishDir" -ForegroundColor Green
-Write-Host "  可直接运行: $publishDir\OpenForgeSelf.exe" -ForegroundColor Green
-Write-Host "  或安装为服务: $publishDir\OpenForgeSelf.exe --install" -ForegroundColor Green
+Write-Host "  可直接运行: $publishDir\ForgeSelf.exe" -ForegroundColor Green
+Write-Host "  或安装为服务: $publishDir\ForgeSelf.exe --install" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Cyan

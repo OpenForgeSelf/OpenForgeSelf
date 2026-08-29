@@ -21,8 +21,8 @@
 ```
 
 构建要点（代码事实）：
-- 前端 `vite.config.ts`：`outDir: ../OpenForgeSelf.Backend/wwwroot`，**`emptyOutDir: false`**——本环境 safe-delete shim 拦截 Vite 删目录（`wrappedRmSync` 抛错致构建中断），故不清旧产物；
-- 构建前可手动清 `OpenForgeSelf.Backend/wwwroot/assets` 避免旧 hash 累积；
+- 前端 `vite.config.ts`：`outDir: ../ForgeSelf.Api/wwwroot`，**`emptyOutDir: false`**——本环境 safe-delete shim 拦截 Vite 删目录（`wrappedRmSync` 抛错致构建中断），故不清旧产物；
+- 构建前可手动清 `ForgeSelf.Api/wwwroot/assets` 避免旧 hash 累积；
 - 前端验证门禁：`pnpm run check`（vue-tsc + eslint）+ `pnpm run test`（vitest）；
 - 后端验证门禁：`dotnet build` + `dotnet test`。
 
@@ -32,11 +32,11 @@
 
 - 托盘常驻：`Services/TrayIconManager.cs`，右键菜单检查更新/退出；
 - 自更新：`Services/UpdateChecker.cs`（检查）+ `Services/UpdateService.cs`（实际下载/应用编排）+ `TrayProcessStarter.cs`，操作记录落 `UpdateTrace`；
-- 进程锁注意：运行实例占用 `OpenForgeSelf.exe/dll` 时，`dotnet build` 复制阶段会 CS2012 失败——需停止进程或构建到独立输出目录。
+- 进程锁注意：运行实例占用 `ForgeSelf.exe/dll` 时，`dotnet build` 复制阶段会 CS2012 失败——需停止进程或构建到独立输出目录。
 
 ## 4. 数据库
 
-- SQLite 文件：`OpenForgeSelf.Backend/bin/Debug/net10.0-windows/Data/OpenForgeSelf.db`；
+- SQLite 文件：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`；
 - XCode 自动建表（`DAL.Migration` 默认 On）；`DAL.CheckDatabase()` 主动建库；
 - 图片识别缓存：`Data/ImageRecognitionCache/<会话键>/<sha256>.json`。
 

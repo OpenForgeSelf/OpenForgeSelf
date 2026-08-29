@@ -8,7 +8,7 @@
 
 ## 1. 背景与目标
 
-OpenForgeSelf 前端是 Vue 3.5 + Vite 6 + TS 5.7 + Element Plus + Pinia + Tailwind 4 的纯 SPA（OpenForgeSelf.Frontend/），当前仅以 Web 形态运行（dev :7002 / 构建产物进后端 wwwroot）。
+OpenForgeSelf 前端是 Vue 3.5 + Vite 6 + TS 5.7 + Element Plus + Pinia + Tailwind 4 的纯 SPA（ForgeSelf.Web/），当前仅以 Web 形态运行（dev :7002 / 构建产物进后端 wwwroot）。
 
 目标：同一份源码，既能**打包成浏览器扩展**（Chrome/Firefox/Edge），也能**单独以 Web 应用打开部署**。前端本质是纯 SPA 调后端 API，扩展仅作承载外壳。
 
@@ -24,7 +24,7 @@ OpenForgeSelf 前端是 Vue 3.5 + Vite 6 + TS 5.7 + Element Plus + Pinia + Tailw
 ## 3. 目标架构
 
 ```
-OpenForgeSelf.Frontend/
+ForgeSelf.Web/
 ├── index.html              # 方案A：纯 Web SPA 入口（普通 vite build 用，WXT 忽略）
 ├── vite.config.ts          # 现有配置（需与 WXT 融合，见 §6 风险）
 ├── wxt.config.ts           # WXT 配置（manifest / 权限 / module-vue）

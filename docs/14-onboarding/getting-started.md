@@ -34,12 +34,12 @@
 
 | 动作 | 命令 |
 |------|------|
-| 前端类型+lint | `cd OpenForgeSelf.Frontend && pnpm run check` |
+| 前端类型+lint | `cd ForgeSelf.Web && pnpm run check` |
 | 前端单测 | `pnpm run test` |
 | 前端 e2e | `pnpm run test:e2e` |
 | 前端构建 | `pnpm run build`（注意 31 个预存类型错误，T032） |
-| 后端构建 | `cd OpenForgeSelf.Backend && dotnet build` |
-| 后端测试 | `cd OpenForgeSelf.Backend.Tests && dotnet test` |
+| 后端构建 | `cd ForgeSelf.Api && dotnet build` |
+| 后端测试 | `cd ForgeSelf.Api.Tests && dotnet test` |
 | 一键构建发布 | `.\build.ps1` |
 
 ## 5. 第一次改代码

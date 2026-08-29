@@ -1,6 +1,6 @@
 # 聊天记录会话化重构 — 重设计方案（v2 · 最佳拆分 / 无迁移）
 
-> 分析对象：`OpenForgeSelf.Backend/bin/Debug/net10.0-windows/Data/OpenForgeSelf.db`
+> 分析对象：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`
 > 设计时间：2026-08-11　数据规模：607 行 ChatRecord（仅代理录制）
 > 范围：根因已确认，按"最佳拆分 + 旧数据不迁移 + app 聊天也纳入会话"重设计。
 

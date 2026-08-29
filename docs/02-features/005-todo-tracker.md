@@ -23,7 +23,7 @@
 | `Plugins/TodoTracker/TodoTrackerPlugin.cs` | 插件入口 |
 | `Plugins/TodoTracker/Controllers/TodosController.cs` | `api/todos` CRUD |
 | `Plugins/TodoTracker/Services/` `Data/` `Models/` | 业务/数据/模型 |
-| `OpenForgeSelf.Frontend/src/views/TodoView.vue` | 前端面板 |
+| `ForgeSelf.Web/src/views/TodoView.vue` | 前端面板 |
 
 ### 2.2 实体
 插件内自有实体（XCode），随插件迁移建表。

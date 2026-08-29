@@ -5,7 +5,7 @@
 > 最后更新：2026-08-19
 > 关联：调研见 [`06-research/001-deepseek-harness-plugin-architecture.md`](../06-research/001-deepseek-harness-plugin-architecture.md)，功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)
 
-本文描述新增项目 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）的设计：它是什么、为什么这样设计、核心抽象是什么、如何渐进接入 `OpenForgeSelf.Backend`。
+本文描述新增项目 `ForgeSelf.Core`（.NET 版 Cordis 内核）的设计：它是什么、为什么这样设计、核心抽象是什么、如何渐进接入 `ForgeSelf.Api`。
 
 ---
 
@@ -26,7 +26,7 @@ flowchart TB
         F2 --> F4
     end
 
-    subgraph Host["第2层 · 宿主 OpenForgeSelf.Backend"]
+    subgraph Host["第2层 · 宿主 ForgeSelf.Api"]
         A["AppBuilder（平台装配：临时 provider 引导自注册 + Build 后 BuildAll/SetServiceProvider/DiscoverAllExtensions/ApplicationPartManager）"]
         PM["PluginManager（发现/加载/Fiber 生命周期/拓扑排序/热重载）"]
         EP["ExtensionPointManager（菜单/工具扩展点注册）"]
@@ -35,7 +35,7 @@ flowchart TB
         PS["平台服务（认证/CORS/XCode/AI 网关/配置/日志）"]
     end
 
-    subgraph Kernel["第3层 · 内核 OpenForgeSelf.Core + 契约 OpenForgeSelf.Abstractions"]
+    subgraph Kernel["第3层 · 内核 ForgeSelf.Core + 契约 ForgeSelf.Abstractions"]
         K1["IContext / Context（服务定位 + Effect 可逆副作用 + SetHostProvider 宿主 MS DI 桥）"]
         K2["Fiber（每插件派生上下文 + 卸载逆序回滚）"]
         K3["IEventBus / EventBus（emit/waterfall/parallel/serial + On/OnSerial/OnWaterfall）"]
@@ -69,20 +69,20 @@ flowchart TB
 
 | 层 | 组件 | 职责 | 与当前项目对应 |
 |---|---|---|---|
-| 宿主 | `AppBuilder` | 平台装配：认证/CORS/XCode/AI 网关等平台服务；Build 前用临时 provider 引导插件自注册，Build 后 `BuildAll` + 桥接 MS DI + `DiscoverAllExtensions` + ApplicationPartManager 注册插件程序集 | `OpenForgeSelf.Backend/AppBuilder.cs` |
+| 宿主 | `AppBuilder` | 平台装配：认证/CORS/XCode/AI 网关等平台服务；Build 前用临时 provider 引导插件自注册，Build 后 `BuildAll` + 桥接 MS DI + `DiscoverAllExtensions` + ApplicationPartManager 注册插件程序集 | `ForgeSelf.Api/AppBuilder.cs` |
 | 宿主 | `PluginManager` | 发现/加载/拓扑排序/Fiber 生命周期/热重载；独立 DLL 优先、内嵌插件主程序集回退 | `Plugins/PluginManager.cs` |
 | 宿主 | `PluginServiceRegistry` | 可变 MS DI：每插件子容器 + 宿主服务透传 + Transient 转发描述符 + `BuildAll` 延迟构建；卸载后解析失败 | `Services/PluginServiceRegistry.cs` |
 | 宿主 | `ExtensionPointManager` | 收集插件贡献的菜单/工具扩展 | `Plugins/ExtensionPointManager.cs` |
 | 宿主 | `PluginVersionLayout` / `PluginAssemblyUnloader` / `PluginHotReloadWatcher` | side-by-side 版本目录 + `current` 指针；ALC 回收 + 文件锁探测；`FileSystemWatcher` 自动 reload | `Plugins/PluginVersionLayout.cs` / `Plugins/PluginAssemblyUnloader.cs` / `Plugins/Services/PluginHotReloadWatcher.cs` |
 | 宿主 | 共享基础设施 | `IToolRegistry`/`ToolRegistry`/`ToolCallContext`、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`（宿主中性，供插件复用） | `Services/` |
-| 内核 | `IContext`/`Context` | 服务定位 + `Effect` 可逆副作用 + `SetHostProvider` 宿主 MS DI 桥 | `OpenForgeSelf.Core/IContext.cs`/`Context.cs` |
-| 内核 | `Fiber` | 每插件一个派生上下文，`Mount` 装配 / 卸载逆序回滚，幂等 | `OpenForgeSelf.Core/Fiber.cs` |
-| 内核 | `IEventBus`/`EventBus` | 类型化事件四模式 + `On`/`OnSerial`/`OnWaterfall` 注册句柄 | `OpenForgeSelf.Core/IEventBus.cs`/`EventBus.cs` |
-| 契约 | `IPlugin` | 单一 `Apply(IContext)` 插件契约 | `OpenForgeSelf.Abstractions/IPlugin.cs` |
-| 契约 | 扩展点 | `IMenuExtension`/`IToolFunctionExtension`/`IEndpointRegistry` | `OpenForgeSelf.Abstractions/` |
-| 契约 | 能力接缝 | `ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService` 等可替换 Provider 契约 | `OpenForgeSelf.Abstractions/` |
-| 插件 | 12 个插件 | 各自 `Apply` 自注册服务/菜单/工具/副作用 | `OpenForgeSelf.Backend/Plugins/*`（MemorySystem 已拆独立程序集，其余 11 个内嵌主程序集） |
-| 前端 | `pluginManifest store` + `features.ts` + `dynamicPlugins.ts` | 由后端清单驱动菜单/视图；动态 import 挂载 `/plugin-view` 路由 | `OpenForgeSelf.Frontend/src/` |
+| 内核 | `IContext`/`Context` | 服务定位 + `Effect` 可逆副作用 + `SetHostProvider` 宿主 MS DI 桥 | `ForgeSelf.Core/IContext.cs`/`Context.cs` |
+| 内核 | `Fiber` | 每插件一个派生上下文，`Mount` 装配 / 卸载逆序回滚，幂等 | `ForgeSelf.Core/Fiber.cs` |
+| 内核 | `IEventBus`/`EventBus` | 类型化事件四模式 + `On`/`OnSerial`/`OnWaterfall` 注册句柄 | `ForgeSelf.Core/IEventBus.cs`/`EventBus.cs` |
+| 契约 | `IPlugin` | 单一 `Apply(IContext)` 插件契约 | `ForgeSelf.Abstractions/IPlugin.cs` |
+| 契约 | 扩展点 | `IMenuExtension`/`IToolFunctionExtension`/`IEndpointRegistry` | `ForgeSelf.Abstractions/` |
+| 契约 | 能力接缝 | `ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService` 等可替换 Provider 契约 | `ForgeSelf.Abstractions/` |
+| 插件 | 12 个插件 | 各自 `Apply` 自注册服务/菜单/工具/副作用 | `ForgeSelf.Api/Plugins/*`（MemorySystem 已拆独立程序集，其余 11 个内嵌主程序集） |
+| 前端 | `pluginManifest store` + `features.ts` + `dynamicPlugins.ts` | 由后端清单驱动菜单/视图；动态 import 挂载 `/plugin-view` 路由 | `ForgeSelf.Web/src/` |
 
 ### 核心关系（怎么协作）
 
@@ -97,7 +97,7 @@ flowchart TB
 
 ## 1. 定位与目标
 
-`OpenForgeSelf.Core` 是 deepseek-harness / Cordis 架构在 .NET 上的**薄内核**，为「一切皆插件」提供底座。它不是 DI 容器（复用 Microsoft.Extensions.DependencyInjection），而是补齐 MS DI 缺失的三件事：
+`ForgeSelf.Core` 是 deepseek-harness / Cordis 架构在 .NET 上的**薄内核**，为「一切皆插件」提供底座。它不是 DI 容器（复用 Microsoft.Extensions.DependencyInjection），而是补齐 MS DI 缺失的三件事：
 
 1. **可逆副作用**（`ctx.Effect`）：任何运行期注册都配对注销，插件卸载即逆序回滚。
 2. **类型化事件总线**（`IEventBus`）：四种分发模式（emit / waterfall / parallel / serial），提供拦截点。
@@ -201,7 +201,7 @@ public interface IPlugin
 
 ### 3.5 能力接缝（Capability Seams）约定
 
-> 设计稿中的接缝全集（`ctx.llm` / `ctx.tools` / `ctx.agents` / `ctx.agentLoop` / `ctx.fs` / `ctx.shell` / `ctx.sessions` / `ctx.sandbox`）为规划愿景。**当前已落地的契约**在 `OpenForgeSelf.Abstractions`：
+> 设计稿中的接缝全集（`ctx.llm` / `ctx.tools` / `ctx.agents` / `ctx.agentLoop` / `ctx.fs` / `ctx.shell` / `ctx.sessions` / `ctx.sandbox`）为规划愿景。**当前已落地的契约**在 `ForgeSelf.Abstractions`：
 
 | 接缝（`ctx.Get<T>()`） | 服务定义（已落地契约） | 可替换 Provider 示例 |
 |------------------------|----------|----------------------|
@@ -219,7 +219,7 @@ public interface IPlugin
 
 ## 4. Cordis → .NET 映射
 
-| Cordis (TS) | OpenForgeSelf.Core (.NET) |
+| Cordis (TS) | ForgeSelf.Core (.NET) |
 |---|---|
 | Context（`ctx`） | `IContext` / `Context` |
 | Service（`super(ctx,'name')`） | `Service` 基类 + `ctx.Register<T>(this)` |
@@ -240,13 +240,13 @@ public interface IPlugin
 ## 5. 项目结构
 
 ```
-OpenForgeSelf.Core/            # 内核（net10.0，零外部依赖，已实现）
+ForgeSelf.Core/            # 内核（net10.0，零外部依赖，已实现）
   IContext.cs / Context.cs     # 共享上下文（含 SetHostProvider 宿主 MS DI 桥）
   IEventBus.cs / EventBus.cs   # 类型化事件总线（四模式 + On/OnSerial/OnWaterfall）
   Disposable.cs / Service.cs   # 辅助 + 服务基类
   Fiber.cs                     # 插件生命周期（Mount/Dispose 逆序回滚，已实现）
 
-OpenForgeSelf.Abstractions/    # 契约程序集（已建立，ADR D2）
+ForgeSelf.Abstractions/    # 契约程序集（已建立，ADR D2）
   IPlugin.cs                   # 单一 Apply(IContext) 契约
   IEndpointRegistry.cs         # 端点注册接缝（Map → IDisposable）
   IExtensionPoint.cs / IMenuExtension.cs / IToolFunctionExtension.cs  # 扩展点
@@ -256,16 +256,16 @@ OpenForgeSelf.Abstractions/    # 契约程序集（已建立，ADR D2）
   IWorkflowService.cs(WorkflowServiceContracts.cs) / IScriptTemplateService.cs  # 工作流/脚本契约
   UsageStatsModels.cs / WorkflowModels.cs / ScriptModels.cs / ApiResponse.cs  # 共享 DTO
 
-OpenForgeSelf.Core.Tests / OpenForgeSelf.Abstractions.Tests           # 内核/契约测试（12+9 全绿）
+ForgeSelf.Core.Tests / ForgeSelf.Abstractions.Tests           # 内核/契约测试（12+9 全绿）
 ```
 
-`OpenForgeSelf.Core`、`OpenForgeSelf.Abstractions` 均已实现并编译通过，`Fiber` 已补齐；`OpenForgeSelf.sln` 现含 7 个项目（Core/Abstractions/Backend/三个 Tests + MemorySystem 插件项目）。接缝 Provider 实现按需在各插件/宿主内落地。
+`ForgeSelf.Core`、`ForgeSelf.Abstractions` 均已实现并编译通过，`Fiber` 已补齐；`ForgeSelf.sln` 现含 7 个项目（Core/Abstractions/Backend/三个 Tests + MemorySystem 插件项目）。接缝 Provider 实现按需在各插件/宿主内落地。
 
 ---
 
 ## 6. 如何接入 Backend（已实现）
 
-1. **P0 内核 + 契约（已完成）**：`OpenForgeSelf.Core` 已建立并挂载；`Fiber` 已实现；`OpenForgeSelf.Abstractions` 已建立；`IPlugin` 定为 `Apply(IContext)` 并全量迁移。
+1. **P0 内核 + 契约（已完成）**：`ForgeSelf.Core` 已建立并挂载；`Fiber` 已实现；`ForgeSelf.Abstractions` 已建立；`IPlugin` 定为 `Apply(IContext)` 并全量迁移。
 2. **P1 独立程序集 + 自注册（部分完成）**：12 个插件已全部迁移到 `Apply(IContext)` 自注册，`AppBuilder.cs` 硬编码已删除（仅保留 Scheduler `ITaskScheduler` 启动直引用）；独立程序集仅 MemorySystem 已拆（其余 11 个仍内嵌，见功能档案已知问题①）。
 3. **P2 可逆注册 + 热更新闭环（部分完成）**：可变 DI（`PluginServiceRegistry`，Scoped 语义近似）、side-by-side 版本目录（N=2）、破文件锁（`PluginAssemblyUnloader`）、自动 reload（`PluginHotReloadWatcher`）均已实现；动态端点移除未做（见已知问题②）。
 4. **P3 事件总线接线（已完成）**：`ToolRegistry` 执行管道接入 `tools/pre-execute` / `tools/execute` / `tools/post-execute`。
@@ -342,7 +342,7 @@ OpenForgeSelf.Core.Tests / OpenForgeSelf.Abstractions.Tests           # 内核/�
   <!-- 第3层：内核 -->
   <rect x="40" y="380" width="640" height="130" rx="10" fill="#F2F7FF" stroke="#4B3FE3"/>
   <text x="60" y="402" font-family="system-ui,sans-serif" font-size="14" font-weight="500" fill="#1A1759">第3层 · 内核 Core + 契约 Abstractions</text>
-  <text x="60" y="422" font-family="system-ui,sans-serif" font-size="12" fill="#4B3FE3">OpenForgeSelf.Core（零外部依赖） + OpenForgeSelf.Abstractions（契约全集）</text>
+  <text x="60" y="422" font-family="system-ui,sans-serif" font-size="12" fill="#4B3FE3">ForgeSelf.Core（零外部依赖） + ForgeSelf.Abstractions（契约全集）</text>
   <rect x="60" y="432" width="110" height="34" rx="6" fill="#F2F7FF" stroke="#4B3FE3"/>
   <text x="115" y="453" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#1A1759">IContext</text>
   <rect x="180" y="432" width="110" height="34" rx="6" fill="#F2F7FF" stroke="#4B3FE3"/>

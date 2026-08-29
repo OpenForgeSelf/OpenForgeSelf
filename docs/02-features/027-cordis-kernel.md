@@ -5,7 +5,7 @@
 
 ## 概述
 
-新增 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）与 `OpenForgeSelf.Abstractions`（契约层），为 OpenForgeSelf 提供「一切皆插件」的底座：共享上下文（`IContext`，含宿主 MS DI 桥 `SetHostProvider`）、能力接缝、类型化事件总线（emit/waterfall/parallel/serial）、可逆副作用（`ctx.Effect`）、Fiber 插件生命周期。目标是消灭 `AppBuilder.cs` 中插件服务的硬编码 DI 注册，让每个功能以插件形式自注册、可替换、可热更新。当前插件自注册、可变 DI 容器（`PluginServiceRegistry`）、文件级热更新（版本目录 + ALC 卸载 + `FileSystemWatcher` 自动 reload）与前端清单驱动动态挂载均已落地。
+新增 `ForgeSelf.Core`（.NET 版 Cordis 内核）与 `ForgeSelf.Abstractions`（契约层），为 OpenForgeSelf 提供「一切皆插件」的底座：共享上下文（`IContext`，含宿主 MS DI 桥 `SetHostProvider`）、能力接缝、类型化事件总线（emit/waterfall/parallel/serial）、可逆副作用（`ctx.Effect`）、Fiber 插件生命周期。目标是消灭 `AppBuilder.cs` 中插件服务的硬编码 DI 注册，让每个功能以插件形式自注册、可替换、可热更新。当前插件自注册、可变 DI 容器（`PluginServiceRegistry`）、文件级热更新（版本目录 + ALC 卸载 + `FileSystemWatcher` 自动 reload）与前端清单驱动动态挂载均已落地。
 
 ## 关联文档
 
@@ -20,11 +20,11 @@
 
 | 层 | 文件 |
 |----|------|
-| 内核项目 | `OpenForgeSelf.Core/`（`OpenForgeSelf.Core.csproj`，net10.0，零外部依赖） |
+| 内核项目 | `ForgeSelf.Core/`（`ForgeSelf.Core.csproj`，net10.0，零外部依赖） |
 | 核心抽象 | `IContext.cs` / `Context.cs`（含 `SetHostProvider` 宿主 MS DI 桥）/ `IEventBus.cs` / `EventBus.cs` / `Disposable.cs` / `Service.cs` / `Fiber.cs` |
-| 契约项目 | `OpenForgeSelf.Abstractions/`（`OpenForgeSelf.Abstractions.csproj`，net10.0） |
+| 契约项目 | `ForgeSelf.Abstractions/`（`ForgeSelf.Abstractions.csproj`，net10.0） |
 | 契约文件 | `IPlugin.cs` / `IEndpointRegistry.cs` / `IExtensionPoint.cs` / `IMenuExtension.cs` / `IToolFunctionExtension.cs` / `PluginMetadata.cs`（含 `FrontendContributes`/`Provides`/`Consumes`）/ `ApiResponse.cs` / 接缝（`ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService`）+ 共享 DTO（`UsageStatsModels.cs`/`WorkflowModels.cs`/`ScriptModels.cs`） |
-| 后端引用 | `OpenForgeSelf.Backend/OpenForgeSelf.Backend.csproj`（`ProjectReference` Core + Abstractions + 11 插件 `ReferenceOutputAssembly=false`；`Compile Remove` 全部 11 个插件目录） |
+| 后端引用 | `ForgeSelf.Api/ForgeSelf.Api.csproj`（`ProjectReference` Core + Abstractions + 11 插件 `ReferenceOutputAssembly=false`；`Compile Remove` 全部 11 个插件目录） |
 | 插件装配 | `Plugins/PluginManager.cs`（发现/加载/Fiber 装配/热重载/拓扑排序/动态端点移除）、`Services/PluginServiceRegistry.cs`（可变 MS DI）、`Plugins/PluginVersionLayout.cs`（side-by-side 版本目录 + current 指针）、`Plugins/PluginAssemblyUnloader.cs`（ALC 回收 + 文件锁探测）、`Plugins/Services/PluginHotReloadWatcher.cs`（FileSystemWatcher 自动 reload）、`Plugins/ExtensionPointManager.cs`（菜单/工具扩展点）、`Services/MvcActionDescriptorChangeProvider.cs`（动态端点移除的 ActionDescriptor 刷新通知） |
 | 平台装配 | `AppBuilder.cs`（插件自注册引导、Build 后 BuildAll + `SetServiceProvider` + `DiscoverAllExtensions` + ApplicationPartManager 注册插件程序集 + `ISessionStore`/`ILlmRuntime` 接缝接线 + `IEventBus` 注入 PluginManager） |
 | 生命周期事件 | `Abstractions/PluginLifecycleEvent.cs`（`plugin/loaded` / `plugin/unloaded` 事件载荷） |
@@ -41,14 +41,14 @@
 
 ## 当前进度
 
-- [x] 新增 `OpenForgeSelf.Core` 项目并编译通过（net10.0，零外部依赖）。
-- [x] 挂载到 `OpenForgeSelf.Backend` 项目引用。
-- [x] 新增 `OpenForgeSelf.Abstractions` 契约程序集（`IPlugin` + 扩展点 + 能力接缝 + 共享 DTO，见 ADR D2）。
+- [x] 新增 `ForgeSelf.Core` 项目并编译通过（net10.0，零外部依赖）。
+- [x] 挂载到 `ForgeSelf.Api` 项目引用。
+- [x] 新增 `ForgeSelf.Abstractions` 契约程序集（`IPlugin` + 扩展点 + 能力接缝 + 共享 DTO，见 ADR D2）。
 - [x] `IPlugin` 改为单一 `Apply(IContext)`（见 ADR D1），11 个插件全部迁移到 `Apply` 自注册（`ctx.Get<IServiceCollection>()` + `ctx.Effect`）。
 - [x] `AppBuilder.cs` 删除 11 个插件的硬编码 `AddScoped/AddSingleton`，改为插件自注册（临时 provider 引导 + `RegisterAllServices` + `AddSingleton(pluginManager)`）；仅保留启动路径对 `ITaskScheduler`（Scheduler 插件服务）的一次性 `GetRequiredService` 直引用。
 - [x] 可变 MS DI 容器：`PluginServiceRegistry`（每插件子容器 + 宿主服务透传 + Transient 转发描述符 + `BuildAll` 延迟构建；卸载后 `GetRequiredService` 抛「插件服务已卸载」）。
 - [x] 事件总线接线到 `ToolRegistry`：`tools/pre-execute`（`SerialAsync` 拒绝门）/ `tools/execute` / `tools/post-execute`。
-- [x] `IAgentLoop` + `ISessionStore` + `ILlmRuntime` + `IInbox` 等接缝契约迁入 `OpenForgeSelf.Abstractions`；`ISessionStore`（`InMemorySessionStore` 单例）与 `ILlmRuntime`（`AIServiceLlmRuntime` Scoped）已注册进 DI，`ChatController` 经可选依赖使用 `ISessionStore` 追加 user/assistant 消息；`IAgentLoop`/`IInbox` 仅契约级测试，Provider 实现待后续。
+- [x] `IAgentLoop` + `ISessionStore` + `ILlmRuntime` + `IInbox` 等接缝契约迁入 `ForgeSelf.Abstractions`；`ISessionStore`（`InMemorySessionStore` 单例）与 `ILlmRuntime`（`AIServiceLlmRuntime` Scoped）已注册进 DI，`ChatController` 经可选依赖使用 `ISessionStore` 追加 user/assistant 消息；`IAgentLoop`/`IInbox` 仅契约级测试，Provider 实现待后续。
 - [x] 文件级热更新：`PluginVersionLayout`（side-by-side `versions/<semver>` + `current` 指针）、`PluginAssemblyUnloader`（`ForceCollect` + `FileShare.None` + 延迟删除）、`PluginHotReloadWatcher`（`FileSystemWatcher` + 300ms debounce，Testing 环境跳过）。
 - [x] 插件程序集注册进 MVC：Build 后 `ApplicationPartManager` 添加插件程序集 `AssemblyPart`（MemorySystem 独立 dll 的控制器已被路由发现）。
 - [x] 共享基础设施搬到宿主中性 `Services/`：`IToolRegistry`/`ToolRegistry`/`ToolCallContext`、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`。
@@ -93,7 +93,7 @@ AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解
 
 ### 3. `IAgentLoop` / `IInbox` 无 Provider 实现
 
-**问题本质**：这两个接缝契约已迁入 `OpenForgeSelf.Abstractions`，定义了 Agent 循环和消息收件箱的接口，并有契约级测试（`FakeAgentLoop`/`FakeInbox`），但 Backend 侧无真实实现类注册进 DI 容器。
+**问题本质**：这两个接缝契约已迁入 `ForgeSelf.Abstractions`，定义了 Agent 循环和消息收件箱的接口，并有契约级测试（`FakeAgentLoop`/`FakeInbox`），但 Backend 侧无真实实现类注册进 DI 容器。
 
 **影响范围**：消费者（如 AI Agent 插件）无法通过 `ctx.Get<IAgentLoop>()` 或 `ctx.Get<IInbox>()` 获取真实服务，调用会返回 null 或抛异常。
 
@@ -119,7 +119,7 @@ AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解
 **范围控制**：本次只做软依赖互通；`inject`/PENDING/自动重启（硬依赖机制，对标 `_refresh`/`_setEpoch`）待首个强依赖接缝出现时落地，`PluginMetadata.Provides/Consumes` 字段已预留。
 
 **实施完成（2026-08-19，来源:输入7 /spec）**：7 步方案全部落地并通过验证门禁。
-- 改动文件：`OpenForgeSelf.Core/IContext.cs`（新增 `RegisterLocal<T>`）、`Context.cs`（root 共享服务表 + `Register` 走 `Effect` + `RegisterLocal` + `Get` 本地→共享表）、`PluginManager.cs`（`MountPlugin` 两处 `Register` → `RegisterLocal`）、`AIAgentPlugin.cs`（补注册 `IAIWorkflowAssistant`/`IWorkflowAIAdvisor` + eager 构造提供 advisor）、`AIWorkflowAssistant.cs`/`AIAgentService.cs`/`ToolSelectorService.cs`（宿主契约懒解析，适配 Apply 先于 `ProvideHostServices` 的启动顺序）、`WorkflowExecutor.cs`（构造注入 `IContext` + `_ctx.Get<IWorkflowAIAdvisor>()`）、`PluginServiceRegistry.cs`（`IWorkflowAIAdvisor` 不进 `CollectForwardDescriptors`）。
+- 改动文件：`ForgeSelf.Core/IContext.cs`（新增 `RegisterLocal<T>`）、`Context.cs`（root 共享服务表 + `Register` 走 `Effect` + `RegisterLocal` + `Get` 本地→共享表）、`PluginManager.cs`（`MountPlugin` 两处 `Register` → `RegisterLocal`）、`AIAgentPlugin.cs`（补注册 `IAIWorkflowAssistant`/`IWorkflowAIAdvisor` + eager 构造提供 advisor）、`AIWorkflowAssistant.cs`/`AIAgentService.cs`/`ToolSelectorService.cs`（宿主契约懒解析，适配 Apply 先于 `ProvideHostServices` 的启动顺序）、`WorkflowExecutor.cs`（构造注入 `IContext` + `_ctx.Get<IWorkflowAIAdvisor>()`）、`PluginServiceRegistry.cs`（`IWorkflowAIAdvisor` 不进 `CollectForwardDescriptors`）。
 - 测试：新增 `KernelServiceInteropTests`（7 例 dispose 门禁：提供可解析 / 卸载为 null 默认重试 / 重挂载恢复 / 宿主契约不受影响 / 本地值不泄漏）；`FiberTests` 既有断言改用 `RegisterLocal` 保持意图。
 - 验证：`dotnet build` 0 错误；`dotnet test` 988/988 全绿（基线 981 + 新增 7 例，无回退）。
 
@@ -149,4 +149,4 @@ AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解
 
 > 已解决（归档）：① 11 个插件全部拆独立程序集（批1-4，958/958）；② 动态端点移除（`MvcActionDescriptorChangeProvider` + `UnregisterApplicationPart`，958/958）；③ QuickLinks SQLite 表随启动创建恢复；④ `WorkflowHub` 去静态化。
 
-> 内核与契约层测试：`OpenForgeSelf.Core.Tests`（`ContextHostBridgeTests`/`EventBusTests`/`FiberTests`）、`OpenForgeSelf.Abstractions.Tests`（`PluginContractTests`/`EndpointRegistryTests`/`SessionStoreContractTests`/`AgentLoopContractTests`/`InboxContractTests`/`LlmRuntimeContractTests`）、`MvcActionDescriptorChangeProviderTests`（动态端点刷新）、`PluginLifecycleEventTests`（加载/卸载事件）、`SessionStoreAndLlmRuntimeTests`（接缝真实实现）为契约与内核行为提供回归保护。
+> 内核与契约层测试：`ForgeSelf.Core.Tests`（`ContextHostBridgeTests`/`EventBusTests`/`FiberTests`）、`ForgeSelf.Abstractions.Tests`（`PluginContractTests`/`EndpointRegistryTests`/`SessionStoreContractTests`/`AgentLoopContractTests`/`InboxContractTests`/`LlmRuntimeContractTests`）、`MvcActionDescriptorChangeProviderTests`（动态端点刷新）、`PluginLifecycleEventTests`（加载/卸载事件）、`SessionStoreAndLlmRuntimeTests`（接缝真实实现）为契约与内核行为提供回归保护。

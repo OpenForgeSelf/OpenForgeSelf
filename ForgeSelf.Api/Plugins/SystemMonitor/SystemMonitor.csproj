@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SystemMonitor</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.SystemMonitor</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

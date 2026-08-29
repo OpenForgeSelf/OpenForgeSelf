@@ -12,10 +12,10 @@
 
 | 层 | 技术 | 说明 |
 |----|------|------|
-| 后端 | .NET 10 / ASP.NET Core 10 | `OpenForgeSelf.Backend/` |
-| 后端 ORM | NewLife.XCode | 实体继承自 `Entity<T>`，SQLite 持久化（`Data/OpenForgeSelf.db`） |
+| 后端 | .NET 10 / ASP.NET Core 10 | `ForgeSelf.Api/` |
+| 后端 ORM | NewLife.XCode | 实体继承自 `Entity<T>`，SQLite 持久化（`Data/ForgeSelf.db`） |
 | 后端 AI | NewLife.AI / Microsoft Agent Framework（实验性） | `Services/AI/` 统一网关与多模态处理 |
-| 前端 | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind v4 + Pinia | `OpenForgeSelf.Frontend/`，pnpm |
+| 前端 | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind v4 + Pinia | `ForgeSelf.Web/`，pnpm |
 | 通信 | REST + WebSocket | 前端 `services/request.ts`（fetch 封装）+ `services/websocket.ts` |
 | 运行 | 托盘常驻 Windows 桌面应用（自更新） | 后端监听动态端口（默认 **7102**），前端 dev 默认 **7002** |
 
@@ -87,7 +87,7 @@
 
 ### 3.3 插件体系（Cordis 内核驱动）
 
-宿主通过 `OpenForgeSelf.Core`（.NET 版 Cordis 内核）驱动「一切皆插件」架构。详见 [`cordis-kernel.md`](cordis-kernel.md) 完整设计。
+宿主通过 `ForgeSelf.Core`（.NET 版 Cordis 内核）驱动「一切皆插件」架构。详见 [`cordis-kernel.md`](cordis-kernel.md) 完整设计。
 
 **四层架构**：
 
@@ -122,7 +122,7 @@
 
 | 动作 | 命令/文件 | 说明 |
 |------|-----------|------|
-| 前端构建 | `OpenForgeSelf.Frontend/vite.config.ts` → `outDir: ../OpenForgeSelf.Backend/wwwroot`，`emptyOutDir:false` | 本环境 safe-delete shim 拦截 Vite 删目录，故不清旧产物（构建前可手动清 `wwwroot/assets`） |
+| 前端构建 | `ForgeSelf.Web/vite.config.ts` → `outDir: ../ForgeSelf.Api/wwwroot`，`emptyOutDir:false` | 本环境 safe-delete shim 拦截 Vite 删目录，故不清旧产物（构建前可手动清 `wwwroot/assets`） |
 | 一键构建发布 | `build.ps1` | 构建前端 → 输出 `wwwroot` → 发布后端 |
 | 启动 | `start.ps1` | 启动后端(7102)+前端(7002) |
 

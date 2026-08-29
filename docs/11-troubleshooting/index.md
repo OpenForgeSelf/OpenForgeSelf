@@ -7,7 +7,7 @@
 
 | 现象 | 根因 | 解法 |
 |------|------|------|
-| `dotnet build` 复制阶段 CS2012（文件被占用） | 运行实例占用 `OpenForgeSelf.exe/dll`，无权限停止 | 停止进程或构建到独立输出目录 |
+| `dotnet build` 复制阶段 CS2012（文件被占用） | 运行实例占用 `ForgeSelf.exe/dll`，无权限停止 | 停止进程或构建到独立输出目录 |
 | 前端 `pnpm run build` 约 31 个类型错误 | 预存错误（非本轮回归，T032） | 独立修复，不混入功能 PR |
 | 多模态图片块 `InvalidCastException` | `image_url` 内层用了匿名类型 | 改用 `Dictionary<string,object>`（已修） |
 | 本地 1234 返回 404（多模态） | `BuildVisionRequest` 转发未剥离 `provider:` 前缀 | 转发前剥离前缀（已修） |

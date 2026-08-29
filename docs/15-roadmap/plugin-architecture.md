@@ -38,7 +38,7 @@
 
 | # | 缺失 | 现状证据 | 后果 |
 |---|---|---|---|
-| **4** | **DI 硬编码** | `AppBuilder.cs` 中 12 个插件的服务全部 `builder.Services.AddScoped<...>` 手工注册，并用 `using OpenForgeSelf.Backend.Plugins.*.Services` 显式引入各插件命名空间 | 新增插件必须改框架代码 `AppBuilder.cs`，插件无法自注册 |
+| **4** | **DI 硬编码** | `AppBuilder.cs` 中 12 个插件的服务全部 `builder.Services.AddScoped<...>` 手工注册，并用 `using ForgeSelf.Api.Plugins.*.Services` 显式引入各插件命名空间 | 新增插件必须改框架代码 `AppBuilder.cs`，插件无法自注册 |
 | **5** | **无能力接缝** | `IAIService`/`AIService` 单一实现直连，Agent 层直接依赖具体类；无 Service Definition / Provider / Consumer 三件套 | 替换 LLM/文件系统/Shell 等能力需改代码，无法「运行期换实现」 |
 | **6** | **无类型化事件总线 + 可逆副作用** | 插件间要么 DI 直接引用，要么 `IServiceProvider` 强转；`IPlugin.Destroy()` 只清两个 List，无 `ctx.Effect()` 统一清理 | 无 `tools/pre-execute` 等拦截点；热卸载后残留定时器/连接/事件订阅 |
 | **7** | **无会话日志 / Profile 配置** | 聊天记录有 `IChatTurnService`/`IChatSessionService`，但无「仅追加事件流 + 模型历史投影」；`plugin.json` 无 `Provides/Consumes/Profile/Patch` | 无法满足「模型可见 = 已记录」；无法声明式组合能力方案 |
@@ -129,7 +129,7 @@ public class AIAgentPlugin : IPlugin
   "id": "aiagent.plugin",
   "name": "AI代理插件",
   "version": "1.0.0",
-  "entry": "OpenForgeSelf.Plugins.AIAgent.dll",
+  "entry": "ForgeSelf.Plugins.AIAgent.dll",
   "provides": ["ctx.agents", "ctx.tools", "ctx.agentLoop"],
   "consumes": ["ctx.llm", "ctx.sessions", "ctx.fs"],
   "profile": ["default"],
@@ -150,11 +150,11 @@ public class AIAgentPlugin : IPlugin
 
 ### P0 — 内核底座 + 统一契约（已完成）
 
-**目标**：落地 `OpenForgeSelf.Core` 内核与 `OpenForgeSelf.Abstractions` 契约程序集，确立 `IPlugin.Apply(IContext)` 单一契约与 Fiber 生命周期。
+**目标**：落地 `ForgeSelf.Core` 内核与 `ForgeSelf.Abstractions` 契约程序集，确立 `IPlugin.Apply(IContext)` 单一契约与 Fiber 生命周期。
 
 **动作**
-- `OpenForgeSelf.Core`：`IContext`/`Context`、`IEventBus`/`EventBus`、`Service`、`Fiber`（全部已落地，`Context.SetHostProvider` 桥接宿主 MS DI）。
-- 新增 `OpenForgeSelf.Abstractions`：业务能力接缝（`ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IEndpointRegistry`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService`）+ `IPlugin` + 共享 DTO（已建立）。
+- `ForgeSelf.Core`：`IContext`/`Context`、`IEventBus`/`EventBus`、`Service`、`Fiber`（全部已落地，`Context.SetHostProvider` 桥接宿主 MS DI）。
+- 新增 `ForgeSelf.Abstractions`：业务能力接缝（`ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IEndpointRegistry`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService`）+ `IPlugin` + 共享 DTO（已建立）。
 - `IPlugin` 直接改为单一 `Apply(IContext)`，删除旧 `Initialize(IServiceProvider)`/`Start`/`Stop`/`Destroy`（已全量迁移，见 ADR D1）。
 - `plugin.json` 增加 `provides`/`consumes`，`PluginManager` 按 `consumes` 做服务级拓扑排序（**未落地**：`PluginMetadata` 类已支持 `Provides`/`Consumes` 字段，但 12 个 `plugin.json` 均未填写；`PluginManager` 的 `TopologicalSort` 按 `Dependencies` 排序）。
 
@@ -278,7 +278,7 @@ Discovered → Loaded(ALC) → Applied(Apply 完成)
 | 层 | 命令 | 门禁 |
 |---|---|---|
 | 后端构建 | `dotnet build` | 0 错误 |
-| 后端测试 | `dotnet test`（`OpenForgeSelf.Backend.Tests`） | 全绿，含新增 dispose 释放测试 |
+| 后端测试 | `dotnet test`（`ForgeSelf.Api.Tests`） | 全绿，含新增 dispose 释放测试 |
 | 前端类型/规范 | `pnpm run check` | 0 错误 |
 | 前端测试 | `pnpm run test` | 全绿 |
 | 手动 | 跨目录启动 + 一次真实热升级 | SPA 正常 + 升级无 IoException |
@@ -323,7 +323,7 @@ P0 接缝抽象+Context+自注册 ──► P1 可逆注册+可变DI+动态端�
 | # | 决策 | 一句话 |
 |---|------|--------|
 | D1 | 契约 | 统一为 `IPlugin.Apply(IContext)`，生命周期由 Fiber 统一，不留兼容层 |
-| D2 | 程序集 | 12 插件一步到位拆独立程序集 + 新增 `OpenForgeSelf.Abstractions` 契约程序集 |
+| D2 | 程序集 | 12 插件一步到位拆独立程序集 + 新增 `ForgeSelf.Abstractions` 契约程序集 |
 | D3 | 版本目录 | `Plugins/<id>/versions/<semver>/` + `current`，保留 N=2 |
 | D4 | 前端 | 轻量动态 `import()` + `contributes`，不上 module-federation |
 | D5 | 节奏 | 按 P0→P5 逐阶段出 spec→plan→tasks 分批实现 |

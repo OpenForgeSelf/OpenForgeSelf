@@ -55,7 +55,7 @@
 
 ## 4. 注意事项
 1. 运行实例无权限停止时，改 `gpustack.VisionModel` 等需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。
-2. DB 位置：`OpenForgeSelf.Backend/bin/Debug/net10.0-windows/Data/OpenForgeSelf.db`。
+2. DB 位置：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`。
 
 ## 5. 测试覆盖
 | 测试 | 覆盖点 |

@@ -5,7 +5,7 @@
 bin/
 obj/
 # 单插件发布脚本 staged 产物（publish-plugin.ps1 生成，含 DLL/PDB，等同 bin/obj）
-OpenForgeSelf.Backend/Plugins/_backups/
+ForgeSelf.Api/Plugins/_backups/
 node_modules/
 XCode.config
 artifacts/
@@ -14,10 +14,10 @@ TestResults/
 
 # Playwright
 .playwright-browsers/
-OpenForgeSelf.Frontend/playwright-report/
-OpenForgeSelf.Frontend/test-results/
+ForgeSelf.Web/playwright-report/
+ForgeSelf.Web/test-results/
 # vitest 覆盖率报告
-OpenForgeSelf.Frontend/coverage/
+ForgeSelf.Web/coverage/
 .claude/
 .codegraph/
 # 含明文 MCP 凭据，禁止提交到仓库
@@ -26,7 +26,7 @@ OpenForgeSelf.Frontend/coverage/
 .vscode/settings.json 
 dist/
 # 前端构建产物：vite build 输出至后端 wwwroot（纯生成物，非源码），含 assets/ 与 index.html 及历史孤儿产物
-OpenForgeSelf.Backend/wwwroot/
+ForgeSelf.Api/wwwroot/
 screenshots/
 temp/
 auto-imports.d.ts
@@ -35,5 +35,5 @@ nul
 # vue-tsc -b 增量构建缓存（app/node/e2e 各项目一个）
 *.tsbuildinfo
 publish/
-OpenForgeSelf.Frontend/playwright-report-published/
+ForgeSelf.Web/playwright-report-published/
 .trash/

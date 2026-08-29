@@ -44,21 +44,21 @@ AI Provider 的 API Key、API 服务器密钥等敏感凭据需要持久化存�
 ```
 Encryption:Key 配置（appsettings / 环境配置）
   ↓ 未设置
-OPENFORGE_ENCRYPTION_KEY 环境变量
+FORGESELF_ENCRYPTION_KEY 环境变量
   ↓ 未设置
-内置默认密钥 "OpenForgeSelf-AIProvider-Default-Encryption-Key"（仅开发默认）
+内置默认密钥 "ForgeSelf-AIProvider-Default-Encryption-Key"（仅开发默认）
 ```
 
-> **生产要求**：必须通过 `Encryption:Key` 或 `OPENFORGE_ENCRYPTION_KEY` 覆盖默认密钥，避免密钥硬编码泄露。当前仓库所有 appsettings 均未配置，开发环境实际生效的是内置默认密钥。
+> **生产要求**：必须通过 `Encryption:Key` 或 `FORGESELF_ENCRYPTION_KEY` 覆盖默认密钥，避免密钥硬编码泄露。当前仓库所有 appsettings 均未配置，开发环境实际生效的是内置默认密钥。
 
 ### 2.3 实现位置
 
 | 文件 | 职责 |
 |------|------|
-| `OpenForgeSelf.Backend/Security/ISecretEncryptionService.cs` | 接口：`Encrypt` / `Decrypt` / `Mask` |
-| `OpenForgeSelf.Backend/Security/AesSecretEncryptionService.cs` | AES-256-CBC 实现 + 密钥解析 |
-| `OpenForgeSelf.Backend/AppBuilder.cs` | DI 注册：`AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>()` |
-| `OpenForgeSelf.Backend/Data/Model.xml` | `ApiServerKey.KeyCipher`（AES-256-CBC 加密存储） |
+| `ForgeSelf.Api/Security/ISecretEncryptionService.cs` | 接口：`Encrypt` / `Decrypt` / `Mask` |
+| `ForgeSelf.Api/Security/AesSecretEncryptionService.cs` | AES-256-CBC 实现 + 密钥解析 |
+| `ForgeSelf.Api/AppBuilder.cs` | DI 注册：`AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>()` |
+| `ForgeSelf.Api/Data/Model.xml` | `ApiServerKey.KeyCipher`（AES-256-CBC 加密存储） |
 
 ### 2.4 脱敏展示
 
@@ -71,13 +71,13 @@ OPENFORGE_ENCRYPTION_KEY 环境变量
 新增密钥密文可通过专用单元测试输出（与后端运行时行为完全一致，空配置 → 内置默认密钥）：
 
 ```bash
-cd OpenForgeSelf.Backend.Tests
+cd ForgeSelf.Api.Tests
 dotnet test --filter "FullyQualifiedName~AesSecretEncryptionOutputTests" --logger "console;verbosity=detailed"
 ```
 
 测试输出 `ENCRYPTED_RESULT=...` 即密文，可直接写入数据库/配置。
 
-- 参考实现：`OpenForgeSelf.Backend.Tests/Unit/AesSecretEncryptionOutputTests.cs`
+- 参考实现：`ForgeSelf.Api.Tests/Unit/AesSecretEncryptionOutputTests.cs`
 - 测试内置往返断言（`Decrypt(cipher) == 原文`），保证输出的密文可解密还原。
 
 ### 3.2 代码中加密/解密

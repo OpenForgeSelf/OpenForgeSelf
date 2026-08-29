@@ -17,7 +17,7 @@
 
 ## 2. 设计
 
-### 2.1 关键组件（`OpenForgeSelf.Backend/Services/`）
+### 2.1 关键组件（`ForgeSelf.Api/Services/`）
 | 类 | 职责 |
 |----|------|
 | `TrayIconManager.cs` | 托盘图标/菜单/显隐 |

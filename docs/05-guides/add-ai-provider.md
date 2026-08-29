@@ -25,7 +25,7 @@
 ## 3. 加密一个密钥（获取密文，运维/调试）
 
 ```bash
-cd OpenForgeSelf.Backend.Tests
+cd ForgeSelf.Api.Tests
 dotnet test --filter "FullyQualifiedName~AesSecretEncryptionOutputTests" --logger "console;verbosity=detailed"
 ```
 

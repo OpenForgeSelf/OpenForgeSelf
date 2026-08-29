@@ -1,0 +1,21 @@
+{
+  "Id": "todo-tracker",
+  "Name": "待办追踪插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "待办事项追踪插件，提供 CRUD REST API、独立管理页与 AI 工具函数。",
+  "IconUrl": "https://example.com/todotracker-icon.png",
+  "EntryAssembly": "TodoTracker.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.TodoTracker.TodoTrackerPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "write_config"
+  ],
+  "frontend": {
+    "views": ["TodoView"],
+    "menu": "待办事项",
+    "route": "/todo",
+    "icon": "fa-check-square"
+  }
+}

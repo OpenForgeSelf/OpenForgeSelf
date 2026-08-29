@@ -1,0 +1,48 @@
+/* ============================================================
+   铸己匣 ForgeSelf — Tailwind CSS v4 入口
+   ------------------------------------------------------------
+   职责：布局原语 + 排版 + 色彩引用。
+   颜色全部映射到 Element Plus 变量（主题切换时自动跟随）。
+   不定义任何独立色值——色值 100% 来自 themes/*.css。
+   间距/字重/过渡用 Tailwind 内置（4px 基数，无需自定义）。
+   ============================================================ */
+
+@import "tailwindcss";
+
+@theme {
+  /* 字体 */
+  --font-sans: var(--el-font-family);
+  --font-mono: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+
+  /* 圆角（对齐 Element Plus） */
+  --radius-sm: var(--el-border-radius-small);
+  --radius-md: var(--el-border-radius-base);
+  --radius-lg: 12px;
+
+  /* 颜色：全部引用 Element Plus 变量，主题切换时自动跟随 */
+  --color-primary: var(--el-color-primary);
+  --color-success: var(--el-color-success);
+  --color-warning: var(--el-color-warning);
+  --color-error: var(--el-color-error);
+  --color-info: var(--el-color-info);
+  --color-accent: var(--el-color-accent);
+  --color-teal: var(--el-color-accent-teal);
+
+  --color-bg: var(--el-bg-color);
+  --color-bg-page: var(--el-bg-color-page);
+  --color-bg-overlay: var(--el-bg-color-overlay);
+  --color-fill: var(--el-fill-color);
+  --color-fill-light: var(--el-fill-color-light);
+
+  --color-text: var(--el-text-color-primary);
+  --color-text-regular: var(--el-text-color-regular);
+  --color-text-secondary: var(--el-text-color-secondary);
+  --color-text-disabled: var(--el-text-color-disabled);
+
+  --color-border: var(--el-border-color);
+  --color-border-light: var(--el-border-color-light);
+  --color-border-dark: var(--el-border-color-dark);
+}
+
+/* 暗色模式：与 Element Plus html.dark 一致 */
+@custom-variant dark (&:where(.dark, .dark *));

@@ -67,9 +67,9 @@
 
 | 目录 | 用途 | 技术栈 |
 |------|------|--------|
-| `OpenForgeSelf.Frontend/` | Vue 3 SPA | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind 4 + Pinia + pnpm |
-| `OpenForgeSelf.Backend/` | ASP.NET Core API | .NET 10 + SQLite + NewLife.XCode（唯一 ORM）+ 插件架构 |
-| `OpenForgeSelf.Backend.Tests/` | 后端测试 | xUnit + Moq + FluentAssertions + Coverlet |
+| `ForgeSelf.Web/` | Vue 3 SPA | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind 4 + Pinia + pnpm |
+| `ForgeSelf.Api/` | ASP.NET Core API | .NET 10 + SQLite + NewLife.XCode（唯一 ORM）+ 插件架构 |
+| `ForgeSelf.Api.Tests/` | 后端测试 | xUnit + Moq + FluentAssertions + Coverlet |
 | `forgeself-design/` | 设计原型 | 自包含 HTML + Element Plus CDN + Tailwind CDN |
 | `specs/` | 功能规格 | 编号 001–005，spec → plan → tasks 流程 |
 | `openwiki/` | 自动生成文档 | 勿手动编辑，由 CI 刷新 |
@@ -163,10 +163,10 @@
 
 验证是闭环的核心。不通过 Verify 的变更 **不算完成**。
 
-### 5.1 前端验证（修改 `OpenForgeSelf.Frontend/` 后必须执行）
+### 5.1 前端验证（修改 `ForgeSelf.Web/` 后必须执行）
 
 ```bash
-cd OpenForgeSelf.Frontend
+cd ForgeSelf.Web
 pnpm run check    # vue-tsc --noEmit && eslint（类型检查 + 代码规范）
 pnpm run test     # vitest（单元测试）
 ```
@@ -176,17 +176,17 @@ pnpm run test     # vitest（单元测试）
 - `test` 失败 → 修测试或补测试，**不允许跳过**
 - 两项都通过 → 前端验证通过
 
-### 5.2 后端验证（修改 `OpenForgeSelf.Backend/` 后必须执行）
+### 5.2 后端验证（修改 `ForgeSelf.Api/` 后必须执行）
 
 ```bash
-cd OpenForgeSelf.Backend
+cd ForgeSelf.Api
 dotnet build
 ```
 
 后端测试（涉及逻辑变更时必须执行）：
 
 ```bash
-cd OpenForgeSelf.Backend.Tests
+cd ForgeSelf.Api.Tests
 dotnet test
 ```
 

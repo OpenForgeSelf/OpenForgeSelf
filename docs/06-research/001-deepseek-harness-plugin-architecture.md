@@ -232,4 +232,4 @@ A：同一套共享表，两个来源。宿主 seed（`IConfigurationService`/`I
 - DeepWiki `deepseek-ai/deepseek-harness` 文档读取比例：核心插件化章节（§2.1 Cordis / §2.2 Profiles&Bundles / §2.3 Event Bus&Seams / §8 测试 HMR 安全）**100% 已读**；其余（Agent System / Execution Environment / API 层 / Web UI）为概览级，未逐行精读。
 - DeepWiki `cordiverse/cordis`（2026-08-19 补查）：wiki 结构 9 章全览 + **七轮**定向问答——ReflectService 服务机制、Fiber 生命周期/HMR、事件系统、dsh 应用层模式（含软依赖判例 `tool-fs-search`）、**服务全局/本地区分与解析顺序、服务生命周期（单例/eager/effect）、provide 即 effect 与宿主 root 生命周期**（§4-§6 内容均出自各轮源码级回答）。
 - 本项目偏差现状已用源码核实（2026-08-19）：`Context.cs:21/33-38/56-63`（独立 EventBus、Register 写自身字典、Get 仅父链）、`PluginServiceRegistry.cs`（无宿主转发）、`PluginManager.cs:129-171`（root seed 仅宿主契约）、`AIAgentPlugin.cs:23-30`（Advisor/Assistant 未注册）、`WorkflowEnginePlugin.cs:37-39`（Executor 持 fiber ctx）、`WorkflowExecutor.cs:281`（GetService 查 IWorkflowAIAdvisor）。
-- 早前核实：`AppBuilder.cs:88/351`、`OpenForgeSelf.Backend.csproj` 仅 `None Update="Plugins\**\plugin.json"`（未 `Compile Remove`，11 插件拆程序集后已更新）。
+- 早前核实：`AppBuilder.cs:88/351`、`ForgeSelf.Api.csproj` 仅 `None Update="Plugins\**\plugin.json"`（未 `Compile Remove`，11 插件拆程序集后已更新）。

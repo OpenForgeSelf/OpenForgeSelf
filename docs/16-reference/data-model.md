@@ -274,7 +274,7 @@ erDiagram
 
 ## 数据库位置
 
-- **开发环境**：`%LOCALAPPDATA%/OpenForgeSelf/OpenForgeSelf.db`
-- **生产环境**：`%LOCALAPPDATA%/OpenForgeSelf/OpenForgeSelf.db`
+- **开发环境**：`<程序目录>/Data/ForgeSelf.db`（`dotnet run` 开发形态，数据不污染用户目录）
+- **生产环境**：`~/.forgeself/ForgeSelf.db`（Windows：`%USERPROFILE%/.forgeself/ForgeSelf.db`，发布/服务形态）
 - **数据库类型**：SQLite（通过 NewLife.XCode 自动建表）
 - **迁移策略**：XCode `DAL.Migration` 默认 On，启动时自动检测并建表/加列，无需手写迁移脚本

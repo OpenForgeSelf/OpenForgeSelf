@@ -7,7 +7,7 @@ type: "design"
 req_ids: ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016", "REQ-017", "REQ-018", "REQ-019"]
 # 功能清单（单一真源 = 前端 src/data/features.ts；下表为其镜像，新增功能须先登记 features.ts）
 modules: ["ai-agent", "quick-links", "text-tools", "file-tools", "system-monitor", "workflow", "scheduler", "script-runner", "dev-tools", "chat", "chat-records", "prompts", "skills", "mcp", "memory", "agents", "code-snippets", "todo", "profile", "plugins", "settings"]
-affects: ["src/", "OpenForgeSelf.Backend/", "OpenForgeSelf.Frontend/"]
+affects: ["src/", "ForgeSelf.Api/", "ForgeSelf.Web/"]
 author: "human"
 reviewed_by: ""
 ---
@@ -66,7 +66,7 @@ reviewed_by: ""
 
 ## 四、功能模块
 
-> 本表为 `OpenForgeSelf.Frontend/src/data/features.ts` 的镜像。新增功能必须先在该文件登记（含 `signals` 代码产物键），再由 `scripts/check-features.mjs` 在 CI 中校验代码与清单一致性。**单一真源以 `features.ts` 为准**，本表仅作文档展示。
+> 本表为 `ForgeSelf.Web/src/data/features.ts` 的镜像。新增功能必须先在该文件登记（含 `signals` 代码产物键），再由 `scripts/check-features.mjs` 在 CI 中校验代码与清单一致性。**单一真源以 `features.ts` 为准**，本表仅作文档展示。
 
 | 模块 | 分类 | 说明 |
 |------|------|------|

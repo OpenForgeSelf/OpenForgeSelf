@@ -14,7 +14,7 @@
 
 ## 2. 运行命令
 
-### 前端（OpenForgeSelf.Frontend/）
+### 前端（ForgeSelf.Web/）
 | 命令 | 作用 |
 |------|------|
 | `pnpm run check` | vue-tsc --noEmit + eslint（类型 + 规范，门禁） |
@@ -24,7 +24,7 @@
 
 > **OOM 规避**：`NODE_OPTIONS=--max-old-space-size=4096 --pool=forks --poolOptions.forks.singleFork=true`
 
-### 后端（OpenForgeSelf.Backend/ + .Tests/）
+### 后端（ForgeSelf.Api/ + .Tests/）
 | 命令 | 作用 |
 |------|------|
 | `dotnet build` | 后端构建（门禁） |

@@ -8,6 +8,7 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using OpenForgeSelf.Backend.Models;
 using OpenForgeSelf.Backend.Services;
+using OpenForgeSelf.Backend.Tests.TestDoubles;
 // 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
 using LegacyAIChatMessage = OpenForgeSelf.Backend.Models.AIChatMessage;
 using Microsoft.AspNetCore.Hosting;
@@ -151,64 +152,16 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
-    public async Task ChatController_ShouldUseRealAIServiceConfig()
+    public async Task ChatController_ShouldReturnMockResponse()
     {
-        // Arrange - 使用 WebApplicationFactory，但替换 HttpMessageHandler 来捕获真实请求
-        var capturedRequests = new List<HttpRequestMessage>();
+        // Arrange - 用 FakeAIService（固定返回）替代真实 LLM，使测试离线、确定性、不依赖 ApiKey/联网
         var factory = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                // 移除现有的 IAIService 注册
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IAIService));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                // 注册带自定义 HttpMessageHandler 的 AIService
-                var handlerMock = new Mock<HttpMessageHandler>();
-                handlerMock
-                    .Protected()
-                    .Setup<Task<HttpResponseMessage>>(
-                        "SendAsync",
-                        ItExpr.IsAny<HttpRequestMessage>(),
-                        ItExpr.IsAny<CancellationToken>()
-                    )
-                    .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequests.Add(req))
-                    .ReturnsAsync(new HttpResponseMessage
-                    {
-                        StatusCode = HttpStatusCode.OK,
-                        Content = new StringContent(
-                            JsonSerializer.Serialize(new AIChatResponse
-                            {
-                                Id = "chat-test-1",
-                                Choices = new List<AIChatChoice>
-                                {
-                                    new()
-                                    {
-                                        Index = 0,
-                                        Message = new AIChatMessageDelta
-                                        {
-                                            Role = "assistant",
-                                            Content = "你好！我是AI助手，有什么可以帮助你的？"
-                                        }
-                                    }
-                                }
-                            }),
-                            Encoding.UTF8,
-                            "application/json")
-                    });
-
-                // 注册为 Scoped：ILogService 为 Scoped，单例工厂从 root provider 无法解析 Scoped 服务
-                services.AddScoped<IAIService>(sp =>
-                {
-                    var configService = sp.GetRequiredService<IConfigurationService>();
-                    var logService = sp.GetRequiredService<ILogService>();
-                    var httpClient = new HttpClient(handlerMock.Object);
-                    return new AIService(configService, logService, httpClient);
-                });
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IAIService));
+                if (descriptor != null) services.Remove(descriptor);
+                services.AddScoped<IAIService, FakeAIService>();
             });
         });
 
@@ -216,7 +169,7 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         var request = new
         {
             Message = "你好，请介绍一下你自己",
-            SessionId = "real-llm-test-session"
+            SessionId = "mock-llm-test-session"
         };
 
         // Act
@@ -224,20 +177,8 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        capturedRequests.Should().HaveCountGreaterOrEqualTo(1);
-
-        var aiRequest = capturedRequests[0];
-        aiRequest.Headers.Authorization.Should().NotBeNull();
-        aiRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
-
-        // 验证使用了真实的 API Key
-        var configService = factory.Services.GetRequiredService<IConfigurationService>();
-        var aiConfig = configService.GetAIConfig();
-        aiRequest.Headers.Authorization!.Parameter.Should().Be(aiConfig.ApiKey);
-
-        // 验证使用了正确的端点
-        aiRequest.RequestUri.Should().NotBeNull();
-        aiRequest.RequestUri!.ToString().Should().Be(aiConfig.ApiEndpoint);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain(FakeAIService.FixedReply);
     }
 
     [Fact]

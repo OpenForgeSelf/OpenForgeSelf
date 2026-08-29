@@ -31,25 +31,25 @@ describe('pluginManifest store', () => {
     const store = usePluginManifestStore()
     store.manifest = [
       makeManifestItem({
-        id: 'memory.plugin',
+        id: 'memory',
         name: '记忆系统插件',
         isEnabled: true,
         frontend: { views: ['MemoryView'], menu: '记忆', route: '/memory', icon: 'fa-brain' },
       }),
       makeManifestItem({
-        id: 'quicklinks.plugin',
+        id: 'quick-links',
         name: '快捷链接插件',
         isEnabled: false,
         frontend: { views: ['QuickLinksView'], menu: '快捷链接', route: '/quick-links', icon: 'fa-link' },
       }),
       makeManifestItem({
-        id: 'backend.plugin',
+        id: 'backend',
         name: '纯后端插件',
         isEnabled: true,
         frontend: { views: [] },
       }),
       makeManifestItem({
-        id: 'no-frontend.plugin',
+        id: 'no-frontend',
         name: '无前端块插件',
         isEnabled: true,
         frontend: null,
@@ -58,7 +58,7 @@ describe('pluginManifest store', () => {
 
     expect(store.menus).toHaveLength(1)
     expect(store.menus[0]).toEqual({
-      id: 'memory.plugin',
+      id: 'memory',
       name: '记忆系统插件',
       menu: '记忆',
       route: '/memory',
@@ -70,18 +70,18 @@ describe('pluginManifest store', () => {
   it('isEnabled 依据 id 与启用状态判断', () => {
     const store = usePluginManifestStore()
     store.manifest = [
-      makeManifestItem({ id: 'on.plugin', isEnabled: true }),
-      makeManifestItem({ id: 'off.plugin', isEnabled: false }),
+      makeManifestItem({ id: 'on', isEnabled: true }),
+      makeManifestItem({ id: 'off', isEnabled: false }),
     ]
 
-    expect(store.isEnabled('on.plugin')).toBe(true)
-    expect(store.isEnabled('off.plugin')).toBe(false)
-    expect(store.isEnabled('missing.plugin')).toBe(false)
+    expect(store.isEnabled('on')).toBe(true)
+    expect(store.isEnabled('off')).toBe(false)
+    expect(store.isEnabled('missing')).toBe(false)
   })
 
   it('loadManifest 成功时缓存清单并标记 loaded', async () => {
     const data: PluginFrontendManifest[] = [
-      makeManifestItem({ id: 'a.plugin', isEnabled: true, frontend: { views: ['AView'], menu: 'A' } }),
+      makeManifestItem({ id: 'a', isEnabled: true, frontend: { views: ['AView'], menu: 'A' } }),
     ]
     vi.mocked(pluginManifestApi.fetchFrontendManifest).mockResolvedValue(data)
 

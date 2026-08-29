@@ -10,7 +10,7 @@ describe('mergeFeatureList', () => {
 
   it('已存在路由的贡献会被去重（不破坏现有界面）', () => {
     const contribution: PluginMenuContribution = {
-      id: 'memory.plugin',
+      id: 'memory',
       name: '记忆系统插件',
       menu: '记忆',
       route: '/memory',
@@ -25,7 +25,7 @@ describe('mergeFeatureList', () => {
 
   it('新路由的贡献会作为补充特性追加', () => {
     const contribution: PluginMenuContribution = {
-      id: 'custom.plugin',
+      id: 'custom',
       name: '自定义插件',
       menu: '自定义',
       route: '/custom-plugin',
@@ -37,7 +37,7 @@ describe('mergeFeatureList', () => {
 
     expect(result).toHaveLength(features.length + 1)
     const added = result[result.length - 1]
-    expect(added.id).toBe('custom.plugin')
+    expect(added.id).toBe('custom')
     expect(added.name).toBe('自定义')
     expect(added.path).toBe('/custom-plugin')
   })

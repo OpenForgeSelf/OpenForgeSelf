@@ -32,14 +32,14 @@ describe('dynamicPlugins 动态视图挂载', () => {
     const router = makeRouter()
     registerManifestRoutes(router, [
       makeManifestItem({
-        id: 'memorysystem.plugin',
+        id: 'memory-system',
         name: '记忆系统插件',
         isEnabled: true,
         frontend: { views: ['MemoryView'], menu: '记忆', route: '/memory', icon: 'fa-brain' },
       }),
     ])
 
-    const route = router.getRoutes().find((r) => r.name === 'manifest-memorysystem.plugin')
+    const route = router.getRoutes().find((r) => r.name === 'manifest-memory-system')
     expect(route).toBeDefined()
     expect(route?.path).toBe('/plugin-view/memory')
     expect(route?.meta.source).toBe('manifest')
@@ -51,18 +51,18 @@ describe('dynamicPlugins 动态视图挂载', () => {
     const router = makeRouter()
     registerManifestRoutes(router, [
       makeManifestItem({
-        id: 'disabled.plugin',
+        id: 'disabled',
         isEnabled: false,
         frontend: { views: ['MemoryView'], menu: '禁用', route: '/memory' },
       }),
-      makeManifestItem({ id: 'no-frontend.plugin', isEnabled: true, frontend: null }),
+      makeManifestItem({ id: 'no-frontend', isEnabled: true, frontend: null }),
       makeManifestItem({
-        id: 'no-route.plugin',
+        id: 'no-route',
         isEnabled: true,
         frontend: { views: ['MemoryView'], menu: '无路由' },
       }),
       makeManifestItem({
-        id: 'unknown-view.plugin',
+        id: 'unknown-view',
         isEnabled: true,
         frontend: { views: ['UnknownView'], menu: '未知视图', route: '/unknown' },
       }),
@@ -82,7 +82,7 @@ describe('dynamicPlugins 动态视图挂载', () => {
     const router = makeRouter()
     const manifest = [
       makeManifestItem({
-        id: 'todotracker.plugin',
+        id: 'todo-tracker',
         name: '待办追踪插件',
         isEnabled: true,
         frontend: { views: ['TodoView'], menu: '待办事项', route: '/todo', icon: 'fa-check-square' },
@@ -96,24 +96,24 @@ describe('dynamicPlugins 动态视图挂载', () => {
       .getRoutes()
       .map((r) => String(r.name))
       .filter((n) => n.startsWith('manifest-'))
-    expect(names).toEqual(['manifest-todotracker.plugin'])
+    expect(names).toEqual(['manifest-todo-tracker'])
   })
 
   it('clearManifestRoutes 移除已注册的动态路由', () => {
     const router = makeRouter()
     registerManifestRoutes(router, [
       makeManifestItem({
-        id: 'quicklinks.plugin',
+        id: 'quick-links',
         name: '快捷链接插件',
         isEnabled: true,
         frontend: { views: ['QuickLinksView'], menu: '快捷链接', route: '/quick-links', icon: 'fa-link' },
       }),
     ])
 
-    expect(router.hasRoute('manifest-quicklinks.plugin')).toBe(true)
+    expect(router.hasRoute('manifest-quick-links')).toBe(true)
 
     clearManifestRoutes(router)
 
-    expect(router.hasRoute('manifest-quicklinks.plugin')).toBe(false)
+    expect(router.hasRoute('manifest-quick-links')).toBe(false)
   })
 })

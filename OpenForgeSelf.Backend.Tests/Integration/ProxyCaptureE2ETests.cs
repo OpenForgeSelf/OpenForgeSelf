@@ -11,8 +11,10 @@ namespace OpenForgeSelf.Backend.Tests.Integration;
 /// <summary>
 /// 抓包代理插件（ProxyCapture）真实端到端测试：
 /// 真实 TCP 监听 + 协议嗅探 + HTTP 解析 + 转发/200 占位 + SQLite 抓包入库，全链路真跑。
-/// （CaptureEngine 静态单例 + 共享 capture.db；本工程已全局禁用测试并行，用例间以 URL 精确匹配隔离断言。）
+/// （CaptureEngine 静态单例 + 共享 proxy-capture.db + 真实 TCP 端口绑定；
+/// 归入 SharedGlobalState 集合与其它改写进程级单例的测试类串行，用例间以 URL 精确匹配隔离断言。）
 /// </summary>
+[Collection("SharedGlobalState")]
 public class ProxyCaptureE2ETests : IDisposable
 {
     private readonly List<TcpListener> _targets = new();

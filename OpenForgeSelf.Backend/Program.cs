@@ -18,6 +18,14 @@ if (entryAssembly == "testhost" || entryAssembly == "testhost.exe")
     return 0;
 }
 
+// 统一配置文件落盘位置（数据根/Config）：必须早于任何 XTrace 日志写入与 Config<T>.Current 访问。
+// NewLife FileConfigProvider 在初始化时会按 FileName 所在目录建立 FileSystemWatcher；
+// 若放任其用默认相对路径（程序目录 Config/），发布目录下该目录不存在，启动首行即报
+// 「FileSystemWatcher 创建失败：...\publish\Config does not exist」。
+// 此处抢在一切 NewLife 配置访问之前重定向，AppBuilder 内再调用一次（幂等，覆盖 DI 环境判定结果）。
+ConfigUnifier.UnifyAllConfigFiles(
+    Path.Combine(DataLocationService.ResolveHostDataDirectory(), "Config"));
+
 // --tray 模式：服务模式下的托盘辅助进程，由 WindowsService 通过 CreateProcessAsUser 启动。
 // 此模式运行在用户会话中，通过命名管道与主服务通信，作为独立进程承载托盘图标。
 // 解决 Session 0 隔离问题：服务运行在 Session 0 无法直接显示 UI，需在用户会话中启动此进程。

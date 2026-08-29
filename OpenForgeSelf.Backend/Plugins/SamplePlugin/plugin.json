@@ -1,12 +1,12 @@
 {
-  "Id": "sample.plugin",
+  "Id": "sample",
   "Name": "示例插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",
   "Description": "这是一个示例插件，用于演示插件系统的基本功能。包含菜单扩展、设置页和AI工具函数。",
   "IconUrl": "https://example.com/icon.png",
   "EntryAssembly": "SamplePlugin.dll",
-  "EntryType": "SamplePlugin.SamplePlugin",
+  "EntryType": "OpenForgeSelf.Backend.Plugins.SamplePlugin.SamplePlugin",
   "Dependencies": [],
   "Permissions": [
     "read_config",

@@ -71,7 +71,7 @@ public class DataLocationServiceTests
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
         svc.GetPluginDataDirectory("quicklinks")
-            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "plugins", "quicklinks"));
+            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "Plugins", "quicklinks"));
     }
 
     [Fact]
@@ -81,6 +81,6 @@ public class DataLocationServiceTests
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
         svc.GetPluginDataDirectory("bad/id:name")
-            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "plugins", "badidname"));
+            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "Plugins", "badidname"));
     }
 }

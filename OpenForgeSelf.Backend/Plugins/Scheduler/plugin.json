@@ -1,5 +1,5 @@
 {
-  "Id": "scheduler.plugin",
+  "Id": "scheduler",
   "Name": "定时任务插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",
@@ -8,7 +8,7 @@
   "EntryAssembly": "Scheduler.dll",
   "EntryType": "OpenForgeSelf.Backend.Plugins.Scheduler.SchedulerPlugin",
   "Dependencies": [
-    "workflow.engine.plugin"
+    "workflow-engine"
   ],
   "Permissions": [
     "read_config",

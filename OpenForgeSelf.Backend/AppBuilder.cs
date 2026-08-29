@@ -213,6 +213,10 @@ public static class AppBuilder
         {
             pluginManager = bootstrap.GetRequiredService<PluginManager>();
             pluginManager.SetPluginsDirectory(pluginsPath);
+            // 提前把数据位置服务 seed 进插件根上下文：RegisterAllServices 会立刻触发插件 Apply，
+            // 而 Apply 内就要 ctx.GetPluginDataDirectory()；ProvideHostServices 却要等 Build 之后
+            // 才能解析 DI —— 不提前 seed，用到数据目录的插件会整体注册失败。
+            pluginManager.ProvideHostService(typeof(IDataLocationService), dataLocation);
             pluginManager.RegisterAllServices(builder.Services);
             // P3 事件总线贯穿：注入平台 IEventBus 单例，插件加载/卸载时发 plugin/loaded / plugin/unloaded。
             pluginManager.EventBus = bootstrap.GetService<OpenForgeSelf.Core.IEventBus>();

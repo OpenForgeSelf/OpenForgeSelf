@@ -1,5 +1,5 @@
 {
-  "Id": "systemmonitor.plugin",
+  "Id": "system-monitor",
   "Name": "系统监控插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",

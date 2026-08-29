@@ -8,7 +8,9 @@ namespace OpenForgeSelf.Backend.Tests.Unit;
 /// <summary>
 /// 抓包代理插件（ProxyCapture）核心逻辑单测：
 /// HTTP 报文解析（Content-Length / chunked）、首字节还原流、自签 CA 签发、头/体序列化工具。
+/// （会读写 CaptureEngine 静态单例的数据目录，故归入 SharedGlobalState 集合串行执行。）
 /// </summary>
+[Collection("SharedGlobalState")]
 public class ProxyCapturePluginTests : IDisposable
 {
     private readonly string _tempDir;

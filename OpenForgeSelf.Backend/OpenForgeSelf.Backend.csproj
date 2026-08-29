@@ -28,6 +28,11 @@
     <Compile Remove="Plugins\WorkflowEngine\**\*.cs" />
     <Compile Remove="Plugins\AIAgent\**\*.cs" />
     <Compile Remove="Plugins\ProxyCapture\**\*.cs" />
+    <!-- 示例插件：源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 →
+         assemblyinfo 特性重复（CS0579）。 -->
+    <Compile Remove="Plugins\SamplePlugin\**\*.cs" />
+    <Content Remove="Plugins\SamplePlugin\bin\**" />
+    <Content Remove="Plugins\SamplePlugin\obj\**" />
     <Content Remove="Plugins\MemorySystem\bin\**" />
     <Content Remove="Plugins\MemorySystem\obj\**" />
     <Content Remove="Plugins\TodoTracker\bin\**" />
@@ -52,6 +57,10 @@
     <Content Remove="Plugins\AIAgent\obj\**" />
     <Content Remove="Plugins\ProxyCapture\bin\**" />
     <Content Remove="Plugins\ProxyCapture\obj\**" />
+    <!-- 历史遗留：2026-06 之前各插件项目以自身目录为基准运行时，在源码目录留下的
+         Plugins\<Name>\Data\Config\*.config 运行残留。Web SDK 会把它当内容复制到输出目录与发布产物。
+         配置现已统一收敛到数据根（ConfigUnifier），此处排除，避免污染输出目录/发布产物。 -->
+    <Content Remove="Plugins\**\Data\Config\**" />
     <None Remove="Plugins\MemorySystem\bin\**" />
     <None Remove="Plugins\MemorySystem\obj\**" />
     <None Remove="Plugins\TodoTracker\bin\**" />
@@ -226,6 +235,36 @@
     </ItemGroup>
     <Copy SourceFiles="@(_ProxyCaptureDll)"
           DestinationFolder="$(OutDir)Plugins\ProxyCapture\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageSamplePlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_SamplePluginDll Include="Plugins\SamplePlugin\bin\$(Configuration)\net10.0\SamplePlugin.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SamplePluginDll)"
+          DestinationFolder="$(OutDir)Plugins\SamplePlugin\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 示例插件：源码只有 plugin.json 时，PluginManager 扫描到清单却找不到入口类型，
+       每次启动都报一条「插件入口类型不存在」。补齐程序集后它既是可运行的示例，
+       也可作为新插件的起手模板（含完整注释说明插件契约）。 -->
+  <ItemGroup>
+    <ProjectReference Include="Plugins\SamplePlugin\SamplePlugin.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- 发布时把 Build 期暂存的插件 DLL 一并带进发布目录。
+       背景：Web SDK 默认只把 Plugins/** 下的 plugin.json 当「内容」发布（DLL 不在内容项中），
+       导致发布版 Plugins/ 只有清单没有程序集，PluginManager 找不到入口类型 → 发布版零插件
+       （日志表现为「插件目录不存在」或「开始发现所有已加载插件的扩展点」却一个插件都没有）。
+       上面各 Stage*Plugin 目标只在 Build 期拷到 $(OutDir)，故此处在 Publish 之后整体再复制一次。 -->
+  <Target Name="StagePluginsToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_StagedPluginFiles Include="$(OutDir)Plugins\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_StagedPluginFiles)"
+          DestinationFiles="@(_StagedPluginFiles->'$(PublishDir)Plugins\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 

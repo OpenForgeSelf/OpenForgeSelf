@@ -116,12 +116,14 @@ public class ScriptRunnerPlugin : IPlugin
     {
         try
         {
-            // 连接串由宿主统一注册（XCodeConfig.AddXCode：Data\ScriptRunner.db），此处仅校验连通性，
-            // 不自注册 AddConnStr，避免与宿主注册的路径（AppContext.BaseDirectory/scriptrunner.db）不一致。
+            // 连接串由宿主统一注册（XCodeConfig：{数据根}/Plugins/{插件Id}/ScriptRunner.db），
+            // 此处仅校验连通性，不自注册 AddConnStr，避免与宿主注册的路径不一致而产出两份库。
             var dal = DAL.Create("ScriptRunner");
-            dal.Session.Query("SELECT 1");
+            // 用 dal.Db.ServerVersion 探活（与宿主 XCodeConfig 一致）：
+            // dal.Session.Query(...) 在库文件尚未创建时会抛 NullReferenceException，误报初始化失败。
+            var version = dal.Db.ServerVersion;
 
-            XTrace.Log.Info("[ScriptRunnerPlugin] 数据库初始化完成");
+            XTrace.Log.Info("[ScriptRunnerPlugin] 数据库初始化完成 (ServerVersion={0})", version);
         }
         catch (Exception ex)
         {

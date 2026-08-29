@@ -24,7 +24,7 @@ public class DataLocationService : IDataLocationService
     public string GetPluginDataDirectory(string pluginId)
     {
         var safe = Sanitize(pluginId);
-        return Path.Combine(_hostDataDirectory, "plugins", safe);
+        return Path.Combine(_hostDataDirectory, IDataLocationService.PluginDataRootName, safe);
     }
 
     /// <summary>按运行形态解析宿主数据根（实例：依赖 IWebHostEnvironment，最准确）。</summary>

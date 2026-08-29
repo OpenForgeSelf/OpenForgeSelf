@@ -26,7 +26,7 @@ public class QuickLinksPlugin : IPlugin
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);
-        EnsureDatabaseCreated(ctx.GetPluginDataDirectory());
+        EnsureDatabaseCreated();
 
         XTrace.Log.Info("快捷链接插件初始化完成");
     }
@@ -148,16 +148,20 @@ public class QuickLinksPlugin : IPlugin
         XTrace.Log.Debug("快捷链接插件已注册AI工具函数扩展点，共 {0} 个工具", ToolExtensions.Count);
     }
 
-    private void EnsureDatabaseCreated(string dataDirectory)
+    private void EnsureDatabaseCreated()
     {
         try
         {
-            var dbPath = Path.Combine(dataDirectory, "quicklinks.db");
-            var connStr = $"Data Source={dbPath}";
+            // 连接串由宿主统一注册（XCodeConfig：{数据根}/Plugins/{插件Id}/QuickLinks.db）。
+            // 插件不再自注册 AddConnStr——此前会以小写 quicklinks.db 覆盖宿主路径，
+            // 造成同一插件两份库（数据根一份、插件目录一份）数据不一致。
+            var dal = DAL.Create("QuickLinks");
+            // 用 dal.Db.ServerVersion 探活（与宿主 XCodeConfig 一致）：
+            // dal.Session.Query(...) 在库文件尚未创建时会抛 NullReferenceException，
+            // 导致每次启动都误报「数据库初始化失败」（连接串本身是正确的）。
+            var version = dal.Db.ServerVersion;
 
-            DAL.AddConnStr("QuickLinks", connStr, null, "SQLite");
-
-            XTrace.Log.Info("快捷链接插件数据库初始化完成，数据库路径: {0}", dbPath);
+            XTrace.Log.Info("快捷链接插件数据库初始化完成 (ServerVersion={0})", version);
         }
         catch (Exception ex)
         {

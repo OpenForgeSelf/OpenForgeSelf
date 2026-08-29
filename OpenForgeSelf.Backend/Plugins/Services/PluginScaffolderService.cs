@@ -709,13 +709,29 @@ public class PluginScaffolderService
         """;
     }
 
+    /// <summary>
+    /// 由插件名生成插件 Id（kebab-case 短横线风格，全小写）。
+    /// </summary>
+    /// <remarks>
+    /// 规范：插件 Id 一律 <c>^[a-z0-9]+(-[a-z0-9]+)*$</c>（如 <c>memory-system</c>、<c>quick-links</c>）。
+    /// 历史写法会在末尾追加 <c>.plugin</c> 后缀（<c>memorysystem.plugin</c>），但项目内并无命名空间/
+    /// 域隔离机制——PluginManager 只是字符串相等比较，后缀不提供任何防冲突能力，反而：
+    /// ① 全部小写连排（<c>systemmonitor</c>、<c>todotracker</c>）可读性差；
+    /// ② 插件 Id 会用作数据目录名与前端路由名，点号在两者中都属易混淆字符。
+    /// 故统一去掉后缀，改用 kebab-case（与 npm 包名 / VS Code 扩展 id / 前端生态一致）。
+    /// </remarks>
     private string GeneratePluginId(string name)
     {
         var id = name.ToLower()
             .Replace(" ", "-")
             .Replace("_", "-")
             .Replace(".", "-");
-        return $"{id}.plugin";
+
+        // 清理非字母数字/短横线字符，压缩连续短横线，去掉首尾短横线，保证符合 kebab-case 规范
+        var chars = id.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray();
+        var normalized = new string(chars);
+        while (normalized.Contains("--")) normalized = normalized.Replace("--", "-");
+        return normalized.Trim('-');
     }
 }
 

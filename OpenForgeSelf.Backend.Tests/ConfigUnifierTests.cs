@@ -12,7 +12,9 @@ namespace OpenForgeSelf.Backend.Tests;
 /// <summary>
 /// 验证 ConfigUnifier 把框架与项目所有 Config<T> 配置文件统一收敛到指定目录。
 /// 仅设置 FileName（字符串），不触发 .Current/.Save，不会向磁盘写入真实配置文件。
+/// （改写 NewLife Config&lt;T&gt;.Provider.FileName 这一进程级全局状态，故归入 SharedGlobalState 集合串行执行。）
 /// </summary>
+[Collection("SharedGlobalState")]
 public class ConfigUnifierTests
 {
     [Fact]

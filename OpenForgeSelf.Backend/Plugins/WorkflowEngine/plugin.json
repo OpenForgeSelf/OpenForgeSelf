@@ -1,5 +1,5 @@
 {
-  "Id": "workflow.engine.plugin",
+  "Id": "workflow-engine",
   "Name": "工作流引擎插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",

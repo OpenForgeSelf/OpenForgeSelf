@@ -1,5 +1,5 @@
 {
-  "Id": "scriptrunner.plugin",
+  "Id": "script-runner",
   "Name": "脚本运行器插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",

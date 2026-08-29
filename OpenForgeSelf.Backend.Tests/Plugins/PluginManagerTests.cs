@@ -1,7 +1,9 @@
 using System.Reflection;
 using OpenForgeSelf.Backend.Plugins;
 using OpenForgeSelf.Abstractions;
+using OpenForgeSelf.Core;
 using OpenForgeSelf.Backend.Plugins.Abstractions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -440,6 +442,75 @@ public class PluginManagerTests : IDisposable
 
         // 非 curated 服务：不回落宿主 DI，返回 null（证明已移除透传）。
         plugin.Context!.Get<IMarker>().Should().BeNull();
+    }
+
+    [Fact]
+    public void ProvideHostService_插件注册期即可解析数据目录()
+    {
+        // 时序缺口回归：RegisterAllServices 会立刻触发插件 Apply，Apply 内就要 ctx.GetPluginDataDirectory()；
+        // 但 ProvideHostServices 必须等 builder.Build() 之后才有 DI 可解析 —— 若不提前 seed，
+        // 用到数据目录的插件会整体注册失败。发布版实测：MemorySystem / ProxyCapture
+        // 抛「IDataLocationService 未注册到插件上下文」并消失，日志表现为插件数骤减。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var env = new Mock<IWebHostEnvironment>();
+        env.Setup(e => e.EnvironmentName).Returns("Development");
+        var dataLocation = new DataLocationService(env.Object);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(new ExtensionPointManager(manager));
+
+        // Build 之前：宿主手工 seed 数据位置服务（AppBuilder 的实际接线方式）
+        manager.ProvideHostService(typeof(IDataLocationService), dataLocation);
+        manager.RegisterAllServices(services);
+
+        var plugin = new DataDirectoryProbePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.datadir");
+        InjectPlugin(manager, "test.datadir", metadata, plugin);
+        manager.InitializePlugin("test.datadir");
+
+        plugin.Error.Should().BeNull("插件 Apply 期必须能拿到数据目录");
+        plugin.ResolvedDirectory.Should().Be(dataLocation.GetPluginDataDirectory("test.datadir"));
+    }
+
+    [Fact]
+    public void 未提前Seed数据位置服务_插件Apply拿不到数据目录()
+    {
+        // 反向验证：不做 ProvideHostService 时，插件 Apply 内取数据目录应抛异常。
+        // 该用例钉住「为什么必须提前 seed」，防止有人误删 AppBuilder 里的接线而回归。
+        var manager = CreateManager();
+        manager.SetPluginsDirectory(_tempDir.RootPath);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(new ExtensionPointManager(manager));
+        manager.RegisterAllServices(services);
+
+        var plugin = new DataDirectoryProbePlugin();
+        var metadata = PluginManifestGenerator.CreateBasic("test.nodatadir");
+        InjectPlugin(manager, "test.nodatadir", metadata, plugin);
+        manager.InitializePlugin("test.nodatadir");
+
+        plugin.Error.Should().BeOfType<InvalidOperationException>();
+    }
+
+    /// <summary>探针插件：Apply 内取数据目录，把结果/异常暴露给测试断言。</summary>
+    private sealed class DataDirectoryProbePlugin : IPlugin
+    {
+        public string? ResolvedDirectory { get; private set; }
+        public Exception? Error { get; private set; }
+
+        public void Apply(IContext ctx)
+        {
+            try
+            {
+                ResolvedDirectory = ctx.GetPluginDataDirectory();
+            }
+            catch (Exception ex)
+            {
+                Error = ex;
+            }
+        }
     }
 
     private sealed class FakeCronParser : ICronParser

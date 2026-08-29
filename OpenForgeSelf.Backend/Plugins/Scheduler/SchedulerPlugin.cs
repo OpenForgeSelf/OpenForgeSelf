@@ -178,9 +178,11 @@ public class SchedulerPlugin : IPlugin
         try
         {
             var dal = DAL.Create("Scheduler");
-            dal.Session.Query("SELECT 1");
+            // 用 dal.Db.ServerVersion 探活（与宿主 XCodeConfig 一致）：
+            // dal.Session.Query(...) 在库文件尚未创建时会抛 NullReferenceException，误报初始化失败。
+            var version = dal.Db.ServerVersion;
 
-            XTrace.Log.Info("定时任务插件数据库初始化完成");
+            XTrace.Log.Info("定时任务插件数据库初始化完成 (ServerVersion={0})", version);
         }
         catch (Exception ex)
         {

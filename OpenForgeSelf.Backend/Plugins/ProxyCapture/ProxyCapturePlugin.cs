@@ -14,11 +14,12 @@ public class ProxyCapturePlugin : IPlugin
 
     public void Apply(IContext ctx)
     {
-        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "proxycapture.plugin";
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "proxy-capture";
         XTrace.Log.Info("[ProxyCapture] 初始化抓包代理插件");
 
         // 初始化数据库 + 启动已启用监听器（引擎为静态单例）
-        CaptureEngine.SetDataDirectory(ctx.GetPluginDataDirectory());
+        // 抓包库 capture.db 与 CA 证书都落在本插件专属目录（{数据根}/Plugins/{插件Id}）。
+        CaptureEngine.SetDataDirectory(ctx.EnsurePluginDataDirectory());
         CaptureEngine.Instance.StartAll();
 
         RegisterMenuExtensions(pluginId);

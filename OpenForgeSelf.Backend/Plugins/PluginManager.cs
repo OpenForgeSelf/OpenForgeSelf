@@ -135,6 +135,10 @@ public class PluginManager
         using var scope = hostServices.CreateScope();
         foreach (var contract in HostProvidedServiceContracts)
         {
+            // 已在插件注册期提前 seed 的契约（见 ProvideHostService）不再重复注册，
+            // 否则根上下文会为同一契约累积冗余 effect。
+            if (_rootContext.GetService(contract) is not null) continue;
+
             var instance = scope.ServiceProvider.GetService(contract);
             if (instance is not null)
             {
@@ -146,6 +150,26 @@ public class PluginManager
                 XTrace.Log.Warn("宿主 seed 契约未在宿主 DI 注册（已跳过）：{0}", contract.FullName);
             }
         }
+    }
+
+    /// <summary>
+    /// 在插件注册期（<c>builder.Build()</c> 之前、宿主 DI 尚不可用时）提前把某个宿主契约实例 seed 进根上下文。
+    /// </summary>
+    /// <remarks>
+    /// 时序缺口：<see cref="RegisterAllServices"/> 会立刻触发各插件 <c>Apply</c>，而 <c>Apply</c> 内就可能
+    /// <c>ctx.Get&lt;T&gt;()</c>（例如取数据目录）；但 <see cref="ProvideHostServices"/> 必须等
+    /// <c>app.Services</c> 就绪（Build 之后）才能解析 DI，届时 Apply 早已执行完毕。
+    /// 对这些「Apply 期就要用」的契约，宿主须在 Build 之前用本方法手工 seed 同一实例。
+    /// 实测踩坑：<c>IDataLocationService</c> 未提前 seed 时，MemorySystem/ProxyCapture 两个插件
+    /// 因 <c>ctx.GetPluginDataDirectory()</c> 抛「未注册到插件上下文」而整体注册失败（发布版表现为插件消失）。
+    /// </remarks>
+    /// <param name="contract">契约类型。</param>
+    /// <param name="instance">契约实例（应与宿主 DI 中的注册为同一实例）。</param>
+    public void ProvideHostService(Type contract, object instance)
+    {
+        ArgumentNullException.ThrowIfNull(contract);
+        ArgumentNullException.ThrowIfNull(instance);
+        _rootContext.Register(contract, instance);
     }
 
     /// <summary>

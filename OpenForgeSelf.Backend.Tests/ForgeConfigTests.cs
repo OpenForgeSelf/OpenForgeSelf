@@ -10,7 +10,9 @@ namespace OpenForgeSelf.Backend.Tests;
 /// <summary>
 /// ForgeConfig 基类防漏回归：派生配置类的配置文件必须归一到数据根 Config/ 下，
 /// 任何继承 ForgeConfig 的配置类都自动生效，无需各自写路径。
+/// （断言依赖 NewLife Config&lt;T&gt;.Provider.FileName 这一进程级全局状态，故归入 SharedGlobalState 集合串行执行。）
 /// </summary>
+[Collection("SharedGlobalState")]
 public class ForgeConfigTests
 {
     [Fact]

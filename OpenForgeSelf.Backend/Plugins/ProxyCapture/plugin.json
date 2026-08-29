@@ -1,5 +1,5 @@
 {
-  "Id": "proxycapture.plugin",
+  "Id": "proxy-capture",
   "Name": "抓包代理插件",
   "Version": "1.0.0",
   "Author": "OpenForgeSelf Team",

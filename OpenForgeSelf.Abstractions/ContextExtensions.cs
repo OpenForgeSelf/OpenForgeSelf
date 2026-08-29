@@ -10,12 +10,21 @@ namespace OpenForgeSelf.Abstractions;
 /// </summary>
 public static class ContextExtensions
 {
-    /// <summary>本插件专属数据根目录（{宿主数据根}/plugins/{pluginId}）。</summary>
+    /// <summary>本插件专属数据根目录（{宿主数据根}/Plugins/{pluginId}）。</summary>
     public static string GetPluginDataDirectory(this IContext ctx)
     {
         var dls = ctx.Get<IDataLocationService>()
             ?? throw new InvalidOperationException("IDataLocationService 未注册到插件上下文");
         var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
         return dls.GetPluginDataDirectory(pluginId);
+    }
+
+    /// <summary>本插件专属数据根目录，并确保该目录已存在（落盘前调用，免去各插件自建目录）。</summary>
+    public static string EnsurePluginDataDirectory(this IContext ctx)
+    {
+        var dls = ctx.Get<IDataLocationService>()
+            ?? throw new InvalidOperationException("IDataLocationService 未注册到插件上下文");
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "";
+        return dls.EnsurePluginDataDirectory(pluginId);
     }
 }

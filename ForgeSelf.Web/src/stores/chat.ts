@@ -80,8 +80,12 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * 发送消息
+   *
+   * 走 HTTP 非流式接口（POST /api/chat，经 e2e 验证真实可用）。
+   * 后端 /ws WebSocket 仅用于聊天记录实时广播，不处理客户端上行消息，
+   * 故不再通过 WebSocket 发送流式请求（该路径为静默空操作）。
    */
-  async function sendMessage(content: string): Promise<void> {
+  async function sendMessage(content: string, chatModelId?: string): Promise<void> {
     if (!content.trim()) return
 
     error.value = null
@@ -109,33 +113,32 @@ export const useChatStore = defineStore('chat', () => {
     isStreaming.value = true
 
     try {
-      // 优先使用WebSocket流式传输
-      if (wsService.isConnected()) {
-        wsService.sendStreamRequest(content.trim(), currentConversationId.value || undefined)
-      } else {
-        // 回退到HTTP API
-        const response = await chatApi.sendMessage({
-          content: content.trim(),
-          conversationId: currentConversationId.value || undefined,
-        })
+      const response = await chatApi.sendMessage({
+        content: content.trim(),
+        conversationId: currentConversationId.value || undefined,
+        chatModelId: chatModelId || undefined,
+      })
 
-        if (!currentConversationId.value) {
-          currentConversationId.value = response.conversationId
-        }
+      const isNewConversation = !currentConversationId.value
+      if (isNewConversation) {
+        currentConversationId.value = response.sessionId
+      }
 
-        // 更新助手消息
-        const msgIndex = messages.value.findIndex(m => m.id === assistantMessage.id)
-        if (msgIndex !== -1) {
-          // 获取完整的助手回复
-          const conversationMessages = await chatApi.getConversationMessages(response.conversationId)
-          const lastAssistantMsg = [...conversationMessages].reverse().find(m => m.role === 'assistant')
-          if (lastAssistantMsg) {
-            messages.value[msgIndex] = {
-              ...lastAssistantMsg,
-              isStreaming: false,
-            }
-          }
+      // 用响应内容直接更新助手消息
+      const msgIndex = messages.value.findIndex(m => m.id === assistantMessage.id)
+      if (msgIndex !== -1) {
+        messages.value[msgIndex] = {
+          id: String(response.id),
+          role: 'assistant',
+          content: response.content,
+          timestamp: new Date(response.createTime),
+          isStreaming: false,
         }
+      }
+
+      // 新会话首条消息后刷新会话列表（标题/条数由后端生成）
+      if (isNewConversation) {
+        await loadConversations()
       }
     } catch (e) {
       console.error('发送消息失败:', e)
@@ -147,28 +150,19 @@ export const useChatStore = defineStore('chat', () => {
       }
     } finally {
       isLoading.value = false
+      isStreaming.value = false
     }
   }
 
   /**
    * 创建新会话
+   *
+   * 后端无独立建会话端点：会话在首条消息发送时由 ChatController 自动创建。
+   * 这里仅本地重置当前会话（与 AIAgent 插件同款模式）。
    */
-  async function createNewConversation(title?: string): Promise<void> {
-    try {
-      const result = await chatApi.createConversation(title)
-      currentConversationId.value = result.id
-      messages.value = []
-      conversations.value.unshift({
-        id: result.id,
-        title: title || '新对话',
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-    } catch (e) {
-      console.error('创建会话失败:', e)
-      error.value = '创建会话失败'
-    }
+  async function createNewConversation(): Promise<void> {
+    currentConversationId.value = null
+    messages.value = []
   }
 
   /**

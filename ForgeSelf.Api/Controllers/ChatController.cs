@@ -77,8 +77,8 @@ public class ChatController : ControllerBase
                 Content = m.Content
             }).ToList();
 
-            // 获取AI响应
-            var aiResponse = await _aiService.ChatAsync(aiMessages);
+            // 获取AI响应（按所选模型路由提供方；未指定则走默认 AI 配置）
+            var aiResponse = await _aiService.ChatAsync(aiMessages, request.ChatModelId);
 
             // 保存AI响应
             var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", aiResponse);
@@ -152,8 +152,8 @@ public class ChatController : ControllerBase
 
             var fullResponse = new System.Text.StringBuilder();
 
-            // 流式获取AI响应
-            await foreach (var chunk in _aiService.ChatStreamAsync(aiMessages, cancellationToken))
+            // 流式获取AI响应（按所选模型路由提供方；未指定则走默认 AI 配置）
+            await foreach (var chunk in _aiService.ChatStreamAsync(aiMessages, request.ChatModelId, cancellationToken))
             {
                 fullResponse.Append(chunk);
 

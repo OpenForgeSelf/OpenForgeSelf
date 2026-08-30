@@ -5,6 +5,22 @@ import ChatView from '@/views/ChatView.vue'
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
 
+// 模型列表 API（ChatView onMounted 动态加载模型，须离线 mock）
+vi.mock('@/services/aiModelsApi', () => ({
+  aiModelsApi: {
+    list: vi.fn().mockResolvedValue([
+      {
+        providerId: 1,
+        providerName: 'default',
+        models: [
+          { id: 1, providerId: 1, providerName: 'default', upstreamModelId: 'qwythos-9b-v2', chatModelId: 'default:qwythos-9b-v2', alias: null, capabilities: [], maxContext: 0, enabled: true, owner: null, lastSyncTime: '', createTime: '', updateTime: '' },
+          { id: 2, providerId: 1, providerName: 'default', upstreamModelId: 'gemma-2b', chatModelId: 'default:gemma-2b', alias: 'Gemma 2B', capabilities: [], maxContext: 0, enabled: true, owner: null, lastSyncTime: '', createTime: '', updateTime: '' },
+        ],
+      },
+    ]),
+  },
+}))
+
 // Create a factory function to create mock store
 const createMockStore = (options: Record<string, any> = {}) => ({
   messages: options.messages || [],
@@ -288,9 +304,36 @@ describe('ChatView', () => {
       },
     })
 
+    // 等待 onMounted 的模型列表加载完成（默认选中第一个模型）
+    await vi.waitFor(() => {
+      expect(wrapper.findAll('.model-select option').length).toBe(3)
+    })
+
     const messageInput = wrapper.findComponent(MessageInput)
     await messageInput.vm.$emit('send', 'Test message')
 
-    expect(mockSendMessage).toHaveBeenCalledWith('Test message')
+    expect(mockSendMessage).toHaveBeenCalledWith('Test message', 'default:qwythos-9b-v2')
+  })
+
+  it('renders model select with dynamic options and default selection', async () => {
+    const wrapper = mount(ChatView, {
+      global: {
+        stubs: {
+          MessageList: true,
+          MessageInput: true,
+        },
+      },
+    })
+
+    await vi.waitFor(() => {
+      const options = wrapper.findAll('.model-select option')
+      expect(options.length).toBe(3) // 默认模型 + 2 个动态模型
+    })
+
+    const select = wrapper.find('.model-select')
+    expect((select.element as HTMLSelectElement).value).toBe('default:qwythos-9b-v2')
+    // 别名优先展示
+    expect(wrapper.find('.model-select').text()).toContain('Gemma 2B')
+    expect(wrapper.find('.model-select').text()).toContain('qwythos-9b-v2')
   })
 })

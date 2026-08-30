@@ -21,7 +21,18 @@ public class FakeAIService : IAIService
         => Task.FromResult(FixedReply);
 
     /// <inheritdoc />
+    public Task<string> ChatAsync(List<LegacyAIChatMessage> messages, string? chatModelId)
+        => Task.FromResult(FixedReply);
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        yield return FixedReply;
+        await Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, string? chatModelId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         yield return FixedReply;
         await Task.CompletedTask;

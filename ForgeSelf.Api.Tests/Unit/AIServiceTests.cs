@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Api.Services.AI;
+using ForgeSelf.Api.Services.AI.Models;
 // 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
 using LegacyAIChatMessage = ForgeSelf.Api.Models.AIChatMessage;
 using LegacyAIChatMessageDelta = ForgeSelf.Api.Models.AIChatMessageDelta;
@@ -397,4 +399,125 @@ public class AIServiceTests
         // Assert
         httpClient.Timeout.Should().Be(TimeSpan.FromMinutes(5));
     }
+
+    #region chatModelId 路由（ChatController → IAIService 按所选模型路由提供方）
+
+    /// <summary>
+    /// 构造带 MockAIProvider 的注册表（复用 AIProviderRegistryTests 的测试替身）。
+    /// </summary>
+    private static AIProviderRegistry CreateRegistryWithProvider(string providerName, string[] models)
+    {
+        var registry = new AIProviderRegistry();
+        registry.RegisterProvider(new MockAIProvider(providerName, AIProviderType.OpenAI, models));
+        return registry;
+    }
+
+    [Fact]
+    public async Task ChatAsync_WithChatModelId_ShouldRouteThroughProviderRegistry()
+    {
+        // Arrange：注册表命中模型 → 应走提供方，不走旧配置 HTTP
+        var registry = CreateRegistryWithProvider("test-provider", new[] { "gpt-test-model" });
+        var httpResponse = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(CreateAIResponseJson("旧配置路径的响应"), Encoding.UTF8, "application/json")
+        };
+        var httpClient = CreateMockHttpClient(httpResponse);
+        var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient, registry);
+
+        var messages = new List<LegacyAIChatMessage>
+        {
+            new LegacyAIChatMessage { Role = "user", Content = "你好" }
+        };
+
+        // Act
+        var result = await service.ChatAsync(messages, "gpt-test-model");
+
+        // Assert
+        result.Should().Be("Mock response");
+    }
+
+    [Fact]
+    public async Task ChatAsync_WithChatModelIdButNoProviderMatch_ShouldFallbackToLegacyConfig()
+    {
+        // Arrange：注册表为空（无任何提供方）→ 回退旧配置 HTTP 路径
+        var registry = new AIProviderRegistry();
+        var expectedContent = "旧配置路径的响应";
+        var httpResponse = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(CreateAIResponseJson(expectedContent), Encoding.UTF8, "application/json")
+        };
+        var httpClient = CreateMockHttpClient(httpResponse);
+        var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient, registry);
+
+        var messages = new List<LegacyAIChatMessage>
+        {
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
+        };
+
+        // Act
+        var result = await service.ChatAsync(messages, "no-such-model");
+
+        // Assert
+        result.Should().Be(expectedContent);
+        _mockLogService.Verify(x => x.Warn(It.IsAny<string>(), It.IsAny<object[]>()), Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public async Task ChatAsync_WithChatModelIdButNullRegistry_ShouldFallbackToLegacyConfig()
+    {
+        // Arrange：未注入注册表 → 回退旧配置 HTTP 路径
+        var expectedContent = "旧配置路径的响应";
+        var httpResponse = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(CreateAIResponseJson(expectedContent), Encoding.UTF8, "application/json")
+        };
+        var httpClient = CreateMockHttpClient(httpResponse);
+        AIService service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient);
+
+        var messages = new List<LegacyAIChatMessage>
+        {
+            new LegacyAIChatMessage { Role = "user", Content = "测试" }
+        };
+
+        // Act
+        var result = await service.ChatAsync(messages, "gpt-test-model");
+
+        // Assert
+        result.Should().Be(expectedContent);
+    }
+
+    [Fact]
+    public async Task ChatStreamAsync_WithChatModelId_ShouldRouteThroughProviderRegistry()
+    {
+        // Arrange
+        var registry = CreateRegistryWithProvider("test-provider", new[] { "gpt-test-model" });
+        var streamContent = "data: {\"choices\":[{\"delta\":{\"content\":\"旧配置流\"}}]}\n\ndata: [DONE]\n\n";
+        var httpResponse = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(streamContent, Encoding.UTF8, "application/json")
+        };
+        var httpClient = CreateMockHttpClient(httpResponse);
+        var service = new AIService(_mockConfigService.Object, _mockLogService.Object, httpClient, registry);
+
+        var messages = new List<LegacyAIChatMessage>
+        {
+            new LegacyAIChatMessage { Role = "user", Content = "你好" }
+        };
+
+        // Act
+        var results = new List<string>();
+        await foreach (var chunk in service.ChatStreamAsync(messages, "gpt-test-model"))
+        {
+            results.Add(chunk);
+        }
+
+        // Assert
+        results.Should().Contain("Mock stream response");
+        results.Should().NotContain("旧配置流");
+    }
+    #endregion
 }

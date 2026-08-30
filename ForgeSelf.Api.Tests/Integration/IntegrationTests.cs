@@ -71,6 +71,9 @@ internal class MockAIServiceForIntegration : IAIService
         return "模拟响应";
     }
 
+    public Task<string> ChatAsync(List<AIChatMessage> messages, string? chatModelId)
+        => ChatAsync(messages);
+
     public async IAsyncEnumerable<string> ChatStreamAsync(List<AIChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await Task.Delay(10, cancellationToken);
@@ -78,4 +81,7 @@ internal class MockAIServiceForIntegration : IAIService
         await Task.Delay(10, cancellationToken);
         yield return "响应";
     }
+
+    public IAsyncEnumerable<string> ChatStreamAsync(List<AIChatMessage> messages, string? chatModelId, CancellationToken cancellationToken = default)
+        => ChatStreamAsync(messages, cancellationToken);
 }

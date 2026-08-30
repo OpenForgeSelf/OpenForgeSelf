@@ -167,8 +167,8 @@ public class AIProviderService : IAIProviderService
         var config = ToConfig(entity);
         var type = config.ProviderType;
 
-        // 测试连接不应长时间阻塞：取配置超时与 15s 的较小值
-        var testTimeout = Math.Min(config.TimeoutSeconds > 0 ? config.TimeoutSeconds : 120, 15);
+        // 测试连接不应长时间阻塞：取配置超时与 60s 的较小值（LM Studio 首次加载模型常慢于 15s）
+        var testTimeout = Math.Min(config.TimeoutSeconds > 0 ? config.TimeoutSeconds : 120, 60);
 
         var client = _httpClientFactory.CreateClient();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();

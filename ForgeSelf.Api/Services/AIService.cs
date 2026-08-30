@@ -3,6 +3,8 @@ using ForgeSelf.Abstractions;
 using System.Text;
 using System.Text.Json;
 using ForgeSelf.Api.Models;
+using ForgeSelf.Api.Services.AI;
+using ForgeSelf.Api.Services.AI.Models;
 // 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
 using LegacyAIChatMessage = ForgeSelf.Api.Models.AIChatMessage;
 
@@ -19,9 +21,19 @@ public interface IAIService
     Task<string> ChatAsync(List<LegacyAIChatMessage> messages);
 
     /// <summary>
+    /// 发送聊天消息并获取响应（按 chatModelId 路由到对应提供方；未命中回退默认配置）
+    /// </summary>
+    Task<string> ChatAsync(List<LegacyAIChatMessage> messages, string? chatModelId);
+
+    /// <summary>
     /// 发送聊天消息并获取流式响应
     /// </summary>
     IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 发送聊天消息并获取流式响应（按 chatModelId 路由到对应提供方；未命中回退默认配置）
+    /// </summary>
+    IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, string? chatModelId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -33,19 +45,100 @@ public class AIService : IAIService
     private readonly ILogService _logService;
     private readonly HttpClient _httpClient;
     private readonly AIConfig _aiConfig;
+    private readonly AIProviderRegistry? _providerRegistry;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    public AIService(IConfigurationService configService, ILogService logService, HttpClient httpClient)
+    public AIService(IConfigurationService configService, ILogService logService, HttpClient httpClient, AIProviderRegistry? providerRegistry = null)
     {
         _configService = configService;
         _logService = logService;
         _httpClient = httpClient;
         _aiConfig = _configService.GetAIConfig();
+        _providerRegistry = providerRegistry;
 
         // 配置HttpClient
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
+    }
+
+    /// <summary>
+    /// 发送聊天消息并获取响应（按 chatModelId 路由）
+    /// </summary>
+    public async Task<string> ChatAsync(List<LegacyAIChatMessage> messages, string? chatModelId)
+    {
+        if (!string.IsNullOrWhiteSpace(chatModelId) && _providerRegistry != null)
+        {
+            var provider = _providerRegistry.GetProviderByChatModelId(chatModelId);
+            if (provider == null)
+            {
+                _logService.Warn("chatModelId {0} 未匹配到可用提供方，回退默认 AI 配置", chatModelId);
+            }
+            else
+            {
+                var unified = ToUnifiedRequest(messages, chatModelId, stream: false);
+                var response = await provider.ChatAsync(unified);
+                var content = response.Choices.FirstOrDefault()?.Content;
+                if (!string.IsNullOrEmpty(content))
+                {
+                    _logService.Info("AI响应成功（chatModelId 路由），长度: {0}", content.Length);
+                    return content;
+                }
+                _logService.Warn("chatModelId {0} 路由响应为空，回退默认 AI 配置", chatModelId);
+            }
+        }
+
+        return await ChatAsync(messages);
+    }
+
+    /// <summary>
+    /// 发送聊天消息并获取流式响应（按 chatModelId 路由）
+    /// </summary>
+    public async IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, string? chatModelId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrWhiteSpace(chatModelId) && _providerRegistry != null)
+        {
+            var provider = _providerRegistry.GetProviderByChatModelId(chatModelId);
+            if (provider == null)
+            {
+                _logService.Warn("chatModelId {0} 未匹配到可用提供方，回退默认 AI 配置", chatModelId);
+            }
+            else
+            {
+                var unified = ToUnifiedRequest(messages, chatModelId, stream: true);
+                await foreach (var chunk in provider.ChatStreamAsync(unified, cancellationToken))
+                {
+                    if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                        yield return chunk.DeltaContent;
+                }
+                yield break;
+            }
+        }
+
+        await foreach (var chunk in ChatStreamAsync(messages, cancellationToken))
+        {
+            yield return chunk;
+        }
+    }
+
+    /// <summary>
+    /// 把宿主旧版消息与 chatModelId 转换为统一请求（剥掉 provider: 前缀取上游模型 id）
+    /// </summary>
+    private static UnifiedChatRequest ToUnifiedRequest(List<LegacyAIChatMessage> messages, string chatModelId, bool stream)
+    {
+        var idx = chatModelId.IndexOf(':');
+        var upstreamModelId = idx > 0 ? chatModelId[(idx + 1)..] : chatModelId;
+
+        return new UnifiedChatRequest
+        {
+            Model = upstreamModelId,
+            Stream = stream,
+            Messages = messages.Select(m => new UnifiedChatMessage
+            {
+                Role = m.Role,
+                Content = m.Content
+            }).ToList()
+        };
     }
 
     /// <summary>

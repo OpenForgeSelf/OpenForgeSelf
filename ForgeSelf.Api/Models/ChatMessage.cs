@@ -62,6 +62,12 @@ public class ChatRequest
     public bool Stream { get; set; } = true;
 
     /// <summary>
+    /// 聊天模型 id（格式：提供商:上游模型id，如 default:qwythos-9b-v2）。
+    /// 为空时走默认 AI 配置；非空时按所选模型路由提供方。
+    /// </summary>
+    public string? ChatModelId { get; set; }
+
+    /// <summary>
     /// 获取有效用户消息内容
     /// </summary>
     public string GetUserMessage()

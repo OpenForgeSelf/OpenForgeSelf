@@ -144,6 +144,25 @@ public class OpenAIChatController : ControllerBase
                 return Ok(openaiResponse);
             }
         }
+        catch (HttpRequestException httpEx)
+        {
+            stopwatch.Stop();
+            var upstreamStatus = httpEx.StatusCode ?? System.Net.HttpStatusCode.BadGateway;
+
+            // 上游客户端错误（400/401/403...）应原样透传给调用方，而非统一包装成 500
+            if (turn != null)
+            {
+                turn.ResponseStatus = (int)upstreamStatus;
+                turn.ResponseBody = JsonSerializer.Serialize(new { error = httpEx.Message });
+                turn.DurationMs = stopwatch.ElapsedMilliseconds;
+                turn.ErrorMessage = ChatSessionResolver.Truncate(httpEx.Message, 1000);
+                await _chatTurnService.SaveTurnAsync(turn);
+                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, (int)upstreamStatus, 0, 0);
+            }
+
+            _logService.Error("OpenAI Chat Completions 上游返回错误 {0}: {1}", (int)upstreamStatus, httpEx.Message);
+            return StatusCode((int)upstreamStatus, new { error = new { message = httpEx.Message, type = "upstream_error" } });
+        }
         catch (Exception ex)
         {
             stopwatch.Stop();

@@ -2,7 +2,7 @@
  * API服务层 - 封装与后端通信
  */
 
-import type { ChatMessage, SendMessageRequest, SendMessageResponse } from '@/types/chat'
+import type { ChatMessage, MessageRole, SendMessageRequest, SendMessageResponse } from '@/types/chat'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -22,7 +22,7 @@ export const chatApi = {
    */
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     // 后端 ChatController 路由为 [Route("api/[controller]")] + [HttpPost] → POST /api/chat
-    // ChatRequest 契约：{ message, sessionId, stream }；前端 SendMessageRequest 为 { content, conversationId }
+    // ChatRequest 契约：{ message, sessionId, stream, chatModelId }
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
@@ -32,71 +32,70 @@ export const chatApi = {
         message: request.content,
         sessionId: request.conversationId,
         stream: false,
+        chatModelId: request.chatModelId,
       }),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: '请求失败' }))
-      throw new Error(error.message || `HTTP error: ${response.status}`)
+      throw new Error(error.message || error.error || `HTTP error: ${response.status}`)
     }
 
     return response.json()
   },
 
   /**
-   * 获取会话历史消息
+   * 获取会话历史消息（真实路由：GET /api/chat/history/{sessionId}）
    */
   async getConversationMessages(conversationId: string): Promise<ChatMessage[]> {
-    const response = await fetch(`${API_BASE_URL}/chat/conversation/${conversationId}/messages`)
+    const response = await fetch(`${API_BASE_URL}/chat/history/${conversationId}`)
 
     if (!response.ok) {
       throw new Error(`获取消息失败: ${response.status}`)
     }
 
-    const data = await response.json()
-    return data.map((msg: ChatMessage) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp),
+    const data = await response.json() as Array<{
+      id: number
+      sessionId: string
+      role: MessageRole
+      content: string
+      createTime: string
+    }>
+    return data.map((msg) => ({
+      id: String(msg.id),
+      role: msg.role,
+      content: msg.content,
+      timestamp: new Date(msg.createTime),
     }))
   },
 
   /**
-   * 获取所有会话列表
+   * 获取所有会话列表（真实路由：GET /api/chat-sessions，仅 app 自有聊天）
    */
   async getConversations(): Promise<{ id: string; title: string; updatedAt: string }[]> {
-    const response = await fetch(`${API_BASE_URL}/chat/conversations`)
+    const response = await fetch(`${API_BASE_URL}/chat-sessions?source=App`)
 
     if (!response.ok) {
       throw new Error(`获取会话列表失败: ${response.status}`)
     }
 
-    return response.json()
-  },
-
-  /**
-   * 创建新会话
-   */
-  async createConversation(title?: string): Promise<{ id: string }> {
-    const response = await fetch(`${API_BASE_URL}/chat/conversation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ title: title || '新对话' }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`创建会话失败: ${response.status}`)
+    const json = await response.json() as {
+      success: boolean
+      data: Array<{ sessionKey: string; title: string | null; updatedTime: string }>
     }
-
-    return response.json()
+    return (json.data ?? []).map((s) => ({
+      // 会话列表用 SessionKey 作为会话 id（与 /api/chat 的 sessionId 同一键空间）
+      id: s.sessionKey,
+      title: s.title || '新对话',
+      updatedAt: s.updatedTime,
+    }))
   },
 
   /**
-   * 删除会话
+   * 删除会话消息（真实路由：DELETE /api/chat/session/{sessionId}）
    */
   async deleteConversation(conversationId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/chat/conversation/${conversationId}`, {
+    const response = await fetch(`${API_BASE_URL}/chat/session/${conversationId}`, {
       method: 'DELETE',
     })
 

@@ -15,11 +15,17 @@ export interface ChatMessage {
 export interface SendMessageRequest {
   content: string
   conversationId?: string
+  /** 聊天模型 id（格式：提供商:上游模型id）；空则走后端默认模型 */
+  chatModelId?: string
 }
 
+/** 后端 ChatController 的 ChatResponse 形状（POST /api/chat 直接返回裸对象） */
 export interface SendMessageResponse {
-  messageId: string
-  conversationId: string
+  id: number
+  sessionId: string
+  role: string
+  content: string
+  createTime: string
 }
 
 export interface StreamMessageChunk {

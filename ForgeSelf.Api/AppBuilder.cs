@@ -259,6 +259,11 @@ public static class AppBuilder
         var extensionPointManager = app.Services.GetRequiredService<ExtensionPointManager>();
         pluginManager.DiscoverAllExtensions(extensionPointManager);
 
+        // 插件版本管理服务接线：必须在 app.Services（而非 bootstrap 临时 provider）上解析，
+        // 否则初始化的是另一个单例实例，控制器拿到的实例备份目录仍为空串，
+        // 导致 /api/plugin/updates 恒空、update 恒 400。
+        app.Services.GetRequiredService<PluginVersionService>().Initialize(pluginsPath);
+
         // 把独立程序集插件的控制器程序集加入 MVC 部件，使其 [Route] 控制器被路由发现（修复拆独立程序集后的 404）。
         // 同时把 partManager 与 ActionDescriptor 刷新通知交给 PluginManager：卸载插件时移除对应 AssemblyPart
         // 并主动触发刷新（动态端点移除）。

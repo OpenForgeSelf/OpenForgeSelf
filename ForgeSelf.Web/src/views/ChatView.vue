@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { aiModelsApi } from '@/services/aiModelsApi'
+import type { AIModel } from '@/types/aiModel'
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
 
@@ -12,7 +14,18 @@ const showSidebar = ref(false)
 // 错误提示显示状态
 const showError = ref(false)
 
-// 监听错误
+// 可选模型列表（从后端 /api/ai-models 动态加载，仅启用项）
+const models = ref<AIModel[]>([])
+const selectedModelId = ref<string>('')
+const MODEL_STORAGE_KEY = 'forgeself-chat-current-model'
+
+/** 当前选中模型的展示名（别名优先，无选中时显示默认） */
+const selectedModelName = computed(() => {
+  const found = models.value.find(m => m.chatModelId === selectedModelId.value)
+  return found ? (found.alias || found.upstreamModelId) : '默认模型'
+})
+
+// 监听错误 + 加载模型列表
 onMounted(async () => {
   // 初始化WebSocket连接
   try {
@@ -23,11 +36,32 @@ onMounted(async () => {
 
   // 加载会话列表
   await chatStore.loadConversations()
+
+  // 加载可选模型列表（失败不阻塞聊天，走后端默认模型）
+  try {
+    const groups = await aiModelsApi.list({ enabledOnly: true })
+    models.value = groups.flatMap(g => g.models)
+    const saved = localStorage.getItem(MODEL_STORAGE_KEY)
+    if (saved && models.value.some(m => m.chatModelId === saved)) {
+      selectedModelId.value = saved
+    } else if (models.value.length > 0) {
+      selectedModelId.value = models.value[0].chatModelId
+    }
+  } catch (error) {
+    console.error('加载模型列表失败，将使用后端默认模型:', error)
+  }
 })
 
-// 发送消息
+// 切换模型（v-model 已更新选中值，此处仅持久化）
+function persistModelChoice() {
+  if (selectedModelId.value) {
+    localStorage.setItem(MODEL_STORAGE_KEY, selectedModelId.value)
+  }
+}
+
+// 发送消息（携带所选模型）
 async function handleSend(content: string) {
-  await chatStore.sendMessage(content)
+  await chatStore.sendMessage(content, selectedModelId.value || undefined)
 }
 
 // 切换侧边栏
@@ -136,28 +170,17 @@ function handleClearError() {
           </div>
         </div>
         <div class="chat-header-right">
-          <span class="model-badge">
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect
-                x="4"
-                y="4"
-                width="16"
-                height="16"
-                rx="2"
-              />
-              <rect x="9" y="9" width="6" height="6" />
-            </svg>
-            Gemma 2B
-          </span>
+          <select
+            v-model="selectedModelId"
+            class="model-select"
+            :title="selectedModelName"
+            @change="persistModelChoice"
+          >
+            <option value="">默认模型</option>
+            <option v-for="model in models" :key="model.chatModelId" :value="model.chatModelId">
+              {{ model.alias || model.upstreamModelId }}
+            </option>
+          </select>
           <span class="stats-badge">
             <svg
               width="10"
@@ -333,7 +356,7 @@ function handleClearError() {
   gap: 8px;
 }
 
-.model-badge {
+.model-select {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -341,14 +364,21 @@ function handleClearError() {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color-light);
+  border: 1px solid transparent;
   border-radius: var(--el-border-radius-small);
   font-family: var(--font-family-mono);
   white-space: nowrap;
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: none;
+  transition: border-color 150ms ease;
 }
 
-.model-badge svg {
-  flex-shrink: 0;
-  color: var(--el-color-primary);
+.model-select:hover,
+.model-select:focus {
+  border-color: var(--el-color-primary);
 }
 
 .stats-badge {

@@ -177,6 +177,11 @@ export interface FrontendContributes {
   menu?: string
   route?: string
   icon?: string
+  /**
+   * 插件自带界面资源入口的相对路径（如 `frontend/index.js`），对应后端 Frontend.Entry。
+   * 为空/undefined 表示插件不自带界面资源，前端走既有主包内组件映射（向后兼容）。
+   */
+  entry?: string
 }
 
 /**
@@ -185,6 +190,11 @@ export interface FrontendContributes {
 export interface PluginFrontendManifest {
   id: string
   name: string
+  /**
+   * 插件版本，用于界面资源 URL 的缓存标识（?v={version}）。
+   * 为 010 新增字段，声明为可选以兼容既有清单消费方与测试夹具。
+   */
+  version?: string
   frontend: FrontendContributes | null
   isEnabled: boolean
 }

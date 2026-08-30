@@ -7,6 +7,7 @@ import { useThemeStore } from './stores/theme'
 import { usePluginManifestStore } from './stores/pluginManifest'
 import { setupManifestRoutes } from './router'
 import { initAuthToken } from './services/authInit'
+import { exposeSharedDeps } from './shared/exposeSharedDeps'
 
 /* 样式引入顺序（后加载优先级更高）：
    1. Element Plus 官方暗色变量基础
@@ -18,6 +19,10 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import './styles/themes/workshop-forge.css'
 import './styles/tailwind.css'
 import './styles/themes/bg-image-mode.css'
+
+// 暴露宿主共享依赖给插件界面（import map → public/shared/*.js shim → 本桥）。
+// MUST 早于清单路由注册与任何插件界面加载，否则 shim 取不到宿主实例会直接抛错。
+exposeSharedDeps()
 
 const app = createApp(App)
 const pinia = createPinia()

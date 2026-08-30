@@ -5,6 +5,20 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>铸己匣 - ForgeSelf</title>
+
+    <!-- 共享依赖解析规则：插件界面产物把这些包声明为外部依赖，
+         运行时由浏览器解析到宿主提供的 shim（public/shared/*.js），
+         shim 再导出宿主真实模块实例，保证插件与宿主共用同一份 Vue，杜绝双实例。 -->
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "/shared/vue.js",
+          "vue-router": "/shared/vue-router.js",
+          "pinia": "/shared/pinia.js",
+          "element-plus": "/shared/element-plus.js"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -63,7 +63,9 @@ export const features: FeatureItem[] = [
     enabled: true,
     path: '/ai-agent',
     configPath: '/settings',
-    signals: { plugins: ['AIAgent'], views: ['AgentView'] },
+    // 视图已迁移到 AIAgent 插件自带界面（Plugins/AIAgent/web/dist），
+    // 宿主不再内置 AgentView.vue；该路径由插件清单 route 动态注册。
+    signals: { plugins: ['AIAgent'], views: ['AiAgentView'] },
   },
   {
     id: 'quick-links',

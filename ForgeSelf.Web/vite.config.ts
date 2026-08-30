@@ -38,6 +38,12 @@ export default defineConfig({
         target: 'http://localhost:7102',
         changeOrigin: true
       },
+      // 插件自带界面资源（spec 010）：由后端的 PluginFrontendFileMiddleware 提供。
+      // 仅开发态需要代理 —— 生产环境前端产物就在后端 wwwroot 下，与 API 同源，无需转发。
+      '/plugins': {
+        target: 'http://localhost:7102',
+        changeOrigin: true
+      },
       '/openapi': {
         target: 'http://localhost:7102',
         changeOrigin: true

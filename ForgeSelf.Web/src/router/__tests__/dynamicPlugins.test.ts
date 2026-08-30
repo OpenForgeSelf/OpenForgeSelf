@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import type { PluginFrontendManifest } from '@/types/plugin'
 import {
+  buildFallbackRoutePath,
   buildManifestRoutePath,
   clearManifestRoutes,
   registerManifestRoutes,
@@ -22,10 +23,17 @@ function makeRouter() {
 }
 
 describe('dynamicPlugins 动态视图挂载', () => {
-  it('buildManifestRoutePath 把 manifest route 归一化为命名空间路径', () => {
-    expect(buildManifestRoutePath('/memory')).toBe('/plugin-view/memory')
-    expect(buildManifestRoutePath('/quick-links')).toBe('/plugin-view/quick-links')
-    expect(buildManifestRoutePath('todo')).toBe('/plugin-view/todo')
+  it('buildManifestRoutePath 直接使用插件声明的路径（不做前缀化）', () => {
+    // 终决方案：插件清单的 route 即最终路径，路径所有权归插件。
+    expect(buildManifestRoutePath('/memory')).toBe('/memory')
+    expect(buildManifestRoutePath('/quick-links')).toBe('/quick-links')
+    expect(buildManifestRoutePath('todo')).toBe('/todo')
+    expect(buildManifestRoutePath('/ai-agent')).toBe('/ai-agent')
+  })
+
+  it('buildFallbackRoutePath 生成命名空间回退路径', () => {
+    expect(buildFallbackRoutePath('/ai-agent')).toBe('/plugin-view/ai-agent')
+    expect(buildFallbackRoutePath('todo')).toBe('/plugin-view/todo')
   })
 
   it('为已启用且声明了试点视图的插件注册懒加载路由', () => {
@@ -41,10 +49,56 @@ describe('dynamicPlugins 动态视图挂载', () => {
 
     const route = router.getRoutes().find((r) => r.name === 'manifest-memory-system')
     expect(route).toBeDefined()
-    expect(route?.path).toBe('/plugin-view/memory')
+    // 空 router 无冲突 → 直接用插件声明路径
+    expect(route?.path).toBe('/memory')
     expect(route?.meta.source).toBe('manifest')
     expect(route?.meta.title).toBe('记忆')
     expect(typeof route?.components?.default).toBe('function')
+  })
+
+  it('路径被宿主静态路由占用时回退到 /plugin-view 命名空间', () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      // 模拟宿主已有一个 /todo 静态路由
+      routes: [{ path: '/todo', name: 'todo', component: { template: '<div/>' } }],
+    })
+
+    registerManifestRoutes(router, [
+      makeManifestItem({
+        // 用独立 id：registeredRouteNames 是模块级共享集合，
+        // 复用其它用例的 id 会互相污染（实测导致幂等用例失败）。
+        id: 'demo-conflict',
+        name: '冲突演示插件',
+        isEnabled: true,
+        frontend: { views: ['TodoView'], menu: '待办事项', route: '/todo' },
+      }),
+    ])
+
+    const route = router.getRoutes().find((r) => r.name === 'manifest-demo-conflict')
+    expect(route).toBeDefined()
+    expect(route?.path).toBe('/plugin-view/todo')
+    // 宿主静态路由必须原样保留，不能被插件覆盖
+    expect(router.hasRoute('todo')).toBe(true)
+    expect(router.getRoutes().find((r) => r.name === 'todo')?.path).toBe('/todo')
+  })
+
+  it('无冲突时插件接管声明路径（宿主已让位）', () => {
+    const router = makeRouter()
+    registerManifestRoutes(router, [
+      makeManifestItem({
+        id: 'ai-agent',
+        name: 'AI代理插件',
+        isEnabled: true,
+        // 用可解析的视图作为替身：本用例断言的是「路径接管」行为，
+        // 与视图解析无关（AiAgentView 由插件自带 entry 提供，宿主已无回退实现）。
+        frontend: { views: ['MemoryView'], menu: 'AI Agent', route: '/ai-agent' },
+      }),
+    ])
+
+    const route = router.getRoutes().find((r) => r.name === 'manifest-ai-agent')
+    expect(route?.path).toBe('/ai-agent')
+    // 且不应回退到命名空间
+    expect(route?.path).not.toBe('/plugin-view/ai-agent')
   })
 
   it('跳过未启用、无 frontend、无 route、未知视图的条目', () => {

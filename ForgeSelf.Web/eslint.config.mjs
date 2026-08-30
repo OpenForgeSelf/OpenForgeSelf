@@ -129,6 +129,24 @@ export default tseslint.config(
     },
   },
 
+  // 插件共享依赖 shim（public/shared/*.js，spec 010）：
+  // 这些文件**不是应用源码**，而是作为静态资源由浏览器经 import map 直接加载的
+  // ESM 转发层（从 window.__FORGE_SHARED__ 具名再导出宿主真实模块）。
+  // 因此运行在浏览器环境、不使用打包器，需要 browser globals 且关闭
+  // 依赖打包器的 import 解析规则，否则 no-undef(window)/import 相关规则会误报。
+  {
+    files: ['public/shared/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+    },
+  },
+
   // Node 脚本（scripts/*.mjs 等）
   {
     files: ['scripts/**/*.mjs'],

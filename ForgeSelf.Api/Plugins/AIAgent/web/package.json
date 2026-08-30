@@ -1,0 +1,18 @@
+{
+  "name": "forgeself-plugin-aiagent-web",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "AIAgent 插件自带界面（构建为 ESM，由宿主运行时远程加载）",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

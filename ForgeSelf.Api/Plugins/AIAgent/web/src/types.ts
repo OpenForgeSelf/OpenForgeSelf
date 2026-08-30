@@ -50,3 +50,30 @@ export interface SkillItem {
   description?: string
   enabled?: boolean
 }
+
+/** Agent 人格画像的五维能力（来自 GET /api/agents 的 AgentDefinition.Personality）。 */
+export interface AgentPersonality {
+  /** 创造力（0~1）。 */
+  creativity?: number
+  /** 分析力（0~1）。 */
+  analytical?: number
+  /** 同理心（0~1）。 */
+  empathy?: number
+  /** 自信度（0~1）。 */
+  confidence?: number
+  /** 正式度（0~1）。 */
+  formality?: number
+  /** 擅长领域。 */
+  strengths?: string[]
+}
+
+/** Agent 定义（来自 GET /api/agents，后端 AgentDefinition）。 */
+export interface AgentDefinition {
+  id?: string
+  name?: string
+  description?: string
+  /* avatar 为 emoji 字符，非图标名。 */
+  avatar?: string
+  personality?: AgentPersonality
+  capabilities?: string[]
+}

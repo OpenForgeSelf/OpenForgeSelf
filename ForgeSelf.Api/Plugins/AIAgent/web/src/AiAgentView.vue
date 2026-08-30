@@ -22,7 +22,10 @@
       :message-count="messageCount"
       :tool-call-count="toolCallCount"
       :token-text="tokenText"
+      :agents="agents"
+      :active-agent-id="activeAgentId"
       @new-session="startNewSession"
+      @activate-agent="activateAgent"
     />
   </div>
 </template>
@@ -47,7 +50,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { apiGet, apiPost } from './http'
-import type { AIModel, ChatMessage } from './types'
+import type { AgentDefinition, AIModel, ChatMessage } from './types'
 import ContextPanel from './components/ContextPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import SessionPanel from './components/SessionPanel.vue'
@@ -58,6 +61,8 @@ const PLUGIN_ID = 'ai-agent'
 const LS_KEY_MODEL = 'forgeself-agent-current-model'
 /** 当前会话 id 的本地持久化键。 */
 const LS_KEY_SESSION = 'forgeself-agent-session-id'
+/** 当前激活 Agent 的本地持久化键。 */
+const LS_KEY_AGENT = 'forgeself-agent-current-agent'
 
 /** 插件版本（展示在浏览器标签/调试信息，设计原型无此元素，故不放在标题旁）。 */
 const version = ref('')
@@ -73,6 +78,11 @@ const messages = ref<ChatMessage[]>([])
 const sending = ref(false)
 /** 错误提示。 */
 const error = ref('')
+
+/** Agent 列表（来自 GET /api/agents）。 */
+const agents = ref<AgentDefinition[]>([])
+/** 当前激活 Agent 的 id（默认取第一个通用 Agent 或列表首项）。 */
+const activeAgentId = ref('')
 
 /** 消息条数（真实统计）。 */
 const messageCount = computed(() => messages.value.length)
@@ -128,6 +138,33 @@ async function loadMeta() {
   } catch {
     models.value = []
   }
+}
+
+/** 加载 Agent 列表（真实数据：GET /api/agents）。 */
+async function loadAgents() {
+  try {
+    const list = await apiGet<AgentDefinition[]>('/api/agents')
+    agents.value = list ?? []
+
+    // 优先恢复上次选中的 Agent；否则取「通用助手」，再退回列表首项。
+    const saved = localStorage.getItem(LS_KEY_AGENT)
+    if (saved && agents.value.some((a) => a.id === saved)) {
+      activeAgentId.value = saved
+    } else {
+      const fallback =
+        agents.value.find((a) => a.id === 'agent.generalist') ?? agents.value[0]
+      activeAgentId.value = fallback?.id ?? ''
+      if (fallback?.id) localStorage.setItem(LS_KEY_AGENT, fallback.id)
+    }
+  } catch {
+    agents.value = []
+  }
+}
+
+/** 切换当前激活 Agent 并持久化（右栏 Agent 列表点击）。 */
+function activateAgent(agentId: string) {
+  activeAgentId.value = agentId
+  if (agentId) localStorage.setItem(LS_KEY_AGENT, agentId)
 }
 
 /** 加载当前会话的历史消息。 */
@@ -197,6 +234,7 @@ function startNewSession() {
 onMounted(async () => {
   sessionId.value = ensureSessionId()
   await loadMeta()
+  await loadAgents()
   await loadHistory()
 })
 </script>

@@ -31,7 +31,7 @@
       </div>
     </div>
 
-    <!-- 分组：能力画像 -->
+    <!-- 分组：能力画像（取当前 Agent 的五维人格画像） -->
     <div class="sess__grp">
       <div class="sess__head">
         <svg class="sess__head-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,10 +39,22 @@
           <circle cx="12" cy="12" r="6" />
           <circle cx="12" cy="12" r="2" />
         </svg>
-        <span class="sess__title">能力画像</span>
+        <span class="sess__title">能力画像<template v-if="activeAgent?.name">&nbsp;· {{ activeAgent.name }}</template></span>
       </div>
-      <!-- 后端暂无「能力画像」统计接口，如实留空，不编造等级与百分比 -->
-      <EmptyHint text="后端暂无接口（待补）" />
+
+      <template v-if="skillBars.length > 0">
+        <div v-for="bar in skillBars" :key="bar.key" class="sess__skill">
+          <div class="sess__skill-row">
+            <span class="sess__skill-name">{{ bar.label }}</span>
+            <span class="sess__skill-val">{{ bar.pct }}%</span>
+          </div>
+          <div class="sess__skill-track">
+            <div class="sess__skill-fill" :style="{ width: bar.pct + '%' }"></div>
+          </div>
+        </div>
+      </template>
+      <!-- 后端未返回画像时如实留空，不编造等级与百分比 -->
+      <EmptyHint v-else text="暂无画像数据" />
     </div>
 
     <!-- 分组：Agent 列表 -->
@@ -56,13 +68,20 @@
         <span class="sess__title">Agent 列表</span>
       </div>
 
-      <!-- 当前 Agent：后端暂无多 Agent 接口，只展示当前这一个真实项 -->
-      <div class="sess__agent sess__agent--active">
+      <button
+        v-for="agent in agents"
+        :key="agent.id"
+        type="button"
+        class="sess__agent"
+        :class="{ 'sess__agent--active': agent.id === activeAgentId }"
+        :title="agent.description"
+        @click="$emit('activate-agent', agent.id ?? '')"
+      >
         <span class="sess__agent-dot"></span>
-        <span class="sess__agent-name">默认助手</span>
-        <span class="sess__agent-tag">当前</span>
-      </div>
-      <EmptyHint text="多 Agent 后端暂无接口（待补）" />
+        <span class="sess__agent-name">{{ agent.avatar ? agent.avatar + ' ' : '' }}{{ agent.name }}</span>
+        <span v-if="agent.id === activeAgentId" class="sess__agent-tag">当前</span>
+      </button>
+      <EmptyHint v-if="agents.length === 0" text="暂无 Agent" />
     </div>
   </aside>
 </template>
@@ -72,9 +91,11 @@
  * 右栏「会话与统计」面板（对应设计原型 260px 侧栏）。
  *
  * 统计口径：消息数/工具调用数由父组件按真实消息列表传入；
- * 能力画像与多 Agent 列表因后端暂无接口，按约定如实留空，不编造数据。
+ * 能力画像与 Agent 列表来自后端 GET /api/agents 的真实 AgentDefinition 数据。
+ * Token 用量后端暂无记账接口，由父组件以占位符传入（如实，不编造）。
  */
 import { computed } from 'vue'
+import type { AgentDefinition } from '../types'
 import EmptyHint from './EmptyHint.vue'
 
 const props = defineProps<{
@@ -86,17 +107,45 @@ const props = defineProps<{
   toolCallCount: number
   /** token 用量文案（后端未返回统计时为「—」）。 */
   tokenText: string
+  /** Agent 列表（来自 GET /api/agents，真实数据）。 */
+  agents: AgentDefinition[]
+  /** 当前激活 Agent 的 id。 */
+  activeAgentId: string
 }>()
 
 defineEmits<{
   /** 请求新建会话。 */
   (e: 'new-session'): void
+  /** 切换当前激活 Agent。 */
+  (e: 'activate-agent', agentId: string): void
 }>()
 
 /** 会话 id 通常较长，界面只展示前 8 位，完整值放在 title 上。 */
 const sessionShort = computed(() => {
   const id = props.sessionId ?? ''
   return id.length > 8 ? `${id.slice(0, 8)}…` : id || '—'
+})
+
+/** 当前激活 Agent 定义。 */
+const activeAgent = computed(() => props.agents.find((a) => a.id === props.activeAgentId))
+
+/** 五维能力画像条形（创造力/分析力/同理心/自信度/正式度，值域 0~1）。 */
+const skillBars = computed(() => {
+  const p = activeAgent.value?.personality
+  if (!p) return []
+  const dims: Array<{ key: string; label: string; value?: number }> = [
+    { key: 'creativity', label: '创造力', value: p.creativity },
+    { key: 'analytical', label: '分析力', value: p.analytical },
+    { key: 'empathy', label: '同理心', value: p.empathy },
+    { key: 'confidence', label: '自信度', value: p.confidence },
+    { key: 'formality', label: '正式度', value: p.formality },
+  ]
+  return dims
+    .filter((d) => typeof d.value === 'number' && Number.isFinite(d.value))
+    .map((d) => {
+      const clamped = Math.min(100, Math.max(0, Math.round((d.value as number) * 100)))
+      return { key: d.key, label: d.label, pct: clamped }
+    })
 })
 </script>
 
@@ -190,15 +239,62 @@ const sessionShort = computed(() => {
   color: var(--el-text-color-regular, #cfd3dc);
 }
 
+/* 能力画像条形 */
+.sess__skill {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sess__skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--el-font-size-extra-small, 12px);
+}
+
+.sess__skill-name {
+  color: var(--el-text-color-regular, #cfd3dc);
+}
+
+.sess__skill-val {
+  color: var(--el-color-primary, #ffb84d);
+  font-weight: var(--el-weight-medium, 500);
+  font-family: var(--el-font-family-mono, monospace);
+}
+
+.sess__skill-track {
+  height: 4px;
+  background: var(--el-fill-color, #262727);
+  border-radius: var(--el-border-radius-round, 999px);
+  overflow: hidden;
+}
+
+.sess__skill-fill {
+  height: 100%;
+  background: var(--el-color-primary, #ffb84d);
+  border-radius: var(--el-border-radius-round, 999px);
+  transition: width var(--el-transition-duration, 0.2s);
+}
+
 /* Agent 列表项：当前项用主色淡底 + 左侧 2px 主色边框（仿设计原型） */
 .sess__agent {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 8px 10px;
+  border: none;
   border-left: 2px solid transparent;
   border-radius: 0 4px 4px 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
   cursor: pointer;
+}
+
+.sess__agent:hover:not(.sess__agent--active) {
+  background: var(--el-fill-color, #262727);
 }
 
 .sess__agent--active {

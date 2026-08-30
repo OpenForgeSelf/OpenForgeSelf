@@ -3,7 +3,10 @@
 # Use together with host runtime `POST /api/plugins/update/{id}` to enable
 # "single plugin, no host restart" end-to-end capability.
 #
-# Design: this script only handles "build + staged copy". Version comparison,
+# Design: this script only handles "build + staged copy" (backend DLLs AND, when
+# present, the plugin's built web assets under <Plugin>/web/dist/; its sources
+# under <Plugin>/web/src/ are NOT shipped).
+# Version comparison,
 # `current` pointer switch, unloading old ALC, MVC endpoint refresh, and
 # file-system watch are handled by the host runtime (PluginVersionService +
 # PluginManager + FileSystemWatcher). Clean separation of concerns.
@@ -132,6 +135,22 @@ if (-not $DryRun) {
 
     # Copy plugin.json (force overwrite to ensure match with source)
     Copy-Item -LiteralPath $sourceManifest -Destination (Join-Path $stagedDir 'plugin.json') -Force
+
+    # Copy self-contained web assets (spec 010 / FR-011):
+    # <Plugin>/web/dist/** -> <stagedDir>/web/dist/**
+    # Only 'dist' (built ESM output) is shipped: 'src' and 'node_modules' are
+    # deliberately excluded so the distributed unit stays small and does not leak sources.
+    # Layout: see specs/010-plugin-frontend-runtime/design/plugin-directory-layout.md
+    $sourceWebDist = Join-Path (Join-Path (Join-Path (Join-Path $repoRoot 'ForgeSelf.Api/Plugins') $Plugin) 'web') 'dist'
+    if (Test-Path $sourceWebDist) {
+        $webDest = Join-Path $stagedDir (Join-Path 'web' 'dist')
+        New-Item -ItemType Directory -Force -Path $webDest | Out-Null
+        Copy-Item -Path (Join-Path $sourceWebDist '*') -Destination $webDest -Recurse -Force
+        Write-Host "[publish-plugin] Web assets staged from: $sourceWebDist"
+    }
+    else {
+        Write-Host "[publish-plugin] No web/dist dir: plugin ships backend only (skip)."
+    }
 
     # Copy all published files (entry.dll + deps + resources)
     Get-ChildItem -LiteralPath $publishTemp -File | ForEach-Object {

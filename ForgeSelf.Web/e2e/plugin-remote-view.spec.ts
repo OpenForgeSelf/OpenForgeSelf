@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Response } from '@playwright/test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { injectRealApiKey } from './helpers/real-auth'
@@ -14,7 +14,7 @@ import { injectRealApiKey } from './helpers/real-auth'
  * 覆盖点：
  * 1. /plugin-view/ai-agent 路由下插件根节点 .aiagent-plugin 是否渲染
  * 2. /plugins/ai-agent/web/dist/index.js 与 style.css 是否 200 且 MIME 正确
- * 3. 版本徽标是否显示 v1.2.0
+ * 3. 版本徽标是否显示（动态读取 plugin.json 的 version，避免硬编码与插件升版本后漂移不同步）
  * 4. /api/ai-models?enabledOnly=true 请求是否发出（模型可为空，不判失败）
  * 5. 控制台是否出现 Failed to resolve component / import map / export 缺失等报错
  * 6. 「点击我」计数是否递增（Vue 单实例、响应式未失效）
@@ -22,6 +22,12 @@ import { injectRealApiKey } from './helpers/real-auth'
 
 /** 清单 route=/ai-agent，经 MANIFEST_ROUTE_PREFIX 命名空间后的实际注册路径。 */
 const PLUGIN_ROUTE = '/plugin-view/ai-agent'
+
+/** 版本断言动态读取插件清单，避免硬编码与 plugin.json 漂移不同步。 */
+const PLUGIN_MANIFEST = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../../ForgeSelf.Api/Plugins/AIAgent/plugin.json', import.meta.url)), 'utf-8')
+) as { version: string }
+const EXPECTED_VERSION = `v${PLUGIN_MANIFEST.version}`
 
 /** 远程入口 JS（清单 entry=web/dist/index.js）。 */
 // 注意：网络证据行的格式是「状态码 方法 URL ct=content-type」，
@@ -169,8 +175,8 @@ const pluginRoot = page.locator('.agent')
     expect(entryHit).toContain('javascript')
     expect(styleHit).toContain('text/css')
 
-    // ---- 断言 3：版本徽标 v1.2.4（重构后挂在中栏标题后） ----
-    await expect(page.locator('.chat__version')).toHaveText('v1.2.4')
+    // ---- 断言 3：版本徽标（动态读取 plugin.json 的 version） ----
+    await expect(page.locator('.chat__version')).toHaveText(EXPECTED_VERSION)
 
     // ---- 断言 3b：三栏结构全部渲染（对齐设计原型的左/中/右三栏） ----
     // 这是界面重构后新增的强断言：只有三栏都在，才说明真的按设计原型落地。

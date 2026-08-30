@@ -93,10 +93,10 @@
 
 | 层 | 组件 | 职责 |
 |----|------|------|
-| 第1层 · 前端 | Vue 3 SPA（`pluginManifest store` + `dynamicPlugins.ts`） | 清单驱动菜单/视图，动态 import 挂载 `/plugin-view` 路由 |
+| 第1层 · 前端 | Vue 3 SPA（`pluginManifest store` + `dynamicPlugins.ts`） | 清单驱动菜单/视图，动态 import 挂载（声明路径直接生效，冲突回退 `/plugin-view`） |
 | 第2层 · 宿主 | `PluginManager` / `PluginServiceRegistry` / `ExtensionPointManager` | 插件发现/加载/Fiber 生命周期/热重载/可变 DI |
 | 第3层 · 内核 | `IContext` / `Context` / `Fiber` / `EventBus` + `Abstractions` 契约 | 服务定位 + 可逆副作用 + 事件总线 + 能力接缝 |
-| 第4层 · 插件 | 12 个独立插件（AIAgent/WorkflowEngine/Scheduler 等） | 各自 `Apply(IContext)` 自注册 DI + 扩展点 + 副作用 |
+| 第4层 · 插件 | 13 个独立插件（AIAgent/WorkflowEngine/Scheduler 等） | 各自 `Apply(IContext)` 自注册 DI + 扩展点 + 副作用 |
 
 **插件间服务互通**（2026-08-19 实施）：root 共享服务表 `ConcurrentDictionary<Type,(Instance,Provider)>`——`Register<T>` = 全局共享（对标 Cordis `provide()`，走 `Effect` 自动摘除），`RegisterLocal<T>` = 本地值（框架私有对象专用），`Get<T>` 解析顺序 = 本地值 → 共享表。首个落地案例：`IWorkflowAIAdvisor`（AIAgent → WorkflowEngine，软依赖），验证 988/988 全绿。
 

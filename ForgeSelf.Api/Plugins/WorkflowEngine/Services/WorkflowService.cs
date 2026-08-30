@@ -121,7 +121,8 @@ public class WorkflowService : IWorkflowService
             PageIndex = page - 1,
             PageSize = pageSize,
             Sort = WorkflowDefEntity.__.UpdatedAt,
-            Desc = true
+            Desc = true,
+            RetrieveTotalCount = true
         };
 
         var entities = WorkflowDefEntity.FindAll(exp, pageParam);
@@ -157,7 +158,8 @@ public class WorkflowService : IWorkflowService
             PageIndex = page - 1,
             PageSize = pageSize,
             Sort = WorkflowExecEntity.__.StartTime,
-            Desc = true
+            Desc = true,
+            RetrieveTotalCount = true
         };
 
         var entities = WorkflowExecEntity.FindAll(exp, pageParam);

@@ -109,7 +109,8 @@ public class ScriptService : IScriptService
             PageIndex = page - 1,
             PageSize = pageSize,
             Sort = ScriptEntity._.UpdatedAt.Name,
-            Desc = true
+            Desc = true,
+            RetrieveTotalCount = true
         };
 
         var list = ScriptEntity.FindAll(exp, pageParam);
@@ -220,7 +221,8 @@ public class ScriptService : IScriptService
             PageIndex = page - 1,
             PageSize = pageSize,
             Sort = ScriptExecutionEntity._.StartTime.Name,
-            Desc = true
+            Desc = true,
+            RetrieveTotalCount = true
         };
 
         var list = ScriptExecutionEntity.FindAll(exp, pageParam);

@@ -197,7 +197,8 @@ public class SchedulerService : ISchedulerService
                 PageIndex = page - 1,
                 PageSize = pageSize,
                 Sort = "CreatedAt",
-                Desc = true
+                Desc = true,
+                RetrieveTotalCount = true
             };
 
             var tasks = ScheduledTaskEntity.FindAll(exp, pageParam);
@@ -235,7 +236,8 @@ public class SchedulerService : ISchedulerService
                 PageIndex = page - 1,
                 PageSize = pageSize,
                 Sort = "StartTime",
-                Desc = true
+                Desc = true,
+                RetrieveTotalCount = true
             };
 
             var logs = ScheduledTaskLogEntity.FindAll(exp, pageParam);

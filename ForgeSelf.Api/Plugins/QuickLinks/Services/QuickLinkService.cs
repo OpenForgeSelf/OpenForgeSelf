@@ -32,7 +32,8 @@ public class QuickLinkService : IQuickLinkService
             {
                 PageIndex = page - 1,
                 PageSize = pageSize,
-                Sort = "SortOrder, Id"
+                Sort = "SortOrder, Id",
+                RetrieveTotalCount = true
             };
 
             var list = QuickLink.FindAll(exp, pageParam);

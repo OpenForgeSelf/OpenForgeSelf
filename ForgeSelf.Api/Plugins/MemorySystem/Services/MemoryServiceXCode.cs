@@ -49,7 +49,8 @@ public class MemoryServiceXCode : IMemoryService
         var page = new PageParameter
         {
             PageIndex = request.Page - 1,
-            PageSize = request.PageSize
+            PageSize = request.PageSize,
+            RetrieveTotalCount = true
         };
 
         var list = Memory.FindAll(exp, page);

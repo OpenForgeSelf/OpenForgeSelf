@@ -184,9 +184,13 @@ public class XCodeConfigTests
         return doc.RootElement.GetProperty("id").GetString()!;
     }
 
-    /// <summary>仓库内全部插件清单的 Id（按目录名排序，保证断言输出稳定）。</summary>
+    /// <summary>仓库内全部插件清单的 Id（按目录名排序，保证断言输出稳定）。
+    /// 排除下划线开头的工具目录（如 _backups 发布备份、_published 暂存区）：
+    /// 它们是发布流程生成的版本副本而非插件源码，纳入扫描会造成 Id 假性重复。</summary>
     private static List<string> AllPluginIds() =>
         Directory.GetFiles(PluginsRootOfRepository(), "plugin.json", SearchOption.AllDirectories)
+            .Where(p => p.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .All(s => !s.StartsWith('_')))
             .OrderBy(p => p, StringComparer.Ordinal)
             .Select(ReadManifestId)
             .ToList();

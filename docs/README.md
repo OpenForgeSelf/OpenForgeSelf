@@ -20,7 +20,7 @@
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；单功能调研在 `specs/NNN-*/research.md`） |
-| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)） |
+| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
 | 涉及**密钥/权限/敏感数据**的操作 | [`08-security/baseline.md`](08-security/baseline.md) |
 | **部署/发布/运维**服务器 | [`09-operations/deployment.md`](09-operations/deployment.md) |
 | 写测试前了解**测试策略与铁律** | [`10-testing/strategy.md`](10-testing/strategy.md) |
@@ -118,7 +118,7 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 关键决策的档案：背景、可选方案、选择理由、后果。命名 `<编号>-<标题>.md` 从 001 递增；可引用 `06-research/` 的调研结论 |
+| **做什么** | 关键决策的档案：背景、可选方案、选择理由、后果。命名 `<编号>-<标题>.md` 从 001 递增；可引用 `06-research/` 的调研结论。**另设「审慎不做」台账 [`not-taken-decisions.md`](07-decisions/not-taken-decisions.md)**：登记明确**不做/缓做/否掉**的选择及触发条件，避免重复评估与前后矛盾 |
 | **不做什么** | 不写操作步骤（那是 `05-guides/`）、不写当前状态说明 |
 | **解释什么** | "当初为什么这么选、否掉了什么方案" |
 | **不解释什么** | 不解释"现在怎么操作" → `05-guides/`；不解释"现在系统长什么样" → `01-architecture/` |

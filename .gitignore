@@ -37,3 +37,4 @@ nul
 publish/
 ForgeSelf.Web/playwright-report-published/
 .trash/
+*.log

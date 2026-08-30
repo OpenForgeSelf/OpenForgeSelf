@@ -26,7 +26,7 @@
 - 前端验证门禁：`pnpm run check`（vue-tsc + eslint）+ `pnpm run test`（vitest）；
 - 后端验证门禁：`dotnet build` + `dotnet test`。
 
-> ⚠️ 代码侧已知残留：`vite.config.ts` 的 dev proxy 目标仍指向 `51888`（后端端口从 51888 迁移到 7102 时未同步），属死端口。本地 dev 代理需修正该 proxy 目标为 `7102`；本文档所述运行端口 7102/7002 为正确事实，与此残留无关。
+> ✅ 后端端口已统一为 `7102`：`vite.config.ts` 的 dev proxy 目标（proxy `/api`、MCP、AIAgent、WebSocket）均已指向 `7102`，历史残留的 `51888` 死端口已清除，本地 dev 代理正常工作。
 
 ## 3. 服务管理（托盘 / Windows）
 

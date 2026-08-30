@@ -113,6 +113,65 @@ public class PluginFrontendManifestTests : IDisposable
         plain.Frontend.Should().BeNull();
     }
 
+    [Fact]
+    public void DiscoverPlugins_Frontend_Entry_IsDeserialized_AndValidPath()
+    {
+        // T011：AI 代理插件 plugin.json（camelCase 的 frontend.entry）应反序列化到 FrontendContributes.Entry，
+        // 且声明路径必须落在 web/dist/ 下的合法相对路径（契约入口固定 index.js）。
+        _tempDir.CreatePluginManifest("ai-agent.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "AiAgentView" },
+                Menu = "AI Agent",
+                Route = "/ai-agent",
+                Icon = "fa-robot",
+                Entry = "web/dist/index.js"
+            };
+        });
+
+        _manager.DiscoverPlugins();
+
+        var metadata = _manager.GetPluginMetadata("ai-agent.plugin");
+        metadata.Should().NotBeNull();
+        metadata!.Frontend.Should().NotBeNull();
+        metadata.Frontend!.Entry.Should().Be("web/dist/index.js");
+
+        // 路径校验合法：以 web/dist/ 开头、以可静态化扩展名结尾、不含穿越斜杠。
+        var entry = metadata.Frontend.Entry!;
+        entry.StartsWith("web/dist/", StringComparison.OrdinalIgnoreCase).Should().BeTrue();
+        entry.Contains("..").Should().BeFalse();
+        Path.GetExtension(entry).Should().Be(".js");
+    }
+
+    [Fact]
+    public void GetFrontendManifest_Returns_Entry_WhenDeclared()
+    {
+        // T011：清单接口应把 Entry 随 Frontend 一并下发，供前端拼装资源 URL（?v=）。
+        _tempDir.CreatePluginManifest("ai-agent.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "AiAgentView" },
+                Menu = "AI Agent",
+                Route = "/ai-agent",
+                Icon = "fa-robot",
+                Entry = "web/dist/index.js"
+            };
+        });
+        _manager.DiscoverPlugins();
+
+        var controller = CreateController();
+
+        var result = controller.GetFrontendManifest();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload = ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+
+        var plugin = payload.Data.Should().ContainSingle(p => p.Id == "ai-agent.plugin").Subject;
+        plugin.Frontend.Should().NotBeNull();
+        plugin.Frontend!.Entry.Should().Be("web/dist/index.js");
+    }
+
     private PluginController CreateController()
     {
         var extensionPointManager = new ExtensionPointManager(_manager);

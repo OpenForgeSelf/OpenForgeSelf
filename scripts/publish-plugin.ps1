@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Publish a single plugin to <PluginsRoot>/_backups/<id>/<version>/
-# Use together with host runtime `POST /api/plugins/update/{id}` to enable
+# Use together with host runtime `POST /api/plugin/update/{id}` to enable
 # "single plugin, no host restart" end-to-end capability.
 #
 # Design: this script only handles "build + staged copy" (backend DLLs AND, when
@@ -26,7 +26,7 @@
 #
 # Prereqs:
 #   - Host already running (so staged copy is picked up by FileSystemWatcher /
-#     reachable via /api/plugins/update). Otherwise next host start uses new version.
+#     reachable via /api/plugin/update). Otherwise next host start uses new version.
 #   - .NET 8 SDK (matches ForgeSelf.Api)
 
 [CmdletBinding()]
@@ -86,11 +86,11 @@ function Print-SuccessTail {
     Write-Host ""
     Write-Host "Next steps (host runtime must be running):"
     Write-Host "  1) Check for available updates:"
-    Write-Host "     curl.exe http://localhost:7102/api/plugins/updates"
+    Write-Host "     curl.exe http://localhost:7102/api/plugin/updates"
     Write-Host "  2) Trigger update (host will: version compare -> switch current -> unload old ALC -> load new DLL -> refresh MVC endpoints):"
-    Write-Host "     curl.exe -X POST http://localhost:7102/api/plugins/update/$sourceId"
+    Write-Host "     curl.exe -X POST http://localhost:7102/api/plugin/update/$sourceId"
     Write-Host "  3) Rollback to a specific version:"
-    $rollbackCmd = 'curl.exe -X POST http://localhost:7102/api/plugins/rollback/' + $sourceId + ' -H "Content-Type: application/json" -d "{\"version\":\"' + $sourceVersion + '\"}"'
+    $rollbackCmd = 'curl.exe -X POST http://localhost:7102/api/plugin/rollback/' + $sourceId + ' -H "Content-Type: application/json" -d "{\"version\":\"' + $sourceVersion + '\"}"'
     Write-Host "     $rollbackCmd"
     Write-Host "  Note: actual endpoint paths follow controllers/PluginController.cs [Route]; port follows appsettings.json (default 7102)."
 }

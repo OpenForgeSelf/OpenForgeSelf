@@ -217,4 +217,70 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 
 - **加载失败自动回退**：`ReloadPlugin` 捕获异常后回退 `current` 到上一可用版本并重载。
 - **手动回滚**：`POST /api/plugins/rollback/{id}` + body `{"version":"1.0.0"}`（只要 `versions/1.0.0/` 目录仍在）。
-- **硬卸载**（清数据）：删除 `publish/Plugins/{目录}/` + `~/.forgeself/Plugins/{id}/`。
+- **硬卸载**（清数据）：删除 `publish/Plugins/{目录}/` 与 `~/.forgeself/Plugins/{id}/`。
+
+---
+
+## 十、插件自带界面（web/）
+
+> 本节描述**已实现**的"插件前端"约定：插件目录下用 `web/` 存放自带界面（前端源码 + 构建产物），
+> 由宿主在运行时远程加载并渲染，宿主**不重新构建**即可展示（一次发布前后端同更）。详规见
+> `specs/010-plugin-frontend-runtime/`（fr-010 契约 + 目录设计）。试点实现：`Plugins/AIAgent/web/`。
+
+### 10.1 目录布局（源码 / 产物分离）
+
+```text
+Plugins/{Plugin}/
+├── plugin.json                 # 清单（固定位置，含 frontend 声明）
+├── {Plugin}.csproj
+├── …（后端源码）
+└── web/                        # ★ 前端唯一归属
+    ├── src/                    # 前端源码（.vue / .ts）—— 不对外提供
+    ├── dist/                   # 构建产物（ESM，入口 index.js）—— 唯一对外
+    ├── package.json
+    └── vite.config.ts
+```
+
+- `web/src/` 是**源码**，绝不由宿主直接提供；`web/dist/` 是**构建产物**，由 `PluginFrontendFileMiddleware`
+  以只读方式暴露到 `GET /plugins/{插件id}/web/dist/{资源路径}?v={版本}`。对外只达 `dist/`，后端 DLL、
+  `plugin.json`、`web/src/` 一律不可达（含 `..`/反斜杠穿越防护 + 未归一化越界二次校验 + 未知扩展名拒绝）。
+
+### 10.2 Entry 声明方式
+
+在 `plugin.json` 的 `frontend`（camelCase）对象中声明 `"entry"`，指向**相对插件根目录**的界面入口
+（与 AIAgent 实际清单一致，`plugin.json` 序列化采用 camelCase）：
+
+```json
+{
+  "Id": "ai-agent",
+  "Name": "AI代理插件",
+  "Version": "1.2.4",
+  "frontend": {
+    "views": ["AiAgentView"],
+    "menu": "AI Agent",
+    "route": "/ai-agent",
+    "icon": "fa-robot",
+    "entry": "web/dist/index.js"
+  }
+}
+```
+
+- `entry` 是可选字段；缺省（如 MemorySystem / QuickLinks / TodoTracker）时宿主回退既有硬编码映射，零回归。
+- 前端清单接口 `GET /api/plugin/frontend-manifest` 会把 `Entry` 一并下发，前端 `pluginViewLoader` 据其拼装
+  资源 URL 动态 `import()`。
+
+### 10.3 共享依赖 external 清单（杜绝 Vue 双实例）
+
+前端构建配置（`web/vite.config.ts`）**必须**把以下共享依赖全部 `external`，保留**裸导入**，
+由宿主页面 `/plugins/*` 资源外的 `importmap` 解析到宿主**同一份**实例：
+
+- `vue` / `vue-router` / `pinia` / `element-plus`
+
+产物校验：`web/dist/index.js` 应只保留 `from "vue"` 之类裸导入，**不**内联上述依赖的任何实现。
+否则会出现 Vue 双实例导致响应式失效。试点产物已验证符合（仅 `from "vue"` 裸导入）。
+
+### 10.4 发布只带产物（不含源码）
+
+`scripts/publish-plugin.ps1` 把 `web/dist/`（**不含** `web/src/` 与 `node_modules/`）复制进 staged 目录，
+保证分发单元精简且不泄露插件源码。宿主前端加载插件界面时走 `importmap` 解析共享依赖，
+不重复打包、不引入宿主 `@/` 别名（插件 bundle 无法解析别名，数据一律走 HTTP/后端接口）。

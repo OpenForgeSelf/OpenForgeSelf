@@ -314,6 +314,7 @@ public class PluginController : ControllerBase
                 {
                     Id = m.Id,
                     Name = m.Name,
+                    Version = m.Version,
                     Frontend = m.Frontend,
                     IsEnabled = state == PluginState.Running
                 };

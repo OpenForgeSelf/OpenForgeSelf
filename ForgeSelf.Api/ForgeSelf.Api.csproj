@@ -87,6 +87,22 @@
     <None Remove="Plugins\ProxyCapture\obj\**" />
   </ItemGroup>
 
+  <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
+       目录约定见 specs/010-plugin-frontend-runtime/design/plugin-directory-layout.md。
+       - web/dist/**        → 唯一对外提供的界面资源（由 /plugins/{id}/web/dist/** 提供）
+       - web/src/**         → 前端源码，不随后端输出，避免污染运行目录
+       - web/node_modules/** → 依赖目录，体积大且绝不应进入输出/发布产物
+       注意：dist 由插件侧 `pnpm build` 生成，未构建时此 glob 匹配不到，不会导致构建失败。 -->
+  <ItemGroup>
+    <Content Remove="Plugins\**\web\dist\**" />
+    <Content Remove="Plugins\**\web\src\**" />
+    <Content Remove="Plugins\**\web\node_modules\**" />
+    <None Remove="Plugins\**\web\dist\**" />
+    <None Remove="Plugins\**\web\src\**" />
+    <None Remove="Plugins\**\web\node_modules\**" />
+    <Content Include="Plugins\**\web\dist\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon" Version="2.4.1" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.6.1" />

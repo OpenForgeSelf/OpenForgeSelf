@@ -153,4 +153,18 @@ public sealed class FrontendContributes
     /// 获取或设置菜单图标标识。
     /// </summary>
     public string? Icon { get; set; }
+
+    /// <summary>
+    /// 获取或设置插件自带界面资源入口的相对路径（相对于插件自身目录，如 <c>frontend/index.js</c>）。
+    /// <para>
+    /// 本字段为 010-plugin-frontend-runtime 新增的<b>可选</b>字段：为 <c>null</c> 或空白时，
+    /// 表示插件只声明界面意图（视图/菜单/路由）而不自带界面资源，宿主沿用既有行为
+    /// （主包内组件映射）处理，从而保证既有已声明界面的插件零回归。
+    /// </para>
+    /// <para>
+    /// 取值必须是相对路径，且不得包含 <c>..</c> 等路径穿越片段；宿主在提供资源服务时
+    /// MUST 校验并拒绝非法值（契约见 <c>specs/010-plugin-frontend-runtime/contracts/frontend-contributes.md</c>）。
+    /// </para>
+    /// </summary>
+    public string? Entry { get; set; }
 }

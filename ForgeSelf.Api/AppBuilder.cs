@@ -298,6 +298,11 @@ public static class AppBuilder
             await next();
         });
 
+        // 插件自带界面资源：/plugins/{插件id}/frontend/** → 只读静态服务。
+        // 访问范围限定在各插件自身的 frontend/ 目录内并拒绝路径穿越；
+        // 插件目录在请求时经 PluginManager 解析，因此运行时新增/热更的插件其界面资源立即可被访问。
+        app.UseMiddleware<PluginFrontendFileMiddleware>();
+
         app.UseStaticFiles();
 
         // SPA Fallback 中间件：前端路由（如 /agents、/settings）的 404 请求返回 index.html。

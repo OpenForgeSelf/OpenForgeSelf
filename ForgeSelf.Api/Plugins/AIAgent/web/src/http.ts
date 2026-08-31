@@ -44,6 +44,31 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T | undef
 }
 
 /**
+ * 发起带 token 的 DELETE 请求并返回 data 部分。
+ * 响应无 body 时返回 undefined。
+ *
+ * @param path 以 / 开头的接口路径
+ * @returns 响应体的 data 字段（若存在）
+ */
+export async function apiDelete<T>(path: string): Promise<T | undefined> {
+  return request<T>(path, { method: 'DELETE' })
+}
+
+/**
+ * 构建带查询参数的 URL。路径中需编码的片段与所有查询值统一 encodeURIComponent。
+ *
+ * @param path 以 / 开头的接口路径
+ * @param query 查询参数对象（value 为 undefined/null 时忽略）
+ */
+export function withQuery(path: string, query: Record<string, string | number | null | undefined>): string {
+  const qs = Object.entries(query)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&')
+  return qs ? `${path}?${qs}` : path
+}
+
+/**
  * 统一的请求实现：附加认证头、校验状态码、自适应解包响应结构。
  *
  * 响应解包策略（重要）：

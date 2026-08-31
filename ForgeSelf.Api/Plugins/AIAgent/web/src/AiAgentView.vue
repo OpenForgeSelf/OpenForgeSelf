@@ -1,20 +1,35 @@
 <template>
   <div class="agent">
-    <!-- 左栏：AI 上下文（MCP 工具 / 技能 / 提示指令 / 记忆） -->
-    <ContextPanel />
-
-    <!-- 中栏：完整聊天区 -->
-    <ChatPanel
-      :messages="messages"
-      :models="models"
-      :selected-model-id="selectedModelId"
-      :sending="sending"
-      :error="error"
-      :token-text="tokenText"
-      :version="version"
-      @update:selected-model-id="onModelChange"
-      @send="sendMessage"
+    <!-- 左栏：AI 上下文（项目目录 / MCP 工具 / 技能 / 提示指令 / 记忆） -->
+    <ContextPanel
+      :project-dir="projectDir"
+      @select-directory="onSelectDirectory"
+      @open-file="onOpenFile"
     />
+
+    <!-- 中栏：项目文件编辑（可选） + 完整聊天区 -->
+    <div class="agent__main">
+      <FileEditor
+        v-if="editingFile"
+        :file="editingFile"
+        :saving="savingFile"
+        :hint="editorHint"
+        :is-error="editorHintError"
+        @save="saveFile"
+        @close="closeFile"
+      />
+      <ChatPanel
+        :messages="messages"
+        :models="models"
+        :selected-model-id="selectedModelId"
+        :sending="sending"
+        :error="error"
+        :token-text="tokenText"
+        :version="version"
+        @update:selected-model-id="onModelChange"
+        @send="sendMessage"
+      />
+    </div>
 
     <!-- 右栏：会话与统计 -->
     <SessionPanel
@@ -49,10 +64,11 @@
  * 避免出现两处独立状态导致统计与界面不一致。
  */
 import { computed, onMounted, ref } from 'vue'
-import { apiGet, apiPost } from './http'
-import type { AgentDefinition, AIModel, ChatMessage } from './types'
+import { apiGet, apiPost, withQuery } from './http'
+import type { AgentDefinition, AIModel, ChatMessage, EditingFile } from './types'
 import ContextPanel from './components/ContextPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
+import FileEditor from './components/FileEditor.vue'
 import SessionPanel from './components/SessionPanel.vue'
 
 /** 插件 id，与 plugin.json 的 Id 对齐。 */
@@ -63,6 +79,8 @@ const LS_KEY_MODEL = 'forgeself-agent-current-model'
 const LS_KEY_SESSION = 'forgeself-agent-session-id'
 /** 当前激活 Agent 的本地持久化键。 */
 const LS_KEY_AGENT = 'forgeself-agent-current-agent'
+/** 当前项目工作目录的本地持久化键。 */
+const LS_KEY_PROJECT = 'forgeself-agent-project-dir'
 
 /** 插件版本（展示在浏览器标签/调试信息，设计原型无此元素，故不放在标题旁）。 */
 const version = ref('')
@@ -83,6 +101,15 @@ const error = ref('')
 const agents = ref<AgentDefinition[]>([])
 /** 当前激活 Agent 的 id（默认取第一个通用 Agent 或列表首项）。 */
 const activeAgentId = ref('')
+
+/** 当前项目工作目录（绝对路径，一个目录视为一个项目）。 */
+const projectDir = ref('')
+/** 正在编辑的项目文件；为空表示编辑器关闭。 */
+const editingFile = ref<EditingFile | null>(null)
+const savingFile = ref(false)
+/** 编辑器顶部状态提示（成功/失败文案）。 */
+const editorHint = ref('')
+const editorHintError = ref(false)
 
 /** 消息条数（真实统计）。 */
 const messageCount = computed(() => messages.value.length)
@@ -167,6 +194,56 @@ function activateAgent(agentId: string) {
   if (agentId) localStorage.setItem(LS_KEY_AGENT, agentId)
 }
 
+/** 选择项目工作目录：写后端 + 更新本地状态 + 持久化。 */
+async function onSelectDirectory(path: string) {
+  try {
+    const data = await apiPost<{ root?: string }>('/api/project/directory', { path })
+    projectDir.value = data?.root ?? path
+    if (projectDir.value) localStorage.setItem(LS_KEY_PROJECT, projectDir.value)
+    editorHint.value = ''
+  } catch (e) {
+    editorHint.value = e instanceof Error ? e.message : String(e)
+    editorHintError.value = true
+  }
+}
+
+/** 点击文件：读取内容并打开编辑器。 */
+async function onOpenFile(file: { path: string; name: string }) {
+  try {
+    const data = await apiGet<{ content?: string }>(withQuery('/api/project/file', { path: file.path }))
+    editingFile.value = { path: file.path, name: file.name, content: data?.content ?? '' }
+    editorHint.value = ''
+    editorHintError.value = false
+  } catch (e) {
+    editorHint.value = e instanceof Error ? e.message : String(e)
+    editorHintError.value = true
+  }
+}
+
+/** 保存当前文件到后端。 */
+async function saveFile(content: string) {
+  if (!editingFile.value || savingFile.value) return
+  savingFile.value = true
+  try {
+    await apiPost('/api/project/file', { path: editingFile.value.path, content })
+    editingFile.value.content = content
+    editorHint.value = '已保存'
+    editorHintError.value = false
+  } catch (e) {
+    editorHint.value = e instanceof Error ? e.message : String(e)
+    editorHintError.value = true
+  } finally {
+    savingFile.value = false
+  }
+}
+
+/** 关闭编辑器。 */
+function closeFile() {
+  editingFile.value = null
+  editorHint.value = ''
+  editorHintError.value = false
+}
+
 /** 加载当前会话的历史消息。 */
 async function loadHistory() {
   if (!sessionId.value) return
@@ -235,6 +312,12 @@ onMounted(async () => {
   sessionId.value = ensureSessionId()
   await loadMeta()
   await loadAgents()
+  // 恢复上次选定的工作目录（若有），同步到后端供文件工具使用
+  const savedDir = localStorage.getItem(LS_KEY_PROJECT)
+  if (savedDir) {
+    projectDir.value = savedDir
+    void onSelectDirectory(savedDir)
+  }
   await loadHistory()
 })
 </script>
@@ -248,5 +331,13 @@ onMounted(async () => {
   overflow: hidden;
   background: var(--el-bg-color-page, #0f1115);
   color: var(--el-text-color-primary, #e5eaf3);
+}
+
+/* 中间栏：可叠加文件编辑器，聊天区占满剩余空间 */
+.agent__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 </style>

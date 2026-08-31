@@ -6,6 +6,7 @@ using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Core;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -611,6 +612,11 @@ public class PluginManager
 
         fiber.Mount(plugin.Apply);
 
+        // 把该插件程序集中的控制器类型注册进插件子容器（Transient）：
+        // 由 PluginAwareControllerActivator 实时从注册表 Resolve，绕开宿主 DI 在热更新后的
+        // 陈旧转发描述符（类型身份不匹配）导致插件端点 500。扫描仅在无法枚举类型时降级为已加载部分。
+        RegisterControllerServices(plugin.GetType().Assembly, services);
+
         _plugins[metadata.Id] = plugin;
         _fibers[metadata.Id] = fiber;
         _pluginStates[metadata.Id] = PluginState.Running;
@@ -618,6 +624,47 @@ public class PluginManager
         if (loadContext != null)
         {
             _loadContexts.TryAdd(metadata.Id, loadContext);
+        }
+    }
+
+    /// <summary>
+    /// 把插件程序集中的控制器类型注册进该插件子容器（Transient）。
+    /// 目标：<see cref="PluginAwareControllerActivator"/> 经 <see cref="IPluginServiceRegistry.Resolve"/> 解析控制器
+    /// 时，控制器类型已在 <c>_index</c>（由 <see cref="IPluginServiceRegistry.Mount"/> 依据服务描述符填充），
+    /// 且其构造依赖（插件自带服务 + IContext）由插件子 provider 提供。
+    /// </summary>
+    /// <param name="assembly">插件入口程序集。</param>
+    /// <param name="services">该插件的独立服务集合；null 时静默跳过。</param>
+    private static void RegisterControllerServices(Assembly assembly, IServiceCollection? services)
+    {
+        if (services == null)
+        {
+            return;
+        }
+
+        Type[] types;
+        try
+        {
+            types = assembly.GetExportedTypes();
+        }
+        catch (ReflectionTypeLoadException)
+        {
+            // 依赖类型解析不全时无法枚举全部，仅尝试已加载部分（不阻断插件装配）。
+            XTrace.Log.Warn("插件控制器类型扫描部分失败（已忽略）: {0}", assembly.GetName().Name);
+            return;
+        }
+
+        foreach (var type in types)
+        {
+            if (!type.IsClass || type.IsAbstract || type.IsGenericTypeDefinition)
+            {
+                continue;
+            }
+
+            if (typeof(ControllerBase).IsAssignableFrom(type))
+            {
+                services.AddTransient(type);
+            }
         }
     }
 

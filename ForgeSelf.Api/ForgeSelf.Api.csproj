@@ -28,6 +28,7 @@
     <Compile Remove="Plugins\WorkflowEngine\**\*.cs" />
     <Compile Remove="Plugins\AIAgent\**\*.cs" />
     <Compile Remove="Plugins\ProxyCapture\**\*.cs" />
+    <Compile Remove="Plugins\Sems\**\*.cs" />
     <!-- 示例插件：源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 →
          assemblyinfo 特性重复（CS0579）。 -->
     <Compile Remove="Plugins\SamplePlugin\**\*.cs" />
@@ -57,6 +58,8 @@
     <Content Remove="Plugins\AIAgent\obj\**" />
     <Content Remove="Plugins\ProxyCapture\bin\**" />
     <Content Remove="Plugins\ProxyCapture\obj\**" />
+    <Content Remove="Plugins\Sems\bin\**" />
+    <Content Remove="Plugins\Sems\obj\**" />
     <!-- 历史遗留：2026-06 之前各插件项目以自身目录为基准运行时，在源码目录留下的
          Plugins\<Name>\Data\Config\*.config 运行残留。Web SDK 会把它当内容复制到输出目录与发布产物。
          配置现已统一收敛到数据根（ConfigUnifier），此处排除，避免污染输出目录/发布产物。 -->
@@ -85,6 +88,8 @@
     <None Remove="Plugins\AIAgent\obj\**" />
     <None Remove="Plugins\ProxyCapture\bin\**" />
     <None Remove="Plugins\ProxyCapture\obj\**" />
+    <None Remove="Plugins\Sems\bin\**" />
+    <None Remove="Plugins\Sems\obj\**" />
   </ItemGroup>
 
   <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
@@ -142,6 +147,7 @@
     <!-- 第四批（AIAgent，ADR D2 续） -->
     <ProjectReference Include="Plugins\AIAgent\AIAgent.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="Plugins\ProxyCapture\ProxyCapture.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="Plugins\Sems\Sems.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 将插件 DLL 复制到 Backend 输出的 Plugins/<Name>/ 目录，供 PluginManager 隔离加载 -->
@@ -250,6 +256,15 @@
     </ItemGroup>
     <Copy SourceFiles="@(_ProxyCaptureDll)"
           DestinationFolder="$(OutDir)Plugins\ProxyCapture\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="StageSemsPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_SemsDll Include="Plugins\Sems\bin\$(Configuration)\net10.0\Sems.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SemsDll)"
+          DestinationFolder="$(OutDir)Plugins\Sems\"
           SkipUnchangedFiles="true" />
   </Target>
 

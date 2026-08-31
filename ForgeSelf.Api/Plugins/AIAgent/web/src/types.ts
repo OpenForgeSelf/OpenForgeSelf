@@ -51,6 +51,18 @@ export interface SkillItem {
   enabled?: boolean
 }
 
+/** 项目自动识别的技能（来自 GET /api/project/skills，后端 ProjectSkillItem）。 */
+export interface ProjectSkillItem {
+  id?: string
+  name?: string
+  description?: string
+  /** 来源分类：agents（.agents/skills） / commands（.codebuddy/commands）。 */
+  source?: string
+  /** 相对项目根的 SKILL.md / .md 路径。 */
+  path?: string
+  isDirectory?: boolean
+}
+
 /** Agent 人格画像的五维能力（来自 GET /api/agents 的 AgentDefinition.Personality）。 */
 export interface AgentPersonality {
   /** 创造力（0~1）。 */
@@ -76,4 +88,23 @@ export interface AgentDefinition {
   avatar?: string
   personality?: AgentPersonality
   capabilities?: string[]
+}
+
+/** 项目目录/文件项（来自 GET /api/project/files，后端 ProjectFileEntry）。 */
+export interface ProjectEntry {
+  name?: string
+  isDirectory?: boolean
+  relativePath?: string
+  size?: number
+  updatedAt?: string
+}
+
+/** 正在编辑的项目文件（内容由 GET /api/project/file 读取后填充）。 */
+export interface EditingFile {
+  /** 相对项目根的文件路径。 */
+  path: string
+  /** 文件名（展示用）。 */
+  name: string
+  /** 文件内容。 */
+  content: string
 }

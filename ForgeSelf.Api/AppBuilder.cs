@@ -229,6 +229,11 @@ public static class AppBuilder
             builder.Services.Add(descriptor);
         }
 
+        // 插件感知控制器激活器：插件控制器从实时注册表解析（经其子 provider 注入插件服务 + IContext），
+        // 绕开热更新后宿主转发描述符类型身份陈旧导致的插件端点 500；宿主控制器回退默认激活。
+        builder.Services.AddSingleton<Microsoft.AspNetCore.Mvc.Controllers.IControllerActivator,
+            ForgeSelf.Api.Plugins.Services.PluginAwareControllerActivator>();
+
         // 插件文件级热更新监听（side-by-side 版本目录 + FileSystemWatcher 自动 reload）。
         // 单独在此注册一次：AddPluginManager 被调用两次，若把 IHostedService 放进它会重复启动。
         // 测试环境（Testing）下 StartAsync 自动跳过，不干扰 WebApplicationFactory 集成测试。

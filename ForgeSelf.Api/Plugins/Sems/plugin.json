@@ -1,0 +1,22 @@
+{
+  "Id": "sems",
+  "Name": "软件工程管理系统",
+  "Version": "1.0.3",
+  "Author": "ForgeSelf Team",
+  "Description": "软件工程管理系统：会话每选定一个工作目录即登记为一个项目，首页展示项目列表。",
+  "IconUrl": "https://example.com/sems-icon.png",
+  "EntryAssembly": "Sems.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.Sems.SemsPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "http_request"
+  ],
+  "frontend": {
+    "views": ["SemsView"],
+    "menu": "软件工程管理",
+    "route": "/sems",
+    "icon": "fa-diagram-project",
+    "entry": "web/dist/index.js"
+  }
+}

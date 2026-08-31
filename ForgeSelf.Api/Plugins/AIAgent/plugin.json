@@ -1,7 +1,7 @@
-{
+﻿{
   "Id": "ai-agent",
   "Name": "AI代理插件",
-  "Version": "1.3.0",
+  "Version": "1.4.3",
   "Author": "ForgeSelf Team",
   "Description": "AI聊天代理插件，支持对话、流式响应和工具函数调用，并自带界面（web/dist）。",
   "IconUrl": "https://example.com/ai-agent-icon.png",
@@ -18,7 +18,9 @@
   "Permissions": [
     "read_config",
     "write_config",
-    "http_request"
+    "http_request",
+    "file_read",
+    "file_write"
   ],
   "frontend": {
     "views": ["AiAgentView"],

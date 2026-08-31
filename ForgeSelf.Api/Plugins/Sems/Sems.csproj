@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Sems</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.Sems</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Microsoft.NET.Sdk（非 Web SDK）不含 ASP.NET Core 隐式 using，补全局 Using -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -20,6 +20,9 @@ public class AIAgentPlugin : IPlugin
         XTrace.Log.Info("[AIAgentPlugin] 初始化AI代理插件");
 
         var services = ctx.Get<IServiceCollection>();
+        services?.AddSingleton<IProjectWorkspaceService, ProjectWorkspaceService>();
+        services?.AddSingleton<IProjectSkillScannerService, ProjectSkillScannerService>();
+        services?.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
         services?.AddScoped<IAIAgentService, AIAgentService>();
         services?.AddScoped<IPluginMessageService, PluginMessageService>();
         services?.AddScoped<IAgentRegistryService, AgentRegistryService>();
@@ -78,6 +81,10 @@ public class AIAgentPlugin : IPlugin
         ToolExtensions.Add(new ExecuteWorkflowToolFunction(pluginId, services));
         ToolExtensions.Add(new GetWorkflowStatusToolFunction(pluginId, services));
         ToolExtensions.Add(new ListWorkflowsToolFunction(pluginId, services));
+        // 项目文件 MCP 工具：对选定的工作目录（项目）读/写/列表。
+        ToolExtensions.Add(new ListFilesToolFunction(pluginId, services));
+        ToolExtensions.Add(new ReadFileToolFunction(pluginId, services));
+        ToolExtensions.Add(new WriteFileToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[AIAgentPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }

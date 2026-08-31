@@ -133,6 +133,15 @@ if (-not $DryRun) {
     if (Test-Path $stagedDir) { Remove-Item -LiteralPath $stagedDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $stagedDir | Out-Null
 
+    # 宿主共享程序集（ForgeSelf.* / NewLife.*）：由宿主在默认加载上下文加载，插件经 ALC 回落宿主获取。
+    # 若把它们复制进插件目录，插件 ALC 会再加载一份副本 → IPlugin 等类型身份不一致 →
+    # 「插件类型未实现 IPlugin 接口」。工作插件目录（如 TodoTracker）只含入口 dll + plugin.json，故此处排除。
+    $HostSharedAssemblies = {
+        param($file)
+        $name = [System.IO.Path]::GetFileName($file)
+        ($name -match '^ForgeSelf\..*\.dll$') -or ($name -match '^NewLife\..*\.dll$') -or ($name -eq 'XCode.dll') -or ($name -eq 'MX.dll')
+    }
+
     # Copy plugin.json (force overwrite to ensure match with source)
     Copy-Item -LiteralPath $sourceManifest -Destination (Join-Path $stagedDir 'plugin.json') -Force
 
@@ -152,8 +161,8 @@ if (-not $DryRun) {
         Write-Host "[publish-plugin] No web/dist dir: plugin ships backend only (skip)."
     }
 
-    # Copy all published files (entry.dll + deps + resources)
-    Get-ChildItem -LiteralPath $publishTemp -File | ForEach-Object {
+    # Copy all published files (entry.dll + deps + resources), excluding host-shared assemblies
+    Get-ChildItem -LiteralPath $publishTemp -File | Where-Object { -not (& $HostSharedAssemblies $_.FullName) } | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $stagedDir -Force
     }
     # Recurse subdirectories
@@ -161,7 +170,7 @@ if (-not $DryRun) {
         $sub = $_.Name
         $subDest = Join-Path $stagedDir $sub
         New-Item -ItemType Directory -Force -Path $subDest | Out-Null
-        Get-ChildItem -LiteralPath $_.FullName -File -Recurse | ForEach-Object {
+        Get-ChildItem -LiteralPath $_.FullName -File -Recurse | Where-Object { -not (& $HostSharedAssemblies $_.FullName) } | ForEach-Object {
             $rel = $_.FullName.Substring($_.FullName.IndexOf($sub, [System.StringComparison]::OrdinalIgnoreCase))
             $target = Join-Path $stagedDir $rel
             $targetDir = Split-Path -LiteralPath $target -Parent

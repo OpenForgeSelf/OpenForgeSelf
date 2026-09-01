@@ -130,6 +130,12 @@ public sealed class PluginServiceRegistry : IPluginServiceRegistry
             list.Add(descriptor);
         }
 
-        return child.BuildServiceProvider();
+        // 显式关闭作用域校验：插件子 provider 是「每上下文单例」容器（Cordis 设计，docs/02-features/027-cordis-kernel.md：
+        // 插件服务 = 每上下文单例，不实现伪 Scoped）。其 scoped 服务在此容器中解析为<b>俘获单例</b>（与宿主请求
+        // scope 隔离），属预期语义；若开启 ValidateScopes，宿主在 Development 默认开启校验，会从该 root provider
+        // 解析 scoped 时抛「Cannot resolve scoped service ... from root provider」→ 500。关闭后该异常不会触发，
+        // 且语义与「每上下文单例」一致。此选项与默认一致（手动 BuildServiceProvider 默认 false），显式写出以锁定契约、
+        // 防止未来误开校验重引入 500。
+        return child.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = false });
     }
 }

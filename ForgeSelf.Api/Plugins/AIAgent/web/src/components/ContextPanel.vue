@@ -326,6 +326,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
+  min-height: 44px; /* 对齐中栏 .chat__bar(44px)，消除左栏头部比中栏矮导致的左上角错位 */
   border-bottom: 1px solid var(--el-border-color, #414243);
 }
 

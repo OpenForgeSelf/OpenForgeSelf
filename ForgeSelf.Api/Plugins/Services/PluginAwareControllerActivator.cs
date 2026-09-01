@@ -43,8 +43,12 @@ public class PluginAwareControllerActivator : IControllerActivator
             return resolved;
         }
 
-        // 宿主原生控制器：与 MVC 默认行为一致，从宿主请求服务按构造参数解析激活。
-        return ActivatorUtilities.CreateInstance(_services, controllerType);
+        // 宿主原生控制器：与 MVC 默认行为一致，从宿主请求服务（request scope）按构造参数解析激活。
+        // 必须用 request scope 而非注入的 root provider：宿主控制器常依赖 scoped 服务
+        // （如 IAIModelService/ILogService），从 root provider 解析会抛
+        // 「Cannot resolve scoped service ... from root provider」→ 500。
+        var requestServices = context.HttpContext?.RequestServices ?? _services;
+        return ActivatorUtilities.CreateInstance(requestServices, controllerType);
     }
 
     /// <inheritdoc />

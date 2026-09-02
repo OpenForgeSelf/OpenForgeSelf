@@ -1,0 +1,16 @@
+{
+  "name": "forgeself-plugin-designsystem-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "设计系统插件自带界面（Stardust Design System）：构建为 ESM，由宿主运行时远程加载",
+  "scripts": {
+    "gen:tokens": "node scripts/gen-tokens-css.ts",
+    "build": "node scripts/gen-tokens-css.ts && vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.2.4"
+  }
+}

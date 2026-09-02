@@ -1,0 +1,144 @@
+/* =============================================================================
+ * Stardust Design System — Base（reset + 基础排版类 + 布局原语）
+ * 仅走 tokens.css 变量；不定义独立色值。
+ * ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.ds {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-fs-body);
+  line-height: var(--ds-lh-normal);
+  color: var(--ds-fg-1);
+  background: var(--ds-surface-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.ds h1,
+.ds h2,
+.ds h3,
+.ds h4 {
+  margin: 0;
+  color: var(--ds-fg-1);
+  font-weight: var(--ds-fw-semibold);
+  line-height: var(--ds-lh-tight);
+}
+
+/* 类型工具类 */
+.ds-display {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-fs-display);
+  font-weight: var(--ds-fw-bold);
+  line-height: var(--ds-lh-display);
+  letter-spacing: -0.02em;
+}
+.ds-h1 {
+  font-size: var(--ds-fs-h1);
+  font-weight: var(--ds-fw-bold);
+}
+.ds-h2 {
+  font-size: var(--ds-fs-h2);
+  font-weight: var(--ds-fw-semibold);
+}
+.ds-h3 {
+  font-size: var(--ds-fs-h3);
+  font-weight: var(--ds-fw-semibold);
+}
+.ds-h4 {
+  font-size: var(--ds-fs-h4);
+  font-weight: var(--ds-fw-semibold);
+}
+.ds-body-lg {
+  font-size: var(--ds-fs-body-lg);
+  font-weight: var(--ds-fw-regular);
+}
+.ds-body {
+  font-size: var(--ds-fs-body);
+  font-weight: var(--ds-fw-regular);
+}
+.ds-small {
+  font-size: var(--ds-fs-small);
+  font-weight: var(--ds-fw-regular);
+  color: var(--ds-fg-3);
+}
+.ds-micro {
+  font-size: var(--ds-fs-micro);
+  font-weight: var(--ds-fw-medium);
+  color: var(--ds-fg-4);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ds-mono {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-fs-small);
+}
+.ds-num {
+  font-family: var(--ds-num);
+  font-feature-settings: var(--ds-num-feature);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 布局原语 */
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+}
+.ds-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.ds-wrap {
+  flex-wrap: wrap;
+}
+.ds-gap-1 { gap: var(--ds-space-1); }
+.ds-gap-2 { gap: var(--ds-space-2); }
+.ds-gap-3 { gap: var(--ds-space-3); }
+.ds-gap-4 { gap: var(--ds-space-4); }
+.ds-gap-5 { gap: var(--ds-space-5); }
+.ds-gap-6 { gap: var(--ds-space-6); }
+
+.ds-surface {
+  background: var(--ds-surface-1);
+  border: 1px solid var(--ds-border-1);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-sm);
+}
+.ds-surface-2 {
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border-1);
+  border-radius: var(--ds-radius-md);
+}
+.ds-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-5);
+}
+.ds-section-title .ds-eyebrow {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-fs-micro);
+  color: var(--ds-color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ds-link {
+  color: var(--ds-link);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ds-link:hover {
+  text-decoration: underline;
+}
+
+.ds-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--ds-space-3);
+}

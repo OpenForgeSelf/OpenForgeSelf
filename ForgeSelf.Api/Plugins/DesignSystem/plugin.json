@@ -1,0 +1,19 @@
+{
+  "Id": "design-system",
+  "Name": "设计系统插件",
+  "Version": "1.2.1",
+  "Author": "ForgeSelf Team",
+  "Description": "通用设计系统生成器：输入需求描述 → 生成「一份属于该需求的设计系统」（品牌 / 颜色 / 类型 / 间距 / 组件 / 应用示例）→ 实时预览 + 导出 6 类产出文件。Stardust 为内置参考示例预设，非插件身份。",
+  "IconUrl": "https://example.com/design-system-icon.png",
+  "EntryAssembly": "DesignSystem.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.DesignSystem.DesignSystemPlugin",
+  "Dependencies": [],
+  "Permissions": [],
+  "frontend": {
+    "views": ["DesignSystemView"],
+    "menu": "设计系统",
+    "route": "/design-system",
+    "icon": "fa-palette",
+    "entry": "web/dist/index.js"
+  }
+}

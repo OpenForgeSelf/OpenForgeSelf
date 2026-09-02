@@ -34,6 +34,10 @@
     <Compile Remove="Plugins\SamplePlugin\**\*.cs" />
     <Content Remove="Plugins\SamplePlugin\bin\**" />
     <Content Remove="Plugins\SamplePlugin\obj\**" />
+    <!-- DesignSystem 插件（输入N+9）源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 → assemblyinfo 特性重复（CS0579）。 -->
+    <Compile Remove="Plugins\DesignSystem\**\*.cs" />
+    <Content Remove="Plugins\DesignSystem\bin\**" />
+    <Content Remove="Plugins\DesignSystem\obj\**" />
     <Content Remove="Plugins\MemorySystem\bin\**" />
     <Content Remove="Plugins\MemorySystem\obj\**" />
     <Content Remove="Plugins\TodoTracker\bin\**" />
@@ -274,6 +278,18 @@
     </ItemGroup>
     <Copy SourceFiles="@(_SamplePluginDll)"
           DestinationFolder="$(OutDir)Plugins\SamplePlugin\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 设计系统插件（design-system）：仅贡献自带界面（web/dist），后端无服务/工具/端点，
+       DLL 仍必须 staged，否则 PluginManager 扫描到 plugin.json 却加载不到入口类型，
+       前端清单拿不到 frontend 块 → 路由与侧栏项不会注册（e2e 表现为插件页空白）。 -->
+  <Target Name="StageDesignSystemPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_DesignSystemDll Include="Plugins\DesignSystem\bin\$(Configuration)\net10.0\DesignSystem.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DesignSystemDll)"
+          DestinationFolder="$(OutDir)Plugins\DesignSystem\"
           SkipUnchangedFiles="true" />
   </Target>
 

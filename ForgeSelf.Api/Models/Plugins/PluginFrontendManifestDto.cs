@@ -18,6 +18,14 @@ public class PluginFrontendManifestDto
     /// </summary>
     public string Version { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 界面资源缓存标识（内容指纹）：基于插件 <c>web/dist</c> 入口脚本与样式文件内容计算的短哈希。
+    /// 内容变化即变化，无需手动升版本即可让浏览器刷新取到新界面（解决重发插件不升版本时旧资源被
+    /// <c>immutable</c> 缓存复用的问题）。前端拼装 JS 与 CSS 资源 URL 时优先用此值（回退 <see cref="Version"/>）。
+    /// 计算失败或无界面资源时为 <see cref="string.Empty"/>。
+    /// </summary>
+    public string WebVersion { get; set; } = string.Empty;
+
     public FrontendContributes? Frontend { get; set; }
 
     public bool IsEnabled { get; set; }

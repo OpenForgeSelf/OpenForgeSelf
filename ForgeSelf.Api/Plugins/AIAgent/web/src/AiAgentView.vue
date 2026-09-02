@@ -156,10 +156,10 @@ async function loadMeta() {
     models.value = flat
 
     const saved = localStorage.getItem(LS_KEY_MODEL)
-    if (saved && flat.some((m) => String(m.id) === saved)) {
+    if (saved && flat.some((m) => m.chatModelId === saved)) {
       selectedModelId.value = saved
     } else if (flat.length > 0) {
-      selectedModelId.value = String(flat[0]?.id ?? '')
+      selectedModelId.value = flat[0]?.chatModelId ?? ''
       localStorage.setItem(LS_KEY_MODEL, selectedModelId.value)
     }
   } catch {

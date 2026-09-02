@@ -1,3 +1,5 @@
+using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Api.Plugins;
@@ -315,6 +317,7 @@ public class PluginController : ControllerBase
                     Id = m.Id,
                     Name = m.Name,
                     Version = m.Version,
+                    WebVersion = ComputeWebVersion(m.PluginDirectory, m.Frontend?.Entry),
                     Frontend = m.Frontend,
                     IsEnabled = state == PluginState.Running
                 };
@@ -328,6 +331,52 @@ public class PluginController : ControllerBase
         {
             XTrace.Log.Error("获取前端插件清单失败: {0}", ex.Message);
             return StatusCode(500, ApiResponse<List<PluginFrontendManifestDto>>.Error("获取前端插件清单失败: " + ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// 计算插件界面资源的缓存标识（内容指纹）。
+    /// </summary>
+    /// <para>
+    /// 基于插件 <c>web/dist</c> 入口脚本与同目录 <c>style.css</c> 的内容拼接计算短哈希。
+    /// 任一文件内容变化，指纹即变化，前端据此拼装的 <c>?v=</c> 资源 URL 随之变化，
+    /// 浏览器（对带 <c>?v=</c> 的资源设 <c>immutable</c> 长缓存）即会重新拉取新界面，
+    /// 无需手动提升 <c>plugin.json</c> 版本即可在重发插件后刷新生效。
+    /// </para>
+    /// <param name="pluginDirectory">插件目录绝对路径（含 plugin.json）。</param>
+    /// <param name="entry">界面入口相对路径（如 <c>web/dist/index.js</c>），为空则不计算。</param>
+    /// <returns>短哈希指纹；无入口、文件缺失或计算异常时为 <see cref="string.Empty"/>。</returns>
+    private static string ComputeWebVersion(string? pluginDirectory, string? entry)
+    {
+        if (string.IsNullOrWhiteSpace(pluginDirectory) || string.IsNullOrWhiteSpace(entry))
+            return string.Empty;
+
+        try
+        {
+            var entryPath = Path.Combine(pluginDirectory, entry.Replace('/', Path.DirectorySeparatorChar));
+            var files = new List<string> { entryPath };
+
+            var dir = Path.GetDirectoryName(entryPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                var stylePath = Path.Combine(dir, "style.css");
+                if (System.IO.File.Exists(stylePath)) files.Add(stylePath);
+            }
+
+            var fingerprint = new StringBuilder();
+            foreach (var file in files.Where(System.IO.File.Exists))
+            {
+                var hash = SHA256.HashData(System.IO.File.ReadAllBytes(file));
+                // 每个文件取前 6 字节（12 位 hex）作为指纹片段，拼接保证整体随内容变化。
+                foreach (var b in hash.AsSpan(0, 6))
+                    fingerprint.Append(b.ToString("x2"));
+            }
+
+            return fingerprint.ToString();
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 

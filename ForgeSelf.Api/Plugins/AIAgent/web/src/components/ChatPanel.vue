@@ -29,7 +29,7 @@
             @change="onModelChange"
           >
             <option v-if="models.length === 0" value="">暂无可用模型</option>
-            <option v-for="m in models" :key="m.id" :value="String(m.id)">
+            <option v-for="m in models" :key="m.id" :value="m.chatModelId">
               {{ modelLabel(m) }}
             </option>
           </select>

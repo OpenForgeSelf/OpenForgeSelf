@@ -10,6 +10,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
   buildPluginAssetUrl,
+  buildPluginStyleUrl,
   clearPluginViewCache,
   getPluginViewCacheSize,
   loadPluginView,
@@ -38,6 +39,34 @@ describe('buildPluginAssetUrl', () => {
     expect(buildPluginAssetUrl('ai-agent', 'frontend/index.js', '1.0.0+build 1')).toBe(
       '/plugins/ai-agent/frontend/index.js?v=1.0.0%2Bbuild%201'
     )
+  })
+})
+
+describe('buildPluginStyleUrl (N+5 缓存击穿修复)', () => {
+  it('从入口 URL 同目录推导 style.css', () => {
+    expect(buildPluginStyleUrl('/plugins/ai-agent/web/dist/index.js?v=1.4.3')).toBe(
+      '/plugins/ai-agent/web/dist/style.css'
+    )
+  })
+
+  it('带版本时样式 URL 同样附加 ?v= 缓存标识（修复旧实现丢弃查询串）', () => {
+    expect(buildPluginStyleUrl('/plugins/ai-agent/web/dist/index.js?v=1.4.3', '1.4.3')).toBe(
+      '/plugins/ai-agent/web/dist/style.css?v=1.4.3'
+    )
+  })
+
+  it('无版本时样式 URL 不带查询串', () => {
+    expect(buildPluginStyleUrl('/plugins/ai-agent/web/dist/index.js')).toBe(
+      '/plugins/ai-agent/web/dist/style.css'
+    )
+  })
+
+  it('内容指纹变化时样式 URL 随之变化，确保刷新取到新 CSS', () => {
+    const v1 = buildPluginStyleUrl('/plugins/ai-agent/web/dist/index.js', 'abc123')
+    const v2 = buildPluginStyleUrl('/plugins/ai-agent/web/dist/index.js', 'def456')
+    expect(v1).toBe('/plugins/ai-agent/web/dist/style.css?v=abc123')
+    expect(v2).toBe('/plugins/ai-agent/web/dist/style.css?v=def456')
+    expect(v1).not.toBe(v2)
   })
 })
 

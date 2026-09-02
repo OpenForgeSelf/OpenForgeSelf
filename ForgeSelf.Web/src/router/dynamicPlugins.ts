@@ -53,11 +53,14 @@ function resolvePluginView(item: PluginFrontendManifest): RouteRecordRaw['compon
 
   const remoteEntry = item.frontend?.entry?.trim()
   if (remoteEntry) {
+    // 资源缓存标识优先用后端下发的 WebVersion（内容指纹），回退插件 version；
+    // 内容变化即变化，确保重发插件后刷新即取到新界面（绕开 immutable 长缓存）。
+    const assetVersion = item.webVersion ?? item.version ?? ''
     return loadPluginView({
       pluginId: item.id,
       pluginName: item.name,
-      version: item.version ?? '',
-      entryUrl: buildPluginAssetUrl(item.id, remoteEntry, item.version),
+      version: assetVersion,
+      entryUrl: buildPluginAssetUrl(item.id, remoteEntry, assetVersion),
       exportName: viewName,
     })
   }

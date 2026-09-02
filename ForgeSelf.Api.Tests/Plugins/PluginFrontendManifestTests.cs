@@ -172,6 +172,68 @@ public class PluginFrontendManifestTests : IDisposable
         plugin.Frontend!.Entry.Should().Be("web/dist/index.js");
     }
 
+    [Fact]
+    public void GetFrontendManifest_WebVersion_ReflectsDistContent()
+    {
+        // 输入 N+5：清单应基于 web/dist 入口+样式内容计算 WebVersion 指纹，
+        // 内容变化即变化，确保重发插件（不升版本）刷新即取新界面。
+        var pluginDir = _tempDir.CreatePluginDirectory("ai-agent.plugin");
+        _tempDir.CreatePluginManifest("ai-agent.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "AiAgentView" },
+                Menu = "AI Agent",
+                Route = "/ai-agent",
+                Icon = "fa-robot",
+                Entry = "web/dist/index.js"
+            };
+        });
+        var distDir = Path.Combine(pluginDir, "web", "dist");
+        Directory.CreateDirectory(distDir);
+        var originalJs = "/* plugin entry v1 */ export default {};";
+        File.WriteAllText(Path.Combine(distDir, "index.js"), originalJs);
+        File.WriteAllText(Path.Combine(distDir, "style.css"), ".chat__bar{background:#1d1e1f}");
+
+        _manager.DiscoverPlugins();
+        var controller = CreateController();
+
+        var result = controller.GetFrontendManifest();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload = ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+
+        var plugin = payload.Data.Should().ContainSingle(p => p.Id == "ai-agent.plugin").Subject;
+        plugin.WebVersion.Should().NotBeNullOrEmpty("存在 web/dist 入口与样式时应计算指纹");
+        var first = plugin.WebVersion;
+
+        // 修改入口内容（模拟重发插件），指纹必须变化。
+        File.WriteAllText(Path.Combine(distDir, "index.js"), "/* plugin entry v2 */ export default {};");
+        var result2 = controller.GetFrontendManifest();
+        var ok2 = result2.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload2 = ok2.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+        var plugin2 = payload2.Data.Should().ContainSingle(p => p.Id == "ai-agent.plugin").Subject;
+        plugin2.WebVersion.Should().NotBeNullOrEmpty();
+        plugin2.WebVersion.Should().NotBe(first, "入口内容变化后指纹应变化，否则浏览器会复用旧 immutable 缓存");
+    }
+
+    [Fact]
+    public void GetFrontendManifest_WebVersion_Empty_WhenNoEntryOrDist()
+    {
+        // 无界面入口或无 web/dist 文件时 WebVersion 应为空（前端回退到 version / no-cache）。
+        _tempDir.CreatePluginManifest("plain.plugin"); // 无 frontend
+        _tempDir.CreatePluginManifest("noentry.plugin", m => { m.Frontend = new FrontendContributes { Views = new List<string> { "X" } }; });
+
+        _manager.DiscoverPlugins();
+        var controller = CreateController();
+
+        var result = controller.GetFrontendManifest();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload = ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+
+        payload.Data.Should().ContainSingle(p => p.Id == "plain.plugin").Subject.WebVersion.Should().BeNullOrEmpty();
+        payload.Data.Should().ContainSingle(p => p.Id == "noentry.plugin").Subject.WebVersion.Should().BeNullOrEmpty();
+    }
+
     private PluginController CreateController()
     {
         var extensionPointManager = new ExtensionPointManager(_manager);

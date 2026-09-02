@@ -35,6 +35,21 @@ export interface LoadPluginViewOptions {
 const componentCache = new Map<string, Component>()
 
 /**
+ * 生成插件样式资源 URL：`{入口同目录}/style.css?v={版本}`。
+ *
+ * 与 {@link buildPluginAssetUrl} 一致携带版本缓存标识，确保样式与脚本同步
+ * 随内容变化失效（修复旧实现丢弃查询串导致 CSS 始终走 no-cache、与脚本版本脱节的问题）。
+ *
+ * @param entryUrl 界面入口 URL（可能已含 ?v= 查询）
+ * @param version 插件版本/内容指纹；为空时不附加缓存标识
+ */
+export function buildPluginStyleUrl(entryUrl: string, version?: string): string {
+  const base = entryUrl.split('?')[0]
+  const styleUrl = base.slice(0, base.lastIndexOf('/') + 1) + 'style.css'
+  return version ? `${styleUrl}?v=${encodeURIComponent(version)}` : styleUrl
+}
+
+/**
  * 注入插件界面样式（幂等）。
  *
  * 背景：Vite 的 lib 模式把 CSS 作为**独立产物**输出，产物 JS 不会引用它，
@@ -46,10 +61,10 @@ const componentCache = new Map<string, Component>()
  *
  * @param entryUrl 界面入口 URL，样式取同目录下的 style.css
  * @param cacheKey 插件缓存键（插件 id + 版本）
+ * @param version 插件版本/内容指纹，用于样式 URL 的缓存标识（?v=）
  */
-function injectPluginStyles(entryUrl: string, cacheKey: string): void {
-  const base = entryUrl.split('?')[0]
-  const styleUrl = base.slice(0, base.lastIndexOf('/') + 1) + 'style.css'
+function injectPluginStyles(entryUrl: string, cacheKey: string, version?: string): void {
+  const styleUrl = buildPluginStyleUrl(entryUrl, version)
   const attr = 'data-plugin-style'
   const selector = `link[${attr}="${cacheKey}"]`
 
@@ -138,7 +153,7 @@ export function loadPluginView(options: LoadPluginViewOptions): Component {
   const component = defineAsyncComponent({
     loader: async (): Promise<Component> => {
       // 产物 JS 不引用自己的 CSS（Vite lib 模式），需宿主按约定注入。
-      injectPluginStyles(entryUrl, cacheKey)
+      injectPluginStyles(entryUrl, cacheKey, version)
 
       // 运行期 URL 动态导入：@vite-ignore 阻止构建器静态分析此依赖。
       const module = (await import(/* @vite-ignore */ entryUrl)) as Record<string, unknown>

@@ -195,6 +195,12 @@ export interface PluginFrontendManifest {
    * 为 010 新增字段，声明为可选以兼容既有清单消费方与测试夹具。
    */
   version?: string
+  /**
+   * 界面资源缓存标识（内容指纹）：后端基于 web/dist 入口与样式内容计算的短哈希。
+   * 内容变化即变化，无需升版本即可让浏览器刷新取到新界面。
+   * 前端拼装 JS/CSS 资源 URL 时优先用此值，回退到 {@link version}。
+   */
+  webVersion?: string
   frontend: FrontendContributes | null
   isEnabled: boolean
 }

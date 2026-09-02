@@ -402,6 +402,26 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
         history![0].Content.Should().Be("你好");
         history[2].Content.Should().Be("再见");
     }
+
+    [Fact]
+    public async Task SendMessage_WithVeryLongMessage_ShouldReturnSuccess_Not500()
+    {
+        // 复现 N+6「文本超长 500」：此前 Content 列限长 2000，XCode 长度校验抛错致 500；
+        // 改为文本类型(-1)后，超长消息应正常持久化并返回 200。
+        var longMessage = new string('中', 5000);
+        var request = CreateChatRequest(longMessage);
+
+        var response = await _client.PostAsync("/api/chat", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        var chatResponse = JsonSerializer.Deserialize<ChatResponse>(content, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        chatResponse.Should().NotBeNull();
+        chatResponse!.Content.Should().NotBeEmpty();
+    }
 }
 
 /// <summary>

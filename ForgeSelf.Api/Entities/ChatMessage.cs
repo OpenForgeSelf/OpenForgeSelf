@@ -52,7 +52,9 @@ public partial class ChatMessage : IChatMessageModel, IEntity<IChatMessageModel>
     /// <summary>消息内容</summary>
     [DisplayName("消息内容")]
     [Description("消息内容")]
-    [DataObjectField(false, false, false, 2000)]
+    // 长度 -1 表示文本类型（不限长）。SQLite 不强制 VARCHAR 长度，XCode 也不再对超长文本做长度校验，
+    // 故超长消息不再因长度限制插入失败（无需 DB 迁移，自动生效）。
+    [DataObjectField(false, false, false, -1)]
     [BindColumn("Content", "消息内容", "")]
     public String Content { get => _Content; set { if (OnPropertyChanging("Content", value)) { _Content = value; OnPropertyChanged("Content"); } } }
 

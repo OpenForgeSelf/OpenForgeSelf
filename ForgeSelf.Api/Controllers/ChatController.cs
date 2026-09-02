@@ -36,6 +36,38 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
+    /// 安全保存聊天消息：持久化失败仅记录日志并返回 0，不向上抛出，避免中断聊天主流程。
+    /// 典型场景：超长文本触发 XCode 长度校验/DB 写入异常时，用户仍应拿到 AI 回复。
+    /// </summary>
+    private async Task<long> SaveMessageSafeAsync(string sessionId, string role, string content)
+    {
+        try
+        {
+            return await _messageService.SaveMessageAsync(sessionId, role, content);
+        }
+        catch (Exception ex)
+        {
+            _logService.Error("保存聊天消息失败（不影响聊天响应）: SessionId={0}, Role={1}, {2}", sessionId, role, ex.Message);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 安全补写会话归属：持久化失败仅记录日志，不向上抛出，避免中断聊天主流程。
+    /// </summary>
+    private async Task UpsertSessionSafeAsync(string sessionId, string userMessage, int historyCount)
+    {
+        try
+        {
+            await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, historyCount);
+        }
+        catch (Exception ex)
+        {
+            _logService.Error("补写会话归属失败（不影响聊天响应）: SessionId={0}, {1}", sessionId, ex.Message);
+        }
+    }
+
+    /// <summary>
     /// 发送聊天消息
     /// </summary>
     /// <param name="request">聊天请求</param>
@@ -59,16 +91,16 @@ public class ChatController : ControllerBase
 
             _logService.Info("收到聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, userMessage.Length);
 
-            // 保存用户消息
-            await _messageService.SaveMessageAsync(sessionId, "user", userMessage);
+            // 保存用户消息（持久化失败不影响聊天主流程）
+            await SaveMessageSafeAsync(sessionId, "user", userMessage);
             // P4 会话接缝：追加用户消息到仅追加事件日志（模型可见 = 已记录）
             _sessionStore?.Append(sessionId, new ForgeSelf.Abstractions.SessionEvent { Type = "user", Payload = userMessage });
 
             // 获取历史消息
             var history = await _messageService.GetHistoryAsync(sessionId);
 
-            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行）
-            await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
+            await UpsertSessionSafeAsync(sessionId, userMessage, history.Count + 1);
 
             // 构建AI请求消息
             var aiMessages = history.Select(m => new LegacyAIChatMessage
@@ -76,12 +108,17 @@ public class ChatController : ControllerBase
                 Role = m.Role,
                 Content = m.Content
             }).ToList();
+            // 兜底：即便历史持久化失败，也确保本次用户消息进入模型上下文，保证正常对话
+            if (aiMessages.Count == 0 || aiMessages[^1].Role != "user")
+            {
+                aiMessages.Add(new LegacyAIChatMessage { Role = "user", Content = userMessage });
+            }
 
             // 获取AI响应（按所选模型路由提供方；未指定则走默认 AI 配置）
             var aiResponse = await _aiService.ChatAsync(aiMessages, request.ChatModelId);
 
-            // 保存AI响应
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", aiResponse);
+            // 保存AI响应（持久化失败不影响聊天主流程）
+            var responseId = await SaveMessageSafeAsync(sessionId, "assistant", aiResponse);
             // P4 会话接缝：追加 AI 响应到仅追加事件日志（模型可见 = 已记录）
             _sessionStore?.Append(sessionId, new ForgeSelf.Abstractions.SessionEvent { Type = "assistant", Payload = aiResponse });
 
@@ -129,14 +166,14 @@ public class ChatController : ControllerBase
 
             _logService.Info("收到流式聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, userMessage.Length);
 
-            // 保存用户消息
-            await _messageService.SaveMessageAsync(sessionId, "user", userMessage);
+            // 保存用户消息（持久化失败不影响聊天主流程）
+            await SaveMessageSafeAsync(sessionId, "user", userMessage);
 
             // 获取历史消息
             var history = await _messageService.GetHistoryAsync(sessionId);
 
-            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行）
-            await _chatSessionService.UpsertSessionAsync(sessionId, SessionSource.App, null, ClientKind.App, "AppChat", userMessage, history.Count + 1);
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
+            await UpsertSessionSafeAsync(sessionId, userMessage, history.Count + 1);
 
             // 构建AI请求消息
             var aiMessages = history.Select(m => new LegacyAIChatMessage
@@ -144,6 +181,11 @@ public class ChatController : ControllerBase
                 Role = m.Role,
                 Content = m.Content
             }).ToList();
+            // 兜底：即便历史持久化失败，也确保本次用户消息进入模型上下文，保证正常对话
+            if (aiMessages.Count == 0 || aiMessages[^1].Role != "user")
+            {
+                aiMessages.Add(new LegacyAIChatMessage { Role = "user", Content = userMessage });
+            }
 
             // 设置SSE响应头
             Response.ContentType = "text/event-stream";
@@ -163,8 +205,8 @@ public class ChatController : ControllerBase
                 await Response.Body.FlushAsync(cancellationToken);
             }
 
-            // 保存完整的AI响应
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString());
+            // 保存完整的AI响应（持久化失败不影响聊天主流程）
+            var responseId = await SaveMessageSafeAsync(sessionId, "assistant", fullResponse.ToString());
 
             // 发送完成事件
             var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId });

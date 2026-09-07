@@ -13,11 +13,15 @@
    ⛔ 未写此行，禁止调用任何文件读/写工具。
 2. **【建待办】** 在 `TODO.md` 新建或引用一条待办（🔄 进行中，标 P1>P2>P3，来源:输入N）。
    ⛔ 无对应 TODO 项，禁止修改任何业务文件。
-3. **【Context → Plan → Execute → Verify】** 按第 1-5 节执行；Verify 必须真跑（前端 `pnpm run check`+`pnpm run test` / 后端 `dotnet build`+`dotnet test`）。
-4. **【出口·完成检查清单】** 回复"完成"前，必须：
+3. **【查技能】** 按 §2.4 技能清单判断本次任务是否有对应技能，有则**先读再动手**。
+   宿主/插件类任务必须读 `plugin-development`（及其转派的专项技能）。
+   ⛔ 未读技能就改宿主/插件代码，视为流程违规——历史上已因此漏发插件、漏跑插件层 e2e。
+4. **【Context → Plan → Execute → Verify】** 按第 1-5 节执行；Verify 必须真跑（前端 `pnpm run check`+`pnpm run test` / 后端 `dotnet build`+`dotnet test`）。
+5. **【出口·完成检查清单】** 回复"完成"前，必须：
    - Read 当天日记，确认含本次输入拆解 + 验证结果；
    - 确认 `TODO.md` 该待办已标记 ✅ 或移除；
    - （如有可复用规律）已写入 `MEMORY.md`。
+   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部四步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build`）② 插件层 e2e（`e2e/plugins/<id>`，实跑宿主走查用 `playwright.live.config.ts`）③ 发布到运行宿主（`scripts/publish-plugin.ps1` 或按 `plugin-publish-verify` 主路径热更）④ 浏览器走查（导航宿主、按用户视角点一遍、截图读图、清测试数据）。**四步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。此四步属闭环内部标准动作，已由用户前瞻授权"以后自动执行"（含发布到实跑 `:51888` 实例、触碰运行服务），不再逐次询问；唯环境拉不起 / 外部阻塞时才升级给人。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
 > 验证通过（测试绿）≠ 流程完成。Persist 与 Verify 同属 DoD，缺一项即未达标。
@@ -78,6 +82,7 @@
 
 开始编码前按需确认：
 
+- [ ] **查 §2.4 技能清单，读取对应技能**（宿主/插件任务必读）
 - [ ] 阅读相关 spec（`specs/NNN-*/spec.md`）
 - [ ] 查看设计稿（`forgeself-design/pages/` 对应页面）
 - [ ] 用 CodeGraph 或 grep 定位相关代码（见附录 B）
@@ -90,7 +95,27 @@
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
-- 运行端口：Backend `:7102`，Frontend `:7002`
+- 运行端口：Backend `:7102`，Frontend `:7002`；本环境长期运行的 publish 实例用 `:51888`
+
+### 2.4 技能清单（Skills — 动手前必查）
+
+技能位于 `.agents/skills/<name>/SKILL.md`。**涉及宿主 / 插件的任务，动手前必须先读对
+应技能**——历史上不止一次因为没读技能而漏掉发布、漏掉插件层 e2e，最后靠临时脚本自验
+就宣称完成。
+
+| 技能 | 何时用 | 关键约束 |
+|------|--------|----------|
+| `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 浏览器走查，四步缺一不算完成 |
+| `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
+| `plugin-publish-verify` | 发布单插件到运行中的 publish 宿主 + 热重载验证 | 宿主必须跑 `publish/`；活动插件目录只放插件自身 DLL；`plugin.json` 最后拷 |
+| `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
+| `architecture-design` | 影响面较大的架构/设计决策 | — |
+
+选型顺序：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会在正文里把
+你转派到 `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`。
+
+**新增技能必须同步登记到本节**（这是本节存在的唯一理由：技能不在表里 = 等于不存在，
+后续会话必然再次漏读）。
 
 ---
 

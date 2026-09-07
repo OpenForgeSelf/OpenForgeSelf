@@ -1,17 +1,31 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import AppLogo from '@/components/AppLogo.vue'
-import type { QuickLink, QuickLinkCreateRequest, ImportMode } from '@/types/quickLinks'
-import { useQuickLinksStore } from '@/stores/quickLinks'
-import LinkCard from '@/components/quicklinks/LinkCard.vue'
-import CategoryManager from '@/components/quicklinks/CategoryManager.vue'
-import LinkFormModal from '@/components/quicklinks/LinkFormModal.vue'
+import type { QuickLink, QuickLinkCreateRequest, ImportMode } from './types'
+import { useQuickLinksStore } from './store'
+import { showToast } from './toast'
+import { confirmAction } from './confirm'
+import LinkCard from './components/LinkCard.vue'
+import CategoryManager from './components/CategoryManager.vue'
+import LinkFormModal from './components/LinkFormModal.vue'
+import ToastHost from './components/ToastHost.vue'
+import ConfirmHost from './components/ConfirmHost.vue'
 
 const quickLinksStore = useQuickLinksStore()
+
+// 用变量绑定而非静态 src：Vite 会把静态 /logo/... 当作待解析资源，
+// 而该图片由宿主 wwwroot 提供，插件构建产物中不存在，静态写法会导致构建失败。
+const logoUrl = '/logo/logo-128.png'
 
 const showFormModal = ref(false)
 const editingLink = ref<QuickLink | null>(null)
 const showCategoryManager = ref(false)
+
+// 桌面端默认展开分类侧栏（移动端由汉堡按钮控制）；宽屏本就是常驻侧栏布局
+onMounted(() => {
+  if (typeof window !== 'undefined' && window.innerWidth > 768) {
+    showCategoryManager.value = true
+  }
+})
 const draggedLinkId = ref<string | null>(null)
 const dragOverIndex = ref<number | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -48,14 +62,18 @@ function closeFormModal(): void {
 }
 
 async function handleDelete(link: QuickLink): Promise<void> {
-  if (!confirm(`确定要删除链接"${link.name}"吗？`)) {
-    return
-  }
+  const ok = await confirmAction({
+    title: '删除链接',
+    message: `确定要删除链接"${link.name}"吗？删除后不可恢复。`,
+    confirmText: '删除',
+    danger: true
+  })
+  if (!ok) return
 
   try {
     await quickLinksStore.removeLink(link.id)
   } catch (e) {
-    console.error('删除链接失败:', e)
+    showToast(`删除链接失败：${e instanceof Error ? e.message : '未知错误'}`, 'error')
   }
 }
 
@@ -132,7 +150,7 @@ function handleFileSelect(event: Event): void {
       }
 
       if (linksToImport.length === 0) {
-        alert('未找到有效的链接数据')
+        showToast('未找到有效的链接数据', 'warning')
         return
       }
 
@@ -140,7 +158,7 @@ function handleFileSelect(event: Event): void {
       showImportModal.value = false
     } catch (err) {
       console.error('导入失败:', err)
-      alert('导入失败：文件格式不正确')
+      showToast('导入失败：文件格式不正确', 'error')
     }
   }
   reader.readAsText(file)
@@ -169,7 +187,7 @@ async function handleExport(): Promise<void> {
     URL.revokeObjectURL(url)
   } catch (e) {
     console.error('导出失败:', e)
-    alert('导出失败')
+    showToast(`导出失败：${e instanceof Error ? e.message : '未知错误'}`, 'error')
   }
 }
 
@@ -289,6 +307,9 @@ onMounted(() => {
       @saved="closeFormModal"
     />
 
+    <ToastHost />
+    <ConfirmHost />
+
     <Teleport to="body">
       <Transition name="modal">
         <div
@@ -300,8 +321,10 @@ onMounted(() => {
         >
           <div class="modal-container import-modal">
             <div class="modal-header">
-              <div class="flex items-center gap-2">
-                <AppLogo :size="20" />
+              <div class="header-left">
+                <span class="app-logo">
+                  <img :src="logoUrl" alt="铸己匣" />
+                </span>
                 <h2 class="modal-title">导入链接</h2>
               </div>
               <button class="close-btn" aria-label="关闭" @click="closeImportModal">
@@ -383,7 +406,9 @@ onMounted(() => {
 }
 
 .menu-btn {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
   border: none;
@@ -434,7 +459,7 @@ onMounted(() => {
 }
 
 .search-input:hover {
-  border-color: var(--border-strong);
+  border-color: var(--el-color-primary);
   background: var(--el-bg-color);
 }
 
@@ -442,7 +467,7 @@ onMounted(() => {
   outline: none;
   border-color: var(--el-color-primary);
   background: var(--el-bg-color);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--el-color-primary-light-8);
 }
 
 .header-right {
@@ -624,6 +649,17 @@ onMounted(() => {
   padding: 20px;
 }
 
+.modal-container {
+  background: var(--el-bg-color);
+  border-radius: 16px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
 .import-modal {
   max-width: 440px;
 }
@@ -634,6 +670,26 @@ onMounted(() => {
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid var(--el-border-color-light);
+  flex-shrink: 0;
+}
+
+.app-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  line-height: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.app-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .modal-title {

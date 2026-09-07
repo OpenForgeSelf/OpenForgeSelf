@@ -160,7 +160,14 @@ describe('dynamicPlugins 动态视图挂载', () => {
         id: 'quick-links',
         name: '快捷链接插件',
         isEnabled: true,
-        frontend: { views: ['QuickLinksView'], menu: '快捷链接', route: '/quick-links', icon: 'fa-link' },
+        // QuickLinks 已自带界面资源，清单带 entry → 走远程加载分支
+        frontend: {
+          views: ['QuickLinksView'],
+          menu: '快捷链接',
+          route: '/quick-links',
+          icon: 'fa-link',
+          entry: 'web/dist/index.js',
+        },
       }),
     ])
 

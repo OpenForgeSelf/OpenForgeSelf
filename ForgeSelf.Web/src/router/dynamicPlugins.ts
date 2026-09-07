@@ -6,8 +6,9 @@
  * 取代把插件视图写死在静态路由表的做法。
  *
  * 说明：
- * - 视图名 → 懒加载组件的映射集中在 resolvePluginView，试点覆盖
- *   MemorySystem(MemoryView)、QuickLinks(QuickLinksView)、TodoTracker(TodoView)。
+ * - 视图名 → 懒加载组件的映射集中在 resolvePluginView，未自带界面资源（entry）
+ *   的插件回退到主包内组件，当前覆盖 MemorySystem(MemoryView)、TodoTracker(TodoView)。
+ *   QuickLinks 已自带 web/dist 界面，走远程加载，不再占用宿主内置视图。
  * - 动态路由统一挂在 MANIFEST_ROUTE_PREFIX 命名空间下，避免与现有 21 个静态
  *   功能页（如 /memory、/quick-links、/todo）发生同名路径冲突，保证静态路由
  *   永远是 manifest 失败/为空时的兜底。
@@ -42,7 +43,7 @@ const registeredRouteNames = new Set<string>()
  *
  * 优先按清单声明的界面入口（entry）从插件目录**远程加载**界面资源；
  * entry 为空时回退既有硬编码映射（主包内组件），
- * 保证「已声明界面但未自带资源」的插件（MemorySystem / QuickLinks / TodoTracker）零回归（SC-006）。
+ * 保证「已声明界面但未自带资源」的插件（MemorySystem / TodoTracker）零回归（SC-006）。
  *
  * @param item 清单条目（含插件 id、版本与界面贡献声明）
  * @returns 路由组件；无法确定视图时返回 undefined，调用方应跳过注册
@@ -69,8 +70,6 @@ function resolvePluginView(item: PluginFrontendManifest): RouteRecordRaw['compon
   switch (viewName) {
     case 'MemoryView':
       return () => import('@/views/MemoryView.vue')
-    case 'QuickLinksView':
-      return () => import('@/views/QuickLinksView.vue')
     case 'TodoView':
       return () => import('@/views/TodoView.vue')
     default:

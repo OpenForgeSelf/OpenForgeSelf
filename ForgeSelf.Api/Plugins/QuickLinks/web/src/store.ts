@@ -1,5 +1,8 @@
 /**
- * 快捷链接状态管理Store
+ * 快捷链接状态管理 Store（插件自带界面，从宿主 stores/quickLinks 移植）。
+ *
+ * 保留两处已修复：搜索 filteredLinks 对可空字段做 `?? ''` 兜底（防 null.description 调用
+ * toLowerCase 整页崩溃）；以及桌面端侧栏自动展开逻辑（在 QuickLinksView 中）。
  */
 
 import { ref, computed } from 'vue'
@@ -13,8 +16,8 @@ import type {
   CategoryCreateRequest,
   CategoryUpdateRequest,
   ImportMode
-} from '@/types/quickLinks'
-import { quickLinksApi } from '@/services/quickLinksApi'
+} from './types'
+import { quickLinksApi } from './api'
 
 export const useQuickLinksStore = defineStore('quickLinks', () => {
   const links = ref<QuickLink[]>([])
@@ -34,9 +37,9 @@ export const useQuickLinksStore = defineStore('quickLinks', () => {
     if (searchKeyword.value.trim()) {
       const keyword = searchKeyword.value.toLowerCase()
       result = result.filter(link =>
-        link.name.toLowerCase().includes(keyword) ||
-        link.description.toLowerCase().includes(keyword) ||
-        link.url.toLowerCase().includes(keyword)
+        (link.name ?? '').toLowerCase().includes(keyword) ||
+        (link.description ?? '').toLowerCase().includes(keyword) ||
+        (link.url ?? '').toLowerCase().includes(keyword)
       )
     }
 

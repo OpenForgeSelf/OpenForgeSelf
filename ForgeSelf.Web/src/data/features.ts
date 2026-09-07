@@ -79,6 +79,8 @@ export const features: FeatureItem[] = [
     stats: '12 个链接',
     enabled: true,
     path: '/quick-links',
+    // 视图已迁移到 QuickLinks 插件自带界面（Plugins/QuickLinks/web/dist），
+    // 宿主不再内置 QuickLinksView.vue；该路径由插件清单 route 动态注册。
     signals: { plugins: ['QuickLinks'], views: ['QuickLinksView'] },
   },
   {

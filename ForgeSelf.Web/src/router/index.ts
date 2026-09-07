@@ -23,7 +23,6 @@ import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
 import TodoView from '@/views/TodoView.vue'
-import QuickLinksView from '@/views/QuickLinksView.vue'
 import CaptureView from '@/views/CaptureView.vue'
 import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
@@ -37,9 +36,9 @@ const router = createRouter({
       name: 'home',
       component: HomeView
     },
-    // 注意：/ai-agent 已**不再**由宿主静态路由提供。
-    // AI Agent 页面已彻底迁移到 AIAgent 插件（ForgeSelf.Api/Plugins/AIAgent/web），
-    // 由插件清单声明的 route 经 registerManifestRoutes 动态注册到 /ai-agent。
+    // 注意：/ai-agent 与 /quick-links 已**不再**由宿主静态路由提供。
+    // 两个页面均已彻底迁移到插件自带界面（ForgeSelf.Api/Plugins/{AIAgent,QuickLinks}/web），
+    // 由插件清单声明的 route 经 registerManifestRoutes 动态注册到对应路径。
     // 插件未加载/未启用时该路径走 404 兜底，不再有宿主内置实现。
     {
       path: '/prompts',
@@ -130,11 +129,6 @@ const router = createRouter({
       path: '/chat-records',
       name: 'chat-records',
       component: ChatRecordsView
-    },
-    {
-      path: '/quick-links',
-      name: 'quick-links',
-      component: QuickLinksView
     },
     {
       path: '/chat',

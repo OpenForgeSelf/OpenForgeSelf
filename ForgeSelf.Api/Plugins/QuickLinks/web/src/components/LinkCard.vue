@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { QuickLink } from '@/types/quickLinks'
-import { useQuickLinksStore } from '@/stores/quickLinks'
+import type { QuickLink } from '../types'
+import { useQuickLinksStore } from '../store'
 
 const props = defineProps<{
   link: QuickLink
@@ -124,13 +124,13 @@ function handleDragEnd(): void {
 
 .link-card:hover {
   border-color: var(--el-color-primary);
-  box-shadow: 0 4px 12px var(--primary-light);
+  box-shadow: 0 4px 12px var(--el-color-primary-light-8);
   transform: translateY(-2px);
 }
 
 .link-card:focus-visible {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--el-color-primary-light-8);
 }
 
 .link-card:active {
@@ -208,11 +208,11 @@ function handleDragEnd(): void {
 }
 
 .edit-btn:hover {
-  background: #fff3cd;
+  background: var(--el-color-warning-light-9);
 }
 
 .delete-btn:hover {
-  background: #f8d7da;
+  background: var(--el-color-danger-light-9);
 }
 
 .card-body {

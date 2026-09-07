@@ -1,5 +1,5 @@
 /**
- * 快捷链接类型定义
+ * 快捷链接类型定义（插件自带界面，从宿主 @/types/quickLinks 移植）
  */
 
 export interface QuickLink {

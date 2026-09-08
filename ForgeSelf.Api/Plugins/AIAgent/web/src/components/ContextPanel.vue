@@ -117,9 +117,19 @@
     </ContextGroup>
 
     <!-- 分组：记忆 -->
-    <ContextGroup title="记忆" :count="0" :open="openMemory" @toggle="openMemory = !openMemory">
-      <!-- 后端暂无「记忆」统一接口，此处如实留空，不编造数据 -->
-      <EmptyHint text="后端暂无接口（待补）" />
+    <ContextGroup title="记忆" :count="memories.length" :open="openMemory" @toggle="openMemory = !openMemory">
+      <div v-if="loadingMemories" class="ctx-loading">加载中…</div>
+      <EmptyHint v-else-if="memories.length === 0" text="暂无记忆，对话中模型会自动记住重要信息" />
+      <ul v-else class="ctx-items">
+        <li v-for="m in memories" :key="m.id" class="ctx-item">
+          <div class="ctx-item-title">{{ m.title }}</div>
+          <div class="ctx-item-desc">{{ m.content }}</div>
+          <div class="ctx-item-meta">
+            <span class="ctx-badge">{{ m.type }}</span>
+            <span v-if="m.categoryName" class="ctx-badge ctx-badge--cat">{{ m.categoryName }}</span>
+          </div>
+        </li>
+      </ul>
     </ContextGroup>
   </aside>
 </template>
@@ -128,12 +138,12 @@
 /**
  * 左栏「AI 上下文」面板（对应设计原型 220px 侧栏）。
  *
- * 数据来源：MCP 工具与技能走真实接口；提示指令与记忆因后端暂无统一接口，
- * 按约定如实留空（不造假数据）。
+ * 数据来源：MCP 工具、技能、记忆均走真实接口（记忆经 /api/ai-agent/chat/memories，
+ * 后端 L1 契约 IMemoryService 由 MemorySystem 提供）；提示指令后端暂无统一接口，如实留空。
  */
 import { onMounted, ref, watch } from 'vue'
 import { apiGet, withQuery } from '../http'
-import type { McpServer, McpTool, ProjectEntry, ProjectSkillItem } from '../types'
+import type { McpServer, McpTool, MemoryItem, ProjectEntry, ProjectSkillItem } from '../types'
 import ContextGroup from './ContextGroup.vue'
 import EmptyHint from './EmptyHint.vue'
 
@@ -161,6 +171,11 @@ const errorSkills = ref('')
 const selectedTool = ref('')
 /** 是否已选定项目目录（决定技能源：项目技能 vs 全局技能）。 */
 const hasProject = ref(!!props.projectDir)
+
+// ---- 记忆列表（来自 /api/ai-agent/chat/memories，经 L1 契约 IMemoryService） ----
+/** 已加载的长期记忆。 */
+const memories = ref<MemoryItem[]>([])
+const loadingMemories = ref(false)
 
 // ---- 项目目录面板状态 ----
 /** 目录输入框内容。 */
@@ -294,9 +309,23 @@ async function loadSkills() {
   }
 }
 
+/** 加载长期记忆列表（来自 /api/ai-agent/chat/memories）。 */
+async function loadMemories() {
+  loadingMemories.value = true
+  try {
+    const data = await apiGet<{ items?: MemoryItem[] }>('/api/ai-agent/chat/memories?pageSize=50')
+    memories.value = data?.items ?? []
+  } catch {
+    memories.value = []
+  } finally {
+    loadingMemories.value = false
+  }
+}
+
 onMounted(() => {
   void loadTools()
   void loadSkills()
+  void loadMemories()
 })
 
 // projectDir 变化（成功加载目录）时刷新项目技能识别
@@ -509,6 +538,68 @@ watch(
 
 .pj__empty {
   margin: 0;
+  font-size: var(--el-font-size-extra-small, 11px);
+  color: var(--el-text-color-secondary, #a3a6ad);
+}
+
+/* ---- 记忆列表 ---- */
+.ctx-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctx-item {
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--el-fill-color, #262727);
+}
+
+.ctx-item-title {
+  font-size: var(--el-font-size-extra-small, 12px);
+  font-weight: var(--el-weight-semibold, 600);
+  color: var(--el-text-color-primary, #e5eaf3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-item-desc {
+  margin-top: 2px;
+  font-size: var(--el-font-size-extra-small, 11px);
+  color: var(--el-text-color-regular, #cfd3dc);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ctx-item-meta {
+  margin-top: 3px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ctx-badge {
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: var(--el-font-size-extra-small, 10px);
+  line-height: 15px;
+  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+}
+
+.ctx-badge--cat {
+  color: var(--el-text-color-secondary, #a3a6ad);
+  background: var(--el-fill-color, #262727);
+}
+
+.ctx-loading {
   font-size: var(--el-font-size-extra-small, 11px);
   color: var(--el-text-color-secondary, #a3a6ad);
 }

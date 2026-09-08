@@ -4,7 +4,6 @@ using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
 using ForgeSelf.Api.Plugins.MemorySystem.Data;
 using ForgeSelf.Api.Plugins.MemorySystem.Entities;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
 using ForgeSelf.Api.Plugins.MemorySystem.Services;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -36,8 +35,25 @@ public class MemorySystemPlugin : IPlugin
         services?.AddScoped<IMemoryIntegrationService>(sp =>
             new MemoryIntegrationService(sp.GetRequiredService<IMemoryService>(), ctx.GetPluginDataDirectory()));
 
+        // L1 契约：eager 注册 IMemoryService 实例进共享服务表，供兄弟插件（如 AIAgent）
+        // 经 ctx.Get<IMemoryService>() 跨插件消费（记忆面板 / 记忆检索），契约与 DTO 均在 Abstractions，
+        // 避免兄弟插件直接依赖 MemorySystem 程序集。
+        var pluginProvider = services?.BuildServiceProvider();
+        if (pluginProvider != null)
+        {
+            var msScope = pluginProvider.CreateScope();
+            ctx.Effect(() => msScope);
+            var memSvc = msScope.ServiceProvider.GetRequiredService<IMemoryService>();
+            ctx.Register<IMemoryService>(memSvc);
+        }
+
         RegisterMenuExtensions(pluginId);
-        RegisterToolExtensions(pluginId, ctx);
+        // 工具基类内部 CreateScope() 需要 IServiceScopeFactory。IContext（ctx）不是 .NET
+        // IServiceProvider，直接传 ctx 会报「No service for type 'IServiceScopeFactory'」。
+        // 正确做法是传宿主根 IServiceProvider（ctx.Get<IServiceProvider>()，含 IServiceScopeFactory），
+        // 与 SamplePlugin 一致；缺失时回退到本插件 scope 的 provider（同样具备 IServiceScopeFactory）。
+        var hostServices = ctx.Get<IServiceProvider>();
+        RegisterToolExtensions(pluginId, hostServices ?? (IServiceProvider)pluginProvider!);
         EnsureDatabaseCreated(DataDirectory);
 
         XTrace.Log.Info("[MemorySystem] 记忆系统插件初始化完成");

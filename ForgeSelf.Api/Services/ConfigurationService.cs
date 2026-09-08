@@ -1,7 +1,6 @@
 using ForgeSelf.Api.Models;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using Microsoft.Extensions.Configuration;
 using NewLife.Log;
 

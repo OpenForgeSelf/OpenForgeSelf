@@ -11,7 +11,6 @@ using ForgeSelf.Api.Services;
 using Scalar.AspNetCore;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using ForgeSelf.Api.Services.AI.Providers;
 using ForgeSelf.Api.Services.Mcp;
 using ForgeSelf.Api.Services.Skills;
@@ -66,6 +65,14 @@ public static class AppBuilder
         XTrace.Log.Info("配置文件统一目录: {0}", configRoot);
 
         builder.Services.AddXCode(builder.Configuration, dataLocation.GetHostDataDirectory());
+
+        // 项目工作区宿主实现（L1 能力接缝 IProjectRegistry）：seed 进插件 root 上下文（常驻）。
+        // 构造期仅凭宿主数据根定位旧共享 JSON 迁移源，不触碰数据库连接（惰性迁移在首次访问时触发）。
+        builder.Services.AddSingleton<IProjectRegistry>(sp =>
+        {
+            var loc = sp.GetRequiredService<IDataLocationService>();
+            return new HostProjectRegistry(loc.GetHostDataDirectory());
+        });
 
         builder.Services.AddCors(options =>
         {
@@ -196,6 +203,8 @@ public static class AppBuilder
 
         // AI 网关服务：注册表单例初始为空，启动阶段从数据库重载
         builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
+        // 契约形态（Abstractions）：供插件经 ctx.Get<IAIProviderRegistry>() 消费，须与上者为同一实例。
+        builder.Services.AddSingleton<IAIProviderRegistry>(sp => sp.GetRequiredService<AIProviderRegistry>());
 
         // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 Data/ImageRecognitionCache
         var imageCacheRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "ImageRecognitionCache");

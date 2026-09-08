@@ -15,6 +15,27 @@ export interface AIModel {
   providerName?: string
 }
 
+/** 一次工具调用的实时状态（流式期间逐步填充：先 tool_call，后 tool_result）。 */
+export interface ToolEvent {
+  /** 工具名。 */
+  name?: string
+  /** 调用参数 JSON。 */
+  args?: string
+  /** 工具返回结果。 */
+  result?: string
+  /** 执行是否成功（result 到达后填充）。 */
+  success?: boolean
+  /** 是否仍在执行中（result 未到达）。 */
+  pending?: boolean
+}
+
+/** token 用量（对应后端 UnifiedUsage）。 */
+export interface ChatUsage {
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+}
+
 /** 聊天消息（对应后端 ChatResponse）。 */
 export interface ChatMessage {
   id: number | string
@@ -24,8 +45,12 @@ export interface ChatMessage {
   content: string
   /** 创建时间（后端返回 DateTime 字符串）。 */
   createTime?: string
-  /** 该条回复触发的工具调用名（后端暂无该字段时为空，界面按空处理）。 */
+  /** 该条回复触发的工具调用名（非流式返回时携带）。 */
   toolCalls?: string[]
+  /** 该条回复触发的工具调用明细（流式实时收集，含参数/结果）。 */
+  toolEvents?: ToolEvent[]
+  /** token 用量。 */
+  usage?: ChatUsage
 }
 
 /** MCP 服务器（来自 GET /api/mcp/servers）。 */
@@ -107,4 +132,19 @@ export interface EditingFile {
   name: string
   /** 文件内容。 */
   content: string
+}
+
+/** 长期记忆条目（来自 GET /api/ai-agent/chat/memories）。 */
+export interface MemoryItem {
+  id?: number
+  title?: string
+  content?: string
+  /** fact / preference / project / personal / workflow / skill / other。 */
+  type?: string
+  /** low / medium / high / critical。 */
+  importance?: string
+  tags?: string[]
+  categoryName?: string
+  createdAt?: string
+  lastAccessedAt?: string
 }

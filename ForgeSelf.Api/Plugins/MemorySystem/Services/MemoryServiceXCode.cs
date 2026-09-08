@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.MemorySystem.Data;
 using ForgeSelf.Api.Plugins.MemorySystem.Entities;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
 using NewLife;
 using NewLife.Data;
 using XCode;

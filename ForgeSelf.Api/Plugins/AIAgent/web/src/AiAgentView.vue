@@ -63,9 +63,9 @@
  * 状态说明：消息与会话状态提升到本组件持有，是为了让右栏「会话统计」显示真实数据，
  * 避免出现两处独立状态导致统计与界面不一致。
  */
-import { computed, onMounted, ref } from 'vue'
-import { apiGet, apiPost, withQuery } from './http'
-import type { AgentDefinition, AIModel, ChatMessage, EditingFile } from './types'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { apiGet, apiPost, streamAgentChat, withQuery, type AgentUsage } from './http'
+import type { AgentDefinition, AIModel, ChatMessage, EditingFile, ToolEvent } from './types'
 import ContextPanel from './components/ContextPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import FileEditor from './components/FileEditor.vue'
@@ -113,12 +113,19 @@ const editorHintError = ref(false)
 
 /** 消息条数（真实统计）。 */
 const messageCount = computed(() => messages.value.length)
-/** 工具调用次数（真实统计：累加各条消息的工具徽标数）。 */
+/** 工具调用次数（真实统计：累加各条消息的工具事件数，兼容非流式的 toolCalls）。 */
 const toolCallCount = computed(() =>
-  messages.value.reduce((sum, m) => sum + (m.toolCalls?.length ?? 0), 0)
+  messages.value.reduce((sum, m) => sum + (m.toolEvents?.length ?? m.toolCalls?.length ?? 0), 0)
 )
-/** token 用量文案；后端暂无统计接口时如实显示占位符。 */
-const tokenText = computed(() => '—')
+/** 最近一次回复的 token 用量（流式 usage 事件填充；无则显示占位符）。 */
+const lastUsage = ref<AgentUsage | null>(null)
+/** token 用量文案；后端未返回时如实显示占位符。 */
+const tokenText = computed(() => {
+  const u = lastUsage.value
+  if (!u) return '—'
+  const total = u.totalTokens ?? ((u.promptTokens ?? 0) + (u.completionTokens ?? 0))
+  return `${total} tok`
+})
 
 /** 生成一个新的会话 id（简单时间戳 + 随机串，避免引入 uuid 依赖）。 */
 function newSessionId(): string {
@@ -244,12 +251,12 @@ function closeFile() {
   editorHintError.value = false
 }
 
-/** 加载当前会话的历史消息。 */
+/** 加载当前会话的历史消息（插件自己的聊天存储）。 */
 async function loadHistory() {
   if (!sessionId.value) return
   try {
     const list = await apiGet<ChatMessage[]>(
-      `/api/chat/history/${encodeURIComponent(sessionId.value)}?limit=50`
+      `/api/ai-agent/chat/history/${encodeURIComponent(sessionId.value)}?limit=50`
     )
     messages.value = (list ?? []).map((m, i) => ({ ...m, id: m.id ?? `h-${i}` }))
   } catch {
@@ -264,7 +271,7 @@ function onModelChange(value: string) {
   if (value) localStorage.setItem(LS_KEY_MODEL, value)
 }
 
-/** 发送消息：先本地追加用户消息，再请求后端并把回复追加到列表。 */
+/** 发送消息：乐观插用户气泡 + assistant 占位，调插件流式接口，逐 token 追加并实时展示工具调用。 */
 async function sendMessage(text: string) {
   if (sending.value) return
   error.value = ''
@@ -273,27 +280,82 @@ async function sendMessage(text: string) {
   // 乐观追加用户消息，保证界面即时反馈
   messages.value.push({ id: `u-${Date.now()}`, role: 'user', content: text })
 
-  try {
-    // stream 传 false：取非流式完整回复，实现最简且不依赖 SSE。
-    // chatModelId（形如 `provider:upstreamId`，如 `default:qwythos-9b-v2`）
-    // 传给后端用于锁定本次对话使用的模型，与 UI 下拉选择保持一致。
-    // 若未选择或模型列表为空，后端回落到默认模型（行为不变）。
-    const reply = await apiPost<ChatMessage>('/api/chat', {
-      sessionId: sessionId.value,
-      message: text,
-      stream: false,
-      chatModelId: selectedModelId.value || undefined,
-    })
-    if (reply) {
-      messages.value.push({
-        id: reply.id ?? `a-${Date.now()}`,
-        role: reply.role || 'assistant',
-        content: reply.content ?? '',
-        createTime: reply.createTime,
-      })
+  // assistant 占位消息：**必须 reactive 包装**。push 进 ref 数组后若继续持有原始对象引用，
+  // 流式期间对该引用的变更（content += chunk / toolEvents.push）不经过 proxy → 不触发渲染，
+  // 界面会停在「…」直到 sending 翻转才整段出现（Stage 1 实测踩坑）；reactive 后逐 token 触发。
+  const assistantMsg = reactive<ChatMessage>({
+    id: `a-${Date.now()}`,
+    role: 'assistant',
+    content: '',
+    toolEvents: [],
+  })
+  messages.value.push(assistantMsg)
+
+  /** 移除仍是空内容的 assistant 占位（避免出错后界面永久停在「…」）。 */
+  function dropEmptyPlaceholder() {
+    if (!assistantMsg.content && (assistantMsg.toolEvents?.length ?? 0) === 0) {
+      messages.value = messages.value.filter((m) => m !== assistantMsg)
     }
+  }
+
+  /** 标记最后一个仍在 pending 的工具事件为已完成并填结果。 */
+  function settleToolEvent(e: { name?: string; result?: string; success?: boolean }) {
+    const events = assistantMsg.toolEvents ?? []
+    // 从后往前找同名且 pending 的事件
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i]
+      if (ev && ev.pending && ev.name === e.name) {
+        ev.result = e.result
+        ev.success = e.success
+        ev.pending = false
+        return
+      }
+    }
+    // 没找到（异常情况）则补一条
+    events.push({ name: e.name, result: e.result, success: e.success, pending: false })
+  }
+
+  try {
+    await streamAgentChat(
+      {
+        sessionId: sessionId.value,
+        message: text,
+        chatModelId: selectedModelId.value || undefined,
+        agentId: activeAgentId.value || undefined,
+      },
+      {
+        onContent: (chunk) => {
+          assistantMsg.content += chunk
+        },
+        onToolCall: (e) => {
+          ;(assistantMsg.toolEvents as ToolEvent[]).push({
+            name: e.name,
+            args: e.arguments,
+            pending: true,
+          })
+        },
+        onToolResult: (e) => {
+          settleToolEvent(e)
+        },
+        onUsage: (usage) => {
+          if (usage) lastUsage.value = usage
+        },
+        onDone: (e) => {
+          if (e.usage) lastUsage.value = e.usage
+          if (e.responseId != null) assistantMsg.id = e.responseId
+        },
+        onError: (msg) => {
+          error.value = msg
+          // 流中出错时占位消息可能仍是空的（无内容、无工具事件），
+          // 不移除会永久停在「…」打字指示（错误已由 error 条呈现）。
+          dropEmptyPlaceholder()
+        },
+      }
+    )
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
+    // 请求级失败（未建立流）：移除空的 assistant 占位，避免残留空气泡
+    dropEmptyPlaceholder()
   } finally {
     sending.value = false
   }

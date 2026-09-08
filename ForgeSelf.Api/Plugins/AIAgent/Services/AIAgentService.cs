@@ -15,17 +15,20 @@ public class AIAgentService : IAIAgentService
     private readonly HttpClient _httpClient;
     private readonly IWorkflowRecommendationService? _workflowRecommendationService;
     private readonly IScriptTemplateService? _scriptTemplateService;
+    private readonly IAgentRegistryService? _agentRegistry;
     private IConfigurationService? _configService;
     private ILogService? _logService;
     private IToolRegistry? _toolRegistry;
+    private IAIProviderRegistry? _providerRegistry;
     private AIConfig? _aiConfig;
 
     public AIAgentService(
         IContext ctx,
         IWorkflowRecommendationService? workflowRecommendationService = null,
-        IScriptTemplateService? scriptTemplateService = null)
+        IScriptTemplateService? scriptTemplateService = null,
+        IAgentRegistryService? agentRegistry = null)
     {
-        // 宿主契约（配置/日志/工具注册表）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）：
+        // 宿主契约（配置/日志/工具注册表/provider 注册表）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）：
         // 不在构造时解析——宿主契约在 ProvideHostServices 阶段才 seed 进根上下文，晚于插件 Apply
         // （本实例可能被 AIAgentPlugin 在 Apply 阶段 eager 构造），构造期 Get 恒为 null 会抛异常；
         // 延迟到首次使用时解析（此时宿主契约已就绪）。
@@ -34,6 +37,7 @@ public class AIAgentService : IAIAgentService
         _httpClient = new HttpClient();
         _workflowRecommendationService = workflowRecommendationService;
         _scriptTemplateService = scriptTemplateService;
+        _agentRegistry = agentRegistry;
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
     }
 
@@ -45,6 +49,9 @@ public class AIAgentService : IAIAgentService
 
     private IToolRegistry ToolRegistry => _toolRegistry ??= _ctx.Get<IToolRegistry>()
         ?? throw new InvalidOperationException("宿主未提供 IToolRegistry 契约，无法初始化 AI 代理");
+
+    /// <summary>宿主 AI 提供方注册表（软依赖）：经它按 chatModelId 解析上游 provider。</summary>
+    private IAIProviderRegistry? ProviderRegistry => _providerRegistry ??= _ctx.Get<IAIProviderRegistry>();
 
     private AIConfig AiConfig
     {
@@ -84,241 +91,249 @@ public class AIAgentService : IAIAgentService
         bool enableTools = true,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var request = new AIChatRequest
+        await foreach (var ev in RunAgentLoopAsync(messages, null, null, enableTools, cancellationToken))
         {
-            Model = AiConfig.ModelName,
-            Messages = messages,
-            Stream = true
-        };
-
-        if (enableTools)
-        {
-            var tools = ToolRegistry.GetToolDefinitions();
-            if (tools.Count > 0)
-            {
-                request.Tools = tools;
-                request.ToolChoice = "auto";
-            }
-        }
-
-        var jsonContent = JsonSerializer.Serialize(request);
-        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, AiConfig.ApiEndpoint);
-        httpRequest.Content = content;
-        httpRequest.Headers.Add("Authorization", $"Bearer {AiConfig.ApiKey}");
-
-        XTrace.Log.Info("[AIAgentPlugin] 发送AI流式请求: {0}", AiConfig.ApiEndpoint);
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] AI流式请求失败: {0}", ex.Message);
-            yield break;
-        }
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var line = await reader.ReadLineAsync(cancellationToken);
-
-            if (line == null)
-                break;
-
-            if (string.IsNullOrEmpty(line))
-                continue;
-
-            if (line.StartsWith("data: "))
-            {
-                var data = line[6..];
-
-                if (data == "[DONE]")
-                {
-                    XTrace.Log.Info("[AIAgentPlugin] AI流式响应完成");
-                    yield break;
-                }
-
-                AIChatResponse? chunk;
-                try
-                {
-                    chunk = JsonSerializer.Deserialize<AIChatResponse>(data, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-                }
-                catch (JsonException ex)
-                {
-                    XTrace.Log.Warn("[AIAgentPlugin] 解析流式响应失败: {0}", ex.Message);
-                    continue;
-                }
-
-                if (chunk?.Choices?.Count > 0)
-                {
-                    var delta = chunk.Choices[0].Delta;
-                    if (delta != null && !string.IsNullOrEmpty(delta.Content))
-                    {
-                        yield return delta.Content;
-                    }
-                }
-            }
+            if (ev.Type == "content" && !string.IsNullOrEmpty(ev.Content))
+                yield return ev.Content;
         }
     }
 
     public async Task<List<AIChatMessage>> ChatWithToolsAsync(List<AIChatMessage> messages, CancellationToken cancellationToken = default)
     {
-        var allMessages = new List<AIChatMessage>(messages);
-        var maxIterations = 10;
-        var currentIteration = 0;
-        var totalToolCalls = 0;
-
-        XTrace.Log.Info("[AIAgentPlugin] ========================================");
-        XTrace.Log.Info("[AIAgentPlugin] 开始AI对话（支持工具调用）");
-        XTrace.Log.Info("[AIAgentPlugin] 初始消息数: {0}", allMessages.Count);
-        XTrace.Log.Info("[AIAgentPlugin] 最大迭代次数: {0}", maxIterations);
-
-        var tools = ToolRegistry.GetToolDefinitions();
-        XTrace.Log.Info("[AIAgentPlugin] 可用工具数量: {0}", tools.Count);
-        foreach (var tool in tools)
+        // 复用同一工具循环（驱动到完成、忽略事件流）；传入副本避免污染调用方列表。
+        var grown = new List<AIChatMessage>(messages);
+        await foreach (var _ in RunAgentLoopAsync(grown, null, null, true, cancellationToken))
         {
-            XTrace.Log.Debug("[AIAgentPlugin]   - {0}: {1}", tool.Function.Name, tool.Function.Description);
+            // 事件由流式调用方消费，此处仅驱动循环
+        }
+        return grown;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(
+        List<AIChatMessage> messages,
+        string? chatModelId = null,
+        string? agentId = null,
+        bool enableTools = true,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var provider = ResolveProvider(chatModelId);
+        if (provider == null)
+        {
+            yield return new AgentLoopEvent { Type = "error", Content = "未找到可用的 AI 提供方（检查提供方配置与模型路由）" };
+            yield break;
         }
 
-        await InjectRelevantMemoriesAsync(allMessages, tools, cancellationToken);
-
-        while (currentIteration < maxIterations)
-        {
-            currentIteration++;
-            XTrace.Log.Info("[AIAgentPlugin] --- 第 {0} 轮迭代 ---", currentIteration);
-
-            var request = new AIChatRequest
+        // 工具范围：只挂本插件自己的工具（时间/计算/项目文件/工作流等 ~9 个），
+        // 而不是宿主 IToolRegistry 的全部 ~77 个——全量工具会把 prompt 撑爆，
+        // 本地小模型（如 gemma-4-e4b）上下文不足导致上游 400（实测 12s 后 400）。
+        var tools = enableTools ? ResolveOwnToolDefinitions() : new List<AIToolDefinition>();
+        var unifiedTools = tools.Count > 0
+            ? tools.Select(t => new UnifiedToolDefinition
             {
-                Model = AiConfig.ModelName,
-                Messages = allMessages,
-                Stream = false
+                Name = t.Function.Name,
+                Description = t.Function.Description,
+                Parameters = t.Function.Parameters
+            }).ToList()
+            : null;
+
+        // 记忆注入（get_relevant_memories 工具注册前为 no-op，见 Stage 2）。
+        if (enableTools && tools.Count > 0)
+            await InjectRelevantMemoriesAsync(messages, tools, cancellationToken);
+
+        var systemPrompt = ResolveSystemPrompt(agentId);
+        var model = ResolveModelId(chatModelId);
+
+        XTrace.Log.Info("[AIAgentPlugin] 开始 Agent 工具循环，provider: {0}, model: {1}, agent: {2}, 工具数: {3}",
+            provider.ProviderName, model, agentId ?? "(默认)", unifiedTools?.Count ?? 0);
+
+        const int maxIterations = 10;
+        for (var iteration = 0; iteration < maxIterations; iteration++)
+        {
+            var request = new UnifiedChatRequest
+            {
+                Model = model,
+                Messages = messages.Select(ToUnifiedMessage).ToList(),
+                Tools = unifiedTools,
+                SystemPrompt = systemPrompt,
+                Stream = true,
+                StreamOptions = new UnifiedStreamOptions { IncludeUsage = true }
             };
 
-            if (tools.Count > 0)
+            var contentBuilder = new StringBuilder();
+            var pendingToolCalls = new List<UnifiedToolCall>();
+            UnifiedUsage? usage = null;
+
+            await foreach (var chunk in provider.ChatStreamAsync(request, cancellationToken))
             {
-                request.Tools = tools;
-                request.ToolChoice = "auto";
+                if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                {
+                    contentBuilder.Append(chunk.DeltaContent);
+                    yield return new AgentLoopEvent { Type = "content", Content = chunk.DeltaContent };
+                }
+                if (chunk.DeltaToolCall != null)
+                    AccumulateToolCall(pendingToolCalls, chunk.DeltaToolCall);
+                if (chunk.Usage != null)
+                    usage = chunk.Usage;
             }
 
-            var jsonContent = JsonSerializer.Serialize(request);
-            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+            var assistantContent = contentBuilder.ToString();
 
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, AiConfig.ApiEndpoint);
-            httpRequest.Content = content;
-            httpRequest.Headers.Add("Authorization", $"Bearer {AiConfig.ApiKey}");
+            // 无工具调用 → 最终回答，结束。
+            if (pendingToolCalls.Count == 0)
+            {
+                messages.Add(new AIChatMessage { Role = "assistant", Content = assistantContent });
+                yield return new AgentLoopEvent { Type = "done", Content = assistantContent, Usage = usage };
+                yield break;
+            }
 
-            XTrace.Log.Info("[AIAgentPlugin] 发送AI请求到: {0}", AiConfig.ApiEndpoint);
-            XTrace.Log.Debug("[AIAgentPlugin] 请求模型: {0}", AiConfig.ModelName);
+            // 有工具调用 → 记录 assistant 消息（含 toolCalls），逐个执行后继续。
+            messages.Add(new AIChatMessage
+            {
+                Role = "assistant",
+                Content = assistantContent,
+                ToolCalls = pendingToolCalls.Select(tc => new AIToolCall
+                {
+                    Id = tc.Id,
+                    Function = new AIFunctionCall { Name = tc.Name, Arguments = tc.Arguments }
+                }).ToList()
+            });
 
+            foreach (var toolCall in pendingToolCalls)
+            {
+                yield return new AgentLoopEvent { Type = "tool_call", Name = toolCall.Name, Arguments = toolCall.Arguments };
+
+                ToolExecutionResult toolResult;
+                try
+                {
+                    toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(toolCall.Name, toolCall.Arguments, 30, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Error("[AIAgentPlugin] 工具 {0} 执行异常: {1}", toolCall.Name, ex.Message);
+                    toolResult = new ToolExecutionResult { Success = false, Result = string.Empty, ErrorMessage = ex.Message };
+                }
+
+                yield return new AgentLoopEvent { Type = "tool_result", Name = toolCall.Name, Result = toolResult.Result, Success = toolResult.Success };
+
+                messages.Add(new AIChatMessage
+                {
+                    Role = "tool",
+                    Content = toolResult.Result,
+                    ToolCallId = toolCall.Id,
+                    Name = toolCall.Name
+                });
+            }
+        }
+
+        // 达到最大迭代次数，兜底结束。
+        XTrace.Log.Warn("[AIAgentPlugin] 达到最大工具调用迭代次数，强制结束");
+        yield return new AgentLoopEvent { Type = "done", Content = string.Empty, Usage = null };
+    }
+
+    /// <summary>按 chatModelId 解析上游 provider；未命中回退默认 provider。</summary>
+    private IAIProvider? ResolveProvider(string? chatModelId)
+    {
+        var registry = ProviderRegistry;
+        if (registry == null) return null;
+
+        if (!string.IsNullOrWhiteSpace(chatModelId))
+        {
+            var byId = registry.GetProviderByChatModelId(chatModelId);
+            if (byId != null) return byId;
+        }
+        return registry.GetDefaultProvider();
+    }
+
+    /// <summary>
+    /// Agent 工具范围：本插件自己的工具 + 记忆系统（memory-system）的 5 个记忆工具。
+    /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。
+    /// 记忆工具经 L1 契约（IMemoryService）由 MemorySystem 提供，Agent 可检索注入、也可主动 add_memory。
+    /// </summary>
+    private List<AIToolDefinition> ResolveOwnToolDefinitions()
+    {
+        var pluginId = _ctx.Get<PluginMetadata>()?.Id ?? string.Empty;
+        var allowedPlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            pluginId,        // 本插件自带工具（时间/计算/文件/工作流）
+            "memory-system"  // 记忆检索/保存/管理
+        };
+        var result = new List<AIToolDefinition>();
+        foreach (var tool in ToolRegistry.GetAllTools())
+        {
+            if (!allowedPlugins.Contains(tool.PluginId)) continue;
+            object? parameters;
             try
             {
-                var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                response.EnsureSuccessStatusCode();
-
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                var aiResponse = JsonSerializer.Deserialize<AIChatResponse>(responseContent, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (aiResponse?.Choices?.Count == 0)
-                {
-                    XTrace.Log.Warn("[AIAgentPlugin] AI响应为空，结束对话");
-                    break;
-                }
-
-                var choice = aiResponse!.Choices[0];
-                var message = choice.Message;
-
-                if (message == null)
-                {
-                    XTrace.Log.Warn("[AIAgentPlugin] AI响应消息为空，结束对话");
-                    break;
-                }
-
-                XTrace.Log.Info("[AIAgentPlugin] AI回复角色: {0}", message.Role);
-                XTrace.Log.Debug("[AIAgentPlugin] AI回复内容: {0}", message.Content);
-
-                allMessages.Add(new AIChatMessage
-                {
-                    Role = message.Role,
-                    Content = message.Content ?? string.Empty,
-                    ToolCalls = message.ToolCalls
-                });
-
-                if (message.ToolCalls == null || message.ToolCalls.Count == 0)
-                {
-                    XTrace.Log.Info("[AIAgentPlugin] AI未请求工具调用，对话结束");
-                    break;
-                }
-
-                totalToolCalls += message.ToolCalls.Count;
-                XTrace.Log.Info("[AIAgentPlugin] AI请求调用 {0} 个工具", message.ToolCalls.Count);
-
-                foreach (var toolCall in message.ToolCalls)
-                {
-                    var toolName = toolCall.Function.Name;
-                    var toolArgs = toolCall.Function.Arguments;
-
-                    XTrace.Log.Info("[AIAgentPlugin] >>> 调用工具: {0}", toolName);
-                    XTrace.Log.Debug("[AIAgentPlugin]     工具ID: {0}", toolCall.Id);
-                    XTrace.Log.Debug("[AIAgentPlugin]     工具参数: {0}", toolArgs);
-
-                    var toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(toolName, toolArgs, 30, cancellationToken);
-
-                    XTrace.Log.Info("[AIAgentPlugin] <<< 工具执行结果: {0} (耗时: {1}ms)",
-                        toolResult.Success ? "成功" : "失败",
-                        toolResult.DurationMs);
-
-                    if (!toolResult.Success)
-                    {
-                        XTrace.Log.Warn("[AIAgentPlugin]     错误信息: {0}", toolResult.ErrorMessage);
-                    }
-
-                    allMessages.Add(new AIChatMessage
-                    {
-                        Role = "tool",
-                        Content = toolResult.Result,
-                        ToolCallId = toolCall.Id,
-                        Name = toolName
-                    });
-                }
-
-                if (choice.FinishReason == "stop" || choice.FinishReason == "length")
-                {
-                    XTrace.Log.Info("[AIAgentPlugin] AI完成原因: {0}，结束对话", choice.FinishReason);
-                    break;
-                }
+                parameters = JsonDocument.Parse(tool.ParametersJsonSchema).RootElement.Clone();
             }
             catch (Exception ex)
             {
-                XTrace.Log.Error("[AIAgentPlugin] AI请求异常: {0}", ex.Message);
-                XTrace.Log.Debug("[AIAgentPlugin] 异常堆栈: {0}", ex.StackTrace);
-                throw;
+                XTrace.Log.Warn("[AIAgentPlugin] 工具 {0} schema 解析失败，已跳过: {1}", tool.Name, ex.Message);
+                continue;
             }
+            result.Add(new AIToolDefinition
+            {
+                Function = new AIFunctionDefinition
+                {
+                    Name = tool.Name,
+                    Description = tool.Description,
+                    Parameters = parameters
+                }
+            });
         }
+        return result;
+    }
 
-        if (currentIteration >= maxIterations)
+    /// <summary>chatModelId（形如 provider:upstreamModelId）剥前缀取上游模型 id；空则退回宿主默认配置模型。</summary>
+    private string ResolveModelId(string? chatModelId)
+    {
+        if (!string.IsNullOrWhiteSpace(chatModelId))
         {
-            XTrace.Log.Warn("[AIAgentPlugin] 达到最大工具调用迭代次数: {0}，强制结束", maxIterations);
+            var idx = chatModelId.IndexOf(':');
+            return idx > 0 ? chatModelId[(idx + 1)..] : chatModelId;
         }
+        return AiConfig.ModelName;
+    }
 
-        XTrace.Log.Info("[AIAgentPlugin] 对话结束，总消息数: {0}", allMessages.Count);
-        XTrace.Log.Info("[AIAgentPlugin] 总迭代次数: {0}", currentIteration);
-        XTrace.Log.Info("[AIAgentPlugin] 总工具调用次数: {0}", totalToolCalls);
-        XTrace.Log.Info("[AIAgentPlugin] ========================================");
+    /// <summary>取选中 Agent 的 SystemPrompt；未选/未命中返回 null（不注入）。</summary>
+    private string? ResolveSystemPrompt(string? agentId)
+    {
+        if (string.IsNullOrWhiteSpace(agentId) || _agentRegistry == null) return null;
+        var prompt = _agentRegistry.GetAgent(agentId)?.SystemPrompt;
+        return string.IsNullOrWhiteSpace(prompt) ? null : prompt;
+    }
 
-        return allMessages;
+    /// <summary>Abstractions 消息 → 统一请求消息（含工具调用字段）。</summary>
+    private static UnifiedChatMessage ToUnifiedMessage(AIChatMessage m)
+    {
+        return new UnifiedChatMessage
+        {
+            Role = m.Role,
+            Content = m.Content,
+            Name = m.Name,
+            ToolCallId = m.ToolCallId,
+            ToolCalls = m.ToolCalls?.Select(tc => new UnifiedToolCall
+            {
+                Id = tc.Id,
+                Name = tc.Function.Name,
+                Arguments = tc.Function.Arguments
+            }).ToList()
+        };
+    }
+
+    /// <summary>累积流式工具调用增量：首块带 Id 视为新调用，后续块向末位追加参数。</summary>
+    private static void AccumulateToolCall(List<UnifiedToolCall> pending, UnifiedToolCall delta)
+    {
+        if (!string.IsNullOrEmpty(delta.Id))
+        {
+            pending.Add(new UnifiedToolCall { Id = delta.Id, Name = delta.Name, Arguments = delta.Arguments });
+            return;
+        }
+        if (pending.Count == 0) return;
+        var last = pending[^1];
+        if (!string.IsNullOrEmpty(delta.Name)) last.Name += delta.Name;
+        last.Arguments += delta.Arguments;
     }
 
     public async Task<List<WorkflowRecommendationDto>> GetRecommendedWorkflowsAsync(string userMessage, int limit = 5)

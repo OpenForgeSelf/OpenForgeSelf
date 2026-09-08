@@ -6,7 +6,6 @@ using System.Text.Json.Serialization;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;

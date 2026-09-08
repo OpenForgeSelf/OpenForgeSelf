@@ -17,6 +17,12 @@ public class ChatRequest
     public string SessionId { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public bool Stream { get; set; } = true;
+
+    /// <summary>聊天模型 id（形如 provider:upstreamModelId）；空则回退默认 provider（向后兼容）。</summary>
+    public string? ChatModelId { get; set; }
+
+    /// <summary>选中 Agent id；命中则注入其 SystemPrompt，空则不注入（向后兼容）。</summary>
+    public string? AgentId { get; set; }
 }
 
 public class ChatResponse
@@ -26,6 +32,12 @@ public class ChatResponse
     public string Role { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public DateTime CreateTime { get; set; }
+
+    /// <summary>本次回复触发的工具调用（非流式返回时携带；流式经 SSE 事件下发）。</summary>
+    public List<string>? ToolCalls { get; set; }
+
+    /// <summary>本次回复的 token 用量（上游返回时携带）。</summary>
+    public UnifiedUsage? Usage { get; set; }
 }
 
 public class AIChatRequest

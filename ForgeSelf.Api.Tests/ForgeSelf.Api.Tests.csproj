@@ -49,6 +49,8 @@
     <ProjectReference Include="..\ForgeSelf.Api\Plugins\AIAgent\AIAgent.csproj" />
     <!-- 抓包代理插件（ProxyCapture，单测直接引用其 Core 类型） -->
     <ProjectReference Include="..\ForgeSelf.Api\Plugins\ProxyCapture\ProxyCapture.csproj" />
+    <!-- sems 插件（spec028 运行管理 RunnerService / 进程归属判定纯函数） -->
+    <ProjectReference Include="..\ForgeSelf.Api\Plugins\Sems\Sems.csproj" />
   </ItemGroup>
 
   <ItemGroup>

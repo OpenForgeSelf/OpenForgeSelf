@@ -40,7 +40,14 @@ if (trayArgIndex >= 0)
 // 此时 new Mutex 返回 createdNew=false 但并无存活实例真实持有它，直接报错会导致应用无法重启。
 // 处理：Mutex 已存在时用 WaitOne(0) 探测——被其它存活进程真实持有则拒绝启动；
 // 持有者已消亡（废弃态）会抛 AbandonedMutexException，此时本线程已接管所有权，视为可启动。
-const string mutexName = @"Global\ForgeSelf-{B1C2D3E4-F5G6-7890-ABCD-EF1234567890}";
+// 实例标识（env FORGESelf_INSTANCE_ID 或 --instance-id=<id>）可让同一台机器并存多个独立实例
+// （如 e2e 测试宿主与开发宿主各自持有独立 Mutex，互不阻塞）；缺省保持原 Mutex 名以兼容既有行为。
+var instanceId = Environment.GetEnvironmentVariable("FORGESelf_INSTANCE_ID");
+var instArg = Array.Find(args, a => a.StartsWith("--instance-id=", StringComparison.OrdinalIgnoreCase));
+if (instArg != null) instanceId = instArg["--instance-id=".Length..];
+var mutexName = instanceId == null
+    ? @"Global\ForgeSelf-{B1C2D3E4-F5G6-7890-ABCD-EF1234567890}"
+    : $@"Global\ForgeSelf-{{B1C2D3E4-F5G6-7890-ABCD-EF1234567890}}-{instanceId}";
 using var mutex = new Mutex(true, mutexName, out var createdNew);
 if (!createdNew)
 {

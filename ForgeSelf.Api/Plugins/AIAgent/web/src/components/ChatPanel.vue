@@ -71,16 +71,41 @@
               <span class="chat__avatar-dot"></span>
             </div>
             <div class="chat__bubble-wrap">
-              <!-- 工具调用徽标（后端返回时展示） -->
-              <div v-if="msg.toolCalls?.length" class="chat__tools">
-                <span v-for="t in msg.toolCalls" :key="t" class="chat__tool">
-                  <svg class="chat__tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 17l6-6-6-6M12 19h8" />
-                  </svg>
-                  {{ t }}
-                </span>
-              </div>
-              <div class="chat__bubble chat__bubble--ai">{{ msg.content }}</div>
+              <!-- 空占位（流式等待首个 token/工具事件）：显示打字指示 -->
+              <div
+                v-if="!msg.content && !(msg.toolEvents && msg.toolEvents.length)"
+                class="chat__bubble chat__bubble--ai chat__bubble--typing"
+              >…</div>
+              <template v-else>
+                <!-- 工具调用卡片（流式实时收集，可折叠；执行中默认展开） -->
+                <div v-if="msg.toolEvents && msg.toolEvents.length" class="chat__tools">
+                  <details
+                    v-for="(t, ti) in msg.toolEvents"
+                    :key="ti"
+                    class="chat__tool-card"
+                    :open="t.pending === true"
+                  >
+                    <summary class="chat__tool-summary">
+                      <svg class="chat__tool-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 17l6-6-6-6M12 19h8" />
+                      </svg>
+                      <span class="chat__tool-name">{{ t.name }}</span>
+                      <span class="chat__tool-status" :class="toolStatusClass(t)">{{ toolStatusText(t) }}</span>
+                    </summary>
+                    <div class="chat__tool-body">
+                      <pre v-if="t.args" class="chat__tool-pre"><span class="chat__tool-label">参数</span>{{ t.args }}</pre>
+                      <pre v-if="t.result" class="chat__tool-pre"><span class="chat__tool-label">结果</span>{{ t.result }}</pre>
+                    </div>
+                  </details>
+                </div>
+                <!-- 模型输出带 Markdown/LaTeX，渲染后展示。v-html 安全性由 renderMarkdown 保证：
+                     先 HTML 转义、再套固定模板标签，链接仅放行 http/https/mailto（见 markdown.ts）。 -->
+                <div
+                  v-if="msg.content"
+                  class="chat__bubble chat__bubble--ai md"
+                  v-html="renderMarkdown(msg.content)"
+                ></div>
+              </template>
             </div>
           </template>
 
@@ -94,16 +119,6 @@
               </svg>
             </div>
           </template>
-        </div>
-
-        <!-- 发送中占位 -->
-        <div v-if="sending" class="chat__msg">
-          <div class="chat__avatar chat__avatar--ai">
-            <span class="chat__avatar-dot"></span>
-          </div>
-          <div class="chat__bubble-wrap">
-            <div class="chat__bubble chat__bubble--ai chat__bubble--typing">…</div>
-          </div>
         </div>
       </div>
     </div>
@@ -146,7 +161,8 @@
  * 这样右栏才能拿到真实的消息数做统计（避免两处状态不一致）。
  */
 import { computed, nextTick, ref, watch } from 'vue'
-import type { AIModel, ChatMessage } from '../types'
+import { renderMarkdown } from '../markdown'
+import type { AIModel, ChatMessage, ToolEvent } from '../types'
 
 const props = defineProps<{
   /** 消息列表（由父组件持有）。 */
@@ -187,6 +203,18 @@ function modelLabel(m: AIModel): string {
   return m.alias || m.upstreamModelId || m.chatModelId || '未命名模型'
 }
 
+/** 工具事件状态文案。 */
+function toolStatusText(t: ToolEvent): string {
+  if (t.pending) return '执行中'
+  return t.success === false ? '失败' : '成功'
+}
+
+/** 工具事件状态样式类。 */
+function toolStatusClass(t: ToolEvent): string {
+  if (t.pending) return 'chat__tool-status--pending'
+  return t.success === false ? 'chat__tool-status--fail' : 'chat__tool-status--ok'
+}
+
 function onModelChange(e: Event) {
   emit('update:selectedModelId', (e.target as HTMLSelectElement).value)
 }
@@ -199,9 +227,14 @@ function submit() {
   draft.value = ''
 }
 
-/** 消息变化后自动滚动到底部。 */
+/** 消息变化后自动滚动到底部。除消息数/发送态外，还跟踪最后一条消息的内容长度——
+ *  流式逐字期间长度持续增长，驱动滚动跟随（否则长回复流式中会停在首屏）。 */
 watch(
-  () => [props.messages.length, props.sending],
+  () => [
+    props.messages.length,
+    props.sending,
+    props.messages[props.messages.length - 1]?.content.length ?? 0,
+  ],
   async () => {
     await nextTick()
     if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight
@@ -420,29 +453,93 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   color: var(--el-text-color-secondary, #a3a6ad);
 }
 
-/* 工具调用徽标 */
+/* 工具调用卡片（可折叠） */
 .chat__tools {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
 }
 
-.chat__tool {
-  display: inline-flex;
+.chat__tool-card {
+  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-fill-color, #262727);
+  overflow: hidden;
+}
+
+.chat__tool-summary {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
-  font-weight: var(--el-weight-medium, 500);
   color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  border-radius: 999px;
+  user-select: none;
+}
+
+.chat__tool-summary::-webkit-details-marker {
+  display: none;
 }
 
 .chat__tool-icon {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.chat__tool-name {
+  font-weight: var(--el-weight-medium, 500);
+}
+
+.chat__tool-status {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.chat__tool-status--pending {
+  color: var(--el-color-warning, #e6a23c);
+  background: rgba(230, 162, 60, 0.12);
+}
+
+.chat__tool-status--ok {
+  color: var(--el-color-success, #67c23a);
+  background: rgba(103, 194, 58, 0.12);
+}
+
+.chat__tool-status--fail {
+  color: var(--el-color-danger, #f56c6c);
+  background: rgba(245, 108, 108, 0.12);
+}
+
+.chat__tool-body {
+  padding: 8px 10px;
+  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+}
+
+.chat__tool-pre {
+  margin: 0 0 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: var(--el-font-size-extra-small, 12px);
+  font-family: var(--el-font-family-mono, monospace);
+  color: var(--el-text-color-secondary, #a3a6ad);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat__tool-pre:last-child {
+  margin-bottom: 0;
+}
+
+.chat__tool-label {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: var(--el-weight-medium, 500);
+  color: var(--el-color-primary, #ffb84d);
 }
 
 /* ---- 错误提示 ---- */
@@ -513,5 +610,80 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .chat__send:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ---- Markdown 渲染（见 markdown.ts）---- */
+/* 容器内首/末元素去掉多余外边距，气泡内排版更紧凑。 */
+.md > :first-child {
+  margin-top: 0;
+}
+
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+.md-p {
+  margin: 0 0 6px;
+}
+
+.md-h {
+  margin: 8px 0 4px;
+  font-size: var(--el-font-size-small, 13px);
+  font-weight: var(--el-weight-semibold, 600);
+  color: var(--el-text-color-primary, #e5eaf3);
+}
+
+.md-list {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+
+.md-list li {
+  margin: 2px 0;
+}
+
+.md-quote {
+  margin: 4px 0;
+  padding: 2px 8px;
+  border-left: 3px solid var(--el-color-primary, #ffb84d);
+  color: var(--el-text-color-secondary, #a3a6ad);
+}
+
+.md-code {
+  padding: 1px 4px;
+  font-family: var(--el-font-family-mono, monospace);
+  font-size: 0.95em;
+  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-fill-color, #262727);
+  border-radius: 3px;
+}
+
+.md-pre {
+  margin: 6px 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  max-height: 260px;
+  background: var(--el-fill-color, #262727);
+  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-radius: 4px;
+}
+
+.md-pre code {
+  font-family: var(--el-font-family-mono, monospace);
+  font-size: var(--el-font-size-extra-small, 12px);
+  line-height: 1.5;
+  color: var(--el-text-color-regular, #cfd3dc);
+  white-space: pre;
+}
+
+.md-hr {
+  margin: 8px 0;
+  border: none;
+  border-top: 1px solid var(--el-border-color, #414243);
+}
+
+.md-link {
+  color: var(--el-color-primary, #ffb84d);
+  text-decoration: underline;
 }
 </style>

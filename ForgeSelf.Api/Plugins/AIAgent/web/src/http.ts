@@ -54,6 +54,119 @@ export async function apiDelete<T>(path: string): Promise<T | undefined> {
   return request<T>(path, { method: 'DELETE' })
 }
 
+/** Agent 流式聊天请求体（对应后端 ChatRequest）。 */
+export interface AgentChatPayload {
+  sessionId: string
+  message: string
+  chatModelId?: string
+  agentId?: string
+}
+
+/** Agent 流式聊天的事件回调（对应后端结构化 SSE 事件）。 */
+export interface AgentStreamHandlers {
+  /** 增量 token。 */
+  onContent?: (content: string) => void
+  /** 一次工具调用开始。 */
+  onToolCall?: (e: { name?: string; arguments?: string }) => void
+  /** 一次工具调用结果。 */
+  onToolResult?: (e: { name?: string; result?: string; success?: boolean }) => void
+  /** token 用量。 */
+  onUsage?: (usage: AgentUsage | undefined) => void
+  /** 完成。 */
+  onDone?: (e: { sessionId?: string; responseId?: number; usage?: AgentUsage }) => void
+  /** 错误。 */
+  onError?: (message: string) => void
+}
+
+/** token 用量（对应后端 UnifiedUsage，camelCase 序列化）。 */
+export interface AgentUsage {
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+}
+
+/**
+ * 调插件自带的 Agent 流式聊天接口（POST /api/ai-agent/chat/stream），
+ * 按 SSE 逐事件回调（content / tool_call / tool_result / usage / done / error）。
+ *
+ * 为什么不复用 request()：流式接口返回 text/event-stream，不是单个 JSON，
+ * 需要 ReadableStream 边读边解析，不能用「读完整 body 再 JSON.parse」的封装。
+ */
+export async function streamAgentChat(payload: AgentChatPayload, handlers: AgentStreamHandlers): Promise<void> {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const res = await fetch('/api/ai-agent/chat/stream', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const body = (await res.json()) as { message?: string; title?: string }
+      detail = body?.message ?? body?.title ?? ''
+    } catch {
+      // 非 JSON 响应，仅用状态码兜底
+    }
+    throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
+  }
+  if (!res.body) throw new Error('响应无内容流')
+
+  const dispatch = (dataStr: string) => {
+    let obj: Record<string, unknown>
+    try {
+      obj = JSON.parse(dataStr) as Record<string, unknown>
+    } catch {
+      return
+    }
+    const type = obj.type as string | undefined
+    switch (type) {
+      case 'content':
+        handlers.onContent?.((obj.content as string) ?? '')
+        break
+      case 'tool_call':
+        handlers.onToolCall?.({ name: obj.name as string, arguments: obj.arguments as string })
+        break
+      case 'tool_result':
+        handlers.onToolResult?.({ name: obj.name as string, result: obj.result as string, success: obj.success as boolean })
+        break
+      case 'usage':
+        handlers.onUsage?.(obj.usage as AgentUsage | undefined)
+        break
+      case 'done':
+        handlers.onDone?.({ sessionId: obj.sessionId as string, responseId: obj.responseId as number, usage: obj.usage as AgentUsage })
+        break
+      case 'error':
+        handlers.onError?.((obj.content as string) ?? '未知错误')
+        break
+    }
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    // SSE 事件以空行（\n\n）分隔；逐行取 data: 前缀。
+    let idx: number
+    while ((idx = buffer.indexOf('\n\n')) >= 0) {
+      const rawEvent = buffer.slice(0, idx)
+      buffer = buffer.slice(idx + 2)
+      for (const line of rawEvent.split('\n')) {
+        if (line.startsWith('data: ')) dispatch(line.slice(6))
+      }
+    }
+  }
+  // 尾部残余（最后一个无空行结尾的事件）。
+  const tail = buffer.trim()
+  if (tail.startsWith('data: ')) dispatch(tail.slice(6))
+}
+
 /**
  * 构建带查询参数的 URL。路径中需编码的片段与所有查询值统一 encodeURIComponent。
  *

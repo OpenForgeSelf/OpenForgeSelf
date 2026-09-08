@@ -1,4 +1,4 @@
-namespace ForgeSelf.Api.Services.AI.Models;
+namespace ForgeSelf.Abstractions;
 
 public class UnifiedChatMessage
 {

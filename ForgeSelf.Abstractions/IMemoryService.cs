@@ -1,8 +1,11 @@
-using ForgeSelf.Api.Plugins.MemorySystem.Data;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
+namespace ForgeSelf.Abstractions;
 
-namespace ForgeSelf.Api.Plugins.MemorySystem.Services;
-
+/// <summary>
+/// 长期记忆服务契约（实现：ForgeSelf.Api.Plugins.MemorySystem.Services.MemoryServiceXCode）。
+/// 由 MemorySystem 插件在 <c>Apply</c> 中 eager 构造并 <c>ctx.Register&lt;IMemoryService&gt;(instance)</c>
+/// 写入共享服务表；兄弟插件（如 AIAgent）经 <c>ctx.Get&lt;IMemoryService&gt;()</c> 消费，
+/// 契约与 DTO 均在 Abstractions，避免插件直接依赖 MemorySystem 程序集。
+/// </summary>
 public interface IMemoryService
 {
     Task<MemorySearchResult> SearchAsync(SearchMemoryRequest request);

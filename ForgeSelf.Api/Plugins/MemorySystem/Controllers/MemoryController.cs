@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.MemorySystem.Services;
 using NewLife.Log;
 
@@ -228,7 +228,7 @@ public class MemoryController : ControllerBase
     {
         try
         {
-            Data.MemoryType? typeEnum = type.HasValue ? (Data.MemoryType)type.Value : null;
+            MemoryType? typeEnum = type.HasValue ? (MemoryType)type.Value : null;
             var memories = await _memoryService.ExportMemoriesAsync(categoryId, typeEnum);
             return Ok(memories);
         }

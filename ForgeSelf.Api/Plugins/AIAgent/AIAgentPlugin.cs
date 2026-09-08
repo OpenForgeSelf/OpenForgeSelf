@@ -60,10 +60,14 @@ public class AIAgentPlugin : IPlugin
         MenuExtensions.Add(new AIAgentMenuExtension
         {
             Id = "aiagent.menu.main",
-            Name = "AI聊天",
+            // 与 plugin.json frontend 契约对齐（route=/ai-agent、menu="AI Agent"）。
+            // 注意：侧边栏 IMenuExtension 经 registerPluginRoutes 挂到 /plugin/<path> → PluginPage.vue 占位，
+            // 真实界面在 manifest 直路径 /ai-agent（dynamicPlugins 远程加载）。「侧边栏 → PluginPage 占位」
+            // 是跨插件预存架构问题（QuickLinks 同构），不在本次接通范围内，见 TODO/工作日记。
+            Name = "AI Agent",
             PluginId = pluginId,
             Icon = "fa-solid fa-robot",
-            Path = "/ai-chat",
+            Path = "/ai-agent",
             Order = 10,
             ParentId = null
         });

@@ -1,9 +1,9 @@
-using System.Runtime.CompilerServices;
-using ForgeSelf.Abstractions;
-using ForgeSelf.Api.Services.AI.Models;
+namespace ForgeSelf.Abstractions;
 
-namespace ForgeSelf.Api.Services.AI;
-
+/// <summary>
+/// AI 提供方契约。实现位于宿主（如 OpenAICompatibleProvider），经 <see cref="IAIProviderRegistry"/>
+/// 按 chatModelId 解析；插件经 ctx.Get&lt;IAIProviderRegistry&gt;() 消费，不直接依赖宿主程序集。
+/// </summary>
 public interface IAIProvider
 {
     string ProviderName { get; }

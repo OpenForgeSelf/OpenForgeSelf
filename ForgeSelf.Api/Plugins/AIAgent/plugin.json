@@ -1,9 +1,9 @@
 {
   "Id": "ai-agent",
   "Name": "AI代理插件",
-  "Version": "1.4.3",
+  "Version": "1.5.4",
   "Author": "ForgeSelf Team",
-  "Description": "AI聊天代理插件，支持对话、流式响应和工具函数调用，并自带界面（web/dist）。",
+  "Description": "AI Agent 工作助手：前端接通插件自带聊天后端，流式逐字输出 + 工具调用可见 + Agent 人格/模型按请求路由，自带界面（web/dist）。",
   "IconUrl": "https://example.com/ai-agent-icon.png",
   "EntryAssembly": "AIAgent.dll",
   "EntryType": "ForgeSelf.Api.Plugins.AIAgent.AIAgentPlugin",

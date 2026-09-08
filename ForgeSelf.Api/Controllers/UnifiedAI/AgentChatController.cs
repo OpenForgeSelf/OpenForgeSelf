@@ -12,7 +12,6 @@ using Microsoft.Extensions.AI;
 using OpenAI;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using ForgeSelf.Api.Services.AI.Providers;
 using NewLife.Log;
 

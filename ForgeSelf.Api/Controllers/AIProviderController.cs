@@ -8,7 +8,6 @@ using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 
 namespace ForgeSelf.Api.Controllers;
 

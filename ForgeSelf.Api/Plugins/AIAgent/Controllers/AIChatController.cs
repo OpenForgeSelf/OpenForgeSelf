@@ -2,6 +2,7 @@ using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
+using ForgeSelf.Core;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -19,13 +20,22 @@ public class AIChatController : ControllerBase
 {
     private readonly IAIAgentService _aiAgentService;
     private readonly IPluginMessageService _messageService;
-    private readonly IToolRegistry _toolRegistry;
+    private readonly IContext _ctx;
 
-    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, IToolRegistry toolRegistry)
+    /// <summary>SSE 事件序列化选项：camelCase（对齐前端事件/usage 字段）。</summary>
+    private static readonly JsonSerializerOptions SseJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    // 注意：IToolRegistry 是宿主契约，插件子容器只含插件自身服务 + IContext，
+    // 构造注入宿主契约会导致控制器激活 500（e2e 实测）。故注入 IContext，
+    // 在 /tools 端点内运行期经 ctx.Get<IToolRegistry>() 获取。
+    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, IContext ctx)
     {
         _aiAgentService = aiAgentService;
         _messageService = messageService;
-        _toolRegistry = toolRegistry;
+        _ctx = ctx;
     }
 
     /// <summary>
@@ -51,7 +61,8 @@ public class AIChatController : ControllerBase
                 ? Guid.NewGuid().ToString("N")
                 : request.SessionId;
 
-            XTrace.Log.Info("[AIAgentPlugin] 收到聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, request.Message.Length);
+            XTrace.Log.Info("[AIAgentPlugin] 收到聊天请求，SessionId: {0}, 消息长度: {1}, 模型: {2}, Agent: {3}",
+                sessionId, request.Message.Length, request.ChatModelId ?? "(默认)", request.AgentId ?? "(默认)");
 
             await _messageService.SaveMessageAsync(sessionId, "user", request.Message);
 
@@ -63,17 +74,47 @@ public class AIChatController : ControllerBase
                 Content = m.Content
             }).ToList();
 
-            var aiResponse = await _aiAgentService.ChatAsync(aiMessages, true);
+            var finalContent = string.Empty;
+            var toolCalls = new List<string>();
+            UnifiedUsage? usage = null;
+            string? error = null;
 
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", aiResponse);
+            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, true, cancellationToken))
+            {
+                switch (ev.Type)
+                {
+                    case "tool_call":
+                        if (!string.IsNullOrEmpty(ev.Name)) toolCalls.Add(ev.Name);
+                        break;
+                    case "usage":
+                        usage = ev.Usage ?? usage;
+                        break;
+                    case "done":
+                        finalContent = ev.Content ?? string.Empty;
+                        usage = ev.Usage ?? usage;
+                        break;
+                    case "error":
+                        error = ev.Content;
+                        break;
+                }
+            }
+
+            if (error != null)
+            {
+                return StatusCode(500, new { error = "处理请求时发生错误", details = error });
+            }
+
+            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", finalContent);
 
             var response = new ChatResponse
             {
                 Id = responseId,
                 SessionId = sessionId,
                 Role = "assistant",
-                Content = aiResponse,
-                CreateTime = DateTime.Now
+                Content = finalContent,
+                CreateTime = DateTime.Now,
+                ToolCalls = toolCalls.Count > 0 ? toolCalls : null,
+                Usage = usage
             };
 
             return Ok(response);
@@ -97,20 +138,33 @@ public class AIChatController : ControllerBase
     [HttpPost("stream")]
     public async Task SendMessageStream([FromBody] ChatRequest request, CancellationToken cancellationToken)
     {
+        var sessionId = string.IsNullOrWhiteSpace(request.SessionId)
+            ? Guid.NewGuid().ToString("N")
+            : request.SessionId;
+
+        Response.ContentType = "text/event-stream";
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.Connection = "keep-alive";
+
+        // SSE 事件统一 camelCase（与前端 AgentUsage/事件字段 camelCase 对齐；
+        // 默认序列化会把嵌套 UnifiedUsage 输出为 PascalCase 导致前端 token 解析为 0）。
+        async Task WriteEventAsync(object payload)
+        {
+            var sseData = JsonSerializer.Serialize(payload, SseJsonOptions);
+            await Response.WriteAsync($"data: {sseData}\n\n", cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
+
         try
         {
             if (string.IsNullOrWhiteSpace(request.Message))
             {
-                Response.StatusCode = 400;
-                await Response.WriteAsync(JsonSerializer.Serialize(new { error = "消息不能为空" }));
+                await WriteEventAsync(new { type = "error", content = "消息不能为空", sessionId });
                 return;
             }
 
-            var sessionId = string.IsNullOrWhiteSpace(request.SessionId)
-                ? Guid.NewGuid().ToString("N")
-                : request.SessionId;
-
-            XTrace.Log.Info("[AIAgentPlugin] 收到流式聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, request.Message.Length);
+            XTrace.Log.Info("[AIAgentPlugin] 收到流式聊天请求，SessionId: {0}, 消息长度: {1}, 模型: {2}, Agent: {3}",
+                sessionId, request.Message.Length, request.ChatModelId ?? "(默认)", request.AgentId ?? "(默认)");
 
             await _messageService.SaveMessageAsync(sessionId, "user", request.Message);
 
@@ -122,26 +176,34 @@ public class AIChatController : ControllerBase
                 Content = m.Content
             }).ToList();
 
-            Response.ContentType = "text/event-stream";
-            Response.Headers.CacheControl = "no-cache";
-            Response.Headers.Connection = "keep-alive";
-
             var fullResponse = new System.Text.StringBuilder();
 
-            await foreach (var chunk in _aiAgentService.ChatStreamAsync(aiMessages, true, cancellationToken))
+            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, true, cancellationToken))
             {
-                fullResponse.Append(chunk);
-
-                var sseData = JsonSerializer.Serialize(new { content = chunk, sessionId });
-                await Response.WriteAsync($"data: {sseData}\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                switch (ev.Type)
+                {
+                    case "content":
+                        fullResponse.Append(ev.Content);
+                        await WriteEventAsync(new { type = "content", content = ev.Content, sessionId });
+                        break;
+                    case "tool_call":
+                        await WriteEventAsync(new { type = "tool_call", name = ev.Name, arguments = ev.Arguments, sessionId });
+                        break;
+                    case "tool_result":
+                        await WriteEventAsync(new { type = "tool_result", name = ev.Name, result = ev.Result, success = ev.Success, sessionId });
+                        break;
+                    case "usage":
+                        await WriteEventAsync(new { type = "usage", usage = ev.Usage, sessionId });
+                        break;
+                    case "done":
+                        var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString());
+                        await WriteEventAsync(new { type = "done", sessionId, responseId, usage = ev.Usage });
+                        break;
+                    case "error":
+                        await WriteEventAsync(new { type = "error", content = ev.Content, sessionId });
+                        break;
+                }
             }
-
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString());
-
-            var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId });
-            await Response.WriteAsync($"data: {completeData}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
 
             XTrace.Log.Info("[AIAgentPlugin] 流式聊天完成，SessionId: {0}, 响应长度: {1}", sessionId, fullResponse.Length);
         }
@@ -152,8 +214,14 @@ public class AIChatController : ControllerBase
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] 处理流式聊天请求失败: {0}", ex.Message);
-            Response.StatusCode = 500;
-            await Response.WriteAsync(JsonSerializer.Serialize(new { error = "处理请求时发生错误", details = ex.Message }));
+            try
+            {
+                await WriteEventAsync(new { type = "error", content = ex.Message, sessionId });
+            }
+            catch
+            {
+                // 响应可能已断开，忽略二次写入失败
+            }
         }
     }
 
@@ -240,7 +308,13 @@ public class AIChatController : ControllerBase
     {
         try
         {
-            var toolList = _toolRegistry.GetAllTools();
+            var toolRegistry = _ctx.Get<IToolRegistry>();
+            if (toolRegistry == null)
+            {
+                return StatusCode(500, new { error = "宿主未提供 IToolRegistry 契约" });
+            }
+
+            var toolList = toolRegistry.GetAllTools();
 
             var result = toolList.Select(t => new
             {
@@ -256,6 +330,57 @@ public class AIChatController : ControllerBase
         {
             XTrace.Log.Error("[AIAgentPlugin] 获取可用工具失败: {0}", ex.Message);
             return StatusCode(500, new { error = "获取可用工具时发生错误", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 获取长期记忆列表，供 AI Agent 面板的「记忆」分组展示。
+    /// 记忆服务经 L1 契约 IMemoryService 由 MemorySystem 插件提供（ctx.Get）。
+    /// </summary>
+    /// <response code="200">返回记忆列表</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("memories")]
+    public async Task<ActionResult> GetMemories([FromQuery] string? q = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var memoryService = _ctx.Get<IMemoryService>();
+            if (memoryService == null)
+            {
+                return StatusCode(500, new { error = "宿主未提供 IMemoryService 契约" });
+            }
+
+            var result = await memoryService.SearchAsync(new SearchMemoryRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(q) ? null : q,
+                Page = page,
+                PageSize = pageSize
+            });
+
+            return Ok(new
+            {
+                success = true,
+                items = result.Items.Select(m => new
+                {
+                    id = m.Id,
+                    title = m.Title,
+                    content = m.Content,
+                    type = m.Type.ToString(),
+                    importance = m.Importance.ToString(),
+                    tags = m.Tags,
+                    categoryName = m.CategoryName,
+                    createdAt = m.CreatedAt,
+                    lastAccessedAt = m.LastAccessedAt
+                }),
+                total = result.Total,
+                page = result.Page,
+                pageSize = result.PageSize
+            });
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 获取记忆列表失败: {0}", ex.Message);
+            return StatusCode(500, new { error = "获取记忆列表时发生错误", details = ex.Message });
         }
     }
 }

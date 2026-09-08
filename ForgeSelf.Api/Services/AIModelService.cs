@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using ForgeSelf.Api.Services.AI.Providers;
 using NewLife.Log;
 

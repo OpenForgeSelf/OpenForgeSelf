@@ -264,11 +264,18 @@
   </Target>
 
   <Target Name="StageSemsPlugin" AfterTargets="Build">
+    <!-- 拷贝 Sems 的完整 bin 输出（DLL + Sems.deps.json + 非宿主共享 NuGet 依赖），
+         但排除宿主共享程序集（ForgeSelf.* / NewLife.*，由宿主默认上下文解析，避免类型身份分裂）。
+         Sems.deps.json 缺失会导致插件 ALC 的 AssemblyDependencyResolver 无法解析
+         System.Management(WMI) 等 NuGet 依赖，进而 AssemblyPart.GetTypes() 扫描失败、
+         依赖 IRunnerService 的控制器（RunsController / RunnerController / ProjectCommandsController）
+         被路由表整体剔除 —— 见 spec028 T10 运行时验收发现。 -->
     <ItemGroup>
-      <_SemsDll Include="Plugins\Sems\bin\$(Configuration)\net10.0\Sems.dll" />
+      <_SemsFiles Include="Plugins\Sems\bin\$(Configuration)\net10.0\**\*.*"
+                  Exclude="Plugins\Sems\bin\$(Configuration)\net10.0\ForgeSelf.*;Plugins\Sems\bin\$(Configuration)\net10.0\NewLife.*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_SemsDll)"
-          DestinationFolder="$(OutDir)Plugins\Sems\"
+    <Copy SourceFiles="@(_SemsFiles)"
+          DestinationFolder="$(OutDir)Plugins\Sems\%(RecursiveDir)"
           SkipUnchangedFiles="true" />
   </Target>
 

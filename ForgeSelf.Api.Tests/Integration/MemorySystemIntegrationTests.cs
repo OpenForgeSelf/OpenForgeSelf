@@ -1,6 +1,6 @@
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.MemorySystem.Controllers;
 using ForgeSelf.Api.Plugins.MemorySystem.Data;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
 using ForgeSelf.Api.Plugins.MemorySystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Moq;

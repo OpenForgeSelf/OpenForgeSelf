@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.MemorySystem.Data;
-using ForgeSelf.Api.Plugins.MemorySystem.Models;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.MemorySystem.Services;

@@ -3,7 +3,6 @@ using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;

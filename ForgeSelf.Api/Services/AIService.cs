@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Models;
 // 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
 using LegacyAIChatMessage = ForgeSelf.Api.Models.AIChatMessage;
 

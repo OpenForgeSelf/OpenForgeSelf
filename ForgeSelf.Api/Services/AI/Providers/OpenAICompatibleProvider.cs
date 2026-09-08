@@ -3,7 +3,6 @@ using ForgeSelf.Abstractions;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ForgeSelf.Api.Services.AI.Models;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services.AI.Providers;

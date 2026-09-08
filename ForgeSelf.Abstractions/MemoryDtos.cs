@@ -1,6 +1,25 @@
-using ForgeSelf.Api.Plugins.MemorySystem.Data;
+namespace ForgeSelf.Abstractions;
 
-namespace ForgeSelf.Api.Plugins.MemorySystem.Models;
+/// <summary>记忆类型。</summary>
+public enum MemoryType
+{
+    Fact = 0,
+    Preference = 1,
+    Project = 2,
+    Personal = 3,
+    Workflow = 4,
+    Skill = 5,
+    Other = 99
+}
+
+/// <summary>记忆重要程度。</summary>
+public enum MemoryImportance
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3
+}
 
 public class MemoryDto
 {
@@ -124,7 +143,7 @@ public class ExtractedMemory
 public class ImportMemoryRequest
 {
     public List<ImportMemoryItem> Items { get; set; } = new();
-    public bool OverwriteExisting { get; set; } = false;
+    public bool OverwriteExisting { get; set; }
 }
 
 public class ImportMemoryItem

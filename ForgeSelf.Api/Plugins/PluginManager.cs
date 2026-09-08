@@ -197,6 +197,8 @@ public class PluginManager
         typeof(ILogService),
         typeof(IWebSocketBroadcaster),
         typeof(IDataLocationService),
+        typeof(IProjectRegistry),
+        typeof(IAIProviderRegistry),
     };
 
     /// <summary>

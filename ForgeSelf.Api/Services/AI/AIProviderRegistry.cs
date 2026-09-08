@@ -2,13 +2,12 @@ using System.Net.Http;
 using ForgeSelf.Abstractions;
 using Microsoft.Extensions.Http;
 using ForgeSelf.Api.Entities;
-using ForgeSelf.Api.Services.AI.Models;
 using ForgeSelf.Api.Services.AI.Providers;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services.AI;
 
-public class AIProviderRegistry
+public class AIProviderRegistry : IAIProviderRegistry
 {
     // 注意：非 readonly，重载时原子替换引用，保证进行中请求读到完整旧集合
     private List<IAIProvider> _providers = new();

@@ -1,6 +1,5 @@
 using ForgeSelf.Api.Services.AI;
 using ForgeSelf.Abstractions;
-using ForgeSelf.Api.Services.AI.Models;
 
 namespace ForgeSelf.Api.Tests.Unit;
 

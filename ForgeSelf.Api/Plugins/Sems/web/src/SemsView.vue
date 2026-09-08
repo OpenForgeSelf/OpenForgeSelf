@@ -3,7 +3,7 @@
     <header class="sems__head">
       <div class="sems__title-row">
         <h1 class="sems__title">软件工程管理系统</h1>
-        <span class="sems__badge">项目清单</span>
+        <span class="sems__badge">项目工作区</span>
       </div>
       <p class="sems__sub">
         会话每选定一个工作目录即登记为一个项目。选择目录请前往「AI Agent」页。
@@ -15,7 +15,18 @@
         <span class="sems__stat-num">{{ total }}</span>
         <span class="sems__stat-label">项目总数</span>
       </div>
+      <div class="sems__stat">
+        <span class="sems__stat-num">{{ totalCommands }}</span>
+        <span class="sems__stat-label">运行命令</span>
+      </div>
     </section>
+
+    <RunPanel
+      ref="runPanelRef"
+      :command-urls="commandUrls"
+      :launchable-count="launchableCount"
+      @run-all="runAll"
+    />
 
     <section class="sems__body">
       <div v-if="loading" class="sems__empty">加载中…</div>
@@ -25,50 +36,54 @@
       </div>
 
       <div v-else class="sems__grid">
-        <div
+        <ProjectCard
           v-for="p in projects"
-          :key="p.root"
-          class="sems__card"
-          :class="{ 'sems__card--dead': p.pathExists === false }"
-        >
-          <div class="sems__card-top">
-            <span class="sems__card-name">{{ p.name }}</span>
-            <span class="sems__card-tags">
-              <span v-if="p.isGitRepo" class="sems__tag">git</span>
-              <span v-if="!p.pathExists" class="sems__tag sems__tag--warn">不可达</span>
-            </span>
-          </div>
-          <p class="sems__card-root" :title="p.root">{{ p.root }}</p>
-          <footer class="sems__card-foot">
-            <span>最近活动：{{ fmt(p.lastActivityAt) }}</span>
-            <span v-if="p.source" class="sems__card-source">来源 {{ p.source }}</span>
-          </footer>
-        </div>
+          :key="p.id"
+          :project="p"
+          @edit="openEdit"
+          @commands-changed="reloadProjects"
+          @run-command="runOne"
+        />
       </div>
     </section>
+
+    <ProjectEditDialog
+      v-if="editing"
+      :project="editing"
+      @close="editing = null"
+      @saved="onSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * sems 首页：展示已登记的项目列表（来自 GET /api/projects）。
- * 数据源为宿主共享项目清单（AIAgent 选定工作目录时写入），本页只读取展示。
- * 独立构建的插件界面，仅用原生 HTML + CSS（不用 <ElXxx>），复用 --el-* 变量保持视觉一致。
+ * sems 首页壳（spec028 §6 / T07+T08）：
+ * - 拉 GET /api/projects（后端已带每项目 commands 概要）
+ * - 装配 commandUrls（命令 id → url）与 launchableCount（可启动命令总数）
+ * - 编辑弹层（ProjectEditDialog）
+ * - 运行面板（RunPanel）：启动全部 = 遍历所有项目命令逐个启动
+ * 独立构建的插件界面，仅用原生 HTML + CSS，复用 --el-* 变量。
  */
-import { onMounted, ref } from 'vue'
-import { apiGet } from './http'
-import type { ProjectRecord } from './types'
+import { computed, onMounted, ref } from 'vue'
+import { apiGet, apiPost } from './http'
+import type { ProjectInfo, ProjectsResp } from './types'
+import ProjectCard from './ProjectCard.vue'
+import ProjectEditDialog from './ProjectEditDialog.vue'
+import RunPanel from './RunPanel.vue'
 
-const projects = ref<ProjectRecord[]>([])
+const projects = ref<ProjectInfo[]>([])
 const total = ref(0)
 const loading = ref(true)
 const error = ref('')
+const editing = ref<ProjectInfo | null>(null)
+const runPanelRef = ref<InstanceType<typeof RunPanel> | null>(null)
 
-async function load() {
+async function loadProjects() {
   loading.value = true
   error.value = ''
   try {
-    const r = await apiGet<{ total: number; projects: ProjectRecord[] }>('/api/projects')
+    const r = await apiGet<ProjectsResp>('/api/projects')
     projects.value = r?.projects ?? []
     total.value = r?.total ?? projects.value.length
   } catch (e) {
@@ -78,15 +93,66 @@ async function load() {
   }
 }
 
-function fmt(v?: string): string {
-  if (!v) return '—'
-  const d = new Date(v)
-  if (Number.isNaN(d.getTime())) return '—'
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+onMounted(loadProjects)
+
+async function reloadProjects() {
+  await loadProjects()
+  await runPanelRef.value?.refresh()
 }
 
-onMounted(load)
+/** 命令总数（统计卡）。 */
+const totalCommands = computed(() =>
+  projects.value.reduce((sum, p) => sum + (p.commands?.length ?? 0), 0),
+)
+
+/** 命令 id → 访问 url 映射（供 RunPanel 快捷访问图标）。 */
+const commandUrls = computed<Record<number, string>>(() => {
+  const map: Record<number, string> = {}
+  for (const p of projects.value) {
+    for (const c of p.commands ?? []) {
+      if (c.url) map[c.id] = c.url
+    }
+  }
+  return map
+})
+
+/** 可启动命令总数（启动全部按钮的可用依据）。 */
+const launchableCount = computed(() => totalCommands.value)
+
+function openEdit(p: ProjectInfo) {
+  editing.value = p
+}
+
+async function onSaved(_projectId: number) {
+  editing.value = null
+  await reloadProjects()
+}
+
+/** 单条命令启动（来自卡片）。 */
+async function runOne(commandId: number) {
+  try {
+    await apiPost(`/api/commands/${commandId}/run`, {})
+    await runPanelRef.value?.refresh()
+  } catch (e) {
+    window.alert(`启动失败：${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
+/** 启动全部：遍历所有项目命令逐个调起（重复启动由后端拒绝 409，吞掉）。 */
+async function runAll() {
+  const ids: number[] = []
+  for (const p of projects.value) {
+    for (const c of p.commands ?? []) ids.push(c.id)
+  }
+  for (const id of ids) {
+    try {
+      await apiPost(`/api/commands/${id}/run`, {})
+    } catch {
+      // 已运行 / 不存在：忽略，继续下一个
+    }
+  }
+  await runPanelRef.value?.refresh()
+}
 </script>
 
 <style scoped>
@@ -130,6 +196,8 @@ onMounted(load)
 }
 
 .sems__stats {
+  display: flex;
+  gap: 12px;
   margin: 20px 0;
 }
 
@@ -160,81 +228,6 @@ onMounted(load)
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
-}
-
-.sems__card {
-  padding: 14px 16px;
-  background: var(--el-bg-color, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
-  border-radius: 8px;
-  transition: border-color 0.15s ease;
-}
-
-.sems__card:hover {
-  border-color: var(--el-color-primary, #ffb84d);
-}
-
-.sems__card--dead {
-  opacity: 0.55;
-}
-
-.sems__card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sems__card-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--el-text-color-primary, #e5eaf3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sems__card-tags {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.sems__tag {
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--el-color-success, #67c23a);
-  background: var(--el-color-success-light, rgba(103, 194, 58, 0.12));
-}
-
-.sems__tag--warn {
-  color: var(--el-color-warning, #e6a23c);
-  background: var(--el-color-warning-light, rgba(230, 162, 60, 0.14));
-}
-
-.sems__card-root {
-  margin: 8px 0 0;
-  font-family: var(--el-font-family-mono, monospace);
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sems__card-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
-}
-
-.sems__card-source {
-  flex-shrink: 0;
 }
 
 .sems__empty {

@@ -9,6 +9,7 @@ namespace ForgeSelf.Abstractions;
 /// sems 只读取这份共享文件来展示项目列表，两插件之间不产生 HTTP/DI 依赖，仅依赖共享存储。
 /// 共享路径由各插件经 <see cref="IDataLocationService.GetHostDataDirectory"/> 派生，保证两端一致。
 /// </summary>
+[Obsolete("spec028 后由 IProjectRegistry 数据库接缝取代；HostProjectRegistry 迁移路径已内联，不再引用此类")]
 public static class SemsShared
 {
     /// <summary>共享项目登记文件（相对宿主数据根 <c>Shared/</c> 目录）。</summary>
@@ -20,6 +21,7 @@ public static class SemsShared
 }
 
 /// <summary>一条项目登记记录（AIAgent 写、sems 读的共享契约）。</summary>
+[Obsolete("spec028 后由 IProjectRegistry 数据库接缝取代；旧共享 JSON 迁移由 HostProjectRegistry 内部 LegacyProjectRecord DTO 接管")]
 public class ProjectRecord
 {
     /// <summary>项目根目录绝对路径（唯一键）。</summary>

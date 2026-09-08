@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Sems</AssemblyName>
     <RootNamespace>ForgeSelf.Api.Plugins.Sems</RootNamespace>
+    <!-- 强制把 NuGet 依赖（如 System.Management/WMI）拷贝到 bin 输出，
+         否则 StageSemsPlugin 仅拷贝 Sems.dll 会漏掉非宿主共享依赖，
+         导致宿主 AssemblyPart.GetTypes() 扫描失败、依赖闭环的控制器被路由表剔除。 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +24,8 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- WMI 本机进程检测（RunnerService.CheckAndMerge）需要 System.Management -->
+    <PackageReference Include="System.Management" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -21,6 +21,10 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T | undef
   return request<T>(path, { method: 'POST', body: JSON.stringify(body) })
 }
 
+export async function apiPut<T>(path: string, body: unknown): Promise<T | undefined> {
+  return request<T>(path, { method: 'PUT', body: JSON.stringify(body) })
+}
+
 export async function apiDelete<T>(path: string): Promise<T | undefined> {
   return request<T>(path, { method: 'DELETE' })
 }

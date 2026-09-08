@@ -18,6 +18,8 @@ public class SemsPlugin : IPlugin
 
         var services = ctx.Get<IServiceCollection>();
         services?.AddScoped<IProjectService, ProjectService>();
+        // 运行管理（进程启停/检测）为内存会话单例（宿主重启清空，NFR-3）
+        services?.AddSingleton<IRunnerService, RunnerService>();
 
         RegisterMenuExtensions(pluginId);
 

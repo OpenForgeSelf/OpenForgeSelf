@@ -232,4 +232,59 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
 
     await page.screenshot({ path: path.join(OUT_DIR, 'ai-agent-after.png'), fullPage: true })
   })
+
+  test('流式聊天端点返回结构化 SSE（前端已接通插件自带后端 /api/ai-agent/chat/stream）', async ({ page }) => {
+    test.setTimeout(60_000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    // 等插件根节点渲染，确认前端已加载、token 已注入 localStorage。
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    // 经页面上下文调插件流式接口（复用 localStorage 真实 token，走 vite 代理到真实宿主，零 mock）。
+    // 流式读取首批事件后主动中止：真实 AI 上游的完整生成可能远超用例时限，
+    // 结构断言（200 + SSE + "type" 字段）只需读到首个结构化事件即可。
+    const result = await page.evaluate(async () => {
+      const token = localStorage.getItem('forge_api_token')
+      const controller = new AbortController()
+      const res = await fetch('/api/ai-agent/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ sessionId: `e2e-${Date.now()}`, message: '你好' }),
+        signal: controller.signal,
+      })
+      const ct = res.headers.get('content-type') ?? ''
+      let text = ''
+      try {
+        const reader = res.body?.getReader()
+        if (reader) {
+          const decoder = new TextDecoder()
+          while (!text.includes('"type"') && text.length < 4096) {
+            const { done, value } = await reader.read()
+            if (done) break
+            text += decoder.decode(value, { stream: true })
+          }
+        }
+      } catch {
+        /* 中止/断流时保留已读内容 */
+      } finally {
+        controller.abort()
+      }
+      return { status: res.status, contentType: ct, body: text.slice(0, 2000) }
+    })
+
+    dumpEvidence('ai-agent-stream', { network: [], consoleAll: [], consoleErrors: [], serverErrors: [] }, [
+      `流式端点 status=${result.status} content-type=${result.contentType}`,
+      `流式响应体（前 2000 字符）: ${result.body.replace(/\n/g, ' | ')}`,
+    ])
+
+    // 端点必须 200 且为 SSE，且输出结构化事件（含 "type" 字段）。
+    // 不依赖真实 AI 上游：无 provider 时为 error 事件，有 provider 时为 content/tool 事件，均为结构化。
+    expect(result.status, `流式端点非 200：${result.status} ${result.body}`).toBe(200)
+    expect(result.contentType, `流式端点 content-type 非 SSE：${result.contentType}`).toContain('text/event-stream')
+    expect(result.body, `未输出结构化 SSE 事件（缺少 "type" 字段）：${result.body}`).toContain('"type"')
+  })
 })

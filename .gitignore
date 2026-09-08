@@ -29,6 +29,8 @@ dist/
 ForgeSelf.Api/wwwroot/
 screenshots/
 temp/
+# 统一 e2e 临时构建/运行目录（每次全新时间戳目录，含 publish/ Data/ 等）
+.temp/
 auto-imports.d.ts
 nul
 .atomcode-logs/

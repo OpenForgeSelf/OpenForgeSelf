@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
+  // 统一 e2e 共享基础设施：globalSetup 自动构建宿主到临时目录 + 起宿主(7102) + 解密 token；
+  // teardown 只杀本轮回合拉起的宿主进程。前端 dev(7002) 由下方 webServer 拉起。
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

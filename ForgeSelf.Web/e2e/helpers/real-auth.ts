@@ -29,6 +29,8 @@ let cachedKey: string | null = null
 
 /** 从 ForgeSetting.config 解密当前真实 API 密钥（进程内缓存） */
 export function getRealApiKey(): string {
+  // e2e globalSetup 首启拿到的明文 token 优先（绕开文件落盘/解密，最稳）
+  if (process.env.E2E_API_TOKEN) return process.env.E2E_API_TOKEN
   if (cachedKey) return cachedKey
 
   const xml = readFileSync(CONFIG_PATH, 'utf8')

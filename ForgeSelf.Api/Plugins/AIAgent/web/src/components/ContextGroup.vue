@@ -67,6 +67,12 @@ defineEmits<{
   background: var(--el-fill-color, #262727);
 }
 
+/* A3：键盘聚焦可见焦点环 */
+.grp__head:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: -1px;
+}
+
 .grp__label {
   display: flex;
   align-items: center;

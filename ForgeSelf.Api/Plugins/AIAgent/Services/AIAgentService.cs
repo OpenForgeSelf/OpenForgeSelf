@@ -20,13 +20,17 @@ public class AIAgentService : IAIAgentService
     private ILogService? _logService;
     private IToolRegistry? _toolRegistry;
     private IAIProviderRegistry? _providerRegistry;
+    private IProjectSkillScannerService? _skillScanner;
+    private IProjectWorkspaceService? _workspace;
     private AIConfig? _aiConfig;
 
     public AIAgentService(
         IContext ctx,
         IWorkflowRecommendationService? workflowRecommendationService = null,
         IScriptTemplateService? scriptTemplateService = null,
-        IAgentRegistryService? agentRegistry = null)
+        IAgentRegistryService? agentRegistry = null,
+        IProjectSkillScannerService? skillScanner = null,
+        IProjectWorkspaceService? workspace = null)
     {
         // 宿主契约（配置/日志/工具注册表/provider 注册表）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）：
         // 不在构造时解析——宿主契约在 ProvideHostServices 阶段才 seed 进根上下文，晚于插件 Apply
@@ -38,6 +42,8 @@ public class AIAgentService : IAIAgentService
         _workflowRecommendationService = workflowRecommendationService;
         _scriptTemplateService = scriptTemplateService;
         _agentRegistry = agentRegistry;
+        _skillScanner = skillScanner;
+        _workspace = workspace;
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
     }
 
@@ -91,7 +97,7 @@ public class AIAgentService : IAIAgentService
         bool enableTools = true,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var ev in RunAgentLoopAsync(messages, null, null, enableTools, cancellationToken))
+        await foreach (var ev in RunAgentLoopAsync(messages, null, null, null, null, enableTools, cancellationToken))
         {
             if (ev.Type == "content" && !string.IsNullOrEmpty(ev.Content))
                 yield return ev.Content;
@@ -102,7 +108,7 @@ public class AIAgentService : IAIAgentService
     {
         // 复用同一工具循环（驱动到完成、忽略事件流）；传入副本避免污染调用方列表。
         var grown = new List<AIChatMessage>(messages);
-        await foreach (var _ in RunAgentLoopAsync(grown, null, null, true, cancellationToken))
+        await foreach (var _ in RunAgentLoopAsync(grown, null, null, null, null, true, cancellationToken))
         {
             // 事件由流式调用方消费，此处仅驱动循环
         }
@@ -114,6 +120,8 @@ public class AIAgentService : IAIAgentService
         List<AIChatMessage> messages,
         string? chatModelId = null,
         string? agentId = null,
+        List<string>? enabledToolNames = null,
+        List<string>? skillIds = null,
         bool enableTools = true,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -128,6 +136,17 @@ public class AIAgentService : IAIAgentService
         // 而不是宿主 IToolRegistry 的全部 ~77 个——全量工具会把 prompt 撑爆，
         // 本地小模型（如 gemma-4-e4b）上下文不足导致上游 400（实测 12s 后 400）。
         var tools = enableTools ? ResolveOwnToolDefinitions() : new List<AIToolDefinition>();
+
+        // 工具白名单过滤：composer 🔧 多选非空时只启用所选工具（仍限白名单插件）。
+        // 空/未传 = 默认全挂（向后兼容）。
+        if (enableTools && enabledToolNames is { Count: > 0 })
+        {
+            var allowed = new HashSet<string>(enabledToolNames, StringComparer.OrdinalIgnoreCase);
+            tools = tools.Where(t => allowed.Contains(t.Function.Name)).ToList();
+            XTrace.Log.Info("[AIAgentPlugin] 工具白名单过滤：请求 {0} 个，挂载 {1} 个",
+                allowed.Count, tools.Count);
+        }
+
         var unifiedTools = tools.Count > 0
             ? tools.Select(t => new UnifiedToolDefinition
             {
@@ -142,10 +161,14 @@ public class AIAgentService : IAIAgentService
             await InjectRelevantMemoriesAsync(messages, tools, cancellationToken);
 
         var systemPrompt = ResolveSystemPrompt(agentId);
+        // 技能注入：选中技能的 名称 + 描述 + 相对路径 追加到 system prompt（不全文注入，V1）。
+        if (skillIds is { Count: > 0 })
+            systemPrompt = AppendSelectedSkills(systemPrompt, skillIds);
+
         var model = ResolveModelId(chatModelId);
 
-        XTrace.Log.Info("[AIAgentPlugin] 开始 Agent 工具循环，provider: {0}, model: {1}, agent: {2}, 工具数: {3}",
-            provider.ProviderName, model, agentId ?? "(默认)", unifiedTools?.Count ?? 0);
+        XTrace.Log.Info("[AIAgentPlugin] 开始 Agent 工具循环，provider: {0}, model: {1}, agent: {2}, 工具数: {3}, 技能数: {4}",
+            provider.ProviderName, model, agentId ?? "(默认)", unifiedTools?.Count ?? 0, skillIds?.Count ?? 0);
 
         const int maxIterations = 10;
         for (var iteration = 0; iteration < maxIterations; iteration++)
@@ -302,6 +325,65 @@ public class AIAgentService : IAIAgentService
         if (string.IsNullOrWhiteSpace(agentId) || _agentRegistry == null) return null;
         var prompt = _agentRegistry.GetAgent(agentId)?.SystemPrompt;
         return string.IsNullOrWhiteSpace(prompt) ? null : prompt;
+    }
+
+    /// <summary>
+    /// 技能注入（V1）：把选中技能的 名称 + 描述 + 相对路径 追加到 system prompt，注明「如需按技能工作请读取其内容」。
+    /// 不全文注入——本地小模型 prompt 预算有限（14 工具即 400 过），全文注入留 V2。
+    /// 解析依赖项目技能扫描（IProjectSkillScannerService，未注册/未选目录时静默跳过）。
+    /// </summary>
+    private string? AppendSelectedSkills(string? systemPrompt, List<string> skillIds)
+    {
+        try
+        {
+            // 懒解析（构造期宿主/插件子容器可能未就绪；与 ToolRegistry 同模式）。
+            _skillScanner ??= _ctx.Get<IProjectSkillScannerService>();
+            _workspace ??= _ctx.Get<IProjectWorkspaceService>();
+
+            if (_skillScanner == null || _workspace?.ProjectRoot == null)
+            {
+                XTrace.Log.Debug("[AIAgentPlugin] 技能注入跳过：扫描服务未注册或未选项目目录");
+                return systemPrompt;
+            }
+
+            var all = _skillScanner.Scan(_workspace.ProjectRoot);
+            if (all.Count == 0)
+            {
+                XTrace.Log.Debug("[AIAgentPlugin] 技能注入跳过：项目目录未识别到技能");
+                return systemPrompt;
+            }
+
+            var wanted = new HashSet<string>(skillIds, StringComparer.OrdinalIgnoreCase);
+            var selected = all.Where(s => wanted.Contains(s.Id)).ToList();
+            if (selected.Count == 0)
+            {
+                XTrace.Log.Warn("[AIAgentPlugin] 技能注入：请求 {0} 个技能 id，全部未命中已识别技能列表", skillIds.Count);
+                return systemPrompt;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("## 本会话启用的技能");
+            sb.AppendLine("用户为本会话勾选了以下技能。如需按某个技能工作，请先用文件工具读取其内容（SKILL.md）再按其要求执行；不读取则按通用能力回答。");
+            sb.AppendLine();
+            foreach (var s in selected)
+            {
+                sb.AppendLine($"- 技能「{s.Name}」（来源: {s.Source}，路径: {s.Path}）：{s.Description}");
+            }
+            sb.AppendLine();
+            sb.AppendLine("---");
+
+            var skillText = sb.ToString();
+            XTrace.Log.Info("[AIAgentPlugin] 技能注入完成：{0} 个技能加入 system prompt", selected.Count);
+            return systemPrompt == null
+                ? skillText.TrimEnd()
+                : skillText + systemPrompt;
+        }
+        catch (Exception ex)
+        {
+            // 技能注入失败不阻断对话：记日志、返回原 system prompt。
+            XTrace.Log.Error("[AIAgentPlugin] 技能注入失败: {0}", ex.Message);
+            return systemPrompt;
+        }
     }
 
     /// <summary>Abstractions 消息 → 统一请求消息（含工具调用字段）。</summary>

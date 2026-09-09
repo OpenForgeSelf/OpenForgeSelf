@@ -23,6 +23,18 @@ public class ChatRequest
 
     /// <summary>选中 Agent id；命中则注入其 SystemPrompt，空则不注入（向后兼容）。</summary>
     public string? AgentId { get; set; }
+
+    /// <summary>
+    /// 本会话启用工具名白名单（来自 composer 🔧 多选）。
+    /// 空/未传 = 默认全挂（本插件 + memory-system 共 13 个，向后兼容）；非空 = 仅启用列表内工具（仍限白名单插件）。
+    /// </summary>
+    public List<string>? EnabledToolNames { get; set; }
+
+    /// <summary>
+    /// 本会话启用技能 id 列表（来自 composer ⚡ 多选，形如 <c>agents:.agents/skills/&lt;name&gt;/SKILL.md</c>）。
+    /// 命中后把技能的 名称 + 描述 + 相对路径 注入 system prompt，供 Agent 按技能工作。
+    /// </summary>
+    public List<string>? SkillIds { get; set; }
 }
 
 public class ChatResponse

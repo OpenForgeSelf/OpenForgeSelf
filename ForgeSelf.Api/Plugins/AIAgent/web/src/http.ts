@@ -60,6 +60,10 @@ export interface AgentChatPayload {
   message: string
   chatModelId?: string
   agentId?: string
+  /** 本会话启用工具名白名单（composer 🔧 多选；空/未传 = 后端默认全挂，向后兼容）。 */
+  enabledToolNames?: string[]
+  /** 本会话启用技能 id 列表（composer ⚡ 多选；名称+描述+路径注入 system prompt）。 */
+  skillIds?: string[]
 }
 
 /** Agent 流式聊天的事件回调（对应后端结构化 SSE 事件）。 */
@@ -92,7 +96,11 @@ export interface AgentUsage {
  * 为什么不复用 request()：流式接口返回 text/event-stream，不是单个 JSON，
  * 需要 ReadableStream 边读边解析，不能用「读完整 body 再 JSON.parse」的封装。
  */
-export async function streamAgentChat(payload: AgentChatPayload, handlers: AgentStreamHandlers): Promise<void> {
+export async function streamAgentChat(
+  payload: AgentChatPayload,
+  handlers: AgentStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
   const token = localStorage.getItem(TOKEN_KEY)
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
@@ -101,6 +109,7 @@ export async function streamAgentChat(payload: AgentChatPayload, handlers: Agent
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
+    signal,
   })
   if (!res.ok) {
     let detail = ''

@@ -17,9 +17,11 @@ public interface IAIAgentService
     /// <param name="messages">对话消息（会被追加 assistant/tool 消息）。</param>
     /// <param name="chatModelId">聊天模型 id（形如 provider:upstreamModelId）；空则回退默认 provider。</param>
     /// <param name="agentId">选中 Agent id；命中则注入其 SystemPrompt，空则不注入。</param>
+    /// <param name="enabledToolNames">本会话启用工具名白名单（来自 composer 🔧 多选）；空/未传 = 默认全挂（本插件 + memory-system 共 13 个，向后兼容）；非空 = 仅启用列表内工具（仍限白名单插件）。</param>
+    /// <param name="skillIds">本会话启用技能 id 列表（来自 composer ⚡ 多选，形如 <c>agents:.agents/skills/&lt;name&gt;/SKILL.md</c>）；命中后把技能的 名称 + 描述 + 相对路径 注入 system prompt。</param>
     /// <param name="enableTools">是否挂载工具。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(List<AIChatMessage> messages, string? chatModelId = null, string? agentId = null, bool enableTools = true, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(List<AIChatMessage> messages, string? chatModelId = null, string? agentId = null, List<string>? enabledToolNames = null, List<string>? skillIds = null, bool enableTools = true, CancellationToken cancellationToken = default);
 
     Task<List<WorkflowRecommendationDto>> GetRecommendedWorkflowsAsync(string userMessage, int limit = 5);
     Task<GenerateScriptResponse> GenerateScriptAsync(string language, string description, string? requirements = null);

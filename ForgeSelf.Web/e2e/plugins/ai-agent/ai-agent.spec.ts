@@ -12,7 +12,8 @@ import { injectRealApiKey } from '../../helpers/real-auth'
  * 覆盖点：
  * 1. /plugin-view/ai-agent 路由下插件根节点 .agent 是否渲染
  * 2. /plugins/ai-agent/web/dist/index.js 是否 200 且 MIME 为 JS
- * 3. 三栏结构（左 .ctx / 中 .chat / 右 .sess）是否齐全
+ * 3. 三栏结构（左 .sess / 中 .chat / 右 .ctx）是否齐全（2026-09-09 布局重构：左右两栏互换——
+ *    会话/Agent 列表居左对齐 ChatGPT/Claude 侧栏，AI 上下文居右对齐 Cursor 上下文面板）
  * 4. 版本徽标 .chat__version 是否显示（动态读取 plugin.json 的 version）
  * 5. 控制台是否出现 Failed to resolve component / export 缺失等致命报错
  * 6. 截图 + 读图视觉检查（重点：左上角已知问题——图标/间距/对齐/遮挡/溢出）
@@ -155,12 +156,12 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
       const exists = await page.evaluate((s) => !!document.querySelector(s), sel)
       if (exists) topLeftReport.push(`[顶栏] ${await describeEl(page, sel)}`)
     }
-    // 左栏（AI 上下文）头部
-    if (await page.evaluate(() => !!document.querySelector('.ctx'))) {
-      topLeftReport.push(`[左栏] ${await describeEl(page, '.ctx')}`)
-      const ctxHeader = '.ctx__header, .ctx .panel-header, .ctx h3, .ctx .card-header'
-      if (await page.evaluate((s) => !!document.querySelector(s), ctxHeader)) {
-        topLeftReport.push(`[左栏头部] ${await describeEl(page, ctxHeader)}`)
+    // 左栏（布局重构后 = SessionPanel .sess，会话与统计）头部
+    if (await page.evaluate(() => !!document.querySelector('.sess'))) {
+      topLeftReport.push(`[左栏] ${await describeEl(page, '.sess')}`)
+      const sessHeader = '.sess__head, .sess .panel-header, .sess h3, .sess .card-header'
+      if (await page.evaluate((s) => !!document.querySelector(s), sessHeader)) {
+        topLeftReport.push(`[左栏头部] ${await describeEl(page, sessHeader)}`)
       }
     }
     // 版本徽标（位于中栏顶部，常是「左上角」视觉焦点）
@@ -197,9 +198,9 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
     expect(entryHit).toContain('javascript')
 
     // ---- 断言 3：三栏结构全部渲染（对齐设计原型的左/中/右三栏）----
-    await expect(page.locator('.ctx'), '左栏「AI 上下文」未渲染').toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.sess'), '左栏「会话统计」未渲染').toBeVisible({ timeout: 15000 })
     await expect(page.locator('.chat'), '中栏「聊天区」未渲染').toBeVisible({ timeout: 15000 })
-    await expect(page.locator('.sess'), '右栏「会话统计」未渲染').toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.ctx'), '右栏「AI 上下文」未渲染').toBeVisible({ timeout: 15000 })
 
     // ---- 断言 4：版本徽标（动态读取 plugin.json 的 version）----
     await expect(page.locator('.chat__version')).toHaveText(EXPECTED_VERSION, { timeout: 15000 })
@@ -286,5 +287,114 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
     expect(result.status, `流式端点非 200：${result.status} ${result.body}`).toBe(200)
     expect(result.contentType, `流式端点 content-type 非 SSE：${result.contentType}`).toContain('text/event-stream')
     expect(result.body, `未输出结构化 SSE 事件（缺少 "type" 字段）：${result.body}`).toContain('"type"')
+  })
+
+  test('composer 工作台选择交互（🔧工具多选 / ⚡技能 / 🤖Agent / 💠模型 + chips 所见即所发）', async ({ page }) => {
+    test.setTimeout(60_000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    // ---- 0. composer 卡片 + 操作栏五个入口 + 模型下拉 + 发送按钮 ----
+    await expect(page.locator('.chat__composer'), 'composer 卡片未渲染').toBeVisible({ timeout: 15000 })
+    const actionbar = page.locator('.chat__actionbar')
+    await expect(actionbar).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: /目录/ })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: /工具/ })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: /技能/ })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: /Agent/ })).toBeVisible()
+    await expect(page.locator('.chat__model-pick'), '模型下拉应位于操作栏（发送旁）').toBeVisible()
+    await expect(page.locator('.chat__send'), '发送按钮').toBeVisible()
+
+    // ---- 1. 🔧 工具 popover：打开 → 多选 2 个 → chips + 计数徽标 ----
+    await actionbar.getByRole('button', { name: /工具/ }).click()
+    await expect(page.locator('.chat__pop'), '工具 popover 未打开').toBeVisible()
+    const toolOpts = page.locator('.chat__pop .chat__opt')
+    // 工具列表异步加载（onMounted 内 loadAgentTools 晚于 loadMeta/loadAgents）：先等首个选项渲染再计数，避免 count 竞态为 0。
+    await expect(toolOpts.first(), '🔧 工具 popover 应展示真实工具列表（/api/ai-agent/chat/tools）').toBeVisible({ timeout: 15000 })
+    const toolCount = await toolOpts.count()
+    expect(toolCount, '🔧 工具 popover 应展示真实工具列表（/api/ai-agent/chat/tools）').toBeGreaterThan(0)
+    const toolName1 = (await toolOpts.nth(0).locator('.chat__opt-name').innerText()).trim()
+    const toolName2 = (await toolOpts.nth(1).locator('.chat__opt-name').innerText()).trim()
+    await toolOpts.nth(0).click()
+    await toolOpts.nth(1).click()
+    // chips 区出现 2 个 🔧 chip（文本 = 工具名，所见即所发）
+    await expect(page.locator('.chat__chip', { hasText: toolName1 })).toBeVisible()
+    await expect(page.locator('.chat__chip', { hasText: toolName2 })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: /工具/ }).locator('.chat__abtn-n')).toHaveText('2')
+    // 再次点击操作栏按钮关闭 popover
+    await actionbar.getByRole('button', { name: /工具/ }).click()
+    await expect(page.locator('.chat__pop')).not.toBeVisible()
+
+    // ---- 2. ⚡ 技能 popover：打开 → 勾选首个 → ⚡ chip ----
+    await actionbar.getByRole('button', { name: /技能/ }).click()
+    await expect(page.locator('.chat__pop'), '技能 popover 未打开').toBeVisible()
+    const skillOpts = page.locator('.chat__pop .chat__opt')
+    // 技能列表异步加载（loadAgentSkills 与 loadAgentTools 同批）：先等首个选项渲染再计数。
+    await expect(skillOpts.first(), '⚡ 技能 popover 应展示技能列表（/api/skills 或 /api/project/skills）').toBeVisible({ timeout: 15000 })
+    const skillCount = await skillOpts.count()
+    expect(skillCount, '⚡ 技能 popover 应展示技能列表（/api/skills 或 /api/project/skills）').toBeGreaterThan(0)
+    const skillName = (await skillOpts.nth(0).locator('.chat__opt-name').innerText()).trim()
+    await skillOpts.nth(0).click()
+    await expect(page.locator('.chat__chip', { hasText: skillName })).toBeVisible()
+    await actionbar.getByRole('button', { name: /技能/ }).click()
+    await expect(page.locator('.chat__pop')).not.toBeVisible()
+
+    // ---- 3. 🤖 Agent popover：打开 → 单选（选完自动关闭）----
+    await actionbar.getByRole('button', { name: /Agent/ }).click()
+    await expect(page.locator('.chat__pop'), 'Agent popover 未打开').toBeVisible()
+    const agentOpts = page.locator('.chat__pop .chat__opt')
+    // Agent 列表异步加载（loadAgents）：先等首个选项渲染再计数。
+    await expect(agentOpts.first(), '🤖 Agent popover 应展示 Agent 列表（/api/agents）').toBeVisible({ timeout: 15000 })
+    expect(await agentOpts.count(), '🤖 Agent popover 应展示 Agent 列表（/api/agents）').toBeGreaterThan(0)
+    await agentOpts.nth(0).click()
+    await expect(page.locator('.chat__pop')).not.toBeVisible()
+
+    // ---- 4. 💠 模型下拉：打开 → 当前模型高亮 → 切选后关闭 ----
+    await page.locator('.chat__model-pick').click()
+    await expect(page.locator('.chat__pop--right'), '模型 popover 未打开').toBeVisible()
+    const modelOpts = page.locator('.chat__pop--right .chat__opt')
+    const modelHint = page.locator('.chat__pop--right .chat__pop-hint')
+    // e2e 临时环境（fresh Data 无 AI Provider 密钥）模型列表可能为空：有选项或空态提示均为合法。
+    await expect(modelOpts.first().or(modelHint), '模型 popover 应展示模型列表或空态提示').toBeVisible({ timeout: 15000 })
+    const modelCount = await modelOpts.count()
+    if (modelCount > 0) {
+      expect(
+        await page.locator('.chat__pop--right .chat__opt--on').count(),
+        '应恰好有一个当前选中模型高亮',
+      ).toBeGreaterThanOrEqual(1)
+      if (modelCount > 1) {
+        await modelOpts.nth(1).click()
+      } else {
+        await page.keyboard.press('Escape')
+      }
+    } else {
+      // 无模型（e2e 环境无 Provider 配置）：空态提示可见，Esc 关闭。
+      await expect(modelHint).toBeVisible()
+      await page.keyboard.press('Escape')
+    }
+    await expect(page.locator('.chat__pop--right')).not.toBeVisible()
+
+    // ---- 5. 发送前 chips 保留（所见即所发）；截图取证 ----
+    await expect(page.locator('.chat__chips'), '已选上下文 chips 区应可见').toBeVisible()
+    await page.screenshot({ path: path.join(OUT_DIR, 'ai-agent-composer.png'), fullPage: true })
+
+    // ---- 6. 无致命报错 + 无服务端 5xx ----
+    const fatalPatterns = [
+      /Failed to resolve component/i,
+      /does not provide an export named/i,
+      /Failed to (fetch|resolve) dynamically imported module/i,
+      /Failed to load module script/i,
+      /is not defined/i,
+    ]
+    const fatal = evidence.consoleErrors.filter((line) => fatalPatterns.some((re) => re.test(line)))
+    expect(fatal, `控制台出现致命报错：\n${fatal.join('\n')}`).toEqual([])
+    expect(
+      evidence.serverErrors,
+      `composer 交互期间发现服务端 5xx：\n${evidence.serverErrors.join('\n')}`,
+    ).toEqual([])
   })
 })

@@ -9,7 +9,18 @@
  */
 
 import { createApp, h } from 'vue'
+import './styles/tailwind.css'
 import AiAgentView from './AiAgentView.vue'
+
+// Element Plus 界面组件样式（组件经 import map 从宿主共享桥取同一份实例，样式由插件自备，
+// 随插件 style.css 打包；颜色走宿主 --el-* 变量自动跟随主题）。清单与宿主
+// exposeSharedDeps.ts / public/shared/element-plus.js 保持一致。
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/scrollbar/style/css'
+import 'element-plus/es/components/tag/style/css'
+import 'element-plus/es/components/progress/style/css'
+import 'element-plus/es/components/empty/style/css'
+import 'element-plus/es/components/skeleton/style/css'
 
 export { AiAgentView }
 export default AiAgentView

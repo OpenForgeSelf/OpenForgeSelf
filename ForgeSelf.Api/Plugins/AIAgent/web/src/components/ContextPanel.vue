@@ -43,7 +43,7 @@
             class="pj__item pj__item--up"
             @click="goUp"
           >
-            ↑ 上级目录
+            <Back :size="13" class="pj__item-ico" />上级目录
           </button>
           <button
             v-for="f in files"
@@ -53,7 +53,11 @@
             :class="{ 'pj__item--dir': f.isDirectory }"
             @click="onOpen(f)"
           >
-            <span class="pj__item-name">{{ f.isDirectory ? '📁 ' : '📄 ' }}{{ f.name }}</span>
+            <span class="pj__item-name">
+              <Folder v-if="f.isDirectory" :size="13" class="pj__item-ico" />
+              <Document v-else :size="13" class="pj__item-ico" />
+              {{ f.name }}
+            </span>
             <span v-if="!f.isDirectory && f.size > 0" class="pj__item-size">{{ sizeLabel(f.size) }}</span>
           </button>
           <p v-if="!loadingFiles && files.length === 0 && projectDir" class="pj__empty">
@@ -73,17 +77,21 @@
       :open="openTools"
       @toggle="openTools = !openTools"
     >
-      <button
-        v-for="t in tools"
-        :key="t.name"
-        type="button"
-        class="ctx__item"
-        :class="{ 'ctx__item--active': selectedTool === t.name }"
-        @click="selectedTool = selectedTool === t.name ? '' : (t.name ?? '')"
-      >
-        <span class="ctx__item-name">{{ t.name }}</span>
-      </button>
-      <EmptyHint v-if="!loadingTools && tools.length === 0" text="未启用 MCP 服务器" />
+      <!-- 只读展示（去伪交互，设计 §3.5）：选中态在输入框下方 composer 🔧 配置 -->
+      <ElSkeleton v-if="loadingTools" :rows="3" animated class="ctx__skel" />
+      <template v-else>
+        <div
+          v-for="t in tools"
+          :key="t.name"
+          class="ctx__item ctx__item--static"
+          :title="t.description"
+        >
+          <span class="ctx__item-name">{{ t.name }}</span>
+          <span v-if="t.description" class="ctx__item-desc">{{ t.description }}</span>
+        </div>
+        <EmptyHint v-if="tools.length === 0" text="未启用 MCP 服务器" />
+      </template>
+      <p class="ctx__hint">工具在输入框下方 🔧 配置（本会话生效）</p>
     </ContextGroup>
 
     <!-- 分组：技能 -->
@@ -95,19 +103,21 @@
       :open="openSkills"
       @toggle="openSkills = !openSkills"
     >
-      <div
-        v-for="s in skills"
-        :key="s.id"
-        class="ctx__item ctx__item--static"
-        :title="s.description"
-      >
-        <span class="ctx__item-name">{{ s.name }}</span>
-        <span v-if="s.source" class="ctx__item-tag" :class="s.source === 'agents' ? '--agents' : '--commands'">{{ s.source }}</span>
-      </div>
-      <EmptyHint
-        v-if="!loadingSkills"
-        :text="hasProject ? '未识别到技能（无 .agents/skills 或 .codebuddy/commands）' : '选择工作目录后自动识别项目技能'"
-      />
+      <ElSkeleton v-if="loadingSkills" :rows="3" animated class="ctx__skel" />
+      <template v-else>
+        <div
+          v-for="s in skills"
+          :key="s.id"
+          class="ctx__item ctx__item--static"
+          :title="s.description"
+        >
+          <span class="ctx__item-name">{{ s.name }}</span>
+          <span v-if="s.source" class="ctx__item-tag" :class="s.source === 'agents' ? '--agents' : '--commands'">{{ s.source }}</span>
+        </div>
+        <EmptyHint
+          :text="hasProject ? '未识别到技能（无 .agents/skills 或 .codebuddy/commands）' : '选择工作目录后自动识别项目技能'"
+        />
+      </template>
     </ContextGroup>
 
     <!-- 分组：提示指令 -->
@@ -118,7 +128,9 @@
 
     <!-- 分组：记忆 -->
     <ContextGroup title="记忆" :count="memories.length" :open="openMemory" @toggle="openMemory = !openMemory">
-      <div v-if="loadingMemories" class="ctx-loading">加载中…</div>
+      <template v-if="loadingMemories">
+        <ElSkeleton :rows="3" animated class="ctx__skel" />
+      </template>
       <EmptyHint v-else-if="memories.length === 0" text="暂无记忆，对话中模型会自动记住重要信息" />
       <ul v-else class="ctx-items">
         <li v-for="m in memories" :key="m.id" class="ctx-item">
@@ -142,6 +154,10 @@
  * 后端 L1 契约 IMemoryService 由 MemorySystem 提供）；提示指令后端暂无统一接口，如实留空。
  */
 import { onMounted, ref, watch } from 'vue'
+// EP 图标：经 import map 解析到宿主共享桥（public/shared/element-plus-icons.js）。
+import { Back, Document, Folder } from '@element-plus/icons-vue'
+// EP 组件：插件预编译产物需显式 import（运行时经宿主共享桥取同一份实例）。
+import { ElSkeleton } from 'element-plus'
 import { apiGet, withQuery } from '../http'
 import type { McpServer, McpTool, MemoryItem, ProjectEntry, ProjectSkillItem } from '../types'
 import ContextGroup from './ContextGroup.vue'
@@ -167,8 +183,6 @@ const loadingTools = ref(false)
 const loadingSkills = ref(false)
 const errorTools = ref('')
 const errorSkills = ref('')
-/** 当前选中的工具名（仅界面选中态，不改变后端行为）。 */
-const selectedTool = ref('')
 /** 是否已选定项目目录（决定技能源：项目技能 vs 全局技能）。 */
 const hasProject = ref(!!props.projectDir)
 
@@ -189,12 +203,12 @@ const files = ref<ProjectEntry[]>([])
 const loadingFiles = ref(false)
 const errorFiles = ref('')
 
-// 各分组的展开状态
-const openProject = ref(true)
-const openTools = ref(true)
-const openSkills = ref(true)
-const openPrompts = ref(true)
-const openMemory = ref(true)
+// 各分组的展开状态（默认全部收起，避免右栏初次加载视觉过载；用户主动点开才展开）
+const openProject = ref(false)
+const openTools = ref(false)
+const openSkills = ref(false)
+const openPrompts = ref(false)
+const openMemory = ref(false)
 
 // 父层 projectDir 变化（成功加载目录）时同步输入框并回到根浏览
 watch(
@@ -433,6 +447,28 @@ watch(
   background: var(--el-fill-color, #262727);
 }
 
+/* MCP 工具只读描述（去伪交互后：名称 + 描述） */
+.ctx__item-desc {
+  flex-shrink: 0;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--el-font-size-extra-small, 10px);
+  color: var(--el-text-color-placeholder, #8c959f);
+}
+
+/* MCP 工具分组底部说明：选择入口在 composer */
+.ctx__hint {
+  margin: 4px 8px 0;
+  padding: 3px 6px;
+  font-size: var(--el-font-size-extra-small, 10px);
+  line-height: 1.5;
+  color: var(--el-text-color-placeholder, #8c959f);
+  background: var(--el-fill-color, #262727);
+  border-radius: 4px;
+}
+
 /* ---- 项目目录面板 ---- */
 .pj {
   display: flex;
@@ -524,6 +560,24 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pj__item-ico {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+}
+
+/* A3：键盘聚焦可见焦点环 */
+.pj__input:focus-visible,
+.pj__btn:focus-visible,
+.pj__item:focus-visible,
+.ctx__item:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
 }
 
 .pj__item--dir .pj__item-name {
@@ -599,8 +653,12 @@ watch(
   background: var(--el-fill-color, #262727);
 }
 
-.ctx-loading {
-  font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+/* A2：数据加载骨架屏 */
+.ctx__skel {
+  padding: 4px 2px;
+}
+
+.ctx__skel .el-skeleton__item {
+  --el-skeleton-circle-size: 12px;
 }
 </style>

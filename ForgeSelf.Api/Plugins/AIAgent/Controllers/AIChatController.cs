@@ -79,7 +79,7 @@ public class AIChatController : ControllerBase
             UnifiedUsage? usage = null;
             string? error = null;
 
-            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, true, cancellationToken))
+            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds, true, cancellationToken))
             {
                 switch (ev.Type)
                 {
@@ -178,7 +178,7 @@ public class AIChatController : ControllerBase
 
             var fullResponse = new System.Text.StringBuilder();
 
-            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, true, cancellationToken))
+            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds, true, cancellationToken))
             {
                 switch (ev.Type)
                 {

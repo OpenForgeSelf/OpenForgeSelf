@@ -11,13 +11,33 @@
  *
  * 注意：本文件是宿主启动期的桥接模块，**不适用**「组件内禁止显式 import ElXxx」的
  * 约定——那条约定针对组件内绕过 unplugin-vue-components 按需样式注入的**组件**导入；
- * 这里只导入 Element Plus 的**程序化** API，界面组件仍由宿主全局注册供插件直接使用。
+ * 这里导入 Element Plus 的**程序化** API 与**界面组件**（ElButton/ElScrollbar/ElTag/
+ * ElProgress/ElSkeleton 等），供插件经 shim（public/shared/element-plus.js）具名再导出。
+ * 显式导入会让 vite 把对应组件的 JS + 样式一并打进宿主产物——这正是插件所需：
+ * 插件把 element-plus 声明为 external，运行时从 import map 解析到这里拿**同一份**实例与样式。
  */
 
 import * as vue from 'vue'
 import * as vueRouter from 'vue-router'
 import * as pinia from 'pinia'
-import { ElMessage, ElMessageBox, ElNotification, ElLoading } from 'element-plus'
+/* eslint-disable @typescript-eslint/no-restricted-imports */
+// 桥文件豁免：本文件负责把宿主 EP 组件实例暴露给插件 shim（见文件头说明），
+// nos-restricted-imports 针对组件模板按需样式注入的约定不适用于此桥接导入。
+import {
+  ElMessage,
+  ElMessageBox,
+  ElNotification,
+  ElLoading,
+  ElButton,
+  ElScrollbar,
+  ElTag,
+  ElProgress,
+  ElEmpty,
+  ElSkeleton,
+  ElSkeletonItem,
+} from 'element-plus'
+import * as ElementPlusIcons from '@element-plus/icons-vue'
+/* eslint-enable @typescript-eslint/no-restricted-imports */
 
 /** 宿主暴露给插件界面的共享依赖集合。 */
 export interface ForgeSharedDeps {
@@ -27,8 +47,10 @@ export interface ForgeSharedDeps {
   vueRouter: typeof vueRouter
   /** Pinia 模块命名空间。 */
   pinia: typeof pinia
-  /** Element Plus 程序化 API 子集（界面组件走宿主全局注册，不在此提供）。 */
+  /** Element Plus 程序化 API + 界面组件（插件经 shim 具名再导出；清单与 public/shared/element-plus.js 保持一致）。 */
   elementPlus: Record<string, unknown>
+  /** Element Plus 图标组件命名空间（插件经 element-plus-icons.js shim 具名再导出；与宿主共用同一实例）。 */
+  elementPlusIcons: Record<string, unknown>
 }
 
 declare global {
@@ -50,10 +72,21 @@ export function exposeSharedDeps(): void {
     vueRouter,
     pinia,
     elementPlus: {
+      // 程序化 API
       ElMessage,
       ElMessageBox,
       ElNotification,
       ElLoading,
+      // 界面组件（插件模板显式 import 后使用；必须与 public/shared/element-plus.js 清单同步）
+      ElButton,
+      ElScrollbar,
+      ElTag,
+      ElProgress,
+      ElEmpty,
+      ElSkeleton,
+      ElSkeletonItem,
     } as unknown as Record<string, unknown>,
+    // Element Plus 图标命名空间（shim：public/shared/element-plus-icons.js 具名再导出）
+    elementPlusIcons: ElementPlusIcons as unknown as Record<string, unknown>,
   }
 }

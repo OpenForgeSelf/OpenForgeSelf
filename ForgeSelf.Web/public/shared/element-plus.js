@@ -1,12 +1,15 @@
 /**
- * Element Plus 共享模块桥（程序化 API 子集）。
+ * Element Plus 共享模块桥（程序化 API 子集 + 界面组件）。
  *
  * 说明：与 vue / vue-router / pinia 不同，本文件为**手工维护**的清单，只包含
- * 插件常用的**程序化** API（ElMessage / ElMessageBox / ElNotification / ElLoading 等）。
+ * 插件常用的**程序化** API（ElMessage / ElMessageBox / ElNotification / ElLoading 等）
+ * 与**界面组件**（ElButton / ElScrollbar / ElTag / ElProgress / ElEmpty 等）。
  *
- * 原因：Element Plus 的组件按项目约定（AGENTS.md）由宿主全局注册，插件在模板中
- * 直接使用 <ElXxx> 即可，无需也无法从 element-plus 具名导入组件；
- * 而 element-plus 完整导出达数百项且包含浏览器端资源，不适合在 Node 侧自动枚举。
+ * 原因：插件是独立预编译产物（宿主 unplugin-vue-components 不处理插件模板），
+ * 插件模板显式 `import { ElXxx } from 'element-plus'` 后，经 import map 解析到本 shim，
+ * 从宿主 window.__FORGE_SHARED__.elementPlus 取**同一份**组件实例（避免 Vue 双实例）；
+ * 组件样式由插件构建时自行引入（index.ts 内 element-plus 各组件 style 入口）。
+ * 完整导出达数百项且含浏览器端资源，不适合在 Node 侧自动枚举，故只维护插件实际使用的清单。
  *
  * 运行期从宿主挂载的 window.__FORGE_SHARED__.elementPlus 再导出，
  * 保证插件调用的是宿主同一份实例。若某个导出在宿主上不存在则导出为 undefined，
@@ -34,3 +37,12 @@ export const useZIndex = pick('useZIndex')
 export const useId = pick('useId')
 export const version = pick('version')
 export const install = pick('install')
+
+// ---- 界面组件（插件模板显式 import 使用；清单与宿主 exposeSharedDeps.ts 同步）----
+export const ElButton = pick('ElButton')
+export const ElScrollbar = pick('ElScrollbar')
+export const ElTag = pick('ElTag')
+export const ElProgress = pick('ElProgress')
+export const ElEmpty = pick('ElEmpty')
+export const ElSkeleton = pick('ElSkeleton')
+export const ElSkeletonItem = pick('ElSkeletonItem')

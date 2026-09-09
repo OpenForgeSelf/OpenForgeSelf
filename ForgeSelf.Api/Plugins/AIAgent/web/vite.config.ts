@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 /**
  * AIAgent 插件界面构建配置。
@@ -10,13 +11,13 @@ import vue from '@vitejs/plugin-vue'
  * - 共享依赖（vue / vue-router / pinia / element-plus）一律 external：
  *   产物内保留裸导入，由宿主页面的 import map 解析到宿主**同一份**实例，
  *   从根本上避免 Vue 双实例导致的响应式失效。
- * - 不使用 Element Plus 组件：宿主的 EP 组件由 unplugin-vue-components 在
- *   **编译期局部注册**，而本插件是独立构建的预编译产物，宿主打包器不会处理它，
- *   因此模板里写 <ElXxx> 在运行时会解析失败。试点界面一律用原生 HTML + CSS。
- *   （程序化 API 如 ElMessage 仍可通过 import map 使用。）
+ * - Tailwind：插件模板直接用工具类布局（tailwind.css 入口，@theme inline 映射 --el-*），
+ *   由本插件自己的构建编译进 style.css（宿主只编译宿主的工具类，插件必须自备）。
+ * - Element Plus 组件：插件经 import map 从宿主共享桥（public/shared/element-plus.js）
+ *   取宿主同一份组件实例（宿主 exposeSharedDeps 已把所需组件挂到 __FORGE_SHARED__）。
  */
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -27,7 +28,7 @@ export default defineConfig({
       fileName: () => 'index.js',
     },
     rollupOptions: {
-      external: ['vue', 'vue-router', 'pinia', 'element-plus'],
+      external: ['vue', 'vue-router', 'pinia', 'element-plus', '@element-plus/icons-vue'],
       output: {
         entryFileNames: 'index.js',
         chunkFileNames: '[name].js',

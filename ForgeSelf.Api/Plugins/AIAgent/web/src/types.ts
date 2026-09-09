@@ -68,6 +68,14 @@ export interface McpTool {
   serverName?: string
 }
 
+/** AI Agent 工具（来自 GET /api/ai-agent/chat/tools，宿主 IToolRegistry；composer 🔧 按 pluginId 白名单过滤后展示）。 */
+export interface AgentTool {
+  id?: string
+  name?: string
+  description?: string
+  pluginId?: string
+}
+
 /** 技能（来自 GET /api/skills）。 */
 export interface SkillItem {
   id?: string

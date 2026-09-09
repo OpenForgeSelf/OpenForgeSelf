@@ -3,9 +3,7 @@
     <!-- 分组：当前会话 -->
     <div class="sess__grp">
       <div class="sess__head">
-        <svg class="sess__head-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-        </svg>
+        <ChatDotRound class="sess__head-icon" :size="14" />
         <span class="sess__title">当前会话</span>
       </div>
 
@@ -34,11 +32,7 @@
     <!-- 分组：能力画像（取当前 Agent 的五维人格画像） -->
     <div class="sess__grp">
       <div class="sess__head">
-        <svg class="sess__head-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="12" r="6" />
-          <circle cx="12" cy="12" r="2" />
-        </svg>
+        <PieChart class="sess__head-icon" :size="14" />
         <span class="sess__title">能力画像<template v-if="activeAgent?.name">&nbsp;· {{ activeAgent.name }}</template></span>
       </div>
 
@@ -60,11 +54,7 @@
     <!-- 分组：Agent 列表 -->
     <div class="sess__grp">
       <div class="sess__head">
-        <svg class="sess__head-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="4" y="8" width="16" height="12" rx="2" />
-          <path d="M12 8V4M8 4h8" />
-          <path d="M9 13h.01M15 13h.01" />
-        </svg>
+        <Cpu class="sess__head-icon" :size="14" />
         <span class="sess__title">Agent 列表</span>
       </div>
 
@@ -95,6 +85,8 @@
  * Token 用量后端暂无记账接口，由父组件以占位符传入（如实，不编造）。
  */
 import { computed } from 'vue'
+// EP 图标：经 import map 解析到宿主共享桥（public/shared/element-plus-icons.js）。
+import { ChatDotRound, Cpu, PieChart } from '@element-plus/icons-vue'
 import type { AgentDefinition } from '../types'
 import EmptyHint from './EmptyHint.vue'
 
@@ -176,8 +168,9 @@ const skillBars = computed(() => {
 }
 
 .sess__head-icon {
-  width: 13px;
-  height: 13px;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
   color: var(--el-color-primary, #ffb84d);
 }
 
@@ -216,6 +209,13 @@ const skillBars = computed(() => {
 .sess__icon-btn svg {
   width: 12px;
   height: 12px;
+}
+
+/* A3：键盘聚焦可见焦点环 */
+.sess__icon-btn:focus-visible,
+.sess__agent:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
 }
 
 .sess__stats {

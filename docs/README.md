@@ -13,8 +13,8 @@
 | 判断一个新功能**该不该做**（裁判依据） | [`00-vision/03-principles.md`](00-vision/03-principles.md) |
 | 了解项目**为什么存在、要去哪** | [`00-vision/01-vision.md`](00-vision/01-vision.md) |
 | 看项目**现在处于哪个阶段、目标是什么** | [`00-vision/02-goals.md`](00-vision/02-goals.md) |
-| 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md) |
-| 理解/修改**某个功能**（需求+设计+使用） | `02-features/`（[001](02-features/001-ai-provider-config.md) AI提供方 / [002](02-features/002-ai-models-list.md) 模型 / [003](02-features/003-api-server-settings.md) API服务器 / [004](02-features/004-provider-models-integration.md) 网关集成 / [005](02-features/005-todo-tracker.md) 待办 / [006](02-features/006-background-image.md) 背景图 / [007](02-features/007-background-visibility-opacity.md) 透明度 / [008](02-features/008-tray-service-autoupdate.md) 托盘自更新 / [009](02-features/009-web-port-token-security.md) 端口令牌 / [010](02-features/010-chat-session-aggregation.md) 会话聚合 / [011](02-features/011-multimodal-image-cache.md) 多模态缓存 / [027](02-features/027-cordis-kernel.md) Cordis内核 / [100](02-features/100-secret-encryption.md) 密钥加密） |
+| 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md)；可交互架构图 [`01-architecture/architecture-diagram.html`](01-architecture/architecture-diagram.html)（四层总览+启动装配链）；宿主→插件能力供给（三层模型 L1 契约/L2 事件/L3 拦截）见 [`01-architecture/host-capability-seams.md`](01-architecture/host-capability-seams.md) |
+| 理解/修改**某个功能**（需求+设计+使用） | `02-features/`（[001](02-features/001-ai-provider-config.md) AI提供方 / [002](02-features/002-ai-models-list.md) 模型 / [003](02-features/003-api-server-settings.md) API服务器 / [004](02-features/004-provider-models-integration.md) 网关集成 / [005](02-features/005-todo-tracker.md) 待办 / [006](02-features/006-background-image.md) 背景图 / [007](02-features/007-background-visibility-opacity.md) 透明度 / [008](02-features/008-tray-service-autoupdate.md) 托盘自更新 / [009](02-features/009-web-port-token-security.md) 端口令牌 / [010](02-features/010-chat-session-aggregation.md) 会话聚合 / [011](02-features/011-multimodal-image-cache.md) 多模态缓存 / [027](02-features/027-cordis-kernel.md) Cordis内核 / [028](02-features/028-project-workspace.md) 项目工作区 / [100](02-features/100-secret-encryption.md) 密钥加密） |
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
@@ -58,7 +58,7 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 系统分层、模块关系、技术栈选型、核心数据流/请求链路的**全景图**（Backend/Frontend/插件体系如何协作） |
+| **做什么** | 系统分层、模块关系、技术栈选型、核心数据流/请求链路的**全景图**（Backend/Frontend/插件体系如何协作）；含可交互架构图 [`architecture-diagram.html`](01-architecture/architecture-diagram.html)（四层总览+宿主启动装配链） |
 | **不做什么** | 不深入某个具体功能的内部实现、不列 API 接口契约、不写操作步骤 |
 | **解释什么** | 系统"长什么样、为什么这么分层、模块之间怎么通信" |
 | **不解释什么** | 不解释具体功能细节 → `02-features/`；不解释代码级实现 → `openwiki/`（自动生成） |
@@ -330,6 +330,7 @@
 | 025 | [`02-features/025-user-profile.md`](02-features/025-user-profile.md) | 前端已实现；后端暂无独立模块（缺口） |
 | 026 | [`02-features/026-plugin-marketplace.md`](02-features/026-plugin-marketplace.md) | 已实现 |
 | 027 | [`02-features/027-cordis-kernel.md`](02-features/027-cordis-kernel.md) | 已实现（内核/契约/插件自注册/热更新/前端清单驱动；剩余项见档案） |
+| 028 | [`02-features/028-project-workspace.md`](02-features/028-project-workspace.md) | 已实现（项目档案+运行命令 CRUD+运行列表+进程检测 WMI+前端面板；spec028 相关测试 31/31 通过） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 
 > 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。

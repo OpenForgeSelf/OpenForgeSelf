@@ -14,6 +14,9 @@ TestResults/
 
 # Playwright
 .playwright-browsers/
+# Playwright MCP / 会话工具运行产物（browser 快照、截图，随时可再生成）
+.playwright-mcp/
+.serena/
 ForgeSelf.Web/playwright-report/
 ForgeSelf.Web/test-results/
 # vitest 覆盖率报告

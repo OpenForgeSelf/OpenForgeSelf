@@ -397,4 +397,68 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
       `composer 交互期间发现服务端 5xx：\n${evidence.serverErrors.join('\n')}`,
     ).toEqual([])
   })
+
+  test('Agent 增删改闭环（建 → 编辑 → 删除，持久化 + 列表刷新回归）', async ({ page }) => {
+    test.setTimeout(60_000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    // 唯一名称，避免与既有 Agent 撞名 / 重复运行残留冲突。
+    const name = `e2e-${Date.now()}`
+    const desc = `e2e 描述-${name}`
+
+    // ---- 1. 新建 Agent：点「新建 Agent」→ 填名称 → 创建 ----
+    await page.locator('.sess__add').click()
+    await expect(page.locator('.el-dialog .aed')).toBeVisible({ timeout: 10000 })
+    await page.locator('.el-dialog input[placeholder="Agent 名称"]').fill(name)
+    const createBtn = page.locator('.el-dialog__footer button', { hasText: '创建' })
+    await createBtn.click()
+    // 对话框关闭 + 新 Agent 出现在左栏列表。
+    await expect(page.locator('.el-dialog .aed')).not.toBeVisible({ timeout: 10000 })
+    const row = page.locator('.sess__agent', { hasText: name })
+    await expect(row).toBeVisible({ timeout: 10000 })
+    expect(evidence.serverErrors, '新建 Agent 期间出现服务端 5xx').toEqual([])
+
+    // ---- 2. 编辑 Agent：打开编辑 → 改描述 → 保存 ----
+    await row.locator('.sess__agent-edit').click()
+    await expect(page.locator('.el-dialog .aed')).toBeVisible()
+    const descInput = page.locator('.el-dialog input[placeholder="一句话描述该 Agent 的职责"]')
+    await descInput.fill(desc)
+    await page.locator('.el-dialog__footer button', { hasText: '保存' }).click()
+    await expect(page.locator('.el-dialog .aed')).not.toBeVisible({ timeout: 10000 })
+    // 刷新后列表仍在（未误删）。
+    await expect(page.locator('.sess__agent', { hasText: name })).toBeVisible({ timeout: 10000 })
+    expect(evidence.serverErrors, '编辑 Agent 期间出现服务端 5xx').toEqual([])
+
+    // ---- 3. 删除 Agent：打开编辑 → 删除 → messagebox 确认 → 列表移除 ----
+    await page.locator('.sess__agent', { hasText: name }).locator('.sess__agent-edit').click()
+    await expect(page.locator('.el-dialog .aed')).toBeVisible()
+    await page.locator('.el-dialog__footer button', { hasText: '删除' }).click()
+    const mb = page.locator('.el-message-box')
+    await expect(mb).toBeVisible({ timeout: 10000 })
+    await mb.locator('button', { hasText: '删除' }).click()
+    // 回归保护：删除返回 204（空 body）时，前端此前会 res.json() 抛
+    // "Unexpected end of JSON input"，导致 emit 不触发 → 列表不刷新 + 对话框残留报错。
+    // 断言对话框关闭 + 列表移除 + 无该报错，锁死本次修复。
+    await expect(page.locator('.el-dialog .aed')).not.toBeVisible({ timeout: 10000 })
+    await expect(page.locator('.sess__agent', { hasText: name })).not.toBeVisible({ timeout: 10000 })
+    const jsonErr = evidence.consoleAll.filter((l) => l.includes('Unexpected end of JSON input'))
+    expect(jsonErr, '删除后不应出现 res.json() 解析空 body 报错').toEqual([])
+    expect(evidence.serverErrors, '删除 Agent 期间出现服务端 5xx').toEqual([])
+
+    // ---- 4. 后端确实删除（经页面上下文真实 fetch，零 mock）----
+    const deleted = await page.evaluate(async (agentName: string) => {
+      const token = localStorage.getItem('forge_api_token')
+      const res = await fetch('/api/agents', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const json = (await res.json()) as Array<{ name?: string }>
+      return !(json ?? []).some((a) => a.name === agentName)
+    }, name)
+    expect(deleted, `后端仍残留已删除 Agent「${name}」`).toBe(true)
+  })
 })

@@ -13,6 +13,8 @@
 /** 宿主写入 token 的 localStorage 键名（与 ForgeSelf.Web/src/services/request.ts 保持一致）。 */
 const TOKEN_KEY = 'forge_api_token'
 
+import type { AgentDefinition } from './types'
+
 /** 接口返回的标准包裹结构。 */
 export interface ApiEnvelope<T> {
   code?: number
@@ -52,6 +54,18 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T | undef
  */
 export async function apiDelete<T>(path: string): Promise<T | undefined> {
   return request<T>(path, { method: 'DELETE' })
+}
+
+/**
+ * 发起带 token 的 JSON PUT 请求并返回 data 部分。
+ * 用于更新资源（如编辑 Agent 提示词）。
+ *
+ * @param path 以 / 开头的接口路径
+ * @param body 请求体，会被序列化为 JSON
+ * @returns 响应体的 data 字段
+ */
+export async function apiPut<T>(path: string, body: unknown): Promise<T | undefined> {
+  return request<T>(path, { method: 'PUT', body: JSON.stringify(body) })
 }
 
 /** Agent 流式聊天请求体（对应后端 ChatRequest）。 */
@@ -224,8 +238,11 @@ async function request<T>(path: string, init: RequestInit): Promise<T | undefine
     }
     throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
   }
-
-  const json = (await res.json()) as unknown
+  // 204 / 空响应体：无可解包 JSON。DELETE 等端点常返回 204 No Content，
+  // 直接 return undefined 避免 res.json() 抛 "Unexpected end of JSON input"。
+  if (res.status === 204) return undefined
+  const json = (await res.json().catch(() => undefined)) as unknown
+  if (json === undefined) return undefined
   // 信封判定：是对象、含 `data`、并具备 `success`/`code` 任一标记字段。
   // 本项目后端两种信封：
   //   a) { success, message, data }（如 /api/ai-models，由 ApiResponse.Ok 序列化）
@@ -246,4 +263,28 @@ async function request<T>(path: string, init: RequestInit): Promise<T | undefine
   }
   // 裸对象（ChatController 等直接返回领域对象的接口）
   return json as T
+}
+
+/* ------------------------------------------------------------------ */
+/* Agent CRUD（Stage 4：可编辑提示词）                                  */
+/* ------------------------------------------------------------------ */
+
+/** 获取全部 Agent（GET /api/agents）。 */
+export function fetchAgents(): Promise<AgentDefinition[] | undefined> {
+  return apiGet<AgentDefinition[]>('/api/agents')
+}
+
+/** 新建 Agent（POST /api/agents）。 */
+export function createAgent(agent: AgentDefinition): Promise<AgentDefinition | undefined> {
+  return apiPost<AgentDefinition>('/api/agents', agent)
+}
+
+/** 更新 Agent（PUT /api/agents/{id}），重点用于编辑 SystemPrompt。 */
+export function updateAgent(agentId: string, agent: AgentDefinition): Promise<AgentDefinition | undefined> {
+  return apiPut<AgentDefinition>(`/api/agents/${encodeURIComponent(agentId)}`, agent)
+}
+
+/** 删除 Agent（DELETE /api/agents/{id}）。 */
+export function deleteAgent(agentId: string): Promise<unknown> {
+  return apiDelete(`/api/agents/${encodeURIComponent(agentId)}`)
 }

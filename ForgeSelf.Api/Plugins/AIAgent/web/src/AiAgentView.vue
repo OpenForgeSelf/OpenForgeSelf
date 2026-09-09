@@ -12,6 +12,8 @@
       :active-agent-id="activeAgentId"
       @new-session="startNewSession"
       @activate-agent="activateAgent"
+      @edit-agent="onEditAgent"
+      @new-agent="onNewAgent"
     />
 
     <!-- 中栏：项目文件编辑（可选） + 完整聊天区；min-h-0 链（agent__main → chat）是滚动修复关键 -->
@@ -61,6 +63,15 @@
       @select-directory="onSelectDirectory"
       @open-file="onOpenFile"
     />
+
+    <!-- Agent 编辑对话框（新建 / 完整编辑 / 删除） -->
+    <AgentEditDialog
+      :agent="editingAgent"
+      :visible="editDialogVisible"
+      @update:visible="editDialogVisible = $event"
+      @saved="onAgentSaved"
+      @deleted="onAgentDeleted"
+    />
   </div>
 </template>
 
@@ -94,6 +105,7 @@ import ContextPanel from './components/ContextPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import FileEditor from './components/FileEditor.vue'
 import SessionPanel from './components/SessionPanel.vue'
+import AgentEditDialog from './components/AgentEditDialog.vue'
 
 /** 插件 id，与 plugin.json 的 Id 对齐。 */
 const PLUGIN_ID = 'ai-agent'
@@ -125,6 +137,10 @@ const error = ref('')
 const agents = ref<AgentDefinition[]>([])
 /** 当前激活 Agent 的 id（默认取第一个通用 Agent 或列表首项）。 */
 const activeAgentId = ref('')
+
+/** Stage 4：正在编辑的 Agent（编辑提示词对话框）。 */
+const editingAgent = ref<AgentDefinition | null>(null)
+const editDialogVisible = ref(false)
 
 /** 当前项目工作目录（绝对路径，一个目录视为一个项目）。 */
 const projectDir = ref('')
@@ -238,6 +254,32 @@ async function loadAgents() {
 function activateAgent(agentId: string) {
   activeAgentId.value = agentId
   if (agentId) localStorage.setItem(LS_KEY_AGENT, agentId)
+}
+
+/** 打开 Agent 编辑对话框（编辑模式）。 */
+function onEditAgent(agent: AgentDefinition) {
+  editingAgent.value = agent
+  editDialogVisible.value = true
+}
+
+/** 打开 Agent 编辑对话框（新建模式：agent=null 走默认表单）。 */
+function onNewAgent() {
+  editingAgent.value = null
+  editDialogVisible.value = true
+}
+
+/** 保存 Agent 后刷新列表（让编辑后的提示词/配置即时生效）。 */
+async function onAgentSaved(_updated: AgentDefinition) {
+  await loadAgents()
+}
+
+/** 删除 Agent 后刷新列表；若删除的是当前激活项，交给 loadAgents 的 fallback 重选。 */
+async function onAgentDeleted(agentId: string) {
+  if (activeAgentId.value === agentId) {
+    localStorage.removeItem(LS_KEY_AGENT)
+    activeAgentId.value = ''
+  }
+  await loadAgents()
 }
 
 /** 加载 composer 🔧 可选工具列表（与后端 RunAgentLoopAsync 的 ResolveOwnToolDefinitions 白名单同源）。 */

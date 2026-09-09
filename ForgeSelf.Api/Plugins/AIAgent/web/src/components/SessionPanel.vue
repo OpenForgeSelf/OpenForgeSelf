@@ -56,6 +56,17 @@
       <div class="sess__head">
         <Cpu class="sess__head-icon" :size="14" />
         <span class="sess__title">Agent 列表</span>
+        <button
+          type="button"
+          class="sess__add"
+          title="新建 Agent"
+          aria-label="新建 Agent"
+          @click="$emit('new-agent')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
       </div>
 
       <button
@@ -70,6 +81,14 @@
         <span class="sess__agent-dot"></span>
         <span class="sess__agent-name">{{ agent.avatar ? agent.avatar + ' ' : '' }}{{ agent.name }}</span>
         <span v-if="agent.id === activeAgentId" class="sess__agent-tag">当前</span>
+        <button
+          type="button"
+          class="sess__agent-edit"
+          title="编辑/管理 Agent"
+          @click.stop="$emit('edit-agent', agent)"
+        >
+          <Tools :size="12" />
+        </button>
       </button>
       <EmptyHint v-if="agents.length === 0" text="暂无 Agent" />
     </div>
@@ -86,7 +105,7 @@
  */
 import { computed } from 'vue'
 // EP 图标：经 import map 解析到宿主共享桥（public/shared/element-plus-icons.js）。
-import { ChatDotRound, Cpu, PieChart } from '@element-plus/icons-vue'
+import { ChatDotRound, Cpu, PieChart, Tools } from '@element-plus/icons-vue'
 import type { AgentDefinition } from '../types'
 import EmptyHint from './EmptyHint.vue'
 
@@ -110,6 +129,10 @@ defineEmits<{
   (e: 'new-session'): void
   /** 切换当前激活 Agent。 */
   (e: 'activate-agent', agentId: string): void
+  /** 编辑 Agent 提示词。 */
+  (e: 'edit-agent', agent: AgentDefinition): void
+  /** 新建 Agent。 */
+  (e: 'new-agent'): void
 }>()
 
 /** 会话 id 通常较长，界面只展示前 8 位，完整值放在 title 上。 */
@@ -310,15 +333,78 @@ const skillBars = computed(() => {
 }
 
 .sess__agent-name {
+  flex: 1;
+  min-width: 0;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
   color: var(--el-color-primary, #ffb84d);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sess__agent-tag {
-  margin-left: auto;
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-color-primary, #ffb84d);
   opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.sess__agent-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--el-border-radius-small, 4px);
+  color: var(--el-text-color-secondary, #a3a6ad);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sess__agent-edit:hover {
+  background: var(--el-fill-color, #262727);
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.sess__agent-edit:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
+}
+
+/* Agent 列表头部「新建」按钮 */
+.sess__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--el-border-radius-small, 4px);
+  color: var(--el-text-color-secondary, #a3a6ad);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sess__add svg {
+  width: 13px;
+  height: 13px;
+}
+
+.sess__add:hover {
+  background: var(--el-fill-color, #262727);
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.sess__add:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
 }
 </style>

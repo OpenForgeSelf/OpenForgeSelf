@@ -35,6 +35,7 @@ import {
   ElEmpty,
   ElSkeleton,
   ElSkeletonItem,
+  ElDialog,
 } from 'element-plus'
 import * as ElementPlusIcons from '@element-plus/icons-vue'
 /* eslint-enable @typescript-eslint/no-restricted-imports */
@@ -85,6 +86,7 @@ export function exposeSharedDeps(): void {
       ElEmpty,
       ElSkeleton,
       ElSkeletonItem,
+      ElDialog,
     } as unknown as Record<string, unknown>,
     // Element Plus 图标命名空间（shim：public/shared/element-plus-icons.js 具名再导出）
     elementPlusIcons: ElementPlusIcons as unknown as Record<string, unknown>,

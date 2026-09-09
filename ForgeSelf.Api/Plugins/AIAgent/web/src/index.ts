@@ -21,6 +21,9 @@ import 'element-plus/es/components/tag/style/css'
 import 'element-plus/es/components/progress/style/css'
 import 'element-plus/es/components/empty/style/css'
 import 'element-plus/es/components/skeleton/style/css'
+import 'element-plus/es/components/dialog/style/css'
+import 'element-plus/es/components/overlay/style/css'
+import 'element-plus/es/components/message-box/style/css'
 
 export { AiAgentView }
 export default AiAgentView

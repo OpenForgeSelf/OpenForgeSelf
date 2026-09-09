@@ -96,8 +96,14 @@ export interface ProjectSkillItem {
   isDirectory?: boolean
 }
 
-/** Agent 人格画像的五维能力（来自 GET /api/agents 的 AgentDefinition.Personality）。 */
+/** Agent 人格画像（来自 GET /api/agents 的 AgentDefinition.Personality；可编辑）。 */
 export interface AgentPersonality {
+  /** 人格名称。 */
+  name?: string
+  /** 人格描述。 */
+  description?: string
+  /** 人格头像 emoji。 */
+  avatar?: string
   /** 创造力（0~1）。 */
   creativity?: number
   /** 分析力（0~1）。 */
@@ -108,8 +114,16 @@ export interface AgentPersonality {
   confidence?: number
   /** 正式度（0~1）。 */
   formality?: number
+  /** 语气风格。 */
+  toneStyle?: string
+  /** 沟通风格。 */
+  communicationStyle?: string
   /** 擅长领域。 */
   strengths?: string[]
+  /** 局限性。 */
+  limitations?: string[]
+  /** 追加到系统提示词的内容。 */
+  systemPromptAddon?: string
 }
 
 /** Agent 定义（来自 GET /api/agents，后端 AgentDefinition）。 */
@@ -117,10 +131,18 @@ export interface AgentDefinition {
   id?: string
   name?: string
   description?: string
+  /** Agent 类型枚举值（0=Coordinator, 1=Researcher, 2=Writer, 3=Programmer, 4=Analyst, 5=Critic, 99=Generalist）。 */
+  type?: number
   /* avatar 为 emoji 字符，非图标名。 */
   avatar?: string
   personality?: AgentPersonality
   capabilities?: string[]
+  tools?: string[]
+  /** 系统提示词（可编辑，Stage 4）。 */
+  systemPrompt?: string
+  maxIterations?: number
+  sortOrder?: number
+  isEnabled?: boolean
 }
 
 /** 项目目录/文件项（来自 GET /api/project/files，后端 ProjectFileEntry）。 */

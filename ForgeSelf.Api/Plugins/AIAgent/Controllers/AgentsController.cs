@@ -104,6 +104,47 @@ public class AgentsController : ControllerBase
         var result = await _executorService.ExecuteTaskAsync(task);
         return Ok(result);
     }
+
+    #region Stage 4：Agent CRUD（可编辑提示词）
+
+    /// <summary>新建 Agent。</summary>
+    [HttpPost]
+    public ActionResult<AgentDefinition> CreateAgent([FromBody] AgentDefinition agent)
+    {
+        try
+        {
+            var created = _agentRegistry.CreateAgent(agent);
+            return CreatedAtAction(nameof(GetAgent), new { agentId = created.Id }, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>更新 Agent（重点：可编辑 SystemPrompt）。</summary>
+    [HttpPut("{agentId}")]
+    public ActionResult<AgentDefinition> UpdateAgent(string agentId, [FromBody] AgentDefinition agent)
+    {
+        var updated = _agentRegistry.UpdateAgent(agentId, agent);
+        if (updated == null) return NotFound();
+        return Ok(updated);
+    }
+
+    /// <summary>删除 Agent。</summary>
+    [HttpDelete("{agentId}")]
+    public IActionResult DeleteAgent(string agentId)
+    {
+        var ok = _agentRegistry.DeleteAgent(agentId);
+        if (!ok) return NotFound();
+        return NoContent();
+    }
+
+    #endregion
 }
 
 public class FindAgentRequest

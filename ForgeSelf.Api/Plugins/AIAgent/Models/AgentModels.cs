@@ -78,6 +78,7 @@ public class AgentDefinition
 
     public string SystemPrompt { get; set; } = string.Empty;
     public int MaxIterations { get; set; } = 10;
+    public int SortOrder { get; set; }
 
     public bool IsEnabled { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.Now;

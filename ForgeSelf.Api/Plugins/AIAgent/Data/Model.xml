@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
     <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
@@ -54,6 +54,25 @@
         <Index Columns="SessionId" />
         <Index Columns="CreateTime" />
         <Index Columns="SessionId,CreateTime" />
+      </Indexes>
+    </Table>
+    <Table Name="AgentDefinition" Description="AI Agent 定义（可编辑提示词）">
+      <Columns>
+        <Column Name="Id" DataType="String" Length="64" PrimaryKey="True" Nullable="False" Description="Agent ID（如 agent.generalist）" />
+        <Column Name="Name" DataType="String" Length="64" Nullable="False" Description="名称" />
+        <Column Name="Description" DataType="String" Length="512" Nullable="True" Description="描述" />
+        <Column Name="Type" DataType="Int32" Nullable="False" Description="Agent 类型（AgentType 枚举）" />
+        <Column Name="Avatar" DataType="String" Length="16" Nullable="True" Description="头像 emoji" />
+        <Column Name="SystemPrompt" DataType="String" Length="-1" Nullable="True" Description="系统提示词" />
+        <Column Name="MaxIterations" DataType="Int32" Nullable="True" Description="最大迭代次数" />
+        <Column Name="IsEnabled" DataType="Boolean" Nullable="False" Description="是否启用" />
+        <Column Name="SortOrder" DataType="Int32" Nullable="True" Description="排序" />
+        <Column Name="ConfigJson" DataType="String" Length="-1" Nullable="True" Description="配置 JSON（Personality/Capabilities/Tools）" />
+        <Column Name="CreatedAt" DataType="DateTime" Nullable="True" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Nullable="True" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="SortOrder" />
       </Indexes>
     </Table>
   </Tables>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
     <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
@@ -58,21 +58,72 @@
     </Table>
     <Table Name="AgentDefinition" Description="AI Agent 定义（可编辑提示词）">
       <Columns>
-        <Column Name="Id" DataType="String" Length="64" PrimaryKey="True" Nullable="False" Description="Agent ID（如 agent.generalist）" />
-        <Column Name="Name" DataType="String" Length="64" Nullable="False" Description="名称" />
-        <Column Name="Description" DataType="String" Length="512" Nullable="True" Description="描述" />
-        <Column Name="Type" DataType="Int32" Nullable="False" Description="Agent 类型（AgentType 枚举）" />
-        <Column Name="Avatar" DataType="String" Length="16" Nullable="True" Description="头像 emoji" />
-        <Column Name="SystemPrompt" DataType="String" Length="-1" Nullable="True" Description="系统提示词" />
+        <Column Name="Id" DataType="String" PrimaryKey="True" Length="64" Nullable="False" Description="Agent ID（如 agent.generalist）" />
+        <Column Name="Name" DataType="String" Master="True" Length="64" Nullable="False" Description="名称" />
+        <Column Name="Description" DataType="String" Length="512" Description="描述" />
+        <Column Name="Type" DataType="Int32" Description="Agent 类型（AgentType 枚举）" />
+        <Column Name="Avatar" DataType="String" Length="16" Description="头像 emoji" />
+        <Column Name="SystemPrompt" DataType="String" Length="-1" Description="系统提示词" />
         <Column Name="MaxIterations" DataType="Int32" Nullable="True" Description="最大迭代次数" />
-        <Column Name="IsEnabled" DataType="Boolean" Nullable="False" Description="是否启用" />
+        <Column Name="IsEnabled" DataType="Boolean" Description="是否启用" />
         <Column Name="SortOrder" DataType="Int32" Nullable="True" Description="排序" />
-        <Column Name="ConfigJson" DataType="String" Length="-1" Nullable="True" Description="配置 JSON（Personality/Capabilities/Tools）" />
-        <Column Name="CreatedAt" DataType="DateTime" Nullable="True" Description="创建时间" />
-        <Column Name="UpdatedAt" DataType="DateTime" Nullable="True" Description="更新时间" />
+        <Column Name="ConfigJson" DataType="String" Length="-1" Description="配置 JSON（Personality/Capabilities/Tools）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
       </Columns>
       <Indexes>
         <Index Columns="SortOrder" />
+      </Indexes>
+    </Table>
+    <Table Name="AgentRun" Description="Agent 计划驱动执行实例">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="执行实例ID" />
+        <Column Name="AgentId" DataType="String" Nullable="False" Description="所属Agent ID" />
+        <Column Name="AgentName" DataType="String" Description="Agent名称（冗余）" />
+        <Column Name="SessionId" DataType="String" Description="关联会话ID" />
+        <Column Name="WorkflowId" DataType="Int64" Nullable="True" Description="关联工作流ID（0/空=无，自生成Plan）" />
+        <Column Name="WorkflowName" DataType="String" Length="100" Description="工作流名称（冗余）" />
+        <Column Name="TaskInput" DataType="String" Length="-1" Description="任务原文" />
+        <Column Name="PlanJson" DataType="String" Length="-1" Description="生成的执行计划（Plan DSL）" />
+        <Column Name="Status" DataType="Int32" Description="执行状态（AgentRunStatus枚举）" />
+        <Column Name="CurrentStepIndex" DataType="Int32" Nullable="True" Description="当前/中断步骤下标" />
+        <Column Name="StuckReason" DataType="String" Length="1000" Description="卡住原因" />
+        <Column Name="StepCount" DataType="Int32" Nullable="True" Description="步骤总数" />
+        <Column Name="TotalTokens" DataType="Int64" Nullable="True" Description="全流程Token汇总" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Status" />
+        <Index Columns="SessionId,Status" />
+        <Index Columns="CreateTime" />
+      </Indexes>
+    </Table>
+    <Table Name="AgentStepRun" Description="Agent 计划驱动执行步骤记录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="步骤记录ID" />
+        <Column Name="RunId" DataType="Int64" Master="True" Description="关联执行实例ID" />
+        <Column Name="StepIndex" DataType="Int32" Master="True" Description="步骤下标（0-based）" />
+        <Column Name="StepId" DataType="String" Description="Plan步骤ID（如s1）" />
+        <Column Name="Name" DataType="String" Length="200" Description="步骤名" />
+        <Column Name="Objective" DataType="String" Length="-1" Description="步骤目标" />
+        <Column Name="Status" DataType="Int32" Description="步骤状态（AgentStepStatus枚举）" />
+        <Column Name="InputJson" DataType="String" Length="-1" Description="组装给LLM的上下文摘要（入参）" />
+        <Column Name="OutputJson" DataType="String" Length="-1" Description="complete_step声明的产出（出参）" />
+        <Column Name="ToolCallsJson" DataType="String" Length="-1" Description="本步工具调用轨迹" />
+        <Column Name="ErrorMessage" DataType="String" Length="1000" Description="失败错误" />
+        <Column Name="StuckReason" DataType="String" Length="1000" Description="卡住原因" />
+        <Column Name="HumanNote" DataType="String" Length="-1" Description="人工批注" />
+        <Column Name="HumanOverride" DataType="String" Length="-1" Description="人工补位产出" />
+        <Column Name="RetryCount" DataType="Int32" Nullable="True" Description="重试次数" />
+        <Column Name="TokensUsed" DataType="Int64" Nullable="True" Description="本步Token" />
+        <Column Name="DurationMs" DataType="Int64" Nullable="True" Description="耗时（毫秒）" />
+        <Column Name="StartedAt" DataType="DateTime" Description="开始时间" />
+        <Column Name="CompletedAt" DataType="DateTime" Description="完成时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="RunId" />
+        <Index Columns="RunId,StepIndex" />
       </Indexes>
     </Table>
   </Tables>

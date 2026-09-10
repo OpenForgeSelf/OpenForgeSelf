@@ -461,4 +461,165 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
     }, name)
     expect(deleted, `后端仍残留已删除 Agent「${name}」`).toBe(true)
   })
+
+  test('执行模式开关（029）：创建 PlanDriven Agent → executionMode 持久化 plan（GET /api/agents）→ 清理', async ({ page }) => {
+    test.setTimeout(90_000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    const name = `e2e-plan-${Date.now()}`
+
+    // ---- 1. 新建 Agent：填名称 → 切执行模式到「计划驱动 PlanDriven」→ 创建 ----
+    await page.locator('.sess__add').click()
+    const dialog = page.locator('.el-dialog .aed')
+    await expect(dialog).toBeVisible({ timeout: 10000 })
+    await dialog.locator('input[placeholder="Agent 名称"]').fill(name)
+    // 「执行模式」区块的 PlanDriven radio（029 新增；label 包裹 input[value=plan]）
+    await dialog.locator('.aed__mode-opt', { hasText: '计划驱动' }).click()
+    await page.locator('.el-dialog__footer button', { hasText: '创建' }).click()
+    await expect(dialog).not.toBeVisible({ timeout: 10000 })
+    await expect(page.locator('.sess__agent', { hasText: name })).toBeVisible({ timeout: 10000 })
+
+    // ---- 2. 后端持久化断言：GET /api/agents 返回 executionMode=plan（ConfigJson 落库）----
+    const savedMode = await page.evaluate(async (agentName: string) => {
+      const token = localStorage.getItem('forge_api_token')
+      const res = await fetch('/api/agents', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const list = (await res.json()) as Array<{ name?: string; executionMode?: string }>
+      return (list ?? []).find((a) => a.name === agentName)?.executionMode ?? null
+    }, name)
+    expect(savedMode, `PlanDriven Agent 的 executionMode 应持久化为 plan，实际=${savedMode}`).toBe('plan')
+
+    // ---- 3. 清理：删除测试 Agent ----
+    await page.locator('.sess__agent', { hasText: name }).locator('.sess__agent-edit').click()
+    await expect(dialog).toBeVisible()
+    await page.locator('.el-dialog__footer button', { hasText: '删除' }).click()
+    const mb = page.locator('.el-message-box')
+    await expect(mb).toBeVisible({ timeout: 10000 })
+    await mb.locator('button', { hasText: '删除' }).click()
+    await expect(page.locator('.sess__agent', { hasText: name })).not.toBeVisible({ timeout: 10000 })
+
+    expect(evidence.serverErrors, '执行模式开关创建/删除期间出现服务端 5xx').toEqual([])
+  })
+
+  test('计划驱动执行（029）：PlanDriven Agent 发送 → runs SSE + 步骤进度卡 + 执行记录面板', async ({ page }) => {
+    // 单步执行超时 45s 才会置 stuck（StepRunLoopService.StepTimeoutSeconds），终态等待必须覆盖该上限，
+    // 否则与「步骤循环真实跑满 45s」竞态（实测 flaky：首跑 30s 断言未现 stuck，retry 才过）。
+    test.setTimeout(180_000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    const name = `e2e-planrun-${Date.now()}`
+    const task = `e2e 计划任务-${name}`
+
+    // ---- 1. 新建 PlanDriven Agent 并激活 ----
+    await page.locator('.sess__add').click()
+    const dialog = page.locator('.el-dialog .aed')
+    await expect(dialog).toBeVisible({ timeout: 10000 })
+    await dialog.locator('input[placeholder="Agent 名称"]').fill(name)
+    await dialog.locator('.aed__mode-opt', { hasText: '计划驱动' }).click()
+    await page.locator('.el-dialog__footer button', { hasText: '创建' }).click()
+    await expect(dialog).not.toBeVisible({ timeout: 10000 })
+    const row = page.locator('.sess__agent', { hasText: name })
+    await expect(row).toBeVisible({ timeout: 10000 })
+    await row.click() // 激活该 Agent（执行模式=plan）
+
+    // ---- 2. 发送任务 → 必须走 runs SSE（POST /api/ai-agent/runs），而非 chat/stream ----
+    const runsRequested = page.waitForRequest(
+      (r) => r.url().includes('/api/ai-agent/runs') && r.method() === 'POST',
+      { timeout: 20_000 },
+    )
+    await page.locator('.chat__textarea').fill(task)
+    await page.keyboard.press('Enter')
+    await runsRequested
+
+    // ---- 3. 步骤进度卡渲染（029）：.spc 常驻可见 + goal 已渲染 ----
+    // e2e 宿主带默认 provider（localhost:1234 本地模型）：规划可能由 LLM 提交（goal=LLM 措辞），
+    // 也可能回退单步计划（goal=任务原文）。只锁定「plan_created 已消费、goal 元素渲染」，
+    // 不断言具体文案（避免与 LLM 措辞耦合）。步骤循环随后 error → 终态卡住/失败/错误其一。
+    await expect(page.locator('.spc'), '计划驱动步骤进度卡未渲染').toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.spc__goal').first(), 'plan_created 后步骤卡未渲染 plan goal').toBeVisible({ timeout: 30_000 })
+    // 步骤循环无 provider/上游异常 → 终态为卡住（stuck）或失败；任一带错误/卡住标识均可（真实后端行为）。
+    await expect(
+      page.locator('.spc__badge--stuck, .spc__badge--failed, .spc__error').first(),
+      '步骤卡应呈现卡住/失败/错误之一',
+    ).toBeVisible({ timeout: 75_000 })
+
+    // ---- 4. 执行记录面板：Run 列表非空 + 详情步骤加载 ----
+    await page.locator('.chat__bar-right button[title*="执行记录"]').click()
+    const rrp = page.locator('.rrp')
+    await expect(rrp, '执行记录面板未打开').toBeVisible({ timeout: 10_000 })
+    const firstRun = page.locator('.rrp__run').first()
+    await expect(firstRun, '执行记录列表应为空？发送后应至少生成一条 Run').toBeVisible({ timeout: 15_000 })
+    await firstRun.click()
+    // 详情：步骤行或空态其一（真实后端数据；无 provider 时步骤为卡住态，仍有明细）
+    await expect(
+      page.locator('.rrp__steps .rrp__step').first().or(page.locator('.rrp__empty').first()),
+      'Run 详情应渲染步骤明细或空态',
+    ).toBeVisible({ timeout: 15_000 })
+
+    // ---- 5. 截图取证 ----
+    await page.keyboard.press('Escape')
+    await page.screenshot({ path: path.join(OUT_DIR, 'ai-agent-plan-run.png'), fullPage: true })
+
+    // ---- 6. 清理：删除测试 Agent ----
+    await page.locator('.sess__agent', { hasText: name }).locator('.sess__agent-edit').click()
+    await expect(dialog).toBeVisible()
+    await page.locator('.el-dialog__footer button', { hasText: '删除' }).click()
+    const mb = page.locator('.el-message-box')
+    await expect(mb).toBeVisible({ timeout: 10_000 })
+    await mb.locator('button', { hasText: '删除' }).click()
+    await expect(page.locator('.sess__agent', { hasText: name })).not.toBeVisible({ timeout: 10_000 })
+
+    // ---- 7. 无致命报错 + 无服务端 5xx ----
+    const fatalPatterns = [
+      /Failed to resolve component/i,
+      /does not provide an export named/i,
+      /Failed to (fetch|resolve) dynamically imported module/i,
+      /Failed to load module script/i,
+      /is not defined/i,
+    ]
+    const fatal = evidence.consoleErrors.filter((line) => fatalPatterns.some((re) => re.test(line)))
+    expect(fatal, `计划驱动执行期间出现致命报错：\n${fatal.join('\n')}`).toEqual([])
+    expect(
+      evidence.serverErrors,
+      `计划驱动执行期间发现服务端 5xx：\n${evidence.serverErrors.join('\n')}`,
+    ).toEqual([])
+  })
+
+  test('Agent 关联工作流区块渲染（编辑弹窗「关联工作流」多选 + 空态降级 + 无 5xx）', async ({ page }) => {
+    test.setTimeout(60_000)
+    const evidence = attachCollectors(page)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.agent')).toBeVisible({ timeout: 30000 })
+
+    // 打开任一 Agent 的编辑弹窗（挂载即懒加载 fetchWorkflows → /api/workflows）。
+    await page.locator('.sess__agent').first().locator('.sess__agent-edit').click()
+    const dialog = page.locator('.el-dialog .aed')
+    await expect(dialog).toBeVisible({ timeout: 10000 })
+
+    // 「关联工作流」区块标题必须渲染（v1.6.7 新增；防回归：区块缺失即失败）。
+    const wfSection = dialog.locator('.aed__sec-title', { hasText: '关联工作流' })
+    await expect(wfSection).toBeVisible({ timeout: 10000 })
+
+    // 有可用工作流 → 渲染多选下拉；无可用工作流 → 渲染空态文案。任一即可，锁定降级不崩。
+    const hasMulti = await dialog.locator('select.aed__multiselect').count()
+    const hasEmpty = await dialog.locator('.aed__wf-empty', { hasText: '暂无可用工作流' }).count()
+    expect(hasMulti + hasEmpty, '「关联工作流」区块应渲染多选或空态之一').toBeGreaterThanOrEqual(1)
+
+    await page.locator('.el-dialog__footer button', { hasText: '取消' }).click()
+    await expect(dialog).not.toBeVisible({ timeout: 10000 })
+    expect(evidence.serverErrors, '打开编辑弹窗加载工作流期间出现服务端 5xx').toEqual([])
+  })
 })

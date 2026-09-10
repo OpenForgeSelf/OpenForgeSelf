@@ -21,7 +21,9 @@ public interface IAIAgentService
     /// <param name="skillIds">本会话启用技能 id 列表（来自 composer ⚡ 多选，形如 <c>agents:.agents/skills/&lt;name&gt;/SKILL.md</c>）；命中后把技能的 名称 + 描述 + 相对路径 注入 system prompt。</param>
     /// <param name="enableTools">是否挂载工具。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(List<AIChatMessage> messages, string? chatModelId = null, string? agentId = null, List<string>? enabledToolNames = null, List<string>? skillIds = null, bool enableTools = true, CancellationToken cancellationToken = default);
+    /// <param name="extraTools">额外显式挂载的工具（计划驱动运行流特殊工具 submit_plan/complete_step/request_help，R4）；
+    /// 追加在既有工具之后、不随 <paramref name="enabledToolNames"/> 白名单过滤，默认不进入 FreeLoop。</param>
+    IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(List<AIChatMessage> messages, string? chatModelId = null, string? agentId = null, List<string>? enabledToolNames = null, List<string>? skillIds = null, bool enableTools = true, CancellationToken cancellationToken = default, List<IToolFunctionExtension>? extraTools = null);
 
     Task<List<WorkflowRecommendationDto>> GetRecommendedWorkflowsAsync(string userMessage, int limit = 5);
     Task<GenerateScriptResponse> GenerateScriptAsync(string language, string description, string? requirements = null);

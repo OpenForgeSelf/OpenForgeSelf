@@ -123,7 +123,8 @@ public class AIAgentService : IAIAgentService
         List<string>? enabledToolNames = null,
         List<string>? skillIds = null,
         bool enableTools = true,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        List<IToolFunctionExtension>? extraTools = null)
     {
         var provider = ResolveProvider(chatModelId);
         if (provider == null)
@@ -147,6 +148,34 @@ public class AIAgentService : IAIAgentService
                 allowed.Count, tools.Count);
         }
 
+        // 追加额外显式挂载的特殊工具（计划驱动运行流 submit_plan/complete_step/request_help，R4）：
+        // 不随白名单过滤；默认不进入 FreeLoop（调用方不传即不挂载，只由 PlanDriven 步骤循环显式传入）。
+        if (extraTools is { Count: > 0 })
+        {
+            foreach (var extra in extraTools)
+            {
+                object? parameters;
+                try
+                {
+                    parameters = JsonDocument.Parse(extra.ParametersJsonSchema).RootElement.Clone();
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Warn("[AIAgentPlugin] 特殊工具 {0} schema 解析失败，已跳过: {1}", extra.Name, ex.Message);
+                    continue;
+                }
+                tools.Add(new AIToolDefinition
+                {
+                    Function = new AIFunctionDefinition
+                    {
+                        Name = extra.Name,
+                        Description = extra.Description,
+                        Parameters = parameters
+                    }
+                });
+            }
+        }
+
         var unifiedTools = tools.Count > 0
             ? tools.Select(t => new UnifiedToolDefinition
             {
@@ -164,6 +193,9 @@ public class AIAgentService : IAIAgentService
         // 技能注入：选中技能的 名称 + 描述 + 相对路径 追加到 system prompt（不全文注入，V1）。
         if (skillIds is { Count: > 0 })
             systemPrompt = AppendSelectedSkills(systemPrompt, skillIds);
+        // 关联工作流注入：把选中 Agent 关联的工作流（名称+id+描述）追加到 system prompt，
+        // 供 LLM 用 execute_workflow 工具按需执行（多工作流由 LLM 决策）。
+        systemPrompt = AppendAssociatedWorkflows(systemPrompt, agentId);
 
         var model = ResolveModelId(chatModelId);
 
@@ -285,6 +317,8 @@ public class AIAgentService : IAIAgentService
         foreach (var tool in ToolRegistry.GetAllTools())
         {
             if (!allowedPlugins.Contains(tool.PluginId)) continue;
+            // 计划驱动运行流特殊工具不进 FreeLoop（R4）：仅 PlanDriven 步骤循环经 extraTools 显式挂载。
+            if (tool.Name is "submit_plan" or "complete_step" or "request_help") continue;
             object? parameters;
             try
             {
@@ -382,6 +416,44 @@ public class AIAgentService : IAIAgentService
         {
             // 技能注入失败不阻断对话：记日志、返回原 system prompt。
             XTrace.Log.Error("[AIAgentPlugin] 技能注入失败: {0}", ex.Message);
+            return systemPrompt;
+        }
+    }
+
+    /// <summary>
+    /// 关联工作流注入：把选中 Agent 关联的工作流（id+名称+描述）追加到 system prompt（V1，仅元信息不全文）。
+    /// 提示 LLM：任务匹配其中某个工作流时用 execute_workflow 工具执行；无关则不强行调用。
+    /// 失败不阻断对话（返回原 system prompt）。
+    /// </summary>
+    private string? AppendAssociatedWorkflows(string? systemPrompt, string? agentId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(agentId) || _agentRegistry == null) return systemPrompt;
+
+            var agent = _agentRegistry.GetAgent(agentId);
+            var workflows = agent?.Workflows;
+            if (workflows == null || workflows.Count == 0) return systemPrompt;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("## 本 Agent 关联的工作流");
+            sb.AppendLine("本 Agent 已关联以下工作流（其定义已在项目 WorkflowEngine 中维护）。当用户任务匹配其中某个工作流时，");
+            sb.AppendLine("用 execute_workflow 工具传入对应 workflowId 与所需 inputVariables 执行；任务不匹配时不要强行调用。");
+            sb.AppendLine();
+            foreach (var w in workflows)
+            {
+                sb.AppendLine($"- 工作流「{w.Name}」（workflowId: {w.WorkflowId}）：{w.Description}");
+            }
+            sb.AppendLine();
+            sb.AppendLine("---");
+
+            var text = sb.ToString();
+            XTrace.Log.Info("[AIAgentPlugin] 关联工作流注入完成：{0} 个", workflows.Count);
+            return systemPrompt == null ? text.TrimEnd() : text + systemPrompt;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 关联工作流注入失败: {0}", ex.Message);
             return systemPrompt;
         }
     }

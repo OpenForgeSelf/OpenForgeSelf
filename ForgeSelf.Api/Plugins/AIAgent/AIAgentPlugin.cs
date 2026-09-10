@@ -3,6 +3,7 @@ using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
+using ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -35,6 +36,14 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IAIWorkflowAssistant, AIWorkflowAssistant>();
         services?.AddScoped<IWorkflowAIAdvisor, AIWorkflowAdvisor>();
 
+        // 计划驱动执行引擎（029，T016）：RunFlowToolSet 承载 submit_plan/complete_step/request_help
+        // 三特殊工具，供 PlanGeneratorService（规划）/ StepRunLoopService（步骤循环）经 extraTools 显式挂载（R4）。
+        var runFlowTools = new RunFlowToolSet(pluginId);
+        services?.AddSingleton(runFlowTools);
+        services?.AddScoped<IPlanGeneratorService, PlanGeneratorService>();
+        services?.AddScoped<IStepRunLoopService, StepRunLoopService>();
+        services?.AddScoped<IRunOrchestratorService, RunOrchestratorService>();
+
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
         // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
         // 再 ctx.Register<IWorkflowAIAdvisor>(实例) 写入 root 共享服务表，供兄弟插件（WorkflowEngine）经 ctx.Get 消费。
@@ -48,7 +57,7 @@ public class AIAgentPlugin : IPlugin
         }
 
         RegisterMenuExtensions(pluginId);
-        RegisterToolFunctionExtensions(pluginId, ctx);
+        RegisterToolFunctionExtensions(pluginId, ctx, runFlowTools);
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
     }
@@ -75,7 +84,7 @@ public class AIAgentPlugin : IPlugin
         XTrace.Log.Debug("[AIAgentPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
+    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services, RunFlowToolSet runFlowTools)
     {
         XTrace.Log.Debug("[AIAgentPlugin] 注册AI工具函数扩展点");
 
@@ -89,6 +98,11 @@ public class AIAgentPlugin : IPlugin
         ToolExtensions.Add(new ListFilesToolFunction(pluginId, services));
         ToolExtensions.Add(new ReadFileToolFunction(pluginId, services));
         ToolExtensions.Add(new WriteFileToolFunction(pluginId, services));
+        // 计划驱动运行流特殊工具（029 R4）：注册进 ToolRegistry 供引擎执行兜底，
+        // 但 ResolveOwnToolDefinitions 按名排除 → 不进 FreeLoop，只经 extraTools 显式挂载。
+        ToolExtensions.Add(runFlowTools.SubmitPlan);
+        ToolExtensions.Add(runFlowTools.CompleteStep);
+        ToolExtensions.Add(runFlowTools.RequestHelp);
 
         XTrace.Log.Debug("[AIAgentPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }

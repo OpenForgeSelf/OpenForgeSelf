@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Serialization;
@@ -13,10 +13,10 @@ using XCode.DataAccessLayer;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Entities;
 
-/// <summary>AI Agent 定义（可编辑提示词）。</summary>
+/// <summary>{name}。AI Agent 定义（可编辑提示词）</summary>
 [Serializable]
 [DataObject]
-[Description("AI Agent 定义（可编辑提示词）")]
+[Description("{name}。AI Agent 定义（可编辑提示词）")]
 [BindIndex("IX_AgentDefinition_SortOrder", false, "SortOrder")]
 [BindTable("AgentDefinition", Description = "AI Agent 定义（可编辑提示词）", ConnName = "AIAgent", DbType = DatabaseType.None)]
 public partial class AgentDefinition
@@ -24,7 +24,7 @@ public partial class AgentDefinition
     #region 属性
     private String _Id;
     /// <summary>Agent ID（如 agent.generalist）</summary>
-    [DisplayName("Agent ID")]
+    [DisplayName("AgentID（如agent")]
     [Description("Agent ID（如 agent.generalist）")]
     [DataObjectField(true, false, false, 64)]
     [BindColumn("Id", "Agent ID（如 agent.generalist）", "")]
@@ -35,7 +35,7 @@ public partial class AgentDefinition
     [DisplayName("名称")]
     [Description("名称")]
     [DataObjectField(false, false, false, 64)]
-    [BindColumn("Name", "名称", "")]
+    [BindColumn("Name", "名称", "", Master = true)]
     public String Name { get => _Name; set { if (OnPropertyChanging("Name", value)) { _Name = value; OnPropertyChanged("Name"); } } }
 
     private String _Description;
@@ -48,7 +48,7 @@ public partial class AgentDefinition
 
     private Int32 _Type;
     /// <summary>Agent 类型（AgentType 枚举）</summary>
-    [DisplayName("Agent 类型")]
+    [DisplayName("Agent类型（AgentType枚举）")]
     [Description("Agent 类型（AgentType 枚举）")]
     [DataObjectField(false, false, false, 0)]
     [BindColumn("Type", "Agent 类型（AgentType 枚举）", "")]
@@ -56,7 +56,7 @@ public partial class AgentDefinition
 
     private String _Avatar;
     /// <summary>头像 emoji</summary>
-    [DisplayName("头像")]
+    [DisplayName("头像emoji")]
     [Description("头像 emoji")]
     [DataObjectField(false, false, true, 16)]
     [BindColumn("Avatar", "头像 emoji", "")]
@@ -96,7 +96,7 @@ public partial class AgentDefinition
 
     private String _ConfigJson;
     /// <summary>配置 JSON（Personality/Capabilities/Tools）</summary>
-    [DisplayName("配置 JSON")]
+    [DisplayName("配置JSON（Personality_Capabilities_Tools）")]
     [Description("配置 JSON（Personality/Capabilities/Tools）")]
     [DataObjectField(false, false, true, -1)]
     [BindColumn("ConfigJson", "配置 JSON（Personality/Capabilities/Tools）", "")]
@@ -167,8 +167,8 @@ public partial class AgentDefinition
     #endregion
 
     #region 扩展查询
-    /// <summary>根据 Agent ID 查找</summary>
-    /// <param name="id">Agent ID</param>
+    /// <summary>根据AgentID（如agent查找</summary>
+    /// <param name="id">AgentID（如agent</param>
     /// <returns>实体对象</returns>
     public static AgentDefinition FindById(String id)
     {
@@ -177,65 +177,125 @@ public partial class AgentDefinition
         // 实体缓存
         if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id.EqualIgnoreCase(id));
 
-        return Find(_.Id == id);
+        // 单对象缓存
+        return Meta.SingleCache[id];
+
+        //return Find(_.Id == id);
     }
 
-    /// <summary>查找全部启用的 Agent（按 SortOrder 排序）</summary>
-    public static IList<AgentDefinition> FindAllEnabled()
+    /// <summary>根据排序查找</summary>
+    /// <param name="sortOrder">排序</param>
+    /// <returns>实体列表</returns>
+    public static IList<AgentDefinition> FindAllBySortOrder(Int32 sortOrder)
     {
-        if (Meta.Session.Count < MaxCacheCount)
-            return Meta.Cache.FindAll(e => e.IsEnabled).OrderBy(e => e.SortOrder).ToList();
+        if (sortOrder < 0) return [];
 
-        return FindAll(_.IsEnabled == true, _.SortOrder.Asc(), null, 0, 0);
+        // 实体缓存
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SortOrder == sortOrder);
+
+        return FindAll(_.SortOrder == sortOrder);
+    }
+    #endregion
+
+    #region 高级查询
+    /// <summary>高级查询</summary>
+    /// <param name="sortOrder">排序</param>
+    /// <param name="isEnabled">是否启用</param>
+    /// <param name="key">关键字</param>
+    /// <param name="page">分页参数信息。可携带统计和数据权限扩展查询等信息</param>
+    /// <returns>实体列表</returns>
+    public static IList<AgentDefinition> Search(Int32 sortOrder, Boolean? isEnabled, String key, PageParameter page)
+    {
+        var exp = new WhereExpression();
+
+        if (sortOrder >= 0) exp &= _.SortOrder == sortOrder;
+        if (isEnabled != null) exp &= _.IsEnabled == isEnabled;
+        if (!key.IsNullOrEmpty()) exp &= SearchWhereByKeys(key);
+
+        return FindAll(exp, page);
     }
     #endregion
 
     #region 字段名
-    /// <summary>取得 Agent 定义字段信息的快捷方式</summary>
+    /// <summary>取得AIAgent定义（可编辑提示词）字段信息的快捷方式</summary>
     public partial class _
     {
-        /// <summary>Agent ID</summary>
+        /// <summary>Agent ID（如 agent.generalist）</summary>
         public static readonly Field Id = FindByName("Id");
+
         /// <summary>名称</summary>
         public static readonly Field Name = FindByName("Name");
+
         /// <summary>描述</summary>
         public static readonly Field Description = FindByName("Description");
-        /// <summary>Agent 类型</summary>
+
+        /// <summary>Agent 类型（AgentType 枚举）</summary>
         public static readonly Field Type = FindByName("Type");
-        /// <summary>头像</summary>
+
+        /// <summary>头像 emoji</summary>
         public static readonly Field Avatar = FindByName("Avatar");
+
         /// <summary>系统提示词</summary>
         public static readonly Field SystemPrompt = FindByName("SystemPrompt");
+
         /// <summary>最大迭代次数</summary>
         public static readonly Field MaxIterations = FindByName("MaxIterations");
+
         /// <summary>是否启用</summary>
         public static readonly Field IsEnabled = FindByName("IsEnabled");
+
         /// <summary>排序</summary>
         public static readonly Field SortOrder = FindByName("SortOrder");
-        /// <summary>配置 JSON</summary>
+
+        /// <summary>配置 JSON（Personality/Capabilities/Tools）</summary>
         public static readonly Field ConfigJson = FindByName("ConfigJson");
+
         /// <summary>创建时间</summary>
         public static readonly Field CreatedAt = FindByName("CreatedAt");
+
         /// <summary>更新时间</summary>
         public static readonly Field UpdatedAt = FindByName("UpdatedAt");
 
         static Field FindByName(String name) => Meta.Table.FindByName(name);
     }
 
-    /// <summary>取得 Agent 定义字段名称的快捷方式</summary>
+    /// <summary>取得AIAgent定义（可编辑提示词）字段名称的快捷方式</summary>
     public partial class __
     {
+        /// <summary>Agent ID（如 agent.generalist）</summary>
         public const String Id = "Id";
+
+        /// <summary>名称</summary>
         public const String Name = "Name";
+
+        /// <summary>描述</summary>
         public const String Description = "Description";
+
+        /// <summary>Agent 类型（AgentType 枚举）</summary>
         public const String Type = "Type";
+
+        /// <summary>头像 emoji</summary>
         public const String Avatar = "Avatar";
+
+        /// <summary>系统提示词</summary>
         public const String SystemPrompt = "SystemPrompt";
+
+        /// <summary>最大迭代次数</summary>
         public const String MaxIterations = "MaxIterations";
+
+        /// <summary>是否启用</summary>
         public const String IsEnabled = "IsEnabled";
+
+        /// <summary>排序</summary>
         public const String SortOrder = "SortOrder";
+
+        /// <summary>配置 JSON（Personality/Capabilities/Tools）</summary>
         public const String ConfigJson = "ConfigJson";
+
+        /// <summary>创建时间</summary>
         public const String CreatedAt = "CreatedAt";
+
+        /// <summary>更新时间</summary>
         public const String UpdatedAt = "UpdatedAt";
     }
     #endregion

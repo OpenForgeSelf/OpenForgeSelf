@@ -76,13 +76,33 @@ public class AgentDefinition
     public List<string> Capabilities { get; set; } = new();
     public List<string> Tools { get; set; } = new();
 
+    /// <summary>
+    /// 本 Agent 关联的工作流（可多个）。执行对话时这些工作流会注入 system prompt，
+    /// Agent（LLM）用 execute_workflow 工具按需执行对应 workflowId。name/description 为冗余副本，
+    /// 供提示词展示与 LLM 决策，避免执行期查库。
+    /// </summary>
+    public List<AgentWorkflowRef> Workflows { get; set; } = new();
+
     public string SystemPrompt { get; set; } = string.Empty;
     public int MaxIterations { get; set; } = 10;
     public int SortOrder { get; set; }
 
+    /// <summary>
+    /// 执行模式：free（自由循环，默认）/ plan（计划驱动）。随 ConfigJson 持久化，缺省 free 向后兼容（design.md D3）。
+    /// </summary>
+    public string ExecutionMode { get; set; } = "free";
+
     public bool IsEnabled { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}
+
+/// <summary>Agent 关联的工作流引用（冗余名称/描述，随 ConfigJson 持久化）。</summary>
+public class AgentWorkflowRef
+{
+    public long WorkflowId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 }
 
 public class AgentInstance

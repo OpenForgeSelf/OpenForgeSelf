@@ -52,6 +52,22 @@
             <span class="aed__switch-label">启用该 Agent</span>
           </label>
         </div>
+
+        <div class="aed__row">
+          <label class="aed__label">执行模式</label>
+          <div class="aed__mode">
+            <label class="aed__mode-opt" :class="{ 'aed__mode-opt--on': form.executionMode === 'free' }">
+              <input v-model="form.executionMode" type="radio" value="free" />
+              <span class="aed__mode-name">自由循环 FreeLoop</span>
+              <span class="aed__mode-desc">现状默认：一次对话内自由思考与工具调用</span>
+            </label>
+            <label class="aed__mode-opt" :class="{ 'aed__mode-opt--on': form.executionMode === 'plan' }">
+              <input v-model="form.executionMode" type="radio" value="plan" />
+              <span class="aed__mode-name">计划驱动 PlanDriven</span>
+              <span class="aed__mode-desc">先规划后逐步执行，步骤可复盘/卡住可人工介入（029）</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <!-- 系统提示词 -->
@@ -112,6 +128,36 @@
         </div>
       </div>
 
+      <!-- 关联工作流 -->
+      <div class="aed__sec">
+        <div class="aed__sec-title">
+          关联工作流
+          <span class="aed__hint">（可多选。执行时注入提示词，由 Agent 按需用 execute_workflow 执行）</span>
+        </div>
+        <div class="aed__row">
+          <label class="aed__label">已关联（{{ associatedWorkflows.length }} 个）</label>
+          <div v-if="associatedWorkflows.length" class="aed__wf-chips">
+            <span v-for="w in associatedWorkflows" :key="w.id" class="aed__wf-chip">
+              {{ w.name }}
+            </span>
+          </div>
+          <div v-else class="aed__wf-empty">未关联工作流</div>
+        </div>
+        <select
+          v-if="workflowOptions.length"
+          v-model="form.workflowIds"
+          multiple
+          size="5"
+          class="aed__multiselect"
+        >
+          <option v-for="w in workflowOptions" :key="w.id" :value="w.id">
+            {{ w.name }}{{ w.description ? ` — ${w.description}` : '' }}
+          </option>
+        </select>
+        <div v-else class="aed__wf-empty">暂无可用工作流（联系工作流引擎）</div>
+        <div class="aed__hint">Ctrl / Shift 多选；关联后可多选多个，执行时由 LLM 按任务匹配。</div>
+      </div>
+
       <div v-if="error" class="aed__error">{{ error }}</div>
     </div>
 
@@ -136,8 +182,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElButton, ElDialog, ElMessageBox } from 'element-plus'
-import type { AgentDefinition, AgentPersonality } from '../types'
-import { createAgent, deleteAgent, updateAgent } from '../http'
+import type { AgentDefinition, AgentPersonality, WorkflowItem } from '../types'
+import { createAgent, deleteAgent, fetchWorkflows, updateAgent } from '../http'
 import TagInput from './TagInput.vue'
 
 const props = defineProps<{
@@ -181,6 +227,8 @@ const form = reactive({
   maxIterations: 10,
   isEnabled: true,
   systemPrompt: '',
+  /** 执行模式：free（自由循环，默认）/ plan（计划驱动，029）。随 AgentDefinition.ConfigJson 持久化。 */
+  executionMode: 'free' as 'free' | 'plan',
   creativity: 50,
   analytical: 50,
   empathy: 50,
@@ -190,7 +238,17 @@ const form = reactive({
   limitations: [] as string[],
   capabilities: [] as string[],
   tools: [] as string[],
+  /** 关联工作流（存 workflowId 数组）。 */
+  workflowIds: [] as number[],
 })
+
+/** 可选的关联工作流（来自 WorkflowEngine /api/workflows；懒加载一次）。 */
+const workflowOptions = ref<WorkflowItem[]>([])
+const workflowsLoaded = ref(false)
+/** 已选中工作流的展示摘要（对应 workflowIds）。 */
+const associatedWorkflows = computed(() =>
+  workflowOptions.value.filter((w) => form.workflowIds.includes(w.id as number)),
+)
 
 const saving = ref(false)
 const deleting = ref(false)
@@ -211,6 +269,7 @@ function defaultForm() {
   form.maxIterations = 10
   form.isEnabled = true
   form.systemPrompt = ''
+  form.executionMode = 'free'
   form.creativity = 50
   form.analytical = 50
   form.empathy = 50
@@ -220,6 +279,7 @@ function defaultForm() {
   form.limitations = []
   form.capabilities = []
   form.tools = []
+  form.workflowIds = []
 }
 
 /** 把 agent 数据灌入表单（编辑模式）。 */
@@ -232,6 +292,7 @@ function fillForm(agent: AgentDefinition) {
   form.maxIterations = agent.maxIterations ?? 10
   form.isEnabled = agent.isEnabled ?? true
   form.systemPrompt = agent.systemPrompt ?? ''
+  form.executionMode = agent.executionMode ?? 'free'
 
   const p = agent.personality ?? ({} as AgentPersonality)
   form.creativity = Math.round((p.creativity ?? 0.5) * 100)
@@ -243,6 +304,7 @@ function fillForm(agent: AgentDefinition) {
   form.limitations = p.limitations ? [...p.limitations] : []
   form.capabilities = agent.capabilities ? [...agent.capabilities] : []
   form.tools = agent.tools ? [...agent.tools] : []
+  form.workflowIds = agent.workflows ? [...agent.workflows.map((w) => w.workflowId)] : []
 }
 
 watch(
@@ -250,13 +312,35 @@ watch(
   (v) => {
     if (!v) return
     error.value = ''
+    loadWorkflows()
     if (props.agent) fillForm(props.agent)
     else defaultForm()
   },
 )
 
-/** 组装提交 payload（Personality 转回 0~1）。 */
+/** 懒加载可用工作流一次（失败静默降级为空列表，不阻断编辑）。 */
+async function loadWorkflows() {
+  if (workflowsLoaded.value) return
+  workflowsLoaded.value = true
+  try {
+    const list = await fetchWorkflows()
+    workflowOptions.value = list ?? []
+  } catch (e) {
+    workflowOptions.value = []
+    // 记录但不阻断：工作流接口不可用时仍可编辑 Agent 其他字段。
+    console.error('[AgentEditDialog] 加载工作流失败', e)
+  }
+}
+
+/** 组装提交 payload（Personality 转回 0~1；关联工作流转 AgentWorkflowRef 列表）。 */
 function buildPayload(): AgentDefinition {
+  const workflows = workflowOptions.value
+    .filter((w) => form.workflowIds.includes(w.id as number))
+    .map((w) => ({
+      workflowId: w.id as number,
+      name: w.name ?? '',
+      description: w.description ?? '',
+    }))
   return {
     ...(props.agent ?? {}),
     name: form.name.trim(),
@@ -279,6 +363,8 @@ function buildPayload(): AgentDefinition {
     },
     capabilities: form.capabilities,
     tools: form.tools,
+    workflows,
+    executionMode: form.executionMode,
   }
 }
 
@@ -569,6 +655,51 @@ async function onDelete() {
 
 .aed__error {
   color: var(--el-color-danger, #f56c6c);
+  font-size: var(--el-font-size-extra-small, 12px);
+}
+
+.aed__multiselect {
+  padding: 8px 12px;
+  border: 1px solid var(--el-border-color, #414243);
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-bg-color, #1d1e1f);
+  color: var(--el-text-color-primary, #e5eaf3);
+  font-size: var(--el-font-size-small, 13px);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.aed__multiselect:focus {
+  border-color: var(--el-color-primary, #ffb84d);
+}
+
+.aed__multiselect option {
+  background: var(--el-bg-color, #1d1e1f);
+  color: var(--el-text-color-primary, #e5eaf3);
+}
+
+.aed__wf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aed__wf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--el-border-radius-round, 999px);
+  background: var(--el-fill-color-dark, #2f3031);
+  border: 1px solid var(--el-color-primary, #ffb84d);
+  color: var(--el-text-color-primary, #e5eaf3);
+  font-size: var(--el-font-size-extra-small, 12px);
+}
+
+.aed__wf-empty {
+  padding: 8px 12px;
+  border: 1px dashed var(--el-border-color, #414243);
+  border-radius: var(--el-border-radius-small, 4px);
+  color: var(--el-text-color-secondary, #a3a6ad);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 

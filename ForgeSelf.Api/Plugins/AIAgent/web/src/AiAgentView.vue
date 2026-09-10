@@ -43,6 +43,7 @@
         :selected-skill-ids="selectedSkillIds"
         :left-collapsed="leftCollapsed"
         :right-collapsed="rightCollapsed"
+        :run-card="runCard"
         @update:selected-model-id="onModelChange"
         @update:active-agent-id="onActiveAgentChange"
         @update:selected-tool-names="onToolNamesChange"
@@ -53,6 +54,7 @@
         @clear-directory="onClearDirectory"
         @toggle-left="leftCollapsed = !leftCollapsed"
         @toggle-right="rightCollapsed = !rightCollapsed"
+        @open-runs="runPanelVisible = true"
       />
     </div>
 
@@ -71,6 +73,14 @@
       @update:visible="editDialogVisible = $event"
       @saved="onAgentSaved"
       @deleted="onAgentDeleted"
+    />
+
+    <!-- 执行记录面板（029 计划驱动：Run 列表 / 详情 / 继续 / 介入） -->
+    <RunRecordPanel
+      :visible="runPanelVisible"
+      :session-id="sessionId"
+      @update:visible="runPanelVisible = $event"
+      @resume="onResumeRun"
     />
   </div>
 </template>
@@ -99,13 +109,37 @@
  * 避免出现两处独立状态导致统计与界面不一致。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { apiGet, apiPost, streamAgentChat, withQuery, type AgentUsage } from './http'
-import type { AgentDefinition, AgentTool, AIModel, ChatMessage, EditingFile, ProjectSkillItem, ToolEvent } from './types'
+import {
+  apiGet,
+  apiPost,
+  getRunDetail,
+  resumeAgentRun,
+  streamAgentChat,
+  streamAgentRun,
+  withQuery,
+  type AgentUsage,
+  type RunStreamHandlers,
+} from './http'
+import type {
+  AgentDefinition,
+  AgentPlan,
+  AgentRunDto,
+  AgentTool,
+  AIModel,
+  ChatMessage,
+  EditingFile,
+  PlanRunCard,
+  PlanStepView,
+  ProjectSkillItem,
+  ToolEvent,
+} from './types'
+import { stepStatusName } from './types'
 import ContextPanel from './components/ContextPanel.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import FileEditor from './components/FileEditor.vue'
 import SessionPanel from './components/SessionPanel.vue'
 import AgentEditDialog from './components/AgentEditDialog.vue'
+import RunRecordPanel from './components/RunRecordPanel.vue'
 
 /** 插件 id，与 plugin.json 的 Id 对齐。 */
 const PLUGIN_ID = 'ai-agent'
@@ -165,6 +199,15 @@ const leftCollapsed = ref(false)
 const rightCollapsed = ref(false)
 /** 当前发送的 AbortController（composer 发送按钮发送中变 ■ 停止用）。 */
 const sendAbort = ref<AbortController | null>(null)
+/** 计划驱动执行（029）：中栏步骤进度卡的实时运行状态。 */
+const runCard = ref<PlanRunCard | null>(null)
+/** 执行记录面板（029）是否打开。 */
+const runPanelVisible = ref(false)
+/** 计划驱动执行的 AbortController（停止 = 中断 SSE 流）。 */
+const runAbort = ref<AbortController | null>(null)
+
+/** 当前激活 Agent（用于判断执行模式：free 自由循环 / plan 计划驱动）。 */
+const activeAgent = computed(() => agents.value.find((a) => a.id === activeAgentId.value) ?? null)
 
 /** 消息条数（真实统计）。 */
 const messageCount = computed(() => messages.value.length)
@@ -404,8 +447,18 @@ function onModelChange(value: string) {
   if (value) localStorage.setItem(LS_KEY_MODEL, value)
 }
 
-/** 发送消息：乐观插用户气泡 + assistant 占位，调插件流式接口，逐 token 追加并实时展示工具调用。 */
+/** 发送消息：依据所选 Agent 执行模式分流（029）——plan 走计划驱动 runs SSE，free 走聊天流。 */
 async function sendMessage(text: string) {
+  if (sending.value) return
+  if (activeAgent.value?.executionMode === 'plan') {
+    await sendPlanMessage(text)
+    return
+  }
+  await sendFreeMessage(text)
+}
+
+/** 自由循环（FreeLoop）：乐观插用户气泡 + assistant 占位，调插件流式接口，逐 token 追加并实时展示工具调用。 */
+async function sendFreeMessage(text: string) {
   if (sending.value) return
   error.value = ''
   sending.value = true
@@ -510,6 +563,183 @@ async function sendMessage(text: string) {
   } finally {
     sending.value = false
     sendAbort.value = null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 计划驱动执行（029）：Plan 模式 SSE 分流 + 步骤进度卡 + 恢复             */
+/* ------------------------------------------------------------------ */
+
+/** 由 Run.planJson（camelCase Plan DSL）重建 Plan 骨架；解析失败回退空。 */
+function planFromRunJson(planJson?: string): { plan: AgentPlan | null; steps: PlanStepView[] } {
+  if (!planJson) return { plan: null, steps: [] }
+  try {
+    const p = JSON.parse(planJson) as AgentPlan
+    return {
+      plan: p,
+      steps: (p.steps ?? []).map((s, i) => ({
+        index: i,
+        id: s.id,
+        name: s.name,
+        objective: s.objective,
+        status: 'pending',
+      })),
+    }
+  } catch {
+    return { plan: null, steps: [] }
+  }
+}
+
+/**
+ * 构造计划驱动 SSE 处理器（创建与恢复共用）。
+ * 事件 → 步骤卡状态增量维护：plan_created 重建步骤骨架、step_started/step_completed 推进、
+ * run_stuck 置卡住、done 收尾交付、error 记入错误条。
+ */
+function buildRunHandlers(): RunStreamHandlers {
+  const setStep = (index: number, patch: Partial<PlanStepView>) => {
+    const card = runCard.value
+    if (!card) return
+    let st = card.steps.find((s) => s.index === index)
+    if (!st) {
+      st = { index, status: 'pending' }
+      card.steps.push(st)
+      card.steps.sort((a, b) => a.index - b.index)
+    }
+    Object.assign(st, patch)
+  }
+  return {
+    onPlanCreated: (payload) => {
+      const card = runCard.value
+      if (!card) return
+      card.plan = payload.plan
+      card.status = 'planning'
+      card.steps = (payload.plan?.steps ?? []).map((s, i) => ({
+        index: i,
+        id: s.id,
+        name: s.name,
+        objective: s.objective,
+        status: 'pending',
+      }))
+    },
+    onStepStarted: (payload) => {
+      if (!runCard.value) return
+      runCard.value.status = 'running'
+      setStep(payload.stepIndex, {
+        id: payload.stepId,
+        name: payload.name,
+        objective: payload.objective,
+        status: 'running',
+      })
+    },
+    onStepCompleted: (payload) => {
+      setStep(payload.stepIndex, { status: 'completed', output: payload.output })
+    },
+    onRunStuck: (payload) => {
+      const card = runCard.value
+      if (!card) return
+      card.status = 'stuck'
+      card.stuckReason = payload.reason
+      setStep(payload.stepIndex, { status: 'stuck', stuckReason: payload.reason })
+    },
+    onContent: (chunk) => {
+      // 步骤内增量输出累积到当前 running 步骤（与消息流不同：计划模式中间产出归步骤卡）。
+      const card = runCard.value
+      if (!card) return
+      const running = card.steps.find((s) => s.status === 'running')
+      if (running) running.output = (running.output ?? '') + chunk
+    },
+    onUsage: (usage) => {
+      if (usage) lastUsage.value = usage
+    },
+    onDone: (content) => {
+      const card = runCard.value
+      if (card) card.status = 'completed'
+      messages.value.push({ id: `a-${Date.now()}`, role: 'assistant', content })
+    },
+    onError: (msg) => {
+      error.value = msg
+      if (runCard.value) runCard.value.error = msg
+    },
+  }
+}
+
+/** 计划驱动发送（029）：调 POST /api/ai-agent/runs SSE，全程驱动步骤进度卡，完成后追加交付消息。 */
+async function sendPlanMessage(text: string) {
+  error.value = ''
+  sending.value = true
+
+  // 乐观插用户消息，并初始化步骤卡（等待规划）。
+  messages.value.push({ id: `u-${Date.now()}`, role: 'user', content: text })
+  runCard.value = { runId: 0, plan: null, status: 'pending', steps: [] }
+
+  const controller = new AbortController()
+  runAbort.value = controller
+
+  try {
+    await streamAgentRun(
+      {
+        sessionId: sessionId.value,
+        agentId: activeAgentId.value,
+        taskInput: text,
+        chatModelId: selectedModelId.value || undefined,
+      },
+      buildRunHandlers(),
+      controller.signal,
+    )
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      // 用户停止：保留现场（Run 后端仍为运行态，可从执行记录面板取消/重开）。
+    } else {
+      error.value = e instanceof Error ? e.message : String(e)
+      if (runCard.value) runCard.value.error = error.value
+    }
+  } finally {
+    sending.value = false
+    runAbort.value = null
+  }
+}
+
+/** 执行记录面板「继续」：以现有 Run 从当前步骤恢复（POST runs/{id}/resume，SSE）。 */
+async function onResumeRun(run: AgentRunDto) {
+  if (sending.value) return
+  error.value = ''
+  sending.value = true
+  runPanelVisible.value = false
+
+  // 从 run.planJson 重建骨架（resume 流不重发 plan_created），再用库内步骤状态覆盖历史。
+  const { plan, steps } = planFromRunJson(run.planJson)
+  runCard.value = { runId: run.id, plan, status: 'running', steps, stuckReason: undefined, error: undefined }
+  try {
+    const detail = await getRunDetail(run.id)
+    if (detail?.steps && detail.steps.length > 0) {
+      runCard.value.steps = detail.steps.map((s) => ({
+        index: s.stepIndex,
+        id: s.stepId,
+        name: s.name,
+        objective: s.objective,
+        status: stepStatusName(s.status),
+        output: s.outputJson ?? undefined,
+        stuckReason: s.stuckReason ?? undefined,
+      }))
+    }
+  } catch {
+    // 详情加载失败不阻断：以 planJson 骨架继续，SSE 事件仍会推进。
+  }
+
+  const controller = new AbortController()
+  runAbort.value = controller
+  try {
+    await resumeAgentRun(run.id, buildRunHandlers(), controller.signal)
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      // 用户停止：保留现场。
+    } else {
+      error.value = e instanceof Error ? e.message : String(e)
+      if (runCard.value) runCard.value.error = error.value
+    }
+  } finally {
+    sending.value = false
+    runAbort.value = null
   }
 }
 

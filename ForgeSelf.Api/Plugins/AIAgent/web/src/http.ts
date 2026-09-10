@@ -13,7 +13,18 @@
 /** 宿主写入 token 的 localStorage 键名（与 ForgeSelf.Web/src/services/request.ts 保持一致）。 */
 const TOKEN_KEY = 'forge_api_token'
 
-import type { AgentDefinition } from './types'
+import type {
+  AgentDefinition,
+  AgentRunDetailResponse,
+  AgentRunListResponse,
+  InterveneRequest,
+  PlanCreatedPayload,
+  RunRequest,
+  RunStuckPayload,
+  StepCompletedPayload,
+  StepStartedPayload,
+  WorkflowItem,
+} from './types'
 
 /** 接口返回的标准包裹结构。 */
 export interface ApiEnvelope<T> {
@@ -66,6 +77,18 @@ export async function apiDelete<T>(path: string): Promise<T | undefined> {
  */
 export async function apiPut<T>(path: string, body: unknown): Promise<T | undefined> {
   return request<T>(path, { method: 'PUT', body: JSON.stringify(body) })
+}
+
+/**
+ * 发起带 token 的 JSON PATCH 请求并返回 data 部分。
+ * 用于部分更新资源（如人工介入步骤）。
+ *
+ * @param path 以 / 开头的接口路径
+ * @param body 请求体，会被序列化为 JSON
+ * @returns 响应体的 data 字段（若存在）
+ */
+export async function apiPatch<T>(path: string, body: unknown): Promise<T | undefined> {
+  return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 }
 
 /** Agent 流式聊天请求体（对应后端 ChatRequest）。 */
@@ -287,4 +310,214 @@ export function updateAgent(agentId: string, agent: AgentDefinition): Promise<Ag
 /** 删除 Agent（DELETE /api/agents/{id}）。 */
 export function deleteAgent(agentId: string): Promise<unknown> {
   return apiDelete(`/api/agents/${encodeURIComponent(agentId)}`)
+}
+
+/* ------------------------------------------------------------------ */
+/* 工作流（跨插件读 WorkflowEngine，供 Agent 关联选择）                */
+/* ------------------------------------------------------------------ */
+
+/** WorkflowController 返回的分页信封（与后端 PagedResult<WorkflowDefinitionDto> 对应）。 */
+interface WorkflowPage {
+  items?: WorkflowItem[]
+  total?: number
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * 拉取全部工作流一次（pageSize 取大，避免分页循环）。用于 AgentEditDialog 关联工作流多选。
+ * 通过 GET /api/workflows（WorkflowEngine 的 WorkflowController），与宿主同源带 token。
+ */
+export async function fetchWorkflows(): Promise<WorkflowItem[]> {
+  const page = await apiGet<WorkflowPage>('/api/workflows?page=1&pageSize=200')
+  return page?.items ?? []
+}
+
+/* ------------------------------------------------------------------ */
+/* 计划驱动执行（029）：runs API + SSE 流式                              */
+/* ------------------------------------------------------------------ */
+
+/** 计划驱动执行 SSE 事件回调（对应 AgentRunsController 结构化 SSE 事件）。 */
+export interface RunStreamHandlers {
+  /** 执行计划已生成（plan_created）。 */
+  onPlanCreated?: (payload: PlanCreatedPayload) => void
+  /** 某步骤开始执行（step_started）。 */
+  onStepStarted?: (payload: StepStartedPayload) => void
+  /** 某步骤完成（step_completed）。 */
+  onStepCompleted?: (payload: StepCompletedPayload) => void
+  /** Run 卡住等待人工介入（run_stuck）。 */
+  onRunStuck?: (payload: RunStuckPayload) => void
+  /** 步骤循环内增量 token（content）。 */
+  onContent?: (content: string) => void
+  /** 步骤循环内一次工具调用开始（tool_call）。 */
+  onToolCall?: (e: { name?: string; arguments?: string }) => void
+  /** 步骤循环内一次工具调用结果（tool_result）。 */
+  onToolResult?: (e: { name?: string; result?: string; success?: boolean }) => void
+  /** token 用量（usage）。 */
+  onUsage?: (usage: AgentUsage | undefined) => void
+  /** 全部步骤完成，终局合成交付（done.payload = 最终内容）。 */
+  onDone?: (content: string) => void
+  /** 错误（error）。 */
+  onError?: (message: string) => void
+}
+
+/**
+ * 调计划驱动执行 SSE 接口并逐事件回调。
+ * 同时服务 POST /api/ai-agent/runs（创建）与 POST /api/ai-agent/runs/{id}/resume（恢复），
+ * 两者事件结构一致（plan_created/step_started/step_completed/run_stuck/done 的 payload 为 JSON 字符串；
+ * content/tool_call/tool_result/usage/error 直接字段）。
+ */
+async function streamRunRequest(
+  path: string,
+  payload: RunRequest | undefined,
+  handlers: RunStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const res = await fetch(path, {
+    method: 'POST',
+    headers,
+    body: payload ? JSON.stringify(payload) : undefined,
+    signal,
+  })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const body = (await res.json()) as { message?: string; title?: string }
+      detail = body?.message ?? body?.title ?? ''
+    } catch {
+      // 非 JSON 响应，仅用状态码兜底
+    }
+    throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
+  }
+  if (!res.body) throw new Error('响应无内容流')
+
+  const parsePayload = (raw: string): Record<string, unknown> | null => {
+    try {
+      const obj = JSON.parse(raw) as Record<string, unknown>
+      return obj
+    } catch {
+      return null
+    }
+  }
+
+  /** payload 字段为 JSON 字符串时解出对象，否则原样返回（done 的 payload 是最终内容字符串）。 */
+  const dispatch = (dataStr: string) => {
+    const obj = parsePayload(dataStr)
+    if (!obj) return
+    const type = obj.type as string | undefined
+    const payloadRaw = typeof obj.payload === 'string' ? (parsePayload(obj.payload) ?? obj.payload) : obj.payload
+    switch (type) {
+      case 'plan_created':
+        handlers.onPlanCreated?.(payloadRaw as PlanCreatedPayload)
+        break
+      case 'step_started':
+        handlers.onStepStarted?.(payloadRaw as StepStartedPayload)
+        break
+      case 'step_completed':
+        handlers.onStepCompleted?.(payloadRaw as StepCompletedPayload)
+        break
+      case 'run_stuck':
+        handlers.onRunStuck?.(payloadRaw as RunStuckPayload)
+        break
+      case 'content':
+        handlers.onContent?.((obj.content as string) ?? '')
+        break
+      case 'tool_call':
+        handlers.onToolCall?.({ name: obj.name as string, arguments: obj.arguments as string })
+        break
+      case 'tool_result':
+        handlers.onToolResult?.({ name: obj.name as string, result: obj.result as string, success: obj.success as boolean })
+        break
+      case 'usage':
+        handlers.onUsage?.(obj.usage as AgentUsage | undefined)
+        break
+      case 'done':
+        handlers.onDone?.((payloadRaw as string) ?? '')
+        break
+      case 'error':
+        handlers.onError?.((obj.content as string) ?? '未知错误')
+        break
+    }
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let idx: number
+    while ((idx = buffer.indexOf('\n\n')) >= 0) {
+      const rawEvent = buffer.slice(0, idx)
+      buffer = buffer.slice(idx + 2)
+      for (const line of rawEvent.split('\n')) {
+        if (line.startsWith('data: ')) dispatch(line.slice(6))
+      }
+    }
+  }
+  const tail = buffer.trim()
+  if (tail.startsWith('data: ')) dispatch(tail.slice(6))
+}
+
+/** 创建计划驱动执行（POST /api/ai-agent/runs，SSE 流）。 */
+export function streamAgentRun(
+  payload: RunRequest,
+  handlers: RunStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamRunRequest('/api/ai-agent/runs', payload, handlers, signal)
+}
+
+/** 恢复计划驱动执行（POST /api/ai-agent/runs/{id}/resume，SSE 流；仅 Stuck/Failed 允许）。 */
+export function resumeAgentRun(
+  id: number,
+  handlers: RunStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamRunRequest(`/api/ai-agent/runs/${id}/resume`, undefined, handlers, signal)
+}
+
+/** Run 列表（GET /api/ai-agent/runs，分页 + 可选 sessionId/status 过滤）。 */
+export function listRuns(
+  sessionId?: string,
+  status?: string,
+  page = 1,
+  pageSize = 20,
+): Promise<AgentRunListResponse | undefined> {
+  return apiGet<AgentRunListResponse>(
+    withQuery('/api/ai-agent/runs', { sessionId, status, page, pageSize }),
+  )
+}
+
+/** Run 详情（GET /api/ai-agent/runs/{id}，含步骤列表）。 */
+export function getRunDetail(id: number): Promise<AgentRunDetailResponse | undefined> {
+  return apiGet<AgentRunDetailResponse>(`/api/ai-agent/runs/${id}`)
+}
+
+/** 以同 Plan 新建 Run 从头执行（POST /api/ai-agent/runs/{id}/restart）。 */
+export function restartRun(id: number): Promise<{ success?: boolean; newRunId?: number } | undefined> {
+  return apiPost<{ success?: boolean; newRunId?: number }>(`/api/ai-agent/runs/${id}/restart`, {})
+}
+
+/** 取消 Run（POST /api/ai-agent/runs/{id}/cancel）。 */
+export function cancelRun(id: number): Promise<{ success?: boolean } | undefined> {
+  return apiPost<{ success?: boolean }>(`/api/ai-agent/runs/${id}/cancel`, {})
+}
+
+/** 人工介入步骤（PATCH /api/ai-agent/runs/{id}/steps/{index}；skip 跳过 / override 补位）。 */
+export function interveneRun(
+  id: number,
+  stepIndex: number,
+  request: InterveneRequest,
+): Promise<{ success?: boolean; stepIndex?: number; status?: string } | undefined> {
+  return apiPatch<{ success?: boolean; stepIndex?: number; status?: string }>(
+    `/api/ai-agent/runs/${id}/steps/${stepIndex}`,
+    request,
+  )
 }

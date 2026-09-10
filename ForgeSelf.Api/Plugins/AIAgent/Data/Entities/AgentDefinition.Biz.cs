@@ -100,6 +100,9 @@ public partial class AgentDefinition : Entity<AgentDefinition>
                     model.Personality = cfg.Personality ?? new Models.AgentPersonality();
                     model.Capabilities = cfg.Capabilities ?? new List<string>();
                     model.Tools = cfg.Tools ?? new List<string>();
+                    model.Workflows = cfg.Workflows ?? new List<Models.AgentWorkflowRef>();
+                    // 执行模式缺省 free（向后兼容存量 Agent 无该字段）。
+                    model.ExecutionMode = string.IsNullOrWhiteSpace(cfg.ExecutionMode) ? "free" : cfg.ExecutionMode;
                 }
             }
             catch (Exception ex)
@@ -128,6 +131,8 @@ public partial class AgentDefinition : Entity<AgentDefinition>
             Personality = model.Personality,
             Capabilities = model.Capabilities,
             Tools = model.Tools,
+            Workflows = model.Workflows,
+            ExecutionMode = string.IsNullOrWhiteSpace(model.ExecutionMode) ? "free" : model.ExecutionMode,
         };
         ConfigJson = JsonSerializer.Serialize(cfg);
     }
@@ -140,4 +145,8 @@ internal class AgentConfigPayload
     public Models.AgentPersonality? Personality { get; set; }
     public List<string>? Capabilities { get; set; }
     public List<string>? Tools { get; set; }
+    public List<Models.AgentWorkflowRef>? Workflows { get; set; }
+
+    /// <summary>执行模式：free（自由循环，默认）/ plan（计划驱动）。缺省 free 向后兼容。</summary>
+    public string? ExecutionMode { get; set; }
 }

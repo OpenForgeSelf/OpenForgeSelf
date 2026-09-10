@@ -28,6 +28,15 @@
       </div>
 
       <div class="chat__bar-right">
+        <!-- 执行记录（029 计划驱动）：打开 Run 列表/详情面板 -->
+        <button
+          type="button"
+          class="chat__fold"
+          title="执行记录（计划驱动 Run 列表 / 详情 / 介入）"
+          @click="emit('open-runs')"
+        >
+          <List class="chat__fold-ico" />
+        </button>
         <button
           type="button"
           class="chat__fold"
@@ -38,6 +47,16 @@
         </button>
       </div>
     </header>
+
+    <!-- 计划驱动执行：步骤进度卡（029；与消息流并列，执行期间常驻可见） -->
+    <StepProgressCard
+      v-if="runCard"
+      :plan="runCard.plan"
+      :steps="runCard.steps"
+      :status="runCard.status"
+      :stuck-reason="runCard.stuckReason"
+      :error="runCard.error"
+    />
 
     <!-- 消息列表（ElScrollbar 接管滚动：零自研滚动条，布局 flex-1 + min-h-0 后 wrap 内部滚动） -->
     <ElScrollbar ref="listEl" class="chat__list min-h-0 flex-1">
@@ -385,9 +404,10 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 // 组件样式由 index.ts 自备（element-plus 各组件 style 入口）。
 import { ElButton, ElScrollbar, ElTag } from 'element-plus'
 // EP 图标：经 import map 解析到宿主共享桥（public/shared/element-plus-icons.js）取同一份实例。
-import { Coin, Cpu, Expand, Fold, Folder, Lightning, Promotion, Tools, VideoPause } from '@element-plus/icons-vue'
+import { Coin, Cpu, Expand, Fold, Folder, Lightning, List, Promotion, Tools, VideoPause } from '@element-plus/icons-vue'
 import { renderMarkdown } from '../markdown'
-import type { AgentDefinition, AgentTool, AIModel, ChatMessage, ProjectSkillItem, ToolEvent } from '../types'
+import type { AgentDefinition, AgentTool, AIModel, ChatMessage, PlanRunCard, ProjectSkillItem, ToolEvent } from '../types'
+import StepProgressCard from './StepProgressCard.vue'
 
 const props = defineProps<{
   /** 消息列表（由父组件持有）。 */
@@ -420,6 +440,8 @@ const props = defineProps<{
   selectedToolNames: string[]
   /** 本会话已选技能 id（⚡ 多选）。 */
   selectedSkillIds: string[]
+  /** 计划驱动执行步骤进度卡（029；null = 无运行中的计划执行）。 */
+  runCard: PlanRunCard | null
 }>()
 
 const emit = defineEmits<{
@@ -443,6 +465,8 @@ const emit = defineEmits<{
   (e: 'toggle-left'): void
   /** 折叠右栏。 */
   (e: 'toggle-right'): void
+  /** 打开执行记录面板（029 计划驱动）。 */
+  (e: 'open-runs'): void
 }>()
 
 /** 默认 Agent id（恢复默认时不显示 chip）。 */
@@ -806,6 +830,12 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+/* 步骤进度卡（029）：置于消息列表上方、与消息流并列；自身 flex-shrink:0 保证列表区仍可滚动 */
+.chat > .spc {
+  flex-shrink: 0;
+  margin: 10px 24px 0;
 }
 
 .chat__list-inner {

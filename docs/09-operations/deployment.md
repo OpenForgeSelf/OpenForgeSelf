@@ -10,7 +10,7 @@
 .\start.ps1
 ```
 
-- 后端默认端口：`ForgeSetting.PortNumber = 7102`（运行期可改，重启生效）；
+- 后端端口（日常运行实例）：`ForgeSetting.PortNumber = 51888`（本环境 publish 实例实际监听端口，见第 2 节）；本地开发约定后端端口为 `7102`（前端 `vite.config.ts` dev proxy 目标）。
 - 前端 dev server 默认 `7002`。
 
 ## 2. 构建与发布
@@ -26,7 +26,7 @@
 - 前端验证门禁：`pnpm run check`（vue-tsc + eslint）+ `pnpm run test`（vitest）；
 - 后端验证门禁：`dotnet build` + `dotnet test`。
 
-> ✅ 后端端口已统一为 `7102`：`vite.config.ts` 的 dev proxy 目标（proxy `/api`、MCP、AIAgent、WebSocket）均已指向 `7102`，历史残留的 `51888` 死端口已清除，本地 dev 代理正常工作。
+> ✅ 本地开发前端 `vite.config.ts` 的 dev proxy 目标（proxy `/api`、MCP、AIAgent、WebSocket）均指向后端开发端口 `7102`，本地 dev 代理正常工作。**注意**：`51888` 并**非**死端口，而是本环境日常运行的 publish 实例端口（由 `ForgeSetting.config` 的 `PortNumber=51888` 决定，见第 1 节）。开发端口 `7102` 与运行实例端口 `51888` 并存，按需区分。
 
 ## 3. 服务管理（托盘 / Windows）
 

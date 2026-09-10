@@ -1,4 +1,4 @@
-# ForgeSelf 一键打包脚本
+﻿# ForgeSelf 一键打包脚本
 # 构建前端 → 输出到后端 wwwroot → 发布后端
 #
 # 用法:
@@ -6,11 +6,15 @@
 #   .\build.ps1 -Config Debug # Debug 发布
 #   .\build.ps1 -SkipFrontend # 仅打包后端（前端已构建）
 #   .\build.ps1 -SkipPublish  # 仅构建不发布
+#   .\build.ps1 -Sign         # 发布后对产物做 Authenticode 签名（自签/已有证书，见 scripts/sign-publish.ps1）
+#   .\build.ps1 -Sign -SignAll # 签名范围覆盖 publish 下全部 DLL
 
 param(
     [ValidateSet('Debug','Release')][string]$Config = 'Release',
     [switch]$SkipFrontend,
-    [switch]$SkipPublish
+    [switch]$SkipPublish,
+    [switch]$Sign,
+    [switch]$SignAll
 )
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -110,6 +114,27 @@ if (-not $SkipPublish) {
     Write-Host ""
 } else {
     Write-Host "[3/3] 跳过后端发布 (--SkipPublish)" -ForegroundColor Gray
+    Write-Host ""
+}
+
+# ── 第 4 步（可选）：对发布产物做 Authenticode 代码签名 ──
+# 必须放在 publish 之后：publish 前一步会全量清空 publish/，先签会被抹掉。
+if ($Sign) {
+    Write-Host "[+] 对发布产物签名 (scripts/sign-publish.ps1)..." -ForegroundColor Cyan
+    $signScript = Join-Path $root "scripts\sign-publish.ps1"
+    if (-not (Test-Path $signScript)) {
+        Write-Host "    [错误] 签名脚本不存在: $signScript" -ForegroundColor Red
+        exit 1
+    }
+    # 用哈希表 splat（而非数组 splat）显式绑定命名参数，避免数组 splat 在 $publishDir 为空时
+    # 把 '-PublishDir' 自身当作参数值传入（实测：数组 splat 会令脚本收到 $PublishDir='-PublishDir'）。
+    $signParams = @{ PublishDir = $publishDir }
+    if ($SignAll) { $signParams['AllAssemblies'] = $true }
+    & $signScript @signParams
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "    [错误] 签名失败 (exit code: $LASTEXITCODE)" -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
     Write-Host ""
 }
 

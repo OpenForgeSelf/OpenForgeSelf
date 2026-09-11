@@ -10,6 +10,7 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 public interface IPluginMessageService
 {
     Task<long> SaveMessageAsync(string sessionId, string role, string content);
+    Task<long> SaveMessageAsync(string sessionId, string role, string content, string? toolCallsJson);
     Task<List<ChatMessageModel>> GetHistoryAsync(string sessionId, int limit = 50);
     Task DeleteSessionAsync(string sessionId);
 }
@@ -17,6 +18,9 @@ public interface IPluginMessageService
 public class PluginMessageService : IPluginMessageService
 {
     public Task<long> SaveMessageAsync(string sessionId, string role, string content)
+        => SaveMessageAsync(sessionId, role, content, null);
+
+    public Task<long> SaveMessageAsync(string sessionId, string role, string content, string? toolCallsJson)
     {
         try
         {
@@ -25,13 +29,14 @@ public class PluginMessageService : IPluginMessageService
                 SessionId = sessionId,
                 Role = role,
                 Content = content,
+                ToolCallsJson = toolCallsJson ?? string.Empty,
                 CreateTime = DateTime.Now,
                 UpdateTime = DateTime.Now
             };
 
             message.Insert();
 
-            XTrace.Log.Info("[AIAgentPlugin] 消息已保存，ID: {0}, SessionId: {1}, Role: {2}", message.Id, sessionId, role);
+            XTrace.Log.Info("[AIAgentPlugin] 消息已保存，ID: {0}, SessionId: {1}, Role: {2}, 工具轨迹: {3}", message.Id, sessionId, role, toolCallsJson?.Length ?? 0);
 
             return Task.FromResult(message.Id);
         }
@@ -63,7 +68,8 @@ public class PluginMessageService : IPluginMessageService
                 Role = m.Role,
                 Content = m.Content,
                 CreateTime = m.CreateTime,
-                UpdateTime = m.UpdateTime
+                UpdateTime = m.UpdateTime,
+                ToolCallsJson = m.ToolCallsJson
             }).ToList());
         }
         catch (Exception ex)

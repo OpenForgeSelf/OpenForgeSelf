@@ -92,6 +92,16 @@
                 </p>
                 <pre v-if="s.inputJson" class="rrp__pre"><span class="rrp__label">入参</span>{{ s.inputJson }}</pre>
                 <pre v-if="s.outputJson" class="rrp__pre"><span class="rrp__label">出参</span>{{ s.outputJson }}</pre>
+                <!-- 工具调用轨迹（AgentStepRun.ToolCallsJson 落库，029 既已落库，本次补渲染） -->
+                <div v-if="stepToolCalls(s).length" class="rrp__toolcalls">
+                  <span class="rrp__label">工具调用</span>
+                  <div v-for="(t, ti) in stepToolCalls(s)" :key="ti" class="rrp__toolcall">
+                    <span class="rrp__toolcall-name">{{ t.name }}</span>
+                    <span class="rrp__toolcall-badge" :class="t.success ? 'rrp__toolcall-badge--ok' : 'rrp__toolcall-badge--fail'">{{ t.success ? '成功' : '失败' }}</span>
+                    <pre v-if="t.args" class="rrp__pre"><span class="rrp__label">参数</span>{{ t.args }}</pre>
+                    <pre v-if="t.result" class="rrp__pre"><span class="rrp__label">结果</span>{{ t.result }}</pre>
+                  </div>
+                </div>
                 <p v-if="s.retryCount" class="rrp__line rrp__line--meta">重试 {{ s.retryCount }} 次</p>
               </div>
             </div>
@@ -400,8 +410,35 @@ function stepDetailVisible(s: AgentStepRunDto): boolean {
     s.humanNote ||
     s.humanOverride ||
     s.inputJson ||
-    s.outputJson
+    s.outputJson ||
+    s.toolCallsJson
   )
+}
+
+/** 步骤工具调用轨迹（AgentStepRun.ToolCallsJson：StepToolCallTrace 形状
+ *  name/argumentsSummary/resultSummary/success）→ 统一展示结构。 */
+interface StepToolTrace {
+  name?: string
+  args?: string
+  result?: string
+  success?: boolean
+}
+function stepToolCalls(s: AgentStepRunDto): StepToolTrace[] {
+  if (!s.toolCallsJson) return []
+  try {
+    const arr = JSON.parse(s.toolCallsJson) as unknown
+    if (!Array.isArray(arr)) return []
+    return (arr as Record<string, unknown>[])
+      .filter((t) => !!t && typeof t === 'object')
+      .map((t) => ({
+        name: typeof t.name === 'string' ? t.name : undefined,
+        args: typeof t.argumentsSummary === 'string' ? t.argumentsSummary : undefined,
+        result: typeof t.resultSummary === 'string' ? t.resultSummary : undefined,
+        success: typeof t.success === 'boolean' ? t.success : undefined,
+      }))
+  } catch {
+    return []
+  }
 }
 
 function fmtTime(t?: string): string {

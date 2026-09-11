@@ -49,6 +49,8 @@ export interface ChatMessage {
   toolCalls?: string[]
   /** 该条回复触发的工具调用明细（流式实时收集，含参数/结果）。 */
   toolEvents?: ToolEvent[]
+  /** 该条回复触发的工具调用轨迹原始 JSON（FreeLoop 落库，031 方案A）；历史消息加载时解析为 toolEvents。 */
+  toolCallsJson?: string
   /** token 用量。 */
   usage?: ChatUsage
 }

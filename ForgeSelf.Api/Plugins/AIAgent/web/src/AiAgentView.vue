@@ -434,10 +434,34 @@ async function loadHistory() {
     const list = await apiGet<ChatMessage[]>(
       `/api/ai-agent/chat/history/${encodeURIComponent(sessionId.value)}?limit=50`
     )
-    messages.value = (list ?? []).map((m, i) => ({ ...m, id: m.id ?? `h-${i}` }))
+    // 历史消息从后端 ToolCallsJson（FreeLoop 落库，031 方案A）解析工具轨迹，刷新后仍可见工具卡片
+    messages.value = (list ?? []).map((m, i) => ({
+      ...m,
+      id: m.id ?? `h-${i}`,
+      toolEvents: parseToolEvents(m.toolCallsJson),
+    }))
   } catch {
     // 新会话尚无历史，视为空即可
     messages.value = []
+  }
+}
+
+/** 解析后端 ToolCallsJson（camelCase: name/args/result/success）为 ToolEvent[]，供历史消息渲染工具卡片。 */
+function parseToolEvents(json?: string): ToolEvent[] {
+  if (!json) return []
+  try {
+    const arr = JSON.parse(json) as unknown
+    if (!Array.isArray(arr)) return []
+    return arr
+      .filter((t): t is Record<string, unknown> => !!t && typeof t === 'object')
+      .map((t) => ({
+        name: typeof t.name === 'string' ? t.name : undefined,
+        args: typeof t.args === 'string' ? t.args : undefined,
+        result: typeof t.result === 'string' ? t.result : undefined,
+        success: typeof t.success === 'boolean' ? t.success : undefined,
+      }))
+  } catch {
+    return []
   }
 }
 

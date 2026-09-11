@@ -21,7 +21,17 @@ public class AIAgentPlugin : IPlugin
         XTrace.Log.Info("[AIAgentPlugin] 初始化AI代理插件");
 
         var services = ctx.Get<IServiceCollection>();
-        services?.AddSingleton<IProjectWorkspaceService, ProjectWorkspaceService>();
+
+        // 项目工作区服务：单一共享单例实例。
+        // 关键修复：必须同时注册进「宿主 DI（services，供 ProjectController 构造注入）」与「ctx（供文件工具运行时 ctx.Get）」，
+        // 且用同一个实例——否则设目录的实例 ≠ 工具读到的实例，目录白设。
+        // 旧写法 services.AddSingleton<...,ProjectWorkspaceService>() 只进 services，ctx.Get 解析不到该注册
+        // （ctx.Get 与 ctx.Get<IServiceCollection>() 返回的 IServiceCollection 不是同一存储），导致工具抛「项目工作区服务不可用」。
+        // 正确模式：显式 new 单例实例，services 注册实例（宿主 DI 可见）+ ctx.Register 实例（运行时 ctx.Get 可见），二者同一实例。
+        var workspace = new ProjectWorkspaceService();
+        services?.AddSingleton<IProjectWorkspaceService>(workspace);
+        ctx.Register<IProjectWorkspaceService>(workspace);
+
         services?.AddSingleton<IProjectSkillScannerService, ProjectSkillScannerService>();
         services?.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
         services?.AddScoped<IAIAgentService, AIAgentService>();
@@ -84,20 +94,20 @@ public class AIAgentPlugin : IPlugin
         XTrace.Log.Debug("[AIAgentPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
-    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services, RunFlowToolSet runFlowTools)
+    private void RegisterToolFunctionExtensions(string pluginId, IContext ctx, RunFlowToolSet runFlowTools)
     {
         XTrace.Log.Debug("[AIAgentPlugin] 注册AI工具函数扩展点");
 
         ToolExtensions.Add(new GetCurrentTimeToolFunction(pluginId));
         ToolExtensions.Add(new CalculateToolFunction(pluginId));
-        ToolExtensions.Add(new PlanWorkflowToolFunction(pluginId, services));
-        ToolExtensions.Add(new ExecuteWorkflowToolFunction(pluginId, services));
-        ToolExtensions.Add(new GetWorkflowStatusToolFunction(pluginId, services));
-        ToolExtensions.Add(new ListWorkflowsToolFunction(pluginId, services));
+        ToolExtensions.Add(new PlanWorkflowToolFunction(pluginId, ctx));
+        ToolExtensions.Add(new ExecuteWorkflowToolFunction(pluginId, ctx));
+        ToolExtensions.Add(new GetWorkflowStatusToolFunction(pluginId, ctx));
+        ToolExtensions.Add(new ListWorkflowsToolFunction(pluginId, ctx));
         // 项目文件 MCP 工具：对选定的工作目录（项目）读/写/列表。
-        ToolExtensions.Add(new ListFilesToolFunction(pluginId, services));
-        ToolExtensions.Add(new ReadFileToolFunction(pluginId, services));
-        ToolExtensions.Add(new WriteFileToolFunction(pluginId, services));
+        ToolExtensions.Add(new ListFilesToolFunction(pluginId, ctx));
+        ToolExtensions.Add(new ReadFileToolFunction(pluginId, ctx));
+        ToolExtensions.Add(new WriteFileToolFunction(pluginId, ctx));
         // 计划驱动运行流特殊工具（029 R4）：注册进 ToolRegistry 供引擎执行兜底，
         // 但 ResolveOwnToolDefinitions 按名排除 → 不进 FreeLoop，只经 extraTools 显式挂载。
         ToolExtensions.Add(runFlowTools.SubmitPlan);

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
+using ForgeSelf.Core;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
@@ -10,9 +11,14 @@ namespace ForgeSelf.Api.Plugins.AIAgent;
 /// 项目文件 MCP 工具：让 Agent 能对选定的工作目录（项目）执行文件读/写/列表。
 /// 所有相对路径都基于 <see cref="IProjectWorkspaceService"/> 选定的项目根目录，天然受路径穿越防护约束。
 /// </summary>
+/// <remarks>
+/// 关键约束：工具函数必须在运行时经 <see cref="IContext"/> 懒解析 <see cref="IProjectWorkspaceService"/>，
+/// 不能缓存 <c>Apply</c> 阶段拿到的 <c>IServiceCollection</c> 提供器——后者在运行期解析不出单例（返回 null），
+/// 会导致 write_file 抛「项目工作区服务不可用」而不写盘。此模式与 <c>AIAgentService</c> 一致（已验证）。
+/// </remarks>
 public class ListFilesToolFunction : IToolFunctionExtension
 {
-    private readonly IServiceProvider? _services;
+    private readonly IContext _ctx;
 
     public string Id => "aiagent.list_files";
     public string Name => "list_files";
@@ -32,17 +38,17 @@ public class ListFilesToolFunction : IToolFunctionExtension
     ""required"": []
 }";
 
-    public ListFilesToolFunction(string pluginId, IServiceProvider? services)
+    public ListFilesToolFunction(string pluginId, IContext ctx)
     {
         PluginId = pluginId;
-        _services = services;
+        _ctx = ctx;
     }
 
     public Task<string> ExecuteAsync(string parameters)
     {
         try
         {
-            var workspace = (_services?.GetService<IProjectWorkspaceService>())
+            var workspace = _ctx.Get<IProjectWorkspaceService>()
                 ?? throw new InvalidOperationException("项目工作区服务不可用");
             if (!workspace.IsProjectSet)
             {
@@ -69,6 +75,7 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 path = path,
                 files = entries
             };
+            XTrace.Log.Info("[AIAgentPlugin] list_files 成功：root={0}, path={1}, 数量={2}", workspace.ProjectRoot, path, entries.Count);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
@@ -81,7 +88,7 @@ public class ListFilesToolFunction : IToolFunctionExtension
 
 public class ReadFileToolFunction : IToolFunctionExtension
 {
-    private readonly IServiceProvider? _services;
+    private readonly IContext _ctx;
 
     public string Id => "aiagent.read_file";
     public string Name => "read_file";
@@ -100,17 +107,17 @@ public class ReadFileToolFunction : IToolFunctionExtension
     ""required"": [""path""]
 }";
 
-    public ReadFileToolFunction(string pluginId, IServiceProvider? services)
+    public ReadFileToolFunction(string pluginId, IContext ctx)
     {
         PluginId = pluginId;
-        _services = services;
+        _ctx = ctx;
     }
 
     public Task<string> ExecuteAsync(string parameters)
     {
         try
         {
-            var workspace = (_services?.GetService<IProjectWorkspaceService>())
+            var workspace = _ctx.Get<IProjectWorkspaceService>()
                 ?? throw new InvalidOperationException("项目工作区服务不可用");
             if (!workspace.IsProjectSet)
             {
@@ -122,6 +129,7 @@ public class ReadFileToolFunction : IToolFunctionExtension
 
             var content = workspace.ReadFile(path);
             var response = new { success = true, path, content };
+            XTrace.Log.Info("[AIAgentPlugin] read_file 成功：root={0}, path={1}, 长度={2}", workspace.ProjectRoot, path, content.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
@@ -134,7 +142,7 @@ public class ReadFileToolFunction : IToolFunctionExtension
 
 public class WriteFileToolFunction : IToolFunctionExtension
 {
-    private readonly IServiceProvider? _services;
+    private readonly IContext _ctx;
 
     public string Id => "aiagent.write_file";
     public string Name => "write_file";
@@ -157,17 +165,17 @@ public class WriteFileToolFunction : IToolFunctionExtension
     ""required"": [""path"", ""content""]
 }";
 
-    public WriteFileToolFunction(string pluginId, IServiceProvider? services)
+    public WriteFileToolFunction(string pluginId, IContext ctx)
     {
         PluginId = pluginId;
-        _services = services;
+        _ctx = ctx;
     }
 
     public Task<string> ExecuteAsync(string parameters)
     {
         try
         {
-            var workspace = (_services?.GetService<IProjectWorkspaceService>())
+            var workspace = _ctx.Get<IProjectWorkspaceService>()
                 ?? throw new InvalidOperationException("项目工作区服务不可用");
             if (!workspace.IsProjectSet)
             {
@@ -180,8 +188,11 @@ public class WriteFileToolFunction : IToolFunctionExtension
                 ? c.GetString() ?? string.Empty
                 : string.Empty;
 
+            // 解析绝对路径用于观测记录（与真实写入落点一致，受路径穿越防护约束）。
+            var absPath = workspace.ResolveSafePath(path);
             workspace.WriteFile(path, content);
             var response = new { success = true, path, contentLength = content.Length };
+            XTrace.Log.Info("[AIAgentPlugin] write_file 成功：root={0}, 绝对路径={1}, 大小={2}", workspace.ProjectRoot, absPath, content.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)

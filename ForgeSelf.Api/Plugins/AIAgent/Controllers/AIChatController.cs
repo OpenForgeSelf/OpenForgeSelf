@@ -76,6 +76,7 @@ public class AIChatController : ControllerBase
 
             var finalContent = string.Empty;
             var toolCalls = new List<string>();
+            var toolTracer = new ToolTraceCollector();
             UnifiedUsage? usage = null;
             string? error = null;
 
@@ -85,6 +86,10 @@ public class AIChatController : ControllerBase
                 {
                     case "tool_call":
                         if (!string.IsNullOrEmpty(ev.Name)) toolCalls.Add(ev.Name);
+                        toolTracer.OnCall(ev.Name, ev.Arguments);
+                        break;
+                    case "tool_result":
+                        toolTracer.OnResult(ev.Name, ev.Result, ev.Success);
                         break;
                     case "usage":
                         usage = ev.Usage ?? usage;
@@ -104,7 +109,8 @@ public class AIChatController : ControllerBase
                 return StatusCode(500, new { error = "处理请求时发生错误", details = error });
             }
 
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", finalContent);
+            var toolCallsJson = toolTracer.ToJson();
+            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", finalContent, toolCallsJson);
 
             var response = new ChatResponse
             {
@@ -114,6 +120,7 @@ public class AIChatController : ControllerBase
                 Content = finalContent,
                 CreateTime = DateTime.Now,
                 ToolCalls = toolCalls.Count > 0 ? toolCalls : null,
+                ToolCallsJson = toolCallsJson,
                 Usage = usage
             };
 
@@ -177,6 +184,7 @@ public class AIChatController : ControllerBase
             }).ToList();
 
             var fullResponse = new System.Text.StringBuilder();
+            var toolTracer = new ToolTraceCollector();
 
             await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds, true, cancellationToken))
             {
@@ -188,16 +196,19 @@ public class AIChatController : ControllerBase
                         break;
                     case "tool_call":
                         await WriteEventAsync(new { type = "tool_call", name = ev.Name, arguments = ev.Arguments, sessionId });
+                        toolTracer.OnCall(ev.Name, ev.Arguments);
                         break;
                     case "tool_result":
                         await WriteEventAsync(new { type = "tool_result", name = ev.Name, result = ev.Result, success = ev.Success, sessionId });
+                        toolTracer.OnResult(ev.Name, ev.Result, ev.Success);
                         break;
                     case "usage":
                         await WriteEventAsync(new { type = "usage", usage = ev.Usage, sessionId });
                         break;
                     case "done":
-                        var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString());
-                        await WriteEventAsync(new { type = "done", sessionId, responseId, usage = ev.Usage });
+                        var toolCallsJson = toolTracer.ToJson();
+                        var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString(), toolCallsJson);
+                        await WriteEventAsync(new { type = "done", sessionId, responseId, usage = ev.Usage, toolCallsJson });
                         break;
                     case "error":
                         await WriteEventAsync(new { type = "error", content = ev.Content, sessionId });
@@ -254,7 +265,8 @@ public class AIChatController : ControllerBase
                 SessionId = m.SessionId,
                 Role = m.Role,
                 Content = m.Content,
-                CreateTime = m.CreateTime
+                CreateTime = m.CreateTime,
+                ToolCallsJson = m.ToolCallsJson
             }).ToList();
 
             return Ok(response);
@@ -381,6 +393,45 @@ public class AIChatController : ControllerBase
         {
             XTrace.Log.Error("[AIAgentPlugin] 获取记忆列表失败: {0}", ex.Message);
             return StatusCode(500, new { error = "获取记忆列表时发生错误", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// FreeLoop 工具调用轨迹收集器（031 方案A）：在 agent 循环期间累积 tool_call/tool_result，
+    /// 随 assistant 消息落库为 ToolCallsJson，供历史消息渲染「刷新后仍可见」的工具卡片。
+    /// 调用/结果配对用栈（agent 循环顺序执行，call 后必紧跟对应 result），并统计耗时。
+    /// </summary>
+    private sealed class ToolTraceCollector
+    {
+        private readonly List<ChatToolCallTrace> _records = new();
+        private readonly Stack<int> _stack = new();
+        private readonly List<DateTime> _starts = new();
+
+        /// <summary>记录一次工具调用开始（参数）。</summary>
+        public void OnCall(string? name, string? arguments)
+        {
+            var idx = _records.Count;
+            _records.Add(new ChatToolCallTrace { Name = name, Args = arguments });
+            _starts.Add(DateTime.Now);
+            _stack.Push(idx);
+        }
+
+        /// <summary>记录一次工具调用结果（配对最近的调用），填充结果/成败/耗时。</summary>
+        public void OnResult(string? name, string? result, bool? success)
+        {
+            if (_stack.Count == 0) return;
+            var idx = _stack.Pop();
+            var rec = _records[idx];
+            rec.Result = result;
+            rec.Success = success ?? false;
+            rec.DurationMs = Math.Max(0, (long)(DateTime.Now - _starts[idx]).TotalMilliseconds);
+        }
+
+        /// <summary>序列化为 camelCase JSON 数组；无轨迹时返回 null（不写列）。</summary>
+        public string? ToJson()
+        {
+            if (_records.Count == 0) return null;
+            return JsonSerializer.Serialize(_records, SseJsonOptions);
         }
     }
 }

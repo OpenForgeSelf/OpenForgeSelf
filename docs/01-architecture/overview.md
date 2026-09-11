@@ -106,6 +106,22 @@
 
 > 完整架构图见 [`cordis-kernel.md`](cordis-kernel.md) 附录 SVG 源文件。功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)。
 
+### 3.4 认证链路（主密钥 + API 子密钥）
+
+所有需要鉴权的请求走同一条 Bearer 链路（策略 `ApiKeyPolicy`，由 `ApiKeyAuthenticationHandler` → `ApiKeyService.ResolveByToken` 判定）：
+
+```
+Bearer <token>
+  ├─ ① 子密钥：ApiKeyCredential.FindByKeyHash(SHA256(token))  ← O(1) 摘要定位，不解密比对
+  │     停用/过期 → 401 且不回退；命中 → 200（Claims 带 KeyId/KeyName/AuthMethod，60s 节流写 LastUsedAt）
+  └─ ② 回退主密钥：解密 ForgeSetting.ApiToken → FixedTimeEquals 定长比较
+        表缺失/库异常 → 记 WARN 后仍走主密钥判定（认证路径绝不 500）
+```
+
+- 子密钥按摘要定位，**不校验前缀**（`sk-`、`cs-sk-`、`gpu…` 均可）；明文只在创建/轮换当次返回，库里只存密文（`KeyCipher`，机器派生密钥加密）与 SHA-256 摘要（`KeyHash`，唯一索引）。
+- 加密底座为机器派生密钥 + 密文版本化（v1/v2）+ 启动期自动迁移，详见 [`02-features/030-api-keys.md`](../02-features/030-api-keys.md) 与 [`02-features/100-secret-encryption.md`](../02-features/100-secret-encryption.md)。
+- 托盘「打开主界面」带 `#token=<主密钥>`，前端首屏同步消费并清空 fragment；同页已打开时由 `hashchange` 监听兜底。
+
 ---
 
 ## 4. 前后端协作约定

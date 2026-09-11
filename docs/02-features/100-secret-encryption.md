@@ -1,9 +1,9 @@
 # 密钥加密存储（Secret Encryption）— 功能需求与设计
 
 > 功能编号：N/A（核心安全基础设施）
-> 状态：已实现
-> 关联：AI Provider 配置数据库化（specs/001-ai-provider-config-db）、ApiServerKey 实体
-> 最后更新：2026-08-06
+> 状态：已实现（2026-09-10 起升级为机器派生密钥 + 密文版本化，见 `030-api-keys.md`）
+> 关联：AI Provider 配置数据库化（specs/001-ai-provider-config-db）、ApiServerKey 实体、`030-api-keys.md`
+> 最后更新：2026-09-11
 
 ## 1. 功能需求
 
@@ -36,28 +36,34 @@ AI Provider 的 API Key、API 服务器密钥等敏感凭据需要持久化存�
 | 算法 | AES-256-CBC | .NET 内置，满足对称加密需求，无额外依赖 |
 | 填充 | PKCS7 | AES 标准填充 |
 | IV | 每次加密随机生成（16 字节） | 同一明文多次加密产出不同密文，防模式分析/重放（语义安全） |
-| 密文格式 | `base64(IV[16字节] + 密文)` | IV 随密文存储，解密时自足还原，无需额外传参 |
+| 密文格式 | **v2**：`v2:` + `base64(IV[16字节] + 密文)`；**v1（旧）**：无前缀 `base64(IV + 密文)`，只读兼容 | 前缀区分新旧，v1 永久可读、v2 只用当前密钥解 |
 | 密钥 | SHA256 派生固定 32 字节 | 支持任意长度密钥源，统一为 AES-256 密钥 |
 
-### 2.2 密钥解析优先级
+### 2.2 密钥解析优先级（2026-09-10 起）
 
 ```
-Encryption:Key 配置（appsettings / 环境配置）
+Encryption:Key 配置（appsettings / 环境配置）        ← 逃生舱：跨机器迁移用
   ↓ 未设置
-FORGESELF_ENCRYPTION_KEY 环境变量
+FORGESELF_ENCRYPTION_KEY 环境变量                    ← 逃生舱：跨机器迁移用
   ↓ 未设置
-内置默认密钥 "ForgeSelf-AIProvider-Default-Encryption-Key"（仅开发默认）
+机器派生密钥（MachineKeyProvider）                    ← 默认：出本机即不可解
+    熵源：注册表 MachineGuid → /etc/machine-id → /var/lib/dbus/machine-id → 计算机名(兜底+WARN)
+    派生：PBKDF2-HMAC-SHA256("ForgeSelf|<熵源>", "ForgeSelf.SecretEncryption.v2.MachineBound", 210000, 32)
 ```
 
-> **生产要求**：必须通过 `Encryption:Key` 或 `FORGESELF_ENCRYPTION_KEY` 覆盖默认密钥，避免密钥硬编码泄露。当前仓库所有 appsettings 均未配置，开发环境实际生效的是内置默认密钥。
+- **硬编码串 `ForgeSelf-AIProvider-Default-Encryption-Key` 已降级为「仅解 v1 旧密文的兼容键」**，永不再用于加密新数据——这是升级前落库数据仍可读的唯一机制，不得删除。
+- v1 密文读取走候选钥匙链（当前密钥 → 旧兼容键），且必须叠加**明文合理性过滤**（错误密钥约 1/256 概率恰好通过 PKCS7 填充校验，详见 `030-api-keys.md` §4.1）。
+- 存量 v1 密文由 `SecretMigrationService` 在启动期自动迁移为 v2（幂等，见 030）。
 
 ### 2.3 实现位置
 
 | 文件 | 职责 |
 |------|------|
-| `ForgeSelf.Api/Security/ISecretEncryptionService.cs` | 接口：`Encrypt` / `Decrypt` / `Mask` |
-| `ForgeSelf.Api/Security/AesSecretEncryptionService.cs` | AES-256-CBC 实现 + 密钥解析 |
-| `ForgeSelf.Api/AppBuilder.cs` | DI 注册：`AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>()` |
+| `ForgeSelf.Api/Security/ISecretEncryptionService.cs` | 接口：`Encrypt` / `Decrypt` / `TryDecrypt` / `Mask` |
+| `ForgeSelf.Api/Security/AesSecretEncryptionService.cs` | AES-256-CBC 实现 + 密钥解析 + v1/v2 版本化 + 候选钥匙链 |
+| `ForgeSelf.Api/Security/MachineKeyProvider.cs` (+`IMachineKeyProvider`) | 机器熵源采集 + PBKDF2 派生 + 指纹 |
+| `ForgeSelf.Api/Services/SecretMigrationService.cs` | 启动期 v1→v2 迁移（幂等 + 写回双闸） |
+| `ForgeSelf.Api/AppBuilder.cs` | DI 注册：`ISecretEncryptionService` / `IMachineKeyProvider`，并触发迁移 |
 | `ForgeSelf.Api/Data/Model.xml` | `ApiServerKey.KeyCipher`（AES-256-CBC 加密存储） |
 
 ### 2.4 脱敏展示
@@ -93,8 +99,8 @@ var masked  = encryption.Mask("sk-xxx");      // 展示：sk-****xxx
 ## 4. 注意事项（已踩坑 / 已知约束）
 
 1. **密文非确定性**：随机 IV 导致同一明文每次加密结果不同——这是特性而非缺陷。每份密文都携带自己的 IV，均能被同一密钥解密还原。
-2. **密钥变更即密文失效**：更换 `Encryption:Key` / 环境变量后，旧密文无法再解密，需重新加密存量数据（当前无自动轮换）。
-3. **不要用错误密钥解密**：CBC 解密不校验密钥正确性，错误密钥可能返回乱码或抛填充异常，业务层需自行校验（如解密后格式检查）。
+2. **密钥变更即密文失效**：更换 `Encryption:Key` / 环境变量后，旧密文无法再解密。机器派生密钥场景下迁移到新机器同理；跨机器迁移走逃生舱（见 `030-api-keys.md` §3.3）。
+3. **不要用错误密钥解密**：CBC 解密不校验密钥正确性，错误密钥**约 1/256 概率恰好通过 PKCS7 填充校验并返回乱码**（不是必然抛异常！）。业务层不得以「不抛异常」判定密钥正确，必须叠加明文合理性校验（本条已在 030 的候选钥匙链中落实，并修掉过一个由此导致的「迁移静默销毁密钥」缺陷）。
 4. **测试密钥与生产密钥隔离**：既有功能测试（AIProviderFeatureTests 等）使用独立测试密钥 `test-encryption-key-0123456789`，与生产默认密钥无关；专用输出测试刻意使用空配置以对齐后端运行时。
 
 ## 5. 测试覆盖

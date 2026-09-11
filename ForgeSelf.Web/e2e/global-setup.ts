@@ -88,6 +88,68 @@ async function fetchInitToken(): Promise<string | null> {
   return null
 }
 
+/**
+ * 宿主 exe 签名（仅 Windows）：复用 scripts/sign-publish.ps1 给发布版 exe（及 ForgeSelf*.dll）
+ * 做 Authenticode 签名，避免无签名 exe 被系统 SmartScreen / 安全软件拦截导致启动失败。
+ *
+ * 行为由环境变量 E2E_SIGN_EXE 控制：
+ * - 'true'（默认）：Windows 下必须签名成功；失败则抛错中断 e2e（不静默跑无签名 exe）
+ * - 'warn'：尝试签名，失败仅告警并继续
+ * - 'false'：完全跳过（适用于无 Windows SDK / signtool 的环境）
+ * 非 Windows 平台一律跳过（无 signtool）。
+ *
+ * 注意：必须在 spawn 宿主之前调用——运行中的 exe 不可被签名（被内存映射，写入会失败且有损坏风险）。
+ */
+async function signHostExecutable(publishDir: string, logFile: string): Promise<void> {
+  const mode = (process.env.E2E_SIGN_EXE ?? 'true').toLowerCase()
+  if (mode === 'false') {
+    console.warn('[e2e] E2E_SIGN_EXE=false，跳过宿主 exe 签名')
+    return
+  }
+  if (process.platform !== 'win32') {
+    console.warn('[e2e] 非 Windows 平台，跳过宿主 exe 签名（仅 Windows 需要 signtool）')
+    return
+  }
+  const signScript = path.join(REPO_ROOT, 'scripts', 'sign-publish.ps1')
+  if (!existsSync(signScript)) {
+    const msg = `未找到签名脚本 ${signScript}，无法给宿主 exe 签名`
+    if (mode === 'warn') console.warn(`[e2e] ⚠ ${msg}`)
+    else throw new Error(msg)
+    return
+  }
+
+  console.log('[e2e] 对宿主 exe 做 Authenticode 签名（避免无签名被拦截）...')
+  try {
+    await run(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File', signScript,
+        '-PublishDir', publishDir,
+        '-NoTimestamp', // e2e 临时签名无需 RFC3161 时间戳，避免联网依赖
+      ],
+      {
+        cwd: REPO_ROOT,
+        logFile,
+        env: { ...process.env },
+      },
+    )
+    console.log(`[e2e] 宿主 exe 已签名：${path.join(publishDir, HOST_EXE)}（详情见 ${logFile}）`)
+  } catch (e) {
+    const msg = `宿主 exe 签名失败：${(e as Error).message}`
+    if (mode === 'warn') {
+      console.warn(`[e2e] ⚠ ${msg}（e2e 仍继续，但无签名 exe 可能被拦截）`)
+    } else {
+      throw new Error(
+        `${msg}；如需跳过请设置 E2E_SIGN_EXE=false，或先安装 Windows SDK 的 Signing Tools（signtool.exe）`,
+        { cause: e },
+      )
+    }
+  }
+}
+
 export default async function globalSetup(_config: FullConfig) {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
   const e2eRoot = path.join(REPO_ROOT, '.temp', 'e2e', ts)
@@ -106,23 +168,36 @@ export default async function globalSetup(_config: FullConfig) {
   )
 
   // 1.5) 补齐 SQLite provider（NewLife XCode 运行时依赖）：
-  // dotnet publish 产物不含 System.Data.SQLite.dll（长期宿主靠 NewLife 首启自动下载落盘到 publish/，
+  // dotnet publish 产物不含 System.Data.SQLite.dll（长期宿主靠 NewLife 首启自动下载落盘，
   // 临时目录联网下载在本机会被拒 → XCode 表初始化全挂 → 所有 DB API 500）。
   // 从仓库根 publish/（长期运行宿主目录，与 51888 实例同源）复制，保证与线上运行态一致。
+  // 注意：live 布局可能把 DLL 放在 publish/ 根或 publish/Plugins/（两种都兼容），
+  // 临时 publish 两端都放（XCode 探测路径覆盖根目录与 Plugins 子目录），最大化兼容。
   const SQLITE_DLLS = ['System.Data.SQLite.dll', 'e_sqlite3.dll']
   const livePublishDir = path.join(REPO_ROOT, 'publish')
   for (const dll of SQLITE_DLLS) {
-    const dst = path.join(publishDir, dll)
-    if (existsSync(dst)) continue
-    const src = path.join(livePublishDir, dll)
-    if (!existsSync(src)) {
+    // 源：根或 Plugins/ 任一存在即可（兼容布局漂移）
+    const srcCandidates = [path.join(livePublishDir, dll), path.join(livePublishDir, 'Plugins', dll)]
+    const src = srcCandidates.find((c) => existsSync(c))
+    if (!src) {
       throw new Error(
-        `缺少 SQLite provider ${dll}：dotnet publish 不携带它，且 ${livePublishDir} 中也未找到。` +
+        `缺少 SQLite provider ${dll}：dotnet publish 不携带它，且 ${livePublishDir}（根/Plugins）中均未找到。` +
           `请确保本机长期运行宿主目录（publish/）内存在该 DLL（NewLife 首启自动下载会落盘于此）。`,
       )
     }
-    copyFileSync(src, dst)
+    // 目的：临时 publish 根 + Plugins/ 都放，覆盖 XCode 不同探测路径
+    for (const dstBase of [publishDir, path.join(publishDir, 'Plugins')]) {
+      const dst = path.join(dstBase, dll)
+      if (existsSync(dst)) continue
+      mkdirSync(dstBase, { recursive: true })
+      copyFileSync(src, dst)
+    }
   }
+
+  // 1.6) 对宿主 exe 做 Authenticode 签名：避免无签名 exe 被系统/安全软件拦截导致启动失败。
+  // 复用 scripts/sign-publish.ps1（自签证书 + 本机受信任根，与 build.ps1 -Sign 同源）。
+  // 必须在 spawn 前完成（运行中的 exe 不可签）。
+  await signHostExecutable(publishDir, path.join(e2eRoot, 'sign.log'))
 
   // 2) 起宿主：Development 环境 → 数据根 = publish/Data（全新，隔离 ~/.forgeself）
   const backendLog = createWriteStream(path.join(e2eRoot, 'backend.log'), { flags: 'w' })

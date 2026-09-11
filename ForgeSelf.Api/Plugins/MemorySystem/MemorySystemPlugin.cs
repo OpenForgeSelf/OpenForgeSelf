@@ -6,7 +6,9 @@ using ForgeSelf.Api.Plugins.MemorySystem.Data;
 using ForgeSelf.Api.Plugins.MemorySystem.Entities;
 using ForgeSelf.Api.Plugins.MemorySystem.Services;
 using Microsoft.Extensions.DependencyInjection;
+using NewLife.Data;
 using NewLife.Log;
+using XCode.DataAccessLayer;
 
 namespace ForgeSelf.Api.Plugins.MemorySystem;
 
@@ -242,15 +244,58 @@ public class MemorySystemPlugin : IPlugin
     {
         try
         {
-            // 插件数据目录（{数据根}/Plugins/{插件Id}），XCode 连接名 MemorySystem 的库 MemorySystem.db 落在此处；
-            // 表由宿主 XCodeConfig 在启动时 EnsureTablesCreated 创建，这里只确保目录存在并播种默认分类。
+            // 插件数据目录（{数据根}/Plugins/{插件Id}），XCode 连接名 MemorySystem 的库 MemorySystem.db 落在此处。
             Directory.CreateDirectory(dataDirectory);
+
+            // 自建表：插件实体（ConnName=MemorySystem）不在宿主 XCodeConfig.EnsureTablesCreated 的反射扫描范围内
+            // （宿主建表早于插件加载时机），必须由插件自行确保表存在；否则全新库下 Memory.FindAll 会因表缺失报
+            // 「SQL logic error」，进而使 AIAgent 的 /api/ai-agent/chat/memories 端点 500（正常 e2e 用全新 DB 必触发）。
+            EnsureMemoryTablesCreated();
+
             SeedDefaultCategories();
             XTrace.Log.Info("[MemorySystem] 数据库初始化完成，路径: {0}", Path.Combine(dataDirectory, "MemorySystem.db"));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[MemorySystem] 数据库初始化失败: {0}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 确保 MemorySystem 连接下的 Memory / MemoryCategory 表存在（幂等）。
+    /// 宿主启动时 EnsureTablesCreated 仅扫描当时已加载的程序集，插件实体不在其列，故改为插件自行建表。
+    /// 与宿主同款做法：反射取静态 Meta 属性后调用其 CreateTable()（编译期 Meta 类型不暴露该方法）。
+    /// 注意：必须先强制初始化 MemorySystem 连接（打开库），否则首个实体的 CreateTable 只会建空库、不建表。
+    /// </summary>
+    private static void EnsureMemoryTablesCreated()
+    {
+        // 先强制初始化连接（触发 DAL 打开/创建库），保证后续 CreateTable 在就绪连接上执行
+        try
+        {
+            var dal = DAL.Create("MemorySystem");
+            _ = dal.Db.ServerVersion;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[MemorySystem] 连接初始化失败: {0}", ex.Message);
+        }
+
+        foreach (var entityType in new[] { typeof(Memory), typeof(MemoryCategory) })
+        {
+            try
+            {
+                var metaProp = entityType.GetProperty("Meta", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                var meta = metaProp?.GetValue(null);
+                // 优先 Resolve（检查+创建，幂等），回退 CreateTable
+                var tableMethod = meta?.GetType().GetMethod("Resolve", Type.EmptyTypes)
+                    ?? meta?.GetType().GetMethod("CreateTable", Type.EmptyTypes);
+                tableMethod?.Invoke(meta, null);
+                XTrace.Log.Info("[MemorySystem] 确保表存在: {0}", entityType.Name);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Error("[MemorySystem] 建表失败（{0}）: {1}", entityType.Name, ex.Message);
+            }
         }
     }
 

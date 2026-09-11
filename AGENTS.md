@@ -26,6 +26,14 @@
 
 > 验证通过（测试绿）≠ 流程完成。Persist 与 Verify 同属 DoD，缺一项即未达标。
 
+### 🚫 红线（不可逾越 · 违反即流程违规）
+
+**验证 / 截图 / 浏览器驱动类需求，禁止手写一次性 `temp/*.cjs`（或散落脚本）作为验证手段。**
+必须走 §5.0 项目唯一测试体系（Playwright e2e / vitest / dotnet test）。历史教训：spec 006 期间在 `temp/` 产 49 个一次性 `.cjs`（截图/视觉校验/浏览器驱动），验证完即废、无版本控制、无法回归；且 `temp/browser_drive/round1.cjs` 的启发式判定（`发送键可用+文本>500`）曾漏掉 agent 真实 `write_file` 调用，误导结论。
+
+- 临时探针**仅可作探索期一次性使用**：用完即删、**不进版本控制、不留存 `temp/`**，且**不得作为验证结论**（结论必须沉淀为 §5.0 的可重复测试）。
+- 任何"我手跑个脚本看看"的冲动，先查 §5.0 决策表：有对应正规入口就走正规入口。
+
 核心原则：
 
 1. **可验证性优先** — 任务是否完成由自动化检查判定，不靠"看起来对了"。
@@ -188,6 +196,37 @@
 
 验证是闭环的核心。不通过 Verify 的变更 **不算完成**。
 
+### 5.0 测试方式总览（项目唯一测试体系）
+
+本项目有完整、可重复的测试体系，**禁止另起炉灶**。任何验证需求都从下表选对应入口，
+**严禁**在 `temp/` 下手写一次性 `.cjs`（或散落脚本）做截图 / 视觉校验 / 浏览器驱动——
+这类脚本无版本控制、不可重复、易腐烂。历史上已反复踩坑：spec 006 背景图模式期间产出
+`temp/*.cjs`、`temp/browser_drive/*.cjs` 共 49 个，验证完即废、且无法回归。
+
+| 层级 | 工具 | 入口命令 | 适用 | 归口 |
+|------|------|----------|------|------|
+| 前端单测 | vitest | `cd ForgeSelf.Web && pnpm run test` | 组件渲染 / 纯函数 / 关键交互逻辑 | `ForgeSelf.Web/src/**/*.spec.ts` |
+| 前端 e2e | Playwright | `cd ForgeSelf.Web && pnpm run test:e2e` | 前后端集成、真实渲染、视觉检查 | `e2e-testing` 技能 + `ForgeSelf.Web/e2e/**` |
+| 后端单测/集成 | xUnit | `cd ForgeSelf.Api.Tests && dotnet test` | 服务 / 实体 / 工具逻辑 | `ForgeSelf.Api.Tests/**` |
+| 后端 HTTP 冒烟 | PowerShell | `pwsh test_all.ps1`（真实后端 `:7102`） | 已起宿主的接口联通性快检 | `test_all.ps1`（非 cjs，允许保留） |
+
+**需求 → 该跑什么（对号入座，不要临场发明）：**
+
+| 我想验证… | 跑这个（正规入口） | 禁止当成验证手段 |
+|-----------|--------------------|------------------|
+| 前端组件渲染 / 纯函数 / 关键交互逻辑 | `cd ForgeSelf.Web && pnpm run test`（vitest） | `temp/*.cjs` |
+| 页面真实渲染 / 端到端交互 / 视觉检查（图标·间距·颜色·留白·对齐·溢出） | `cd ForgeSelf.Web && pnpm run test:e2e`（Playwright，走 `e2e-testing` 技能） | `temp/shots_*.cjs`、`temp/verify_*.cjs` |
+| 后端服务 / 实体 / 工具逻辑 | `cd ForgeSelf.Api.Tests && dotnet test`（xUnit） | — |
+| 已起宿主的接口联通性快检 | `pwsh test_all.ps1`（真实后端 `:7102`） | `temp/diag*.cjs` |
+| 浏览器驱动 / 多步点击流程 | 写成 Playwright e2e 用例（`e2e/**/*.spec.ts`） | `temp/browser_drive/*.cjs` |
+| 只想临时探一下 DOM / 网络 / 接口形状 | 一次性 node 探针（用完即删、**不提交、不留存 `temp/`**），结论沉淀为上述测试 | 把探针本身当验证结论 |
+
+**铁律：**
+- 验证 / 截图 / 浏览器驱动类任务 → 写成 **Playwright e2e 用例**（`ForgeSelf.Web/e2e/**/*.spec.ts`），走 `e2e-testing` 技能 SOP（globalSetup 自动构建宿主 + 起 publish 宿主 + 解密真实 token，零 mock）。
+- 纯逻辑 / 组件行为 → 写成 **vitest 单测**（`src/**/*.spec.ts`）。
+- 一次性 `.cjs` 脚本只可作「探索期临时探针」，**不得作为验证手段提交或长期依赖**；结论必须沉淀为上述可重复测试，探针用完即删、不进 `temp/` 留存。
+- e2e 视觉检查（图标 / 间距 / 颜色 / 留白 / 对齐 / 溢出）按 `e2e-testing` 技能 Level 3 清单读图核对，截图固定落 `ForgeSelf.Web/screenshots/e2e/<插件id>/`，**不用** `temp/*.cjs` 截图。
+
 ### 5.1 前端验证（修改 `ForgeSelf.Web/` 后必须执行）
 
 ```bash
@@ -243,6 +282,9 @@ dotnet test
 | `pnpm run lint:fix` | ESLint 自动修复 | Frontend |
 | `pnpm run type-check` | 仅 vue-tsc 类型检查 | Frontend |
 | `pnpm run test` | 单元测试（vitest） | Frontend |
+| `pnpm run test:e2e` | 端到端（Playwright 真实前后端，零 mock） | Frontend |
+| `pnpm run test:e2e:ui` | e2e 调试 UI | Frontend |
+| `pnpm run test:e2e:published` | 针对已发布宿主的 e2e | Frontend |
 | `pnpm run build` | 完整构建（含类型检查） | Frontend |
 | `dotnet build` | 后端构建 | Backend |
 | `dotnet test` | 后端测试 | Backend.Tests |

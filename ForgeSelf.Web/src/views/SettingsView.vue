@@ -9,13 +9,15 @@ import {
   Link,
   Brush,
   Coin,
-  InfoFilled
+  InfoFilled,
+  Key
 } from '@element-plus/icons-vue';
 import GeneralPanel from '@/components/settings/GeneralPanel.vue';
 import AiAgentPanel from '@/components/settings/AiAgentPanel.vue';
 import PluginsPanel from '@/components/settings/PluginsPanel.vue';
 import AiProvidersPanel from '@/components/settings/AiProvidersPanel.vue';
 import ApiServerPanel from '@/components/settings/ApiServerPanel.vue';
+import ApiKeysPanel from '@/components/settings/ApiKeysPanel.vue';
 import AppearancePanel from '@/components/settings/AppearancePanel.vue';
 import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
 import AboutPanel from '@/components/settings/AboutPanel.vue';
@@ -26,6 +28,7 @@ type SettingsCategory =
   | 'plugins'
   | 'ai-providers'
   | 'api-server'
+  | 'api-keys'
   | 'appearance'
   | 'data'
   | 'about';
@@ -44,6 +47,7 @@ const navItems: NavItem[] = [
   { key: 'plugins', label: '插件管理', icon: markRaw(Grid) },
   { key: 'ai-providers', label: 'AI 提供方', icon: markRaw(Connection) },
   { key: 'api-server', label: 'API 服务器', icon: markRaw(Link) },
+  { key: 'api-keys', label: 'API 密钥', icon: markRaw(Key) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
   { key: 'about', label: '关于', icon: markRaw(InfoFilled) }
@@ -78,6 +82,7 @@ const navItems: NavItem[] = [
         <PluginsPanel v-show="activeCategory === 'plugins'" />
         <AiProvidersPanel v-show="activeCategory === 'ai-providers'" />
         <ApiServerPanel v-show="activeCategory === 'api-server'" />
+        <ApiKeysPanel v-show="activeCategory === 'api-keys'" />
         <AppearancePanel v-show="activeCategory === 'appearance'" />
         <DataStoragePanel v-show="activeCategory === 'data'" />
         <AboutPanel v-show="activeCategory === 'about'" />

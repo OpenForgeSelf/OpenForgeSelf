@@ -39,7 +39,7 @@ public class AIProviderFeatureTests : IClassFixture<XCodeTestFixture>
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Encryption:Key"] = "test-encryption-key-0123456789" })
             .Build();
-        var encryption = new AesSecretEncryptionService(config);
+        var encryption = new AesSecretEncryptionService(config, new MachineKeyProvider());
         var repo = new AIProviderRepository(encryption);
         var modelService = new AIModelService(repo, encryption, new TestHttpClientFactory(), new NullLogService());
         var service = new AIProviderService(repo, encryption, new TestHttpClientFactory(), modelService);

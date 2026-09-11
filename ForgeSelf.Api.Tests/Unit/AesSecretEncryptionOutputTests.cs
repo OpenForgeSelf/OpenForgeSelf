@@ -22,8 +22,8 @@ public class AesSecretEncryptionOutputTests
     {
         const string plain = "cs-sk-<REDACTED>";
 
-        // 空配置 → 与后端运行一致：无 Encryption:Key / FORGESELF_ENCRYPTION_KEY 时使用内置默认密钥
-        var encryption = new AesSecretEncryptionService(new ConfigurationBuilder().Build());
+        // 空配置 → 与后端运行一致：无 Encryption:Key / FORGESELF_ENCRYPTION_KEY 时回退机器派生密钥
+        var encryption = new AesSecretEncryptionService(new ConfigurationBuilder().Build(), new MachineKeyProvider());
 
         var cipher = encryption.Encrypt(plain);
 

@@ -31,7 +31,7 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         .AddInMemoryCollection(new Dictionary<string, string?> { ["Encryption:Key"] = "test-encryption-key-0123456789" })
         .Build();
 
-    private static ISecretEncryptionService Encryption => new AesSecretEncryptionService(Config);
+    private static ISecretEncryptionService Encryption => new AesSecretEncryptionService(Config, new MachineKeyProvider());
 
     private static AIProvider InsertProvider(string name = "OpenAI", string type = "OpenAI", string endpoint = "https://api.openai.com/v1")
     {

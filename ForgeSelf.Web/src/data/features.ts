@@ -372,7 +372,7 @@ export const features: FeatureItem[] = [
     configPath: '/settings',
     signals: {
       views: ['SettingsView'],
-      controllers: ['AIProvider', 'AIModel', 'ApiServer', 'PortConfiguration', 'Settings'],
+      controllers: ['AIProvider', 'AIModel', 'ApiServer', 'ApiKeys', 'PortConfiguration', 'Settings'],
     },
   },
 ]

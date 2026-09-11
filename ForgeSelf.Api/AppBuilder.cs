@@ -132,6 +132,9 @@ public static class AppBuilder
         builder.Services.AddSingleton<IWebSocketBroadcaster, WebSocketBroadcaster>();
         builder.Services.AddScoped<IChatTurnStreamRecorder, ChatTurnStreamRecorder>();
 
+        // 机器派生密钥提供器（030 认证体系升级）：进程内单例，PBKDF2 只派生一次
+        builder.Services.AddSingleton<IMachineKeyProvider, MachineKeyProvider>();
+
         // AI Provider 配置数据库化（001-ai-provider-config-db）
         builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
         builder.Services.AddScoped<IAIProviderRepository, AIProviderRepository>();
@@ -140,6 +143,9 @@ public static class AppBuilder
 
         // API 服务器密钥管理（003-api-server-settings）
         builder.Services.AddSingleton<ApiServerKeyService>();
+
+        // API 子密钥管理（030 认证体系升级）：Scoped，请求内共享（内部依赖单例加密服务）
+        builder.Services.AddScoped<ApiKeyService>();
 
         // 端口配置管理（009-web-port-token-security）- 基于配置文件
         builder.Services.AddSingleton<IPortConfigurationService, PortConfigurationService>();
@@ -182,8 +188,10 @@ public static class AppBuilder
         builder.Services.AddSingleton<TrayIconManager>(sp =>
         {
             var serviceManager = sp.GetRequiredService<IServiceManager>();
+            // 令牌解析器：惰性调用，点击托盘菜单时实时取，主密钥重新生成后自动拿到新值
+            var keyService = sp.GetRequiredService<ApiServerKeyService>();
             var port = ForgeSetting.Current.PortNumber;
-            return new TrayIconManager(serviceManager, port);
+            return new TrayIconManager(serviceManager, port, mainPageTokenResolver: () => keyService.GetActiveKeyPlain());
         });
 
         // ── 结束 008-tray-service-autoupdate 注册 ──
@@ -385,6 +393,20 @@ public static class AppBuilder
         {
             app.InitializeXCodeDatabase(app.Environment, app.Services.GetRequiredService<IDataLocationService>().GetHostDataDirectory());
             XTrace.Log.Info("数据库初始化完成");
+        }
+
+        // 密文迁移（030 认证体系升级）：建表完成后、播种主密钥之前把 v1 旧密文重封装为 v2。
+        // 顺序不可颠倒——先迁移再播种，避免播种出的新密文被旧逻辑二次处理。
+        // 迁移是可选优化，失败只记日志、绝不阻断启动（v1 读兼容链永久保留）。
+        try
+        {
+            using var migrationScope = app.Services.CreateScope();
+            var migration = new SecretMigrationService(migrationScope.ServiceProvider.GetRequiredService<ISecretEncryptionService>());
+            migration.MigrateOnce();
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("密文迁移失败（已跳过，不影响功能）: {0}", ex.Message);
         }
 
         // 数据库就绪后，从 DB 加载 AI 提供方到网关

@@ -4,7 +4,9 @@ using NewLife.Agent;
 using NewLife.Log;
 using ForgeSelf.Api;
 using ForgeSelf.Api.Models;
+using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services;
+using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Threading;
 
@@ -140,6 +142,12 @@ return 0;
 /// </summary>
 static int RunTrayMode(string[] args, int trayArgIndex)
 {
+    // 托盘辅助进程跑在用户会话，主服务可能跑在 LocalSystem 会话，两者的数据根可能不同
+    // （%~/.forgeself 解析差异）。此处再统一一次配置文件目录（幂等），保证本进程读到的
+    // ForgeSetting.config 与主服务是同一份，否则拼出的令牌会与主服务的密钥不匹配。
+    ConfigUnifier.UnifyAllConfigFiles(
+        Path.Combine(DataLocationService.ResolveHostDataDirectory(), "Config"));
+
     // 解析参数
     var pipeName = "";
     // 优先从参数读取端口，否则使用 ForgeSetting 配置的端口
@@ -165,8 +173,24 @@ static int RunTrayMode(string[] args, int trayArgIndex)
     var serviceConfig = new ServiceConfig();
     var serviceManager = new ServiceManager(serviceConfig);
 
+    // 本地构造加密与密钥服务（本进程无 DI 容器；令牌在配置文件里，无需数据库）。
+    // 机器派生键与主服务一致（MachineGuid 属 HKLM 机器级，LocalSystem 与用户会话读到同一个值）。
+    // 但仍须按与主服务相同的来源装配配置：若用户在 appsettings.json 配了 Encryption:Key，
+    // 空配置会派生出不同密钥 → 解密失败 → 触发「自动重新生成主密钥」并写回配置 → 与主服务互相踩踏，
+    // 导致托盘打开的链接必然 401。故此处按 WebApplication.CreateBuilder 的默认来源顺序装配。
+    var trayConfig = new ConfigurationBuilder()
+        .SetBasePath(AppContext.BaseDirectory)
+        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+        .AddEnvironmentVariables()
+        .Build();
+    var encryption = new AesSecretEncryptionService(trayConfig, new MachineKeyProvider());
+    var keyService = new ApiServerKeyService(encryption);
+
     // 创建 TrayIconManager（不依赖 DI 容器，直接构造）
-    using var trayIcon = new TrayIconManager(serviceManager, port);
+    using var trayIcon = new TrayIconManager(
+        serviceManager,
+        port,
+        mainPageTokenResolver: () => keyService.GetActiveKeyPlain());
 
     // 标记退出信号
     using var exitEvent = new ManualResetEventSlim(false);

@@ -152,6 +152,25 @@ public class TrayIconManagerTests : IDisposable
     }
 
     // ================================================================
+    // 主界面 URL 拼装（030 认证体系升级：托盘免手输登录）
+    // ================================================================
+
+    [Fact]
+    public void BuildMainPageUrl_取到令牌_拼接hash片段()
+    {
+        var url = TrayIconManager.BuildMainPageUrl(7102, "sk-abc");
+
+        url.Should().Be("http://localhost:7102/#token=sk-abc");
+    }
+
+    [Fact]
+    public void BuildMainPageUrl_取不到令牌_退化为原地址()
+    {
+        TrayIconManager.BuildMainPageUrl(7102, null).Should().Be("http://localhost:7102");
+        TrayIconManager.BuildMainPageUrl(7102, "").Should().Be("http://localhost:7102");
+    }
+
+    // ================================================================
     // 菜单项动态显示逻辑（纯逻辑测试，不调用 WinForms API）
     // ================================================================
 

@@ -6,7 +6,7 @@ import { useAppearanceStore } from './stores/appearance'
 import { useThemeStore } from './stores/theme'
 import { usePluginManifestStore } from './stores/pluginManifest'
 import { setupManifestRoutes } from './router'
-import { initAuthToken } from './services/authInit'
+import { initAuthToken, consumeTokenFromHash, installTokenHashWatcher } from './services/authInit'
 import { exposeSharedDeps } from './shared/exposeSharedDeps'
 
 /* 样式引入顺序（后加载优先级更高）：
@@ -16,6 +16,14 @@ import { exposeSharedDeps } from './shared/exposeSharedDeps'
    4. 背景图片模式适配层（最后加载，确保 .has-bg-image 覆盖 @theme 的 --color-*）
    组件样式由 unplugin-vue-components 按需自动引入 */
 import 'element-plus/theme-chalk/dark/css-vars.css'
+/* ElMessage / ElMessageBox 均以「函数」方式调用（非模板组件），unplugin-vue-components
+   不会为它们注入样式，必须显式引入组件样式，否则弹窗与轻提示缺失全部定位/外观。
+   这是历史上各处用 !important 硬定位与 offset:60 兜底的根因，故在此统一补齐。
+   刻意引用 theme-chalk 的纯 CSS 而非 `element-plus/es/.../style/css`：
+   后者会引入新的 JS 依赖并触发 Vite 依赖预打包，而本环境的 safe-delete shim 会拦截
+   预打包目录清理导致 dev server 直接崩溃。 */
+import 'element-plus/theme-chalk/el-message-box.css'
+import 'element-plus/theme-chalk/el-message.css'
 import './styles/themes/workshop-forge.css'
 import './styles/tailwind.css'
 import './styles/themes/bg-image-mode.css'
@@ -46,6 +54,15 @@ router.beforeEach(async (to) => {
   setupManifestRoutes(manifestStore.manifest)
   return { path: to.fullPath, replace: true }
 })
+
+// 消费托盘跳转携带的一次性 token（#token=xxx）。
+// 必须同步且早于 initAuthToken：写入后 initAuthToken 会因本地已有 token 而跳过，
+// 首屏请求也能带上 Authorization 头。无论命中与否都会清掉 fragment。
+consumeTokenFromHash()
+
+// 同一个浏览器里已打开过主界面时，托盘再次「打开主界面」只会改变 fragment，
+// 浏览器不会重新加载文档 → 上面的首屏消费不会执行。此监听兜住这条路径。
+installTokenHashWatcher()
 
 // 初始化 API token（异步，不阻塞应用挂载）
 initAuthToken()

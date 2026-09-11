@@ -26,6 +26,7 @@ public class TrayIconManager : IDisposable
     private readonly string _appName;
     private readonly string _appVersion;
     private readonly string _copyright;
+    private readonly Func<string?>? _mainPageTokenResolver;
     private Action? _onCheckUpdate;
     private Action? _onExit;
 
@@ -60,6 +61,10 @@ public class TrayIconManager : IDisposable
     /// <param name="appName">应用名称，用于「关于」对话框</param>
     /// <param name="appVersion">应用版本号，用于「关于」对话框</param>
     /// <param name="copyright">版权信息，用于「关于」对话框</param>
+    /// <param name="mainPageTokenResolver">主页面访问令牌的惰性解析器（可选）。
+    /// 打开主界面时实时调用取令牌并拼到 URL 的 <c>#token=</c> 片段，前端消费后即可免手输登录。
+    /// 传入委托而非服务实例：托盘运行在独立 STA 线程，且 <c>--tray</c> 辅助进程没有 DI 容器；
+    /// 惰性求值还能保证主密钥重新生成后取到的是新值。为 null 或返回空时退化为原行为（不带片段）。</param>
     /// <exception cref="ArgumentNullException"><paramref name="serviceManager"/> 为 null</exception>
     public TrayIconManager(
         IServiceManager serviceManager,
@@ -68,7 +73,8 @@ public class TrayIconManager : IDisposable
         Action? onExit = null,
         string appName = "ForgeSelf",
         string appVersion = "1.0.0.0",
-        string copyright = "© 2026 ForgeSelf")
+        string copyright = "© 2026 ForgeSelf",
+        Func<string?>? mainPageTokenResolver = null)
     {
         _serviceManager = serviceManager ?? throw new ArgumentNullException(nameof(serviceManager));
         _port = port;
@@ -77,6 +83,7 @@ public class TrayIconManager : IDisposable
         _appName = appName;
         _appVersion = appVersion;
         _copyright = copyright;
+        _mainPageTokenResolver = mainPageTokenResolver;
     }
 
     /// <summary>
@@ -394,14 +401,19 @@ public class TrayIconManager : IDisposable
     }
 
     /// <summary>
-    /// 打开主界面：在默认浏览器中打开 http://localhost:{port}。
+    /// 打开主界面：在默认浏览器中打开 <c>http://localhost:{port}</c>，
+    /// 若取到令牌则追加 <c>#token=</c> 片段（URL 片段不发往服务器，不会进入访问日志与浏览器历史）。
     /// </summary>
     private void OnOpenMainPage(object? sender, EventArgs e)
     {
         try
         {
-            var url = $"http://localhost:{_port}";
-            XTrace.Log.Info("TrayIconManager: 打开主界面: {0}", url);
+            // 点击时实时取，保证主密钥重新生成后拿到的是新值
+            var token = _mainPageTokenResolver?.Invoke();
+            var url = BuildMainPageUrl(_port, token);
+
+            // 日志只记「是否携带凭据」，绝不打印 token 本体
+            XTrace.Log.Info("TrayIconManager: 打开主界面（携带凭据：{0}）", string.IsNullOrEmpty(token) ? "否" : "是");
 
             Process.Start(new ProcessStartInfo
             {
@@ -413,6 +425,20 @@ public class TrayIconManager : IDisposable
         {
             XTrace.Log.Error("TrayIconManager: 打开浏览器失败: {0}", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 构造主界面 URL：有令牌时追加 <c>#token={转义后的令牌}</c>，否则退化为纯地址。
+    /// </summary>
+    /// <param name="port">Web 监听端口</param>
+    /// <param name="token">访问令牌；为 null 或空白时不追加片段</param>
+    /// <returns>完整的主界面 URL</returns>
+    public static string BuildMainPageUrl(int port, string? token)
+    {
+        var baseUrl = $"http://localhost:{port}";
+        return string.IsNullOrEmpty(token)
+            ? baseUrl
+            : $"{baseUrl}/#token={Uri.EscapeDataString(token)}";
     }
 
     /// <summary>

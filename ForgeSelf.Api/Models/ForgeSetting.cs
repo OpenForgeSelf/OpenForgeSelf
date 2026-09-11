@@ -28,5 +28,11 @@ public class ForgeSetting : ForgeConfig<ForgeSetting>
   [Description("默认 AI 推理模型（chatModelId）")]
   [Category("AI")]
   public String DefaultModel { get; set; } = "";
+
+  /// <summary>密文迁移版本号。小于 SecretMigrationService.CurrentVersion 时执行 v1→v2 重封装，完成后置为当前版本。
+  /// 与 IsFirstInit 无关（后者语义为「是否首次初始化」，不得复用）</summary>
+  [Description("密文迁移版本号，用于密文 v1→v2 重封装的一次性触发")]
+  [Category("安全")]
+  public Int32 SecretMigrationVersion { get; set; } = 0;
   #endregion
 }

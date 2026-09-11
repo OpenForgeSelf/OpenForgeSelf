@@ -14,6 +14,7 @@ declare module 'vue' {
     AIScriptDebugger: typeof import('./src/components/scriptrunner/AIScriptDebugger.vue')['default']
     AIScriptGenerator: typeof import('./src/components/scriptrunner/AIScriptGenerator.vue')['default']
     AIWorkflowGenerator: typeof import('./src/components/workflow/AIWorkflowGenerator.vue')['default']
+    ApiKeysPanel: typeof import('./src/components/settings/ApiKeysPanel.vue')['default']
     ApiServerPanel: typeof import('./src/components/settings/ApiServerPanel.vue')['default']
     AppearancePanel: typeof import('./src/components/settings/AppearancePanel.vue')['default']
     AppLogo: typeof import('./src/components/AppLogo.vue')['default']

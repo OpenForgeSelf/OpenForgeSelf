@@ -59,3 +59,13 @@ appsettings.Production.json
 package-lock.json
 # 发布备份目录（含 DLL/PDB/wwwroot，勿提交）
 publish.bak*/
+
+# ── 2026-09-20（第二轮）git 历史清理：点开头目录 + openwiki + specs 全量剔除历史，不再入库 ──
+.agents/
+.atomcode/
+.forgeself/
+.github/
+.specify/
+.vscode/
+openwiki/
+specs/

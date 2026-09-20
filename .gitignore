@@ -43,3 +43,19 @@ publish/
 ForgeSelf.Web/playwright-report-published/
 .trash/
 *.log
+
+# ── 2026-09-20 git 历史清理新增（凭据 / 运行数据 / 构建产物防再犯）──
+# 生产环境配置：机器相关，不入库（AGENTS.md §4.1 敏感路径）
+appsettings.Production.json
+# speckit 扩展缓存（可再生成）
+.specify/extensions/.cache/
+# 测试报告 / 覆盖率产物
+*.trx
+# 运行时数据库（现统一落 ~/.forgeself）
+*.db
+*.sqlite
+*.sqlite3
+# pnpm 项目禁止 npm lockfile
+package-lock.json
+# 发布备份目录（含 DLL/PDB/wwwroot，勿提交）
+publish.bak*/

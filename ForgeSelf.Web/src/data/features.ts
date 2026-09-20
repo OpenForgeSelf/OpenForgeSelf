@@ -375,6 +375,23 @@ export const features: FeatureItem[] = [
       controllers: ['AIProvider', 'AIModel', 'ApiServer', 'ApiKeys', 'PortConfiguration', 'Settings'],
     },
   },
+  {
+    id: 'im-gateway',
+    name: 'IM 网关',
+    icon: 'message-circle',
+    category: 'ai',
+    categoryLabel: 'AI',
+    color: '#10B981',
+    bgColor: 'rgba(16, 185, 129, 0.12)',
+    description: '多渠道 IM 网关：企业微信/公众号/飞书/钉钉消息统一接入 AI Agent',
+    stats: '4 通道适配',
+    extraInfo: '插件形态',
+    enabled: true,
+    path: '/im-gateway',
+    // 视图由 ImGateway 插件自带界面承载（Plugins/ImGateway/web/dist），宿主无内置页面，
+    // 故不登记 views 信号（登记了会触发 check-features 幻影失败）。
+    signals: { plugins: ['ImGateway'] },
+  },
 ]
 
 /**

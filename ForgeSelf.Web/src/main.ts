@@ -1,11 +1,14 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import type { RouteLocationRaw } from 'vue-router'
 import App from './App.vue'
 import router from './router'
 import { useAppearanceStore } from './stores/appearance'
 import { useThemeStore } from './stores/theme'
 import { usePluginManifestStore } from './stores/pluginManifest'
-import { setupManifestRoutes } from './router'
+import { setupManifestRoutes, setHomeRedirectTarget } from './router'
+import { settingsApi } from './services/settingsApi'
+import { useOpenPage } from './composables/useOpenPage'
 import { initAuthToken, consumeTokenFromHash, installTokenHashWatcher } from './services/authInit'
 import { exposeSharedDeps } from './shared/exposeSharedDeps'
 
@@ -38,6 +41,31 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
+// 导航桥：供插件界面打开宿主页面。载体为**同一个函数实例**，同时经两条通道下发：
+//   ① app.provide('forgeOpenPage')  —— 组件级契约主路，插件 inject 取值；
+//   ② window.__FORGE_OPEN_PAGE__    —— 跨实例硬兜底。
+//
+// ⚠ 本条是踩过坑的核心结论（2026-09-20 实测）：
+//   `useOpenPage()` 内部调用 `useRouter()` / `useTabsStore()` / `useUsageStatsStore()`，
+//   这三者都是 **inject 语义**（读 currentInstance 的 provide 链）。而本桥函数由**插件组件**调用，
+//   执行栈里的 currentInstance 是**插件**的实例（跨 ALC/跨 vue 副本时更是取不到宿主 provide），
+//   宿主侧 `inject(routerKey)` 便返回 undefined → `router.push` 抛
+//   「Cannot read properties of undefined (reading 'push')」。
+//   该报错发生在宿主函数内部，**与插件用哪条通道拿到桥无关**——只加 window 兜底并不能解决。
+//
+// 修法：用 `app.runWithContext()` 把桥内执行强制切回**宿主 app 的上下文**，
+//   使 inject 命中宿主 provide（router / pinia 均为宿主实例）。桥函数因此在任何调用方下都安全。
+//
+// 另注：全仓无 router.afterEach，tab 栏与 usage 统计仅由 useOpenPage().openPage 触发，
+//   插件直接 router.push 会跳过 tab 注册与 usage 记录，故桥必须走 useOpenPage。
+const forgeOpenPage = (to: RouteLocationRaw, label?: string) =>
+  app.runWithContext(() => useOpenPage().openPage(to, label))
+
+app.provide('forgeOpenPage', forgeOpenPage)
+
+// 兜底通道声明于 src/shared/exposeSharedDeps.ts 的 declare global；此处仅挂载，保持与 provide 同实例。
+window.__FORGE_OPEN_PAGE__ = forgeOpenPage
+
 useThemeStore(pinia).initialize()
 useAppearanceStore(pinia).initialize()
 
@@ -52,6 +80,17 @@ router.beforeEach(async (to) => {
   manifestRoutesReady = true
   await manifestStore.loadManifest()
   setupManifestRoutes(manifestStore.manifest)
+  // 预取首页重定向目标（按 ForgeSetting.HomePluginId 解析已启用插件 manifest 的 frontend.route）。
+  // 必须在首次 '/' 重新解析前完成，redirect 仅同步读取此处写入的缓存值。
+  try {
+    const settings = await settingsApi.getSettings()
+    const id = settings.homePluginId || 'home'
+    const m = manifestStore.manifest.find((x) => x.id === id && x.isEnabled)
+    setHomeRedirectTarget(m?.frontend?.route ?? '/home')
+  } catch (e) {
+    console.error('[main] 解析首页重定向失败，回退 /home:', e)
+    setHomeRedirectTarget('/home')
+  }
   return { path: to.fullPath, replace: true }
 })
 

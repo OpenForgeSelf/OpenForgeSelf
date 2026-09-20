@@ -26,14 +26,19 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // firefox / webkit 为可选矩阵：需先 `playwright install firefox webkit`。
+    // 当前运行环境（沙箱）网络受限、无法下载这两个浏览器二进制，
+    // 且项目既有约束为「e2e 仅 chromium 可用」（见 specs/033-home/design.md §13），
+    // 故默认矩阵收敛为 chromium，避免无浏览器二进制导致的误报失败（8 个 launch error）。
+    // 若后续补齐浏览器二进制，解开下方注释即可恢复三矩阵。
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
   ],
   webServer: {
     command: 'pnpm run dev',

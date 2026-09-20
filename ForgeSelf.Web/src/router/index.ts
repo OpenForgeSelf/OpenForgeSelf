@@ -1,6 +1,5 @@
 import ChatRecordsView from '@/views/ChatRecordsView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '@/views/HomeView.vue'
 import PluginStore from '@/views/PluginStore.vue'
 import PluginDetail from '@/views/PluginDetail.vue'
 import PluginUpdates from '@/views/PluginUpdates.vue'
@@ -27,14 +26,27 @@ import CaptureView from '@/views/CaptureView.vue'
 import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 import { registerManifestRoutes } from './dynamicPlugins'
+/**
+ * 首页重定向目标：由 main.ts 在预取阶段（loadManifest 后）解析并写入。
+ * vue-router 的 `redirect` 类型不支持返回 Promise，故此处仅同步读取缓存值，
+ * 真正的异步解析（settings + manifest）放在 main.ts 的 beforeEach 里完成。
+ */
+let _homeRedirectTarget: string | null = null
+export function setHomeRedirectTarget(route: string | null): void {
+  _homeRedirectTarget = route
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      // 首页已全量插件化（Home 插件，id=home）。宿主 `/` 不再绑定任何内置组件，
+      // 而是按 ForgeSetting.HomePluginId 查已启用插件 manifest 的 frontend.route 作重定向目标，
+      // 查不到（插件未启用/缺失）时回退 `/home`。目标路由由 main.ts 预取阶段解析后
+      // 经 setHomeRedirectTarget 写入，此处仅同步读取（vue-router redirect 不支持 Promise 返回）。
       path: '/',
       name: 'home',
-      component: HomeView
+      redirect: () => _homeRedirectTarget ?? '/home',
     },
     // 注意：/ai-agent 与 /quick-links 已**不再**由宿主静态路由提供。
     // 两个页面均已彻底迁移到插件自带界面（ForgeSelf.Api/Plugins/{AIAgent,QuickLinks}/web），

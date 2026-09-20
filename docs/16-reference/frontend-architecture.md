@@ -39,7 +39,7 @@ ForgeSelf.Web/src/
 
 | 路径 | 页面组件 | 说明 |
 |------|----------|------|
-| `/` | HomeView | 首页仪表盘 |
+| `/` | HomeView | 首页仪表盘（「常用功能」网格动态按使用频率排序：固定的排最前，其余按热度降序） |
 | `/ai-agent` | AgentView | AI 代理聊天 |
 | `/prompts` | PromptsView | 提示词管理 |
 | `/skills` | SkillsView | 技能管理 |
@@ -86,7 +86,7 @@ ForgeSelf.Web/src/
 | `counter.ts` | counter | 示例计数器 |
 | `devTools.ts` | devTools | 开发工具状态 |
 | `fileTools.ts` | fileTools | 文件工具状态 |
-| `home.ts` | home | 首页聚合（派生自多个 store） |
+| `home.ts` | home | 首页聚合（派生自多个 store）；常用功能动态排版与 `src/data/homeEntries.ts`（纯函数入口派生+排序）、`usageStats` 协作 |
 | `memory.ts` | memory | 记忆系统状态 |
 | `plugin.ts` | plugin | 插件管理（市场/详情/更新/脚手架） |
 | `pluginManifest.ts` | pluginManifest | 前端清单加载 |
@@ -98,6 +98,7 @@ ForgeSelf.Web/src/
 | `theme.ts` | theme | 主题模式（light/dark/system） |
 | `todo.ts` | todo | 待办事项 |
 | `workflow.ts` | workflow | 工作流管理 |
+| `usageStats.ts` | usageStats | 首页「常用功能」使用度（功能访问次数 + 固定集合），localStorage `forge-home-usage-v2` 持久化；读写收敛在 `readStorage`/`writeStorage`，日后迁后端 `ForgeConfig<T>` 只改这两处 |
 
 ## Services 层（31 个 API 调用模块）
 

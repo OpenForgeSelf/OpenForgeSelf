@@ -19,6 +19,7 @@
 
 import * as vue from 'vue'
 import * as vueRouter from 'vue-router'
+import type { RouteLocationRaw } from 'vue-router'
 import * as pinia from 'pinia'
 /* eslint-disable @typescript-eslint/no-restricted-imports */
 // 桥文件豁免：本文件负责把宿主 EP 组件实例暴露给插件 shim（见文件头说明），
@@ -58,6 +59,15 @@ declare global {
   interface Window {
     /** 宿主共享依赖；由 exposeSharedDeps() 在启动期挂载。 */
     __FORGE_SHARED__?: ForgeSharedDeps
+    /**
+     * 宿主导航桥的 window 兜底通道（与 app.provide('forgeOpenPage') 同一函数实例）。
+     *
+     * 插件调用优先级：inject('forgeOpenPage') → window.__FORGE_OPEN_PAGE__ → 自身 router。
+     * 存在的理由：inject 依赖宿主与插件共享同一份 vue 实例（provide 表在 vue 模块作用域内），
+     * 该前提一旦被破坏（插件内联了 vue 副本、构建配置未 external 等）会**静默失效**，
+     * 且失效表现与「宿主未 provide」完全一致。window 是双方唯一确定共享的全局，作硬兜底。
+     */
+    __FORGE_OPEN_PAGE__?: (to: RouteLocationRaw, label?: string) => void
   }
 }
 

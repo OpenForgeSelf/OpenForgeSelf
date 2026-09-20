@@ -4,4 +4,6 @@
 export interface AppSettings {
   /** 默认 AI 推理模型（chatModelId，格式：提供商:上游模型id） */
   defaultModel: string
+  /** 首页插件 Id；宿主 `/` 重定向到该插件的 frontend.route，缺失时回退 `/home` */
+  homePluginId: string
 }

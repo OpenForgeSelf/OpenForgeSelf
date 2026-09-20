@@ -1,0 +1,26 @@
+{
+  "Id": "home",
+  "Name": "首页插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "铸己匣首页：Hero/常用功能/核心看板/待办与活动/系统监控，view-only 全量插件化，无独立后端。",
+  "IconUrl": "https://example.com/home-icon.png",
+  "EntryAssembly": "Home.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.Home.HomePlugin",
+  "Dependencies": [],
+  "Provides": [],
+  "Consumes": [
+    "config.read"
+  ],
+  "Permissions": [
+    "read_config",
+    "http_request"
+  ],
+  "frontend": {
+    "views": ["HomeView"],
+    "menu": "首页",
+    "route": "/home",
+    "icon": "fa-house",
+    "entry": "web/dist/index.js"
+  }
+}

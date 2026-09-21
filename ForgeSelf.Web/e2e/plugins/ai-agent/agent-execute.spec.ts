@@ -14,7 +14,7 @@ import { resolveHostApiToken } from '../../helpers/host-api-token'
  * - 直连真实运行实例（默认 51888，已配 LM Studio provider + 本次根因修复），零 mock；
  * - 用**同步** `POST /api/ai-agent/chat`：响应直接带回完整 `toolCalls` 列表，天然判定
  *   「agent 是否真的调了 write_file/read_file」，不再用「发送键可用 + 文本长度」不可靠启发式；
- * - 断言对象：① `toolCalls` 含 `write_file`；② `D:\agent-test\index.html` 真实落盘且是
+ * - 断言对象：① `toolCalls` 含 `write_file`；② 代理把 `index.html` 真实落盘到隔离靶场 `PROJECT_DIR` 且是
  *   **可玩贪吃蛇**（含方向键/score/food/重新开始等特征，杜绝「写了空壳」假绿）；
  *   ③ 第二用例验证 `read_file` 回读路径同样可用（同根因类工具，ctx.Get 修复需两端都覆盖）；
  * - 完整运行过程写入证据日志（screenshots/e2e/ai-agent/agent-run-*.log），方便复盘。
@@ -22,12 +22,26 @@ import { resolveHostApiToken } from '../../helpers/host-api-token'
  * 运行方式（本机 51888 实例）：
  *   node_modules/.bin/playwright test e2e/plugins/ai-agent/agent-execute.spec.ts \
  *     --config=e2e/plugins/ai-agent/agent-execute.config.ts
- * 可覆盖：E2E_BACKEND_URL（后端地址）、E2E_AGENT_PROJECT_DIR（项目目录）、
- *   E2E_AGENT_MODEL（模型 id）、E2E_API_TOKEN / FORGE_SETTING_CONFIG / FORGE_MACHINE_GUID（鉴权）。
+ * 可覆盖：E2E_BACKEND_URL（后端地址）、E2E_AGENT_PROJECT_DIR（项目目录，设则不复用随机隔离目录）、
+ *   E2E_AGENT_CACHE_DIR（随机目录基址，默认 os.tmpdir）、E2E_AGENT_MODEL（模型 id）、
+ *   E2E_API_TOKEN / FORGE_SETTING_CONFIG / FORGE_MACHINE_GUID（鉴权）。
+ * 靶场隔离：默认每次运行在缓存目录建「ai-agent-e2e-<随机>」独占目录，测试结束仅删该目录，
+ *   不再递归删除 D:\agent-test 等共享靶场（原 :106 整树 rmSync 会误伤其它 spec 产物）。
  */
 const BACKEND = process.env.E2E_BACKEND_URL ?? 'http://localhost:51888'
-const PROJECT_DIR = process.env.E2E_AGENT_PROJECT_DIR ?? 'D:\\agent-test'
-const MODEL = process.env.E2E_AGENT_MODEL ?? 'default:google/gemma-4-e4b'
+
+// 隔离靶场：默认在系统缓存目录（os.tmpdir）下建「前缀 + 随机后缀」的独立子目录，
+// 每次运行互不影响、也绝不碰共享靶场（如旧 D:\agent-test），避免误伤其它 spec 的产物。
+// 仅当显式设置 E2E_AGENT_PROJECT_DIR 时才用用户指定目录，且测试结束不自动删除（由用户自管）。
+const USER_PROJECT_DIR = process.env.E2E_AGENT_PROJECT_DIR
+const CACHE_BASE = process.env.E2E_AGENT_CACHE_DIR ?? os.tmpdir()
+const PROJECT_DIR = USER_PROJECT_DIR ?? path.join(CACHE_BASE, `ai-agent-e2e-${randomUUID().slice(0, 8)}`)
+// 仅自动生成的目录才在 afterAll 清理；用户指定目录不碰，杜绝误删。
+const OWN_DIR = !USER_PROJECT_DIR
+// 注意：`default:google/gemma-4-e4b` 在 2026-09-18 实测已不可用（LM Studio 报 model not found）；
+// 2026-09-21 复核 LM Studio 本地清单，qwen3.5-4b 为当前可用且工具调用稳定的模型。
+// 可用 E2E_AGENT_MODEL 覆盖。
+const MODEL = process.env.E2E_AGENT_MODEL ?? 'default:qwen3.5-4b'
 
 const OUT_DIR = path.resolve(
   fileURLToPath(new URL('../../../screenshots/e2e/ai-agent', import.meta.url)),
@@ -84,6 +98,17 @@ function assertSnakeContent(indexPath: string): string[] {
 }
 
 test.describe('AIAgent 端到端执行：真实 LLM 驱动 write_file/read_file 落盘与回读', () => {
+  // 隔离靶场：自动生成的随机目录在全部用例前建好、全部用例后仅删自己这一份；
+  // 用户指定目录（E2E_AGENT_PROJECT_DIR）不碰，杜绝误删共享靶场（如旧 D:\agent-test）。
+  test.beforeAll(() => {
+    mkdirSync(PROJECT_DIR, { recursive: true })
+  })
+  test.afterAll(() => {
+    if (OWN_DIR && existsSync(PROJECT_DIR)) {
+      rmSync(PROJECT_DIR, { recursive: true, force: true })
+    }
+  })
+
   test('设定项目目录 → 建贪吃蛇任务 → agent 调 write_file → index.html 真实落盘且为可玩贪吃蛇', async ({
     request,
   }: {
@@ -99,9 +124,7 @@ test.describe('AIAgent 端到端执行：真实 LLM 驱动 write_file/read_file 
       fileCheck: null,
     }
 
-    // 0. 清理旧产物：保证「落盘」是本次 agent 真实产出，杜绝陈旧文件导致假绿。
-    if (existsSync(PROJECT_DIR)) rmSync(PROJECT_DIR, { recursive: true, force: true })
-    mkdirSync(PROJECT_DIR, { recursive: true })
+    // 0. 靶场目录已由 beforeAll 建好（随机独占，天然无陈旧文件），直接开始。
 
     const auth = { Authorization: `Bearer ${API_TOKEN}` }
 
@@ -159,7 +182,7 @@ test.describe('AIAgent 端到端执行：真实 LLM 驱动 write_file/read_file 
       missing = assertSnakeContent(indexPath)
     }
     evidence.fileCheck = { existed, size, markers: SNAKE_MARKERS }
-    expect(existed, `D:\\agent-test\\index.html 未落盘（agent 未真正写文件）`).toBe(true)
+    expect(existed, `${PROJECT_DIR}\\index.html 未落盘（agent 未真正写文件）`).toBe(true)
     expect(size, 'index.html 落盘但大小为 0').toBeGreaterThan(0)
     // 5. 内容校验：必须是「可玩贪吃蛇」，而非空壳 HTML
     expect(
@@ -285,7 +308,8 @@ test.describe('AIAgent 端到端执行：真实 LLM 驱动 write_file/read_file 
       `history 中找不到含 toolCallsJson 的消息；history=${JSON.stringify(hist)}`,
     ).toBeDefined()
 
-    let traces: Array<{ name?: string; result?: string; success?: boolean }> = []
+    // 直接 const 赋值（不做无用的空数组初始化，否则触发 no-useless-assignment）。
+    let traces: Array<{ name?: string; result?: string; success?: boolean }>
     try {
       traces = JSON.parse(traced!.toolCallsJson!) as Array<{
         name?: string
@@ -293,7 +317,8 @@ test.describe('AIAgent 端到端执行：真实 LLM 驱动 write_file/read_file 
         success?: boolean
       }>
     } catch (e) {
-      throw new Error(`toolCallsJson 非合法 JSON：${traced!.toolCallsJson}；err=${String(e)}`)
+      // 附 cause 保留原始异常栈（preserve-caught-error）。
+      throw new Error(`toolCallsJson 非合法 JSON：${traced!.toolCallsJson}`, { cause: e })
     }
     console.log(`\n[agent-trace] 落库轨迹=${JSON.stringify(traces)}\n`)
     expect(

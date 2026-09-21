@@ -1,6 +1,7 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.ScriptRunner.Models;
 using ForgeSelf.Api.Plugins.ScriptRunner.Services;
+using ForgeSelf.Core;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
@@ -12,20 +13,29 @@ public class ScriptRunnerController : ControllerBase
 {
     private readonly IScriptService _scriptService;
     private readonly IScriptExecutor _scriptExecutor;
-    private readonly IRuntimeDetector _runtimeDetector;
+    private readonly IContext _ctx;
     private readonly IScriptTemplateService _templateService;
+    private IRuntimeDetector? _runtimeDetector;
 
     public ScriptRunnerController(
         IScriptService scriptService,
         IScriptExecutor scriptExecutor,
-        IRuntimeDetector runtimeDetector,
+        IContext ctx,
         IScriptTemplateService templateService)
     {
         _scriptService = scriptService;
         _scriptExecutor = scriptExecutor;
-        _runtimeDetector = runtimeDetector;
+        _ctx = ctx;
         _templateService = templateService;
     }
+
+    /// <summary>
+    /// 宿主契约（IRuntimeDetector）经 Cordis 上下文在运行期以 ctx.Get&lt;T&gt;() 获取（软依赖探测）：
+    /// 插件控制器由插件子 provider 激活，该子 provider 只承载插件自有服务（含 IContext），
+    /// 不含宿主契约；构造注入会抛「Unable to resolve service for type 'IRuntimeDetector'」。
+    /// </summary>
+    private IRuntimeDetector RuntimeDetector => _runtimeDetector ??= _ctx.Get<IRuntimeDetector>()
+        ?? throw new InvalidOperationException("宿主未提供 IRuntimeDetector 契约，无法初始化脚本运行器");
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<ScriptListResponse>>> GetScripts(
@@ -207,7 +217,7 @@ public class ScriptRunnerController : ControllerBase
         {
             XTrace.Log.Info("[ScriptRunnerController] 获取可用运行环境");
 
-            var runtimes = await _runtimeDetector.DetectAllAsync();
+            var runtimes = await RuntimeDetector.DetectAllAsync();
             return Ok(ApiResponse<List<RuntimeEnvironment>>.Ok(runtimes, "获取运行环境成功"));
         }
         catch (Exception ex)

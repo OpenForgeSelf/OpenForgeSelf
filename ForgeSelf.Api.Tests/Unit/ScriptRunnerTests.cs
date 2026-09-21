@@ -2,6 +2,7 @@ using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.ScriptRunner.Models;
 using ForgeSelf.Api.Plugins.ScriptRunner.Services;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Core;
 
 namespace ForgeSelf.Api.Tests.Unit;
 
@@ -15,10 +16,15 @@ public class ScriptRunnerTests : IClassFixture<XCodeTestFixture>
     {
         _mockRuntimeDetector = new Mock<IRuntimeDetector>();
 
+        // ScriptExecutor 经 Cordis 上下文在运行期取宿主契约 IRuntimeDetector（构造不再直接注入，
+        // 与插件子 provider 只承载 IContext 的契约一致）；测试用真实 Context 注册 mock 契约。
+        var ctx = new Context();
+        ctx.Register<IRuntimeDetector>(_mockRuntimeDetector.Object);
+
         // ScriptExecutor 通过 XCode 访问 ScriptRunner 连接；
         // 复用 XCodeTestFixture 将 ScriptRunner 连接指向临时库并建表（走 XCode 而非 EF），
         // 避免此前用 EF EnsureCreated 建到错误库导致 "no such table" 的脆弱写法
-        _scriptExecutor = new ScriptExecutor(_mockRuntimeDetector.Object);
+        _scriptExecutor = new ScriptExecutor(ctx);
     }
 
     #region ScriptExecutor - PowerShell Execution Tests

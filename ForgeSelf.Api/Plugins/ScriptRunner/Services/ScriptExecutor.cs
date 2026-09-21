@@ -5,22 +5,33 @@ using ScriptEntity = ForgeSelf.Api.Plugins.ScriptRunner.Entities.Script;
 using ScriptExecutionEntity = ForgeSelf.Api.Plugins.ScriptRunner.Entities.ScriptExecution;
 using ForgeSelf.Api.Plugins.ScriptRunner.Hubs;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.ScriptRunner.Services;
 
 public class ScriptExecutor : IScriptExecutor
 {
-    private readonly IRuntimeDetector _runtimeDetector;
+    private readonly IContext _ctx;
     private readonly ScriptExecutionBroadcaster? _broadcaster;
+    private IRuntimeDetector? _runtimeDetector;
     private readonly Dictionary<long, ProcessExecutionContext> _runningExecutions = [];
     private readonly object _lock = new();
 
-    public ScriptExecutor(IRuntimeDetector runtimeDetector, ScriptExecutionBroadcaster? broadcaster = null)
+    public ScriptExecutor(IContext ctx, ScriptExecutionBroadcaster? broadcaster = null)
     {
-        _runtimeDetector = runtimeDetector;
+        _ctx = ctx;
         _broadcaster = broadcaster;
     }
+
+    /// <summary>
+    /// 宿主契约（IRuntimeDetector）经 Cordis 上下文在运行期以 ctx.Get&lt;T&gt;() 获取（软依赖探测）：
+    /// 不在构造时解析——插件子 provider 只承载插件自有服务（含 IContext），宿主契约在
+    /// ProvideHostServices 阶段才 seed 进根上下文（晚于插件 Apply），构造注入会抛
+    /// 「Unable to resolve service for type 'IRuntimeDetector'」。
+    /// </summary>
+    private IRuntimeDetector RuntimeDetector => _runtimeDetector ??= _ctx.Get<IRuntimeDetector>()
+        ?? throw new InvalidOperationException("宿主未提供 IRuntimeDetector 契约，无法初始化脚本执行器");
 
     private Task BroadcastStatusAsync(long executionId, ScriptExecutionStatus status)
         => _broadcaster?.BroadcastStatusUpdateAsync(executionId, status) ?? Task.CompletedTask;
@@ -171,7 +182,7 @@ public class ScriptExecutor : IScriptExecutor
 
     private async Task ExecuteScriptInternalAsync(long executionId, Script script, Dictionary<string, object?>? parameters, CancellationToken externalCancellationToken, string? workingDirectory = null)
     {
-        var runtime = await _runtimeDetector.DetectAsync(script.Language);
+        var runtime = await RuntimeDetector.DetectAsync(script.Language);
         if (!runtime.IsAvailable)
         {
             await UpdateExecutionStatusAsync(executionId, ScriptExecutionStatus.Failed, null, $"{script.Language} 运行环境不可用");

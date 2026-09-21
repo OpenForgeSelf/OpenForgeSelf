@@ -140,6 +140,16 @@ public class PluginManager
             // 否则根上下文会为同一契约累积冗余 effect。
             if (_rootContext.GetService(contract) is not null) continue;
 
+            // IServiceProvider 特判：seed 宿主根 provider 本体（而非本次 scope 的 provider——
+            // scope 在方法返回即释放，其 provider 后续解析会抛 ObjectDisposedException）。
+            // 插件经 ctx.Get<IServiceProvider>() 回落宿主容器（如解析 SignalR 的 IHubContext<T>），
+            // 需要长期有效的根 provider。
+            if (contract == typeof(IServiceProvider))
+            {
+                _rootContext.Register(typeof(IServiceProvider), hostServices);
+                continue;
+            }
+
             var instance = scope.ServiceProvider.GetService(contract);
             if (instance is not null)
             {
@@ -190,6 +200,7 @@ public class PluginManager
         typeof(IConfigurationService),
         typeof(IToolRegistry),
         typeof(ICronParser),
+        typeof(IRuntimeDetector),
         typeof(ISessionStore),
         typeof(IAgentLoop),
         typeof(IInbox),
@@ -199,6 +210,10 @@ public class PluginManager
         typeof(IDataLocationService),
         typeof(IProjectRegistry),
         typeof(IAIProviderRegistry),
+        // 宿主根 IServiceProvider：插件经 ctx.Get<IServiceProvider>() 回落宿主容器解析非精选契约
+        // （如 SignalR 的 IHubContext<T>）。MemorySystem/SamplePlugin 均以「ctx.Get<IServiceProvider>()」
+        // 为正确做法，此前依赖各插件自兜底，此处显式 seed 使之稳定可用（见 ProvideHostServices 特判）。
+        typeof(IServiceProvider),
     };
 
     /// <summary>

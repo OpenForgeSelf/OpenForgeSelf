@@ -3,6 +3,7 @@ using ForgeSelf.Api.Plugins.ScriptRunner.Controllers;
 using ForgeSelf.Api.Plugins.ScriptRunner.Models;
 using ForgeSelf.Api.Plugins.ScriptRunner.Services;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Core;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -22,10 +23,16 @@ public class ScriptRunnerIntegrationTests
         _mockScriptExecutor = new Mock<IScriptExecutor>();
         _mockRuntimeDetector = new Mock<IRuntimeDetector>();
         _mockTemplateService = new Mock<IScriptTemplateService>();
+
+        // 控制器经 Cordis 上下文在运行期取宿主契约 IRuntimeDetector（构造不再直接注入，
+        // 与插件子 provider 只承载 IContext 的契约一致）；测试用真实 Context 注册 mock 契约。
+        var ctx = new Context();
+        ctx.Register<IRuntimeDetector>(_mockRuntimeDetector.Object);
+
         _controller = new ScriptRunnerController(
             _mockScriptService.Object,
             _mockScriptExecutor.Object,
-            _mockRuntimeDetector.Object,
+            ctx,
             _mockTemplateService.Object);
     }
 

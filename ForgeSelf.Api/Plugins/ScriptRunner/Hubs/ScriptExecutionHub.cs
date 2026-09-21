@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.SignalR;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
+using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.ScriptRunner.Hubs;
 
 /// <summary>
-/// 脚本执行状态广播器（宿主 DI 单例）。
+/// 脚本执行状态广播器（插件子容器单例）。
 /// 持有 SignalR <see cref="IHubContext{ScriptExecutionHub}"/> 与连接/订阅路由状态，
 /// 供 <see cref="ScriptExecutor"/> 等消费方通过实例方法推送执行状态与输出日志。
 /// 取代原先「静态 SetServiceProvider + 静态访问」模式：不再以静态字段长期持有插件 Fiber 上下文，
@@ -13,15 +15,25 @@ namespace ForgeSelf.Api.Plugins.ScriptRunner.Hubs;
 /// </summary>
 public class ScriptExecutionBroadcaster
 {
-    private readonly IHubContext<ScriptExecutionHub> _hubContext;
+    private readonly IContext _ctx;
+    private IHubContext<ScriptExecutionHub>? _hubContext;
     private readonly HashSet<string> _connectedConnections = [];
     private readonly Dictionary<long, List<string>> _executionSubscriptions = [];
     private readonly object _lock = new();
 
-    public ScriptExecutionBroadcaster(IHubContext<ScriptExecutionHub> hubContext)
+    public ScriptExecutionBroadcaster(IContext ctx)
     {
-        _hubContext = hubContext;
+        _ctx = ctx;
     }
+
+    /// <summary>
+    /// SignalR 上下文为宿主服务（AddSignalR 注册开放泛型 <see cref="IHubContext{T}"/>），不在插件子 provider；
+    /// 经 Cordis 上下文取宿主根 IServiceProvider，回落宿主容器在运行期解析（宿主契约回落，构造不依赖宿主）。
+    /// </summary>
+    private IHubContext<ScriptExecutionHub> HubContext => _hubContext ??= (_ctx.Get<IServiceProvider>()
+        ?? throw new InvalidOperationException("宿主未提供 IServiceProvider 契约（未 seed 进插件根上下文）"))
+        .GetService<IHubContext<ScriptExecutionHub>>()
+        ?? throw new InvalidOperationException("宿主未注册 IHubContext<ScriptExecutionHub>（AddSignalR 未启用？）");
 
     public void OnConnected(string connectionId)
     {
@@ -112,7 +124,7 @@ public class ScriptExecutionBroadcaster
         {
             try
             {
-                await _hubContext.Clients.Client(connId).SendAsync("ReceiveStatusUpdate", update);
+                await HubContext.Clients.Client(connId).SendAsync("ReceiveStatusUpdate", update);
             }
             catch (Exception ex)
             {
@@ -142,7 +154,7 @@ public class ScriptExecutionBroadcaster
         {
             try
             {
-                await _hubContext.Clients.Client(connId).SendAsync("ReceiveOutputLog", logEntry);
+                await HubContext.Clients.Client(connId).SendAsync("ReceiveOutputLog", logEntry);
             }
             catch (Exception ex)
             {

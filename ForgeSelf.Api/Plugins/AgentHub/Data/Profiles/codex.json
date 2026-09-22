@@ -1,0 +1,31 @@
+{
+  "id": "codex",
+  "displayName": "Codex CLI",
+  "kind": "Coding",
+  "executable": "codex",
+  "argsTemplate": "exec \"{prompt}\" --json -C {cwd} --sandbox {permission}",
+  "promptInjection": "Arg",
+  "outputFormat": "JsonLines",
+  "outputMapping": {
+    "eventType": "$.type",
+    "text": "$.item.text",
+    "toolName": "$.item.name",
+    "sessionId": "$.session_id"
+  },
+  "sessionFlagTemplate": "resume {sessionId}",
+  "permissionFlagTemplate": "--sandbox {permission}",
+  "probeArgs": "--version",
+  "probe": [
+    { "kind": "help_contains", "expect": "exec" }
+  ],
+  "capabilities": {
+    "F1_Driving": true,
+    "F2_Sessions": false,
+    "F3_Transcripts": true,
+    "F4_Configure": true,
+    "F5_HealthUsage": false,
+    "F6_Policy": true
+  },
+  "profileVersion": "1.0.0",
+  "notes": "无 list/export 出口（只能 resume + 直读磁盘）；会话历史读 $CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl。权限默认 read-only。P2 可用 app-server（JSON-RPC 2.0，Thread/Turn/Item）。"
+}

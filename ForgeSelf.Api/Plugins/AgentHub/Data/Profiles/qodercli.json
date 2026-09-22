@@ -1,0 +1,31 @@
+{
+  "id": "qodercli",
+  "displayName": "Qoder CLI",
+  "kind": "Coding",
+  "executable": "qodercli",
+  "argsTemplate": "-p \"{prompt}\" --output-format stream-json --permission-mode {permission}",
+  "promptInjection": "Arg",
+  "outputFormat": "JsonLines",
+  "outputMapping": {
+    "eventType": "$.type",
+    "text": "$.text",
+    "toolName": "$.name",
+    "sessionId": "$.session_id"
+  },
+  "sessionFlagTemplate": "-r {sessionId}",
+  "permissionFlagTemplate": "--permission-mode {permission}",
+  "probeArgs": "--version",
+  "probe": [
+    { "kind": "help_contains", "expect": "--output-format" }
+  ],
+  "capabilities": {
+    "F1_Driving": true,
+    "F2_Sessions": true,
+    "F3_Transcripts": true,
+    "F4_Configure": true,
+    "F5_HealthUsage": true,
+    "F6_Policy": true
+  },
+  "profileVersion": "1.0.0",
+  "notes": "有 --list-sessions / /export 出口，会话含 token 统计。headless 纯文本默认 deny 需确认操作。⚠ 已知缺陷（0.2.5/0.2.8）：ACP session/new 创建的会话无法跨进程恢复，ACP 适配不得依赖对端会话恢复。"
+}

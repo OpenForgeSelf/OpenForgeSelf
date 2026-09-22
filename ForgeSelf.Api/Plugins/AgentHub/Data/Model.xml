@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>ForgeSelf.Api.Plugins.AgentHub.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>AgentHub</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="AgentDefinition" Description="被管理的 Agent 定义">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Nullable="False" Description="显示名" />
+        <Column Name="Vendor" DataType="String" Nullable="False" DefaultValue="custom" Description="厂商标识" />
+        <Column Name="DisplayName" DataType="String" Length="100" Description="厂商展示名" />
+        <Column Name="Kind" DataType="String" Length="30" DefaultValue="Coding" Description="类型" />
+        <Column Name="Tags" DataType="String" Length="500" Description="擅长标签" />
+        <Column Name="CapabilitiesJson" DataType="String" Length="2000" Description="能力矩阵 JSON" />
+        <Column Name="DefaultCwd" DataType="String" Length="500" Description="默认工作目录" />
+        <Column Name="PolicyJson" DataType="String" Length="2000" Description="策略 JSON" />
+        <Column Name="Enabled" DataType="Boolean" DefaultValue="1" Description="是否启用" />
+        <Column Name="Priority" DataType="Int32" DefaultValue="0" Description="选路优先级" />
+        <Column Name="Trusted" DataType="Boolean" DefaultValue="0" Description="是否授信" />
+        <Column Name="TrustedScopes" DataType="String" Length="500" Description="授信范围" />
+        <Column Name="Notes" DataType="String" Length="1000" Description="备注" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Enabled" />
+        <Index Columns="Vendor" />
+      </Indexes>
+    </Table>
+    <Table Name="AgentAccessPoint" Description="Agent 交互口">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="AgentId" DataType="Int32" Description="所属 Agent" />
+        <Column Name="Mode" DataType="String" Length="20" Nullable="False" DefaultValue="OneShot" Description="能力等级（OneShot|Sessionful）" />
+        <Column Name="Transport" DataType="String" Length="20" Nullable="False" DefaultValue="Cli" Description="传输方式（Cli|Acp|Http）" />
+        <Column Name="Executable" DataType="String" Length="500" Description="可执行文件" />
+        <Column Name="ArgsTemplate" DataType="String" Length="2000" Description="参数模板" />
+        <Column Name="EnvJson" DataType="String" Length="1000" Description="环境变量映射 JSON（只存名）" />
+        <Column Name="PromptInjection" DataType="String" Length="20" Nullable="False" DefaultValue="Arg" Description="提示词注入方式（Arg|Stdin）" />
+        <Column Name="OutputFormat" DataType="String" Length="20" Nullable="False" DefaultValue="Text" Description="输出格式（Text|JsonLines|Json）" />
+        <Column Name="OutputMappingJson" DataType="String" Length="2000" Description="输出字段映射 JSON（L2）" />
+        <Column Name="SessionFlagTemplate" DataType="String" Length="500" Description="会话参数模板" />
+        <Column Name="CancelSupported" DataType="Boolean" DefaultValue="0" Description="支持取消" />
+        <Column Name="ProbeArgs" DataType="String" Length="500" Description="探测参数" />
+        <Column Name="Health" DataType="String" Length="20" Nullable="False" DefaultValue="Unknown" Description="健康状态" />
+        <Column Name="LastProbeTime" DataType="DateTime" Description="最近探测时间" />
+        <Column Name="LastVersion" DataType="String" Length="100" Description="探测版本" />
+        <Column Name="LastError" DataType="String" Length="1000" Description="最近错误" />
+        <Column Name="IsDefault" DataType="Boolean" DefaultValue="0" Description="是否默认" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="AgentId" />
+      </Indexes>
+    </Table>
+    <Table Name="DelegationTask" Description="委派任务">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="任务ID" />
+        <Column Name="TaskKey" DataType="String" Master="True" Length="40" Nullable="False" Description="任务标识（GUID）" />
+        <Column Name="AgentId" DataType="Int32" Description="目标 Agent" />
+        <Column Name="AccessPointId" DataType="Int32" DefaultValue="0" Description="使用的交互口" />
+        <Column Name="Prompt" DataType="String" Length="8000" Description="提示词" />
+        <Column Name="Cwd" DataType="String" Length="500" Description="工作目录" />
+        <Column Name="Status" DataType="String" Length="30" Nullable="False" DefaultValue="Queued" Description="状态" />
+        <Column Name="SessionRef" DataType="String" Length="200" Description="外部会话 id" />
+        <Column Name="PermissionMode" DataType="String" Length="30" Nullable="False" Description="权限模式" />
+        <Column Name="ExitCode" DataType="Int32" DefaultValue="0" Description="退出码" />
+        <Column Name="ErrorCode" DataType="String" Description="错误分类" />
+        <Column Name="ResultText" DataType="String" Length="8000" Description="结果" />
+        <Column Name="ArtifactsJson" DataType="String" Length="4000" Description="产物 JSON" />
+        <Column Name="UsageJson" DataType="String" Length="1000" Description="用量 JSON" />
+        <Column Name="CreatedBy" DataType="String" Length="100" Description="发起方" />
+        <Column Name="StartTime" DataType="DateTime" Description="开始时间" />
+        <Column Name="EndTime" DataType="DateTime" Description="结束时间" />
+        <Column Name="ElapsedMs" DataType="Int32" DefaultValue="0" Description="执行耗时（毫秒，不含审批等待）" />
+        <Column Name="LastSeq" DataType="Int32" DefaultValue="0" Description="事件序号水位" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Status" />
+        <Index Columns="AgentId" />
+        <Index Columns="CreateTime" />
+      </Indexes>
+    </Table>
+    <Table Name="DelegationEvent" Description="委派事件流">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="TaskId" DataType="Int32" Description="所属任务" />
+        <Column Name="Seq" DataType="Int32" Description="序号" />
+        <Column Name="Type" DataType="String" Length="30" Nullable="False" DefaultValue="Text" Description="事件类型" />
+        <Column Name="PayloadJson" DataType="String" Length="4000" Description="负载 JSON" />
+        <Column Name="Truncated" DataType="Boolean" DefaultValue="0" Description="已截断" />
+        <Column Name="Timestamp" DataType="DateTime" Description="时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="TaskId,Seq" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

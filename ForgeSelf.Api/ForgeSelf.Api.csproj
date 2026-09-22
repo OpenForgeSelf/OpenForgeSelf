@@ -32,6 +32,21 @@
     <!-- 示例插件：源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 →
          assemblyinfo 特性重复（CS0579）。 -->
     <Compile Remove="Plugins\SamplePlugin\**\*.cs" />
+    <!-- AgentHub / Home 插件（独立 csproj，ADR D2 拆分模式）：此前漏登记排除，宿主全量编译会把
+         Plugins\AgentHub\obj 下的生成 AssemblyInfo 一并编入 → 与宿主自身 AssemblyInfo 特性重复（CS0579）。
+         2026-09-21 全量重建时暴露（增量构建长期跳过 Csc 而未触发）。补齐排除，与其余 16 个插件同模式。 -->
+    <Compile Remove="Plugins\AgentHub\**\*.cs" />
+    <Compile Remove="Plugins\Home\**\*.cs" />
+    <!-- ImGateway 插件（ADR D2 续，第 15 个）：同模式拆分，Backend 必须排除其源码，
+         否则同一份 .cs 被 Backend 与 ImGateway.csproj 两处编译 → assemblyinfo 特性重复（CS0579）。
+         此前漏加此行导致整树 build 红，现补齐集成。 -->
+    <Compile Remove="Plugins\ImGateway\**\*.cs" />
+    <!-- AgentHub 插件（ADR D2 续，此前漏集成导致整树 build 红：其 obj/Debug 的 AssemblyInfo 被编入 Backend 主程序集 → 与 Backend 自身 assembly 特性重复 CS0579）。现补齐。 -->
+    <Compile Remove="Plugins\AgentHub\**\*.cs" />
+    <!-- Home 插件（ADR D2 续，view-only 首页，此前漏集成致其源码被 glob 编入 Backend，潜在双 ALC 加载隐患）。现补齐。 -->
+    <Compile Remove="Plugins\Home\**\*.cs" />
+    <!-- McpGateway 插件（034，独立 csproj，ADR D2 拆分模式）：同上模式排除源码，避免双重编译 CS0579。 -->
+    <Compile Remove="Plugins\McpGateway\**\*.cs" />
     <Content Remove="Plugins\SamplePlugin\bin\**" />
     <Content Remove="Plugins\SamplePlugin\obj\**" />
     <!-- DesignSystem 插件（输入N+9）源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 → assemblyinfo 特性重复（CS0579）。 -->
@@ -64,6 +79,18 @@
     <Content Remove="Plugins\ProxyCapture\obj\**" />
     <Content Remove="Plugins\Sems\bin\**" />
     <Content Remove="Plugins\Sems\obj\**" />
+    <Content Remove="Plugins\ImGateway\bin\**" />
+    <Content Remove="Plugins\ImGateway\obj\**" />
+    <Content Remove="Plugins\AgentHub\bin\**" />
+    <Content Remove="Plugins\AgentHub\obj\**" />
+    <Content Remove="Plugins\Home\bin\**" />
+    <Content Remove="Plugins\Home\obj\**" />
+    <Content Remove="Plugins\McpGateway\bin\**" />
+    <Content Remove="Plugins\McpGateway\obj\**" />
+    <Content Remove="Plugins\AgentHub\bin\**" />
+    <Content Remove="Plugins\AgentHub\obj\**" />
+    <Content Remove="Plugins\Home\bin\**" />
+    <Content Remove="Plugins\Home\obj\**" />
     <!-- 历史遗留：2026-06 之前各插件项目以自身目录为基准运行时，在源码目录留下的
          Plugins\<Name>\Data\Config\*.config 运行残留。Web SDK 会把它当内容复制到输出目录与发布产物。
          配置现已统一收敛到数据根（ConfigUnifier），此处排除，避免污染输出目录/发布产物。 -->
@@ -94,6 +121,18 @@
     <None Remove="Plugins\ProxyCapture\obj\**" />
     <None Remove="Plugins\Sems\bin\**" />
     <None Remove="Plugins\Sems\obj\**" />
+    <None Remove="Plugins\ImGateway\bin\**" />
+    <None Remove="Plugins\ImGateway\obj\**" />
+    <None Remove="Plugins\AgentHub\bin\**" />
+    <None Remove="Plugins\AgentHub\obj\**" />
+    <None Remove="Plugins\Home\bin\**" />
+    <None Remove="Plugins\Home\obj\**" />
+    <None Remove="Plugins\McpGateway\bin\**" />
+    <None Remove="Plugins\McpGateway\obj\**" />
+    <None Remove="Plugins\AgentHub\bin\**" />
+    <None Remove="Plugins\AgentHub\obj\**" />
+    <None Remove="Plugins\Home\bin\**" />
+    <None Remove="Plugins\Home\obj\**" />
   </ItemGroup>
 
   <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
@@ -152,6 +191,19 @@
     <ProjectReference Include="Plugins\AIAgent\AIAgent.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="Plugins\ProxyCapture\ProxyCapture.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="Plugins\Sems\Sems.csproj" ReferenceOutputAssembly="false" />
+    <!-- 第 15 个插件（ADR D2 续）：ImGateway，仅建立构建顺序，不编译引用、不复制到输出根目录 -->
+    <ProjectReference Include="Plugins\ImGateway\ImGateway.csproj" ReferenceOutputAssembly="false" />
+    <!-- AgentHub 插件（ADR D2 续，此前漏集成致整树 build 红）：仅建立构建顺序，不编译引用、不复制到输出根目录 -->
+    <ProjectReference Include="Plugins\AgentHub\AgentHub.csproj" ReferenceOutputAssembly="false" />
+    <!-- Home 插件（ADR D2 续，此前漏集成致其源码被编入 Backend）：仅建立构建顺序 -->
+    <ProjectReference Include="Plugins\Home\Home.csproj" ReferenceOutputAssembly="false" />
+    <!-- DesignSystem 插件：Compile Remove + Stage 已有，补 ProjectReference 以确立构建顺序（此前漏） -->
+    <ProjectReference Include="Plugins\DesignSystem\DesignSystem.csproj" ReferenceOutputAssembly="false" />
+    <!-- 第 16 个插件（034）：McpGateway，仅建立构建顺序，不编译引用、不复制到输出根目录 -->
+    <ProjectReference Include="Plugins\McpGateway\McpGateway.csproj" ReferenceOutputAssembly="false" />
+    <!-- DesignSystem 插件：仅贡献自带界面（web/dist）+ 空 DLL 也要 staged，故同样建立构建顺序；
+         此前缺此行 → 宿主全量构建时 StageDesignSystemPlugin 复制不到 DesignSystem.dll（MSB3030），2026-09-21 补齐。 -->
+    <ProjectReference Include="Plugins\DesignSystem\DesignSystem.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 将插件 DLL 复制到 Backend 输出的 Plugins/<Name>/ 目录，供 PluginManager 隔离加载 -->
@@ -300,12 +352,82 @@
           SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- ImGateway 插件（ADR D2 续，第 15 个）：拷贝其独立编译的 DLL 到 Backend 输出 Plugins/ImGateway/，
+       供 PluginManager 隔离加载（与 MemorySystem 等 14 个插件同模式）。Backend 已用 Compile Remove 排除其源码，
+       不再把 ImGateway 类型编入主程序集，避免与 PluginManager 的隔离 ALC 形成双 ALC 重复加载。 -->
+  <Target Name="StageImGatewayPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_ImGatewayDll Include="Plugins\ImGateway\bin\$(Configuration)\net10.0\ImGateway.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ImGatewayDll)"
+          DestinationFolder="$(OutDir)Plugins\ImGateway\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- AgentHub 插件（ADR D2 续，此前漏集成致整树 build 红）：拷贝其独立编译的程序集与内置 Profiles 到
+       Backend 输出 Plugins/AgentHub/，供 PluginManager 隔离加载（与 Sems 同模式，排除宿主共享的 ForgeSelf.*/NewLife.*）。
+       Backend 已用 Compile Remove 排除其源码，不再把 AgentHub 类型编入主程序集，消除与 Backend 自身 assembly 特性重复的 CS0579。 -->
+  <Target Name="StageAgentHubPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_AgentHubFiles Include="Plugins\AgentHub\bin\$(Configuration)\net10.0\**\*.*"
+                      Exclude="Plugins\AgentHub\bin\$(Configuration)\net10.0\ForgeSelf.*;Plugins\AgentHub\bin\$(Configuration)\net10.0\NewLife.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AgentHubFiles)"
+          DestinationFiles="@(_AgentHubFiles->'$(OutDir)Plugins\AgentHub\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Home 插件（ADR D2 续，view-only 首页，此前漏集成致其源码被 glob 编入 Backend）：拷贝独立编译的 DLL 到
+       Backend 输出 Plugins/Home/，供 PluginManager 隔离加载（与 MemorySystem 等插件同模式）。 -->
+  <Target Name="StageHomePlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_HomeDll Include="Plugins\Home\bin\$(Configuration)\net10.0\Home.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_HomeDll)"
+          DestinationFolder="$(OutDir)Plugins\Home\"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Per-App Proxy 引擎（独立 exe，WinDivert 内核拦截，需管理员运行）：
+       构建后把引擎完整输出（exe + dll + WinDivert.dll/.sys + LICENSE）拷到宿主输出目录
+       PerAppProxy.Engine/，供 ProxyCapture 插件按相对路径拉起进程。 -->
+  <Target Name="StagePerAppProxyEngine" AfterTargets="Build">
+    <ItemGroup>
+      <_EngineFiles Include="Plugins\ProxyCapture\Engine\bin\$(Configuration)\net10.0-windows\**\*.*"
+                    Exclude="Plugins\ProxyCapture\Engine\bin\$(Configuration)\net10.0-windows\**\*.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_EngineFiles)"
+          DestinationFiles="@(_EngineFiles->'$(OutDir)PerAppProxy.Engine\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 发布时把引擎一并带进发布目录（与 StagePluginsToPublish 同模式）。 -->
+  <Target Name="StagePerAppProxyEngineToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_StagedEngineFiles Include="$(OutDir)PerAppProxy.Engine\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_StagedEngineFiles)"
+          DestinationFiles="@(_StagedEngineFiles->'$(PublishDir)PerAppProxy.Engine\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
   <!-- 示例插件：源码只有 plugin.json 时，PluginManager 扫描到清单却找不到入口类型，
        每次启动都报一条「插件入口类型不存在」。补齐程序集后它既是可运行的示例，
        也可作为新插件的起手模板（含完整注释说明插件契约）。 -->
   <ItemGroup>
     <ProjectReference Include="Plugins\SamplePlugin\SamplePlugin.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- McpGateway 插件（034，第 16 个）：拷贝其独立编译的 DLL 到 Backend 输出 Plugins/McpGateway/，
+       供 PluginManager 隔离加载（与 AgentHub/ImGateway 同模式）。Backend 已用 Compile Remove 排除其源码。 -->
+  <Target Name="StageMcpGatewayPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <_McpGatewayDll Include="Plugins\McpGateway\bin\$(Configuration)\net10.0\McpGateway.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_McpGatewayDll)"
+          DestinationFolder="$(OutDir)Plugins\McpGateway\"
+          SkipUnchangedFiles="true" />
+  </Target>
 
   <!-- 发布时把 Build 期暂存的插件 DLL 一并带进发布目录。
        背景：Web SDK 默认只把 Plugins/** 下的 plugin.json 当「内容」发布（DLL 不在内容项中），

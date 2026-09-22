@@ -1,0 +1,31 @@
+{
+  "id": "claude",
+  "displayName": "Claude Code",
+  "kind": "Coding",
+  "executable": "claude",
+  "argsTemplate": "-p \"{prompt}\" --output-format stream-json",
+  "promptInjection": "Arg",
+  "outputFormat": "JsonLines",
+  "outputMapping": {
+    "eventType": "$.type",
+    "text": "$.message.content",
+    "toolName": "$.name",
+    "sessionId": "$.session_id"
+  },
+  "sessionFlagTemplate": "--resume {sessionId}",
+  "permissionFlagTemplate": null,
+  "probeArgs": "--version",
+  "probe": [
+    { "kind": "help_contains", "expect": "--output-format" }
+  ],
+  "capabilities": {
+    "F1_Driving": true,
+    "F2_Sessions": false,
+    "F3_Transcripts": true,
+    "F4_Configure": false,
+    "F5_HealthUsage": false,
+    "F6_Policy": true
+  },
+  "profileVersion": "1.0.0",
+  "notes": "仅磁盘可读：~/.claude/projects/<cwd编码>/<uuid>.jsonl（子 agent 在 <uuid>/subagents/），默认 30 天清理。⚠ 项目目录名是 cwd 不可逆编码（非字母数字→-），判定归属只信 jsonl 行内 cwd 字段，解不出归「未知」，不猜（G4）。"
+}

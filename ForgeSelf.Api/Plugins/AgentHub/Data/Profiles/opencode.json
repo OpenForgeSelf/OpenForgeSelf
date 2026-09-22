@@ -1,0 +1,31 @@
+{
+  "id": "opencode",
+  "displayName": "opencode",
+  "kind": "Coding",
+  "executable": "opencode",
+  "argsTemplate": "run \"{prompt}\" --dir {cwd} --format json",
+  "promptInjection": "Arg",
+  "outputFormat": "JsonLines",
+  "outputMapping": {
+    "eventType": "$.type",
+    "text": "$.text",
+    "toolName": "$.tool",
+    "sessionId": "$.sessionID"
+  },
+  "sessionFlagTemplate": "--session {sessionId}",
+  "permissionFlagTemplate": null,
+  "probeArgs": "--version",
+  "probe": [
+    { "kind": "version_min", "expect": "0.1.0" }
+  ],
+  "capabilities": {
+    "F1_Driving": true,
+    "F2_Sessions": true,
+    "F3_Transcripts": true,
+    "F4_Configure": true,
+    "F5_HealthUsage": true,
+    "F6_Policy": true
+  },
+  "profileVersion": "1.0.0",
+  "notes": "有官方 list/export 出口（session list/export --format json），会话读取优先走 CLI 出口；另有 opencode serve（REST+SSE，:4096）可用于长驻通道（P2）。"
+}

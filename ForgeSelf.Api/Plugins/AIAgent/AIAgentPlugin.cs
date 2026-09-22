@@ -69,6 +69,9 @@ public class AIAgentPlugin : IPlugin
         RegisterMenuExtensions(pluginId);
         RegisterToolFunctionExtensions(pluginId, ctx, runFlowTools);
 
+        // 注册跨插件聊天补全契约（供 im-gateway 等消费方经 ctx.Get<IChatCompletion>() 调用）
+        services?.RegisterChatCompletion(ctx);
+
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
     }
 

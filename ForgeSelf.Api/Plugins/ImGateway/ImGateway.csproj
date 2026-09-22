@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ImGateway</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.ImGateway</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- 非 Web SDK，无 ASP.NET Core 隐式 using，补全局 Using -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Mvc" />
+  </ItemGroup>
+
+  <!-- ImGateway 仅用 NewLife.Log(XTrace) 日志，不依赖 XCode ORM -->
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

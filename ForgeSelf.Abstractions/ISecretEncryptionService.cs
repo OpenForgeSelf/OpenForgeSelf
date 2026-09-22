@@ -1,11 +1,13 @@
-namespace ForgeSelf.Api.Security;
+namespace ForgeSelf.Abstractions;
 
 /// <summary>
-/// 密钥加解密服务。用于敏感凭证（如 AI Provider 的 ApiKey、API 子密钥）落库加密与读取解密，以及前端展示掩码。
+/// 密钥加解密服务契约（宿主实现，插件共用）。用于敏感凭证（如 AI Provider 的 ApiKey、API 子密钥、IM 网关密钥）落库加密与读取解密，以及前端展示掩码。
+/// 宿主实现：<c>ForgeSelf.Api.Security.AesSecretEncryptionService</c>（AES-256-CBC，密文版本化）。
+/// 插件经 <c>IContext.Get&lt;ISecretEncryptionService&gt;()</c> 获取——与 <see cref="IChatCompletion"/> 同构。
 /// </summary>
 /// <remarks>
 /// 密文具备版本化前缀：<c>v2:</c> 前缀表示「当前密钥加密」；无前缀（v1）表示历史密文，
-/// 解密时按候选密钥链回退，保证老数据永久可读（详见 <see cref="AesSecretEncryptionService"/>）。
+/// 解密时按候选密钥链回退，保证老数据永久可读。
 /// </remarks>
 public interface ISecretEncryptionService
 {

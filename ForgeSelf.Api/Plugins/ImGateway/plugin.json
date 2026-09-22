@@ -1,0 +1,27 @@
+{
+  "Id": "im-gateway",
+  "Name": "IM 网关插件",
+  "Version": "2.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "IM 网关 v2.0.0：企业微信「智能机器人」WebSocket 长连接形态（仅此一通道，回调形态已移除）。配置与会话映射存 SQLite，Secret 经宿主 AES 加密入库；支持扫码授权自动回填与手填；消息处理独立 worker（4 并发）+ 手动重连。",
+  "IconUrl": "https://example.com/im-gateway-icon.png",
+  "EntryAssembly": "ImGateway.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.ImGateway.ImGatewayPlugin",
+  "Dependencies": [],
+  "Provides": [],
+  "Consumes": [
+    "chat.completion"
+  ],
+  "Permissions": [
+    "http_request",
+    "read_config",
+    "write_config"
+  ],
+  "frontend": {
+    "views": ["ImGatewayView"],
+    "menu": "IM 网关",
+    "route": "/im-gateway",
+    "icon": "fa-comments",
+    "entry": "web/dist/index.js"
+  }
+}

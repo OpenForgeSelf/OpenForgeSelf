@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>ForgeSelf.Api.Plugins.ImGateway.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>ImGateway</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="ImGatewayChannel" Description="IM 网关通道配置（单行）">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="配置ID" />
+        <Column Name="Enabled" DataType="Boolean" Description="是否启用" />
+        <Column Name="BoundAgentId" DataType="String" Length="100" Description="绑定 AgentId" />
+        <Column Name="BoundChatModelId" DataType="String" Length="200" Description="绑定聊天模型" />
+        <Column Name="BotId" DataType="String" Length="100" Description="企微智能机器人 BotID" />
+        <Column Name="SecretCipher" DataType="String" Length="500" Description="企微长连接密钥密文（ISecretEncryptionService 加密）" />
+        <Column Name="CliPath" DataType="String" Length="500" Description="企微 CLI 可执行文件路径（扫码授权用，空则自动探测）" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+    </Table>
+    <Table Name="ImGatewaySession" Description="IM 网关会话映射">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="映射ID" />
+        <Column Name="ChannelKey" DataType="String" Master="True" Length="200" Nullable="False" Description="通道会话用户复合键" />
+        <Column Name="SessionId" DataType="String" Length="64" Nullable="False" Description="AI Agent 会话ID" />
+        <Column Name="AgentId" DataType="String" Length="100" Description="绑定 AgentId" />
+        <Column Name="ModelId" DataType="String" Length="200" Description="绑定聊天模型" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ChannelKey" Unique="True" />
+      </Indexes>
+    </Table>
+    <Table Name="ImGatewayProcessedMsg" Description="IM 网关消息去重">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="去重ID" />
+        <Column Name="ChannelType" DataType="String" Nullable="False" Description="通道类型" />
+        <Column Name="MsgId" DataType="String" Length="100" Nullable="False" Description="平台消息ID" />
+        <Column Name="ProcessedAt" DataType="DateTime" Description="处理时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ChannelType,MsgId" Unique="True" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

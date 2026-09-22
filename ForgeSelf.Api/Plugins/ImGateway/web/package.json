@@ -1,0 +1,15 @@
+{
+  "name": "forgeself-plugin-im-gateway-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "IM 多渠道网关插件自带配置界面（企业微信/公众号/飞书/钉钉）：构建为 ESM，由宿主运行时远程加载",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.2.4"
+  }
+}

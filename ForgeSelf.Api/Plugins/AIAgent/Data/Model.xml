@@ -47,6 +47,7 @@
         <Column Name="SessionId" DataType="String" Master="True" Nullable="False" Description="会话ID" />
         <Column Name="Role" DataType="String" Length="20" Nullable="False" Description="角色（user/assistant/system）" />
         <Column Name="Content" DataType="String" Length="-1" Nullable="False" Description="内容" />
+        <Column Name="ToolCallsJson" DataType="String" Length="-1" Description="工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）" />
         <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
         <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
       </Columns>
@@ -124,6 +125,19 @@
       <Indexes>
         <Index Columns="RunId" />
         <Index Columns="RunId,StepIndex" />
+      </Indexes>
+    </Table>
+    <Table Name="AIChatSession" Description="AI会话元数据（归档等会话级状态；与 AIChatMessage 按 SessionId 对应）">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="会话记录ID" />
+        <Column Name="SessionId" DataType="String" Master="True" Nullable="False" Description="会话ID（与 AIChatMessage.SessionId 一致）" />
+        <Column Name="Archived" DataType="Boolean" DefaultValue="0" Description="是否已归档（true=已归档，默认不在 agent 页展示）" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="SessionId" Unique="True" />
+        <Index Columns="Archived" />
       </Indexes>
     </Table>
   </Tables>

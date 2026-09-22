@@ -207,7 +207,7 @@ public partial class AgentRun
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -223,7 +223,7 @@ public partial class AgentRun
         if (status < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Status == status);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Status == status);
 
         return FindAll(_.Status == status);
     }
@@ -238,7 +238,7 @@ public partial class AgentRun
         if (status < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId) && e.Status == status);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.SessionId.EqualIgnoreCase(sessionId) && e.Status == status);
 
         return FindAll(_.SessionId == sessionId & _.Status == status);
     }

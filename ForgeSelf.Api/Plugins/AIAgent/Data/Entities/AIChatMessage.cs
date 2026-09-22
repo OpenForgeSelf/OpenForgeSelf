@@ -56,6 +56,14 @@ public partial class AIChatMessage
     [BindColumn("Content", "内容", "")]
     public String Content { get => _Content; set { if (OnPropertyChanging("Content", value)) { _Content = value; OnPropertyChanged("Content"); } } }
 
+    private String _ToolCallsJson;
+    /// <summary>工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）</summary>
+    [DisplayName("工具调用轨迹（FreeLoop执行记录")]
+    [Description("工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("ToolCallsJson", "工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）", "")]
+    public String ToolCallsJson { get => _ToolCallsJson; set { if (OnPropertyChanging("ToolCallsJson", value)) { _ToolCallsJson = value; OnPropertyChanged("ToolCallsJson"); } } }
+
     private DateTime _CreateTime;
     /// <summary>创建时间</summary>
     [DisplayName("创建时间")]
@@ -71,14 +79,6 @@ public partial class AIChatMessage
     [DataObjectField(false, false, true, 0)]
     [BindColumn("UpdateTime", "更新时间", "")]
     public DateTime UpdateTime { get => _UpdateTime; set { if (OnPropertyChanging("UpdateTime", value)) { _UpdateTime = value; OnPropertyChanged("UpdateTime"); } } }
-
-    private String _ToolCallsJson;
-    /// <summary>工具调用轨迹（FreeLoop 执行记录，031 方案A：name/args/result/success/durationMs 的 JSON 数组，供刷新后复盘）</summary>
-    [DisplayName("工具调用轨迹")]
-    [Description("工具调用轨迹")]
-    [DataObjectField(false, false, true, -1)]
-    [BindColumn("ToolCallsJson", "工具调用轨迹", "")]
-    public String ToolCallsJson { get => _ToolCallsJson; set { if (OnPropertyChanging("ToolCallsJson", value)) { _ToolCallsJson = value; OnPropertyChanged("ToolCallsJson"); } } }
     #endregion
 
     #region 获取/设置 字段值
@@ -93,9 +93,9 @@ public partial class AIChatMessage
             "SessionId" => _SessionId,
             "Role" => _Role,
             "Content" => _Content,
+            "ToolCallsJson" => _ToolCallsJson,
             "CreateTime" => _CreateTime,
             "UpdateTime" => _UpdateTime,
-            "ToolCallsJson" => _ToolCallsJson,
             _ => base[name]
         };
         set
@@ -106,9 +106,9 @@ public partial class AIChatMessage
                 case "SessionId": _SessionId = Convert.ToString(value); break;
                 case "Role": _Role = Convert.ToString(value); break;
                 case "Content": _Content = Convert.ToString(value); break;
+                case "ToolCallsJson": _ToolCallsJson = Convert.ToString(value); break;
                 case "CreateTime": _CreateTime = value.ToDateTime(); break;
                 case "UpdateTime": _UpdateTime = value.ToDateTime(); break;
-                case "ToolCallsJson": _ToolCallsJson = Convert.ToString(value); break;
                 default: base[name] = value; break;
             }
         }
@@ -165,14 +165,14 @@ public partial class AIChatMessage
         /// <summary>内容</summary>
         public static readonly Field Content = FindByName("Content");
 
+        /// <summary>工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）</summary>
+        public static readonly Field ToolCallsJson = FindByName("ToolCallsJson");
+
         /// <summary>创建时间</summary>
         public static readonly Field CreateTime = FindByName("CreateTime");
 
         /// <summary>更新时间</summary>
         public static readonly Field UpdateTime = FindByName("UpdateTime");
-
-        /// <summary>工具调用轨迹</summary>
-        public static readonly Field ToolCallsJson = FindByName("ToolCallsJson");
 
         static Field FindByName(String name) => Meta.Table.FindByName(name);
     }
@@ -192,14 +192,14 @@ public partial class AIChatMessage
         /// <summary>内容</summary>
         public const String Content = "Content";
 
+        /// <summary>工具调用轨迹（FreeLoop 执行记录，JSON 数组；供刷新后复盘）</summary>
+        public const String ToolCallsJson = "ToolCallsJson";
+
         /// <summary>创建时间</summary>
         public const String CreateTime = "CreateTime";
 
         /// <summary>更新时间</summary>
         public const String UpdateTime = "UpdateTime";
-
-        /// <summary>工具调用轨迹</summary>
-        public const String ToolCallsJson = "ToolCallsJson";
     }
     #endregion
 }

@@ -29,6 +29,72 @@
       </div>
     </div>
 
+    <!-- 分组：历史会话（默认收起；点击切换一律回传全 id，杜绝 T3 前缀 bug） -->
+    <div class="sess__grp">
+      <div class="sess__head">
+        <button
+          type="button"
+          class="sess__head-toggle"
+          :aria-expanded="!historyCollapsed"
+          :title="historyCollapsed ? '展开历史会话' : '收起历史会话'"
+          @click="historyCollapsed = !historyCollapsed"
+        >
+          <svg
+            class="sess__chevron"
+            :class="{ 'sess__chevron--collapsed': historyCollapsed }"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        <ChatRound class="sess__head-icon" :size="14" />
+        <span class="sess__title">历史会话</span>
+        <span class="sess__count">{{ sessions.length }}</span>
+      </div>
+
+      <template v-if="!historyCollapsed">
+        <button
+          v-for="s in sessions"
+          :key="s.sessionId"
+          type="button"
+          class="sess__item"
+          :class="{ 'sess__item--active': s.sessionId === sessionId }"
+          :title="s.sessionId"
+          @click="$emit('select-session', s.sessionId)"
+        >
+          <span class="sess__item-main">
+            <span class="sess__item-title">{{ s.title }}</span>
+            <span class="sess__item-meta">{{ fmtTime(s.lastTime) }} · {{ s.messageCount }} 条</span>
+          </span>
+          <button
+            type="button"
+            class="sess__item-archive"
+            title="归档会话"
+            aria-label="归档会话"
+            @click.stop="$emit('archive-session', s.sessionId)"
+          >
+            <!-- 归档图标：内联 SVG（不引入新图标名，避免依赖宿主图标桥白名单） -->
+            <svg
+              viewBox="0 0 24 24"
+              width="10"
+              height="10"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 7h18v3H3z" />
+              <path d="M5 10h14v10H5z" />
+              <path d="M10 14h4" />
+            </svg>
+          </button>
+        </button>
+        <EmptyHint v-if="sessions.length === 0" text="暂无历史会话" />
+      </template>
+    </div>
+
     <!-- 分组：能力画像（取当前 Agent 的五维人格画像） -->
     <div class="sess__grp">
       <div class="sess__head">
@@ -103,10 +169,10 @@
  * 能力画像与 Agent 列表来自后端 GET /api/agents 的真实 AgentDefinition 数据。
  * Token 用量后端暂无记账接口，由父组件以占位符传入（如实，不编造）。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 // EP 图标：经 import map 解析到宿主共享桥（public/shared/element-plus-icons.js）。
-import { ChatDotRound, Cpu, PieChart, Tools } from '@element-plus/icons-vue'
-import type { AgentDefinition } from '../types'
+import { ChatDotRound, ChatRound, Cpu, PieChart, Tools } from '@element-plus/icons-vue'
+import type { AgentDefinition, SessionSummary } from '../types'
 import EmptyHint from './EmptyHint.vue'
 
 const props = defineProps<{
@@ -122,6 +188,8 @@ const props = defineProps<{
   agents: AgentDefinition[]
   /** 当前激活 Agent 的 id。 */
   activeAgentId: string
+  /** 历史会话列表（来自 GET /api/ai-agent/chat/sessions；切换/删除一律用全 id）。 */
+  sessions: SessionSummary[]
 }>()
 
 defineEmits<{
@@ -133,7 +201,17 @@ defineEmits<{
   (e: 'edit-agent', agent: AgentDefinition): void
   /** 新建 Agent。 */
   (e: 'new-agent'): void
+  /** 切换历史会话（回传全 id）。 */
+  (e: 'select-session', sessionId: string): void
+  /** 归档历史会话（回传全 id；软标记，不删消息）。 */
+  (e: 'archive-session', sessionId: string): void
 }>()
+
+/**
+ * 历史会话分组是否收起。默认收起（用户拍板：历史会话默认不占据侧栏空间），
+ * 收起态仍在分组标题右侧显示会话条数，展开后回到原有列表。
+ */
+const historyCollapsed = ref(true)
 
 /** 会话 id 通常较长，界面只展示前 8 位，完整值放在 title 上。 */
 const sessionShort = computed(() => {
@@ -143,6 +221,15 @@ const sessionShort = computed(() => {
 
 /** 当前激活 Agent 定义。 */
 const activeAgent = computed(() => props.agents.find((a) => a.id === props.activeAgentId))
+
+/** 最后消息时间格式化为 MM-DD HH:mm（无效则空）。 */
+function fmtTime(t?: string): string {
+  if (!t) return ''
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 /** 五维能力画像条形（创造力/分析力/同理心/自信度/正式度，值域 0~1）。 */
 const skillBars = computed(() => {
@@ -188,6 +275,48 @@ const skillBars = computed(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* 分组收起/展开开关（箭头指向：展开为下，收起为右） */
+.sess__head-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--el-text-color-secondary, #a3a6ad);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sess__head-toggle:hover {
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.sess__head-toggle:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
+}
+
+.sess__chevron {
+  width: 12px;
+  height: 12px;
+  transition: transform var(--el-transition-duration, 0.2s);
+}
+
+.sess__chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* 收起态仍显示条数，便于判断是否值得展开 */
+.sess__count {
+  margin-left: auto;
+  font-family: var(--el-font-family-mono, monospace);
+  font-size: var(--el-font-size-extra-small, 12px);
+  color: var(--el-text-color-secondary, #a3a6ad);
 }
 
 .sess__head-icon {
@@ -404,6 +533,87 @@ const skillBars = computed(() => {
 }
 
 .sess__add:focus-visible {
+  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline-offset: 1px;
+}
+
+/* 历史会话列表项：全 id 切换，当前会话主色高亮 */
+.sess__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sess__item:hover:not(.sess__item--active) {
+  background: var(--el-fill-color, #262727);
+}
+
+.sess__item--active {
+  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  border-left-color: var(--el-color-primary, #ffb84d);
+}
+
+.sess__item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sess__item-title {
+  font-size: var(--el-font-size-small, 13px);
+  font-weight: var(--el-weight-medium, 500);
+  color: var(--el-text-color-primary, #e5eaf3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sess__item-meta {
+  font-size: var(--el-font-size-extra-small, 12px);
+  color: var(--el-text-color-secondary, #a3a6ad);
+}
+
+/* 归档按钮：默认隐藏（图标 10px），鼠标悬浮整行或键盘聚焦时才显示，避免列表视觉噪音 */
+.sess__item-archive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--el-border-radius-small, 4px);
+  color: var(--el-text-color-secondary, #a3a6ad);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.sess__item:hover .sess__item-archive,
+.sess__item:focus-within .sess__item-archive,
+.sess__item-archive:focus-visible {
+  opacity: 1;
+}
+
+.sess__item-archive:hover {
+  background: var(--el-fill-color, #262727);
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.sess__item-archive:focus-visible {
   outline: 2px solid var(--el-color-primary, #ffb84d);
   outline-offset: 1px;
 }

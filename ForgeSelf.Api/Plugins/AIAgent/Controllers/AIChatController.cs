@@ -279,6 +279,70 @@ public class AIChatController : ControllerBase
     }
 
     /// <summary>
+    /// 列出会话（按 SessionId 聚合），供前端历史会话列表展示与切换。
+    /// 默认仅返回未归档会话（agent 页用）；可经 <paramref name="archived"/> 切换为仅归档 / 全部（会话管理页用）。
+    /// </summary>
+    /// <param name="archived">归档筛选：active（默认，仅未归档）/ archived（仅已归档）/ all（全部）</param>
+    /// <returns>会话摘要列表（按最后消息时间倒序）</returns>
+    /// <response code="200">返回会话摘要列表</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("sessions")]
+    public async Task<ActionResult<List<SessionSummaryModel>>> GetSessions([FromQuery] string? archived = null)
+    {
+        try
+        {
+            // 参数解析：默认 active（agent 页天然隐藏已归档）；非法值按默认处理
+            var filter = (archived ?? "").Trim().ToLowerInvariant() switch
+            {
+                "archived" => SessionArchivedFilter.Archived,
+                "all" => SessionArchivedFilter.All,
+                _ => SessionArchivedFilter.Active,
+            };
+
+            var sessions = await _messageService.GetSessionsAsync(filter);
+            return Ok(sessions);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 获取会话列表失败: {0}", ex.Message);
+            return StatusCode(500, new { error = "获取会话列表时发生错误", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 归档 / 取消归档会话（软标记，不删消息）。
+    /// 归档后该会话默认不出现在 agent 页（GET /sessions 默认只列未归档）。
+    /// </summary>
+    /// <param name="sessionId">会话ID</param>
+    /// <param name="request">归档状态请求体：{ archived: true|false }</param>
+    /// <returns>归档结果</returns>
+    /// <response code="200">归档状态已更新</response>
+    /// <response code="400">请求参数错误</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPut("session/{sessionId}/archive")]
+    public async Task<ActionResult> ArchiveSession(string sessionId, [FromBody] SessionArchiveRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return BadRequest(new { error = "会话ID不能为空" });
+            }
+
+            var archived = request?.Archived ?? false;
+            var changed = await _messageService.ArchiveSessionAsync(sessionId, archived);
+
+            XTrace.Log.Info("[AIAgentPlugin] 归档会话，SessionId: {0}, Archived: {1}", sessionId, archived);
+            return Ok(new { success = true, archived, changed });
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 归档会话失败: {0}", ex.Message);
+            return StatusCode(500, new { error = "归档会话时发生错误", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// 删除会话消息
     /// </summary>
     /// <param name="sessionId">会话ID</param>

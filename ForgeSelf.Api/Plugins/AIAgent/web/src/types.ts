@@ -55,6 +55,20 @@ export interface ChatMessage {
   usage?: ChatUsage
 }
 
+/** 会话摘要（来自 GET /api/ai-agent/chat/sessions，后端 SessionSummaryModel）。 */
+export interface SessionSummary {
+  /** 会话 id（全 id；切换时原样回传，杜绝前缀查询导致 0 条的历史 bug）。 */
+  sessionId: string
+  /** 会话标题（首条 user 消息前 20 字；无消息时为「新会话」）。 */
+  title: string
+  /** 消息条数。 */
+  messageCount: number
+  /** 最后一条消息时间（DateTime 字符串）。 */
+  lastTime?: string
+  /** 是否已归档（软标记；归档会话默认不在 agent 页展示，可在会话管理页查看）。 */
+  archived?: boolean
+}
+
 /** MCP 服务器（来自 GET /api/mcp/servers）。 */
 export interface McpServer {
   id?: string

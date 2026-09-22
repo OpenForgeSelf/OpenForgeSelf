@@ -21,6 +21,7 @@ import type {
   PlanCreatedPayload,
   RunRequest,
   RunStuckPayload,
+  SessionSummary,
   StepCompletedPayload,
   StepStartedPayload,
   WorkflowItem,
@@ -310,6 +311,47 @@ export function updateAgent(agentId: string, agent: AgentDefinition): Promise<Ag
 /** 删除 Agent（DELETE /api/agents/{id}）。 */
 export function deleteAgent(agentId: string): Promise<unknown> {
   return apiDelete(`/api/agents/${encodeURIComponent(agentId)}`)
+}
+
+/* ------------------------------------------------------------------ */
+/* 会话管理（T2）：历史会话列表 + 切换 + 归档                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 会话归档筛选（与后端 SessionArchivedFilter 的查询参数取值一一对应）。
+ * - active：仅未归档（默认，agent 页用）
+ * - archived：仅已归档
+ * - all：全部（会话管理页用）
+ */
+export type SessionArchivedFilter = 'active' | 'archived' | 'all'
+
+/**
+ * 拉取会话列表（GET /api/ai-agent/chat/sessions，后端按 SessionId 聚合）。
+ *
+ * 默认只取未归档：agent 页天然不展示已归档会话（归档是软标记，不删消息）。
+ *
+ * @param archived 归档筛选，默认 active
+ */
+export function fetchSessions(
+  archived: SessionArchivedFilter = 'active',
+): Promise<SessionSummary[] | undefined> {
+  return apiGet<SessionSummary[]>(withQuery('/api/ai-agent/chat/sessions', { archived }))
+}
+
+/**
+ * 归档 / 取消归档会话（PUT /api/ai-agent/chat/session/{id}/archive）。
+ * 软标记：只改会话级归档状态，不删任何消息（区别于 deleteSession 的硬删）。
+ *
+ * @param sessionId 会话全 id（原样透传，做前缀剥离会命中错会话）
+ * @param archived true=归档，false=取消归档
+ */
+export function archiveSession(sessionId: string, archived = true): Promise<unknown> {
+  return apiPut(`/api/ai-agent/chat/session/${encodeURIComponent(sessionId)}/archive`, { archived })
+}
+
+/** 删除会话（DELETE /api/ai-agent/chat/session/{id}；会真实删除该会话全部消息，供会话管理页使用）。 */
+export function deleteSession(sessionId: string): Promise<unknown> {
+  return apiDelete(`/api/ai-agent/chat/session/${encodeURIComponent(sessionId)}`)
 }
 
 /* ------------------------------------------------------------------ */

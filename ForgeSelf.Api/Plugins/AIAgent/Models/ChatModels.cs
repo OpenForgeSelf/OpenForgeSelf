@@ -14,6 +14,45 @@ public class ChatMessageModel
     public string ToolCallsJson { get; set; } = string.Empty;
 }
 
+/// <summary>会话摘要（GET /api/ai-agent/chat/sessions 返回），供前端历史会话列表展示与切换。</summary>
+public class SessionSummaryModel
+{
+    /// <summary>会话 id（全 id；前端切换时原样回传，杜绝前缀查询导致 0 条的历史 bug）。</summary>
+    public string SessionId { get; set; } = string.Empty;
+
+    /// <summary>会话标题（首条 user 消息前 20 字；无 user 消息则回退「新会话」）。</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>消息条数。</summary>
+    public int MessageCount { get; set; }
+
+    /// <summary>最后一条消息时间（用于列表按时间倒序）。</summary>
+    public DateTime LastTime { get; set; }
+
+    /// <summary>是否已归档（归档会话默认不在 agent 页展示）。</summary>
+    public bool Archived { get; set; }
+}
+
+/// <summary>会话归档筛选（对应 GET /api/ai-agent/chat/sessions?archived=）。</summary>
+public enum SessionArchivedFilter
+{
+    /// <summary>仅未归档（默认，agent 页用）。</summary>
+    Active = 0,
+
+    /// <summary>仅已归档。</summary>
+    Archived = 1,
+
+    /// <summary>全部。</summary>
+    All = 2,
+}
+
+/// <summary>会话归档请求体（PUT /api/ai-agent/chat/session/{id}/archive）。</summary>
+public class SessionArchiveRequest
+{
+    /// <summary>true=归档，false=取消归档。</summary>
+    public bool Archived { get; set; }
+}
+
 public class ChatRequest
 {
     public string SessionId { get; set; } = string.Empty;

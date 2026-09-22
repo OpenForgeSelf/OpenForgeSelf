@@ -5,12 +5,15 @@
     <SessionPanel
       v-if="!leftCollapsed"
       :session-id="sessionId"
+      :sessions="sessions"
       :message-count="messageCount"
       :tool-call-count="toolCallCount"
       :token-text="tokenText"
       :agents="agents"
       :active-agent-id="activeAgentId"
       @new-session="startNewSession"
+      @select-session="selectSession"
+      @archive-session="onArchiveSession"
       @activate-agent="activateAgent"
       @edit-agent="onEditAgent"
       @new-agent="onNewAgent"
@@ -109,9 +112,12 @@
  * 避免出现两处独立状态导致统计与界面不一致。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+// ElMessageBox：归档前的二次确认弹窗（宿主已全局引入 el-message-box.css，无需插件另引样式）。
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   apiGet,
   apiPost,
+  fetchSessions,
   getRunDetail,
   resumeAgentRun,
   streamAgentChat,
@@ -120,6 +126,7 @@ import {
   type AgentUsage,
   type RunStreamHandlers,
 } from './http'
+import { archiveSessionWithConfirm } from './sessionArchive'
 import type {
   AgentDefinition,
   AgentPlan,
@@ -131,6 +138,7 @@ import type {
   PlanRunCard,
   PlanStepView,
   ProjectSkillItem,
+  SessionSummary,
   ToolEvent,
 } from './types'
 import { stepStatusName } from './types'
@@ -160,6 +168,8 @@ const models = ref<AIModel[]>([])
 const selectedModelId = ref('')
 /** 当前会话 id。 */
 const sessionId = ref('')
+/** 历史会话列表（来自 GET /api/ai-agent/chat/sessions）。 */
+const sessions = ref<SessionSummary[]>([])
 /** 消息列表。 */
 const messages = ref<ChatMessage[]>([])
 /** 是否正在等待后端回复。 */
@@ -446,6 +456,69 @@ async function loadHistory() {
   }
 }
 
+/**
+ * 拉取历史会话列表（T2：后端按 SessionId 聚合，返回标题/计数/时间）。
+ * 显式传 active：agent 页只展示未归档会话，已归档会话在会话管理页看（后端默认值也是 active，此处写明意图）。
+ */
+async function loadSessions() {
+  try {
+    sessions.value = (await fetchSessions('active')) ?? []
+  } catch {
+    // 列表拉取失败不阻断对话，留空即可
+    sessions.value = []
+  }
+}
+
+/** 切换历史会话：以全 id 回传（杜绝 T3 前缀 bug），加载其历史消息。 */
+async function selectSession(id: string) {
+  sessionId.value = id
+  localStorage.setItem(LS_KEY_SESSION, id)
+  await loadHistory()
+}
+
+/**
+ * 归档确认弹窗（注入给 archiveSessionWithConfirm 的确认动作）。
+ *
+ * 归档虽是软标记（不删消息、可取消），但会让会话立刻从列表消失，属「可见状态突变」，
+ * 故先弹确认再执行（用户反馈 2026-09-22：原来点一下就直接归档了）。
+ * 文案必须讲清「消息保留 + 可在会话管理页取消归档」，避免被误读成删除。
+ * 取消 / 关闭弹窗统一返回 false，由编排层短路为 cancelled——**不发起任何请求**。
+ */
+async function confirmArchive(sessionIdFull: string, title?: string): Promise<boolean> {
+  try {
+    await ElMessageBox.confirm(
+      `归档后「${title?.trim() || sessionIdFull}」将从历史会话列表移除。消息会完整保留，` +
+        '可在会话管理页取消归档。',
+      '归档确认',
+      { type: 'warning', confirmButtonText: '归档', cancelButtonText: '取消' },
+    )
+    return true
+  } catch {
+    return false // 用户取消 / 关闭弹窗
+  }
+}
+
+/**
+ * 归档历史会话：软标记（不删消息），归档后该会话即从 agent 页列表消失。
+ * 若归档的是当前会话，则开新会话——已归档会话不应继续作为 agent 页的工作会话。
+ * 取消归档则原地返回，既不请求也不刷新（列表本就没变）。
+ */
+async function onArchiveSession(id: string) {
+  if (!id) return
+  const target = sessions.value.find((s) => s.sessionId === id)
+  const res = await archiveSessionWithConfirm(id, confirmArchive, target?.title)
+
+  if (res.outcome === 'cancelled') return
+  if (res.outcome === 'archived') {
+    ElMessage.success('会话已归档，可在会话管理页查看')
+    if (id === sessionId.value) startNewSession()
+  } else {
+    ElMessage.error(`归档失败：${res.error ?? '未知错误'}`)
+  }
+  // 无论成功或失败都按后端真实状态刷新列表（失败时也回到真实状态，不留幻象）
+  await loadSessions()
+}
+
 /** 解析后端 ToolCallsJson（camelCase: name/args/result/success）为 ToolEvent[]，供历史消息渲染工具卡片。 */
 function parseToolEvents(json?: string): ToolEvent[] {
   if (!json) return []
@@ -565,6 +638,8 @@ async function sendFreeMessage(text: string) {
         onDone: (e) => {
           if (e.usage) lastUsage.value = e.usage
           if (e.responseId != null) assistantMsg.id = e.responseId
+          // 一轮回复完成即刷新会话列表（新会话首条落库后出现在列表、标题同步）
+          void loadSessions()
         },
         onError: (msg) => {
           error.value = msg
@@ -774,6 +849,8 @@ function startNewSession() {
   sessionId.value = id
   messages.value = []
   error.value = ''
+  // 新会话尚无消息，列表刷新后旧会话仍保留；此调用主要保证后续首条消息落库后能及时出现在列表
+  void loadSessions()
 }
 
 onMounted(async () => {
@@ -789,5 +866,6 @@ onMounted(async () => {
     void onSelectDirectory(savedDir)
   }
   await loadHistory()
+  await loadSessions()
 })
 </script>

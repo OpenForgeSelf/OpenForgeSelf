@@ -1,4 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+// 浏览器二进制固定落在「仓库内」<repo>/.playwright-browsers（已在根 .gitignore 忽略），
+// 而非用户级缓存 ~/.cache/ms-playwright。原因：沙箱只持久化工作区，用户级缓存属临时态，
+// 重置即清空 → 每次都要重下 ~180MB chromium。固定在仓库内后，重置无需再下。
+// 运行与安装共用同一路径（安装见 scripts/install-browsers.mjs / pnpm run browsers:install）。
+const __dirname = dirname(fileURLToPath(import.meta.url))
+process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers')
 
 export default defineConfig({
   testDir: './e2e',
@@ -27,10 +36,9 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     // firefox / webkit 为可选矩阵：需先 `playwright install firefox webkit`。
-    // 当前运行环境（沙箱）网络受限、无法下载这两个浏览器二进制，
-    // 且项目既有约束为「e2e 仅 chromium 可用」（见 specs/033-home/design.md §13），
-    // 故默认矩阵收敛为 chromium，避免无浏览器二进制导致的误报失败（8 个 launch error）。
-    // 若后续补齐浏览器二进制，解开下方注释即可恢复三矩阵。
+    // 项目既有约束为「e2e 仅 chromium 可用」（见 specs/033-home/design.md §13），
+    // 故默认矩阵收敛为 chromium，避免未安装浏览器二进制导致的 launch error。
+    // 若后续补齐 firefox/webkit 二进制，解开下方注释即可恢复三矩阵。
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'] },

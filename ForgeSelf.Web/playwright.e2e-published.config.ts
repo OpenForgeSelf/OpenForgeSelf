@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// 浏览器二进制固定在仓库内 <repo>/.playwright-browsers，跨沙箱重置存活，避免重复下载。
+// 与 playwright.config.ts 保持一致，详见该文件说明。
+process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers');
+
 const root = resolve(__dirname, '..');
 const publishDir = resolve(root, '../publish');
 const backendExe = resolve(publishDir, 'ForgeSelf.exe');

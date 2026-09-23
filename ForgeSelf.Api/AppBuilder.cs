@@ -83,7 +83,7 @@ public static class AppBuilder
             });
         });
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers().AddApplicationPart(typeof(AppBuilder).Assembly);
 
         builder.Services.AddEndpointsApiExplorer();
 

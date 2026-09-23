@@ -210,6 +210,9 @@ public class PluginManager
         typeof(IDataLocationService),
         typeof(IProjectRegistry),
         typeof(IAIProviderRegistry),
+        // 配置密钥加密（AES-256）：ImGateway 等插件把 Secret 加密入库所需（第 1 步接口上移 Abstractions 后，
+        // 宿主 DI 已注册，但插件经 ctx.Get 需要此接缝 seed 进根 Context）
+        typeof(ISecretEncryptionService),
         // 宿主根 IServiceProvider：插件经 ctx.Get<IServiceProvider>() 回落宿主容器解析非精选契约
         // （如 SignalR 的 IHubContext<T>）。MemorySystem/SamplePlugin 均以「ctx.Get<IServiceProvider>()」
         // 为正确做法，此前依赖各插件自兜底，此处显式 seed 使之稳定可用（见 ProvideHostServices 特判）。

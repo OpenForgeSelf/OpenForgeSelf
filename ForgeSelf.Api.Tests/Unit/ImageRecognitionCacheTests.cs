@@ -5,18 +5,13 @@ namespace ForgeSelf.Api.Tests.Unit;
 /// <summary>
 /// 图片识别本地缓存单元测试（输入31：统一聊天接口多模态图片识别缓存）。
 /// </summary>
-public class ImageRecognitionCacheTests : IDisposable
+public class ImageRecognitionCacheTests
 {
     private readonly string _root;
 
     public ImageRecognitionCacheTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "ofos-img-cache-tests", Guid.NewGuid().ToString("N"));
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_root, true); } catch { /* 测试清理尽力而为 */ }
     }
 
     private LocalFileImageRecognitionCache CreateCache() => new(_root);

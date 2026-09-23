@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginVersionServiceTests : IDisposable
+public class PluginVersionServiceTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
@@ -171,6 +171,4 @@ public class PluginVersionServiceTests : IDisposable
         PluginVersionLayout.ReadCurrentVersion(Path.Combine(_tempDir.RootPath, pluginId))
             .Should().Be("4.0.0");
     }
-
-    public void Dispose() => _tempDir.Dispose();
 }

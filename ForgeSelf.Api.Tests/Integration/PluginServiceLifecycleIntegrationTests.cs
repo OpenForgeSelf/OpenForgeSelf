@@ -5,7 +5,7 @@ using ForgeSelf.Api.Tests.Plugins;
 
 namespace ForgeSelf.Api.Tests.Integration;
 
-public class PluginServiceLifecycleIntegrationTests : IDisposable
+public class PluginServiceLifecycleIntegrationTests
 {
     private readonly TempPluginDirectory _tempDir;
 
@@ -62,6 +62,4 @@ public class PluginServiceLifecycleIntegrationTests : IDisposable
         provider.Invoking(p => p.GetRequiredService(serviceType))
             .Should().Throw<InvalidOperationException>();
     }
-
-    public void Dispose() => _tempDir.Dispose();
 }

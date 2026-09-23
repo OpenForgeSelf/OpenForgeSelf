@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Integration;
 
-public class PluginDependencyIntegrationTests : IDisposable
+public class PluginDependencyIntegrationTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly Mock<IPermissionChecker> _mockPermissionChecker;
@@ -356,10 +356,5 @@ public class PluginDependencyIntegrationTests : IDisposable
 
         pluginsDict.AddOrUpdate(pluginId, plugin, (_, _) => plugin);
         pluginStatesDict.AddOrUpdate(pluginId, PluginState.Loaded, (_, _) => PluginState.Loaded);
-    }
-
-    public void Dispose()
-    {
-        _tempDir.Dispose();
     }
 }

@@ -20,7 +20,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// <summary>
 /// 真实LLM配置集成测试 - 验证配置文件中的真实LLM配置是否正确接入
 /// </summary>
-public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
@@ -45,18 +45,6 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
             });
         });
         _client = _factory.CreateClient();
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(_tempDbDir)) Directory.Delete(_tempDbDir, true);
-        }
-        catch
-        {
-            // 临时目录清理失败不影响测试
-        }
     }
 
     [Fact]

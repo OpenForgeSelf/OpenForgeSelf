@@ -3,7 +3,7 @@ using ForgeSelf.Api.Plugins.FileTools.Services;
 
 namespace ForgeSelf.Api.Tests.Unit;
 
-public class FileToolsPluginTests : IDisposable
+public class FileToolsPluginTests
 {
     private readonly RenameService _renameService;
     private readonly CleanupService _cleanupService;
@@ -15,14 +15,6 @@ public class FileToolsPluginTests : IDisposable
         _cleanupService = new CleanupService();
         _testDir = Path.Combine(Path.GetTempPath(), "ForgeSelfTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDir);
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_testDir))
-        {
-            Directory.Delete(_testDir, true);
-        }
     }
 
     #region RenameService - Sequence Rule Tests

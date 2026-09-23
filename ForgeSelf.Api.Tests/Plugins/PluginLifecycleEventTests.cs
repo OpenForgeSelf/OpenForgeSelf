@@ -8,7 +8,7 @@ using Moq;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginLifecycleEventTests : IDisposable
+public class PluginLifecycleEventTests
 {
     private readonly TempPluginDirectory _tempDir;
 
@@ -52,6 +52,4 @@ public class PluginLifecycleEventTests : IDisposable
         manager.DestroyPlugin("test.lifecycle").Should().BeTrue();
         received.Should().ContainSingle(e => e.Action == "unloaded" && e.PluginId == "test.lifecycle");
     }
-
-    public void Dispose() => _tempDir.Dispose();
 }

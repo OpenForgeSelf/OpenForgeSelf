@@ -66,7 +66,6 @@ public class RunnerServiceTests : IDisposable
     public void Dispose()
     {
         try { _runner.StopAll(); } catch { }
-        try { if (Directory.Exists(_dbDir)) Directory.Delete(_dbDir, true); } catch { }
     }
 
     [Fact]

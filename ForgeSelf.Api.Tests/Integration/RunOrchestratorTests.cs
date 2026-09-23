@@ -16,7 +16,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// RunOrchestratorService 的介入/恢复/重开/取消走真实 XCode 双表（[Collection("XCode")] 独立临时库）。
 /// </summary>
 [Collection("XCode")]
-public class RunOrchestratorTests : IDisposable
+public class RunOrchestratorTests
 {
     private readonly string _dbDir;
 
@@ -32,11 +32,6 @@ public class RunOrchestratorTests : IDisposable
         AgentStepRun.Meta.Cache.Clear("test reset");
         AgentRun.Meta.Cache.Expire = 0;
         AgentStepRun.Meta.Cache.Expire = 0;
-    }
-
-    public void Dispose()
-    {
-        try { if (Directory.Exists(_dbDir)) Directory.Delete(_dbDir, true); } catch { }
     }
 
     private static async IAsyncEnumerable<AgentLoopEvent> StreamEvents(params AgentLoopEvent[] events)

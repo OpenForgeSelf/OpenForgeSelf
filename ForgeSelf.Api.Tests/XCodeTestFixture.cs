@@ -8,7 +8,7 @@ namespace ForgeSelf.Api.Tests;
 /// <summary>
 /// XCode 测试数据库辅助类，为测试提供临时 SQLite 数据库
 /// </summary>
-public class XCodeTestFixture : IDisposable
+public class XCodeTestFixture
 {
     private readonly string _dbDir;
     private static readonly string[] _connNames = new[]
@@ -21,7 +21,8 @@ public class XCodeTestFixture : IDisposable
         "WorkflowEngine",
         "AIAgent",
         "TodoTracker",
-        "ProxyCapture"
+        "ProxyCapture",
+        "ImGateway"
     };
 
     public XCodeTestFixture()
@@ -48,7 +49,7 @@ public class XCodeTestFixture : IDisposable
     /// 依据 DeepWiki（NewLifeX/NewLife.XCode）：InitConnection 会获取该连接的 DAL 实例，
     /// 在 Migration 开启时调用 dal.SetTables(...) 创建/更新所有关联实体表。
     /// </summary>
-    private static void EnsureTablesCreated()
+    public static void EnsureTablesCreated()
     {
         foreach (var connName in _connNames)
         {
@@ -63,17 +64,31 @@ public class XCodeTestFixture : IDisposable
         }
     }
 
-    public void Dispose()
+    /// <summary>
+    /// 清空全部测试连接名下所有业务表数据（每测试方法前调用，保证用例间零串扰）。
+    /// 只作用于 <see cref="_connNames"/> 指向的测试临时库（构造函数注册的随机目录），
+    /// 与任何真实数据目录无交集；跳过 sqlite_/sys_ 等系统表。
+    /// </summary>
+    public static void ClearAllData()
     {
-        try
+        foreach (var connName in _connNames)
         {
-            if (Directory.Exists(_dbDir))
+            try
             {
-                Directory.Delete(_dbDir, true);
+                var dal = DAL.Create(connName);
+                foreach (var table in dal.Tables)
+                {
+                    var name = table.Name;
+                    if (string.IsNullOrEmpty(name)) continue;
+                    if (name.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (name.StartsWith("sys_", StringComparison.OrdinalIgnoreCase)) continue;
+                    dal.Execute($"DELETE FROM {name}");
+                }
             }
-        }
-        catch
-        {
+            catch
+            {
+                // 个别连接暂无可清空的表（或表已不存在）时忽略，不阻断测试
+            }
         }
     }
 }

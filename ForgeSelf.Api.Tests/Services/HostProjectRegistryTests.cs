@@ -15,7 +15,7 @@ namespace ForgeSelf.Api.Tests.Services;
 /// 使用临时 SQLite 库（XCode），归入 XCode 串行集合避免连接串串扰。
 /// </summary>
 [Collection("XCode")]
-public class HostProjectRegistryTests : IDisposable
+public class HostProjectRegistryTests
 {
     private readonly string _dbDir;
     private readonly string _hostDataDir;
@@ -42,11 +42,6 @@ public class HostProjectRegistryTests : IDisposable
     }
 
     private HostProjectRegistry Create() => new(_hostDataDir);
-
-    public void Dispose()
-    {
-        try { if (Directory.Exists(_dbDir)) Directory.Delete(_dbDir, true); } catch { }
-    }
 
     [Fact]
     public void Register_Creates_Project_And_Returns_True()

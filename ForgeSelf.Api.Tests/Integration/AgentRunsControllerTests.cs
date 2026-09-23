@@ -19,7 +19,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// 列表/详情/restart/cancel/intervene 走真实 XCode 双表（[Collection("XCode")] 独立临时库）。
 /// </summary>
 [Collection("XCode")]
-public class AgentRunsControllerTests : IDisposable
+public class AgentRunsControllerTests
 {
     private readonly string _dbDir;
 
@@ -35,11 +35,6 @@ public class AgentRunsControllerTests : IDisposable
         AgentStepRun.Meta.Cache.Clear("test reset");
         AgentRun.Meta.Cache.Expire = 0;
         AgentStepRun.Meta.Cache.Expire = 0;
-    }
-
-    public void Dispose()
-    {
-        try { if (Directory.Exists(_dbDir)) Directory.Delete(_dbDir, true); } catch { }
     }
 
     private static RunOrchestratorService NewRealOrchestrator() => new(null!, null!);

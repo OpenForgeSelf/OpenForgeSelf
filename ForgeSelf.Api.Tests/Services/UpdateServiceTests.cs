@@ -99,20 +99,7 @@ public class UpdateServiceTests : IDisposable
         _httpClient.Dispose();
         _mockHttpHandler.Reset();
 
-        // 清理临时目录
-        try
-        {
-            if (Directory.Exists(_appDir))
-                Directory.Delete(_appDir, recursive: true);
-        }
-        catch { /* 忽略清理失败 */ }
-
-        try
-        {
-            if (Directory.Exists(_backupDir))
-                Directory.Delete(_backupDir, recursive: true);
-        }
-        catch { /* 忽略清理失败 */ }
+        // 数据安全铁律：测试自建应用/备份目录只创建、不自动删除
     }
 
     // ================================================================

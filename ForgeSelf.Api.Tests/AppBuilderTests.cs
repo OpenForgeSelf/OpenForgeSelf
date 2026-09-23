@@ -50,8 +50,7 @@ public class AppBuilderWebRootTests
         }
         finally
         {
-            Directory.Delete(baseDir, true);
-            Directory.Delete(contentDir, true);
+            // 数据安全铁律：测试自建临时目录只创建、不自动删除
         }
     }
 
@@ -67,8 +66,7 @@ public class AppBuilderWebRootTests
         }
         finally
         {
-            Directory.Delete(baseDir, true);
-            Directory.Delete(contentDir, true);
+            // 数据安全铁律：测试自建临时目录只创建、不自动删除
         }
     }
 
@@ -85,8 +83,7 @@ public class AppBuilderWebRootTests
         }
         finally
         {
-            Directory.Delete(baseDir, true);
-            Directory.Delete(contentDir, true);
+            // 数据安全铁律：测试自建临时目录只创建、不自动删除
         }
     }
 

@@ -3,7 +3,7 @@ using ForgeSelf.Api.Plugins;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginVersionLayoutTests : IDisposable
+public class PluginVersionLayoutTests
 {
     private readonly string _root;
 
@@ -124,16 +124,5 @@ public class PluginVersionLayoutTests : IDisposable
     public void TryDeleteDirectory_MissingDirectory_ReturnsTrue()
     {
         PluginAssemblyUnloader.TryDeleteDirectory(Path.Combine(_root, "missing")).Should().BeTrue();
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_root, true);
-        }
-        catch
-        {
-        }
     }
 }

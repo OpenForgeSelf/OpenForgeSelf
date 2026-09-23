@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginManagerTests : IDisposable
+public class PluginManagerTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly Mock<IPermissionChecker> _mockPermissionChecker;
@@ -449,7 +449,6 @@ public class PluginManagerTests : IDisposable
     {
         // 时序缺口回归：RegisterAllServices 会立刻触发插件 Apply，Apply 内就要 ctx.GetPluginDataDirectory()；
         // 但 ProvideHostServices 必须等 builder.Build() 之后才有 DI 可解析 —— 若不提前 seed，
-        // 用到数据目录的插件会整体注册失败。发布版实测：MemorySystem / ProxyCapture
         // 抛「IDataLocationService 未注册到插件上下文」并消失，日志表现为插件数骤减。
         var manager = CreateManager();
         manager.SetPluginsDirectory(_tempDir.RootPath);
@@ -718,10 +717,5 @@ public class PluginManagerTests : IDisposable
 
         var result = method!.Invoke(manager, new object[] { metadatas });
         return (List<PluginMetadata>)result!;
-    }
-
-    public void Dispose()
-    {
-        _tempDir.Dispose();
     }
 }

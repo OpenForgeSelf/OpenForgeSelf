@@ -42,8 +42,7 @@ public class ConfigUnifierTests
         }
         finally
         {
-            try { if (Directory.Exists(configDir)) Directory.Delete(configDir, true); }
-            catch { /* 临时目录清理失败不影响测试结论 */ }
+            // 数据安全铁律：测试自建配置目录只创建、不自动删除
         }
     }
 }

@@ -9,7 +9,6 @@ using Xunit;
 // ⚠️ 关键坑（2026-08-29 实测）：仅有本 attribute 不够——xunit.runner.json 里的
 // "parallelizeTestCollections" / "maxParallelThreads" 会覆盖本设置。此前 json 里写的是
 // true / -1，导致这里的 DisableTestParallelization 形同虚设，全量跑仍偶发随机红
-// （ProxyCaptureE2ETests、ScriptRunnerTests.CancelAsync 等每轮换一批）。
 // 现已把 xunit.runner.json 改为 false / 1，两处必须保持一致，改一处不改另一处会静默失效。
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 
@@ -29,13 +28,11 @@ public class XCodeCollection
 
 /// <summary>
 /// 共享进程级全局状态的测试集合：这些类不碰 XCode 连接串，但会改写其它进程级单例
-/// （<c>CaptureEngine.Instance</c> 静态单例 + 共享 ProxyCapture.db、NewLife <c>Config&lt;T&gt;.Provider.FileName</c>）。
 /// </summary>
 /// <remarks>
 /// 与 <see cref="XCodeCollection"/> 分开的原因：两者冲突的资源不同（连接串 vs 其它单例），
 /// 分开后即便将来有人重新开启并行，也能保证「同类冲突必定串行、无关类仍可并行」。
 /// 收录此集合的判据：<b>测试会改写某个进程级全局单例</b>，而非「测试慢」或「测试偶发」。
-/// 已知成员：<c>ProxyCaptureE2ETests</c>、<c>ProxyCapturePluginTests</c>（CaptureEngine 单例 +
 /// 真实 TCP 端口）、<c>ConfigUnifierTests</c>、<c>ForgeConfigTests</c>（改全局配置文件名）。
 /// </remarks>
 [CollectionDefinition("SharedGlobalState")]

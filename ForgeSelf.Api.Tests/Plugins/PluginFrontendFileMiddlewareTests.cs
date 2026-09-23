@@ -15,7 +15,7 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// 覆盖契约要点：合法相对路径通过、<c>..</c> 穿越拒 404、非 <c>web/</c> 目录越权拒 404、
 /// <c>.js</c> MIME 正确、带 <c>?v=</c> 时返回 immutable 缓存头 / 不带则 no-cache。
 /// </summary>
-public class PluginFrontendFileMiddlewareTests : IDisposable
+public class PluginFrontendFileMiddlewareTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
@@ -77,10 +77,7 @@ public class PluginFrontendFileMiddlewareTests : IDisposable
         }
         finally
         {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
+            // 数据安全铁律：测试自建临时文件只创建、不自动删除
         }
     }
 
@@ -275,10 +272,5 @@ public class PluginFrontendFileMiddlewareTests : IDisposable
                 remaining -= read;
             }
         }
-    }
-
-    public void Dispose()
-    {
-        _tempDir.Dispose();
     }
 }

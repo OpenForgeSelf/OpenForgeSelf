@@ -1,3 +1,4 @@
+﻿using ForgeSelf.Abstractions;
 using Microsoft.Extensions.Configuration;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Models;

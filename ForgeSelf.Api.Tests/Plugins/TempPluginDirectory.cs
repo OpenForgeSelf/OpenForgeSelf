@@ -3,7 +3,7 @@ using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class TempPluginDirectory : IDisposable
+public class TempPluginDirectory
 {
     public string RootPath { get; }
 
@@ -43,20 +43,6 @@ public class TempPluginDirectory : IDisposable
     {
         var assemblyPath = Path.Combine(pluginDir, assemblyName);
         File.WriteAllBytes(assemblyPath, Array.Empty<byte>());
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(RootPath))
-            {
-                Directory.Delete(RootPath, true);
-            }
-        }
-        catch
-        {
-        }
     }
 }
 

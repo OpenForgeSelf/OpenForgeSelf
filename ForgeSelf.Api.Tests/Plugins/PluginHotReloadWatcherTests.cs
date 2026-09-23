@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginHotReloadWatcherTests : IDisposable
+public class PluginHotReloadWatcherTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
@@ -99,6 +99,4 @@ public class PluginHotReloadWatcherTests : IDisposable
 
         watcher.OnPluginChanged("unknown.plugin").Should().BeFalse();
     }
-
-    public void Dispose() => _tempDir.Dispose();
 }

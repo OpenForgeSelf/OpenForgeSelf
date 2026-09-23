@@ -7,7 +7,7 @@ using ForgeSelf.Api.Plugins.Services;
 
 namespace ForgeSelf.Api.Tests.Unit;
 
-public class PluginPackagerTests : IDisposable
+public class PluginPackagerTests
 {
     private readonly string _testDir;
     private readonly PluginPackagerService _packagerService;
@@ -21,14 +21,6 @@ public class PluginPackagerTests : IDisposable
         var permissionChecker = new Mock<IPermissionChecker>();
         var pluginManager = new PluginManager(serviceProvider, permissionChecker.Object);
         _packagerService = new PluginPackagerService(pluginManager);
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_testDir))
-        {
-            try { Directory.Delete(_testDir, true); } catch { }
-        }
     }
 
     #region ValidatePackage Tests

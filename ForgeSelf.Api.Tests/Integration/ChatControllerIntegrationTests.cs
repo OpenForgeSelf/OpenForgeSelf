@@ -17,7 +17,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// ChatController集成测试
 /// </summary>
 [Collection("XCode")]
-public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
     private HttpClient _client;
@@ -55,18 +55,6 @@ public class ChatControllerIntegrationTests : IClassFixture<WebApplicationFactor
         var _ = _factory.Services;
         DAL.AddConnStr("ForgeSelf", $"Data Source={openForgeDb}", null, "SQLite");
         EntityFactory.InitConnection("ForgeSelf");
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            if (Directory.Exists(_tempDbDir)) Directory.Delete(_tempDbDir, true);
-        }
-        catch
-        {
-            // 临时目录清理失败不影响测试
-        }
     }
 
     /// <summary>

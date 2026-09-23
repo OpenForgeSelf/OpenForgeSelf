@@ -10,7 +10,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// 表经 EntityFactory.InitConnection 自动创建、可插入可查询、RunId+StepIndex 判重查询可用。
 /// </summary>
 [Collection("XCode")]
-public class AgentRunPersistenceTests : IDisposable
+public class AgentRunPersistenceTests
 {
     private readonly string _dbDir;
 
@@ -27,11 +27,6 @@ public class AgentRunPersistenceTests : IDisposable
         AgentStepRun.Meta.Cache.Clear("test reset");
         AgentRun.Meta.Cache.Expire = 0;
         AgentStepRun.Meta.Cache.Expire = 0;
-    }
-
-    public void Dispose()
-    {
-        try { if (Directory.Exists(_dbDir)) Directory.Delete(_dbDir, true); } catch { }
     }
 
     [Fact]

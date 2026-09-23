@@ -52,7 +52,7 @@ public class XCodeConfigTests
         }
         finally
         {
-            if (Directory.Exists(dataDir)) Directory.Delete(dataDir, true);
+            // 数据安全铁律：测试自建数据目录只创建、不自动删除（删除由人手动/构建清理负责）
         }
     }
 
@@ -94,7 +94,7 @@ public class XCodeConfigTests
         }
         finally
         {
-            if (Directory.Exists(dataDir)) Directory.Delete(dataDir, true);
+            // 数据安全铁律：测试自建数据目录只创建、不自动删除（删除由人手动/构建清理负责）
         }
     }
 
@@ -119,7 +119,7 @@ public class XCodeConfigTests
         }
         finally
         {
-            if (Directory.Exists(dataDir)) Directory.Delete(dataDir, true);
+            // 数据安全铁律：测试自建数据目录只创建、不自动删除（删除由人手动/构建清理负责）
         }
     }
 
@@ -133,7 +133,6 @@ public class XCodeConfigTests
     [InlineData("dev-tools")]
     [InlineData("file-tools")]
     [InlineData("memory-system")]
-    [InlineData("proxy-capture")]
     [InlineData("quick-links")]
     [InlineData("sample")]
     [InlineData("scheduler")]
@@ -228,7 +227,7 @@ public class XCodeConfigTests
         }
         finally
         {
-            if (Directory.Exists(dataDir)) Directory.Delete(dataDir, true);
+            // 数据安全铁律：测试自建数据目录只创建、不自动删除（删除由人手动/构建清理负责）
         }
     }
 }

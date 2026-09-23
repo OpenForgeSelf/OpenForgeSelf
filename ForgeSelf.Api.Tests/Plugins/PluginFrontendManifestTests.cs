@@ -9,7 +9,7 @@ using ForgeSelf.Api.Plugins.Services;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginFrontendManifestTests : IDisposable
+public class PluginFrontendManifestTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
@@ -249,10 +249,5 @@ public class PluginFrontendManifestTests : IDisposable
             packagerService,
             installerService,
             scaffolderService);
-    }
-
-    public void Dispose()
-    {
-        _tempDir.Dispose();
     }
 }

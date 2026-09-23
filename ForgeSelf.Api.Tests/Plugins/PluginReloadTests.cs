@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
-public class PluginReloadTests : IDisposable
+public class PluginReloadTests
 {
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
@@ -69,6 +69,4 @@ public class PluginReloadTests : IDisposable
         result.Should().BeTrue();
         _manager.GetPluginState("test.idle").Should().Be(PluginState.NotLoaded);
     }
-
-    public void Dispose() => _tempDir.Dispose();
 }

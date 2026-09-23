@@ -7,7 +7,7 @@ namespace ForgeSelf.Api.Tests.Unit;
 /// MultimodalProcessor 图片识别缓存行为测试（输入31：统一聊天接口多模态图片识别缓存）。
 /// 覆盖：同会话同图命中缓存、会话间隔离、历史图+新图仅补识别新图、无会话/无缓存回退原行为、失败不缓存。
 /// </summary>
-public class MultimodalProcessorCacheTests : IDisposable
+public class MultimodalProcessorCacheTests
 {
     private readonly string _cacheRoot;
     private readonly AIProviderRegistry _registry;
@@ -29,11 +29,6 @@ public class MultimodalProcessorCacheTests : IDisposable
         _visionProvider = new CountingVisionProvider("vision-provider", AIProviderType.OpenAI, new[] { "vision-x" });
         _registry.RegisterProvider(_visionProvider);
         _cache = new LocalFileImageRecognitionCache(_cacheRoot);
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_cacheRoot, true); } catch { /* 测试清理尽力而为 */ }
     }
 
     private static UnifiedChatRequest RequestWithImages(params string[] urls)

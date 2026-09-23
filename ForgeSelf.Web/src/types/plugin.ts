@@ -2,17 +2,23 @@
  * 插件类型定义
  */
 
+/**
+ * 插件状态枚举 —— 必须与后端 `PluginState`（数字枚举）顺序一致：
+ * 后端 `PluginState.cs`（Plugins/Abstractions）为默认数字枚举 0-9，
+ * JSON 序列化后 `state` 为数字（0=NotLoaded … 9=Error）。
+ * 曾误用字符串枚举导致 `state.toLowerCase()` 渲染崩溃（2026-09-22 修复）。
+ */
 export enum PluginState {
-  NotLoaded = 'NotLoaded',
-  Loaded = 'Loaded',
-  Initialized = 'Initialized',
-  Starting = 'Starting',
-  Running = 'Running',
-  Stopping = 'Stopping',
-  Stopped = 'Stopped',
-  Destroying = 'Destroying',
-  Destroyed = 'Destroyed',
-  Error = 'Error'
+  NotLoaded = 0,
+  Loaded = 1,
+  Initialized = 2,
+  Starting = 3,
+  Running = 4,
+  Stopping = 5,
+  Stopped = 6,
+  Destroying = 7,
+  Destroyed = 8,
+  Error = 9
 }
 
 export enum PluginPermission {

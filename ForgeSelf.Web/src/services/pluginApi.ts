@@ -1,5 +1,10 @@
 /**
  * 插件API服务层 - 封装插件管理相关后端通信
+ *
+ * 端点前缀铁律：后端 `PluginController` 路由是单数 `api/plugin/...`（`[Route("api/[controller]")]`）。
+ * 曾长期误用复数 `/plugins` 导致插件市场全 404（2026-09-22 修复）。
+ * 注意：SPA 内部路由（router 的 `/plugins/updates` 等）与插件静态资源 `/plugins/{id}/frontend/**`
+ * 与本服务无关，勿混改。
  */
 
 import type {
@@ -48,7 +53,7 @@ export const pluginApi = {
     }
 
     const queryString = queryParams.toString()
-    const url = `${API_BASE_URL}/plugins${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/plugin${queryString ? `?${queryString}` : ''}`
 
     const response = await fetch(url)
     if (!response.ok) {
@@ -58,7 +63,7 @@ export const pluginApi = {
   },
 
   async fetchPluginDetail(pluginId: string): Promise<PluginDetail> {
-    const response = await fetch(`${API_BASE_URL}/plugins/detail/${pluginId}`)
+    const response = await fetch(`${API_BASE_URL}/plugin/detail/${pluginId}`)
     if (!response.ok) {
       throw new Error(`获取插件详情失败: ${response.status}`)
     }
@@ -66,7 +71,7 @@ export const pluginApi = {
   },
 
   async enablePlugin(pluginId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/${pluginId}/enable`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/${pluginId}/enable`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -78,7 +83,7 @@ export const pluginApi = {
   },
 
   async disablePlugin(pluginId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/${pluginId}/disable`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/${pluginId}/disable`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -90,7 +95,7 @@ export const pluginApi = {
   },
 
   async fetchPluginSettings(pluginId: string): Promise<PluginSettings> {
-    const response = await fetch(`${API_BASE_URL}/plugins/${pluginId}/settings`)
+    const response = await fetch(`${API_BASE_URL}/plugin/${pluginId}/settings`)
     if (!response.ok) {
       throw new Error(`获取插件设置失败: ${response.status}`)
     }
@@ -98,7 +103,7 @@ export const pluginApi = {
   },
 
   async updatePluginSettings(pluginId: string, settings: PluginSettings): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/${pluginId}/settings`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/${pluginId}/settings`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -111,7 +116,7 @@ export const pluginApi = {
   },
 
   async fetchMenuItems(): Promise<PluginMenuItem[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/menu-items`)
+    const response = await fetch(`${API_BASE_URL}/plugin/menu-items`)
     if (!response.ok) {
       throw new Error(`获取菜单项失败: ${response.status}`)
     }
@@ -119,7 +124,7 @@ export const pluginApi = {
   },
 
   async fetchToolFunctions(): Promise<PluginToolFunction[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/tool-functions`)
+    const response = await fetch(`${API_BASE_URL}/plugin/tool-functions`)
     if (!response.ok) {
       throw new Error(`获取工具函数失败: ${response.status}`)
     }
@@ -127,7 +132,7 @@ export const pluginApi = {
   },
 
   async fetchCategories(): Promise<PluginCategory[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/categories`)
+    const response = await fetch(`${API_BASE_URL}/plugin/categories`)
     if (!response.ok) {
       throw new Error(`获取分类列表失败: ${response.status}`)
     }
@@ -143,7 +148,7 @@ export const pluginApi = {
     if (params.pageSize) queryParams.append('pageSize', String(params.pageSize))
 
     const queryString = queryParams.toString()
-    const response = await fetch(`${API_BASE_URL}/plugins/search${queryString ? `?${queryString}` : ''}`)
+    const response = await fetch(`${API_BASE_URL}/plugin/search${queryString ? `?${queryString}` : ''}`)
     if (!response.ok) {
       throw new Error(`搜索插件失败: ${response.status}`)
     }
@@ -151,7 +156,7 @@ export const pluginApi = {
   },
 
   async fetchRecommendedPlugins(limit = 10): Promise<PluginInfo[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/recommended?limit=${limit}`)
+    const response = await fetch(`${API_BASE_URL}/plugin/recommended?limit=${limit}`)
     if (!response.ok) {
       throw new Error(`获取推荐插件失败: ${response.status}`)
     }
@@ -159,7 +164,7 @@ export const pluginApi = {
   },
 
   async fetchPopularPlugins(limit = 10): Promise<PluginInfo[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/popular?limit=${limit}`)
+    const response = await fetch(`${API_BASE_URL}/plugin/popular?limit=${limit}`)
     if (!response.ok) {
       throw new Error(`获取热门插件失败: ${response.status}`)
     }
@@ -167,7 +172,7 @@ export const pluginApi = {
   },
 
   async packagePlugin(pluginId: string): Promise<Blob> {
-    const response = await fetch(`${API_BASE_URL}/plugins/package/${pluginId}`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/package/${pluginId}`, {
       method: 'POST'
     })
     if (!response.ok) {
@@ -180,7 +185,7 @@ export const pluginApi = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${API_BASE_URL}/plugins/install`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/install`, {
       method: 'POST',
       body: formData
     })
@@ -191,7 +196,7 @@ export const pluginApi = {
   },
 
   async uninstallPlugin(pluginId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/uninstall/${pluginId}`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/uninstall/${pluginId}`, {
       method: 'POST'
     })
     if (!response.ok) {
@@ -200,7 +205,7 @@ export const pluginApi = {
   },
 
   async checkForUpdates(): Promise<PluginUpdateInfo[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/updates`)
+    const response = await fetch(`${API_BASE_URL}/plugin/updates`)
     if (!response.ok) {
       throw new Error(`检查更新失败: ${response.status}`)
     }
@@ -208,7 +213,7 @@ export const pluginApi = {
   },
 
   async updatePlugin(pluginId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/update/${pluginId}`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/update/${pluginId}`, {
       method: 'POST'
     })
     if (!response.ok) {
@@ -217,7 +222,7 @@ export const pluginApi = {
   },
 
   async rollbackPlugin(pluginId: string, version: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/plugins/rollback/${pluginId}`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/rollback/${pluginId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ version })
@@ -228,7 +233,7 @@ export const pluginApi = {
   },
 
   async fetchPluginVersions(pluginId: string): Promise<PluginVersionInfo[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/${pluginId}/versions`)
+    const response = await fetch(`${API_BASE_URL}/plugin/${pluginId}/versions`)
     if (!response.ok) {
       throw new Error(`获取版本历史失败: ${response.status}`)
     }
@@ -236,7 +241,7 @@ export const pluginApi = {
   },
 
   async fetchScaffoldTemplates(): Promise<PluginTemplateInfo[]> {
-    const response = await fetch(`${API_BASE_URL}/plugins/scaffolder/templates`)
+    const response = await fetch(`${API_BASE_URL}/plugin/scaffolder/templates`)
     if (!response.ok) {
       throw new Error(`获取模板列表失败: ${response.status}`)
     }
@@ -244,7 +249,7 @@ export const pluginApi = {
   },
 
   async generateScaffold(request: ScaffoldRequest): Promise<Blob> {
-    const response = await fetch(`${API_BASE_URL}/plugins/scaffolder/generate`, {
+    const response = await fetch(`${API_BASE_URL}/plugin/scaffolder/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request)

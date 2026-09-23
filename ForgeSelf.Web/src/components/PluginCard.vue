@@ -33,7 +33,8 @@ const stateLabel = computed(() => {
 })
 
 const stateClass = computed(() => {
-  return `state-${props.plugin.state}`
+  // 契约：class = state-<枚举名>（PascalCase，测试断言 state-Running 等）；数字枚举反查名正好匹配
+  return `state-${PluginState[props.plugin.state] ?? 'Unknown'}`
 })
 
 function handleCardClick(): void {

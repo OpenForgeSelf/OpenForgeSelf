@@ -18,21 +18,34 @@ const plugin = computed(() => pluginStore.currentPlugin)
 const stateLabel = computed(() => {
   if (!plugin.value) return ''
   switch (plugin.value.state) {
-    case PluginState.Running:
-      return '运行中'
-    case PluginState.Stopped:
-      return '已停止'
-    case PluginState.Error:
-      return '错误'
     case PluginState.NotLoaded:
       return '未加载'
+    case PluginState.Loaded:
+      return '已加载'
+    case PluginState.Initialized:
+      return '已初始化'
+    case PluginState.Starting:
+      return '启动中'
+    case PluginState.Running:
+      return '运行中'
+    case PluginState.Stopping:
+      return '停止中'
+    case PluginState.Stopped:
+      return '已停止'
+    case PluginState.Destroying:
+      return '销毁中'
+    case PluginState.Destroyed:
+      return '已销毁'
+    case PluginState.Error:
+      return '错误'
     default:
       return '未知'
   }
 })
 
 const stateClass = computed(() => {
-  return plugin.value ? `state-${plugin.value.state}` : ''
+  // CSS 定义的是 PascalCase（.state-Running/.state-Stopped/.state-Error），数字枚举反查名正好匹配
+  return plugin.value ? `state-${PluginState[plugin.value.state] ?? 'Unknown'}` : ''
 })
 
 const formattedUpdatedAt = computed(() => {
@@ -152,7 +165,7 @@ watch(() => route.params.id, (newId) => {
           <button
             class="action-btn toggle-btn"
             :class="{ active: plugin.isEnabled, loading: isToggling }"
-            :disabled="isToggling || plugin.state === 'Error'"
+            :disabled="isToggling || plugin.state === PluginState.Error"
             @click="handleToggle"
           >
             {{ plugin.isEnabled ? '禁用' : '启用' }}

@@ -37,7 +37,8 @@ const stateLabel = computed(() => {
 })
 
 const stateClass = computed(() => {
-  return plugin.value ? `state-${plugin.value.state}` : ''
+  // 契约：class = state-<枚举名>（PascalCase，测试断言 state-Running 等）；数字枚举反查名正好匹配
+  return plugin.value ? `state-${PluginState[plugin.value.state] ?? 'Unknown'}` : ''
 })
 
 const permissionDescriptions: Record<PluginPermission, string> = {

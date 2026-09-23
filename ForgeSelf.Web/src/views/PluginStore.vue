@@ -8,6 +8,39 @@ import { PluginState } from '@/types/plugin'
 const { openPage } = useOpenPage()
 const pluginStore = usePluginStore()
 
+/** 状态徽标 CSS 类名：后端 state 是数字枚举（0-9），反查名后小写（running/stopped/error/notloaded…）。 */
+function pluginStateClass(state: PluginState): string {
+  return PluginState[state]?.toLowerCase() ?? 'unknown'
+}
+
+/** 状态徽标中文文案。 */
+function pluginStateLabel(state: PluginState): string {
+  switch (state) {
+    case PluginState.NotLoaded:
+      return '未加载'
+    case PluginState.Loaded:
+      return '已加载'
+    case PluginState.Initialized:
+      return '已初始化'
+    case PluginState.Starting:
+      return '启动中'
+    case PluginState.Running:
+      return '运行中'
+    case PluginState.Stopping:
+      return '停止中'
+    case PluginState.Stopped:
+      return '已停止'
+    case PluginState.Destroying:
+      return '销毁中'
+    case PluginState.Destroyed:
+      return '已销毁'
+    case PluginState.Error:
+      return '错误'
+    default:
+      return '未知'
+  }
+}
+
 const activeTab = ref<'all' | 'recommended' | 'popular' | 'installed'>('all')
 const searchKeyword = ref('')
 const selectedCategory = ref<string>('all')
@@ -265,8 +298,8 @@ onMounted(() => {
               </span>
               <span v-else class="icon-fallback">📦</span>
             </div>
-            <div class="plugin-status-badge" :class="plugin.state.toLowerCase()">
-              {{ plugin.state === 'Running' ? '运行中' : plugin.state === 'Stopped' ? '已停止' : plugin.state === 'Error' ? '错误' : '未加载' }}
+            <div class="plugin-status-badge" :class="pluginStateClass(plugin.state)">
+              {{ pluginStateLabel(plugin.state) }}
             </div>
           </div>
 
@@ -295,7 +328,7 @@ onMounted(() => {
             <button
               class="toggle-btn"
               :class="{ active: plugin.isEnabled }"
-              :disabled="plugin.state === 'Error'"
+              :disabled="plugin.state === PluginState.Error"
               @click.stop="handleToggle(plugin)"
             >
               {{ plugin.isEnabled ? '禁用' : '启用' }}

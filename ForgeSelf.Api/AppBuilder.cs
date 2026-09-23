@@ -12,7 +12,6 @@ using Scalar.AspNetCore;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
 using ForgeSelf.Api.Services.AI.Providers;
-using ForgeSelf.Api.Services.Mcp;
 using ForgeSelf.Api.Services.Skills;
 using ForgeSelf.Api.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
@@ -111,7 +110,7 @@ public static class AppBuilder
         // 平台级共享事件总线（027-cordis-kernel）：工具执行管道 tools/* 拦截点（pre-execute / execute / post-execute）
         builder.Services.AddSingleton<IEventBus>(new EventBus());
         builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
-        builder.Services.AddSingleton<IMcpService, McpService>();
+        // IMcpService 已随宿主 mcp-tools 迁入 McpCenter 插件（034 v2.0.0），由插件 Apply 注册进插件子 provider
         builder.Services.AddSingleton<ICronParser, CronParser>();
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
         builder.Services.AddSingleton<ISkillsService, SkillsService>();

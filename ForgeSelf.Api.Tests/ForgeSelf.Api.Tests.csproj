@@ -48,15 +48,27 @@
     <!-- 第四批拆分（AIAgent，ADR D2 续） -->
     <ProjectReference Include="..\ForgeSelf.Api\Plugins\AIAgent\AIAgent.csproj" />
     <!-- 抓包代理插件（ProxyCapture，单测直接引用其 Core 类型） -->
-    <ProjectReference Include="..\ForgeSelf.Api\Plugins\ProxyCapture\ProxyCapture.csproj" />
     <!-- sems 插件（spec028 运行管理 RunnerService / 进程归属判定纯函数） -->
     <ProjectReference Include="..\ForgeSelf.Api\Plugins\Sems\Sems.csproj" />
+    <!-- ImGateway / AgentHub 插件（ADR D2 续）：单测直接引用其类型（FrameParser/ConfigStore/通道/委派运行时），
+         此前漏登记，宿主全量重建后（插件源码不再编入宿主）测试编译失败，2026-09-21 补齐。 -->
+    <ProjectReference Include="..\ForgeSelf.Api\Plugins\ImGateway\ImGateway.csproj" />
+    <ProjectReference Include="..\ForgeSelf.Api\Plugins\AgentHub\AgentHub.csproj" />
+    <!-- McpCenter 插件（034 v2.0.0，前身 McpGateway）：单测直接引用其转发器 / JSON-RPC 处理器 / 服务类型 -->
+    <ProjectReference Include="..\ForgeSelf.Api\Plugins\McpCenter\McpCenter.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <!-- MCP 中心外部接入集成测试用 mock MCP 服务器（stdio / streamable-http / http-sse 三传输） -->
+  <ItemGroup>
+    <None Include="Plugins\McpCenterTests\Fixtures\mock-mcp-server.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <!-- 测试宿主同步插件 DLL（修复拆独立程序集后 GetExecutionStatus 期望404实得500）：

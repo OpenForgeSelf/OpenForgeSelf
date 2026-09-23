@@ -16,13 +16,11 @@ import AllFeaturesView from '@/views/AllFeaturesView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import PromptsView from '@/views/PromptsView.vue'
 import SkillsView from '@/views/SkillsView.vue'
-import McpToolsView from '@/views/McpToolsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
 import TodoView from '@/views/TodoView.vue'
-import CaptureView from '@/views/CaptureView.vue'
 import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 import { registerManifestRoutes } from './dynamicPlugins'
@@ -61,11 +59,6 @@ const router = createRouter({
       path: '/skills',
       name: 'skills',
       component: SkillsView
-    },
-    {
-      path: '/mcp-tools',
-      name: 'mcp-tools',
-      component: McpToolsView
     },
     {
       path: '/settings',
@@ -166,11 +159,6 @@ const router = createRouter({
       path: '/script-runner',
       name: 'script-runner',
       component: ScriptLibrary
-    },
-    {
-      path: '/capture',
-      name: 'capture',
-      component: CaptureView
     }
   ]
 })

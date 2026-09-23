@@ -12,7 +12,6 @@ const DEFAULT_TABS: NavTab[] = [
   { key: 'home', label: '首页', path: '/' },
   { key: 'ai-agent', label: 'AI Agent', path: '/ai-agent' },
   { key: 'skills', label: '技能管理', path: '/skills' },
-  { key: 'mcp-tools', label: 'MCP 工具', path: '/mcp-tools' },
   { key: 'system-monitor', label: '系统监控', path: '/system-monitor' },
 ]
 

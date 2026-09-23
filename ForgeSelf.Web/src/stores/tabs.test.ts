@@ -10,9 +10,10 @@ describe('tabs store', () => {
 
   it('初始种子为基础标签（含首页）', () => {
     const store = useTabsStore()
-    expect(store.tabs.length).toBe(5)
+    expect(store.tabs.length).toBe(4)
     expect(store.tabs.some((t) => t.path === '/')).toBe(true)
     expect(store.hasTab('/ai-agent')).toBe(true)
+    expect(store.hasTab('/mcp-tools')).toBe(false) // MCP 中心已迁入插件（034 v2.0.0），宿主不再内置标签
   })
 
   it('openTab 追加新标签', () => {

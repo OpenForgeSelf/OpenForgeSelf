@@ -14,10 +14,10 @@
 | 了解项目**为什么存在、要去哪** | [`00-vision/01-vision.md`](00-vision/01-vision.md) |
 | 看项目**现在处于哪个阶段、目标是什么** | [`00-vision/02-goals.md`](00-vision/02-goals.md) |
 | 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md)；可交互架构图 [`01-architecture/architecture-diagram.html`](01-architecture/architecture-diagram.html)（四层总览+启动装配链）；宿主→插件能力供给（三层模型 L1 契约/L2 事件/L3 拦截）见 [`01-architecture/host-capability-seams.md`](01-architecture/host-capability-seams.md) |
-| 理解/修改**某个功能**（需求+设计+使用） | `02-features/`（[001](02-features/001-ai-provider-config.md) AI提供方 / [002](02-features/002-ai-models-list.md) 模型 / [003](02-features/003-api-server-settings.md) API服务器 / [004](02-features/004-provider-models-integration.md) 网关集成 / [005](02-features/005-todo-tracker.md) 待办 / [006](02-features/006-background-image.md) 背景图 / [007](02-features/007-background-visibility-opacity.md) 透明度 / [008](02-features/008-tray-service-autoupdate.md) 托盘自更新 / [009](02-features/009-web-port-token-security.md) 端口令牌 / [010](02-features/010-chat-session-aggregation.md) 会话聚合 / [011](02-features/011-multimodal-image-cache.md) 多模态缓存 / [027](02-features/027-cordis-kernel.md) Cordis内核 / [028](02-features/028-project-workspace.md) 项目工作区 / [100](02-features/100-secret-encryption.md) 密钥加密） |
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
+| **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；单功能调研在 `specs/NNN-*/research.md`） |
 | 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
@@ -324,13 +324,16 @@
 | 019 | [`02-features/019-script-runner.md`](02-features/019-script-runner.md) | 已实现 |
 | 020 | [`02-features/020-quick-links.md`](02-features/020-quick-links.md) | 已实现 |
 | 021 | [`02-features/021-ai-agent.md`](02-features/021-ai-agent.md) | 已实现 |
-| 022 | [`02-features/022-mcp-tools.md`](02-features/022-mcp-tools.md) | 已实现（核心控制器） |
+| 022 | [`02-features/022-mcp-tools.md`](02-features/022-mcp-tools.md) | 已实现（核心控制器）；**v2.0.0 已并入 [034-mcp-center](02-features/034-mcp-center.md) 插件**，宿主侧移除 |
 | 023 | [`02-features/023-skills.md`](02-features/023-skills.md) | 已实现（核心控制器） |
 | 024 | [`02-features/024-usage-stats.md`](02-features/024-usage-stats.md) | 已实现（核心服务，无独立控制器） |
 | 025 | [`02-features/025-user-profile.md`](02-features/025-user-profile.md) | 前端已实现；后端暂无独立模块（缺口） |
 | 026 | [`02-features/026-plugin-marketplace.md`](02-features/026-plugin-marketplace.md) | 已实现 |
 | 027 | [`02-features/027-cordis-kernel.md`](02-features/027-cordis-kernel.md) | 已实现（内核/契约/插件自注册/热更新/前端清单驱动；剩余项见档案） |
 | 028 | [`02-features/028-project-workspace.md`](02-features/028-project-workspace.md) | 已实现（项目档案+运行命令 CRUD+运行列表+进程检测 WMI+前端面板；spec028 相关测试 31/31 通过） |
+| 031 | [`02-features/031-im-gateway.md`](02-features/031-im-gateway.md) | 已实现（IM 网关插件；当前版本 2.0.0） |
+| 034 | [`02-features/034-mcp-center.md`](02-features/034-mcp-center.md) | 已实现（MCP 中心插件 v2.1.0；mcp-gateway 更名 + 整合 022 mcp-tools；单工具转发 + list_tools + 管理面鉴权；自带界面双 tab） |
+| 035 | [`02-features/035-plugin-versioned-layout.md`](02-features/035-plugin-versioned-layout.md) | 需求记录（插件版本化发布与显式升级，下期再做） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 
 > 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。

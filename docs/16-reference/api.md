@@ -51,7 +51,6 @@
 | GET | `api/dev-tools/*` | DevTools | 开发工具（JSON/YAML/加密/编码/正则等） |
 | GET | `api/file-tools/*` | FileTools | 文件工具（清理/重命名/统计/压缩） |
 | GET | `api/memory/*` | MemorySystem | 记忆系统 CRUD |
-| GET | `api/capture/*` | ProxyCapture | 代理抓包（监听器/会话/请求） |
 | GET | `api/quick-links/*` | QuickLinks | 快捷链接 CRUD |
 | GET | `api/scheduler/*` | Scheduler | 调度任务 CRUD |
 | GET | `api/code-snippets` | ScriptRunner | 代码片段 CRUD |
@@ -103,6 +102,5 @@
 | `/file-tools` | FileToolsView | 文件工具 |
 | `/dev-tools` | DevToolsView | 开发工具 |
 | `/script-runner` | ScriptLibrary | 脚本库 |
-| `/capture` | CaptureView | 代理抓包 |
 
 动态插件路由通过 `setupPluginRoutes(menuItems)` 和 `setupManifestRoutes(manifest)` 注册到 `/plugin-view` 命名空间。

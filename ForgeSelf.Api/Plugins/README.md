@@ -33,7 +33,7 @@
   - 发布 / 服务态：`%USERPROFILE%/.forgeself/`
 - **插件库路径（统一）**：`{数据根}/Plugins/{插件Id}/{连接名}.db`
   - 例：`memory-system` → `~/.forgeself/Plugins/memory-system/MemorySystem.db`（连接名 `MemorySystem`）
-  - 例：`proxy-capture` → `~/.forgeself/Plugins/proxy-capture/ProxyCapture.db`（连接名 `ProxyCapture`）
+  - 例：`mcp-center` → `~/.forgeself/Plugins/mcp-center/McpCenter.db`（连接名 `McpCenter`）
 - **父目录自建**：SQLite 不会自动创建父目录，宿主在 `AddXCode` / `InitializeXCodeDatabase` 时先 `EnsureDirectory`，插件侧也可用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录。
 - **库文件名铁律**：一律 `{连接名}.db`（连接名即数据库名，与 XCode 模型一致）。所有插件统一用 XCode 作为 ORM，连接名取自 `XCodeConfig.PluginDbs`。禁止以 `Id` 或任意写法命名（历史 `memory.db` / `capture.db` / `QuickLinks.db` 等混用写法已全部修正）。改名会生成第二份库，旧数据不可见。
 
@@ -68,7 +68,7 @@
 | `DevTools` | `dev-tools` | （无持久库） | — |
 | `FileTools` | `file-tools` | （无持久库） | — |
 | `MemorySystem` | `memory-system` | `MemorySystem.db` | XCode（`Memory`/`MemoryCategory` 实体，连接名 `MemorySystem`） |
-| `ProxyCapture` | `proxy-capture` | `ProxyCapture.db` | XCode（`ListenerConfig`/`CaptureSession` 实体，连接名 `ProxyCapture`） |
+| `McpCenter` | `mcp-center` | `McpCenter.db` | XCode（`ListenerConfig`/`CaptureSession` 实体，连接名 `McpCenter`） |
 | `QuickLinks` | `quick-links` | `QuickLinks.db` | XCode（`PluginDbs`，连接名 `QuickLinks`） |
 | `SamplePlugin` | `sample` | （无持久库） | — |
 | `Scheduler` | `scheduler` | `Scheduler.db` | XCode（`PluginDbs`，连接名 `Scheduler`） |
@@ -78,7 +78,7 @@
 | `TodoTracker` | `todo-tracker` | `TodoTracker.db` | XCode（`PluginDbs`，连接名 `TodoTracker`） |
 | `WorkflowEngine` | `workflow-engine` | `WorkflowEngine.db` | XCode（`PluginDbs`，连接名 `WorkflowEngine`） |
 
-> 注：本项目统一以 **XCode 作为唯一 ORM**，各插件库文件均按「连接名即数据库名」规则命名为 `{连接名}.db`。`MemorySystem` 用 XCode 实体（`Memory`/`MemoryCategory` 表，连接名 `MemorySystem`）承载 CRUD（`MemoryServiceXCode` 及 AI 集成抽取）；`ProxyCapture` 用 XCode 实体（`ListenerConfig`/`CaptureSession` 表，连接名 `ProxyCapture`）。不存在 EF 上下文。
+> 注：本项目统一以 **XCode 作为唯一 ORM**，各插件库文件均按「连接名即数据库名」规则命名为 `{连接名}.db`。`MemorySystem` 用 XCode 实体（`Memory`/`MemoryCategory` 表，连接名 `MemorySystem`）承载 CRUD（`MemoryServiceXCode` 及 AI 集成抽取）；`McpCenter` 用 XCode 实体（`ListenerConfig`/`CaptureSession` 表，连接名 `McpCenter`）。不存在 EF 上下文。
 
 ---
 

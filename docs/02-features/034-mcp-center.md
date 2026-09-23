@@ -231,13 +231,13 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - `plugin.json`：`Id=mcp-center`、`Name=MCP 中心`、`Version=2.0.0`、`frontend.views=["McpCenterView"]`、`route=/mcp-center`、`icon=connection`、`entry=web/dist/index.js`。
 - 宿主接线：`ForgeSelf.Api.csproj` 全量 `McpGateway→McpCenter`（13 处含 Stage target）；`AppBuilder.cs` 移除宿主 `AddSingleton<IMcpService, McpService>()`（迁入插件）；宿主 mcp-tools 后端（McpController/Services-Mcp/Models-Mcp/web 六件套/e2e-mcp-gateway）移 `.trash/mcp-tools-host-2026-09-22/`。
 - 宿主前端清理（六处）：删 `McpToolsView.vue`/`mcpApi.ts`/`types/mcp.ts`/`McpToolsView.test.ts`（移 .trash）；router 删 `/mcp-tools`；`stores/tabs.ts` DEFAULT_TABS 5→4；`data/features.ts` mcp+mcp-gateway 合并为 mcp-center 一条；`tabs.test.ts` 计数同步。
-- 发布产物：`publish/Plugins/McpCenter/`（McpCenter.dll + plugin.json + web/dist）；旧 `publish/Plugins/McpGateway` 归档 `publish/Plugins/_backups/mcp-gateway-1.0.0/`；重复 id 遗留目录 `flow-forge`（小写）归档 `_backups/flow-forge-legacy-2026-09-22/`。
+- 发布产物：`publish/Plugins/McpCenter/`（McpCenter.dll + plugin.json + web/dist）；旧 `publish/Plugins/McpGateway` 归档 `publish/Plugins/_backups/mcp-gateway-1.0.0/`；重复 id 遗留目录（小写）归档 `_backups/`。
 
 ## 已知边界与踩坑记录
 
 - **全新插件目录不被热重载监听**：宿主 `PluginHotReloadWatcher` 只对**已加载插件**的更新生效；新增插件需「冷启动宿主」（`publish/ForgeSelf.exe --console`）。运行中插件更新 DLL 时文件被 ALC 锁定，同样需重启替换。
 - **宿主进程锁导致 build.ps1 发布漏更宿主 DLL（本次实证）**：`publish/ForgeSelf.dll` 被运行中宿主锁定 → `build.ps1` 第 3 步 `Copy-Item -ErrorAction SilentlyContinue` **静默跳过**被锁文件 → publish 里宿主 DLL 保持旧版（仍含已迁走的旧 `ForgeSelf.Api.Controllers.McpController`）→ 与插件 McpController 路由**歧义** → `GET /api/mcp/servers` 500 `AmbiguousMatchException`（无日志，action 未进入）。**教训**：发布含宿主 DLL 变更前先停运行中宿主；若界面 500 且 action 无日志，优先怀疑「路由歧义/控制器残留」，核对 `publish/ForgeSelf.dll` 时间戳与工作区源码是否一致。
-- **重复插件 id 目录导致宿主启动崩溃**：`publish/Plugins` 同时存在 `flow-forge/` 与 `FlowForge/`（同 Id=flow-forge）→ `TopologicalSort` ToDictionary 撞 key → 启动即崩。**教训**：宿主插件目录内不得存在同 id 的多个目录；发布后检查重复 id（`Get-ChildItem Plugins -Directory | 读 plugin.json Id | Group-Object`）。
+- **重复插件 id 目录导致宿主启动崩溃**：`publish/Plugins` 同时存在两个同 Id 的目录 → `TopologicalSort` ToDictionary 撞 key → 启动即崩。**教训**：宿主插件目录内不得存在同 id 的多个目录；发布后检查重复 id（`Get-ChildItem Plugins -Directory | 读 plugin.json Id | Group-Object`）。
 - **转发工具不过滤**：MCP 端可调用宿主全部工具（含命令类），安全依赖宿主分发核既有拒绝门；如对外暴露受限环境，可后续在转发器加白名单配置。
 - **宿主 IToolRegistry 软依赖**：`ctx.Get<IToolRegistry>()` 在插件 Apply 期（宿主 seed 晚于 RegisterAllServices）通常为 null → `McpService` 降级仅预置数据 + Warn（界面工具表显示预置 12 工具，不含 ToolRegistry 实时同步真实工具）。网关照常启动、转发调用不受影响（转发器经 IContext 运行期取注册表）。
 

@@ -45,7 +45,7 @@ export function resolveHostApiToken(): string {
   const iv = data.subarray(0, 16)
   const cipher = data.subarray(16)
   const decipher = createDecipheriv('aes-256-cbc', key, iv)
-  return decipher.update(cipher) + decipher.final()
+  return Buffer.concat([decipher.update(cipher), decipher.final()]).toString('utf8')
 }
 
 /** 读取 Windows 注册表 MachineGuid（机器派生密钥熵源）。非 Windows 请设 FORGE_MACHINE_GUID。 */

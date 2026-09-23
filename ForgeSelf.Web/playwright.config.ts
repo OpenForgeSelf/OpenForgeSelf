@@ -9,6 +9,11 @@ import { dirname, resolve } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers')
 
+// MCP 中心（034 v2.0.0）e2e：为 e2e 宿主分配独立 MCP 端口，避免与常驻实例（51888 走 config.json 端口 18890）
+// 的默认端口 18889 冲突。环境变量名保留 v1.0.0 旧名 FORGESELF_MCP_GATEWAY_PORT（兼容决策）。
+// globalSetup 与各 worker 均继承本环境变量，宿主与用例看到同一端口。
+process.env.FORGESELF_MCP_GATEWAY_PORT ??= '18889'
+
 export default defineConfig({
   testDir: './e2e',
   // spa-fallback.spec.ts 是「发布模式 / 生产部署」语义测试（CSS 为 <link>、JS 为哈希产物、

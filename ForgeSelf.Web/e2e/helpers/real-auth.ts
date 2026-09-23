@@ -66,7 +66,7 @@ function decryptApiToken(payload: string): string {
     const iv = data.subarray(0, 16)
     const cipher = data.subarray(16)
     const decipher = createDecipheriv('aes-256-cbc', key, iv)
-    return decipher.update(cipher) + decipher.final()
+    return Buffer.concat([decipher.update(cipher), decipher.final()]).toString('utf8')
   }
 
   // v1 回退（AIProvider 默认密钥）

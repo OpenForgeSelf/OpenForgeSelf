@@ -2,6 +2,8 @@ import { test, expect, type APIRequestContext } from '@playwright/test'
 import { mkdirSync, rmSync, existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import os from 'node:os'
+import { randomUUID } from 'node:crypto'
 import { resolveHostApiToken } from '../../helpers/host-api-token'
 
 /**

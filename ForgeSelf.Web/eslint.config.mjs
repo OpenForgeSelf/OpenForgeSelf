@@ -15,6 +15,8 @@ export default tseslint.config(
       '*.config.*',
       '.vite/',
       '*.cjs',
+      // 插件 AIAgent 模板构建产物（web/dist 的宿主内构建目录），非源码
+      '.plugin-build-aiagent/',
       // Playwright 产物目录（报告、trace、测试结果），非源码
       'playwright-report/',
       'playwright-report-published/',

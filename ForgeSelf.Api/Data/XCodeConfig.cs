@@ -30,7 +30,6 @@ public static class XCodeConfig
         ["WorkflowEngine"] = "workflow-engine",
         ["AIAgent"] = "ai-agent",
         ["TodoTracker"] = "todo-tracker",
-        ["ProxyCapture"] = "proxy-capture"
     };
 
     /// <summary>

@@ -182,8 +182,6 @@ export const features: FeatureItem[] = [
     signals: { plugins: ['DevTools'], views: ['DevToolsView'] },
   },
   {
-    id: 'proxy-capture',
-    name: '抓包代理',
     icon: 'network',
     category: 'dev',
     categoryLabel: '开发',
@@ -192,8 +190,6 @@ export const features: FeatureItem[] = [
     description: '反向代理抓包监听：完整记录 HTTP/HTTPS 请求（HTTPS 经 MITM 解密），可原样转发到目标地址',
     stats: '抓包监听',
     enabled: true,
-    path: '/capture',
-    signals: { plugins: ['ProxyCapture'], views: ['CaptureView'] },
   },
   {
     id: 'chat',

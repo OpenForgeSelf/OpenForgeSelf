@@ -1,0 +1,40 @@
+/* 插件自带 Tailwind 工具类（与宿主 ForgeSelf.Web/src/styles/tailwind.css 同源，@theme inline 版）。
+ *
+ * 说明：
+ * - 插件是独立预编译产物（宿主打包器不处理插件模板），因此**必须自己编译 Tailwind**，
+ *   不能依赖宿主生成的工具类（宿主只生成本项目源码中用到的 utility，插件模板类可能缺失，
+ *   且任意值如 w-[220px] 宿主必然没有）。
+ * - @theme inline：工具类直接内联 `var(--el-*)` 引用，不再向 :root 发射 --color-* 变量，
+ *   避免插件 CSS 污染全局（宿主用普通 @theme，两者语义等价，只是发射方式不同）。
+ * - 颜色一律映射 Element Plus 官方 --el-* 变量（本项目样式规范：不定义独立色值）。
+ */
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--el-font-family);
+  --font-mono: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+
+  --color-primary: var(--el-color-primary);
+  --color-success: var(--el-color-success);
+  --color-warning: var(--el-color-warning);
+  --color-error: var(--el-color-error);
+  --color-danger: var(--el-color-danger);
+  --color-info: var(--el-color-info);
+
+  --color-bg: var(--el-bg-color);
+  --color-bg-page: var(--el-bg-color-page);
+  --color-bg-overlay: var(--el-bg-color-overlay);
+  --color-fill: var(--el-fill-color);
+  --color-fill-light: var(--el-fill-color-light);
+  --color-fill-lighter: var(--el-fill-color-lighter);
+
+  --color-text: var(--el-text-color-primary);
+  --color-text-regular: var(--el-text-color-regular);
+  --color-text-secondary: var(--el-text-color-secondary);
+  --color-text-disabled: var(--el-text-color-disabled);
+  --color-text-placeholder: var(--el-text-color-placeholder);
+
+  --color-border: var(--el-border-color);
+  --color-border-light: var(--el-border-color-light);
+  --color-border-dark: var(--el-border-color-dark);
+}

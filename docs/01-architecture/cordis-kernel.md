@@ -46,7 +46,6 @@ flowchart TB
     end
 
     subgraph Plugins["第4层 · 插件层 Plugins/*（12 个，MemorySystem 已拆独立程序集）"]
-        PL["AIAgent / DevTools / FileTools / MemorySystem / ProxyCapture / QuickLinks / Scheduler / ScriptRunner / SystemMonitor / TextTools / TodoTracker / WorkflowEngine"]
         PL2["每个插件 Apply(ctx)：ctx.Get<IServiceCollection>() 自注册 DI + 菜单/工具扩展 + ctx.Effect 副作用"]
     end
 
@@ -259,7 +258,7 @@ ForgeSelf.Abstractions/    # 契约程序集（已建立，ADR D2）
 ForgeSelf.Core.Tests / ForgeSelf.Abstractions.Tests           # 内核/契约测试（12+9 全绿）
 ```
 
-`ForgeSelf.Core`、`ForgeSelf.Abstractions` 均已实现并编译通过，`Fiber` 已补齐；`ForgeSelf.sln` 现含 7 个项目（Core/Abstractions/Backend/三个 Tests + MemorySystem 插件项目）。接缝 Provider 实现按需在各插件/宿主内落地。
+`ForgeSelf.Core`、`ForgeSelf.Abstractions` 均已实现并编译通过，`Fiber` 已补齐；`ForgeSelf.slnx` 现含 24 个项目（Core/Abstractions/Backend/两个 Tests + 14 个插件项目）。接缝 Provider 实现按需在各插件/宿主内落地。
 
 ---
 
@@ -378,7 +377,6 @@ ForgeSelf.Core.Tests / ForgeSelf.Abstractions.Tests           # 内核/契约测
   <rect x="435" y="602" width="115" height="34" rx="6" fill="#F7F7F8" stroke="rgba(23,23,23,0.12)"/>
   <text x="492" y="623" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#52525B">ScriptRunner</text>
   <rect x="560" y="602" width="110" height="34" rx="6" fill="#F7F7F8" stroke="rgba(23,23,23,0.12)"/>
-  <text x="615" y="623" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#52525B">ProxyCapture</text>
   <rect x="60" y="642" width="115" height="34" rx="6" fill="#F7F7F8" stroke="rgba(23,23,23,0.12)"/>
   <text x="117" y="663" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#52525B">MemorySystem</text>
   <rect x="185" y="642" width="115" height="34" rx="6" fill="#F7F7F8" stroke="rgba(23,23,23,0.12)"/>

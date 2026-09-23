@@ -1,7 +1,7 @@
-# 021 · AI 智能体（AI Agent）
+﻿# 021 · AI 智能体（AI Agent）
 
 > 状态：已实现（代码中已落地）
-> 最后更新：2026-09-10
+> 最后更新：2026-09-21
 
 ## 概述
 
@@ -28,9 +28,41 @@ AI 智能体编排框架：多 Agent 协调与执行（`AgentsController`）、�
 
 **`api/ai-agent/script`**：`generate`、`analyze-error`、`suggest-fix`、`templates[/{templateId}]`、`templates/categories`。
 
-**`api/ai-agent/chat`**：`POST /`、`POST /stream`（SSE：content / tool_call / tool_result / usage / done）、`history/{sessionId}`、`DELETE session/{sessionId}`、`tools`。
+**`api/ai-agent/chat`**：`POST /`、`POST /stream`（SSE：content / **turn** / tool_call / tool_result / usage / done）、`history/{sessionId}`、`DELETE session/{sessionId}`、`tools`、`GET /sessions`（按 `SessionId` 聚合的历史会话列表：`sessionId`/`title`/`messageCount`/`lastTime`，标题取首条 user 消息前 20 字，直查库不走缓存）。
 
-**`api/project`**：工作目录选择 / 文件列表 / 读写（MCP 工具 `aiagent.list_files/read_file/write_file`，见 028）。
+## 会话管理（T2，2026-09-21）
+
+聊天界面 `SessionPanel` 新增「历史会话」分组：拉 `GET /sessions` 渲染列表，点击切换原样回传**全 id**（`sessionId`）调 `history/{sessionId}` 重载上下文；删除走 `DELETE session/{sessionId}`（删当前则新建会话）。切换一律用全 id，**规避早期「切回历史会话用短 id 查询得 0 条」的断裂**（T3 根因：两段式 id 仅在存储侧一致，前端统一传全 id 即可消除回归）。
+
+## 自治循环（Agent Loop，v1.6.19）
+
+**背景（2026-09-21 根因修复）**：`RunAgentLoopAsync` 原先把「本轮无 tool_call」等同于「任务完成」→ 立即 `done` + `yield break`。弱模型常先输出一段计划文本，于是**每轮都在第一次纯文本输出处熔断**，用户被迫手动连发「继续」。
+
+**修复后的循环契约**：
+
+| 概念 | 说明 |
+|------|------|
+| 自治模式判定 | `enableTools && maxTurns > 1`（`ChatRequest.MaxTurns` 未传 → `DefaultAutonomousMaxTurns = 20`；传 `1` → 传统单次问答，行为不变） |
+| 完成出口 | 模型调用 **`finish`** 工具（`Id = aiagent.finish`，schema `{ summary }`）→ `stopReason = "finish"` 并结束 |
+| 强制挂载 | 自治模式下 `finish` **不受 `enabledToolNames` 白名单过滤**（循环控制工具而非能力工具；被过滤会导致模型永远无法声明完成，必然跑满上限） |
+| 自动续跑 | 本轮无 tool_call 且未调 `finish` → 注入 `AutoContinuePrompt` 续跑指令，进入下一轮 |
+| 硬边界 | 达到 `maxTurns` → `stopReason = "max_turns"`，如实回报轮次 |
+| 系统提示词 | 自治模式追加 `AutonomousLoopContract`，告知模型「只有 finish 才结束，否则自动续跑」 |
+
+**可观测字段**（`AgentLoopEvent`）：`Turns`（当前轮次）/ `MaxTurns`（上限）/ `StopReason`（`finish` \| `max_turns` \| `completed` \| `max_iterations`）。
+
+`stopReason` 语义：`finish` = 模型主动声明完成；`max_turns` = 自治模式跑满轮次上限；`completed` = 非自治模式无工具调用即终答；`max_iterations` = 非自治模式达工具迭代上限。
+
+**SSE `turn` 事件**：`{ type: "turn", content: "第 N/M 轮未声明完成，自动续跑" | "第 N/M 轮结束", turns, maxTurns }`，供前端展示循环进度。
+
+**前端展示**：`AiAgentView` 的 `loopProgress` 驱动 `ChatPanel` 状态位显示「第 N/M 轮」；循环结束显示徽标「共 N/M 轮」；`stopReason === "max_turns"` 时提示「已达自主循环上限…任务可能尚未完成——可再发消息继续」。
+
+**计划驱动循环不受影响**：`PlanGeneratorService` / `StepRunLoopService` 走 `maxTurns = 1` + `extraTools` 显式挂载 `submit_plan` / `complete_step` / `request_help`，行为与修复前完全一致。
+
+**验证**：单测 `ForgeSelf.Api.Tests/Plugins/FinishToolTests.cs`（14 用例）+ `web/src/http.test.ts`（5 用例，SSE 分片解析）；e2e `e2e/plugins/ai-agent/agent-loop-autonomous.spec.ts`（4 用例，覆盖 `completed` / `finish` / `max_turns` 三条出口）。
+
+
+**`api/project`**：工作目录选择 / 文件列表 / 读写（MCP 工具 `aiagent.list_files/read_file/write_file`，见 028）；目录浏览 `GET browse-directories?path=`（磁盘级逐级浏览，供前端目录选择弹窗与「浏览」按钮使用）。
 
 ## Agent 可配置项（AgentDefinition，v1.6.5–v1.6.7）
 
@@ -66,7 +98,7 @@ flowchart LR
 
 **已知限制（记录于 2026-09-09，后续由 spec 029 解决）**：
 
-1. `execute_workflow` 为**异步启动即返回**：不等待工作流终态、不校验步骤、不回注结果 → LLM 可在流程未完成时宣称完成，**无走完保证**。
+1. `execute_workflow` 为**异步启动即返回**：不等工作流终态、不校验步骤、不回注结果 → LLM 可在流程未完成时宣称完成，**无走完保证**。
 2. 无步骤级完成度校验（多工作流取舍、步骤推进均靠 LLM 自决）。
 
 **回归保护**：`ForgeSelf.Web/e2e/plugins/ai-agent/ai-agent.spec.ts` 含「关联工作流区块渲染」用例（多选/空态二选一 + 无 5xx 护栏）。
@@ -135,6 +167,19 @@ flowchart LR
 ### 回归保护
 
 `ForgeSelf.Web/e2e/plugins/ai-agent/ai-agent.spec.ts` 含「执行模式开关持久化」「计划驱动执行全链路」（runs SSE + 步骤卡 + 执行记录面板）用例（真实后端，零 mock）。
+
+## 万能工具网关与命令执行工具（v1.6.10 · spec 031）
+
+Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/`，经 `AIAgentPlugin.RegisterToolFunctionExtensions` 注册进宿主 ToolRegistry）：
+
+| 工具 | 形态 | 说明 |
+|------|------|------|
+| `universal_tool` | 分发透传壳 | 入参 `{tool, parameters}` → 经宿主 `IToolRegistry.ExecuteToolWithResultAsync` 分发到真实工具，结果原样透传；防自引用（拒绝转发自身）、unknown 带已注册数量提示。FreeLoop 白名单外的宿主全量工具可经它触达，事件链/使用统计/pre-execute 拒绝门全部照走，不扩权 |
+| `run_terminal_command` | 独立命令工具 | 三道安全门：可执行名白名单（仅放行 `dotnet/pnpm/node/git/ssh/pwsh`）；管道/链式拒绝（`\|` `;` `&&` 换行混淆）；CWD 限登记项目根内。破坏性命令红线（删除/格式化/联网类）拒绝路径零子进程。stdout/stderr/exitCode 回传 50KB 截断，默认 30s 超时 |
+
+- 设计依据：`specs/031-universal-tool-gateway/`（design §2：复用 ToolRegistry 分发核，宿主零修改）+ 决策台账 ADR-002（`docs/07-decisions/002-universal-tool-gateway.md`）。
+- 模型侧可见性：两工具随插件注册自动进入 FreeLoop（历史教训：77 工具全挂上游 400，故只挂 13+2 个定义，其余经 `universal_tool` 转发）。
+- 单测：`ForgeSelf.Api.Tests/Plugins/` 下 `UniversalToolTests`（12 用例：双形态解析/透传/自引用/unknown 计数/软依赖兜底）+ `TerminalCommandGuardTests`（21 用例：白名单/链式注入/越界/红线）。
 
 ## 后续演进
 

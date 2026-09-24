@@ -2,11 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { streamAgentChat, type AgentStreamHandlers } from './http'
 
 /**
- * 自主循环（agent loop 自动续跑）前端契约单测。
+ * streamAgentChat（POST /api/ai-agent/chat/stream）SSE 事件契约单测。
  *
- * 后端在自治模式下会下发两类新事件，前端必须正确识别，否则：
- * - `turn` 被忽略 → 长任务期间界面看不到「第 N/M 轮」，看起来像卡住；
- * - `done.stopReason` 被忽略 → 达到轮次上限（任务未完成）时会被误读为「已完成」。
+ * 后端真实事件集（2026-09-24 实证，AIChatController.cs:193-230）：
+ *   content / tool_call / tool_result / usage / done / error
+ * done 事件字段 = { type, sessionId, responseId, usage, toolCallsJson }。
+ *
+ * ⚠ 曾存在 4 条「自主循环」超前契约用例（turn 事件 + done.stopReason/turns/maxTurns）：
+ * 描述的后端行为从未实现——全后端无 turn/stopReason/maxTurns（grep 实证）。
+ * 补前端透传只会造出永不触发的死代码，故 2026-09-24 改写为与真实后端一致。
+ * 若未来实现「自治多轮」（后端下发 turn 事件 + done 携带 stopReason/turns/maxTurns），
+ * 须同时恢复下述用例 1/2 的原契约，并同步 UI 消费。
  *
  * 这里用假 ReadableStream 构造 SSE 响应，逐事件断言回调被正确触发（零真实网络）。
  */
@@ -40,7 +46,6 @@ function makeHandlers() {
     onContent: (c) => calls.push(['content', c]),
     onToolCall: (e) => calls.push(['tool_call', e]),
     onToolResult: (e) => calls.push(['tool_result', e]),
-    onTurn: (e) => calls.push(['turn', e]),
     onUsage: (u) => calls.push(['usage', u]),
     onDone: (e) => calls.push(['done', e]),
     onError: (m) => calls.push(['error', m]),
@@ -50,12 +55,12 @@ function makeHandlers() {
 
 const PAYLOAD = { sessionId: 's1', message: 'hi' }
 
-describe('streamAgentChat — 自主循环事件契约', () => {
+describe('streamAgentChat — SSE 事件契约（对齐真实后端）', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('turn 事件携带 turns/maxTurns，驱动前端「第 N/M 轮」进度', async () => {
+  it('未知事件类型被安全忽略，不中断后续事件流（后端新增事件的守卫）', async () => {
     const { calls, handlers } = makeHandlers()
     vi.stubGlobal(
       'fetch',
@@ -63,10 +68,10 @@ describe('streamAgentChat — 自主循环事件契约', () => {
         fakeResponse(
           sseBody([
             { type: 'content', content: 'a' },
+            // 未来可能新增的事件（如自治多轮的 turn）——当前后端不下发，前端必须静默跳过
             { type: 'turn', content: '第 1/20 轮结束', turns: 1, maxTurns: 20 },
             { type: 'content', content: 'b' },
-            { type: 'turn', content: '第 2/20 轮结束', turns: 2, maxTurns: 20 },
-            { type: 'done', sessionId: 's1', stopReason: 'finish', turns: 2, maxTurns: 20 },
+            { type: 'done', sessionId: 's1', responseId: 7 },
           ]),
         ),
       ),
@@ -74,22 +79,24 @@ describe('streamAgentChat — 自主循环事件契约', () => {
 
     await streamAgentChat(PAYLOAD, handlers)
 
-    const turns = calls.filter(([k]) => k === 'turn').map(([, v]) => v)
-    expect(turns).toEqual([
-      { turns: 1, maxTurns: 20, content: '第 1/20 轮结束' },
-      { turns: 2, maxTurns: 20, content: '第 2/20 轮结束' },
-    ])
+    expect(calls.filter(([k]) => k === 'content').map(([, v]) => v)).toEqual(['a', 'b'])
+    expect(calls.filter(([k]) => k === 'turn')).toEqual([])
+    expect((calls.find(([k]) => k === 'done')?.[1] as { sessionId?: string }).sessionId).toBe('s1')
   })
 
-  it('done 事件透出 stopReason 与实际轮次（用于区分「模型声明完成」与「触上限」）', async () => {
+  it('done 事件透出后端真实字段 sessionId/responseId/usage', async () => {
     const { calls, handlers } = makeHandlers()
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
         fakeResponse(
           sseBody([
-            { type: 'turn', turns: 1, maxTurns: 3, content: '第 1/3 轮结束' },
-            { type: 'done', sessionId: 's1', responseId: 42, stopReason: 'max_turns', turns: 3, maxTurns: 3 },
+            {
+              type: 'done',
+              sessionId: 's1',
+              responseId: 42,
+              usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+            },
           ]),
         ),
       ),
@@ -98,37 +105,35 @@ describe('streamAgentChat — 自主循环事件契约', () => {
     await streamAgentChat(PAYLOAD, handlers)
 
     const done = calls.find(([k]) => k === 'done')?.[1] as {
-      stopReason?: string
-      turns?: number
-      maxTurns?: number
+      sessionId?: string
+      responseId?: number
+      usage?: { totalTokens?: number }
     }
-    expect(done.stopReason).toBe('max_turns')
-    expect(done.turns).toBe(3)
-    expect(done.maxTurns).toBe(3)
+    expect(done.sessionId).toBe('s1')
+    expect(done.responseId).toBe(42)
+    expect(done.usage?.totalTokens).toBe(30)
   })
 
-  it('finish 结束原因原样透传（模型调用完成工具的正常收尾）', async () => {
+  it('done 事件缺 usage 字段时透出 undefined，不崩溃', async () => {
     const { calls, handlers } = makeHandlers()
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        fakeResponse(
-          sseBody([{ type: 'done', sessionId: 's1', stopReason: 'finish', turns: 4, maxTurns: 20 }]),
-        ),
+        fakeResponse(sseBody([{ type: 'done', sessionId: 's1', responseId: 1 }])),
       ),
     )
 
     await streamAgentChat(PAYLOAD, handlers)
 
-    const done = calls.find(([k]) => k === 'done')?.[1] as { stopReason?: string }
-    expect(done.stopReason).toBe('finish')
+    const done = calls.find(([k]) => k === 'done')?.[1] as { usage?: unknown }
+    expect(done.usage).toBeUndefined()
   })
 
   it('事件跨 chunk 拆分时仍能正确解析（SSE 按 \\n\\n 分帧）', async () => {
     const { calls, handlers } = makeHandlers()
     const body = sseBody([
       { type: 'content', content: 'hello' },
-      { type: 'done', sessionId: 's1', stopReason: 'completed' },
+      { type: 'done', sessionId: 's1', responseId: 9 },
     ])
     // 故意在事件中间切断，模拟 TCP 分片
     const cut = Math.floor(body.length / 2)
@@ -148,7 +153,7 @@ describe('streamAgentChat — 自主循环事件契约', () => {
     await streamAgentChat(PAYLOAD, handlers)
 
     expect(calls.filter(([k]) => k === 'content').map(([, v]) => v)).toEqual(['hello'])
-    expect((calls.find(([k]) => k === 'done')?.[1] as { stopReason?: string }).stopReason).toBe('completed')
+    expect((calls.find(([k]) => k === 'done')?.[1] as { sessionId?: string }).sessionId).toBe('s1')
   })
 
   it('error 事件透出错误文案', async () => {

@@ -171,9 +171,11 @@ if (-not $DryRun) {
         $subDest = Join-Path $stagedDir $sub
         New-Item -ItemType Directory -Force -Path $subDest | Out-Null
         Get-ChildItem -LiteralPath $_.FullName -File -Recurse | Where-Object { -not (& $HostSharedAssemblies $_.FullName) } | ForEach-Object {
-            $rel = $_.FullName.Substring($_.FullName.IndexOf($sub, [System.StringComparison]::OrdinalIgnoreCase))
+            # 相对 publishTemp 计算（勿用 IndexOf($sub)：路径含 AppData 会误命中 Data 截错）
+            $rel = $_.FullName.Substring($publishTemp.Length).TrimStart('\', '/')
             $target = Join-Path $stagedDir $rel
-            $targetDir = Split-Path -LiteralPath $target -Parent
+            # Split-Path -LiteralPath 不支持 -Parent（AmbiguousParameterSet 实测 2026-09-23）→ .NET API
+            $targetDir = [System.IO.Path]::GetDirectoryName($target)
             if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }
             Copy-Item -LiteralPath $_.FullName -Destination $target -Force
         }

@@ -167,6 +167,11 @@ export interface ProbeResultDto {
   elapsedMs?: number
 }
 
+/** Agent 中枢插件设置（附加扫描目录等）。 */
+export interface AgentHubSettingsDto {
+  searchDirectories?: string[]
+}
+
 /** 委派任务。 */
 export interface TaskDto {
   id?: number
@@ -273,6 +278,18 @@ export function discoverAgents(): Promise<DiscoveredAgentDto[] | undefined> {
 /** 探测某个 agent（存在性 / 版本 / profile 断言）。 */
 export function probeAgent(id: number): Promise<ProbeResultDto | undefined> {
   return request<ProbeResultDto>(`/api/agent-hub/agents/${id}/probe`, { method: 'POST' })
+}
+
+// ────────────────────────────── 设置接口 ──────────────────────────────
+
+/** 读取插件设置（含附加扫描目录）。 */
+export function getSettings(): Promise<AgentHubSettingsDto | undefined> {
+  return request<AgentHubSettingsDto>('/api/agent-hub/settings')
+}
+
+/** 保存插件设置（点即保存落盘）。 */
+export function saveSettings(body: AgentHubSettingsDto): Promise<AgentHubSettingsDto | undefined> {
+  return request<AgentHubSettingsDto>('/api/agent-hub/settings', { method: 'PUT', body: JSON.stringify(body) })
 }
 
 // ────────────────────────────── 任务接口 ──────────────────────────────

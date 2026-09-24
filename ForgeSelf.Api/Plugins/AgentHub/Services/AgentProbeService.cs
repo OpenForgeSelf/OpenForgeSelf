@@ -44,11 +44,13 @@ public class AgentProbeService : IAgentProbeService
 {
     private readonly IAgentRegistry _registry;
     private readonly ProfileLoader _profiles;
+    private readonly AgentHubSettingsStore _settings;
 
-    public AgentProbeService(IAgentRegistry registry, ProfileLoader profiles)
+    public AgentProbeService(IAgentRegistry registry, ProfileLoader profiles, AgentHubSettingsStore settings)
     {
         _registry = registry;
         _profiles = profiles;
+        _settings = settings;
     }
 
     /// <summary>Windows 下需要补全的可执行扩展名（按优先级）</summary>
@@ -237,6 +239,39 @@ public class AgentProbeService : IAgentProbeService
                 catch
                 {
                     // PATH 里可能有非法路径项，跳过
+                }
+            }
+        }
+
+        // 3) 附加扫描目录（用户配置，如 pnpm/bun/scoop/自定义安装目录；与 PATH 重复的跳过）
+        var extraDirs = _settings.Current.SearchDirectories;
+        if (extraDirs.Count > 0)
+        {
+            var pathSet = new HashSet<String>(StringComparer.OrdinalIgnoreCase);
+            foreach (var d in dirs)
+            {
+                try { pathSet.Add(Path.GetFullPath(d)); } catch { /* 非法 PATH 项忽略 */ }
+            }
+
+            foreach (var extra in extraDirs)
+            {
+                String fullDir;
+                try { fullDir = Path.GetFullPath(extra); }
+                catch { continue; }
+
+                if (pathSet.Contains(fullDir)) continue;
+
+                foreach (var name in candidates)
+                {
+                    try
+                    {
+                        var full = Path.Combine(fullDir, name);
+                        if (File.Exists(full)) return full;
+                    }
+                    catch
+                    {
+                        // 目录不可读等异常，跳过继续
+                    }
                 }
             }
         }

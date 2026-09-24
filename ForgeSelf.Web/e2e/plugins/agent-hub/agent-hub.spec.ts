@@ -1,5 +1,6 @@
 import { expect, type Page, type Response } from '@playwright/test'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -168,7 +169,8 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     expect(entryHit).toContain('javascript')
 
     // ---- 断言 3：标题稳定文案 + 统计栏 ----
-    await expect(page.locator('.ok-title')).toHaveText('Agent 中枢', { timeout: 15000 })
+    // 注意：标题带版本徽标（铁律 13「根视图展示自身版本」），用前缀匹配而非精确相等
+    await expect(page.locator('.ok-title')).toHaveText(/^Agent 中枢/, { timeout: 15000 })
     await expect(page.locator('.ok-stats')).toBeVisible()
 
     // ---- 断言 4：核心后端接口真实可用 ----
@@ -256,5 +258,70 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     // 标题与统计栏均真实可见（避免只渲染骨架）
     await expect(page.locator('.ok-title')).toBeVisible()
     await expect(page.locator('.ok-stats')).toBeVisible()
+  })
+
+  test('附加扫描目录设置写往返（GET → PUT → GET 持久化）', async ({ page }) => {
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
+
+    // 读取当前设置（全新环境通常为空数组）
+    const before = await api(page, '/api/agent-hub/settings')
+    expect(before.status, `GET /api/agent-hub/settings 非 200：status=${before.status}`).toBe(200)
+    expect(Array.isArray(before.body?.data?.searchDirectories), 'searchDirectories 应为数组').toBe(true)
+    const prev = (before.body?.data?.searchDirectories ?? []) as string[]
+
+    // 保存一个唯一临时目录
+    const dir = path.join(os.tmpdir(), `agent-hub-e2e-${Date.now().toString(36)}`)
+    mkdirSync(dir, { recursive: true })
+
+    try {
+      const put = await api(page, '/api/agent-hub/settings', {
+        method: 'PUT',
+        body: { searchDirectories: [dir] },
+      })
+      expect(put.status, `PUT /api/agent-hub/settings 非 200：status=${put.status}`).toBe(200)
+      expect((put.body?.data?.searchDirectories ?? []).includes(dir), '保存后应返回该目录').toBe(true)
+
+      // 重新读取应持久化（落盘）
+      const after = await api(page, '/api/agent-hub/settings')
+      expect(
+        (after.body?.data?.searchDirectories ?? []).includes(dir),
+        '重新 GET 应读到刚保存的目录（config.json 落盘生效）',
+      ).toBe(true)
+
+      dumpEvidence('agent-hub-settings', { network: [], consoleAll: [], consoleErrors: [] }, [
+        `保存目录=${dir}`,
+        `GET 往返持久化命中=true`,
+      ])
+    } finally {
+      // 恢复原配置，不污染后续用例/真实数据
+      await api(page, '/api/agent-hub/settings', {
+        method: 'PUT',
+        body: { searchDirectories: prev },
+      })
+    }
+  })
+
+  test('扫描区渲染附加扫描目录配置输入并可保存（UI 交互）', async ({ page }) => {
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
+
+    // 扫描区（Agent 目录 tab 默认激活）应有「附加扫描目录」配置块
+    await expect(page.locator('.ok-scan-dirs')).toBeVisible({ timeout: 15000 })
+    const textarea = page.locator('.ok-scan-dirs textarea')
+    await expect(textarea).toBeVisible()
+    await expect(page.locator('.ok-scan-dirs .ok-btn').first()).toHaveText('保存')
+
+    // 输入一个唯一临时目录并保存 → 应出现成功提示（点即保存 + 操作成败可见）
+    const dir = path.join(os.tmpdir(), `agent-hub-e2e-ui-${Date.now().toString(36)}`)
+    mkdirSync(dir, { recursive: true })
+    await textarea.fill(dir)
+    await page.locator('.ok-scan-dirs .ok-btn').first().click()
+    await expect(page.locator('.ok-alert--ok')).toContainText('附加扫描目录', { timeout: 10000 })
+
+    // 恢复原配置（避免残留影响后续用例；文本区回填为空）
+    await textarea.fill('')
+    await page.locator('.ok-scan-dirs .ok-btn').first().click()
+    await expect(page.locator('.ok-alert--ok')).toContainText('已保存 0 个附加扫描目录', { timeout: 10000 })
   })
 })

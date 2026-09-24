@@ -32,6 +32,8 @@ import {
   listPendingPermissions,
   resolvePermission,
   streamTaskEvents,
+  getSettings,
+  saveSettings,
   type AgentDto,
   type AgentSaveRequest,
   type DiscoveredAgentDto,
@@ -60,6 +62,10 @@ const agents = ref<AgentDto[]>([])
 const loadingAgents = ref(false)
 const discovering = ref(false)
 const discovered = ref<DiscoveredAgentDto[]>([])
+
+/** 附加扫描目录：每行一个，探测时除 PATH 外额外查找（解决装在不进 PATH 目录的 CLI 扫不到）。 */
+const searchDirsText = ref('')
+const savingDirs = ref(false)
 const probingId = ref<number | null>(null)
 
 /** 新增/编辑表单：editingId 为 null 表示「新增」。 */
@@ -118,6 +124,37 @@ async function registerDiscovered(d: DiscoveredAgentDto) {
     setMsg(`已登记「${d.displayName || d.vendor}」`)
   } catch (e) {
     setMsg(`登记失败：${(e as Error).message}`, 'err')
+  }
+}
+
+// ────────────────────────────── 附加扫描目录 ──────────────────────────────
+
+/** 读取设置并回填文本框（每行一个目录）。读失败不打断主流程。 */
+async function loadScanDirs() {
+  try {
+    const s = (await getSettings()) ?? {}
+    searchDirsText.value = (s.searchDirectories ?? []).join('\n')
+  } catch (e) {
+    setMsg(`读取扫描目录配置失败：${(e as Error).message}`, 'err')
+  }
+}
+
+/** 保存附加扫描目录（点即保存落盘，重新扫描即生效）。 */
+async function saveScanDirs() {
+  savingDirs.value = true
+  try {
+    const dirs = searchDirsText.value
+      .split('\n')
+      .map((d) => d.trim())
+      .filter(Boolean)
+    const saved = (await saveSettings({ searchDirectories: dirs })) ?? { searchDirectories: [] }
+    // 回填后端规范化后的结果（去重/去空白后的真实值）
+    searchDirsText.value = (saved.searchDirectories ?? []).join('\n')
+    setMsg(`已保存 ${saved.searchDirectories?.length ?? 0} 个附加扫描目录，重新扫描即生效`)
+  } catch (e) {
+    setMsg(`保存失败：${(e as Error).message}`, 'err')
+  } finally {
+    savingDirs.value = false
   }
 }
 
@@ -441,6 +478,7 @@ onMounted(async () => {
   pluginVersion.value = await fetchPluginVersion('agent-hub')
   await loadAgents()
   await loadTasks()
+  await loadScanDirs()
 })
 
 onBeforeUnmount(() => {
@@ -493,6 +531,23 @@ onBeforeUnmount(() => {
         </button>
         <button class="ok-btn" :disabled="loadingAgents" @click="loadAgents">刷新</button>
         <span class="ok-hint">扫描只列出候选，不会自动登记——登记才写入注册表。</span>
+      </div>
+
+      <!-- 附加扫描目录：探测时除 PATH 外额外查找（装在不进 PATH 目录的 CLI 在这里补上） -->
+      <div class="ok-scan-dirs">
+        <div class="ok-scan-dirs__head">
+          <span class="ok-scan-dirs__label">附加扫描目录</span>
+          <span class="ok-hint">每行一个，探测时除 PATH 外额外查找；保存后点「扫描本机」即生效。</span>
+          <button class="ok-btn ok-btn--sm" :disabled="savingDirs" @click="saveScanDirs">
+            {{ savingDirs ? '保存中…' : '保存' }}
+          </button>
+        </div>
+        <textarea
+          class="ok-input ok-textarea ok-scan-dirs__input"
+          v-model="searchDirsText"
+          rows="3"
+          placeholder="例如：C:\Users\me\.local\bin"
+        ></textarea>
       </div>
 
       <div v-if="discovered.length" class="ok-discovered">
@@ -909,6 +964,30 @@ onBeforeUnmount(() => {
 .ok-badge--bad {
   background: var(--el-color-danger-light-9, #fef0f0);
   color: var(--el-color-danger, #f56c6c);
+}
+
+/* 附加扫描目录配置 */
+.ok-scan-dirs {
+  background: var(--el-bg-color, #fff);
+  border: 1px dashed var(--el-border-color-lighter, #ebeef5);
+  border-radius: var(--el-border-radius-base, 6px);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.ok-scan-dirs__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.ok-scan-dirs__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ok-scan-dirs__input {
+  font-family: var(--el-font-family-mono, monospace);
+  font-size: 12px;
 }
 
 /* 扫描候选 */

@@ -29,7 +29,9 @@ public class AgentHubPlugin : IPlugin
         var services = ctx.Get<IServiceCollection>();
         if (services != null)
         {
-            RegisterServices(services);
+            // 插件数据目录（{数据根}/Plugins/agent-hub/）：设置等随数据走的文件放这里，发布覆盖不影响
+            var dataDir = ctx.EnsurePluginDataDirectory();
+            RegisterServices(services, dataDir);
         }
 
         RegisterMenuExtensions(pluginId);
@@ -45,7 +47,8 @@ public class AgentHubPlugin : IPlugin
     }
 
     /// <summary>注册插件服务</summary>
-    private static void RegisterServices(IServiceCollection services)
+    /// <param name="dataDir">插件数据目录（设置文件等随数据走）</param>
+    private static void RegisterServices(IServiceCollection services, String dataDir)
     {
         // profile 加载器：进程级单例（读文件 + 缓存）
         services.AddSingleton<ProfileLoader>();
@@ -53,6 +56,9 @@ public class AgentHubPlugin : IPlugin
         // 注册表与权限中枢：单例（内部维护跨任务状态）
         services.AddSingleton<IAgentRegistry, AgentRegistry>();
         services.AddSingleton<PermissionBroker>();
+
+        // 插件设置：config.json 持久化（附加扫描目录），进程级单例，探测服务消费
+        services.AddSingleton(new AgentHubSettingsStore(Path.Combine(dataDir, "config.json")));
 
         // 探测服务：单例（无状态）
         services.AddSingleton<IAgentProbeService, AgentProbeService>();
@@ -63,7 +69,7 @@ public class AgentHubPlugin : IPlugin
         // 运行时会话状态跨请求（工具 + SSE 都要看），必须单例
         services.AddSingleton<DelegationRuntime>();
 
-        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / CliTransport / DelegationRuntime");
+        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / CliTransport / DelegationRuntime / AgentHubSettingsStore");
     }
 
     /// <summary>注册 AI 工具扩展（供 AIAgent 调用）</summary>

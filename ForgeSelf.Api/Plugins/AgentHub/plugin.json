@@ -1,7 +1,7 @@
 {
   "Id": "agent-hub",
   "Name": "Agent 中枢插件",
-  "Version": "1.0.7",
+  "Version": "1.0.9",
   "Author": "ForgeSelf Team",
   "Description": "外部 Agent 中枢 / 委派总线：登记本机（及远端）其它 agent，选路后驱动它干活并收回可复盘的结果。CLI 只是交互口之一，ACP / 长驻服务 / SDK 同为一级公民。",
   "IconUrl": "https://example.com/agent-hub-icon.png",

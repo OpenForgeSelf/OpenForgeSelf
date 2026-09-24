@@ -245,3 +245,10 @@ public class ProbeResultDto
     /// <summary>探测耗时（毫秒）</summary>
     public Int64 ElapsedMs { get; set; }
 }
+
+/// <summary>Agent 中枢插件设置 DTO（附加扫描目录等）。</summary>
+public class AgentHubSettingsDto
+{
+    /// <summary>附加扫描目录：探测 CLI agent 时除 PATH 外额外查找的目录。</summary>
+    public List<String> SearchDirectories { get; set; } = [];
+}

@@ -332,6 +332,7 @@
 | 027 | [`02-features/027-cordis-kernel.md`](02-features/027-cordis-kernel.md) | 已实现（内核/契约/插件自注册/热更新/前端清单驱动；剩余项见档案） |
 | 028 | [`02-features/028-project-workspace.md`](02-features/028-project-workspace.md) | 已实现（项目档案+运行命令 CRUD+运行列表+进程检测 WMI+前端面板；spec028 相关测试 31/31 通过） |
 | 031 | [`02-features/031-im-gateway.md`](02-features/031-im-gateway.md) | 已实现（IM 网关插件；当前版本 2.0.0） |
+| 032 | [`02-features/032-agent-hub.md`](02-features/032-agent-hub.md) | 已实现（Agent 中枢插件 v1.0.9；外部 agent 注册表+探测+委派总线；v1.0.9 支持附加扫描目录配置） |
 | 034 | [`02-features/034-mcp-center.md`](02-features/034-mcp-center.md) | 已实现（MCP 中心插件 v2.1.0；mcp-gateway 更名 + 整合 022 mcp-tools；单工具转发 + list_tools + 管理面鉴权；自带界面双 tab） |
 | 035 | [`02-features/035-plugin-versioned-layout.md`](02-features/035-plugin-versioned-layout.md) | 需求记录（插件版本化发布与显式升级，下期再做） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |

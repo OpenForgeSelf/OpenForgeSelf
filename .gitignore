@@ -69,3 +69,6 @@ publish.bak*/
 .vscode/
 openwiki/
 specs/
+
+# ── 2026-09-24 git 历史清理：TODO.md 工作队列不入库（本地保留，历史已剔除）──
+TODO.md

@@ -207,6 +207,78 @@ public class PluginFrontendFileMiddlewareTests
         PluginFrontendFileMiddleware.HasFrontendAssets(_manager, "plain.plugin").Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Invoke_VersionedPlugin_ReadsFromVersionsCurrentWeb()
+    {
+        // 035 缺口 2 修复：版本化插件（versions/<current>/web）存在时，静态资源必须从版本快照读取，
+        // 根目录残留的旧扁平 web/dist 不应被命中——更新后页面加载新 bundle 而非旧 bundle。
+        var pluginDir = _tempDir.CreatePluginDirectory("web.plugin");
+        _tempDir.CreatePluginManifest(pluginDir, PluginManifestGenerator.CreateBasic("web.plugin"));
+
+        // 根目录旧扁平产物（旧内容）
+        var flatAsset = Path.Combine(pluginDir, "web", "dist", "index.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(flatAsset)!);
+        await File.WriteAllTextAsync(flatAsset, "OLD_FLAT");
+
+        // 版本快照（current=2.0.0，新内容）
+        var versionedAsset = Path.Combine(
+            PluginVersionLayout.VersionDirectory(pluginDir, "2.0.0"), "web", "dist", "index.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(versionedAsset)!);
+        await File.WriteAllTextAsync(versionedAsset, "NEW_VERSIONED");
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "2.0.0");
+
+        _manager.DiscoverPlugins();
+
+        var ctx = CreateContext($"{PluginFrontendFileMiddleware.PathPrefix}/web.plugin/web/dist/index.js");
+        var middleware = new PluginFrontendFileMiddleware(context => Task.CompletedTask);
+
+        await middleware.InvokeAsync(ctx, _manager);
+
+        ctx.Response.StatusCode.Should().Be((int)HttpStatusCode.OK);
+        var sink = (MemoryStream)((StubSendFile)ctx.Features.Get<IHttpResponseBodyFeature>()).Stream;
+        sink.Position = 0;
+        new StreamReader(sink).ReadToEnd().Should().Be("NEW_VERSIONED");
+    }
+
+    [Fact]
+    public async Task Invoke_VersionedPointerWithoutVersionDir_FallsBackToFlatWeb()
+    {
+        // current 指针存在但 versions/<current>/web 缺失 → 回退扁平根 web/（存量/异常态兼容）。
+        var pluginDir = _tempDir.CreatePluginDirectory("web.plugin");
+        _tempDir.CreatePluginManifest(pluginDir, PluginManifestGenerator.CreateBasic("web.plugin"));
+        var flatAsset = Path.Combine(pluginDir, "web", "dist", "index.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(flatAsset)!);
+        await File.WriteAllTextAsync(flatAsset, "FLAT_ONLY");
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "9.9.9"); // 指针指向未安装版本
+
+        _manager.DiscoverPlugins();
+
+        var ctx = CreateContext($"{PluginFrontendFileMiddleware.PathPrefix}/web.plugin/web/dist/index.js");
+        var middleware = new PluginFrontendFileMiddleware(context => Task.CompletedTask);
+
+        await middleware.InvokeAsync(ctx, _manager);
+
+        ctx.Response.StatusCode.Should().Be((int)HttpStatusCode.OK);
+        var sink = (MemoryStream)((StubSendFile)ctx.Features.Get<IHttpResponseBodyFeature>()).Stream;
+        sink.Position = 0;
+        new StreamReader(sink).ReadToEnd().Should().Be("FLAT_ONLY");
+    }
+
+    [Fact]
+    public void HasFrontendAssets_TrueWhenVersionedWebExists_EvenWithoutFlatWeb()
+    {
+        // 版本化插件：仅 versions/<current>/web 存在（根无 web）→ 视为有前端资源。
+        var pluginDir = _tempDir.CreatePluginDirectory("web.plugin");
+        _tempDir.CreatePluginManifest(pluginDir, PluginManifestGenerator.CreateBasic("web.plugin"));
+        var versionedWeb = Path.Combine(PluginVersionLayout.VersionDirectory(pluginDir, "1.0.0"), "web");
+        Directory.CreateDirectory(versionedWeb);
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "1.0.0");
+
+        _manager.DiscoverPlugins();
+
+        PluginFrontendFileMiddleware.HasFrontendAssets(_manager, "web.plugin").Should().BeTrue();
+    }
+
     private static HttpContext CreateContext(string path, string query = "")
     {
         var ctx = new DefaultHttpContext();

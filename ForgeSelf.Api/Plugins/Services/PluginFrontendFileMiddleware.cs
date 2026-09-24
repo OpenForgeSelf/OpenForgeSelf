@@ -1,3 +1,4 @@
+using ForgeSelf.Api.Plugins;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.Services;
@@ -142,7 +143,13 @@ public class PluginFrontendFileMiddleware
     }
 
     /// <summary>
-    /// 解析指定插件的界面资源根目录（<c>{插件目录}/web</c>）。
+    /// 解析指定插件的界面资源根目录。
+    /// <para>
+    /// 版本化布局优先：插件存在 <c>current</c> 指针且
+    /// <c>versions/&lt;current&gt;/web</c> 存在时，从版本快照目录读取
+    /// （版本化发布/回滚后前端资源随版本立即生效，不依赖覆盖活动目录）；
+    /// 否则回退扁平布局 <c>{插件目录}/web</c>（存量插件兼容）。
+    /// </para>
     /// 返回 null 表示插件不存在、插件目录缺失或该插件尚未提供界面资源目录。
     /// </summary>
     /// <param name="pluginManager">插件管理器。</param>
@@ -157,8 +164,17 @@ public class PluginFrontendFileMiddleware
             return null;
         }
 
-        var frontendRoot = Path.Combine(pluginDirectory, FrontendDirectoryName);
-        return Directory.Exists(frontendRoot) ? frontendRoot : null;
+        var current = PluginVersionLayout.ReadCurrentVersion(pluginDirectory);
+        if (!string.IsNullOrWhiteSpace(current))
+        {
+            var versionedRoot = Path.Combine(
+                PluginVersionLayout.VersionDirectory(pluginDirectory, current), FrontendDirectoryName);
+            if (Directory.Exists(versionedRoot))
+                return versionedRoot;
+        }
+
+        var flatRoot = Path.Combine(pluginDirectory, FrontendDirectoryName);
+        return Directory.Exists(flatRoot) ? flatRoot : null;
     }
 
     /// <summary>判断指定插件是否已提供界面资源目录（供宿主探测资源是否存在）。</summary>

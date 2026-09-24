@@ -217,6 +217,56 @@ public class PluginFrontendManifestTests
     }
 
     [Fact]
+    public void GetFrontendManifest_WebVersion_ReadsFromVersionsCurrent_WhenVersioned()
+    {
+        // 035 缺口 2 配套：版本化插件（versions/<current>/web/dist）的指纹应基于版本快照内容计算，
+        // 与 PluginFrontendFileMiddleware 读取基准一致——版本切换后 ?v= 指纹变化、浏览器重新拉取新版界面。
+        var pluginDir = _tempDir.CreatePluginDirectory("ai-agent.plugin");
+        _tempDir.CreatePluginManifest("ai-agent.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "AiAgentView" },
+                Menu = "AI Agent",
+                Route = "/ai-agent",
+                Icon = "fa-robot",
+                Entry = "web/dist/index.js"
+            };
+        });
+
+        // 根目录旧扁平产物（内容 A，不应参与指纹）
+        var flatDist = Path.Combine(pluginDir, "web", "dist");
+        Directory.CreateDirectory(flatDist);
+        File.WriteAllText(Path.Combine(flatDist, "index.js"), "/* flat v1 */");
+
+        // 版本快照（current=2.0.0，内容 B，当前生效）
+        var versionedDist = Path.Combine(
+            PluginVersionLayout.VersionDirectory(pluginDir, "2.0.0"), "web", "dist");
+        Directory.CreateDirectory(versionedDist);
+        File.WriteAllText(Path.Combine(versionedDist, "index.js"), "/* versioned v2 */");
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "2.0.0");
+
+        _manager.DiscoverPlugins();
+        var controller = CreateController();
+
+        var result = controller.GetFrontendManifest();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload = ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+        var plugin = payload.Data.Should().ContainSingle(p => p.Id == "ai-agent.plugin").Subject;
+        plugin.WebVersion.Should().NotBeNullOrEmpty("存在版本快照 web/dist 入口时应计算指纹");
+        var first = plugin.WebVersion;
+
+        // 修改版本快照内容 → 指纹必须变化（证明指纹基于版本快照而非根扁平产物）
+        File.WriteAllText(Path.Combine(versionedDist, "index.js"), "/* versioned v3 */");
+        var result2 = controller.GetFrontendManifest();
+        var ok2 = result2.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload2 = ok2.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+        var plugin2 = payload2.Data.Should().ContainSingle(p => p.Id == "ai-agent.plugin").Subject;
+        plugin2.WebVersion.Should().NotBeNullOrEmpty();
+        plugin2.WebVersion.Should().NotBe(first, "版本快照内容变化后指纹应变化，否则浏览器复用旧 immutable 缓存加载旧 bundle");
+    }
+
+    [Fact]
     public void GetFrontendManifest_WebVersion_Empty_WhenNoEntryOrDist()
     {
         // 无界面入口或无 web/dist 文件时 WebVersion 应为空（前端回退到 version / no-cache）。

@@ -338,10 +338,12 @@ public class PluginController : ControllerBase
     /// 计算插件界面资源的缓存标识（内容指纹）。
     /// </summary>
     /// <para>
-    /// 基于插件 <c>web/dist</c> 入口脚本与同目录 <c>style.css</c> 的内容拼接计算短哈希。
-    /// 任一文件内容变化，指纹即变化，前端据此拼装的 <c>?v=</c> 资源 URL 随之变化，
-    /// 浏览器（对带 <c>?v=</c> 的资源设 <c>immutable</c> 长缓存）即会重新拉取新界面，
-    /// 无需手动提升 <c>plugin.json</c> 版本即可在重发插件后刷新生效。
+    /// 基于插件界面入口脚本与同目录 <c>style.css</c> 的内容拼接计算短哈希。
+    /// 资源读取基准目录与 <see cref="ForgeSelf.Api.Plugins.Services.PluginFrontendFileMiddleware"/>
+    /// 保持一致：版本化插件优先 <c>versions/&lt;current&gt;/</c>（web/dist 随版本快照），
+    /// 否则回退插件根目录（扁平布局）。任一文件内容变化，指纹即变化，前端据此拼装的
+    /// <c>?v=</c> 资源 URL 随之变化，浏览器（对带 <c>?v=</c> 的资源设 <c>immutable</c> 长缓存）
+    /// 即会重新拉取新界面，无需手动提升 <c>plugin.json</c> 版本即可在重发插件后刷新生效。
     /// </para>
     /// <param name="pluginDirectory">插件目录绝对路径（含 plugin.json）。</param>
     /// <param name="entry">界面入口相对路径（如 <c>web/dist/index.js</c>），为空则不计算。</param>
@@ -353,7 +355,16 @@ public class PluginController : ControllerBase
 
         try
         {
-            var entryPath = Path.Combine(pluginDirectory, entry.Replace('/', Path.DirectorySeparatorChar));
+            var webBase = pluginDirectory;
+            var current = PluginVersionLayout.ReadCurrentVersion(pluginDirectory);
+            if (!string.IsNullOrWhiteSpace(current))
+            {
+                var versioned = PluginVersionLayout.VersionDirectory(pluginDirectory, current);
+                if (Directory.Exists(versioned))
+                    webBase = versioned;
+            }
+
+            var entryPath = Path.Combine(webBase, entry.Replace('/', Path.DirectorySeparatorChar));
             var files = new List<string> { entryPath };
 
             var dir = Path.GetDirectoryName(entryPath);

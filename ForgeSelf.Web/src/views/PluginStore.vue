@@ -324,7 +324,12 @@ onMounted(() => {
           </div>
 
           <div class="card-footer">
-            <span class="plugin-version">v{{ plugin.version }}</span>
+            <div class="footer-left">
+              <span class="plugin-version">v{{ plugin.version }}</span>
+              <span class="enabled-badge" :class="plugin.isEnabled ? 'on' : 'off'">
+                {{ plugin.isEnabled ? '已启用' : '已停用' }}
+              </span>
+            </div>
             <button
               class="toggle-btn"
               :class="{ active: plugin.isEnabled }"
@@ -745,10 +750,35 @@ onMounted(() => {
   border-top: 1px solid var(--el-border-color);
 }
 
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .plugin-version {
   font-size: 13px;
   color: var(--el-text-color-secondary);
   font-weight: 500;
+}
+
+.enabled-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.enabled-badge.on {
+  background: rgba(4, 120, 87, 0.15);
+  color: var(--el-color-success);
+}
+
+.enabled-badge.off {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
 }
 
 .toggle-btn {

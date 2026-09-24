@@ -415,3 +415,10 @@ export function streamTaskEvents(
 
   return () => ctrl.abort()
 }
+
+/** 读取本插件当前运行版本（宿主 /api/plugin 清单，request 已解包 data），用于界面展示自身版本。 */
+export async function fetchPluginVersion(pluginId: string): Promise<string> {
+  const list = await request<Array<{ id: string; version: string }>>('/api/plugin', { method: 'GET' })
+  const mine = (list ?? []).find((p) => p?.id === pluginId)
+  return mine?.version ?? ''
+}

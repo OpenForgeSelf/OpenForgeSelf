@@ -39,6 +39,7 @@ import {
   type ProbeResultDto,
   type TaskDto,
   type TaskEventDto,
+  fetchPluginVersion,
 } from './http'
 import AgentHubAgentCard from './AgentHubAgentCard.vue'
 import AgentHubAgentForm from './AgentHubAgentForm.vue'
@@ -47,6 +48,7 @@ import AgentHubEventStream from './AgentHubEventStream.vue'
 /** 当前页签。 */
 type TabKey = 'agents' | 'delegate' | 'tasks'
 const tab = ref<TabKey>('agents')
+const pluginVersion = ref('')
 
 /** 全局提示条。 */
 const message = ref('')
@@ -436,6 +438,7 @@ function elapsedText(ms?: number): string {
 }
 
 onMounted(async () => {
+  pluginVersion.value = await fetchPluginVersion('agent-hub')
   await loadAgents()
   await loadTasks()
 })
@@ -451,7 +454,7 @@ onBeforeUnmount(() => {
   <div class="ok ok-root">
     <header class="ok-header">
       <div>
-        <div class="ok-title">Agent 中枢</div>
+        <div class="ok-title">Agent 中枢 <span v-if="pluginVersion" class="ok-version">v{{ pluginVersion }}</span></div>
         <div class="ok-subtitle">
           登记本机的其它 agent，选路后把任务委派给它，并收回可复盘的结果。CLI 只是交互口之一。
         </div>
@@ -716,6 +719,15 @@ onBeforeUnmount(() => {
 .ok-title {
   font-size: 20px;
   font-weight: 600;
+}
+.ok-version {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--el-fill-color-light, #f4f4f5);
+  color: var(--el-text-color-secondary);
+  vertical-align: middle;
 }
 .ok-subtitle {
   margin-top: 4px;

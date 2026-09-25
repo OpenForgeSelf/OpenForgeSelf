@@ -152,9 +152,9 @@ onMounted(() => {
         </li>
 
         <li class="menu-item">
-          <div class="menu-link" :class="{ active: route.path.startsWith('/plugins') }" @click="openPage('/plugins', '插件商店')">
+          <div class="menu-link" :class="{ active: route.path.startsWith('/plugins') }" @click="openPage('/plugins', '插件管理')">
             <span class="menu-icon">🏪</span>
-            <span v-if="!isCollapsed" class="menu-text">插件商店</span>
+            <span v-if="!isCollapsed" class="menu-text">插件管理</span>
           </div>
         </li>
 

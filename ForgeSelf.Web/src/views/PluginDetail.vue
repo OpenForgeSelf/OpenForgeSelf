@@ -76,7 +76,7 @@ async function handleUninstall(): Promise<void> {
 
   try {
     await pluginStore.uninstallPlugin(plugin.value.id)
-    openPage('/plugins', '插件商店')
+    openPage('/plugins', '插件管理')
   } catch (e) {
     console.error('卸载插件失败:', e)
   }
@@ -92,7 +92,7 @@ async function handleUpdate(): Promise<void> {
 }
 
 function handleBack(): void {
-  openPage('/plugins', '插件商店')
+  openPage('/plugins', '插件管理')
 }
 
 onMounted(() => {

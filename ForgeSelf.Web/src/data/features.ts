@@ -330,7 +330,7 @@ export const features: FeatureItem[] = [
   },
   {
     id: 'plugins',
-    name: '插件商店',
+    name: '插件管理',
     icon: 'package',
     category: 'system',
     categoryLabel: '系统',

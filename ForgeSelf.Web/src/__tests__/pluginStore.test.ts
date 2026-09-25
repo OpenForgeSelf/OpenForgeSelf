@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import PluginStore from '@/views/PluginStore.vue'
 import { PluginState } from '@/types/plugin'
-import type { PluginInfo } from '@/types/plugin'
+import type { PluginInfo, PluginVersionInfo } from '@/types/plugin'
 
 vi.mock('@/services/pluginApi', () => ({
   pluginApi: {
@@ -14,6 +14,7 @@ vi.mock('@/services/pluginApi', () => ({
     fetchMenuItems: vi.fn(),
     fetchToolFunctions: vi.fn(),
     fetchCategories: vi.fn().mockResolvedValue([]),
+    fetchPluginVersions: vi.fn(),
   },
 }))
 
@@ -313,6 +314,37 @@ describe('PluginStore', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.find('.clear-btn').exists()).toBe(true)
+      wrapper.unmount()
+    })
+  })
+
+  describe('版本历史弹窗测试', () => {
+    it('点击版本按钮不刷新整个列表（弹窗加载期间列表保持显示）', async () => {
+      vi.mocked(pluginApi.fetchPlugins).mockResolvedValue(createMockPlugins())
+
+      // 版本历史请求挂起（模拟加载中），若 store 误用列表级 isLoading 就会整列表闪加载态
+      let resolveVersions!: (v: PluginVersionInfo[]) => void
+      const pendingVersions = new Promise<PluginVersionInfo[]>((resolve) => {
+        resolveVersions = resolve
+      })
+      vi.mocked(pluginApi.fetchPluginVersions).mockReturnValue(pendingVersions)
+
+      const wrapper = mount(PluginStore, {
+        attachTo: document.body,
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.plugins-grid').exists()).toBe(true)
+
+      await wrapper.find('.version-btn').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // 回归守卫：打开版本历史弹窗时，卡片网格不能被「加载插件中...」占位替换
+      expect(wrapper.find('.loading-state').exists()).toBe(false)
+      expect(wrapper.find('.plugins-grid').exists()).toBe(true)
+
+      resolveVersions!([])
+      await flushPromises()
       wrapper.unmount()
     })
   })

@@ -3,6 +3,8 @@
  * 供 pluginManifest store 使用，让前端菜单/视图由「已装载插件清单」驱动。
  */
 
+import { authFetch } from './authFetch'
+
 import type { PluginFrontendManifest } from '@/types/plugin'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -23,7 +25,7 @@ function unwrap<T>(response: Response): Promise<T> {
 
 export const pluginManifestApi = {
   async fetchFrontendManifest(): Promise<PluginFrontendManifest[]> {
-    const response = await fetch(`${API_BASE_URL}/plugin/frontend-manifest`)
+    const response = await authFetch(`${API_BASE_URL}/plugin/frontend-manifest`)
     if (!response.ok) {
       throw new Error(`获取前端插件清单失败: ${response.status}`)
     }

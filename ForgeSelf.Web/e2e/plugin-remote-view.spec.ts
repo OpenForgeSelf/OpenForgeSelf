@@ -20,14 +20,14 @@ import { injectRealApiKey } from './helpers/real-auth'
  * 6. 「点击我」计数是否递增（Vue 单实例、响应式未失效）
  */
 
-/** 清单 route=/ai-agent，经 MANIFEST_ROUTE_PREFIX 命名空间后的实际注册路径。 */
-const PLUGIN_ROUTE = '/plugin-view/ai-agent'
+/** 清单 route=/ai-agent（动态插件路由直接取 frontend.route 注册，勿硬编码 /plugin-view 命名空间）。 */
+const PLUGIN_ROUTE = '/ai-agent'
 
 /** 版本断言动态读取插件清单，避免硬编码与 plugin.json 漂移不同步。 */
 const PLUGIN_MANIFEST = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../ForgeSelf.Api/Plugins/AIAgent/plugin.json', import.meta.url)), 'utf-8')
-) as { version: string }
-const EXPECTED_VERSION = `v${PLUGIN_MANIFEST.version}`
+) as { Version: string }
+const EXPECTED_VERSION = `v${PLUGIN_MANIFEST.Version}`
 
 /** 远程入口 JS（清单 entry=web/dist/index.js）。 */
 // 注意：网络证据行的格式是「状态码 方法 URL ct=content-type」，

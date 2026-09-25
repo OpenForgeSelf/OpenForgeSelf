@@ -13,6 +13,7 @@ public class PluginVersionService
     private const int MaxRetainedVersions = 2;
 
     private readonly PluginManager _pluginManager;
+    private string _pluginsDirectory = string.Empty;
     private string _backupsDirectory = string.Empty;
 
     public PluginVersionService(PluginManager pluginManager)
@@ -22,12 +23,13 @@ public class PluginVersionService
 
     public void Initialize(string pluginsDirectory)
     {
+        _pluginsDirectory = pluginsDirectory;
         _backupsDirectory = Path.Combine(pluginsDirectory, "_backups");
         if (!Directory.Exists(_backupsDirectory))
         {
             Directory.CreateDirectory(_backupsDirectory);
         }
-        XTrace.Log.Info("插件版本管理服务初始化，备份目录: {0}", _backupsDirectory);
+        XTrace.Log.Info("插件版本管理服务初始化，插件目录: {0}，备份目录: {1}", pluginsDirectory, _backupsDirectory);
     }
 
     public List<PluginUpdateInfo> CheckForUpdates()
@@ -77,48 +79,63 @@ public class PluginVersionService
         XTrace.Log.Info("获取插件版本历史: {0}", pluginId);
 
         var versions = new List<PluginVersionInfo>();
-        var backupDir = Path.Combine(_backupsDirectory, pluginId);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (!Directory.Exists(backupDir))
-            return versions;
-
-        var versionDirs = Directory.GetDirectories(backupDir)
-            .Select(d => new DirectoryInfo(d))
-            .OrderByDescending(d => d.Name, new VersionComparer())
-            .ToList();
-
-        foreach (var dir in versionDirs)
+        void AddVersion(string version, DateTime releasedAt, string notes)
         {
-            var versionInfo = new PluginVersionInfo
+            if (string.IsNullOrWhiteSpace(version) || !seen.Add(version))
+                return;
+            versions.Add(new PluginVersionInfo
             {
-                Version = dir.Name,
-                ReleasedAt = dir.CreationTime
-            };
-
-            var notesPath = Path.Combine(dir.FullName, "releasenotes.txt");
-            if (File.Exists(notesPath))
-            {
-                versionInfo.ReleaseNotes = File.ReadAllText(notesPath);
-            }
-
-            versions.Add(versionInfo);
+                Version = version,
+                ReleasedAt = releasedAt,
+                ReleaseNotes = notes
+            });
         }
 
-        var metadata = _pluginManager.GetPluginMetadata(pluginId);
-        if (metadata != null && !string.IsNullOrEmpty(metadata.ReleaseNotes))
+        // ① 已安装快照（versions/<ver>/，side-by-side 布局；扁平存量迁移后也会落这里）
+        var pluginDir = Path.Combine(_pluginsDirectory, pluginId);
+        var versionsDir = Path.Combine(pluginDir, PluginVersionLayout.VersionsFolderName);
+        if (Directory.Exists(versionsDir))
         {
-            versions.Insert(0, new PluginVersionInfo
+            foreach (var dir in Directory.GetDirectories(versionsDir)
+                         .Select(d => new DirectoryInfo(d))
+                         .OrderByDescending(d => d.Name, new VersionComparer()))
             {
-                Version = metadata.Version,
-                ReleasedAt = metadata.UpdatedAt ?? DateTime.Now,
-                ReleaseNotes = metadata.ReleaseNotes
-            });
+                var notes = "";
+                var notesPath = Path.Combine(dir.FullName, "releasenotes.txt");
+                if (File.Exists(notesPath))
+                    notes = File.ReadAllText(notesPath);
+                AddVersion(dir.Name, dir.CreationTime, notes);
+            }
+        }
+
+        // ② 已暂存（_backups/<id>/，待更新的新版本）
+        var backupDir = Path.Combine(_backupsDirectory, pluginId);
+        if (Directory.Exists(backupDir))
+        {
+            foreach (var dir in Directory.GetDirectories(backupDir)
+                         .Select(d => new DirectoryInfo(d))
+                         .OrderByDescending(d => d.Name, new VersionComparer()))
+            {
+                var notes = "";
+                var notesPath = Path.Combine(dir.FullName, "releasenotes.txt");
+                if (File.Exists(notesPath))
+                    notes = File.ReadAllText(notesPath);
+                AddVersion(dir.Name, dir.CreationTime, notes);
+            }
+        }
+
+        // ③ 当前清单版本（带 release notes；已在上方出现过则跳过，避免重复）
+        var metadata = _pluginManager.GetPluginMetadata(pluginId);
+        if (metadata != null)
+        {
+            AddVersion(metadata.Version, metadata.UpdatedAt ?? DateTime.Now, metadata.ReleaseNotes);
         }
 
         return versions;
     }
-
-    public bool UpdatePlugin(string pluginId)
+public bool UpdatePlugin(string pluginId)
     {
         XTrace.Log.Info("更新插件: {0}", pluginId);
 

@@ -44,7 +44,7 @@ test.describe('SPA Fallback - 发布模式前端路由', () => {
     { path: '/prompts', desc: '提示词' },
     { path: '/skills', desc: '技能' },
     { path: '/all-features', desc: '所有功能' },
-    { path: '/plugins', desc: '插件商店' },
+    { path: '/plugins', desc: '插件管理' },
     { path: '/chat-records', desc: '聊天记录' },
     { path: '/profile', desc: '个人页' },
   ];

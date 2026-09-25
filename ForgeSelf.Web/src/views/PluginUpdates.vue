@@ -34,7 +34,7 @@ async function handleUpdateAll(): Promise<void> {
 }
 
 function handleViewDetail(pluginId: string): void {
-  openPage(`/plugins/${pluginId}`, '插件商店')
+  openPage(`/plugins/${pluginId}`, '插件管理')
 }
 
 function handleRefresh(): void {

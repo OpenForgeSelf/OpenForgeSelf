@@ -263,14 +263,11 @@ export const usePluginStore = defineStore('plugin', () => {
 
   async function loadPluginVersions(pluginId: string): Promise<void> {
     try {
-      isLoading.value = true
       error.value = null
       versions.value = await pluginApi.fetchPluginVersions(pluginId)
     } catch (e) {
       console.error('加载版本历史失败:', e)
       error.value = e instanceof Error ? e.message : '加载版本历史失败'
-    } finally {
-      isLoading.value = false
     }
   }
 

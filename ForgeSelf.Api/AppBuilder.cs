@@ -250,11 +250,9 @@ public static class AppBuilder
         builder.Services.AddSingleton<Microsoft.AspNetCore.Mvc.Controllers.IControllerActivator,
             ForgeSelf.Api.Plugins.Services.PluginAwareControllerActivator>();
 
-        // 插件文件级热更新监听（side-by-side 版本目录 + FileSystemWatcher 自动 reload）。
-        // 单独在此注册一次：AddPluginManager 被调用两次，若把 IHostedService 放进它会重复启动。
-        // 测试环境（Testing）下 StartAsync 自动跳过，不干扰 WebApplicationFactory 集成测试。
-        builder.Services.AddSingleton<PluginHotReloadWatcher>();
-        builder.Services.AddHostedService(sp => sp.GetRequiredService<PluginHotReloadWatcher>());
+        // 插件文件级热更新监听已移除（2026-09-24 一刀切）：自动 reload 会绕过版本化控制、
+        // 造成「覆盖式热重载」与 side-by-side 布局冲突。插件生效一律走版本化显式更新
+        // （POST /api/plugin/update/{id}）或冷启动，见 docs/02-features/035-plugin-versioned-layout.md。
 
         builder.Services.AddSignalR();
 

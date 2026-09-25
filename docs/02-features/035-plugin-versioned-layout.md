@@ -42,7 +42,7 @@
    修复方向①落地：`PluginFrontendFileMiddleware.ResolveFrontendRoot` 改为「current 指针存在且 `versions/<current>/web` 存在 → 从版本快照读取；否则回退扁平 `{插件目录}/web`」；`PluginController.ComputeWebVersion` 指纹同样基于版本快照。实测：`/plugins/ai-agent/web/dist/index.js` 返回版本快照内容（探针标记命中），指纹随版本快照变化。
 3. **前端缺「显式版本操作」**：已安装插件卡片只有启用/禁用；缺「更新到最新」「回滚到上一版本」「版本历史/已安装版本列表」操作入口（后端接口已具备）。 ⏳ 未做（登记待办）
 4. **发布脚本未走 side-by-side**： ✅ **已改（2026-09-24，同缺口 1）**
-5. **watcher 角色未定**：显式化后 watcher 应降级为「发现新版本 → 仅通知可更新」，切换动作一律走显式接口（或彻底关闭自动 ReloadPlugin）。 ⏳ 未做（登记待办）
+5. **watcher 自动热重载** ✅ **已一刀切移除（2026-09-24，用户拍板）**：删除 `PluginHotReloadWatcher.cs`（类+注册+专属测试 5 例），`AppBuilder.cs` 注册移除；插件生效一律走版本化显式更新（`POST /api/plugin/update/{id}`）或冷启动。
 6. **扁平布局存量迁移**：现有 `publish/Plugins/<Dir>/<Dir>.dll + web/dist`（无 current 指针）如何平滑迁移到版本目录——启动检测「无指针但扁平文件存在」→ 自动 stage 为 `versions/<清单版本>/` 并写指针（一次性迁移）。 ⏳ 未做（登记待办；实测验证了「手动发布扁平存量插件 → 首次版本化切换」可行，无需重启）
 
 ## 3. 目标设计（下期实现）
@@ -56,12 +56,12 @@
 | 文件 | 现状 | 需要改 |
 |---|---|---|
 | `Services/PluginFrontendFileMiddleware.cs:160` | 前端静态资源读**插件根目录** `web/dist/` | ✅ **已改（2026-09-24）**：`ResolveFrontendRoot` 版本化优先（`versions/<current>/web` 存在则读取，否则回退扁平 `{插件目录}/web`）；配套测试 +3 |
-| `Services/PluginHotReloadWatcher.cs` | 监听 `Plugins/` 下 versions/ + current 指针 + **扁平目录 DLL 落盘**变更，debounce 300ms → 自动 `ReloadPlugin`（:89-214） | ⏳ 降级为「仅通知可更新」/不触发自动 ReloadPlugin；**忽略扁平目录变更**（只监听 versions/）；显式 update 接口驱动切换 |
+| ~~`Services/PluginHotReloadWatcher.cs`~~ | ~~监听 `Plugins/` 下 versions/ + current 指针 + 扁平目录 DLL 落盘变更，debounce 300ms → 自动 `ReloadPlugin`~~ | ✅ **已删除（2026-09-24 一刀切）**：类文件 + `AppBuilder.cs` 注册 + 专属测试一并移除；`PluginManager.ReloadPlugin` 保留为显式重载入口（`PluginReloadTests` 3 例仍绿） |
 | `PluginManager.cs` | `DiscoverPlugins():245` 扫描扁平目录；`ResolveEntryAssemblyPath` 已优先 versions/；`ReloadPlugin:937-975` 已有坏版本回退；`SyncPluginMetadataFromVersions:894-924` 已同步版本信息 | ⏳ 启动路径加**一次性迁移**：检测「无 current 指针但扁平文件存在」→ stage 为 `versions/<清单版本>/` + 写指针；确认扁平兜底在迁移后移除/保留 |
 | `Services/PluginVersionService.cs` | `StageVersion:273` / `UpdatePlugin:121` / `RollbackPlugin:209` / `GetPluginVersions:75` / `CheckForUpdates:33` 已具备；`SyncActiveManifest:320` **只同步 plugin.json** | ⏳ ① 修 web/dist 同步缺陷（本期已走 Middleware 版本化读取，此路径可不再需要）；② `UpdatePlugin` 语义对齐「显式切换」（切 current 后等待 ALC 回收再加载，不依赖 watcher） |
 | `PluginVersionLayout.cs` | versions/<semver>/ + current 指针 + 原子切换已具备 | ⏳ 补扁平迁移辅助（`MigrateFlatToVersioned`） |
-| `Controllers/PluginController.cs` | `update:757` / `rollback:787` / `{pluginId}/versions:817` / `install:649`（.forgeself-plugin 包路径）已具备 | ⏳ 视前端操作补端点（版本历史/更新目标版本选择）；⚠️ **本期核查：类级无 `[Authorize("ApiKeyPolicy")]`（铁律 17 要求补，登记遗留 TODO）** |
-| 启动装配（`Program.cs` / DI） | watcher 作为 IHostedService 注册 | ⏳ watcher 注册方式/开关随降级调整 |
+| `Controllers/PluginController.cs` | `update:757` / `rollback:787` / `{pluginId}/versions:817` / `install:649`（.forgeself-plugin 包路径）已具备 | ✅ **已补类级 `[Authorize("ApiKeyPolicy")]`（2026-09-24，铁律 17）**：管理面全端点需宿主 API 令牌，无 token 401；新增 `PluginControllerAuthTests` 反射断言 |
+| 启动装配（`Program.cs` / DI） | ~~watcher 作为 IHostedService 注册~~ | ✅ **已移除（2026-09-24）**：`AppBuilder.cs` 两行注册删除，留注释说明一刀切理由 |
 
 **B. 打包发布脚本与构建（仓库根 `scripts/` + csproj + 发布技能脚本）**
 
@@ -152,12 +152,12 @@ Plugins/<id>/
 仍待办（下期或认领）：
 
 - [ ] 管理界面「更新到最新 / 回滚到上一版本 / 版本历史」显式操作 UI
-- [ ] watcher 自动热重载降级为「仅通知可更新」（或关闭自动 ReloadPlugin）
+- [x] **watcher 自动热重载一刀切移除**（2026-09-24 输入 8，用户拍板：不做降级，直接删类+注册+测试）
 - [ ] 扁平布局存量插件启动时一次性迁移到版本目录
 - [ ] 坏版本加载失败自动回退上一版本的 e2e 覆盖
-- [ ] 全程零「覆盖活动目录 + watcher 自动重载」路径的最终确认
+- [x] **全程零「覆盖活动目录 + watcher 自动重载」路径确认**（2026-09-24 输入 8：watcher 已删，发布脚本主路径为版本化显式更新）
 - [ ] e2e 覆盖：发布→更新→回滚→迁移四条链路
-- [ ] 管理面接口沿用 `[Authorize("ApiKeyPolicy")]`（plugin-development 铁律 17；本期核查 PluginController 类级无此特性，登记遗留）
+- [x] **管理面接口 `[Authorize("ApiKeyPolicy")]`**（2026-09-24 输入 8：PluginController 类级已补 + 反射断言测试；无 token 实测 401）
 - [ ] §3.0 改动面全景 A-G 逐项勾选核对无遗漏（后端加载逻辑 / 发布脚本 / 技能文档 / 前端 / docs / 测试 / 存量迁移）
 - [ ] 技能文档与发布脚本先行改造（先补脚本再发，AGENTS 铁律），技能验收标准同步
 
@@ -170,16 +170,33 @@ Plugins/<id>/
 | 前端 | `PluginStore.vue` 卡片「已启用/已停用」标签 + footer-left 布局 |
 | 测试 | `PluginFrontendFileMiddlewareTests` +3、`PluginFrontendManifestTests` +1（版本化读取/指纹用例）；插件相关单测 33/33 绿 |
 | 门禁 | `dotnet build` 0 errors；`pnpm run check` 0 errors / 85 warnings（既有）；`pnpm run test` 468/472（4 例既有 AIAgent http.test.ts 漂移失败，非本次引入，TODO 已登记） |
-| 实测 | 51888 宿主：AIAgent 1.7.2（版本化升级）、McpCenter 2.1.1（扁平→版本化首次切换）；浏览器走查插件管理页标签渲染 ✅ |
-| 遗留 | PluginController 类级无 `[Authorize("ApiKeyPolicy")]`（铁律 17）；vitest 4 例 AIAgent 漂移（既有 P2/P3 TODO）；发布实测导致仓库 plugin.json 版本提升（AIAgent 1.7.2 / McpCenter 2.1.1，属发布动作自然结果） |
+| 实测 | 51888 宿主：AIAgent 1.7.2（版本化升级）、McpCenter 2.1.1（扁平→版本化首次切换）；浏览器走查插件管理页标签渲染 ✅；输入 8 后：watcher 移除无残留（ForgeSelf.dll 字节探针 absent）、无 token 401、带 token 全端点 200、18 插件正常 |
+| 遗留 | vitest 4 例 AIAgent 漂移（既有 P2/P3 TODO，输入 7 已修复 472/472）；发布实测导致仓库 plugin.json 版本提升（AIAgent 1.7.2 / McpCenter 2.1.1，属发布动作自然结果） |
 
 ## 4. 范围与排期
 
 - **本期（2026-09-24，输入 6）已实施**：发布带版本号（发布脚本版本化主路径 + 实测）、插件管理界面显示启用状态、web/dist 版本化读取缺陷修复。见 §3.4。
-- **剩余**：watcher 降级 / 扁平一次性迁移 / frontend 显式版本操作 UI / PluginController 鉴权 / vitest AIAgent 漂移——登记 TODO 待认领（P2/P3）。
+- **输入 8（2026-09-24）已处理**：watcher 一刀切移除（非降级）+ PluginController 鉴权补齐（铁律 17）；vitest 漂移已修（输入 7）。**剩余**：扁平一次性迁移 / frontend 显式版本操作 UI / 坏版本回退 e2e / 发布→更新→回滚→迁移 e2e 四链路——登记 TODO 待认领（P2/P3）。
 - 与本需求相关的既有文档：`docs/05-guides/plugin-hot-reload-limitations.md`、`docs/05-guides/plugin-frontend-development.md`、`docs/15-roadmap/plugin-architecture.md`（剩余缺口实现后同步更新）。
-- 风险提示：剩余改动涉及宿主插件加载核心（PluginManager / PluginVersionService / watcher），按 AGENTS 风险分级属「高」（架构调整），落地前需先出架构设计（architecture-design 技能）再动手。
+- 风险提示：watcher 移除与鉴权已按用户拍板落地并全量 Verify；剩余改动（扁平迁移 / 前端显式版本 UI）仍涉及插件加载核心，落地前按 AGENTS 风险分级先出架构设计再动手。
 
 ## 5. 待办
 
 - TODO.md 已登记剩余缺口（P2/P3）：watcher 降级、扁平迁移、frontend 版本操作 UI、PluginController 鉴权、vitest AIAgent 4 例漂移（来源:输入6 实测遗留 + 既有）。
+
+
+## 存量迁移（扁平 → 版本化）
+
+一次性脚本 `scripts/migrate-plugin-versions.ps1`（幂等，可重复跑）：
+- 对无 `current` / `versions/<ver>` 的插件目录，建 `versions/<当前版本>/` 快照（= 非宿主共享 DLL + `web/dist` + `plugin.json`），原子写 `current` 指针；
+- 跳过 `_backups` / `_*` 与无 `plugin.json` 目录；宿主共享 DLL 白名单禁拷（对照 troubleshooting 坑 0）；
+- 首次执行迁移 15 个扁平插件，已版本化/无清单的自动跳过。
+
+后端 `GetPluginVersions` 合并三数据源（去重，按版本号降序）：
+1. 已安装快照 `versions/<id>/`（side-by-side 布局）
+2. 已暂存 `_backups/<id>/`（待更新版本）
+3. 当前清单版本（带 release notes）
+
+验证：`GET /api/plugin/{id}/versions` 对迁移插件返回快照版本（实测 todo-tracker → `["1.0.0"]`、ai-agent → 14 个版本）。
+
+> 发布顺序铁律（2026-09-24 实测踩坑）：**宿主运行期间 build.ps1 会因 exe 被锁静默跳过更新**（exe 时间戳不动）。改宿主后端必须 **先停宿主 → build.ps1 → 起宿主**，再验证接口。

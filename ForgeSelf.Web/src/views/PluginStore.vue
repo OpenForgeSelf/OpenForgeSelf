@@ -1,12 +1,45 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { usePluginStore } from '@/stores/plugin'
+import { usePluginManifestStore } from '@/stores/pluginManifest'
 import { useOpenPage } from '@/composables/useOpenPage'
-import type { PluginInfo, PluginCategory } from '@/types/plugin'
+import { lucideIconSvg } from '@/data/featureIcons'
+import type { PluginInfo, PluginCategory, PluginVersionInfo } from '@/types/plugin'
 import { PluginState } from '@/types/plugin'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const { openPage } = useOpenPage()
 const pluginStore = usePluginStore()
+const manifestStore = usePluginManifestStore()
+
+/** 插件 id → 前端页面 route（来自插件清单 frontend.route；未声明页面则无入口）。 */
+const routeById = computed<Map<string, string>>(() => {
+  const m = new Map<string, string>()
+  for (const it of manifestStore.manifest) {
+    const route = it.frontend?.route
+    if (route) m.set(it.id, route)
+  }
+  return m
+})
+
+/** 打开插件自身页面；仅当插件已启用且声明了 route 时可达。 */
+function openPluginPage(plugin: PluginInfo): void {
+  const route = routeById.value.get(plugin.id)
+  if (route) openPage(route, plugin.name)
+}
+
+/** 插件图标：iconUrl 优先；无则从清单 frontend.icon 映射 lucide（剥 fa- 前缀）；再无则名称首字兜底。 */
+/** 插件图标：iconUrl 优先；无则从清单 frontend.icon 映射 lucide（剥 fa- 前缀）；再无则名称首字兜底。 */
+const iconErrorIds = ref<Set<string>>(new Set())
+
+function onIconError(plugin: PluginInfo): void {
+  iconErrorIds.value = new Set(iconErrorIds.value).add(plugin.id)
+}
+
+function pluginIconSvg(plugin: PluginInfo): string {
+  const raw = manifestStore.manifest.find((m) => m.id === plugin.id)?.frontend?.icon ?? ''
+  return lucideIconSvg(raw.replace(/^fa-/, ''))
+}
 
 /** 状态徽标 CSS 类名：后端 state 是数字枚举（0-9），反查名后小写（running/stopped/error/notloaded…）。 */
 function pluginStateClass(state: PluginState): string {
@@ -135,6 +168,65 @@ async function handleToggle(plugin: PluginInfo): Promise<void> {
   }
 }
 
+const versionsVisible = ref(false)
+const versionsLoading = ref(false)
+const activeVersions = ref<PluginVersionInfo[]>([])
+const activePlugin = ref<PluginInfo | null>(null)
+
+async function openVersions(plugin: PluginInfo): Promise<void> {
+  activePlugin.value = plugin
+  versionsVisible.value = true
+  versionsLoading.value = true
+  try {
+    await pluginStore.loadPluginVersions(plugin.id)
+    activeVersions.value = [...pluginStore.versions]
+  } catch (e) {
+    ElMessage.error({ message: `获取版本历史失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
+    activeVersions.value = []
+  } finally {
+    versionsLoading.value = false
+  }
+}
+
+async function handleUpdate(plugin: PluginInfo): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`确定将「${plugin.name}」更新到最新版本？更新后可在版本历史中回滚。`, '更新插件', {
+      confirmButtonText: '更新',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return // 用户取消：不发请求
+  }
+  try {
+    await pluginStore.updatePlugin(plugin.id)
+    ElMessage.success({ message: '插件更新成功', offset: 60 })
+    await loadPlugins()
+  } catch (e) {
+    ElMessage.error({ message: `更新失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
+  }
+}
+
+async function handleRollback(plugin: PluginInfo, version: string): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`确定将「${plugin.name}」回滚到 v${version}？当前版本的未发布改动将不再生效。`, '回滚插件', {
+      confirmButtonText: '回滚',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return // 用户取消：不发请求
+  }
+  try {
+    await pluginStore.rollbackPlugin(plugin.id, version)
+    ElMessage.success({ message: `已回滚到 v${version}`, offset: 60 })
+    versionsVisible.value = false
+    await loadPlugins()
+  } catch (e) {
+    ElMessage.error({ message: `回滚失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
+  }
+}
+
 async function loadPlugins(): Promise<void> {
   const params: { keyword?: string; category?: string } = {}
 
@@ -151,6 +243,9 @@ async function loadPlugins(): Promise<void> {
 onMounted(() => {
   pluginStore.loadCategories()
   loadPlugins()
+  if (!manifestStore.loaded) {
+    manifestStore.loadManifest()
+  }
 })
 </script>
 
@@ -291,20 +386,33 @@ onMounted(() => {
           class="plugin-card"
           @click="handleCardClick(plugin)"
         >
-          <div class="card-header">
+          <div class="card-header-row">
             <div class="plugin-icon">
-              <span v-if="plugin.iconUrl">
-                <img :src="plugin.iconUrl" :alt="plugin.name" />
-              </span>
-              <span v-else class="icon-fallback">📦</span>
+              <template v-if="plugin.iconUrl && !iconErrorIds.has(plugin.id)">
+                <img :src="plugin.iconUrl" :alt="plugin.name" @error="onIconError(plugin)" />
+              </template>
+              <span v-else-if="pluginIconSvg(plugin)" class="plugin-icon-svg" v-html="pluginIconSvg(plugin)" />
+              <span v-else class="icon-fallback">{{ plugin.name.charAt(0) }}</span>
             </div>
-            <div class="plugin-status-badge" :class="pluginStateClass(plugin.state)">
+            <div class="plugin-title-group">
+              <h3 class="plugin-name">{{ plugin.name }}</h3>
+              <div class="title-badges">
+                <span class="enabled-badge" :class="plugin.isEnabled ? 'on' : 'off'">
+                  {{ plugin.isEnabled ? '已启用' : '已停用' }}
+                </span>
+                <span v-if="plugin.hasUpdate" class="update-chip">可更新</span>
+              </div>
+            </div>
+            <div
+              class="plugin-status-badge"
+              :class="pluginStateClass(plugin.state)"
+              :title="`运行状态：${pluginStateLabel(plugin.state)}（右上角）；启用状态见名称旁`"
+            >
               {{ pluginStateLabel(plugin.state) }}
             </div>
           </div>
 
           <div class="card-body">
-            <h3 class="plugin-name">{{ plugin.name }}</h3>
             <p class="plugin-desc">{{ plugin.description }}</p>
           </div>
 
@@ -326,26 +434,59 @@ onMounted(() => {
           <div class="card-footer">
             <div class="footer-left">
               <span class="plugin-version">v{{ plugin.version }}</span>
-              <span class="enabled-badge" :class="plugin.isEnabled ? 'on' : 'off'">
-                {{ plugin.isEnabled ? '已启用' : '已停用' }}
-              </span>
             </div>
-            <button
-              class="toggle-btn"
-              :class="{ active: plugin.isEnabled }"
-              :disabled="plugin.state === PluginState.Error"
-              @click.stop="handleToggle(plugin)"
-            >
-              {{ plugin.isEnabled ? '禁用' : '启用' }}
-            </button>
-          </div>
-
-          <div v-if="plugin.hasUpdate" class="update-badge">
-            可更新
+            <div class="footer-actions">
+              <button
+                v-if="routeById.get(plugin.id)"
+                type="button"
+                class="open-page-btn"
+                :disabled="!plugin.isEnabled"
+                :title="plugin.isEnabled ? `打开 ${plugin.name} 页面` : '插件未启用，无法打开页面'"
+                @click.stop="openPluginPage(plugin)"
+              >
+                打开页面
+              </button>
+              <button
+                v-if="plugin.hasUpdate"
+                type="button"
+                class="update-btn"
+                @click.stop="handleUpdate(plugin)"
+              >
+                更新
+              </button>
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: plugin.isEnabled }"
+                :disabled="plugin.state === PluginState.Error"
+                @click.stop="handleToggle(plugin)"
+              >
+                {{ plugin.isEnabled ? '禁用' : '启用' }}
+              </button>
+              <button type="button" class="version-btn" @click.stop="openVersions(plugin)">版本</button>
+            </div>
           </div>
         </div>
       </div>
     </main>
+
+    <ElDialog v-model="versionsVisible" title="版本历史" width="560px" append-to-body>
+      <div v-loading="versionsLoading" class="versions-body">
+        <div v-if="!versionsLoading && activeVersions.length === 0" class="versions-empty">暂无版本历史（当前为扁平目录安装）</div>
+        <div v-for="v in activeVersions" :key="v.version" class="version-row">
+          <span class="version-tag">v{{ v.version }}</span>
+          <span class="version-time">{{ v.releasedAt ?? '—' }}</span>
+          <span class="version-notes">{{ v.releaseNotes || '无说明' }}</span>
+          <button
+            class="rollback-btn"
+            :disabled="v.version === activePlugin?.version"
+            @click="handleRollback(activePlugin!, v.version)"
+          >
+            {{ v.version === activePlugin?.version ? '当前版本' : '回滚' }}
+          </button>
+        </div>
+      </div>
+    </ElDialog>
   </div>
 </template>
 
@@ -646,11 +787,11 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-.card-header {
+.card-header-row {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .plugin-icon {
@@ -658,20 +799,29 @@ onMounted(() => {
   height: 48px;
   border-radius: 10px;
   background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
-
 .plugin-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.plugin-icon-svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .icon-fallback {
-  font-size: 24px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  line-height: 1;
 }
 
 .plugin-status-badge {
@@ -706,11 +856,32 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 
+.plugin-title-group {
+  flex: 1;
+  min-width: 0;
+}
 .plugin-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--el-text-color-primary);
-  margin: 0 0 6px 0;
+  margin: 0;
+  line-height: 1.4;
+}
+.title-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+.update-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning);
 }
 
 .plugin-desc {
@@ -781,48 +952,134 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
 }
 
-.toggle-btn {
-  padding: 6px 14px;
+/* 卡片 footer 操作按钮：统一尺寸（高 28px、同字号/圆角/边框），仅按角色换色 */
+.footer-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
   border: 1px solid var(--el-border-color);
+  border-radius: 6px;
   background: var(--el-bg-color);
-  border-radius: var(--el-border-radius-small);
   font-size: 12px;
   font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
   color: var(--el-text-color-regular);
   cursor: pointer;
   transition: all 150ms ease;
+}
+
+.footer-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.open-page-btn {
+  background: var(--el-fill-color-light);
+  color: var(--el-color-primary);
+}
+.open-page-btn:hover:not(:disabled) {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.update-btn {
+  background: var(--el-bg-color);
+  border-color: var(--el-color-warning);
+  color: var(--el-color-warning);
+}
+.update-btn:hover:not(:disabled) {
+  background: var(--el-color-warning);
+  color: var(--el-color-white);
 }
 
 .toggle-btn:hover:not(:disabled) {
   border-color: var(--el-color-primary);
   color: var(--el-color-primary);
 }
-
 .toggle-btn.active {
   background: var(--el-fill-color-light);
   border-color: var(--el-color-danger);
   color: var(--el-color-danger);
 }
-
 .toggle-btn.active:hover {
   background: rgba(248, 81, 73, 0.08);
 }
 
-.toggle-btn:disabled {
+.version-btn {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+}
+.version-btn:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+.versions-body {
+  min-height: 60px;
+}
+.versions-empty {
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  padding: 24px 0;
+  font-size: 13px;
+}
+.version-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.version-row:last-child {
+  border-bottom: none;
+}
+.version-tag {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  min-width: 72px;
+}
+.version-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  min-width: 130px;
+}
+.version-notes {
+  flex: 1;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rollback-btn {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--el-color-danger);
+  color: var(--el-color-danger);
+  background: transparent;
+  cursor: pointer;
+}
+.rollback-btn:hover:not(:disabled) {
+  background: var(--el-color-danger);
+  color: var(--el-color-white);
+}
+.rollback-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.update-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: var(--el-color-warning);
-  color: var(--el-color-white);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
+.footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .loading-state,

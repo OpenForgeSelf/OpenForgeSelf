@@ -88,7 +88,7 @@ onMounted(() => {
         </div>
         <el-select v-model="startupPage" class="w-[160px]">
           <el-option value="home" label="首页" />
-          <el-option value="plugin-store" label="插件商店" />
+          <el-option value="plugin-store" label="插件管理" />
           <el-option value="system-monitor" label="系统监控" />
         </el-select>
       </div>

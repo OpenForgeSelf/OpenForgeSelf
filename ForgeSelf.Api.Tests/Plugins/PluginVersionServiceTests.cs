@@ -171,4 +171,64 @@ public class PluginVersionServiceTests
         PluginVersionLayout.ReadCurrentVersion(Path.Combine(_tempDir.RootPath, pluginId))
             .Should().Be("4.0.0");
     }
+
+    [Fact]
+    public void GetPluginVersions_MergesInstalledAndStagedVersions()
+    {
+        var pluginId = "test.merge.plugin";
+        _tempDir.CreatePluginManifest(pluginId, m =>
+        {
+            m.Version = "1.0.0";
+            m.EntryAssembly = "fake.dll";
+            m.EntryType = "fake.Plugin";
+        });
+        _manager.DiscoverPlugins();
+
+        // 已安装快照：versions/1.0.0（当前版本，扁平迁移/更新产生的）
+        var pluginDir = Path.Combine(_tempDir.RootPath, pluginId);
+        var v1 = Path.Combine(pluginDir, "versions", "1.0.0");
+        Directory.CreateDirectory(v1);
+        File.WriteAllBytes(Path.Combine(v1, "fake.dll"), new byte[] { 1 });
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "1.0.0");
+
+        // 已暂存：_backups/<id>/2.0.0（待更新的新版本）
+        var backupDir = Path.Combine(_tempDir.RootPath, "_backups", pluginId, "2.0.0");
+        Directory.CreateDirectory(backupDir);
+        File.WriteAllText(Path.Combine(backupDir, "plugin.json"),
+            JsonSerializer.Serialize(new PluginMetadata
+            {
+                Id = pluginId,
+                Name = "T",
+                Version = "2.0.0",
+                EntryAssembly = "fake.dll",
+                EntryType = "fake.Plugin"
+            }));
+
+        var versions = _service.GetPluginVersions(pluginId);
+
+        versions.Select(v => v.Version).Should().BeEquivalentTo("2.0.0", "1.0.0");
+    }
+
+    [Fact]
+    public void GetPluginVersions_InstalledSnapshotOnly_WhenNoStaged()
+    {
+        var pluginId = "test.installed.only";
+        _tempDir.CreatePluginManifest(pluginId, m =>
+        {
+            m.Version = "1.0.0";
+            m.EntryAssembly = "fake.dll";
+            m.EntryType = "fake.Plugin";
+        });
+        _manager.DiscoverPlugins();
+
+        var pluginDir = Path.Combine(_tempDir.RootPath, pluginId);
+        var v1 = Path.Combine(pluginDir, "versions", "1.0.0");
+        Directory.CreateDirectory(v1);
+        File.WriteAllBytes(Path.Combine(v1, "fake.dll"), new byte[] { 1 });
+        PluginVersionLayout.WriteCurrentVersion(pluginDir, "1.0.0");
+
+        var versions = _service.GetPluginVersions(pluginId);
+
+        versions.Select(v => v.Version).Should().Contain("1.0.0");
+    }
 }

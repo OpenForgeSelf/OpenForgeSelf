@@ -6,12 +6,14 @@ using ForgeSelf.Api.Plugins;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Controllers;
 
 [ApiController]
+[Authorize("ApiKeyPolicy")] // 铁律 17：插件管理面（列表/启停/安装/更新/回滚/设置）一律需宿主 API 令牌，裸 curl 无 token 401
 [Route("api/[controller]")]
 public class PluginController : ControllerBase
 {

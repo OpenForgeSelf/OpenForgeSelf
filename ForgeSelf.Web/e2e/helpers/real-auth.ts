@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { createHash, createDecipheriv, pbkdf2Sync } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import path from 'node:path'
@@ -34,6 +34,13 @@ export function getRealApiKey(): string {
   if (process.env.E2E_API_TOKEN) return process.env.E2E_API_TOKEN
   if (cachedKey) return cachedKey
 
+  // [fix] Playwright 的 globalSetup 与 worker 是独立进程：globalSetup 里写的 process.env.E2E_API_TOKEN / FORGE_SETTING_CONFIG 不会传到 worker（既有 401 根因）。兜底：从 globalSetup 落盘的 state.json（最新一次运行）读 token —— 文件是跨进程真源。
+  const stateToken = readLatestStateToken()
+  if (stateToken) {
+    cachedKey = stateToken
+    return stateToken
+  }
+
   const xml = readFileSync(CONFIG_PATH, 'utf8')
   const match = xml.match(/<ApiToken>([^<]+)<\/ApiToken>/)
   if (!match) throw new Error('ForgeSetting.config 中未找到 ApiToken')
@@ -41,6 +48,26 @@ export function getRealApiKey(): string {
   const plain = decryptApiToken(match[1].trim())
   cachedKey = plain
   return plain
+}
+
+/** 读取最近一次 globalSetup 落盘的 state.json 中的 token（跨进程真源，弥补 env 不传递）。 */
+function readLatestStateToken(): string | null {
+  try {
+    const root = path.resolve(fileURLToPath(new URL('../../../.temp/e2e', import.meta.url)))
+    const dirs = readdirSync(root)
+      .filter((d) => /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(d))
+      .sort()
+      .reverse()
+    for (const d of dirs) {
+      const st = JSON.parse(readFileSync(path.join(root, d, 'state.json'), 'utf8')) as {
+        token?: string
+      }
+      if (st?.token) return st.token
+    }
+  } catch {
+    /* 无 state.json（非 e2e 运行）时回退解密 */
+  }
+  return null
 }
 
 /**

@@ -42,7 +42,11 @@ export default defineConfig({
       // 仅开发态需要代理 —— 生产环境前端产物就在后端 wwwroot 下，与 API 同源，无需转发。
       '/plugins': {
         target: process.env.VITE_APP_BASE_API ?? 'http://localhost:7102',
-        changeOrigin: true
+        changeOrigin: true,
+        bypass: (req) => {
+          if (req.url && !/\/web\//.test(req.url)) return req.url
+          return undefined
+        }
       },
       '/openapi': {
         target: process.env.VITE_APP_BASE_API ?? 'http://localhost:7102',

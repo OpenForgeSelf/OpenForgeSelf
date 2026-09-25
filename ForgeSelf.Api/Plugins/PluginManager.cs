@@ -891,7 +891,7 @@ public class PluginManager
     /// <summary>
     /// 从磁盘重新读取插件活动清单并刷新内存中的元数据。
     /// 优先读取 side-by-side 当前版本目录下的 <c>plugin.json</c>，回退到插件根目录清单。
-    /// 供热更新切换 current 指针 / FileSystemWatcher 变更后同步版本号与入口信息。
+    /// 显式重载入口：版本化 update/rollback 切换 current 指针后同步版本号与入口信息。
     /// </summary>
     /// <param name="pluginId">插件ID</param>
     /// <returns>刷新后的元数据；插件不存在或清单不可读时返回原值。</returns>
@@ -930,7 +930,7 @@ public class PluginManager
     /// <summary>
     /// 热重载插件：停用旧 Fiber → 卸载 ALC → 强制回收 → 刷新元数据 → 重载新版。
     /// 加载新版失败时回退上一可用版本（若存在 current 指针）并尽力重载旧版，不抛异常、
-    /// 不影响宿主与其它插件。此方法为 FileSystemWatcher 自动 reload 的可测单元。
+    /// 不影响宿主与其它插件。此方法为显式重载的可测单元（2026-09-24 起无自动热重载调用方，保留供显式操作与回退复用）。
     /// </summary>
     /// <param name="pluginId">插件ID</param>
     /// <returns>是否重载成功（内嵌插件或未运行插件刷新元数据后返回 true）。</returns>

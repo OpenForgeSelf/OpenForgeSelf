@@ -4,6 +4,7 @@ import { categories, mergeFeatureList, type FeatureItem } from '@/data/features'
 // 图标表已抽到单一源（原为本地常量，首页「常用功能」也需使用）
 import { lucideIconSvg } from '@/data/featureIcons'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
+import type { PluginMenuContribution } from '@/types/plugin'
 import { useOpenPage } from '@/composables/useOpenPage'
 
 const manifestStore = usePluginManifestStore()
@@ -40,6 +41,19 @@ const { openPage } = useOpenPage()
 // 「配置」按钮目标标签文案：指向 /settings 时显示「设置」，否则显示功能名
 function configLabel(item: FeatureItem): string {
   return item.configPath === '/settings' ? '设置' : item.name
+}
+
+// 插件管理卡片专用：「插件页面」下拉 = 已启用且声明了菜单的插件贡献（route 即插件页面）
+const pluginPages = computed<PluginMenuContribution[]>(() =>
+  manifestStore.menus.filter((p) => !!p.route),
+)
+
+function openPluginPage(p: PluginMenuContribution): void {
+  if (p.route) openPage(p.route, p.menu)
+}
+
+function openPluginDetail(p: PluginMenuContribution): void {
+  openPage(`/plugins/${p.id}`, p.menu)
 }
 
 </script>
@@ -162,12 +176,76 @@ function configLabel(item: FeatureItem): string {
                     class="btn btn--primary"
                     :disabled="!item.path"
                     @click="openPage(item.path as string, item.name)"
-                  >打开</button>
+                  >
+                    打开
+                  </button>
+                  <ElDropdown
+                    v-if="item.id === 'plugins'"
+                    :disabled="pluginPages.length === 0"
+                    trigger="click"
+                    @command="openPluginDetail"
+                  >
+                    <button class="btn btn--ghost">
+                      插件详情
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    <template #dropdown>
+                      <ElDropdownMenu>
+                        <ElDropdownItem v-for="p in pluginPages" :key="`d-${p.id}`" :command="p">
+                          {{ p.menu }}
+                        </ElDropdownItem>
+                      </ElDropdownMenu>
+                    </template>
+                  </ElDropdown>
+                  <ElDropdown
+                    v-if="item.id === 'plugins'"
+                    :disabled="pluginPages.length === 0"
+                    trigger="click"
+                    @command="openPluginPage"
+                  >
+                    <button class="btn btn--ghost">
+                      插件页面
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    <template #dropdown>
+                      <ElDropdownMenu>
+                        <ElDropdownItem v-for="p in pluginPages" :key="`p-${p.id}`" :command="p">
+                          {{ p.menu }}
+                        </ElDropdownItem>
+                      </ElDropdownMenu>
+                    </template>
+                  </ElDropdown>
                   <button
                     class="btn btn--ghost"
                     :disabled="!item.path"
                     @click="openPage((item.configPath ?? item.path) as string, configLabel(item))"
-                  >配置</button>
+                  >
+                    配置
+                  </button>
                 </div>
               </div>
             </div>

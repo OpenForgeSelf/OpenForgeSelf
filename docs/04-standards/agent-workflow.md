@@ -691,6 +691,31 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 （006-set-background-image 仅有 spec.md，未生成 tasks）
 
+## B10 CI 自动发布（tag → GitHub Actions，2026-09-26 落地）
+
+**入口**：`git tag -a v<X.Y.Z> -m "发版说明" && git push github v<X.Y.Z>` → Actions 自动构建打包并创建 GitHub Release（xxred/OpenForgeSelf，当前 **private**）。
+
+**设计契约（用户拍板）**：workflow 只做「装工具链 + 调脚本」，全部发布动作封装在 `scripts/release/*.ps1`，本地与 CI 跑同一条命令——`pwsh scripts/release/release-local.ps1 -Version v0.1.0`。
+
+| 脚本 | 职责 |
+|------|------|
+| `release-local.ps1` | 一键编排：前端→宿主 publish→打包→发版说明（= CI 唯一构建入口） |
+| `build-frontend.ps1` | 宿主 web（→`ForgeSelf.Api/wwwroot`）+ 8 个插件 web（→`Plugins/<X>/web/dist`），逐包 `pnpm install --frozen-lockfile`；`-HostOnly/-PluginsOnly/-Plugin` 分步调试 |
+| `publish-host.ps1` | `dotnet publish -c Release -r win-x64 --self-contained true -p:Version=<ver>`（下载即用 exe，无需装 .NET） |
+| `package-release.ps1` | 注入 `build/runtime/Plugins` 运行时构件 → 清 Data/Log/Config/_backups/pdb → zip + SHA256SUMS；`-Sign` 可选接 sign-publish.ps1 |
+| `make-release-notes.ps1` | tag 注解 + 上一 tag 以来 commit 生成 RELEASE-NOTES（需 fetch-depth 0） |
+| `publish-release.ps1` | `gh release create`（tag/资产/notes）；本地凭 gh keyring，CI 凭 `secrets.GITHUB_TOKEN`；版本含 `-` 后缀自动 prerelease |
+
+**硬规则与坑（本轮实战）**：
+- 🔴 **System.Data.SQLite.dll / e_sqlite3.dll 必须入库**（`build/runtime/Plugins/`，打包时注入 `Plugins/`）：XCode 运行时探测文件、非 NuGet 依赖，历史上只手工放在 `publish/`，干净构建必缺 → 发布版 SQLite 崩。
+- 🔴 **`.github/` 曾被 .gitignore 屏蔽**（历史清理误伤），workflow 必须入库才生效——已在 .gitignore 解除并注释。
+- 宿主 SPA 与插件 `web/dist` 全部是 gitignore 的生成物：CI 必须先跑 `build-frontend.ps1` 再 `dotnet publish`（`StageAllPlugins` 只拷已存在的 dist）。
+- 单实例 Mutex 挡冒烟测试：本机已跑 publish 宿主时，起第二个实例用 `FORGESelf_INSTANCE_ID=smoke`（Program.cs:47）；exe 固定监听 7102，忽略 ASPNETCORE_URLS。
+- PowerShell：`Invoke-ReleaseStep { … }` 的 scriptblock 内对脚本级变量赋值**不回传**（子作用域），路径等结果须在块外先算好；`gh run watch` 非交互必须显式传 run-id，否则立即退出且管道后 exit 0 假成功。
+- 产物实测：self-contained zip ≈ 74MB / 562 文件；windows-latest 全流程 ≈ 6-10 分钟。
+- 验收流：测试 tag（如 `v0.0.0-ci-test`，自动标 prerelease）先跑通 → 下载 Release 资产核对 SHA256 → 再打正式 tag。
+- `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。
+
 ---
 
 ## Part C — 变更记录

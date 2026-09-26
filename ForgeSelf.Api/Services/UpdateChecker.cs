@@ -374,7 +374,8 @@ public class UpdateChecker
                     return result;
                 }
 
-                result.DownloadUrl = assetUrl;
+                // DownloadUrl 已由 ExtractWinX64Asset 填为 browser_download_url（展示用）；
+                // 缓存 API 直链供下载复用。
                 _githubAssetUrl = assetUrl;
                 _githubAssetTag = NormalizeTag(chosenTag);
             }
@@ -397,8 +398,15 @@ public class UpdateChecker
                 !name.EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var url = asset.TryGetProperty("browser_download_url", out var urlEl)
+            // 下载必须用资产 API 直链（api.github.com/repos/…/releases/assets/{id} + octet-stream）：
+            // 私有仓库的 browser_download_url（github.com/…/releases/download/…）带 Bearer 请求会 404。
+            // browser_download_url 仅作为人读展示链接放 DownloadUrl。
+            var apiAssetUrl = asset.TryGetProperty("url", out var apiUrlEl)
+                ? apiUrlEl.GetString() : null;
+            var browserUrl = asset.TryGetProperty("browser_download_url", out var urlEl)
                 ? urlEl.GetString() : null;
+            result.DownloadUrl = browserUrl ?? apiAssetUrl;
+            var url = apiAssetUrl ?? browserUrl;
 
             if (asset.TryGetProperty("digest", out var digestEl) &&
                 digestEl.ValueKind == JsonValueKind.String)

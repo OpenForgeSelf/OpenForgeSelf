@@ -488,6 +488,7 @@ public class UpdateCheckerTests : IDisposable
             "assets": [
               {
                 "name": "OpenForgeSelf-2.0.0-win-x64.zip",
+                "url": "https://api.github.com/repos/test-owner/test-repo/releases/assets/9876543",
                 "browser_download_url": "https://example.com/forge.zip",
                 "digest": "sha256:abcdef0123456789",
                 "size": 123456
@@ -647,7 +648,9 @@ public class UpdateCheckerTests : IDisposable
         SetupHttpResponse(GitHubReleasesJson);
         var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
 
-        // 先检查（缓存资产直链），再下载
+        // 先检查（缓存资产 API 直链），再下载。
+        // 回归防护：下载必须走资产 API url（私有仓库 browser_download_url 带 token 会 404），
+        // DisplayUrl/DownloadUrl 字段保留 browser_download_url 供人读。
         await checker.CheckForUpdateAsync();
 
         var destPath = Path.Combine(Path.GetTempPath(), $"forge-{Guid.NewGuid():N}.zip");
@@ -666,8 +669,20 @@ public class UpdateCheckerTests : IDisposable
             "SendAsync",
             Times.Once(),
             ItExpr.Is<HttpRequestMessage>(r =>
-                r.RequestUri != null && r.RequestUri.ToString() == "https://example.com/forge.zip"),
+                r.RequestUri != null && r.RequestUri.ToString() == "https://api.github.com/repos/test-owner/test-repo/releases/assets/9876543"),
             ItExpr.IsAny<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GitHub_Check_KeepsBrowserUrlForDisplay()
+    {
+        SetupHttpResponse(GitHubReleasesJson);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        // 展示链接仍是 browser_download_url（人类可点开），资产 API url 只用于下载
+        result.DownloadUrl.Should().Be("https://example.com/forge.zip");
     }
 
     private void SetupHttpResponse(string jsonContent, HttpStatusCode statusCode = HttpStatusCode.OK)

@@ -712,6 +712,9 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 宿主 SPA 与插件 `web/dist` 全部是 gitignore 的生成物：CI 必须先跑 `build-frontend.ps1` 再 `dotnet publish`（`StageAllPlugins` 只拷已存在的 dist）。
 - 单实例 Mutex 挡冒烟测试：本机已跑 publish 宿主时，起第二个实例用 `FORGESelf_INSTANCE_ID=smoke`（Program.cs:47）；exe 固定监听 7102，忽略 ASPNETCORE_URLS。
 - PowerShell：`Invoke-ReleaseStep { … }` 的 scriptblock 内对脚本级变量赋值**不回传**（子作用域），路径等结果须在块外先算好；`gh run watch` 非交互必须显式传 run-id，否则立即退出且管道后 exit 0 假成功。
+- 🔴 **CI Node 必须 ≥22**：DesignSystem 插件 `web/package.json` build 直跑 `node scripts/gen-tokens-css.ts`，依赖 Node 原生 type-stripping（Node 20 报 `ERR_UNKNOWN_FILE_EXTENSION`）。本地 Node 26 掩盖了此依赖；workflow `setup-node` 已钉 22。
+- 网络受限环境取 CI 日志：`results-receiver.actions.githubusercontent.com` 可能不可达（`--log-failed` 失败），改用 `gh api repos/<o>/<r>/actions/runs/<id>/logs > ci.zip` 下载解压按步骤 txt 定位。
+- 重打测试 tag：`git tag -d` + `gh api -X DELETE .../git/refs/tags/<tag>` + 重新 `git tag -a` 推送即可再触发（`gh run rerun` 会复用旧 tag commit 的 workflow，改了 workflow 时**不要用 rerun**）。
 - 产物实测：self-contained zip ≈ 74MB / 562 文件；windows-latest 全流程 ≈ 6-10 分钟。
 - 验收流：测试 tag（如 `v0.0.0-ci-test`，自动标 prerelease）先跑通 → 下载 Release 资产核对 SHA256 → 再打正式 tag。
 - `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。

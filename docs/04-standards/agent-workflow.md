@@ -739,6 +739,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 🔴 **并发写路径下，状态机每一侧的写入（不只启动侧）都必须守卫「在途状态」**：CheckAsync 完成时无条件 `Set("checked"/"idle"/"failed")`，会覆盖在途的 downloading → 前端又停轮询（51888 第 6 轮插桩实锤：`/download→downloading` 后 2 秒 `/progress→checked`；6b09654 修：首写 checking 与终写均在 lock 内、当前状态 ∈ {downloading,verifying,extracting,ready,applying} 时跳过回写 + 红灯回归单测）。检查/下载两条并发路径写同一状态机时，**终止态回写必须条件化**，且单测必须构造真实并发时序（慢速 mock HTTP + 交错调用）而非顺序调用。
 - **随包分发的 .ps1 由 powershell 5.1 拉起时同样受 BOM 铁律约束**（见 B6）：update-agent 无 BOM → 解析崩、日志写不出、宿主自停后无人重启，实例整段下线。
 - `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。
+- 🔴 **发布治理（seq37 指令）**：含已知功能缺陷的版本 **禁止推送 tag/发布 Release**（打 tag 即触发 CI 发布，等于把缺陷分发出去）；已推的缺陷版本经用户授权后撤销（gh release delete --yes + 双端删 tag + 本地删 tag，防 `--tags` 误复推）。2026-09-26 实例：v0.2.0–v0.2.3 已从 OpenForgeSelf/OpenForgeSelf 与 gitee 撤销，仅保留 v0.2.4 起干净版本；旧 xxred 镜像未动（用户未授权）。
 
 ---
 

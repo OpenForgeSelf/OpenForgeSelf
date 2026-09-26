@@ -9,133 +9,13 @@
     <ApplicationIcon>Assets\ForgeSelf.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- MemorySystem/TodoTracker/QuickLinks/TextTools 已拆分为独立程序集（ADR D2），Backend 不再编译其源码，
-       避免默认 ALC 重复加载；同时排除其嵌套 bin/obj，防止 Web SDK 默认 glob 把这些构建产物当 Content/None
-       复制进输出目录。
-       第二批（FileTools/DevTools/SystemMonitor，ADR D2 续）同模式拆分
-       第三批（Scheduler/ScriptRunner/WorkflowEngine，ADR D2 续）同模式拆分
-       第四批（AIAgent，ADR D2 续）同模式拆分 -->
-  <ItemGroup>
-    <Compile Remove="Plugins\MemorySystem\**\*.cs" />
-    <Compile Remove="Plugins\TodoTracker\**\*.cs" />
-    <Compile Remove="Plugins\QuickLinks\**\*.cs" />
-    <Compile Remove="Plugins\TextTools\**\*.cs" />
-    <Compile Remove="Plugins\FileTools\**\*.cs" />
-    <Compile Remove="Plugins\DevTools\**\*.cs" />
-    <Compile Remove="Plugins\SystemMonitor\**\*.cs" />
-    <Compile Remove="Plugins\Scheduler\**\*.cs" />
-    <Compile Remove="Plugins\ScriptRunner\**\*.cs" />
-    <Compile Remove="Plugins\WorkflowEngine\**\*.cs" />
-    <Compile Remove="Plugins\AIAgent\**\*.cs" />
-    <Compile Remove="Plugins\Sems\**\*.cs" />
-    <!-- 示例插件：源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 →
-         assemblyinfo 特性重复（CS0579）。 -->
-    <Compile Remove="Plugins\SamplePlugin\**\*.cs" />
-    <!-- AgentHub / Home 插件（独立 csproj，ADR D2 拆分模式）：此前漏登记排除，宿主全量编译会把
-         Plugins\AgentHub\obj 下的生成 AssemblyInfo 一并编入 → 与宿主自身 AssemblyInfo 特性重复（CS0579）。
-         2026-09-21 全量重建时暴露（增量构建长期跳过 Csc 而未触发）。补齐排除，与其余 16 个插件同模式。 -->
-    <Compile Remove="Plugins\AgentHub\**\*.cs" />
-    <Compile Remove="Plugins\Home\**\*.cs" />
-    <!-- ImGateway 插件（ADR D2 续，第 15 个）：同模式拆分，Backend 必须排除其源码，
-         否则同一份 .cs 被 Backend 与 ImGateway.csproj 两处编译 → assemblyinfo 特性重复（CS0579）。
-         此前漏加此行导致整树 build 红，现补齐集成。 -->
-    <Compile Remove="Plugins\ImGateway\**\*.cs" />
-    <!-- AgentHub 插件（ADR D2 续，此前漏集成导致整树 build 红：其 obj/Debug 的 AssemblyInfo 被编入 Backend 主程序集 → 与 Backend 自身 assembly 特性重复 CS0579）。现补齐。 -->
-    <Compile Remove="Plugins\AgentHub\**\*.cs" />
-    <!-- Home 插件（ADR D2 续，view-only 首页，此前漏集成致其源码被 glob 编入 Backend，潜在双 ALC 加载隐患）。现补齐。 -->
-    <Compile Remove="Plugins\Home\**\*.cs" />
-    <!-- McpCenter 插件（034，独立 csproj，ADR D2 拆分模式）：同上模式排除源码，避免双重编译 CS0579。 -->
-    <Compile Remove="Plugins\McpCenter\**\*.cs" />
-    <Content Remove="Plugins\SamplePlugin\bin\**" />
-    <Content Remove="Plugins\SamplePlugin\obj\**" />
-    <!-- DesignSystem 插件（输入N+9）源码由它自己的 csproj 编译，Backend 必须排除，否则同一份 .cs 被两个项目编译 → assemblyinfo 特性重复（CS0579）。 -->
-    <Compile Remove="Plugins\DesignSystem\**\*.cs" />
-    <Content Remove="Plugins\DesignSystem\bin\**" />
-    <Content Remove="Plugins\DesignSystem\obj\**" />
-    <Content Remove="Plugins\MemorySystem\bin\**" />
-    <Content Remove="Plugins\MemorySystem\obj\**" />
-    <Content Remove="Plugins\TodoTracker\bin\**" />
-    <Content Remove="Plugins\TodoTracker\obj\**" />
-    <Content Remove="Plugins\QuickLinks\bin\**" />
-    <Content Remove="Plugins\QuickLinks\obj\**" />
-    <Content Remove="Plugins\TextTools\bin\**" />
-    <Content Remove="Plugins\TextTools\obj\**" />
-    <Content Remove="Plugins\FileTools\bin\**" />
-    <Content Remove="Plugins\FileTools\obj\**" />
-    <Content Remove="Plugins\DevTools\bin\**" />
-    <Content Remove="Plugins\DevTools\obj\**" />
-    <Content Remove="Plugins\SystemMonitor\bin\**" />
-    <Content Remove="Plugins\SystemMonitor\obj\**" />
-    <Content Remove="Plugins\Scheduler\bin\**" />
-    <Content Remove="Plugins\Scheduler\obj\**" />
-    <Content Remove="Plugins\ScriptRunner\bin\**" />
-    <Content Remove="Plugins\ScriptRunner\obj\**" />
-    <Content Remove="Plugins\WorkflowEngine\bin\**" />
-    <Content Remove="Plugins\WorkflowEngine\obj\**" />
-    <Content Remove="Plugins\AIAgent\bin\**" />
-    <Content Remove="Plugins\AIAgent\obj\**" />
-    <Content Remove="Plugins\Sems\bin\**" />
-    <Content Remove="Plugins\Sems\obj\**" />
-    <Content Remove="Plugins\ImGateway\bin\**" />
-    <Content Remove="Plugins\ImGateway\obj\**" />
-    <Content Remove="Plugins\AgentHub\bin\**" />
-    <Content Remove="Plugins\AgentHub\obj\**" />
-    <Content Remove="Plugins\Home\bin\**" />
-    <Content Remove="Plugins\Home\obj\**" />
-    <Content Remove="Plugins\McpCenter\bin\**" />
-    <Content Remove="Plugins\McpCenter\obj\**" />
-    <Content Remove="Plugins\AgentHub\bin\**" />
-    <Content Remove="Plugins\AgentHub\obj\**" />
-    <Content Remove="Plugins\Home\bin\**" />
-    <Content Remove="Plugins\Home\obj\**" />
-    <!-- 历史遗留：2026-06 之前各插件项目以自身目录为基准运行时，在源码目录留下的
-         Plugins\<Name>\Data\Config\*.config 运行残留。Web SDK 会把它当内容复制到输出目录与发布产物。
-         配置现已统一收敛到数据根（ConfigUnifier），此处排除，避免污染输出目录/发布产物。 -->
-    <Content Remove="Plugins\**\Data\Config\**" />
-    <None Remove="Plugins\MemorySystem\bin\**" />
-    <None Remove="Plugins\MemorySystem\obj\**" />
-    <None Remove="Plugins\TodoTracker\bin\**" />
-    <None Remove="Plugins\TodoTracker\obj\**" />
-    <None Remove="Plugins\QuickLinks\bin\**" />
-    <None Remove="Plugins\QuickLinks\obj\**" />
-    <None Remove="Plugins\TextTools\bin\**" />
-    <None Remove="Plugins\TextTools\obj\**" />
-    <None Remove="Plugins\FileTools\bin\**" />
-    <None Remove="Plugins\FileTools\obj\**" />
-    <None Remove="Plugins\DevTools\bin\**" />
-    <None Remove="Plugins\DevTools\obj\**" />
-    <None Remove="Plugins\SystemMonitor\bin\**" />
-    <None Remove="Plugins\SystemMonitor\obj\**" />
-    <None Remove="Plugins\Scheduler\bin\**" />
-    <None Remove="Plugins\Scheduler\obj\**" />
-    <None Remove="Plugins\ScriptRunner\bin\**" />
-    <None Remove="Plugins\ScriptRunner\obj\**" />
-    <None Remove="Plugins\WorkflowEngine\bin\**" />
-    <None Remove="Plugins\WorkflowEngine\obj\**" />
-    <None Remove="Plugins\AIAgent\bin\**" />
-    <None Remove="Plugins\AIAgent\obj\**" />
-    <None Remove="Plugins\Sems\bin\**" />
-    <None Remove="Plugins\Sems\obj\**" />
-    <None Remove="Plugins\ImGateway\bin\**" />
-    <None Remove="Plugins\ImGateway\obj\**" />
-    <None Remove="Plugins\AgentHub\bin\**" />
-    <None Remove="Plugins\AgentHub\obj\**" />
-    <None Remove="Plugins\Home\bin\**" />
-    <None Remove="Plugins\Home\obj\**" />
-    <None Remove="Plugins\McpCenter\bin\**" />
-    <None Remove="Plugins\McpCenter\obj\**" />
-    <None Remove="Plugins\AgentHub\bin\**" />
-    <None Remove="Plugins\AgentHub\obj\**" />
-    <None Remove="Plugins\Home\bin\**" />
-    <None Remove="Plugins\Home\obj\**" />
-  </ItemGroup>
-
   <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
        目录约定见 specs/010-plugin-frontend-runtime/design/plugin-directory-layout.md。
        - web/dist/**        → 唯一对外提供的界面资源（由 /plugins/{id}/web/dist/** 提供）
        - web/src/**         → 前端源码，不随后端输出，避免污染运行目录
        - web/node_modules/** → 依赖目录，体积大且绝不应进入输出/发布产物
-       注意：dist 由插件侧 `pnpm build` 生成，未构建时此 glob 匹配不到，不会导致构建失败。 -->
+       注意：dist 由插件侧 `pnpm build` 生成，未构建时此 glob 匹配不到，不会导致构建失败。
+       插件项目已迁至仓库根 Plugins/ 后，此处 glob 仅作用于宿主框架目录内的插件前端资源。 -->
   <ItemGroup>
     <Content Remove="Plugins\**\web\dist\**" />
     <Content Remove="Plugins\**\web\src\**" />
@@ -144,6 +24,11 @@
     <None Remove="Plugins\**\web\src\**" />
     <None Remove="Plugins\**\web\node_modules\**" />
     <Content Include="Plugins\**\web\dist\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 历史遗留：2026-06 之前各插件项目以自身目录为基准运行时，在源码目录留下的
+         Plugins\<Name>\Data\Config\*.config 运行残留。Web SDK 会把它当内容复制到输出目录与发布产物。
+         配置现已统一收敛到数据根（ConfigUnifier），此处排除，避免污染输出目录/发布产物。
+         插件项目迁出后，此规则只作用于宿主框架目录。 -->
+    <Content Remove="Plugins\**\Data\Config\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -171,205 +56,61 @@
     <ProjectReference Include="..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
     <!-- 仅建立构建顺序（插件先于 Backend 编译），不编译引用、不复制到输出根目录，
          避免插件类型进入默认 ALC 造成与 PluginLoadContext 的双重加载。 -->
-    <ProjectReference Include="Plugins\MemorySystem\MemorySystem.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\TodoTracker\TodoTracker.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\QuickLinks\QuickLinks.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\TextTools\TextTools.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\FileTools\FileTools.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\DevTools\DevTools.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\SystemMonitor\SystemMonitor.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\MemorySystem\MemorySystem.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\TodoTracker\TodoTracker.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\QuickLinks\QuickLinks.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\TextTools\TextTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\FileTools\FileTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\DevTools\DevTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\SystemMonitor\SystemMonitor.csproj" ReferenceOutputAssembly="false" />
     <!-- 第三批（Scheduler/ScriptRunner/WorkflowEngine，ADR D2 续） -->
-    <ProjectReference Include="Plugins\Scheduler\Scheduler.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\ScriptRunner\ScriptRunner.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\WorkflowEngine\WorkflowEngine.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\Scheduler\Scheduler.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\ScriptRunner\ScriptRunner.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\WorkflowEngine\WorkflowEngine.csproj" ReferenceOutputAssembly="false" />
     <!-- 第四批（AIAgent，ADR D2 续） -->
-    <ProjectReference Include="Plugins\AIAgent\AIAgent.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="Plugins\Sems\Sems.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\AIAgent\AIAgent.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\Sems\Sems.csproj" ReferenceOutputAssembly="false" />
     <!-- 第 15 个插件（ADR D2 续）：ImGateway，仅建立构建顺序，不编译引用、不复制到输出根目录 -->
-    <ProjectReference Include="Plugins\ImGateway\ImGateway.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\ImGateway\ImGateway.csproj" ReferenceOutputAssembly="false" />
     <!-- AgentHub 插件（ADR D2 续，此前漏集成致整树 build 红）：仅建立构建顺序，不编译引用、不复制到输出根目录 -->
-    <ProjectReference Include="Plugins\AgentHub\AgentHub.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\AgentHub\AgentHub.csproj" ReferenceOutputAssembly="false" />
     <!-- Home 插件（ADR D2 续，此前漏集成致其源码被编入 Backend）：仅建立构建顺序 -->
-    <ProjectReference Include="Plugins\Home\Home.csproj" ReferenceOutputAssembly="false" />
-    <!-- DesignSystem 插件：Compile Remove + Stage 已有，补 ProjectReference 以确立构建顺序（此前漏） -->
-    <ProjectReference Include="Plugins\DesignSystem\DesignSystem.csproj" ReferenceOutputAssembly="false" />
-    <!-- 第 16 个插件（034）：McpCenter，仅建立构建顺序，不编译引用、不复制到输出根目录 -->
-    <ProjectReference Include="Plugins\McpCenter\McpCenter.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\Home\Home.csproj" ReferenceOutputAssembly="false" />
     <!-- DesignSystem 插件：仅贡献自带界面（web/dist）+ 空 DLL 也要 staged，故同样建立构建顺序；
          此前缺此行 → 宿主全量构建时 StageDesignSystemPlugin 复制不到 DesignSystem.dll（MSB3030），2026-09-21 补齐。 -->
-    <ProjectReference Include="Plugins\DesignSystem\DesignSystem.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\DesignSystem\DesignSystem.csproj" ReferenceOutputAssembly="false" />
+    <!-- 第 16 个插件（034）：McpCenter，仅建立构建顺序，不编译引用、不复制到输出根目录 -->
+    <ProjectReference Include="..\Plugins\McpCenter\McpCenter.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- 将插件 DLL 复制到 Backend 输出的 Plugins/<Name>/ 目录，供 PluginManager 隔离加载 -->
-  <Target Name="StageMemorySystemPlugin" AfterTargets="Build">
+  <!-- 将仓库根 Plugins/<Name>/bin/<Config>/net10.0 下各插件的完整输出（DLL + deps.json + 非宿主共享
+       NuGet 依赖）暂存到 Backend 输出 $(OutDir)Plugins\<Name>\，供 PluginManager 隔离加载。
+       排除顶层 ForgeSelf.* / NewLife.*（宿主共享程序集，由默认上下文解析，避免类型身份分裂）。
+       deps.json 一并拷贝是必需的：缺失会导致插件 ALC 的 AssemblyDependencyResolver 无法解析
+       System.Management(WMI) 等 NuGet 依赖，插件控制器会被路由表整体剔除（spec028 T10 运行时验收发现）。
+       TargetFramework 显式钉住 net10.0（插件侧），与宿主 net10.0-windows 无关。
+       实现注记：单一 glob 的 %(RecursiveDir) 只捕获 `**` 段、不含插件名，会把各插件文件拍平混拷；
+       故用链式 Replace 把源相对路径中的 \<插件>\bin\<Config>\net10.0\ 前缀改写为
+       $(OutDir)Plugins\<插件>\，达成原 Stage*Plugin「每个插件独立目录」的等价行为。 -->
+  <Target Name="StageAllPlugins" AfterTargets="Build">
     <ItemGroup>
-      <_MemorySystemDll Include="Plugins\MemorySystem\bin\$(Configuration)\net10.0\MemorySystem.dll" />
+      <_PluginBin Include="..\Plugins\*\bin\$(Configuration)\net10.0\**\*.*"
+                  Exclude="..\Plugins\*\bin\$(Configuration)\net10.0\ForgeSelf.*;..\Plugins\*\bin\$(Configuration)\net10.0\NewLife.*" />
+      <!-- 插件清单：原先由宿主 <None Update="Plugins\**\plugin.json"> 从项目目录拷出；插件源码迁出宿主
+           范围后该规则对根 Plugins/ 不命中，staging 职责移入本目标（行为等价：清单必须随 DLL 进输出）。 -->
+      <_PluginManifests Include="..\Plugins\*\plugin.json" />
+      <!-- 插件自带界面产物（spec 010）：同上，原宿主 Content glob 迁出后不再命中，移入本目标。
+           dist 由插件侧 pnpm build 生成，未构建时 glob 匹配不到，不会导致构建失败。 -->
+      <_PluginWebDist Include="..\Plugins\*\web\dist\**\*.*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_MemorySystemDll)"
-          DestinationFolder="$(OutDir)Plugins\MemorySystem\"
+    <Copy SourceFiles="@(_PluginBin)"
+          DestinationFiles="@(_PluginBin->Replace('\bin\$(Configuration)\net10.0\','\')->Replace('..\Plugins\','$(OutDir)Plugins\'))"
           SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageTodoTrackerPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_TodoTrackerDll Include="Plugins\TodoTracker\bin\$(Configuration)\net10.0\TodoTracker.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_TodoTrackerDll)"
-          DestinationFolder="$(OutDir)Plugins\TodoTracker\"
+    <Copy SourceFiles="@(_PluginManifests)"
+          DestinationFiles="@(_PluginManifests->Replace('..\Plugins\','$(OutDir)Plugins\'))"
           SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageQuickLinksPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_QuickLinksDll Include="Plugins\QuickLinks\bin\$(Configuration)\net10.0\QuickLinks.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_QuickLinksDll)"
-          DestinationFolder="$(OutDir)Plugins\QuickLinks\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageTextToolsPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_TextToolsDll Include="Plugins\TextTools\bin\$(Configuration)\net10.0\TextTools.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_TextToolsDll)"
-          DestinationFolder="$(OutDir)Plugins\TextTools\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageFileToolsPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_FileToolsDll Include="Plugins\FileTools\bin\$(Configuration)\net10.0\FileTools.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_FileToolsDll)"
-          DestinationFolder="$(OutDir)Plugins\FileTools\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageDevToolsPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_DevToolsDll Include="Plugins\DevTools\bin\$(Configuration)\net10.0\DevTools.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_DevToolsDll)"
-          DestinationFolder="$(OutDir)Plugins\DevTools\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageSystemMonitorPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_SystemMonitorDll Include="Plugins\SystemMonitor\bin\$(Configuration)\net10.0\SystemMonitor.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_SystemMonitorDll)"
-          DestinationFolder="$(OutDir)Plugins\SystemMonitor\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageSchedulerPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_SchedulerDll Include="Plugins\Scheduler\bin\$(Configuration)\net10.0\Scheduler.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_SchedulerDll)"
-          DestinationFolder="$(OutDir)Plugins\Scheduler\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageScriptRunnerPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_ScriptRunnerDll Include="Plugins\ScriptRunner\bin\$(Configuration)\net10.0\ScriptRunner.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_ScriptRunnerDll)"
-          DestinationFolder="$(OutDir)Plugins\ScriptRunner\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageWorkflowEnginePlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_WorkflowEngineDll Include="Plugins\WorkflowEngine\bin\$(Configuration)\net10.0\WorkflowEngine.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_WorkflowEngineDll)"
-          DestinationFolder="$(OutDir)Plugins\WorkflowEngine\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageAIAgentPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_AIAgentDll Include="Plugins\AIAgent\bin\$(Configuration)\net10.0\AIAgent.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_AIAgentDll)"
-          DestinationFolder="$(OutDir)Plugins\AIAgent\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageSemsPlugin" AfterTargets="Build">
-    <!-- 拷贝 Sems 的完整 bin 输出（DLL + Sems.deps.json + 非宿主共享 NuGet 依赖），
-         但排除宿主共享程序集（ForgeSelf.* / NewLife.*，由宿主默认上下文解析，避免类型身份分裂）。
-         Sems.deps.json 缺失会导致插件 ALC 的 AssemblyDependencyResolver 无法解析
-         System.Management(WMI) 等 NuGet 依赖，进而 AssemblyPart.GetTypes() 扫描失败、
-         依赖 IRunnerService 的控制器（RunsController / RunnerController / ProjectCommandsController）
-         被路由表整体剔除 —— 见 spec028 T10 运行时验收发现。 -->
-    <ItemGroup>
-      <_SemsFiles Include="Plugins\Sems\bin\$(Configuration)\net10.0\**\*.*"
-                  Exclude="Plugins\Sems\bin\$(Configuration)\net10.0\ForgeSelf.*;Plugins\Sems\bin\$(Configuration)\net10.0\NewLife.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_SemsFiles)"
-          DestinationFolder="$(OutDir)Plugins\Sems\%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="StageSamplePlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_SamplePluginDll Include="Plugins\SamplePlugin\bin\$(Configuration)\net10.0\SamplePlugin.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_SamplePluginDll)"
-          DestinationFolder="$(OutDir)Plugins\SamplePlugin\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <!-- 设计系统插件（design-system）：仅贡献自带界面（web/dist），后端无服务/工具/端点，
-       DLL 仍必须 staged，否则 PluginManager 扫描到 plugin.json 却加载不到入口类型，
-       前端清单拿不到 frontend 块 → 路由与侧栏项不会注册（e2e 表现为插件页空白）。 -->
-  <Target Name="StageDesignSystemPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_DesignSystemDll Include="Plugins\DesignSystem\bin\$(Configuration)\net10.0\DesignSystem.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_DesignSystemDll)"
-          DestinationFolder="$(OutDir)Plugins\DesignSystem\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <!-- ImGateway 插件（ADR D2 续，第 15 个）：拷贝其独立编译的 DLL 到 Backend 输出 Plugins/ImGateway/，
-       供 PluginManager 隔离加载（与 MemorySystem 等 14 个插件同模式）。Backend 已用 Compile Remove 排除其源码，
-       不再把 ImGateway 类型编入主程序集，避免与 PluginManager 的隔离 ALC 形成双 ALC 重复加载。 -->
-  <Target Name="StageImGatewayPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_ImGatewayDll Include="Plugins\ImGateway\bin\$(Configuration)\net10.0\ImGateway.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_ImGatewayDll)"
-          DestinationFolder="$(OutDir)Plugins\ImGateway\"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <!-- AgentHub 插件（ADR D2 续，此前漏集成致整树 build 红）：拷贝其独立编译的程序集与内置 Profiles 到
-       Backend 输出 Plugins/AgentHub/，供 PluginManager 隔离加载（与 Sems 同模式，排除宿主共享的 ForgeSelf.*/NewLife.*）。
-       Backend 已用 Compile Remove 排除其源码，不再把 AgentHub 类型编入主程序集，消除与 Backend 自身 assembly 特性重复的 CS0579。 -->
-  <Target Name="StageAgentHubPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_AgentHubFiles Include="Plugins\AgentHub\bin\$(Configuration)\net10.0\**\*.*"
-                      Exclude="Plugins\AgentHub\bin\$(Configuration)\net10.0\ForgeSelf.*;Plugins\AgentHub\bin\$(Configuration)\net10.0\NewLife.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_AgentHubFiles)"
-          DestinationFiles="@(_AgentHubFiles->'$(OutDir)Plugins\AgentHub\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <!-- Home 插件（ADR D2 续，view-only 首页，此前漏集成致其源码被 glob 编入 Backend）：拷贝独立编译的 DLL 到
-       Backend 输出 Plugins/Home/，供 PluginManager 隔离加载（与 MemorySystem 等插件同模式）。 -->
-  <Target Name="StageHomePlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_HomeDll Include="Plugins\Home\bin\$(Configuration)\net10.0\Home.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_HomeDll)"
-          DestinationFolder="$(OutDir)Plugins\Home\"
+    <Copy SourceFiles="@(_PluginWebDist)"
+          DestinationFiles="@(_PluginWebDist->Replace('..\Plugins\','$(OutDir)Plugins\'))"
           SkipUnchangedFiles="true" />
   </Target>
 
@@ -377,25 +118,14 @@
        每次启动都报一条「插件入口类型不存在」。补齐程序集后它既是可运行的示例，
        也可作为新插件的起手模板（含完整注释说明插件契约）。 -->
   <ItemGroup>
-    <ProjectReference Include="Plugins\SamplePlugin\SamplePlugin.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Plugins\SamplePlugin\SamplePlugin.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
-
-  <!-- McpCenter 插件（034，第 16 个）：拷贝其独立编译的 DLL 到 Backend 输出 Plugins/McpCenter/，
-       供 PluginManager 隔离加载（与 AgentHub/ImGateway 同模式）。Backend 已用 Compile Remove 排除其源码。 -->
-  <Target Name="StageMcpCenterPlugin" AfterTargets="Build">
-    <ItemGroup>
-      <_McpCenterDll Include="Plugins\McpCenter\bin\$(Configuration)\net10.0\McpCenter.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_McpCenterDll)"
-          DestinationFolder="$(OutDir)Plugins\McpCenter\"
-          SkipUnchangedFiles="true" />
-  </Target>
 
   <!-- 发布时把 Build 期暂存的插件 DLL 一并带进发布目录。
        背景：Web SDK 默认只把 Plugins/** 下的 plugin.json 当「内容」发布（DLL 不在内容项中），
        导致发布版 Plugins/ 只有清单没有程序集，PluginManager 找不到入口类型 → 发布版零插件
        （日志表现为「插件目录不存在」或「开始发现所有已加载插件的扩展点」却一个插件都没有）。
-       上面各 Stage*Plugin 目标只在 Build 期拷到 $(OutDir)，故此处在 Publish 之后整体再复制一次。 -->
+       上面 StageAllPlugins 目标只在 Build 期拷到 $(OutDir)，故此处在 Publish 之后整体再复制一次。 -->
   <Target Name="StagePluginsToPublish" AfterTargets="Publish">
     <ItemGroup>
       <_StagedPluginFiles Include="$(OutDir)Plugins\**\*.*" />

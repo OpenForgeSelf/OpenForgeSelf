@@ -44,11 +44,11 @@ $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
 
 # Default PluginsRoot = source Plugins (dev mode); release mode passed explicitly
 if (-not $PluginsRoot) {
-    $PluginsRoot = Join-Path $repoRoot 'ForgeSelf.Api/Plugins'
+    $PluginsRoot = Join-Path $repoRoot 'Plugins'
 }
 
-$csproj = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/$Plugin.csproj"
-$sourceManifest = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/plugin.json"
+$csproj = Join-Path $repoRoot "Plugins/$Plugin/$Plugin.csproj"
+$sourceManifest = Join-Path $repoRoot "Plugins/$Plugin/plugin.json"
 
 if (-not (Test-Path $csproj)) { throw "Plugin csproj not found: $csproj" }
 if (-not (Test-Path $sourceManifest)) { throw "Plugin manifest not found: $sourceManifest" }
@@ -150,7 +150,7 @@ if (-not $DryRun) {
     # Only 'dist' (built ESM output) is shipped: 'src' and 'node_modules' are
     # deliberately excluded so the distributed unit stays small and does not leak sources.
     # Layout: see specs/010-plugin-frontend-runtime/design/plugin-directory-layout.md
-    $sourceWebDist = Join-Path (Join-Path (Join-Path (Join-Path $repoRoot 'ForgeSelf.Api/Plugins') $Plugin) 'web') 'dist'
+    $sourceWebDist = Join-Path (Join-Path (Join-Path (Join-Path $repoRoot 'Plugins') $Plugin) 'web') 'dist'
     if (Test-Path $sourceWebDist) {
         $webDest = Join-Path $stagedDir (Join-Path 'web' 'dist')
         New-Item -ItemType Directory -Force -Path $webDest | Out-Null

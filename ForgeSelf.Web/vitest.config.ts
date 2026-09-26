@@ -30,7 +30,7 @@ export default defineConfig({
     // 避免为每个插件单独装一份 vitest）。插件只写 `*.test.ts`（`*.spec.ts` 留给 Playwright e2e）。
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
-      '../ForgeSelf.Api/Plugins/*/web/src/**/*.test.{ts,tsx}',
+      '../Plugins/*/web/src/**/*.test.{ts,tsx}',
     ],
     exclude: [
       'node_modules',
@@ -63,11 +63,11 @@ export default defineConfig({
   },
   server: {
     fs: {
-      // 插件测试位于宿主 root 之外（../ForgeSelf.Api/Plugins/*/web），
+      // 插件测试位于宿主 root 之外（../Plugins/*/web），
       // 必须显式放行，否则 Vite 拒绝加载并报 "Does the file exist?"（实为 fs allow 限制）。
       allow: [
         fileURLToPath(new URL('.', import.meta.url)),
-        fileURLToPath(new URL('../ForgeSelf.Api/Plugins', import.meta.url)),
+        fileURLToPath(new URL('../Plugins', import.meta.url)),
       ],
     },
   },

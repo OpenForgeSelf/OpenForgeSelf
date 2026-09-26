@@ -26,7 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot  = Resolve-Path (Join-Path $PSScriptRoot '..')
-$pluginDir = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin"
+$pluginDir = Join-Path $repoRoot "Plugins/$Plugin"
 if (-not (Test-Path $pluginDir)) { throw "plugin dir not found: $pluginDir" }
 
 # ---- 1) 插件前端构建（build.ps1 不覆盖这一步）----

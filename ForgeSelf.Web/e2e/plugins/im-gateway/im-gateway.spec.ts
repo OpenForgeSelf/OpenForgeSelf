@@ -24,7 +24,7 @@ import { test } from '../../fixtures/e2e'
 /** 动态读取插件清单：route 来自 plugin.json.frontend.route（避免硬编码命名空间歧义）。 */
 const PLUGIN_MANIFEST = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL('../../../../ForgeSelf.Api/Plugins/ImGateway/plugin.json', import.meta.url)),
+    fileURLToPath(new URL('../../../../Plugins/ImGateway/plugin.json', import.meta.url)),
     'utf-8',
   ),
 ) as { version: string; frontend: { route: string } }

@@ -26,7 +26,7 @@ import { getRealApiKey } from '../../helpers/real-auth'
 
 const PLUGIN_MANIFEST = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL('../../../../ForgeSelf.Api/Plugins/McpCenter/plugin.json', import.meta.url)),
+    fileURLToPath(new URL('../../../../Plugins/McpCenter/plugin.json', import.meta.url)),
     'utf-8',
   ),
 ) as { Version: string; Id: string }

@@ -25,7 +25,7 @@ const PLUGIN_ROUTE = '/ai-agent'
 
 /** 版本断言动态读取插件清单，避免硬编码与 plugin.json 漂移不同步。 */
 const PLUGIN_MANIFEST = JSON.parse(
-  readFileSync(fileURLToPath(new URL('../../ForgeSelf.Api/Plugins/AIAgent/plugin.json', import.meta.url)), 'utf-8')
+  readFileSync(fileURLToPath(new URL('../../Plugins/AIAgent/plugin.json', import.meta.url)), 'utf-8')
 ) as { Version: string }
 const EXPECTED_VERSION = `v${PLUGIN_MANIFEST.Version}`
 

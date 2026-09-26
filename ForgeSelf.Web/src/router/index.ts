@@ -47,7 +47,7 @@ const router = createRouter({
       redirect: () => _homeRedirectTarget ?? '/home',
     },
     // 注意：/ai-agent 与 /quick-links 已**不再**由宿主静态路由提供。
-    // 两个页面均已彻底迁移到插件自带界面（ForgeSelf.Api/Plugins/{AIAgent,QuickLinks}/web），
+    // 两个页面均已彻底迁移到插件自带界面（Plugins/{AIAgent,QuickLinks}/web），
     // 由插件清单声明的 route 经 registerManifestRoutes 动态注册到对应路径。
     // 插件未加载/未启用时该路径走 404 兜底，不再有宿主内置实现。
     {

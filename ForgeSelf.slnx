@@ -6,32 +6,32 @@
   </Configurations>
   <Folder Name="/Backend/" />
   <Folder Name="/Backend/Plugins/">
-    <Project Path="ForgeSelf.Api/Plugins/AIAgent/AIAgent.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/DesignSystem/DesignSystem.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/Home/Home.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/McpCenter/McpCenter.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/SamplePlugin/SamplePlugin.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/Sems/Sems.csproj" />
+    <Project Path="Plugins/AIAgent/AIAgent.csproj" />
+    <Project Path="Plugins/DesignSystem/DesignSystem.csproj" />
+    <Project Path="Plugins/Home/Home.csproj" />
+    <Project Path="Plugins/McpCenter/McpCenter.csproj" />
+    <Project Path="Plugins/SamplePlugin/SamplePlugin.csproj" />
+    <Project Path="Plugins/Sems/Sems.csproj" />
   </Folder>
   <Folder Name="/ForgeSelf.Api/" />
   <Folder Name="/ForgeSelf.Api/Plugins/">
-    <Project Path="ForgeSelf.Api/Plugins/AgentHub/AgentHub.csproj" />
-    <Project Path="ForgeSelf.Api/Plugins/ImGateway/ImGateway.csproj" />
+    <Project Path="Plugins/AgentHub/AgentHub.csproj" />
+    <Project Path="Plugins/ImGateway/ImGateway.csproj" />
   </Folder>
   <Project Path="ForgeSelf.Abstractions/ForgeSelf.Abstractions.csproj" />
   <Project Path="ForgeSelf.Abstractions.Tests/ForgeSelf.Abstractions.Tests.csproj" />
   <Project Path="ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj" />
   <Project Path="ForgeSelf.Api/ForgeSelf.Api.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/DevTools/DevTools.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/FileTools/FileTools.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/MemorySystem/MemorySystem.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/QuickLinks/QuickLinks.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/Scheduler/Scheduler.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/ScriptRunner/ScriptRunner.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/SystemMonitor/SystemMonitor.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/TextTools/TextTools.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/TodoTracker/TodoTracker.csproj" />
-  <Project Path="ForgeSelf.Api/Plugins/WorkflowEngine/WorkflowEngine.csproj" />
+  <Project Path="Plugins/DevTools/DevTools.csproj" />
+  <Project Path="Plugins/FileTools/FileTools.csproj" />
+  <Project Path="Plugins/MemorySystem/MemorySystem.csproj" />
+  <Project Path="Plugins/QuickLinks/QuickLinks.csproj" />
+  <Project Path="Plugins/Scheduler/Scheduler.csproj" />
+  <Project Path="Plugins/ScriptRunner/ScriptRunner.csproj" />
+  <Project Path="Plugins/SystemMonitor/SystemMonitor.csproj" />
+  <Project Path="Plugins/TextTools/TextTools.csproj" />
+  <Project Path="Plugins/TodoTracker/TodoTracker.csproj" />
+  <Project Path="Plugins/WorkflowEngine/WorkflowEngine.csproj" />
   <Project Path="ForgeSelf.Core.Tests/ForgeSelf.Core.Tests.csproj" />
   <Project Path="ForgeSelf.Core/ForgeSelf.Core.csproj" />
 </Solution>

@@ -16,7 +16,7 @@
 ## 二、一个插件的前世今生（生命周期）
 
 1. **诞生（Scaffold）**：用 `PluginScaffolderService.Create(pluginId)` 生成骨架（目录 / `plugin.json` / `.csproj` / 示例 `IPlugin` 类），`pluginId` 自动按 kebab-case 产出。
-2. **注册（Reference）**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference>` 指向 `Plugins/{目录}/{目录}.csproj`；构建/发布时其产物被拷贝到 `publish/Plugins/{目录}/`。
+2. **注册（Reference）**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference>` 指向 `..\Plugins\{目录}\{目录}.csproj`；构建/发布时其产物被拷贝到 `publish/Plugins/{目录}/`。
 3. **发现（Discover）**：宿主启动时 `PluginManager` 扫描 `publish/Plugins/*/plugin.json`，读取 `Id` / `EntryAssembly` / `EntryType`。
 4. **加载（Load）**：经独立 `AssemblyLoadContext` 加载 `EntryAssembly`，再用 `Type.GetType(EntryType)` 反射出实现 `IPlugin` 的入口类。
 5. **应用（Apply）**：宿主 `Build()` 之后调用 `plugin.Apply(ctx)`。插件在此注册服务、`IMenuExtension` 菜单、`IToolFunctionExtension` 工具函数、控制器路由等。
@@ -116,7 +116,7 @@
 ## 七、如何新建一个插件（Step by Step）
 
 1. **生成骨架**：`PluginScaffolderService.Create("your-plugin-id")`（kebab），产出 `Plugins/YourPlugin/` 目录与示例 `IPlugin` 类。
-2. **登记引用**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference Include="Plugins/YourPlugin/YourPlugin.csproj" />`（目录名 PascalCase，与程序集一致）。
+2. **登记引用**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference Include="..\Plugins\YourPlugin\YourPlugin.csproj" />`（目录名 PascalCase，与程序集一致）。
 3. **实现 Apply**：在 `IPlugin.Apply(IContext ctx)` 中注册服务 / 菜单 / 工具函数 / 路由。
 4. **数据读写**：用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录；库文件**必须**命名为 `{连接名}.db`（连接名即数据库名，与 XCode 一致）。XCode 插件：`connName` 必须在 `XCodeConfig.PluginDbs` 映射，实体 `ConnName` 与之同名，宿主自动 `DAL.Create`。
 5. **构建发布**：`build.ps1` 会把 `Plugins/` 整体拷贝到 `publish/Plugins/`（保留），并排除宿主 `Data/Log`；`Plugins/` 目录本身不被 `git` 忽略，随仓库提交。

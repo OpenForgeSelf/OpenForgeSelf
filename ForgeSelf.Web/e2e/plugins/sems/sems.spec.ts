@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 /** 动态读取插件清单：route 来自 plugin.json.frontend.route（避免硬编码 /plugin-view 命名空间与冲突回退歧义）。 */
 const PLUGIN_MANIFEST = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL('../../../../ForgeSelf.Api/Plugins/Sems/plugin.json', import.meta.url)),
+    fileURLToPath(new URL('../../../../Plugins/Sems/plugin.json', import.meta.url)),
     'utf-8',
   ),
 ) as { version: string; frontend: { route: string } }

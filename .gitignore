@@ -5,7 +5,7 @@
 bin/
 obj/
 # 单插件发布脚本 staged 产物（publish-plugin.ps1 生成，含 DLL/PDB，等同 bin/obj）
-ForgeSelf.Api/Plugins/_backups/
+Plugins/_backups/
 node_modules/
 XCode.config
 artifacts/

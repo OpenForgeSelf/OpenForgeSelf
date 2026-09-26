@@ -194,17 +194,19 @@ public class XCodeConfigTests
             .Select(ReadManifestId)
             .ToList();
 
-    /// <summary>定位仓库内 ForgeSelf.Api/Plugins 目录（测试运行在 bin 下，需回溯）。</summary>
+    /// <summary>定位仓库根 Plugins 目录（测试运行在 bin 下，需回溯）。
+    /// 同时比对仓库根 ForgeSelf.Api 目录，避免测试项目自身的 Tests\Plugins 测试辅助目录误命中。</summary>
     private static string PluginsRootOfRepository()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, "ForgeSelf.Api", "Plugins");
-            if (Directory.Exists(candidate)) return candidate;
+            var candidate = Path.Combine(dir.FullName, "Plugins");
+            if (Directory.Exists(candidate) && Directory.Exists(Path.Combine(dir.FullName, "ForgeSelf.Api")))
+                return candidate;
             dir = dir.Parent;
         }
-        throw new DirectoryNotFoundException("未能定位 ForgeSelf.Api/Plugins 目录");
+        throw new DirectoryNotFoundException("未能定位仓库根 Plugins 目录");
     }
 
     [Fact]

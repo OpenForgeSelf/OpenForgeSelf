@@ -26,7 +26,7 @@ import { injectRealApiKey } from '../../helpers/real-auth'
 /** 动态读取插件清单，避免硬编码与 plugin.json 漂移不同步（含 BOM 兜底）。 */
 const PLUGIN_MANIFEST = JSON.parse(
   readFileSync(
-    fileURLToPath(new URL('../../../../ForgeSelf.Api/Plugins/DesignSystem/plugin.json', import.meta.url)),
+    fileURLToPath(new URL('../../../../Plugins/DesignSystem/plugin.json', import.meta.url)),
     'utf-8',
   ).replace(/^\uFEFF/, ''),
 ) as { Version?: string; version?: string; frontend: { route: string } }

@@ -51,6 +51,11 @@
     </None>
   </ItemGroup>
 
+  <!-- spec 036：自更新代理脚本随宿主输出/发布包一起分发（安装包内 update-agent.ps1 即来自这里）。 -->
+  <ItemGroup>
+    <Content Include="..\scripts\update-agent.ps1" Link="update-agent.ps1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
     <ProjectReference Include="..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />

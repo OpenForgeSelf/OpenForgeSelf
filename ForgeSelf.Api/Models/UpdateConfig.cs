@@ -2,12 +2,28 @@ namespace ForgeSelf.Api.Models;
 
 /// <summary>
 /// 更新配置，从 appsettings.json 的 "Update" 节读取。
-/// 用于配置 StarServer 更新服务器地址、通道、超时等参数。
+/// 支持两种更新源（<see cref="Provider"/>）：
+/// stardust = StarServer 版本接口（008 原有协议）；github = GitHub Releases（spec 036）。
 /// </summary>
 public class UpdateConfig
 {
+    /// <summary>更新源类型："stardust"（StarServer，默认）或 "github"（GitHub Releases）</summary>
+    public string Provider { get; set; } = "stardust";
+
     /// <summary>StarServer 更新服务器地址。空字符串表示不使用自动更新（仅手动检查）</summary>
     public string ServerUrl { get; set; } = "";
+
+    /// <summary>GitHub API 基址（默认 https://api.github.com，可指向 GHES）</summary>
+    public string GitHubApiUrl { get; set; } = "https://api.github.com";
+
+    /// <summary>GitHub 仓库标识 "owner/repo"，Provider=github 时必填</summary>
+    public string GitHubRepo { get; set; } = "";
+
+    /// <summary>
+    /// GitHub 访问令牌（私有仓库必需）。为空时回退环境变量 FORGESELF_UPDATE_TOKEN。
+    /// 安全约定：不要把真实 token 提交进版本库。
+    /// </summary>
+    public string GitHubToken { get; set; } = "";
 
     /// <summary>更新通道：stable（稳定版）、beta（测试版）</summary>
     public string Channel { get; set; } = "stable";

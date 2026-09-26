@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -21,6 +22,10 @@ public class UpdateChecker
     private readonly string _currentVersion;
     private readonly string _os;
     private readonly string _runtime;
+
+    // GitHub 分支：最近一次检查命中的资产下载直链（spec 036）
+    private string? _githubAssetUrl;
+    private string? _githubAssetTag;
 
     /// <summary>
     /// 初始化更新检查器。
@@ -65,6 +70,12 @@ public class UpdateChecker
 
         try
         {
+            // GitHub Releases provider 分支（spec 036）；stardust 默认路径保持不变
+            if (string.Equals(_config.Provider, "github", StringComparison.OrdinalIgnoreCase))
+            {
+                return await CheckGitHubAsync(result);
+            }
+
             if (string.IsNullOrEmpty(_config.ServerUrl))
             {
                 XTrace.Log.Info("UpdateChecker: ServerUrl 未配置，跳过版本检查。");
@@ -146,6 +157,13 @@ public class UpdateChecker
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
         ArgumentException.ThrowIfNullOrWhiteSpace(destPath);
+
+        // GitHub Releases 下载分支（spec 036）
+        if (string.Equals(_config.Provider, "github", StringComparison.OrdinalIgnoreCase))
+        {
+            await DownloadGitHubPackageAsync(version, destPath);
+            return;
+        }
 
         if (string.IsNullOrEmpty(_config.ServerUrl))
             throw new InvalidOperationException("ServerUrl 未配置，无法下载更新包。");
@@ -248,6 +266,355 @@ public class UpdateChecker
         {
             return "1.0.0.0";
         }
+    }
+
+    // ======================================================================
+    // GitHub Releases provider（spec 036）
+    // ======================================================================
+
+    /// <summary>
+    /// 通过 GitHub Releases API 检查更新。
+    /// 拉取 releases 列表（含预发布过滤：channel=stable 时排除 prerelease），
+    /// 按 semver 取最新，选择 OpenForgeSelf-*-win-x64.zip 资产。
+    /// 网络/解析异常由 <see cref="CheckForUpdateAsync"/> 外层通用 catch 兜底。
+    /// </summary>
+    private async Task<UpdateCheckResult> CheckGitHubAsync(UpdateCheckResult result)
+    {
+        if (string.IsNullOrWhiteSpace(_config.GitHubRepo))
+        {
+            result.IsSuccess = false;
+            result.ErrorMessage = "GitHubRepo 未配置";
+            return result;
+        }
+
+        var baseUrl = _config.GitHubApiUrl.TrimEnd('/');
+        var requestUrl = $"{baseUrl}/repos/{_config.GitHubRepo}/releases?per_page=30";
+        XTrace.Log.Info("UpdateChecker(GitHub): 检查更新: {0}", requestUrl);
+
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.CheckTimeoutSeconds, 5)));
+
+        using (var request = CreateGitHubRequest(requestUrl))
+        {
+            var response = await _httpClient.SendAsync(request, cts.Token);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync(cts.Token);
+
+            using var doc = JsonDocument.Parse(json);
+
+            var channelAllowsPrerelease =
+                !string.Equals(_config.Channel, "stable", StringComparison.OrdinalIgnoreCase);
+
+            JsonElement? chosen = null;
+            SemVer? chosenSem = null;
+            string? chosenTag = null;
+
+            foreach (var release in doc.RootElement.EnumerateArray())
+            {
+                if (release.TryGetProperty("draft", out var draftEl) &&
+                    draftEl.ValueKind == JsonValueKind.True)
+                    continue;
+
+                var isPrerelease = release.TryGetProperty("prerelease", out var preEl) &&
+                    preEl.ValueKind == JsonValueKind.True;
+                if (isPrerelease && !channelAllowsPrerelease)
+                    continue;
+
+                var tag = release.TryGetProperty("tag_name", out var tagEl)
+                    ? tagEl.GetString() : null;
+                var sem = ParseSemVer(tag);
+                if (sem == null)
+                    continue;
+
+                if (chosenSem == null || CompareSemVer(sem, chosenSem) > 0)
+                {
+                    chosen = release;
+                    chosenSem = sem;
+                    chosenTag = tag;
+                }
+            }
+
+            result.IsSuccess = true;
+
+            if (chosen == null || chosenSem == null)
+            {
+                result.HasUpdate = false;
+                XTrace.Log.Info("UpdateChecker(GitHub): 通道 {0} 下无匹配的 Release。", _config.Channel);
+                return result;
+            }
+
+            var currentSem = ParseSemVer(_currentVersion);
+            result.LatestVersion = chosenSem.ToVersion();
+            result.LatestVersionTag = chosenTag;
+            result.HasUpdate = currentSem == null || CompareSemVer(chosenSem, currentSem) > 0;
+
+            if (chosen.Value.TryGetProperty("body", out var bodyEl) &&
+                bodyEl.ValueKind == JsonValueKind.String)
+            {
+                result.ReleaseNotes = bodyEl.GetString();
+            }
+
+            // 选择 win-x64 zip 资产：OpenForgeSelf-<ver>-win-x64.zip
+            string? assetUrl = null;
+            if (result.HasUpdate &&
+                chosen.Value.TryGetProperty("assets", out var assetsEl) &&
+                assetsEl.ValueKind == JsonValueKind.Array)
+            {
+                assetUrl = ExtractWinX64Asset(assetsEl, result);
+            }
+
+            if (result.HasUpdate)
+            {
+                if (string.IsNullOrEmpty(assetUrl))
+                {
+                    result.HasUpdate = false;
+                    result.IsSuccess = false;
+                    result.ErrorMessage = $"Release {chosenTag} 中未找到 win-x64 更新包资产";
+                    XTrace.Log.Warn("UpdateChecker(GitHub): {0}", result.ErrorMessage);
+                    return result;
+                }
+
+                result.DownloadUrl = assetUrl;
+                _githubAssetUrl = assetUrl;
+                _githubAssetTag = NormalizeTag(chosenTag);
+            }
+
+            XTrace.Log.Info("UpdateChecker(GitHub): 检查完成, HasUpdate={0}, Tag={1}",
+                result.HasUpdate, chosenTag);
+            return result;
+        }
+    }
+
+    /// <summary>从 release.assets 中选取 win-x64 更新包，顺带填充 PackageHash / PackageSize。</summary>
+    private static string? ExtractWinX64Asset(JsonElement assetsEl, UpdateCheckResult result)
+    {
+        foreach (var asset in assetsEl.EnumerateArray())
+        {
+            var name = asset.TryGetProperty("name", out var nameEl)
+                ? nameEl.GetString() : null;
+            if (name == null ||
+                !name.StartsWith("OpenForgeSelf-", StringComparison.OrdinalIgnoreCase) ||
+                !name.EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var url = asset.TryGetProperty("browser_download_url", out var urlEl)
+                ? urlEl.GetString() : null;
+
+            if (asset.TryGetProperty("digest", out var digestEl) &&
+                digestEl.ValueKind == JsonValueKind.String)
+            {
+                result.PackageHash = digestEl.GetString();
+            }
+            else
+            {
+                XTrace.Log.Warn("UpdateChecker(GitHub): 资产 {0} 无 digest，下载后将跳过 SHA256 校验。", name);
+            }
+
+            if (asset.TryGetProperty("size", out var sizeEl) &&
+                sizeEl.ValueKind == JsonValueKind.Number)
+            {
+                result.PackageSize = sizeEl.GetInt64();
+            }
+
+            return url;
+        }
+
+        return null;
+    }
+
+    /// <summary>从 GitHub Release 资产下载更新包（Accept: application/octet-stream，跟随重定向）。</summary>
+    private async Task DownloadGitHubPackageAsync(string version, string destPath)
+    {
+        if (string.IsNullOrWhiteSpace(_config.GitHubRepo))
+            throw new InvalidOperationException("GitHubRepo 未配置，无法下载更新包。");
+
+        var assetUrl = await ResolveGitHubAssetUrlAsync(version);
+        XTrace.Log.Info("UpdateChecker(GitHub): 下载更新包: {0} → {1}", assetUrl, destPath);
+
+        var dir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.DownloadTimeoutSeconds, 30)));
+
+        try
+        {
+            using var request = CreateGitHubRequest(assetUrl);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+            using var response = await _httpClient.SendAsync(request,
+                HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            response.EnsureSuccessStatusCode();
+
+            await using var sourceStream = await response.Content.ReadAsStreamAsync(cts.Token);
+            await using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await sourceStream.CopyToAsync(destStream, cts.Token);
+
+            XTrace.Log.Info("UpdateChecker(GitHub): 下载完成: {0} ({1} bytes)", destPath,
+                new FileInfo(destPath).Length);
+        }
+        catch (OperationCanceledException)
+        {
+            throw new HttpRequestException(
+                $"下载更新包超时 ({_config.DownloadTimeoutSeconds}s): {assetUrl}");
+        }
+    }
+
+    /// <summary>解析资产下载直链：优先用最近检查结果缓存，未命中则按 tag 反查 API。</summary>
+    private async Task<string> ResolveGitHubAssetUrlAsync(string version)
+    {
+        var wanted = NormalizeTag(version);
+        if (_githubAssetUrl != null && _githubAssetTag == wanted)
+            return _githubAssetUrl;
+
+        var baseUrl = _config.GitHubApiUrl.TrimEnd('/');
+        var candidateTags = new List<string> { version };
+        var withoutV = version.StartsWith("v", StringComparison.OrdinalIgnoreCase)
+            ? version[1..] : version;
+        candidateTags.Add("v" + withoutV);
+        candidateTags.Add(withoutV);
+
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.CheckTimeoutSeconds, 10)));
+
+        foreach (var tag in candidateTags.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var url = $"{baseUrl}/repos/{_config.GitHubRepo}/releases/tags/{Uri.EscapeDataString(tag)}";
+            using var request = CreateGitHubRequest(url);
+            var response = await _httpClient.SendAsync(request, cts.Token);
+            if (!response.IsSuccessStatusCode)
+                continue;
+
+            var json = await response.Content.ReadAsStringAsync(cts.Token);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("assets", out var assetsEl) ||
+                assetsEl.ValueKind != JsonValueKind.Array)
+                continue;
+
+            var dummy = new UpdateCheckResult();
+            var assetUrl = ExtractWinX64Asset(assetsEl, dummy);
+            if (!string.IsNullOrEmpty(assetUrl))
+            {
+                _githubAssetUrl = assetUrl;
+                _githubAssetTag = NormalizeTag(tag);
+                return assetUrl;
+            }
+        }
+
+        throw new InvalidOperationException($"未找到版本 {version} 对应的 GitHub Release win-x64 更新包。");
+    }
+
+    /// <summary>构造 GitHub API 请求（UA + 可选 Bearer token）。</summary>
+    private HttpRequestMessage CreateGitHubRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.UserAgent.ParseAdd(_appName);
+        var token = ResolveGitHubToken();
+        if (token != null)
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return request;
+    }
+
+    /// <summary>解析 GitHub token：配置优先，为空回退环境变量 FORGESELF_UPDATE_TOKEN。</summary>
+    private string? ResolveGitHubToken()
+    {
+        var token = _config.GitHubToken;
+        if (string.IsNullOrEmpty(token))
+            token = Environment.GetEnvironmentVariable("FORGESELF_UPDATE_TOKEN");
+        return string.IsNullOrEmpty(token) ? null : token;
+    }
+
+    /// <summary>归一化 tag（去 v 前缀、小写），用于比较。</summary>
+    private static string? NormalizeTag(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+            return null;
+        var trimmed = tag.Trim();
+        if (trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+            trimmed = trimmed[1..];
+        return trimmed.ToLowerInvariant();
+    }
+
+    /// <summary>semver 解析结果：4 段 core + 可选预发布标识。</summary>
+    internal sealed record SemVer(int[] Core, string? Prerelease)
+    {
+        public Version ToVersion() => new(Core[0], Core[1], Core[2]);
+    }
+
+    /// <summary>
+    /// 解析 semver 风格版本号："v1.2.3"、"1.2.3"、"1.2.3.4"、"1.2.3-beta.1+build" 均可；
+    /// 解析失败返回 null。
+    /// </summary>
+    internal static SemVer? ParseSemVer(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var s = raw.Trim();
+        if (s.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+            s = s[1..];
+
+        var plusIndex = s.IndexOf('+');
+        if (plusIndex >= 0)
+            s = s[..plusIndex];
+
+        string? prerelease = null;
+        var dashIndex = s.IndexOf('-');
+        if (dashIndex >= 0)
+        {
+            prerelease = s[(dashIndex + 1)..];
+            s = s[..dashIndex];
+        }
+
+        var parts = s.Split('.');
+        if (parts.Length is < 1 or > 4)
+            return null;
+
+        var core = new int[4];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!int.TryParse(parts[i], out var n) || n < 0)
+                return null;
+            core[i] = n;
+        }
+
+        return new SemVer(core, prerelease);
+    }
+
+    /// <summary>semver 比较：core 逐段比较，无预发布标识 &gt; 有预发布标识。</summary>
+    internal static int CompareSemVer(SemVer a, SemVer b)
+    {
+        for (var i = 0; i < 4; i++)
+        {
+            var c = a.Core[i].CompareTo(b.Core[i]);
+            if (c != 0) return c;
+        }
+
+        if (a.Prerelease == null && b.Prerelease == null) return 0;
+        if (a.Prerelease == null) return 1;
+        if (b.Prerelease == null) return -1;
+
+        return ComparePrerelease(a.Prerelease, b.Prerelease);
+    }
+
+    /// <summary>semver 预发布标识比较（数字段按数值、其余按字典序，短的小于长的）。</summary>
+    private static int ComparePrerelease(string a, string b)
+    {
+        var pa = a.Split('.');
+        var pb = b.Split('.');
+        for (var i = 0; i < Math.Min(pa.Length, pb.Length); i++)
+        {
+            var aNumeric = int.TryParse(pa[i], out var x);
+            var bNumeric = int.TryParse(pb[i], out var y);
+            int c;
+            if (aNumeric && bNumeric) c = x.CompareTo(y);
+            else if (aNumeric) c = -1;
+            else if (bNumeric) c = 1;
+            else c = string.CompareOrdinal(pa[i], pb[i]);
+            if (c != 0) return c;
+        }
+        return pa.Length.CompareTo(pb.Length);
     }
 
     /// <summary>

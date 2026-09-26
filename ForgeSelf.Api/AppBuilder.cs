@@ -164,12 +164,22 @@ public static class AppBuilder
             return new ServiceManager(config);
         });
 
-        // UpdateChecker — 封装 StarServer 版本查询与下载
+        // UpdateChecker — 封装版本查询与下载（stardust / GitHub Releases 双 provider）
         builder.Services.AddSingleton<UpdateChecker>(sp =>
         {
             var config = sp.GetRequiredService<IOptions<UpdateConfig>>().Value;
-            var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(config.CheckTimeoutSeconds + 10) };
-            return new UpdateChecker(config, httpClient);
+            // Timeout 交给各请求自己的 CancellationTokenSource（check/download 超时不同量级）；
+            // HttpClient 级超时若按 CheckTimeoutSeconds 配置，会把大文件下载在十几秒处掐断。
+            var httpClient = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+            return new UpdateChecker(config, httpClient, currentVersion: UpdateChecker.GetCurrentVersion());
+        });
+
+        // StagedUpdateService — 暂存式更新编排（spec 036：下载→校验→解压 staged→agent 重启并更新）
+        builder.Services.AddSingleton<StagedUpdateService>(sp =>
+        {
+            var updateChecker = sp.GetRequiredService<UpdateChecker>();
+            var lifetime = sp.GetRequiredService<IHostApplicationLifetime>();
+            return new StagedUpdateService(updateChecker, lifetime);
         });
 
         // UpdateService — 更新流程编排

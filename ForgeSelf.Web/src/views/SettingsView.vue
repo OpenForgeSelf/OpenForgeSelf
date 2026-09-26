@@ -10,7 +10,8 @@ import {
   Brush,
   Coin,
   InfoFilled,
-  Key
+  Key,
+  Refresh
 } from '@element-plus/icons-vue';
 import GeneralPanel from '@/components/settings/GeneralPanel.vue';
 import AiAgentPanel from '@/components/settings/AiAgentPanel.vue';
@@ -20,6 +21,7 @@ import ApiServerPanel from '@/components/settings/ApiServerPanel.vue';
 import ApiKeysPanel from '@/components/settings/ApiKeysPanel.vue';
 import AppearancePanel from '@/components/settings/AppearancePanel.vue';
 import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
+import UpdatePanel from '@/components/settings/UpdatePanel.vue';
 import AboutPanel from '@/components/settings/AboutPanel.vue';
 
 type SettingsCategory =
@@ -31,6 +33,7 @@ type SettingsCategory =
   | 'api-keys'
   | 'appearance'
   | 'data'
+  | 'update'
   | 'about';
 
 const activeCategory = ref<SettingsCategory>('general');
@@ -50,6 +53,7 @@ const navItems: NavItem[] = [
   { key: 'api-keys', label: 'API 密钥', icon: markRaw(Key) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
+  { key: 'update', label: '版本更新', icon: markRaw(Refresh) },
   { key: 'about', label: '关于', icon: markRaw(InfoFilled) }
 ];
 </script>
@@ -85,6 +89,7 @@ const navItems: NavItem[] = [
         <ApiKeysPanel v-show="activeCategory === 'api-keys'" />
         <AppearancePanel v-show="activeCategory === 'appearance'" />
         <DataStoragePanel v-show="activeCategory === 'data'" />
+        <UpdatePanel v-show="activeCategory === 'update'" />
         <AboutPanel v-show="activeCategory === 'about'" />
       </div>
     </div>

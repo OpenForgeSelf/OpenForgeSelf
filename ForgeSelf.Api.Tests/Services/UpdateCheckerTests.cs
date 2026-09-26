@@ -474,6 +474,202 @@ public class UpdateCheckerTests : IDisposable
     // 辅助方法
     // ================================================================
 
+    // ================================================================
+    // GitHub Releases provider（spec 036）
+    // ================================================================
+
+    private const string GitHubReleasesJson = """
+        [
+          {
+            "tag_name": "v2.0.0",
+            "draft": false,
+            "prerelease": false,
+            "body": "## 更新内容",
+            "assets": [
+              {
+                "name": "OpenForgeSelf-2.0.0-win-x64.zip",
+                "browser_download_url": "https://example.com/forge.zip",
+                "digest": "sha256:abcdef0123456789",
+                "size": 123456
+              }
+            ]
+          },
+          {
+            "tag_name": "v1.5.0",
+            "draft": false,
+            "prerelease": false,
+            "body": "old",
+            "assets": []
+          }
+        ]
+        """;
+
+    private UpdateConfig GitHubConfig(string channel = "stable") => new()
+    {
+        Provider = "github",
+        GitHubApiUrl = "https://api.github.com",
+        GitHubRepo = "test-owner/test-repo",
+        Channel = channel,
+        CheckTimeoutSeconds = 5,
+        DownloadTimeoutSeconds = 60,
+    };
+
+    [Fact]
+    public async Task GitHub_NewRelease_ReturnsHasUpdateWithAssetInfo()
+    {
+        SetupHttpResponse(GitHubReleasesJson);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersionTag.Should().Be("v2.0.0");
+        result.LatestVersion.Should().Be(new Version(2, 0, 0));
+        result.DownloadUrl.Should().Be("https://example.com/forge.zip");
+        result.PackageHash.Should().Be("sha256:abcdef0123456789");
+        result.PackageSize.Should().Be(123456);
+        result.ReleaseNotes.Should().Be("## 更新内容");
+    }
+
+    [Fact]
+    public async Task GitHub_SameVersion_ReturnsNoUpdate()
+    {
+        SetupHttpResponse(GitHubReleasesJson);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "2.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GitHub_StableChannel_ExcludesPrerelease()
+    {
+        var json = """
+            [{"tag_name":"v3.0.0-beta.1","draft":false,"prerelease":true,"body":"","assets":[
+              {"name":"OpenForgeSelf-3.0.0-beta.1-win-x64.zip","browser_download_url":"https://example.com/beta.zip","digest":"sha256:aa","size":1}]}]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GitHubConfig("stable"), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GitHub_BetaChannel_IncludesPrerelease()
+    {
+        var json = """
+            [{"tag_name":"v3.0.0-beta.1","draft":false,"prerelease":true,"body":"","assets":[
+              {"name":"OpenForgeSelf-3.0.0-beta.1-win-x64.zip","browser_download_url":"https://example.com/beta.zip","digest":"sha256:aa","size":1}]}]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GitHubConfig("beta"), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersionTag.Should().Be("v3.0.0-beta.1");
+    }
+
+    [Fact]
+    public async Task GitHub_PrereleaseNotNewerThanRelease_ReturnsNoUpdate()
+    {
+        // 当前已是正式版 2.0.0，最新（beta 通道可见）为 2.0.0-test → semver 预发布 < 正式版，不应提示更新
+        var json = """
+            [{"tag_name":"v2.0.0-test","draft":false,"prerelease":true,"body":"","assets":[
+              {"name":"OpenForgeSelf-2.0.0-test-win-x64.zip","browser_download_url":"https://example.com/t.zip","digest":"sha256:aa","size":1}]}]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GitHubConfig("beta"), _httpClient, _testAppName, currentVersion: "2.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.HasUpdate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GitHub_MissingRepo_FailsGracefully()
+    {
+        var config = GitHubConfig();
+        config.GitHubRepo = "";
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("GitHubRepo");
+    }
+
+    [Fact]
+    public async Task GitHub_NoWinX64Asset_ReportedAsFailure()
+    {
+        var json = """
+            [{"tag_name":"v2.0.0","draft":false,"prerelease":false,"body":"","assets":[]}]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.HasUpdate.Should().BeFalse();
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("win-x64");
+    }
+
+    [Fact]
+    public async Task GitHub_TokenConfigured_SendsBearerHeader()
+    {
+        var config = GitHubConfig();
+        config.GitHubToken = "test-token";
+        SetupHttpResponse(GitHubReleasesJson);
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        await checker.CheckForUpdateAsync();
+
+        _handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(r =>
+                r.Headers.Authorization != null &&
+                r.Headers.Authorization.Scheme == "Bearer" &&
+                r.Headers.Authorization.Parameter == "test-token"),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GitHub_Download_UsesCachedAssetUrlAndWritesFile()
+    {
+        SetupHttpResponse(GitHubReleasesJson);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        // 先检查（缓存资产直链），再下载
+        await checker.CheckForUpdateAsync();
+
+        var destPath = Path.Combine(Path.GetTempPath(), $"forge-{Guid.NewGuid():N}.zip");
+        try
+        {
+            await checker.DownloadPackageAsync("v2.0.0", destPath);
+            File.Exists(destPath).Should().BeTrue();
+            (await File.ReadAllTextAsync(destPath)).Should().Contain("OpenForgeSelf-2.0.0-win-x64.zip");
+        }
+        finally
+        {
+            if (File.Exists(destPath)) File.Delete(destPath);
+        }
+
+        _handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(r =>
+                r.RequestUri != null && r.RequestUri.ToString() == "https://example.com/forge.zip"),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
     private void SetupHttpResponse(string jsonContent, HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");

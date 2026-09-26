@@ -109,6 +109,7 @@ declare module 'vue' {
     TopNavbar: typeof import('./src/components/TopNavbar.vue')['default']
     TrendChart: typeof import('./src/components/systemmonitor/TrendChart.vue')['default']
     TruncatedContent: typeof import('./src/components/chatrecords/TruncatedContent.vue')['default']
+    UpdatePanel: typeof import('./src/components/settings/UpdatePanel.vue')['default']
     UuidTool: typeof import('./src/components/devtools/UuidTool.vue')['default']
     WorkflowCard: typeof import('./src/components/workflow/WorkflowCard.vue')['default']
     WorkflowEditor: typeof import('./src/components/workflow/WorkflowEditor.vue')['default']

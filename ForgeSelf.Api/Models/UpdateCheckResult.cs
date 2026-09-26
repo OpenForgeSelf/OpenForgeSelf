@@ -12,6 +12,9 @@ public class UpdateCheckResult
     /// <summary>服务器上最新版本号</summary>
     public Version? LatestVersion { get; set; }
 
+    /// <summary>最新版本原始标识（GitHub 为 tag 名，如 "v0.1.0"；stardust 可为 null）</summary>
+    public string? LatestVersionTag { get; set; }
+
     /// <summary>是否有可用更新（LatestVersion > CurrentVersion）</summary>
     public bool HasUpdate { get; set; }
 

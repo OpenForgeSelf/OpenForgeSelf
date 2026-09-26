@@ -25,7 +25,7 @@ ForgeSelf.Web/coverage/
 .codegraph/
 # 含明文 MCP 凭据，禁止提交到仓库
 .mcp.json
-.github/
+# GitHub Actions workflow 必须入库（tag 触发自动发布链路，见 scripts/release/）
 .vscode/settings.json 
 dist/
 # 前端构建产物：vite build 输出至后端 wwwroot（纯生成物，非源码），含 assets/ 与 index.html 及历史孤儿产物
@@ -64,7 +64,7 @@ publish.bak*/
 .agents/
 .atomcode/
 .forgeself/
-.github/
+# .github/ 已从忽略移除：workflow 必须入库（2026-09-26 CI 自动发布链路）
 .specify/
 .vscode/
 openwiki/

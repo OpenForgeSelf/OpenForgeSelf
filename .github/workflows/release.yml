@@ -1,0 +1,45 @@
+name: Release
+# Tag-triggered auto publish: `git tag -a v0.1.0 -m "..." && git push github v0.1.0`
+# All build/package/publish logic lives in scripts/release/*.ps1 (locally debuggable);
+# this workflow only prepares toolchains and invokes the scripts.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + tags: needed by make-release-notes.ps1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build + package (scripts/release/release-local.ps1)
+        shell: pwsh
+        run: ./scripts/release/release-local.ps1 -Version "${env:GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release (scripts/release/publish-release.ps1)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/release/publish-release.ps1 -Version "${env:GITHUB_REF_NAME}" -Repo "${{ github.repository }}"

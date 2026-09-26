@@ -1,4 +1,4 @@
-# 一次性存量迁移：把扁平布局插件迁移到 side-by-side 版本化布局（versions/<ver>/ + current 指针）
+﻿# 一次性存量迁移：把扁平布局插件迁移到 side-by-side 版本化布局（versions/<ver>/ + current 指针）
 # 用法：pwsh scripts/migrate-plugin-versions.ps1 [-PluginsRoot "<repo>\publish\Plugins"]
 # 行为：
 #   - 只对「无 current 指针或 versions/<当前清单版本> 缺失」的插件目录补建快照 + current

@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Publish a single plugin to <PluginsRoot>/_backups/<id>/<version>/
 # Use together with host runtime `POST /api/plugin/update/{id}` to enable
 # "single plugin, no host restart" end-to-end capability.

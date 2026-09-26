@@ -1,4 +1,4 @@
-# update-agent.ps1 — OpenForgeSelf 宿主自更新代理（spec 036）
+﻿# update-agent.ps1 — OpenForgeSelf 宿主自更新代理（spec 036）
 # 由宿主 StagedUpdateService 拉起：等待宿主进程退出 → 备份安装目录 → 覆盖 staged 新文件 → 重启宿主。
 # 约定：
 #   - 非删除性操作：robocopy /E 覆盖，旧文件先整体备份到 %LOCALAPPDATA%\ForgeSelf\Backups\<ts>

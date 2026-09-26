@@ -95,11 +95,48 @@ public class StagedUpdateServiceTests : IDisposable
     }
 
     [Fact]
-    public void ApplyStaged_NotReady_ReturnsFalseAndFails()
+    public async Task ApplyStaged_NotReady_ReturnsFalseAndFails()
     {
         var service = CreateService();
 
         service.ApplyStaged().Should().BeFalse();
         service.GetState().Status.Should().Be("failed");
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// spec 036 实机竞态回归：StartDownload 返回瞬间状态必须已是 downloading。
+    /// 旧实现先 Task.Run 再靠后台任务置 downloading，POST 响应/前端首轮轮询可能读到
+    /// checked → 前端把 checked 当终止态停止轮询 → UI 永远等不到「重启并更新」。
+    /// </summary>
+    [Fact]
+    public async Task StartDownload_ReturnsWithDownloadingImmediately_NotStaleChecked()
+    {
+        // 让资产下载响应延迟 3s，杜绝后台任务抢在断言前跑到 ready/failed 的干扰
+        _handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns(async (HttpRequestMessage _, CancellationToken _) =>
+            {
+                await Task.Delay(3000);
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(ReleasesJson, System.Text.Encoding.UTF8, "application/json"),
+                };
+            });
+
+        var service = CreateService();
+        var check = await service.CheckAsync();
+        check.HasUpdate.Should().BeTrue();
+        service.GetState().Status.Should().Be("checked");
+
+        var started = service.StartDownload();
+
+        started.Should().BeTrue();
+        service.GetState().Status.Should().Be("downloading");
     }
 }

@@ -120,6 +120,9 @@ public class StagedUpdateService
             if (_state.Check == null || !_state.Check.HasUpdate)
                 return false;
 
+            // 必须在返回前同步置 downloading：若等后台任务再置，POST 响应/首轮轮询
+            // 可能读到 checked，被前端当作终止态停止轮询（spec 036 实机竞态）。
+            Set("downloading", 0, "下载更新包...", _state.Check, _state.Tag, _state.StagedDir);
             _ = Task.Run(DownloadAndStageAsync);
             return true;
         }

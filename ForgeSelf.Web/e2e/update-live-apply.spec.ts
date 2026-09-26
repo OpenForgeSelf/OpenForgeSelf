@@ -43,14 +43,21 @@ test.describe('版本更新 · 真实升级端到端（spec 036，破坏性）',
     const manifestBefore = await (await apiGet(page, '/api/plugin/frontend-manifest')).json();
     const pluginCountBefore = (manifestBefore.data ?? manifestBefore).length ?? 0;
 
-    // —— 1. UI 检查更新 ——
+    // —— 1. 先经 API 拿到目标 tag（POST check 同步返回，避免点 UI 后立即读 status 的竞态）——
+    const checkRes = await (
+      await page.request.post(`${BASE}/api/update/check`, {
+        headers: { Authorization: `Bearer ${REAL_API_KEY}` },
+        timeout: 60_000,
+      })
+    ).json();
+    const targetTag: string = checkRes.data?.latestVersionTag ?? '';
+    expect(targetTag, '检查结果应发现新版本').toMatch(/^v\d+\.\d+\.\d+/);
+
+    // UI 检查更新：应展示同一 tag
     await page.addInitScript((key) => localStorage.setItem('forge_api_token', key), REAL_API_KEY);
     await page.goto('/settings');
     await page.getByRole('button', { name: '版本更新' }).click();
     await page.getByRole('button', { name: '检查更新' }).click();
-    const checkApi = await (await apiGet(page, '/api/update/status')).json();
-    const targetTag: string = checkApi.data.state?.check?.latestVersionTag ?? '';
-    expect(targetTag, '检查结果应发现新版本').toMatch(/^v\d+\.\d+\.\d+/);
     await expect(page.locator(`text=发现新版本 ${targetTag}`).first()).toBeVisible({ timeout: 60_000 });
 
     // —— 2. UI 下载更新 → 等待就绪（下载/校验/解压轮询）——

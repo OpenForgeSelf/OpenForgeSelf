@@ -139,4 +139,40 @@ public class StagedUpdateServiceTests : IDisposable
         started.Should().BeTrue();
         service.GetState().Status.Should().Be("downloading");
     }
+
+    /// <summary>
+    /// spec 036 实机根因回归：下载进行中再次 check，结论只返回，不得把 downloading
+    /// 覆盖成 checked（前端会把 checked 当终止态永久停止轮询 →「重启并更新」按钮消失）。
+    /// </summary>
+    [Fact]
+    public async Task CheckAsync_WhileDownloading_DoesNotClobberState()
+    {
+        // 资产下载慢（6s），releases 列表快——保证第二次 check 完成时下载仍在进行中
+        _handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns(async (HttpRequestMessage req, CancellationToken _) =>
+            {
+                if (req.RequestUri?.ToString().Contains("/releases/assets") == true)
+                    await Task.Delay(6000);
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(ReleasesJson, System.Text.Encoding.UTF8, "application/json"),
+                };
+            });
+
+        var service = CreateService();
+        (await service.CheckAsync()).HasUpdate.Should().BeTrue();
+        service.StartDownload().Should().BeTrue();
+        service.GetState().Status.Should().Be("downloading");
+
+        var second = await service.CheckAsync();
+
+        second.HasUpdate.Should().BeTrue();
+        service.GetState().Status.Should().Be("downloading");
+    }
 }

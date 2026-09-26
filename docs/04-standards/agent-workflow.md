@@ -611,6 +611,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **修既有中文脚本首选「前置 UTF-8 BOM」**（字节级、**不重编码**、零内容损坏）：`$b=[System.IO.File]::ReadAllBytes($p); if(-not($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)){ $n=New-Object byte[]($b.Length+3); $n[0]=0xEF;$n[1]=0xBB;$n[2]=0xBF; [Array]::Copy($b,0,$n,3,$b.Length); [System.IO.File]::WriteAllBytes($p,$n) }`
 - 新脚本内容全英文（最省事）；读写文件用 .NET API（`ReadAllText($p,[System.Text.Encoding]::UTF8)` / `WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding($false)))`）。
 - **排查/验证**：`[System.Management.Automation.Language.Parser]::ParseFile($p,[ref]$null,[ref]$errs)` 看 `$errs.Count`；**必须用 `powershell`（5.1）而非 `pwsh` 复现**——PS Core 解析无 BOM UTF-8 正常，用 Core 验证会漏判。
+- **本坑的实弹代价（2026-09-26 spec 036）**：`update-agent.ps1`（随发布包分发、由宿主用 powershell 5.1 拉起）UTF-8 无 BOM → 解析期崩溃、**连日志都写不出**，宿主自停后无人换文件重启，51888 实例直接下线。自动化守卫：`ForgeSelf.Api.Tests/RepositoryScriptTests.cs`（scripts/ 下含非 ASCII 的 .ps1 必须带 BOM），新增中文脚本先跑它。
 - **PowerShell here-string `$x=@'...'@` 等号后必须换行**：`@'` 必须独占一行，凡模板/多行替换一律拆行写。
 - **构造 JSON 请求体一律 `ConvertTo-Json`，禁止手工拼字符串/正则 hack**（少一层闭合括号 → JSON-RPC parse error 返回 error 而非 result → `Invoke-RestMethod` 返回 null 数组才暴露）。发送前先核响应结构（有 `result` 还是 `error`），再取字段。
 - **安全删除钩子**：`Remove-Item` 被包装成"移到回收站"，锁文件会失败；`cmd /c "rd/del ..."` 等价删除会被 **safe-delete fail-closed** 直接拒绝（明确 "Do not retry"）。Agent 不可绕过；需物理删除时请用户手动执行。
@@ -647,6 +648,10 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **WinDivert 部署结构（FlowForge）**：`WinDivert.dll` 必须与 `WinDivert64.sys` 同在 exe 根目录（csproj `<None Include>` 加 `<TargetPath>X</TargetPath>` 落到根目录）；驱动文件被内核锁定删除报访问被拒，`sc stop WinDivert` 需管理员；驱动文件不随业务代码变化时跳过 sys 覆盖即可。
 
 ## B9 测试覆盖与功能规格
+
+### 真机走查（playwright.live.config.ts 打运行中实例）
+- 🔴 **live 配置不走 globalSetup**：`helpers/real-auth.getRealApiKey()` 的取值优先级是 `E2E_API_TOKEN` > 最近一次 globalSetup 落盘的 `.temp/e2e/<ts>/state.json`。对 51888 这类常驻实例跑 live 用例**必须显式注入当前真实密钥**（`E2E_API_TOKEN=$(node scripts/get-forge-token.cjs …)`），否则读到过期 state token → 401 空响应 → 「Unexpected end of JSON input」假象（spec 036 首轮实测）。
+- 破坏性 live 用例（会重启/换版实例）必须双显式门控（env 开关 + 显式 token），普通套件绝不命中；见 `e2e/update-live-apply.spec.ts` 的 `test.skip` 模式。
 
 ### 功能测试覆盖（e2e，2026-08-06 归档）
 21 项功能全覆盖、36 用例全通过（对接真实后端 + 真实认证，绝不 mock）：
@@ -717,6 +722,10 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 重打测试 tag：`git tag -d` + `gh api -X DELETE .../git/refs/tags/<tag>` + 重新 `git tag -a` 推送即可再触发（`gh run rerun` 会复用旧 tag commit 的 workflow，改了 workflow 时**不要用 rerun**）。
 - 产物实测：self-contained zip ≈ 74MB / 562 文件；windows-latest 全流程 ≈ 6-10 分钟。
 - 验收流：测试 tag（如 `v0.0.0-ci-test`，自动标 prerelease）先跑通 → 下载 Release 资产核对 SHA256 → 再打正式 tag。
+- 🔴 **git push github 走系统代理**：外网通时 `git push github` 直连失败（Recv failure / 443 不通）而 `gh` 可用——gh 走 WinHTTP 代理、git 不走。绕行：`HTTP_PROXY=http://127.0.0.1:10808 HTTPS_PROXY=同值 git push github <ref>`（端口以 `netstat` 实测本机代理为准）。持久化可 `git config --global http.https://github.com.proxy http://127.0.0.1:10808`（用户侧决定，勿擅改全局）。
+- 🔴 **GitHub 私有仓库下载资产必须用资产 API 直链**（`api.github.com/repos/<o>/<r>/releases/assets/{id}` + `Accept: application/octet-stream` + Bearer）；`browser_download_url`（github.com/…/releases/download/…）带 PAT 会 **404**。单测 mock fixture 必须同时含 `url` 与 `browser_download_url`（spec 036 教训：fixture 缺 `url` 字段导致 13 项单测全绿没拦住线上 404）。
+- 🔴 **「启动后台任务 + 前端轮询」协议必须在持锁临界区内预置首个进行中状态**：`StartDownload` 旧实现先 `Task.Run` 再由任务置 `downloading`，POST 响应/首轮轮询读到 `checked` → 前端把 checked 当终止态永久停轮询 → UI 等不到「重启并更新」（51888 实机两次复现，4ef4b5c 修 + 回归单测）。泛化：**状态机对外可见的状态序列不允许出现协议里的"终止态"夹在启动与进行中之间**。
+- **随包分发的 .ps1 由 powershell 5.1 拉起时同样受 BOM 铁律约束**（见 B6）：update-agent 无 BOM → 解析崩、日志写不出、宿主自停后无人重启，实例整段下线。
 - `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。
 
 ---
@@ -725,4 +734,5 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-26 | spec 036 自动更新落地：B6 补 update-agent BOM 实弹代价与守卫测试；B9 新增「真机走查」小节（live 配置必须显式 E2E_API_TOKEN、破坏性用例双门控）；B10 补 git push 代理绕行与私有仓库资产 API 直链下载两条硬规则。 |
 | 2026-09-24 | 本文档创建：Part A 承接 AGENTS.md 触发式细节；Part B 承接原 `.forgeself/memory/MEMORY.md` 项目不变规则归档（随 docs 入库）；AGENTS.md 瘦身为「每次必守 + 引用本文」；MEMORY.md 改为会话级索引。

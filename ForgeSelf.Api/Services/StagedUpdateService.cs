@@ -75,7 +75,13 @@ public class StagedUpdateService
     /// <summary>检查更新（同步等待结果），并更新状态机。</summary>
     public async Task<UpdateCheckResult> CheckAsync()
     {
-        Set("checking", 0, "检查更新中...");
+        // 首写也要守卫：下载/暂存进行中时不得把 downloading 覆盖成 checking
+        // （checking 不在前端终止态里，但结论回写前的中间态漂移会让轮询协议失真）。
+        lock (_gate)
+        {
+            if (_state.Status is not ("downloading" or "verifying" or "extracting" or "ready" or "applying"))
+                Set("checking", 0, "检查更新中...");
+        }
         UpdateCheckResult result;
         try
         {
@@ -87,18 +93,29 @@ public class StagedUpdateService
             throw;
         }
 
-        if (!result.IsSuccess)
+        // 下载/暂存进行中或已就绪时，检查结论只返回不改状态机——否则会把 downloading
+        // 覆盖成 checked，前端把 checked 当终止态永久停轮询，「重启并更新」按钮消失
+        // （spec 036 实机根因：UI 重复触发 check 时掐掉了进行中的下载状态）。
+        // 读状态与写入必须同锁（lock 可重入，Set 内部同锁）。
+        lock (_gate)
         {
-            Set("failed", 0, result.ErrorMessage ?? "检查失败", result);
-        }
-        else if (result.HasUpdate)
-        {
-            Set("checked", 100, $"发现新版本 {result.LatestVersionTag ?? result.LatestVersion?.ToString()}", result,
-                tag: result.LatestVersionTag);
-        }
-        else
-        {
-            Set("idle", 100, "已是最新版本", result, tag: null, stagedDir: null);
+            var inFlightOrReady = _state.Status is "downloading" or "verifying" or "extracting" or "ready" or "applying";
+            if (!inFlightOrReady)
+            {
+                if (!result.IsSuccess)
+                {
+                    Set("failed", 0, result.ErrorMessage ?? "检查失败", result);
+                }
+                else if (result.HasUpdate)
+                {
+                    Set("checked", 100, $"发现新版本 {result.LatestVersionTag ?? result.LatestVersion?.ToString()}", result,
+                        tag: result.LatestVersionTag);
+                }
+                else
+                {
+                    Set("idle", 100, "已是最新版本", result, tag: null, stagedDir: null);
+                }
+            }
         }
 
         return result;

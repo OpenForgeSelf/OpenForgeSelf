@@ -698,7 +698,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ## B10 CI 自动发布（tag → GitHub Actions，2026-09-26 落地）
 
-**入口**：`git tag -a v<X.Y.Z> -m "发版说明" && git push github v<X.Y.Z>` → Actions 自动构建打包并创建 GitHub Release（xxred/OpenForgeSelf，当前 **private**）。
+**入口**：`git tag -a v<X.Y.Z> -m "发版说明" && git push github v<X.Y.Z>` → Actions 自动构建打包并创建 GitHub Release（**OpenForgeSelf/OpenForgeSelf**，当前 **private**；2026-09-26 由 xxred/OpenForgeSelf 迁入，旧仓仅作历史镜像，更新源 appsettings `Update:GitHubRepo` 与 remote `github` 均指新仓）。
 
 **设计契约（用户拍板）**：workflow 只做「装工具链 + 调脚本」，全部发布动作封装在 `scripts/release/*.ps1`，本地与 CI 跑同一条命令——`pwsh scripts/release/release-local.ps1 -Version v0.1.0`。
 

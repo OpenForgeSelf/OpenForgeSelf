@@ -623,22 +623,20 @@ public class UpdateCheckerTests : IDisposable
     }
 
     [Fact]
-    public async Task GitHub_TokenConfigured_SendsBearerHeader()
+    public async Task GitHub_PublicRepo_SendsNoAuthorizationHeader()
     {
-        var config = GitHubConfig();
-        config.GitHubToken = "test-token";
+        // 回归防护（2026-09-26）：更新源仓库已转公开，请求必须保持匿名。
+        // 历史教训：匿名访问私有仓库时 GitHub 返回 404 而非 401，日志只显示「网络错误: 404」，
+        // 无法区分「仓库不存在」与「缺 token」。若日后重新引入 Bearer，本用例必须同步变更。
         SetupHttpResponse(GitHubReleasesJson);
-        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
 
         await checker.CheckForUpdateAsync();
 
         _handlerMock.Protected().Verify(
             "SendAsync",
             Times.Once(),
-            ItExpr.Is<HttpRequestMessage>(r =>
-                r.Headers.Authorization != null &&
-                r.Headers.Authorization.Scheme == "Bearer" &&
-                r.Headers.Authorization.Parameter == "test-token"),
+            ItExpr.Is<HttpRequestMessage>(r => r.Headers.Authorization == null),
             ItExpr.IsAny<CancellationToken>());
     }
 
@@ -649,7 +647,7 @@ public class UpdateCheckerTests : IDisposable
         var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
 
         // 先检查（缓存资产 API 直链），再下载。
-        // 回归防护：下载必须走资产 API url（私有仓库 browser_download_url 带 token 会 404），
+        // 回归防护：下载必须走资产 API url（octet-stream 直链，公开/私有仓库均可用），
         // DisplayUrl/DownloadUrl 字段保留 browser_download_url 供人读。
         await checker.CheckForUpdateAsync();
 

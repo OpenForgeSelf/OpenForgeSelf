@@ -398,8 +398,8 @@ public class UpdateChecker
                 !name.EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            // 下载必须用资产 API 直链（api.github.com/repos/…/releases/assets/{id} + octet-stream）：
-            // 私有仓库的 browser_download_url（github.com/…/releases/download/…）带 Bearer 请求会 404。
+            // 下载走资产 API 直链（api.github.com/repos/…/releases/assets/{id} + octet-stream）：
+            // 公开/私有仓库均可用，且不依赖 browser_download_url 的重定向行为。
             // browser_download_url 仅作为人读展示链接放 DownloadUrl。
             var apiAssetUrl = asset.TryGetProperty("url", out var apiUrlEl)
                 ? apiUrlEl.GetString() : null;
@@ -513,24 +513,16 @@ public class UpdateChecker
         throw new InvalidOperationException($"未找到版本 {version} 对应的 GitHub Release win-x64 更新包。");
     }
 
-    /// <summary>构造 GitHub API 请求（UA + 可选 Bearer token）。</summary>
+    /// <summary>
+    /// 构造 GitHub API 请求（仅带 User-Agent）。
+    /// 更新源为公开仓库，匿名访问即可；历史版本曾支持 Bearer token（私有仓库），
+    /// 仓库转公开后该路径已移除——匿名请求私有仓库会被 GitHub 以 404 掩盖为「不存在」。
+    /// </summary>
     private HttpRequestMessage CreateGitHubRequest(string url)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.UserAgent.ParseAdd(_appName);
-        var token = ResolveGitHubToken();
-        if (token != null)
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return request;
-    }
-
-    /// <summary>解析 GitHub token：配置优先，为空回退环境变量 FORGESELF_UPDATE_TOKEN。</summary>
-    private string? ResolveGitHubToken()
-    {
-        var token = _config.GitHubToken;
-        if (string.IsNullOrEmpty(token))
-            token = Environment.GetEnvironmentVariable("FORGESELF_UPDATE_TOKEN");
-        return string.IsNullOrEmpty(token) ? null : token;
     }
 
     /// <summary>归一化 tag（去 v 前缀、小写），用于比较。</summary>

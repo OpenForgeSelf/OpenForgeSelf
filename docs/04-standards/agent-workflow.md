@@ -734,7 +734,8 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 产物实测：self-contained zip ≈ 74MB / 562 文件；windows-latest 全流程 ≈ 6-10 分钟。
 - 验收流：测试 tag（如 `v0.0.0-ci-test`，自动标 prerelease）先跑通 → 下载 Release 资产核对 SHA256 → 再打正式 tag。
 - 🔴 **git push github 走系统代理**：外网通时 `git push github` 直连失败（Recv failure / 443 不通）而 `gh` 可用——gh 走 WinHTTP 代理、git 不走。绕行：`HTTP_PROXY=http://127.0.0.1:10808 HTTPS_PROXY=同值 git push github <ref>`（端口以 `netstat` 实测本机代理为准）。持久化可 `git config --global http.https://github.com.proxy http://127.0.0.1:10808`（用户侧决定，勿擅改全局）。
-- 🔴 **GitHub 私有仓库下载资产必须用资产 API 直链**（`api.github.com/repos/<o>/<r>/releases/assets/{id}` + `Accept: application/octet-stream` + Bearer）；`browser_download_url`（github.com/…/releases/download/…）带 PAT 会 **404**。单测 mock fixture 必须同时含 `url` 与 `browser_download_url`（spec 036 教训：fixture 缺 `url` 字段导致 13 项单测全绿没拦住线上 404）。
+- 🔴 **GitHub Release 下载资产必须走资产 API 直链**（`api.github.com/repos/<o>/<r>/releases/assets/{id}` + `Accept: application/octet-stream`）；`browser_download_url` 只作人读展示。单测 mock fixture 必须同时含 `url` 与 `browser_download_url`（spec 036 教训：fixture 缺 `url` 字段导致 13 项单测全绿没拦住线上 404）。
+- 🔴 **匿名访问私有 GitHub 仓库返回 404，不是 401/403**：诊断「检查更新 404」时先确认仓库可见性与进程是否拿到凭据，别当成 URL 拼错或限流。仓库已转公开（2026-09-26）后更新检查保持匿名，`FORGESELF_UPDATE_TOKEN` 相关逻辑已移除。
 - 🔴 **「启动后台任务 + 前端轮询」协议必须在持锁临界区内预置首个进行中状态**：`StartDownload` 旧实现先 `Task.Run` 再由任务置 `downloading`，POST 响应/首轮轮询读到 `checked` → 前端把 checked 当终止态永久停轮询 → UI 等不到「重启并更新」（51888 实机两次复现，4ef4b5c 修 + 回归单测）。泛化：**状态机对外可见的状态序列不允许出现协议里的"终止态"夹在启动与进行中之间**。
 - 🔴 **并发写路径下，状态机每一侧的写入（不只启动侧）都必须守卫「在途状态」**：CheckAsync 完成时无条件 `Set("checked"/"idle"/"failed")`，会覆盖在途的 downloading → 前端又停轮询（51888 第 6 轮插桩实锤：`/download→downloading` 后 2 秒 `/progress→checked`；6b09654 修：首写 checking 与终写均在 lock 内、当前状态 ∈ {downloading,verifying,extracting,ready,applying} 时跳过回写 + 红灯回归单测）。检查/下载两条并发路径写同一状态机时，**终止态回写必须条件化**，且单测必须构造真实并发时序（慢速 mock HTTP + 交错调用）而非顺序调用。
 - **随包分发的 .ps1 由 powershell 5.1 拉起时同样受 BOM 铁律约束**（见 B6）：update-agent 无 BOM → 解析崩、日志写不出、宿主自停后无人重启，实例整段下线。
@@ -743,11 +744,23 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ---
 
+## B11 Qoder CN Agent SDK 接入（spec 037，2026-09-27 协议验证）
+
+- **国内站 SDK = `@qodercn-ai/qodercn-agent-sdk` + `qoderclicn`**（非国际站 `@qoder-ai/qoder-agent-sdk`）；本机 npm 拦 install 脚本，装完必须手动补跑 `node node_modules/@qodercn-ai/qodercn-agent-sdk/scripts/postinstall.cjs`。
+- 🔴 **受信目录内 `permissionMode:'default'` + `canUseTool` 不会触发审批**（CLI 直接自动放行，实测零回调；受信来源 `~/.qoder-cn/settings.json permissions.trustDirectories`）。宿主强控唯一链路：SDK `hooks.PreToolUse` 返回 `permissionDecision:'ask'` → `canUseTool` 必达 → 回传宿主审批。
+- **协议非 LSP 非 ACP**：SDK↔CLI 为私有双向 JSONL over stdio；MCP 层才是 JSON-RPC 2.0。禁止 C# 复刻私有协议，用 Node 桥 + 自定版本化宿主协议隔离（契约见 `specs/037-qoder-agent-sdk-bridge/SPEC.md` §4）。
+- `interrupt` 的正常终态是 `done subtype=error_during_execution`，不是崩溃；每轮恰好一个 `done`，收口只认 `done`。
+- 认证失败退出码 41（`CLI_EXIT_CODE_AUTH_ERROR`）；PAT 不自动刷新，轮换后必须新会话。
+
+---
+
 ## Part C — 变更记录
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-27 | 新增 B11 Qoder CN Agent SDK 接入（spec 037 协议验证）：postinstall 手动补跑、受信目录审批陷阱与 PreToolUse ask 强控链路、私有 JSONL 非 LSP/ACP、interrupt 正常终态、认证退出码 41。 |
 | 2026-09-26 | spec 036 自动更新落地：B6 补 update-agent BOM 实弹代价与守卫测试；B9 新增「真机走查」小节（live 配置必须显式 E2E_API_TOKEN、破坏性用例双门控）；B10 补 git push 代理绕行与私有仓库资产 API 直链下载两条硬规则。 |
 | 2026-09-26 | spec 036 端到端验收全绿（live 一次性 49.5s，0.1.0→v0.2.4）：B10 补「并发写路径下状态机每侧写入都要守卫在途状态」硬规则（D-036-5，6b09654）。 |
+| 2026-09-26 | 更新源仓库转公开：移除 `UpdateConfig.GitHubToken`、`FORGESELF_UPDATE_TOKEN` 环境变量回退与 `CreateGitHubRequest` 的 Bearer 头（UpdateChecker 保持匿名）；同步移除 `UpdateController.githubTokenConfigured` 与前端提示；B10 补「匿名访问私有仓库返回 404 而非 401」诊断硬规则。 |
 | 2026-09-26 | 任务3 交付纠偏（seq31/34）：新增 A10 群协作 SOP 对齐（命中判定第一动作、放权≠免闸门、markdown 正文汇报、工时超断点、缺陷复现分层、串岗禁令）；群 SOP plugin-team-sop 升 **v1.2.0** 已发布并绑定本群；GitHub 主远程与更新源切换至组织仓库 OpenForgeSelf/OpenForgeSelf（B10 同步）。 |
 | 2026-09-24 | 本文档创建：Part A 承接 AGENTS.md 触发式细节；Part B 承接原 `.forgeself/memory/MEMORY.md` 项目不变规则归档（随 docs 入库）；AGENTS.md 瘦身为「每次必守 + 引用本文」；MEMORY.md 改为会话级索引。

@@ -181,9 +181,6 @@ onBeforeUnmount(stopPolling);
         <div>
           <div class="text-sm text-text-regular">当前版本</div>
           <div class="text-lg font-semibold text-text mt-1">v{{ status?.currentVersion ?? '…' }}</div>
-          <div v-if="status && !status.githubTokenConfigured && status.provider === 'github'" class="text-xs text-warning mt-1">
-            未配置 GitHub 访问令牌：私有仓库将检查失败（可设置环境变量 FORGESELF_UPDATE_TOKEN）
-          </div>
         </div>
         <el-button :loading="checking || busy()" @click="onCheck">检查更新</el-button>
       </div>

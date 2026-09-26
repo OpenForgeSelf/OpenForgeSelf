@@ -16,14 +16,8 @@ public class UpdateConfig
     /// <summary>GitHub API 基址（默认 https://api.github.com，可指向 GHES）</summary>
     public string GitHubApiUrl { get; set; } = "https://api.github.com";
 
-    /// <summary>GitHub 仓库标识 "owner/repo"，Provider=github 时必填</summary>
+    /// <summary>GitHub 仓库标识 "owner/repo"，Provider=github 时必填。更新源为公开仓库，匿名访问即可</summary>
     public string GitHubRepo { get; set; } = "";
-
-    /// <summary>
-    /// GitHub 访问令牌（私有仓库必需）。为空时回退环境变量 FORGESELF_UPDATE_TOKEN。
-    /// 安全约定：不要把真实 token 提交进版本库。
-    /// </summary>
-    public string GitHubToken { get; set; } = "";
 
     /// <summary>更新通道：stable（稳定版）、beta（测试版）</summary>
     public string Channel { get; set; } = "stable";

@@ -87,7 +87,8 @@
 | `DownloadPath` | string | `updates` | 更新包下载目录 |
 | `GithubOwner` | string | `openforgeself` | GitHub 仓库所有者 |
 | `GithubRepo` | string | `OpenForgeSelf` | GitHub 仓库名 |
-| `GithubToken` | string | `""` | GitHub API 令牌（可选，用于私有仓库） |
+
+> 更新源仓库 `OpenForgeSelf/OpenForgeSelf` 自 2026-09-26 起为**公开**仓库，匿名访问即可，不再提供令牌配置项（原 `GithubToken` / `FORGESELF_UPDATE_TOKEN` 已移除）。
 
 ### Service — 服务配置
 

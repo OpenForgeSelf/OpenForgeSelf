@@ -28,7 +28,7 @@ public class UpdateController : ControllerBase
     }
 
     /// <summary>
-    /// 更新总体状态：当前版本、provider 配置（不含 token）、最近检查结果与暂存状态。
+    /// 更新总体状态：当前版本、provider 配置、最近检查结果与暂存状态（不回显任何凭据）。
     /// </summary>
     [HttpGet("status")]
     public ActionResult<object> GetStatus()
@@ -43,9 +43,6 @@ public class UpdateController : ControllerBase
                 provider = _updateConfig.Provider,
                 githubRepo = _updateConfig.GitHubRepo,
                 channel = _updateConfig.Channel,
-                // token 是否已配置（仅回布尔，不回显内容）
-                githubTokenConfigured = !string.IsNullOrEmpty(_updateConfig.GitHubToken)
-                    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FORGESELF_UPDATE_TOKEN")),
                 state,
             },
         });

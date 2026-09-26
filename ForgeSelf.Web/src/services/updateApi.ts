@@ -34,7 +34,6 @@ export interface UpdateStatus {
   provider: string;
   githubRepo: string;
   channel: string;
-  githubTokenConfigured: boolean;
   state: UpdateStageInfo;
 }
 

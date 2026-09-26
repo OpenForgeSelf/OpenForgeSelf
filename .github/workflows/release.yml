@@ -28,7 +28,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # >=22 required: DesignSystem plugin build runs a .ts script directly
+          # (node scripts/gen-tokens-css.ts) -> needs native type stripping.
+          node-version: 22
 
       - uses: actions/setup-dotnet@v4
         with:

@@ -70,8 +70,11 @@ publish.bak*/
 openwiki/
 specs/
 
-# ── 2026-09-24 git 历史清理：TODO.md 工作队列不入库（本地保留，历史已剔除）──
+# ── 2026-09-24 git 历史清理：TODO.md 工作队列不入库──
 TODO.md
 
 # 插件前端出树构建残留（ForgeSelf.Web/.plugin-build-*/）
 .plugin-build-*/
+.qoder-collab-runtime/
+.qoder/
+.qoder-sop-runtime/

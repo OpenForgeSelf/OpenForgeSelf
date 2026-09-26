@@ -725,6 +725,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 🔴 **git push github 走系统代理**：外网通时 `git push github` 直连失败（Recv failure / 443 不通）而 `gh` 可用——gh 走 WinHTTP 代理、git 不走。绕行：`HTTP_PROXY=http://127.0.0.1:10808 HTTPS_PROXY=同值 git push github <ref>`（端口以 `netstat` 实测本机代理为准）。持久化可 `git config --global http.https://github.com.proxy http://127.0.0.1:10808`（用户侧决定，勿擅改全局）。
 - 🔴 **GitHub 私有仓库下载资产必须用资产 API 直链**（`api.github.com/repos/<o>/<r>/releases/assets/{id}` + `Accept: application/octet-stream` + Bearer）；`browser_download_url`（github.com/…/releases/download/…）带 PAT 会 **404**。单测 mock fixture 必须同时含 `url` 与 `browser_download_url`（spec 036 教训：fixture 缺 `url` 字段导致 13 项单测全绿没拦住线上 404）。
 - 🔴 **「启动后台任务 + 前端轮询」协议必须在持锁临界区内预置首个进行中状态**：`StartDownload` 旧实现先 `Task.Run` 再由任务置 `downloading`，POST 响应/首轮轮询读到 `checked` → 前端把 checked 当终止态永久停轮询 → UI 等不到「重启并更新」（51888 实机两次复现，4ef4b5c 修 + 回归单测）。泛化：**状态机对外可见的状态序列不允许出现协议里的"终止态"夹在启动与进行中之间**。
+- 🔴 **并发写路径下，状态机每一侧的写入（不只启动侧）都必须守卫「在途状态」**：CheckAsync 完成时无条件 `Set("checked"/"idle"/"failed")`，会覆盖在途的 downloading → 前端又停轮询（51888 第 6 轮插桩实锤：`/download→downloading` 后 2 秒 `/progress→checked`；6b09654 修：首写 checking 与终写均在 lock 内、当前状态 ∈ {downloading,verifying,extracting,ready,applying} 时跳过回写 + 红灯回归单测）。检查/下载两条并发路径写同一状态机时，**终止态回写必须条件化**，且单测必须构造真实并发时序（慢速 mock HTTP + 交错调用）而非顺序调用。
 - **随包分发的 .ps1 由 powershell 5.1 拉起时同样受 BOM 铁律约束**（见 B6）：update-agent 无 BOM → 解析崩、日志写不出、宿主自停后无人重启，实例整段下线。
 - `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。
 
@@ -735,4 +736,5 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 | 日期 | 变更 |
 |------|------|
 | 2026-09-26 | spec 036 自动更新落地：B6 补 update-agent BOM 实弹代价与守卫测试；B9 新增「真机走查」小节（live 配置必须显式 E2E_API_TOKEN、破坏性用例双门控）；B10 补 git push 代理绕行与私有仓库资产 API 直链下载两条硬规则。 |
+| 2026-09-26 | spec 036 端到端验收全绿（live 一次性 49.5s，0.1.0→v0.2.4）：B10 补「并发写路径下状态机每侧写入都要守卫在途状态」硬规则（D-036-5，6b09654）。 |
 | 2026-09-24 | 本文档创建：Part A 承接 AGENTS.md 触发式细节；Part B 承接原 `.forgeself/memory/MEMORY.md` 项目不变规则归档（随 docs 入库）；AGENTS.md 瘦身为「每次必守 + 引用本文」；MEMORY.md 改为会话级索引。

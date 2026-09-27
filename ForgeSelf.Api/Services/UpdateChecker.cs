@@ -82,6 +82,12 @@ public class UpdateChecker
             }
 
             // 本地目录 provider 分支（2026-09-27）：扫本机打包脚本输出的 zip 目录
+            // Gitee Releases provider 分支（2026-09-28）：国内网络更稳的镜像发布源
+            if (string.Equals(_config.Provider, "gitee", StringComparison.OrdinalIgnoreCase))
+            {
+                return await CheckGiteeAsync(result);
+            }
+
             if (string.Equals(_config.Provider, "local", StringComparison.OrdinalIgnoreCase))
             {
                 return CheckLocalAsync(result);
@@ -177,6 +183,13 @@ public class UpdateChecker
         }
 
         // 本地目录下载分支（2026-09-27）：直接拷贝 zip
+        // Gitee Releases 下载分支（2026-09-28）
+        if (string.Equals(_config.Provider, "gitee", StringComparison.OrdinalIgnoreCase))
+        {
+            await DownloadGiteePackageAsync(version, destPath);
+            return;
+        }
+
         if (string.Equals(_config.Provider, "local", StringComparison.OrdinalIgnoreCase))
         {
             await DownloadLocalPackageAsync(version, destPath);
@@ -530,6 +543,186 @@ public class UpdateChecker
 
         throw new InvalidOperationException($"未找到版本 {version} 对应的 GitHub Release win-x64 更新包。");
     }
+
+    // ======================================================================
+    // Gitee Releases provider（2026-09-28：国内网络更稳的镜像发布源）
+    // Gitee API v5 releases 结构与 GitHub 同构：tag_name / body / assets，公开仓库匿名可读。
+    // 差异：资产无 digest 字段 → 无哈希时下载后跳过 SHA256 校验（StagedUpdate 既有逻辑）。
+    // ======================================================================
+    /// <summary>
+    /// 通过 Gitee API v5 releases 检查更新（匿名可读公开仓，结构同 GitHub）。
+    /// </summary>
+    private async Task<UpdateCheckResult> CheckGiteeAsync(UpdateCheckResult result)
+    {
+        if (string.IsNullOrWhiteSpace(_config.GiteeRepo))
+        {
+            result.IsSuccess = false;
+            result.ErrorMessage = "GiteeRepo 未配置";
+            return result;
+        }
+        var requestUrl = $"https://gitee.com/api/v5/repos/{_config.GiteeRepo}/releases?per_page=30";
+        XTrace.Log.Info("UpdateChecker(Gitee): 检查更新: {0}", requestUrl);
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.CheckTimeoutSeconds, 5)));
+        var response = await _httpClient.GetAsync(requestUrl, cts.Token);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync(cts.Token);
+        using var doc = JsonDocument.Parse(json);
+        var channelAllowsPrerelease =
+            !string.Equals(_config.Channel, "stable", StringComparison.OrdinalIgnoreCase);
+        JsonElement? chosen = null;
+        SemVer? chosenSem = null;
+        string? chosenTag = null;
+        foreach (var release in doc.RootElement.EnumerateArray())
+        {
+            var isPrerelease = release.TryGetProperty("prerelease", out var preEl) &&
+                preEl.ValueKind == JsonValueKind.True;
+            if (isPrerelease && !channelAllowsPrerelease)
+                continue;
+            var tag = release.TryGetProperty("tag_name", out var tagEl)
+                ? tagEl.GetString() : null;
+            var sem = ParseSemVer(tag);
+            if (sem == null)
+                continue;
+            if (chosenSem == null || CompareSemVer(sem, chosenSem) > 0)
+            {
+                chosen = release;
+                chosenSem = sem;
+                chosenTag = tag;
+            }
+        }
+        result.IsSuccess = true;
+        if (chosen == null || chosenSem == null)
+        {
+            result.HasUpdate = false;
+            XTrace.Log.Info("UpdateChecker(Gitee): 通道 {0} 下无匹配的 Release。", _config.Channel);
+            return result;
+        }
+        var currentSem = ParseSemVer(_currentVersion);
+        result.LatestVersion = chosenSem.ToVersion();
+        result.LatestVersionTag = chosenTag;
+        result.HasUpdate = currentSem == null || CompareSemVer(chosenSem, currentSem) > 0;
+        if (chosen.Value.TryGetProperty("body", out var bodyEl) &&
+            bodyEl.ValueKind == JsonValueKind.String)
+        {
+            result.ReleaseNotes = bodyEl.GetString();
+        }
+        // 资产下载走 browser_download_url 直链（匿名可下）；Gitee 无 digest → 无哈希时下载后跳过校验
+        string? assetUrl = null;
+        if (result.HasUpdate &&
+            chosen.Value.TryGetProperty("assets", out var assetsEl) &&
+            assetsEl.ValueKind == JsonValueKind.Array)
+        {
+            assetUrl = ExtractGiteeAsset(assetsEl, result);
+        }
+        if (result.HasUpdate)
+        {
+            if (string.IsNullOrEmpty(assetUrl))
+            {
+                result.HasUpdate = false;
+                result.IsSuccess = false;
+                result.ErrorMessage = $"Release {chosenTag} 中未找到 win-x64 更新包资产";
+                XTrace.Log.Warn("UpdateChecker(Gitee): {0}", result.ErrorMessage);
+                return result;
+            }
+            // 复用资产缓存字段（语义为"最近一次检查的资产直链/tag"）
+            _githubAssetUrl = assetUrl;
+            _githubAssetTag = NormalizeTag(chosenTag);
+        }
+        XTrace.Log.Info("UpdateChecker(Gitee): 检查完成, HasUpdate={0}, Tag={1}",
+            result.HasUpdate, chosenTag);
+        return result;
+    }
+    /// <summary>从 Gitee release.assets 中选取 win-x64 更新包，填 PackageSize（Gitee 无 digest）。</summary>
+    private static string? ExtractGiteeAsset(JsonElement assetsEl, UpdateCheckResult result)
+    {
+        foreach (var asset in assetsEl.EnumerateArray())
+        {
+            var name = asset.TryGetProperty("name", out var nameEl)
+                ? nameEl.GetString() : null;
+            if (name == null ||
+                !name.StartsWith("OpenForgeSelf-", StringComparison.OrdinalIgnoreCase) ||
+                !name.EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var browserUrl = asset.TryGetProperty("browser_download_url", out var urlEl)
+                ? urlEl.GetString() : null;
+            if (string.IsNullOrEmpty(browserUrl))
+                continue;
+            result.DownloadUrl = browserUrl;
+            if (asset.TryGetProperty("size", out var sizeEl) &&
+                sizeEl.ValueKind == JsonValueKind.Number)
+            {
+                result.PackageSize = sizeEl.GetInt64();
+            }
+            return browserUrl;
+        }
+        return null;
+    }
+    /// <summary>从 Gitee Release 资产下载更新包（browser_download_url 直链，跟随重定向）。</summary>
+    private async Task DownloadGiteePackageAsync(string version, string destPath)
+    {
+        if (string.IsNullOrWhiteSpace(_config.GiteeRepo))
+            throw new InvalidOperationException("GiteeRepo 未配置，无法下载更新包。");
+        var wanted = NormalizeTag(version);
+        var assetUrl = (_githubAssetUrl != null && _githubAssetTag == wanted)
+            ? _githubAssetUrl
+            : await ResolveGiteeAssetUrlAsync(version);
+        XTrace.Log.Info("UpdateChecker(Gitee): 下载更新包: {0} → {1}", assetUrl, destPath);
+        var dir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.DownloadTimeoutSeconds, 30)));
+        try
+        {
+            using var response = await _httpClient.GetAsync(assetUrl,
+                HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            response.EnsureSuccessStatusCode();
+            await using var sourceStream = await response.Content.ReadAsStreamAsync(cts.Token);
+            await using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await sourceStream.CopyToAsync(destStream, cts.Token);
+            XTrace.Log.Info("UpdateChecker(Gitee): 下载完成: {0} ({1} bytes)", destPath,
+                new FileInfo(destPath).Length);
+        }
+        catch (OperationCanceledException)
+        {
+            throw new HttpRequestException(
+                $"下载更新包超时 ({_config.DownloadTimeoutSeconds}s): {assetUrl}");
+        }
+    }
+    /// <summary>按 tag 反查 Gitee Release 解析 win-x64 资产直链。</summary>
+    private async Task<string> ResolveGiteeAssetUrlAsync(string version)
+    {
+        var candidateTags = new List<string> { version };
+        var withoutV = version.StartsWith("v", StringComparison.OrdinalIgnoreCase)
+            ? version[1..] : version;
+        candidateTags.Add("v" + withoutV);
+        candidateTags.Add(withoutV);
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(Math.Max(_config.CheckTimeoutSeconds, 10)));
+        foreach (var tag in candidateTags.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var url = $"https://gitee.com/api/v5/repos/{_config.GiteeRepo}/releases/tags/{Uri.EscapeDataString(tag)}";
+            var response = await _httpClient.GetAsync(url, cts.Token);
+            if (!response.IsSuccessStatusCode)
+                continue;
+            var json = await response.Content.ReadAsStringAsync(cts.Token);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("assets", out var assetsEl) ||
+                assetsEl.ValueKind != JsonValueKind.Array)
+                continue;
+            var dummy = new UpdateCheckResult();
+            var assetUrl = ExtractGiteeAsset(assetsEl, dummy);
+            if (!string.IsNullOrEmpty(assetUrl))
+            {
+                _githubAssetUrl = assetUrl;
+                _githubAssetTag = NormalizeTag(tag);
+                return assetUrl;
+            }
+        }
+        throw new InvalidOperationException($"未找到版本 {version} 对应的 Gitee Release win-x64 更新包。");
+    }
+
 
     // ======================================================================
     // Local directory provider（2026-09-27：更新地址可设置为本地目录）

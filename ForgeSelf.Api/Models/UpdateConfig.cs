@@ -3,9 +3,10 @@ namespace ForgeSelf.Api.Models;
 /// <summary>
 /// 更新配置。初始值从 appsettings.json 的 "Update" 节读取；
 /// 运行时可通过设置页修改并落盘到 {数据根}/Config/update-settings.json（见 <see cref="UpdateSettingsService"/>）。
-/// 支持三种更新源（<see cref="Provider"/>）：
+/// 支持四种更新源（<see cref="Provider"/>）：
 /// stardust = StarServer 版本接口（008 原有协议）；
 /// github = GitHub Releases（spec 036，打 tag 自动发布后页面自动更新）；
+/// gitee = Gitee Releases（Gitee API v5，国内网络更稳的镜像发布源）；
 /// local = 本地目录（本机打包脚本 release-local.ps1 输出的 zip 所在目录，离线/内网更新）。
 /// </summary>
 public class UpdateConfig
@@ -21,6 +22,9 @@ public class UpdateConfig
 
     /// <summary>GitHub 仓库标识 "owner/repo"，Provider=github 时必填。更新源为公开仓库，匿名访问即可</summary>
     public string GitHubRepo { get; set; } = "";
+
+    /// <summary>Gitee 仓库标识 "owner/repo"，Provider=gitee 时必填。走 Gitee API v5 releases（公开仓库匿名可读）</summary>
+    public string GiteeRepo { get; set; } = "";
 
     /// <summary>
     /// 本地更新目录（Provider=local 时必填）：放置打包脚本输出的

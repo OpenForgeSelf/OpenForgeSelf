@@ -2,17 +2,43 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { updateApi } from '@/services/updateApi';
-import type { UpdateCheckResult, UpdateConfigInfo, UpdateStageInfo, UpdateStatus } from '@/services/updateApi';
+import type { UpdateCheckResult, UpdateConfigInfo, UpdateConfigPatch, UpdateStageInfo, UpdateStatus } from '@/services/updateApi';
 
 const status = ref<UpdateStatus | null>(null);
 const checkResult = ref<UpdateCheckResult | null>(null);
 const stage = ref<UpdateStageInfo | null>(null);
 
-// 更新源配置（2026-09-27：支持本地目录更新地址）
+// 更新源配置（2026-09-28：精简为下拉 + 对应地址输入框）
 const config = ref<UpdateConfigInfo | null>(null);
 const configProvider = ref('github');
+const configGithubUrl = ref('');
+const configGiteeUrl = ref('');
+const configServerUrl = ref('');
 const configLocalDir = ref('');
 const savingConfig = ref(false);
+
+/** 更新源选项：value 传给后端，label 下拉展示，hint 为选项下的简短说明 */
+const providerOptions: { value: string; label: string; hint: string }[] = [
+  { value: 'github', label: 'GitHub', hint: '从 GitHub 仓库拉取更新' },
+  { value: 'gitee', label: 'Gitee', hint: '从 Gitee 仓库拉取更新（国内访问更稳）' },
+  { value: 'stardust', label: '更新服务器', hint: '从版本更新服务器拉取更新' },
+  { value: 'local', label: '本地目录', hint: '从本机打包目录拉取更新' },
+];
+
+const providerHint = () => providerOptions.find(o => o.value === configProvider.value)?.hint ?? '';
+
+/** owner/repo ↔ 完整仓库地址 转换（github/gitee 输入框展示完整地址，后端存 owner/repo） */
+function repoToUrl(repo: string | null | undefined, host: 'github' | 'gitee'): string {
+  const r = (repo ?? '').trim();
+  if (!r) return '';
+  if (/^https?:\/\//i.test(r)) return r;
+  return `https://${host}.com/${r}`;
+}
+function parseRepoUrl(url: string): string {
+  const t = url.trim().replace(/\/+$/, '');
+  const m = t.match(/^(?:https?:\/\/)?(?:www\.)?(?:github\.com|gitee\.com)\/(.+)$/i);
+  return m ? m[1].trim() : t;
+}
 
 const checking = ref(false);
 const downloading = ref(false);
@@ -59,6 +85,9 @@ async function loadConfig() {
   try {
     config.value = await updateApi.getConfig();
     configProvider.value = config.value.provider;
+    configGithubUrl.value = repoToUrl(config.value.githubRepo, 'github');
+    configGiteeUrl.value = repoToUrl(config.value.giteeRepo, 'gitee');
+    configServerUrl.value = config.value.serverUrl ?? '';
     configLocalDir.value = config.value.localDir ?? '';
   } catch (e) {
     ElMessage.error({ message: `加载更新源配置失败: ${e instanceof Error ? e.message : e}`, offset: 60 });
@@ -72,12 +101,17 @@ async function onSaveConfig() {
   }
   savingConfig.value = true;
   try {
-    const saved = await updateApi.saveConfig({
-      provider: configProvider.value,
-      localDir: configProvider.value === 'local' ? configLocalDir.value : null,
-    });
+    const patch: UpdateConfigPatch = { provider: configProvider.value };
+    if (configProvider.value === 'github') patch.githubRepo = parseRepoUrl(configGithubUrl.value);
+    else if (configProvider.value === 'gitee') patch.giteeRepo = parseRepoUrl(configGiteeUrl.value);
+    else if (configProvider.value === 'stardust') patch.serverUrl = configServerUrl.value;
+    else if (configProvider.value === 'local') patch.localDir = configLocalDir.value;
+    const saved = await updateApi.saveConfig(patch);
     config.value = saved;
     configProvider.value = saved.provider;
+    configGithubUrl.value = repoToUrl(saved.githubRepo, 'github');
+    configGiteeUrl.value = repoToUrl(saved.giteeRepo, 'gitee');
+    configServerUrl.value = saved.serverUrl ?? '';
     configLocalDir.value = saved.localDir ?? '';
     ElMessage.success({ message: '更新源配置已保存', offset: 60 });
     await loadStatus();
@@ -170,18 +204,28 @@ async function onApply() {
   }
 }
 
-/** 重启等待：轮询后端恢复，恢复后刷新页面 */
+/**
+ * 重启等待：轮询后端恢复，恢复后刷新页面。
+ * 必须带 Authorization（/api/update/* 走 ApiKeyPolicy 鉴权）——此前裸 fetch 无 token，
+ * 新实例起来后 /progress 一直 401，gone 分支永远等不到 res.ok，页面死等转圈（2026-09-28 修复）。
+ */
 function waitForRestart() {
   stopPolling();
   let gone = false;
   pollTimer = window.setInterval(async () => {
     try {
-      const res = await fetch('/api/update/progress', { method: 'GET', cache: 'no-store' });
-      if (res.ok && gone) {
-        stopPolling();
-        ElMessage.success({ message: '更新完成，应用已重启', offset: 60 });
-        window.location.reload();
-      } else if (!res.ok) {
+      const res = await fetch('/api/update/progress', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${localStorage.getItem('forge_api_token') ?? ''}` },
+      });
+      if (res.ok) {
+        if (gone) {
+          stopPolling();
+          ElMessage.success({ message: '更新完成，应用已重启', offset: 60 });
+          window.location.reload();
+        }
+      } else {
         gone = true;
       }
     } catch {
@@ -196,6 +240,10 @@ onMounted(async () => {
   const s = stage.value?.status;
   if (s && ['checking', 'downloading', 'verifying', 'extracting'].includes(s)) {
     startPolling();
+  } else if (s === 'applying') {
+    // 页面在宿主重启期间被刷新/恢复：继续等待重启完成
+    applying.value = true;
+    waitForRestart();
   }
 });
 
@@ -209,39 +257,52 @@ onBeforeUnmount(stopPolling);
       <div>
         <h2 class="text-xl font-bold text-text m-0 leading-tight">版本更新</h2>
         <p class="text-sm text-text-secondary mt-1 mb-0">
-          从 {{ status?.provider === 'github' ? `GitHub Releases（${status.githubRepo || '未配置仓库'}）` : status?.provider === 'local' ? `本地目录（${status.localDir || '未设置'}）` : '更新服务器' }}
-          检查并安装更新
+          从 {{ providerOptions.find(o => o.value === (status?.provider ?? 'stardust'))?.label ?? '更新服务器' }} 检查并安装更新
         </p>
       </div>
     </div>
 
-    <!-- 更新源配置（2026-09-27：支持本地目录更新地址） -->
+    <!-- 更新源配置（2026-09-28：下拉 + 对应地址输入框，选项下简短说明） -->
     <el-card shadow="never">
       <div class="flex items-center justify-between mb-3">
         <div>
           <div class="text-base font-medium text-text">更新源配置</div>
-          <div class="text-xs text-text-secondary mt-1">支持 GitHub Releases（打 tag 自动发布）或本地目录（本机打包脚本输出）</div>
+          <div class="text-xs text-text-secondary mt-1">选择更新来源，填写对应地址后保存</div>
         </div>
       </div>
       <div class="space-y-3">
-        <div class="flex items-center gap-3">
-          <el-select v-model="configProvider" style="width: 220px" :disabled="busy() || savingConfig">
-            <el-option label="GitHub Releases（打 tag 自动发布）" value="github" />
-            <el-option label="本地目录（本机打包脚本输出）" value="local" />
-            <el-option label="更新服务器（stardust）" value="stardust" />
+        <div class="flex items-start gap-3">
+          <el-select v-model="configProvider" style="width: 200px" :disabled="busy() || savingConfig">
+            <el-option v-for="o in providerOptions" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
-          <el-input
-            v-if="configProvider === 'local'"
-            v-model="configLocalDir"
-            placeholder="填写打包脚本输出目录，如 D:\updates（含 OpenForgeSelf-*-win-x64.zip）"
-            style="flex: 1"
-            :disabled="savingConfig"
-          />
+          <div style="flex: 1">
+            <el-input
+              v-if="configProvider === 'github'"
+              v-model="configGithubUrl"
+              placeholder="https://github.com/OpenForgeSelf/OpenForgeSelf"
+              :disabled="savingConfig"
+            />
+            <el-input
+              v-else-if="configProvider === 'gitee'"
+              v-model="configGiteeUrl"
+              placeholder="https://gitee.com/OpenForgeSelf/OpenForgeSelf"
+              :disabled="savingConfig"
+            />
+            <el-input
+              v-else-if="configProvider === 'stardust'"
+              v-model="configServerUrl"
+              placeholder="更新服务器地址（尚未配置线上地址）"
+              :disabled="savingConfig"
+            />
+            <el-input
+              v-else-if="configProvider === 'local'"
+              v-model="configLocalDir"
+              placeholder="本机打包输出目录，如 D:\updates"
+              :disabled="savingConfig"
+            />
+            <div class="text-xs text-text-secondary mt-1">{{ providerHint() }}</div>
+          </div>
           <el-button type="primary" :loading="savingConfig" :disabled="busy()" @click="onSaveConfig">保存</el-button>
-        </div>
-        <div v-if="configProvider === 'local'" class="text-xs text-text-secondary leading-relaxed">
-          本地更新流程：运行 <code>scripts/release/release-local.ps1 -UpdateDir &lt;该目录&gt;</code> 完成打包后，
-          在本页点「检查更新 → 下载更新 → 重启并更新」即可完成升级（离线 / 内网可用）。
         </div>
       </div>
     </el-card>
@@ -274,7 +335,8 @@ onBeforeUnmount(stopPolling);
             type="primary"
             :loading="downloading || busy()"
             :disabled="isReady()"
-            @click="onDownload">
+            @click="onDownload"
+          >
             {{ isReady() ? '已下载' : '下载更新' }}
           </el-button>
         </div>
@@ -286,6 +348,12 @@ onBeforeUnmount(stopPolling);
             <span>{{ stage.progress }}%</span>
           </div>
           <el-progress :percentage="stage.progress" :stroke-width="8" :show-text="false" />
+        </div>
+
+        <!-- 重启中：宿主已退出，由更新代理换文件并重启（2026-09-28：加显式提示，避免无反馈转圈） -->
+        <div v-if="applying" class="flex items-center gap-2 text-sm text-text-regular">
+          <span class="inline-block h-3 w-3 rounded-full border-2 border-border animate-spin" style="border-top-color: var(--el-color-primary)" />
+          正在重启应用并安装更新，完成后页面将自动刷新…
         </div>
 
         <!-- 就绪 → 重启并更新 -->

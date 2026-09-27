@@ -66,6 +66,7 @@ public class UpdateSettingsService
             _config.ServerUrl = persisted.ServerUrl ?? "";
             _config.GitHubApiUrl = persisted.GitHubApiUrl ?? _config.GitHubApiUrl;
             _config.GitHubRepo = persisted.GitHubRepo ?? "";
+            _config.GiteeRepo = persisted.GiteeRepo ?? "";
             _config.LocalDir = persisted.LocalDir ?? "";
             _config.Channel = persisted.Channel ?? _config.Channel;
             _config.CheckIntervalMinutes = persisted.CheckIntervalMinutes;

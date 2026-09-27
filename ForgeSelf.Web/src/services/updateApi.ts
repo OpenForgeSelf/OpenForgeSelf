@@ -43,6 +43,7 @@ export interface UpdateConfigInfo {
   provider: string;
   serverUrl: string;
   githubRepo: string;
+  giteeRepo?: string | null;
   localDir?: string | null;
   channel: string;
   checkIntervalMinutes: number;
@@ -53,6 +54,9 @@ export interface UpdateConfigInfo {
 /** 修改更新源配置的请求体（部分更新：只传要改的字段） */
 export interface UpdateConfigPatch {
   provider?: string;
+  serverUrl?: string | null;
+  githubRepo?: string | null;
+  giteeRepo?: string | null;
   localDir?: string | null;
 }
 

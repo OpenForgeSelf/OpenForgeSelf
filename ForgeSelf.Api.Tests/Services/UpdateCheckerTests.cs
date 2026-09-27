@@ -815,4 +815,95 @@ public class UpdateCheckerTests : IDisposable
         using var stream = File.OpenRead(path);
         return Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(stream));
     }
+    // ================================================================
+    // Gitee Releases provider（2026-09-28：国内网络更稳的镜像发布源）
+    // Gitee API v5 releases：tag_name / prerelease / body / assets[{name, browser_download_url, size}]，
+    // 无 draft、资产无 digest 字段 → 无哈希时下载后跳过 SHA256 校验。
+    // ================================================================
+    private const string GiteeReleasesJson = """
+        [{"id":1,"tag_name":"v2.0.0","target_commitish":"master","prerelease":false,"body":"## 更新内容","created_at":"2026-09-01T00:00:00+08:00","assets":[
+          {"id":11,"name":"OpenForgeSelf-2.0.0-win-x64.zip","browser_download_url":"https://gitee.com/test-owner/test-repo/releases/download/v2.0.0/OpenForgeSelf-2.0.0-win-x64.zip","size":123456}]}]
+        """;
+    private UpdateConfig GiteeConfig(string channel = "stable") => new()
+    {
+        Provider = "gitee",
+        GiteeRepo = "test-owner/test-repo",
+        Channel = channel,
+        CheckTimeoutSeconds = 5,
+        DownloadTimeoutSeconds = 60,
+    };
+    [Fact]
+    public async Task Gitee_NewRelease_ReturnsHasUpdateWithAssetInfo()
+    {
+        SetupHttpResponse(GiteeReleasesJson);
+        var checker = new UpdateChecker(GiteeConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        var result = await checker.CheckForUpdateAsync();
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersionTag.Should().Be("v2.0.0");
+        result.LatestVersion.Should().Be(new Version(2, 0, 0));
+        result.DownloadUrl.Should().Be("https://gitee.com/test-owner/test-repo/releases/download/v2.0.0/OpenForgeSelf-2.0.0-win-x64.zip");
+        // Gitee 资产无 digest → 不填哈希（下载后跳过校验），仍有大小
+        result.PackageHash.Should().BeNull();
+        result.PackageSize.Should().Be(123456);
+        result.ReleaseNotes.Should().Be("## 更新内容");
+    }
+    [Fact]
+    public async Task Gitee_MissingRepo_FailsGracefully()
+    {
+        var config = GiteeConfig();
+        config.GiteeRepo = "";
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        var result = await checker.CheckForUpdateAsync();
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("GiteeRepo");
+    }
+    [Fact]
+    public async Task Gitee_NoWinX64Asset_ReportedAsFailure()
+    {
+        SetupHttpResponse("""[{"id":1,"tag_name":"v2.0.0","prerelease":false,"body":"","assets":[]}]""");
+        var checker = new UpdateChecker(GiteeConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        var result = await checker.CheckForUpdateAsync();
+        result.HasUpdate.Should().BeFalse();
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("win-x64");
+    }
+    [Fact]
+    public async Task Gitee_StableChannel_ExcludesPrerelease()
+    {
+        var json = """
+            [{"id":1,"tag_name":"v3.0.0-beta.1","prerelease":true,"body":"","assets":[
+              {"id":2,"name":"OpenForgeSelf-3.0.0-beta.1-win-x64.zip","browser_download_url":"https://gitee.com/t/r/releases/download/b.zip","size":1}]}]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GiteeConfig("stable"), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        var result = await checker.CheckForUpdateAsync();
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeFalse();
+    }
+    [Fact]
+    public async Task Gitee_Download_UsesBrowserUrlAndWritesFile()
+    {
+        SetupHttpResponse(GiteeReleasesJson);
+        var checker = new UpdateChecker(GiteeConfig(), _httpClient, _testAppName, currentVersion: "1.0.0.0");
+        await checker.CheckForUpdateAsync();
+        var destPath = Path.Combine(Path.GetTempPath(), $"forge-gitee-{Guid.NewGuid():N}.zip");
+        try
+        {
+            await checker.DownloadPackageAsync("v2.0.0", destPath);
+            File.Exists(destPath).Should().BeTrue();
+            (await File.ReadAllTextAsync(destPath)).Should().Contain("OpenForgeSelf-2.0.0-win-x64.zip");
+        }
+        finally
+        {
+            if (File.Exists(destPath)) File.Delete(destPath);
+        }
+        // Gitee 下载直链 = browser_download_url（与 GitHub 走资产 API 直链不同）
+        _handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(r =>
+                r.RequestUri != null && r.RequestUri.ToString() == "https://gitee.com/test-owner/test-repo/releases/download/v2.0.0/OpenForgeSelf-2.0.0-win-x64.zip"),
+            ItExpr.IsAny<CancellationToken>());
+    }
 }

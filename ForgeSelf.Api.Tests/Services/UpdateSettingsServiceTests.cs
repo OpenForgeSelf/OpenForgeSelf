@@ -54,6 +54,22 @@ public class UpdateSettingsServiceTests
         service.Current.GitHubRepo.Should().Be("OpenForgeSelf/OpenForgeSelf");
     }
 
+    [Fact]
+    public void Persisted_GiteeRepo_Reloaded()
+    {
+        var settingsFile = SettingsFilePath();
+        var initial = new UpdateConfig { Provider = "github", GitHubRepo = "OpenForgeSelf/OpenForgeSelf" };
+        var service = new UpdateSettingsService(initial, settingsFile);
+
+        service.Update(c => { c.Provider = "gitee"; c.GiteeRepo = "OpenForgeSelf/OpenForgeSelf"; });
+
+        var freshInitial = new UpdateConfig { Provider = "github", GitHubRepo = "other/other" };
+        var fresh = new UpdateSettingsService(freshInitial, settingsFile);
+
+        fresh.Current.Provider.Should().Be("gitee");
+        fresh.Current.GiteeRepo.Should().Be("OpenForgeSelf/OpenForgeSelf");
+    }
+
     private static string SettingsFilePath()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"forge-settings-{Guid.NewGuid():N}");

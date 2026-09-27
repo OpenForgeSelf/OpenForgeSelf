@@ -64,6 +64,7 @@ public class UpdateController : ControllerBase
                 provider = config.Provider,
                 serverUrl = config.ServerUrl,
                 githubRepo = config.GitHubRepo,
+                giteeRepo = config.GiteeRepo,
                 localDir = config.LocalDir,
                 channel = config.Channel,
                 checkIntervalMinutes = config.CheckIntervalMinutes,
@@ -77,6 +78,9 @@ public class UpdateController : ControllerBase
     public class UpdateConfigRequest
     {
         public string? Provider { get; set; }
+        public string? ServerUrl { get; set; }
+        public string? GitHubRepo { get; set; }
+        public string? GiteeRepo { get; set; }
         public string? LocalDir { get; set; }
     }
 
@@ -101,15 +105,27 @@ public class UpdateController : ControllerBase
         if (!string.IsNullOrWhiteSpace(request.Provider))
         {
             provider = request.Provider.Trim().ToLowerInvariant();
-            if (provider is not ("stardust" or "github" or "local"))
-                return Ok(new { success = false, error = $"不支持的更新源类型: {request.Provider}（支持 stardust / github / local）" });
+            if (provider is not ("stardust" or "github" or "gitee" or "local"))
+                return Ok(new { success = false, error = $"不支持的更新源类型: {request.Provider}（支持 stardust / github / gitee / local）" });
         }
+
+        var serverUrl = current.ServerUrl;
+        if (request.ServerUrl != null)
+            serverUrl = request.ServerUrl.Trim();
+
+        var githubRepo = current.GitHubRepo;
+        if (request.GitHubRepo != null)
+            githubRepo = request.GitHubRepo.Trim();
+
+        var giteeRepo = current.GiteeRepo;
+        if (request.GiteeRepo != null)
+            giteeRepo = request.GiteeRepo.Trim();
 
         var localDir = current.LocalDir;
         if (request.LocalDir != null)
             localDir = request.LocalDir.Trim();
 
-        // 先校验再落盘：local 更新源必须配置存在的本地目录
+        // 先校验再落盘：各更新源必须配置对应地址
         if (provider == "local")
         {
             if (string.IsNullOrWhiteSpace(localDir))
@@ -117,10 +133,17 @@ public class UpdateController : ControllerBase
             if (!Directory.Exists(localDir))
                 return Ok(new { success = false, error = $"本地更新目录不存在: {localDir}" });
         }
+        if (provider == "github" && string.IsNullOrWhiteSpace(githubRepo))
+            return Ok(new { success = false, error = "GitHub 更新源必须填写仓库地址（owner/repo）" });
+        if (provider == "gitee" && string.IsNullOrWhiteSpace(giteeRepo))
+            return Ok(new { success = false, error = "Gitee 更新源必须填写仓库地址（owner/repo）" });
 
         _settings.Update(config =>
         {
             config.Provider = provider;
+            config.ServerUrl = serverUrl;
+            config.GitHubRepo = githubRepo;
+            config.GiteeRepo = giteeRepo;
             config.LocalDir = localDir;
         });
 
@@ -130,8 +153,10 @@ public class UpdateController : ControllerBase
             data = new
             {
                 provider = current.Provider,
-                localDir = current.LocalDir,
+                serverUrl = current.ServerUrl,
                 githubRepo = current.GitHubRepo,
+                giteeRepo = current.GiteeRepo,
+                localDir = current.LocalDir,
                 channel = current.Channel,
             },
         });

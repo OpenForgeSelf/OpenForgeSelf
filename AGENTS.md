@@ -2,6 +2,7 @@
 
 本文件是 AI Agent 在 OpenForgeSelf（铸己匣）项目中的**每次必守工作手册**（每次任务循环都必须执行的内容）。
 采用 **Loop Engineering** 闭环模型：Goal → Context → Plan → Execute → Verify → Iterate，直到验证通过或升级给人。
+所有**开发类任务**的流程**一律按 §11 AI-Native Engineering 九阶段闭环执行**（Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review；规范 `docs/04-standards/ai-native-engineering-workflow.md`，独立自含、闸门1/2/3 见其 §1.1）。该规范与其他流程描述冲突时，**以 §11 为准**（用户指令 seq14：不做体系映射）。
 
 > **分层说明**：本文只列「每次都要遵守」的规则；「需要触发才用」的细节（技能职责边界、验证决策表、迭代细则、文档工作流操作规范、汇报完整模板、设计稿与 speckit 流程、项目工程规则与踩坑）一律引用 **`docs/04-standards/agent-workflow.md`**（Part A = 工作流细节，Part B = 项目不变工程规则，2026-09-24 起原 `.forgeself/memory/MEMORY.md` 的规则已归档于此，随 git 入库）。
 
@@ -35,6 +36,9 @@
 
 - 临时探针**仅可作探索期一次性使用**：用完即删、**不进版本控制、不留存 `temp/`**，且**不得作为验证结论**（结论必须沉淀为 §5.0 的可重复测试）。
 - 任何"我手跑个脚本看看"的冲动，先查 §5.0 决策表：有对应正规入口就走正规入口。
+
+**开发类任务禁止跳过 AI-Native 闭环工件直接写代码。**
+每个开发任务（新功能 / 缺陷修复 / 插件任务 / 宿主与 CI 变更）的流程**唯一依据是 §11 规范**（模板 `docs/18-templates/ai-pilot/`，产物 `docs/ai/pilot/<task-id>/`；独立自含，不与其他流程体系做映射）；Evidence 或 Review 缺件即视为未完成。纯问答 / 查状态不占工件链。
 
 核心原则：
 
@@ -290,6 +294,23 @@ Verify 失败
 ### 10.5 禁令
 - 禁止使用模糊表达：「应该没问题」「基本完成」「看起来正常」「大概率是」「估计可以」。
 - 必须给出**明确状态** + **验证依据**。拿不到依据就标 Unknown / 标风险，不得用猜测充当完成。
+
+---
+
+## 11. AI-Native Engineering 闭环（开发任务唯一流程 · 独立自洽）
+
+> 完整规范（九阶段定义、硬性约束、闸门1/2/3 自含定义、裁剪规则、禁止事项）→ `docs/04-standards/ai-native-engineering-workflow.md`（v1.1.0，强制）
+> 文档模板 → `docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review + 07-final-report）
+> 产物落点 → `docs/ai/pilot/<task-id>/`（每任务一目录）｜群 SOP → `ai-native-engineering-loop`
+> **用户指令（seq14）**：本流程不与其他体系做映射；开发任务的流程以本节及其规范为唯一依据，与本文或其他文档的流程描述冲突时以 §11 为准。
+
+九阶段：`Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review`。要点：
+
+1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
+2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
+3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
+4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。
+5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。
 
 ---
 

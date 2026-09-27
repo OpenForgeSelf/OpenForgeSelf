@@ -17,6 +17,7 @@
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
 | 查 **Agent 工作流完整规范**（AGENTS.md 详细版：技能体系/验证决策表/迭代流程/文档工作流/汇报模板）**与项目工程规则、踩坑规律** | [`04-standards/agent-workflow.md`](04-standards/agent-workflow.md)（Part A = 工作流细节，Part B = 原 `.forgeself/memory/MEMORY.md` 项目不变规则归档，随 git 入库） |
+| 开发任务**必须走的 AI-Native 闭环工件链**（Repository Understanding→Intent→Spec→Plan→Task→Implement→Test→Evidence→Review） | [`04-standards/ai-native-engineering-workflow.md`](04-standards/ai-native-engineering-workflow.md)（**开发流程唯一依据，独立自含不与其他体系映射**，用户指令 seq14；模板在 [`18-templates/ai-pilot/`](18-templates/ai-pilot/)；产物落 `docs/ai/pilot/<task-id>/`；群 SOP `ai-native-engineering-loop` 已发布绑定） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
@@ -229,7 +230,7 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 各类文档的标准模板（当前有 `feature.md` 功能文档模板），新文档照填保证格式统一 |
+| **做什么** | 各类文档的标准模板（`feature.md` 功能文档模板 + [`ai-pilot/`](18-templates/ai-pilot/) AI-Native 闭环八份工件模板 00~07），新文档照填保证格式统一 |
 | **不做什么** | 不存放实际内容（那是各目录的活） |
 | **解释什么** | "新文档应该长什么结构" |
 | **不解释什么** | 不解释内容怎么写 → 按模板章节填 |

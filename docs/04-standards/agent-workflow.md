@@ -751,6 +751,8 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **协议非 LSP 非 ACP**：SDK↔CLI 为私有双向 JSONL over stdio；MCP 层才是 JSON-RPC 2.0。禁止 C# 复刻私有协议，用 Node 桥 + 自定版本化宿主协议隔离（契约见 `specs/037-qoder-agent-sdk-bridge/SPEC.md` §4）。
 - `interrupt` 的正常终态是 `done subtype=error_during_execution`，不是崩溃；每轮恰好一个 `done`，收口只认 `done`。
 - 认证失败退出码 41（`CLI_EXIT_CODE_AUTH_ERROR`）；PAT 不自动刷新，轮换后必须新会话。
+- **ACP 整合路径（037 R2，实测）**：qoderclicn 无原生 ACP；官方 `@agentclientprotocol/sdk`（npm 1.5.0，`AgentSideConnection`/`ClientSideConnection`/`ndJsonStream`）可把 SDK 会话包装成标准 ACP agent（原型 `specs/037-.../bridge/acp-agent.mjs`，ACP 客户端 7/7 PASS）。schema v1 `session/new` **必填 `mcpServers`**（漏传报 Invalid params）。AgentHub 侧统一走 `IAgentTransport(Kind=Acp)`，权限=Acp `session/request_permission` ⇄ SDK `PreToolUse ask→canUseTool`。
+- **通用 JS 运行时归宿主**（`IJsBridge`，Abstractions 层）：与 `IAIProviderRegistry` 同模式（宿主能力、多插件消费）；宿主只 spawn/收发 JSONL，协议属使用方；宿主不自动联网 npm install（本机 npm 拦 install-scripts）。
 
 ---
 
@@ -758,6 +760,9 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-27 | AI-Native 闭环规范回炉（用户指令 seq14「不与既有体系映射，完全按新规范走」）：规范升 **v1.1.0**——删除与 Loop/speckit/plugin-team-sop 的映射节，改为「开发流程唯一依据 + 冲突以本规范为准 + 闸门1/2/3 自含定义（§1.1）」；AGENTS.md 头部/红线/§11 同步去映射；群 SOP `ai-native-engineering-loop` 升 **1.1.0**（自含闸门/熔断/汇报，去除 plugin-team-sop 依赖）并重绑本群。 |
+| 2026-09-27 | 用户指令（群 seq10）：AI-Native Engineering 九阶段闭环固化为强制流程规范——新增 `docs/04-standards/ai-native-engineering-workflow.md` v1.0.0 + 模板 `docs/18-templates/ai-pilot/`（00~07 八份）+ 产物落点 `docs/ai/pilot/<task-id>/`；AGENTS.md 新增 §11 与 §0 红线引用；群 SOP 新增 `ai-native-engineering-loop` 并发布绑定（与 plugin-team-sop 并列）。 |
+| 2026-09-27 | spec 037 R2（用户指令改整合进 AgentHub）：B11 补 ACP 整合路径实测结论（qoderclicn 无原生 ACP、@agentclientprotocol/sdk 包装验证、session/new 必填 mcpServers）与「通用 JS 运行时归宿主 IJsBridge」架构决策。 |
 | 2026-09-27 | 新增 B11 Qoder CN Agent SDK 接入（spec 037 协议验证）：postinstall 手动补跑、受信目录审批陷阱与 PreToolUse ask 强控链路、私有 JSONL 非 LSP/ACP、interrupt 正常终态、认证退出码 41。 |
 | 2026-09-26 | spec 036 自动更新落地：B6 补 update-agent BOM 实弹代价与守卫测试；B9 新增「真机走查」小节（live 配置必须显式 E2E_API_TOKEN、破坏性用例双门控）；B10 补 git push 代理绕行与私有仓库资产 API 直链下载两条硬规则。 |
 | 2026-09-26 | spec 036 端到端验收全绿（live 一次性 49.5s，0.1.0→v0.2.4）：B10 补「并发写路径下状态机每侧写入都要守卫在途状态」硬规则（D-036-5，6b09654）。 |

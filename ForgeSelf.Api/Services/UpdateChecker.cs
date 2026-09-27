@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using NewLife.Log;
 using ForgeSelf.Api.Models;
 
@@ -26,6 +27,10 @@ public class UpdateChecker
     // GitHub 分支：最近一次检查命中的资产下载直链（spec 036）
     private string? _githubAssetUrl;
     private string? _githubAssetTag;
+
+    // 本地目录分支：最近一次检查命中的 zip 路径与归一化版本（2026-09-27）
+    private string? _localZipPath;
+    private string? _localZipTag;
 
     /// <summary>
     /// 初始化更新检查器。
@@ -74,6 +79,12 @@ public class UpdateChecker
             if (string.Equals(_config.Provider, "github", StringComparison.OrdinalIgnoreCase))
             {
                 return await CheckGitHubAsync(result);
+            }
+
+            // 本地目录 provider 分支（2026-09-27）：扫本机打包脚本输出的 zip 目录
+            if (string.Equals(_config.Provider, "local", StringComparison.OrdinalIgnoreCase))
+            {
+                return CheckLocalAsync(result);
             }
 
             if (string.IsNullOrEmpty(_config.ServerUrl))
@@ -162,6 +173,13 @@ public class UpdateChecker
         if (string.Equals(_config.Provider, "github", StringComparison.OrdinalIgnoreCase))
         {
             await DownloadGitHubPackageAsync(version, destPath);
+            return;
+        }
+
+        // 本地目录下载分支（2026-09-27）：直接拷贝 zip
+        if (string.Equals(_config.Provider, "local", StringComparison.OrdinalIgnoreCase))
+        {
+            await DownloadLocalPackageAsync(version, destPath);
             return;
         }
 
@@ -511,6 +529,172 @@ public class UpdateChecker
         }
 
         throw new InvalidOperationException($"未找到版本 {version} 对应的 GitHub Release win-x64 更新包。");
+    }
+
+    // ======================================================================
+    // Local directory provider（2026-09-27：更新地址可设置为本地目录）
+    // 目录内容 = scripts/release/release-local.ps1 -UpdateDir <目录> 的输出：
+    //   OpenForgeSelf-<ver>-win-x64.zip + SHA256SUMS.txt + RELEASE-NOTES-<ver>.md
+    // ======================================================================
+
+    /// <summary>
+    /// 通过本地目录检查更新：扫描 OpenForgeSelf-*-win-x64.zip 按 semver 取最新，
+    /// 读取同目录 SHA256SUMS.txt 作为包哈希、RELEASE-NOTES-&lt;ver&gt;.md 作为更新说明。
+    /// </summary>
+    private UpdateCheckResult CheckLocalAsync(UpdateCheckResult result)
+    {
+        if (string.IsNullOrWhiteSpace(_config.LocalDir))
+        {
+            result.IsSuccess = false;
+            result.ErrorMessage = "LocalDir 未配置";
+            return result;
+        }
+
+        if (!Directory.Exists(_config.LocalDir))
+        {
+            result.IsSuccess = false;
+            result.ErrorMessage = $"本地更新目录不存在: {_config.LocalDir}";
+            return result;
+        }
+
+        var zipPath = FindLatestLocalZip(out var latestSem, out var zipVersion);
+        result.IsSuccess = true;
+
+        if (zipPath == null || latestSem == null)
+        {
+            result.HasUpdate = false;
+            XTrace.Log.Info("UpdateChecker(Local): 目录 {0} 下无 OpenForgeSelf-*-win-x64.zip 更新包。",
+                _config.LocalDir);
+            return result;
+        }
+
+        var currentSem = ParseSemVer(_currentVersion);
+        result.LatestVersion = latestSem.ToVersion();
+        result.LatestVersionTag = "v" + zipVersion;
+        result.HasUpdate = currentSem == null || CompareSemVer(latestSem, currentSem) > 0;
+        result.DownloadUrl = zipPath;
+        result.PackageSize = new FileInfo(zipPath).Length;
+
+        // SHA256SUMS.txt："{hash}  <zipName>"（两空格分隔，package-release.ps1 写入格式）
+        var sumsPath = Path.Combine(_config.LocalDir, "SHA256SUMS.txt");
+        if (File.Exists(sumsPath))
+        {
+            var hash = FindHashForZip(sumsPath, Path.GetFileName(zipPath));
+            if (!string.IsNullOrEmpty(hash))
+                result.PackageHash = "sha256:" + hash;
+            else
+                XTrace.Log.Warn("UpdateChecker(Local): SHA256SUMS.txt 中未找到 {0} 的哈希，下载后将跳过校验。",
+                    Path.GetFileName(zipPath));
+        }
+        else
+        {
+            XTrace.Log.Warn("UpdateChecker(Local): 目录下无 SHA256SUMS.txt，下载后将跳过 SHA256 校验。");
+        }
+
+        // 更新说明：RELEASE-NOTES-<ver>.md
+        var notesPath = Path.Combine(_config.LocalDir, $"RELEASE-NOTES-{zipVersion}.md");
+        if (File.Exists(notesPath))
+            result.ReleaseNotes = File.ReadAllText(notesPath);
+
+        _localZipPath = zipPath;
+        _localZipTag = NormalizeTag(zipVersion);
+
+        XTrace.Log.Info("UpdateChecker(Local): 检查完成, HasUpdate={0}, Version={1}",
+            result.HasUpdate, result.LatestVersionTag);
+        return result;
+    }
+
+    /// <summary>扫描目录，返回 semver 最高的 OpenForgeSelf-*-win-x64.zip 完整路径。</summary>
+    private string? FindLatestLocalZip(out SemVer? latestSem, out string? zipVersion)
+    {
+        latestSem = null;
+        zipVersion = null;
+        string? chosen = null;
+
+        if (!Directory.Exists(_config.LocalDir))
+            return null;
+
+        foreach (var file in Directory.EnumerateFiles(_config.LocalDir, "OpenForgeSelf-*-win-x64.zip"))
+        {
+            var m = Regex.Match(Path.GetFileName(file),
+                @"^OpenForgeSelf-(.+)-win-x64\.zip$", RegexOptions.IgnoreCase);
+            if (!m.Success)
+                continue;
+
+            var fileSem = ParseSemVer(m.Groups[1].Value);
+            if (fileSem == null)
+                continue;
+
+            if (latestSem == null || CompareSemVer(fileSem, latestSem) > 0)
+            {
+                latestSem = fileSem;
+                zipVersion = m.Groups[1].Value;
+                chosen = file;
+            }
+        }
+
+        return chosen;
+    }
+
+    /// <summary>从 SHA256SUMS.txt 中按文件名取 64 位 hex 哈希（小写）。</summary>
+    private static string? FindHashForZip(string sumsPath, string zipFileName)
+    {
+        foreach (var line in File.ReadLines(sumsPath))
+        {
+            var idx = line.IndexOf("  ", StringComparison.Ordinal);
+            if (idx <= 0)
+                continue;
+
+            var hash = line[..idx].Trim();
+            var name = line[(idx + 2)..].Trim();
+            if (string.Equals(name, zipFileName, StringComparison.OrdinalIgnoreCase) &&
+                hash.Length == 64 &&
+                hash.All(c => Uri.IsHexDigit(c)))
+            {
+                return hash.ToLowerInvariant();
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>本地目录下载：解析版本对应的 zip 路径后拷贝到 destPath。</summary>
+    private async Task DownloadLocalPackageAsync(string version, string destPath)
+    {
+        var zipPath = ResolveLocalZip(version);
+        if (zipPath == null)
+            throw new InvalidOperationException($"本地更新目录中未找到版本 {version} 的更新包。");
+
+        XTrace.Log.Info("UpdateChecker(Local): 拷贝更新包: {0} → {1}", zipPath, destPath);
+
+        var dir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        await using var source = new FileStream(zipPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await using var dest = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await source.CopyToAsync(dest);
+
+        XTrace.Log.Info("UpdateChecker(Local): 拷贝完成: {0} ({1} bytes)", destPath,
+            new FileInfo(destPath).Length);
+    }
+
+    /// <summary>解析版本对应的本地 zip 路径：优先用最近检查缓存，未命中则按文件名扫描。</summary>
+    private string? ResolveLocalZip(string version)
+    {
+        if (_localZipPath != null && _localZipTag == NormalizeTag(version))
+            return _localZipPath;
+
+        var wanted = NormalizeTag(version);
+        foreach (var file in Directory.EnumerateFiles(_config.LocalDir, "OpenForgeSelf-*-win-x64.zip"))
+        {
+            var m = Regex.Match(Path.GetFileName(file),
+                @"^OpenForgeSelf-(.+)-win-x64\.zip$", RegexOptions.IgnoreCase);
+            if (m.Success && NormalizeTag(m.Groups[1].Value) == wanted)
+                return file;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -698,4 +698,121 @@ public class UpdateCheckerTests : IDisposable
                 Content = content,
             });
     }
+
+    // ================================================================
+    // 本地目录 provider（2026-09-27：更新地址可设置为本地目录）
+    // ================================================================
+
+    [Fact]
+    public async Task Local_Check_FindsNewerZip_FillsHashAndNotes()
+    {
+        var zipName = "OpenForgeSelf-2.0.0-win-x64.zip";
+        var dir = CreateLocalUpdateDir(new[] { (zipName, "zip-content-2.0.0") });
+        var hash = ComputeSha256(Path.Combine(dir, zipName));
+        File.WriteAllText(Path.Combine(dir, "SHA256SUMS.txt"), $"{hash}  {zipName}\n");
+        File.WriteAllText(Path.Combine(dir, "RELEASE-NOTES-2.0.0.md"), "# 2.0.0 更新说明");
+
+        var config = new UpdateConfig { Provider = "local", LocalDir = dir };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersion.Should().Be(new Version("2.0.0"));
+        result.LatestVersionTag.Should().Be("v2.0.0");
+        result.PackageHash.Should().Be("sha256:" + hash);
+        result.ReleaseNotes.Should().Contain("2.0.0");
+        result.PackageSize.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Local_Check_CurrentVersionNewer_ReturnsNoUpdate()
+    {
+        var dir = CreateLocalUpdateDir(new[] { ("OpenForgeSelf-1.0.0-win-x64.zip", "zip-content") });
+        var config = new UpdateConfig { Provider = "local", LocalDir = dir };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "2.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Local_Check_PicksHighestVersionZip()
+    {
+        var dir = CreateLocalUpdateDir(new[]
+        {
+            ("OpenForgeSelf-1.0.0-win-x64.zip", "old"),
+            ("OpenForgeSelf-2.1.0-win-x64.zip", "new"),
+        });
+        var config = new UpdateConfig { Provider = "local", LocalDir = dir };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersion.Should().Be(new Version("2.1.0"));
+        result.DownloadUrl.Should().EndWith("OpenForgeSelf-2.1.0-win-x64.zip");
+    }
+
+    [Fact]
+    public async Task Local_Check_MissingDir_ReturnsError()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), $"forge-local-missing-{Guid.NewGuid():N}");
+        var config = new UpdateConfig { Provider = "local", LocalDir = missing };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("不存在");
+    }
+
+    [Fact]
+    public async Task Local_Download_CopiesZipToDest()
+    {
+        var dir = CreateLocalUpdateDir(new[] { ("OpenForgeSelf-2.0.0-win-x64.zip", "zip-content-abc") });
+        var config = new UpdateConfig { Provider = "local", LocalDir = dir };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var dest = Path.Combine(dir, "out", "update.zip");
+        await checker.DownloadPackageAsync("v2.0.0", dest);
+
+        File.Exists(dest).Should().BeTrue();
+        (await File.ReadAllTextAsync(dest)).Should().Be("zip-content-abc");
+    }
+
+    [Fact]
+    public async Task Local_Check_NoSumsFile_StillSucceedsWithoutHash()
+    {
+        var dir = CreateLocalUpdateDir(new[] { ("OpenForgeSelf-3.0.0-win-x64.zip", "zip-content") });
+        var config = new UpdateConfig { Provider = "local", LocalDir = dir };
+        var checker = new UpdateChecker(config, _httpClient, _testAppName, currentVersion: "1.0.0.0");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeTrue();
+        result.PackageHash.Should().BeNull();
+    }
+
+    // ---------- 本地目录测试辅助 ----------
+
+    /// <summary>在 %TEMP% 下建随机目录并写入 zip 文件（按铁律 10：只创建不删除）。</summary>
+    private static string CreateLocalUpdateDir(IEnumerable<(string Name, string Content)> files)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"forge-local-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        foreach (var (name, content) in files)
+            File.WriteAllText(Path.Combine(dir, name), content);
+        return dir;
+    }
+
+    private static string ComputeSha256(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(stream));
+    }
 }

@@ -157,6 +157,15 @@ public static class AppBuilder
         builder.Services.Configure<ServiceConfig>(builder.Configuration.GetSection("Service"));
         builder.Services.Configure<UpdateConfig>(builder.Configuration.GetSection("Update"));
 
+        // 运行时可变更新配置（2026-09-27）：appsettings "Update" 节为基座，
+        // 设置页修改后落盘到 {数据根}/Config/update-settings.json（下次启动该文件优先）。
+        // 与 UpdateChecker / UpdateController 共享同一 UpdateConfig 实例引用，改配置无需重启。
+        var updateConfigInitial = builder.Configuration.GetSection("Update").Get<UpdateConfig>()
+            ?? new UpdateConfig();
+        var updateSettingsFile = Path.Combine(
+            dataLocation.GetHostDataDirectory(), "Config", "update-settings.json");
+        builder.Services.AddSingleton(new UpdateSettingsService(updateConfigInitial, updateSettingsFile));
+
         // ServiceManager — 封装 Windows 服务安装/卸载/状态检测
         builder.Services.AddSingleton<IServiceManager>(sp =>
         {
@@ -164,14 +173,14 @@ public static class AppBuilder
             return new ServiceManager(config);
         });
 
-        // UpdateChecker — 封装版本查询与下载（stardust / GitHub Releases 双 provider）
+        // UpdateChecker — 封装版本查询与下载（stardust / GitHub Releases / 本地目录 三 provider）
         builder.Services.AddSingleton<UpdateChecker>(sp =>
         {
-            var config = sp.GetRequiredService<IOptions<UpdateConfig>>().Value;
+            var settings = sp.GetRequiredService<UpdateSettingsService>();
             // Timeout 交给各请求自己的 CancellationTokenSource（check/download 超时不同量级）；
             // HttpClient 级超时若按 CheckTimeoutSeconds 配置，会把大文件下载在十几秒处掐断。
             var httpClient = new HttpClient { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
-            return new UpdateChecker(config, httpClient, currentVersion: UpdateChecker.GetCurrentVersion());
+            return new UpdateChecker(settings.Current, httpClient, currentVersion: UpdateChecker.GetCurrentVersion());
         });
 
         // StagedUpdateService — 暂存式更新编排（spec 036：下载→校验→解压 staged→agent 重启并更新）
@@ -187,7 +196,7 @@ public static class AppBuilder
         {
             var updateChecker = sp.GetRequiredService<UpdateChecker>();
             var serviceManager = sp.GetRequiredService<IServiceManager>();
-            var updateConfig = sp.GetRequiredService<IOptions<UpdateConfig>>().Value;
+            var updateConfig = sp.GetRequiredService<UpdateSettingsService>().Current;
             var serviceConfig = sp.GetRequiredService<IOptions<ServiceConfig>>().Value;
             var httpClient = new HttpClient();
             return new UpdateService(updateChecker, serviceManager, updateConfig, serviceConfig, httpClient);

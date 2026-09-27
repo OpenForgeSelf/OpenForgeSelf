@@ -11,7 +11,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 | 专项技能 | 负责 |
 |---|---|
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 |
-| `plugin-publish-verify` | 发布单插件到运行中的 publish 宿主 + 版本化显式更新验证 |
+| `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；禁止 agent 停宿主 |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 |
 
 ---
@@ -53,7 +53,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    `Cannot read properties of undefined (reading 'push')`（Home 插件实测踩坑，见 `specs/033-home/design.md` §9）。
 6. **HTTP 方法以后端 `[Http*]` 特性为准**，不要照抄调用方。
    踩过：后端是 `[HttpPut("{id}")]`，移植时沿用 POST → 405。
-7. **改完插件 = 代码改完 + 门禁通过 + 发布到运行宿主 + 浏览器走查**，四步缺一不算完成。
+7. **改完插件 = 代码改完 + 门禁通过 + 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）+ 走查**，四步缺一不算完成。
 8. **插件根视图的滚动容器其子区块必须 `flex-shrink: 0`。**
    插件根组件常写成 `height:100%` + flex 列 + 内层滚动容器（如 `.home-content { flex:1; overflow-y:auto }`）。
    该滚动容器的**直接子区块默认 `flex-shrink:1`**：一旦内容总高超过容器（视口一矮就触发，
@@ -166,12 +166,13 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    - 参考实现：`Plugins/ImGateway/Services/ImGatewayConnectionManager.cs`（构造函数调 EnsureStarted）。
 
 15. **【宿主前端 API 层铁律】宿主 service 的 `parseResponse` 已解包 `json.data`**：新增 fetch 函数直接按目标类型 T 收（`parseResponse<T>(resp)` 返回 T 本身），**禁止再取 `.data`/`.stats`**——会得到 undefined、页面无错但功能静默失效（fetchPluginVersion / fetchTraffic 各踩一次）。宿主内嵌组件型插件（无独立 web/）的 service 层同样适用。
-16. **【发布铁律】发布一律走发布技能与脚本，禁止手动执行发布命令 / 手工 Copy-Item 进 `publish/`。发布带版本号。**
-   - 改完插件 = 代码 + 门禁 + **发布（`run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`，见 §四 3）** + 走查，四步缺一不算完成。
-   - **发布 = 版本化显式更新（2026-09-24 起）**：脚本 stage 新版本到 `_backups/<id>/<version>/` → `POST /api/plugin/update/{id}` → 宿主落 `versions/<version>/` + 切 current 指针 + ALC 换载；不再覆盖活动目录、不依赖 watcher 热重载。每次跑脚本自动 patch+1。
-   - 宿主后端 Controller 改完**必须先 `dotnet build` 再发布**（直接复制旧 Release DLL → 新端点 404，流量统计接口实测）；该构建由发布脚本内部完成，**不要手工复制 DLL 到 publish**。
-   - ⚠ **替换宿主自身二进制前必须先停宿主**：build.ps1 用 robocopy 覆盖 publish/，运行期被宿主锁定的文件（如 `ForgeSelf.dll`）会**静默跳过、脚本仍报成功**（2026-09-24 实测：旧宿主锁住 ForgeSelf.dll → 新 Middleware 不生效，重启后才验证通过）。
-   - 插件含独立引擎等额外产物时，纳入发布脚本参数（如 `-Engine MyPlugin.Engine`）或写入插件文档的发布说明；**一律禁止手工 Copy-Item 发布产物**。
+16. **【发布铁律】发布 = 打 tag 自动发布 + 页面自动更新（2026-09-27 新规范）；禁止手工 Copy-Item 发布产物；禁止 agent 停/启/杀用户宿主进程。**
+   - 改完插件/宿主 = 代码 + 门禁 + 插件层 e2e + **发布（打 tag → CI 自动打包 GitHub Release，或本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源）** + 走查，四步缺一不算完成。
+   - **宿主由 update-agent 自更新（spec 036）**：用户/页面点「检查更新 → 下载 → 重启并更新」，全程无人停宿主。
+     任何情况下 **agent 不得 Stop-Process 用户运行中的 ForgeSelf**（旧规范 run-plugin-publish-verify.ps1 会杀掉非 publish 实例，2026-09-27 已废除该行为，见 plugin-publish-verify）。
+   - 宿主后端 Controller 改完**必须先 `dotnet build` 门禁**（直接复制旧 Release DLL → 新端点 404，流量统计接口实测）；发布产物由 CI/打包脚本全量重建，**不要手工复制 DLL**。
+   - 插件含独立引擎等额外产物时，纳入打包脚本参数（如 `-Engine MyPlugin.Engine`）或写入插件文档的发布说明；**一律禁止手工 Copy-Item 发布产物**。
+   - 开发期验证走 e2e 隔离实例（globalSetup 自动构建，不碰用户运行实例）；确需在运行实例上版本化侧载插件（`POST /api/plugin/update/{id}`，宿主不重启）必须先获用户同意。
 
 17. **【管理面鉴权铁律】插件暴露的管理/CRUD/配置 HTTP 控制器必须类级 `[Authorize("ApiKeyPolicy")]`。**
    - 宿主**没有全局鉴权中间件**，鉴权是**逐控制器显式**的（对照 `Controllers/AIProviderController.cs:21`）。
@@ -323,7 +324,7 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 四、维护闭环（改完插件必走）
 
 ```
-读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发到运行宿主 → 浏览器走查 → 更新插件文档 → 记日志
+读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ 更新插件文档 → 记日志
 ```
 
 0. **改实体时（先做这一步，再改代码）**：按铁律 9 走
@@ -338,14 +339,21 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
 2. **插件层 e2e**：`e2e/plugins/<id>/<id>.spec.ts`，零 mock，按 `e2e-testing` 技能写。
    **不要**写一次性临时脚本代替它。
    菜单/路由一致性回归（铁律 19③）：任何插件 route 改名/增删必须同步 `ForgeSelf.Web/e2e/menu-route-consistency.spec.ts` 并实跑通过。
-3. **发布（必须走发布技能/脚本，禁止手动 Copy-Item）**
-   - **唯一入口**：`pwsh .agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`
-     （内部：`publish-plugin.ps1` stage 版本快照 → `POST /api/plugin/update/{id}` 显式版本化切换 → 版本化布局（versions/ + current 指针）/清单/静态资源/版本快照入口 DLL hash 验证，自动起 publish 宿主）。
-     **每次跑脚本自动 patch+1**（如 1.3.0 → 1.3.1），大版本手动改 plugin.json。常用参数：`-SkipPublish`（宿主产物已最新，跳过全量 build）、`-Force`（覆盖已存在 staged 版本）、`-Engine <Engine名>`（插件带独立引擎时一并发布）。
-   - **禁止**：手动 `Copy-Item` / `dotnet publish` 散拷插件产物进 `publish/`（含 DLL、web/dist、引擎 exe）。发布动作必须经脚本；脚本没覆盖的产物**先补脚本再发**，不手拷。
-   - 宿主内嵌组件型插件（前端在宿主 `src/`，无独立 web/）的前端产物 = 宿主前端构建（`pnpm run build` → wwwroot），不属插件发布脚本范围，但发布动作仍须经宿主发布流程（`build.ps1`）或写入插件文档发布说明，不散拷文件。
+3. **发布（2026-09-27 新规范：打 tag 自动发布 + 页面自动更新；禁止手动 Copy-Item；禁止停宿主）**
+   - **主路径**：向用户请示 git 提交（审批后才 commit）→ 打 tag `v<X.Y.Z>` → `git push github v<X.Y.Z>` →
+     CI 自动构建打包并创建 GitHub Release → 通知用户在「设置-版本更新」页点「检查更新 → 下载 → 重启并更新」完成升级
+     （宿主 update-agent 自更新，**全程无人停宿主**）。
+   - **本地离线**：`pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>` →
+     设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」。
+   - **禁止**：手动 `Copy-Item` / `dotnet publish` 散拷产物进 `publish/`（含 DLL、web/dist、引擎 exe）；
+     **禁止 `Stop-Process` 用户运行中的 ForgeSelf**（旧 run-plugin-publish-verify.ps1 的「杀非 publish 实例」行为已废除）。
+   - **可选侧载（仅插件 DLL，且须用户同意）**：`run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>` 版本化侧载
+     （`POST /api/plugin/update/{id}`，宿主不重启；见 plugin-publish-verify）。
+   - 宿主内嵌组件型插件（前端在宿主 `src/`，无独立 web/）的前端产物 = 宿主前端构建（`pnpm run build` → wwwroot），
+     随 tag 发布由 CI `build-frontend.ps1` 全量重建，不散拷文件。
    - 详见 `plugin-publish-verify`
-   - **发布成功判据（铁律）**：脚本必须 `exit 0` 才算发布成功。`exit 1` = 失败，禁止只挑「api version == manifest version」等单项 OK 就宣称成功——主检查失败脚本会直接 `exit 1` 终止（2026-09-23 起）；其他 FAIL 项必须如实报告失败原因，不得掩盖。
+   - **发布成功判据（铁律）**：GitHub Release 资产可下载且与 `SHA256SUMS.txt` 一致（或本地目录 zip 可被页面
+     检查出新版本）；CI 失败 / 资产缺失 = 发布未完成，禁止宣称成功。
 4. **浏览器走查**：控制浏览器访问宿主，按用户视角点一遍（含截图读图看图标/间距/对齐/溢出），
    并清掉造的测试数据。**UI/交互有改动时，必须按 §3.4 交互设计统一要求的验证清单逐项核对**
    （点即保存是否落盘 / 操作成败是否可见 / 轮询无闪动 / 空态分级 / 筛选分页边界 / 二次确认）。
@@ -377,9 +385,10 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
   独立引擎等子进程由宿主启动时经命令行参数传路径（如 `--config <数据目录>/myplugin.json`），子进程不自行猜路径。
 - 活动插件目录**只放插件自己的程序集**（`<Dir>.dll` + `plugin.json` [+ `web/dist`]），
   混入宿主共享 DLL 会让宿主启动即崩；版本化后实际生效在 `versions/<current>/`（根扁平为兼容回退）
-- **发布/升级 = 版本化显式更新（2026-09-24 起）**：`run-plugin-publish-verify.ps1` stage 新版本 →
-  `POST /api/plugin/update/{id}` → `versions/<version>/` + current 指针切换；**不再覆盖活动目录、不依赖 watcher 热重载**。
-  前端静态资源已改为从 `versions/<current>/web/dist/` 读取（Middleware 版本化，2026-09-24 修复「更新后页面仍加载旧 bundle」缺陷）
+- **发布/升级（2026-09-27 新规范）**：主路径 = 打 tag `v<X.Y.Z>` → push github → CI 自动打包 GitHub Release →
+  页面「检查更新 → 下载 → 重启并更新」（宿主 update-agent 自更新）；本地离线 = `release-local.ps1 -UpdateDir <目录>` +
+  设置页「更新源 = 本地目录」。**不再用 run-plugin-publish-verify.ps1 杀非 publish 实例重启宿主**；
+  该脚本仅保留「版本化侧载插件（宿主不重启）」的可选用途（须用户同意）。
 - ⚠ **宿主无自动热重载（2026-09-24 一刀切，PluginHotReloadWatcher 已删）：插件目录变更不会自动生效**（2026-09-22 mcp-gateway 实证：拷入后轮询 60s 插件列表无变化）。新增插件的两条生效路：① `POST /api/plugin/install` 上传 `.forgeself-plugin` 包触发 `DiscoverPlugins()` 重扫；② **冷启动宿主**（停 → 覆盖 → 起，启动扫描发现，最直接）。运行中更新已加载插件一律走版本化侧载 `POST /api/plugin/update/{id}`（side-by-side，天然绕开 DLL 锁）。
 - 端点前缀是**单数** `api/plugin/...`（不是 `api/plugins/`）
 - 宿主静态资源真实路径是 `/assets/...`；直接 `curl /index-xxx.js` 会 404，别误判成部署失败

@@ -24,7 +24,7 @@
    - Read 当天日记，确认含本次输入拆解 + 验证结果；
    - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（spec / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow.md 或本文。
-   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部四步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build`）② 插件层 e2e（`e2e/plugins/<id>`，实跑宿主走查用 `playwright.live.config.ts`）③ 发布到运行宿主（`scripts/publish-plugin.ps1` 或按 `plugin-publish-verify` 主路径热更）④ 浏览器走查（导航宿主、按用户视角点一遍、截图读图、清测试数据）。**四步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。此四步属闭环内部标准动作，已由用户前瞻授权"以后自动执行"（含发布到实跑 `:51888` 实例、触碰运行服务），不再逐次询问；唯环境拉不起 / 外部阻塞时才升级给人。
+   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部四步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 测试）② 插件层 e2e（`e2e/plugins/<id>`，走 e2e 隔离实例，按 `e2e-testing` 技能）③ 发布（**打 tag 自动发布** → CI 打包 GitHub Release；或本地 `release-local.ps1 -UpdateDir` + 设置页本地目录更新源 + 页面自动更新）④ 走查（e2e 隔离实例按用户视角点一遍、截图读图、清测试数据）。**四步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-09-27 用户指令）**：**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责打 tag 发布与验证发布产物。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
 > 验证通过（测试绿）≠ 流程完成。Persist 与 Verify 同属 DoD，缺一项即未达标。
@@ -89,6 +89,8 @@
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
 - 运行端口：Backend `:7102`，Frontend `:7002`；本环境长期运行的 publish 实例用 `:51888`
+- **发布规范（2026-09-27 起）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
+- **打包流程（发布本地 zip，2026-09-27 补充）**：唯一打包入口 = `scripts/release/release-local.ps1`（编排 build-frontend → publish-host → package-release → make-release-notes，与 CI 同一命令）。本地发布 zip 跑：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>`；产物在 `artifacts/release/`（`OpenForgeSelf-<ver>-win-x64.zip` + `SHA256SUMS.txt` + `RELEASE-NOTES-<ver>.md`），`-UpdateDir` 会把三件拷到指定目录；然后在设置-版本更新页「更新源 = 本地目录」填该目录 → 检查更新 → 下载 → 重启并更新。**注意**：版本号必须高于当前运行版本（页面才检测得到）；脚本含中文须带 UTF-8 BOM（B6 铁律）；本地打包不打 git tag、不触发 CI
 - 更全的工程规则/踩坑（数据落盘、XCode、DLL 锁、PS 编码等）→ `docs/04-standards/agent-workflow.md` Part B
 
 ### 2.4 技能清单（Skills — 动手前必查）
@@ -99,7 +101,7 @@
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 浏览器走查，四步缺一不算完成；完成后复盘回写技能 |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
-| `plugin-publish-verify` | 发布单插件到运行中的 publish 宿主 + 验证 | 宿主必须跑 `publish/`；活动插件目录只放插件自身 DLL；`plugin.json` 最后拷 |
+| `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 

@@ -2,7 +2,7 @@
 
 > 项目使用 `appsettings.json` + 环境覆盖（`appsettings.Development.json` / `appsettings.Production.json`）管理配置。
 > 配置通过 `IConfigurationService` 注入到各服务。
-> 最后更新：2026-08-20
+> 最后更新：2026-09-27
 
 ## 完整配置结构
 
@@ -20,11 +20,14 @@
     "TimeoutSeconds": 300
   },
   "Update": {
-    "CheckIntervalHours": 24,
-    "DownloadPath": "updates",
-    "GithubOwner": "ForgeSelf",
-    "GithubRepo": "ForgeSelf",
-    "GithubToken": ""
+    "Provider": "github",
+    "GitHubApiUrl": "https://api.github.com",
+    "GitHubRepo": "OpenForgeSelf/OpenForgeSelf",
+    "ServerUrl": "",
+    "Channel": "stable",
+    "CheckIntervalMinutes": 60,
+    "CheckTimeoutSeconds": 15,
+    "DownloadTimeoutSeconds": 600
   },
   "Service": {
     "Port": 7102,
@@ -83,12 +86,18 @@
 
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
-| `CheckIntervalHours` | int | `24` | 更新检查间隔（小时） |
-| `DownloadPath` | string | `updates` | 更新包下载目录 |
-| `GithubOwner` | string | `openforgeself` | GitHub 仓库所有者 |
-| `GithubRepo` | string | `OpenForgeSelf` | GitHub 仓库名 |
+| `Provider` | string | `stardust` | 更新源类型：`stardust`（StarServer 版本接口，008 原有协议）/ `github`（GitHub Releases，spec 036）/ `local`（本地目录） |
+| `ServerUrl` | string | `""` | StarServer 更新服务器地址；空字符串 = 不使用自动更新（仅手动检查） |
+| `GitHubApiUrl` | string | `https://api.github.com` | GitHub API 基址（可指向 GHES） |
+| `GitHubRepo` | string | `OpenForgeSelf/OpenForgeSelf` | GitHub 仓库标识 `owner/repo`，`Provider=github` 时必填；更新源为公开仓库，匿名访问即可 |
+| `LocalDir` | string | `""` | 本地更新目录（`Provider=local` 时必填）：放置打包脚本 `release-local.ps1 -UpdateDir` 输出的 `OpenForgeSelf-<ver>-win-x64.zip`（连同 `SHA256SUMS.txt` / `RELEASE-NOTES-<ver>.md`）的目录 |
+| `Channel` | string | `stable` | 更新通道：`stable`（稳定版）/ `beta`（测试版） |
+| `CheckIntervalMinutes` | int | `60` | 自动检查间隔（分钟）；0 = 仅启动时检查一次 |
+| `CheckTimeoutSeconds` | int | `5` | 启动时版本检查超时（秒），超时视为无更新、不阻塞启动 |
+| `DownloadTimeoutSeconds` | int | `300` | 更新包下载超时（秒） |
 
 > 更新源仓库 `OpenForgeSelf/OpenForgeSelf` 自 2026-09-26 起为**公开**仓库，匿名访问即可，不再提供令牌配置项（原 `GithubToken` / `FORGESELF_UPDATE_TOKEN` 已移除）。
+> **运行时可变（2026-09-27 起）**：设置页「更新源配置」可修改并落盘到 `{数据根}/Config/update-settings.json`（`UpdateSettingsService`），重启时优先加载，优先级高于 appsettings.json；`Provider=local` 时填 `LocalDir` 本机目录即可走离线更新。
 
 ### Service — 服务配置
 
@@ -138,3 +147,4 @@
 | API 服务器密钥 | `ApiServerKey` 表 | 设置页面 / `api/api-server` API |
 | 端口配置 | `PortConfiguration` 表 | 设置页面 / `api/port-configuration` API |
 | 外观设置 | 前端 localStorage | 设置页面 |
+| 更新源配置 | `{数据根}/Config/update-settings.json` | 设置页「更新源配置」/ `api/update/config` API（2026-09-27 起，重启后优先加载） |

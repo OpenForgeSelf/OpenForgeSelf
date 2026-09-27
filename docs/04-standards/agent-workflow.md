@@ -1,7 +1,7 @@
 # Agent 工作流与工程规则规范（AGENTS.md 详细版 + 项目不变规则归档）
 
 > 状态：已实施（2026-09-24 分层落地：AGENTS.md 瘦身为每次必守版，本文件承接详细版；原 `.forgeself/memory/MEMORY.md` 规则归档于此）
-> 最后更新：2026-09-24
+> 最后更新：2026-09-27
 > 维护：新增/修改项目规则 → 更新本文对应小节；仅当规则升级为「每次必守」时同步回写 AGENTS.md。
 
 > 本文档是 OpenForgeSelf（铸己匣）项目 **Agent 工作规则的完整规范**：
@@ -22,7 +22,7 @@
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 浏览器走查，四步缺一不算完成；完成后复盘回写技能 |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：行业调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
-| `plugin-publish-verify` | 发布单插件到运行中的 publish 宿主 + 验证 | 宿主必须跑 `publish/`；活动插件目录只放插件自身 DLL；`plugin.json` 最后拷 |
+| `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新（禁止 agent 停宿主）；本地目录更新源；插件版本化侧载（须用户同意） | 活动插件目录只放插件自身 DLL；`plugin.json` 最后拷 |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 
@@ -586,18 +586,18 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **版本目录布局**：`Plugins/{id}/versions/<ver>/<entry>` + `Plugins/{id}/current` 文本指针；staged 入口在 `Plugins/_backups/{id}/{ver}/`。
 - **失败回退**：`ReloadPlugin` 异常自动回退 `current` 到上一可用版本；`POST /api/plugins/rollback/{id}` body `{"version":"x"}` 手动回滚。
 - **DLL 锁处理**：`PluginAssemblyUnloader.ForceCollect`（两轮 GC + 终结器）+ `TryOpenExclusive`（`FileShare.None`）+ `TryDeleteDirectory`（占用时跳过下轮重试）。
-- **发布脚本用法**：`./scripts/publish-plugin.ps1 -Plugin AIAgent`（`-Plugin` 是目录名 PascalCase，非 id）；幂等（staged 已存在则 skip，需 `-Force` 覆盖）；`-DryRun` 仅打印。技能一键跑：`pwsh .agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`（`-BumpVersion` 自动升版本、`-SkipPublish`、`-Force`、`-ReloadWaitSec`）。
+- **发布脚本用法**：`./scripts/publish-plugin.ps1 -Plugin AIAgent`（`-Plugin` 是目录名 PascalCase，非 id）；幂等（staged 已存在则 skip，需 `-Force` 覆盖）；`-DryRun` 仅打印。技能侧载路径：`pwsh .agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`（`-BumpVersion` 自动升版本、`-SkipPublish`、`-Force`、`-ReloadWaitSec`）。**2026-09-27 起**：该脚本仅限「插件版本化侧载（宿主不重启）」可选用途且**必须先获用户同意**；脚本内「杀非 publish 实例重启宿主」的行为已废除。**主路径 = 打 tag 自动发布 + 页面自动更新**（见 B10）。
 - **覆盖顺序：payload（DLL、web/dist）先，`plugin.json` 最后**。先写清单会在拷贝中途触发重载，后续 DLL 拷贝报 `Could not find file`。
 - **更新成功判定（用户约定）**：取接口 `GET /api/plugin` 返回的该插件 `version`，与**当前活动目录 `plugin.json`（清单文件）**的 `Version` 比对，**一致即认为更新成功**。清单文件是版本号唯一真源。
 - **端点前缀是单数 `api/plugin`**（`[Route("api/[controller]")]` + `PluginController`）。`publish-plugin.ps1` 结尾打印的 `/api/plugins/...` 是**错的**，实测 404。
 - **假成功陷阱**：版本号来自 `plugin.json`，改 C# 代码时若入口 DLL 没真正替换，会出现「版本显示新值但跑旧二进制」。必须比对哈希：`publish/Plugins/<Dir>/<Dir>.dll` vs `_backups/<id>/<ver>/<Dir>.dll`（脚本已内置该校验）。
-- **「版本号升了」≠「新代码生效」**：版本化布局（versions/ + current）只证明「切换动作完成」；Middleware/Controller 等宿主代码改动必须重启宿主（新二进制）后才生效；插件自身 DLL 生效判据 = 版本快照 DLL hash == staged hash。
+- **「版本号升了」≠「新代码生效」**：版本化布局（versions/ + current）只证明「切换动作完成」。**宿主代码（Middleware/Controller 等）改动 2026-09-27 起一律走 tag 发布 + 页面自动更新**（update-agent 自更新），agent 不手动停宿主；插件自身 DLL 生效判据 = 版本快照 DLL hash == staged hash。
 - **web/dist 版本化读取**：`PluginFrontendFileMiddleware.ResolveFrontendRoot` 版本化优先（current 指针存在且 `versions/<current>/web` 存在 → 从版本快照读，否则回退扁平 `{插件目录}/web`）。
 - **插件 config.json 手写键大小写**：插件 config.json 属用户可手改文件，`System.Text.Json` 默认大小写敏感——手写 `{"port":...}` 会被静默忽略、绑定回退默认端口。加载器必须 `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`。
 
 ### 发布坑（反复踩，全量 build 前必读）
-- 🔴 **宿主进程锁致 build.ps1 发布漏更宿主 DLL**：`build.ps1` 覆盖 publish/ 用 `Copy-Item -ErrorAction SilentlyContinue` 或 `robocopy /E`——**运行中宿主锁定的文件（ForgeSelf.dll）被静默跳过**，publish 里宿主 DLL 保持旧版 → 与插件同路由控制器**歧义** → 界面/API 500 `AmbiguousMatchException`。**教训**：① 替换宿主自身二进制前先 `Stop-Process -Name ForgeSelf` 释放锁；② 发布后核对 `publish/ForgeSelf.dll` 时间戳与 `ForgeSelf.Api/bin/Release/.../ForgeSelf.dll` 一致；③ 排查「插件控制器 500 且无 action 日志」优先怀疑**路由歧义/控制器残留**。
-- 🔴 **PS 5.1 `Copy-Item 'dir\*' -Recurse` 通配符 bug 会静默漏拷**：`build.ps1` 第 3 步曾用 `Copy-Item (Join-Path $stagingDir '*') $publishDir -Recurse -ErrorAction SilentlyContinue` 在 PS 5.1 下**不拷全**（报错或 exit 0 假成功）。**修复**：改用 **`robocopy $stagingDir $publishDir /E`**（exit 0-7 均成功）+ 两处 robocopy 后 `$LASTEXITCODE = 0` 复位 + 脚本末尾 `exit 0`。**教训**：发布动作一律走 `run-plugin-publish-verify.ps1`（技能唯一入口），**禁止手动 Copy-Item / robocopy 进 publish/**。
+- 🔴 **宿主进程锁致 build.ps1 发布漏更宿主 DLL**：`build.ps1` 覆盖 publish/ 用 `Copy-Item -ErrorAction SilentlyContinue` 或 `robocopy /E`——**运行中宿主锁定的文件（ForgeSelf.dll）被静默跳过**，publish 里宿主 DLL 保持旧版 → 与插件同路由控制器**歧义** → 界面/API 500 `AmbiguousMatchException`。**教训**：① 替换宿主自身二进制前先 `Stop-Process -Name ForgeSelf` 释放锁；② 发布后核对 `publish/ForgeSelf.dll` 时间戳与 `ForgeSelf.Api/bin/Release/.../ForgeSelf.dll` 一致；③ 排查「插件控制器 500 且无 action 日志」优先怀疑**路由歧义/控制器残留**。**⚠ 2026-09-27 起**：该「先停宿主」动作只适用于用户不在使用的隔离验证环境；**对用户运行中的宿主（含 51888 实例），禁止 agent 停/启/杀**，宿主二进制变更一律走 tag 发布 + 页面自动更新（见 B10）。
+- 🔴 **PS 5.1 `Copy-Item 'dir\*' -Recurse` 通配符 bug 会静默漏拷**：`build.ps1` 第 3 步曾用 `Copy-Item (Join-Path $stagingDir '*') $publishDir -Recurse -ErrorAction SilentlyContinue` 在 PS 5.1 下**不拷全**（报错或 exit 0 假成功）。**修复**：改用 **`robocopy $stagingDir $publishDir /E`**（exit 0-7 均成功）+ 两处 robocopy 后 `$LASTEXITCODE = 0` 复位 + 脚本末尾 `exit 0`。**教训**：发布动作一律走发布技能主路径（打 tag 自动发布 / `release-local.ps1 -UpdateDir` + 页面自动更新），**禁止手动 Copy-Item / robocopy 进 publish/**。
 - 🔴 **重复插件 id 目录致宿主启动崩溃**：`publish/Plugins` 同时存在两个 plugin.json 的 `Id` 相同目录 → `TopologicalSort` 撞 key → **宿主启动即崩**。发布/归档后检查 `publish/Plugins` 下 plugin.json `Id` 无重复；冗余目录移 `_backups/`（勿删）。
 - 🔴 **活动插件目录/版本快照只放插件自身程序集**：**绝不能**放入 `XCode.dll`/`NewLife.Core.dll`/`NewLife.Agent.dll`/`NewLife.Remoting.dll`/`ForgeSelf.Abstractions.dll`/`ForgeSelf.Core.dll`/`Stardust.dll`。否则 `PluginLoadContext` 再加载一份 → 类型标识分裂（「插件类型未实现 IPlugin 接口」）+ ALC 卸载中加载 → `FileLoadException`，宿主**启动即崩**。脚本已内置白名单过滤 + 防御性清理。
 - 🔴 **宿主运行时入口 DLL 被独占锁，无法覆盖**：`plugin.json` 与 `web/dist` 可热覆盖；`<Dir>.dll` 被 ALC 锁定，独占 open 报「being used by another process」，而 `Copy-Item` **误报**成 `FileNotFoundException`（排查时勿被误导）。改 C# 代码靠 side-by-side 版本化更新或停宿主。
@@ -709,9 +709,10 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ## B10 CI 自动发布（tag → GitHub Actions，2026-09-26 落地）
 
-**入口**：`git tag -a v<X.Y.Z> -m "发版说明" && git push github v<X.Y.Z>` → Actions 自动构建打包并创建 GitHub Release（**OpenForgeSelf/OpenForgeSelf**，当前 **private**；2026-09-26 由 xxred/OpenForgeSelf 迁入，旧仓仅作历史镜像，更新源 appsettings `Update:GitHubRepo` 与 remote `github` 均指新仓）。
+**入口**：`git tag -a v<X.Y.Z> -m "发版说明" && git push github v<X.Y.Z>` → Actions 自动构建打包并创建 GitHub Release（**OpenForgeSelf/OpenForgeSelf**，2026-09-26 已转**公开**；由 xxred/OpenForgeSelf 迁入，旧仓仅作历史镜像，更新源 appsettings `Update:GitHubRepo` 与 remote `github` 均指新仓）。
 
 **设计契约（用户拍板）**：workflow 只做「装工具链 + 调脚本」，全部发布动作封装在 `scripts/release/*.ps1`，本地与 CI 跑同一条命令——`pwsh scripts/release/release-local.ps1 -Version v0.1.0`。
+**本地目录更新源（2026-09-27 新增）**：`release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>` 打包后把 zip + `SHA256SUMS.txt` + 更新说明拷贝到指定目录；设置页「更新源 = 本地目录」填该目录，页面点「检查更新 → 下载 → 重启并更新」即走现有更新流程（本地 zip 直接由 update-agent 接管，无需 GitHub）。
 
 | 脚本 | 职责 |
 |------|------|
@@ -741,6 +742,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **随包分发的 .ps1 由 powershell 5.1 拉起时同样受 BOM 铁律约束**（见 B6）：update-agent 无 BOM → 解析崩、日志写不出、宿主自停后无人重启，实例整段下线。
 - `appsettings.json` 有明文 ApiKey 入历史：**仓库转 public 前必须先处置**（见 TODO 批次 D）。
 - 🔴 **发布治理（seq37 指令）**：含已知功能缺陷的版本 **禁止推送 tag/发布 Release**（打 tag 即触发 CI 发布，等于把缺陷分发出去）；已推的缺陷版本经用户授权后撤销（gh release delete --yes + 双端删 tag + 本地删 tag，防 `--tags` 误复推）。2026-09-26 实例：v0.2.0–v0.2.3 已从 OpenForgeSelf/OpenForgeSelf 与 gitee 撤销，仅保留 v0.2.4 起干净版本；旧 xxred 镜像未动（用户未授权）。
+- 🔴 **发布治理（2026-09-27 用户指令 seq17）——agent 禁止停/启/杀宿主**：宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」）；agent 的发布职责止于「打 tag → CI 出 Release（或 `release-local.ps1 -UpdateDir` 出本地 zip）→ 验证产物」，**任何情况下不得 `Stop-Process` 用户运行中的 ForgeSelf**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）。旧 run-plugin-publish-verify.ps1 的「杀掉非 publish 实例重起」行为已废除；该脚本仅保留插件版本化侧载（宿主不重启）可选用途（须用户同意）。发布完成判据 = Release 资产可下载且 SHA256 核对一致（或本地目录 zip 可被页面检查出新版本），不是「宿主已重启」。
 
 ---
 
@@ -760,6 +762,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-27 | 用户指令（seq17）发布规范改写：更新地址支持**本地目录**（`UpdateConfig.Provider=local` + `LocalDir`、`UpdateSettingsService` 运行时可变配置、UpdateChecker 本地分支、`release-local.ps1 -UpdateDir`、设置页更新源配置卡片）；发布规范改为**打 tag 自动发布 + 页面自动更新**，**禁止 agent 停/启/杀用户宿主**（AGENTS.md §0 门禁、§2.3/§2.4、plugin-development/plugin-publish-verify 技能、B5/B10 同步；run-plugin-publish-verify.ps1 降级为插件侧载可选路径、须用户同意）。 |
 | 2026-09-27 | AI-Native 闭环规范回炉（用户指令 seq14「不与既有体系映射，完全按新规范走」）：规范升 **v1.1.0**——删除与 Loop/speckit/plugin-team-sop 的映射节，改为「开发流程唯一依据 + 冲突以本规范为准 + 闸门1/2/3 自含定义（§1.1）」；AGENTS.md 头部/红线/§11 同步去映射；群 SOP `ai-native-engineering-loop` 升 **1.1.0**（自含闸门/熔断/汇报，去除 plugin-team-sop 依赖）并重绑本群。 |
 | 2026-09-27 | 用户指令（群 seq10）：AI-Native Engineering 九阶段闭环固化为强制流程规范——新增 `docs/04-standards/ai-native-engineering-workflow.md` v1.0.0 + 模板 `docs/18-templates/ai-pilot/`（00~07 八份）+ 产物落点 `docs/ai/pilot/<task-id>/`；AGENTS.md 新增 §11 与 §0 红线引用；群 SOP 新增 `ai-native-engineering-loop` 并发布绑定（与 plugin-team-sop 并列）。 |
 | 2026-09-27 | spec 037 R2（用户指令改整合进 AgentHub）：B11 补 ACP 整合路径实测结论（qoderclicn 无原生 ACP、@agentclientprotocol/sdk 包装验证、session/new 必填 mcpServers）与「通用 JS 运行时归宿主 IJsBridge」架构决策。 |

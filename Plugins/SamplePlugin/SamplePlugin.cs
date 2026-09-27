@@ -49,7 +49,7 @@ public class SamplePlugin : IPlugin
         ctx.Get<IServiceCollection>()?.AddScoped<ISampleGreetingService, SampleGreetingService>();
 
         // ③ 注册扩展点
-        RegisterMenuExtensions(pluginId);
+        // 批次A-D1（决策①A）：/sample 路由不存在且本插件无界面，撤销悬空菜单声明；界面立项后按 plugin.json frontend 单处声明恢复。
         RegisterToolFunctionExtensions(pluginId, ctx);
 
         // ⑤ 可逆副作用示例：把本次启动时间写入插件数据目录，并在卸载时清理标记文件。
@@ -72,19 +72,6 @@ public class SamplePlugin : IPlugin
         }
 
         XTrace.Log.Info("[SamplePlugin] 示例插件初始化完成");
-    }
-
-    private void RegisterMenuExtensions(string pluginId)
-    {
-        MenuExtensions.Add(new SampleMenuExtension
-        {
-            Id = "sample.menu.main",
-            Name = "示例",
-            PluginId = pluginId,
-            Icon = "fa-solid fa-puzzle-piece",
-            Path = "/sample",
-            Order = 900
-        });
     }
 
     private void RegisterToolFunctionExtensions(string pluginId, IContext ctx)

@@ -289,9 +289,26 @@ public class PluginController : ControllerBase
                     ParentId = c.ParentId,
                     PluginId = c.PluginId
                 }).ToList()
-            })
-            .OrderBy(m => m.Order)
-            .ToList();
+            }).ToList();
+
+            // 批次A-D2：已启用且声明 frontend.menu 的插件按 manifest 机械派生补发（plugin.json 为界面贡献真源）；
+            // 同插件已有 IMenuExtension 项则跳过 manifest 项防双发；menu/route 任一为空不派生（Path 必须真实可导航）。
+            var extensionPluginIds = menuItems.Select(i => i.PluginId).ToHashSet();
+            menuItems.AddRange(_pluginManager.GetAllMetadatas()
+                .Where(m => !string.IsNullOrWhiteSpace(m.Frontend?.Menu)
+                            && !string.IsNullOrWhiteSpace(m.Frontend?.Route)
+                            && _pluginManager.GetPluginState(m.Id) == PluginState.Running
+                            && !extensionPluginIds.Contains(m.Id))
+                .Select(m => new PluginMenuItemDto
+                {
+                    Id = $"{m.Id}.menu.manifest",
+                    Name = m.Frontend!.Menu!,
+                    Icon = m.Frontend.Icon ?? string.Empty,
+                    Path = m.Frontend.Route!,
+                    PluginId = m.Id
+                }));
+
+            menuItems = menuItems.OrderBy(m => m.Order).ToList();
 
             return Ok(ApiResponse<List<PluginMenuItemDto>>.Ok(menuItems, "获取菜单项成功"));
         }

@@ -29,7 +29,7 @@ public class SchedulerPlugin : IPlugin
         services?.AddSingleton<HttpWebhookHandler>();
         services?.AddSingleton<ITaskExecutor, TaskExecutor>();
 
-        RegisterMenuExtensions(pluginId);
+        // 批次A-D3（决策①A）：/scheduler 路由不存在且本插件无界面，撤销悬空菜单声明；界面立项后按 plugin.json frontend 单处声明恢复。
         RegisterToolExtensions(pluginId, ctx);
 
         EnsureDatabaseCreated();
@@ -39,22 +39,6 @@ public class SchedulerPlugin : IPlugin
         ctx.Effect(() => new ActionDisposable(() => StopScheduler(ctx)));
 
         XTrace.Log.Info("定时任务插件初始化完成");
-    }
-
-    private void RegisterMenuExtensions(string pluginId)
-    {
-        MenuExtensions.Add(new SchedulerMenuExtension
-        {
-            Id = "scheduler.menu.main",
-            Name = "定时任务",
-            PluginId = pluginId,
-            Icon = "fa-clock",
-            Path = "/scheduler",
-            Order = 90,
-            ParentId = null
-        });
-
-        XTrace.Log.Debug("定时任务插件已注册菜单扩展点");
     }
 
     private void RegisterToolExtensions(string pluginId, IServiceProvider services)

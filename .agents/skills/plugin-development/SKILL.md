@@ -24,7 +24,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 
 ---
 
-## 二、铁律（先看这 18 条）
+## 二、铁律（先看这 19 条）
 
 1. **先读技能再动手。** 涉及插件的任务，开工前先读本技能 + 上表对应的专项技能。
    历史上正是因为技能没被读取、也没登记进 `AGENTS.md`，导致改完插件后
@@ -190,6 +190,12 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    - 外部调用方依据说明就能知道有哪些能力、怎么传参，而不是黑盒试探。
    - 参考实现：mcp-center `Services/ListToolsToolFunction.cs` + `UniversalToolForwarder.ToolDefinitionJson`。
 
+19. **【菜单/路由贡献一致性铁律】**
+    ① 插件面向用户的界面入口**只许在 plugin.json frontend（menu/route/entry）声明一处**，宿主机械派生菜单与路由；
+    ② 后端 IMenuExtension 仅用于无自带界面插件的后端菜单贡献，其 Path 必须等于真实可导航目标，且与 manifest 声明不得并存冲突；
+    ③ 任何插件 route 改名/增删必须同步更新 e2e/menu-route-consistency.spec.ts（§四门禁清单加一条）；
+    ④ 纯后端无界面插件不得声明界面菜单（撤销或待界面立项后恢复）。
+
 ---
 
 ## 三、新建 / 迁移插件：步骤
@@ -331,6 +337,7 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
      （涉及插件实体的改动**必须**跑该插件测试，并确认跨插件串扰已排除，见铁律 10/11）
 2. **插件层 e2e**：`e2e/plugins/<id>/<id>.spec.ts`，零 mock，按 `e2e-testing` 技能写。
    **不要**写一次性临时脚本代替它。
+   菜单/路由一致性回归（铁律 19③）：任何插件 route 改名/增删必须同步 `ForgeSelf.Web/e2e/menu-route-consistency.spec.ts` 并实跑通过。
 3. **发布（必须走发布技能/脚本，禁止手动 Copy-Item）**
    - **唯一入口**：`pwsh .agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`
      （内部：`publish-plugin.ps1` stage 版本快照 → `POST /api/plugin/update/{id}` 显式版本化切换 → 版本化布局（versions/ + current 指针）/清单/静态资源/版本快照入口 DLL hash 验证，自动起 publish 宿主）。

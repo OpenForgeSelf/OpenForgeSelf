@@ -39,7 +39,7 @@ public class QuickLinksPlugin : IPlugin
             Name = "快捷链接",
             PluginId = pluginId,
             Icon = "fa-link",
-            Path = "/quicklinks",
+            Path = "/quick-links",
             Order = 100,
             ParentId = null
         });

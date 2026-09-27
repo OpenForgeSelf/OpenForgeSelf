@@ -117,10 +117,18 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         capturedRequest.RequestUri.Should().NotBeNull();
         capturedRequest.RequestUri!.ToString().Should().Be(configService.GetAIConfig().ApiEndpoint);
 
-        // 验证 Authorization header
-        capturedRequest.Headers.Authorization.Should().NotBeNull();
-        capturedRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
-        capturedRequest.Headers.Authorization!.Parameter.Should().Be(configService.GetAIConfig().ApiKey);
+        // 验证 Authorization header（批次D：appsettings 明文密钥已置空。空 key 时不发有效 Bearer 密钥——头省略或仅裸 Bearer 无 token；key 非空时 Bearer+key）
+        var expectedApiKey = configService.GetAIConfig().ApiKey;
+        if (string.IsNullOrEmpty(expectedApiKey))
+        {
+            capturedRequest.Headers.Authorization?.Parameter.Should().BeNullOrEmpty();
+        }
+        else
+        {
+            capturedRequest.Headers.Authorization.Should().NotBeNull();
+            capturedRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
+            capturedRequest.Headers.Authorization!.Parameter.Should().Be(expectedApiKey);
+        }
 
         // 验证请求体
         capturedRequest.Content.Should().NotBeNull();

@@ -24,7 +24,8 @@ import { injectRealApiKey, getRealApiKey } from './helpers/real-auth'
 // ============================================================
 
 const LM_ENDPOINT = 'http://localhost:1234/v1/chat/completions'
-const LM_KEY = 'sk-lm-4YQwPb7k:aOLZ6rcZOAiPBo3LKd33'
+// 批次D：仓库不留明文密钥；LM Studio 本地服务默认不校验 key，真实 key 经环境变量注入
+const LM_KEY = process.env.LM_STUDIO_API_KEY ?? ''
 /** LM Studio 实际可加载的模型（fetch-models 拉取后模型列表可见，且可真实聊天） */
 const LM_MODEL = 'llama-3.2-1b-instruct'
 

@@ -53,7 +53,8 @@ public class ChatRecordRealLLMTests : IClassFixture<XCodeTestFixture>
 
         // Assert
         apiEndpoint.Should().NotBeNullOrEmpty("配置文件中应包含 AI:ApiEndpoint");
-        apiKey.Should().NotBeNullOrEmpty("配置文件中应包含 AI:ApiKey");
+        // 批次D（seq48/62）：appsettings 明文密钥已置空，真实密钥走 AIProvider 加密存储；空串为预期状态
+        apiKey.Should().NotBeNull("配置文件中应包含 AI:ApiKey 键（值允许为空）");
         modelName.Should().NotBeNullOrEmpty("配置文件中应包含 AI:ModelName");
     }
 

@@ -1,4 +1,4 @@
-# make-release-notes.ps1 - generates RELEASE-NOTES.md for a tag.
+﻿# make-release-notes.ps1 - generates RELEASE-NOTES.md for a tag.
 # Sources, in priority order:
 #   1) tag annotation text (git tag -a -m ...) as the headline
 #   2) commit subjects between the previous tag and this tag (needs full history, fetch-depth 0)
@@ -27,8 +27,15 @@ try {
     git tag -l --format='%(contents)' $tag 2>$null | ForEach-Object { $annotation += $_ + "`r`n" }
 
     $prev = ''
-    $candidate = (& git describe --tags --abbrev=0 "$tag^" 2>$null)
-    if ($LASTEXITCODE -eq 0 -and $candidate) { $prev = $candidate.Trim() }
+    # 本地打包（release-local 不打 git tag）时 $tag 不存在：跳过 prev 查找，fallback 用 HEAD。
+    $tagExists = $false
+    try { $tagExists = [bool]((& git tag -l $tag 2>$null) -join '').Trim() } catch { $tagExists = $false }
+    if ($tagExists) {
+        try {
+            $candidate = (& git describe --tags --abbrev=0 "$tag^" 2>$null)
+            if ($LASTEXITCODE -eq 0 -and $candidate) { $prev = $candidate.Trim() }
+        } catch { $prev = '' }
+    }
 
     $lines = @()
     $lines += "# OpenForgeSelf $tag"
@@ -43,7 +50,8 @@ try {
         if ($log) { $lines += $log }
     }
     else {
-        $log = & git log --no-merges -20 --pretty=format:'- %s (%h)' $tag
+        # 无 tag（本地打包）：取最近 20 条提交（HEAD）
+        $log = & git log --no-merges -20 --pretty=format:'- %s (%h)' HEAD
         if ($log) {
             $lines += '## Recent commits'
             $lines += $log

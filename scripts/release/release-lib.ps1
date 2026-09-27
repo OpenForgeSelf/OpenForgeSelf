@@ -1,4 +1,4 @@
-# release-lib.ps1 - shared helpers for the release scripts.
+﻿# release-lib.ps1 - shared helpers for the release scripts.
 # Dot-sourced by every script under scripts/release/. No side effects on import.
 # Works on Windows PowerShell 5.1 and PowerShell 7+ (local debug + GitHub Actions windows runner).
 

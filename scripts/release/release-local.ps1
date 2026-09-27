@@ -1,4 +1,4 @@
-# release-local.ps1 - one-command release pipeline orchestrator.
+﻿# release-local.ps1 - one-command release pipeline orchestrator.
 # Runs: build-frontend -> publish-host -> package-release -> make-release-notes.
 # The GitHub Actions workflow calls exactly this script; everything CI does is
 # reproducible locally with the same command (local-first debugging contract).
@@ -12,6 +12,7 @@
 param(
     [string]$Version = '',
     [string]$OutputRoot = '',
+    [string]$UpdateDir = '',
     [switch]$SkipFrontend,
     [switch]$FrameworkDependent,
     [switch]$Sign
@@ -49,6 +50,22 @@ if ($LASTEXITCODE -ne 0) { throw 'package-release failed' }
 
 & (Join-Path $PSScriptRoot 'make-release-notes.ps1') -RepoRoot $repoRoot -Version $Version -OutFile (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver))
 if ($LASTEXITCODE -ne 0) { throw 'make-release-notes failed' }
+
+# 本地目录更新源（2026-09-27）：-UpdateDir <目录> 时把 zip + SHA256SUMS + 更新说明拷到该目录，
+# 宿主设置页把「更新地址」填为该目录即可在页面点「检查更新 → 下载 → 重启并更新」（离线/内网更新）。
+if ($UpdateDir) {
+    New-Item -ItemType Directory -Force -Path $UpdateDir | Out-Null
+    $zip = Join-Path $releaseDir ("OpenForgeSelf-{0}-win-x64.zip" -f $ver)
+    if (-not (Test-Path $zip)) { throw "zip not found for UpdateDir copy: $zip" }
+    foreach ($f in @($zip, (Join-Path $releaseDir 'SHA256SUMS.txt'), (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver)))) {
+        if (Test-Path $f) { Copy-Item $f $UpdateDir -Force }
+    }
+    Write-Host ''
+    Write-Host ("release-local: update dir = {0}" -f $UpdateDir) -ForegroundColor Green
+    Get-ChildItem $UpdateDir | ForEach-Object {
+        Write-Host ("  {0}  ({1:n1} MB)" -f $_.Name, ($_.Length / 1MB))
+    }
+}
 
 $dt = ((Get-Date) - $t0).TotalSeconds
 Write-Host ''

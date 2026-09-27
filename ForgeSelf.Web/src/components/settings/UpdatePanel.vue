@@ -2,11 +2,17 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { updateApi } from '@/services/updateApi';
-import type { UpdateCheckResult, UpdateStageInfo, UpdateStatus } from '@/services/updateApi';
+import type { UpdateCheckResult, UpdateConfigInfo, UpdateStageInfo, UpdateStatus } from '@/services/updateApi';
 
 const status = ref<UpdateStatus | null>(null);
 const checkResult = ref<UpdateCheckResult | null>(null);
 const stage = ref<UpdateStageInfo | null>(null);
+
+// 更新源配置（2026-09-27：支持本地目录更新地址）
+const config = ref<UpdateConfigInfo | null>(null);
+const configProvider = ref('github');
+const configLocalDir = ref('');
+const savingConfig = ref(false);
 
 const checking = ref(false);
 const downloading = ref(false);
@@ -46,6 +52,39 @@ async function loadStatus() {
     if (status.value.state.check) checkResult.value = status.value.state.check;
   } catch (e) {
     ElMessage.error({ message: `加载更新状态失败: ${e instanceof Error ? e.message : e}`, offset: 60 });
+  }
+}
+
+async function loadConfig() {
+  try {
+    config.value = await updateApi.getConfig();
+    configProvider.value = config.value.provider;
+    configLocalDir.value = config.value.localDir ?? '';
+  } catch (e) {
+    ElMessage.error({ message: `加载更新源配置失败: ${e instanceof Error ? e.message : e}`, offset: 60 });
+  }
+}
+
+async function onSaveConfig() {
+  if (busy()) {
+    ElMessage.warning({ message: '更新进行中，请等待完成后再修改配置', offset: 60 });
+    return;
+  }
+  savingConfig.value = true;
+  try {
+    const saved = await updateApi.saveConfig({
+      provider: configProvider.value,
+      localDir: configProvider.value === 'local' ? configLocalDir.value : null,
+    });
+    config.value = saved;
+    configProvider.value = saved.provider;
+    configLocalDir.value = saved.localDir ?? '';
+    ElMessage.success({ message: '更新源配置已保存', offset: 60 });
+    await loadStatus();
+  } catch (e) {
+    ElMessage.error({ message: `保存失败: ${e instanceof Error ? e.message : e}`, offset: 60 });
+  } finally {
+    savingConfig.value = false;
   }
 }
 
@@ -152,6 +191,7 @@ function waitForRestart() {
 }
 
 onMounted(async () => {
+  await loadConfig();
   await loadStatus();
   const s = stage.value?.status;
   if (s && ['checking', 'downloading', 'verifying', 'extracting'].includes(s)) {
@@ -169,11 +209,42 @@ onBeforeUnmount(stopPolling);
       <div>
         <h2 class="text-xl font-bold text-text m-0 leading-tight">版本更新</h2>
         <p class="text-sm text-text-secondary mt-1 mb-0">
-          从 {{ status?.provider === 'github' ? `GitHub Releases（${status.githubRepo || '未配置仓库'}）` : '更新服务器' }}
+          从 {{ status?.provider === 'github' ? `GitHub Releases（${status.githubRepo || '未配置仓库'}）` : status?.provider === 'local' ? `本地目录（${status.localDir || '未设置'}）` : '更新服务器' }}
           检查并安装更新
         </p>
       </div>
     </div>
+
+    <!-- 更新源配置（2026-09-27：支持本地目录更新地址） -->
+    <el-card shadow="never">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-base font-medium text-text">更新源配置</div>
+          <div class="text-xs text-text-secondary mt-1">支持 GitHub Releases（打 tag 自动发布）或本地目录（本机打包脚本输出）</div>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-3">
+          <el-select v-model="configProvider" style="width: 220px" :disabled="busy() || savingConfig">
+            <el-option label="GitHub Releases（打 tag 自动发布）" value="github" />
+            <el-option label="本地目录（本机打包脚本输出）" value="local" />
+            <el-option label="更新服务器（stardust）" value="stardust" />
+          </el-select>
+          <el-input
+            v-if="configProvider === 'local'"
+            v-model="configLocalDir"
+            placeholder="填写打包脚本输出目录，如 D:\updates（含 OpenForgeSelf-*-win-x64.zip）"
+            style="flex: 1"
+            :disabled="savingConfig"
+          />
+          <el-button type="primary" :loading="savingConfig" :disabled="busy()" @click="onSaveConfig">保存</el-button>
+        </div>
+        <div v-if="configProvider === 'local'" class="text-xs text-text-secondary leading-relaxed">
+          本地更新流程：运行 <code>scripts/release/release-local.ps1 -UpdateDir &lt;该目录&gt;</code> 完成打包后，
+          在本页点「检查更新 → 下载更新 → 重启并更新」即可完成升级（离线 / 内网可用）。
+        </div>
+      </div>
+    </el-card>
 
     <el-card shadow="never">
       <!-- 当前版本 -->

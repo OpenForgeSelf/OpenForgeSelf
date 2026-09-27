@@ -61,7 +61,7 @@ package-lock.json
 publish.bak*/
 
 # ── 2026-09-20（第二轮）git 历史清理：点开头目录 + openwiki + specs 全量剔除历史，不再入库 ──
-.agents/
+# .agents/ 已从忽略移除：技能目录（plugin 系列 SKILL.md/脚本/参考）必须入库（2026-09-27）
 .atomcode/
 .forgeself/
 # .github/ 已从忽略移除：workflow 必须入库（2026-09-26 CI 自动发布链路）

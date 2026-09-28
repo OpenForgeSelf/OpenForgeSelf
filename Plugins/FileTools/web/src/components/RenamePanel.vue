@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import AppLogo from '@/components/AppLogo.vue'
-import { useFileToolsStore } from '@/stores/fileTools'
-import type { RenameRuleType } from '@/types/fileTools'
+import AppLogo from './AppLogo.vue'
+import { useFileToolsStore } from '../stores/fileTools'
+import type { RenameRuleType } from '../types/fileTools'
 
 const store = useFileToolsStore()
 const isDragOver = ref(false)

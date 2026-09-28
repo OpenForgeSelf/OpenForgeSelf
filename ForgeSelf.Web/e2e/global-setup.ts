@@ -176,13 +176,18 @@ export default async function globalSetup(_config: FullConfig) {
   const SQLITE_DLLS = ['System.Data.SQLite.dll', 'e_sqlite3.dll']
   const livePublishDir = path.join(REPO_ROOT, 'publish')
   for (const dll of SQLITE_DLLS) {
-    // 源：根或 Plugins/ 任一存在即可（兼容布局漂移）
-    const srcCandidates = [path.join(livePublishDir, dll), path.join(livePublishDir, 'Plugins', dll)]
+    // 源优先级：仓内 build/runtime/Plugins（受版本控制、与 package-release.ps1 注入包里的同一份，
+    // 全新 worktree 无 publish/ 时也能跑）→ 长期宿主 publish 根 → publish/Plugins（兼容布局漂移）。
+    const srcCandidates = [
+      path.join(REPO_ROOT, 'build', 'runtime', 'Plugins', dll),
+      path.join(livePublishDir, dll),
+      path.join(livePublishDir, 'Plugins', dll),
+    ]
     const src = srcCandidates.find((c) => existsSync(c))
     if (!src) {
       throw new Error(
-        `缺少 SQLite provider ${dll}：dotnet publish 不携带它，且 ${livePublishDir}（根/Plugins）中均未找到。` +
-          `请确保本机长期运行宿主目录（publish/）内存在该 DLL（NewLife 首启自动下载会落盘于此）。`,
+        `缺少 SQLite provider ${dll}：dotnet publish 不携带它，且 ${REPO_ROOT}\\build\\runtime\\Plugins 与 ` +
+          `${livePublishDir}（根/Plugins）中均未找到。请补齐仓内 build/runtime/Plugins/${dll}（正常应随仓库存在）。`,
       )
     }
     // 目的：临时 publish 根 + Plugins/ 都放，覆盖 XCode 不同探测路径

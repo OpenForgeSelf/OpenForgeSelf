@@ -8,7 +8,6 @@ import PluginScaffolder from '@/views/PluginScaffolder.vue'
 import MemoryView from '@/views/MemoryView.vue'
 import ChatView from '@/views/ChatView.vue'
 import TextToolsView from '@/views/TextToolsView.vue'
-import FileToolsView from '@/views/FileToolsView.vue'
 import DevToolsView from '@/views/DevToolsView.vue'
 import ScriptLibrary from '@/views/ScriptLibrary.vue'
 import AgentsManageView from '@/views/AgentsManageView.vue'
@@ -144,11 +143,6 @@ const router = createRouter({
       path: '/text-tools',
       name: 'text-tools',
       component: TextToolsView
-    },
-    {
-      path: '/file-tools',
-      name: 'file-tools',
-      component: FileToolsView
     },
     {
       path: '/dev-tools',

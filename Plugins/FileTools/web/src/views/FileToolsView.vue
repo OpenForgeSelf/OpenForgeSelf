@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { useFileToolsStore } from '@/stores/fileTools'
-import type { FileToolTab } from '@/types/fileTools'
-import { fileToolsApi } from '@/services/fileToolsApi'
-import RenamePanel from '@/components/filetools/RenamePanel.vue'
-import CleanupPanel from '@/components/filetools/CleanupPanel.vue'
-import ArchivePanel from '@/components/filetools/ArchivePanel.vue'
-import StatsPanel from '@/components/filetools/StatsPanel.vue'
+import { onMounted, ref } from 'vue'
+import { useFileToolsStore } from '../stores/fileTools'
+import type { FileToolTab } from '../types/fileTools'
+import { fileToolsApi } from '../services/fileToolsApi'
+import { fetchPluginVersion } from '../services/pluginMeta'
+import RenamePanel from '../components/RenamePanel.vue'
+import CleanupPanel from '../components/CleanupPanel.vue'
+import ArchivePanel from '../components/ArchivePanel.vue'
+import StatsPanel from '../components/StatsPanel.vue'
+import FoldersPanel from '../components/FoldersPanel.vue'
 
 const store = useFileToolsStore()
+
+/** 铁律13：标题旁显示**已加载**版本，走查时不必去插件管理页就能确认更新有没有生效 */
+const pluginVersion = ref('')
+
+onMounted(async () => {
+  pluginVersion.value = await fetchPluginVersion('file-tools')
+})
 
 interface TabItem {
   key: FileToolTab
@@ -19,7 +29,8 @@ const tabs: TabItem[] = [
   { key: 'rename', label: '批量重命名', icon: '📝' },
   { key: 'cleanup', label: '批量清理', icon: '🧹' },
   { key: 'archive', label: '压缩解压', icon: '📦' },
-  { key: 'stats', label: '文件统计', icon: '📊' }
+  { key: 'stats', label: '文件统计', icon: '📊' },
+  { key: 'folders', label: '目录排行', icon: '🗂️' }
 ]
 
 function handleTabChange(tab: FileToolTab): void {
@@ -33,8 +44,9 @@ function handleTabChange(tab: FileToolTab): void {
       <h1 class="view-title">
         <span class="title-icon">📁</span>
         文件工具箱
+        <span v-if="pluginVersion" class="ft-version">v{{ pluginVersion }}</span>
       </h1>
-      <p class="view-subtitle">批量重命名、文件清理、压缩解压、文件统计等实用工具</p>
+      <p class="view-subtitle">批量重命名、文件清理、压缩解压、文件统计、目录大小排行等实用工具</p>
     </header>
 
     <div class="tool-tabs" role="tablist">
@@ -69,6 +81,7 @@ function handleTabChange(tab: FileToolTab): void {
       <CleanupPanel v-else-if="store.currentTab === 'cleanup'" />
       <ArchivePanel v-else-if="store.currentTab === 'archive'" />
       <StatsPanel v-else-if="store.currentTab === 'stats'" />
+      <FoldersPanel v-else-if="store.currentTab === 'folders'" />
     </div>
 
     <footer class="status-bar">
@@ -118,6 +131,15 @@ function handleTabChange(tab: FileToolTab): void {
 
 .title-icon {
   font-size: 28px;
+}
+
+.ft-version {
+  font-size: 12px;
+  font-weight: 400;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
 }
 
 .view-subtitle {

@@ -30,6 +30,9 @@ public static class XCodeConfig
         ["WorkflowEngine"] = "workflow-engine",
         ["AIAgent"] = "ai-agent",
         ["TodoTracker"] = "todo-tracker",
+        // 批次C：FileTools 首次获得插件库（目录大小排行快照 ScanSnapshot / ScanFolderEntry）。
+        // key=连接名（PascalCase，须与 Data/Model.xml 的 ConnName 一致），value=插件 Id（kebab，须与 plugin.json 一致）。
+        ["FileTools"] = "file-tools",
     };
 
     /// <summary>

@@ -6,6 +6,8 @@ import { dirname, resolve } from 'node:path'
 // 而非用户级缓存 ~/.cache/ms-playwright。原因：沙箱只持久化工作区，用户级缓存属临时态，
 // 重置即清空 → 每次都要重下 ~180MB chromium。固定在仓库内后，重置无需再下。
 // 运行与安装共用同一路径（安装见 scripts/install-browsers.mjs / pnpm run browsers:install）。
+// 2026-09-28 起：三个配置统一在 projects 里加 `channel: 'chrome'` 直接用本机已装 Chrome，
+// 上面这行降级为「本机无 Chrome 时」的兜底下载位置 —— 多路 worktree 各自重下 180MB 不划算。
 const __dirname = dirname(fileURLToPath(import.meta.url))
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers')
 
@@ -38,7 +40,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
     // firefox / webkit 为可选矩阵：需先 `playwright install firefox webkit`。
     // 项目既有约束为「e2e 仅 chromium 可用」（见 specs/033-home/design.md §13），

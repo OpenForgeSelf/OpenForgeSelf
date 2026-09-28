@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useFileToolsStore } from '@/stores/fileTools'
-import { fileToolsApi } from '@/services/fileToolsApi'
+import { useFileToolsStore } from '../stores/fileTools'
+import { fileToolsApi } from '../services/fileToolsApi'
 
 const store = useFileToolsStore()
 

@@ -8,7 +8,7 @@ import type {
   ArchiveFormat,
   LargeFileItem,
   FileTypeBreakdown
-} from '@/types/fileTools'
+} from '../types/fileTools'
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11)

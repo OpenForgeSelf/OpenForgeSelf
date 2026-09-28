@@ -1,0 +1,23 @@
+{
+  "name": "forgeself-plugin-filetools-web",
+  "version": "1.1.1",
+  "private": true,
+  "type": "module",
+  "description": "文件工具插件自带界面（构建为 ESM，由宿主运行时远程加载；更新插件不需重建宿主）",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "element-plus": "^2.14.3",
+    "pinia": "^3.0.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^6.2.4",
+    "vue": "^3.5.13"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

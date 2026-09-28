@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- 批次C：目录大小扫描快照需要 XCode（宿主已带同版本；StageAllPlugins 排除 NewLife.* 出插件目录，类型身份仍单份） -->
+    <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
   </ItemGroup>
 
   <ItemGroup>

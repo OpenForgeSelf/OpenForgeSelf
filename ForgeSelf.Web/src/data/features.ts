@@ -109,6 +109,8 @@ export const features: FeatureItem[] = [
     stats: '5 个工具',
     enabled: true,
     path: '/file-tools',
+    // 视图已迁移到 FileTools 插件自带界面（Plugins/FileTools/web/dist），
+    // 宿主不再内置 FileToolsView.vue；该路径由插件清单 frontend.route 动态注册。
     signals: { plugins: ['FileTools'], views: ['FileToolsView'] },
   },
   {

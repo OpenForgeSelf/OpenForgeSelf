@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useFileToolsStore } from '@/stores/fileTools'
-import { fileToolsApi } from '@/services/fileToolsApi'
-import type { ArchiveFormat, CompressionLevel } from '@/types/fileTools'
+import { useFileToolsStore } from '../stores/fileTools'
+import { fileToolsApi } from '../services/fileToolsApi'
+import type { ArchiveFormat, CompressionLevel } from '../types/fileTools'
 
 const store = useFileToolsStore()
 const isDragOver = ref(false)

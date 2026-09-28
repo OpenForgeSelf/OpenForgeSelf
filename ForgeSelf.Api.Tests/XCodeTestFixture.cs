@@ -22,7 +22,8 @@ public class XCodeTestFixture
         "AIAgent",
         "TodoTracker",
         "ProxyCapture",
-        "ImGateway"
+        "ImGateway",
+        "FileTools"
     };
 
     public XCodeTestFixture()

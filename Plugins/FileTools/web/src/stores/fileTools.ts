@@ -12,8 +12,8 @@ import type {
   CompressionLevel,
   RenameRuleType,
   CleanupFilterType
-} from '@/types/fileTools'
-import { fileToolsApi } from '@/services/fileToolsApi'
+} from '../types/fileTools'
+import { fileToolsApi } from '../services/fileToolsApi'
 
 export const useFileToolsStore = defineStore('fileTools', () => {
   const currentTab = ref<FileToolTab>('rename')

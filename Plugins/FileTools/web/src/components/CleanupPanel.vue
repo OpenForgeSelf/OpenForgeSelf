@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppLogo from '@/components/AppLogo.vue'
-import { useFileToolsStore } from '@/stores/fileTools'
-import { fileToolsApi } from '@/services/fileToolsApi'
-import type { CleanupFilterType } from '@/types/fileTools'
+import AppLogo from './AppLogo.vue'
+import { useFileToolsStore } from '../stores/fileTools'
+import { fileToolsApi } from '../services/fileToolsApi'
+import type { CleanupFilterType } from '../types/fileTools'
 
 const store = useFileToolsStore()
 const showConfirmDialog = ref(false)

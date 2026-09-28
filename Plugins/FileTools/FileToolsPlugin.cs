@@ -11,7 +11,6 @@ namespace ForgeSelf.Api.Plugins.FileTools;
 
 public class FileToolsPlugin : IPlugin
 {
-    public List<IMenuExtension> MenuExtensions { get; } = new();
     public List<IToolFunctionExtension> ToolExtensions { get; } = new();
 
     public void Apply(IContext ctx)
@@ -25,72 +24,33 @@ public class FileToolsPlugin : IPlugin
         services?.AddScoped<ICleanupService, CleanupService>();
         services?.AddScoped<IRenameService, RenameService>();
 
-        RegisterMenuExtensions(pluginId);
+        // 批次C：目录大小排行。任务表必须是单例（跨请求轮询），扫描/快照服务按请求作用域。
+        services?.AddSingleton<IFolderScanJobStore, FolderScanJobStore>();
+        services?.AddScoped<IFolderScanService, FolderScanService>();
+        services?.AddScoped<IFolderSnapshotService, FolderSnapshotService>();
+
+        // 建表铁律：宿主建表只扫启动期已加载程序集，插件实体不在其列 → 插件必须自行建表。
+        // 失败只告警不抛：Apply 内抛异常会让整个插件注册失败，日志只剩一句「注册插件服务失败」。
+        if (!Data.FileToolsTables.EnsureCreated())
+            XTrace.Log.Warn("[FileToolsPlugin] 插件库未就绪，目录快照功能将不可用（详见 FileToolsTables 的 Error 日志）");
+
+        // 铁律14：后台扫描的生命周期由插件自管 —— 卸载时统一取消，不留悬空循环。
+        // Effect 的委托返回 IDisposable，Dispose 即收回这次副作用。
+        ctx.Effect(() => Disposable.Create(() =>
+        {
+            try
+            {
+                ctx.Get<IServiceProvider>()?.GetService<IFolderScanJobStore>()?.CancelAll();
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("[FileToolsPlugin] 取消目录扫描任务失败: {0}", ex.Message);
+            }
+        }));
+
         RegisterToolFunctionExtensions(pluginId, ctx);
 
         XTrace.Log.Info("[FileToolsPlugin] 文件工具插件初始化完成");
-    }
-
-    private void RegisterMenuExtensions(string pluginId)
-    {
-        XTrace.Log.Debug("[FileToolsPlugin] 注册菜单扩展点");
-
-        var fileToolsMenu = new FileToolsMenuExtension
-        {
-            Id = "filetools.menu.main",
-            Name = "文件工具",
-            PluginId = pluginId,
-            Icon = "fa-solid fa-folder-open",
-            Path = "/file-tools",
-            Order = 300,
-            ParentId = null,
-            Children = new List<IMenuExtension>
-            {
-                new FileToolsMenuExtension
-                {
-                    Id = "filetools.menu.rename",
-                    Name = "批量重命名",
-                    PluginId = pluginId,
-                    Icon = "fa-solid fa-pen-to-square",
-                    Path = "/file-tools/rename",
-                    Order = 1,
-                    ParentId = "filetools.menu.main"
-                },
-                new FileToolsMenuExtension
-                {
-                    Id = "filetools.menu.cleanup",
-                    Name = "批量清理",
-                    PluginId = pluginId,
-                    Icon = "fa-solid fa-broom",
-                    Path = "/file-tools/cleanup",
-                    Order = 2,
-                    ParentId = "filetools.menu.main"
-                },
-                new FileToolsMenuExtension
-                {
-                    Id = "filetools.menu.archive",
-                    Name = "压缩解压",
-                    PluginId = pluginId,
-                    Icon = "fa-solid fa-file-zipper",
-                    Path = "/file-tools/archive",
-                    Order = 3,
-                    ParentId = "filetools.menu.main"
-                },
-                new FileToolsMenuExtension
-                {
-                    Id = "filetools.menu.stats",
-                    Name = "文件统计",
-                    PluginId = pluginId,
-                    Icon = "fa-solid fa-chart-pie",
-                    Path = "/file-tools/stats",
-                    Order = 4,
-                    ParentId = "filetools.menu.main"
-                }
-            }
-        };
-
-        MenuExtensions.Add(fileToolsMenu);
-        XTrace.Log.Debug("[FileToolsPlugin] 菜单扩展点注册完成，共 {0} 个菜单项", MenuExtensions.Count);
     }
 
     private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
@@ -102,21 +62,10 @@ public class FileToolsPlugin : IPlugin
         ToolExtensions.Add(new FileCompressToolFunction(pluginId, services));
         ToolExtensions.Add(new FileExtractToolFunction(pluginId, services));
         ToolExtensions.Add(new FileStatsToolFunction(pluginId, services));
+        ToolExtensions.Add(new FolderStatsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[FileToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
-}
-
-public class FileToolsMenuExtension : IMenuExtension
-{
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string PluginId { get; set; } = string.Empty;
-    public string Icon { get; set; } = string.Empty;
-    public string Path { get; set; } = string.Empty;
-    public int Order { get; set; }
-    public string? ParentId { get; set; }
-    public IReadOnlyList<IMenuExtension>? Children { get; set; }
 }
 
 public class FileRenameToolFunction : IToolFunctionExtension

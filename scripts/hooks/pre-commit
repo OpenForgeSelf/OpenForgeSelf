@@ -1,0 +1,38 @@
+#!/bin/sh
+# OpenForgeSelf pre-commit hook: AI-Native Pilot 工件链门禁（自动暴露，不依赖自觉）
+#
+# 规则：本次提交若触碰 docs/ai/pilot/<task>/ 下任何文件，则该校验该任务目录的
+#       00-07 八件工件（含关键节）是否齐全；缺失/缺位 → 提交被拒绝。
+# 安装：scripts/install-git-hooks.ps1（幂等，新 clone / 新环境第一步执行）
+# 校验逻辑本体：scripts/verify-pilot-artifacts.ps1
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT" || exit 1
+
+# 本次提交（暂存区）触碰的 PILOT 任务目录集合（去重）
+DIRS=$(git diff --cached --name-only --diff-filter=ACMR \
+  | sed -n 's#^docs/ai/pilot/\([^/]*\)/.*#\1#p' \
+  | sort -u)
+
+if [ -z "$DIRS" ]; then
+  exit 0
+fi
+
+FAIL=0
+for d in $DIRS; do
+  echo "[pre-commit] 校验 PILOT 工件链: $d"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass \
+    -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$d"
+  if [ $? -ne 0 ]; then
+    FAIL=1
+  fi
+done
+
+if [ $FAIL -ne 0 ]; then
+  echo ""
+  echo "[pre-commit] PILOT 工件链门禁 FAIL：docs/ai/pilot/$DIRS 的必备文档缺失或不完整，提交已拒绝。"
+  echo "[pre-commit] 补齐 docs/ai/pilot/<task>/ 下 00-repository-understanding ~ 07-final-report 八件后再提交。"
+  exit 1
+fi
+
+exit 0

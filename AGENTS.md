@@ -24,6 +24,7 @@
    - Read 当天日记，确认含本次输入拆解 + 验证结果；
    - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（spec / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow.md 或本文。
+   - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/<task-id>/` 的 00-07 八件工件（含关键节）齐全，缺失/缺位提交被拒；新 clone / 新环境第一步执行 `scripts/install-git-hooks.ps1` 安装 hook（幂等）。
    - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部四步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 测试）② 插件层 e2e（`e2e/plugins/<id>`，走 e2e 隔离实例，按 `e2e-testing` 技能）③ 发布（**打 tag 自动发布** → CI 打包 GitHub Release；或本地 `release-local.ps1 -UpdateDir` + 设置页本地目录更新源 + 页面自动更新）④ 走查（e2e 隔离实例按用户视角点一遍、截图读图、清测试数据）。**四步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-09-27 用户指令）**：**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责打 tag 发布与验证发布产物。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
@@ -311,7 +312,7 @@ Verify 失败
 1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
 2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
 3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
-4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。
+4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
 5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。
 
 ---

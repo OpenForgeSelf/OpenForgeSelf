@@ -2,7 +2,8 @@
 功能编号: 035
 状态: 已实施（部分）：① 发布带版本号（版本化显式更新，2026-09-24 实测通过）；② 插件管理界面显示启用状态；③ web/dist 版本化读取缺陷已修复。剩余缺口（watcher 降级 / 扁平迁移 / frontend 版本操作 UI 等）仍登记待办
 最后更新: 2026-09-24
-关联: specs/034-mcp-center（来源），PluginVersionLayout / PluginVersionService / PluginHotReloadWatcher / PluginFrontendFileMiddleware / PluginManager / publish 脚本 / plugin-development·plugin-publish-verify 技能
+关联: specs/034-mcp-center（来源）
+> 目录结构与备份生命周期真源 = `docs/04-standards/packaging-upgrade-backup.md`（去 `_backups` 已实施，2026-09-28 输入31 批次1；新版本直接 stage 到 `versions/`，§3-T4/§4-R4），PluginVersionLayout / PluginVersionService / PluginHotReloadWatcher / PluginFrontendFileMiddleware / PluginManager / publish 脚本 / plugin-development·plugin-publish-verify 技能
 ---
 
 # 035 插件版本化发布与显式升级机制
@@ -37,7 +38,7 @@
 ### 2.2 缺口（本期需求的差异点）
 
 1. **触发方式仍是「覆盖活动目录 + watcher 自动热重载」** ✅ **已改（2026-09-24）**
-   `run-plugin-publish-verify.ps1` 主路径已改为「stage 到 `_backups/<id>/<version>/` → 显式 `POST /api/plugin/update/{id}` → 断言 `versions/<version>/` + current 指针」；不再覆盖活动目录、不依赖 watcher。实测：AIAgent 1.7.1→1.7.2、McpCenter 2.1.0→2.1.1（扁平存量首次版本化切换）均通过。
+   `run-plugin-publish-verify.ps1` 主路径已改为「直落 stage 到 `versions/<id>/<version>/`（2026-09-28 输入31 去 `_backups`）→ 显式 `POST /api/plugin/update/{id}` → 断言 `versions/<version>/` + current 指针」；不再覆盖活动目录、不依赖 watcher。实测：AIAgent 1.7.1→1.7.2、McpCenter 2.1.0→2.1.1（扁平存量首次版本化切换）均通过。
 2. **版本化更新接口有缺陷**（troubleshooting 已知） ✅ **已修复（2026-09-24）**
    修复方向①落地：`PluginFrontendFileMiddleware.ResolveFrontendRoot` 改为「current 指针存在且 `versions/<current>/web` 存在 → 从版本快照读取；否则回退扁平 `{插件目录}/web`」；`PluginController.ComputeWebVersion` 指纹同样基于版本快照。实测：`/plugins/ai-agent/web/dist/index.js` 返回版本快照内容（探针标记命中），指纹随版本快照变化。
 3. **前端缺「显式版本操作」**：已安装插件卡片只有启用/禁用；缺「更新到最新」「回滚到上一版本」「版本历史/已安装版本列表」操作入口（后端接口已具备）。 ⏳ 未做（登记待办）
@@ -68,7 +69,7 @@
 | 文件 | 现状 | 需要改 |
 |---|---|---|
 | `.agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1` | **主路径 = 覆盖活动目录 + watcher 热重载**（步骤 5:173-245）；验证判据 = 版本==清单 + 资源 200 + DLL hash | ✅ **已改（2026-09-24）**：步骤 5 = `POST /api/plugin/update/{id}` 显式版本化切换；验证 = 版本化布局断言（`versions/<version>/` + current 指针）+ API 版本 + 前端清单 + 静态资源 + 版本快照入口 DLL hash |
-| `scripts/publish-plugin.ps1` | stage 到 `publish/Plugins/_backups/<id>/<version>/`（供覆盖用） | 改产出「版本快照」：直接 stage 到版本目录源，或生成 `.forgeself-plugin` 包（走 `POST /api/plugin/install`） |
+| `scripts/publish-plugin.ps1` | ✅ **已改（2026-09-28 输入31）**：直落 stage 到 `Plugins/<id>/versions/<version>/`（`_backups` 已废弃）；或生成 `.forgeself-plugin` 包（走 `POST /api/plugin/install`） |
 | `scripts/publish-plugin-full.ps1` | 全量发布封装 | 随主路径调整 |
 | `build.ps1` | 全量构建 → publish 扁平 `Plugins/<Dir>/` | 视设计定：保持全量扁平 + 由显式机制 stage；或产版本目录 |
 | `ForgeSelf.Api/ForgeSelf.Api.csproj` | 20+ 个 `Stage*Plugin` target（:213-426）+ `StagePluginsToPublish:440`（Publish 后整体复制扁平） | 拷贝目标/产物形态随发布路径调整（决定扁平是否仍为全量产物形态） |
@@ -117,7 +118,7 @@
 | 项 | 说明 |
 |---|---|
 | `publish/Plugins/<Dir>/` 扁平布局（全部现有插件） | 启动一次性迁移到 `versions/<清单版本>/` + current 指针 |
-| `publish/Plugins/_backups/` 暂存目录 | 废弃或改语义（不再作为覆盖来源） |
+| ~~`publish/Plugins/_backups/` 暂存目录~~ | ✅ **已废弃（2026-09-28 输入31 实施）**：删除，不再产生；新版本直落 `versions/<id>/<ver>/` |
 | 活动目录残留 `web/dist` / 旧 bundle | 迁移后清理策略 |
 
 ### 3.1 目录布局（用户描述，与现有机制对齐）
@@ -189,12 +190,12 @@ Plugins/<id>/
 
 一次性脚本 `scripts/migrate-plugin-versions.ps1`（幂等，可重复跑）：
 - 对无 `current` / `versions/<ver>` 的插件目录，建 `versions/<当前版本>/` 快照（= 非宿主共享 DLL + `web/dist` + `plugin.json`），原子写 `current` 指针；
-- 跳过 `_backups` / `_*` 与无 `plugin.json` 目录；宿主共享 DLL 白名单禁拷（对照 troubleshooting 坑 0）；
+- 跳过 `_*`（含历史遗留 `_backups`）与无 `plugin.json` 目录；宿主共享 DLL 白名单禁拷（对照 troubleshooting 坑 0）；
 - 首次执行迁移 15 个扁平插件，已版本化/无清单的自动跳过。
 
-后端 `GetPluginVersions` 合并三数据源（去重，按版本号降序）：
+后端 `GetPluginVersions` 数据源（去重，按版本号降序；2026-09-28 输入31 去 `_backups` 后为两源）：
 1. 已安装快照 `versions/<id>/`（side-by-side 布局）
-2. 已暂存 `_backups/<id>/`（待更新版本）
+2. ~~已暂存 `_backups/<id>/`~~（2026-09-28 输入31 已移除）→ 直落 staged 即 `versions/<id>/<ver>/`（未切 current，待更新）
 3. 当前清单版本（带 release notes）
 
 验证：`GET /api/plugin/{id}/versions` 对迁移插件返回快照版本（实测 todo-tracker → `["1.0.0"]`、ai-agent → 14 个版本）。

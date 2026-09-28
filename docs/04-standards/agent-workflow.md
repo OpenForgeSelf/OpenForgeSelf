@@ -581,16 +581,17 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **实体 ConnName 保留（插件改名迁移规律）**：插件改名时实体 `[BindTable(ConnName="X")]` 与宿主 `XCodeConfig.PluginDbs` 的 **key（连接名）保留**，只改 value（插件 Id）→ 库文件名/表不变，数据目录整目录 Move 即完成数据零迁移。
 
 ### 插件运行时显式更新（2026-09-24 起：无自动热重载）
+> 目录结构与备份生命周期规则以 `docs/04-standards/packaging-upgrade-backup.md` 为唯一真源（§3-T4/§4-R4：去 `_backups` 已实施，2026-09-28 输入31 批次1；新版本直接 stage 到 `versions/`，插件多版本共存即回滚能力）。
 - `PluginVersionService.UpdatePlugin`：版本比较（≤ 已加载版本直接跳过）+ 切 `current` 指针 + 卸载旧 ALC + 加载新 DLL + 端点动态刷新（`ApplicationPartManager` + `MvcActionDescriptorChangeProvider.NotifyChange`）。
 - **触发方式（唯一）**：`POST /api/plugin/update/{id}` 版本化显式更新（`scripts/publish-plugin.ps1` 只做编译+staged 复制，不自动调 API）。`PluginHotReloadWatcher` 已一刀切移除（2026-09-24 输入 8 用户拍板，宿主不再自动监听插件目录）。冷启动宿主 = 兜底。
-- **版本目录布局**：`Plugins/{id}/versions/<ver>/<entry>` + `Plugins/{id}/current` 文本指针；staged 入口在 `Plugins/_backups/{id}/{ver}/`。
+- **版本目录布局**：`Plugins/{id}/versions/<ver>/<entry>` + `Plugins/{id}/current` 文本指针；staged 入口 = `Plugins/{id}/versions/<ver>/`（2026-09-28 输入31 去 `_backups`：新版本直落 versions/，无备份目录）。
 - **失败回退**：`ReloadPlugin` 异常自动回退 `current` 到上一可用版本；`POST /api/plugins/rollback/{id}` body `{"version":"x"}` 手动回滚。
 - **DLL 锁处理**：`PluginAssemblyUnloader.ForceCollect`（两轮 GC + 终结器）+ `TryOpenExclusive`（`FileShare.None`）+ `TryDeleteDirectory`（占用时跳过下轮重试）。
 - **发布脚本用法**：`./scripts/publish-plugin.ps1 -Plugin AIAgent`（`-Plugin` 是目录名 PascalCase，非 id）；幂等（staged 已存在则 skip，需 `-Force` 覆盖）；`-DryRun` 仅打印。技能侧载路径：`pwsh .agents/skills/plugin-publish-verify/scripts/run-plugin-publish-verify.ps1 -Plugin <PascalCase目录>`（`-BumpVersion` 自动升版本、`-SkipPublish`、`-Force`、`-ReloadWaitSec`）。**2026-09-27 起**：该脚本仅限「插件版本化侧载（宿主不重启）」可选用途且**必须先获用户同意**；脚本内「杀非 publish 实例重启宿主」的行为已废除。**主路径 = 打 tag 自动发布 + 页面自动更新**（见 B10）。
 - **覆盖顺序：payload（DLL、web/dist）先，`plugin.json` 最后**。先写清单会在拷贝中途触发重载，后续 DLL 拷贝报 `Could not find file`。
 - **更新成功判定（用户约定）**：取接口 `GET /api/plugin` 返回的该插件 `version`，与**当前活动目录 `plugin.json`（清单文件）**的 `Version` 比对，**一致即认为更新成功**。清单文件是版本号唯一真源。
 - **端点前缀是单数 `api/plugin`**（`[Route("api/[controller]")]` + `PluginController`）。`publish-plugin.ps1` 结尾打印的 `/api/plugins/...` 是**错的**，实测 404。
-- **假成功陷阱**：版本号来自 `plugin.json`，改 C# 代码时若入口 DLL 没真正替换，会出现「版本显示新值但跑旧二进制」。必须比对哈希：`publish/Plugins/<Dir>/<Dir>.dll` vs `_backups/<id>/<ver>/<Dir>.dll`（脚本已内置该校验）。
+- **假成功陷阱**：版本号来自 `plugin.json`，改 C# 代码时若入口 DLL 没真正替换，会出现「版本显示新值但跑旧二进制」。必须比对哈希：`publish/Plugins/<Dir>/<Dir>.dll` vs `Plugins/<id>/versions/<ver>/<Dir>.dll`（脚本已内置该校验；2026-09-28 输入31 去 `_backups`）。
 - **「版本号升了」≠「新代码生效」**：版本化布局（versions/ + current）只证明「切换动作完成」。**宿主代码（Middleware/Controller 等）改动 2026-09-27 起一律走 tag 发布 + 页面自动更新**（update-agent 自更新），agent 不手动停宿主；插件自身 DLL 生效判据 = 版本快照 DLL hash == staged hash。
 - **web/dist 版本化读取**：`PluginFrontendFileMiddleware.ResolveFrontendRoot` 版本化优先（current 指针存在且 `versions/<current>/web` 存在 → 从版本快照读，否则回退扁平 `{插件目录}/web`）。
 - **插件 config.json 手写键大小写**：插件 config.json 属用户可手改文件，`System.Text.Json` 默认大小写敏感——手写 `{"port":...}` 会被静默忽略、绑定回退默认端口。加载器必须 `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`。
@@ -598,7 +599,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 ### 发布坑（反复踩，全量 build 前必读）
 - 🔴 **宿主进程锁致 build.ps1 发布漏更宿主 DLL**：`build.ps1` 覆盖 publish/ 用 `Copy-Item -ErrorAction SilentlyContinue` 或 `robocopy /E`——**运行中宿主锁定的文件（ForgeSelf.dll）被静默跳过**，publish 里宿主 DLL 保持旧版 → 与插件同路由控制器**歧义** → 界面/API 500 `AmbiguousMatchException`。**教训**：① 替换宿主自身二进制前先 `Stop-Process -Name ForgeSelf` 释放锁；② 发布后核对 `publish/ForgeSelf.dll` 时间戳与 `ForgeSelf.Api/bin/Release/.../ForgeSelf.dll` 一致；③ 排查「插件控制器 500 且无 action 日志」优先怀疑**路由歧义/控制器残留**。**⚠ 2026-09-27 起**：该「先停宿主」动作只适用于用户不在使用的隔离验证环境；**对用户运行中的宿主（含 51888 实例），禁止 agent 停/启/杀**，宿主二进制变更一律走 tag 发布 + 页面自动更新（见 B10）。
 - 🔴 **PS 5.1 `Copy-Item 'dir\*' -Recurse` 通配符 bug 会静默漏拷**：`build.ps1` 第 3 步曾用 `Copy-Item (Join-Path $stagingDir '*') $publishDir -Recurse -ErrorAction SilentlyContinue` 在 PS 5.1 下**不拷全**（报错或 exit 0 假成功）。**修复**：改用 **`robocopy $stagingDir $publishDir /E`**（exit 0-7 均成功）+ 两处 robocopy 后 `$LASTEXITCODE = 0` 复位 + 脚本末尾 `exit 0`。**教训**：发布动作一律走发布技能主路径（打 tag 自动发布 / `release-local.ps1 -UpdateDir` + 页面自动更新），**禁止手动 Copy-Item / robocopy 进 publish/**。
-- 🔴 **重复插件 id 目录致宿主启动崩溃**：`publish/Plugins` 同时存在两个 plugin.json 的 `Id` 相同目录 → `TopologicalSort` 撞 key → **宿主启动即崩**。发布/归档后检查 `publish/Plugins` 下 plugin.json `Id` 无重复；冗余目录移 `_backups/`（勿删）。
+- 🔴 **重复插件 id 目录致宿主启动崩溃**：`publish/Plugins` 同时存在两个 plugin.json 的 `Id` 相同目录 → `TopologicalSort` 撞 key → **宿主启动即崩**。发布/归档后检查 `publish/Plugins` 下 plugin.json `Id` 无重复；冗余目录移入 `.trash/`（勿删；`_backups` 已废弃，2026-09-28 输入31）。
 - 🔴 **活动插件目录/版本快照只放插件自身程序集**：**绝不能**放入 `XCode.dll`/`NewLife.Core.dll`/`NewLife.Agent.dll`/`NewLife.Remoting.dll`/`ForgeSelf.Abstractions.dll`/`ForgeSelf.Core.dll`/`Stardust.dll`。否则 `PluginLoadContext` 再加载一份 → 类型标识分裂（「插件类型未实现 IPlugin 接口」）+ ALC 卸载中加载 → `FileLoadException`，宿主**启动即崩**。脚本已内置白名单过滤 + 防御性清理。
 - 🔴 **宿主运行时入口 DLL 被独占锁，无法覆盖**：`plugin.json` 与 `web/dist` 可热覆盖；`<Dir>.dll` 被 ALC 锁定，独占 open 报「being used by another process」，而 `Copy-Item` **误报**成 `FileNotFoundException`（排查时勿被误导）。改 C# 代码靠 side-by-side 版本化更新或停宿主。
 - 🔴 **全量 `build.ps1` 会删外部放置的 `publish/Plugins/System.Data.SQLite.dll`**：`System.Data.SQLite.dll`+`e_sqlite3.dll` 不是任何 csproj/deps 的包依赖（NewLife.XCode 运行时**探测**该文件），是**外部放置的运行时构件**。全量重发后从旧 publish 或 `.temp/e2e/*/publish/Plugins/` 回补这两个 DLL 到 `publish/Plugins/`。
@@ -723,6 +724,8 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 | `make-release-notes.ps1` | tag 注解 + 上一 tag 以来 commit 生成 RELEASE-NOTES（需 fetch-depth 0） |
 | `publish-release.ps1` | `gh release create`（tag/资产/notes）；本地凭 gh keyring，CI 凭 `secrets.GITHUB_TOKEN`；版本含 `-` 后缀自动 prerelease |
 
+> 打包产物布局 / 升级备份 / 缓存生命周期规则以 `docs/04-standards/packaging-upgrade-backup.md` 为唯一真源；本节只记操作流程与踩坑。
+
 **硬规则与坑（本轮实战）**：
 - 🔴 **System.Data.SQLite.dll / e_sqlite3.dll 必须入库**（`build/runtime/Plugins/`，打包时注入 `Plugins/`）：XCode 运行时探测文件、非 NuGet 依赖，历史上只手工放在 `publish/`，干净构建必缺 → 发布版 SQLite 崩。
 - 🔴 **`.github/` 曾被 .gitignore 屏蔽**（历史清理误伤），workflow 必须入库才生效——已在 .gitignore 解除并注释。
@@ -771,4 +774,5 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 | 2026-09-26 | spec 036 端到端验收全绿（live 一次性 49.5s，0.1.0→v0.2.4）：B10 补「并发写路径下状态机每侧写入都要守卫在途状态」硬规则（D-036-5，6b09654）。 |
 | 2026-09-26 | 更新源仓库转公开：移除 `UpdateConfig.GitHubToken`、`FORGESELF_UPDATE_TOKEN` 环境变量回退与 `CreateGitHubRequest` 的 Bearer 头（UpdateChecker 保持匿名）；同步移除 `UpdateController.githubTokenConfigured` 与前端提示；B10 补「匿名访问私有仓库返回 404 而非 401」诊断硬规则。 |
 | 2026-09-26 | 任务3 交付纠偏（seq31/34）：新增 A10 群协作 SOP 对齐（命中判定第一动作、放权≠免闸门、markdown 正文汇报、工时超断点、缺陷复现分层、串岗禁令）；群 SOP plugin-team-sop 升 **v1.2.0** 已发布并绑定本群；GitHub 主远程与更新源切换至组织仓库 OpenForgeSelf/OpenForgeSelf（B10 同步）。 |
+| 2026-09-28 | 输入30 建立打包/升级/备份/缓存唯一真源 `docs/04-standards/packaging-upgrade-backup.md`（QQNT 式目标目录结构：宿主 `versions/` + `plugins/` 并排 + 去插件备份/`_backups` + 更新缓存清理）；AGENTS.md §2.3 与本文 B5/B10 改为引用真源 |
 | 2026-09-24 | 本文档创建：Part A 承接 AGENTS.md 触发式细节；Part B 承接原 `.forgeself/memory/MEMORY.md` 项目不变规则归档（随 docs 入库）；AGENTS.md 瘦身为「每次必守 + 引用本文」；MEMORY.md 改为会话级索引。

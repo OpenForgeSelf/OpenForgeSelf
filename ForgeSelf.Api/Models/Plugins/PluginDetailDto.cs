@@ -129,7 +129,7 @@ public class PluginUpdateInfo
     public bool HasUpdate { get; set; }
     public string ReleaseNotes { get; set; } = string.Empty;
 
-    /// <summary>更新来源：backup（_backups 暂存目录）或 package（插件更新源本地包目录，输入27 新增）。null = 旧数据兼容。</summary>
+    /// <summary>更新来源：staged（versions/ 内已直落未生效版本，2026-09-28 输入31 去 _backups）或 package（插件更新源本地包目录，输入27 新增）。null = 旧数据兼容。</summary>
     public string? Source { get; set; }
 }
 

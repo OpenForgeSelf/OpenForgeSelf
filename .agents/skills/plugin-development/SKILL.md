@@ -384,7 +384,7 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
   宿主插件在 `IPlugin.Apply(ctx)` 里 `SomeEngine.SetDataDirectory(ctx.EnsurePluginDataDirectory())` 取用；
   独立引擎等子进程由宿主启动时经命令行参数传路径（如 `--config <数据目录>/myplugin.json`），子进程不自行猜路径。
 - 活动插件目录**只放插件自己的程序集**（`<Dir>.dll` + `plugin.json` [+ `web/dist`]），
-  混入宿主共享 DLL 会让宿主启动即崩；版本化后实际生效在 `versions/<current>/`（根扁平为兼容回退）
+  混入宿主共享 DLL 会让宿主启动即崩；版本化后实际生效在 `versions/<current>/`（根扁平为兼容回退）。目录结构与备份生命周期真源 = `docs/04-standards/packaging-upgrade-backup.md`（目标：去 `_backups`/插件备份）
 - **发布/升级（2026-09-27 新规范）**：主路径 = 打 tag `v<X.Y.Z>` → push github → CI 自动打包 GitHub Release →
   页面「检查更新 → 下载 → 重启并更新」（宿主 update-agent 自更新）；本地离线 = `release-local.ps1 -UpdateDir <目录>` +
   设置页「更新源 = 本地目录」。**不再用 run-plugin-publish-verify.ps1 杀非 publish 实例重启宿主**；

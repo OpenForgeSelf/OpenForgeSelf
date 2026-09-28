@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# Publish a single plugin to <PluginsRoot>/_backups/<id>/<version>/
+# Publish a single plugin to <PluginsRoot>/<id>/versions/<version>/
 # Use together with host runtime `POST /api/plugin/update/{id}` to enable
 # "single plugin, no host restart" end-to-end capability.
 #
@@ -11,6 +11,11 @@
 # file-system watch are handled by the host runtime (PluginVersionService +
 # PluginManager + FileSystemWatcher). Clean separation of concerns.
 #
+# Layout (2026-09-28 输入31 去 _backups）：side-by-side 直落
+#   <PluginsRoot>/<id>/versions/<version>/   ← 本脚本的 stage 目标
+#   <PluginsRoot>/<id>/current               ← 宿主切换指针（POST /api/plugin/update/{id} 时）
+# 无备份目录：插件多版本共存即回滚能力（真源 docs/04-standards/packaging-upgrade-backup.md §3-T4/§4-R4）。
+#
 # Usage:
 #   ./publish-plugin.ps1 -Plugin AIAgent                                    # dev mode (default)
 #   ./publish-plugin.ps1 -Plugin AIAgent -Configuration Release
@@ -20,7 +25,7 @@
 #
 # NOTE: -Plugin is the **directory name** (PascalCase, e.g. AIAgent), NOT the
 # kebab-case id. The script reads the kebab-case id from plugin.json Id field
-# and uses it to build the staged path: <PluginsRoot>/_backups/<id>/<version>/
+# and uses it to build the staged path: <PluginsRoot>/<id>/versions/<version>/
 # This follows the project's two-layer naming convention (PascalCase for code
 # identity, kebab-case for runtime identity).
 #
@@ -69,8 +74,8 @@ if ([string]::IsNullOrWhiteSpace($sourceEntry)) { $sourceEntry = "$Plugin.dll" }
 if ([string]::IsNullOrWhiteSpace($sourceVersion)) { throw "plugin.json missing Version field" }
 if ($sourceId -ne $Plugin) { Write-Warning "plugin.json Id='$sourceId' does not match -Plugin '$Plugin'" }
 
-# Compute staged target: <PluginsRoot>/_backups/<id>/<version>/
-$stagedDir = Join-Path (Join-Path (Join-Path $PluginsRoot '_backups') $sourceId) $sourceVersion
+# Compute staged target: <PluginsRoot>/<id>/versions/<version>/（2026-09-28 去 _backups，直落 side-by-side 版本目录）
+$stagedDir = Join-Path (Join-Path (Join-Path (Join-Path $PluginsRoot $sourceId) 'versions') $sourceVersion)
 
 Write-Host "==============================================================="
 Write-Host "[publish-plugin] Plugin:       $sourceId"
@@ -96,11 +101,11 @@ function Print-SuccessTail {
 }
 
 # Idempotency: if staged dir exists and source version <= highest staged version, skip (unless -Force)
-$backupDir = Join-Path (Join-Path $PluginsRoot '_backups') $sourceId
+$versionsDir = Join-Path (Join-Path $PluginsRoot $sourceId) 'versions'
 $hasExisting = Test-Path $stagedDir
 $existingHighest = $null
-if (Test-Path $backupDir) {
-    $existingHighest = Get-ChildItem -LiteralPath $backupDir -Directory -ErrorAction SilentlyContinue |
+if (Test-Path $versionsDir) {
+    $existingHighest = Get-ChildItem -LiteralPath $versionsDir -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match '^\d+(\.\d+){0,3}$' } |
         ForEach-Object { [version]$_.Name } |
         Sort-Object -Descending |

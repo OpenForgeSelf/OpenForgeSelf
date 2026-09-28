@@ -1,7 +1,7 @@
 # 038 · 插件更新源（本地包目录）
 
-> 状态：已实现（2026-09-28，输入27）｜设计：`docs/ai/pilot/027-plugin-local-update-source/`
-> 关联：`docs/02-features/035-plugin-versioned-layout.md`（版本化侧载）、`docs/02-features/036-github-release-auto-update.md`（宿主自动更新）
+> 状态：已实现（2026-09-28，输入27）；2026-09-28 输入31 去 `_backups` 后同步更新｜设计：`docs/ai/pilot/027-plugin-local-update-source/`
+> 关联：`docs/02-features/035-plugin-versioned-layout.md`（版本化侧载）、`docs/02-features/036-github-release-auto-update.md`（宿主自动更新）；`_backups` 目标语义见 `docs/04-standards/packaging-upgrade-backup.md` §3-T4/§4-R4（真源：去 `_backups`，包源直接 stage 到 `versions/`）
 
 ## 一、背景与目标
 
@@ -27,8 +27,8 @@
 |---|---|---|
 | GET | `/api/plugin/update-settings` | 回显当前配置 `{ "localDir": "..." }` |
 | PUT | `/api/plugin/update-settings` | body `{ "localDir": "..." }`；空 = 停用；目录不存在 400 |
-| GET | `/api/plugin/updates` | 现有端点，返回项新增 `source` 字段：`backup` / `package` |
-| POST | `/api/plugin/update/{id}` | 现有端点；无 _backups 更高版本时自动从包目录 stage |
+| GET | `/api/plugin/updates` | 现有端点，返回项 `source` 字段：`staged`（versions/ 内已直落未生效版本，输入31 去 backup）/ `package` |
+| POST | `/api/plugin/update/{id}` | 现有端点；versions/ 无更高版本时自动从包目录直落 stage 到 `versions/<id>/<ver>/`（2026-09-28 输入31：无 `_backups`） |
 
 ## 四、包格式与打包脚本
 
@@ -39,12 +39,12 @@
 
 ## 五、更新发现与执行规则
 
-- **发现**（`CheckForUpdates`）：`_backups` 最高版本（source=backup）与包目录最高版本（source=package）取更高者；
-  包版本必须 **> 当前生效版本** 且 **> _backups 最高版本**，Id 匹配、版本号合法
+- **发现**（`CheckForUpdates`，2026-09-28 输入31 去 `_backups`）：versions/ 内已直落未生效的最高版本（source=staged）与包目录最高版本（source=package）取更高者；
+  包版本必须 **> 当前生效版本** 且 **> versions/ 现有最高 staged 版本**，Id 匹配、版本号合法
   （`^\d+(\.\d+){0,3}$`，防路径穿越）、包内存在入口 DLL，才列为可更新。
-- **执行**（`UpdatePlugin`）：在 `_backups` 检查**之前**调用 `EnsureStagedFromPackageSource`
+- **执行**（`UpdatePlugin`）：在 versions/ 现有最高版本检查**之前**调用 `EnsureStagedFromPackageSource`
   （纯包源场景也能更新）；选最高版本包 → 校验（入口 DLL + `ValidatePackage`）→ 解包到
-  `_backups/<id>/<ver>/`（已存在则保留）→ 走既有版本化切换。包源全程内部捕获异常，失败仅记日志不传播 500。
+  `versions/<id>/<ver>/`（已存在则保留）→ 激活（切 current + 同步清单 + 热切换，不复制）。包源全程内部捕获异常，失败仅记日志不传播 500。
 - **回滚**：`POST /api/plugin/rollback/{id}` 既有链路不变。
 
 ## 六、前端

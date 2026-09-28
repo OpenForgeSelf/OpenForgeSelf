@@ -131,7 +131,7 @@
 - **`EntryType` 大小写 / 命名空间错** → `Type.GetType` 返回 `null` → 插件加载失败。
 - **漏建数据父目录** → SQLite 抛「unable to open database file」；务必经 `EnsurePluginDataDirectory()` / 宿主 `InitializeXCodeDatabase`。
 - **`Id` 含大写或点号** → 在 Linux 上数据目录名大小写敏感、前端路由解析异常；`Id` 只允许 kebab-case。
-- **想"不重启宿主"就更新某个插件** → 用 `scripts/publish-plugin.ps1 -Plugin <目录名PascalCase>` 把新版本 staged 到 `_backups/{id}/{ver}/`，再 `POST /api/plugins/update/{id}` 触发宿主运行时版本比较 + 切 current + 卸载旧 ALC + 加载新 DLL + 刷新 MVC 端点；详细流程见第九节。
+- **想"不重启宿主"就更新某个插件** → 用 `scripts/publish-plugin.ps1 -Plugin <目录名PascalCase>` 直落 stage 到 `Plugins/{id}/versions/{ver}/`（2026-09-28 输入31 去 `_backups`），再 `POST /api/plugins/update/{id}` 触发宿主运行时版本比较 + 切 current + 卸载旧 ALC + 加载新 DLL + 刷新 MVC 端点；详细流程见第九节。
 
 ---
 
@@ -151,8 +151,8 @@ Plugins/{id}/
     1.0.0/<entry.dll>   # 不可变版本快照
     1.1.0/<entry.dll>
     ...
-  _backups/
-    {id}/<ver>/...      # publish-plugin.ps1 staged 新版本的入口（详见 9.4）
+
+
 ```
 
 宿主解析入口顺序：`versions/<current>/<entry>` → fallback 旧扁平布局 `<entry>`。**更新 = 把新版本 staged 到 `versions/<new>/`，把 `current` 指针改成新版本号（原子写）**。
@@ -170,7 +170,7 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 | 方法 | 路径 | 作用 |
 |---|---|---|
 | `GET` | `/api/plugins` | 列出已加载插件（含 Version / 启用状态） |
-| `GET` | `/api/plugins/updates` | 检查 `_backups/` 中可用更新 |
+| `GET` | `/api/plugins/updates` | 检查 versions/ 中已直落未生效版本与包目录的可用更新（2026-09-28 输入31 去 `_backups`） |
 | `POST` | `/api/plugins/update/{id}` | 触发更新（版本比较 → 切 current → 卸载旧 ALC → 加载新 DLL → 刷新 MVC 端点） |
 | `POST` | `/api/plugins/rollback/{id}` | 回滚到指定版本（body `{"version":"1.0.0"}`） |
 | `POST` | `/api/plugins/enable/{id}` | 热启用已停用插件 |
@@ -183,14 +183,14 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 - **DI 子容器隔离**：插件服务挂可变子容器（`IPluginServiceRegistry`），卸载时仅摘除该插件索引。
 - **DLL 文件锁处理**：`PluginAssemblyUnloader` 提供 `ForceCollect`（两轮 GC + 终结器）+ `TryOpenExclusive`（`FileShare.None` 探测句柄释放）+ `TryDeleteDirectory`（被占用就跳过、下轮重试），解决 Windows 下 DLL 句柄未释放导致覆盖失败。
 - **原子指针切换 + 失败回退**：`WriteCurrentVersion` 用临时文件 + `Move` 覆盖（半截写入不可见）。新版加载失败时自动回退上一版本，旧版本目录保留供回滚。
-- **API 监听（FileSystemWatcher）**：`PluginHotReloadWatcher` 监听整个 `Plugins/` 含子目录（忽略 `_backups`/`_trash`），300ms debounce 后调用 `ReloadPlugin`；保存文件即热重载。
+- ~~**API 监听（FileSystemWatcher）**~~：**已移除（2026-09-24 一刀切）**：`PluginHotReloadWatcher` 删除，插件生效一律走版本化显式更新（`POST /api/plugin/update/{id}`）或冷启动。
 
 ### 9.4 单独发布脚本 `scripts/publish-plugin.ps1`
 
-把"插件 csproj 编译产物"自动 staged 到 `Plugins/_backups/{id}/{ver}/` 的脚本。运行时切换由宿主 API 触发（脚本与运行时关注点分离）。
+把"插件 csproj 编译产物"直落 staged 到 `Plugins/{id}/versions/{ver}/` 的脚本（2026-09-28 输入31 去 `_backups`）。运行时切换由宿主 API 触发（脚本与运行时关注点分离）。
 
 ```bash
-# 默认（dev 形态，PluginsRoot = 源 Plugins/_backups）
+# 默认（dev 形态，PluginsRoot = 源 Plugins）
 ./scripts/publish-plugin.ps1 -Plugin AIAgent
 
 # 指定发布形态的插件根
@@ -205,7 +205,7 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 
 **参数约定**：`Plugin` 是**目录名**（PascalCase，如 `AIAgent`），不是 kebab-case id。脚本从 `plugin.json` 读 `Id`（`ai-agent`）用于构建 staged 路径。`Configuration` 默认 `Release`。
 
-**幂等行为**：若 `_backups/{id}/{ver}/` 已存在且 `-Force` 未传，脚本直接退出 0（不重跑 publish、不覆盖）—— 配合宿主运行时"版本未变不更新"语义（`PluginVersionService.UpdatePlugin` 内已实现 `VersionComparer.Compare(latestVersion, metadata.Version) <= 0` 跳过逻辑）。**真正版本增加**才会触发宿主运行时切 current 与热重载。
+**幂等行为**：若 `Plugins/{id}/versions/{ver}/` 已存在且 `-Force` 未传，脚本直接退出 0（不重跑 publish、不覆盖）—— 配合宿主运行时"版本未变不更新"语义（`PluginVersionService.UpdatePlugin` 内已实现 `VersionComparer.Compare(latestVersion, metadata.Version) <= 0` 跳过逻辑）。**真正版本增加**才会触发宿主运行时切 current 与热重载。
 
 **典型流程**：
 1. 改代码 + 改 `Plugins/AIAgent/plugin.json` 的 `Version`（如 `1.0.0` → `1.1.0`）；
@@ -228,9 +228,9 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 
 - 配置端点：`GET /api/plugin/update-settings`（回显）、`PUT /api/plugin/update-settings`（body `{"localDir":"..."}`，空 = 停用，目录不存在返回 400）。
   落盘 `{数据根}/Config/plugin-update-settings.json`，运行时生效无需重启（共享实例引用）。
-- 更新发现：`GET /api/plugin/updates` 返回项的 `source` 字段区分 `backup`（_backups 暂存）与 `package`（包目录）。
-  包版本必须**高于当前生效版本且高于 _backups 最高版本**才列出；包内 `plugin.json` Id 必须匹配、版本号合法、含入口 DLL。
-- 更新执行：`POST /api/plugin/update/{id}` 在无 _backups 更高版本时，自动从包目录把最高版本包解包 stage 到 `_backups/<id>/<ver>/`，再走既有版本化切换（不重启宿主）。
+- 更新发现：`GET /api/plugin/updates` 返回项的 `source` 字段区分 `staged`（versions/ 内已直落未生效，2026-09-28 输入31 去 `_backups`）与 `package`（包目录）。
+  包版本必须**高于当前生效版本且高于 versions/ 现有最高 staged 版本**才列出；包内 `plugin.json` Id 必须匹配、版本号合法、含入口 DLL。
+- 更新执行：`POST /api/plugin/update/{id}` 在 versions/ 无更高版本时，自动从包目录把最高版本包解包直落 stage 到 `versions/<id>/<ver>/`（未切 current 即惰性），再激活（切 current + 同步清单 + 热切换，不重启宿主）。
 - 打包脚本：`scripts/package-plugin.ps1 -Plugin AIAgent -OutDir <目录>`（dotnet publish → 排除宿主共享 DLL `ForgeSelf.*.dll|NewLife.*.dll|XCode.dll|MX.dll` → plugin.json + 产物 + web/dist → `<id>-<ver>.forgeself-plugin`）。
 - 与宿主更新源（`UpdateConfig` / 版本更新页）**完全分离**：两者各自独立配置与链路，互不影响。
 

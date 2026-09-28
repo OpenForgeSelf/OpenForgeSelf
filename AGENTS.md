@@ -91,7 +91,8 @@
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
 - 运行端口：Backend `:7102`，Frontend `:7002`；本环境长期运行的 publish 实例用 `:51888`
 - **发布规范（2026-09-27 起）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
-- **打包流程（发布本地 zip，2026-09-27 补充）**：唯一打包入口 = `scripts/release/release-local.ps1`（编排 build-frontend → publish-host → package-release → make-release-notes，与 CI 同一命令）。本地发布 zip 跑：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>`；产物在 `artifacts/release/`（`OpenForgeSelf-<ver>-win-x64.zip` + `SHA256SUMS.txt` + `RELEASE-NOTES-<ver>.md`），`-UpdateDir` 会把三件拷到指定目录；然后在设置-版本更新页「更新源 = 本地目录」填该目录 → 检查更新 → 下载 → 重启并更新。**注意**：版本号必须高于当前运行版本（页面才检测得到）；脚本含中文须带 UTF-8 BOM（B6 铁律）；本地打包不打 git tag、不触发 CI
+- **打包/升级/备份/缓存/安装目录结构（真源引用，2026-09-28 输入30）**：相关规则的**唯一真源 = `docs/04-standards/packaging-upgrade-backup.md`**——含现状盘点、空间浪费点、**QQNT 式目标目录结构**（公共外置 + 宿主每次更新的内容入 `versions/<ver>/` + `plugins/` 与 `versions/` 并排 + **去插件备份/`_backups`**，插件多版本共存即回滚能力）与生命周期规则（§3/§4）。AGENTS.md / agent-workflow.md / 功能文档 / 技能只保留操作流程与踩坑，不再重复承载结构事实；规则冲突以该真源为准。
+- **打包入口（操作要点）**：唯一打包入口 = `scripts/release/release-local.ps1`（编排 build-frontend → publish-host → package-release → make-release-notes，与 CI 同一命令）。本地发布 zip 跑：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>`；产物在 `artifacts/release/`（`OpenForgeSelf-<ver>-win-x64.zip` + `SHA256SUMS.txt` + `RELEASE-NOTES-<ver>.md`），`-UpdateDir` 会把三件拷到指定目录；然后在设置-版本更新页「更新源 = 本地目录」填该目录 → 检查更新 → 下载 → 重启并更新。**注意**：版本号必须高于当前运行版本（页面才检测得到）；脚本含中文须带 UTF-8 BOM（B6 铁律）；本地打包不打 git tag、不触发 CI
 - 更全的工程规则/踩坑（数据落盘、XCode、DLL 锁、PS 编码等）→ `docs/04-standards/agent-workflow.md` Part B
 
 ### 2.4 技能清单（Skills — 动手前必查）

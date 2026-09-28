@@ -69,8 +69,8 @@ public class PluginInstallerService
                 throw new InvalidOperationException("插件包解压失败");
             }
 
-            _versionService.BackupPlugin(metadata.Id);
-
+            // 去 _backups（输入31）：新插件首次安装直接落到插件根目录（扁平），
+            // 版本化由后续更新（POST /api/plugin/update/{id}）直落 versions/ 接管；不产生任何备份副本。
             XTrace.Log.Info("插件安装成功: {0} v{1}", metadata.Name, metadata.Version);
             return extractedMetadata;
         }
@@ -99,8 +99,7 @@ public class PluginInstallerService
                 throw new InvalidOperationException($"插件不存在，无法更新: {metadata.Id}");
             }
 
-            _versionService.BackupPlugin(metadata.Id);
-
+            // 去 _backups（输入31）：更新不再整目录备份；多版本共存（versions/）即回滚能力。
             var wasRunning = _pluginManager.GetPluginState(metadata.Id) == PluginState.Running;
             if (wasRunning)
             {
@@ -144,8 +143,7 @@ public class PluginInstallerService
                 _pluginManager.DisablePlugin(pluginId);
             }
 
-            _versionService.BackupPlugin(pluginId);
-
+            // 去 _backups（输入31）：卸载直接删除插件目录与 versions/ 快照，不再留备份副本。
             var pluginDir = metadata.PluginDirectory;
             if (Directory.Exists(pluginDir))
             {

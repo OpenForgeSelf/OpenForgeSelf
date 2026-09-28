@@ -12,9 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ForgeSelf.Api.Tests.Plugins;
 
 /// <summary>
-/// PluginVersionService 插件更新源（本地包目录）测试（2026-09-28，输入27）。
+/// PluginVersionService 插件更新源（本地包目录）测试（2026-09-28，输入27；输入31 去 _backups）。
 /// 手工构造 .forgeself-plugin 包（plugin.json + 假入口 DLL），覆盖：
-/// 纯包源发现与更新 / 版本基准（高于 _backups 才列）/ 包版本不高于当前 / 包 Id 不匹配 /
+/// 纯包源发现与更新 / 版本基准（高于 versions/ 现有 staged 才列）/ 包版本不高于当前 / 包 Id 不匹配 /
 /// 包缺入口 DLL / 无效包跳过 / 清空目录 = 停用。
 /// 全部落在 TempPluginDirectory 隔离目录（不碰真实数据根，遵守插件开发铁律 10/11）。
 /// </summary>
@@ -48,7 +48,7 @@ public class PluginVersionUpdateSourceTests
     }
 
     [Fact]
-    public void PackageSource_FindsAndUpdatesHigherVersion_WhenNoBackupsExist()
+    public void PackageSource_FindsAndUpdatesHigherVersion_WhenNoStagedVersion()
     {
         CreateInstalledPlugin("1.0.0");
         var pkg = CreatePackage("2.0.0", includeEntryDll: true);
@@ -71,12 +71,21 @@ public class PluginVersionUpdateSourceTests
     }
 
     [Fact]
-    public void PackageSource_IgnoresPackageWhenBackupHasHigherVersion()
+    public void PackageSource_IgnoresPackageWhenStagedHasHigherVersion()
     {
         CreateInstalledPlugin("1.0.0");
-        // _backups 已有 3.0.0（更高）→ 包 2.0.0 不列为可更新
-        var backupDir = Path.Combine(_tempDir.RootPath, "_backups", PluginId, "3.0.0");
-        Directory.CreateDirectory(backupDir);
+        // versions/ 已直落 3.0.0（更高）→ 包 2.0.0 不列为可更新
+        var stagedDir = Path.Combine(_tempDir.RootPath, PluginId, "versions", "3.0.0");
+        Directory.CreateDirectory(stagedDir);
+        File.WriteAllText(Path.Combine(stagedDir, "plugin.json"),
+            JsonSerializer.Serialize(new PluginMetadata
+            {
+                Id = PluginId,
+                Name = "T",
+                Version = "3.0.0",
+                EntryAssembly = $"{PluginId}.dll",
+                EntryType = $"{PluginId}.PluginEntry"
+            }));
         CreatePackage("2.0.0", includeEntryDll: true);
         _manager.DiscoverPlugins();
 
@@ -84,7 +93,7 @@ public class PluginVersionUpdateSourceTests
 
         updates.Should().ContainSingle(u => u.PluginId == PluginId);
         updates.Single(u => u.PluginId == PluginId).LatestVersion.Should().Be("3.0.0");
-        updates.Single(u => u.PluginId == PluginId).Source.Should().Be("backup");
+        updates.Single(u => u.PluginId == PluginId).Source.Should().Be("staged");
     }
 
     [Fact]

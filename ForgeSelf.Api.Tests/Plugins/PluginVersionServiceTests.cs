@@ -9,6 +9,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
+/// <summary>
+/// PluginVersionService 版本化布局测试。
+/// 2026-09-28 输入31 去 _backups：新版本直落 stage 到 versions/&lt;ver&gt;/（无备份目录），
+/// 更新 = 激活已 staged 版本（切 current 指针 + 同步清单 + 热切换），回滚走 versions/ 内保留版本。
+/// </summary>
 public class PluginVersionServiceTests
 {
     private readonly TempPluginDirectory _tempDir;
@@ -28,6 +33,23 @@ public class PluginVersionServiceTests
         _service.Initialize(_tempDir.RootPath);
     }
 
+    /// <summary>把 <c>version</c> 直落 stage 到 versions/&lt;ver&gt;/（等同包源/侧载产物的磁盘形态）。</summary>
+    private static void StageVersion(TempPluginDirectory tempDir, string pluginId, string version)
+    {
+        var versionDir = Path.Combine(tempDir.RootPath, pluginId, "versions", version);
+        Directory.CreateDirectory(versionDir);
+        File.WriteAllText(Path.Combine(versionDir, "plugin.json"),
+            JsonSerializer.Serialize(new PluginMetadata
+            {
+                Id = pluginId,
+                Name = "Test",
+                Version = version,
+                EntryAssembly = "fake.dll",
+                EntryType = "fake.Plugin"
+            }));
+        File.WriteAllBytes(Path.Combine(versionDir, "fake.dll"), new byte[] { 1, 2, 3 });
+    }
+
     [Fact]
     public void UpdatePlugin_StagesNewVersionAndSwitchesCurrentPointer()
     {
@@ -40,20 +62,8 @@ public class PluginVersionServiceTests
         });
         _manager.DiscoverPlugins();
 
-        // 下载产物：_backups/<id>/2.0.0/
-        var backupVersionDir = Path.Combine(_tempDir.RootPath, "_backups", pluginId, "2.0.0");
-        Directory.CreateDirectory(backupVersionDir);
-        File.WriteAllText(
-            Path.Combine(backupVersionDir, "plugin.json"),
-            JsonSerializer.Serialize(new PluginMetadata
-            {
-                Id = pluginId,
-                Name = "Test",
-                Version = "2.0.0",
-                EntryAssembly = "fake.dll",
-                EntryType = "fake.Plugin"
-            }));
-        File.WriteAllBytes(Path.Combine(backupVersionDir, "fake.dll"), new byte[] { 1, 2, 3 });
+        // 直落产物：versions/<id>/2.0.0/（去 _backups 后 side-by-side 唯一 stage 位置）
+        StageVersion(_tempDir, pluginId, "2.0.0");
 
         var result = _service.UpdatePlugin(pluginId);
 
@@ -80,9 +90,8 @@ public class PluginVersionServiceTests
         _tempDir.CreatePluginManifest(pluginId, m => m.Version = "2.0.0");
         _manager.DiscoverPlugins();
 
-        var backupVersionDir = Path.Combine(_tempDir.RootPath, "_backups", pluginId, "2.0.0");
-        Directory.CreateDirectory(backupVersionDir);
-        File.WriteAllText(Path.Combine(backupVersionDir, "plugin.json"), "{}");
+        // versions/ 内已有与当前相同的版本目录（如历史 stage 残留）→ 无更高版本，不激活
+        StageVersion(_tempDir, pluginId, "2.0.0");
 
         var result = _service.UpdatePlugin(pluginId);
 
@@ -139,6 +148,21 @@ public class PluginVersionServiceTests
     }
 
     [Fact]
+    public void RollbackPlugin_UnknownVersion_ReturnsFalseWithoutChanges()
+    {
+        var pluginId = "test.rollback.unknown";
+        _tempDir.CreatePluginManifest(pluginId, m => m.Version = "1.0.0");
+        _manager.DiscoverPlugins();
+
+        // 去 _backups 后：versions/ 内不存在该版本 → 无备份可恢复，直接失败
+        var result = _service.RollbackPlugin(pluginId, "9.9.9");
+
+        result.Should().BeFalse();
+        PluginVersionLayout.ReadCurrentVersion(Path.Combine(_tempDir.RootPath, pluginId))
+            .Should().BeNull();
+    }
+
+    [Fact]
     public void UpdatePlugin_PrunesOlderVersions_KeepsTwoMostRecent()
     {
         var pluginId = "test.prune.plugin";
@@ -150,22 +174,10 @@ public class PluginVersionServiceTests
         });
         _manager.DiscoverPlugins();
 
-        // 依次产生 2.0.0 / 3.0.0 / 4.0.0 三个下载产物并逐个更新
+        // 依次直落 2.0.0 / 3.0.0 / 4.0.0 并逐个激活
         foreach (var version in new[] { "2.0.0", "3.0.0", "4.0.0" })
         {
-            var backupVersionDir = Path.Combine(_tempDir.RootPath, "_backups", pluginId, version);
-            Directory.CreateDirectory(backupVersionDir);
-            File.WriteAllText(Path.Combine(backupVersionDir, "plugin.json"),
-                JsonSerializer.Serialize(new PluginMetadata
-                {
-                    Id = pluginId,
-                    Name = "T",
-                    Version = version,
-                    EntryAssembly = "fake.dll",
-                    EntryType = "fake.Plugin"
-                }));
-            File.WriteAllBytes(Path.Combine(backupVersionDir, "fake.dll"), new byte[] { 1 });
-
+            StageVersion(_tempDir, pluginId, version);
             _service.UpdatePlugin(pluginId).Should().BeTrue();
         }
 
@@ -177,7 +189,7 @@ public class PluginVersionServiceTests
     }
 
     [Fact]
-    public void GetPluginVersions_MergesInstalledAndStagedVersions()
+    public void GetPluginVersions_ListsAllVersionDirectoriesIncludingStaged()
     {
         var pluginId = "test.merge.plugin";
         _tempDir.CreatePluginManifest(pluginId, m =>
@@ -195,18 +207,8 @@ public class PluginVersionServiceTests
         File.WriteAllBytes(Path.Combine(v1, "fake.dll"), new byte[] { 1 });
         PluginVersionLayout.WriteCurrentVersion(pluginDir, "1.0.0");
 
-        // 已暂存：_backups/<id>/2.0.0（待更新的新版本）
-        var backupDir = Path.Combine(_tempDir.RootPath, "_backups", pluginId, "2.0.0");
-        Directory.CreateDirectory(backupDir);
-        File.WriteAllText(Path.Combine(backupDir, "plugin.json"),
-            JsonSerializer.Serialize(new PluginMetadata
-            {
-                Id = pluginId,
-                Name = "T",
-                Version = "2.0.0",
-                EntryAssembly = "fake.dll",
-                EntryType = "fake.Plugin"
-            }));
+        // 已直落 staged：versions/2.0.0（待更新的新版本，未切 current）
+        StageVersion(_tempDir, pluginId, "2.0.0");
 
         var versions = _service.GetPluginVersions(pluginId);
 

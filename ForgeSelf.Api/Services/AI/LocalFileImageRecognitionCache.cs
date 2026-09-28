@@ -10,6 +10,9 @@ namespace ForgeSelf.Api.Services.AI;
 /// </summary>
 public class LocalFileImageRecognitionCache : IImageRecognitionCache
 {
+    /// <summary>缓存条目最长保留期（TTL）：超过即视为过期，初始化时清理（2026-09-28 输入31 R6）。</summary>
+    private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(30);
+
     private readonly string _rootPath;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -20,6 +23,39 @@ public class LocalFileImageRecognitionCache : IImageRecognitionCache
     public LocalFileImageRecognitionCache(string rootPath)
     {
         _rootPath = rootPath;
+        CleanupExpiredSessions();
+    }
+
+    /// <summary>
+    /// 清理过期会话缓存目录（目录 LastWriteTimeUtc 早于 TTL 视为过期并删除）。
+    /// 缓存可再生成、无业务价值；TTL 清理防止长年累积占用磁盘
+    /// （规则真源：docs/04-standards/packaging-upgrade-backup.md §4-R6）。
+    /// </summary>
+    private void CleanupExpiredSessions()
+    {
+        try
+        {
+            if (!Directory.Exists(_rootPath))
+                return;
+
+            var cutoff = DateTime.UtcNow - CacheMaxAge;
+            foreach (var dir in Directory.GetDirectories(_rootPath))
+            {
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
+                        Directory.Delete(dir, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    NewLife.Log.XTrace.Log.Debug("清理过期图片识别缓存失败（跳过）: {0}", ex.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            NewLife.Log.XTrace.Log.Debug("图片识别缓存清理失败（跳过）: {0}", ex.Message);
+        }
     }
 
     public Task<string?> TryGetAsync(string sessionId, string imageKey, CancellationToken cancellationToken = default)

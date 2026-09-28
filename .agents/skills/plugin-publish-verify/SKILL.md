@@ -24,7 +24,7 @@ description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 
 1. **禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` publish 实例、托盘实例等）。
    发布 = 打 tag 自动发布 + 页面自动更新（update-agent 换文件并重启宿主，属宿主自更新）。
    历史教训：旧流程「确保宿主从 publish/ 运行，非 publish 实例杀掉重起」曾误杀用户运行实例，被用户明确叫停。
-2. **活动插件目录只放「插件自己的程序集」**：`<Dir>.dll` + `plugin.json` [+ `web/dist`]（版本化后根扁平为回退，实际生效在 `versions/<current>/`）。
+2. **活动插件目录只放「插件自己的程序集」**：`<Dir>.dll` + `plugin.json` [+ `web/dist`]（版本化后根扁平为回退，实际生效在 `versions/<current>/`）。目录结构与备份生命周期真源 = `docs/04-standards/packaging-upgrade-backup.md`（目标去 `_backups`/插件备份，§4-R4）。
    绝不能把 `XCode.dll` / `NewLife.Core.dll` / `ForgeSelf.*.dll` 等**宿主共享 DLL** 拷进去——宿主启动即崩（实测踩坑）。
 3. **开发期验证一律走 e2e 隔离实例**：`playwright.config.ts` globalSetup 自动构建宿主 → 起隔离实例（`FORGESELF_INSTANCE_ID`）→ 解密真实 token → 跑用例 → 回收。**不碰用户运行实例**。
 4. **发布产物核对**：打 tag 后等 CI 完成，用资产 API 直链下载 zip 核对 SHA256（`package-release.ps1` 写 `SHA256SUMS.txt`）；页面自动更新链路已由 spec 036 单测 + e2e 覆盖。

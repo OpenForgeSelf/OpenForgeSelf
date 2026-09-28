@@ -131,6 +131,22 @@
 
 ---
 
+## 009 · 批次C 目录大小排行：立项与实现中被否掉的 6 个方案
+
+- **决策**：均不做/已被用户批复否掉，按「扩 FileTools + P0 带快照」落地（闸门1 批复 2026-09-27）。
+- **明细与理由**：
+  1. **新建独立插件 `StorageAnalyzer`（Agent 推荐项，被用户否）** → 改判「扩 `Plugins/FileTools`」。落点由用户拍板；本报告保留判定过程留档。代价照实记：新界面继续落宿主 `src/views/`（与 `plugin-development` 铁律3 相反），并继承 FileTools 的 mock 前端债。
+  2. **把新 tab 做成新的顶层菜单项 / 新 route** → 不做。实证 `menu-route-consistency.spec.ts` ③ 只断言**顶层** Path，FileTools 现有 4 个子菜单 Path 本就悬空（`FileToolsPlugin.cs`:49-88 vs `router/index.ts`:148）；把 children 提为顶层会立刻红。故走「第 5 个 tab（本地 store 状态切换，零路由改动）」。悬空菜单另记 TODO 单独修。
+  3. **把新功能写进 `services/fileToolsApi.ts`** → 不做。该文件整体是 mock（无 HTTP 客户端，`getDirectoryStats` 直接 `setTimeout` 后返回硬编码 727MB），13 个真端点零消费者；新功能另建 `fileToolsFoldersApi.ts` 走真接口，避免「界面绿了但从不落盘」。
+  4. **快照明细塞一个 Clob JSON 列（单表方案）** → 否。趋势对比需按 `relativePath` 跨快照查行，Clob 查不动 = 满足不了已批需求 → 改两表（`ScanSnapshot` + `ScanFolderEntry`）。
+  5. **排行做多级（多层目录树）展开** → 不做。父子层重复计数会破坏「Σ行 + 其他 + 本级 == 根总量」这条可断言的不变式；深层查看改用「以该目录为新根重扫」的钻取语义。
+  6. **越界改 AIAgent 工具白名单让工具在聊天里可见** → 不做（U-4 只批到「声明工具」）。`AIAgentService.ResolveOwnToolDefinitions()` 白名单扩到 `file-tools` 会撑本地小模型 prompt（仓内有「77 工具爆 prompt」历史教训），且属跨插件改动；新工具经已白名单的 `aiagent.universal_tool` 按名可达。
+- **另外三项被明确排除在本批范围外**：`FileStatsService` 全线同步假异步的改造、4 处目录求和重复实现的收口（是否上移 `Abstractions` 需 `architecture-design` 出 ADR）、其余 23 个插件控制器补 `[Authorize]`。
+- **重新审视的触发条件**：FileTools 前端还债（mock→真接口）时一并处理第 1/3 项遗留；出现第三个「目录大小」消费者时评估上移共享契约；用户明确要「在聊天里直接问目录占用」时再评估第 6 项。
+- **状态**：有效（登记于 2026-09-27，`docs/ai/pilot/batch-c-folder-size-plugin/`）。
+
+---
+
 ## 新旧决策衔接原则
 
 - 已被本台账**否掉**的方案，若日后又要立项，**必须**在此标注「已被推翻」并写明新依据，不得悄悄改判。

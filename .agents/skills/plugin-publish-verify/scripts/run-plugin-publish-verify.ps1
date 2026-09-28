@@ -42,7 +42,7 @@ $publishDir = Join-Path $repoRoot 'publish'
 $pubExe    = Join-Path $publishDir 'ForgeSelf.exe'
 if (-not $PluginsRoot) { $PluginsRoot = Join-Path $publishDir 'Plugins' }
 
-$manifestPath = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/plugin.json"
+$manifestPath = Join-Path $repoRoot "Plugins/$Plugin/plugin.json"
 if (-not (Test-Path $manifestPath)) { throw "plugin.json not found: $manifestPath" }
 
 function Get-Manifest {
@@ -177,7 +177,7 @@ Write-Host "  [OK] versioned layout: versions/$version + current=$currentVer" -F
 # ── 5.5) 引擎发布（可选）：插件带独立引擎时 dotnet publish 到 publish/<Engine>/ ──
 if ($Engine) {
     Step "Publish engine: $Engine"
-    $engineCsproj = Join-Path $repoRoot "ForgeSelf.Api/Plugins/$Plugin/Engine/$Engine.csproj"
+    $engineCsproj = Join-Path $repoRoot "Plugins/$Plugin/Engine/$Engine.csproj"
     if (-not (Test-Path -LiteralPath $engineCsproj)) {
         throw "Engine csproj not found: $engineCsproj (expected under Plugins/$Plugin/Engine/)"
     }

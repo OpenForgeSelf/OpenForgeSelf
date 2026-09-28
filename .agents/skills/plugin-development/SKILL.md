@@ -53,7 +53,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    `Cannot read properties of undefined (reading 'push')`（Home 插件实测踩坑，见 `specs/033-home/design.md` §9）。
 6. **HTTP 方法以后端 `[Http*]` 特性为准**，不要照抄调用方。
    踩过：后端是 `[HttpPut("{id}")]`，移植时沿用 POST → 405。
-7. **改完插件 = 代码改完 + 门禁通过 + 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）+ 走查**，四步缺一不算完成。
+7. **改完插件 = 代码改完 + 门禁通过 + 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）+ 隔离实例走查 + 运行实例只读复验**，五步缺一不算完成。
 8. **插件根视图的滚动容器其子区块必须 `flex-shrink: 0`。**
    插件根组件常写成 `height:100%` + flex 列 + 内层滚动容器（如 `.home-content { flex:1; overflow-y:auto }`）。
    该滚动容器的**直接子区块默认 `flex-shrink:1`**：一旦内容总高超过容器（视口一矮就触发，
@@ -130,17 +130,21 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    - `EntityFactory.InitConnection` 与宿主 `XCodeConfig.EnsureTablesCreated` **只扫"当前已加载程序集"**，
      插件 DLL 加载晚于宿主建表 → 插件实体**不在其列**。症状：生产库 0 张表 → 全线 `no such table`。
      （MemorySystem 早已踩过并留注释；AgentHub 漏做 → 委派功能全废。）
-   - 正确姿势（**不依赖程序集扫描**）：
+   - 正确姿势（**不依赖程序集扫描**；本仓实采形状，参考 `Plugins/FileTools/Data/FileToolsTables.cs` / `AgentHubTables.cs`）：
      ```
-     DAL.Create(conn).Db.ServerVersion        // ← 必须先开库，否则只落空库文件不建表
-     TableItem.Create(typeof(X)).DataTable    // 每实体各取一次
-     dal.SetTables(IDataTable[])              // 建表
+     EntityFactory.InitConnection(ConnName)   // 全量建表：按实体 Meta 逐张 CreateTable（幂等）
+     DAL.Create(ConnName).Db.ServerVersion    // 探活确认库可开（⚠ 禁用 dal.Session.Query("SELECT 1")，
+                                              //   库文件尚未创建时它会抛 NullReferenceException）
      ```
-     ⚠ 先开库那步不能省，否则"建表"静默不生效。
+     ⚠ **`TableItem.Create(typeof(X)).DataTable` + `dal.SetTables(IDataTable[])` 这一写法在本仓 0 命中**
+     （旧版本文字，历史出处是 XCode 早期手工建表；照抄会编译不过 —— 批次C 实测）。
+     时序坑仍在：首个实体在连接未就绪时只建空库不建表，故**必须先 InitConnection 再探活**。
    - 建表真源放 `Data/<PascalCase>Tables.cs`（`public const String ConnName = ...` +
-     `EntityTypes` 数组 + `EnsureCreated()`），插件 `IPlugin` 启动时调用，别散落多份。
+     `EntityTypes` 数组 + `EnsureCreated()` 返回 bool），插件 `IPlugin` 启动时调用并 `XTrace.Log.Warn` 失败，别散落多份。
    - **建表异常绝不静默吞**：吞掉后症状是"部分表存在、某张表神秘缺失"，
-     错误信息（`no such table`）与真因（`SetTables` 抛异常）相距极远，极难定位。
+     错误信息（`no such table`）与真因（建表抛异常）相距极远，极难定位。
+   - 宿主侧还有一处必登记：`ForgeSelf.Api/Data/XCodeConfig.cs` 的 `PluginDbs` 加一行（连接名 → 插件 Id），
+     库文件才会落到 `数据根/Plugins/{插件Id}/{连接名}.db`；**插件内禁止自注册 `DAL.AddConnStr`**。
 
 13. **【版本展示铁律】每个插件根视图必须在标题旁展示自身当前版本号。**
    - 根视图 header 标题旁加版本徽标（如 `v2.0.0`），数据从宿主 `GET /api/plugin` 解包
@@ -167,7 +171,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 
 15. **【宿主前端 API 层铁律】宿主 service 的 `parseResponse` 已解包 `json.data`**：新增 fetch 函数直接按目标类型 T 收（`parseResponse<T>(resp)` 返回 T 本身），**禁止再取 `.data`/`.stats`**——会得到 undefined、页面无错但功能静默失效（fetchPluginVersion / fetchTraffic 各踩一次）。宿主内嵌组件型插件（无独立 web/）的 service 层同样适用。
 16. **【发布铁律】发布 = 打 tag 自动发布 + 页面自动更新（2026-09-27 新规范）；禁止手工 Copy-Item 发布产物；禁止 agent 停/启/杀用户宿主进程。**
-   - 改完插件/宿主 = 代码 + 门禁 + 插件层 e2e + **发布（打 tag → CI 自动打包 GitHub Release，或本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源）** + 走查，四步缺一不算完成。
+   - 改完插件/宿主 = 代码 + 门禁 + 插件层 e2e + **发布（打 tag → CI 自动打包 GitHub Release，或本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源）** + 隔离实例走查 + **运行实例只读复验（用户启用新版本后）**，五步缺一不算完成。
    - **宿主由 update-agent 自更新（spec 036）**：用户/页面点「检查更新 → 下载 → 重启并更新」，全程无人停宿主。
      任何情况下 **agent 不得 Stop-Process 用户运行中的 ForgeSelf**（旧规范 run-plugin-publish-verify.ps1 会杀掉非 publish 实例，2026-09-27 已废除该行为，见 plugin-publish-verify）。
    - 宿主后端 Controller 改完**必须先 `dotnet build` 门禁**（直接复制旧 Release DLL → 新端点 404，流量统计接口实测）；发布产物由 CI/打包脚本全量重建，**不要手工复制 DLL**。
@@ -324,7 +328,7 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 四、维护闭环（改完插件必走）
 
 ```
-读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ 更新插件文档 → 记日志
+读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
 ```
 
 0. **改实体时（先做这一步，再改代码）**：按铁律 9 走

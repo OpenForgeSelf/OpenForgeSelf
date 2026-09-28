@@ -5,6 +5,7 @@ using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Api.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using ForgeSelf.Api.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
@@ -103,14 +104,17 @@ public class PluginMenuItemsMergeTests
     {
         extensionPointManager ??= new ExtensionPointManager(_manager);
         var packagerService = new PluginPackagerService(_manager);
-        var versionService = new PluginVersionService(_manager);
+        var versionService = new PluginVersionService(_manager,
+            new PluginUpdateSettingsService(new PluginUpdateSettings(), Path.Combine(Path.GetTempPath(), "pmi-plugin-update-settings-test.json")),
+            new PluginPackagerService(_manager));
         var controller = new PluginController(
             _manager,
             extensionPointManager,
             versionService,
             packagerService,
             new PluginInstallerService(_manager, packagerService, versionService),
-            new PluginScaffolderService());
+            new PluginScaffolderService(),
+            new PluginUpdateSettingsService(new PluginUpdateSettings(), Path.Combine(Path.GetTempPath(), "pmi-plugin-update-settings-test.json")));
 
         var ok = controller.GetMenuItems().Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.OkObjectResult>().Subject;
         return ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginMenuItemDto>>>().Subject.Data;

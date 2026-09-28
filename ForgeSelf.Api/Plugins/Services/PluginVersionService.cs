@@ -3,6 +3,7 @@ using System.Text.Json;
 using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.Abstractions;
+using ForgeSelf.Api.Services;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.Services;
@@ -13,12 +14,19 @@ public class PluginVersionService
     private const int MaxRetainedVersions = 2;
 
     private readonly PluginManager _pluginManager;
+    private readonly PluginUpdateSettingsService _pluginUpdateSettings;
+    private readonly PluginPackagerService _packagerService;
     private string _pluginsDirectory = string.Empty;
     private string _backupsDirectory = string.Empty;
 
-    public PluginVersionService(PluginManager pluginManager)
+    public PluginVersionService(
+        PluginManager pluginManager,
+        PluginUpdateSettingsService pluginUpdateSettings,
+        PluginPackagerService packagerService)
     {
         _pluginManager = pluginManager;
+        _pluginUpdateSettings = pluginUpdateSettings;
+        _packagerService = packagerService;
     }
 
     public void Initialize(string pluginsDirectory)
@@ -41,21 +49,55 @@ public class PluginVersionService
 
         foreach (var metadata in metadatas)
         {
+            // ① _backups 暂存目录（既有来源）
+            string? latestFromBackup = null;
             var backupDir = Path.Combine(_backupsDirectory, metadata.Id);
-            if (!Directory.Exists(backupDir))
+            if (Directory.Exists(backupDir))
+            {
+                var versionDirs = Directory.GetDirectories(backupDir)
+                    .Select(Path.GetFileName)
+                    .Where(v => !string.IsNullOrEmpty(v))
+                    .ToList();
+
+                if (versionDirs.Count > 0)
+                {
+                    latestFromBackup = versionDirs
+                        .OrderByDescending(v => v, new VersionComparer())
+                        .First();
+                }
+            }
+
+            // ② 插件更新源本地包目录（输入27）：顶层 *.forgeself-plugin 包，版本高于当前生效才列为可更新
+            string? latestFromPackage = ScanPackageSource(metadata.Id, metadata.Version);
+
+            string? latestVersion = null;
+            string source = "backup";
+            if (latestFromBackup != null && latestFromPackage != null)
+            {
+                if (new VersionComparer().Compare(latestFromBackup, latestFromPackage) >= 0)
+                {
+                    latestVersion = latestFromBackup;
+                    source = "backup";
+                }
+                else
+                {
+                    latestVersion = latestFromPackage;
+                    source = "package";
+                }
+            }
+            else if (latestFromBackup != null)
+            {
+                latestVersion = latestFromBackup;
+                source = "backup";
+            }
+            else if (latestFromPackage != null)
+            {
+                latestVersion = latestFromPackage;
+                source = "package";
+            }
+
+            if (latestVersion == null)
                 continue;
-
-            var versionDirs = Directory.GetDirectories(backupDir)
-                .Select(Path.GetFileName)
-                .Where(v => !string.IsNullOrEmpty(v))
-                .ToList();
-
-            if (versionDirs.Count == 0)
-                continue;
-
-            var latestVersion = versionDirs
-                .OrderByDescending(v => v, new VersionComparer())
-                .First();
 
             if (new VersionComparer().Compare(latestVersion, metadata.Version) > 0)
             {
@@ -65,7 +107,8 @@ public class PluginVersionService
                     PluginName = metadata.Name,
                     CurrentVersion = metadata.Version,
                     LatestVersion = latestVersion!,
-                    HasUpdate = true
+                    HasUpdate = true,
+                    Source = source
                 });
             }
         }
@@ -135,7 +178,8 @@ public class PluginVersionService
 
         return versions;
     }
-public bool UpdatePlugin(string pluginId)
+
+    public bool UpdatePlugin(string pluginId)
     {
         XTrace.Log.Info("更新插件: {0}", pluginId);
 
@@ -145,6 +189,10 @@ public bool UpdatePlugin(string pluginId)
             XTrace.Log.Error("插件不存在: {0}", pluginId);
             return false;
         }
+
+        // 输入27：插件更新源本地包目录——若 _backups 无更高版本，尝试从包 stage。
+        // P1-1：必须在下方两个提前 return 之前执行，保证纯包源（从未 stage 过）场景也能更新。
+        EnsureStagedFromPackageSource(pluginId, metadata.Version);
 
         var backupDir = Path.Combine(_backupsDirectory, pluginId);
         if (!Directory.Exists(backupDir))
@@ -222,6 +270,202 @@ public bool UpdatePlugin(string pluginId)
             return false;
         }
     }
+
+    /// <summary>
+    /// 从插件更新源本地包目录把更高版本包解包 stage 到 _backups/&lt;id&gt;/&lt;ver&gt;/（输入27）。
+    /// 全程内部捕获异常：失败记日志并返回 false（视为无包源，不阻断 _backups 既有链路），不传播 500。
+    /// </summary>
+    private bool EnsureStagedFromPackageSource(string pluginId, string currentVersion)
+    {
+        var localDir = _pluginUpdateSettings.Current.LocalDir;
+        if (string.IsNullOrWhiteSpace(localDir) || !Directory.Exists(localDir))
+            return false;
+
+        try
+        {
+            string? bestPkg = null;
+            string? bestVer = null;
+            foreach (var pkg in Directory.GetFiles(localDir, "*.forgeself-plugin", SearchOption.TopDirectoryOnly))
+            {
+                PluginMetadata? meta = null;
+                try
+                {
+                    meta = _packagerService.ReadPackageMetadata(pkg);
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Warn("插件更新源：包读取失败，跳过 {0}: {1}", pkg, ex.Message);
+                    continue;
+                }
+                if (meta == null || !string.Equals(meta.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (string.IsNullOrWhiteSpace(meta.Version) || !IsValidVersion(meta.Version))
+                    continue;
+                if (new VersionComparer().Compare(meta.Version, currentVersion) <= 0)
+                    continue;
+                // P1-6：入口 DLL 校验（ValidatePackage 只查 plugin.json 三字段，不查 EntryAssembly）
+                if (string.IsNullOrWhiteSpace(meta.EntryAssembly) ||
+                    !PackageContainsEntryAssembly(pkg, meta.EntryAssembly))
+                {
+                    XTrace.Log.Warn("插件更新源：包缺少入口程序集 {0}，跳过: {1}", meta.EntryAssembly ?? "?", pkg);
+                    continue;
+                }
+
+                // P1-2 统一版本基准（与 CheckForUpdates 展示一致）：包版本必须高于 _backups 现有最高版本目录
+                var highestBackup = GetHighestBackupVersion(pluginId);
+                if (highestBackup != null && new VersionComparer().Compare(meta.Version, highestBackup) <= 0)
+                    continue;
+
+                if (bestVer == null || new VersionComparer().Compare(meta.Version, bestVer) > 0)
+                {
+                    bestVer = meta.Version;
+                    bestPkg = pkg;
+                }
+            }
+
+            if (bestPkg == null || bestVer == null)
+                return false;
+
+
+            if (!_packagerService.ValidatePackage(bestPkg))
+            {
+                XTrace.Log.Error("插件更新源：包校验失败，拒绝 stage: {0}", bestPkg);
+                return false;
+            }
+
+            // 解包到 _backups/<id>/<ver>/（全新版本目录，side-by-side；包内布局根 = plugin.json + DLL + web/dist）
+            var stagedDir = Path.Combine(_backupsDirectory, pluginId, bestVer);
+            if (Directory.Exists(stagedDir))
+            {
+                XTrace.Log.Warn("插件更新源：目标版本目录已存在，保留现有 staged: {0}", stagedDir);
+                return true;
+            }
+            Directory.CreateDirectory(stagedDir);
+            _packagerService.ExtractPackage(bestPkg, stagedDir);
+
+            XTrace.Log.Info("插件更新源：包已 stage 到 {0}", stagedDir);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("插件更新源：从包 stage 失败 [{0}]: {1}", pluginId, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 扫描插件更新源本地包目录（输入27）：顶层 *.forgeself-plugin 包，读取包内 plugin.json，
+    /// 返回版本高于 currentVersion 且高于 _backups 现有最高版本的最高包版本；无包源/无效包/异常返回 null。
+    /// </summary>
+    private string? ScanPackageSource(string pluginId, string currentVersion)
+    {
+        var localDir = _pluginUpdateSettings.Current.LocalDir;
+        if (string.IsNullOrWhiteSpace(localDir) || !Directory.Exists(localDir))
+            return null;
+
+        string? best = null;
+        try
+        {
+            foreach (var pkg in Directory.GetFiles(localDir, "*.forgeself-plugin", SearchOption.TopDirectoryOnly))
+            {
+                PluginMetadata? meta = null;
+                try
+                {
+                    meta = _packagerService.ReadPackageMetadata(pkg);
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Warn("插件更新源：包读取失败，跳过 {0}: {1}", pkg, ex.Message);
+                    continue;
+                }
+                if (meta == null || !string.Equals(meta.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (string.IsNullOrWhiteSpace(meta.Version) || !IsValidVersion(meta.Version))
+                    continue;
+                if (new VersionComparer().Compare(meta.Version, currentVersion) <= 0)
+                    continue;
+                // P1-6：入口 DLL 校验（ValidatePackage 只查 plugin.json 三字段，不查 EntryAssembly）
+                if (string.IsNullOrWhiteSpace(meta.EntryAssembly) ||
+                    !PackageContainsEntryAssembly(pkg, meta.EntryAssembly))
+                {
+                    XTrace.Log.Warn("插件更新源：包缺少入口程序集 {0}，跳过: {1}", meta.EntryAssembly ?? "?", pkg);
+                    continue;
+                }
+
+
+                var highestBackup = GetHighestBackupVersion(pluginId);
+                if (highestBackup != null && new VersionComparer().Compare(meta.Version, highestBackup) <= 0)
+                    continue;
+
+                if (best == null || new VersionComparer().Compare(meta.Version, best) > 0)
+                    best = meta.Version;
+            }
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("插件更新源：扫描本地包目录失败 {0}: {1}", localDir, ex.Message);
+            return null;
+        }
+
+        return best;
+    }
+
+    private string? GetHighestBackupVersion(string pluginId)
+    {
+        var backupDir = Path.Combine(_backupsDirectory, pluginId);
+        if (!Directory.Exists(backupDir))
+            return null;
+
+        var versions = Directory.GetDirectories(backupDir)
+            .Select(Path.GetFileName)
+            .Where(v => !string.IsNullOrEmpty(v) && IsValidVersion(v!))
+            .ToList();
+        if (versions.Count == 0)
+            return null;
+
+        return versions.OrderByDescending(v => v, new VersionComparer()).First();
+    }
+
+    /// <summary>从包内 plugin.json 读取 EntryAssembly（null = 包无该字段）。</summary>
+    private string? GetEntryAssemblyFromPackage(string packagePath)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(packagePath);
+            var manifestEntry = archive.GetEntry("plugin.json");
+            if (manifestEntry == null)
+                return null;
+            using var reader = new StreamReader(manifestEntry.Open());
+            var json = reader.ReadToEnd();
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("EntryAssembly", out var prop))
+                return null;
+            var name = prop.GetString();
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>校验包内根存在 EntryAssembly 对应文件（P1-6，防包缺入口 DLL 导致假成功）。</summary>
+    private bool PackageContainsEntryAssembly(string packagePath, string entryAssembly)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(packagePath);
+            return archive.GetEntry(entryAssembly) != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>版本号必须为 x[.y[.z[.w]]] 数字序列（防路径穿越，P1-5）。</summary>
+    private static bool IsValidVersion(string version)
+        => System.Text.RegularExpressions.Regex.IsMatch(version, @"^\d+(\.\d+){0,3}$");
 
     public bool RollbackPlugin(string pluginId, string version)
     {

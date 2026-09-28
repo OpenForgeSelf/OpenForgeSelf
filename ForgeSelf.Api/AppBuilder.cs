@@ -116,7 +116,12 @@ public static class AppBuilder
         builder.Services.AddSingleton<ISkillsService, SkillsService>();
         builder.Services.AddHttpClient<IAIService, AIService>();
         // P4 会话/LLM 接缝接线：注册真实实现（消费者经接缝调用，替换 Provider 零改动）
-        builder.Services.AddSingleton<ISessionStore, InMemorySessionStore>();
+        // B2（040）：会话事件日志落 Sqlite/XCode（持久化真相源）；
+        // InMemorySessionStore 退为测试替身，不再注册进生产 DI（接缝不变，替换零改动）。
+        builder.Services.AddSingleton<ISessionStore>(_ => new PersistentSessionStore());
+        // B4（040）：ChatMessage 只读投影同步器。IMessageService/ILogService 均为 Scoped → 本服务必须 Scoped
+        // （ISessionStore 是 Singleton，误注册成 Singleton 会把 Scoped 依赖拖进根容器）。
+        builder.Services.AddScoped<SessionProjectionService>();
         builder.Services.AddScoped<ILlmRuntime, AIServiceLlmRuntime>();
         builder.Services.AddSingleton<IAgentLoop, InMemoryAgentLoop>();
         builder.Services.AddSingleton<IInbox, InMemoryInbox>();
@@ -165,6 +170,12 @@ public static class AppBuilder
         var updateSettingsFile = Path.Combine(
             dataLocation.GetHostDataDirectory(), "Config", "update-settings.json");
         builder.Services.AddSingleton(new UpdateSettingsService(updateConfigInitial, updateSettingsFile));
+        // 插件更新源配置（2026-09-28，输入27）：同构 UpdateSettingsService，
+        // 设置页（插件管理 tab）修改后落盘到 {数据根}/Config/plugin-update-settings.json，
+        // PluginVersionService / PluginController 共享同一实例引用，改配置无需重启宿主。
+        var pluginUpdateSettingsFile = Path.Combine(
+            dataLocation.GetHostDataDirectory(), "Config", "plugin-update-settings.json");
+        builder.Services.AddSingleton(new PluginUpdateSettingsService(new Models.Plugins.PluginUpdateSettings(), pluginUpdateSettingsFile));
 
         // ServiceManager — 封装 Windows 服务安装/卸载/状态检测
         builder.Services.AddSingleton<IServiceManager>(sp =>

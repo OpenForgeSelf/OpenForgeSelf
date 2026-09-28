@@ -3,6 +3,8 @@ using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using ForgeSelf.Api.Models.Plugins;
+using ForgeSelf.Api.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ForgeSelf.Api.Tests.Plugins;
@@ -20,7 +22,9 @@ public class PluginVersionServiceTests
         var sp = services.BuildServiceProvider();
         _manager = new PluginManager(sp, Mock.Of<IPermissionChecker>());
         _manager.SetPluginsDirectory(_tempDir.RootPath);
-        _service = new PluginVersionService(_manager);
+        _service = new PluginVersionService(_manager,
+            new PluginUpdateSettingsService(new PluginUpdateSettings(), Path.Combine(Path.GetTempPath(), "pvs-plugin-update-settings-test.json")),
+            new PluginPackagerService(_manager));
         _service.Initialize(_tempDir.RootPath);
     }
 

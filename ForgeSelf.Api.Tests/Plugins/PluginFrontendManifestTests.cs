@@ -6,6 +6,7 @@ using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Api.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using ForgeSelf.Api.Services;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
@@ -287,7 +288,9 @@ public class PluginFrontendManifestTests
     private PluginController CreateController()
     {
         var extensionPointManager = new ExtensionPointManager(_manager);
-        var versionService = new PluginVersionService(_manager);
+        var versionService = new PluginVersionService(_manager,
+            new PluginUpdateSettingsService(new PluginUpdateSettings(), Path.Combine(Path.GetTempPath(), "pfs-plugin-update-settings-test.json")),
+            new PluginPackagerService(_manager));
         var packagerService = new PluginPackagerService(_manager);
         var installerService = new PluginInstallerService(_manager, packagerService, versionService);
         var scaffolderService = new PluginScaffolderService();
@@ -298,6 +301,7 @@ public class PluginFrontendManifestTests
             versionService,
             packagerService,
             installerService,
-            scaffolderService);
+            scaffolderService,
+            new PluginUpdateSettingsService(new PluginUpdateSettings(), Path.Combine(Path.GetTempPath(), "pfs-plugin-update-settings-test.json")));
     }
 }

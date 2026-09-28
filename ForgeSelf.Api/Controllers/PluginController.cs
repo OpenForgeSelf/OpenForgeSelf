@@ -6,6 +6,7 @@ using ForgeSelf.Api.Plugins;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using ForgeSelf.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
@@ -23,6 +24,7 @@ public class PluginController : ControllerBase
     private readonly PluginPackagerService _packagerService;
     private readonly PluginInstallerService _installerService;
     private readonly PluginScaffolderService _scaffolderService;
+    private readonly PluginUpdateSettingsService _pluginUpdateSettings;
 
     public PluginController(
         PluginManager pluginManager,
@@ -30,7 +32,8 @@ public class PluginController : ControllerBase
         PluginVersionService versionService,
         PluginPackagerService packagerService,
         PluginInstallerService installerService,
-        PluginScaffolderService scaffolderService)
+        PluginScaffolderService scaffolderService,
+        PluginUpdateSettingsService pluginUpdateSettings)
     {
         _pluginManager = pluginManager;
         _extensionPointManager = extensionPointManager;
@@ -38,6 +41,7 @@ public class PluginController : ControllerBase
         _packagerService = packagerService;
         _installerService = installerService;
         _scaffolderService = scaffolderService;
+        _pluginUpdateSettings = pluginUpdateSettings;
     }
 
     [HttpGet]
@@ -784,6 +788,44 @@ public class PluginController : ControllerBase
         }
     }
 
+    [HttpGet("update-settings")]
+    public ActionResult<ApiResponse<PluginUpdateSettings>> GetPluginUpdateSettings()
+    {
+        try
+        {
+            XTrace.Log.Info("获取插件更新源配置");
+            var settings = _pluginUpdateSettings.Current;
+            return Ok(ApiResponse<PluginUpdateSettings>.Ok(settings, "获取插件更新源配置成功"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("获取插件更新源配置失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<PluginUpdateSettings>.Error("获取插件更新源配置失败: " + ex.Message));
+        }
+    }
+
+    [HttpPut("update-settings")]
+    public ActionResult<ApiResponse<PluginUpdateSettings>> SavePluginUpdateSettings([FromBody] PluginUpdateSettings request)
+    {
+        try
+        {
+            XTrace.Log.Info("保存插件更新源配置");
+
+            var localDir = request?.LocalDir?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(localDir) && !Directory.Exists(localDir))
+            {
+                return BadRequest(ApiResponse.Error("插件更新源目录不存在", 400));
+            }
+
+            _pluginUpdateSettings.Update(cfg => cfg.LocalDir = localDir);
+            return Ok(ApiResponse<PluginUpdateSettings>.Ok(_pluginUpdateSettings.Current, "插件更新源配置已保存"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("保存插件更新源配置失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<PluginUpdateSettings>.Error("保存插件更新源配置失败: " + ex.Message));
+        }
+    }
     [HttpPost("update/{pluginId}")]
     public ActionResult<ApiResponse> UpdatePlugin(string pluginId)
     {

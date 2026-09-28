@@ -221,6 +221,21 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 
 ---
 
+### 9.6 插件更新源（本地包目录，2026-09-28）
+
+插件更新与宿主解耦：在「设置 - 插件管理」页配置一个**本地插件包目录**，
+插件市场「检查更新」会扫描该目录顶层 `*.forgeself-plugin` 包，发现更高版本即可更新，**不重启宿主**。
+
+- 配置端点：`GET /api/plugin/update-settings`（回显）、`PUT /api/plugin/update-settings`（body `{"localDir":"..."}`，空 = 停用，目录不存在返回 400）。
+  落盘 `{数据根}/Config/plugin-update-settings.json`，运行时生效无需重启（共享实例引用）。
+- 更新发现：`GET /api/plugin/updates` 返回项的 `source` 字段区分 `backup`（_backups 暂存）与 `package`（包目录）。
+  包版本必须**高于当前生效版本且高于 _backups 最高版本**才列出；包内 `plugin.json` Id 必须匹配、版本号合法、含入口 DLL。
+- 更新执行：`POST /api/plugin/update/{id}` 在无 _backups 更高版本时，自动从包目录把最高版本包解包 stage 到 `_backups/<id>/<ver>/`，再走既有版本化切换（不重启宿主）。
+- 打包脚本：`scripts/package-plugin.ps1 -Plugin AIAgent -OutDir <目录>`（dotnet publish → 排除宿主共享 DLL `ForgeSelf.*.dll|NewLife.*.dll|XCode.dll|MX.dll` → plugin.json + 产物 + web/dist → `<id>-<ver>.forgeself-plugin`）。
+- 与宿主更新源（`UpdateConfig` / 版本更新页）**完全分离**：两者各自独立配置与链路，互不影响。
+
+---
+
 ## 十、插件自带界面（web/）
 
 > 本节描述**已实现**的"插件前端"约定：插件目录下用 `web/` 存放自带界面（前端源码 + 构建产物），

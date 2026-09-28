@@ -136,6 +136,13 @@ export interface PluginUpdateInfo {
   currentVersion: string
   latestVersion: string
   hasUpdate: boolean
+  /** 更新来源：'backup'（已暂存备份）或 'package'（插件更新源本地包目录，2026-09-28 输入27） */
+  source?: string
+}
+
+/** 插件更新源配置（2026-09-28，输入27）：localDir 空字符串 = 未配置/停用 */
+export interface PluginUpdateSettings {
+  localDir: string
 }
 
 export interface PluginBackupInfo {

@@ -21,6 +21,7 @@ import type {
   PluginSearchParams,
   PluginVersionInfo,
   PluginUpdateInfo,
+  PluginUpdateSettings,
   PluginTemplateInfo,
   ScaffoldRequest
 } from '@/types/plugin'
@@ -206,6 +207,26 @@ export const pluginApi = {
     if (!response.ok) {
       throw new Error(`卸载插件失败: ${response.status}`)
     }
+  },
+
+  async fetchPluginUpdateSettings(): Promise<PluginUpdateSettings> {
+    const response = await authFetch(`${API_BASE_URL}/plugin/update-settings`)
+    if (!response.ok) {
+      throw new Error(`获取插件更新源配置失败: ${response.status}`)
+    }
+    return unwrap<PluginUpdateSettings>(response)
+  },
+
+  async updatePluginUpdateSettings(settings: PluginUpdateSettings): Promise<PluginUpdateSettings> {
+    const response = await authFetch(`${API_BASE_URL}/plugin/update-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    })
+    if (!response.ok) {
+      throw new Error(`保存插件更新源配置失败: ${response.status}`)
+    }
+    return unwrap<PluginUpdateSettings>(response)
   },
 
   async checkForUpdates(): Promise<PluginUpdateInfo[]> {

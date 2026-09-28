@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Plus, FolderOpened } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { pluginApi } from '@/services/pluginApi'
 
 interface PluginItem {
   name: string
@@ -18,6 +20,35 @@ const plugins = ref<PluginItem[]>([
 function togglePlugin(index: number): void {
   plugins.value[index].enabled = !plugins.value[index].enabled
 }
+
+// ── 插件更新源（本地包目录，2026-09-28 输入27；与宿主「版本更新-更新源配置」分离） ──
+const localDir = ref('')
+const saving = ref(false)
+
+async function loadUpdateSource(): Promise<void> {
+  try {
+    const settings = await pluginApi.fetchPluginUpdateSettings()
+    localDir.value = settings.localDir ?? ''
+  } catch (e) {
+    ElMessage.error({ message: `加载插件更新源配置失败: ${e instanceof Error ? e.message : e}`, offset: 60 })
+  }
+}
+
+async function onSaveUpdateSource(): Promise<void> {
+  if (saving.value) return
+  saving.value = true
+  try {
+    const saved = await pluginApi.updatePluginUpdateSettings({ localDir: localDir.value.trim() })
+    localDir.value = saved.localDir ?? ''
+    ElMessage.success({ message: saved.localDir ? '插件更新源已保存' : '插件更新源已停用（留空即停用）', offset: 60 })
+  } catch (e) {
+    ElMessage.error({ message: `保存插件更新源配置失败: ${e instanceof Error ? e.message : e}`, offset: 60 })
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(loadUpdateSource)
 </script>
 
 <template>
@@ -29,6 +60,27 @@ function togglePlugin(index: number): void {
         <p class="text-sm text-text-regular mt-1 mb-0">启用、禁用或导入第三方插件</p>
       </div>
     </div>
+
+    <!-- 插件更新源（本地包目录） -->
+    <el-card shadow="never">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-base font-medium text-text">插件更新源</div>
+          <div class="text-xs text-text-secondary mt-1">
+            配置插件本地包目录后，插件市场「检查更新」会扫描目录内 .forgeself-plugin 包并发现更高版本（与宿主更新互不影响）
+          </div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <el-input
+          v-model="localDir"
+          placeholder="插件包目录，如 D:\plugin-packages；留空 = 停用插件更新源"
+          :disabled="saving"
+          style="flex: 1"
+        />
+        <el-button type="primary" :loading="saving" @click="onSaveUpdateSource">保存</el-button>
+      </div>
+    </el-card>
 
     <!-- 插件列表 -->
     <el-card shadow="never">

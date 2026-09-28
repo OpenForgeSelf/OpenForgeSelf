@@ -33,7 +33,8 @@
 
 ## 3. 算法与口径（为什么排行只给「直接子目录」一层）
 
-- 一趟流式遍历（`Directory.EnumerateFileSystemEntries` + 显式栈，**不用** `GetFiles(...,AllDirectories)`）；每个文件的字节记到它的**直接父目录** `directBytes`，并**当场沿父链把 `totalBytes` 上卷**（O(depth) 次累加）。为什么是「当场」而不是扫完再归并一趟：扫描中的 `Running/Cancelled` 中间态也要能对外解释 —— 旧写法下根分母只有根级字节，界面实测出现过「总占用 29B / 某行 160KB / 占比 564965%」。
+- 一趟流式遍历（`DirectoryInfo.EnumerateFileSystemInfos` + 显式栈，**不用** `GetFiles(...,AllDirectories)`）；文件字节取自枚举记录（`FileInfo.Length`，**零额外 stat 系统调用**）；每个文件的字节记到它的**直接父目录** `directBytes`，并**当场沿父链把 `totalBytes` 上卷**（O(depth) 次累加）。为什么是「当场」而不是扫完再归并一趟：扫描中的 `Running/Cancelled` 中间态也要能对外解释 —— 旧写法下根分母只有根级字节，界面实测出现过「总占用 29B / 某行 160KB / 占比 564965%」。
+- **并行分片**（1.1.2 起）：根本级文件由主线程直接累计，根的直接子目录各为一个独立分区，`Parallel.ForEach` 并行遍历（`MaxDegreeOfParallelism = min(核数, 8)`），每个分区顺序 DFS；全部共享状态读写都在 `lock(job.Sync)` 内，逐文件上卷保证**任意时刻**（含并行中间态）分区不变式自洽。实测同棵 5.2 万文件树 22.7s → 0.7~2.2s（8 核），与 XCoder/码神工具（枚举自带大小 + 多线程）的差距由此消除。
 - **分区不变式**：`Σ(直接子目录 totalBytes) + 根本级文件字节 == 根总量`。排行恒取「直接子目录」这一层切片 —— 同层互不重叠，才能保住这条不变式，`Σ行 + 其他 + 本级 == 根总量` 才可断言。多级展开会让父子重复计数，故**要看更深层用钻取**（以该子目录为新根重扫）。前端 `partitionOk()` 校验失败时会显式告警，不把截断结果冒充准确占用。
 - 容错：符号链接/junction/挂载点**不跟随**（`skippedReparseCount`）；条目级 `UnauthorizedAccessException`/`IOException` 计入 `inaccessibleCount` 并继续；仅根路径不可用时任务转 `Failed`。
 - 上限：单任务目录 ≤ 200,000、文件 ≤ 5,000,000，触顶即 `truncated=true` 并停止深入；内存任务表 ≤ 20 个（按完成时间淘汰，在跑的不淘汰）。

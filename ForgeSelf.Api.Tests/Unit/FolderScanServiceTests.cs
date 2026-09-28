@@ -19,9 +19,11 @@ public class FolderScanServiceTests
 {
     private readonly FolderScanJobStore _store = new();
     private readonly FolderScanService _service;
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
 
-    public FolderScanServiceTests()
+    public FolderScanServiceTests(Xunit.Abstractions.ITestOutputHelper output)
     {
+        _output = output;
         _service = new FolderScanService(_store);
     }
 
@@ -367,6 +369,109 @@ public class FolderScanServiceTests
         vB.RootPath.Should().Be(rootB);
         vA.RootTotalBytes.Should().Be(1111);
         vB.RootTotalBytes.Should().Be(2222 + 333);
+    }
+
+    [Fact]
+    public void ScanAndWait_ParallelPartitions_AggregatesExactTotals_AndInvariantHolds()
+    {
+        // Arrange —— 50 个一级目录（> 核数，强制并行分片真实生效），每个 10 文件×128B + sub 1 文件 7B；根本级 5B
+        const int dirs = 50, filesPerDir = 10, fileSize = 128, subFileSize = 7;
+        var root = NewRoot();
+        for (var i = 0; i < dirs; i++)
+        {
+            var d = Path.Combine(root, "d" + i.ToString("D2"));
+            for (var f = 0; f < filesPerDir; f++) WriteFile(d, "f" + f + ".bin", fileSize);
+            WriteFile(Path.Combine(d, "sub"), "s.bin", subFileSize);
+        }
+        WriteFile(root, "own.bin", 5);
+
+        var perDir = filesPerDir * (long)fileSize + subFileSize; // 1287
+        var expectedRoot = dirs * perDir + 5;
+
+        // Act
+        var view = _service.ScanAndWait(new FolderScanRequest { Directory = root });
+
+        // Assert —— 并行不得丢字节/丢文件/丢目录
+        view.State.Should().Be(ScanState.Completed);
+        view.RootTotalBytes.Should().Be(expectedRoot);
+        view.RootOwnBytes.Should().Be(5);
+        view.Items.Should().HaveCount(dirs); // Top=50 → 全列，无截断
+        view.Items.All(r => r.TotalBytes == perDir).Should().BeTrue();
+        view.FileCount.Should().Be(dirs * filesPerDir + dirs + 1);
+        view.DirectoryCount.Should().Be(dirs * 2);
+        (view.Items.Sum(r => r.TotalBytes) + (view.OtherRow?.TotalBytes ?? 0) + view.RootOwnBytes)
+            .Should().Be(view.RootTotalBytes);
+        view.OtherRow.Should().BeNull();
+    }
+
+    [Fact]
+    public void CancelScan_AfterRunningDuringParallelWalk_ObservedAsCancelled_AndInvariantHolds()
+    {
+        // Arrange —— 与 1.1.1 取消用例同构，但先等到 Running（真正的并行遍历窗口）再取消
+        const int dirs = 2000, filesPerDir = 4;
+        var root = NewRoot();
+        for (var i = 0; i < dirs; i++)
+        {
+            var d = Path.Combine(root, "d" + i.ToString("D4"));
+            for (var f = 0; f < filesPerDir; f++) WriteFile(d, "f" + f + ".bin", 1);
+        }
+
+        var acc = _service.StartScan(new FolderScanRequest { Directory = root });
+
+        // Act —— 等 Running 再取消
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        var sawRunning = false;
+        while (DateTime.UtcNow < deadline)
+        {
+            var cur = _service.GetScan(acc.ScanId);
+            if (cur == null) break;
+            if (cur.State == ScanState.Running) { sawRunning = true; break; }
+            if (cur.State is ScanState.Completed or ScanState.Failed or ScanState.Cancelled) break;
+            Thread.Sleep(1);
+        }
+        _service.CancelScan(acc.ScanId);
+
+        var view = WaitUntilStopped(acc.ScanId);
+
+        // Assert —— 无论落在哪个阶段停下，中间态/终态都必须自洽
+        sawRunning.Should().BeTrue("树应大到足以进入 Running");
+        view.State.Should().Be(ScanState.Cancelled);
+        var listed = view.Items.Sum(r => r.TotalBytes);
+        var other = view.OtherRow?.TotalBytes ?? 0;
+        (listed + other + view.RootOwnBytes).Should().Be(view.RootTotalBytes, "并行取消后的部分视图也必须分区闭合");
+        foreach (var r in view.Items)
+            r.Percentage.Should().BeInRange(0m, 100m, $"并行部分视图出现假占比 {r.Percentage}%");
+        var second = _service.GetScan(acc.ScanId);
+        second!.RootTotalBytes.Should().Be(view.RootTotalBytes, "Cancelled 之后不得继续累计字节");
+    }
+
+    [Fact]
+    public void ScanAndWait_12kFiles_ParallelScanCompletesWithin1500ms()
+    {
+        // Arrange —— 300 目录 × 40 文件 = 12000 文件 × 16B；闸门1 拍板：绝对阈值 ≤1500ms
+        const int dirs = 300, filesPerDir = 40, fileSize = 16;
+        var root = NewRoot();
+        for (var i = 0; i < dirs; i++)
+        {
+            var d = Path.Combine(root, "d" + i.ToString("D3"));
+            for (var f = 0; f < filesPerDir; f++) WriteFile(d, "f" + f + ".bin", fileSize);
+        }
+
+        // 预热：首扫含文件系统缓存冷启动，计时只看第二次
+        _service.ScanAndWait(new FolderScanRequest { Directory = root });
+
+        // Act
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var view = _service.ScanAndWait(new FolderScanRequest { Directory = root });
+        sw.Stop();
+
+        // Assert
+        view.State.Should().Be(ScanState.Completed);
+        view.RootTotalBytes.Should().Be(dirs * filesPerDir * (long)fileSize);
+        view.FileCount.Should().Be(dirs * filesPerDir);
+        _output.WriteLine($"12k 夹具并行扫描实测 {sw.ElapsedMilliseconds} ms（阈值 1500 ms）");
+        sw.ElapsedMilliseconds.Should().BeLessOrEqualTo(1500,
+            $"12000 文件并行扫描实测 {sw.ElapsedMilliseconds}ms，超出闸门1 拍板阈值 1500ms");
     }
 
     #endregion

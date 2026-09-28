@@ -1,7 +1,7 @@
 {
   "Id": "file-tools",
   "Name": "文件工具插件",
-  "Version": "1.1.1",
+  "Version": "1.1.2",
   "Author": "ForgeSelf Team",
   "Description": "提供批量重命名、文件清理、压缩解压、文件统计、目录大小排行与快照等常用文件处理工具。界面自带（web/dist），更新本插件不需要重建或重启宿主。",
   "IconUrl": "https://example.com/file-tools-icon.png",

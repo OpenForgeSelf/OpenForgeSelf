@@ -7,10 +7,12 @@ namespace ForgeSelf.Api.Plugins.FileTools.Services;
 
 /// <summary>
 /// 目录大小排行扫描（批次C）。要点：
-/// ① 流式遍历（<see cref="Directory.EnumerateFileSystemEntries"/>）+ 显式栈，不用
-///    <c>GetFiles(...,AllDirectories)</c> —— 后者会把整棵树的路径一次性物化成数组，大目录上是内存与延迟悬崖；
-/// ② 一趟遍历 + 一次自底向上归并（walk-up），不做「每个目录各自递归重扫」的 O(n²)；
-/// ③ 后台任务 + 可取消，HTTP 侧只受理与轮询。
+/// ① 流式遍历（<see cref="DirectoryInfo.EnumerateFileSystemInfos"/>）+ 显式栈，size 与 reparse 判定
+///    取自枚举记录（不物化整棵树，也不对每个文件单独 stat —— 1.1.2 提速的关键）；
+/// ② 一趟遍历 + 逐文件沿父链上卷，不做「每个目录各自递归重扫」的 O(n²)；
+/// ③ 根的直接子目录作并行分片（<see cref="MaxParallelism"/>），分片内串行；
+///    共享状态只在 <see cref="ScanJob.Sync"/> 锁内读写，并行下任意时刻分区闭合不变；
+/// ④ 后台任务 + 可取消，HTTP 侧只受理与轮询。
 /// 既有 <see cref="IFileStatsService"/> 的方法一律不动（规格偏差记录 D-3）。
 /// </summary>
 public interface IFolderScanService
@@ -44,6 +46,9 @@ public class FolderScanService : IFolderScanService
 
     /// <summary>每处理多少个条目检查一次取消。</summary>
     private const int CancelCheckGranularity = 256;
+
+    /// <summary>子树并行分片的最大同时遍历数（闸门1 拍板：min(核数, 8)）。</summary>
+    internal const int MaxParallelism = 8;
 
     private readonly IFolderScanJobStore _store;
 
@@ -111,11 +116,13 @@ public class FolderScanService : IFolderScanService
         job.State = ScanState.Running;
         try
         {
-            Walk(job);
+            ScanRoot(job);
 
             lock (job.Sync)
             {
-                if (job.State != ScanState.Cancelled)
+                // 取消请求可能落在并行阶段的空隙（每个分片都可能不足 256 条目、撞不到检查点）：
+                // 只要令牌已置位就不得报 Completed，否则用户点了取消却得到「已完成」
+                if (job.State != ScanState.Cancelled && !job.Cts.IsCancellationRequested)
                     job.State = ScanState.Completed;
             }
         }
@@ -141,24 +148,118 @@ public class FolderScanService : IFolderScanService
     }
 
     /// <summary>
-    /// 显式栈深度优先遍历。**逐文件沿父链上卷 Total**（不是扫完再归并一趟）：
+    /// 根级受理：根本级文件直接累计；**直接子目录作并行分片**（<see cref="MaxParallelism"/>）。
+    /// 深层遍历在各分片内串行（<see cref="Walk"/>）；共享状态全部在 <see cref="ScanJob.Sync"/> 锁内读写，
+    /// 故「逐文件沿父链上卷」的任意时刻分区闭合在并行下保持不变。
+    /// </summary>
+    private void ScanRoot(ScanJob job)
+    {
+        DirectoryInfo rootDi;
+        try
+        {
+            rootDi = new DirectoryInfo(job.Root);
+        }
+        catch (Exception ex)
+        {
+            lock (job.Sync) { job.InaccessibleCount++; job.Error = $"{job.Root}: {ex.Message}"; }
+            return;
+        }
+
+        DirStat rootSelf;
+        lock (job.Sync) rootSelf = job.GetOrAdd(job.Root, 0, null);
+
+        var subdirs = new List<string>();
+        var touched = 0;
+        foreach (var entry in rootDi.EnumerateFileSystemInfos())
+        {
+            if (++touched % CancelCheckGranularity == 0)
+            {
+                if (job.Cts.IsCancellationRequested) { MarkCancelled(job); return; }
+                if (OverCap(job)) return;
+            }
+
+            try
+            {
+                if (entry is DirectoryInfo sub)
+                {
+                    // 不跟随符号链接/junction/挂载点：否则既可能成环，也会把根外的容量算进根内
+                    if ((sub.Attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+                    {
+                        lock (job.Sync) job.SkippedReparseCount++;
+                        continue;
+                    }
+
+                    lock (job.Sync)
+                    {
+                        if (job.Dirs.Count >= MaxDirectories)
+                        {
+                            job.Truncated = true;
+                            job.CapNote = $"目录数达到上限 {MaxDirectories:N0}，已停止深入";
+                        }
+                        job.GetOrAdd(sub.FullName, 1, job.Root);
+                        rootSelf.ChildDirs++;
+                    }
+                    subdirs.Add(sub.FullName);
+                }
+                else if (entry is FileInfo file)
+                {
+                    // size 取自枚举记录（FindFirstFile 数据），不再对文件单独 stat
+                    var len = file.Length;
+                    lock (job.Sync)
+                    {
+                        rootSelf.Direct += len;
+                        rootSelf.Files++;
+                        job.TotalFiles++;
+                        rootSelf.Total += len;
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                lock (job.Sync) job.InaccessibleCount++;
+            }
+            catch (IOException)
+            {
+                // 条目在枚举后被删走/被占用：计入无权限/不可读数即可，不能让一次扫描整体失败
+                lock (job.Sync) job.InaccessibleCount++;
+            }
+        }
+
+        if (subdirs.Count == 0) return;
+
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, MaxParallelism)
+        };
+        Parallel.ForEach(subdirs, options, sub =>
+        {
+            // 取消后不再启动新分片（FR-4）；已在跑的分片由其内部 256 条目检查点自行退出
+            if (job.Cts.IsCancellationRequested) { MarkCancelled(job); return; }
+            Walk(job, sub, 1);
+        });
+    }
+
+    /// <summary>
+    /// 单个分片的显式栈深度优先遍历（分片内串行，不递归——防病态深树栈溢出）。
+    /// **逐文件沿父链上卷 Total**（不是扫完再归并一趟）：
     /// 部分结果（Running/Cancelled）也必须自洽——否则根分母只有根级字节，
     /// 界面会给出「总占用 29B / 某子目录 160KB / 占比 564965%」这种假数字（e2e 截图实测抓到）。
     /// </summary>
-    private void Walk(ScanJob job)
+    private void Walk(ScanJob job, string rootDir, int rootDepth)
     {
         var stack = new Stack<(string Path, int Depth)>();
-        stack.Push((job.Root, 0));
+        stack.Push((rootDir, rootDepth));
         var touched = 0;
 
         while (stack.Count > 0)
         {
             var (dir, depth) = stack.Pop();
 
-            IEnumerable<string> entries;
+            DirectoryInfo di;
             try
             {
-                entries = Directory.EnumerateFileSystemEntries(dir);
+                di = new DirectoryInfo(dir);
+                if (!di.Exists) throw new DirectoryNotFoundException();
             }
             catch (Exception ex)
             {
@@ -167,9 +268,10 @@ public class FolderScanService : IFolderScanService
                 continue;
             }
 
-            var self = job.GetOrAdd(dir, depth, null);
+            DirStat self;
+            lock (job.Sync) self = job.GetOrAdd(dir, depth, null);
 
-            foreach (var entry in entries)
+            foreach (var entry in di.EnumerateFileSystemInfos())
             {
                 // 每 256 个条目检查一次取消与上限，避免逐条进锁
                 if (++touched % CancelCheckGranularity == 0)
@@ -180,11 +282,10 @@ public class FolderScanService : IFolderScanService
 
                 try
                 {
-                    var attrs = File.GetAttributes(entry);
-                    if ((attrs & FileAttributes.Directory) == FileAttributes.Directory)
+                    if (entry is DirectoryInfo sub)
                     {
-                        // 不跟随符号链接/junction/挂载点：否则既可能成环，也会把根外的容量算进根内
-                        if ((attrs & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+                        // 不跟随符号链接/junction/挂载点（判定取自枚举记录，不额外 stat）
+                        if ((sub.Attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
                         {
                             lock (job.Sync) job.SkippedReparseCount++;
                             continue;
@@ -197,14 +298,14 @@ public class FolderScanService : IFolderScanService
                                 job.Truncated = true;
                                 job.CapNote = $"目录数达到上限 {MaxDirectories:N0}，已停止深入";
                             }
-                            job.GetOrAdd(entry, depth + 1, dir);
+                            job.GetOrAdd(sub.FullName, depth + 1, dir);
                             self.ChildDirs++;
                         }
-                        stack.Push((entry, depth + 1));
+                        stack.Push((sub.FullName, depth + 1));
                     }
-                    else
+                    else if (entry is FileInfo file)
                     {
-                        var len = new FileInfo(entry).Length;
+                        var len = file.Length;
                         lock (job.Sync)
                         {
                             self.Direct += len;

@@ -1,6 +1,6 @@
 {
   "name": "forgeself-plugin-filetools-web",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "type": "module",
   "description": "文件工具插件自带界面（构建为 ESM，由宿主运行时远程加载；更新插件不需重建宿主）",

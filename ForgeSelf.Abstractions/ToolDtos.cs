@@ -33,6 +33,11 @@ public class ToolValidationResult
 /// <summary>
 /// 工具执行结果（纯 DTO）。
 /// </summary>
+/// <remarks>
+/// B8（042）：在既有类型上<b>扩展</b> <see cref="CallId"/>/<see cref="Outcome"/>/<see cref="DenyReason"/>
+/// 三字段（红线 3：禁止新建同名类型，避免 CS0104 与 ~20 处既有断言破坏），
+/// 既有 <see cref="Success"/>/<see cref="Result"/>/<see cref="ErrorMessage"/> 保留原语义。
+/// </remarks>
 public class ToolExecutionResult
 {
     public bool Success { get; set; }
@@ -40,6 +45,15 @@ public class ToolExecutionResult
     public string? ErrorMessage { get; set; }
     public string ToolName { get; set; } = string.Empty;
     public long DurationMs { get; set; }
+
+    /// <summary>模型返回的调用 ID（B8/A4；旧单工具入口为空串或 null）。</summary>
+    public string? CallId { get; set; }
+
+    /// <summary>结果定性（B8/A1：Ok / Error / Denied / Skipped）。null 表示旧入口未走六闸门管线的兼容视图。</summary>
+    public ToolOutcome? Outcome { get; set; }
+
+    /// <summary>拒绝理由（Outcome == Denied 时非空：pre-execute Deny / Ask fail-closed / 守卫拒绝）。</summary>
+    public string? DenyReason { get; set; }
 }
 
 /// <summary>

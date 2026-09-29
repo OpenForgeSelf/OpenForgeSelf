@@ -27,7 +27,7 @@ public class PluginLifecycleEventTests
             m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "Plugins", "TextTools", "TextTools.dll"),
+            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
             Path.Combine(_tempDir.RootPath, "test.lifecycle", "TextTools.dll"));
 
         var eventBus = new EventBus();

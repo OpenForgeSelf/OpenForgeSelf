@@ -7,6 +7,10 @@ namespace ForgeSelf.Api.Tests.Integration;
 
 public class ToolRegistryIntegrationTests
 {
+    /// <summary>B9：六闸门执行面的测试入参（旧单工具入口形态）。</summary>
+    private static ToolExecution Exec(string toolName, string argsJson = "{}")
+        => new() { CallId = string.Empty, ToolName = toolName, ArgsJson = argsJson, SessionId = string.Empty };
+
     [Fact]
     public void RegisterTool_SingleTool_IsRegistered()
     {
@@ -132,7 +136,7 @@ public class ToolRegistryIntegrationTests
     }
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_ExistingTool_SuccessIsTrue()
+    public async Task ExecuteAsync_ExistingTool_SuccessIsTrue()
     {
         var registry = new ToolRegistry();
         var tool = new FakeToolFunctionExtension
@@ -143,7 +147,7 @@ public class ToolRegistryIntegrationTests
         };
         registry.RegisterTool(tool);
 
-        var result = await registry.ExecuteToolWithResultAsync("result_tool", "{}");
+        var result = await registry.ExecuteAsync(Exec("result_tool", "{}"));
 
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
@@ -153,7 +157,7 @@ public class ToolRegistryIntegrationTests
     }
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_ToolThrows_SuccessIsFalse()
+    public async Task ExecuteAsync_ToolThrows_SuccessIsFalse()
     {
         var registry = new ToolRegistry();
         var tool = new FakeToolFunctionExtension
@@ -164,7 +168,7 @@ public class ToolRegistryIntegrationTests
         };
         registry.RegisterTool(tool);
 
-        var result = await registry.ExecuteToolWithResultAsync("error_tool", "{}");
+        var result = await registry.ExecuteAsync(Exec("error_tool", "{}"));
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Tool error");
@@ -429,7 +433,7 @@ public class ToolRegistryIntegrationTests
 
         for (int i = 1; i <= 5; i++)
         {
-            var result = await registry.ExecuteToolWithResultAsync("multi_call_tool", "{}");
+            var result = await registry.ExecuteAsync(Exec("multi_call_tool", "{}"));
             result.Success.Should().BeTrue();
             callCount.Should().Be(i);
         }
@@ -451,7 +455,7 @@ public class ToolRegistryIntegrationTests
     }
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_DurationIsRecorded()
+    public async Task ExecuteAsync_DurationIsRecorded()
     {
         var registry = new ToolRegistry();
         var tool = new FakeToolFunctionExtension
@@ -466,7 +470,7 @@ public class ToolRegistryIntegrationTests
         };
         registry.RegisterTool(tool);
 
-        var result = await registry.ExecuteToolWithResultAsync("duration_tool", "{}");
+        var result = await registry.ExecuteAsync(Exec("duration_tool", "{}"));
 
         result.Success.Should().BeTrue();
         result.DurationMs.Should().BeGreaterOrEqualTo(0);

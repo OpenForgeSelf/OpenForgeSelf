@@ -31,6 +31,12 @@ public class DataLocationService : IDataLocationService
     /// <summary>按运行形态解析宿主数据根（实例：依赖 IWebHostEnvironment，最准确）。</summary>
     private static string ResolveHostDataDirectory(IWebHostEnvironment environment)
     {
+        // B9-4 方案 A：FORGESELF_DATA_ROOT 最前置重载（优先于 Development 判定），
+        // 测试宿主/隔离环境据此把数据根重定向，避免与 dev 实例 ~/.forgeself 撞句柄。
+        var overridden = ResolveOverrideRoot();
+        if (overridden != null)
+            return overridden;
+
         if (environment.IsDevelopment())
             return Path.Combine(AppContext.BaseDirectory, "data");
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".forgeself");
@@ -42,11 +48,25 @@ public class DataLocationService : IDataLocationService
     /// </summary>
     public static string ResolveHostDataDirectory()
     {
+        // B9-4 方案 A：静态版同样最前置重载（与实例版语义严格一致，防止两条派生路径分叉）
+        var overridden = ResolveOverrideRoot();
+        if (overridden != null)
+            return overridden;
+
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
         if (!string.IsNullOrEmpty(env) && env.Equals("Development", StringComparison.OrdinalIgnoreCase))
             return Path.Combine(AppContext.BaseDirectory, "data");
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".forgeself");
+    }
+
+    /// <summary>
+    /// B9-4 方案 A：读取 `FORGESELF_DATA_ROOT` 重载根；空串/空白视为未设置（返回 null 保持原语义）。
+    /// </summary>
+    private static string? ResolveOverrideRoot()
+    {
+        var root = Environment.GetEnvironmentVariable("FORGESELF_DATA_ROOT");
+        return string.IsNullOrWhiteSpace(root) ? null : root;
     }
 
     /// <summary>把插件 id 清洗为合法目录名，防止路径穿越。</summary>

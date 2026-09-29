@@ -34,5 +34,11 @@ public class ForgeSetting : ForgeConfig<ForgeSetting>
   [Description("密文迁移版本号，用于密文 v1→v2 重封装的一次性触发")]
   [Category("安全")]
   public Int32 SecretMigrationVersion { get; set; } = 0;
+
+  /// <summary>B9-6（R5）：大工具结果 spill 阈值（字节），超过该长度的 tool 结果在模型可见投影中截断为引用。
+  /// 默认 32768（32 KiB）；宿主启动时播种到 SessionEventProjection.SpillThresholdBytes</summary>
+  [Description("大工具结果 spill 阈值（字节），默认 32768（32 KiB）")]
+  [Category("AI")]
+  public Int32 SpillThresholdBytes { get; set; } = 32768;
   #endregion
 }

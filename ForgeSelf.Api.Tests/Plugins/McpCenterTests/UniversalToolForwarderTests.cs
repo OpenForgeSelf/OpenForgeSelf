@@ -52,12 +52,14 @@ public class UniversalToolForwarderTests
 
     private static void VerifyNeverDispatched(Mock<IToolRegistry> registry) =>
         registry.Verify(
-            r => r.ExecuteToolWithResultAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            r => r.ExecuteAsync(It.IsAny<ToolExecution>(), It.IsAny<CancellationToken>()),
             Times.Never);
 
     private static void VerifyDispatchedOnceWithParams(Mock<IToolRegistry> registry, string toolName, string expectedParamsJson) =>
         registry.Verify(
-            r => r.ExecuteToolWithResultAsync(toolName, expectedParamsJson, It.IsAny<CancellationToken>()),
+            r => r.ExecuteAsync(
+            It.Is<ToolExecution>(e => e.ToolName == toolName && e.ArgsJson == expectedParamsJson),
+            It.IsAny<CancellationToken>()),
             Times.Once);
 
     [Fact]
@@ -79,7 +81,7 @@ public class UniversalToolForwarderTests
     {
         var reg = MakeRegistry(known: true);
         const string forwarded = """{"success":true,"data":"real-tool-result"}""";
-        reg.Setup(r => r.ExecuteToolWithResultAsync("time", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reg.Setup(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "time"), It.IsAny<CancellationToken>()))
            .ReturnsAsync(new ToolExecutionResult { Success = true, Result = forwarded });
 
         var forwarder = CreateForwarder(MakeContext(reg).Object);
@@ -97,7 +99,7 @@ public class UniversalToolForwarderTests
     {
         var reg = MakeRegistry(known: true);
         const string errorPayload = """{"success":false,"error":{"code":"EXECUTION_FAILED","message":"boom"}}""";
-        reg.Setup(r => r.ExecuteToolWithResultAsync("time", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reg.Setup(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "time"), It.IsAny<CancellationToken>()))
            .ReturnsAsync(new ToolExecutionResult { Success = false, Result = errorPayload, ErrorMessage = "boom" });
 
         var forwarder = CreateForwarder(MakeContext(reg).Object);

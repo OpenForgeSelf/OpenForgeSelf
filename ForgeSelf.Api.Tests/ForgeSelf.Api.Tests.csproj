@@ -32,6 +32,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ForgeSelf.Api\ForgeSelf.Api.csproj" />
+    <!-- B2（040）：会话存储契约基类 SessionStoreContractTestsBase 在 Abstractions.Tests，
+         需在此引用才能「同一套契约跑两个实现」（内存实现 + 持久化实现各一遍）。仅测试项目，零生产影响。 -->
+    <ProjectReference Include="..\ForgeSelf.Abstractions.Tests\ForgeSelf.Abstractions.Tests.csproj" />
     <!-- MemorySystem/TodoTracker/QuickLinks/TextTools 已拆分为独立程序集（ADR D2），测试直接引用其类型 -->
     <ProjectReference Include="..\Plugins\MemorySystem\MemorySystem.csproj" />
     <ProjectReference Include="..\Plugins\TodoTracker\TodoTracker.csproj" />

@@ -9,7 +9,7 @@ namespace ForgeSelf.Api.Tests.Plugins;
 
 /// <summary>
 /// UniversalTool 单元测试（031，适配重构后 UniversalTool：namespace ForgeSelf.Api.Plugins.AIAgent、
-/// 构造 (pluginId, IContext)、ExecuteToolWithResultAsync 返回 ToolExecutionResult）。
+/// 构造 (pluginId, IContext)、ExecuteAsync 返回 ToolExecutionResult）。
 /// 万能工具 = ToolRegistry 分发核之上的透传壳，本套测试锁四类合约：
 /// ① 定义契约；② 解析与透传（对象/字符串参数/无参形态，结果原样回传）；
 /// ③ 安全语义（防自引用、unknown 预检带已注册数量、拒绝路径零分发）；
@@ -50,12 +50,14 @@ public class UniversalToolTests
 
     private static void VerifyNeverDispatched(Mock<IToolRegistry> registry) =>
         registry.Verify(
-            r => r.ExecuteToolWithResultAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            r => r.ExecuteAsync(It.IsAny<ToolExecution>(), It.IsAny<CancellationToken>()),
             Times.Never);
 
     private static void VerifyDispatchedOnceWithParams(Mock<IToolRegistry> registry, string toolName, string expectedParamsJson) =>
         registry.Verify(
-            r => r.ExecuteToolWithResultAsync(toolName, expectedParamsJson, It.IsAny<CancellationToken>()),
+            r => r.ExecuteAsync(
+            It.Is<ToolExecution>(e => e.ToolName == toolName && e.ArgsJson == expectedParamsJson),
+            It.IsAny<CancellationToken>()),
             Times.Once);
 
     [Fact]
@@ -74,7 +76,7 @@ public class UniversalToolTests
     {
         var reg = MakeRegistry(known: true);
         const string forwarded = """{"success":true,"data":"real-tool-result"}""";
-        reg.Setup(r => r.ExecuteToolWithResultAsync("time", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reg.Setup(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "time"), It.IsAny<CancellationToken>()))
            .ReturnsAsync(new ToolExecutionResult { Success = true, Result = forwarded });
 
         var tool = CreateTool(MakeContext(reg).Object);
@@ -92,7 +94,7 @@ public class UniversalToolTests
         // FR-1.2 后半句：失败时错误语义与直调一致——宿主错误负载原样透传，不二次包装。
         var reg = MakeRegistry(known: true);
         const string errorPayload = """{"success":false,"error":{"code":"EXECUTION_FAILED","message":"boom"}}""";
-        reg.Setup(r => r.ExecuteToolWithResultAsync("time", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reg.Setup(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "time"), It.IsAny<CancellationToken>()))
            .ReturnsAsync(new ToolExecutionResult { Success = false, Result = errorPayload, ErrorMessage = "boom" });
 
         var tool = CreateTool(MakeContext(reg).Object);

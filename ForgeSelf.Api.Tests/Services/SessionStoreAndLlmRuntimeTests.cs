@@ -13,16 +13,18 @@ public class SessionStoreAndLlmRuntimeTests
     {
         var store = new InMemorySessionStore();
 
-        store.Append("s1", new SessionEvent { Type = "user", Payload = "你好" });
-        store.Append("s1", new SessionEvent { Type = "assistant", Payload = "你好！" });
-        store.Append("s1", new SessionEvent { Type = "internal", Payload = "不应投影" });
+        var now = DateTimeOffset.Now;
+        store.Append("s1", new UserMessageEvent(0, "s1", now, "你好", MessageSource.Api));
+        store.Append("s1", new AssistantMessageEvent(0, "s1", now, "你好！", null, null, "stop"));
+        // 结构类事件：落日志但对模型不可见
+        store.Append("s1", new TurnStartEvent(0, "s1", now, "t1"));
 
         var replay = store.Replay("s1");
         replay.Should().HaveCount(3);
         replay[0].Id.Should().Be(1);
         replay[1].Id.Should().Be(2);
 
-        // DeriveMessages 只投影模型可见角色（user/assistant），internal 被跳过
+        // DeriveMessages 只投影模型可见角色（user/assistant），turn/start 被跳过
         var messages = store.DeriveMessages("s1");
         messages.Should().HaveCount(2);
         messages[0].Role.Should().Be("user");

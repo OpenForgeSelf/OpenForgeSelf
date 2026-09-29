@@ -1,15 +1,57 @@
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
+using AgentDefinitionEntity = ForgeSelf.Api.Plugins.AIAgent.Entities.AgentDefinition;
 
 namespace ForgeSelf.Api.Tests.Unit;
 
+/// <summary>
+/// AgentRegistryService 单元测试。
+/// </summary>
+/// <remarks>
+/// 构造器会 <c>AgentDefinitionEntity.FindAll()</c>（空表时 XCode InitData seed 内置 Agent），
+/// 触碰进程级全局的 XCode "AIAgent" 连接 —— 必须收进 XCode 串行集合，
+/// 否则与 <c>[Collection("XCode")]</c> 内交换连接串的测试类产生竞态（QA 2026-09-28 实测踩坑）。
+/// 注意：XCode InitData 每进程仅在实体首次访问时触发一次，seed 会落在先绑定 "AIAgent"
+/// 连接的测试类的临时库里；本类运行时当前连接指向的库可能没有内置 Agent，
+/// 因此构造器中显式补种（与 InitData 的 FromModel+Insert 语义一致）。
+/// </remarks>
+[Collection("XCode")]
 public class AgentRegistryServiceTests
 {
     private readonly AgentRegistryService _registry;
 
     public AgentRegistryServiceTests()
     {
+        EnsureBuiltInAgentsSeeded();
         _registry = new AgentRegistryService();
+    }
+
+    /// <summary>
+    /// 确保当前 "AIAgent" 连接指向的库中存在全部内置 Agent。
+    /// 同集合内先执行的测试类（如 AgentRunPersistenceTests）会把全局 "AIAgent"
+    /// 连接绑定到各自随机临时目录，且 InitData 不再二次触发，故此处按需补种；
+    /// 全程 try/catch —— 表尚未创建等异常场景下，LoadFromDatabase 的回退路径
+    /// 会直接把内置定义装入内存，不应让构造器抛错放大故障面。
+    /// </summary>
+    private static void EnsureBuiltInAgentsSeeded()
+    {
+        try
+        {
+            // 首次访问触发建表（必要时含 InitData seed）
+            var existing = AgentDefinitionEntity.FindAll();
+            foreach (var model in ForgeSelf.Api.Plugins.AIAgent.Entities.BuiltInAgentDefinitions.GetAll())
+            {
+                if (existing.Any(e => string.Equals(e.Id, model.Id, StringComparison.OrdinalIgnoreCase))) continue;
+
+                var entity = new AgentDefinitionEntity();
+                entity.FromModel(model);
+                entity.Insert();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AgentRegistryServiceTests] 内置 Agent 补种跳过：{ex.Message}");
+        }
     }
 
     #region Register & Unregister

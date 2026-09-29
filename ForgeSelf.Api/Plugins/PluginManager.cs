@@ -39,11 +39,31 @@ public class PluginManager
     private readonly ConcurrentDictionary<string, AssemblyPart> _registeredApplicationParts = new();
     private Action? _applicationPartsChanged;
 
+    private ForgeSelf.Core.IEventBus? _eventBus;
+
     /// <summary>
     /// 事件总线（P3 事件总线贯穿）：宿主启动时注入平台 <c>IEventBus</c> 单例。
     /// 为 null 时不发事件（保持单元测试与独立构造场景兼容）。
     /// </summary>
-    public ForgeSelf.Core.IEventBus? EventBus { get; set; }
+    /// <remarks>
+    /// B3（040）：根 Context 的 <see cref="EventBus"/> 是其自建实例，与宿主 DI 单例并非同一对象，
+    /// 仅靠「Context 树内冒泡」无法让插件 Fiber 内的 emit 触达平台级 <c>tools/*</c> 监听器。
+    /// 故赋值时把宿主单例总线挂为根 Context 总线的父总线（事后挂载，最小侵入：
+    /// 不改 <see cref="PluginManager"/> 构造签名、不改 <see cref="ForgeSelf.Core.IEventBus"/> 公开签名）。
+    /// </remarks>
+    public ForgeSelf.Core.IEventBus? EventBus
+    {
+        get => _eventBus;
+        set
+        {
+            _eventBus = value;
+            // 只有具体 EventBus 支持挂父指针；其它 IEventBus 实现（测试替身）静默跳过。
+            if (value is ForgeSelf.Core.EventBus hostBus)
+            {
+                _rootContext.AttachParentBus(hostBus);
+            }
+        }
+    }
 
     /// <summary>
     /// 发插件生命周期事件（plugin/loaded / plugin/unloaded）。EventBus 为 null 时静默跳过。
@@ -202,7 +222,8 @@ public class PluginManager
         typeof(ICronParser),
         typeof(IRuntimeDetector),
         typeof(ISessionStore),
-        typeof(IAgentLoop),
+        // B5（041）：IAgentLoop 已删除（旧 P4 接缝，生产消费方 0）；
+        // Agent 运行时注册表（IAgentRegistry）由 AIAgent 插件在 Apply 内 ctx.Register，不在此宿主清单内。
         typeof(IInbox),
         typeof(ILlmRuntime),
         typeof(ILogService),

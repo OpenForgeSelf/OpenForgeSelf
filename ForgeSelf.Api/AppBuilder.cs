@@ -62,6 +62,22 @@ public static class AppBuilder
         var dataLocation = new DataLocationService(builder.Environment);
         builder.Services.AddSingleton<IDataLocationService>(dataLocation);
 
+        // B9-6（R5）：spill 阈值从配置中心播种（ForgeSetting.SpillThresholdBytes，默认 32 KiB）
+        SessionProjectionSpillSeed();
+
+        void SessionProjectionSpillSeed()
+        {
+            try
+            {
+                Services.SessionEventProjection.SpillThresholdBytes = Models.ForgeSetting.Current.SpillThresholdBytes;
+            }
+            catch (Exception ex)
+            {
+                // 配置读取失败不影响启动：保持默认 32 KiB（与 B9-5 降级策略一致）
+                NewLife.Log.XTrace.Log.Warn("[AppBuilder] 读取 SpillThresholdBytes 失败（保持默认 32KiB）: {0}", ex.Message);
+            }
+        }
+
         // 日志目录统一（输入37 目录命名小写）：NewLife 默认 Log（程序目录下）→ 数据根/log（外置 + 全小写）。
         // NewLife.Setting.LogPath 支持绝对路径（TextFileLog 按目录/文件路径解析），须在首次日志写入前设置。
         NewLife.Setting.Current.LogPath = Path.Combine(dataLocation.GetHostDataDirectory(), "log");
@@ -124,6 +140,9 @@ public static class AppBuilder
         builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
         // 平台级共享事件总线（027-cordis-kernel）：工具执行管道 tools/* 拦截点（pre-execute / execute / post-execute）
         builder.Services.AddSingleton<IEventBus>(new EventBus());
+        // B8（042 工具管线）：单调守卫注册表 + 审批服务（默认占位实现 fail-closed，真实审批服务就绪后替换）
+        builder.Services.AddSingleton<IToolGuardRegistry, ToolGuardRegistry>();
+        builder.Services.AddSingleton<IApprovalService, NoopApprovalService>();
         builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
         // IMcpService 已随宿主 mcp-tools 迁入 McpCenter 插件（034 v2.0.0），由插件 Apply 注册进插件子 provider
         builder.Services.AddSingleton<ICronParser, CronParser>();
@@ -134,12 +153,19 @@ public static class AppBuilder
         // B2（040）：会话事件日志落 Sqlite/XCode（持久化真相源）；
         // InMemorySessionStore 退为测试替身，不再注册进生产 DI（接缝不变，替换零改动）。
         builder.Services.AddSingleton<ISessionStore>(_ => new PersistentSessionStore());
-        // B4（040）：ChatMessage 只读投影同步器。IMessageService/ILogService 均为 Scoped → 本服务必须 Scoped
-        // （ISessionStore 是 Singleton，误注册成 Singleton 会把 Scoped 依赖拖进根容器）。
+        // B4（040）：ChatMessage 只读投影同步器。
+        // 它依赖 ILogService（Scoped），而它自己被 Scoped 的控制器（ChatController）注入，
+        // 所以必须注册为 Scoped：若注册成 Singleton，DI 会把 Scoped 的 ILogService 拖进根容器（ captive dependency ），
+        // 运行时要么解析失败、要么让 Scoped 依赖被单例长期持有。它消费的 ISessionStore 本身是 Singleton，
+        // 由 Scoped 服务依赖 Singleton 是安全的（方向相反才危险）。
         builder.Services.AddScoped<SessionProjectionService>();
         builder.Services.AddScoped<ILlmRuntime, AIServiceLlmRuntime>();
-        builder.Services.AddSingleton<IAgentLoop, InMemoryAgentLoop>();
-        builder.Services.AddSingleton<IInbox, InMemoryInbox>();
+        // B5（041）：IAgentLoop/InMemoryAgentLoop 已删除（旧 P4 接缝，生产消费方 0），
+        // Agent 循环改由插件侧 IAgentRegistry + ReactLoopAgent 承载（架构师 §2-B5）。
+        // B6（040 §2.5）：收件箱升级为持久投影——followup/steer/inject 一律落 agent/inbox/spliced 事件，
+        // 从日志重放派生待处理集（无活 Agent 时 UI 也能 Peek 出待办）；
+        // InMemoryInbox 退为测试替身，不再注册进生产 DI。依赖的 ISessionStore 是 Singleton，Singleton 安全。
+        builder.Services.AddSingleton<IInbox, PersistentInbox>();
 
         builder.Services.AddScoped<ILogService, LogService>();
         builder.Services.AddScoped<IMessageService, MessageService>();

@@ -34,28 +34,6 @@ public class RunOrchestratorTests
         AgentStepRun.Meta.Cache.Expire = 0;
     }
 
-    private static async IAsyncEnumerable<AgentLoopEvent> StreamEvents(params AgentLoopEvent[] events)
-    {
-        foreach (var e in events) yield return e;
-        await Task.CompletedTask;
-    }
-
-    private static Mock<IAIAgentService> MockLoop(params AgentLoopEvent[] events)
-    {
-        var mock = new Mock<IAIAgentService>();
-        mock.Setup(m => m.RunAgentLoopAsync(
-                It.IsAny<List<AbMsg>>(),
-                It.IsAny<string?>(),
-                It.IsAny<string?>(),
-                It.IsAny<List<string>?>(),
-                It.IsAny<List<string>?>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<List<IToolFunctionExtension>?>()))
-            .Returns(StreamEvents(events));
-        return mock;
-    }
-
     private static AgentRun NewRun(AgentRunStatus status = AgentRunStatus.Running)
     {
         var run = new AgentRun
@@ -98,76 +76,12 @@ public class RunOrchestratorTests
         };
     }
 
-    #region StepRunLoopService 出口逻辑（mock 驱动）
-
-    [Fact]
-    public async Task CompleteStepToolCall_MarksCompletedAndYieldsExitEvent()
-    {
-        var ai = MockLoop(new AgentLoopEvent
-        {
-            Type = "tool_call",
-            Name = "complete_step",
-            Arguments = """{"output":"统计完成，共 123 行"}"""
-        });
-        var service = new StepRunLoopService(ai.Object, new RunFlowToolSet("test"));
-
-        var run = NewRun();
-        var plan = OneStepPlan();
-        var result = new StepRunResult();
-
-        var events = new List<AgentLoopEvent>();
-        await foreach (var ev in service.RunStepLoopAsync(run, plan, plan.Steps[0], result, null, null, CancellationToken.None))
-            events.Add(ev);
-
-        result.Completed.Should().BeTrue();
-        result.Output.Should().Be("统计完成，共 123 行");
-        events.Should().ContainSingle().Which.Type.Should().Be("complete_step");
-    }
-
-    [Fact]
-    public async Task RequestHelpToolCall_MarksStuckAndYieldsExitEvent()
-    {
-        var ai = MockLoop(new AgentLoopEvent
-        {
-            Type = "tool_call",
-            Name = "request_help",
-            Arguments = """{"reason":"缺少目标文件权限"}"""
-        });
-        var service = new StepRunLoopService(ai.Object, new RunFlowToolSet("test"));
-
-        var run = NewRun();
-        var plan = OneStepPlan();
-        var result = new StepRunResult();
-
-        var events = new List<AgentLoopEvent>();
-        await foreach (var ev in service.RunStepLoopAsync(run, plan, plan.Steps[0], result, null, null, CancellationToken.None))
-            events.Add(ev);
-
-        result.Stuck.Should().BeTrue();
-        result.StuckReason.Should().Be("缺少目标文件权限");
-        events.Should().ContainSingle().Which.Type.Should().Be("request_help");
-    }
-
-    [Fact]
-    public async Task LoopEndWithoutExit_MarksStuck()
-    {
-        var ai = MockLoop(new AgentLoopEvent { Type = "content", Content = "我在思考…" });
-        var service = new StepRunLoopService(ai.Object, new RunFlowToolSet("test"));
-
-        var run = NewRun();
-        var plan = OneStepPlan();
-        var result = new StepRunResult();
-
-        var events = new List<AgentLoopEvent>();
-        await foreach (var ev in service.RunStepLoopAsync(run, plan, plan.Steps[0], result, null, null, CancellationToken.None))
-            events.Add(ev);
-
-        result.Completed.Should().BeFalse();
-        result.Stuck.Should().BeTrue();
-        result.StuckReason.Should().Contain("迭代达到上限");
-    }
-
-    #endregion
+    // 备注（B7）：原「StepRunLoopService 出口逻辑（mock 驱动）」3 条直测
+    // （CompleteStepToolCall_MarksCompletedAndYieldsExitEvent / RequestHelpToolCall_MarksStuckAndYieldsExitEvent /
+    // LoopEndWithoutExit_MarksStuck）随 StepRunLoopService 删除而退役——其语义已有状态机等价归属：
+    // 出口工具「声明即出口」→ ReactLoopExitAndSuspendTests.ExitTool_DeclaredNotExecuted_StepEndsExitTool；
+    // 出口判定→落库/SSE → PlannedRunUnifiedLoopGates + OrchestratorBehaviorSnapshotTests。
+    // 遵守最小改写纪律：仅删除契约已不存在的用例，不新增断言。
 
     #region RunOrchestratorService 介入（skip/override）
 

@@ -50,7 +50,7 @@ public static class PluginServiceCollectionExtensions
         {
             services.AddSingleton(sp => new PluginOptions
             {
-                PluginsDirectory = Path.Combine(AppContext.BaseDirectory, "Plugins")
+                PluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins")
             });
         }
 

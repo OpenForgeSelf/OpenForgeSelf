@@ -88,6 +88,9 @@ public class ChatSessionService : IChatSessionService
             if (!string.IsNullOrEmpty(source)) where &= ChatSession._.Source == source;
             if (!string.IsNullOrEmpty(clientKind)) where &= ChatSession._.ClientKind == clientKind;
             if (!string.IsNullOrEmpty(style)) where &= ChatSession._.Style == style;
+            // B9-3：plan:{runId} 规划 scratch 会话是 Run 详情页「规划过程」的内部数据源，
+            // 不进聊天会话列表（前端 RunRecordPanel 按需拉取；列表/分页 total 同步排除）。
+            where &= "SessionKey Not Like 'plan:%'";
             var start = from ?? DateTime.MinValue;
             var end = to ?? DateTime.MaxValue;
             where &= ChatSession._.CreatedTime.Between(start, end);

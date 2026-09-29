@@ -4,6 +4,15 @@ using ForgeSelf.Api.Services;
 
 namespace ForgeSelf.Api.Tests.Unit;
 
+/// <summary>
+/// 消息服务单元测试（只读面：GetHistoryAsync / DeleteSessionAsync）。
+/// </summary>
+/// <remarks>
+/// B6（040 §2.5 随批项）：宿主侧 <c>IMessageService.SaveMessageAsync</c> 已删除
+/// （B4 写路径改序后生产调用方为 0，直写 <c>ChatMessage</c> 是旁路种子，写路径唯一走 <c>ISessionStore.Append</c>）。
+/// 因此本类不再有 Save 用例，历史/删除用例的种子数据改为直接 <see cref="ChatMessage"/> 落库
+/// （模拟投影同步器写入的行），断言面与原用例等价。
+/// </remarks>
 [Collection("XCode")]
 public class MessageServiceTests : IClassFixture<XCodeTestFixture>
 {
@@ -16,46 +25,19 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         _messageService = new MessageService(_mockLogService.Object);
     }
 
-    [Fact]
-    public async Task SaveMessageAsync_ShouldSaveMessageAndReturnId()
+    /// <summary>直接落一条投影行（B6 起 SaveMessageAsync 已删，种子改由实体直插，等价于投影同步器写入）。</summary>
+    private static long Seed(string sessionId, string role, string content)
     {
-        // Arrange
-        var service = _messageService;
-        var sessionId = "s1-" + Guid.NewGuid().ToString("N")[..16];
-        var role = "user";
-        var content = "这是一条测试消息";
-
-        // Act
-        var messageId = await service.SaveMessageAsync(sessionId, role, content);
-
-        // Assert
-        messageId.Should().BeGreaterThan(0);
-
-        var savedMessage = ChatMessage.FindById(messageId);
-        savedMessage.Should().NotBeNull();
-        savedMessage!.SessionId.Should().Be(sessionId);
-        savedMessage.Role.Should().Be(role);
-        savedMessage.Content.Should().Be(content);
-
-        _mockLogService.Verify(x => x.Info(It.IsAny<string>(), It.IsAny<object[]>()), Times.Once());
-    }
-
-    [Fact]
-    public async Task SaveMessageAsync_ShouldSetCorrectTimestamps()
-    {
-        // Arrange
-        var service = _messageService;
-        var sessionId = "s2-" + Guid.NewGuid().ToString("N")[..16];
-        var beforeSave = DateTime.Now;
-
-        // Act
-        var messageId = await service.SaveMessageAsync(sessionId, "assistant", "AI响应");
-
-        // Assert
-        var savedMessage = ChatMessage.FindById(messageId);
-        savedMessage.Should().NotBeNull();
-        savedMessage!.CreateTime.Should().BeCloseTo(beforeSave, TimeSpan.FromSeconds(5));
-        savedMessage.UpdateTime.Should().BeCloseTo(beforeSave, TimeSpan.FromSeconds(5));
+        var message = new ChatMessage
+        {
+            SessionId = sessionId,
+            Role = role,
+            Content = content,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        };
+        message.Insert();
+        return message.Id;
     }
 
     [Fact]
@@ -65,9 +47,9 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         var service = _messageService;
         var sessionId = "history-" + Guid.NewGuid().ToString("N")[..16];
 
-        await service.SaveMessageAsync(sessionId, "user", "消息1");
-        await service.SaveMessageAsync(sessionId, "assistant", "响应1");
-        await service.SaveMessageAsync(sessionId, "user", "消息2");
+        Seed(sessionId, "user", "消息1");
+        Seed(sessionId, "assistant", "响应1");
+        Seed(sessionId, "user", "消息2");
 
         // Act
         var history = await service.GetHistoryAsync(sessionId);
@@ -81,7 +63,7 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         history[2].Role.Should().Be("user");
         history[2].Content.Should().Be("消息2");
 
-        _mockLogService.Verify(x => x.Info(It.IsAny<string>(), It.IsAny<object[]>()), Times.AtLeast(4));
+        _mockLogService.Verify(x => x.Info(It.IsAny<string>(), It.IsAny<object[]>()), Times.Once());
     }
 
     [Fact]
@@ -91,18 +73,17 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         var service = _messageService;
         var sessionId = "order-" + Guid.NewGuid().ToString("N")[..16];
 
-        await service.SaveMessageAsync(sessionId, "user", "第一条");
-        await Task.Delay(100);
-        await service.SaveMessageAsync(sessionId, "assistant", "第二条");
-        await Task.Delay(100);
-        await service.SaveMessageAsync(sessionId, "user", "第三条");
+        Seed(sessionId, "user", "第一条");
+        Seed(sessionId, "assistant", "第二条");
+        Seed(sessionId, "user", "第三条");
 
         // Act
         var history = await service.GetHistoryAsync(sessionId);
 
-        // Assert
+        // Assert：B4 起按 Id 稳定排序（投影行主键升序 == 日志顺序）
         history.Should().HaveCount(3);
-        history.Should().BeInAscendingOrder(m => m.CreateTime);
+        history.Select(m => m.Content).Should().ContainInOrder("第一条", "第二条", "第三条");
+        history.Should().BeInAscendingOrder(m => m.Id);
     }
 
     [Fact]
@@ -114,7 +95,7 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
 
         for (int i = 0; i < 10; i++)
         {
-            await service.SaveMessageAsync(sessionId, "user", $"消息{i}");
+            Seed(sessionId, "user", $"消息{i}");
         }
 
         // Act
@@ -146,8 +127,8 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         var sessionId1 = "session-1-" + Guid.NewGuid().ToString("N");
         var sessionId2 = "session-2-" + Guid.NewGuid().ToString("N");
 
-        await service.SaveMessageAsync(sessionId1, "user", "会话1消息");
-        await service.SaveMessageAsync(sessionId2, "user", "会话2消息");
+        Seed(sessionId1, "user", "会话1消息");
+        Seed(sessionId2, "user", "会话2消息");
 
         // Act
         var history = await service.GetHistoryAsync(sessionId1);
@@ -164,9 +145,9 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         var service = _messageService;
         var sessionId = "del-" + Guid.NewGuid().ToString("N")[..16];
 
-        await service.SaveMessageAsync(sessionId, "user", "消息1");
-        await service.SaveMessageAsync(sessionId, "assistant", "响应1");
-        await service.SaveMessageAsync(sessionId, "user", "消息2");
+        Seed(sessionId, "user", "消息1");
+        Seed(sessionId, "assistant", "响应1");
+        Seed(sessionId, "user", "消息2");
 
         // Act
         await service.DeleteSessionAsync(sessionId);
@@ -186,8 +167,8 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         var sessionId1 = "keep-session-" + Guid.NewGuid().ToString("N");
         var sessionId2 = "delete-session-" + Guid.NewGuid().ToString("N");
 
-        await service.SaveMessageAsync(sessionId1, "user", "保留的消息");
-        await service.SaveMessageAsync(sessionId2, "user", "要删除的消息");
+        Seed(sessionId1, "user", "保留的消息");
+        Seed(sessionId2, "user", "要删除的消息");
 
         // Act
         await service.DeleteSessionAsync(sessionId2);
@@ -211,43 +192,38 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task SaveMessageAsync_WithLongContent_ShouldSaveSuccessfully()
+    public async Task GetHistoryAsync_WithLongContent_ShouldReturnFullContent()
     {
         // Arrange
         var service = _messageService;
         var sessionId = "long-" + Guid.NewGuid().ToString("N")[..16];
         var longContent = new string('A', 2000);
+        Seed(sessionId, "user", longContent);
 
         // Act
-        var messageId = await service.SaveMessageAsync(sessionId, "user", longContent);
+        var history = await service.GetHistoryAsync(sessionId);
 
         // Assert
-        messageId.Should().BeGreaterThan(0);
-        var savedMessage = ChatMessage.FindById(messageId);
-        savedMessage!.Content.Should().Be(longContent);
+        history.Should().HaveCount(1);
+        history[0].Content.Should().Be(longContent);
     }
 
     [Fact]
-    public async Task SaveMessageAsync_WithDifferentRoles_ShouldSaveCorrectly()
+    public async Task GetHistoryAsync_WithDifferentRoles_ShouldReturnAllRoles()
     {
         // Arrange
         var service = _messageService;
         var sessionId = "roles-" + Guid.NewGuid().ToString("N")[..16];
 
+        Seed(sessionId, "user", "用户消息");
+        Seed(sessionId, "assistant", "助手消息");
+        Seed(sessionId, "system", "系统消息");
+
         // Act
-        var userMsgId = await service.SaveMessageAsync(sessionId, "user", "用户消息");
-        var assistantMsgId = await service.SaveMessageAsync(sessionId, "assistant", "助手消息");
-        var systemMsgId = await service.SaveMessageAsync(sessionId, "system", "系统消息");
+        var history = await service.GetHistoryAsync(sessionId);
 
         // Assert
-        var userMsg = ChatMessage.FindById(userMsgId);
-        userMsg!.Role.Should().Be("user");
-
-        var assistantMsg = ChatMessage.FindById(assistantMsgId);
-        assistantMsg!.Role.Should().Be("assistant");
-
-        var systemMsg = ChatMessage.FindById(systemMsgId);
-        systemMsg!.Role.Should().Be("system");
+        history.Select(m => m.Role).Should().ContainInOrder("user", "assistant", "system");
     }
 
     [Fact]
@@ -256,7 +232,7 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
         // Arrange
         var service = _messageService;
         var sessionId = "model-" + Guid.NewGuid().ToString("N")[..16];
-        await service.SaveMessageAsync(sessionId, "user", "测试内容");
+        Seed(sessionId, "user", "测试内容");
 
         // Act
         var history = await service.GetHistoryAsync(sessionId);
@@ -273,19 +249,20 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task SaveMessageAsync_WithSpecialCharacters_ShouldSaveCorrectly()
+    public async Task GetHistoryAsync_WithSpecialCharacters_ShouldReturnExactContent()
     {
         // Arrange
         var service = _messageService;
         var sessionId = "special-" + Guid.NewGuid().ToString("N")[..16];
         var specialContent = "特殊字符测试: \n\t\r\"'<>&中文日本語한국어";
+        Seed(sessionId, "user", specialContent);
 
         // Act
-        var messageId = await service.SaveMessageAsync(sessionId, "user", specialContent);
+        var history = await service.GetHistoryAsync(sessionId);
 
         // Assert
-        var savedMessage = ChatMessage.FindById(messageId);
-        savedMessage!.Content.Should().Be(specialContent);
+        history.Should().HaveCount(1);
+        history[0].Content.Should().Be(specialContent);
     }
 
     [Fact]
@@ -297,7 +274,7 @@ public class MessageServiceTests : IClassFixture<XCodeTestFixture>
 
         for (int i = 0; i < 60; i++)
         {
-            await service.SaveMessageAsync(sessionId, "user", $"消息{i}");
+            Seed(sessionId, "user", $"消息{i}");
         }
 
         // Act

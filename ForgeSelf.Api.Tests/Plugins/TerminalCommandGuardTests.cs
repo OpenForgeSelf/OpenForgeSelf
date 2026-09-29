@@ -144,8 +144,8 @@ public class TerminalCommandGuardTests
         var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes("Remove-Item C:\\x -Recurse"));
         var decision = TerminalCommandGuard.Check($"pwsh -EncodedCommand {b64}");
         decision.Allowed.Should().BeFalse();
-        decision.Reason.Should().Contain("remove-item",
-            because: "base64 载荷解码后应命中破坏词红线，实际 reason: " + decision.Reason);
+        decision.Reason.Should().Contain("Remove-Item",
+            because: "base64 载荷解码后应命中破坏词红线（守卫如实回显解码词的原始大小写），实际 reason: " + decision.Reason);
     }
 
     [Fact]

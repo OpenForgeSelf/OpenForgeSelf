@@ -42,19 +42,42 @@ public static class ConfigUnifier
     /// 把已知 Config&lt;T&gt; 子类的配置文件路径统一重定向到 configDirectory。
     /// </summary>
     /// <param name="configDirectory">统一配置目录（绝对路径）；不存在则创建。</param>
+    /// <remarks>
+    /// B9-5 健壮化（B7 立项）：目录创建/重定向/落盘任一失败（如目录被运行中实例句柄占用、路径不可写）
+    /// 一律<b>降级 + 告警</b>，不抛异常炸掉 WebApplicationFactory / 宿主启动——配置统一是体验优化，
+    /// 不值得让宿主起不来；NewLife 框架会按默认路径兜底工作。
+    /// </remarks>
     public static void UnifyAllConfigFiles(string configDirectory)
     {
         if (string.IsNullOrWhiteSpace(configDirectory))
             throw new ArgumentNullException(nameof(configDirectory));
 
-        Directory.CreateDirectory(configDirectory);
+        try
+        {
+            Directory.CreateDirectory(configDirectory);
+        }
+        catch (Exception ex)
+        {
+            NewLife.Log.XTrace.Log.Warn(
+                "[ConfigUnifier] 配置目录不可用（{0}），跳过配置统一并降级为框架默认路径: {1}", configDirectory, ex.Message);
+            return;
+        }
 
         foreach (var (type, getProvider) in KnownConfigs)
         {
-            var provider = getProvider();
-            if (provider is FileConfigProvider fcp)
+            try
             {
-                fcp.FileName = Path.Combine(configDirectory, GetConfigName(type) + ".config");
+                var provider = getProvider();
+                if (provider is FileConfigProvider fcp)
+                {
+                    fcp.FileName = Path.Combine(configDirectory, GetConfigName(type) + ".config");
+                }
+            }
+            catch (Exception ex)
+            {
+                // 单个配置类重定向失败不影响其余（降级为该配置类走默认路径）
+                NewLife.Log.XTrace.Log.Warn(
+                    "[ConfigUnifier] 重定向 {0} 失败（已降级）: {1}", type.Name, ex.Message);
             }
         }
 
@@ -62,14 +85,27 @@ public static class ConfigUnifier
         // NewLife Config<T>.Current 仅在「文件已存在(!IsNew) 或 Runtime.CreateConfigOnMissing」时才 Save()，
         // 故 Core 等配置加载后不会自动写文件，统一目录迟迟不齐、分散判定困难，违背「所有 Config 统一、不漏」初衷。
         // 此处 .Current 加载后再显式 Save()，强制持久化到重定向后的统一路径。
-        var xcode = XCodeSetting.Current;
-        if (XCodeSetting.Provider is FileConfigProvider) xcode.Save();
-        var core = NewLife.Setting.Current;
-        if (NewLife.Setting.Provider is FileConfigProvider) core.Save();
-        var agent = NewLife.Agent.Setting.Current;
-        if (NewLife.Agent.Setting.Provider is FileConfigProvider) agent.Save();
+        // B9-5：Save 失败（文件被占用等）降级告警——宿主/测试启动不受阻，配置文件留在可用的旧位置。
+        TrySaveCurrent("XCodeSetting", () => XCodeSetting.Provider is FileConfigProvider, () => XCodeSetting.Current.Save());
+        TrySaveCurrent("NewLife.Setting", () => NewLife.Setting.Provider is FileConfigProvider, () => NewLife.Setting.Current.Save());
+        TrySaveCurrent("NewLife.Agent.Setting", () => NewLife.Agent.Setting.Provider is FileConfigProvider, () => NewLife.Agent.Setting.Current.Save());
         // ForgeSetting 由宿主 DI/启动流程负责落盘（涉及密钥加密，时机在配置统一之后），
         // 不在此提前触发，避免早于加密服务就绪而被调用。
+    }
+
+    /// <summary>B9-5：带降级的配置落盘——Save 异常仅告警不抛出。</summary>
+    private static void TrySaveCurrent(string name, Func<bool> isFileProvider, Action save)
+    {
+        try
+        {
+            if (!isFileProvider()) return;
+            save();
+        }
+        catch (Exception ex)
+        {
+            NewLife.Log.XTrace.Log.Warn(
+                "[ConfigUnifier] {0} 配置落盘失败（已降级，宿主继续启动）: {1}", name, ex.Message);
+        }
     }
 
     /// <summary>

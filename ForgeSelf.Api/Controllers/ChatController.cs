@@ -13,6 +13,11 @@ namespace ForgeSelf.Api.Controllers;
 /// <summary>
 /// 聊天控制器
 /// </summary>
+/// <remarks>
+/// B4（040）写路径改序：<see cref="ISessionStore.Append"/> 是<b>唯一写路径</b>，
+/// 模型输入只从 <see cref="ISessionStore.DeriveMessages"/> 派生（请求是日志的纯函数）；
+/// <c>ChatMessage</c> 表降级为只读投影，由 <see cref="SessionProjectionService"/> 在响应返回前显式同步。
+/// </remarks>
 [ApiController]
 [Route("api/[controller]")]
 public class ChatController : ControllerBase
@@ -21,34 +26,45 @@ public class ChatController : ControllerBase
     private readonly IMessageService _messageService;
     private readonly ILogService _logService;
     private readonly IChatSessionService _chatSessionService;
-    private readonly ForgeSelf.Abstractions.ISessionStore? _sessionStore;
+    private readonly ISessionStore _sessionStore;
+    private readonly SessionProjectionService? _projection;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    public ChatController(IAIService aiService, IMessageService messageService, ILogService logService, IChatSessionService chatSessionService, ForgeSelf.Abstractions.ISessionStore? sessionStore = null)
+    public ChatController(
+        IAIService aiService,
+        IMessageService messageService,
+        ILogService logService,
+        IChatSessionService chatSessionService,
+        ISessionStore sessionStore,
+        SessionProjectionService? projection = null)
     {
         _aiService = aiService;
         _messageService = messageService;
         _logService = logService;
         _chatSessionService = chatSessionService;
         _sessionStore = sessionStore;
+        _projection = projection;
     }
 
     /// <summary>
-    /// 安全保存聊天消息：持久化失败仅记录日志并返回 0，不向上抛出，避免中断聊天主流程。
-    /// 典型场景：超长文本触发 XCode 长度校验/DB 写入异常时，用户仍应拿到 AI 回复。
+    /// 安全同步投影：投影失败仅记录日志，不向上抛出，避免中断聊天主流程（对齐旧持久化兜底语义）。
     /// </summary>
-    private async Task<long> SaveMessageSafeAsync(string sessionId, string role, string content)
+    private async Task SyncProjectionSafeAsync(string sessionId)
     {
+        if (_projection == null)
+        {
+            return;
+        }
+
         try
         {
-            return await _messageService.SaveMessageAsync(sessionId, role, content);
+            await _projection.SyncAsync(sessionId);
         }
         catch (Exception ex)
         {
-            _logService.Error("保存聊天消息失败（不影响聊天响应）: SessionId={0}, Role={1}, {2}", sessionId, role, ex.Message);
-            return 0;
+            _logService.Error("会话投影同步失败（不影响聊天响应）: SessionId={0}, {1}", sessionId, ex.Message);
         }
     }
 
@@ -91,40 +107,35 @@ public class ChatController : ControllerBase
 
             _logService.Info("收到聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, userMessage.Length);
 
-            // 保存用户消息（持久化失败不影响聊天主流程）
-            await SaveMessageSafeAsync(sessionId, "user", userMessage);
-            // P4 会话接缝：追加用户消息到仅追加事件日志（模型可见 = 已记录）
-            _sessionStore?.Append(sessionId, new ForgeSelf.Abstractions.SessionEvent { Type = "user", Payload = userMessage });
+            // 唯一写路径：先落日志（模型可见 = 已记录）
+            _sessionStore.Append(sessionId, new UserMessageEvent(
+                0, sessionId, DateTimeOffset.Now, userMessage, MessageSource.Api));
 
-            // 获取历史消息
-            var history = await _messageService.GetHistoryAsync(sessionId);
-
-            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
-            await UpsertSessionSafeAsync(sessionId, userMessage, history.Count + 1);
-
-            // 构建AI请求消息
-            var aiMessages = history.Select(m => new LegacyAIChatMessage
+            // 唯一读路径：模型输入只从日志派生（请求是日志的纯函数）
+            var derived = _sessionStore.DeriveMessages(sessionId);
+            var aiMessages = derived.Select(m => new LegacyAIChatMessage
             {
                 Role = m.Role,
                 Content = m.Content
             }).ToList();
-            // 兜底：即便历史持久化失败，也确保本次用户消息进入模型上下文，保证正常对话
-            if (aiMessages.Count == 0 || aiMessages[^1].Role != "user")
-            {
-                aiMessages.Add(new LegacyAIChatMessage { Role = "user", Content = userMessage });
-            }
+
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
+            await UpsertSessionSafeAsync(sessionId, userMessage, derived.Count);
 
             // 获取AI响应（按所选模型路由提供方；未指定则走默认 AI 配置）
             var aiResponse = await _aiService.ChatAsync(aiMessages, request.ChatModelId);
 
-            // 保存AI响应（持久化失败不影响聊天主流程）
-            var responseId = await SaveMessageSafeAsync(sessionId, "assistant", aiResponse);
-            // P4 会话接缝：追加 AI 响应到仅追加事件日志（模型可见 = 已记录）
-            _sessionStore?.Append(sessionId, new ForgeSelf.Abstractions.SessionEvent { Type = "assistant", Payload = aiResponse });
+            // 唯一写路径：AI 响应同样先落日志（模型产出 = 已记录）
+            var assistantEventId = _sessionStore.Append(sessionId, new AssistantMessageEvent(
+                0, sessionId, DateTimeOffset.Now, aiResponse,
+                ToolCalls: null, Usage: null, FinishReason: "stop"));
+
+            // 返回前显式 await 投影：ChatMessage 只读视图与日志对齐（杜绝异步火后即忘竞态）
+            await SyncProjectionSafeAsync(sessionId);
 
             var response = new ChatResponse
             {
-                Id = responseId,
+                Id = assistantEventId,
                 SessionId = sessionId,
                 Role = "assistant",
                 Content = aiResponse,
@@ -166,26 +177,20 @@ public class ChatController : ControllerBase
 
             _logService.Info("收到流式聊天请求，SessionId: {0}, 消息长度: {1}", sessionId, userMessage.Length);
 
-            // 保存用户消息（持久化失败不影响聊天主流程）
-            await SaveMessageSafeAsync(sessionId, "user", userMessage);
+            // 唯一写路径：先落日志（模型可见 = 已记录）
+            _sessionStore.Append(sessionId, new UserMessageEvent(
+                0, sessionId, DateTimeOffset.Now, userMessage, MessageSource.Api));
 
-            // 获取历史消息
-            var history = await _messageService.GetHistoryAsync(sessionId);
-
-            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
-            await UpsertSessionSafeAsync(sessionId, userMessage, history.Count + 1);
-
-            // 构建AI请求消息
-            var aiMessages = history.Select(m => new LegacyAIChatMessage
+            // 唯一读路径：模型输入只从日志派生
+            var derived = _sessionStore.DeriveMessages(sessionId);
+            var aiMessages = derived.Select(m => new LegacyAIChatMessage
             {
                 Role = m.Role,
                 Content = m.Content
             }).ToList();
-            // 兜底：即便历史持久化失败，也确保本次用户消息进入模型上下文，保证正常对话
-            if (aiMessages.Count == 0 || aiMessages[^1].Role != "user")
-            {
-                aiMessages.Add(new LegacyAIChatMessage { Role = "user", Content = userMessage });
-            }
+
+            // 会话归属：app 自有聊天也纳入统一 ChatSession（不改路由，仅补写会话行；失败不影响流程）
+            await UpsertSessionSafeAsync(sessionId, userMessage, derived.Count);
 
             // 设置SSE响应头
             Response.ContentType = "text/event-stream";
@@ -205,11 +210,16 @@ public class ChatController : ControllerBase
                 await Response.Body.FlushAsync(cancellationToken);
             }
 
-            // 保存完整的AI响应（持久化失败不影响聊天主流程）
-            var responseId = await SaveMessageSafeAsync(sessionId, "assistant", fullResponse.ToString());
+            // 唯一写路径：完整 AI 响应先落日志
+            var assistantEventId = _sessionStore.Append(sessionId, new AssistantMessageEvent(
+                0, sessionId, DateTimeOffset.Now, fullResponse.ToString(),
+                ToolCalls: null, Usage: null, FinishReason: "stop"));
+
+            // 投影完成后再发完成事件：客户端收到 done 时投影已落地
+            await SyncProjectionSafeAsync(sessionId);
 
             // 发送完成事件
-            var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId });
+            var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId = assistantEventId });
             await Response.WriteAsync($"data: {completeData}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
 
@@ -228,7 +238,7 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// 获取会话历史消息
+    /// 获取会话历史消息（读 ChatMessage 只读投影）
     /// </summary>
     /// <param name="sessionId">会话ID</param>
     /// <param name="limit">消息数量限制</param>

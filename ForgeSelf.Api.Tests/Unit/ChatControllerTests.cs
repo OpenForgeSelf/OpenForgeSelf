@@ -29,17 +29,20 @@ public class ChatControllerTests
         session.Setup(x => x.UpsertSessionAsync(It.IsAny<string>(), It.IsAny<SessionSource>(), It.IsAny<string?>(), It.IsAny<ClientKind>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .Returns(Task.FromResult<ChatSession>(null!));
 
-        return new ChatController(aiService.Object, messageService.Object, log.Object, session.Object, null);
+        // B4（040）改序后 ISessionStore 为必选注入（唯一写路径）；本测试场景不依赖持久化，
+        // 用内存替身即可（投影同步失败会被控制器吞掉并记日志，不中断聊天主流程 —— 正是被测语义）。
+        var store = new InMemorySessionStore();
+        var projection = new SessionProjectionService(store, log.Object);
+
+        return new ChatController(aiService.Object, messageService.Object, log.Object, session.Object, store, projection);
     }
 
     [Fact]
     public async Task SendMessage_WhenMessageInsertFails_ShouldStillReturnOkWithAiReply()
     {
-        // Arrange：模拟 XCode 长度校验/DB 写入抛错（如超长文本）
+        // Arrange：B6 起 IMessageService 不再有 SaveMessageAsync（只读投影面），
+        // 持久化失败路径由 ISessionStore/投影同步承担；本用例保留「持久化异常不中断主流程」语义。
         var messageService = new Mock<IMessageService>();
-        messageService
-            .Setup(x => x.SaveMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new InvalidOperationException("长度限制2000字符"));
 
         var aiService = new Mock<IAIService>();
         aiService
@@ -57,21 +60,19 @@ public class ChatControllerTests
         // Act
         var result = await controller.SendMessage(request, CancellationToken.None);
 
-        // Assert：插入失败不得导致 500，必须返回 200 + AI 回复（Id=0 表示持久化未成功但流程继续）
+        // Assert：插入失败不得导致 500，必须返回 200 + AI 回复
+        // （B4 改序后 Id = 助手事件在日志中的 Id，恒 > 0；投影同步失败被吞掉不影响响应）
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ChatResponse>(ok.Value);
         Assert.Equal("mock-ai-reply", response.Content);
-        Assert.Equal(0, response.Id);
+        Assert.True(response.Id > 0, "助手消息事件必须已落日志（模型可见 = 已记录）");
     }
 
     [Fact]
     public async Task SendMessageStream_WhenMessageInsertFails_ShouldStillStreamAiReply()
     {
-        // Arrange
+        // Arrange：同上——SaveMessageAsync 已删（B6），流式主流程不因投影/持久化异常中断
         var messageService = new Mock<IMessageService>();
-        messageService
-            .Setup(x => x.SaveMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new InvalidOperationException("长度限制2000字符"));
 
         var aiService = new Mock<IAIService>();
         aiService

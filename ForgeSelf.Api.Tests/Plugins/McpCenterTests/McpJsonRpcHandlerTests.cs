@@ -110,7 +110,7 @@ public class McpJsonRpcHandlerTests
     {
         var reg = MakeRegistry();
         const string targetResult = """{"success":true,"expression":"1+2","result":3}""";
-        reg.Setup(r => r.ExecuteToolWithResultAsync("calculate", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        reg.Setup(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "calculate"), It.IsAny<CancellationToken>()))
            .ReturnsAsync(new ToolExecutionResult { Success = true, Result = targetResult });
 
         var handler = CreateHandler(reg);
@@ -122,7 +122,7 @@ public class McpJsonRpcHandlerTests
         Assert.Equal(targetResult, result.GetProperty("content")[0].GetProperty("text").GetString());
         Assert.Equal("text", result.GetProperty("content")[0].GetProperty("type").GetString());
         // 参数原样抵达目标工具（FR：透传语义）
-        reg.Verify(r => r.ExecuteToolWithResultAsync("calculate", """{"expression":"1+2"}""", It.IsAny<CancellationToken>()), Times.Once);
+        reg.Verify(r => r.ExecuteAsync(It.Is<ToolExecution>(e => e.ToolName == "calculate" && e.ArgsJson == """{"expression":"1+2"}"""), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

@@ -29,7 +29,7 @@ public class PluginReloadTests
             m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "Plugins", "TextTools", "TextTools.dll"),
+            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
             Path.Combine(_tempDir.RootPath, "test.reload", "TextTools.dll"));
 
         var services = new ServiceCollection();

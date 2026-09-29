@@ -16,7 +16,7 @@ namespace ForgeSelf.Api.Tests.Plugins.McpCenterTests;
 public class McpClientIntegrationTests
 {
     private static readonly string MockScript = Path.Combine(
-        AppContext.BaseDirectory, "Plugins", "McpCenterTests", "Fixtures", "mock-mcp-server.js");
+        AppContext.BaseDirectory, "plugins", "McpCenterTests", "Fixtures", "mock-mcp-server.js");
 
     private static string TempDataDir() =>
         Path.Combine(Path.GetTempPath(), "mcpcenter-integration-tests", Guid.NewGuid().ToString("N"));

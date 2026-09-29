@@ -7,6 +7,10 @@ public class ToolRegistryTests
 {
     private readonly ToolRegistry _registry;
 
+    /// <summary>B9：六闸门执行面的测试入参（旧单工具入口形态）。</summary>
+    private static ToolExecution Exec(string toolName, string argsJson = "{}")
+        => new() { CallId = string.Empty, ToolName = toolName, ArgsJson = argsJson, SessionId = string.Empty };
+
     public ToolRegistryTests()
     {
         _registry = new ToolRegistry();
@@ -223,10 +227,10 @@ public class ToolRegistryTests
 
     #endregion
 
-    #region ExecuteToolWithResultAsync
+    #region ExecuteAsync
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_ExistingTool_SuccessIsTrue()
+    public async Task ExecuteAsync_ExistingTool_SuccessIsTrue()
     {
         // Arrange
         var tool = new TestTool
@@ -238,7 +242,7 @@ public class ToolRegistryTests
         _registry.RegisterTool(tool);
 
         // Act
-        var result = await _registry.ExecuteToolWithResultAsync("result_tool", "{}");
+        var result = await _registry.ExecuteAsync(Exec("result_tool", "{}"));
 
         // Assert
         result.Should().NotBeNull();
@@ -248,10 +252,10 @@ public class ToolRegistryTests
     }
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_NonExistingTool_SuccessIsFalse()
+    public async Task ExecuteAsync_NonExistingTool_SuccessIsFalse()
     {
         // Act
-        var result = await _registry.ExecuteToolWithResultAsync("nonexistent_tool", "{}");
+        var result = await _registry.ExecuteAsync(Exec("nonexistent_tool", "{}"));
 
         // Assert
         result.Should().NotBeNull();
@@ -260,7 +264,7 @@ public class ToolRegistryTests
     }
 
     [Fact]
-    public async Task ExecuteToolWithResultAsync_ToolThrows_SuccessIsFalse()
+    public async Task ExecuteAsync_ToolThrows_SuccessIsFalse()
     {
         // Arrange
         var tool = new TestTool
@@ -272,7 +276,7 @@ public class ToolRegistryTests
         _registry.RegisterTool(tool);
 
         // Act
-        var result = await _registry.ExecuteToolWithResultAsync("throw_tool", "{}");
+        var result = await _registry.ExecuteAsync(Exec("throw_tool", "{}"));
 
         // Assert
         result.Should().NotBeNull();
@@ -282,12 +286,12 @@ public class ToolRegistryTests
 
     #endregion
 
-    #region ExecuteToolWithTimeoutAsync
+    #region ExecuteAsync_超时令牌
 
     [Fact]
-    public async Task ExecuteToolWithTimeoutAsync_FastTool_CompletesSuccessfully()
+    public async Task ExecuteAsync_WithTimeoutCts_FastTool_CompletesSuccessfully()
     {
-        // Arrange
+        // Arrange（B9 退役改写：旧 ExecuteToolWithTimeoutAsync 的超时入口收敛为 linked CTS + ExecuteAsync）
         var tool = new TestTool
         {
             Id = "test.fast",
@@ -301,13 +305,13 @@ public class ToolRegistryTests
         _registry.RegisterTool(tool);
 
         // Act
-        var result = await _registry.ExecuteToolWithTimeoutAsync("fast_tool", "{}", timeoutSeconds: 5);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await _registry.ExecuteAsync(Exec("fast_tool"), timeoutCts.Token);
 
         // Assert
         result.Success.Should().BeTrue();
         result.Result.Should().Contain("fast");
     }
-
     #endregion
 
     #region ValidateParameters

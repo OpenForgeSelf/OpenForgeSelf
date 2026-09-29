@@ -5,10 +5,12 @@
 
 ## 发布与版本目录（先读这条再动手）
 
-- 本插件**已版本化**：运行宿主目录形如 `Plugins/FileTools/{current, versions/<ver>/…}`。存在 `current` 时，宿主加载程序集（`PluginVersionLayout.ResolveEntryAssemblyPath`）与前端资源（`PluginFrontendFileMiddleware.ResolveFrontendRoot`）都**只读 `versions/<current>/`**，扁平根仅兜底。
-- 因此「把新版铺到扁平 `Plugins/FileTools/`」＝没发布。生效三件套：① 全套 bits 进 `versions/<新ver>/`（**只放插件自己的** dll/deps/plugin.json/web/dist，混入宿主共享 DLL＝宿主启动即崩）② 原子写 `current` ③ 根 `plugin.json` 同步成快照清单。
+> 结构事实唯一真源 = `docs/04-standards/packaging-upgrade-backup.md`（2026-09-28 起）；本节只写**本插件的操作流程与踩坑**，不复述结构。
+
+- 正规发布通道（不要绕过）：`scripts/package-plugin.ps1` 产 `file-tools-<ver>.forgeself-plugin` → 设置页「插件更新源 = 本地目录」指向产物目录 → 页面「检查更新 → 更新」；宿主把新版本直落 `Plugins/FileTools/versions/<ver>/` 并原子切 `current`，**不重启宿主**（`PluginUpdateSettingsService` + `PluginVersionService.CheckForUpdates/UpdatePlugin`，功能文档 `docs/02-features/038-plugin-local-update-source.md`）。
+- **宿主包不会更新已版本化的插件**：发布包内插件是**扁平** `Plugins/<X>/`（设计如此），而 `current` 存在时程序集与 `web/dist` 一律从 `versions/<current>/` 读，扁平根仅兜底 → 靠宿主包升级只覆盖清单、不换代码，会出现「界面显示新版、跑旧快照」。
+- 手工铺 `versions/` 属例外路径（本轮 1.1.2 因用户直接指定目录就这么发了，代价=绕过正规通道）。若必须手工：① 全套 bits 进 `versions/<新ver>/`（**只放插件自己的** dll/deps/plugin.json/web/dist，混入宿主共享 DLL＝宿主启动即崩）② 原子写 `current` ③ 根 `plugin.json` 同步成快照清单 ④ 生效仍需插件重载/宿主重启。
 - 版本号三处要一致：`plugin.json`、`web/package.json`、页面标题旁 `.ft-version` 徽标（徽标取自 `GET /api/plugin` 按 id 过滤，不是硬编码）。
-- 跨插件的发布链缺陷（宿主包只发扁平、版本目录遮蔽新 bits）记在根 `TODO.md`，本文件不重复。
 
 ## 待办
 

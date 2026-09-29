@@ -70,8 +70,9 @@ publish.bak*/
 openwiki/
 specs/
 
-# ── 2026-09-24 git 历史清理：TODO.md 工作队列不入库──
-TODO.md
+# ── 2026-09-24 git 历史清理：根工作队列 TODO.md 不入库（本机活队列，完成即移除）──
+# 2026-09-29 收紧为「仅根级」：插件级遗留 Plugins/*/TODO.md 必须入库，防工作树销毁后待办丢失
+/TODO.md
 
 # 插件前端出树构建残留（ForgeSelf.Web/.plugin-build-*/）
 .plugin-build-*/

@@ -51,6 +51,8 @@
 - [ ] 点即保存落盘 / 操作成败可见（失败留窗打印原因）/ 轮询无闪（先比较再赋值）/ 空态分级 / 筛选分页边界
 - [ ] 滚动容器子区块 `flex-shrink: 0`（铁律 8）
 - [ ] 前端不 `import` 宿主模块；external 声明齐全（构建后 `grep 'from "vue-router"' dist/index.js` 应有命中）
+  - **按引用面判定**：只有源码真用了该依赖才查该依赖（FileTools 实测 src 不引用 `vue-router`，dist 命中 0 属正常）；改查 `vue`/`pinia`/`element-plus` 各自须有命中，且 src 里无 `from 'ForgeSelf.Web/…'`
+- [ ] **已版本化的插件：发布动作必须写 `versions/<新ver>/` + `current` + 同步根清单**（`current` 存在时宿主只读版本快照，铺扁平根＝没发布；混入宿主共享 DLL＝宿主启动即崩）
 
 ## 6. 生命周期（铁律 14）
 
@@ -61,6 +63,7 @@
 
 - [ ] 功能文档 `docs/02-features/<NNN>-<功能>.md` 已同步（新能力/新端点/契约变化/版本号）
 - [ ] 契约变化同步 `specs/<当前 spec>/contracts/`
+  - **本 worktree 无 `specs/` 目录**（实测 2026-09-29）。此时契约的真相落点 = `docs/02-features/<NNN>-*.md` 的「契约」节（例：FileTools 8 个 folders 端点表在 `036-filetools-folder-ranking.md:22-30`），不得因缺目录而跳过契约同步
 - [ ] **插件目录 TODO.md 存在**并记录剩余问题/未尽事宜（新增插件必建；已建插件检查是否过时）
 - [ ] 当天工作日记已记（输入原文 + 任务拆解 + 验证结果 + 下一步）
 - [ ] TODO.md 待办已移除/更新（完成即移除，不留 ✅ 堆积）

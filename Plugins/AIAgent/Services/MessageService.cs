@@ -7,10 +7,14 @@ using AIChatMessageEntity = ForgeSelf.Api.Plugins.AIAgent.Entities.AIChatMessage
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 
+/// <remarks>
+/// B5（041）：本接口<b>只提供读</b>——写路径唯一走宿主会话事件日志（<c>ISessionStore</c>），
+/// 插件 <c>AIChatMessage</c> 表降级为只读投影（由 <see cref="AIAgentProjectionService"/> 从日志重投影）。
+/// 旧的 <c>SaveMessageAsync</c> 直写方法已删除：迁移后无任何调用方，留着就是未来旁路的种子
+/// （QA 定性：IM 网关经 IChatCompletion 直写投影表，会与日志前缀对齐互相覆盖 → 数据丢失）。
+/// </remarks>
 public interface IPluginMessageService
 {
-    Task<long> SaveMessageAsync(string sessionId, string role, string content);
-    Task<long> SaveMessageAsync(string sessionId, string role, string content, string? toolCallsJson);
     Task<List<ChatMessageModel>> GetHistoryAsync(string sessionId, int limit = 50);
     Task<List<SessionSummaryModel>> GetSessionsAsync(SessionArchivedFilter filter = SessionArchivedFilter.Active);
     Task DeleteSessionAsync(string sessionId);
@@ -21,36 +25,6 @@ public interface IPluginMessageService
 
 public class PluginMessageService : IPluginMessageService
 {
-    public Task<long> SaveMessageAsync(string sessionId, string role, string content)
-        => SaveMessageAsync(sessionId, role, content, null);
-
-    public Task<long> SaveMessageAsync(string sessionId, string role, string content, string? toolCallsJson)
-    {
-        try
-        {
-            var message = new AIChatMessageEntity
-            {
-                SessionId = sessionId,
-                Role = role,
-                Content = content,
-                ToolCallsJson = toolCallsJson ?? string.Empty,
-                CreateTime = DateTime.Now,
-                UpdateTime = DateTime.Now
-            };
-
-            message.Insert();
-
-            XTrace.Log.Info("[AIAgentPlugin] 消息已保存，ID: {0}, SessionId: {1}, Role: {2}, 工具轨迹: {3}", message.Id, sessionId, role, toolCallsJson?.Length ?? 0);
-
-            return Task.FromResult(message.Id);
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Error("[AIAgentPlugin] 保存消息失败: {0}", ex.Message);
-            throw;
-        }
-    }
-
     public Task<List<ChatMessageModel>> GetHistoryAsync(string sessionId, int limit = 50)
     {
         try

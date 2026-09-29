@@ -11,10 +11,24 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 /// <see cref="IChatCompletion"/> 的 AIAgent 落地实现（跨插件聊天补全契约的提供方）。
 /// 设计要点：
 /// 1. 自身是单例，持有 Apply 阶段构建的根 IServiceProvider（与 IWorkflowAIAdvisor 同款模式）；
-/// 2. 每次补全在独立 scope 内解析 IAIAgentService + IPluginMessageService（均为 scoped），
-///    复用 AIAgent 既有的「历史加载 → 跑 Agent 工具循环 → 落库」全链路，只把流式事件收敛成最终文本；
+/// 2. 每次补全在独立 scope 内解析 IAIAgentService + AIAgentProjectionService（均为 scoped），
+///    复用 AIAgent 既有的「历史派生 → 跑 Agent 工具循环 → 落日志」全链路，只把流式事件收敛成最终文本；
 /// 3. 不重复造聊天逻辑——IM 网关等消费方经 ctx.Get&lt;IChatCompletion&gt;() 拿到本实例即可，与底层模型/工具解耦。
 /// </summary>
+/// <remarks>
+/// B5（041）写路径唯一化（修复 QA 定性的旁路）：
+/// 本实现<b>不再直写</b>插件 <c>AIChatMessage</c> 投影表（旧实现经 <c>IPluginMessageService.SaveMessageAsync</c>
+/// 直写、并经 <c>GetHistoryAsync</c> 读表构造模型输入），改为宿主会话事件日志单一真相源：
+/// <list type="number">
+/// <item>用户消息先落 <see cref="UserMessageEvent"/>（模型可见 = 已记录）；</item>
+/// <item>模型输入只从 <see cref="ISessionStore.DeriveMessages"/> 派生（请求是日志的纯函数）；</item>
+/// <item>助手回复与工具轨迹由会话版 <c>IAIAgentService.RunAgentLoopAsync(sessionId, …)</c> 内部的
+/// turn/step 状态机逐条落 <c>assistant/message</c>、<c>tool/call</c>、<c>tool/result</c> 事件；</item>
+/// <item>返回前经 <see cref="AIAgentProjectionService.SyncAsync"/> 幂等同步只读投影。</item>
+/// </list>
+/// 旧路径的危害：IM 网关会话违反两条不变量（表有日志无 / 日志有不进模型），
+/// 且对该会话跑一次 SyncAsync 会按「日志为空」前缀对齐把网关写的行<b>全删</b>——真实数据丢失路径。
+/// </remarks>
 public class AIAgentChatCompletion : IChatCompletion
 {
     private readonly IServiceProvider _rootProvider;
@@ -32,10 +46,15 @@ public class AIAgentChatCompletion : IChatCompletion
             return new ChatCompletionResult { Success = false, Error = "消息不能为空" };
         }
 
-        // 每个请求独立 scope：IAIAgentService/IPluginMessageService 均为 scoped，且依赖 IContext（宿主在 scope 内注入）。
+        // 每个请求独立 scope：IAIAgentService/AIAgentProjectionService 均为 scoped，且依赖 IContext（宿主在 scope 内注入）。
         await using var scope = _rootProvider.CreateAsyncScope();
         var agent = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
-        var messageService = scope.ServiceProvider.GetRequiredService<IPluginMessageService>();
+        var ctx = scope.ServiceProvider.GetRequiredService<IContext>();
+        var projection = scope.ServiceProvider.GetService<AIAgentProjectionService>();
+
+        // 宿主会话事件日志（唯一写路径）：经 Cordis 上下文运行期获取（宿主契约不在插件子容器内）。
+        var store = ctx.Get<ISessionStore>()
+            ?? throw new InvalidOperationException("宿主未提供 ISessionStore 契约，IM 补全无法以会话日志为真相源");
 
         var sessionId = string.IsNullOrWhiteSpace(request.SessionId)
             ? Guid.NewGuid().ToString("N")
@@ -43,25 +62,22 @@ public class AIAgentChatCompletion : IChatCompletion
 
         try
         {
-            // 1) 落库用户消息（与 AIChatController 同口径，保证历史连续）。
-            await messageService.SaveMessageAsync(sessionId, "user", request.Message);
+            // 1) 唯一写路径：用户消息先落日志（模型可见 = 已记录）
+            store.Append(sessionId, new UserMessageEvent(
+                0, sessionId, DateTimeOffset.Now, request.Message, MessageSource.Plugin));
 
-            // 2) 加载历史，构造统一消息列表。
-            var history = await messageService.GetHistoryAsync(sessionId);
-            var aiMessages = history.Select(m => new Abstractions.AIChatMessage
-            {
-                Role = m.Role,
-                Content = m.Content
-            }).ToList();
+            // 2) 唯一读路径：模型输入只从日志派生（会话版循环内部派发；此处取一次用于观测留痕）
+            var derivedCount = store.DeriveMessages(sessionId).Count;
+            XTrace.Log.Debug("[AIAgentChatCompletion] 会话日志派生模型输入 {0} 条，SessionId={1}", derivedCount, sessionId);
 
-            // 3) 跑 Agent 工具循环，收敛流式事件为最终文本。
+            // 3) 跑 Agent 工具循环（会话版：工具调用/结果逐步落日志，助手回复落 assistant/message）
             var finalContent = new StringBuilder();
             var toolCalls = new List<string>();
             var sawContentChunk = false;
             string? error = null;
 
             await foreach (var ev in agent.RunAgentLoopAsync(
-                aiMessages,
+                sessionId,
                 request.ChatModelId,
                 request.AgentId,
                 request.EnabledToolNames,
@@ -104,19 +120,16 @@ public class AIAgentChatCompletion : IChatCompletion
                 };
             }
 
-            var content = finalContent.ToString();
-
-            // 4) 落库助手消息（带工具轨迹留痕，便于复盘）。
-            var toolCallsJson = System.Text.Json.JsonSerializer.Serialize(toolCalls);
-            await messageService.SaveMessageAsync(sessionId, "assistant", content, toolCallsJson);
+            // 4) 返回前把只读投影同步到 AIChatMessage 表（失败不影响 IM 回复，与控制器侧 SyncProjectionSafe 同策略）
+            await SyncProjectionSafeAsync(projection, sessionId);
 
             XTrace.Log.Info("[AIAgentChatCompletion] 补全完成 SessionId={0}, 长度={1}, 工具={2}",
-                sessionId, content.Length, toolCalls.Count);
+                sessionId, finalContent.Length, toolCalls.Count);
 
             return new ChatCompletionResult
             {
                 SessionId = sessionId,
-                Content = content,
+                Content = finalContent.ToString(),
                 ToolCalls = toolCalls,
                 Success = true
             };
@@ -130,6 +143,27 @@ public class AIAgentChatCompletion : IChatCompletion
                 Success = false,
                 Error = ex.Message
             };
+        }
+    }
+
+    /// <summary>
+    /// 投影同步兜底：AIChatMessage 只读视图与日志对齐；失败仅记日志，不中断 IM 回复
+    /// （投影库不可用时仍能返回文本，避免整条对话失败）。
+    /// </summary>
+    private static async Task SyncProjectionSafeAsync(AIAgentProjectionService? projection, string sessionId)
+    {
+        if (projection == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await projection.SyncAsync(sessionId);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentChatCompletion] 会话投影同步失败（不影响 IM 回复）: SessionId={0}, {1}", sessionId, ex.Message);
         }
     }
 }

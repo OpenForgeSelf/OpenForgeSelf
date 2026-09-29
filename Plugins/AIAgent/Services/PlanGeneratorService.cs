@@ -4,9 +4,8 @@ using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
+using ForgeSelf.Core;
 using NewLife.Log;
-// RunAgentLoopAsync 消费 Abstractions.AIChatMessage；Entities 亦有同名实体，显式别名消歧。
-using LoopMessage = ForgeSelf.Abstractions.AIChatMessage;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 
@@ -28,21 +27,36 @@ public class PlanGeneratorService : IPlanGeneratorService
 {
     private const string SubmitPlanToolName = "submit_plan";
 
+    /// <summary>规划请求级无进展超时（秒）：上游不可达/冷启动阻塞时及时收束走回退（029 联调踩坑：无限规划中）。</summary>
+    private const int PlanningTimeoutSeconds = 20;
+
+    /// <summary>规划回合步数上限：正常一步出 submit_plan；给 2 步容忍一次工具迭代，杜绝无限规划。</summary>
+    private const int PlanningMaxSteps = 2;
+
     private readonly IAIAgentService _aiAgentService;
     private readonly RunFlowToolSet _tools;
     private readonly IAgentRegistryService? _agentRegistry;
     private readonly IWorkflowService? _workflowService;
+    private readonly IContext? _ctx;
+    private readonly IInbox? _inboxOverride;
+
+    /// <summary>宿主收件箱（B7 软依赖）：优先显式注入（测试），否则经 Cordis 上下文运行期懒解析。</summary>
+    private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();
 
     public PlanGeneratorService(
         IAIAgentService aiAgentService,
         RunFlowToolSet tools,
         IAgentRegistryService? agentRegistry = null,
-        IWorkflowService? workflowService = null)
+        IWorkflowService? workflowService = null,
+        IContext? ctx = null,
+        IInbox? inbox = null)
     {
         _aiAgentService = aiAgentService;
         _tools = tools;
         _agentRegistry = agentRegistry;
         _workflowService = workflowService;
+        _ctx = ctx;
+        _inboxOverride = inbox;
     }
 
     /// <inheritdoc />
@@ -77,53 +91,75 @@ public class PlanGeneratorService : IPlanGeneratorService
         return BuildFallbackPlan(run);
     }
 
-    /// <summary>单次规划循环：watch tool_call=submit_plan，解析 Arguments.plan；未出现则返回 null。</summary>
+    /// <summary>
+    /// 单次规划回合（B7 统一循环）：scratch-session（<c>plan:{runId}</c>）上一个 turn，
+    /// 任务原文经收件箱 followup 唤醒，submit_plan 为出口工具（声明即出口）——
+    /// 规划事实与一切持久事实一样走会话日志（不再有无日志的 ad-hoc 旁路）；
+    /// 未提交/无进展超时/异常一律返回 null 走回退（草稿/单步计划）。
+    /// </summary>
     private async Task<AgentPlan?> TryPlanByLLMAsync(AgentRun run, AgentPlan? draft, string? chatModelId, CancellationToken ct)
     {
-        var messages = new List<LoopMessage>
+        var sessionId = $"plan:{run.Id}";
+
+        // 规划只挂 submit_plan（ExtraTools 不随白名单过滤；空白名单屏蔽宿主全部注册工具）。
+        var options = new AgentOptions
         {
-            new() { Role = "system", Content = BuildPlanningSystemPrompt(run, draft) },
-            new() { Role = "user", Content = run.TaskInput }
+            ModelId = chatModelId ?? string.Empty,
+            SystemPrompt = BuildPlanningSystemPrompt(run, draft),
+            ToolAllowlist = new List<string>(),
+            ExitToolNames = new[] { SubmitPlanToolName },
+            ExtraTools = _tools.Planning(),
+            StepTimeout = TimeSpan.FromSeconds(PlanningTimeoutSeconds),
+            MaxStepsPerTurn = PlanningMaxSteps,
         };
 
-        // 规划超时兜底：上游不可达/冷启动时 LLM 调用可能长时间阻塞（实测 e2e localhost:1234 挂起 >30s）。
-        // 限时 20s 内必须提交 submit_plan，否则取消本轮规划 → 回退草稿/单步计划（与 LLM 未提交同路径），
-        // 保证 plan_created 必然快速到达、前端步骤卡不被「无限规划中」卡住（029 联调踩坑）。
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(20));
-
-        AgentPlan? plan = null;
         try
         {
-            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(
-                messages, chatModelId, run.AgentId, null, null, true, timeoutCts.Token, _tools.Planning()))
+            var agent = _aiAgentService.CreateAgent(sessionId, options);
+            Inbox?.Followup(sessionId, run.TaskInput);
+
+            // B7 终验修复（QA 实锋试中危缺陷）：收到出口后<b>不得提前 return</b>——
+            // 提前释放迭代器会跳过状态机其后的 step/end、ConfirmIfCommitted（R2 确认消费）
+            // 与 turn/end，导致规划 turn 不收束、scratch 会话收件箱输入永不确认。
+            // 正确姿势：循环内只记录，继续消费帧至自然结束（状态机收口），循环外统一返回。
+            AgentPlan? submitted = null;
+            await foreach (var frame in agent.RunAsync(ct))
             {
-                if (ev.Type == "tool_call" && string.Equals(ev.Name, SubmitPlanToolName, StringComparison.OrdinalIgnoreCase))
+                if (frame is ExitToolInvoked exit
+                    && string.Equals(exit.ToolName, SubmitPlanToolName, StringComparison.OrdinalIgnoreCase)
+                    && submitted == null)
                 {
-                    plan = TryParsePlan(ev.Arguments);
-                    if (plan != null) break; // 已拿到 Plan，终止本步循环
+                    submitted = TryParsePlan(exit.ArgsJson);
+                    if (submitted != null)
+                    {
+                        XTrace.Log.Info("[PlanGenerator] LLM 提交 Plan：goal={0}, steps={1}",
+                            submitted.Goal, submitted.Steps.Count);
+                    }
                 }
             }
+
+            if (submitted != null)
+            {
+                return submitted;
+            }
+
+            // 回合收束未出口（无进展超时挂起 / 未调用 submit_plan）→ 回退。
+            XTrace.Log.Warn("[PlanGenerator] 规划回合未收到 submit_plan，走回退");
+            return null;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // 规划超时（非用户取消）：记日志走回退，不回滚整 Run。
-            XTrace.Log.Warn("[PlanGenerator] 规划循环 20s 超时未收到 submit_plan，走回退");
+            XTrace.Log.Warn("[PlanGenerator] 规划回合 {0}s 超时未收到 submit_plan，走回退", PlanningTimeoutSeconds);
             return null;
         }
         catch (Exception ex)
         {
             // 规划调用异常（如上游 provider 500）不回滚整 Run：记日志后走回退（草稿/单步计划），
             // 与「LLM 未提交 submit_plan → 回退」同路径（design.md §5 回退语义）。
-            XTrace.Log.Warn("[PlanGenerator] 规划循环异常，走回退: {0}", ex.Message);
+            XTrace.Log.Warn("[PlanGenerator] 规划回合异常，走回退: {0}", ex.Message);
             return null;
         }
-
-        if (plan != null)
-            XTrace.Log.Info("[PlanGenerator] LLM 提交 Plan：goal={0}, steps={1}", plan.Goal, plan.Steps.Count);
-        else
-            XTrace.Log.Warn("[PlanGenerator] 规划循环未收到 submit_plan，走回退");
-        return plan;
     }
 
     /// <summary>从 submit_plan 工具参数 JSON 解析 Plan DSL（容错 JSON 包裹/转义）。</summary>

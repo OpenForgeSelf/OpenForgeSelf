@@ -6,6 +6,9 @@ using ForgeSelf.Api.Plugins.AgentHub.Tools;
 using ForgeSelf.Core;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
+// B5（041）：Abstractions 新增了 Agent 运行时注册表契约 IAgentRegistry，
+// 与本插件既有的「Agent 注册中心」IAgentRegistry 同名。本文件用的是本插件的注册中心，故显式别名消歧。
+using IAgentRegistry = ForgeSelf.Api.Plugins.AgentHub.Services.IAgentRegistry;
 
 namespace ForgeSelf.Api.Plugins.AgentHub;
 

@@ -36,6 +36,8 @@ public class AIAgentPlugin : IPlugin
         services?.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
         services?.AddScoped<IAIAgentService, AIAgentService>();
         services?.AddScoped<IPluginMessageService, PluginMessageService>();
+        // B4（040）：会话日志 → AIChatMessage 只读视图的投影同步器（调用方返回前 await，勿改 Singleton）
+        services?.AddScoped<AIAgentProjectionService>();
         services?.AddScoped<IAgentRegistryService, AgentRegistryService>();
         services?.AddScoped<IAgentCoordinatorService, AgentCoordinatorService>();
         services?.AddScoped<IAgentExecutorService, AgentExecutorService>();
@@ -47,11 +49,11 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IWorkflowAIAdvisor, AIWorkflowAdvisor>();
 
         // 计划驱动执行引擎（029，T016）：RunFlowToolSet 承载 submit_plan/complete_step/request_help
-        // 三特殊工具，供 PlanGeneratorService（规划）/ StepRunLoopService（步骤循环）经 extraTools 显式挂载（R4）。
+        // 三特殊工具，供 PlanGeneratorService（规划）/ RunOrchestratorService（步骤 turn）经
+        // AgentOptions.ExtraTools 显式挂载（R4；B7 统一循环后步骤循环本体=ReactLoopAgent，StepRunLoopService 已删）。
         var runFlowTools = new RunFlowToolSet(pluginId);
         services?.AddSingleton(runFlowTools);
         services?.AddScoped<IPlanGeneratorService, PlanGeneratorService>();
-        services?.AddScoped<IStepRunLoopService, StepRunLoopService>();
         services?.AddScoped<IRunOrchestratorService, RunOrchestratorService>();
 
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
@@ -71,6 +73,25 @@ public class AIAgentPlugin : IPlugin
 
         // 注册跨插件聊天补全契约（供 im-gateway 等消费方经 ctx.Get<IChatCompletion>() 调用）
         services?.RegisterChatCompletion(ctx);
+
+        // B5（041）：Agent 运行时注册表（turn/step 状态机）。
+        // 会话 Agent 跨请求存活（连续对话复用），故注册表本身是单例，并自建 root provider 开 scope：
+        // Agent 依赖 IAIAgentService（scoped），scope 由 ScopedAgent 持有、注销时一起释放，
+        // 避免「请求结束依赖被回收 → Agent 悬空」。注册表双注册（宿主 DI + ctx 共享服务表），与 IChatCompletion 同款。
+        if (services != null)
+        {
+            var agentRootProvider = services.BuildServiceProvider();
+            var registry = new AgentRuntimeRegistry((sessionId, options) =>
+            {
+                var agentScope = agentRootProvider.CreateScope();
+                var agentService = agentScope.ServiceProvider.GetRequiredService<IAIAgentService>();
+                return new ScopedAgent(agentService.CreateAgent(sessionId, options), agentScope);
+            });
+
+            services.AddSingleton<IAgentRegistry>(registry);
+            ctx.Register<IAgentRegistry>(registry);
+            XTrace.Log.Info("[AIAgentPlugin] 已注册 IAgentRegistry（Agent 运行时注册表，B5/041）");
+        }
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
     }

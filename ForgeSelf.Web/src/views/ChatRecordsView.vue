@@ -134,7 +134,9 @@ async function fetchSessions() {
       page: page.value,
       pageSize: pageSize.value
     })
-    sessions.value = response.sessions
+    sessions.value = response.sessions.filter(
+      (s) => !(s.sessionKey ?? '').startsWith('plan:')
+    )
     total.value = response.total
   } catch (err) {
     console.error('获取会话列表失败:', err)

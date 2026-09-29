@@ -5,6 +5,9 @@ using ForgeSelf.Api.Plugins.AIAgent.Services;
 using ForgeSelf.Core;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
+// B5（041）：Abstractions 的运行时状态枚举 AgentStatus 与插件「Agent 人设状态」Models.AgentStatus 同名，
+// 本控制器用的是运行时状态（IAgent.Status），故显式别名消歧。
+using AgentStatus = ForgeSelf.Abstractions.AgentStatus;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Controllers;
 
@@ -13,6 +16,11 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Controllers;
 /// </summary>
 /// <remarks>
 /// 提供AI对话相关的API接口，包括普通对话、流式对话、历史消息管理和工具查询等功能。
+/// <para>
+/// B4（040）写路径改序：本控制器的消息写入一律走宿主 <see cref="ISessionStore"/>（唯一写路径），
+/// 模型输入只从 <see cref="ISessionStore.DeriveMessages"/> 派生；插件自有 <c>AIChatMessage</c> 表
+/// 降级为只读投影，由 <see cref="AIAgentProjectionService"/> 在响应返回前显式同步。
+/// </para>
 /// </remarks>
 [ApiController]
 [Route("api/ai-agent/chat")]
@@ -20,7 +28,10 @@ public class AIChatController : ControllerBase
 {
     private readonly IAIAgentService _aiAgentService;
     private readonly IPluginMessageService _messageService;
+    private readonly AIAgentProjectionService _projection;
     private readonly IContext _ctx;
+    private ISessionStore? _sessionStore;
+    private IAgentRegistry? _agentRegistry;
 
     /// <summary>SSE 事件序列化选项：camelCase（对齐前端事件/usage 字段）。</summary>
     private static readonly JsonSerializerOptions SseJsonOptions = new()
@@ -31,11 +42,35 @@ public class AIChatController : ControllerBase
     // 注意：IToolRegistry 是宿主契约，插件子容器只含插件自身服务 + IContext，
     // 构造注入宿主契约会导致控制器激活 500（e2e 实测）。故注入 IContext，
     // 在 /tools 端点内运行期经 ctx.Get<IToolRegistry>() 获取。
-    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, IContext ctx)
+    // ISessionStore / AIAgentProjectionService 同理走运行期解析。
+    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, AIAgentProjectionService projection, IContext ctx)
     {
         _aiAgentService = aiAgentService;
         _messageService = messageService;
+        _projection = projection;
         _ctx = ctx;
+    }
+
+    /// <summary>宿主会话事件日志（运行期经 IContext 解析，见构造函数说明）。</summary>
+    private ISessionStore? SessionStore => _sessionStore ??= _ctx.Get<ISessionStore>();
+
+    /// <summary>
+    /// B5（041）Agent 运行时注册表（运行期经 IContext 解析）：按会话 id 复用 turn/step 状态机，
+    /// 控制器不再自己「落用户消息 → 跑循环 → 落助手消息」，改为「投喂收件箱 → 消费 TurnFrame」。
+    /// </summary>
+    private IAgentRegistry? AgentRegistry => _agentRegistry ??= _ctx.Get<IAgentRegistry>();
+
+    /// <summary>安全同步投影：失败仅记日志，不中断聊天响应（对齐宿主侧语义）。</summary>
+    private async Task SyncProjectionSafeAsync(string sessionId)
+    {
+        try
+        {
+            await _projection.SyncAsync(sessionId);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 会话投影同步失败（不影响聊天响应）: SessionId={0}, {1}", sessionId, ex.Message);
+        }
     }
 
     /// <summary>
@@ -64,63 +99,78 @@ public class AIChatController : ControllerBase
             XTrace.Log.Info("[AIAgentPlugin] 收到聊天请求，SessionId: {0}, 消息长度: {1}, 模型: {2}, Agent: {3}",
                 sessionId, request.Message.Length, request.ChatModelId ?? "(默认)", request.AgentId ?? "(默认)");
 
-            await _messageService.SaveMessageAsync(sessionId, "user", request.Message);
-
-            var history = await _messageService.GetHistoryAsync(sessionId);
-
-            var aiMessages = history.Select(m => new AIChatMessage
+            var sessionStore = SessionStore;
+            if (sessionStore == null)
             {
-                Role = m.Role,
-                Content = m.Content
-            }).ToList();
+                return StatusCode(500, new { error = "宿主未提供 ISessionStore 契约" });
+            }
 
-            var finalContent = string.Empty;
+            var registry = AgentRegistry;
+            if (registry == null)
+            {
+                return StatusCode(500, new { error = "宿主未提供 IAgentRegistry 契约（Agent 运行时注册表）" });
+            }
+
+            // B5（041）：会话主路径经 Agent 运行时注册表跑 turn/step 状态机；
+            // 用户消息经收件箱投喂（由状态机落 user/message），助手产出由状态机落 assistant/message。
+            var options = _aiAgentService.BuildAgentOptions(
+                request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
+            var agent = await registry.GetOrCreateAsync(sessionId, options, cancellationToken);
+            if (agent.Status == AgentStatus.Running)
+            {
+                return StatusCode(409, new { error = "该会话上一轮对话仍在进行，请稍后再试" });
+            }
+
+            agent.Inbox.Followup(sessionId, request.Message);
+
+            var finalContent = new System.Text.StringBuilder();
             var toolCalls = new List<string>();
-            var toolTracer = new ToolTraceCollector();
-            UnifiedUsage? usage = null;
             string? error = null;
 
-            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds, true, cancellationToken))
+            await foreach (var frame in agent.RunAsync(cancellationToken))
             {
-                switch (ev.Type)
+                switch (frame)
                 {
-                    case "tool_call":
-                        if (!string.IsNullOrEmpty(ev.Name)) toolCalls.Add(ev.Name);
-                        toolTracer.OnCall(ev.Name, ev.Arguments);
+                    case AssistantDelta delta:
+                        finalContent.Append(delta.Content);
                         break;
-                    case "tool_result":
-                        toolTracer.OnResult(ev.Name, ev.Result, ev.Success);
+                    case ToolStarted call:
+                        if (!toolCalls.Contains(call.ToolName)) toolCalls.Add(call.ToolName);
                         break;
-                    case "usage":
-                        usage = ev.Usage ?? usage;
-                        break;
-                    case "done":
-                        finalContent = ev.Content ?? string.Empty;
-                        usage = ev.Usage ?? usage;
-                        break;
-                    case "error":
-                        error = ev.Content;
+                    case TurnFailed failed:
+                        error = failed.Error;
                         break;
                 }
             }
+
+            // 返回前显式 await 投影：AIChatMessage 只读视图与日志对齐（杜绝异步火后即忘竞态）
+            await SyncProjectionSafeAsync(sessionId);
 
             if (error != null)
             {
                 return StatusCode(500, new { error = "处理请求时发生错误", details = error });
             }
 
-            var toolCallsJson = toolTracer.ToJson();
-            var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", finalContent, toolCallsJson);
+            // 响应 id / 用量一律从日志最后一条 assistant/message 取（单一真源，不另存一份）
+            var lastAssistant = sessionStore.Replay(sessionId).OfType<AssistantMessageEvent>().LastOrDefault();
+            var usage = lastAssistant?.Usage == null
+                ? null
+                : new UnifiedUsage
+                {
+                    PromptTokens = (int)lastAssistant.Usage.PromptTokens,
+                    CompletionTokens = (int)lastAssistant.Usage.CompletionTokens,
+                    TotalTokens = (int)(lastAssistant.Usage.PromptTokens + lastAssistant.Usage.CompletionTokens)
+                };
 
             var response = new ChatResponse
             {
-                Id = responseId,
+                Id = lastAssistant?.Id ?? 0,
                 SessionId = sessionId,
                 Role = "assistant",
-                Content = finalContent,
+                Content = finalContent.ToString(),
                 CreateTime = DateTime.Now,
                 ToolCalls = toolCalls.Count > 0 ? toolCalls : null,
-                ToolCallsJson = toolCallsJson,
+                ToolCallsJson = toolCalls.Count > 0 ? _projection.BuildLastToolCallsJson(sessionId) : null,
                 Usage = usage
             };
 
@@ -173,45 +223,90 @@ public class AIChatController : ControllerBase
             XTrace.Log.Info("[AIAgentPlugin] 收到流式聊天请求，SessionId: {0}, 消息长度: {1}, 模型: {2}, Agent: {3}",
                 sessionId, request.Message.Length, request.ChatModelId ?? "(默认)", request.AgentId ?? "(默认)");
 
-            await _messageService.SaveMessageAsync(sessionId, "user", request.Message);
-
-            var history = await _messageService.GetHistoryAsync(sessionId);
-
-            var aiMessages = history.Select(m => new AIChatMessage
+            var sessionStore = SessionStore;
+            if (sessionStore == null)
             {
-                Role = m.Role,
-                Content = m.Content
-            }).ToList();
+                await WriteEventAsync(new { type = "error", content = "宿主未提供 ISessionStore 契约", sessionId });
+                return;
+            }
+
+            var registry = AgentRegistry;
+            if (registry == null)
+            {
+                await WriteEventAsync(new { type = "error", content = "宿主未提供 IAgentRegistry 契约（Agent 运行时注册表）", sessionId });
+                return;
+            }
+
+            // B5（041）：与同步端点同款——经注册表取会话状态机，投喂收件箱后消费 TurnFrame
+            var options = _aiAgentService.BuildAgentOptions(
+                request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
+            var agent = await registry.GetOrCreateAsync(sessionId, options, cancellationToken);
+            if (agent.Status == AgentStatus.Running)
+            {
+                await WriteEventAsync(new { type = "error", content = "该会话上一轮对话仍在进行，请稍后再试", sessionId });
+                return;
+            }
+
+            agent.Inbox.Followup(sessionId, request.Message);
 
             var fullResponse = new System.Text.StringBuilder();
-            var toolTracer = new ToolTraceCollector();
 
-            await foreach (var ev in _aiAgentService.RunAgentLoopAsync(aiMessages, request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds, true, cancellationToken))
+            await foreach (var frame in agent.RunAsync(cancellationToken))
             {
-                switch (ev.Type)
+                switch (frame)
                 {
-                    case "content":
-                        fullResponse.Append(ev.Content);
-                        await WriteEventAsync(new { type = "content", content = ev.Content, sessionId });
+                    case AssistantDelta delta:
+                        fullResponse.Append(delta.Content);
+                        await WriteEventAsync(new { type = "content", content = delta.Content, sessionId });
                         break;
-                    case "tool_call":
-                        await WriteEventAsync(new { type = "tool_call", name = ev.Name, arguments = ev.Arguments, sessionId });
-                        toolTracer.OnCall(ev.Name, ev.Arguments);
+
+                    case ToolStarted call:
+                        await WriteEventAsync(new { type = "tool_call", name = call.ToolName, arguments = call.ArgsJson, sessionId });
                         break;
-                    case "tool_result":
-                        await WriteEventAsync(new { type = "tool_result", name = ev.Name, result = ev.Result, success = ev.Success, sessionId });
-                        toolTracer.OnResult(ev.Name, ev.Result, ev.Success);
+
+                    case ToolCompleted done:
+                        // 工具结果文本从日志取（单一真源，避免帧里再带一份副本）
+                        var toolResult = sessionStore.Replay(sessionId)
+                            .OfType<ToolResultEvent>()
+                            .LastOrDefault(r => string.Equals(r.CallId, done.CallId, StringComparison.Ordinal));
+                        await WriteEventAsync(new
+                        {
+                            type = "tool_result",
+                            name = toolResult?.ToolName ?? string.Empty,
+                            result = toolResult?.ResultJson ?? string.Empty,
+                            success = done.Outcome == ToolOutcome.Ok,
+                            sessionId
+                        });
                         break;
-                    case "usage":
-                        await WriteEventAsync(new { type = "usage", usage = ev.Usage, sessionId });
+
+                    case TurnCompleted turn:
+                        // 投影完成后再发 done：客户端收到 done 时只读视图已落地
+                        await SyncProjectionSafeAsync(sessionId);
+
+                        // 响应 id / 用量从日志最后一条 assistant/message 取（单一真源）
+                        var lastAssistant = sessionStore.Replay(sessionId).OfType<AssistantMessageEvent>().LastOrDefault();
+                        var usage = lastAssistant?.Usage == null
+                            ? null
+                            : new UnifiedUsage
+                            {
+                                PromptTokens = (int)lastAssistant.Usage.PromptTokens,
+                                CompletionTokens = (int)lastAssistant.Usage.CompletionTokens,
+                                TotalTokens = (int)(lastAssistant.Usage.PromptTokens + lastAssistant.Usage.CompletionTokens)
+                            };
+
+                        await WriteEventAsync(new
+                        {
+                            type = "done",
+                            sessionId,
+                            responseId = lastAssistant?.Id ?? 0,
+                            usage,
+                            toolCallsJson = _projection.BuildLastToolCallsJson(sessionId),
+                            turnEndReason = turn.Reason.ToString()
+                        });
                         break;
-                    case "done":
-                        var toolCallsJson = toolTracer.ToJson();
-                        var responseId = await _messageService.SaveMessageAsync(sessionId, "assistant", fullResponse.ToString(), toolCallsJson);
-                        await WriteEventAsync(new { type = "done", sessionId, responseId, usage = ev.Usage, toolCallsJson });
-                        break;
-                    case "error":
-                        await WriteEventAsync(new { type = "error", content = ev.Content, sessionId });
+
+                    case TurnFailed failed:
+                        await WriteEventAsync(new { type = "error", content = failed.Error, sessionId });
                         break;
                 }
             }
@@ -457,45 +552,6 @@ public class AIChatController : ControllerBase
         {
             XTrace.Log.Error("[AIAgentPlugin] 获取记忆列表失败: {0}", ex.Message);
             return StatusCode(500, new { error = "获取记忆列表时发生错误", details = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// FreeLoop 工具调用轨迹收集器（031 方案A）：在 agent 循环期间累积 tool_call/tool_result，
-    /// 随 assistant 消息落库为 ToolCallsJson，供历史消息渲染「刷新后仍可见」的工具卡片。
-    /// 调用/结果配对用栈（agent 循环顺序执行，call 后必紧跟对应 result），并统计耗时。
-    /// </summary>
-    private sealed class ToolTraceCollector
-    {
-        private readonly List<ChatToolCallTrace> _records = new();
-        private readonly Stack<int> _stack = new();
-        private readonly List<DateTime> _starts = new();
-
-        /// <summary>记录一次工具调用开始（参数）。</summary>
-        public void OnCall(string? name, string? arguments)
-        {
-            var idx = _records.Count;
-            _records.Add(new ChatToolCallTrace { Name = name, Args = arguments });
-            _starts.Add(DateTime.Now);
-            _stack.Push(idx);
-        }
-
-        /// <summary>记录一次工具调用结果（配对最近的调用），填充结果/成败/耗时。</summary>
-        public void OnResult(string? name, string? result, bool? success)
-        {
-            if (_stack.Count == 0) return;
-            var idx = _stack.Pop();
-            var rec = _records[idx];
-            rec.Result = result;
-            rec.Success = success ?? false;
-            rec.DurationMs = Math.Max(0, (long)(DateTime.Now - _starts[idx]).TotalMilliseconds);
-        }
-
-        /// <summary>序列化为 camelCase JSON 数组；无轨迹时返回 null（不写列）。</summary>
-        public string? ToJson()
-        {
-            if (_records.Count == 0) return null;
-            return JsonSerializer.Serialize(_records, SseJsonOptions);
         }
     }
 }

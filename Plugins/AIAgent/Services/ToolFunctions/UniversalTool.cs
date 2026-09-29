@@ -6,8 +6,8 @@ using NewLife.Log;
 namespace ForgeSelf.Api.Plugins.AIAgent;
 
 /// <summary>
-/// 万能工具聚合网关（031）：解析 {tool, parameters}，经宿主 IToolRegistry.ExecuteToolWithResultAsync 分发，结果原样透传。
-/// 零新增分发逻辑：宿主分发核自带 校验 → tools/pre-execute 拒绝门 → 执行 → tools/execute/post-execute → 使用统计，全部免费复用。
+/// 万能工具聚合网关（031）：解析 {tool, parameters}，经宿主 IToolRegistry.ExecuteAsync（B9 迁六闸门执行面）分发，结果原样透传。
+/// 零新增分发逻辑：宿主分发核自带 校验 → tools/pre-execute 三态 → 单调守卫 → tools/execute/post-execute → finalize → 使用统计，全部免费复用。
 /// 模型侧可见性由 AIAgentService 白名单控制（"77 工具全挂爆 prompt" 历史教训——只挂精简集 + 本工具）。
 /// </summary>
 /// <remarks>
@@ -91,8 +91,14 @@ public class UniversalTool : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = $"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）" });
             }
 
-            // 4. 经宿主分发核执行（pre-execute 拒绝门/事件链/统计在宿主侧生效）
-            var result = await registry.ExecuteToolWithResultAsync(toolName, paramJson);
+            // 4. 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
+            var result = await registry.ExecuteAsync(new ToolExecution
+            {
+                CallId = string.Empty,
+                ToolName = toolName,
+                ArgsJson = paramJson,
+                SessionId = string.Empty
+            });
             if (result.Success)
             {
                 XTrace.Log.Info("[AIAgentPlugin] universal_tool 透传 {0} 成功（{1}ms）", toolName, Environment.TickCount64 - start);

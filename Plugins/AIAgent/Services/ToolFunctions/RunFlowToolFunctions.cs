@@ -9,9 +9,9 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 /// <c>submit_plan</c>（规划出口）、<c>complete_step</c>（步骤完成出口）、<c>request_help</c>（卡住出口）。
 /// 三工具注册进 ToolRegistry（可被 <c>ExecuteToolWithTimeoutAsync</c> 执行），但被
 /// <see cref="AIAgentService.ResolveOwnToolDefinitions"/> 按名排除，**不进 FreeLoop**；
-/// 仅 PlanDriven 步骤循环经 <see cref="IAIAgentService.RunAgentLoopAsync"/> 的
-/// <c>extraTools</c> 参数显式挂载，由 PlanGeneratorService / StepRunLoopService 消费
-/// <c>tool_call</c> 事件驱动阶段出口。
+/// 仅计划驱动路径经 <see cref="AgentOptions.ExtraTools"/> 显式挂载，
+/// 由 PlanGeneratorService（submit_plan 出口）/ RunOrchestratorService（complete_step/request_help 出口）
+/// 依 <see cref="AgentOptions.ExitToolNames"/> 出口语义消费（B7 统一循环）。
 /// </summary>
 public class RunFlowToolSet
 {

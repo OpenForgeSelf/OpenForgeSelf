@@ -22,6 +22,8 @@ public class AIAgentService : IAIAgentService
     private IAIProviderRegistry? _providerRegistry;
     private IProjectSkillScannerService? _skillScanner;
     private IProjectWorkspaceService? _workspace;
+    private ISessionStore? _sessionStore;
+    private IInbox? _inbox;
     private AIConfig? _aiConfig;
 
     public AIAgentService(
@@ -58,6 +60,18 @@ public class AIAgentService : IAIAgentService
 
     /// <summary>宿主 AI 提供方注册表（软依赖）：经它按 chatModelId 解析上游 provider。</summary>
     private IAIProviderRegistry? ProviderRegistry => _providerRegistry ??= _ctx.Get<IAIProviderRegistry>();
+
+    /// <summary>
+    /// 宿主会话事件日志（B4/040 写路径改序后的真相源，软依赖）：
+    /// 经 Cordis 上下文运行期获取（宿主在 ProvideHostServices 阶段才 seed 进根上下文）。
+    /// </summary>
+    private ISessionStore? SessionStore => _sessionStore ??= _ctx.Get<ISessionStore>();
+
+    /// <summary>
+    /// 宿主收件箱（B6/040 §2.5，软依赖）：followup/steer/inject 三通道统一入口，
+    /// 注册实现为 <c>PersistentInbox</c>（日志投影）。未注册时为 null，Agent 回合按空收件箱处理。
+    /// </summary>
+    private IInbox? Inbox => _inbox ??= _ctx.Get<IInbox>();
 
     private AIConfig AiConfig
     {
@@ -97,7 +111,7 @@ public class AIAgentService : IAIAgentService
         bool enableTools = true,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var ev in RunAgentLoopAsync(messages, null, null, null, null, enableTools, cancellationToken))
+        await foreach (var ev in RunAdHocLoopAsync(messages, null, null, null, null, enableTools, cancellationToken))
         {
             if (ev.Type == "content" && !string.IsNullOrEmpty(ev.Content))
                 yield return ev.Content;
@@ -108,16 +122,47 @@ public class AIAgentService : IAIAgentService
     {
         // 复用同一工具循环（驱动到完成、忽略事件流）；传入副本避免污染调用方列表。
         var grown = new List<AIChatMessage>(messages);
-        await foreach (var _ in RunAgentLoopAsync(grown, null, null, null, null, true, cancellationToken))
+        await foreach (var _ in RunAdHocLoopAsync(grown, null, null, null, null, true, cancellationToken))
         {
             // 事件由流式调用方消费，此处仅驱动循环
         }
         return grown;
     }
 
+    /// <summary>
+    /// 无会话上下文的一次性工具循环（ad-hoc 核心，<b>私有</b>）：调用方自带消息列表，<b>不落任何持久事实</b>
+    /// （没有 sessionId 就没有日志归属）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// B5（041）：旧的「消息列表版 <c>RunAgentLoopAsync</c>」重载已删除 —— 它被 IM 网关
+    /// （经 <c>IChatCompletion</c>）当成会话主路径使用，绕过了会话日志（QA 定性的旁路）。
+    /// 会话场景一律走 <see cref="RunAgentLoopAsync(string, string?, string?, List{string}?, List{string}?, bool, CancellationToken, List{IToolFunctionExtension}?)"/>
+    /// 或 <see cref="IAgentRegistry"/>。
+    /// </para>
+    /// <para>
+    /// <b>B7（两套循环统一）定性：合法例外</b>——本私有核心仅供 <c>IChatCompletion</c> 旧面
+    /// （ChatAsync/ChatStreamAsync/ChatWithToolsAsync：脚本生成/错误分析等一次性结构化产出）
+    /// 复用工具循环能力，不产生会话历史、不在两套循环的主入口上（B6 定性，见 B7 报告）。
+    /// 029 的两个旧调用方（工作流规划 / 计划驱动步骤执行）已迁入统一状态机路径，
+    /// 公共接口面已删除本方法；<b>新的无会话结构化产出一律走
+    /// <see cref="CreateAgent"/> + <see cref="AgentOptions.ExitToolNames"/> 出口语义，禁止再开公共 ad-hoc 口子</b>。
+    /// </para>
+    /// </remarks>
+    private IAsyncEnumerable<AgentLoopEvent> RunAdHocLoopAsync(
+        List<AIChatMessage> messages,
+        string? chatModelId = null,
+        string? agentId = null,
+        List<string>? enabledToolNames = null,
+        List<string>? skillIds = null,
+        bool enableTools = true,
+        CancellationToken cancellationToken = default,
+        List<IToolFunctionExtension>? extraTools = null)
+        => RunAdHocCoreAsync(messages, chatModelId, agentId, enabledToolNames, skillIds, enableTools, cancellationToken, extraTools);
+
     /// <inheritdoc />
     public async IAsyncEnumerable<AgentLoopEvent> RunAgentLoopAsync(
-        List<AIChatMessage> messages,
+        string sessionId,
         string? chatModelId = null,
         string? agentId = null,
         List<string>? enabledToolNames = null,
@@ -125,6 +170,210 @@ public class AIAgentService : IAIAgentService
         bool enableTools = true,
         [EnumeratorCancellation] CancellationToken cancellationToken = default,
         List<IToolFunctionExtension>? extraTools = null)
+    {
+        // B5（041）：循环逻辑已外迁到 ReactLoopAgent；本方法退化为编排层
+        // （构建运行期依赖 → 跑一个回合 → 把 live 帧适配成既有的 AgentLoopEvent 事件流）。
+        var agent = CreateAgent(sessionId, BuildAgentOptions(chatModelId, agentId, enabledToolNames, skillIds));
+
+        var content = new StringBuilder();
+        var toolNames = new Dictionary<string, string>(StringComparer.Ordinal);
+        string? error = null;
+        var aborted = false;
+
+        await foreach (var frame in agent.RunAsync(cancellationToken))
+        {
+            switch (frame)
+            {
+                case AssistantDelta delta:
+                    content.Append(delta.Content);
+                    yield return new AgentLoopEvent { Type = "content", Content = delta.Content };
+                    break;
+
+                case ToolStarted call:
+                    toolNames[call.CallId] = call.ToolName;
+                    yield return new AgentLoopEvent { Type = "tool_call", Name = call.ToolName, Arguments = call.ArgsJson };
+                    break;
+
+                case ToolCompleted done:
+                    yield return new AgentLoopEvent
+                    {
+                        Type = "tool_result",
+                        Name = toolNames.TryGetValue(done.CallId, out var name) ? name : string.Empty,
+                        Success = done.Outcome == ToolOutcome.Ok
+                    };
+                    break;
+
+                case TurnFailed failed:
+                    error = failed.Error;
+                    break;
+
+                case TurnCompleted turn:
+                    if (turn.Reason == TurnEndReason.Aborted)
+                    {
+                        aborted = true;
+                    }
+                    break;
+            }
+        }
+
+        if (agent is IAsyncDisposable disposable)
+        {
+            await disposable.DisposeAsync();
+        }
+
+        if (error != null)
+        {
+            yield return new AgentLoopEvent { Type = "error", Content = error };
+            yield break;
+        }
+
+        // done 携带本回合最终文本与用量（用量从日志最后一条 assistant/message 取，单一真源）
+        yield return new AgentLoopEvent
+        {
+            Type = "done",
+            Content = content.ToString(),
+            Usage = aborted ? null : ReadLastUsage(sessionId)
+        };
+    }
+
+    /// <summary>
+    /// 从会话日志取最后一条助手消息的用量（<see cref="AssistantMessageEvent.Usage"/> → 统一用量）。
+    /// </summary>
+    private UnifiedUsage? ReadLastUsage(string sessionId)
+    {
+        var store = SessionStore;
+        if (store == null)
+        {
+            return null;
+        }
+
+        var last = store.Replay(sessionId).OfType<AssistantMessageEvent>().LastOrDefault();
+        if (last?.Usage == null)
+        {
+            return null;
+        }
+
+        return new UnifiedUsage
+        {
+            PromptTokens = (int)last.Usage.PromptTokens,
+            CompletionTokens = (int)last.Usage.CompletionTokens,
+            TotalTokens = (int)(last.Usage.PromptTokens + last.Usage.CompletionTokens)
+        };
+    }
+
+    /// <summary>
+    /// 构建 Agent 运行选项（模型 / 已渲染系统提示 / 工具白名单）。
+    /// 系统提示在此一次性渲染完成：Agent 人设 → 选中技能 → 关联工作流（与旧循环同口径）。
+    /// </summary>
+    public AgentOptions BuildAgentOptions(
+        string? chatModelId = null,
+        string? agentId = null,
+        List<string>? enabledToolNames = null,
+        List<string>? skillIds = null)
+    {
+        var systemPrompt = ResolveSystemPrompt(agentId);
+        if (skillIds is { Count: > 0 })
+        {
+            systemPrompt = AppendSelectedSkills(systemPrompt, skillIds);
+        }
+        systemPrompt = AppendAssociatedWorkflows(systemPrompt, agentId);
+
+        return new AgentOptions
+        {
+            ModelId = chatModelId ?? string.Empty,
+            SystemPrompt = systemPrompt,
+            ToolAllowlist = enabledToolNames
+        };
+    }
+
+    /// <summary>
+    /// 创建会话 Agent（状态机本体）：解析 provider / 工具 schema / 模型 id，装配
+    /// <see cref="AgentTurnRuntime"/>，交付给 <see cref="IAgentRegistry"/> 或一次性调用方。
+    /// </summary>
+    public IAgent CreateAgent(string sessionId, AgentOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)) throw new ArgumentException("sessionId 不能为空", nameof(sessionId));
+        var effective = options ?? throw new ArgumentNullException(nameof(options));
+
+        var store = SessionStore
+            ?? throw new InvalidOperationException("宿主未提供 ISessionStore 契约，无法以会话日志为真相源驱动 Agent 循环");
+
+        var provider = ResolveProvider(string.IsNullOrWhiteSpace(effective.ModelId) ? null : effective.ModelId)
+            ?? throw new InvalidOperationException("未找到可用的 AI 提供方（检查提供方配置与模型路由）");
+
+        var tools = ResolveOwnToolDefinitions();
+        if (effective.ToolAllowlist is { Count: > 0 })
+        {
+            var allowed = new HashSet<string>(effective.ToolAllowlist, StringComparer.OrdinalIgnoreCase);
+            tools = tools.Where(t => allowed.Contains(t.Function.Name)).ToList();
+            XTrace.Log.Info("[AIAgentPlugin] 工具白名单过滤：请求 {0} 个，挂载 {1} 个", allowed.Count, tools.Count);
+        }
+
+        var unifiedTools = tools.Count > 0
+            ? tools.Select(t => new UnifiedToolDefinition
+            {
+                Name = t.Function.Name,
+                Description = t.Function.Description,
+                Parameters = t.Function.Parameters
+            }).ToList()
+            : null;
+
+        // B7 统一循环：AgentOptions.ExtraTools（出口工具 schema 等）并入本回合工具定义。
+        // 不随 ToolAllowlist 过滤（显式传入即视为意图挂载）；出口工具是声明不是执行，无需在宿主注册。
+        if (effective.ExtraTools is { Count: > 0 })
+        {
+            var merged = unifiedTools ?? new List<UnifiedToolDefinition>();
+            foreach (var extra in effective.ExtraTools)
+            {
+                object? parameters;
+                try
+                {
+                    parameters = JsonDocument.Parse(extra.ParametersJsonSchema).RootElement.Clone();
+                }
+                catch (Exception ex)
+                {
+                    XTrace.Log.Warn("[AIAgentPlugin] 额外工具 {0} schema 解析失败，已跳过: {1}", extra.Name, ex.Message);
+                    continue;
+                }
+                merged.Add(new UnifiedToolDefinition
+                {
+                    Name = extra.Name,
+                    Description = extra.Description,
+                    Parameters = parameters
+                });
+            }
+            unifiedTools = merged;
+        }
+
+        var runtime = new AgentTurnRuntime
+        {
+            Store = store,
+            Provider = provider,
+            ModelId = ResolveModelId(effective.ModelId),
+            ToolExecutor = ToolRegistry,
+            SystemPrompt = effective.SystemPrompt,
+            ToolDefinitions = unifiedTools,
+            Events = _ctx.Events,
+            MemoryPromptProvider = BuildMemoryPromptAsync,
+            Inbox = Inbox
+        };
+
+        return new ReactLoopAgent(sessionId, effective, runtime);
+    }
+
+    /// <summary>
+    /// 一次性工具循环核心（ad-hoc，无会话日志）：驱动到「无工具调用」或达到迭代上限。
+    /// 与会话版（<see cref="ReactLoopAgent"/>）的差别：不落任何事件、不认领收件箱、不走 turn/step 结构。
+    /// </summary>
+    private async IAsyncEnumerable<AgentLoopEvent> RunAdHocCoreAsync(
+        List<AIChatMessage> messages,
+        string? chatModelId,
+        string? agentId,
+        List<string>? enabledToolNames,
+        List<string>? skillIds,
+        bool enableTools,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        List<IToolFunctionExtension>? extraTools)
     {
         var provider = ResolveProvider(chatModelId);
         if (provider == null)
@@ -258,16 +507,28 @@ public class AIAgentService : IAIAgentService
             {
                 yield return new AgentLoopEvent { Type = "tool_call", Name = toolCall.Name, Arguments = toolCall.Arguments };
 
+                // ad-hoc 循环不落日志（无 sessionId 归属）；会话场景由 ReactLoopAgent 落 tool/call + tool/result。
+                // B9 迁六闸门执行面：30s 超时以 linked CTS 注入（管线以 exec.Signal 竞速工具体，语义等价旧 WithTimeout）。
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 ToolExecutionResult toolResult;
                 try
                 {
-                    toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(toolCall.Name, toolCall.Arguments, 30, cancellationToken);
+                    using var toolTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    toolTimeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+                    toolResult = await ToolRegistry.ExecuteAsync(new ToolExecution
+                    {
+                        CallId = string.Empty,
+                        ToolName = toolCall.Name,
+                        ArgsJson = toolCall.Arguments,
+                        SessionId = string.Empty
+                    }, toolTimeoutCts.Token);
                 }
                 catch (Exception ex)
                 {
                     XTrace.Log.Error("[AIAgentPlugin] 工具 {0} 执行异常: {1}", toolCall.Name, ex.Message);
                     toolResult = new ToolExecutionResult { Success = false, Result = string.Empty, ErrorMessage = ex.Message };
                 }
+                stopwatch.Stop();
 
                 yield return new AgentLoopEvent { Type = "tool_result", Name = toolCall.Name, Result = toolResult.Result, Success = toolResult.Success };
 
@@ -919,13 +1180,7 @@ public class AIAgentService : IAIAgentService
     {
         try
         {
-            var hasMemoryTool = tools.Any(t => t.Function.Name == "get_relevant_memories");
-            if (!hasMemoryTool)
-            {
-                XTrace.Log.Debug("[AIAgentPlugin] 未检测到记忆检索工具，跳过记忆注入");
-                return;
-            }
-
+            var unified = tools.Select(t => new UnifiedToolDefinition { Name = t.Function.Name }).ToList();
             var lastUserMessage = allMessages.LastOrDefault(m => m.Role == "user");
             if (lastUserMessage == null || string.IsNullOrWhiteSpace(lastUserMessage.Content))
             {
@@ -933,23 +1188,83 @@ public class AIAgentService : IAIAgentService
                 return;
             }
 
+            var memoryMessage = await BuildMemoryPromptAsync(lastUserMessage.Content, unified, cancellationToken);
+            if (string.IsNullOrWhiteSpace(memoryMessage))
+            {
+                return;
+            }
+
+            var systemMessage = allMessages.FirstOrDefault(m => m.Role == "system");
+            if (systemMessage != null)
+            {
+                systemMessage.Content = memoryMessage + Environment.NewLine + Environment.NewLine + systemMessage.Content;
+            }
+            else
+            {
+                allMessages.Insert(0, new AIChatMessage
+                {
+                    Role = "system",
+                    Content = memoryMessage
+                });
+            }
+
+            XTrace.Log.Info("[AIAgentPlugin] 记忆注入完成，记忆内容长度: {0}", memoryMessage.Length);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[AIAgentPlugin] 记忆注入失败: {0}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 检索长期记忆并渲染成「记忆上下文块」（供 ReactLoopAgent 经 <see cref="AgentTurnRuntime.MemoryPromptProvider"/>
+    /// 拼到系统提示前；ad-hoc 循环经 <see cref="InjectRelevantMemoriesAsync"/> 直接注入消息列表）。
+    /// </summary>
+    /// <param name="query">检索 query（取最后一条用户消息，内部截断到 500 字）。</param>
+    /// <param name="tools">本回合挂载的工具；不含 get_relevant_memories 时直接返回 null。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>记忆上下文块文本；无记忆/未挂载记忆工具/失败时返回 null。</returns>
+    public async Task<string?> BuildMemoryPromptAsync(
+        string query,
+        List<UnifiedToolDefinition>? tools,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (tools == null || !tools.Any(t => t.Name == "get_relevant_memories"))
+            {
+                XTrace.Log.Debug("[AIAgentPlugin] 未检测到记忆检索工具，跳过记忆注入");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                XTrace.Log.Debug("[AIAgentPlugin] 无用户消息，跳过记忆注入");
+                return null;
+            }
+
             XTrace.Log.Info("[AIAgentPlugin] 正在检索相关记忆...");
 
-            var query = lastUserMessage.Content;
-            if (query.Length > 500)
-                query = query[..500];
-
-            var toolParams = JsonSerializer.Serialize(new { query = query, limit = 5 });
-            var toolResult = await ToolRegistry.ExecuteToolWithTimeoutAsync(
-                "get_relevant_memories",
-                toolParams,
-                15,
-                cancellationToken);
+            var trimmed = query.Length > 500 ? query[..500] : query;
+            var toolParams = JsonSerializer.Serialize(new { query = trimmed, limit = 5 });
+            // B9 迁六闸门执行面：15s 超时以 linked CTS 注入（语义等价旧 WithTimeout）。
+            ToolExecutionResult toolResult;
+            using (var toolTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                toolTimeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                toolResult = await ToolRegistry.ExecuteAsync(new ToolExecution
+                {
+                    CallId = string.Empty,
+                    ToolName = "get_relevant_memories",
+                    ArgsJson = toolParams,
+                    SessionId = string.Empty
+                }, toolTimeoutCts.Token);
+            }
 
             if (!toolResult.Success)
             {
                 XTrace.Log.Warn("[AIAgentPlugin] 记忆检索失败: {0}", toolResult.ErrorMessage);
-                return;
+                return null;
             }
 
             using var doc = JsonDocument.Parse(toolResult.Result);
@@ -958,20 +1273,20 @@ public class AIAgentService : IAIAgentService
             if (!root.TryGetProperty("success", out var successProp) || !successProp.GetBoolean())
             {
                 XTrace.Log.Warn("[AIAgentPlugin] 记忆检索返回失败");
-                return;
+                return null;
             }
 
             if (!root.TryGetProperty("memories", out var memoriesProp) || memoriesProp.ValueKind != JsonValueKind.Array)
             {
                 XTrace.Log.Debug("[AIAgentPlugin] 没有找到相关记忆");
-                return;
+                return null;
             }
 
             var memories = memoriesProp.EnumerateArray().ToList();
             if (memories.Count == 0)
             {
                 XTrace.Log.Info("[AIAgentPlugin] 没有找到相关记忆");
-                return;
+                return null;
             }
 
             XTrace.Log.Info("[AIAgentPlugin] 找到 {0} 条相关记忆，注入到对话中", memories.Count);
@@ -1002,27 +1317,12 @@ public class AIAgentService : IAIAgentService
             sb.AppendLine("请根据以上记忆提供回答。如果记忆中的信息与当前问题无关，可以忽略。");
             sb.AppendLine("不要在回答中主动提及你使用了记忆，直接基于记忆内容回答即可。");
 
-            var memoryMessage = sb.ToString();
-
-            var systemMessage = allMessages.FirstOrDefault(m => m.Role == "system");
-            if (systemMessage != null)
-            {
-                systemMessage.Content = memoryMessage + Environment.NewLine + Environment.NewLine + systemMessage.Content;
-            }
-            else
-            {
-                allMessages.Insert(0, new AIChatMessage
-                {
-                    Role = "system",
-                    Content = memoryMessage
-                });
-            }
-
-            XTrace.Log.Info("[AIAgentPlugin] 记忆注入完成，记忆内容长度: {0}", memoryMessage.Length);
+            return sb.ToString();
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] 记忆注入失败: {0}", ex.Message);
+            return null;
         }
     }
 

@@ -542,6 +542,23 @@ export function getRunDetail(id: number): Promise<AgentRunDetailResponse | undef
   return apiGet<AgentRunDetailResponse>(`/api/ai-agent/runs/${id}`)
 }
 
+/** 会话历史消息条目（宿主 ChatMessage 只读投影；B9-3 规划过程面板用）。 */
+export interface ChatHistoryItem {
+  id: number
+  sessionId: string
+  role: string
+  content: string
+  createTime?: string
+}
+
+/**
+ * 会话历史消息只读拉取（GET /api/chat/history/{sessionId}，B9-3）：
+ * 规划过程面板据此读 plan:{runId} scratch 会话的模型可见投影（user/assistant/tool）。
+ */
+export function getChatHistory(sessionId: string, limit = 200): Promise<ChatHistoryItem[] | undefined> {
+  return apiGet<ChatHistoryItem[]>(`/api/chat/history/${encodeURIComponent(sessionId)}?limit=${limit}`)
+}
+
 /** 以同 Plan 新建 Run 从头执行（POST /api/ai-agent/runs/{id}/restart）。 */
 export function restartRun(id: number): Promise<{ success?: boolean; newRunId?: number } | undefined> {
   return apiPost<{ success?: boolean; newRunId?: number }>(`/api/ai-agent/runs/${id}/restart`, {})

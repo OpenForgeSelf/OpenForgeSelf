@@ -108,8 +108,14 @@ public sealed class UniversalToolForwarder
                 return Err($"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）");
             }
 
-            // 经宿主分发核执行（pre-execute 拒绝门/事件链/统计在宿主侧生效）
-            var result = await registry.ExecuteToolWithResultAsync(toolName, paramJson);
+            // 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
+            var result = await registry.ExecuteAsync(new ToolExecution
+            {
+                CallId = string.Empty,
+                ToolName = toolName,
+                ArgsJson = paramJson,
+                SessionId = string.Empty
+            });
             if (result.Success)
             {
                 return new ForwardResult { Text = result.Result, IsError = false };

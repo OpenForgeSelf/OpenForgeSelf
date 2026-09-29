@@ -4,11 +4,55 @@ using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
+using ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 using NewLife.Data;
 using NewLife.Log;
 using XCode;
+using ForgeSelf.Core;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Services;
+
+/// <summary>
+/// 单步执行结果（B7 自 StepRunLoopService 迁入：编排器出口容器，供落库与决策）。
+/// </summary>
+public class StepRunResult
+{
+    /// <summary>LLM 调 complete_step 完成。</summary>
+    public bool Completed { get; set; }
+
+    /// <summary>complete_step 声明的产出。</summary>
+    public string? Output { get; set; }
+
+    /// <summary>LLM 调 request_help 或回合收束未出口卡住。</summary>
+    public bool Stuck { get; set; }
+
+    /// <summary>卡住原因（request_help.reason 原文 / 挂起或收束说明）。</summary>
+    public string? StuckReason { get; set; }
+
+    /// <summary>运行异常失败。</summary>
+    public bool Failed { get; set; }
+
+    /// <summary>失败错误信息。</summary>
+    public string? ErrorMessage { get; set; }
+
+    /// <summary>本步 token 用量汇总。</summary>
+    public long TokensUsed { get; set; }
+
+    /// <summary>本步工具调用轨迹（名/参数摘要/结果摘要/成败）。</summary>
+    public List<StepToolCallTrace> ToolCalls { get; set; } = new();
+
+    /// <summary>组装给 LLM 的上下文（InputJson 落库用）。</summary>
+    public string? InputJson { get; set; }
+}
+
+/// <summary>单步工具调用轨迹项（ToolCallsJson 落库用）。</summary>
+public class StepToolCallTrace
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ArgumentsSummary { get; set; }
+    public string? ResultSummary { get; set; }
+    public bool Success { get; set; } = true;
+}
 
 public interface IRunOrchestratorService
 {
@@ -38,10 +82,11 @@ public interface IRunOrchestratorService
 }
 
 /// <summary>
-/// 计划驱动执行引擎主控（tasks.md T015，design.md §5）：
-/// RunAsync/ResumeAsync 共享 <see cref="ExecuteStepsCoreAsync"/> 步骤循环（每步一次
-/// RunAgentLoopAsync，出口由 StepRunLoopService 判定）；InterveneAsync 映射
-/// skip/override 到 StepRun 字段（design.md D6）；状态迁移统一走 <see cref="RunStateMachine"/>。
+/// 计划驱动执行引擎主控（tasks.md T015，design.md §5；B7 薄壳化）：
+/// RunAsync/ResumeAsync 共享 <see cref="ExecuteStepsCoreAsync"/> 步骤循环——每步骤经统一
+/// ReactLoopAgent 状态机跑一个 turn（出口工具 complete_step/request_help 声明出口）；
+/// InterveneAsync 映射 skip/override/steer（design.md D6 + B7 语义统一）；
+/// 状态迁移统一走 <see cref="RunStateMachine"/>。
 /// </summary>
 public class RunOrchestratorService : IRunOrchestratorService
 {
@@ -58,17 +103,43 @@ public class RunOrchestratorService : IRunOrchestratorService
     };
 
     private readonly IPlanGeneratorService _planGenerator;
-    private readonly IStepRunLoopService _stepRunLoop;
+    private readonly IAIAgentService _aiAgentService;
     private readonly IAgentRegistryService? _agentRegistry;
+    private readonly IContext? _ctx;
+    private readonly RunFlowToolSet? _runFlowTools;
+    private readonly IInbox? _inboxOverride;
+    private readonly TimeSpan? _stepTimeout;
 
+    /// <summary>宿主收件箱（B7 软依赖）：优先显式注入（测试），否则经 Cordis 上下文运行期懒解析。</summary>
+    private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();
+
+    /// <summary>
+    /// B7 切片 2 起的装配面：编排器薄壳化——步骤执行改由统一 ReactLoopAgent 状态机承担
+    /// （每 029 步骤 = 一个 turn），本类只做「建 Run → 规划 → 逐步派发 → 出口判定 → 落库 → 终局合成」。
+    /// </summary>
+    /// <param name="planGenerator">规划阶段（scratch-session submit_plan 出口，B7 统一循环）。</param>
+    /// <param name="aiAgentService">统一循环入口：CreateAgent 产出 ReactLoopAgent 状态机实例。</param>
+    /// <param name="agentRegistry">Agent 人设注册表（可选，人格注入用）。</param>
+    /// <param name="ctx">Cordis 上下文（可选；用于运行期懒解析宿主 <see cref="IInbox"/>——插件子容器不含宿主契约）。</param>
+    /// <param name="runFlowTools">029 特殊工具集（complete_step/request_help schema 经 AgentOptions.ExtraTools 挂载）。</param>
+    /// <param name="inbox">宿主收件箱显式注入（测试用；生产走 ctx 懒解析）。</param>
+    /// <param name="stepTimeout">单步骤超时覆盖（默认 45s；测试可缩短）。</param>
     public RunOrchestratorService(
         IPlanGeneratorService planGenerator,
-        IStepRunLoopService stepRunLoop,
-        IAgentRegistryService? agentRegistry = null)
+        IAIAgentService aiAgentService,
+        IAgentRegistryService? agentRegistry = null,
+        IContext? ctx = null,
+        RunFlowToolSet? runFlowTools = null,
+        IInbox? inbox = null,
+        TimeSpan? stepTimeout = null)
     {
         _planGenerator = planGenerator;
-        _stepRunLoop = stepRunLoop;
+        _aiAgentService = aiAgentService;
         _agentRegistry = agentRegistry;
+        _ctx = ctx;
+        _runFlowTools = runFlowTools;
+        _inboxOverride = inbox;
+        _stepTimeout = stepTimeout;
     }
 
     /// <inheritdoc />
@@ -88,6 +159,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         // 2. 规划：有/无工作流 → submit_plan 提交 Plan。
         AgentPlan plan = null!;
         string? planError = null;
+        var planningStopwatch = System.Diagnostics.Stopwatch.StartNew();   // B9-3：规划耗时元数据
         try
         {
             plan = await _planGenerator.GeneratePlanAsync(run, request.WorkflowId, request.ChatModelId, ct);
@@ -99,13 +171,14 @@ public class RunOrchestratorService : IRunOrchestratorService
             XTrace.Log.Error("[RunOrchestrator] 规划失败（Run {0}）: {1}", run.Id, ex);
             planError = $"规划失败: {ex.Message}";
         }
+        planningStopwatch.Stop();
         if (planError != null)
         {
             yield return new AgentLoopEvent { Type = "error", Content = planError };
             yield break;
         }
 
-        // 3. Plan 落库 + 事件（plan_created）。
+        // 3. Plan 落库 + 事件（plan_created，B9-3 附规划模型/耗时元数据）。
         run.PlanJson = JsonSerializer.Serialize(plan);
         run.StepCount = plan.Steps.Count;
         run.Status = (int)AgentRunStatus.Running;
@@ -113,7 +186,13 @@ public class RunOrchestratorService : IRunOrchestratorService
         yield return new AgentLoopEvent
         {
             Type = "plan_created",
-            Content = JsonSerializer.Serialize(new { plan = plan, planJson = run.PlanJson }, SsePayloadOptions)
+            Content = JsonSerializer.Serialize(new
+            {
+                plan = plan,
+                planJson = run.PlanJson,
+                planningModel = request.ChatModelId,
+                planningDurationMs = planningStopwatch.ElapsedMilliseconds
+            }, SsePayloadOptions)
         };
 
         // 4. 逐步执行（SSE 事件透传）。
@@ -164,7 +243,7 @@ public class RunOrchestratorService : IRunOrchestratorService
             yield break;
         }
 
-        // 保留现场：从 CurrentStepIndex 重跑；前序 Completed 步骤产出由 StepRunLoopService 注入上下文（T011）。
+        // 保留现场：从 CurrentStepIndex 重跑；前序 Completed 步骤产出由步骤系统提示注入上下文（T011）。
         // 注：V1 不持久化 ChatModelId，resume 回退默认 provider（可后续加列）。
         run.Status = (int)AgentRunStatus.Running;
         run.Update();
@@ -226,6 +305,28 @@ public class RunOrchestratorService : IRunOrchestratorService
     {
         var run = AgentRun.FindById(id);
         if (run == null) return Task.FromResult<AgentRunDto?>(null);
+
+        // ---- B7：steer 介入——输入走收件箱通道（统一循环的唯一输入入口），不改双表运行视图 ----
+        // 运行中（Running）→ steer（NextStep，下一 step 边界生效）；已停（Stuck/Failed/Pending）→ followup（NextTurn，下一回合）。
+        if (string.Equals(request.Action, "steer", StringComparison.OrdinalIgnoreCase))
+        {
+            var status = (AgentRunStatus)run.Status;
+            if (status is AgentRunStatus.Completed or AgentRunStatus.Cancelled)
+                throw new InvalidOperationException($"状态 {status} 为终态，不可介入");
+            if (string.IsNullOrWhiteSpace(request.Output))
+                throw new InvalidOperationException("steer 介入必须提供指令内容（Output）");
+            if (string.IsNullOrWhiteSpace(run.SessionId))
+                throw new InvalidOperationException("执行记录未关联会话（SessionId 为空），无法 steer");
+
+            var inbox = Inbox ?? throw new InvalidOperationException("宿主收件箱不可用（IInbox 未接线）");
+            if (status == AgentRunStatus.Running)
+                inbox.Steer(run.SessionId, request.Output);
+            else
+                inbox.Followup(run.SessionId, request.Output);
+
+            XTrace.Log.Info("[RunOrchestrator] 介入 Run {0}：steer 通道（状态 {1}）", id, status);
+            return Task.FromResult<AgentRunDto?>(ToDto(run));
+        }
 
         var runStatus = (AgentRunStatus)run.Status;
         if (runStatus is AgentRunStatus.Completed or AgentRunStatus.Cancelled)
@@ -372,16 +473,91 @@ public class RunOrchestratorService : IRunOrchestratorService
                 continue;
             }
 
-            // 步骤循环：复用 RunAgentLoopAsync（挂 complete_step/request_help + allowedTools 白名单）。
+            // ---- B7 薄壳化：步骤执行 = 统一 ReactLoopAgent 状态机的一个回合 ----
+            // 步骤指令经收件箱 followup 唤醒新 turn（模型可见 = 已记录）；complete_step/request_help
+            // 为出口工具（声明即出口，不真实执行）；turn 收束即步骤出口判定，双表照旧落库、SSE 面不变。
             var result = new StepRunResult();
-            await foreach (var ev in _stepRunLoop.RunStepLoopAsync(run, plan, step, result, chatModelId, null, ct))
+            var sessionId = string.IsNullOrWhiteSpace(run.SessionId) ? $"run:{run.Id}" : run.SessionId!;
+            string? exitTool = null;
+            string? exitArgs = null;
+            string? turnError = null;
+            var turnReason = TurnEndReason.Completed;
+            var callNames = new Dictionary<string, string>();
+
+            var agent = _aiAgentService.CreateAgent(sessionId, BuildStepAgentOptions(run, plan, step, chatModelId));
+            Inbox?.Followup(sessionId,
+                $"任务原文：{run.TaskInput}\n\n请开始执行本步「{step.Name}」。完成或求助均通过对应工具提交。");
+
+            await foreach (var frame in agent.RunAsync(ct))
             {
-                if (ev.Type == "complete_step" || ev.Type == "request_help")
-                    break; // 出口事件：result 已携带结果，统一在循环外落库
-                yield return ev; // 透传 content/tool_call/tool_result/usage
+                switch (frame)
+                {
+                    case AssistantDelta delta:
+                        if (string.IsNullOrEmpty(delta.Content)) break; // 空增量不产 SSE 噪音（与旧路径同面）
+                        yield return new AgentLoopEvent { Type = "content", Content = delta.Content };
+                        break;
+
+                    case ToolStarted started:
+                        callNames[started.CallId] = started.ToolName;
+                        if (IsStepExitTool(started.ToolName)) break; // 出口工具不进 SSE（编排器统一转译）
+                        yield return new AgentLoopEvent { Type = "tool_call", Name = started.ToolName, Arguments = started.ArgsJson };
+                        break;
+
+                    case ToolCompleted completed:
+                    {
+                        if (!callNames.TryGetValue(completed.CallId, out var doneName)
+                            || IsStepExitTool(doneName)) break;
+                        yield return new AgentLoopEvent
+                        {
+                            Type = "tool_result",
+                            Name = doneName,
+                            Success = completed.Outcome == ToolOutcome.Ok,
+                        };
+                        break;
+                    }
+
+                    case ExitToolInvoked exit:
+                        exitTool = exit.ToolName;
+                        exitArgs = exit.ArgsJson;
+                        break;
+
+                    case TurnFailed tf:
+                        turnError = tf.Error;
+                        break;
+
+                    case TurnCompleted tc:
+                        turnReason = tc.Reason;
+                        break;
+                }
             }
 
-            // 出口落库（complete_step / request_help / 迭代超限 / 异常）。
+            // 出口判定 → 出口容器（落库与 SSE 转译与旧路径共用同一套代码）。
+            if (turnError != null)
+            {
+                result.Failed = true;
+                result.ErrorMessage = turnError;
+            }
+            else if (string.Equals(exitTool, RequestHelpToolName, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Stuck = true;
+                result.StuckReason = ParseStepReason(exitArgs);
+            }
+            else if (string.Equals(exitTool, CompleteStepToolName, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Completed = true;
+                result.Output = ParseStepOutput(exitArgs);
+            }
+            else
+            {
+                // 无出口声明：挂起（请求无进展超时）或回合收束未提交 complete_step → 卡住保留现场（T011）
+                var timeout = (_stepTimeout ?? TimeSpan.FromSeconds(45)).TotalSeconds;
+                result.Stuck = true;
+                result.StuckReason = turnReason == TurnEndReason.Suspended
+                    ? $"步骤执行超过 {timeout:0}s 挂起（请求无进展超时），已保留现场等待人工介入"
+                    : "步骤回合未调用 complete_step 声明完成即收束，已暂停等待人工介入";
+            }
+
+            // 出口落库（complete_step / request_help / 挂起 / 异常）。
             if (result.Completed)
             {
                 MarkStepCompleted(stepRun, result, step);
@@ -499,6 +675,156 @@ public class RunOrchestratorService : IRunOrchestratorService
             sb.AppendLine();
         }
         return sb.ToString();
+    }
+
+    #endregion
+
+    #region 统一循环装配（B7 薄壳化：步骤 → 一个 turn）
+
+    private const string CompleteStepToolName = "complete_step";
+    private const string RequestHelpToolName = "request_help";
+
+    /// <summary>是否步骤出口工具（声明即出口，不真实执行）。</summary>
+    private bool IsStepExitTool(string toolName)
+        => string.Equals(toolName, CompleteStepToolName, StringComparison.OrdinalIgnoreCase)
+           || string.Equals(toolName, RequestHelpToolName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 每步骤一个 turn 的运行选项：步骤系统提示（人格 + Plan 全景 + 前序产出 + 本步目标）+
+    /// 步骤工具白名单 + 出口工具语义 + 029 特殊工具 schema（经 ExtraTools 挂载，不随白名单过滤）。
+    /// </summary>
+    private AgentOptions BuildStepAgentOptions(AgentRun run, AgentPlan plan, AgentPlanStep step, string? chatModelId)
+    {
+        return new AgentOptions
+        {
+            ModelId = chatModelId ?? string.Empty,
+            SystemPrompt = BuildStepSystemPrompt(run, plan, step),
+            ToolAllowlist = step.AllowedTools,
+            ExitToolNames = new[] { CompleteStepToolName, RequestHelpToolName },
+            ExtraTools = _runFlowTools?.Stepping(),
+            StepTimeout = _stepTimeout ?? TimeSpan.FromSeconds(45),
+        };
+    }
+
+    /// <summary>步骤系统提示：Agent 人格 + Plan 全景 + 前序产出摘要 + 本步 objective/expectedOutput（平移自 StepRunLoopService）。</summary>
+    private string BuildStepSystemPrompt(AgentRun run, AgentPlan plan, AgentPlanStep step)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("你是计划驱动执行引擎的步骤执行者。按照给定的执行计划逐步完成任务。");
+        sb.AppendLine();
+
+        // Agent 人格注入（与统一循环的 ResolveSystemPrompt 同源）。
+        var agent = _agentRegistry?.GetAgent(run.AgentId);
+        if (agent != null)
+        {
+            sb.AppendLine($"## 角色设定（Agent「{agent.Name}」）");
+            if (!string.IsNullOrWhiteSpace(agent.Description))
+                sb.AppendLine(agent.Description);
+            if (!string.IsNullOrWhiteSpace(agent.SystemPrompt))
+                sb.AppendLine(agent.SystemPrompt);
+            sb.AppendLine();
+        }
+
+        // Plan 全景 + 当前位置标注。
+        sb.AppendLine("## 执行计划全景");
+        sb.AppendLine($"目标：{plan.Goal}");
+        for (var i = 0; i < plan.Steps.Count; i++)
+        {
+            var p = plan.Steps[i];
+            var marker = p.Id == step.Id ? " ← 当前步骤" : string.Empty;
+            sb.AppendLine($"- [{i + 1}/{plan.Steps.Count}] {p.Name}：{p.Objective}{marker}");
+        }
+        sb.AppendLine();
+
+        // 前序已完成步骤的产出摘要（resume 后仍进入上下文，T011/D5）。
+        var priorOutputs = LoadPriorOutputs(run.Id, step.Id);
+        if (priorOutputs.Count > 0)
+        {
+            sb.AppendLine("## 前序步骤产出（可引用，勿重复执行）");
+            foreach (var (stepId, name, output) in priorOutputs)
+            {
+                sb.AppendLine($"### 步骤 {stepId}（{name}）产出");
+                sb.AppendLine(TruncateStepText(output, 2000));
+            }
+            sb.AppendLine();
+        }
+
+        // 本步目标。
+        sb.AppendLine("## 当前步骤");
+        sb.AppendLine($"步骤名：{step.Name}");
+        sb.AppendLine($"目标：{step.Objective}");
+        if (!string.IsNullOrWhiteSpace(step.ExpectedOutput))
+            sb.AppendLine($"期望产出：{step.ExpectedOutput}");
+        if (step.AllowedTools is { Count: > 0 })
+            sb.AppendLine($"本步允许工具：{string.Join(", ", step.AllowedTools)}");
+        sb.AppendLine();
+
+        sb.AppendLine("执行要求：");
+        sb.AppendLine($"- 只完成当前步骤「{step.Name}」，不要提前执行后续步骤。");
+        sb.AppendLine("- 完成后调用 complete_step 工具提交本步产出（output 字段）。");
+        sb.AppendLine("- 无法推进时调用 request_help 工具说明卡住原因，等待人工介入。");
+        sb.AppendLine("- 不要用自由文本声明完成，必须通过工具提交。");
+        return sb.ToString();
+    }
+
+    /// <summary>读取前序已完成步骤的产出（StepRun.Status=Completed，按 StepIndex 升序；平移自 StepRunLoopService）。</summary>
+    private static List<(string StepId, string Name, string Output)> LoadPriorOutputs(long runId, string currentStepId)
+    {
+        var result = new List<(string, string, string)>();
+        try
+        {
+            var steps = AgentStepRun.FindAllByRunId(runId)
+                .Where(s => s.Status == (int)AgentStepStatus.Completed && s.StepId != currentStepId)
+                .OrderBy(s => s.StepIndex);
+            foreach (var s in steps)
+            {
+                if (string.IsNullOrWhiteSpace(s.OutputJson)) continue;
+                result.Add((s.StepId ?? string.Empty, s.Name ?? string.Empty, s.OutputJson));
+            }
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[RunOrchestrator] 读取前序产出失败: {0}", ex.Message);
+        }
+        return result;
+    }
+
+    /// <summary>complete_step 出口参数 → output（平移自 StepRunLoopService）。</summary>
+    private static string? ParseStepOutput(string? arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments)) return string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(arguments);
+            return doc.RootElement.TryGetProperty("output", out var o) ? o.GetString() : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>request_help 出口参数 → reason（平移自 StepRunLoopService）。</summary>
+    private static string? ParseStepReason(string? arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments)) return "（未说明原因）";
+        try
+        {
+            using var doc = JsonDocument.Parse(arguments);
+            return doc.RootElement.TryGetProperty("reason", out var r) && !string.IsNullOrWhiteSpace(r.GetString())
+                ? r.GetString()
+                : "（未说明原因）";
+        }
+        catch
+        {
+            return "（参数解析失败）";
+        }
+    }
+
+    private static string TruncateStepText(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value.Length <= maxLength ? value : value[..maxLength] + "…";
     }
 
     #endregion

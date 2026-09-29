@@ -127,6 +127,7 @@ import {
   type RunStreamHandlers,
 } from './http'
 import { archiveSessionWithConfirm } from './sessionArchive'
+import { settleToolEventFifo } from './toolEvents'
 import type {
   AgentDefinition,
   AgentPlan,
@@ -462,7 +463,8 @@ async function loadHistory() {
  */
 async function loadSessions() {
   try {
-    sessions.value = (await fetchSessions('active')) ?? []
+    // B9-3：plan:{runId} 规划 scratch 会话不进聊天会话列表（后端已过滤，前端兜底）
+    sessions.value = ((await fetchSessions('active')) ?? []).filter((s) => !s.id.startsWith('plan:'))
   } catch {
     // 列表拉取失败不阻断对话，留空即可
     sessions.value = []
@@ -591,21 +593,10 @@ async function sendFreeMessage(text: string) {
     }
   }
 
-  /** 标记最后一个仍在 pending 的工具事件为已完成并填结果。 */
+  /** 标记最后一个仍在 pending 的工具事件为已完成并填结果（B9-2：FIFO 前溯，同名多次调用不互换）。 */
   function settleToolEvent(e: { name?: string; result?: string; success?: boolean }) {
-    const events = assistantMsg.toolEvents ?? []
-    // 从后往前找同名且 pending 的事件
-    for (let i = events.length - 1; i >= 0; i--) {
-      const ev = events[i]
-      if (ev && ev.pending && ev.name === e.name) {
-        ev.result = e.result
-        ev.success = e.success
-        ev.pending = false
-        return
-      }
-    }
-    // 没找到（异常情况）则补一条
-    events.push({ name: e.name, result: e.result, success: e.success, pending: false })
+    if (!assistantMsg.toolEvents) assistantMsg.toolEvents = []
+    settleToolEventFifo(assistantMsg.toolEvents as ToolEvent[], e)
   }
 
   try {

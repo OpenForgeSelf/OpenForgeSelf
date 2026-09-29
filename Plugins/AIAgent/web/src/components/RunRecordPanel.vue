@@ -56,6 +56,38 @@
             <span>{{ selected.stuckReason }}</span>
           </div>
 
+          <!-- B9-3：规划过程（plan:{runId} scratch 会话只读投影；自动生成徽标 / 规则回退徽标 / 原始日志切换） -->
+          <div class="rrp__plan">
+            <div class="rrp__plan-head">
+              <button type="button" class="rrp__plan-toggle" @click="planOpen = !planOpen">
+                <span class="rrp__plan-title">规划过程</span>
+                <span
+                  v-if="selected.status !== 1"
+                  class="rrp__plan-badge"
+                  :class="planGenerated ? 'rrp__plan-badge--auto' : 'rrp__plan-badge--fallback'"
+                >{{ planGenerated ? '自动生成' : '规则回退' }}</span>
+                <span class="rrp__plan-arrow">{{ planOpen ? '▾' : '▸' }}</span>
+              </button>
+              <button
+                v-if="planEntries.length"
+                type="button"
+                class="rrp__plan-raw"
+                @click="showRaw = !showRaw"
+              >{{ showRaw ? '投影视图' : '查看原始日志' }}</button>
+            </div>
+            <ElScrollbar v-if="planOpen" class="rrp__plan-body">
+              <p v-if="planLoading" class="rrp__empty">加载规划过程…</p>
+              <p v-else-if="!planEntries.length" class="rrp__empty">无规划会话日志（该 Run 走规则回退或规划会话已清理）。</p>
+              <template v-else-if="!showRaw">
+                <div v-for="entry in planEntries" :key="entry.id" class="rrp__plan-entry">
+                  <span class="rrp__plan-role" :class="`rrp__plan-role--${entry.role}`">{{ planRoleLabel(entry.role) }}</span>
+                  <pre class="rrp__pre">{{ entry.content }}</pre>
+                </div>
+              </template>
+              <pre v-else class="rrp__pre rrp__pre--raw">{{ planRawText }}</pre>
+            </ElScrollbar>
+          </div>
+
           <!-- 步骤时间线 -->
           <div class="rrp__steps">
             <div
@@ -161,12 +193,14 @@ import {
 } from '@element-plus/icons-vue'
 import {
   cancelRun,
+  getChatHistory,
   getRunDetail,
   interveneRun,
   listRuns,
   restartRun,
   type AgentRunDto,
   type AgentStepRunDto,
+  type ChatHistoryItem,
 } from '../http'
 import { runStatusName, stepStatusName } from '../types'
 
@@ -219,16 +253,60 @@ async function reloadList() {
   }
 }
 
-/** 点击 Run：加载详情（含步骤）。 */
+/** 点击 Run：加载详情（含步骤）+ 规划过程（plan:{runId} 会话投影）。 */
 async function openRun(id: number) {
   selected.value = runs.value.find((r) => r.id === id) ?? null
   steps.value = []
+  planEntries.value = []
+  void loadPlanSession(id)
   try {
     const data = await getRunDetail(id)
     if (data?.run) selected.value = data.run
     steps.value = data?.steps ?? []
   } catch (e) {
     ElMessage.error(`加载 Run 详情失败：${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
+/* ---- B9-3：规划过程（plan:{runId} scratch 会话只读投影） ---- */
+const planEntries = ref<ChatHistoryItem[]>([])
+const planLoading = ref(false)
+const planOpen = ref(false)
+const showRaw = ref(false)
+
+/** 规划会话有日志 → 自动生成；无（回退/清理）→ 规则回退。 */
+const planGenerated = computed(() => planEntries.value.length > 0)
+
+/** 原始日志视图：历史条目的原样 JSON 行（对齐 ChatRecordDetail raw 视图语义）。 */
+const planRawText = computed(() =>
+  planEntries.value.map((e) => JSON.stringify({ role: e.role, content: e.content, createTime: e.createTime })).join('\n'),
+)
+
+async function loadPlanSession(runId: number) {
+  planLoading.value = true
+  try {
+    const data = await getChatHistory(`plan:${runId}`)
+    planEntries.value = data ?? []
+  } catch {
+    planEntries.value = [] // 规划会话不存在（规则回退）属常态，静默降级为「规则回退」徽标
+  } finally {
+    planLoading.value = false
+  }
+}
+
+/** 规划会话角色 → 展示标签（映射照 B9-3 方案：user→原始任务 / assistant→规划思考 / tool→工具结果）。 */
+function planRoleLabel(role: string): string {
+  switch (role) {
+    case 'user':
+      return '原始任务'
+    case 'assistant':
+      return '规划思考'
+    case 'tool':
+      return '工具结果'
+    case 'system':
+      return '系统'
+    default:
+      return role
   }
 }
 
@@ -640,6 +718,105 @@ function fmtTime(t?: string): string {
   color: var(--el-color-danger, #f56c6c);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.5;
+}
+
+/* B9-3：规划过程折叠区 */
+.rrp__plan {
+  margin-bottom: 10px;
+  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-bg-color, #1d1e1f);
+  flex-shrink: 0;
+}
+
+.rrp__plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+}
+
+.rrp__plan-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.rrp__plan-title {
+  font-size: var(--el-font-size-small, 13px);
+  font-weight: var(--el-weight-semibold, 600);
+  color: var(--el-text-color-regular, #cfd3dc);
+}
+
+.rrp__plan-badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.rrp__plan-badge--auto {
+  color: var(--el-color-success, #67c23a);
+  background: rgba(103, 194, 58, 0.12);
+}
+
+.rrp__plan-badge--fallback {
+  color: var(--el-text-color-secondary, #a3a6ad);
+  background: var(--el-fill-color-dark, #2f3031);
+}
+
+.rrp__plan-arrow {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder, #8c959f);
+}
+
+.rrp__plan-raw {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #a3a6ad);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rrp__plan-raw:hover {
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.rrp__plan-body {
+  max-height: 200px;
+  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  padding: 6px 8px;
+}
+
+.rrp__plan-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.rrp__plan-role {
+  font-size: 11px;
+  font-weight: var(--el-weight-medium, 500);
+  color: var(--el-color-primary, #ffb84d);
+}
+
+.rrp__plan-role--assistant {
+  color: var(--el-text-color-secondary, #a3a6ad);
+}
+
+.rrp__plan-role--tool {
+  color: var(--el-text-color-placeholder, #8c959f);
+}
+
+.rrp__pre--raw {
+  max-height: 160px;
 }
 
 /* 步骤时间线 */

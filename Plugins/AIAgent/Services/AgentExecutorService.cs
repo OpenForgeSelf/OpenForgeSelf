@@ -4,6 +4,9 @@ using System.Text;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using NewLife.Log;
+// B5（041）：Abstractions 新增了运行时状态枚举 AgentStatus（IAgent.Status），
+// 与插件既有的「Agent 人设状态」Models.AgentStatus 同名。本文件用的是插件人设状态，故显式别名消歧。
+using AgentStatus = ForgeSelf.Api.Plugins.AIAgent.Models.AgentStatus;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 

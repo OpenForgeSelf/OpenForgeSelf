@@ -20,6 +20,11 @@
 
   <!-- AIAgent 统一使用 XCode 作为 ORM（无 EF 上下文），故不引用 EF Sqlite -->
 
+  <!-- 测试程序集需要访问 internal 的 BuiltInAgentDefinitions（补种内置 Agent 用） -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ForgeSelf.Api.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
     <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />

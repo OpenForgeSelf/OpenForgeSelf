@@ -8,4 +8,11 @@
     <AssemblyName>ForgeSelf.Core</AssemblyName>
   </PropertyGroup>
 
+  <!-- B3（040）：EventBus.SetParent / Context.AttachParentBus 为 internal，
+       宿主（ForgeSelf.Api）需在注入平台单例总线时把父指针挂到插件根 Context 上。 -->
+  <ItemGroup>
+    <!-- 注意：宿主程序集名是 ForgeSelf（Api 项目的 AssemblyName），不是项目名 ForgeSelf.Api -->
+    <InternalsVisibleTo Include="ForgeSelf" />
+  </ItemGroup>
+
 </Project>

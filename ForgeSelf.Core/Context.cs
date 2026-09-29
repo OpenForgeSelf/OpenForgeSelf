@@ -21,12 +21,14 @@ public sealed class Context : IContext, IDisposable
     private readonly Context? _parent;
     private readonly Context _root;
     private readonly ConcurrentDictionary<Type, (object Instance, Context? Provider)>? _sharedServices;
-    private readonly EventBus _events = new();
+    private readonly EventBus _events;
 
     public Context(Context? parent = null)
     {
         _parent = parent;
         _root = parent?.GetRoot() ?? this;
+        // B3（040）：事件总线父子冒泡 —— 以父上下文的总线为父，子 emit 沿链朝根传播，父 emit 不反向传给子。
+        _events = new EventBus(parent?._events);
         // 共享服务表仅由 root 持有；非 root 上下文经 _root 引用访问。
         _sharedServices = ReferenceEquals(_root, this)
             ? new ConcurrentDictionary<Type, (object Instance, Context? Provider)>()
@@ -34,6 +36,19 @@ public sealed class Context : IContext, IDisposable
     }
 
     public IEventBus Events => _events;
+
+    /// <summary>
+    /// 把外部总线（宿主 DI 单例）挂为本上下文总线的父总线（B3 根总线打通）。
+    /// 根 Context 的总线是自建的，与宿主 DI 单例 <see cref="IEventBus"/> 本不是同一实例；
+    /// 事后挂载父指针后，插件 Fiber 内的 emit 才能冒泡到平台级 <c>tools/*</c> 监听器。
+    /// 挂载是一次性的（见 <see cref="EventBus.SetParent"/>）。
+    /// </summary>
+    /// <param name="parent">宿主平台级总线。</param>
+    internal void AttachParentBus(EventBus parent)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        _events.SetParent(parent);
+    }
 
     public void Register<TService>(TService instance) where TService : class
         => Register(typeof(TService), instance);

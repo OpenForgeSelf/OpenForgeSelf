@@ -1,4 +1,4 @@
-# 设计插件 DesignSystem · 通用设计系统生成器
+﻿# 设计插件 DesignSystem · 通用设计系统生成器
 
 > 铸己匣（ForgeSelf）的**设计系统生成器**插件。
 > 插件 ID `design-system`，挂载路由 `/design-system`，界面由插件自带（`web/dist`），宿主运行时远程加载。
@@ -217,8 +217,8 @@ DesignSystem
    - 见 `ROADMAP.md §P1.1`。
 
 2. **修复宿主体质性插件版本/更新 API**
-   - 为什么：`PluginVersionService.Initialize(pluginsPath)` 从未调用，导致 `/api/plugin/updates|update|versions|rollback` 死代码；新插件 install 把文件写到 exe 根而非 `publish/Plugins/<id>/`。
-   - 做什么：在宿主启动时 Initialize PluginVersionService；install 路径改为 `AppContext.BaseDirectory/Plugins`。
+   - 为什么：`PluginVersionService.Initialize(pluginsPath)` 从未调用，导致 `/api/plugin/updates|update|versions|rollback` 死代码；新插件 install 把文件写到 exe 根而非 `publish/plugins/<id>/`。
+   - 做什么：在宿主启动时 Initialize PluginVersionService；install 路径改为 `AppContext.BaseDirectory/plugins`。
    - 见 `ROADMAP.md §P1.2`。
 
 3. **pluginViewLoader 缓存键改为 version + content-hash**

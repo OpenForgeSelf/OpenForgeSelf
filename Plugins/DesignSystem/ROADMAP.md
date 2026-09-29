@@ -1,4 +1,4 @@
-# 设计插件 roadmap
+﻿# 设计插件 roadmap
 
 > 本文件记录设计插件（design-system）接下来「做什么、为什么做、怎么做、做到什么程度算完成」。
 > 按优先级 P1 > P2 > P3 排列；P1 是阻塞性/高价值缺口，P2 是体验增强，P3 是生态扩展。
@@ -56,20 +56,20 @@
 
 **现状**：
 - `PluginVersionService.Initialize(pluginsPath)` 从未被调用，导致 `/api/plugin/updates|update|versions|rollback` 死代码。
-- `POST /api/plugin/install` 把插件包解压到 exe 所在目录，而不是 `publish/Plugins/<id>/`（活动代码目录）。
+- `POST /api/plugin/install` 把插件包解压到 exe 所在目录，而不是 `publish/plugins/<id>/`（活动代码目录）。
 - 新插件热重载（FileSystemWatcher）只对已存在插件生效；全新插件必须 install 触发 `DiscoverPlugins()`。
 
 **目标**：让插件版本管理、热更新、全新安装都走正确路径，发布插件不再依赖人肉目录搬运。
 
 **实现方案**：
-1. 在宿主启动流程中调用 `_pluginVersionService.Initialize(pluginsPath)`（pluginsPath = `AppContext.BaseDirectory/Plugins`）。
+1. 在宿主启动流程中调用 `_pluginVersionService.Initialize(pluginsPath)`（pluginsPath = `AppContext.BaseDirectory/plugins`）。
 2. 修复 `PluginInstallerService.InstallFromPackage`：
    - 包体应解压到 `pluginsPath/<id>/` 而不是 `AppContext.BaseDirectory/<id>/`。
    - 解压后调用 `_pluginManager.DiscoverPlugins()` 并返回新插件信息。
 3. 修复 `run-plugin-publish-verify.ps1` 中的版本化 API 调用：当前因 `Initialize` 未调用，脚本实际走的是热重载/安装兜底；若 P1.2 修复后，应优先使用版本化 API。
 
 **验收标准**：
-- 安装新插件后，文件正确出现在 `publish/Plugins/<id>/`。
+- 安装新插件后，文件正确出现在 `publish/plugins/<id>/`。
 - `/api/plugin/updates` 返回当前可用更新列表（不再 500/空）。
 - `run-plugin-publish-verify.ps1` 在不重启宿主的情况下完成「首次安装 → 启用 → 版本切换」全流程。
 
@@ -184,7 +184,7 @@
 **目标**：支持从外部文件/目录加载预设，用户可分享自己的设计系统预设。
 
 **实现方案**：
-1. 在插件数据目录 `~/.forgeself/Plugins/design-system/presets/` 下读取 `*.preset.json`。
+1. 在插件数据目录 `~/.forgeself/plugins/design-system/presets/` 下读取 `*.preset.json`。
 2. 新增 `PRESET_LOADER` 在启动时扫描并合并到 `PRESETS` 列表。
 3. 工作台新增「加载预设」下拉，支持一键把预设设为 activeDs。
 4. 支持导出当前生成结果为 `.preset.json`。

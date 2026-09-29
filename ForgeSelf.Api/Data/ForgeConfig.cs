@@ -6,7 +6,7 @@ namespace ForgeSelf.Api.Data;
 
 /// <summary>
 /// 配置文件基类：统一把配置文件根收敛到用户数据目录
-/// （开发 → 程序目录 Data/Config，否则 → ~/.forgeself/Config）。
+/// （开发 → 程序目录 data/config，否则 → ~/.forgeself/config；2026-09-29 输入37 目录小写统一）。
 /// 继承本类的配置类自动归位，无需各自写路径（避免单个漏设）。
 /// </summary>
 /// <remarks>
@@ -21,7 +21,7 @@ public abstract class ForgeConfig<TConfig> : Config<TConfig> where TConfig : For
         if (Provider is FileConfigProvider fcp)
         {
             var name = typeof(TConfig).Name;
-            fcp.FileName = Path.Combine(DataLocationService.ResolveHostDataDirectory(), "Config", name + ".config");
+            fcp.FileName = Path.Combine(DataLocationService.ResolveHostDataDirectory(), "config", name + ".config");
         }
     }
 }

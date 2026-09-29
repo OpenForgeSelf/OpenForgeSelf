@@ -1,4 +1,4 @@
-# Agent 工作流与工程规则规范（AGENTS.md 详细版 + 项目不变规则归档）
+﻿# Agent 工作流与工程规则规范（AGENTS.md 详细版 + 项目不变规则归档）
 
 > 状态：已实施（2026-09-24 分层落地：AGENTS.md 瘦身为每次必守版，本文件承接详细版；原 `.forgeself/memory/MEMORY.md` 规则归档于此）
 > 最后更新：2026-09-27
@@ -448,7 +448,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 新增功能测试遵循「测试-修改-验证-推进」循环。
 - **正常验证流程必须走 root `playwright.config.ts`（含 globalSetup），禁止 `E2E_SKIP_GLOBAL_SETUP=1` 直连 51888**：globalSetup 会 `dotnet publish` 临时宿主 7102 + 前端 dev 7002 + 首启 `GET /api/api-server/init-token` 拿明文 token 注入 `E2E_API_TOKEN`。跳过它 → token 未注入 → `real-auth.ts` 回退解密 `ForgeSetting.config`，而 030 已升级 v2 机器绑定令牌（`v2:` 前缀 + PBKDF2 机器派生），旧 v1 写法直接崩 → 鉴权全挂。
 - **`real-auth.ts` 与 `host-api-token.ts` 解密算法必须一致**：均按 v2（PBKDF2 机器派生，与 `ForgeSelf-AIProvider-Default-Encryption-Key` 同源）优先、非 `v2:` 前缀再回退 v1。两处重复逻辑易漂移，改一处须同步另一处。
-- **global-setup 复制 SQLite provider 须兼容双布局**：`System.Data.SQLite.dll`/`e_sqlite3.dll` 可能落在 `publish/` 根或 `publish/Plugins/`，复制源=根或 `Plugins/` 双候选、目的=临时 publish 根 + `Plugins/` 都放。
+- **global-setup SQLite provider 复制（输入38 简化）**：`System.Data.SQLite.dll` 现为包依赖（bin/发布自然落盘），复制源优先 `publish/` 根；旧「根 + plugins/ 双候选双目标」逻辑仅为兼容历史产物可保留兜底。
 - **正常 e2e 用全新临时 DB**：会暴露宿主建表未覆盖的插件表缺失 bug（如 MemorySystem `chat/memories` 500）。51888 旧库已迁移故不显，勿以 51888 通过等同「全新库通过」。
 - **共享可变外部状态的用例组必须 `test.describe.configure({ mode: 'serial' })`**：`playwright.config.ts` 是 `fullyParallel:true`——同文件多个用例默认并行；若用例共享同一端口/文件且某用例会临时改状态再改回（如 MCP 端口 PUT 热重启），并行用例会在切换窗口拿到 `ECONNREFUSED`/旧状态。修法：① 此类用例组从一开始就 serial；② 状态改回后轮询真实就绪信号（如 `/health` 200）再结束用例，不要只断言 PUT ok。
 - **断言错误提示前先看真实响应原文**：不要凭实现猜测错误文案写 `toContain`——① 错误文本可能经 JSON 序列化（中文变 `\uXXXX`），直接 `toContain('中文')` 匹配不到，须 `JSON.parse` 后再断言；② 场景要选对（如「mcp.<id> 缺工具名段」才走格式提示，缺服务器 id 走未连接提示）。写断言前先跑一次拿真实响应。
@@ -473,6 +473,17 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 残余（已登记 TODO）：**插件控制器**在 WAF 下未注册（插件 Apply 的控制器注册机制与 WAF host 重建时序不兼容），需插件框架专项。
 - 改写进程级全局状态的测试（ForgeConfig/ConfigUnifier/ProxyCapture/CaptureEngine 单例/ScriptRunner）需在用例内自行 **save+restore**（保存原 `Config<T>.Provider.FileName` 并 finally 还原）。
 - `RealLLMIntegrationTests` 依赖真实 AI 端点 → 用 `Tests/TestDoubles/FakeAIService`（固定返回，无网络）替代 `AIService`。
+
+### XCode 测试类隔离铁律（2026-09-29，B5 期间实证）
+- **新增 XCode 测试类一律用 `IClassFixture<XCodeTestFixture>`**（`ForgeSelf.Api.Tests/XCodeTestFixture.cs`：每类独立临时库 + 全部连接名统一注册），**禁止手搓 `DAL.AddConnStr` 注册新连接名**。
+- 手搓新连接名的实证后果（对照实验坐实因果）：全量失败 9→24——`AIProviderRegistryTests`/`MultimodalProcessorTests` 报 `SQLiteException: unable to open database file`、`AgentHubRegistryTests` 报「厂商标识已被占用」，且小子集里两者都绿、纯全量排序下的全局状态扰动；换 XCodeTestFixture 后三族全部消失。
+- 既有 `PersistentSessionStoreTests` 复用 `"ForgeSelf"` 连接名 + 每用例独立临时库目录 + `Meta.Cache.Clear` 的手法是 B2 遗留约定（不注册新连接名，扰动面小），历史用例不动；**新代码不再模仿**。
+- 小子集绿 ≠ 全量绿：XCode 实体缓存 / DAL 连接注册是进程级全局单例，任何新测试类入库前必须跑一次全量对照（排除新类 vs 含新类各一轮），失败数无差才收。
+
+### 受控复现「0 残留」证据法补丁（2026-09-29 B6 复验发现）
+- 新建文件在首次提交前是 **untracked**——`git diff` 对它恒为空，「git diff 0 残留」证据法对未跟踪文件**失效**。
+- 补丁：未跟踪文件的受控复现还原验证改用**内容校验**——① 变异标记 grep 计数 = 0；② 被变异的原始行在位（行号+内容双核）。B6 复验已按此执行（ReactLoopAgent 红轮还原验证）。
+- 该坑提示：受控复现尽量对**已跟踪**文件做变异；确需变异新文件时，红轮跑完先 `git add -N`（intent-to-add）再验证 diff 亦可。
 
 ## B3 前端工程规则
 
@@ -536,13 +547,13 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ### 运行时数据落盘铁律
 - **唯一入口是 `IDataLocationService`**：开发态→程序目录 `Data/`，发布/服务态→`~/.forgeself`。任何写盘（SQLite 库、插件数据、配置 `*.config`、图片缓存）都必须经它，禁止再写 `AppContext.BaseDirectory` 字面量。
-- **目录布局**：宿主数据/库 → 数据根（`~/.forgeself/OpenForgeSelf.db`）；插件数据与插件库 → `数据根/Plugins/{插件Id}/`。**库文件名 = XCode 连接名（PascalCase）**，目录名仍是 kebab 运行时 Id。目录名常量是 `IDataLocationService.PluginDataRootName`，**禁止两侧各自写字面量**（漂移过一次：一侧 `plugins` 一侧 `Plugins`）。
+- **目录布局**：宿主数据/库 → 数据根（`~/.forgeself/OpenForgeSelf.db`）；插件数据与插件库 → `数据根/plugins/{插件Id}/`。**库文件名 = XCode 连接名（PascalCase）**，目录名仍是 kebab 运行时 Id。目录名常量是 `IDataLocationService.PluginDataRootName`，**禁止两侧各自写字面量**（漂移过一次：一侧 `plugins` 一侧 `Plugins`）。
 - **appsettings 的 `ConnectionStrings:{连接名}` 只认绝对路径**：相对路径会被 NewLife 解析到程序目录、绕过数据根 → SQLite Error 14。`XCodeConfig.AddXCode` 已实现「相对路径忽略 + 告警，绝对路径才采纳」。新增库一律只在 `XCodeConfig.HostDbs`/`PluginDbs` 加一行。
 - **插件禁止自注册 `DAL.AddConnStr`**（会覆盖宿主路径造出第二份互不可见的库，QuickLinks 踩过）；只做 `DAL.Create(ConnName)` + 探活。
 - **SQLite 不自建父目录**：落在 `Plugins/{id}/` 子目录的库，必须在 `AddXCode`/`InitializeXCodeDatabase` 里先 `Directory.CreateDirectory`，否则 open 报 Error 14。
 - **`ConfigUnifier.UnifyAllConfigFiles` 必须是进程里最早的 NewLife 调用**（已前置到 `Program.cs` 顶部）。否则框架先按默认相对路径初始化 `FileConfigProvider` 并对程序目录建 FileSystemWatcher → 发布目录无该目录，启动首行即报「FileSystemWatcher 创建失败」。
 - **SQLite 探活统一用 `dal.Db.ServerVersion`，不要用 `dal.Session.Query("SELECT 1")`**：后者在库文件尚未创建时抛 `NullReferenceException`，导致每次启动误报「数据库初始化失败」。
-- **发布产物要区分「运行时生成物」与「部署资产」**：`Data/`、`Log/` 是运行 exe 产生的遗留，构建脚本可排除；`Plugins/` 承载插件程序集属部署资产，**绝不能排除**。Web SDK 默认只把 `Plugins/**/plugin.json` 当内容发布，插件 DLL 靠 csproj 的 `StagePluginsToPublish`（`AfterTargets="Publish"`）补齐。
+- **发布产物要区分「运行时生成物」与「部署资产」**：`data/`、`log/` 是运行 exe 产生的遗留，构建脚本可排除；`Plugins/` 承载插件程序集属部署资产，**绝不能排除**。Web SDK 默认只把 `Plugins/**/plugin.json` 当内容发布，插件 DLL 靠 csproj 的 `StagePluginsToPublish`（`AfterTargets="Publish"`）补齐。
 
 ### XCode 实体加列/改字段流程
 - 改实体字段的**唯一真源是 `Data/Model.xml`**（不是手改 `Entities/*.cs`）：在 xml 所在目录运行 `xcode Model.xml`，由 NewLife.XCode 工具重新生成 `Entities/*.cs`。
@@ -565,7 +576,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 ## B5 插件体系与发布
 
 ### 插件体系（ForgeSelf.Api/Plugins）
-- **两层命名（刻意设计，非不一致）**：目录/程序集(.dll)/EntryType 用 PascalCase（代码身份）；`plugin.json` 的 `Id`/数据目录/`~/.forgeself/Plugins/{id}`/路由/库文件用 kebab-case（运行时身份）。
+- **两层命名（刻意设计，非不一致）**：目录/程序集(.dll)/EntryType 用 PascalCase（代码身份）；`plugin.json` 的 `Id`/数据目录/`~/.forgeself/plugins/{id}`/路由/库文件用 kebab-case（运行时身份）。
 - **实际 13 个插件**：ai-agent / dev-tools / file-tools / memory-system / proxy-capture / quick-links / sample / system-monitor / script-runner / scheduler / text-tools / todo-tracker / workflow-engine。
 - 插件禁止自注册 `DAL.AddConnStr`，只 `DAL.Create` 探活（统一用 `dal.Db.ServerVersion`，禁用 `dal.Session.Query("SELECT 1")`）。
 - **启动装配唯一路径 = `PluginManager.RegisterAllServices`**（AppBuilder Build 前调用，内部 Discover→拓扑排序→Resolve→MountPlugin→`fiber.Mount(Apply)` 一步到位，状态即 Running）；`LoadAndStartAllPlugins`/`InitializePlugin` 定义存在但**无外部调用者（未接线）**，勿误以为启动需另调；热启/热重载走 `EnablePlugin→LoadPlugin→InitializePlugin`。
@@ -591,7 +602,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **覆盖顺序：payload（DLL、web/dist）先，`plugin.json` 最后**。先写清单会在拷贝中途触发重载，后续 DLL 拷贝报 `Could not find file`。
 - **更新成功判定（用户约定）**：取接口 `GET /api/plugin` 返回的该插件 `version`，与**当前活动目录 `plugin.json`（清单文件）**的 `Version` 比对，**一致即认为更新成功**。清单文件是版本号唯一真源。
 - **端点前缀是单数 `api/plugin`**（`[Route("api/[controller]")]` + `PluginController`）。`publish-plugin.ps1` 结尾打印的 `/api/plugins/...` 是**错的**，实测 404。
-- **假成功陷阱**：版本号来自 `plugin.json`，改 C# 代码时若入口 DLL 没真正替换，会出现「版本显示新值但跑旧二进制」。必须比对哈希：`publish/Plugins/<Dir>/<Dir>.dll` vs `Plugins/<id>/versions/<ver>/<Dir>.dll`（脚本已内置该校验；2026-09-28 输入31 去 `_backups`）。
+- **假成功陷阱**：版本号来自 `plugin.json`，改 C# 代码时若入口 DLL 没真正替换，会出现「版本显示新值但跑旧二进制」。必须比对哈希：`publish/plugins/<Dir>/<Dir>.dll` vs `Plugins/<id>/versions/<ver>/<Dir>.dll`（脚本已内置该校验；2026-09-28 输入31 去 `_backups`）。
 - **「版本号升了」≠「新代码生效」**：版本化布局（versions/ + current）只证明「切换动作完成」。**宿主代码（Middleware/Controller 等）改动 2026-09-27 起一律走 tag 发布 + 页面自动更新**（update-agent 自更新），agent 不手动停宿主；插件自身 DLL 生效判据 = 版本快照 DLL hash == staged hash。
 - **web/dist 版本化读取**：`PluginFrontendFileMiddleware.ResolveFrontendRoot` 版本化优先（current 指针存在且 `versions/<current>/web` 存在 → 从版本快照读，否则回退扁平 `{插件目录}/web`）。
 - **插件 config.json 手写键大小写**：插件 config.json 属用户可手改文件，`System.Text.Json` 默认大小写敏感——手写 `{"port":...}` 会被静默忽略、绑定回退默认端口。加载器必须 `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`。
@@ -599,20 +610,20 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 ### 发布坑（反复踩，全量 build 前必读）
 - 🔴 **宿主进程锁致 build.ps1 发布漏更宿主 DLL**：`build.ps1` 覆盖 publish/ 用 `Copy-Item -ErrorAction SilentlyContinue` 或 `robocopy /E`——**运行中宿主锁定的文件（ForgeSelf.dll）被静默跳过**，publish 里宿主 DLL 保持旧版 → 与插件同路由控制器**歧义** → 界面/API 500 `AmbiguousMatchException`。**教训**：① 替换宿主自身二进制前先 `Stop-Process -Name ForgeSelf` 释放锁；② 发布后核对 `publish/ForgeSelf.dll` 时间戳与 `ForgeSelf.Api/bin/Release/.../ForgeSelf.dll` 一致；③ 排查「插件控制器 500 且无 action 日志」优先怀疑**路由歧义/控制器残留**。**⚠ 2026-09-27 起**：该「先停宿主」动作只适用于用户不在使用的隔离验证环境；**对用户运行中的宿主（含 51888 实例），禁止 agent 停/启/杀**，宿主二进制变更一律走 tag 发布 + 页面自动更新（见 B10）。
 - 🔴 **PS 5.1 `Copy-Item 'dir\*' -Recurse` 通配符 bug 会静默漏拷**：`build.ps1` 第 3 步曾用 `Copy-Item (Join-Path $stagingDir '*') $publishDir -Recurse -ErrorAction SilentlyContinue` 在 PS 5.1 下**不拷全**（报错或 exit 0 假成功）。**修复**：改用 **`robocopy $stagingDir $publishDir /E`**（exit 0-7 均成功）+ 两处 robocopy 后 `$LASTEXITCODE = 0` 复位 + 脚本末尾 `exit 0`。**教训**：发布动作一律走发布技能主路径（打 tag 自动发布 / `release-local.ps1 -UpdateDir` + 页面自动更新），**禁止手动 Copy-Item / robocopy 进 publish/**。
-- 🔴 **重复插件 id 目录致宿主启动崩溃**：`publish/Plugins` 同时存在两个 plugin.json 的 `Id` 相同目录 → `TopologicalSort` 撞 key → **宿主启动即崩**。发布/归档后检查 `publish/Plugins` 下 plugin.json `Id` 无重复；冗余目录移入 `.trash/`（勿删；`_backups` 已废弃，2026-09-28 输入31）。
+- 🔴 **重复插件 id 目录致宿主启动崩溃**：`publish/plugins` 同时存在两个 plugin.json 的 `Id` 相同目录 → `TopologicalSort` 撞 key → **宿主启动即崩**。发布/归档后检查 `publish/plugins` 下 plugin.json `Id` 无重复；冗余目录移入 `.trash/`（勿删；`_backups` 已废弃，2026-09-28 输入31）。
 - 🔴 **活动插件目录/版本快照只放插件自身程序集**：**绝不能**放入 `XCode.dll`/`NewLife.Core.dll`/`NewLife.Agent.dll`/`NewLife.Remoting.dll`/`ForgeSelf.Abstractions.dll`/`ForgeSelf.Core.dll`/`Stardust.dll`。否则 `PluginLoadContext` 再加载一份 → 类型标识分裂（「插件类型未实现 IPlugin 接口」）+ ALC 卸载中加载 → `FileLoadException`，宿主**启动即崩**。脚本已内置白名单过滤 + 防御性清理。
 - 🔴 **宿主运行时入口 DLL 被独占锁，无法覆盖**：`plugin.json` 与 `web/dist` 可热覆盖；`<Dir>.dll` 被 ALC 锁定，独占 open 报「being used by another process」，而 `Copy-Item` **误报**成 `FileNotFoundException`（排查时勿被误导）。改 C# 代码靠 side-by-side 版本化更新或停宿主。
-- 🔴 **全量 `build.ps1` 会删外部放置的 `publish/Plugins/System.Data.SQLite.dll`**：`System.Data.SQLite.dll`+`e_sqlite3.dll` 不是任何 csproj/deps 的包依赖（NewLife.XCode 运行时**探测**该文件），是**外部放置的运行时构件**。全量重发后从旧 publish 或 `.temp/e2e/*/publish/Plugins/` 回补这两个 DLL 到 `publish/Plugins/`。
+- ✅ **SQLite 驱动已是正式依赖（输入38，2026-09-29）**：`XCode.SQLite` 包（11.24.2026.302，依赖 NewLife.XCode ≥11.25 不升级主版本）把 `System.Data.SQLite.dll` 变成 csproj 包依赖 → dev-bin/FDD 发布随输出自然落盘；业务层单文件（PublishSingleFile）经 csproj Target `ExcludeSqliteFromSingleFile` 从 `FilesToBundle` 剔除 + `publish-host.ps1` 从 NuGet 缓存外置复制 → 探测本地命中、零下载、不再生成运行态 `Plugins/`（旧认知「外部放置运行时构件、全量 build 后需回补」已废除，仓库 `build/runtime/plugins` 已移 `.trash/`）。
 - **验证已部署前端资产必须用 `/assets/` 前缀路径**：`vite.config.ts` 的 `build.assetsDir` 默认把 JS/CSS 产物输出到 `wwwroot/assets/`，宿主 `index.html` 引用 `/assets/index-xxxx.js`。直接 `curl http://host/index-xxxx.js` 会 **404 误判"修复未上线"**。确认线上确为修复后构建的最稳妥办法：`diff <(curl -s http://host/assets/<file>) <(cat publish/wwwroot/assets/<file>)` 应 `IDENTICAL`。
-- **发布目录运行时遗留坑**：`publish/` 下的 `Data/`、`Log/`、`Config/` 是**运行 exe 时动态生成在程序目录**（非 dotnet publish 拷贝）。发布脚本清理发布目录应**整目录删除重建**而非仅删文件。safe-delete shim 拦 `Remove-Item`：build.ps1 清 publish/Data|Log 被 fail-closed 拦退码 1（发布实质完成），并产生 `publish/publish/` 嵌套残留；规避 `-ErrorAction SilentlyContinue`。
+- **发布目录运行时遗留坑**：`publish/` 下的 `Data/`、`Log/`、`Config/` 是**运行 exe 时动态生成在程序目录**（非 dotnet publish 拷贝）。发布脚本清理发布目录应**整目录删除重建**而非仅删文件。safe-delete shim 拦 `Remove-Item`：build.ps1 清 publish/data|Log 被 fail-closed 拦退码 1（发布实质完成），并产生 `publish/publish/` 嵌套残留；规避 `-ErrorAction SilentlyContinue`。
 - **PowerShell 数组 splat 是按位置传参**：`& $f @arr` 会把 `-PluginsRoot` 塞进前一个位置参数（实测撞上 `-Configuration` 的 ValidateSet）。跨脚本调用一律**显式具名传参**。
 - **publish-plugin.ps1 子目录拷贝两处 bug（2026-09-23 修复）**：① `Split-Path -LiteralPath -Parent` 参数集冲突（-LiteralPath 不支持 -Parent）→ 改用 `[System.IO.Path]::GetDirectoryName`；② `FullName.IndexOf()` 在路径含 AppData 等包含 Data 的父路径时截错 → 改用 `Substring(.Length).TrimStart('\','/')` 按前缀长度精确截取相对路径。
 - **运行宿主版本化布局判定**：插件热更新后 `versions/<v>/` + `current` 指针已切换、但活动根目录旧 DLL 被 ALC 占用 → 实际加载的仍是旧程序集。**判定**：`/api/plugin` 显示新版本 ≠ 加载新 DLL；须冷启动宿主后新 controller 才生效。
 - **发布后必须冷启动验证**：插件整体改名（新 id 是新插件目录）或宿主核心改动后 watcher 不发现，必须冷启动（停 → 覆盖 → 起）。
 
 ### 宿主/插件运行形态（数据根与端口）
-- **数据根二选一**：`ASPNETCORE_ENVIRONMENT=Development` → `程序目录/Data`，否则 → `~/.forgeself`；重启 51888 复用真实配置必须**不设** Development。NewLife 日志按 CWD 写（publish/Log），与数据根无关。
-- **活动代码目录 vs 数据目录**：`publish/Plugins/<Dir>/`（dll + plugin.json + web/dist）= 宿主启动扫描 + 加载；`~/.forgeself/Plugins/<id>/` = 插件自有 sqlite/缓存（运行时生成，**不**放代码）。不要即兴：猜目录、擅自重启宿主、绕开技能自创流程 → 几乎必踩坑（曾把插件代码误装进数据目录）。
+- **数据根二选一**：`ASPNETCORE_ENVIRONMENT=Development` → `程序目录/Data`，否则 → `~/.forgeself`；重启 51888 复用真实配置必须**不设** Development。NewLife 日志按 CWD 写（publish/log），与数据根无关。
+- **活动代码目录 vs 数据目录**：`publish/plugins/<Dir>/`（dll + plugin.json + web/dist）= 宿主启动扫描 + 加载；`~/.forgeself/plugins/<id>/` = 插件自有 sqlite/缓存（运行时生成，**不**放代码）。不要即兴：猜目录、擅自重启宿主、绕开技能自创流程 → 几乎必踩坑（曾把插件代码误装进数据目录）。
 - **本地代理拦截 localhost 致宿主访问 LM Studio 502**：本机 `HTTP_PROXY=127.0.0.1:10808` 时，从该 shell 起的宿主进程会用代理访问 `localhost:1234`（LM Studio）→ 502。**宿主须带 `NO_PROXY=localhost,127.0.0.1` 启动**（curl/Playwright 同理）。
 - **插件新目录两条生效路**：① `POST /api/plugin/install` 上传 `.forgeself-plugin` 包触发 `DiscoverPlugins()`；② **冷启动宿主**。运行中更新**已加载**插件的入口 DLL 会被 ALC 锁死（`File.Copy` 覆盖报「找不到文件」实为锁）——走 `POST /api/plugin/update/{id}` 或冷启动。
 - **MCP 中心整合兼容决策**：环境变量前缀**保留旧名** `FORGESELF_MCP_GATEWAY_*`、类名保留（McpGatewayConfig/Server/...），仅 namespace/日志前缀/`serverInfo.name` 改——兼容既有运维/e2e 环境变量写法，避免破坏性改名。
@@ -720,14 +731,14 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 | `release-local.ps1` | 一键编排：前端→宿主 publish→打包→发版说明（= CI 唯一构建入口） |
 | `build-frontend.ps1` | 宿主 web（→`ForgeSelf.Api/wwwroot`）+ 8 个插件 web（→`Plugins/<X>/web/dist`），逐包 `pnpm install --frozen-lockfile`；`-HostOnly/-PluginsOnly/-Plugin` 分步调试 |
 | `publish-host.ps1` | `dotnet publish -c Release -r win-x64 --self-contained true -p:Version=<ver>`（下载即用 exe，无需装 .NET） |
-| `package-release.ps1` | 注入 `build/runtime/Plugins` 运行时构件 → 清 Data/Log/Config/_backups/pdb → zip + SHA256SUMS；`-Sign` 可选接 sign-publish.ps1 |
+| `package-release.ps1` | 清 Data/Log/Config/_backups/pdb → zip + SHA256SUMS；`-Sign` 可选接 sign-publish.ps1（输入38：SQLite 运行时构件注入块已删除——驱动为包依赖，随发布外置） |
 | `make-release-notes.ps1` | tag 注解 + 上一 tag 以来 commit 生成 RELEASE-NOTES（需 fetch-depth 0） |
 | `publish-release.ps1` | `gh release create`（tag/资产/notes）；本地凭 gh keyring，CI 凭 `secrets.GITHUB_TOKEN`；版本含 `-` 后缀自动 prerelease |
 
 > 打包产物布局 / 升级备份 / 缓存生命周期规则以 `docs/04-standards/packaging-upgrade-backup.md` 为唯一真源；本节只记操作流程与踩坑。
 
 **硬规则与坑（本轮实战）**：
-- 🔴 **System.Data.SQLite.dll / e_sqlite3.dll 必须入库**（`build/runtime/Plugins/`，打包时注入 `Plugins/`）：XCode 运行时探测文件、非 NuGet 依赖，历史上只手工放在 `publish/`，干净构建必缺 → 发布版 SQLite 崩。
+- ✅ **System.Data.SQLite.dll 不再需要手工入库（输入38，2026-09-29）**：`XCode.SQLite` 包正式依赖 + 单文件剔除外置机制取代旧 `build/runtime/Plugins` 注入（仓库该目录已移 `.trash/`）；e_sqlite3.dll 随 NuGet RID 依赖落盘。
 - 🔴 **`.github/` 曾被 .gitignore 屏蔽**（历史清理误伤），workflow 必须入库才生效——已在 .gitignore 解除并注释。
 - 宿主 SPA 与插件 `web/dist` 全部是 gitignore 的生成物：CI 必须先跑 `build-frontend.ps1` 再 `dotnet publish`（`StageAllPlugins` 只拷已存在的 dist）。
 - 单实例 Mutex 挡冒烟测试：本机已跑 publish 宿主时，起第二个实例用 `FORGESelf_INSTANCE_ID=smoke`（Program.cs:47）；exe 固定监听 7102，忽略 ASPNETCORE_URLS。

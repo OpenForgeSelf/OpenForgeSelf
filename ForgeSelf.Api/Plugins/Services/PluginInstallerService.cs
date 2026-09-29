@@ -83,7 +83,7 @@ public class PluginInstallerService
 
     public PluginMetadata? UpdateFromPackage(string packagePath)
     {
-        XTrace.Log.Info("从包更新插件: {0}", packagePath);
+        XTrace.Log.Info("从包更新插件（版本化直落 versions/）: {0}", packagePath);
 
         try
         {
@@ -99,23 +99,34 @@ public class PluginInstallerService
                 throw new InvalidOperationException($"插件不存在，无法更新: {metadata.Id}");
             }
 
-            // 去 _backups（输入31）：更新不再整目录备份；多版本共存（versions/）即回滚能力。
-            var wasRunning = _pluginManager.GetPluginState(metadata.Id) == PluginState.Running;
-            if (wasRunning)
+            // 批次2.5（输入34）：装包更新统一版本化——versions/<ver>/ + current 布局只允许单调升级，
+            // 多版本共存即回滚能力，禁止覆盖活动目录（用户输入30：插件不需要备份，本就多版本共存）。
+            if (string.IsNullOrWhiteSpace(metadata.Version) ||
+                !System.Text.RegularExpressions.Regex.IsMatch(metadata.Version, @"^\d+(\.\d+){0,3}$"))
             {
-                _pluginManager.DisablePlugin(metadata.Id);
+                throw new InvalidDataException($"包版本号非法: {metadata.Version}");
+            }
+            if (new VersionComparer().Compare(metadata.Version, existingMetadata.Version) <= 0)
+            {
+                throw new InvalidOperationException(
+                    $"包版本 {metadata.Version} 未高于当前生效版本 {existingMetadata.Version}，拒绝覆盖式更新（版本化布局只允许升级）");
             }
 
-            var targetDir = existingMetadata.PluginDirectory;
-            var extractedMetadata = _packagerService.ExtractPackage(packagePath, targetDir);
-
-            if (wasRunning)
+            // 解包直落 versions/<id>/<ver>/（side-by-side，不覆盖活动目录；已存在则保留，幂等）
+            if (!_versionService.StageUploadedPackage(metadata.Id, packagePath))
             {
-                _pluginManager.EnablePlugin(metadata.Id);
+                throw new InvalidOperationException("包 stage 到版本目录失败");
             }
 
-            XTrace.Log.Info("插件更新成功: {0} v{1}", metadata.Name, metadata.Version);
-            return extractedMetadata;
+            // 激活最高版本（切 current 指针 + 同步活动清单 + 热切换 + 裁剪更旧版本；与 038 包源同一路径，宿主不重启）
+            if (!_versionService.UpdatePlugin(metadata.Id))
+            {
+                throw new InvalidOperationException("激活新版本失败");
+            }
+
+            var updated = _pluginManager.GetPluginMetadata(metadata.Id);
+            XTrace.Log.Info("插件版本化更新成功: {0} v{1}", metadata.Name, updated?.Version ?? metadata.Version);
+            return updated;
         }
         catch (Exception ex)
         {

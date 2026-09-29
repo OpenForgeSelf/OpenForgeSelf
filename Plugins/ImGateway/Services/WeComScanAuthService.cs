@@ -78,7 +78,7 @@ public class WeComScanAuthService
         candidates.Add(configured);
         candidates.Add(Environment.GetEnvironmentVariable("WECOM_CLI_PATH"));
         candidates.Add(@"D:\src\os-proj\MyContext\apps\desktop\resources\bin\wecom-cli-win32-x64.exe"); // 本机开发环境已知路径
-        candidates.Add(Path.Combine(AppContext.BaseDirectory, "Plugins", "ImGateway", "wecom-cli-win32-x64.exe"));
+        candidates.Add(Path.Combine(AppContext.BaseDirectory, "plugins", "ImGateway", "wecom-cli-win32-x64.exe"));
 
         foreach (var c in candidates)
         {

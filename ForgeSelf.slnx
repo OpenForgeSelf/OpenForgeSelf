@@ -32,6 +32,7 @@
   <Project Path="Plugins/TextTools/TextTools.csproj" />
   <Project Path="Plugins/TodoTracker/TodoTracker.csproj" />
   <Project Path="Plugins/WorkflowEngine/WorkflowEngine.csproj" />
+  <Project Path="ForgeSelf.Bootstrapper/ForgeSelf.Bootstrapper.csproj" />
   <Project Path="ForgeSelf.Core.Tests/ForgeSelf.Core.Tests.csproj" />
   <Project Path="ForgeSelf.Core/ForgeSelf.Core.csproj" />
 </Solution>

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.ServiceProcess;
 using System.Text;
@@ -9,11 +9,12 @@ using ForgeSelf.Api.Models;
 namespace ForgeSelf.Api.Services;
 
 /// <summary>
-/// 更新流程编排服务。
-/// 协调 <see cref="UpdateChecker"/>（版本检查/下载）、<see cref="ServiceManager"/>（服务启停）
-/// 和文件系统操作，完成自动更新的全流程：检查 → 下载 → 停止 → 备份 → 替换 → 启动 → 记录。
-/// 任一关键步骤失败时自动回滚，确保系统可恢复。
-/// 参考 data-model.md 更新流程状态图和 research.md §7 更新流程原子性。
+/// 更新流程编排服务（008 旧链路，2026-09-28 输入34 冻结）。
+/// 【冻结声明】本类不再维护：旧 Windows 服务更新链路（停止→备份→替换→启动服务）已由
+/// spec 036 <see cref="StagedUpdateService"/>（暂存式 + update-agent 版本化应用）全面接管。
+/// 唯一存量残留 = 托盘「检查更新/启动时检查」提示（Program.cs 已改走 036 CheckAsync）。
+/// 全流程方法（CheckForUpdatesAsync 之外的下载/备份/服务启停/回滚）为历史保留，禁止新代码调用；
+/// DI 注册保留仅防 WindowsService 模式引用。规则真源：docs/04-standards/packaging-upgrade-backup.md。
 /// </summary>
 public class UpdateService
 {

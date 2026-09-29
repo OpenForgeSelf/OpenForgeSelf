@@ -267,6 +267,64 @@ public class PluginVersionService
     }
 
     /// <summary>
+    /// 把上传的 .forgeself-plugin 包解包直落 stage 到 versions/&lt;id&gt;/&lt;ver&gt;/（批次2.5，输入34）：
+    /// 与 038 包源同一布局——不覆盖活动目录，多版本共存即回滚。已存在目标版本目录则保留（幂等）。
+    /// 校验：包 Id 匹配、版本号合法（防路径穿越）、包内存在入口 DLL、ValidatePackage 通过。
+    /// </summary>
+    public bool StageUploadedPackage(string pluginId, string packagePath)
+    {
+        try
+        {
+            PluginMetadata? meta = null;
+            try
+            {
+                meta = _packagerService.ReadPackageMetadata(packagePath);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Error("上传包读取失败: {0}", ex.Message);
+                return false;
+            }
+            if (meta == null || !string.Equals(meta.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (string.IsNullOrWhiteSpace(meta.Version) || !IsValidVersion(meta.Version))
+                return false;
+            if (string.IsNullOrWhiteSpace(meta.EntryAssembly) ||
+                !PackageContainsEntryAssembly(packagePath, meta.EntryAssembly))
+            {
+                XTrace.Log.Warn("上传包缺少入口程序集 {0}，拒绝 stage: {1}", meta.EntryAssembly ?? "?", packagePath);
+                return false;
+            }
+            if (!_packagerService.ValidatePackage(packagePath))
+            {
+                XTrace.Log.Error("上传包校验失败，拒绝 stage: {0}", packagePath);
+                return false;
+            }
+
+            var installed = _pluginManager.GetPluginMetadata(pluginId);
+            if (installed == null || string.IsNullOrWhiteSpace(installed.PluginDirectory))
+                return false;
+
+            var stagedDir = PluginVersionLayout.VersionDirectory(installed.PluginDirectory, meta.Version);
+            if (Directory.Exists(stagedDir))
+            {
+                XTrace.Log.Warn("上传包：目标版本目录已存在，保留现有 staged: {0}", stagedDir);
+                return true;
+            }
+            Directory.CreateDirectory(stagedDir);
+            _packagerService.ExtractPackage(packagePath, stagedDir);
+
+            XTrace.Log.Info("上传包已直落 staged 到 {0}", stagedDir);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("上传包 stage 失败 [{0}]: {1}", pluginId, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 从插件更新源本地包目录把更高版本包解包直落 stage 到 versions/&lt;id&gt;/&lt;ver&gt;/（输入27，2026-09-28 去 _backups）。
     /// 未切 current 即惰性（side-by-side 安全）。全程内部捕获异常：失败记日志并返回 false（视为无包源），不传播 500。
     /// </summary>

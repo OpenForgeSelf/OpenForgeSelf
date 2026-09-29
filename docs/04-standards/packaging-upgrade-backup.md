@@ -1,8 +1,9 @@
----
+﻿-| 2026-09-29 | 输入38 SQLite 驱动正式依赖化**已实施**：①csproj 加 `XCode.SQLite` 11.24.2026.302（依赖 NewLife.XCode ≥11.25 不升级主版本；System.Data.SQLite 2.0.2 + SourceGear.sqlite3 3.53.4 传递落地）；②**根除运行态探测**——探针（XCode 12.0 + XCode.SQLite 共存、真实 SQL 建表查询）与 dev-bin 冒烟双证：本地加载零下载、不再生成 `Plugins/`；③**单文件兼容**——实测内嵌（默认 ALC 已加载）+ 落盘 LoadFrom 同 identity 冲突（FileLoadException already loaded）→ csproj Target `ExcludeSqliteFromSingleFile`（`AfterTargets=_ComputeFilesToBundle` + `BeforeTargets=GenerateSingleFileBundle`，从 `FilesToBundle` Remove `System.Data.SQLite.dll`）+ `publish-host.ps1` 从 NuGet 缓存外置复制兜底 → exe 16,424→16,036KB、外置 386KB；单文件冒烟：`[System.Data.SQLite.SQLite] 加载 ...\System.Data.SQLite.dll v2.0.2.0` + 8 库全部 `数据库连接成功 (ServerVersion=3.50.4)` + 无 Plugins/ + 7102 监听；④`package-release.ps1` 删 inject 块、仓库 `build/runtime/plugins` 移 `.trash/`；⑤文档同步 agent-workflow（L611/729/736/451）+ 本真源 §1.1；⑥全部改动未提交 git（等用户明确指令）。 |
+--
 规范定位: 打包·升级·备份·缓存 目录结构与生命周期规则——**唯一真源**
-状态: 真源建立（2026-09-28，输入30）；插件去 _backups / 更新缓存应用后清理 / Backups 退役 / 图片缓存 TTL 已实施（输入31，批次1）；宿主 QQNT 式 versions 结构**未实施**（批次2，待立项）
-最后更新: 2026-09-28
-关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、036-github-release-auto-update.md、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
+状态: 真源建立（2026-09-28，输入30）；批次1（输入31）与批次2（输入34）已全部实施：插件去 _backups / 更新缓存应用后清理 / Backups 退役 / 图片缓存 TTL / 宿主 QQNT 式 versions 结构（根启动器 + 发布脚本布局 + update-agent 版本化应用 + 008 冻结）；输入36 单文件化**部分实施**：公共层 FDD 单文件启动器 + DOTNET_ROOT 结构运行时已落地并验证（启动器进程模式、退出码透传、组装 zip），业务层 FDD 单文件 publish 已于 2026-09-29 随 040-B1 收口验证；输入37 目录命名统一小写**已实施**（Plugins/Data/Log/Config → plugins/data/log/config，代码+脚本+测试+文档；update-agent 带存量目录规范化；日志外置数据根/log）
+最后更新: 2026-09-29
+关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、008-tray-service-autoupdate.md（036 链路功能文档）、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
 ---
 
 # 打包·升级·备份·缓存 —— 目录结构与生命周期规范（唯一真源）
@@ -26,9 +27,11 @@
 | 一键编排 | `scripts/release/release-local.ps1` | build-frontend → publish-host → package-release → make-release-notes →（`-UpdateDir` 拷贝 zip+SHA256SUMS+说明）。本地与 CI 同一命令（B10 契约） |
 | 前端构建 | `scripts/release/build-frontend.ps1` | 宿主 web → `ForgeSelf.Api/wwwroot`；各插件 web → `Plugins/<X>/web/dist` |
 | 宿主发布 | `scripts/release/publish-host.ps1` | `dotnet publish -c Release -r win-x64 --self-contained` → `artifacts/publish`（**扁平布局**） |
-| 打包含清洁 | `scripts/release/package-release.ps1` | 注入 `build/runtime/Plugins` SQLite 运行时构件 → 清理 `Data/Log/Config`、`Plugins/_backups`、pdb → zip + `SHA256SUMS.txt` |
+| 打包含清洁 | `scripts/release/package-release.ps1` | 清理 `Data/Log/Config`、`Plugins/_backups`、pdb → zip + `SHA256SUMS.txt`（输入38：SQLite 运行时构件注入块已删除——`XCode.SQLite` 包把驱动做成正式依赖，随发布外置） |
 | 发版/发布 | `make-release-notes.ps1` / `publish-release.ps1` | tag 注解→RELEASE-NOTES；`gh release create` |
 | CI | `.github/workflows/release.yml` | tag `v*` 触发，只调 `release-local.ps1` + `publish-release.ps1` |
+| 版本号机制 | ForgeSelf.Api.csproj / ForgeSelf.Bootstrapper.csproj（VersionPrefix 2.2 + VersionSuffix yyyy.MMdd） | **文件版本统一 2.2.<yyyy.MMdd>（输入43 起铁律）**：两个 exe 的 FileVersion/ProductVersion 均走 csproj 日期机制；publish-host.ps1 不再传 -p:Version 覆盖（输入43 修复，此前业务层被覆盖成发行号 2.2.12 造成不统一）。版本目录名 ersions/<ver>/ 仍由 elease-local -Version（发行号 v2.2.12）决定——发行号与文件版本各司其职 |
+| Authenticode 签名 | scripts/sign-publish.ps1（经 elease-local.ps1 -Sign 调用，签名在 zip 打包前） | **发布必带 -Sign（输入42 起铁律）**：自签证书 CN=OpenForgeSelf 铸己匣 自动生成/复用 + certutil 静默信任 + signtool SHA256 + DigiCert RFC3161 时间戳；商业证书传 -PfxPath/-PfxPassword 可插拔；指纹记录 .forgeself/codesign-thumbprint.txt（CI 可 -Thumbprint 复用）。**递归签全部 exe**（顶层根启动器 + ersions/<ver>/ 业务层每版快照），漏签会破坏多版本回滚的签名一致性 |
 | 插件打包 | `scripts/package-plugin.ps1`（输入27/038） | 产 `<id>-<ver>.forgeself-plugin`（plugin.json + 入口 DLL + web/dist；排除宿主共享 DLL）→ `artifacts/plugin-packages` |
 | 插件侧载 | `scripts/publish-plugin.ps1` / `publish-plugin-full.ps1` | 直落 stage 到 `Plugins/<id>/versions/<ver>/`（2026-09-28 输入31 去 _backups） |
 | 存量迁移 | `scripts/migrate-plugin-versions.ps1` | 扁平插件 → `versions/<ver>/` + current（幂等；跳过 `_*` 目录） |
@@ -38,9 +41,9 @@
 
 | 链路 | 位置 | 备份/缓存行为 |
 |---|---|---|
-| 分阶段更新（036，现行） | `ForgeSelf.Api/Services/StagedUpdateService.cs` | 下载+校验+解压到 `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\`（`update.zip` + `extracted/`）→ 拉起 `update-agent.ps1` → 宿主自停。**staged 目录应用成功后不清理** |
-| 自更新代理 | `scripts/update-agent.ps1` | 等宿主退出 → **整目录备份**（robocopy 到 `%LOCALAPPDATA%\ForgeSelf\Backups\<ts>`，仅排除 Data/Log/Config/_backups）→ 覆盖 staged 文件 → 重启。**备份永不清除**；`Updates\agent-<ts>.log` 累积 |
-| Windows 服务更新（008，旧） | `ForgeSelf.Api/Services/UpdateService.cs` | 同样整目录备份到 `%LOCALAPPDATA%\ForgeSelf\Backups\<ts>` + 覆盖 + 失败回滚；`GetBackupRoot()`/`GetBackups()` 暴露备份列表 |
+| 分阶段更新（036，现行·唯一链路） | `ForgeSelf.Api/Services/StagedUpdateService.cs` | 下载+校验+解压到 `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\`（`update.zip` + `extracted/`）→ 拉起 `update-agent.ps1` → 宿主自停。**批次2：QQNT 版本化应用**（update-agent 落 versions/<ver>/ + current 指针 + 重启根启动器） |
+| 自更新代理 | `scripts/update-agent.ps1` | **批次2（输入34）已实施 QQNT 版本化应用**：等宿主退出 → 新版本落 `versions/<ver>/`（不动公共层旧版本）→ current 指针切换 → 重启根启动器（公共层跨版本共享）。**无任何整目录备份**；扁平存量迁移清理；版本保留 current+上一版；应用后清理 staged tag + 退役 Backups 存量 |
+| Windows 服务更新（008，旧） | `ForgeSelf.Api/Services/UpdateService.cs` | **批次2（输入34）已冻结**：类头冻结声明，不再维护；全流程方法（下载/备份/服务启停/回滚）为历史保留禁止新调用；托盘检查已收敛到 036 `CheckAsync`；DI 注册保留防 WindowsService 模式引用 |
 | 检查/下载 | `ForgeSelf.Api/Services/UpdateChecker.cs` + `UpdateSettingsService.cs` | GitHub 资产 API / 本地目录更新源（038 宿主侧同款） |
 
 ### 1.3 插件版本与备份（**已统一为 `versions/` 单轨；`_backups` 已移除，输入31 批次1**）
@@ -58,98 +61,125 @@
 | 位置 | 现状 |
 |---|---|
 | `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\` | 更新下载包 + 解压目录；**应用成功后清理已实施**（update-agent.ps1，输入31 批次1，保留 agent-*.log） |
-| `%LOCALAPPDATA%\ForgeSelf\Backups\<ts>` | 整目录备份**已退役**（update-agent.ps1 不再写入，更新成功后清理存量，输入31 批次1；008 UpdateService 仍写，待收口决策） |
+| `%LOCALAPPDATA%\ForgeSelf\Backups\<ts>` | 整目录备份**已退役并清理存量**（update-agent.ps1 不再写入、更新成功后清理，输入31 批次1；008 UpdateService 批次2 输入34 已冻结，不再写 Backups） |
 | `{数据根}/Data/ImageRecognitionCache/<会话键>/<sha256>.json` | 图片识别缓存（`AppBuilder.cs:246-248`）；**TTL 清理已实施**（`LocalFileImageRecognitionCache` 初始化清理超 30 天会话目录，输入31 批次1 R6） |
 | `publish/wwwroot` 旧 `.br/.gz` | 发布前需删除旧预压缩文件（agent-workflow B3 既有规则） |
 | `ForgeSelf.Web DataStoragePanel.vue`「清除缓存」 | 前端按钮存在；**未见后端 API 接线**（2026-09-28 grep 核查，疑为占位，待核） |
 | Entity `Meta.Cache` | 进程内缓存（AsyncLocal），非磁盘，不算空间浪费 |
 
-### 1.5 安装目录结构现状（zip 扁平布局，代码事实）
+### 1.5 安装目录结构现状（QQNT 式布局，批次2 输入34 实施 + 输入36 单文件化 + 输入37 目录小写统一 · 代码事实）
 
 ```
-安装根/（publish 目录 / 解压 zip 后）
-├── ForgeSelf.exe + 全部宿主 DLL + update-agent.ps1 + wwwroot/   ← 扁平，每版全量覆盖
-├── Plugins/<id>/
-│   ├── plugin.json / current / versions/<ver>/**                 ← 插件版本化布局（已有）
-│   └── （扁平兜底文件，兼容回退）
-
-├── Data/ Log/ Config/                                            ← 运行时生成（zip 时清理）
+安装根/（公共层，跨版本共享）
+├── ForgeSelf.exe                    ← 根启动器（FDD 单文件，输入36：~170KB managed-only bundle，无解压缓存）
+├── hostfxr.dll / hostpolicy.dll     ← app-local shim（让 FDD 启动器自身解析公共运行时）
+├── host/fxr/<ver>/ + shared/<fw>/<ver>/   ← .NET 运行时 DOTNET_ROOT 结构（NETCore+AspNetCore+WindowsDesktop，公共一份，业务层 FDD 共用；来源=发布机 dotnet 安装目录拷贝，版本取最新 10.0.x）
+├── update-agent.ps1                 ← 自更新代理（公共层）
+├── versions/                        ← 宿主业务层版本目录（与 plugins 并排）
+│   ├── <semver>/ForgeSelf.exe（FDD 单文件：托管程序集+satellite 内嵌）+ wwwroot/** + appsettings.json + SQLite 原生   ← 每版不可变快照（~10 文件）
+│   └── current                      ← 当前生效版本指针（文本 = <semver>）
+├── plugins/<id>/{plugin.json, current, versions/<ver>/**}   ← 插件版本化（与 versions 并排；输入37 目录小写统一）
+└── data/ log/ config/                                        ← 运行时生成（zip 时清理；生产态数据根 ~/.forgeself 外置：{数据根}/log 日志、{数据根}/config 配置、插件数据 {数据根}/plugins）
 ```
-路径基准 = `AppContext.BaseDirectory`（exe 目录）：webRoot 候选（`AppBuilder.cs:45/540-564`）、`pluginsPath = BaseDirectory/Plugins`（`AppBuilder.cs:256`）、开发态数据根 `BaseDirectory/Data`（`DataLocationService.cs`；生产态 `~/.forgeself` 已外置）。
+启动器 = **进程拉起模式**（输入36）：读 versions/current（或 --forge-version=<v>）→ Start 子进程 `versions/<ver>/ForgeSelf.exe`（WorkingDirectory=versionDir，DOTNET_ROOT=安装根，剔除 --forge-version 透传其余参数）→ WaitForExit 转发退出码；update-agent 的 HostPid 即业务层进程。
+路径基准 = **业务层入口程序集目录**（`Path.GetDirectoryName(typeof(AppBuilder).Assembly.Location)`）：扁平=BaseDirectory、QQNT=`versions/<ver>/`（FDD 单文件下 Assembly.Location = exe 目录，实测）；`ContentRootPath` 当业务层目录含 appsettings.json 时指向该目录，否则保 CWD（保护 dotnet run）；tray `SetBasePath` 同步（`AppBuilder.cs`/`Program.cs` 批次2）。插件目录 = 安装根（公共层）`/plugins`（`AppBuilder.cs:269`，批次2 由发布脚本把 plugins 移到公共根；输入37 目录小写）。
+
+> ⚠ **单文件关键踩坑（输入36 实测 2026-09-28）**：**自包含单文件**（无论压缩与否）启动时把 bundle 解压到 `DOTNET_BUNDLE_EXTRACT_BASE_DIR` 缓存运行，`AppContext.BaseDirectory` / `Environment.ProcessPath` 均指向提取目录 → 启动器无法定位安装根 + 解压缓存长期占盘（版本变化残留）——**弃用**。**FDD 单文件**（managed-only bundle）原地直跑，BaseDirectory = exe 目录、无解压缓存；运行时由公共层 DOTNET_ROOT 结构提供（根 hostfxr app-local shim 让启动器自身解析，业务层由启动器传 DOTNET_ROOT）。
+### 1.6 程序架构分层（输入40 沉淀 · 分程序分层，各司其职）
+
+| 层 | 位置 | 程序 | 职责（只管自己的事） |
+|---|---|---|---|
+| **① 公共层**（跨版本共享） | 安装根 | `ForgeSelf.exe`（根启动器 = ForgeSelf.Bootstrapper，~170KB 薄壳） | **唯一程序入口**：读 `versions/current`（或 `--forge-version=<v>`）→ Start 子进程业务层 → WaitForExit 透传退出码。**不碰业务** |
+| | | `host/` + `shared/`（.NET 公共运行时结构） | 提供 DOTNET_ROOT 运行时，全部版本共用一份 |
+| | | `update-agent.ps1`（自更新代理，独立脚本进程） | **只做更新**：下载 zip → 解压 → 写 `versions/<新ver>/` → 原子切 current → 重启根启动器 |
+| **② 版本层**（每版不可变快照） | `versions/<ver>/` | `ForgeSelf.exe`（业务层 = ForgeSelf.Api，FDD 单文件） | **全部业务所在**：① Web 宿主（Kestrel：HTTP API + wwwroot 前端）；② 后台服务（PluginManager 插件加载/生命周期、StagedUpdateService 更新检查、常驻任务）；③ 托盘（H.NotifyIcon，System.Windows.Forms——管本进程托盘交互/退出，**不拆独立程序**）；④ 数据（XCode/SQLite 初始化，落 `~/.forgeself`） |
+| **③ 插件层** | 安装根 `plugins/`（与 versions 并排） | 18 个插件（各自 `<Dir>.dll + plugin.json + web/dist`） | **各管各的功能**：独立 ALC 隔离加载，控制器/服务/界面归插件；版本更新直落 `versions/<ver>/`，旧版保留即回滚 |
+| **④ 数据层**（运行时生成） | `~/.forgeself`（小写） | — | `data/`（数据库）、`config/`（配置）、`log/`（日志）、`plugins/`（插件数据）——随数据走，发布覆盖不影响 |
+
+**启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + 托盘 + PluginManager 加载 `plugins/`（版本化 current 生效）→ 用户点「检查更新」→ 宿主调用 → update-agent.ps1 下载新 zip → 落 `versions/<新ver>/` + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
+
+**职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务/后台服务/托盘=业务层进程（托盘管的就是本进程，故不拆独立程序）；更新=update-agent 独立脚本；插件=各自隔离程序集。一层一个程序，各做各的。
 
 ---
 
 ## 2. 空间浪费点（优化目标清单）
 
-1. **宿主升级整目录备份**：每次更新把安装目录全量拷贝到 `Backups\<ts>`（含 Plugins、wwwroot、全部 DLL，单次可达数百 MB），无保留/清理策略 → 多次升级累积数 GB。
+1. **宿主升级整目录备份**：~~每次更新把安装目录全量拷贝到 `Backups\<ts>`（含 Plugins、wwwroot、全部 DLL，单次可达数百 MB），无保留/清理策略 → 多次升级累积数 GB~~ **已消除（批次1 输入31 退役 Backups；批次2 输入34 升级=新版本快照+切指针，无备份）**。
 2. **更新暂存缓存不清理**：~~每次更新下载 ~74MB zip + 解压 ~200MB 到 `Updates\<tag>\`，应用后留存~~ **已实施清理**（输入31 批次1）。
 3. **插件 `_backups` 三重冗余**：~~同一插件内容同时存在于 `versions/`、`_backups/<id>/`、活动扁平目录~~ **已消除**（输入31 批次1：`_backups`/`BackupPlugin` 全删，仅 versions/ 单轨）。
 4. **图片识别缓存无清理**：~~`ImageRecognitionCache` 只增不减~~ **已实施 TTL 30 天清理**（输入31 批次1）。
 5. **本地构建产物堆积**：`artifacts/publish`、`artifacts/release`、`artifacts/plugin-packages` 每版 ~300MB+，不入库但占磁盘。
-6. **双更新链路并存**：`UpdateService`(008) 与 `StagedUpdateService`(036) 都写 Backups/Updates，语义重叠。
+6. **双更新链路并存**：~~`UpdateService`(008) 与 `StagedUpdateService`(036) 都写 Backups/Updates，语义重叠~~ **已消除（批次2 输入34）**：008 冻结（不再维护/不再写入 Backups），036 为唯一更新链路（QQNT 版本化应用，无备份）。
 
 ---
 
-## 3. 目标目录结构（QQNT 式 · 用户拍板方向 · **部分实施**：批次1 = 插件去 _backups + 更新缓存清理 + Backups 退役 + 图片缓存 TTL 已落地；批次2 = 宿主 versions 结构，**未实施**，待立项）
+## 3. 目标目录结构（QQNT 式 · 用户拍板方向 · **已全部实施**：批次1 输入31 = 插件去 _backups + 更新缓存清理 + Backups 退役 + 图片缓存 TTL；批次2 输入34 = 宿主 versions 结构（根启动器 + 发布脚本布局 + update-agent 版本化应用 + 008 冻结）；输入36 = 单文件化（公共层 FDD 单文件启动器 + 业务层 FDD 单文件，运行时 DOTNET_ROOT 结构公共共享）；输入37 = 目录命名统一小写（plugins/data/log/config））
 
 对标 `C:\Program Files\Tencent\QQNT`：**公共/稳定的放外面，每次要更新的放 `versions/`，插件目录与 `versions/` 并排**。
 
 ```
 安装根/
-├── ForgeSelf.exe               # 公共/启动层（稳定，不随版本变；类似 QQ.exe，负责拉起当前版本）
+├── ForgeSelf.exe               # 公共/启动层（FDD 单文件，稳定，不随版本变；类似 QQ.exe，负责拉起当前版本）
+├── hostfxr.dll / host/fxr/ / shared/   # .NET 运行时公共一份（DOTNET_ROOT 结构，业务层 FDD 共用；QQNT 的 node 框架同理）
 ├── update-agent.ps1            # 自更新代理（随包分发）
 ├── versions/                   # 宿主版本目录：每次更新要动的全落这里
 │   └── <semver>/
-│       ├── ForgeSelf.dll + 全部宿主 DLL + wwwroot/**   # 不可变版本快照
+│       ├── ForgeSelf.exe       # 业务层 FDD 单文件（托管程序集+satellite 内嵌；wwwroot/appsettings/SQLite 原生外置）
+│       ├── wwwroot/**          # 静态资源（外置，路径基准 = exe 目录）
+│       ├── appsettings.json
 │       └── current(或根级 current 指针，原子切换)        # 当前生效版本指针
-├── plugins/                    # 与 versions 并排；宿主升级不触碰
+├── plugins/                    # 与 versions 并排；宿主升级不触碰（输入37 目录小写统一）
 │   └── <id>/{plugin.json, current, versions/<ver>/**}   # 插件自身版本化（现状已如此）
-├── Data/ Log/ Config/          # 运行时生成（生产态走数据根 ~/.forgeself，已外置）
+└── data/ log/ config/          # 运行时生成（生产态走数据根 ~/.forgeself，已外置；输入37 全小写）
 ```
 
 设计要点（对应现有机制，逐条可落）：
 
 | # | 要点 | 与现状差异 |
 |---|---|---|
-| T1 | 宿主每版内容不可变快照入 `versions/<ver>/`，`current` 指针原子切换 | 现为扁平覆盖式安装 |
-| T2 | **升级不再整目录备份**：旧版本目录天然保留（当前 + 上一版），回滚 = 切指针 | 现为整目录备份到 `%LOCALAPPDATA%\ForgeSelf\Backups\` |
-| T3 | `plugins/` 与 `versions/` 并排，宿主升级只增版本目录，不碰插件目录 | 现为插件目录在安装目录内随全量覆盖 |
+| T1 | 宿主每版内容不可变快照入 `versions/<ver>/`，`current` 指针原子切换 | **已实施（批次2 输入34）**：发布脚本产出 versions/<ver>/ + current；update-agent 版本化应用；根启动器按指针拉起 |
+| T2 | **升级不再整目录备份**：旧版本目录天然保留（当前 + 上一版），回滚 = 切指针 | **已实施（批次2 输入34）**：update-agent 无备份；版本保留 current+上一版；Backups 已退役清理 |
+| T3 | `plugins/` 与 `versions/` 并排，宿主升级只增版本目录，不碰插件目录 | **已实施（批次2 输入34）**：发布脚本把 Plugins 移到公共根与 versions 并排；宿主升级不动插件目录 |
 | T4 | **插件目录无 `_backups`、无插件备份**：新版本（包源/侧载）直接 stage 到 `versions/<ver>/`（未切 current 即惰性，side-by-side 安全）；回滚走 `versions/` 内保留版本 | **已实施（输入31 批次1）**：`_backups`/`BackupPlugin` 全删，直落 versions/ |
-| T5 | 公共/启动层只放稳定件（exe、代理脚本），路径基准改为「安装根」而非 `AppContext.BaseDirectory` | 现为 BaseDirectory 全量基准（AppBuilder/DataLocationService/PluginManager） |
+| T5 | 公共/启动层只放稳定件（exe、代理脚本），路径基准改为「安装根」而非 `AppContext.BaseDirectory` | **已实施（批次2 输入34 + 输入36）**：根启动器 FDD 单文件 + 公共层 DOTNET_ROOT 运行时（app-local shim + host/shared 结构）；业务层路径基准 = 入口程序集目录（AppBuilder/Program）；Data/Log/Config 生产态仍走 ~/.forgeself |
 | T6 | 更新暂存（`Updates/<tag>\`）应用成功后即清理；`Backups\` 退役并清理存量 | **已实施（输入31 批次1）**：update-agent.ps1 应用后清理 staged tag + 退役 Backups（008 侧待收口） |
+| T7 | **单文件化（输入36）**：公共层 = FDD 单文件启动器（~170KB，托管 bundle 内嵌）；业务层每版 = FDD 单文件（托管程序集+satellite 内嵌）+ 外置 wwwroot/appsettings/SQLite 原生（~10 文件/版）；运行时 DOTNET_ROOT 结构公共一份（跨版本零重复、零解压缓存） | **已实施（输入36 + 2026-09-29 040-B1 收口验证）**：公共层已落地并验证（启动器进程模式、退出码透传、组装 zip 83.9MB）；业务层 publish-host 单文件参数生效（PublishSingleFile=true + native/content 外置） |
+| T8 | **目录命名统一小写（输入37）**：安装根/数据根运行目录全小写 —— `Plugins→plugins`（安装根插件目录 + 数据根插件数据）、`Data→data`（开发态数据根）、`Log→log`（日志，外置数据根/log）、`Config→config`（配置目录）；源码工程目录 `Plugins/<X>`（命名空间绑定）与仓库内源码路径保持 PascalCase 不动；Windows NTFS 大小写不敏感 → 存量大写目录无需强制迁移，update-agent 应用时做一次性目录名规范化（MoveFileEx 只改大小写标志） | **已实施（输入37 2026-09-29）**：AppBuilder/DataLocationService/ForgeConfig/Program/ImGateway 代码改小写 + NewLife 日志外置（**`XTrace.LogPath = {数据根}/log`** 直接设置——Setting.LogPath 不联动 XTrace 已实测修正，Program.cs 顶部前置 + AppBuilder 幂等）+ 发布/侧载/迁移脚本 + 测试断言 + 本真源；update-agent 新增步骤 6.5 目录名规范化（dummy 演练含幂等通过） |
 
-**可行性结论**：结构可行。宿主 .NET self-contained 应用的本体（DLL+wwwroot）全部随版本变化，公共层只有启动器 exe 与代理脚本，与 QQNT 的「QQ.exe + versions/」同构。落地需改动路径基准（AppBuilder.cs、DataLocationService、PluginManager 的 BaseDirectory 引用）、update-agent.ps1（备份覆盖→版本目录+指针）、StagedUpdateService/UpdateService、发布脚本产物布局（publish-host/package-release）、PluginVersionService/PluginInstallerService/PluginController（去 _backups）。**属宿主/CI 级架构变更，实施前须 architecture-design 出方案并经用户拍板**（见 §5）。
+**可行性结论**：结构可行。宿主 .NET 应用的本体（DLL+wwwroot）全部随版本变化，公共层只有启动器 exe/运行时/代理脚本，与 QQNT 的「QQ.exe + versions/」同构。**已按该结论实施（批次1 输入31 + 批次2 输入34），经端到端演练验证**：发布管线产出 QQNT 布局 zip（65.3MB，旧扁平 72-78MB）；根启动器拉起 versions/<ver> 业务层冒烟通过；update-agent 版本化应用演练 8 项全过。
 
 ---
 
 ## 4. 生命周期规则（真源 · 实施后生效）
 
-> 以下为**目标规则**。**已实施项标注（输入31 批次1）**；未实施项现状行为见 §1。
+> 以下为**目标规则**。**已实施项标注**（输入31 批次1 / 输入34 批次2）；未实施项现状行为见 §1。
 
-- **R1 宿主版本保留**：`versions/` 保留**当前 + 上一版**（对齐插件 `PruneVersions` 的 MaxRetainedVersions=2）；更旧版本在版本切换后延迟删除（沿用 `PluginAssemblyUnloader.TryDeleteDirectory` 模式：被占用则跳过下轮重试，绝不阻塞）。
-- **R2 升级不做整目录备份**：升级 = 新增版本快照 + 原子切 `current`；回滚 = 切指针到保留版本。**已实施（输入31 批次1，036 侧）**：update-agent.ps1 备份步骤已删、Backups 退役清理；008 UpdateService 侧待收口决策。
+- **R1 宿主版本保留**：`versions/` 保留**当前 + 上一版**（对齐插件 `PruneVersions` 的 MaxRetainedVersions=2）；更旧版本在版本切换后延迟删除（沿用 `PluginAssemblyUnloader.TryDeleteDirectory` 模式：被占用则跳过下轮重试，绝不阻塞）。**已实施（批次2 输入34）**：update-agent.ps1 应用后保留 current+最高旧版、删除其余。
+- **R2 升级不做整目录备份**：升级 = 新增版本快照 + 原子切 `current`；回滚 = 切指针到保留版本。**已实施（输入31 批次1 + 输入34 批次2）**：update-agent.ps1 备份步骤已删、Backups 退役清理、QQNT 版本化应用（versions/<ver>/ + current + 根启动器重启）；008 UpdateService 已冻结（不再写 Backups）。
 - **R3 更新缓存清理**：`%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\` 在**应用成功后**删除该 tag 目录（保留日志 `agent-*.log` 供排查）。**已实施（输入31 批次1）**：update-agent.ps1 应用成功后删除 Updates/<tag> 并清理 Backups 存量。
 - **R4 插件无备份**：**已实施（输入31 批次1）**：`BackupPlugin`/`GetBackupList`/`RestoreFromBackup` 全删；安装/更新/卸载无备份调用；新版本（包源/侧载）直落 `versions/<ver>/`；CheckForUpdates/GetPluginVersions/EnsureStagedFromPackageSource 全部直读写 `versions/`；publish-plugin.ps1 stage 目标同步。
 - **R5 插件版本保留**：沿用 `PruneVersions`（当前 + 上一版，更旧延迟删除）。
 - **R6 图片识别缓存**：**已实施（输入31 批次1）**：`LocalFileImageRecognitionCache` 初始化清理 LastWriteTimeUtc 超 **30 天**的会话目录（TTL 常量 `CacheMaxAge`；失败占位结果不写缓存的既有行为保留）。
 - **R7 构建产物**：`artifacts/publish|release|plugin-packages` 属可再生物，定期手动清理（不入库，`.gitignore` 已覆盖）。
 - **R8 禁止事项**：① 禁止在升级/更新链路中自动化「整目录备份+覆盖」；② 禁止把宿主共享 DLL（`XCode.dll`/`NewLife.*.dll`/`ForgeSelf.*.dll`/`Stardust.dll` 等）拷入插件目录或版本快照（类型分裂，宿主启动即崩，plugin-development 铁律）；③ 禁止 agent 停/启/杀用户运行中的宿主进程（B10/AGENTS §0）；④ 禁止自动化删除数据目录（plugin-development 铁律 10）。
+- **R9 目录命名统一小写（输入37 实施）**：安装/运行布局目录名一律全小写 —— `plugins`（安装根插件目录与数据根插件数据，`IDataLocationService.PluginDataRootName="plugins"`）、`data`（开发态数据根）、`log`（日志外置 `{数据根}/log`——**须直接设 `XTrace.LogPath`**：实测 2026-09-29 `NewLife.Setting.Current.LogPath` 不联动 XTrace（独立静态属性），仅设 Setting 日志仍落程序目录 `Log/`；Program.cs 顶部 + AppBuilder 双设幂等）、`config`（配置文件，`ForgeConfig`/`ConfigUnifier` 统一落 `{数据根}/config`）；`versions`/`wwwroot` 本就小写。**存量兼容**：Windows NTFS 大小写不敏感，旧大写目录（Plugins/Data/Log/Config）仍可正常读写，**无需强制迁移**；update-agent 应用时（步骤 6.5）对安装根与 `~/.forgeself` 做一次性目录名规范化（`MoveFileEx` 纯大小写改名，幂等）。**源码工程目录不变**：`ForgeSelf.Api/Plugins/<X>/`、`Plugins/<X>/web/`（命名空间/程序集绑定 PascalCase），发布/侧载脚本里的 `repoRoot/Plugins` 路径保持大写，仅安装形态目标目录用小写。
 
 ---
 
-## 5. 实施改动清单（批次1 已完成 = 输入31；批次2 待用户拍板立项）
+## 5. 实施改动清单（批次1 = 输入31 已完成；批次2 = 输入34 已完成）
 
 | 改动对象 | 内容 | 风险 |
 |---|---|---|
-| 宿主路径基准 | `AppBuilder.cs:45/256/540-564`、`DataLocationService.cs`、`PluginManager.SetPluginsDirectory`：BaseDirectory → 安装根（versions 的父目录）；webRoot/plugins/data 解析改造 | 高（启动链核心） |
-| 启动器 | 根 `ForgeSelf.exe`（公共层）拉起 `versions/<current>/` 内宿主 | 高 |
-| 自更新 | `update-agent.ps1` + `StagedUpdateService.cs`：备份→版本目录+指针切换；`Updates/` 应用后清理；`Backups/` 退役 | 高 |
-| 发布脚本 | `publish-host.ps1`（产物入 versions/）、`package-release.ps1`（清洁规则、_backups 删除）、`release-local.ps1`、CI 契约 | 中 |
+| 宿主路径基准 | `AppBuilder.cs`、`Program.cs`（批次2 已实施）：业务层路径基准 = 入口程序集目录（扁平=BaseDirectory、QQNT=versions/<ver>/）；ContentRoot 含 appsettings.json 判定；tray SetBasePath 同步 | 高（启动链核心） | **✅ 已实施（批次2 输入34）** |
+| 启动器 | 根 `ForgeSelf.exe`（公共层）拉起 `versions/<current>/` 内宿主 | 高 | **✅ 已实施（批次2 输入34）**：`ForgeSelf.Bootstrapper`（AssemblyName 避开宿主 ForgeSelf.dll），versions/current 或 --forge-version 强制；ALC 从版本目录解析业务依赖；EntryPoint 调用 Main |
+| 自更新 | `update-agent.ps1` + `StagedUpdateService.cs`：备份→版本目录+指针切换；`Updates/` 应用后清理；`Backups/` 退役 | 高 | **✅ 已实施（批次2 输入34）**：update-agent QQNT 版本化应用（versions/<ver>/ + current + 根启动器重启 + 扁平迁移 + 版本保留 + staged/Backups 清理）演练 8 项全过 |
+| 发布脚本 | `publish-host.ps1`（业务层 FDD 单文件：PublishSingleFile + native/content 外置）、`publish-bootstrapper.ps1`（公共层：FDD 单文件启动器 + DOTNET_ROOT 结构运行时 = 本机 dotnet host/fxr + shared 三框架拷贝 + app-local shim）、`package-release.ps1`（QQNT 组装：公共根 + versions/<ver>/ + current + Plugins 并排 + 扁平残留清理；业务层单文件 exe 保留不再删除）、`release-local.ps1`（唯一编排） | 中 | **✅ 已实施（批次2 输入34 + 输入36 部分）**：v2.2.10 批次2 产出 zip 65.3MB（旧扁平 72-78MB）；输入36 公共层 FDD 单文件 + 运行时结构 + 组装 zip 83.9MB（dummy 模拟业务层）已验证；业务层单文件 publish 待 040-B1 收口 |
 | 插件备份 | `PluginVersionService.cs` / `PluginInstallerService.cs` / 038 包源流：去 `_backups`，直接 stage 到 versions/ | 中 | **✅ 已实施（输入31 批次1）** |
 | 侧载/迁移脚本 | `publish-plugin.ps1` 同步去 `_backups`（`package-plugin.ps1`/`migrate-plugin-versions.ps1` 本就幂等兼容） | 中 | **✅ 已实施（输入31 批次1）** |
 | 缓存策略 | `ImageRecognitionCache` TTL 30 天 | 低 | **✅ 已实施（输入31 批次1）**；`DataStoragePanel.vue`「清除缓存」接线核查 → TODO（P2） |
-| 旧链路收口 | `UpdateService`(008 Windows 服务) 与 036 并存：建议冻结 008（服务模式不再维护），或统一到 036 | 中（建议决策） |
+| 旧链路收口 | `UpdateService`(008 Windows 服务) 与 036 并存：建议冻结 008（服务模式不再维护），或统一到 036 | 中（建议决策） | **✅ 已冻结（批次2 输入34）**：类头冻结声明；托盘检查收敛 036 CheckAsync；DI 注册保留防 WindowsService 引用 |
 | 文档/技能 | AGENTS.md、agent-workflow B5、035/038、Plugins/README、plugin 技能按本真源同步 | 低 | **✅ 批次1 已同步**（plugin-development/plugin-publish-verify 速查此前已加引用） |
+| 目录命名统一小写（输入37） | `AppBuilder.cs`（plugins、config、update-settings 路径、日志外置 `{数据根}/log`）、`DataLocationService.cs`（data）、`ForgeConfig.cs`/`Program.cs`（config）、`IDataLocationService.PluginDataRootName=plugins`、`ImGateway` 两处（plugins）、发布/侧载/迁移脚本（package-release/publish-host/publish-plugin/migrate-plugin-versions/update-agent 注释与路径）、`build/runtime/Plugins` 仓库目录改名 plugins、测试断言（DataLocationServiceTests/ForgeConfigTests 等 8 文件） | 中（路径基准语义不变，Windows 大小写兼容存量） | **✅ 已实施（输入37 2026-09-29）**：`dotnet build` 0 errors；目录相关单测 6/6 绿（DataLocation 5 + ForgeConfig 1；XCodeConfigTests 4 个失败为既有系统 Temp 拦截环境问题，与本任务无关记 TODO）；update-agent 目录名规范化 dummy 演练含幂等通过；脚本 AST 语法 7/7 通过 |
 
 ---
 
@@ -159,7 +189,7 @@
 |---|---|
 | `AGENTS.md` | §2.3 打包流程收敛为操作要点 + 引用本文（真源说明） |
 | `docs/04-standards/agent-workflow.md` | B5（插件体系与发布）、B10（CI 自动发布）顶部加引用；目录结构/备份事实不再重复定义 |
-| `docs/02-features/035-plugin-versioned-layout.md` / `038-plugin-local-update-source.md` | 关联段加引用（`_backups` 目标语义以本文 §3-T4/§4-R4 为准） |
+| `docs/02-features/035-plugin-versioned-layout.md` / `038-plugin-local-update-source.md` / `008-tray-service-autoupdate.md` | 关联段加引用（`_backups` 目标语义以本文 §3-T4/§4-R4 为准；036 升级链路以本文 §1.2/§3/§4 为准） |
 | `.agents/skills/plugin-development` / `plugin-publish-verify` | 关键事实速查加引用（活动目录/`_backups` 描述指向本文） |
 | 发布/升级脚本 | 头注释引用本文 |
 
@@ -169,4 +199,13 @@
 
 | 日期 | 变更 |
 |------|------|
-| 2026-09-28 | 建立本文（输入30）：盘点打包/升级/备份/缓存全部落点；确立 QQNT 式目标目录结构；确立去 `_backups`/去插件备份/更新缓存清理规则；登记实施改动清单。 |\n| 2026-09-28 | 批次1 实施完成（输入31 用户拍板改代码）：插件去 `_backups`/`BackupPlugin`（PluginVersionService/PluginInstallerService/publish-plugin.ps1 直落 versions/）；update-agent.ps1 去整目录备份 + 应用后清理 Updates/<tag> + 退役 Backups 存量；`LocalFileImageRecognitionCache` TTL 30 天清理；测试 56/56 绿；宿主 QQNT versions 结构（批次2）待立项。 |
+| 2026-09-28 | 建立本文（输入30）：盘点打包/升级/备份/缓存全部落点；确立 QQNT 式目标目录结构；确立去 `_backups`/去插件备份/更新缓存清理规则；登记实施改动清单。 |
+| 2026-09-28 | 批次1 实施完成（输入31 用户拍板改代码）：插件去 `_backups`/`BackupPlugin`（PluginVersionService/PluginInstallerService/publish-plugin.ps1 直落 versions/）；update-agent.ps1 去整目录备份 + 应用后清理 Updates/<tag> + 退役 Backups 存量；`LocalFileImageRecognitionCache` TTL 30 天清理；测试 56/56 绿；宿主 QQNT versions 结构（批次2）待立项。 |
+| 2026-09-28 | 批次2 实施完成（输入34 用户拍板立项）：①宿主 QQNT 目录结构——`ForgeSelf.Bootstrapper` 根启动器（AssemblyName 避开宿主 ForgeSelf.dll、versions/current 指针、ALC 版本目录解析、EntryPoint 调 Main）；AppBuilder/Program 路径基准改入口程序集目录；发布脚本 QQNT 组装（publish-host FDD + publish-bootstrapper 公共层自包含 + package-release versions/<ver>/+current+Plugins 并排），zip 65.3MB（旧扁平 72-78MB）；②冻结 008（UpdateService 类头冻结声明、托盘检查收敛 036 CheckAsync）；③插件装包更新统一版本化（UpdateFromPackage 版本必须更高、StageUploadedPackage 直落 versions/）；update-agent.ps1 QQNT 版本化应用（落 versions/<ver>/ + current + 重启根启动器 + 扁平迁移 + 版本保留 current+上一版），演练 8 项全过；过滤集 23/23 绿。 |
+| 2026-09-28 | 输入36 单文件化**部分实施**：①清理 artifacts 构建产物 918MB（用户批准）；②Bootstrapper 改写为**进程拉起模式**（单文件业务层是 apphost 无法 Assembly.Load → Start 子进程 versions/<ver>/ForgeSelf.exe + DOTNET_ROOT=安装根 + WaitForExit 透传退出码）；③发布脚本单文件化：**自包含单文件弃用**（解压缓存 + BaseDirectory/ProcessPath 指向提取目录，实测），**FDD 单文件落地**（公共层 ForgeSelf.exe ~170KB managed-only bundle + DOTNET_ROOT 结构运行时 = 本机 dotnet host/fxr + shared 三框架 + 根 app-local shim；业务层 publish-host 加 PublishSingleFile=true + native/content 外置，wwwroot/appsettings/SQLite 原生保留外置）；④package-release 适配（业务层检查改 exe、不再删除业务层单文件 exe）；验证：公共层 627 文件（含 shared 框架）+ 启动器 0.16MB + 链路演练（启动器→versions/current→子进程→退出码透传 7）+ 组装 zip 83.9MB 全过；**业务层真实 publish 待 040-B1 编译收口**（AgentHub IAgentRegistry 二义，并行会话在飞区）。 |
+| 2026-09-29 | 输入37 目录命名统一小写**已实施**：①代码——AppBuilder（`plugins`/`config`/update-settings 路径 + NewLife 日志外置 `NewLife.Setting.Current.LogPath={数据根}/log`，探针实测 API）、DataLocationService（`data`）、ForgeConfig/Program（`config`）、IDataLocationService（`PluginDataRootName="plugins"`）、ImGateway×2（plugins）；②脚本——package-release/publish-host/publish-plugin/migrate-plugin-versions 安装形态路径改 plugins、sanitize 改 data/log/config、update-agent 新增步骤 6.5 目录名规范化（MoveFileEx 纯大小写改名，幂等，dummy 演练通过）；③仓库 `build/runtime/Plugins` 目录改名 plugins；④测试断言 8 文件同步；⑤本真源补 R9/§1.5/§3-T8/变更记录；⑥验证——`dotnet build` 0 errors（040-B1 已收口）、目录相关单测 6/6 绿、脚本 AST 7/7 过。遗留：XCodeConfigTests 4 个失败 = 既有系统 Temp 写入拦截环境问题（记 TODO，与本任务无关）；批次2+输入36+输入37 全部改动未提交 git（等用户明确指令）。 |
+| 2026-09-29 | 输入43 文件版本统一 `2.2.<yyyy.MMdd>`**已沉淀**：真源 §1.1 加版本号机制行；`publish-host.ps1` 移除 `-p:Version` 覆盖（业务层 FileVersion 此前被覆盖成发行号 2.2.12）；修复 release-local.ps1 尾部汇总对目录项取 Length 的展示 bug（-File 过滤，发布成功但 exit 1 假失败）。核验：两 exe FileVersion 均 2.2.2026.0929、签名 Valid。 |
+| 2026-09-29 | 输入42 发布必带 -Sign Authenticode 签名**已沉淀**：真源 §1.1 加签名行（sign-publish.ps1 递归签全部 exe、证书可插拔、指纹复用）；AGENTS §2.3 发布规范补「发布必带 -Sign」；plugin-publish-verify 技能一键跑加 -Sign + 铁律。修复 sign-publish.ps1 递归漏签业务层 bug；CI release.yml 加 -Sign。 |
+| 2026-09-29 | 输入40 程序架构分层**已沉淀**：真源新增 §1.6（公共层/版本层/插件层/数据层职责表 + 启动与更新链路 + 职责边界铁律）；AGENTS.md §2.3 真源引用句补「程序架构分层（§1.6）」。 |
+| 2026-09-29 | 输入39 版本号生成 + 文件图标 + 包信息**已实施**：①版本号生成（参照 CrazyCoder.csproj）——ForgeSelf.Api.csproj / ForgeSelf.Bootstrapper.csproj 加 `VersionPrefix 2.2` + `VersionSuffix $([System.DateTime]::Now.ToString('yyyy.MMdd'))` + `Version/FileVersion=$(Version)` + `AssemblyVersion=$(VersionPrefix).*` + `Deterministic=false`（构建日期自动版本；与发布 `-Version` tag 语义并存：程序集/文件版本=构建事实，更新语义仍以 tag 为准）；②文件图标——Bootstrapper（公共层根 ForgeSelf.exe，用户双击对象）补 `<ApplicationIcon>..\ForgeSelf.Api\Assets\ForgeSelf.ico</ApplicationIcon>`（与 Api 复用同一份），ExtractAssociatedIcon 实测两 exe 均带 32x32 图标；③包信息——Api（AssemblyTitle=铸己匣 / Description / Company=OpenForgeSelf / Product=ForgeSelf（铸己匣）/ Copyright=©2026 OpenForgeSelf）+ Bootstrapper（Title=铸己匣启动器，其余同源）；④验证——`dotnet build` 0 errors（322 既有 nullable 警告非本次引入）；⑤范围——仅两个 exe 项目，McpCenter 保持人工固定版本（插件语义），Core/Abstractions 未动（需要时再统一）；⑥未提交 git（等用户明确指令）。 |
+| 2026-09-29 | 输入37 发布复验与日志外置修正：①**发布全链路成功**——`release-local.ps1 -Version v2.2.11`（TEMP 重定向 `.forgeself/test-tmp` 规避系统 Temp 拦截）真实业务层 FDD 单文件 + 全部插件 + wwwroot，zip 101.8MB + QQNT 小写布局（顶层 host/shared/plugins/versions/ForgeSelf.exe/hostfxr.dll/update-agent.ps1，**无大写残留**；zip 内 versions/2.2.11 干净无 Plugins）；②**日志外置修正**——实测 `Setting.LogPath` 不联动 XTrace（日志仍落程序目录 Log/），已改 Program.cs 顶部 + AppBuilder 直接设 `XTrace.LogPath`，开发态冒烟验证：日志落 `data/log/2026_09_29.log`、程序目录不再生成 Log/；③**运行残留认知**——业务层运行后 XCode 库探测在版本目录生成 `Plugins/`（SQLite 3 件 ~15MB：e_sqlite3.dll/System.Data.SQLite.dll/zip，宿主代码不可控），安装包不含（组装时清理），属每版本运行期增量 → 记 TODO P2（update-agent 升级后清理非当前版本运行残留候选）；④阻塞：040-B1 并行会话改动 ForgeSelf.Abstractions/Core 接口 → `AIAgent/Services/ReactLoopAgent.cs` 编译断（CS0019，非本任务文件），当前工作区全量 `dotnet build` 不可过（Api 本体 `-p:BuildProjectReferences=false` 编译 0 errors 已验证本任务代码）；⑤全部改动仍未提交 git（等用户明确指令）。 |

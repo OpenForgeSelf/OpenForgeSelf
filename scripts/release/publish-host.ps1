@@ -1,10 +1,15 @@
-# publish-host.ps1 - dotnet-publish the ForgeSelf host (exe + all plugins staged by csproj targets).
-# Produces a folder ready to be packaged by package-release.ps1. Default is self-contained
-# win-x64 (end user downloads zip, double-clicks exe, no .NET install needed).
+﻿# publish-host.ps1 - dotnet-publish the ForgeSelf host business layer (exe entry + all plugins
+# staged by csproj targets). Produces a folder ready to be packaged by package-release.ps1.
+# QQNT layout (2026-09-28 批次2.1 + 输入36 single-file): the host business layer is
+# FRAMEWORK-DEPENDENT SINGLE-FILE by default — the .NET runtime + ASP.NET Core shared framework
+# live once in the install root common layer (published by publish-bootstrapper.ps1 as a single
+# file), so each versions/<ver>/ business layer is one ForgeSelf.exe (managed assemblies +
+# satellite resources embedded) plus externally-extracted wwwroot/appsettings/native SQLite DLLs,
+# keeping versions/ small and coexisting without duplicating the runtime.
 #
 # Examples:
 #   ./publish-host.ps1 -Version 0.1.0
-#   ./publish-host.ps1 -Version 0.1.0 -OutputDir D:/tmp/pub -FrameworkDependent
+#   ./publish-host.ps1 -Version 0.1.0 -OutputDir D:/tmp/pub -SelfContained
 
 [CmdletBinding()]
 param(
@@ -12,7 +17,7 @@ param(
     [string]$Version = '0.0.0-local',
     [string]$OutputDir = '',
     [string]$Configuration = 'Release',
-    [switch]$FrameworkDependent
+    [switch]$SelfContained
 )
 
 . (Join-Path $PSScriptRoot 'release-lib.ps1')
@@ -21,18 +26,42 @@ if (-not $OutputDir) { $OutputDir = Join-Path $RepoRoot 'artifacts/publish' }
 
 $ver = Get-NormalizedVersion $Version
 $proj = Join-Path $RepoRoot 'ForgeSelf.Api/ForgeSelf.Api.csproj'
-$selfContained = if ($FrameworkDependent) { 'false' } else { 'true' }
+# 注意：变量与 switch 参数（$SelfContained）大小写不敏感同名会触发 SwitchParameter 类型转换错误，
+# 赋值目标必须用不同名字（PS 5.1 实测坑）。
+$selfContainedFlag = if ($SelfContained) { 'true' } else { 'false' }
 
-Invoke-ReleaseStep "host: dotnet publish ($Configuration, win-x64, selfContained=$selfContained, Version=$ver)" {
-    # Note: --no-self-contained is implied by SelfContained=false together with Runtime.
-    & dotnet publish $proj -c $Configuration -r win-x64 --self-contained $selfContained `
-        -p:Version=$ver -p:ContinuousIntegrationBuild=true -o $OutputDir `
+Invoke-ReleaseStep "host: dotnet publish ($Configuration, win-x64, selfContained=$selfContainedFlag, SINGLE-FILE, Version=$ver)" {
+    # 单文件（FDD 默认）：PublishSingleFile=true 内嵌全部托管程序集 + satellite 资源；
+    # IncludeNativeLibrariesForSelfExtract=false → SQLite 等原生 DLL 外置（内嵌会解压到临时目录、
+    # 破坏路径基准）；IncludeAllContentForSelfExtract=false → wwwroot/appsettings 等内容外置
+    # （AppBuilder 路径基准 = Assembly.Location = 单文件 exe 目录，外置同目录即可解析）。
+    # 输入43：不再传 -p:Version 覆盖 → 业务层 FileVersion 用 ForgeSelf.Api.csproj 的日期机制
+    # （VersionPrefix 2.2 + VersionSuffix yyyy.MMdd = 2.2.2026.0929），与根启动器（Bootstrapper）统一；
+    # 版本目录名仍由 release-local 的 -Version（发行号 v2.2.12）决定，两者各司其职。
+    & dotnet publish $proj -c $Configuration -r win-x64 --self-contained $selfContainedFlag `
+        -p:ContinuousIntegrationBuild=true `
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false `
+        -p:IncludeAllContentForSelfExtract=false `
+        -o $OutputDir `
         -nologo -v minimal
     Assert-ExitCode 'dotnet publish'
 }
 
 $exe = Join-Path $OutputDir 'ForgeSelf.exe'
 if (-not (Test-Path $exe)) { throw "publish output missing: $exe" }
-$pluginDir = Join-Path $OutputDir 'Plugins'
+
+# 输入38：System.Data.SQLite.dll 从 NuGet 缓存外置复制到发布目录。
+# XCode 12 的 SQLite provider 以「程序目录文件探测」加载 System.Data.SQLite.dll：
+# 单文件内嵌后文件不存在 → 探测回退创建 Plugins/ 并外网下载（x.newlifex.com，实测 AgentHub 初始化失败）。
+# 外置同名文件后：探测直接命中，零下载、零 Plugins/ 生成（XCode.SQLite 包已把驱动做成正式依赖）。
+$sqliteDll = Join-Path $OutputDir 'System.Data.SQLite.dll'
+if (-not (Test-Path $sqliteDll)) {
+    $pkgSrc = Join-Path $env:USERPROFILE '.nuget\packages\system.data.sqlite\2.0.2\lib\netstandard2.0\System.Data.SQLite.dll'
+    if (-not (Test-Path $pkgSrc)) { throw "System.Data.SQLite.dll not found in NuGet cache: $pkgSrc" }
+    Copy-Item $pkgSrc $sqliteDll
+    Write-Host ("publish-host: System.Data.SQLite.dll externalized ({0} KB)" -f [math]::Round((Get-Item $sqliteDll).Length / 1KB))
+}
+
+$pluginDir = Join-Path $OutputDir 'plugins'
 $manifests = @(Get-ChildItem $pluginDir -Recurse -Filter 'plugin.json' -ErrorAction SilentlyContinue)
 Write-Host ("publish-host: exe ok, plugin manifests staged: {0}" -f $manifests.Count)

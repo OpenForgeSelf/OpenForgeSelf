@@ -1,12 +1,15 @@
 ﻿# release-local.ps1 - one-command release pipeline orchestrator.
-# Runs: build-frontend -> publish-host -> package-release -> make-release-notes.
+# Runs: build-frontend -> publish-host (business layer) -> publish-bootstrapper (common layer)
+#     -> package-release (assemble QQNT layout) -> make-release-notes.
 # The GitHub Actions workflow calls exactly this script; everything CI does is
 # reproducible locally with the same command (local-first debugging contract).
+# QQNT layout (2026-09-28 批次2.1/输入34; 目录命名统一小写 2026-09-29 输入37): common layer at install root
+# (launcher + runtime + framework + plugins/), business layer per version under versions/<ver>/, current pointer.
 #
 # Examples:
 #   ./release-local.ps1                                  # local dry run, Version=0.0.0-local
 #   ./release-local.ps1 -Version 0.1.0 -SkipFrontend     # reuse existing web dist (fast iteration)
-#   ./release-local.ps1 -Version v0.1.0 -FrameworkDependent -Sign
+#   ./release-local.ps1 -Version v0.1.0 -Sign
 
 [CmdletBinding()]
 param(
@@ -14,7 +17,6 @@ param(
     [string]$OutputRoot = '',
     [string]$UpdateDir = '',
     [switch]$SkipFrontend,
-    [switch]$FrameworkDependent,
     [switch]$Sign
 )
 
@@ -28,6 +30,8 @@ if (-not $Version) {
 if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
 $ver = Get-NormalizedVersion $Version
 $publishDir = Join-Path $OutputRoot 'publish'
+$bootDir = Join-Path $OutputRoot 'layout-root'
+$layoutDir = Join-Path $OutputRoot 'layout'
 $releaseDir = Join-Path $OutputRoot 'release'
 
 Write-Host ("release-local: Version={0} OutputRoot={1}" -f $Version, $OutputRoot)
@@ -42,10 +46,14 @@ else {
     Write-Host 'SKIPPED build-frontend (-SkipFrontend): using existing wwwroot / plugin dists.'
 }
 
-& (Join-Path $PSScriptRoot 'publish-host.ps1') -RepoRoot $repoRoot -Version $Version -OutputDir $publishDir -FrameworkDependent:$FrameworkDependent
+& (Join-Path $PSScriptRoot 'publish-host.ps1') -RepoRoot $repoRoot -Version $Version -OutputDir $publishDir
 if ($LASTEXITCODE -ne 0) { throw 'publish-host failed' }
 
-& (Join-Path $PSScriptRoot 'package-release.ps1') -RepoRoot $repoRoot -Version $Version -PublishDir $publishDir -OutputDir $releaseDir -Sign:$Sign
+& (Join-Path $PSScriptRoot 'publish-bootstrapper.ps1') -RepoRoot $repoRoot -OutputDir $bootDir
+if ($LASTEXITCODE -ne 0) { throw 'publish-bootstrapper failed' }
+
+& (Join-Path $PSScriptRoot 'package-release.ps1') -RepoRoot $repoRoot -Version $Version `
+    -PublishDir $publishDir -BootDir $bootDir -LayoutDir $layoutDir -OutputDir $releaseDir -Sign:$Sign
 if ($LASTEXITCODE -ne 0) { throw 'package-release failed' }
 
 & (Join-Path $PSScriptRoot 'make-release-notes.ps1') -RepoRoot $repoRoot -Version $Version -OutFile (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver))
@@ -70,6 +78,7 @@ if ($UpdateDir) {
 $dt = ((Get-Date) - $t0).TotalSeconds
 Write-Host ''
 Write-Host ("release-local: ALL DONE in {0:n0}s" -f $dt)
-Get-ChildItem $releaseDir | ForEach-Object {
+# 输入43：-File 过滤，避免目录项无 Length 属性在 StrictMode 下报错导致整脚本 exit 1（发布成功但假失败）
+Get-ChildItem $releaseDir -File | ForEach-Object {
     Write-Host ("  {0}  ({1:n1} MB)" -f $_.Name, ($_.Length / 1MB))
 }

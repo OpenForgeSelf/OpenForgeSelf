@@ -1,4 +1,4 @@
----
+﻿---
 name: plugin-development
 description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + 自带界面 + 维护闭环）。用于「新建插件」「插件从宿主迁移成独立插件」「改完插件要怎么走完流程」。当用户要新建一个插件、或要改动/修复已有插件（尤其是带 web/ 界面的插件）时使用。
 ---
@@ -382,8 +382,8 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 六、关键事实速查
 
 - 后端默认端口 `7102`，本环境长期运行的 publish 实例用 `51888`
-- 插件目录 = `AppContext.BaseDirectory/Plugins` → publish 实例即 `publish/Plugins`
-- **插件数据目录** = `ctx.EnsurePluginDataDirectory()` → `{数据根}/Plugins/{插件Id}`（生产即 `~/.forgeself/Plugins/{id}`）。
+- 插件目录 = `AppContext.BaseDirectory/plugins` → publish 实例即 `publish/plugins`
+- **插件数据目录** = `ctx.EnsurePluginDataDirectory()` → `{数据根}/plugins/{插件Id}`（生产即 `~/.forgeself/plugins/{id}`）。
   **随数据走的文件放这里**（库文件/DB、CA 证书、业务配置），**不要放发布目录**（发布会被覆盖、配置会丢）。
   宿主插件在 `IPlugin.Apply(ctx)` 里 `SomeEngine.SetDataDirectory(ctx.EnsurePluginDataDirectory())` 取用；
   独立引擎等子进程由宿主启动时经命令行参数传路径（如 `--config <数据目录>/myplugin.json`），子进程不自行猜路径。
@@ -400,7 +400,7 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
   `strings` 只扫 ASCII 单字节序列 → 必然漏检，会误判「发布产物是旧的」并触发无谓重建。
   正确姿势（Node）：
   ```js
-  const b = fs.readFileSync('publish/Plugins/X/X.dll')
+  const b = fs.readFileSync('publish/plugins/X/X.dll')
   b.includes(Buffer.from('目标字符串','utf8')) || b.includes(Buffer.from('目标字符串','utf16le'))
   ```
 - **Playwright CLI 在 MSYS/Git-Bash 下不能 `node node_modules/.bin/playwright`**：

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -7,6 +7,19 @@
     <AssemblyName>ForgeSelf</AssemblyName>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\ForgeSelf.ico</ApplicationIcon>
+    <!-- 输入39：版本号生成 + 包信息（参照 CrazyCoder.csproj）：
+         构建时自动生成日期版本（yyyy.MMdd），AssemblyVersion 通配由编译器补 build/revision -->
+    <VersionPrefix>2.2</VersionPrefix>
+    <VersionSuffix>$([System.DateTime]::Now.ToString('yyyy.MMdd'))</VersionSuffix>
+    <Version>$(VersionPrefix).$(VersionSuffix)</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
+    <Deterministic>false</Deterministic>
+    <AssemblyTitle>铸己匣</AssemblyTitle>
+    <Description>铸己匣（OpenForgeSelf）：个人 AI 智能体桌面工作台——宿主 + 版本化插件系统 + 自动更新</Description>
+    <Company>OpenForgeSelf</Company>
+    <Product>ForgeSelf（铸己匣）</Product>
+    <Copyright>©2026 OpenForgeSelf</Copyright>
   </PropertyGroup>
 
   <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
@@ -40,10 +53,15 @@
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
     <PackageReference Include="NewLife.Stardust" Version="3.9.2026.708" />
     <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
+    <!-- SQLite 驱动正式依赖（2026-09-29 输入38）：替代 NewLife.XCode 运行时探测「插件文件夹」加载
+         System.Data.SQLite 的行为——驱动随 NuGet 包进入程序集依赖，运行态不再生成 versions/<ver>/Plugins/。
+         选 11.24 版本线：依赖 XCode 11.25（低于项目 12.0，NuGet 保留主版本不升级）；12.x 配套需升 XCode 12.2 主版本（待拍板再升）。 -->
+    <PackageReference Include="XCode.SQLite" Version="11.24.2026.302" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.15" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.9" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.9" />
   </ItemGroup>
+
 
   <ItemGroup>
     <None Update="Plugins\**\plugin.json">
@@ -140,4 +158,18 @@
           SkipUnchangedFiles="true" />
   </Target>
 
+
+
+
+  <!-- 输入38：System.Data.SQLite.dll 从单文件 bundle 剔除（外置落盘）。
+       XCode 12 的 SQLite provider 以「程序目录文件探测」加载 System.Data.SQLite.dll：
+       内嵌进单文件后（默认 ALC 已加载）探测 LoadFrom 落盘文件会因同 identity 冲突
+       （FileLoadException: already loaded）→ 数据库初始化失败。
+       bundle 输入 = FilesToBundle（_ComputeFilesToBundle 生成），剔除后该 DLL 随普通发布文件落盘，
+       探测 LoadFrom 落盘文件 = 唯一加载路径，零下载、零 Plugins/ 生成（publish-host 从 NuGet 缓存外置复制作兜底）。 -->
+  <Target Name="ExcludeSqliteFromSingleFile" AfterTargets="_ComputeFilesToBundle" BeforeTargets="GenerateSingleFileBundle" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <FilesToBundle Remove="@(FilesToBundle)" Condition="'%(Filename)%(Extension)' == 'System.Data.SQLite.dll'" />
+    </ItemGroup>
+  </Target>
 </Project>

@@ -1,4 +1,4 @@
-# 配置项参考
+﻿# 配置项参考
 
 > 项目使用 `appsettings.json` + 环境覆盖（`appsettings.Development.json` / `appsettings.Production.json`）管理配置。
 > 配置通过 `IConfigurationService` 注入到各服务。
@@ -67,7 +67,7 @@
 | 运行形态 | 数据根 | 宿主库 | 插件库 |
 |----------|--------|--------|--------|
 | 开发（`ASPNETCORE_ENVIRONMENT=Development`） | `{程序目录}/Data` | `Data/ForgeSelf.db` | `Data/Plugins/{插件Id}/{库名}.db` |
-| 发布 exe / Windows 服务 | `~/.forgeself` | `~/.forgeself/ForgeSelf.db` | `~/.forgeself/Plugins/{插件Id}/{库名}.db` |
+| 发布 exe / Windows 服务 | `~/.forgeself` | `~/.forgeself/ForgeSelf.db` | `~/.forgeself/plugins/{插件Id}/{库名}.db` |
 
 ### AI — AI 网关配置
 

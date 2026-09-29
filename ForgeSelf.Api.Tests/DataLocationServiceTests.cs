@@ -10,19 +10,20 @@ namespace ForgeSelf.Api.Tests;
 
 /// <summary>
 /// 统一数据根服务形态判定单测：
-/// 开发模式 → 程序目录 Data/（调试数据不污染用户目录）；否则 → 用户主目录 ~/.forgeself。
+/// 开发模式 → 程序目录 data/（调试数据不污染用户目录）；否则 → 用户主目录 ~/.forgeself。
+/// （2026-09-29 输入37 目录命名统一小写：Data → data）
 /// </summary>
 public class DataLocationServiceTests
 {
     [Fact]
-    public void ResolveHostDataDirectory_开发环境_返回程序目录Data()
+    public void ResolveHostDataDirectory_开发环境_返回程序目录data()
     {
         var original = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         try
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
             DataLocationService.ResolveHostDataDirectory()
-                .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data"));
+                .Should().Be(Path.Combine(AppContext.BaseDirectory, "data"));
         }
         finally
         {
@@ -47,12 +48,12 @@ public class DataLocationServiceTests
     }
 
     [Fact]
-    public void 实例_开发环境_宿主数据目录为程序目录Data()
+    public void 实例_开发环境_宿主数据目录为程序目录data()
     {
         var env = new Mock<IWebHostEnvironment>();
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
-        svc.GetHostDataDirectory().Should().Be(Path.Combine(AppContext.BaseDirectory, "Data"));
+        svc.GetHostDataDirectory().Should().Be(Path.Combine(AppContext.BaseDirectory, "data"));
     }
 
     [Fact]
@@ -71,7 +72,7 @@ public class DataLocationServiceTests
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
         svc.GetPluginDataDirectory("quicklinks")
-            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "Plugins", "quicklinks"));
+            .Should().Be(Path.Combine(AppContext.BaseDirectory, "data", "plugins", "quicklinks"));
     }
 
     [Fact]
@@ -81,6 +82,6 @@ public class DataLocationServiceTests
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
         svc.GetPluginDataDirectory("bad/id:name")
-            .Should().Be(Path.Combine(AppContext.BaseDirectory, "Data", "Plugins", "badidname"));
+            .Should().Be(Path.Combine(AppContext.BaseDirectory, "data", "plugins", "badidname"));
     }
 }

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 using NewLife.Log;
@@ -22,10 +22,11 @@ public class UpdateStageInfo
 }
 
 /// <summary>
-/// 暂存式更新编排服务（spec 036）。
+/// 暂存式更新编排服务（spec 036，唯一更新链路；008 <see cref="UpdateService"/> 已冻结）。
 /// 流程：检查 → 下载+校验+解压到 %LOCALAPPDATA%\ForgeSelf\Updates\&lt;tag&gt;\（staged）→
-/// 用户点「重启并更新」→ 拉起 update-agent.ps1（等待本进程退出后备份/覆盖/重启）→ 宿主自停。
-/// 与 008 的 <see cref="UpdateService"/>（Windows 服务模式）并存，不改变其行为。
+/// 用户点「重启并更新」→ 拉起 update-agent.ps1（QQNT 版本化应用：等本进程退出 → 新版本落
+/// versions/&lt;ver&gt;/ + current 指针 + 重启根启动器，公共层跨版本共享）→ 宿主自停。
+/// 目录结构/生命周期真源：docs/04-standards/packaging-upgrade-backup.md §3/§4。
 /// </summary>
 public class StagedUpdateService
 {

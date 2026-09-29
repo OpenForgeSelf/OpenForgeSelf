@@ -19,7 +19,7 @@
 # Usage:
 #   ./publish-plugin.ps1 -Plugin AIAgent                                    # dev mode (default)
 #   ./publish-plugin.ps1 -Plugin AIAgent -Configuration Release
-#   ./publish-plugin.ps1 -Plugin AIAgent -PluginsRoot "D:/deploy/Plugins"   # explicit PluginsRoot
+#   ./publish-plugin.ps1 -Plugin AIAgent -PluginsRoot "D:/deploy/plugins"   # explicit PluginsRoot（安装形态目录小写，2026-09-29 输入37）
 #   ./publish-plugin.ps1 -Plugin AIAgent -Force                              # overwrite existing staged
 #   ./publish-plugin.ps1 -Plugin AIAgent -DryRun                             # print only, no side effects
 #

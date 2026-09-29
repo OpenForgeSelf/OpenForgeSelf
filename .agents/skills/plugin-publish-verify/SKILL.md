@@ -1,4 +1,4 @@
----
+﻿---
 name: plugin-publish-verify
 description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 = 打 tag 自动发布 + 页面自动更新）。用于「发插件」「发布新版本」「验证更新生效」「只发插件不重启宿主」「跑发布流程」。发布动作交给 tag→CI→GitHub Release（或本地 release-local.ps1 打包 + 页面自动更新）；**禁止 agent 停/启/杀用户运行中的宿主进程**；开发期验证走 e2e 隔离实例；确需在运行实例侧载插件（版本化更新，不重启宿主）须先获用户同意。
 ---
@@ -34,10 +34,10 @@ description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 
 ## 一键跑（本地打包，可选）
 
 ```powershell
-pwsh scripts/release/release-local.ps1 -Version v0.2.5 -UpdateDir D:\updates
+pwsh scripts/release/release-local.ps1 -Version v0.2.5 -Sign -UpdateDir D:\updates
 ```
 
-常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。
+常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。**`-Sign` 为发布必带（输入42 铁律）**：Authenticode 签名走 `scripts/sign-publish.ps1`（自签证书自动生成/复用 + DigiCert 时间戳；商业证书 `-PfxPath/-PfxPassword` 可插拔），签名在 zip 打包前，递归签顶层根启动器 + `versions/<ver>/` 全部 exe。
 
 ## 流程骨架（主路径）
 
@@ -107,7 +107,7 @@ PluginController 鉴权后，前端必须走 `authFetch`（src/services/authFetc
 
 - 端点前缀是**单数** `api/plugin/...`（`[Route("api/[controller]")]`，控制器 `PluginController`）。
   `publish-plugin.ps1` 结尾打印的 `/api/plugins/...` 是**错的**，会 404。
-- 插件目录：`AppContext.BaseDirectory/Plugins` → publish 实例即 `publish/Plugins`。
+- 插件目录：`AppContext.BaseDirectory/plugins` → publish 实例即 `publish/plugins`。
 - 两层命名：目录/程序集 PascalCase（`AIAgent`），运行时 id kebab-case（`ai-agent`）。
   `-Plugin` 传**目录名**，`_backups` 下用 **id**。
 - 默认端口 7102（`ForgeSetting.config` 的 `PortNumber`），本环境长期 publish 实例用 **51888**。
@@ -117,7 +117,7 @@ PluginController 鉴权后，前端必须走 `authFetch`（src/services/authFetc
   核验：`curl http://localhost:<port>/plugins/<id>/web/dist/index.js`，比对**字节数**与版本快照一致（可用探针标记区分根扁平）。
 - **跑 e2e 必须给 `--output`**：`node ForgeSelf.Web/node_modules/@playwright/test/cli.js test --config=playwright.config.ts <spec> --output=<空目录>`；
   否则 Playwright 启动前清理 `test-results` 会被沙箱 safe-delete 拦截器拦下，整跑失败。
-- **存量迁移脚本**：scripts/migrate-plugin-versions.ps1（幂等）把扁平插件目录迁移为版本化布局（`versions/<ver>/` + current）；build 覆盖 publish/Plugins 后可重复跑。
+- **存量迁移脚本**：scripts/migrate-plugin-versions.ps1（幂等）把扁平插件目录迁移为版本化布局（`versions/<ver>/` + current）；build 覆盖 publish/plugins 后可重复跑。
 - **宿主二进制变更发布顺序铁律（2026-09-27 新规范）**：改宿主后端/前端后**不要手动停宿主去覆盖二进制**——
   一律走打 tag 自动发布（或本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源），宿主由 update-agent 自更新。
   旧教训（2026-09-24）：`build.ps1` 覆盖 publish/ 时运行中宿主锁住 `ForgeSelf.dll` 被静默跳过、脚本仍报成功；

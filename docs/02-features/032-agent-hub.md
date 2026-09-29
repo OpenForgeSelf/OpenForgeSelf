@@ -1,4 +1,4 @@
-# 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
+﻿# 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
 > 版本：2026-09-24（v1.0.9）· 状态：**已落地**
 > 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）
@@ -34,7 +34,7 @@
 | GET | `api/agent-hub/settings` | — | `{ searchDirectories: string[] }` |
 | PUT | `api/agent-hub/settings` | `{ searchDirectories: string[] }` | 规范化后结果（去空白/去重/去空项），点即保存落盘 |
 
-持久化位置：**插件数据目录** `{数据根}/Plugins/agent-hub/config.json`（生产即 `~/.forgeself/Plugins/agent-hub/config.json`），随数据走、发布覆盖不影响；文件损坏时退回默认并告警，不阻断插件。
+持久化位置：**插件数据目录** `{数据根}/plugins/agent-hub/config.json`（生产即 `~/.forgeself/plugins/agent-hub/config.json`），随数据走、发布覆盖不影响；文件损坏时退回默认并告警，不阻断插件。
 
 ## 4. 前端（AgentHubView.vue 扫描区）
 

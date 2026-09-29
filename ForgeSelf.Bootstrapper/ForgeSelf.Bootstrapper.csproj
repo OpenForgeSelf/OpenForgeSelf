@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <!-- 产出 ForgeSelf.exe：安装根公共层启动器（薄壳），业务层在 versions/<ver>/ -->
+    <!-- 程序集名避开宿主业务层主程序集 ForgeSelf.dll（QQNT 下公共层与 versions/<ver>/ 并存，
+         同名程序集在同一个 AssemblyLoadContext 会冲突）。exe 由发布脚本重命名为 ForgeSelf.exe（公共层根）。 -->
+    <AssemblyName>ForgeSelf.Bootstrapper</AssemblyName>
+    <RootNamespace>ForgeSelf.Bootstrapper</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- 输入39：根启动器文件图标 + 版本号生成 + 包信息（与业务层同源） -->
+    <ApplicationIcon>..\ForgeSelf.Api\Assets\ForgeSelf.ico</ApplicationIcon>
+    <VersionPrefix>2.2</VersionPrefix>
+    <VersionSuffix>$([System.DateTime]::Now.ToString('yyyy.MMdd'))</VersionSuffix>
+    <Version>$(VersionPrefix).$(VersionSuffix)</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
+    <Deterministic>false</Deterministic>
+    <AssemblyTitle>铸己匣启动器</AssemblyTitle>
+    <Description>铸己匣根启动器：加载 versions/&lt;ver&gt;/ 业务层并透传进程生命周期（公共层，跨版本共享）</Description>
+    <Company>OpenForgeSelf</Company>
+    <Product>ForgeSelf（铸己匣）</Product>
+    <Copyright>©2026 OpenForgeSelf</Copyright>
+  </PropertyGroup>
+
+  <!-- 公共层携带完整共享框架（业务层 FrameworkDependent publish 不含框架，运行时/框架共用一份）：
+        ASP.NET Core = WebApplication；Windows Desktop = 托盘 H.NotifyIcon 依赖 System.Windows.Forms
+        （扁平自包含版曾由业务层自带，QQNT 下移公共层，每版本不再复刻） -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+  </ItemGroup>
+
+</Project>

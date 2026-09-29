@@ -8,7 +8,8 @@ namespace ForgeSelf.Api;
 
 /// <summary>
 /// <see cref="IDataLocationService"/> 默认实现：按运行形态解析数据根。
-/// 开发模式 → 程序目录 Data/；否则 → 用户主目录 ~/.forgeself。
+/// 开发模式 → 程序目录 data/；否则 → 用户主目录 ~/.forgeself。
+/// （2026-09-29 输入37 目录命名统一小写：Data → data）
 /// </summary>
 public class DataLocationService : IDataLocationService
 {
@@ -31,7 +32,7 @@ public class DataLocationService : IDataLocationService
     private static string ResolveHostDataDirectory(IWebHostEnvironment environment)
     {
         if (environment.IsDevelopment())
-            return Path.Combine(AppContext.BaseDirectory, "Data");
+            return Path.Combine(AppContext.BaseDirectory, "data");
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".forgeself");
     }
 
@@ -44,7 +45,7 @@ public class DataLocationService : IDataLocationService
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
         if (!string.IsNullOrEmpty(env) && env.Equals("Development", StringComparison.OrdinalIgnoreCase))
-            return Path.Combine(AppContext.BaseDirectory, "Data");
+            return Path.Combine(AppContext.BaseDirectory, "data");
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".forgeself");
     }
 

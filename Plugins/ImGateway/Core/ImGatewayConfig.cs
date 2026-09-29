@@ -47,7 +47,7 @@ public interface IConfigStore
 
 /// <summary>
 /// 基于 JSON 文件的配置存储（v1.1.0 遗留，v2.0.0 由 DbConfigStore 取代后仅作迁移读取源）。
-/// 路径：~/.forgeself/Plugins/im-gateway/config.json。
+/// 路径：~/.forgeself/plugins/im-gateway/config.json。
 /// </summary>
 public class FileConfigStore : IConfigStore
 {
@@ -74,7 +74,7 @@ public class FileConfigStore : IConfigStore
     /// <summary>
     /// 解析插件数据目录：优先环境变量 <c>FORGESelf_PLUGIN_CONFIG_DIR</c>（e2e 等隔离场景注入临时目录，
     /// 避免多个宿主实例共享用户目录下的 config.json/sessions.json 导致非确定性与互相污染）；
-    /// 未设置时回退默认 <c>~/.forgeself/Plugins/im-gateway</c>（真实运行态，向后兼容）。
+    /// 未设置时回退默认 <c>~/.forgeself/plugins/im-gateway</c>（真实运行态，向后兼容；Windows 目录大小写不敏感）。
     /// </summary>
     internal static string ResolvePluginDataDir()
     {
@@ -83,7 +83,7 @@ public class FileConfigStore : IConfigStore
             return overrideDir;
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".forgeself", "Plugins", "im-gateway");
+            ".forgeself", "plugins", "im-gateway");
     }
 
     public ImGatewayConfig Load()

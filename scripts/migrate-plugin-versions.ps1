@@ -1,5 +1,6 @@
 ﻿# 一次性存量迁移：把扁平布局插件迁移到 side-by-side 版本化布局（versions/<ver>/ + current 指针）
-# 用法：pwsh scripts/migrate-plugin-versions.ps1 [-PluginsRoot "<repo>\publish\Plugins"]
+# 用法：pwsh scripts/migrate-plugin-versions.ps1 [-PluginsRoot "<repo>\publish\plugins"]
+#   （2026-09-29 输入37 目录命名统一小写：Plugins → plugins；传入安装形态根时同样用小写）
 # 行为：
 #   - 只对「无 current 指针或 versions/<当前清单版本> 缺失」的插件目录补建快照 + current
 #   - 只新增文件，不删除/不覆盖活动目录任何文件（运行中宿主无感知，下次 DiscoverPlugins 生效）
@@ -15,7 +16,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $PluginsRoot) {
     $repo = Split-Path -Parent $PSScriptRoot
-    $PluginsRoot = Join-Path $repo "publish\Plugins"
+    $PluginsRoot = Join-Path $repo "publish\plugins"
 }
 if (-not (Test-Path $PluginsRoot)) { throw "插件目录不存在: $PluginsRoot" }
 

@@ -1,4 +1,4 @@
-# 插件体系（Plugins）
+﻿# 插件体系（Plugins）
 
 > 本文件是插件开发的权威规范。涵盖一个插件从「诞生 → 发布 → 发现 → 加载 → 应用 → 数据落盘 → 停用」的完整生命周期（前世今生）、命名规范（两层身份模型）、数据落盘约定，以及如何新建插件。
 > 代码层（目录/程序集/EntryType）刻意使用 C# 原生 PascalCase；运行时层（Id/数据目录/路由）统一 kebab-case；**库文件名**则刻意取 XCode **连接名**（PascalCase，连接名即数据库名，与 XCode 模型一致）—— 这是**刻意设计而非不一致**，详见第四节。
@@ -16,13 +16,13 @@
 ## 二、一个插件的前世今生（生命周期）
 
 1. **诞生（Scaffold）**：用 `PluginScaffolderService.Create(pluginId)` 生成骨架（目录 / `plugin.json` / `.csproj` / 示例 `IPlugin` 类），`pluginId` 自动按 kebab-case 产出。
-2. **注册（Reference）**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference>` 指向 `..\Plugins\{目录}\{目录}.csproj`；构建/发布时其产物被拷贝到 `publish/Plugins/{目录}/`。
-3. **发现（Discover）**：宿主启动时 `PluginManager` 扫描 `publish/Plugins/*/plugin.json`，读取 `Id` / `EntryAssembly` / `EntryType`。
+2. **注册（Reference）**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference>` 指向 `..\Plugins\{目录}\{目录}.csproj`；构建/发布时其产物被拷贝到 `publish/plugins/{目录}/`。
+3. **发现（Discover）**：宿主启动时 `PluginManager` 扫描 `publish/plugins/*/plugin.json`，读取 `Id` / `EntryAssembly` / `EntryType`。
 4. **加载（Load）**：经独立 `AssemblyLoadContext` 加载 `EntryAssembly`，再用 `Type.GetType(EntryType)` 反射出实现 `IPlugin` 的入口类。
 5. **应用（Apply）**：宿主 `Build()` 之后调用 `plugin.Apply(ctx)`。插件在此注册服务、`IMenuExtension` 菜单、`IToolFunctionExtension` 工具函数、控制器路由等。
 6. **运行（Run）**：控制器 / 工具函数经 DI 拿到插件服务实例；所有数据写入各自的数据目录（见第三节）。
-7. **数据落盘（Persist）**：见第三节 —— 库文件统一命名 `{连接名}.db`（连接名即数据库名，与 XCode 一致），落在 `{数据根}/Plugins/{插件Id}/`。
-8. **停用 / 移除（Unload）**：运行时已支持**单插件热更新/热插拔，不重启宿主**（详见第九节「运行时热更新」）。低阶能力：删除 `publish/Plugins/{目录}/` 仍可"硬卸载"该插件（其数据目录 `~/.forgeself/Plugins/{插件Id}/` 保留，可手动清理）。
+7. **数据落盘（Persist）**：见第三节 —— 库文件统一命名 `{连接名}.db`（连接名即数据库名，与 XCode 一致），落在 `{数据根}/plugins/{插件Id}/`。
+8. **停用 / 移除（Unload）**：运行时已支持**单插件热更新/热插拔，不重启宿主**（详见第九节「运行时热更新」）。低阶能力：删除 `publish/plugins/{目录}/` 仍可"硬卸载"该插件（其数据目录 `~/.forgeself/plugins/{插件Id}/` 保留，可手动清理）。
 
 ---
 
@@ -31,9 +31,9 @@
 - **数据根（Data Root）**：由 `IDataLocationService` 解析。
   - 开发态（`BaseDirectory` 含 `Debug`/`Release`）：`{BaseDirectory}/Data/`
   - 发布 / 服务态：`%USERPROFILE%/.forgeself/`
-- **插件库路径（统一）**：`{数据根}/Plugins/{插件Id}/{连接名}.db`
-  - 例：`memory-system` → `~/.forgeself/Plugins/memory-system/MemorySystem.db`（连接名 `MemorySystem`）
-  - 例：`mcp-center` → `~/.forgeself/Plugins/mcp-center/McpCenter.db`（连接名 `McpCenter`）
+- **插件库路径（统一）**：`{数据根}/plugins/{插件Id}/{连接名}.db`
+  - 例：`memory-system` → `~/.forgeself/plugins/memory-system/MemorySystem.db`（连接名 `MemorySystem`）
+  - 例：`mcp-center` → `~/.forgeself/plugins/mcp-center/McpCenter.db`（连接名 `McpCenter`）
 - **父目录自建**：SQLite 不会自动创建父目录，宿主在 `AddXCode` / `InitializeXCodeDatabase` 时先 `EnsureDirectory`，插件侧也可用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录。
 - **库文件名铁律**：一律 `{连接名}.db`（连接名即数据库名，与 XCode 模型一致）。所有插件统一用 XCode 作为 ORM，连接名取自 `XCodeConfig.PluginDbs`。禁止以 `Id` 或任意写法命名（历史 `memory.db` / `capture.db` / `QuickLinks.db` 等混用写法已全部修正）。改名会生成第二份库，旧数据不可见。
 
@@ -46,7 +46,7 @@
 | 身份层 | 作用域 | 命名风格 | 能否改 | 原因 |
 |---|---|---|---|---|
 | **代码身份** | 目录名、程序集 `.dll`、 `plugin.json` 的 `EntryType`（=`Namespace.PluginClass`） | C# 原生 **PascalCase**（`AIAgent` / `ForgeSelf.Api.Plugins.MemorySystem.MemorySystemPlugin`） | 不可 | `EntryType` 须经反射 `Type.GetType("Namespace.Class")`，强制 PascalCase；且须符合 C# 命名约定 |
-| **运行时身份** | `plugin.json` 的 `Id`、数据目录名、`~/.forgeself/Plugins/{id}`、前端路由 | **kebab-case**（全小写 + 短横线，`^[a-z0-9]+(-[a-z0-9]+)*$`） | 不可 | `Id` 会用作**目录名**（Linux 大小写敏感）与**前端路由**，kebab 最稳、最不易混淆 |
+| **运行时身份** | `plugin.json` 的 `Id`、数据目录名、`~/.forgeself/plugins/{id}`、前端路由 | **kebab-case**（全小写 + 短横线，`^[a-z0-9]+(-[a-z0-9]+)*$`） | 不可 | `Id` 会用作**目录名**（Linux 大小写敏感）与**前端路由**，kebab 最稳、最不易混淆 |
 | **连接名身份** | 库文件名 `{连接名}.db`、`XCodeConfig.PluginDbs` 的 key、`DAL.Create/AddConnStr` 的连接名 | C# 原生 **PascalCase**（与代码身份一致：目录名、类名、连接名同风格） | 不可 | **连接名即数据库名**（XCode 模型）：库文件必须与连接名同名，XCode 实体 `ConnName` 据此命名，避免生成第二份库 |
 
 **插件 Id 规范**：
@@ -119,8 +119,8 @@
 2. **登记引用**：在 `ForgeSelf.Api.csproj` 添加 `<ProjectReference Include="..\Plugins\YourPlugin\YourPlugin.csproj" />`（目录名 PascalCase，与程序集一致）。
 3. **实现 Apply**：在 `IPlugin.Apply(IContext ctx)` 中注册服务 / 菜单 / 工具函数 / 路由。
 4. **数据读写**：用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录；库文件**必须**命名为 `{连接名}.db`（连接名即数据库名，与 XCode 一致）。XCode 插件：`connName` 必须在 `XCodeConfig.PluginDbs` 映射，实体 `ConnName` 与之同名，宿主自动 `DAL.Create`。
-5. **构建发布**：`build.ps1` 会把 `Plugins/` 整体拷贝到 `publish/Plugins/`（保留），并排除宿主 `Data/Log`；`Plugins/` 目录本身不被 `git` 忽略，随仓库提交。
-6. **验证**：启动后查 `~/.forgeself/Plugins/{id}/{连接名}.db` 是否生成、宿主日志是否无「插件目录不存在 / 加载失败 / 数据库初始化失败」。
+5. **构建发布**：`build.ps1` 会把 `Plugins/` 整体拷贝到 `publish/plugins/`（保留），并排除宿主 `Data/Log`；`Plugins/` 目录本身不被 `git` 忽略，随仓库提交。
+6. **验证**：启动后查 `~/.forgeself/plugins/{id}/{连接名}.db` 是否生成、宿主日志是否无「插件目录不存在 / 加载失败 / 数据库初始化失败」。
 
 ---
 
@@ -217,7 +217,7 @@ HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugin
 
 - **加载失败自动回退**：`ReloadPlugin` 捕获异常后回退 `current` 到上一可用版本并重载。
 - **手动回滚**：`POST /api/plugins/rollback/{id}` + body `{"version":"1.0.0"}`（只要 `versions/1.0.0/` 目录仍在）。
-- **硬卸载**（清数据）：删除 `publish/Plugins/{目录}/` 与 `~/.forgeself/Plugins/{id}/`。
+- **硬卸载**（清数据）：删除 `publish/plugins/{目录}/` 与 `~/.forgeself/plugins/{id}/`。
 
 ---
 

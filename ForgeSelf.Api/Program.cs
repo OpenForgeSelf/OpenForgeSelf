@@ -1,4 +1,4 @@
-using System.IO.Pipes;
+﻿using System.IO.Pipes;
 using System.Text;
 using NewLife.Agent;
 using NewLife.Log;
@@ -20,13 +20,25 @@ if (entryAssembly == "testhost" || entryAssembly == "testhost.exe")
     return 0;
 }
 
-// 统一配置文件落盘位置（数据根/Config）：必须早于任何 XTrace 日志写入与 Config<T>.Current 访问。
+// 统一配置文件落盘位置（数据根/config）：必须早于任何 XTrace 日志写入与 Config<T>.Current 访问。
 // NewLife FileConfigProvider 在初始化时会按 FileName 所在目录建立 FileSystemWatcher；
 // 若放任其用默认相对路径（程序目录 Config/），发布目录下该目录不存在，启动首行即报
 // 「FileSystemWatcher 创建失败：...\publish\Config does not exist」。
 // 此处抢在一切 NewLife 配置访问之前重定向，AppBuilder 内再调用一次（幂等，覆盖 DI 环境判定结果）。
+var hostDataDir = DataLocationService.ResolveHostDataDirectory();
+
+// 日志外置到数据根/log（输入37 目录小写 + 空间优化）：NewLife 默认日志落程序目录 Log/，
+// 随版本目录残留（每版本一份）造成空间浪费。必须在任何 XTrace 日志写入之前设置
+// （XTrace 首次写入即按默认路径初始化，之后再改 LogPath 不再生效——冒烟实测）。
+// 本设置在首次 NewLife 调用（ConfigUnifier）之前；AppBuilder 内保留幂等重复设置。
+// XTrace.LogPath 是独立静态属性（实测：设 Setting.LogPath 不联动 XTrace，日志仍落默认 Log/），
+// 必须直接设 XTrace.LogPath 才生效；Setting.LogPath 同步持久化供其他组件读取。
+NewLife.Setting.Current.LogPath = Path.Combine(hostDataDir, "log");
+XTrace.LogPath = Path.Combine(hostDataDir, "log");
+NewLife.Setting.Current.Save();
+
 ConfigUnifier.UnifyAllConfigFiles(
-    Path.Combine(DataLocationService.ResolveHostDataDirectory(), "Config"));
+    Path.Combine(hostDataDir, "config"));
 
 // --tray 模式：服务模式下的托盘辅助进程，由 WindowsService 通过 CreateProcessAsUser 启动。
 // 此模式运行在用户会话中，通过命名管道与主服务通信，作为独立进程承载托盘图标。
@@ -146,7 +158,7 @@ static int RunTrayMode(string[] args, int trayArgIndex)
     // （%~/.forgeself 解析差异）。此处再统一一次配置文件目录（幂等），保证本进程读到的
     // ForgeSetting.config 与主服务是同一份，否则拼出的令牌会与主服务的密钥不匹配。
     ConfigUnifier.UnifyAllConfigFiles(
-        Path.Combine(DataLocationService.ResolveHostDataDirectory(), "Config"));
+        Path.Combine(DataLocationService.ResolveHostDataDirectory(), "config"));
 
     // 解析参数
     var pipeName = "";
@@ -179,7 +191,7 @@ static int RunTrayMode(string[] args, int trayArgIndex)
     // 空配置会派生出不同密钥 → 解密失败 → 触发「自动重新生成主密钥」并写回配置 → 与主服务互相踩踏，
     // 导致托盘打开的链接必然 401。故此处按 WebApplication.CreateBuilder 的默认来源顺序装配。
     var trayConfig = new ConfigurationBuilder()
-        .SetBasePath(AppContext.BaseDirectory)
+        .SetBasePath(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppContext.BaseDirectory)
         .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
         .AddEnvironmentVariables()
         .Build();
@@ -261,7 +273,7 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
 
         // 从 DI 容器解析服务
         var trayIconManager = app.Services.GetRequiredService<TrayIconManager>();
-        var updateService = app.Services.GetRequiredService<UpdateService>();
+        var updateService = app.Services.GetRequiredService<StagedUpdateService>(); // 008 冻结：托盘检查统一走 036
 
         // 配置回调委托
         trayIconManager.Configure(
@@ -270,7 +282,7 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
                 XTrace.Log.Info("TrayIconManager: 用户点击「检查更新」");
                 try
                 {
-                    var result = updateService.CheckForUpdatesAsync().GetAwaiter().GetResult();
+                    var result = updateService.CheckAsync().GetAwaiter().GetResult();
                     if (result.HasUpdate)
                     {
                         trayIconManager.ShowBalloonTip(
@@ -338,7 +350,7 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
             try
             {
                 await Task.Delay(3000);
-                var result = await updateService.CheckForUpdatesAsync();
+                var result = await updateService.CheckAsync();
                 if (result.HasUpdate)
                 {
                     trayIconManager.ShowBalloonTip(

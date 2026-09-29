@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Net.WebSockets;
 using Microsoft.AspNetCore.Authentication;
 using ForgeSelf.Abstractions;
@@ -35,31 +35,46 @@ public static class AppBuilder
     /// <returns>已配置好所有中间件和服务的 WebApplication，尚未启动。</returns>
     public static WebApplication CreateWebApplication(string[] args)
     {
-        // 显式固定 WebRoot 为「程序所在目录（exe 目录）下的 wwwroot」，兼容开发期项目目录 wwwroot。
+        // 显式固定 WebRoot 为「程序所在目录下的 wwwroot」，兼容开发期项目目录 wwwroot。
         // 必须在 CreateBuilder 阶段通过 WebApplicationOptions 设定：若在 CreateBuilder 之后调用
         // builder.WebHost.UseWebRoot，ASP.NET Core 会抛 NotSupportedException
         // （"Changing the host configuration using WebApplicationBuilder.WebHost is not supported"）。
-        // 以 exe 目录为基准：从其他文件夹启动（如直接运行 publish/ForgeSelf.exe）时，
-        // ContentRootPath/CWD 会偏离，默认 WebRootPath 解析可能找不到 wwwroot（2026-08-14 实战坑）。
-        // 候选基准：exe 目录 + 当前工作目录（dotnet run 开发期 CWD=项目目录，wwwroot 建于此）。
-        var webRoot = ResolveWebRootPath(AppContext.BaseDirectory, Directory.GetCurrentDirectory());
+        // 程序目录基准（2026-09-28 批次2.1，QQNT 目录结构）＝ 入口程序集（ForgeSelf.Api.dll）所在目录：
+        //   扁平部署（publish/）＝ BaseDirectory；QQNT 部署（安装根 + versions/<ver>/ 业务层）＝ 业务层目录。
+        // 从其他文件夹启动（如直接运行 publish/ForgeSelf.exe）时，ContentRootPath/CWD 会偏离，
+        // 默认 WebRootPath 解析可能找不到 wwwroot（2026-08-14 实战坑）。
+        // 候选基准：程序目录 + 当前工作目录（dotnet run 开发期 CWD=项目目录，wwwroot 建于此）。
+        var programDir = Path.GetDirectoryName(typeof(AppBuilder).Assembly.Location) ?? AppContext.BaseDirectory;
+        var webRoot = ResolveWebRootPath(programDir, Directory.GetCurrentDirectory());
+        // ContentRoot 同理指向业务层目录（appsettings.json 基准；QQNT 部署下配置文件在 versions/<ver>/）。
+        // 仅当业务层目录确实存在 appsettings.json 时才强制，否则保持 CWD（开发期项目根），避免破坏 dotnet run。
+        var contentRoot = File.Exists(Path.Combine(programDir, "appsettings.json"))
+            ? programDir
+            : Directory.GetCurrentDirectory();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
             WebRootPath = webRoot,
+            ContentRootPath = contentRoot,
         });
 
-        XTrace.Log.Level = NewLife.Log.LogLevel.Info;
-
-        // 统一数据根服务：按运行形态解析（开发→程序目录 Data/，否则→用户主目录 ~/.forgeself）
+        // 统一数据根服务：按运行形态解析（开发→程序目录 data/，否则→用户主目录 ~/.forgeself）
         var dataLocation = new DataLocationService(builder.Environment);
         builder.Services.AddSingleton<IDataLocationService>(dataLocation);
+
+        // 日志目录统一（输入37 目录命名小写）：NewLife 默认 Log（程序目录下）→ 数据根/log（外置 + 全小写）。
+        // NewLife.Setting.LogPath 支持绝对路径（TextFileLog 按目录/文件路径解析），须在首次日志写入前设置。
+        NewLife.Setting.Current.LogPath = Path.Combine(dataLocation.GetHostDataDirectory(), "log");
+        XTrace.LogPath = Path.Combine(dataLocation.GetHostDataDirectory(), "log");
+        NewLife.Setting.Current.Save();
+
+        XTrace.Log.Level = NewLife.Log.LogLevel.Info;
         XTrace.Log.Info("运行时数据根目录: {0}", dataLocation.GetHostDataDirectory());
 
         // 统一所有 NewLife Config<T> 配置文件落盘位置（XCode/Core/Agent/项目自有等），
         // 必须早于 AddXCode（其内部访问 XCodeSetting.Current）及任何 .Current 访问，
         // 避免配置文件散落到程序目录/输出目录。
-        var configRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "Config");
+        var configRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "config");
         ConfigUnifier.UnifyAllConfigFiles(configRoot);
         XTrace.Log.Info("配置文件统一目录: {0}", configRoot);
 
@@ -163,18 +178,18 @@ public static class AppBuilder
         builder.Services.Configure<UpdateConfig>(builder.Configuration.GetSection("Update"));
 
         // 运行时可变更新配置（2026-09-27）：appsettings "Update" 节为基座，
-        // 设置页修改后落盘到 {数据根}/Config/update-settings.json（下次启动该文件优先）。
+        // 设置页修改后落盘到 {数据根}/config/update-settings.json（下次启动该文件优先）。
         // 与 UpdateChecker / UpdateController 共享同一 UpdateConfig 实例引用，改配置无需重启。
         var updateConfigInitial = builder.Configuration.GetSection("Update").Get<UpdateConfig>()
             ?? new UpdateConfig();
         var updateSettingsFile = Path.Combine(
-            dataLocation.GetHostDataDirectory(), "Config", "update-settings.json");
+            dataLocation.GetHostDataDirectory(), "config", "update-settings.json");
         builder.Services.AddSingleton(new UpdateSettingsService(updateConfigInitial, updateSettingsFile));
         // 插件更新源配置（2026-09-28，输入27）：同构 UpdateSettingsService，
-        // 设置页（插件管理 tab）修改后落盘到 {数据根}/Config/plugin-update-settings.json，
+        // 设置页（插件管理 tab）修改后落盘到 {数据根}/config/plugin-update-settings.json，
         // PluginVersionService / PluginController 共享同一实例引用，改配置无需重启宿主。
         var pluginUpdateSettingsFile = Path.Combine(
-            dataLocation.GetHostDataDirectory(), "Config", "plugin-update-settings.json");
+            dataLocation.GetHostDataDirectory(), "config", "plugin-update-settings.json");
         builder.Services.AddSingleton(new PluginUpdateSettingsService(new Models.Plugins.PluginUpdateSettings(), pluginUpdateSettingsFile));
 
         // ServiceManager — 封装 Windows 服务安装/卸载/状态检测
@@ -202,7 +217,7 @@ public static class AppBuilder
             return new StagedUpdateService(updateChecker, lifetime);
         });
 
-        // UpdateService — 更新流程编排
+        // UpdateService — 更新流程编排（008 冻结，2026-09-28：仅保留注册防 WindowsService 模式引用，不再维护；升级统一走上方 036）
         builder.Services.AddSingleton<UpdateService>(sp =>
         {
             var updateChecker = sp.GetRequiredService<UpdateChecker>();
@@ -243,7 +258,7 @@ public static class AppBuilder
         // 契约形态（Abstractions）：供插件经 ctx.Get<IAIProviderRegistry>() 消费，须与上者为同一实例。
         builder.Services.AddSingleton<IAIProviderRegistry>(sp => sp.GetRequiredService<AIProviderRegistry>());
 
-        // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 Data/ImageRecognitionCache
+        // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 {数据根}/ImageRecognitionCache
         var imageCacheRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "ImageRecognitionCache");
         builder.Services.AddSingleton<IImageRecognitionCache>(new LocalFileImageRecognitionCache(imageCacheRoot));
 
@@ -253,7 +268,7 @@ public static class AppBuilder
 
         builder.Services.AddPluginManager();
 
-        var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
+        var pluginsPath = Path.Combine(AppContext.BaseDirectory, "plugins");
         PluginManager pluginManager;
         using (var bootstrap = builder.Services.BuildServiceProvider())
         {

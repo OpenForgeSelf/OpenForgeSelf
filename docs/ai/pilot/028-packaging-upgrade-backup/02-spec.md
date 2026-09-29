@@ -1,4 +1,4 @@
-# Specification
+﻿# Specification
 
 > 阶段：Stage 2｜必须从真实 Repository Understanding 与 Intent 推导。
 > 规则：① 所有内容与实际项目一致；② 不得发明不存在的接口、类、模块；③ 不确定点显式记录为 `Unknown`，不得自行假定。
@@ -26,7 +26,7 @@
 
 **F4（图片缓存 TTL，批次1 已实施）**：`LocalFileImageRecognitionCache` 构造器调用 `CleanupExpiredSessions()`，删除 `LastWriteTimeUtc` 超 `CacheMaxAge`（30 天）的会话目录。
 
-**F5（批次2 待立项，用户拍板后实施）**：宿主 QQNT 式目录结构——程序根目录公共外置（启动器/公共 DLL），宿主每次更新的内容入 `versions/<ver>/`，`plugins/` 与 `versions/` 并排；发布脚本（release-local.ps1/package-release.ps1）与更新链路（StagedUpdateService/update-agent.ps1）按新布局改造；端到端升级演练。
+**F5（批次2，输入34 已拍板并实施——本工件链 05-evidence/06-review/07-final-report 已记录终态）**：宿主 QQNT 式目录结构——程序根目录公共外置（启动器/公共 DLL），宿主每次更新的内容入 `versions/<ver>/`，`plugins/` 与 `versions/` 并排；发布脚本（release-local.ps1/package-release.ps1）与更新链路（StagedUpdateService/update-agent.ps1）按新布局改造；端到端升级演练。
 
 **F6（008 收口，待用户拍板）**：`UpdateService`（008 Windows 服务旧链路）与 036 双链路并存；建议冻结 008，只保留页面自动更新（036）。
 

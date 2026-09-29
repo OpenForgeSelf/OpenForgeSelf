@@ -158,13 +158,15 @@ else {
 }
 
 # ── 第 4 步：收集待签文件并签名 ──
+# 递归收集（输入42）：QQNT 布局下最终程序 = 顶层根启动器 + versions/<ver>/ 业务层 exe
+# （多版本共存时每版快照都是最终交付物，必须全部签名）；不递归会漏签业务层。
 $targets = @()
-$targets += Get-ChildItem -Path $PublishDir -Filter *.exe -File
+$targets += Get-ChildItem -Path $PublishDir -Filter *.exe -File -Recurse
 if ($AllAssemblies) {
-    $targets += Get-ChildItem -Path $PublishDir -Filter *.dll -File
+    $targets += Get-ChildItem -Path $PublishDir -Filter *.dll -File -Recurse
 }
 else {
-    $targets += Get-ChildItem -Path $PublishDir -Filter 'ForgeSelf*.dll' -File
+    $targets += Get-ChildItem -Path $PublishDir -Filter 'ForgeSelf*.dll' -File -Recurse
 }
 
 if ($targets.Count -eq 0) {

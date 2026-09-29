@@ -772,10 +772,24 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ---
 
+## B12 dsh 架构对齐（040–042，B1–B9 收官，2026-09-28 沉淀）
+
+- 🔴 **XCode `WhereExpression` 不支持 `NotLike`、不支持对 `Like`/`StartsWith` 表达式取反**（`!Like()` 不存在，`!StartsWith` 产生无法编译的表达式树）。排除型过滤直接拼**原生 SQL 片段**：`where &= "SessionKey Not Like 'plan:%'"`（B9-3 三次编译失败换来的结论）。
+- 🔴 **`Environment.GetFolderPath(SpecialFolder.UserProfile)` 读的是 Windows Known Folder（注册表），不读 `USERPROFILE` 环境变量**——测试沙箱重定向 `USERPROFILE` 对它无效。两条派生路径（Known Folder 分支 vs 环境变量分支）在 WebApplicationFactory（Testing 环境）下会分叉撞真实用户目录（B9-4 根因，比"TEMP 重定向不生效"深一层）。**根治（方案 A，已批准落地）：`FORGESELF_DATA_ROOT` 环境变量在 `DataLocationService` 双解析重载中最前置重定向**（静态版与实例版语义严格一致，空白视为未设置；先红后绿 ×2 实证）。
+- 🔴 **`[..N]`/`Substring(0,N)` 前必须 `Math.Min(N, len)` clamp**：内容短于 N 直接 `ArgumentOutOfRangeException`（B9-6 spill 预览 1KiB 越界实测）。
+- **插件前端 vitest 测试由宿主统一收集**：宿主 `vitest.config.ts` include 覆盖 `../Plugins/*/web/src/**/*.test.{ts,tsx}`；**禁止在插件目录内直接跑 vitest**（无自身测试配置，21 条收集 15 红是错误 harness 的噪音，非回归）。
+- **多 call 帧序与前端配对契约**：B8 `ExecuteBatchAsync` 帧序 =「全部 `tool/call`+`ToolStarted` 先落 → 批执行 → 逐 result+`ToolCompleted`」；同名多次调用的结果事件必须按**最早 pending FIFO** 配对（`settleToolEventFifo`），LIFO 会互换结果。
+- **删除旧 API 必配 grep 守门测试**（仿 `IAgentLoop_Removed`/`LegacyToolExecutionFace_Removed`）：grep 源码断言旧符号零出现，注释行豁免——防止退役 API 静默回潮。
+- **前端全量 vitest 有并发资源竞争抖动**（同批失败数 1→6 漂移、单测 9s 超时）：失败先**单文件重跑复判定性**（单跑 18/18 绿 = 抖动），别急着当回归修。
+- **.NET 测试环境绕法（固化，B9-4 后最小化）**：跑前 `taskkill /F /IM testhost.exe`；命令行前缀赋值 `TEMP`/`TMP`（沙箱拒写系统 Temp，`XCodeTestFixture` 曾因此 597 连红）+ **`FORGESELF_DATA_ROOT=<仓库外或 .tmp 独立目录>`**（B9-4 根治：数据根整体重定向，**替代旧 USERPROFILE/HOME + Development 两变量绕法**，Known Folder 分支不再触达真实 `~/.forgeself`）。dev 实例窗口先 `tasklist`/`Get-CimInstance` 确认（MSBuild nodemode worker 不算实例）。
+
+---
+
 ## Part C — 变更记录
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-28 | dsh 对齐专项 B8（六闸门）+ B9（退役与清理）收官：新增 B12 小节沉淀——XCode 原生 SQL 片段绕 NotLike、Known Folder 不读 USERPROFILE 环境变量、`[..N]` 必须 clamp、插件 vitest 归宿主收集、多 call FIFO 配对契约、grep 守门模式、前端全量抖动定性法、.NET 测试环境绕法固化。 |
 | 2026-09-27 | 用户指令（seq17）发布规范改写：更新地址支持**本地目录**（`UpdateConfig.Provider=local` + `LocalDir`、`UpdateSettingsService` 运行时可变配置、UpdateChecker 本地分支、`release-local.ps1 -UpdateDir`、设置页更新源配置卡片）；发布规范改为**打 tag 自动发布 + 页面自动更新**，**禁止 agent 停/启/杀用户宿主**（AGENTS.md §0 门禁、§2.3/§2.4、plugin-development/plugin-publish-verify 技能、B5/B10 同步；run-plugin-publish-verify.ps1 降级为插件侧载可选路径、须用户同意）。 |
 | 2026-09-27 | AI-Native 闭环规范回炉（用户指令 seq14「不与既有体系映射，完全按新规范走」）：规范升 **v1.1.0**——删除与 Loop/speckit/plugin-team-sop 的映射节，改为「开发流程唯一依据 + 冲突以本规范为准 + 闸门1/2/3 自含定义（§1.1）」；AGENTS.md 头部/红线/§11 同步去映射；群 SOP `ai-native-engineering-loop` 升 **1.1.0**（自含闸门/熔断/汇报，去除 plugin-team-sop 依赖）并重绑本群。 |
 | 2026-09-27 | 用户指令（群 seq10）：AI-Native Engineering 九阶段闭环固化为强制流程规范——新增 `docs/04-standards/ai-native-engineering-workflow.md` v1.0.0 + 模板 `docs/18-templates/ai-pilot/`（00~07 八份）+ 产物落点 `docs/ai/pilot/<task-id>/`；AGENTS.md 新增 §11 与 §0 红线引用；群 SOP 新增 `ai-native-engineering-loop` 并发布绑定（与 plugin-team-sop 并列）。 |

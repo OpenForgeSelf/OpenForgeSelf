@@ -1,7 +1,7 @@
 # 027 · Cordis 内核（一切皆插件运行时）
 
-> 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、动态端点移除、事件总线贯穿、会话/LLM 接缝接线、11 插件全部拆独立程序集、前端清单驱动动态挂载均已落地；剩余项见「已知问题 / 待办」）
-> 最后更新：2026-08-19
+> 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、动态端点移除、事件总线贯穿、会话/LLM 接缝接线、11 插件全部拆独立程序集、前端清单驱动动态挂载均已落地；剩余项见「已知问题 / 待办」。dsh 对齐 B1–B9 收官后接缝现状已同步，旧 `IAgentLoop`/`InMemoryAgentLoop`/`ToolCallContext` 退役删除）
+> 最后更新：2026-09-29
 
 ## 概述
 
@@ -23,7 +23,7 @@
 | 内核项目 | `ForgeSelf.Core/`（`ForgeSelf.Core.csproj`，net10.0，零外部依赖） |
 | 核心抽象 | `IContext.cs` / `Context.cs`（含 `SetHostProvider` 宿主 MS DI 桥）/ `IEventBus.cs` / `EventBus.cs` / `Disposable.cs` / `Service.cs` / `Fiber.cs` |
 | 契约项目 | `ForgeSelf.Abstractions/`（`ForgeSelf.Abstractions.csproj`，net10.0） |
-| 契约文件 | `IPlugin.cs` / `IEndpointRegistry.cs` / `IExtensionPoint.cs` / `IMenuExtension.cs` / `IToolFunctionExtension.cs` / `PluginMetadata.cs`（含 `FrontendContributes`/`Provides`/`Consumes`）/ `ApiResponse.cs` / 接缝（`ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService`）+ 共享 DTO（`UsageStatsModels.cs`/`WorkflowModels.cs`/`ScriptModels.cs`） |
+| 契约文件 | `IPlugin.cs` / `IEndpointRegistry.cs` / `IExtensionPoint.cs` / `IMenuExtension.cs` / `IToolFunctionExtension.cs` / `PluginMetadata.cs`（含 `FrontendContributes`/`Provides`/`Consumes`）/ `ApiResponse.cs` / 接缝（`ILlmRuntime`/`ISessionStore`/`IAgent`/`IAgentRegistry`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService`）+ 工具管线契约（`IToolRegistry`/`ToolPipeline.cs`/`ToolGuardRegistry.cs`）+ 共享 DTO（`UsageStatsModels.cs`/`WorkflowModels.cs`/`ScriptModels.cs`） |
 | 后端引用 | `ForgeSelf.Api/ForgeSelf.Api.csproj`（`ProjectReference` Core + Abstractions + 11 插件 `ReferenceOutputAssembly=false`；`Compile Remove` 全部 11 个插件目录） |
 | 插件装配 | `Plugins/PluginManager.cs`（发现/加载/Fiber 装配/热重载/拓扑排序/动态端点移除）、`Services/PluginServiceRegistry.cs`（可变 MS DI）、`Plugins/PluginVersionLayout.cs`（side-by-side 版本目录 + current 指针）、`Plugins/PluginAssemblyUnloader.cs`（ALC 回收 + 文件锁探测）、`Plugins/Services/PluginHotReloadWatcher.cs`（FileSystemWatcher 自动 reload）、`Plugins/ExtensionPointManager.cs`（菜单/工具扩展点）、`Services/MvcActionDescriptorChangeProvider.cs`（动态端点移除的 ActionDescriptor 刷新通知） |
 | 平台装配 | `AppBuilder.cs`（插件自注册引导、Build 后 BuildAll + `SetServiceProvider` + `DiscoverAllExtensions` + ApplicationPartManager 注册插件程序集 + `ISessionStore`/`ILlmRuntime` 接缝接线 + `IEventBus` 注入 PluginManager） |
@@ -36,7 +36,7 @@
 - **`IEventBus`**：四种分发模式——`EmitAsync`（广播）、`WaterfallAsync`（环绕中间件/短路）、`ParallelAsync`（并发）、`SerialAsync`（按序短路）；注册句柄为 `On`（广播）、`OnSerial`（按序短路）、`OnWaterfall`（环绕中间件），均返回 `IDisposable` 供注销。平台级 `IEventBus` 单例由 `AppBuilder` 注册，`ToolRegistry` 已接线 `tools/pre-execute`（`SerialAsync` 拒绝门）/ `tools/execute` / `tools/post-execute`。
 - **`Fiber`**：插件生命周期作用域（对标 Cordis Fiber），`Mount(apply)` 执行插件贡献函数，`Dispose` 逆序回滚副作用并注销服务，幂等。
 - **`Service`**：服务基类（对标 Cordis Service），派生类用 `ctx.Register<T>(this)` 贡献服务，`static Inject` 声明依赖。
-- **能力接缝（Abstractions 契约）**：`ctx.Get<T>()` 可解析的接缝接口已落地——`ILlmRuntime`、`ISessionStore`、`IAgentLoop`、`IInbox`、`IEndpointRegistry`、`IConfigurationService`、`ILogService`、`IUsageStatsService`、`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`、`IScriptTemplateService`。消费者只依赖接口，替换 Provider 零改动。
+- **能力接缝（Abstractions 契约）**：`ctx.Get<T>()` 可解析的接缝接口已落地——`ILlmRuntime`、`ISessionStore`、`IAgent`/`IAgentRegistry`、`IInbox`、`IEndpointRegistry`、`IConfigurationService`、`ILogService`、`IUsageStatsService`、`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`、`IScriptTemplateService`。消费者只依赖接口，替换 Provider 零改动。
 - **插件自注册**：每个插件实现 `IPlugin.Apply(IContext)`，在 `Apply` 内经 `ctx.Get<IServiceCollection>()` 向该插件独立 `IServiceCollection` 注册服务、贡献 `IMenuExtension`/`IToolFunctionExtension` 扩展点、注册 `ctx.Effect` 副作用；`PluginManager.MountPlugin` 统一 Fiber 装配。
 
 ## 当前进度
@@ -48,10 +48,10 @@
 - [x] `AppBuilder.cs` 删除 11 个插件的硬编码 `AddScoped/AddSingleton`，改为插件自注册（临时 provider 引导 + `RegisterAllServices` + `AddSingleton(pluginManager)`）；仅保留启动路径对 `ITaskScheduler`（Scheduler 插件服务）的一次性 `GetRequiredService` 直引用。
 - [x] 可变 MS DI 容器：`PluginServiceRegistry`（每插件子容器 + 宿主服务透传 + Transient 转发描述符 + `BuildAll` 延迟构建；卸载后 `GetRequiredService` 抛「插件服务已卸载」）。
 - [x] 事件总线接线到 `ToolRegistry`：`tools/pre-execute`（`SerialAsync` 拒绝门）/ `tools/execute` / `tools/post-execute`。
-- [x] `IAgentLoop` + `ISessionStore` + `ILlmRuntime` + `IInbox` 等接缝契约迁入 `ForgeSelf.Abstractions`；`ISessionStore`（`InMemorySessionStore` 单例）与 `ILlmRuntime`（`AIServiceLlmRuntime` Scoped）已注册进 DI，`ChatController` 经可选依赖使用 `ISessionStore` 追加 user/assistant 消息；`IAgentLoop`/`IInbox` 仅契约级测试，Provider 实现待后续。
+- [x] 接缝契约迁入 `ForgeSelf.Abstractions` 并全部有 Provider：`ISessionStore` 与 `IInbox` 均为持久化（XCode）+ 内存双实现（持久化为默认注册，dsh B2/B6）；`ILlmRuntime` = `AIServiceLlmRuntime`（Scoped）；Agent 驱动 = AIAgent 插件 `ReactLoopAgent`（`IAgent`/`IAgentRegistry`，dsh B5 状态机，旧 `IAgentLoop` 接口已退役删除）；`ChatController` 经 `SessionProjectionService` 幂等全量重投影写 `ChatMessage`（dsh B4 写路径改序）。
 - [x] 文件级热更新：`PluginVersionLayout`（side-by-side `versions/<semver>` + `current` 指针）、`PluginAssemblyUnloader`（`ForceCollect` + `FileShare.None` + 延迟删除）、`PluginHotReloadWatcher`（`FileSystemWatcher` + 300ms debounce，Testing 环境跳过）。
 - [x] 插件程序集注册进 MVC：Build 后 `ApplicationPartManager` 添加插件程序集 `AssemblyPart`（MemorySystem 独立 dll 的控制器已被路由发现）。
-- [x] 共享基础设施搬到宿主中性 `Services/`：`IToolRegistry`/`ToolRegistry`/`ToolCallContext`、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`。
+- [x] 共享基础设施搬到宿主中性 `Services/`：`IToolRegistry`/`ToolRegistry`（六闸门执行面）、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`。
 - [x] `ScriptExecutionHub`/`MonitorHub` 去静态化（Broadcaster 单例 + 构造注入）。
 - [x] AIAgent 插件零 Workflow/Script 跨插件引用（契约迁 Abstractions）。
 - [x] 前端清单驱动：`pluginManifest` store + `mergeFeatureList`（T9）+ `router/dynamicPlugins.ts` 动态 import 视图挂载（`/plugin-view` 命名空间 + router 守卫；试点 MemoryView/QuickLinksView/TodoView）。
@@ -91,17 +91,11 @@
 
 AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解决方案资源管理器可见。
 
-### 3. `IAgentLoop` / `IInbox` 无 Provider 实现
+### 3. ~~`IAgentLoop` / `IInbox` 无 Provider 实现~~ → 已解决（dsh B5/B6/B9 闭环后失效归档）
 
-**问题本质**：这两个接缝契约已迁入 `ForgeSelf.Abstractions`，定义了 Agent 循环和消息收件箱的接口，并有契约级测试（`FakeAgentLoop`/`FakeInbox`），但 Backend 侧无真实实现类注册进 DI 容器。
+**原问题**：两接缝契约迁入 `ForgeSelf.Abstractions` 后长期「契约先行、实现待补」（`FakeAgentLoop`/`FakeInbox` 仅契约级测试）。
 
-**影响范围**：消费者（如 AI Agent 插件）无法通过 `ctx.Get<IAgentLoop>()` 或 `ctx.Get<IInbox>()` 获取真实服务，调用会返回 null 或抛异常。
-
-**当前状态**：属于「契约先行、实现待补」的设计。接口定义已稳定，测试覆盖契约行为，但运行时功能不可用。
-
-**建议动作**：
-- **短期**：维持现状，标记为「待实现」，不阻塞其他插件开发
-- **长期**：当 AI Agent 功能需要真实的 Agent 循环和消息队列时，实现 `InMemoryAgentLoop` 和 `InMemoryInbox`（或基于外部消息队列的实现）并注册进 DI
+**解决（dsh 对齐改造，2026-09-29 收官）**：旧 `IAgentLoop` 接口在 B5 被 `IAgent`/`IAgentRegistry` + `ReactLoopAgent` 状态机取代、B9 随旧执行面一并删除（`InMemoryAgentLoop` 同时退役）；`IInbox` 在 B6 落地 `PersistentInbox`（XCode 持久化，followup/steer/inject 三通道真生效）为默认注册，内存版保留为测试实现。本节建议动作（实现 `InMemoryAgentLoop` 等）已随架构裁决失效——Agent 循环不再由宿主提供，而由 AIAgent 插件侧状态机承担。
 
 ### 4. 插件间服务不互通（`Context.Register` 语义偏差）——已实施
 
@@ -149,4 +143,4 @@ AIAgent.csproj 已通过 `dotnet sln add` 加入解决方案，Visual Studio 解
 
 > 已解决（归档）：① 11 个插件全部拆独立程序集（批1-4，958/958）；② 动态端点移除（`MvcActionDescriptorChangeProvider` + `UnregisterApplicationPart`，958/958）；③ QuickLinks SQLite 表随启动创建恢复；④ `WorkflowHub` 去静态化。
 
-> 内核与契约层测试：`ForgeSelf.Core.Tests`（`ContextHostBridgeTests`/`EventBusTests`/`FiberTests`）、`ForgeSelf.Abstractions.Tests`（`PluginContractTests`/`EndpointRegistryTests`/`SessionStoreContractTests`/`AgentLoopContractTests`/`InboxContractTests`/`LlmRuntimeContractTests`）、`MvcActionDescriptorChangeProviderTests`（动态端点刷新）、`PluginLifecycleEventTests`（加载/卸载事件）、`SessionStoreAndLlmRuntimeTests`（接缝真实实现）为契约与内核行为提供回归保护。
+> 内核与契约层测试：`ForgeSelf.Core.Tests`（`ContextHostBridgeTests`/`EventBusTests`/`FiberTests`/`EventBusBubblingTests`）、`ForgeSelf.Abstractions.Tests`（`PluginContractTests`/`EndpointRegistryTests`/`SessionStoreContractTests`/`InboxContractTests`/`LlmRuntimeContractTests`——原 `AgentLoopContractTests` 随 `IAgentLoop` 退役删除，Agent 语义由 dsh B5 门禁测试接管）、`MvcActionDescriptorChangeProviderTests`（动态端点刷新）、`PluginLifecycleEventTests`（加载/卸载事件）、`SessionStoreAndLlmRuntimeTests`（接缝真实实现）为契约与内核行为提供回归保护。

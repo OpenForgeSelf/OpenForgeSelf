@@ -57,7 +57,9 @@ AI 智能体编排框架：多 Agent 协调与执行（`AgentsController`）、�
 
 **前端展示**：`AiAgentView` 的 `loopProgress` 驱动 `ChatPanel` 状态位显示「第 N/M 轮」；循环结束显示徽标「共 N/M 轮」；`stopReason === "max_turns"` 时提示「已达自主循环上限…任务可能尚未完成——可再发消息继续」。
 
-**计划驱动循环不受影响**：`PlanGeneratorService` / `StepRunLoopService` 走 `maxTurns = 1` + `extraTools` 显式挂载 `submit_plan` / `complete_step` / `request_help`，行为与修复前完全一致。
+**计划驱动循环不受影响**：`PlanGeneratorService` / `RunOrchestratorService`（B7 升格后为编排薄壳，步骤执行由统一 `ReactLoopAgent` 状态机承担，原 `StepRunLoopService` 已删除）走 `maxTurns = 1` + `extraTools` 显式挂载 `submit_plan` / `complete_step` / `request_help`，行为与修复前完全一致。
+
+**ReactLoopAgent（dsh B5，循环运行时现状）**：Agent 循环由 AIAgent 插件 `ReactLoopAgent`（实现 `IAgent`，经 `IAgentRegistry` 按会话解析）驱动——九态 turn/step 帧联合推进；工具调度走宿主 `IToolRegistry.ExecuteBatchAsync`（model-ordered commit：N 个 call 必有 N 个 result，取消合成 Skipped）；出口工具（complete_step/request_help）分区直达；step 超时看门狗将 turn 挂起（`TurnEndReason.Suspended`），steer 后恢复；followup/steer/inject 三语义经 `IInbox` 注入。详见 dsh 三部曲（`specs/040..042` 与 `01-architecture/dsh-alignment-施工总览.md`）。
 
 **验证**：单测 `ForgeSelf.Api.Tests/Plugins/FinishToolTests.cs`（14 用例）+ `web/src/http.test.ts`（5 用例，SSE 分片解析）；e2e `e2e/plugins/ai-agent/agent-loop-autonomous.spec.ts`（4 用例，覆盖 `completed` / `finish` / `max_turns` 三条出口）。
 
@@ -174,7 +176,7 @@ Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/
 
 | 工具 | 形态 | 说明 |
 |------|------|------|
-| `universal_tool` | 分发透传壳 | 入参 `{tool, parameters}` → 经宿主 `IToolRegistry.ExecuteToolWithResultAsync` 分发到真实工具，结果原样透传；防自引用（拒绝转发自身）、unknown 带已注册数量提示。FreeLoop 白名单外的宿主全量工具可经它触达，事件链/使用统计/pre-execute 拒绝门全部照走，不扩权 |
+| `universal_tool` | 分发透传壳 | 入参 `{tool, parameters}` → 经宿主 `IToolRegistry.ExecuteAsync(new ToolExecution{...})` 六闸门执行面分发到真实工具，结果原样透传；防自引用（拒绝转发自身）、unknown 带已注册数量提示。FreeLoop 白名单外的宿主全量工具可经它触达，事件链（pre-execute 三态/守卫/execute/post-execute）/使用统计全部照走，不扩权 |
 | `run_terminal_command` | 独立命令工具 | 三道安全门：可执行名白名单（仅放行 `dotnet/pnpm/node/git/ssh/pwsh`）；管道/链式拒绝（`\|` `;` `&&` 换行混淆）；CWD 限登记项目根内。破坏性命令红线（删除/格式化/联网类）拒绝路径零子进程。stdout/stderr/exitCode 回传 50KB 截断，默认 30s 超时 |
 
 - 设计依据：`specs/031-universal-tool-gateway/`（design §2：复用 ToolRegistry 分发核，宿主零修改）+ 决策台账 ADR-002（`docs/07-decisions/002-universal-tool-gateway.md`）。

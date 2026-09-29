@@ -1,6 +1,6 @@
 # 01-architecture — 宿主→插件能力供给设计（能力接缝三层模型）
 
-> 状态：设计提案（待拍板实施）
+> 状态：方案 B 已实施（2026-09-29；`IProjectRegistry` 入 `ForgeSelf.Abstractions`、宿主 `HostProjectRegistry` seed 进 root `PluginManager.ProvideHostServices`，常驻 app 生命周期）
 > 最后更新：2026-08-31
 > 关联：调研依据 [`06-research/001-deepseek-harness-plugin-architecture.md`](../06-research/001-deepseek-harness-plugin-architecture.md)（§5.5 软依赖判例 / §5.6 裁决 A-F / §6 偏差清单与 FAQ Q1-Q6）；内核设计 [`cordis-kernel.md`](cordis-kernel.md)（§3.6 插件间服务互通）；首个落地候选 = sems 项目登记接缝
 

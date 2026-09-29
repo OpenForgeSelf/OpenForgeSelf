@@ -79,3 +79,9 @@ specs/
 .qoder-collab-runtime/
 .qoder/
 .qoder-sop-runtime/
+
+# ── 2026-09-29：dotnet test 沙箱绕法产物（沙箱禁 testhost 写工作区外，
+#     需把 TEMP/TMP/USERPROFILE/HOME 重定向到工作区内，故产生这两个目录）──
+.tmp-tests/
+.tmp-env/
+.userprofile/

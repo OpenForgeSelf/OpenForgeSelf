@@ -102,7 +102,7 @@ ChatSession (1) ──< (N) ChatMessage     // 统一会话聚合 ← app 自有
 ```
 sessionId = request.SessionId ?? Guid.NewGuid("N")   // 现有逻辑保留
 ChatSessionService.UpsertByKey(sessionId, source:'App', title:首条user消息, clientKind:'App')
-_messageService.SaveMessageAsync(sessionId, role, content)   // 现有逻辑保留
+await sessionProjectionService.SyncAsync(sessionId)   // dsh B4/B6 改序：直写 SaveMessageAsync 已删，消息行由会话日志幂等全量重投影（前缀对齐 + 孤儿行自愈）
 返回 sessionId（现有逻辑保留）
 ```
 → app 聊天"带会话 id"即它天然成为一个 `ChatSession`，出现在统一"聊天记录"里。

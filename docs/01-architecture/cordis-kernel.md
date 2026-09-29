@@ -1,8 +1,8 @@
 # 01-architecture — Cordis 内核（.NET 版）架构设计
 
 > 功能编号：027
-> 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、前端清单驱动均已落地；剩余项见功能档案「已知问题 / 待办」）
-> 最后更新：2026-08-19
+> 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、前端清单驱动均已落地；剩余项见功能档案「已知问题 / 待办」。dsh 对齐 B1–B9 收官后接缝现状已同步：`IAgentLoop`/`InMemoryAgentLoop` 退役删除，Agent 驱动 = `IAgent`/`IAgentRegistry`（ReactLoopAgent））
+> 最后更新：2026-09-29
 > 关联：调研见 [`06-research/001-deepseek-harness-plugin-architecture.md`](../06-research/001-deepseek-harness-plugin-architecture.md)，功能档案见 [`02-features/027-cordis-kernel.md`](../02-features/027-cordis-kernel.md)，路线图见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)
 
 本文描述新增项目 `ForgeSelf.Core`（.NET 版 Cordis 内核）的设计：它是什么、为什么这样设计、核心抽象是什么、如何渐进接入 `ForgeSelf.Api`。
@@ -42,7 +42,7 @@ flowchart TB
         C1["IPlugin.Apply(IContext)"]
         C2["IExtensionPoint / IMenuExtension / IToolFunctionExtension / IEndpointRegistry"]
         C3["PluginMetadata / FrontendContributes / Provides / Consumes / ApiResponse / 共享 DTO"]
-        C4["能力接缝：ILlmRuntime/ISessionStore/IAgentLoop/IInbox/IConfigurationService/ILogService/IUsageStatsService/IWorkflowService/IWorkflowExecutor/IWorkflowAIAdvisor/IScriptTemplateService"]
+        C4["能力接缝：ILlmRuntime/ISessionStore/IAgent/IAgentRegistry/IInbox/IConfigurationService/ILogService/IUsageStatsService/IWorkflowService/IWorkflowExecutor/IWorkflowAIAdvisor/IScriptTemplateService"]
     end
 
     subgraph Plugins["第4层 · 插件层 Plugins/*（12 个，MemorySystem 已拆独立程序集）"]
@@ -73,13 +73,13 @@ flowchart TB
 | 宿主 | `PluginServiceRegistry` | 可变 MS DI：每插件子容器 + 宿主服务透传 + Transient 转发描述符 + `BuildAll` 延迟构建；卸载后解析失败 | `Services/PluginServiceRegistry.cs` |
 | 宿主 | `ExtensionPointManager` | 收集插件贡献的菜单/工具扩展 | `Plugins/ExtensionPointManager.cs` |
 | 宿主 | `PluginVersionLayout` / `PluginAssemblyUnloader` / `PluginHotReloadWatcher` | side-by-side 版本目录 + `current` 指针；ALC 回收 + 文件锁探测；`FileSystemWatcher` 自动 reload | `Plugins/PluginVersionLayout.cs` / `Plugins/PluginAssemblyUnloader.cs` / `Plugins/Services/PluginHotReloadWatcher.cs` |
-| 宿主 | 共享基础设施 | `IToolRegistry`/`ToolRegistry`/`ToolCallContext`、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`（宿主中性，供插件复用） | `Services/` |
+| 宿主 | 共享基础设施 | `IToolRegistry`/`ToolRegistry`（六闸门执行面）、`ICronParser`/`CronParser`、`IRuntimeDetector`/`RuntimeDetector`（宿主中性，供插件复用） | `Services/` |
 | 内核 | `IContext`/`Context` | 服务定位 + `Effect` 可逆副作用 + `SetHostProvider` 宿主 MS DI 桥 | `ForgeSelf.Core/IContext.cs`/`Context.cs` |
 | 内核 | `Fiber` | 每插件一个派生上下文，`Mount` 装配 / 卸载逆序回滚，幂等 | `ForgeSelf.Core/Fiber.cs` |
 | 内核 | `IEventBus`/`EventBus` | 类型化事件四模式 + `On`/`OnSerial`/`OnWaterfall` 注册句柄 | `ForgeSelf.Core/IEventBus.cs`/`EventBus.cs` |
 | 契约 | `IPlugin` | 单一 `Apply(IContext)` 插件契约 | `ForgeSelf.Abstractions/IPlugin.cs` |
 | 契约 | 扩展点 | `IMenuExtension`/`IToolFunctionExtension`/`IEndpointRegistry` | `ForgeSelf.Abstractions/` |
-| 契约 | 能力接缝 | `ILlmRuntime`/`ISessionStore`/`IAgentLoop`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService` 等可替换 Provider 契约 | `ForgeSelf.Abstractions/` |
+| 契约 | 能力接缝 | `ILlmRuntime`/`ISessionStore`/`IAgent`/`IAgentRegistry`/`IInbox`/`IConfigurationService`/`ILogService`/`IUsageStatsService`/`IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor`/`IScriptTemplateService` 等可替换 Provider 契约 | `ForgeSelf.Abstractions/` |
 | 插件 | 12 个插件 | 各自 `Apply` 自注册服务/菜单/工具/副作用 | `ForgeSelf.Api/Plugins/*`（MemorySystem 已拆独立程序集，其余 11 个内嵌主程序集） |
 | 前端 | `pluginManifest store` + `features.ts` + `dynamicPlugins.ts` | 由后端清单驱动菜单/视图；动态 import 挂载 `/plugin-view` 路由 | `ForgeSelf.Web/src/` |
 
@@ -88,7 +88,7 @@ flowchart TB
 1. **启动装配**：`AppBuilder` 在 `Build` 前用临时 provider 拿 `PluginManager` → `RegisterAllServices(builder.Services)` → 每个插件 `Apply(ctx)` 经 `ctx.Get<IServiceCollection>()` 把服务 `AddScoped/AddSingleton` 进该插件独立 `IServiceCollection`、贡献菜单/工具扩展、注册 `ctx.Effect` 副作用。
 2. **运行时桥接**：`Build` 后 `PluginServiceRegistry.BuildAll` 构建每插件子 provider（合并宿主服务透传），`PluginManager.SetServiceProvider(app.Services)` 把宿主 DI 桥进 `Context`，插件工具函数运行期经 `CreateScope()/GetService<T>()` 解析宿主服务。
 3. **扩展点接线**：`DiscoverAllExtensions` 把插件贡献的菜单/工具注册到 `ExtensionPointManager`，供前端清单与 `ToolRegistry` 使用。
-4. **工具执行拦截**：`ToolRegistry` 通过平台 `IEventBus`（AppBuilder 注册单例）发 `tools/pre-execute`（`SerialAsync` 拒绝门）→ `tools/execute`（`EmitAsync`）→ `tools/post-execute`（`EmitAsync`）。
+4. **工具执行拦截**：`ToolRegistry` 通过平台 `IEventBus`（AppBuilder 注册单例）发 `tools/pre-execute`（`SerialAsync` 三态决策门）→ `tools/execute`（`WaterfallAsync`，可替换 Signal 实现超时）→ `tools/post-execute`（`WaterfallAsync` 可改写结果）→ `tools/result`（`EmitAsync` 冻结快照），finalize 恰好一次。
 5. **热更新**：`PluginVersionLayout` 用 side-by-side 版本目录 + `current` 指针，`PluginAssemblyUnloader` 做 `ForceCollect` + `FileShare.None` 探测 + 延迟删除，`PluginHotReloadWatcher`（`FileSystemWatcher` + 300ms debounce）自动 reload；卸载走 `registry.Unmount → Fiber.Dispose → ALC Unload`。
 6. **前端驱动**：前端 `GET /api/plugin/frontend-manifest` → `pluginManifest store` → `mergeFeatureList` 合并菜单 → tabs 渲染；`router/dynamicPlugins.ts` 按清单把 `route + views` 映射为 `/plugin-view/*` 动态 import 懒加载路由（试点 MemoryView/QuickLinksView/TodoView），清单失败/为空时回退静态路由。
 
@@ -204,8 +204,8 @@ public interface IPlugin
 
 | 接缝（`ctx.Get<T>()`） | 服务定义（已落地契约） | 可替换 Provider 示例 |
 |------------------------|----------|----------------------|
-| `ctx.llm` | `ILlmRuntime`（`StreamAsync(Message[]) → StreamChunk`） | OpenAI / Anthropic / Responses / AgentChat |
-| `ctx.agentLoop` | `IAgentLoop`（`RunAsync(AgentRunRequest) → TurnEvent`） | 默认驱动器（可替换） |
+| `ctx.llm` | `ILlmRuntime`（`StreamAsync(Message[]) → StreamChunk`，chunk 携带 ToolCall/Usage/FinishReason） | OpenAI / Anthropic / Responses / AgentChat |
+| `ctx.agents` | `IAgent`/`IAgentRegistry`（`IAgent.RunAsync` turn/step 帧驱动；默认驱动器 = AIAgent 插件 `ReactLoopAgent`，注册表解析） | dsh B5：ReactLoopAgent 状态机（旧 `IAgentLoop` 已于 B5/B9 退役删除） |
 | `ctx.sessions` | `ISessionStore`（`Append`/`Replay`/`DeriveMessages`，仅追加） | SQLite 事件日志 |
 | `ctx.inbox` | `IInbox`（`Followup`/`Steer`/`Inject`） | 会话收件箱 |
 | 端点 | `IEndpointRegistry`（`Map(pattern, handler) → IDisposable`） | 宿主桥接 HTTP 路由 |
@@ -250,7 +250,9 @@ ForgeSelf.Abstractions/    # 契约程序集（已建立，ADR D2）
   IEndpointRegistry.cs         # 端点注册接缝（Map → IDisposable）
   IExtensionPoint.cs / IMenuExtension.cs / IToolFunctionExtension.cs  # 扩展点
   PluginMetadata.cs            # 元数据（FrontendContributes / Provides / Consumes）
-  IAgentLoop.cs / ISessionStore.cs / IInbox.cs / ILlmRuntime.cs        # 能力接缝
+  Agents.cs                    # IAgent/IAgentRegistry/TurnFrame 联合（dsh B5；旧 IAgentLoop.cs 已删除）
+  ISessionStore.cs / IInbox.cs / ILlmRuntime.cs        # 能力接缝
+  IToolRegistry.cs / ToolPipeline.cs / ToolGuardRegistry.cs  # 工具管线六闸门契约（dsh B8）
   IConfigurationService.cs / ILogService.cs / IUsageStatsService.cs    # 平台服务契约
   IWorkflowService.cs(WorkflowServiceContracts.cs) / IScriptTemplateService.cs  # 工作流/脚本契约
   UsageStatsModels.cs / WorkflowModels.cs / ScriptModels.cs / ApiResponse.cs  # 共享 DTO
@@ -268,7 +270,7 @@ ForgeSelf.Core.Tests / ForgeSelf.Abstractions.Tests           # 内核/契约测
 2. **P1 独立程序集 + 自注册（部分完成）**：12 个插件已全部迁移到 `Apply(IContext)` 自注册，`AppBuilder.cs` 硬编码已删除（仅保留 Scheduler `ITaskScheduler` 启动直引用）；独立程序集仅 MemorySystem 已拆（其余 11 个仍内嵌，见功能档案已知问题①）。
 3. **P2 可逆注册 + 热更新闭环（部分完成）**：可变 DI（`PluginServiceRegistry`，Scoped 语义近似）、side-by-side 版本目录（N=2）、破文件锁（`PluginAssemblyUnloader`）、自动 reload（`PluginHotReloadWatcher`）均已实现；动态端点移除未做（见已知问题②）。
 4. **P3 事件总线接线（已完成）**：`ToolRegistry` 执行管道接入 `tools/pre-execute` / `tools/execute` / `tools/post-execute`。
-5. **P4 上层能力（契约已完成）**：`IAgentLoop` + `ISessionStore` + `ILlmRuntime` + `IInbox` 接缝契约已迁入 Abstractions；Backend 侧 Provider 实现与 Profile 配置层叠未接线。
+5. **P4 上层能力（dsh 改造后现状）**：能力接缝全部有生产 Provider——`ISessionStore`/`IInbox` 均有持久化（XCode）+ 内存双实现（持久化为默认注册）；`ILlmRuntime` = `AIServiceLlmRuntime`；Agent 驱动 = AIAgent 插件 `ReactLoopAgent`（`IAgent`/`IAgentRegistry`，旧 `IAgentLoop` 已退役删除）；工具管线 = `ToolRegistry` 六闸门 + `ToolGuardRegistry` 单调守卫 + `IApprovalService`（Noop fail-closed）。
 
 详见 [`15-roadmap/plugin-architecture.md`](../15-roadmap/plugin-architecture.md)。
 

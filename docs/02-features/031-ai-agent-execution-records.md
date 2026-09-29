@@ -17,7 +17,7 @@
 ### 2.1 FreeLoop（`POST /api/ai-agent/chat`）
 - `Entities/AIChatMessage.cs`：已加 `ToolCallsJson` 列；索引器 `this[name]` 同步注册 get/set 分支（XCode 通过索引器而非属性读写字段，缺分支会导致 Insert 静默丢弃、读回 null）。
 - `Controllers/AIChatController.cs`：SSE/非流式循环累积 `tool_call`/`tool_result` 事件为 `ChatToolCallTrace`（name/args/result/success/durationMs），随 assistant 消息入库。
-- `Services/MessageService.cs`：`SaveMessageAsync` 4 参重载写入 `ToolCallsJson`；`GetHistoryAsync` 映射回 `ChatResponse`。
+- `Services/AIAgentProjectionService.cs`（dsh B4/B6 改序后）：`SaveMessageAsync` 直写路径已**全删**（宿主与插件两侧）——助手行 `ToolCallsJson` 工具轨迹由 `AIAgentProjectionService` 从会话日志的 `tool/call` + `tool/result` 事件**配对还原**（含耗时与成败），幂等重投影写入 `AIChatMessage`（前缀对齐 Role+Content+ToolCallsJson）；正确性唯一来源 = 会话日志。
 - `GET history/{sessionId}`：返回 `ChatResponse[]`，assistant 消息携带 `ToolCallsJson`。
 - 前端 `ChatPanel.vue`/`AiAgentView.vue`：`loadHistory()` 用 `parseToolEvents(m.toolCallsJson)` 把落库轨迹渲染为 `.chat__tool-card`，刷新后仍可复盘。
 

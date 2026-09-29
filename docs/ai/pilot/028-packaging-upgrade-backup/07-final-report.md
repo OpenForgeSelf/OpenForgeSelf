@@ -9,7 +9,7 @@
 
 ## 2. Selected Task
 
-PILOT-028：打包/升级备份/缓存/备份 优化（QQNT 式方向）。输入30 统一真源（已提交）；输入31 用户拍板改代码落地——批次1（去插件 `_backups`、去宿主整目录备份、更新缓存清理、图片缓存 TTL）已实施并提交 aed3789；输入34 用户拍板立项批次2——宿主 QQNT 目录结构 + 008 冻结 + 插件装包版本化已实施（未提交，待用户指示）。
+PILOT-028：打包/升级备份/缓存/备份 优化（QQNT 式方向）。输入30 统一真源（已提交）；输入31 用户拍板改代码落地——批次1（去插件 `_backups`、去宿主整目录备份、更新缓存清理、图片缓存 TTL）已实施并提交 aed3789；输入34 用户拍板立项批次2——宿主 QQNT 目录结构 + 008 冻结 + 插件装包版本化已实施（未提交，待用户指示；⚠️ 勘误：实际已随 HEAD 81b9609 提交）。
 
 ## 3. Changed Files
 
@@ -21,6 +21,7 @@ PILOT-028：打包/升级备份/缓存/备份 优化（QQNT 式方向）。输�
 - 文档 6 处（真源/035/038/agent-workflow/Plugins README/guides）+ AGENTS.md §2.3
 
 **批次 2（未提交 git，未获提交授权）**：
+> ⚠️ 勘误（2026-09-29）：批次2 实际已随 HEAD 81b9609 提交，本处「未提交」表述已过时。
 - `ForgeSelf.Bootstrapper/`（新建根启动器：versions/current 指针 + ALC 版本目录解析 + Assembly.EntryPoint 调 Main）
 - `AppBuilder.cs` / `Program.cs`（路径基准改入口程序集目录 + tray 收敛 036）
 - `UpdateService.cs`（008 冻结）/ `StagedUpdateService.cs`（唯一链路头）
@@ -47,11 +48,11 @@ E2E: N/A（无 UI 行为变化；升级链路以端到端演练替代）
 
 ## 6. Review
 
-`docs/ai/pilot/028-packaging-upgrade-backup/06-review.md`：Final Decision = **APPROVED（批次1 + 批次2）**；风险 L2（批次2 高影响面已通过演练实测降低；未触碰用户运行实例）；批次2 未提交 git 如实标注。
+`docs/ai/pilot/028-packaging-upgrade-backup/06-review.md`：Final Decision = **APPROVED（批次1 + 批次2）**；风险 L2（批次2 高影响面已通过演练实测降低；未触碰用户运行实例）；批次2 未提交 git 如实标注（⚠️ 勘误：实际已随 HEAD 81b9609 提交）。
 
 ## 7. Risk
 
-L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形态）——已通过隔离实例冒烟 + update-agent 演练 + 发布管线实测降至 L2；**未触碰用户运行实例（51888 / D:\src\tools\ForgeSelf），未停/启/杀任何宿主进程**；批次2 未提交 git 等用户审核。
+L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形态）——已通过隔离实例冒烟 + update-agent 演练 + 发布管线实测降至 L2；**未触碰用户运行实例（51888 / D:\src\tools\ForgeSelf），未停/启/杀任何宿主进程**；批次2 未提交 git 等用户审核（⚠️ 勘误：实际已随 HEAD 81b9609 提交）。
 
 ## 8. Problems Found
 
@@ -75,7 +76,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 
 ## 10. 最重要的问题
 
-批次1 因用户输入31「直接改代码落地」先行实施，工件链在输入33 后补齐供审核（九阶段闸门1 正常时序为「先工件、后实施」，本次为满足用户"只看最终结果"反向补齐）；批次2 在输入34 拍板后按同一工件链推进，**自始未提交 git**，等待用户明确提交指示。
+批次1 因用户输入31「直接改代码落地」先行实施，工件链在输入33 后补齐供审核（九阶段闸门1 正常时序为「先工件、后实施」，本次为满足用户"只看最终结果"反向补齐）；批次2 在输入34 拍板后按同一工件链推进，**自始未提交 git**，等待用户明确提交指示（⚠️ 勘误：批次2 实际已随 HEAD 81b9609 提交，「未提交」表述已过时）。
 
 ## 11. 下一步建议
 
@@ -90,7 +91,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 - **已落地**：① 清理 artifacts 918MB（用户批准「可清」）；② Bootstrapper 改**进程拉起模式**（FDD 单文件业务层是 apphost，弃 ALC，Start 子进程 + DOTNET_ROOT=安装根 + WaitForExit 透传退出码）；③ **FDD 单文件方案**（公共层 ForgeSelf.exe ~170KB managed-only bundle + DOTNET_ROOT 结构运行时 = 本机 dotnet host/fxr + shared 三框架 + 根 app-local shim；业务层 publish-host 加 PublishSingleFile + native/content 外置）；④ package-release 适配（业务层 exe 保留不再删）。
 - **Verified**：公共层组装 627 文件 + 启动器 0.16MB；链路演练（启动器→versions/current→子进程→退出码 7 透传，业务层 BaseDirectory=versions/<ver>）；组装 zip 83.9MB；**自包含单文件弃用踩坑**（解压缓存 + BaseDirectory/ProcessPath 指向提取目录，实测）。
 - **未验证（040-B1 阻断）**：业务层真实 publish（AgentHub `IAgentRegistry` 二义 CS0104/CS0311，并行会话在飞区，本任务不碰）+ TerminalCommandGuard 断言验证。待 040-B1 收口后 `release-local.ps1` 全量复验 + update-agent 端到端升级演练。
-- **未提交 git**（用户偏好：提交须明确指示；同任务一次性提交）。
+- **未提交 git**（用户偏好：提交须明确指示；同任务一次性提交）。> ⚠️ 勘误（2026-09-29）：输入36 公共层实际已随 HEAD 81b9609 提交。
 - **下一步**：040-B1 收口 → 全量复验真实业务层单文件 → 端到端升级演练 → 用户审核后一次性提交（批次2 + 输入36 合并）。
 
 
@@ -98,7 +99,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 
 ## 输入37 目录命名统一小写追加（2026-09-29）
 
-**状态**：COMPLETED（目录命名统一小写全量落地；未提交 git，等用户指示）。
+**状态**：COMPLETED（目录命名统一小写全量落地；未提交 git，等用户指示）。> ⚠️ 勘误（2026-09-29）：输入37 实际已随 HEAD 81b9609 提交。
 
 **Selected Task（追加）**：输入37 在 PILOT-028 框架内追加第三批——安装/运行布局目录统一小写（plugins/data/log/config）+ NewLife 日志外置（查 DeepWiki NewLifeX/X 后落地）。
 
@@ -113,7 +114,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 **Problems Found（输入37 追加）**：
 - 全量测试 597 失败 = `XCodeTestFixture` 写系统 Temp 被拒（环境问题，与本任务零交集；TMP 重定向 testhost 崩溃证实环境级不稳定）→ TODO P1。
 - 系统 Temp 残留 757 个测试目录（历史从不清理）→ 随上述 TODO 一并处置。
-- 批次2 + 输入36 + 输入37 全部改动未提交 git（等用户明确提交指示；git add 精确隔离 040-B1）。
+- 批次2 + 输入36 + 输入37 全部改动未提交 git（等用户明确提交指示；git add 精确隔离 040-B1）。> ⚠️ 勘误（2026-09-29）：批次2+输入36+输入37 实际已随 HEAD 81b9609 提交。
 
 **下一步建议**：用户审核真源 + 工件链后：① 明确提交指示 → 批次2+输入36+输入37 汇总一次性提交（pre-commit hook 校验 00-07 齐）；② 打 tag 走发布主路径（tag → CI → GitHub Release → 页面自动更新）；③ TODO 队列推进（测试 Temp 环境、DataStoragePanel 清除缓存接线、端口真源统一、TerminalCommandGuard 断言验证）。
 
@@ -137,7 +138,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 **Problems Found（二次追加）**：
 - 运行态 XCode 探测在版本目录生成 Plugins/（SQLite 3 件 ~15MB/版本）→ TODO P2（update-agent 清理非当前版本候选）。
 - 040-B1 并行会话破坏 Abstractions/Core 接口 → AIAgent 编译断（CS0019，非本任务文件，git status 实证）→ 待 040-B1 收口。
-- 全部改动未提交 git（等用户明确指示；git add 精确隔离 040-B1）。
+- 全部改动未提交 git（等用户明确指示；git add 精确隔离 040-B1）。> ⚠️ 勘误（2026-09-29）：二次追加改动实际已随 HEAD 81b9609 提交。
 
 **下一步建议**：① 用户审核真源 + 工件链 + `artifacts/layout/` 效果目录；② 040-B1 收口后跑全量 `dotnet build`+`dotnet test` 复验；③ 明确提交指示 → 批次2+输入36+输入37 汇总一次性提交（pre-commit 校验 00-07）；④ TODO 队列推进（测试 Temp 环境 P1、运行残留清理 P2、DataStoragePanel 接线 P2、端口真源、TerminalCommandGuard 断言）。
 
@@ -171,7 +172,7 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 
 风险：无阻塞。托盘异常与环境 Temp 问题均已隔离说明。
 
-结论：完成 · 可交付 · 未提交 git（等用户明确指示；提交时汇总 028 全批次并隔离 040-B1 文件）。
+结论：完成 · 可交付 · 未提交 git（等用户明确指示；提交时汇总 028 全批次并隔离 040-B1 文件）。> ⚠️ 勘误（2026-09-29）：输入38 + 输入39 实际已随 HEAD 81b9609 提交，「未提交」表述已过时。
 
 ### 输入39（版本号生成 + 文件图标 + 包信息）
 
@@ -183,5 +184,5 @@ L2。批次1 L1；批次2 L3 高影响面（宿主路径基准/更新链路形�
 代价·收益：构建产物版本号每次自动可追溯（InformationalVersion 含 git hash）；公共层启动器图标补齐（用户可见）；无逻辑/结构代价。
 不做事决策：Core/Abstractions 与其余插件不加版本生成（McpCenter 保持人工固定版本 = 插件语义；需要时再统一）。
 风险：无阻塞。遗留：win-x64 历史残留 bin（无害，发布不依赖）；XCodeConfigTests 4 失败为既有环境项。
-结论：完成 · 可交付 · 未提交 git（等用户明确指示；提交时汇总 028 全批次并隔离 040-B1 文件）。
+结论：完成 · 可交付 · 未提交 git（等用户明确指示；提交时汇总 028 全批次并隔离 040-B1 文件）。> ⚠️ 勘误（2026-09-29）：输入38 + 输入39 实际已随 HEAD 81b9609 提交，「未提交」表述已过时。
 

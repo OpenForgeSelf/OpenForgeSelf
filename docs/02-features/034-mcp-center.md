@@ -8,7 +8,7 @@
 
 对外通过**独立 MCP 端口**暴露本项目全部工具，让任意 MCP 客户端（Claude Desktop / Cursor / 自研客户端等）能直接调用宿主工具注册表中的工具；同时在自带界面内管理**外部 MCP 服务器与工具开关**（原宿主 MCP 工具页功能），并提供**网关地址/端口/令牌的查看与修改**（解决「网关地址在哪看、怎么设 token」）。
 
-**对外只保留一个万能工具 `universal_tool`**：入参 `{tool, parameters}`，内部按名转发调用 `IToolRegistry.ExecuteToolWithResultAsync`，结果原样透传。整体对外只有一个工具，与「只保留那个万能的工具，通过传参转发调用其他的工具」一致。
+**对外只保留一个万能工具 `universal_tool`**：入参 `{tool, parameters}`，内部按名转发调用宿主 `IToolRegistry.ExecuteAsync(ToolExecution)` 六闸门执行面，结果原样透传。整体对外只有一个工具，与「只保留那个万能的工具，通过传参转发调用其他的工具」一致。
 
 ## 四大能力
 
@@ -43,9 +43,10 @@
                                               └─ tools/call → UniversalToolForwarder
                                                         │
                                                         ▼
-                                     IToolRegistry.ExecuteToolWithResultAsync(name, paramsJson, ct)
-                                                        │（宿主分发核：参数校验 → tools/pre-execute 拒绝门
-                                                        │  → 执行 → tools/execute/post-execute 事件 → 使用统计）
+                                     IToolRegistry.ExecuteAsync(ToolExecution)（六闸门）
+                                                        │（宿主分发核：pre-execute 三态决策 → 单调守卫
+                                                        │  → execute waterfall → post-execute waterfall
+                                                        │  → finalize 恰好一次 → tools/result 冻结快照 → 使用统计）
                                                         ▼
                                          宿主工具（calculate / 文件 / 命令 / …全部工具）
 

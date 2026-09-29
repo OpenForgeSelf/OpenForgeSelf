@@ -17,8 +17,8 @@
 
 ## 3. Changed Files
 
-后端：`PluginUpdateSettings.cs`（新）、`PluginUpdateSettingsService.cs`（新）、`AppBuilder.cs`、`PluginDetailDto.cs`（Source）、`PluginVersionService.cs`（重写）、`PluginController.cs`（GET/PUT update-settings）
-测试：`PluginUpdateSettingsServiceTests.cs`（新×5）、`PluginVersionUpdateSourceTests.cs`（新×7）、`PluginVersionServiceTests.cs`/`PluginFrontendManifestTests.cs`/`PluginMenuItemsMergeTests.cs`（仅补 ctor 参数，断言未改）
+后端：`Models/Plugins/PluginUpdateSettings.cs`（新）、`PluginUpdateSettingsService.cs`（新）、`AppBuilder.cs`、`PluginDetailDto.cs`（Source）、`Plugins/Services/PluginVersionService.cs`（重写）、`PluginController.cs`（GET/PUT update-settings）
+测试：`PluginUpdateSettingsServiceTests.cs`（新×5）、`Tests/Plugins/PluginVersionUpdateSourceTests.cs`（新×7）、`PluginVersionServiceTests.cs`/`PluginFrontendManifestTests.cs`/`PluginMenuItemsMergeTests.cs`（仅补 ctor 参数，断言未改）
 前端：`types/plugin.ts`、`services/pluginApi.ts`、`components/settings/PluginsPanel.vue`、`__tests__/PluginsPanel.test.ts`（新×4）
 脚本/文档：`scripts/package-plugin.ps1`（新）、`docs/02-features/038-plugin-local-update-source.md`（新）、`ForgeSelf.Api/Plugins/README.md`（9.6 节）
 

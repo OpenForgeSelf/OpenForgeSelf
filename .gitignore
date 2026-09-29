@@ -85,3 +85,4 @@ specs/
 .tmp-tests/
 .tmp-env/
 .userprofile/
+.tmp/

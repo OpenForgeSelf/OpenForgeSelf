@@ -9,7 +9,8 @@
 2. **任务表**：`Plugins/FileTools/Services/FolderScanJobStore.cs` —— `ScanJob { Dirs: Dictionary<string,DirStat>（Ordinal，非并发，必须持锁访问）, Sync, Cts, State, TotalFiles, ... }`；`DirStat { Depth, Parent, Direct, Total, Files, ChildDirs }`；`GetOrAdd(path, depth, parent)`；`MaxJobs=20` 按完成时间淘汰。
 3. **既有测试**：`ForgeSelf.Api.Tests/Unit/FolderScanServiceTests.cs`（410 行，12 用例）——夹具模式：`NewRoot()`（Temp 下建目录，铁律10 只建不删）、`WriteFile(dir,name,bytes)`、期望值按真实写入字节计算、中间态闭合轮询断言、`Pct()` 复刻 internal Percent。
 4. **版本号落点**：`Plugins/FileTools/plugin.json:4`（`"Version": "1.1.1"`）+ `Plugins/FileTools/web/package.json:3`（`"version": "1.1.1"`）。
-5. **worktree 状态**：本会话在 detached-HEAD worktree（基点 78d065c），批次C 1.1.1 已以 `c4b0577` 提交；`scripts/verify-pilot-artifacts.ps1` 已从 main 检出（pre-commit 钩子依赖）。
+5. **worktree 状态**：本会话在 detached-HEAD worktree（当时基点 78d065c），批次C 1.1.1 提交当时记作 `c4b0577`；`scripts/verify-pilot-artifacts.ps1` 已从 main 检出（pre-commit 钩子依赖）。
+   > **2026-09-29 校正（按真实哈希）**：本 worktree 已 rebase 到 `github/main`=`aed3789`，本地提交哈希被重写——`c4b0577`→**`b11ba39`**（批次C 1.1.1）、`38b4db7`→**`6432e31`**（流程规范）、本任务 1.1.2 `f83bf63`→**`4f9390b`**。rebase 前的原哈希保存在本地分支 `wip/pre-rebase-20260929`（=`f8c0eed`，未推远端）。引用本任务产物时以上述**新哈希为准**。
 
 ## 性能现状（本任务的立项证据，探针实测）
 

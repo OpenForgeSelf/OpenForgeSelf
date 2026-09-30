@@ -2,7 +2,7 @@
 
 > 功能编号：004
 > 状态：已实现
-> 关联：specs/004-provider-models-integration/；001/002；统一 AI 网关（01-architecture §3.1）
+> 关联：001/002；统一 AI 网关（01-architecture §3.1）（历史 specs/004 已弃用）
 > 最后更新：2026-08-12
 
 ## 1. 功能需求

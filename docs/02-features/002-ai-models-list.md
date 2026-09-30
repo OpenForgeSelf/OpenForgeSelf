@@ -2,7 +2,7 @@
 
 > 功能编号：002
 > 状态：已实现
-> 关联：specs/002-provider-model-list/；001 AI Provider；004 集成
+> 关联：001 AI Provider；004 集成（历史 specs/002 已弃用）
 > 最后更新：2026-08-12
 
 ## 1. 功能需求

@@ -2,7 +2,7 @@
 
 > 功能编号：006
 > 状态：已实现
-> 关联：specs/006-set-background-image/；007 背景可见性与透明度；前端样式铁律（working memory）
+> 关联：007 背景可见性与透明度；前端样式铁律（working memory）（历史 specs/006 已弃用）
 > 最后更新：2026-08-12
 
 ## 1. 功能需求

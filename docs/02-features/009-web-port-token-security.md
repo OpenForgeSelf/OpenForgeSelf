@@ -2,7 +2,7 @@
 
 > 功能编号：009
 > 状态：已实现
-> 关联：specs/009-web-port-token-security/；003 API 服务器；008 托盘；08-security
+> 关联：003 API 服务器；008 托盘；08-security（历史 specs/009 已弃用）
 > 最后更新：2026-08-12
 
 ## 1. 功能需求

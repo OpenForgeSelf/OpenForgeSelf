@@ -328,4 +328,4 @@ P0 接缝抽象+Context+自注册 ──► P1 可逆注册+可变DI+动态端�
 | D4 | 前端 | 轻量动态 `import()` + `contributes`，不上 module-federation |
 | D5 | 节奏 | 按 P0→P5 逐阶段出 spec→plan→tasks 分批实现 |
 
-据此拆解为 `specs/NNN-*/` 的 spec → plan → tasks 正式落地。
+据此按 AI-Native 工程闭环正式落地（工件落 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`，spec → plan → tasks 对应 02-spec/03-plan/04-task）。

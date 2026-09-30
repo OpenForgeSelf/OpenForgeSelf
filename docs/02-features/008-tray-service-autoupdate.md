@@ -2,7 +2,7 @@
 
 > 功能编号：008
 > 状态：已实现
-> 关联：specs/008-tray-service-autoupdate/；09-operations（部署运维）
+> 关联：09-operations（部署运维）（历史 specs/008 已弃用）
 > 最后更新：2026-08-12
 
 ## 1. 功能需求

@@ -45,6 +45,6 @@
 ## 5. 第一次改代码
 
 1. 收到任务 → 先写当天日记（`.forgeself/memory/YYYY-MM-DD.md`）+ 建 TODO（AGENTS.md §0 预飞铁律）；
-2. 读相关 spec（`specs/NNN-*/`）+ 设计稿（`forgeself-design/`）+ 代码；
+2. 读相关工件（`docs/ai/pilot/YYYY-MM-DD-<task-id>/`，同域历史任务看 02-spec/03-plan）+ 设计稿（`forgeself-design/`）+ 代码；
 3. 改完跑对应 Verify 门禁；
 4. 完成 → 更新 TODO + 日记「下一步」，可复用规律写 MEMORY.md。

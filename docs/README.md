@@ -22,7 +22,7 @@
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
 | 查**打包/升级/备份/缓存/安装目录结构**的规则（唯一真源：QQNT 式目标结构/版本保留/缓存清理） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
-| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `specs/NNN-*/research.md`） |
+| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |
 | 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
 | 涉及**密钥/权限/敏感数据**的操作 | [`08-security/baseline.md`](08-security/baseline.md) |
 | **部署/发布/运维**服务器 | [`09-operations/deployment.md`](09-operations/deployment.md) |
@@ -112,7 +112,7 @@
 | 问题 | 说明 |
 |------|------|
 | **做什么** | 跨功能的**长期技术调研与选型对比**：如"是否换数据库/引入新框架/重构插件机制"。记录调研背景、候选方案对比（优劣势/证据）、初步倾向与待验证项。含 [003 DeepSeek Harness 运行全链路（Web 输入框 → 工具执行，含可抄设计与不变量）](06-research/003-deepseek-harness-运行全链路.md)（对标总纲 `01-architecture/dsh-alignment-plan.md` 的依据） |
-| **不做什么** | 不做单功能调研（那在 `specs/NNN-*/research.md`，speckit 产物）；不下最终决策（那是 `07-decisions/` 的活） |
+| **不做什么** | 不做单功能调研（那在 `docs/ai/pilot/<task-id>/00-repository-understanding.md` 的任务上下文里）；不下最终决策（那是 `07-decisions/` 的活） |
 | **解释什么** | "这个技术方向调研了什么、比了哪些方案、证据是什么、倾向哪个" |
 | **不解释什么** | 不解释最终拍板理由 → `07-decisions/`（决策落地时把调研结论引过去）；不解释功能实现 → `02-features/` |
 | **何时读** | 做技术选型、评估架构级变更前；调研定论后升级为 ADR 决策 |
@@ -276,12 +276,12 @@
 | 体系 | 管什么 | 生命周期 |
 |------|--------|----------|
 | `docs/`（本目录） | 愿景、设计、规范、指南、调研、决策等**人工沉淀知识**（含 `04-standards/agent-workflow.md`：Agent 工作流规范 + 项目工程规则，**唯一入库的规则库**） | 长期维护（入库） |
-| `specs/NNN-*/` | 开发中功能的规格/计划/任务（speckit SDD），内含**单功能** research.md | 功能开发期间 |
+| `docs/ai/pilot/YYYY-MM-DD-<task-id>/` | 开发中功能的规格/计划/任务（AI-Native 工程九阶段闭环，**唯一开发流程**；speckit `specs/` 已弃用且已 gitignore） | 功能开发期间 |
 | `openwiki/` | 自动生成的架构/代码文档（全量、代码级） | CI 自动刷新，**不手编** |
 | `AGENTS.md` | Agent **每次必守**的工作规则（预飞铁律/验证门禁/汇报铁律），详细版引用 `docs/04-standards/agent-workflow.md` | 长期维护（入库） |
 | `.forgeself/memory/` | 按天工作记录（`YYYY-MM-DD.md`）+ 会话级索引（`MEMORY.md`，**不再承载不变项目规则**——`.forgeself` 被 git 忽略不入库，规则已归档 `docs/04-standards/agent-workflow.md`） | 会话级沉淀（不入库） |
 
-**一句话分工**：`docs/` 管"应该是什么 + 完整规则"，`specs/` 管"正在做什么"，`openwiki/` 管"代码实际是什么"，`memory/` 管"每天发生了什么"，`AGENTS.md` 管"每次怎么干活（必守版，详细在 docs）"。
+**一句话分工**：`docs/` 管"应该是什么 + 完整规则"，`docs/ai/pilot/` 管"正在做什么"，`openwiki/` 管"代码实际是什么"，`memory/` 管"每天发生了什么"，`AGENTS.md` 管"每次怎么干活（必守版，详细在 docs）"。
 
 ---
 
@@ -289,7 +289,7 @@
 
 - 功能文档：`docs/02-features/<NNN>-<功能名>.md`；`001–099` 与 specs 同号，`100+` 为无 spec 的独立文档（如 `100-secret-encryption.md`）；
 - 决策文档：`docs/07-decisions/<NNN>-<标题>.md`，从 001 递增；
-- 调研文档：`docs/06-research/<NNN>-<主题>.md`，从 001 递增；单功能调研仍在 `specs/NNN-*/research.md`，不进本目录；
+- 调研文档：`docs/06-research/<NNN>-<主题>.md`，从 001 递增；单功能调研属任务上下文，落在 `docs/ai/pilot/<task-id>/`，不进本目录；
 - 北极星文档：`docs/00-vision/01-vision.md` ~ `04-direction.md`，序号即阅读顺序；
 - 其余目录内文件按需命名，序号 01 起；
 - 编号是**身份标识**不是排序手段，排序由本 README 索引表决定。

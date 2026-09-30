@@ -115,3 +115,39 @@ export interface RunsResp {
   total: number
   runs: RunSession[]
 }
+
+/** 目录浏览条目（GET /api/projects/browse，后端 DirectoryEntry）。 */
+export interface DirectoryEntry {
+  /** 目录名；列举驱动器根时为盘符（如 "C:\\"）。 */
+  name: string
+  /** 绝对路径。 */
+  path: string
+}
+
+/** GET /api/projects/browse 响应。 */
+export interface BrowseResp {
+  /** 当前目录；列举驱动器根时为 null。 */
+  path: string | null
+  /** 上级目录；已无上级时为 null。 */
+  parent: string | null
+  directories: DirectoryEntry[]
+}
+
+/** POST /api/projects 请求体（插件内部登记项目）。 */
+export interface RegisterProjectReq {
+  /** 已存在的目录绝对路径。 */
+  root: string
+  /** 显示名（可选，留空取目录名）。 */
+  name?: string | null
+}
+
+/** POST /api/projects 响应。 */
+export interface RegisterResp {
+  project: ProjectInfo
+}
+
+/** GET /api/plugin 条目（取自身版本号用，铁律 13）。 */
+export interface PluginRow {
+  id: string
+  version: string
+}

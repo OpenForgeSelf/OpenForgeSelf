@@ -5,14 +5,22 @@ namespace ForgeSelf.Abstractions;
 
 /// <summary>
 /// 项目工作区（宿主级核心流程）能力接缝（L1 契约）。
-/// 由宿主 <c>HostProjectRegistry</c> 实现并 seed 进插件 root 上下文（常驻 app 生命周期），
-/// AIAgent（登记触发源）与 sems（面板消费方）平等经 <c>ctx.Get&lt;IProjectRegistry&gt;()</c> 消费。
+/// 由宿主 <c>HostProjectRegistry</c> 实现并 seed 进插件 root 上下文（常驻 app 生命周期）。
+/// 提供方只定义契约与数据寿命，<b>不绑定单一登记触发源</b>：AIAgent 选目录、sems 面板手工添加、
+/// 未来任何插件都经 <c>ctx.Get&lt;IProjectRegistry&gt;()</c> 平等登记/消费（见 docs/01-architecture/host-capability-seams.md §4.1 方案 B）。
 /// 消费方必须<b>每次用每次 Get</b>，禁止把解析到的实例缓存为字段（提供方热重载后共享表自动摘除）。
 /// </summary>
 public interface IProjectRegistry
 {
-    /// <summary>登记或更新一个项目根（AIAgent 选目录调用）。Root 已存在则刷新 LastActiveAt。目录不存在返回 false + 错误。</summary>
+    /// <summary>登记或更新一个项目根（等价 <see cref="Register(string,string,out string?)"/> 且来源为 <c>ai-agent</c>）。Root 已存在则刷新 LastActiveAt。目录不存在返回 false + 错误。</summary>
     bool Register(string root, out string? error);
+
+    /// <summary>
+    /// 登记或更新一个项目根，并指定登记来源（<c>ai-agent</c> / <c>manual</c> 等）。
+    /// Root 已存在时<b>只刷新 LastActiveAt</b>，不覆写 Name/Source/Type/Description/Tags（手工编辑优先于自动登记）。
+    /// <paramref name="source"/> 为空/null 时按 <c>ai-agent</c> 记（保持既有调用方语义）。目录不存在返回 false + 错误。
+    /// </summary>
+    bool Register(string root, string? source, out string? error);
 
     /// <summary>全量项目（按 LastActiveAt 倒序）。无项目返回空列表。</summary>
     List<ProjectInfo> GetAll();
@@ -22,6 +30,12 @@ public interface IProjectRegistry
 
     /// <summary>档案编辑（Name/Type/Description/Tags）。</summary>
     bool Update(int id, ProjectUpdate update);
+
+    /// <summary>
+    /// 移除项目档案，并<b>级联删除其全部运行命令</b>。只删数据库记录，不触碰磁盘目录与文件。
+    /// 不存在返回 false + 错误。调用方若需拒绝「有存活运行会话」的项目，应在本方法之前自行校验。
+    /// </summary>
+    bool Remove(int id, out string? error);
 
     /// <summary>新增运行命令，返回新命令 Id（≤0 表示失败）。</summary>
     int AddCommand(int projectId, RunCommandInfo command);

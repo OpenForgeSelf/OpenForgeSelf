@@ -6,8 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace ForgeSelf.Api.Plugins.Sems.Controllers;
 
 /// <summary>
-/// sems 运行列表控制器（spec028 批2 T06）：运行列表查询 / 本机进程检测 / 外部进程停止。
-/// 路由 api/runs（design §5.4）。全部管理端点挂 ApiKeyPolicy 鉴权。
+/// sems 运行列表控制器：运行列表查询 / 本机进程检测 / 外部进程停止（路由 api/runs，design §5.4）。
+/// 全部管理端点挂 ApiKeyPolicy 鉴权。
+/// 进程启停的唯一入口即本控制器 + <see cref="ProjectCommandsController"/> 的 run/stop；
+/// 历史上的冗余副本 <c>RunnerController</c>（api/runner/*，前端与测试零引用）已收敛移除
+/// （028-project-workspace 已知问题 #1，2026-09-28）。
 /// </summary>
 [ApiController]
 [Route("api/runs")]

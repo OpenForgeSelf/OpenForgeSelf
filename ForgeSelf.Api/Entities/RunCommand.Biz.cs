@@ -56,5 +56,17 @@ public partial class RunCommand : Entity<RunCommand>
         model.Copy(this);
         return model;
     }
+
+    /// <summary>级联删除某项目的全部运行命令（直查库，不走实体缓存），返回删除条数。</summary>
+    public static Int32 DeleteByProjectId(Int32 projectId)
+    {
+        var count = 0;
+        foreach (var command in FindAllByProjectId(projectId))
+        {
+            command.Delete();
+            count++;
+        }
+        return count;
+    }
     #endregion
 }

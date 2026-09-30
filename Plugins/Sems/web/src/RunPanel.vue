@@ -16,8 +16,12 @@
     </header>
 
     <div v-if="checking && runs.length === 0" class="run__hint">检查中…</div>
+    <!-- 空态分级（§3.4-4）：无可启动命令时引导去加命令，而不是笼统「暂无数据」 -->
+    <div v-else-if="runs.length === 0 && !hasLaunchable" class="run__hint">
+      还没有可运行的命令。请在下方项目卡片展开「管理命令」先添加一条，再回到这里启动或「检查」。
+    </div>
     <div v-else-if="runs.length === 0" class="run__hint">
-      暂无运行中的进程。可在项目卡片中展开命令并「启动」，或点击「检查」捕获本机已运行的项目进程。
+      暂无运行中的进程。可点「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。
     </div>
 
     <ul v-else class="run__list">
@@ -64,40 +68,43 @@
 
 <script setup lang="ts">
 /**
- * 运行面板（spec028 §6 / T08）：
+ * 运行面板：
  * - 运行列表（GET /api/runs）：项目名 / 命令名 / PID / 已运行时长 / 来源徽标
- * - 启动：POST /api/commands/{id}/run（启动全部 = 遍历 projectId+commandId 调起）
+ * - 启动：POST /api/commands/{id}/run（启动全部由父级遍历命令调起，本面板只上报事件）
  * - 停止：Launched → POST /api/commands/{id}/stop；Detected → POST /api/runs/{pid}/stop
- * - 快捷访问图标：r 关联命令有 url 时显示（需父级传入命令 url 对照）
+ *   两者一律走 confirmOps 的「先确认后请求」编排（取消时不发任何请求），文案见 confirmOps.ts
+ * - 快捷访问图标：r 关联命令有 url 时显示（由父级传入命令 url 对照）
  * - 检查：POST /api/runs/check（loading 态）
  * 不常驻轮询，依赖手动「检查」+ 启动后即时刷新。
  */
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiGet, apiPost } from './http'
+import { errorMessage, runWithConfirm, stopExternalMessage, stopSessionMessage } from './confirmOps'
 import type { RunSession, RunsResp } from './types'
 
 const props = defineProps<{
   /** 命令 id → 访问 url 映射（由上层从项目列表装配，供快捷访问图标使用）。 */
   commandUrls?: Record<number, string>
-  /** 可启动命令总数（由上层装配；0 时禁用「启动全部」）。 */
+  /** 可启动命令总数（由上层装配；0 时禁用「启动全部」并切换空态文案）。 */
   launchableCount?: number
 }>()
 
 const runs = ref<RunSession[]>([])
 const checking = ref(false)
 const busyPid = ref<number | null>(null)
-/** 已成功启动的命令 id（用于避免同会话内重复启动）。 */
-const launchedCmdIds = ref<Set<number>>(new Set())
 
 onMounted(refresh)
 
-async function refresh() {
+/** 刷新运行列表，返回当前条数（供父级同步「运行中」统计）。 */
+async function refresh(): Promise<number> {
   try {
     const r = await apiGet<RunsResp>('/api/runs')
     runs.value = r?.runs ?? []
   } catch {
-    // 静默：面板失败不影响项目列表
+    // 静默：面板失败不影响项目列表（项目区已有错误态与重试）
   }
+  return runs.value.length
 }
 
 async function check() {
@@ -106,7 +113,7 @@ async function check() {
     const r = await apiPost<RunsResp>('/api/runs/check', {})
     runs.value = r?.runs ?? []
   } catch (e) {
-    window.alert(`检查失败：${e instanceof Error ? e.message : String(e)}`)
+    ElMessage.error(`检查失败：${errorMessage(e)}`)
   } finally {
     checking.value = false
   }
@@ -125,7 +132,7 @@ function commandUrl(r: RunSession): string {
 
 const hasLaunchable = computed(() => (props.launchableCount ?? 0) > 0)
 
-/** 父级应传入待启动命令（{id} 列表）；这里用事件上报，由 SemsView 装配后调用 runOne。 */
+/** 父级装配待启动命令列表；这里只上报事件。 */
 const emit = defineEmits<{
   (e: 'run-all'): void
 }>()
@@ -134,46 +141,48 @@ async function runAll() {
   emit('run-all')
 }
 
-async function runOne(id: number) {
+/** ElMessageBox 版确认（取消时 reject → 返回 false，让编排零请求）。 */
+async function ask(message: string, title: string): Promise<boolean> {
   try {
-    await apiPost(`/api/commands/${id}/run`, {})
-    launchedCmdIds.value.add(id)
-    await refresh()
-  } catch (e) {
-    window.alert(`启动失败：${e instanceof Error ? e.message : String(e)}`)
+    await ElMessageBox.confirm(message, title, {
+      type: 'warning',
+      confirmButtonText: '确认停止',
+      cancelButtonText: '取消',
+    })
+    return true
+  } catch {
+    return false
   }
+}
+
+async function stopBy(r: RunSession, path: string, message: string, okText: string) {
+  busyPid.value = r.pid
+  const result = await runWithConfirm({ title: '停止进程', message, confirm: ask, action: () => apiPost(path, {}) })
+  if (result.outcome === 'done') {
+    ElMessage.success(okText)
+    await refresh()
+  } else if (result.outcome === 'failed') {
+    ElMessage.error(`停止失败：${result.error}`)
+  }
+  busyPid.value = null
 }
 
 async function stopLaunched(r: RunSession) {
-  if (!window.confirm(`确认停止「${r.projectName} / ${r.commandName}」？`)) return
-  busyPid.value = r.pid
-  try {
-    await apiPost(`/api/commands/${r.commandId}/stop`, {})
-    launchedCmdIds.value.delete(r.commandId)
-    await refresh()
-  } catch (e) {
-    window.alert(`停止失败：${e instanceof Error ? e.message : String(e)}`)
-  } finally {
-    busyPid.value = null
-  }
+  await stopBy(
+    r,
+    `/api/commands/${r.commandId}/stop`,
+    stopSessionMessage(r.projectName, r.commandName, r.pid),
+    `已停止「${r.projectName} / ${r.commandName}」`,
+  )
 }
 
 async function stopExternal(r: RunSession) {
-  if (
-    !window.confirm(
-      `确认停止外部捕获的进程「${r.projectName} / ${r.commandName}」（PID ${r.pid}）？\n\n该进程可能含他人进程树，停止将一并杀除其整个进程树，操作不可恢复。`,
-    )
+  await stopBy(
+    r,
+    `/api/runs/${r.pid}/stop`,
+    stopExternalMessage(r.projectName, r.commandName, r.pid),
+    `已停止外部进程 PID ${r.pid}`,
   )
-    return
-  busyPid.value = r.pid
-  try {
-    await apiPost(`/api/runs/${r.pid}/stop`, {})
-    await refresh()
-  } catch (e) {
-    window.alert(`停止失败：${e instanceof Error ? e.message : String(e)}`)
-  } finally {
-    busyPid.value = null
-  }
 }
 
 /** Launched+CommandId 唯一；Detected 用 pid（同项目多命令可能共享 pid 但 commandName 不同）。 */
@@ -203,8 +212,8 @@ function duration(r: RunSession): string {
   return `${sec}s`
 }
 
-// 暴露给父级调用（SemsView 拿到命令后逐个启动）
-defineExpose({ runOne, refresh, check })
+// 暴露给父级：启动/停止/刷新后要重新拉运行数
+defineExpose({ refresh, check })
 </script>
 
 <style scoped>

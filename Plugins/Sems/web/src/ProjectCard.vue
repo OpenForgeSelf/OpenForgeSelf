@@ -10,6 +10,9 @@
         <button class="pcard__icon-btn" :title="expanded ? '收起命令' : '管理命令'" @click="expanded = !expanded">
           {{ expanded ? '▴' : '▾' }}
         </button>
+        <button class="pcard__icon-btn pcard__icon-btn--danger" title="移除项目档案" @click="$emit('remove', project)">
+          ✕
+        </button>
       </div>
     </div>
 
@@ -58,6 +61,7 @@ const expanded = ref(false)
 
 const emit = defineEmits<{
   (e: 'edit', project: ProjectInfo): void
+  (e: 'remove', project: ProjectInfo): void
   (e: 'commands-changed', projectId: number): void
   (e: 'run-command', commandId: number): void
 }>()
@@ -184,6 +188,11 @@ function fmt(v?: string): string {
 .pcard__icon-btn:hover {
   border-color: var(--el-color-primary, #ffb84d);
   color: var(--el-color-primary, #ffb84d);
+}
+
+.pcard__icon-btn--danger:hover {
+  border-color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger, #f56c6c);
 }
 
 .pcard__desc {

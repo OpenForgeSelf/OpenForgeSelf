@@ -284,6 +284,126 @@ public class HostProjectRegistryTests
         Assert.Equal(2, all.Select(p => p.Root).Distinct().Count());
     }
 
+    [Fact]
+    public void Register_WithManualSource_WritesGivenSource()
+    {
+        var dir = CreateTempProjectDir("manual");
+        var registry = Create();
+
+        var ok = registry.Register(dir, "manual", out var error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        var project = registry.GetAll().Single();
+        Assert.Equal("manual", project.Source);
+        Assert.Equal("manual", project.Name);
+    }
+
+    [Fact]
+    public void Register_WithNullOrEmptySource_FallsBackToAiAgent()
+    {
+        var registry = Create();
+
+        registry.Register(CreateTempProjectDir("srcnull"), null, out _);
+        registry.Register(CreateTempProjectDir("srcblank"), "   ", out _);
+
+        var byName = registry.GetAll().ToDictionary(p => p.Name, p => p.Source);
+        Assert.Equal("ai-agent", byName["srcnull"]);
+        Assert.Equal("ai-agent", byName["srcblank"]);
+    }
+
+    [Fact]
+    public void Register_ExistingRoot_PreservesUserEditedProfile_DoesNotOverwriteName()
+    {
+        var dir = CreateTempProjectDir("rename-me");
+        var registry = Create();
+        registry.Register(dir, "manual", out _);
+        var id = registry.GetAll().Single().Id;
+
+        // 用户在 sems 面板改名 + 补类型/描述/标签
+        Assert.True(registry.Update(id, new ProjectUpdate
+        {
+            Name = "我的前端工程",
+            Type = "frontend",
+            Description = "手工登记",
+            Tags = "demo"
+        }));
+
+        // 之后 AIAgent 再次选同一目录（走 2 参旧签名）
+        Thread.Sleep(20);
+        Assert.True(registry.Register(dir, out _));
+
+        var after = registry.Get(id);
+        Assert.NotNull(after);
+        // 手工编辑优先：四项均不得被自动登记覆写（修 HostProjectRegistry 原先覆写 Name 的行为）
+        Assert.Equal("我的前端工程", after!.Name);
+        Assert.Equal("frontend", after.Type);
+        Assert.Equal("手工登记", after.Description);
+        Assert.Equal("demo", after.Tags);
+        Assert.Equal("manual", after.Source);
+        Assert.Single(registry.GetAll());
+    }
+
+    [Fact]
+    public void Remove_DeletesProjectAndCascadesCommands_And_KeepsDiskDirectory()
+    {
+        var dir = CreateTempProjectDir("todelete");
+        var registry = Create();
+        registry.Register(dir, "manual", out _);
+        var id = registry.GetAll().Single().Id;
+        registry.AddCommand(id, new RunCommandInfo { Name = "dev", Script = "pnpm dev" });
+        registry.AddCommand(id, new RunCommandInfo { Name = "build", Script = "pnpm build" });
+        Assert.Equal(2, registry.GetCommands(id).Count);
+
+        var ok = registry.Remove(id, out var error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        Assert.Null(registry.Get(id));
+        Assert.Empty(registry.GetAll());
+        Assert.Empty(registry.GetCommands(id));
+        // 数据安全铁律：只删档案行，磁盘目录与其中文件绝不能被动过
+        Assert.True(Directory.Exists(dir));
+    }
+
+    [Fact]
+    public void Remove_UnknownId_ReturnsFalse_WithError()
+    {
+        var dir = CreateTempProjectDir("keepme");
+        var registry = Create();
+        registry.Register(dir, out _);
+        var id = registry.GetAll().Single().Id;
+
+        var ok = registry.Remove(987654, out var error);
+
+        Assert.False(ok);
+        Assert.Contains("项目不存在", error);
+        // 失败不得影响既有数据
+        Assert.NotNull(registry.Get(id));
+    }
+
+    [Fact]
+    public void Remove_OneProject_LeavesOtherProjectsAndTheirCommands_Intact()
+    {
+        var registry = Create();
+        var dirA = CreateTempProjectDir("keep-a");
+        var dirB = CreateTempProjectDir("drop-b");
+        registry.Register(dirA, out _);
+        registry.Register(dirB, out _);
+        var a = registry.GetAll().Single(p => p.Root == dirA).Id;
+        var b = registry.GetAll().Single(p => p.Root == dirB).Id;
+        registry.AddCommand(a, new RunCommandInfo { Name = "a-cmd", Script = "echo a" });
+        registry.AddCommand(b, new RunCommandInfo { Name = "b-cmd", Script = "echo b" });
+
+        Assert.True(registry.Remove(b, out _));
+
+        var survivors = registry.GetAll();
+        Assert.Single(survivors);
+        Assert.Equal(a, survivors[0].Id);
+        var cmd = Assert.Single(registry.GetCommands(a));
+        Assert.Equal("a-cmd", cmd.Name);
+    }
+
     private string CreateTempProjectDir(string name)
     {
         var path = Path.Combine(_dbDir, "projects", name);

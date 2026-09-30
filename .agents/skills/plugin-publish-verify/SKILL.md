@@ -17,7 +17,7 @@ description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 
 |---|------|------|
 | **主路径（推荐）** | **打 tag 自动发布**：`git tag -a v<X.Y.Z> -m "..."` → `git push github v<X.Y.Z>` → CI（`.github/workflows/release.yml`）自动构建打包并创建 GitHub Release → 用户/页面在「设置-版本更新」点「检查更新 → 下载 → 重启并更新」完成升级 | 一切交付的默认路径；宿主由 update-agent 自更新，**无人停宿主** |
 | **本地离线发布** | `pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>` → 设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」 | 内网/离线/不想推 GitHub 时；等价于主路径的本地版 |
-| **开发期侧载（可选）** | `run-plugin-publish-verify.ps1 -Plugin <X>`（stage 版本快照 → `POST /api/plugin/update/{id}` 版本化切换，宿主不重启） | 仅插件自身 DLL 变更且**用户同意触碰运行实例**时；宿主二进制（ForgeSelf.Api/Web）变更一律走 tag 发布，不走此路径 |
+| **开发期侧载（可选）** | `scripts/publish-plugin.ps1 -Plugin <X> -PluginsRoot <运行实例>/plugins -Force`（stage 快照）→ `POST /api/plugin/update/{id}` 版本化切换，宿主不重启。**`run-plugin-publish-verify.ps1` 是旧布局产物**（2026-09-29 实测：plugin.json 路径仍指 `ForgeSelf.Api/Plugins/`，且其第 2 步会 `Stop-Process` 杀非 publish 实例 = 违反铁律 1），只可当验证清单参考，不可直接跑 | 仅插件自身 DLL 变更且**用户同意触碰运行实例**时；宿主二进制（ForgeSelf.Api/Web）变更一律走 tag 发布，不走此路径 |
 
 ## 铁律（先记住这 4 条）
 
@@ -125,3 +125,16 @@ PluginController 鉴权后，前端必须走 `authFetch`（src/services/authFetc
 - **PowerShell 相关**：本环境 `pwsh` 是 `...\WindowsApps\pwsh.exe` 残桩（静默不执行），可用的是 **PS 5.1**；
   且 PowerShell 工具可能**不回显 stdout** —— 跑脚本时务必 `*> <log>` 重定向后读日志，
   否则会误判"没跑"而重复执行（曾因此重跑发布脚本，实际第一次已成功）。
+  ⚠ 但在 **git-bash** 里调 PS 脚本时**不要用 `*>`**：`*` 会被 bash 通配展开成当前目录文件名、把多余参数喂给 PS
+  （2026-09-29 实测：`-Configuration` 收到 `"AGENTS.md"` 触发 ValidateSet 报错）→ 用 `> <log> 2>&1`。
+- **侧载 ≠ 生效（分层，2026-09-29 运行实例实测）**：手工把产物铺进 `plugins/<X>/versions/<ver>/` 并写 `current`，
+  **只热切前端资源**——`PluginFrontendFileMiddleware` 按 `current` 取 `web/dist`，实测同一指针一改
+  `GET /plugins/<id>/web/dist/index.js` 伺服字节数立刻随之变（40184↔30220）；
+  而 `GET /api/plugin` 仍报旧版本，**后端程序集/控制器/MCP 工具不变**（要 `POST /api/plugin/update/{id}` 或宿主重启才换）。
+  → 只铺文件 + 切 `current` = **新前端打旧后端**的半升级态（新端点 404）。因此：
+  ① 插件若依赖本次宿主侧改动，铺完**不要把 `current` 指向新版本**，留旧版本号当回滚位；
+  ② 激活动作交给 `POST /api/plugin/update/{id}`（或页面插件更新源），别把手工铺当交付；
+  ③ `publish-plugin.ps1` 的共享程序集过滤只匹配 `.dll`，**`.pdb` 会漏进版本目录**（2026-09-29 实测混进
+  `ForgeSelf.Abstractions.pdb`/`ForgeSelf.Core.pdb`），铺完需手删或先修脚本。
+- **e2e 地址一律取 `e2e/helpers/e2e-env.ts`**（PILOT-050）：spec 内不得硬编码 `localhost:7102/7002`，
+  宿主端口现由 `FORGESELF_PORT` 动态派生、运行目录固定 `.temp/e2e/wt-<hash8>`（`current.json` 为跨进程真源）。

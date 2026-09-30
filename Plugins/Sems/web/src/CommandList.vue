@@ -7,7 +7,9 @@
 
     <div v-if="loading" class="clist__hint">加载命令中…</div>
     <div v-else-if="loadError" class="clist__hint clist__hint--error">加载失败：{{ loadError }}</div>
-    <div v-else-if="sortedCommands.length === 0" class="clist__hint">暂无命令，点击「+ 新增命令」添加。</div>
+    <div v-else-if="sortedCommands.length === 0" class="clist__hint">
+      还没有运行命令。点「+ 新增命令」添加一条，脚本会在该项目根目录里执行。
+    </div>
 
     <ul v-else class="clist__items">
       <li v-for="(cmd, idx) in sortedCommands" :key="cmd.id" class="clist__item">
@@ -70,7 +72,9 @@
  *   DELETE api/commands/{id}
  */
 import { computed, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiGet, apiPost, apiPut, apiDelete } from './http'
+import { deleteCommandMessage, errorMessage, runWithConfirm } from './confirmOps'
 import type { CommandsResp, RunCommandInfo, RunCommandAdd, RunCommandUpdate } from './types'
 
 const props = defineProps<{
@@ -95,7 +99,7 @@ async function load() {
     const r = await apiGet<CommandsResp>(`/api/projects/${props.projectId}/commands`)
     sortedCommands.value = (r?.commands ?? []).slice().sort((a, b) => a.sort - b.sort)
   } catch (e) {
-    loadError.value = e instanceof Error ? e.message : String(e)
+    loadError.value = errorMessage(e)
   } finally {
     loading.value = false
   }
@@ -112,7 +116,7 @@ async function run(id: number) {
     await apiPost(`/api/commands/${id}/run`, {})
     emit('run', id)
   } catch (e) {
-    window.alert(`启动失败：${e instanceof Error ? e.message : String(e)}`)
+    ElMessage.error(`启动失败：${errorMessage(e)}`)
   } finally {
     busyId.value = null
   }
@@ -141,19 +145,36 @@ async function persistSort(cmd: RunCommandInfo) {
   try {
     await apiPut(`/api/commands/${cmd.id}`, { sort: cmd.sort } as RunCommandUpdate)
   } catch (e) {
-    window.alert(`排序保存失败：${e instanceof Error ? e.message : String(e)}`)
+    ElMessage.error(`排序保存失败：${errorMessage(e)}`)
   }
 }
 
-// ---- 删除 ----
+// ---- 删除（先确认后请求，取消时一个请求都不发）----
 async function remove(cmd: RunCommandInfo) {
-  if (!window.confirm(`确认删除命令「${cmd.name}」？此操作不可恢复。`)) return
-  try {
-    await apiDelete(`/api/commands/${cmd.id}`)
+  const result = await runWithConfirm({
+    title: '删除命令',
+    message: deleteCommandMessage(cmd.name),
+    confirm: async (message, title) => {
+      try {
+        await ElMessageBox.confirm(message, title, {
+          type: 'warning',
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+        })
+        return true
+      } catch {
+        return false
+      }
+    },
+    action: () => apiDelete(`/api/commands/${cmd.id}`),
+  })
+
+  if (result.outcome === 'done') {
     sortedCommands.value = sortedCommands.value.filter((c) => c.id !== cmd.id)
+    ElMessage.success(`已删除命令「${cmd.name}」`)
     emit('changed')
-  } catch (e) {
-    window.alert(`删除失败：${e instanceof Error ? e.message : String(e)}`)
+  } else if (result.outcome === 'failed') {
+    ElMessage.error(`删除失败：${result.error}`)
   }
 }
 

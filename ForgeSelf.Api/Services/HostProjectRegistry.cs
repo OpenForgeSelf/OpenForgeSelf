@@ -33,8 +33,14 @@ public class HostProjectRegistry : IProjectRegistry
         // 构造期不触碰数据库连接；首次使用时再惰性迁移（避免无 DB 依赖的单元测试构造失败）。
     }
 
-    /// <summary>登记或更新一个项目根。Root 已存在则刷新 LastActiveAt；目录不存在返回 false + 错误。</summary>
-    public bool Register(string root, out string? error)
+    /// <summary>登记或更新一个项目根（来源按 <c>ai-agent</c> 记，保持既有调用方语义）。</summary>
+    public bool Register(string root, out string? error) => Register(root, null, out error);
+
+    /// <summary>
+    /// 登记或更新一个项目根并指定来源。Root 已存在时<b>只刷新 LastActiveAt</b>，
+    /// 不覆写 Name/Source/Type/Description/Tags —— 手工编辑优先于自动登记。目录不存在返回 false + 错误。
+    /// </summary>
+    public bool Register(string root, string? source, out string? error)
     {
         error = null;
         root = root?.Trim() ?? string.Empty;
@@ -65,7 +71,9 @@ public class HostProjectRegistry : IProjectRegistry
         var existing = Project.FindByRoot(fullPath);
         if (existing != null)
         {
-            existing.Name = Path.GetFileName(fullPath.TrimEnd(Path.DirectorySeparatorChar));
+            // 只刷新活跃时间；Name 仅在历史空值时补齐，绝不覆写用户已改的名字
+            if (string.IsNullOrWhiteSpace(existing.Name))
+                existing.Name = Path.GetFileName(fullPath.TrimEnd(Path.DirectorySeparatorChar));
             existing.LastActiveAt = now;
             existing.Save();
             return true;
@@ -78,7 +86,7 @@ public class HostProjectRegistry : IProjectRegistry
             Type = string.Empty,
             Description = string.Empty,
             Tags = string.Empty,
-            Source = "ai-agent",
+            Source = string.IsNullOrWhiteSpace(source) ? "ai-agent" : source.Trim(),
             CreatedAt = now,
             UpdatedAt = now,
             LastActiveAt = now
@@ -121,6 +129,28 @@ public class HostProjectRegistry : IProjectRegistry
         if (update.Description != null) project.Description = update.Description;
         if (update.Tags != null) project.Tags = update.Tags;
         project.Save();
+        return true;
+    }
+
+    /// <summary>
+    /// 移除项目档案并级联删除其运行命令。只删数据库行，<b>不触碰磁盘目录与文件</b>。
+    /// </summary>
+    public bool Remove(int id, out string? error)
+    {
+        error = null;
+        EnsureMigrated();
+        var project = Project.FindById(id);
+        if (project == null)
+        {
+            error = $"项目不存在：{id}";
+            return false;
+        }
+
+        var deleted = RunCommand.DeleteByProjectId(id);
+        var root = project.Root;
+        project.Delete();
+        XTrace.Log.Info("项目工作区：已移除项目 {0}（Root={1}，级联删除命令 {2} 条，磁盘文件未触碰）",
+            id, root, deleted);
         return true;
     }
 

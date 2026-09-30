@@ -180,7 +180,7 @@ function rmDirOS(dir: string): void {
       execSync(`rm -rf "${dir}"`, { stdio: 'ignore' })
     }
   } catch (e) {
-    throw new Error(`清理目录失败（OS 级删除）: ${dir}；${(e as Error).message}`)
+    throw new Error(`清理目录失败（OS 级删除）: ${dir}；${(e as Error).message}`, { cause: e })
   }
 }
 

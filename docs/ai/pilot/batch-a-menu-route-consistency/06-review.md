@@ -28,6 +28,8 @@
   1. 端口真源冲突：配置真源 `PortNumber=7102` vs 派单/AGENTS/live spec 惯例 `:51888`；旧常驻实例（D:\src\tools\ForgeSelf）已停、新批次A 宿主按真源跑 7102，**:51888 当前无监听**（用户入口待恢复，需裁决：改配置回 51888 / 或文档口径统一 7102——测审未擅改配置）。
   2. live 基建缺口：`playwright.live.config.ts` + quick-links live spec 无 token 注入通道，fresh context 必红（归因已反证锁死）→ 建议独立缺陷单。
   3. `migrate-plugin-versions.ps1` ConvertFrom-Json 报错（某 manifest 解析失败），发布以扁平回退布局正常工作 → 建议登记排查。
+
+> **排查单（2026-09-29 审计补充）**：脚本 `scripts/migrate-plugin-versions.ps1` L42 `$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json` **确实无任何容错包裹**——`ConvertFrom-Json` 遇非法 JSON（注释、尾逗号、BOM 混合编码等）会直接抛 `PSObject` 解析异常，无 `try/catch` 兜底、无跳过单个插件继续的逻辑。若当前某插件 `plugin.json` 仍含此类瑕疵，该脚本会中断。**是否仍报错不可静态核实**：脚本本身不运行、不连仓库状态，纯静态读码只能确认"缺容错"这一事实；是否真有 manifest 触发需实跑或人工核对全部 `plugin.json` 才能定论。建议：① 给 L42 包 `try/catch`（解析失败 → `[skip] $name : manifest 解析失败` 并 `continue`）；② 登记为独立缺陷单，与批次A 解耦。
 - **Minor**：批次E 观察名单建议保留 AgentRegistryServiceTests×10（上轮负载 flake，本轮未现）。
 
 ## Final Decision

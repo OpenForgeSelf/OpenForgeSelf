@@ -90,7 +90,7 @@
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
 - 运行端口：Backend `:7102`，Frontend `:7002`；本环境长期运行的 publish 实例用 `:51888`
-- **发布规范（2026-09-27 起；输入42 补签名）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**发布必带 `-Sign` Authenticode 签名**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + DigiCert 时间戳，商业证书 -PfxPath 可插拔；CI 已接线）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
+- **发布规范（2026-09-27 起；输入42 补签名、输入2 2026-09-30 改默认关闭）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**发布默认不签名，需要时传 `-Sign` Authenticode 签名**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + DigiCert 时间戳，商业证书 -PfxPath 可插拔；**CI 默认不签**，签名策略真源见 `docs/04-standards/packaging-upgrade-backup.md` §1.1）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
 - **打包/升级/备份/缓存/安装目录结构（真源引用，2026-09-28 输入30；目录命名统一小写 2026-09-29 输入37）**：相关规则的**唯一真源 = docs/04-standards/packaging-upgrade-backup.md**——含现状盘点、空间浪费点、**QQNT 式目标目录结构**（公共外置 + 宿主每次更新的内容入 ersions/<ver>/ + plugins/ 与 ersions/ 并排 + **去插件备份/_backups**，插件多版本共存即回滚能力）与生命周期规则（§3/§4/R9）与**程序架构分层**（§1.6：入口=根启动器 / 业务+服务+托盘=版本层宿主 / 更新=update-agent / 插件=隔离程序集）；**目录命名统一小写**（安装/运行布局：plugins/data/log/config；源码工程目录 ForgeSelf.Api/Plugins/Plugins/<X> 保持 PascalCase 不动）。AGENTS.md / agent-workflow.md / 功能文档 / 技能只保留操作流程与踩坑，不再重复承载结构事实；规则冲突以该真源为准。
 - 更全的工程规则/踩坑（数据落盘、XCode、DLL 锁、PS 编码等）→ `docs/04-standards/agent-workflow.md` Part B
 

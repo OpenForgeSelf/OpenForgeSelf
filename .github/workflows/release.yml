@@ -38,9 +38,9 @@ jobs:
 
       - name: Build + package (scripts/release/release-local.ps1)
         shell: pwsh
-        # 输入42：-Sign 走 scripts/sign-publish.ps1 Authenticode 签名（自签证书自动生成/复用，
-        # 时间戳 digicert；商业证书场景在 CI secrets 传 -PfxPath/-PfxPassword 即可，脚本可插拔）
-        run: ./scripts/release/release-local.ps1 -Version "${env:GITHUB_REF_NAME}" -Sign
+        # 输入2（2026-09-30）：CI 默认不签名。需要签名时在此行追加 -Sign（走 scripts/sign-publish.ps1，
+        # 自签证书自动生成/复用 + DigiCert 时间戳；商业证书场景在 CI secrets 传 -PfxPath/-PfxPassword，脚本可插拔）
+        run: ./scripts/release/release-local.ps1 -Version "${env:GITHUB_REF_NAME}"
 
       - name: Create GitHub Release (scripts/release/publish-release.ps1)
         shell: pwsh

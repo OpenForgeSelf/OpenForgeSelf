@@ -440,6 +440,15 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **TODO.md 移出版本控制（2026-09-24）**：工作队列不入库（gitignore），原始历史已用 `git filter-branch` 全量重写剔除；工作区文件保留、TODO 流程不变（仅不再提交）。
 - **历史重写补充规律**：`filter-branch` 会删工作区文件，重写后需从备份分支 `git show <branch>:<path>` 恢复；中文文件名 git 默认 `core.quotepath=true` 输出八进制转义，程序化处理用 `git -c core.quotepath=false`。
 
+### 多 worktree 并行下的「同步最新代码」纪律（2026-09-29/30 三次同步实证）
+- **`git fetch` 失败 ≠ 拿不到更新**：refs 与对象库跨 worktree 共享，并行会话/主检出 fetch 过就能直接用。先查 `git log -1 <remote>/<branch>` + 对象自洽性（`git rev-list --count <remote>/<branch>` 不报错），再决定是否需要网络（2026-09-30 github.com:443 连不上仍完成两次 FF 即此情形）。
+- **落后/领先必须用三点语法**：`git rev-list --left-right --count HEAD...github/main`；写成两个参数（无 `...`）得到的 "0 191" 是**废数**（我 2026-09-29 就这么误判过一次 Gitee 领先，实为落后）。
+- **快进前先算重叠面**：`git diff --name-only HEAD <target>` ∩（`git diff --name-only HEAD` + untracked）。交集为 0 → 可裸 `merge --ff-only`；有交集 → 先做可回退点（`.temp/sync-backup-<date>/`：`old-head.txt` + `wip-tracked.patch` + untracked 副本 + 重叠文件原件），再 `git checkout -- <重叠文件>` 让路，FF 后**按上游新版重贴**自己的编辑（回贴前先 grep 上游是否已覆盖同一学习点，避免重复表述）。
+- **重贴台账要先看编号占用**：上游可能已用掉同一编号（`not-taken-decisions.md` 009 被批次C 占用 → sems 六条重编 015–020）；先 `grep` 尾号再追加，历史条目原文照录不改写。
+- **同步后第一道门禁 = `dotnet build` 读真实错误数**：上游 main 可能带**漏提交断链**（2026-09-29 `81b9609`：`a4543e9` 改了 `AppBuilder.cs` 引用 `PersistentSessionStore`/`SessionProjectionService` 却没提交定义文件，全仓 `git grep` 零定义 → HEAD 编译不过；两个远端都缺，次日上游 `d7ee7c9` 自行补齐）。判定用日志里的「N 个错误」，**管道后的 exit 0 不算证据**（同 B2 exit-code 教训）。
+- **断链归属他人时不越界代写**：优先等其补件推 main；临时回退他人改动只为自验须用户授权，且不提交。
+- **上游可能改变本任务的验收口径**：同步后须重读 AGENTS.md/规范的变更面再决定动作（实例：PILOT-050 把 e2e 端口改动态、spec 禁硬编码 7102/7002 → 未提交的 `sems.spec.ts` 要跟着改取 `e2e-env.ts`；pilot 目录日期前缀规则注明「旧目录不回溯」→ 09-28 建的目录不改名）。
+
 ### 大特性按逻辑边界分批次提交（2026-08-30 实践）
 跨多文件的大特性按「后端/前端桥/路由/插件/文档/skill/e2e/记忆」单一职责拆多批；用显式路径 `git add <paths>`（禁用 `git add -A` 防误带运行时日志）；同 shell 串行 `git commit` 避免并发竞争；临时调试文件（如 `e2e/temp-*.spec.ts`）删后再提交。
 

@@ -1,0 +1,362 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>ForgeSelf.Api.Plugins.DesignSystem.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>DesignSystem</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="DesignProject" Description="设计系统项目">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="项目ID" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="项目标识" />
+        <Column Name="Name" DataType="String" Master="True" Length="200" Nullable="False" Description="项目名称" />
+        <Column Name="Description" DataType="String" Length="1000" Description="描述" />
+        <Column Name="Kind" DataType="String" Length="30" DefaultValue="product" Description="用途类型：product|console|brand|marketing|system" />
+        <Column Name="Version" DataType="String" Length="30" DefaultValue="0.1.0" Description="设计系统当前版本号" />
+        <Column Name="Status" DataType="String" Length="20" DefaultValue="draft" Description="状态：draft|published|archived（归档为软删除）" />
+        <Column Name="ParentProjectId" DataType="Int64" DefaultValue="0" Description="父项目ID，0=无。用于多品牌继承" />
+        <Column Name="DefaultThemeId" DataType="Int64" DefaultValue="0" Description="默认主题ID，0=未设" />
+        <Column Name="SeedText" DataType="String" Length="1000" Description="生成用 brief 原文" />
+        <Column Name="SeedJson" DataType="String" Length="4000" Description="生成参数包（种子色/色相/彩度/比例/密度/主题集/档数）" />
+        <Column Name="Generator" DataType="String" Description="生成器标识" />
+        <Column Name="GeneratorVersion" DataType="String" Length="20" Description="生成器版本，决定可复现性" />
+        <Column Name="SchemaVersion" DataType="String" Length="20" Description="数据模型版本" />
+        <Column Name="ProjectionVersion" DataType="String" Length="20" Description="导出投影版本" />
+        <Column Name="TokenCount" DataType="Int32" Description="令牌数" />
+        <Column Name="ComponentCount" DataType="Int32" Description="组件数" />
+        <Column Name="PublishedAt" DataType="DateTime" Description="发布时间" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON），新增字段先入此再考虑加列" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Code" Unique="True" />
+        <Index Columns="Status" />
+        <Index Columns="ParentProjectId" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignTheme" Description="设计主题">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="主题ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Code" DataType="String" Nullable="False" Description="主题标识：light|dark|high-contrast|compact 等" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="主题名称" />
+        <Column Name="ModeKind" DataType="String" Length="20" DefaultValue="color" Description="模式轴：color|density|brand" />
+        <Column Name="IsDefault" DataType="Boolean" DefaultValue="0" Description="是否项目默认主题" />
+        <Column Name="BaseThemeId" DataType="Int64" DefaultValue="0" Description="派生自哪个主题ID，0=直接继承共享层" />
+        <Column Name="OverridesJson" DataType="String" Length="4000" Description="主题级覆盖摘要（路径→值）" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="ProjectId,ModeKind" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignToken" Description="设计令牌">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="令牌ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="ThemeId" DataType="Int64" DefaultValue="0" Description="主题ID，0=跨主题共享层（通常为 primitive 基线）" />
+        <Column Name="Tier" DataType="String" Length="20" Nullable="False" DefaultValue="primitive" Description="层级：primitive|semantic|component" />
+        <Column Name="Path" DataType="String" Length="200" Nullable="False" Description="点分小写kebab路径，如 color.brand.500" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="显示名" />
+        <Column Name="Type" DataType="String" Length="30" DefaultValue="color" Description="DTCG $type：color|dimension|fontFamily|fontWeight|duration|cubicBezier|number|string|shadow|border|gradient|typography|transition|strokeStyle" />
+        <Column Name="Value" DataType="String" Length="500" Description="解析后的最终值（hex/oklch()/px 等字符串形态）" />
+        <Column Name="ValueJson" DataType="String" Length="4000" Description="结构化/复合值（JSON）。复合令牌以此为真源" />
+        <Column Name="AliasPath" DataType="String" Length="200" Description="别名指向的令牌路径，禁止环与逆向引用" />
+        <Column Name="Group" DataType="String" Length="100" Description="分组（导出层级用），如 brand/spacing/shadow" />
+        <Column Name="Description" DataType="String" Length="1000" Description="说明与用途" />
+        <Column Name="ColorHex" DataType="String" Length="20" Description="解析后 sRGB hex，供对比度数学与外部 lint" />
+        <Column Name="OklchL" DataType="Double" Description="OKLCH 明度 L（拆列以便 SQL 插值/检索）" />
+        <Column Name="OklchC" DataType="Double" Description="OKLCH 彩度 C" />
+        <Column Name="OklchH" DataType="Double" Description="OKLCH 色相 H" />
+        <Column Name="Alpha" DataType="Double" DefaultValue="1" Description="透明度 0~1" />
+        <Column Name="ColorSpace" DataType="String" Length="20" DefaultValue="oklch" Description="色彩空间：oklch|srgb|display-p3" />
+        <Column Name="IsPrimary" DataType="Boolean" DefaultValue="0" Description="是否该族主色" />
+        <Column Name="ContrastOn" DataType="String" Length="200" Description="对比度计算所对的前景/背景配对路径" />
+        <Column Name="ContrastRatio" DataType="Double" Description="WCAG 2.2 对比度比率，未计算为 -1" />
+        <Column Name="WcagLevel" DataType="String" Length="10" Description="达标等级：none|aa|aaa" />
+        <Column Name="ApcaLc" DataType="Double" Description="APCA Lc 参考读数（不作门禁，仅参考）" />
+        <Column Name="Generator" DataType="String" DefaultValue="manual" Description="来源：oklch-ramp|manual|imported|derived" />
+        <Column Name="GeneratorSeed" DataType="String" Length="100" Description="生成种子（同输入可复现）" />
+        <Column Name="GeneratorVersion" DataType="String" Length="20" Description="生成器版本" />
+        <Column Name="Lifecycle" DataType="String" Length="20" DefaultValue="adopted" Description="治理生命周期：proposed|adopted|deprecated|removed" />
+        <Column Name="ReplacedBy" DataType="String" Length="200" Description="废弃后替代令牌路径" />
+        <Column Name="Deprecated" DataType="Boolean" DefaultValue="0" Description="是否已废弃" />
+        <Column Name="Tags" DataType="String" Length="300" Description="标签，逗号分隔，供检索" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="DTCG $extensions 与厂商元数据（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间，兼作乐观并发依据" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,ThemeId,Path" Unique="True" />
+        <Index Columns="ProjectId,Tier" />
+        <Index Columns="ProjectId,Group" />
+        <Index Columns="ProjectId,AliasPath" />
+        <Index Columns="OklchH" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignShadowLayer" Description="阴影层">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="层ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="TokenId" DataType="Int64" Description="所属 shadow 令牌ID" />
+        <Column Name="TokenPath" DataType="String" Length="200" Description="所属令牌路径（冗余便于查询）" />
+        <Column Name="Layer" DataType="Int32" Description="层序号，自 0 起" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="层显示名" />
+        <Column Name="IsInset" DataType="Boolean" DefaultValue="0" Description="是否内阴影（暗色主题用 inset 高光替代投影）" />
+        <Column Name="OffsetX" DataType="Double" Description="X 偏移 px" />
+        <Column Name="OffsetY" DataType="Double" Description="Y 偏移 px" />
+        <Column Name="Blur" DataType="Double" Description="模糊 px" />
+        <Column Name="Spread" DataType="Double" Description="扩散 px" />
+        <Column Name="ColorValue" DataType="String" Description="层颜色值" />
+        <Column Name="ColorAliasPath" DataType="String" Length="200" Description="层颜色指向的颜色令牌路径" />
+        <Column Name="Alpha" DataType="Double" DefaultValue="1" Description="层透明度" />
+        <Column Name="Usage" DataType="String" Length="500" Description="用途说明" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="TokenId,Layer" Unique="True" />
+        <Index Columns="ProjectId" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignComponent" Description="设计组件">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="组件ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="组件标识" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="组件名称" />
+        <Column Name="Category" DataType="String" Length="30" DefaultValue="primitive" Description="分类：primitive|shell|page|kit-chrome|composite" />
+        <Column Name="Interactive" DataType="Boolean" DefaultValue="1" Description="是否可交互组件" />
+        <Column Name="Description" DataType="String" Length="1000" Description="职责说明" />
+        <Column Name="DocJson" DataType="String" Length="4000" Description="props/API 表（JSON）" />
+        <Column Name="GuidanceJson" DataType="String" Length="4000" Description="do / don't 使用指引（JSON）" />
+        <Column Name="A11yNotes" DataType="String" Length="2000" Description="逐组件可达性标注（角色/键盘/focus 要求）" />
+        <Column Name="TokenRefsJson" DataType="String" Length="2000" Description="组件级令牌引用（默认态）" />
+        <Column Name="Status" DataType="String" Length="20" DefaultValue="demo" Description="成熟度：demo|ready|deprecated" />
+        <Column Name="Version" DataType="String" Length="20" Description="组件自身版本" />
+        <Column Name="SourceRef" DataType="String" Length="200" Description="实现来源引用（文件/包）" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="ProjectId,Category" />
+        <Index Columns="ProjectId,Status" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignComponentVariant" Description="组件变体">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="变体ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="ComponentId" DataType="Int64" Description="所属组件ID" />
+        <Column Name="ComponentCode" DataType="String" Length="100" Description="所属组件标识（冗余便于查询）" />
+        <Column Name="Code" DataType="String" Master="True" Length="100" Description="变体显示码" />
+        <Column Name="VariantKey" DataType="String" Length="200" Nullable="False" Description="变体规范化键（键序稳定，保证幂等 upsert）" />
+        <Column Name="VariantJson" DataType="String" Length="2000" Description="变体属性（如 {size:lg,tone:brand}）" />
+        <Column Name="State" DataType="String" Length="20" DefaultValue="default" Description="状态：default|hover|active|focus-visible|disabled|loading|error|selected" />
+        <Column Name="ThemeId" DataType="Int64" DefaultValue="0" Description="主题ID，0=全主题" />
+        <Column Name="Name" DataType="String" Length="100" Description="变体名称" />
+        <Column Name="TokenRefsJson" DataType="String" Length="2000" Description="该变体的令牌引用映射（背景/文字/边框等 → 令牌路径）" />
+        <Column Name="CssSnippet" DataType="String" Length="4000" Description="由令牌引用生成的 CSS 片段（演示与 handoff 用）" />
+        <Column Name="ContrastSummary" DataType="String" Length="200" Description="该变体主要色对的对比度摘要" />
+        <Column Name="Description" DataType="String" Length="1000" Description="说明" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ComponentId,VariantKey,State,ThemeId" Unique="True" />
+        <Index Columns="ProjectId,State" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignIcon" Description="设计图标">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="图标ID" />
+        <Column Name="ProjectId" DataType="Int64" DefaultValue="0" Description="项目ID；0=内置库（常量 BuiltinProjectId，只读）" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="图标标识" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="图标名称" />
+        <Column Name="Collection" DataType="String" DefaultValue="forge" Description="集合：forge=本项目自绘内置零许可负担集；其余为用户导入集名" />
+        <Column Name="SvgBody" DataType="String" Length="4000" Description="SVG 内容（path 数据或完整 svg 片段），为系统 of record" />
+        <Column Name="StrokeWidth" DataType="Double" DefaultValue="1.5" Description="描边宽度（令牌化项）" />
+        <Column Name="GridPx" DataType="Int32" DefaultValue="24" Description="基准栅格 px" />
+        <Column Name="ViewBox" DataType="String" Description="viewBox" />
+        <Column Name="Sizes" DataType="String" Description="可用光学尺寸阶，逗号分隔" />
+        <Column Name="Tags" DataType="String" Length="300" Description="检索标签" />
+        <Column Name="Usage" DataType="String" Length="500" Description="语义槽/用途说明" />
+        <Column Name="License" DataType="String" Length="100" DefaultValue="Owned" Description="许可证：Owned（自绘）或导入集的真实许可" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="Collection" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignAsset" Description="设计资产">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="资产ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="资产标识" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="资产名称" />
+        <Column Name="Kind" DataType="String" Length="30" DefaultValue="logo" Description="类型：logo|logo-mark|motif|illustration|gradient|texture|avatar|empty-state" />
+        <Column Name="SvgBody" DataType="String" Length="4000" Description="矢量内容（可引用 --ds-* 令牌变量）" />
+        <Column Name="FileRef" DataType="String" Length="500" Description="二进制/大文件在插件数据目录内的相对路径" />
+        <Column Name="TokenRefsJson" DataType="String" Length="2000" Description="资产所依赖的令牌引用" />
+        <Column Name="Description" DataType="String" Length="1000" Description="说明与使用规则" />
+        <Column Name="License" DataType="String" Length="100" DefaultValue="Owned" Description="许可证" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="ProjectId,Kind" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignScreen" Description="设计页面清单">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="页面ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="页面标识" />
+        <Column Name="Title" DataType="String" Master="True" Length="100" Description="页面标题" />
+        <Column Name="IconCode" DataType="String" Length="100" Description="引用图标标识" />
+        <Column Name="Route" DataType="String" Length="200" Description="目标路由/深链" />
+        <Column Name="ThemeId" DataType="Int64" DefaultValue="0" Description="演示主题" />
+        <Column Name="ComponentIdsJson" DataType="String" Length="2000" Description="页面所用组件清单" />
+        <Column Name="Description" DataType="String" Length="1000" Description="页面职责说明" />
+        <Column Name="Notes" DataType="String" Length="1000" Description="handoff 备注" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="ProjectId,Route" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignFontFace" Description="字体资产">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="字体ID" />
+        <Column Name="ProjectId" DataType="Int64" DefaultValue="0" Description="项目ID；0=共享登记" />
+        <Column Name="Family" DataType="String" Master="True" Length="100" Nullable="False" Description="字族名" />
+        <Column Name="Weight" DataType="Int32" DefaultValue="400" Description="字重" />
+        <Column Name="Style" DataType="String" Length="20" DefaultValue="normal" Description="样式：normal|italic" />
+        <Column Name="FileName" DataType="String" Length="300" Description="字体文件名" />
+        <Column Name="FileRef" DataType="String" Length="500" Description="文件在插件数据目录内的相对路径" />
+        <Column Name="Display" DataType="String" Length="20" DefaultValue="swap" Description="font-display 策略" />
+        <Column Name="Role" DataType="String" Length="30" Description="角色：sans|serif|mono|display" />
+        <Column Name="SourceUrl" DataType="String" Length="500" Description="来源地址（自托管则留空）" />
+        <Column Name="License" DataType="String" Length="100" Description="许可证（字体许可常为 SIL OFL，需登记）" />
+        <Column Name="MetricsJson" DataType="String" Length="1000" Description="度量信息（ascender/descender/x-height 等）" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Family,Weight,Style" Unique="True" />
+        <Index Columns="Role" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignAudit" Description="设计审计结果">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="审计ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="ReleaseId" DataType="Int64" DefaultValue="0" Description="关联发布快照ID，0=草稿态审计" />
+        <Column Name="Kind" DataType="String" Length="30" Nullable="False" Description="审计类：contrast|focus|reduced-motion|tier-violation|orphan|unused|alias" />
+        <Column Name="Rule" DataType="String" Description="规则标识，如 wcag22-1.4.3 / dtcg-alias-cycle" />
+        <Column Name="Severity" DataType="String" Length="20" DefaultValue="warning" Description="严重级：critical|warning|info" />
+        <Column Name="TargetType" DataType="String" Length="30" DefaultValue="token" Description="对象类型：token|component|variant|screen|asset|icon" />
+        <Column Name="TargetPath" DataType="String" Length="200" Nullable="False" Description="被检对象路径/标识" />
+        <Column Name="PairedPath" DataType="String" Length="200" Description="配对对象路径（对比度类）" />
+        <Column Name="Expected" DataType="String" Length="100" Description="期望值/阈值" />
+        <Column Name="Actual" DataType="String" Length="100" Description="实测值" />
+        <Column Name="Ratio" DataType="Double" Description="比率读数，非比率类为 -1" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Description="审计项显示名" />
+        <Column Name="Passed" DataType="Boolean" DefaultValue="0" Description="是否通过" />
+        <Column Name="Suggestion" DataType="String" Length="500" Description="可执行建议（如改用哪个 tone）" />
+        <Column Name="Message" DataType="String" Length="1000" Description="人类可读明细" />
+        <Column Name="EngineVersion" DataType="String" Length="20" Description="审计引擎版本" />
+        <Column Name="CheckedAt" DataType="DateTime" Description="检查时间" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,ReleaseId,Kind,TargetType,TargetPath" Unique="True" />
+        <Index Columns="ProjectId,Passed" />
+        <Index Columns="ProjectId,Severity" />
+      </Indexes>
+    </Table>
+    <Table Name="DesignRelease" Description="设计系统版本快照">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="发布ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Version" DataType="String" Master="True" Length="30" Nullable="False" Description="语义化版本号" />
+        <Column Name="Status" DataType="String" Length="20" DefaultValue="published" Description="状态：published|superseded" />
+        <Column Name="TokensHash" DataType="String" Length="64" Description="有效令牌集 SHA256，用于判重与回归定位" />
+        <Column Name="SnapshotFile" DataType="String" Length="500" Description="不可变快照文件相对路径（落在插件数据目录 releases/ 下）" />
+        <Column Name="TokenCount" DataType="Int32" Description="快照内令牌数" />
+        <Column Name="AuditSummary" DataType="String" Length="500" Description="审计摘要（critical/warning/info 计数）" />
+        <Column Name="AuditPassed" DataType="Boolean" DefaultValue="0" Description="发布时是否无 critical 未决" />
+        <Column Name="SourceReleaseId" DataType="Int64" DefaultValue="0" Description="diff 基线发布ID，0=首版" />
+        <Column Name="ReleaseNotes" DataType="String" Length="4000" Description="变更说明" />
+        <Column Name="CreatedBy" DataType="String" Length="100" Description="创建者" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Version" Unique="True" />
+        <Index Columns="ProjectId,CreatedAt" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

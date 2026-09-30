@@ -37,6 +37,14 @@ pnpm exec playwright test --config=playwright.config.ts e2e/app.spec.ts
 
 1. **构建宿主**：`dotnet publish` 到 `.temp/e2e/<ts>/publish/`（独立目录，避开运行中宿主对 DLL 的独占锁）；
 2. **起 publish 宿主**：`ForgeSelf.exe --console`，端口取 `ForgeSetting.config` 的 `PortNumber`（默认 `7102`；`51888` 是历史手动冷启验收端口，非默认，勿硬编码），**必须带实例标识** `FORGESelf_INSTANCE_ID=<id>`（env）或 `--instance-id=<id>`（CLI）——宿主有硬编码全局 Mutex 单例锁，缺省会与开发实例（如用户手动起的 `ForgeSelf.exe`）互斥而「另一个实例已在运行」拒启动；e2e 用独立 id（如 `e2e-<ts>`）即可并存。数据目录经 `ASPNETCORE_ENVIRONMENT=Development` 落到 `publish/Data`（全新、隔离用户 `~/.forgeself`），轮询 `GET /api/health` 直到 200；
+   ⚠️ **端口被占 = 测试会悄悄打在旧产物上**（2026-09-30 实测）：7102 上若已有宿主在答（上一次被中断的 e2e 残留、或用户自己起的），
+   新宿主绑不上但健康检查照样 200，于是断言读的是**旧构建**——本案里"版本自洽"断言（`plugin.json.Version == meta.modelVersion`）把它抓了出来
+   （期望 2.6.7、实际 2.6.6）。所以：跑 e2e 前先确认 7102 空出（**agent 不动宿主进程，请用户关闭**），
+   用例里保留那条版本自洽断言别删；根治办法（起宿主前探端口 + 打印占用者路径 / 用随机端口）属测试基建，需用户点头。
+   ⚠️ **长用例的超时预算要挂在 `test.describe.configure({ timeout })` 上，不是写在体内的 `test.setTimeout()`**
+   （2026-09-30 实测红过一次）：`test.setTimeout()` 要等用例体开始执行才生效，而 `page` fixture（起浏览器 +
+   首次导航到"要现编译几百 kB 插件产物的 vite dev server"）本身就要十几秒 —— 挂在体内时它仍按默认 30s 被掐，
+   报错是 `Test timeout of 30000ms exceeded while setting up "page"`，且**不产出任何截图/证据文件**（看着像代码坏了，其实是预算没给到）。
 3. **起前端 dev server**（webServer `pnpm run dev`，`7002`）—— 既有 app spec 走此；vite 代理把 `/api`、`/plugins`、`/plugin-view` 转发到 7102 宿主；
 4. **初始化真实 API 密钥**：宿主启动即幂等生成并加密存储 `ApiToken`；globalSetup 调 `GET /api/api-server/init-token`（首启无鉴权）拿明文 → 注入 worker 环境 `E2E_API_TOKEN`；`e2e/helpers/real-auth.ts` 的 `getRealApiKey` 优先用 `E2E_API_TOKEN`，回退 AES 解密 `ForgeSetting.config`（路径由 globalSetup 经 `FORGE_SETTING_CONFIG` 指向临时数据目录）；fixture 自动 `injectRealApiKey` 注入 `localStorage['forge_api_token']`；
 5. 写出 `.temp/e2e/<ts>/state.json`：`{ baseURL, apiBaseUrl, apiKey }`；

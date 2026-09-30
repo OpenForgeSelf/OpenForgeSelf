@@ -1,16 +1,22 @@
 {
   "name": "forgeself-plugin-designsystem-web",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
-  "description": "设计系统插件自带界面（Stardust Design System）：构建为 ESM，由宿主运行时远程加载",
+  "description": "设计系统插件自带界面（库驱动工作台）：构建为 ESM，由宿主运行时远程加载",
   "scripts": {
-    "gen:tokens": "node scripts/gen-tokens-css.ts",
-    "build": "node scripts/gen-tokens-css.ts && vite build",
-    "dev": "vite build --watch"
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "check": "pnpm -C ../../../ForgeSelf.Web exec vue-tsc --noEmit -p ../Plugins/DesignSystem/web/tsconfig.check.json",
+    "test": "pnpm -C ../../../ForgeSelf.Web exec vitest run ../Plugins/DesignSystem/web/src"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "vite": "^6.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

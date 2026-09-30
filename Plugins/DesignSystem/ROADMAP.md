@@ -4,6 +4,42 @@
 > 按优先级 P1 > P2 > P3 排列；P1 是阻塞性/高价值缺口，P2 是体验增强，P3 是生态扩展。
 > 每完成一项，请在对应 `- [ ]` 改为 `- [x]`，并在 `README.md §九` 历史里追加版本信息。
 
+## 2026-09-29 状态更新（v2.0.0）
+
+本文件的 P1/P2 多数条目已在 **v2.0.0 落地**，下面逐条给事实与出处；条目正文保留作"当初为什么做"的记录，不要再当待办读。
+
+| 条目 | 状态 | 落地证据 |
+|---|---|---|
+| P1.1 后端持久化设计产物 | ✅ 已做 | 12 张表（`Data/Model.xml` + xcode 生成，二次生成逐字节一致）；令牌/组件/图标/资产/页面/字体/审计/发布全落 `~/.forgeself/Plugins/design-system/DesignSystem.db`。见 `docs/02-features/036-design-system.md` |
+| P1.2 宿主插件版本/更新/安装路径 | ⚠️ 宿主侧 | 与本插件无关的宿主更新链路（另见宿主 update 相关提交），本插件只提供版本号与产物 |
+| P1.3 pluginViewLoader 缓存键加 content-hash | ⬜ 未做 | 属宿主加载器；本插件无法自修（已记仓库 TODO） |
+| P2.2 自动对比度与截图回归校验 | ✅ 已做 | 后端 `ContrastMath` + `AuditEngine`（WCAG 2.2 判级、critical 拦发布）；界面截图读图走 `ForgeSelf.Web/e2e/plugins/design-system/design-system.spec.ts`。APCA **明确不作门禁**（`docs/07-decisions/not-taken-decisions.md` 009） |
+| P2.3 发布+浏览器走查沉淀为 skill | ✅ 已做 | `design-system-verify` 技能已建并登记 `AGENTS.md` §2.4（四层门禁 + 假能力自查表）；走查读图仍共用 `e2e-testing` Level 3 |
+| P1.4 组件变体 × 状态矩阵（新，缺口 G7） | ✅ 已做 | `SeedComponentCatalog` 除目录外还按 `component.<code>.<variant>.<part>[-<state>]` 真实路径推导格子；无令牌支撑的组合不落格。判据已达成：e2e `.cg__vars li >= 20` 且矩阵文本含 `size=(sm\|md\|lg)` + API 回读 `state` 含 `hover`、每格 `tokenRefsJson` 非空数组 |
+| P1.5 宿主 SQLite 并发锁治理（新，缺口 G8） | 🟡 已缓解 | 连接串 `Busy Timeout=5000` + 审计/目录**整批一个事务** + 发布按项目**串行化**（同项目并发 POST 不再互相撞锁）；界面只读请求退避重试。跨请求写锁根治仍在宿主 DAL，需人拍板 |
+| P1.6 品牌三表可读可写（新，缺口 G9 前半） | ✅ 已做（v2.2.0） | `SeedBrandCatalog` 落字体/起手屏/资产种子 + `POST projects/{id}/assets\|screens\|fonts` + 第 14 个 section「品牌资产」；重跑生成**只补空不覆盖**（用例 `重跑生成只补空_不得覆盖用户改过的品牌行`）；e2e 断言"读得到 + 写得进" |
+| P1.7 品牌三表进导出投影（G9 后半） | ✅ 已做（v2.2.0） | CSS 只对登记了文件的字体出 `@font-face`（系统栈成员如实注释）；bundle 落 `brand/*.svg` + `fonts.json` + `screens.json`；DESIGN.md 增「品牌与资产」段。后端 3 条用例钉住（170/170） |
+| P1.8 整包在浏览器侧下载（新，缺口 G10） | ❌ 未通 | 服务层产物已验证（体积/构件数），但 `page.evaluate(fetch)` → `Failed to fetch`、点 `<a download>` → `download.path: canceled`；已排除"太慢"（构建 605ms）。**用户点下载这条路径目前没有证据**，续做入口见 TODO |
+| P1.9 预览取数竞态（新） | ✅ 已修（v2.2.0） | `loadSkin`/`loadEffective` 改为"只有最新一次调用可写回 ref"；`state.test.ts` 先复现（3 failed）后转绿，e2e 加连点三次守卫；根因与两跑一红一绿记录在 `05-evidence.md` |
+| P1.10 版本快照与 diff 覆盖品牌/组件（新） | ✅ 已做（v2.3.0） | 快照 schema 1→2 新增 `specs`（component/variant/asset/screen/font，`kind+key+字段表`）；**规格进哈希**，"只换 logo"不再被幂等放行；schema 1 旧快照比对回 `specsComparable=false`（界面显示"不可比"）。后端 5 条用例 + e2e 在真实宿主里看到 `screen <code> · 新增`（175/175） |
+| P1.11 组件规格供给进机器可读产物（新，缺口 G12） | ✅ 已做（v2.4.0） | registry 条目 = 组件目录 ∪ `component.*` 分组，`meta` 带 `anatomy/a11yNotes/states/variants[]/unresolvedTokenRefs`（引用不到的如实列出，不静默丢）；DESIGN.md 增「组件规格」逐蓝本列解剖/状态/轴/令牌条数/可达性要求。**顺带补齐 spec FR13 欠的一半**：`GET api/design-system/{id}/{entity}.json` 十类实体明细端点此前根本不存在，且清单 `total` 里 `design-icon/screen/font-face` 写死 0、`design-component` 数的是令牌条数 → 现在清单与明细同出 `EntityRows`。判据实测（e2e 真实宿主）：`design-color=141 design-shadow=4 design-motion=13 design-type-role=17 design-spacing=10 design-radius=8 design-icon=40 design-component=10 design-screen=5 design-font-face=14`，button `解剖=3 状态=active/default/disabled/hover 格子=13`；后端 4 条用例（178/178） |
+| P1.12 Element Plus 换肤接缝（spec U3，缺口 G13） | ✅ 已做（v2.5.0） | 新增导出格式 `element-plus` + bundle 内 `element-plus/theme.<theme>.css`：`--el-*` 只引用同主题 `tokens.css` 真定义的 `--ds-*`（含 `color-mix` 派生与 `-rgb` 三元组），零字面色值；缺档如实列"未映射"并指名缺哪条令牌。EP 的 `light-N/dark-2` 照比例但混合目标改成本页底色/正文墨色（写死 white/black 在深色主题会把悬停洗成灰白）；`--el-color-white/black`、`--el-index-*`、`--el-transition-all/-fade*` 有意不映射并写明理由。判据实测（真实宿主）：**102 个 EP 变量、132 条令牌引用，全部可在 tokens.css 里解析**；后端 3 条用例（181/181） |
+| P1.13 门禁盯住"手改之后"（新，缺口 G14） | ✅ 已做（v2.6.0，v2.6.1 修时长族空跑） | 审计新增四类维度，全部报 warning 不拦发布：`target-size`（`*.min-height` ≥24px，WCAG 2.2 2.5.8）/ `ramp-monotonic`（space·radius·duration 按声明序必须递增，档序读 `ScaleGenerators` 同一张表）/ `naming`（点分 kebab，否则投影静默产出坏键）/ `lifecycle-ref`（仍被引用的 deprecated·removed）；密度轴主题单独复查尺度。"生成产物自己必须先过"由用例钉住；两条新维度上线即抓到我自己的错（正则误判 `z-index.1`、消息只报档名不报完整路径），先红后绿修掉。后端 4 条用例（185/185）+ e2e 现场把 `component.button.sm.min-height` 压到 18px→抓到、改回 28px→消失 |
+| P1.14 对比度门禁覆盖"库里的全部对"（新） | ✅ 已做（v2.6.2） | `contrast` 不再查一张写死的八对清单：按命名约定从库里推导 `component.<ns>.foreground[-状态]` → `.background[-状态]`/`.background`/`.tint[-状态]`/`.tint`，用户新增组件自动进入判定（实测覆盖 dialog/tooltip/select 等原先从未被查的对）。禁用态按 **WCAG 1.4.3「非活动构件」豁免**：只报读数不拦发布（`rule=wcag22-1.4.3-exempt`，退回 1.4.11 的 3.0 兜底线，≥3.0 info / <3.0 warning，永不 critical）—— 此前按 4.5 判一次冒出 9 条假 critical（按钮禁用态实测 3.41:1），哭狼式门禁会让人开始绕过它。顺带闭合同族第三个洞：`AuditRepository.Record` 现在清掉本轮未产出的旧行，避免"对象不再被判定、库里却留着上一轮 passed 行"被 `HasBlocking` 当绿灯（用旧结论冒充今天查过）。后端 4 条用例（190/190，两条先红后绿）；**v2.6.3 再补一半**：判不成的对象必须自己报 `wcag22-1.4.3-unresolved`（warning，不拦发布），否则它从审计里静默消失 = 与"查过且没问题"长得一样；e2e 现场把 `component.card.foreground` 别名到 `space.4` → 必须出现 unresolved、改回 `semantic.text-1` → 必须消失 |
+| P1.15 顺序收成一份真相（新） | ✅ 已做（v2.6.4） | 新增 `DesignSystemConstants.VariantAxes`（`size` xs→xl / `role` / `state` default→…→pressed）：**生成器认轴、矩阵 `SortOrder`、DESIGN.md·registry·Stardust 实体三处排序**全部读它，表外值退回字母序；`GET /meta` 出 `stateOrder`/`sizeOrder` 给前端，界面不再 `.sort()`。动因是 e2e 新断言当场抓到三方不一致（界面 `default、disabled、hover、active` vs 产物 `default、hover、active、disabled`）——只改投影不够，读路径 `ListVariants` 也按 `State` 字母序排过。后端 2 条用例（192/192）+ e2e 钉"界面序 == 产物序 == 词表序" |
+| P1.16 尺度档位序也交给后端词表（新） | ✅ 已做（v2.6.5） | `ScaleGenerators` 新增 `SpaceOrder`/`RadiusOrder`/`DurationOrder`（radius 含 `pill`/`full` 两个绝对值档，倍率表里没有它们），`GET /meta` 出 `scaleOrders`；`DensityScales` 删掉前端镜像的 `NAME_ORDER`，`ShadowMotion` 阴影列表改走同一比较器。附带修掉潜伏陷阱：`stepOf` 用 `parseInt` 把 `radius.2xl` 的 "2" 读成档位号，导致 `2xl` 被插进命名档中间（`pill`/`full` 反而排它前面）—— 现在只有整段是数字才算数值档。vitest 4 条新用例（53 passed）+ e2e 钉界面序 == `meta.scaleOrders` |
+| P1.17 界面词表族收尾（新） | ✅ 已做（v2.6.6） | 最后三份手抄词表清零：`TIER_ORDER`→`meta.tiers`（含层级下拉）、`colorFamilies` 的 `brand/accent/…`→`meta.colorFamilies`、`AuditBoard.KINDS`→`meta.auditKinds`；补格子的 `state` 自由文本改下拉 + 显式「自定义」逃生口。两张新表都经"双向核对"：色族表由生成器逐族消费（族集合/顺序 == 表），审计表与 `AuditEngine` 产出互核（表内无产出 = 空声明、产出无表 = 界面筛不到）。守卫 `vocabulary.test.ts` 堵再抄（反向探针验证会红）；`/meta` 补 `roleOrder` |
+| P1.18 契约可见 + 变体表单收口（新） | ✅ 已做（v2.6.7） | `/meta` 出 `entities`，「导出交付」新增十类逻辑实体插座表（真实 url + 页面**实际读回**的 `total`，换主题整表重读）；`ListVariants` 的**分组序**改读 `VariantAxes`（原先按 `VariantKey` 的 JSON 字典序 → `danger` 排在 `primary` 前）；三条并列的 `stateOrder`/`sizeOrder`/`roleOrder` 合并成一份 `variantAxes` 清单（加轴只改一处）；「新建变体」改成**先选轴再选档位**、JSON 由界面按后端 canonical 拼（多轴走显式「直接写 JSON」）；`.ds-mono` 补 `text-transform: none`（图标 code 曾被父级 uppercase 显示成 `DASHBOARD`） |
+| P1.19 画布投影身份收成状态 + 导出读路径去 N+1（新） | ✅ 已做（v2.6.8） | 新增 `skinTheme`/`skinApplied`：**"画布实际是哪一档"从肉眼看明暗变成状态**，主题条按 `applied`/`pending`/`unloaded`/`unavailable` 四态说清（投影只在「看效果」页注入，在别的页切档不重取 → 同一步骤截图两次一暗一亮），预览画布顶部角标显示档位与 `surface-bg`/`brand` 字面值。`cssVar` 修好（原正则把 `--` 前缀拼错、且零调用点）并加 `resolveCssVar` 顺 `var()` 链，角标值与后端令牌、渲染像素三方逐位对齐。导出/快照的变体读从逐组件 N+1 改一次批量（行序一致性有断言钉），导出页读回限流 ≤3 —— 实测把宿主 SQLite 顶出 `database is locked` 随机 500。这**只降低争抢强度、没有消除**：连跑三轮 e2e 的只读 500 是 2/0/3（全靠只读退避重试兜住，用例才绿），宿主跨请求写锁仍待拍板。新增门禁「每种声明格式 × 每个主题都真能导出」（以前全格式只跑浅色档） |
+| P1.20 DTCG 导入/回流（新） | ✅ 已做（v2.7.0） | `POST projects/{id}/import/preview` + `/import`（`format=dtcg`；`/meta` 声明 `importFormats`/`importLimits`，界面据此启用入口）。解析器 `DtcgImporter` 纯函数、不静默丢条目：`$type` 沿树继承（与导出侧互逆），推不出逐条拒；**库里已有路径层级以库为准**（按首段猜会把 `chart.series-1` 降级成 primitive，别名逆指上层触发整批图校验拒绝——实测踩过）；**不搬家**（库里有就写回原主题，否则 round-trip 把共享 primitive 复制进主题层）；provenance 只进列不进 `$extensions`。默认 `overwrite=false` 保护手改行（冲突逐条列出）；成环/悬空/同文件重复**整批不写**回逐条诊断；上限 5000 条 / 4MB 解析器内判。导入令牌进同一套对比度门禁。「导出交付」页导入回流块：选文件 → 预览（不落库）→ 确认 → 生效值可查；e2e 钉"导出→导入→导出 55517 字节逐字一致 + 成环拒写 + 别名顺到字面值"。后端 `ImportTests` 11 条（round-trip / 不搬家 / 层级以库为准 / 手改保护 / 上限拒 / 门禁联动等） |
+| P3.1 Figma / Tokens Studio | 🟡 半 | Tokens Studio `$themes` + 每主题 set 已可导出；**DTCG 单文件导入/回流已做（v2.7.0）**；剩余：Tokens Studio 完整格式（`$themes`/多 set 文件）导入、Figma 双向同步 |
+| P3.2 社区预设市场 | ⬜ 未做 | 依赖宿主分发链路，未启动 |
+
+> 另外，v1 自评里"生产级（持久化）✅"是**错的**（当时只有 localStorage），README 已按 v2 事实重写；
+> v1 的 `web/src/design/generate.ts` / `exporters.ts` / `presets.ts` 等前端自算实现已整体下线，
+> 设计值只由后端 C# 产生（决策见 not-taken-decisions 010）。
+
+
 ---
 
 ## P1 · 现在就应该做

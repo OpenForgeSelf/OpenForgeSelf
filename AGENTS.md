@@ -106,6 +106,7 @@
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
+| `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 10 条"假能力"自查表 | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 
 **选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/ `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`。职责边界、新建插件硬顺序、登记规则、技能缺失策略 → `docs/04-standards/agent-workflow.md` §A1。

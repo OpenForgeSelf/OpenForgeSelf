@@ -76,6 +76,10 @@
 .ds-mono {
   font-family: var(--ds-font-mono);
   font-size: var(--ds-fs-small);
+  /* 等宽 = "照原样显示这段标识"。`text-transform` 是继承属性，
+     嵌在 `.ds-micro`（uppercase）里时不改这一条会把库里的小写 code 显示成 `DASHBOARD`，
+     用户照着抄回接口就 404 —— 标识的可抄性比版式重要。 */
+  text-transform: none;
 }
 .ds-num {
   font-family: var(--ds-num);

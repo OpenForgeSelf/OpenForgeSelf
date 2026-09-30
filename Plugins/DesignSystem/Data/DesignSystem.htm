@@ -1,0 +1,2605 @@
+﻿<style>
+    table {
+        border-collapse: collapse;
+        border: 1px solid;
+        border-color: rgb(211, 202, 221);
+    }
+
+    table thead,
+    table tr {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: rgb(211, 202, 221);
+    }
+
+    table {
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: rgb(211, 202, 221);
+    }
+
+    table td,
+    table th {
+        padding: 5px 10px;
+        font-size: 14px;
+        font-family: Verdana;
+        color: rgb(95, 74, 121);
+    }
+
+    table tr:nth-child(even) {
+        background: rgb(223, 216, 232)
+    }
+
+    table tr:nth-child(odd) {
+        background: #FFF
+    }
+</style>
+<h3>设计系统项目（DesignProject）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>项目标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td title="唯一索引">UQ</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>项目名称</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>描述</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>用途类型</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：product|console|brand|marketing|system</td>
+        </tr>
+
+        <tr>
+            <td>Version</td>
+            <td>设计系统当前版本号</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：draft|published|archived（归档为软删除）</td>
+        </tr>
+
+        <tr>
+            <td>ParentProjectId</td>
+            <td>父项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=无。用于多品牌继承</td>
+        </tr>
+
+        <tr>
+            <td>DefaultThemeId</td>
+            <td>默认主题ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=未设</td>
+        </tr>
+
+        <tr>
+            <td>SeedText</td>
+            <td>生成用brief原文</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>生成用 brief 原文</td>
+        </tr>
+
+        <tr>
+            <td>SeedJson</td>
+            <td>生成参数包（种子色_色相_彩度_比例_密度_主题集_档数）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>生成参数包（种子色/色相/彩度/比例/密度/主题集/档数）</td>
+        </tr>
+
+        <tr>
+            <td>Generator</td>
+            <td>生成器标识</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>GeneratorVersion</td>
+            <td>生成器版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>决定可复现性</td>
+        </tr>
+
+        <tr>
+            <td>SchemaVersion</td>
+            <td>数据模型版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectionVersion</td>
+            <td>导出投影版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>TokenCount</td>
+            <td>令牌数</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ComponentCount</td>
+            <td>组件数</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>PublishedAt</td>
+            <td>发布时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>新增字段先入此再考虑加列</td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计主题（DesignTheme）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主题ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>主题标识</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>：light|dark|high-contrast|compact 等</td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>主题名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ModeKind</td>
+            <td>模式轴</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：color|density|brand</td>
+        </tr>
+
+        <tr>
+            <td>IsDefault</td>
+            <td>是否项目默认主题</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>BaseThemeId</td>
+            <td>派生自哪个主题ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=直接继承共享层</td>
+        </tr>
+
+        <tr>
+            <td>OverridesJson</td>
+            <td>主题级覆盖摘要（路径→值）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计令牌（DesignToken）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>令牌ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ThemeId</td>
+            <td>主题ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=跨主题共享层（通常为 primitive 基线）</td>
+        </tr>
+
+        <tr>
+            <td>Tier</td>
+            <td>层级</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>：primitive|semantic|component</td>
+        </tr>
+
+        <tr>
+            <td>Path</td>
+            <td>点分小写kebab路径</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>如 color.brand.500</td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>显示名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Type</td>
+            <td>DTCGtype</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>DTCG $type：color|dimension|fontFamily|fontWeight|duration|cubicBezier|number|string|shadow|border|gradient|typography|transition|strokeStyle</td>
+        </tr>
+
+        <tr>
+            <td>Value</td>
+            <td>解析后的最终值（hex_oklch()_px等字符串形态）</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>解析后的最终值（hex/oklch()/px 等字符串形态）</td>
+        </tr>
+
+        <tr>
+            <td>ValueJson</td>
+            <td>结构化_复合值（JSON）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>结构化/复合值（JSON）。复合令牌以此为真源</td>
+        </tr>
+
+        <tr>
+            <td>AliasPath</td>
+            <td>别名指向的令牌路径</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>禁止环与逆向引用</td>
+        </tr>
+
+        <tr>
+            <td>Group</td>
+            <td>分组（导出层级用）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>如 brand/spacing/shadow</td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>说明与用途</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ColorHex</td>
+            <td>解析后sRGBhex</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>解析后 sRGB hex，供对比度数学与外部 lint</td>
+        </tr>
+
+        <tr>
+            <td>OklchL</td>
+            <td>OKLCH明度L（拆列以便SQL插值_检索）</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>OKLCH 明度 L（拆列以便 SQL 插值/检索）</td>
+        </tr>
+
+        <tr>
+            <td>OklchC</td>
+            <td>OKLCH彩度C</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>OKLCH 彩度 C</td>
+        </tr>
+
+        <tr>
+            <td>OklchH</td>
+            <td>OKLCH色相H</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>OKLCH 色相 H</td>
+        </tr>
+
+        <tr>
+            <td>Alpha</td>
+            <td>透明度0~1</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>透明度 0~1</td>
+        </tr>
+
+        <tr>
+            <td>ColorSpace</td>
+            <td>色彩空间</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：oklch|srgb|display-p3</td>
+        </tr>
+
+        <tr>
+            <td>IsPrimary</td>
+            <td>是否该族主色</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ContrastOn</td>
+            <td>对比度计算所对的前景_背景配对路径</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>对比度计算所对的前景/背景配对路径</td>
+        </tr>
+
+        <tr>
+            <td>ContrastRatio</td>
+            <td>WCAG2</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>WCAG 2.2 对比度比率，未计算为 -1</td>
+        </tr>
+
+        <tr>
+            <td>WcagLevel</td>
+            <td>达标等级</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：none|aa|aaa</td>
+        </tr>
+
+        <tr>
+            <td>ApcaLc</td>
+            <td>APCALc参考读数（不作门禁</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>APCA Lc 参考读数（不作门禁，仅参考）</td>
+        </tr>
+
+        <tr>
+            <td>Generator</td>
+            <td>来源</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：oklch-ramp|manual|imported|derived</td>
+        </tr>
+
+        <tr>
+            <td>GeneratorSeed</td>
+            <td>生成种子（同输入可复现）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>GeneratorVersion</td>
+            <td>生成器版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Lifecycle</td>
+            <td>治理生命周期</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：proposed|adopted|deprecated|removed</td>
+        </tr>
+
+        <tr>
+            <td>ReplacedBy</td>
+            <td>废弃后替代令牌路径</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Deprecated</td>
+            <td>是否已废弃</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Tags</td>
+            <td>标签</td>
+            <td>String</td>
+            <td>300</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>逗号分隔，供检索</td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>DTCGextensions与厂商元数据（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>DTCG $extensions 与厂商元数据（JSON）</td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>兼作乐观并发依据</td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>阴影层（DesignShadowLayer）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>层ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>TokenId</td>
+            <td>所属shadow令牌ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>所属 shadow 令牌ID</td>
+        </tr>
+
+        <tr>
+            <td>TokenPath</td>
+            <td>所属令牌路径（冗余便于查询）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Layer</td>
+            <td>层序号</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>自 0 起</td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>层显示名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>IsInset</td>
+            <td>是否内阴影（暗色主题用inset高光替代投影）</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>是否内阴影（暗色主题用 inset 高光替代投影）</td>
+        </tr>
+
+        <tr>
+            <td>OffsetX</td>
+            <td>X偏移px</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>X 偏移 px</td>
+        </tr>
+
+        <tr>
+            <td>OffsetY</td>
+            <td>Y偏移px</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>Y 偏移 px</td>
+        </tr>
+
+        <tr>
+            <td>Blur</td>
+            <td>模糊px</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>模糊 px</td>
+        </tr>
+
+        <tr>
+            <td>Spread</td>
+            <td>扩散px</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>扩散 px</td>
+        </tr>
+
+        <tr>
+            <td>ColorValue</td>
+            <td>层颜色值</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ColorAliasPath</td>
+            <td>层颜色指向的颜色令牌路径</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Alpha</td>
+            <td>层透明度</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Usage</td>
+            <td>用途说明</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计组件（DesignComponent）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>组件ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>组件标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>组件名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Category</td>
+            <td>分类</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：primitive|shell|page|kit-chrome|composite</td>
+        </tr>
+
+        <tr>
+            <td>Interactive</td>
+            <td>是否可交互组件</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>职责说明</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>DocJson</td>
+            <td>props_API表（JSON）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>props/API 表（JSON）</td>
+        </tr>
+
+        <tr>
+            <td>GuidanceJson</td>
+            <td>do_don't使用指引（JSON）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>do / don't 使用指引（JSON）</td>
+        </tr>
+
+        <tr>
+            <td>A11yNotes</td>
+            <td>逐组件可达性标注（角色_键盘_focus要求）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>逐组件可达性标注（角色/键盘/focus 要求）</td>
+        </tr>
+
+        <tr>
+            <td>TokenRefsJson</td>
+            <td>组件级令牌引用（默认态）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>成熟度</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：demo|ready|deprecated</td>
+        </tr>
+
+        <tr>
+            <td>Version</td>
+            <td>组件自身版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SourceRef</td>
+            <td>实现来源引用（文件_包）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>实现来源引用（文件/包）</td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>组件变体（DesignComponentVariant）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>变体ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ComponentId</td>
+            <td>所属组件ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ComponentCode</td>
+            <td>所属组件标识（冗余便于查询）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>变体显示码</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>VariantKey</td>
+            <td>变体规范化键（键序稳定</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>保证幂等 upsert）</td>
+        </tr>
+
+        <tr>
+            <td>VariantJson</td>
+            <td>变体属性（如{size</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>变体属性（如 {size:lg,tone:brand}）</td>
+        </tr>
+
+        <tr>
+            <td>State</td>
+            <td>状态</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：default|hover|active|focus-visible|disabled|loading|error|selected</td>
+        </tr>
+
+        <tr>
+            <td>ThemeId</td>
+            <td>主题ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=全主题</td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>变体名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>TokenRefsJson</td>
+            <td>该变体的令牌引用映射（背景_文字_边框等→令牌路径）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>该变体的令牌引用映射（背景/文字/边框等 → 令牌路径）</td>
+        </tr>
+
+        <tr>
+            <td>CssSnippet</td>
+            <td>由令牌引用生成的CSS片段（演示与handoff用）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>由令牌引用生成的 CSS 片段（演示与 handoff 用）</td>
+        </tr>
+
+        <tr>
+            <td>ContrastSummary</td>
+            <td>该变体主要色对的对比度摘要</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>说明</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计图标（DesignIcon）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>图标ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>；0=内置库（常量 BuiltinProjectId，只读）</td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>图标标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>图标名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Collection</td>
+            <td>集合</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：forge=本项目自绘内置零许可负担集；其余为用户导入集名</td>
+        </tr>
+
+        <tr>
+            <td>SvgBody</td>
+            <td>SVG内容（path数据或完整svg片段）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>SVG 内容（path 数据或完整 svg 片段），为系统 of record</td>
+        </tr>
+
+        <tr>
+            <td>StrokeWidth</td>
+            <td>描边宽度（令牌化项）</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>GridPx</td>
+            <td>基准栅格px</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>基准栅格 px</td>
+        </tr>
+
+        <tr>
+            <td>ViewBox</td>
+            <td>viewBox</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Sizes</td>
+            <td>可用光学尺寸阶</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>逗号分隔</td>
+        </tr>
+
+        <tr>
+            <td>Tags</td>
+            <td>检索标签</td>
+            <td>String</td>
+            <td>300</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Usage</td>
+            <td>语义槽_用途说明</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>语义槽/用途说明</td>
+        </tr>
+
+        <tr>
+            <td>License</td>
+            <td>许可证</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：Owned（自绘）或导入集的真实许可</td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计资产（DesignAsset）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>资产ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>资产标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>资产名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>类型</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：logo|logo-mark|motif|illustration|gradient|texture|avatar|empty-state</td>
+        </tr>
+
+        <tr>
+            <td>SvgBody</td>
+            <td>矢量内容（可引用--ds-*令牌变量）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>矢量内容（可引用 --ds-* 令牌变量）</td>
+        </tr>
+
+        <tr>
+            <td>FileRef</td>
+            <td>二进制_大文件在插件数据目录内的相对路径</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>二进制/大文件在插件数据目录内的相对路径</td>
+        </tr>
+
+        <tr>
+            <td>TokenRefsJson</td>
+            <td>资产所依赖的令牌引用</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>说明与使用规则</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>License</td>
+            <td>许可证</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计页面清单（DesignScreen）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>页面ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>页面标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Title</td>
+            <td>页面标题</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>IconCode</td>
+            <td>引用图标标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Route</td>
+            <td>目标路由_深链</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>目标路由/深链</td>
+        </tr>
+
+        <tr>
+            <td>ThemeId</td>
+            <td>演示主题</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ComponentIdsJson</td>
+            <td>页面所用组件清单</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>页面职责说明</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Notes</td>
+            <td>handoff备注</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>handoff 备注</td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>字体资产（DesignFontFace）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>字体ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>；0=共享登记</td>
+        </tr>
+
+        <tr>
+            <td>Family</td>
+            <td>字族名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Weight</td>
+            <td>字重</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Style</td>
+            <td>样式</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：normal|italic</td>
+        </tr>
+
+        <tr>
+            <td>FileName</td>
+            <td>字体文件名</td>
+            <td>String</td>
+            <td>300</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>FileRef</td>
+            <td>文件在插件数据目录内的相对路径</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Display</td>
+            <td>font-display策略</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>font-display 策略</td>
+        </tr>
+
+        <tr>
+            <td>Role</td>
+            <td>角色</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：sans|serif|mono|display</td>
+        </tr>
+
+        <tr>
+            <td>SourceUrl</td>
+            <td>来源地址（自托管则留空）</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>License</td>
+            <td>许可证（字体许可常为SILOFL</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>许可证（字体许可常为 SIL OFL，需登记）</td>
+        </tr>
+
+        <tr>
+            <td>MetricsJson</td>
+            <td>度量信息（ascender_descender_x-height等）</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>度量信息（ascender/descender/x-height 等）</td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计审计结果（DesignAudit）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>审计ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ReleaseId</td>
+            <td>关联发布快照ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>0=草稿态审计</td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>审计类</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>：contrast|focus|reduced-motion|tier-violation|orphan|unused|alias</td>
+        </tr>
+
+        <tr>
+            <td>Rule</td>
+            <td>规则标识</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>如 wcag22-1.4.3 / dtcg-alias-cycle</td>
+        </tr>
+
+        <tr>
+            <td>Severity</td>
+            <td>严重级</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：critical|warning|info</td>
+        </tr>
+
+        <tr>
+            <td>TargetType</td>
+            <td>对象类型</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：token|component|variant|screen|asset|icon</td>
+        </tr>
+
+        <tr>
+            <td>TargetPath</td>
+            <td>被检对象路径_标识</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>被检对象路径/标识</td>
+        </tr>
+
+        <tr>
+            <td>PairedPath</td>
+            <td>配对对象路径（对比度类）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Expected</td>
+            <td>期望值_阈值</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>期望值/阈值</td>
+        </tr>
+
+        <tr>
+            <td>Actual</td>
+            <td>实测值</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Ratio</td>
+            <td>比率读数</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>非比率类为 -1</td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>审计项显示名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Passed</td>
+            <td>是否通过</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Suggestion</td>
+            <td>可执行建议（如改用哪个tone）</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>可执行建议（如改用哪个 tone）</td>
+        </tr>
+
+        <tr>
+            <td>Message</td>
+            <td>人类可读明细</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>EngineVersion</td>
+            <td>审计引擎版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CheckedAt</td>
+            <td>检查时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>设计系统版本快照（DesignRelease）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>发布ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Version</td>
+            <td>语义化版本号</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：published|superseded</td>
+        </tr>
+
+        <tr>
+            <td>TokensHash</td>
+            <td>有效令牌集SHA256</td>
+            <td>String</td>
+            <td>64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>有效令牌集 SHA256，用于判重与回归定位</td>
+        </tr>
+
+        <tr>
+            <td>SnapshotFile</td>
+            <td>不可变快照文件相对路径（落在插件数据目录releases_下）</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>不可变快照文件相对路径（落在插件数据目录 releases/ 下）</td>
+        </tr>
+
+        <tr>
+            <td>TokenCount</td>
+            <td>快照内令牌数</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>AuditSummary</td>
+            <td>审计摘要（critical_warning_info计数）</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>审计摘要（critical/warning/info 计数）</td>
+        </tr>
+
+        <tr>
+            <td>AuditPassed</td>
+            <td>发布时是否无critical未决</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>发布时是否无 critical 未决</td>
+        </tr>
+
+        <tr>
+            <td>SourceReleaseId</td>
+            <td>diff基线发布ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>diff 基线发布ID，0=首版</td>
+        </tr>
+
+        <tr>
+            <td>ReleaseNotes</td>
+            <td>变更说明</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedBy</td>
+            <td>创建者</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>

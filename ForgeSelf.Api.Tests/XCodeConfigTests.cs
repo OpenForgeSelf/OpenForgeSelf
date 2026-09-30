@@ -46,8 +46,12 @@ public class XCodeConfigTests
             foreach (var (name, file) in XCodeConfig.DbFiles)
             {
                 var expected = "Data Source=" + Path.Combine(dataDir, file);
-                DAL.ConnStrs[name].Should().Be(expected,
+                // 派生串在绝对路径后还带 Busy Timeout（SQLite 撞写锁时排队而不是立即抛错），
+                // 所以这里断言「以绝对数据根路径开头」而不是逐字相等 —— 路径这一层守卫不能松。
+                DAL.ConnStrs[name].Should().StartWith(expected,
                     "连接串必须由数据根派生绝对路径，避免落到程序目录");
+                DAL.ConnStrs[name].Should().Contain("Busy Timeout=",
+                    "SQLite 并发写锁需靠 Busy Timeout 排队，缺了它界面并发操作会以 500 冒给用户");
             }
         }
         finally
@@ -88,9 +92,10 @@ public class XCodeConfigTests
 
             services.AddXCode(config, dataDir);
 
-            DAL.ConnStrs["ForgeSelf"].Should().Be(
-                "Data Source=" + Path.Combine(dataDir, "ForgeSelf.db"),
+            // 同上一条用例：派生串带 Busy Timeout，故按前缀断言；"相对路径必须被忽略"这一层用否定断言钉住
+            DAL.ConnStrs["ForgeSelf"].Should().StartWith("Data Source=" + Path.Combine(dataDir, "ForgeSelf.db"),
                 "相对路径连接串必须被忽略，否则数据库会落到程序目录");
+            DAL.ConnStrs["ForgeSelf"].Should().NotContain("Data\\ForgeSelf.db");
         }
         finally
         {

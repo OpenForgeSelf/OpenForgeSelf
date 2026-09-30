@@ -33,6 +33,7 @@ public static class XCodeConfig
         // 批次C：FileTools 首次获得插件库（目录大小排行快照 ScanSnapshot / ScanFolderEntry）。
         // key=连接名（PascalCase，须与 Data/Model.xml 的 ConnName 一致），value=插件 Id（kebab，须与 plugin.json 一致）。
         ["FileTools"] = "file-tools",
+        ["DesignSystem"] = "design-system",
     };
 
     /// <summary>
@@ -85,7 +86,9 @@ public static class XCodeConfig
             {
                 if (!string.IsNullOrWhiteSpace(configured))
                     NewLife.Log.XTrace.Log.Warn("{0} 的连接串为相对路径，已忽略并派生到数据根: {1}", name, configured);
-                connStr = $"Data Source={fullPath}";
+                // Busy Timeout：SQLite 默认遇并发写锁立即抛 SQLITE_BUSY（实测界面并发生成/审计时，
+                // 连只读的 GET 都会 500）。给它 5 秒等待窗口，让 SQLite 自己排队而不是把错误抛给用户。
+                connStr = $"Data Source={fullPath};Busy Timeout=5000";
             }
 
             DAL.AddConnStr(name, connStr, null, "SQLite");

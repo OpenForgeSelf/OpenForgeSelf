@@ -546,9 +546,16 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **宿主不再内置插件页**：插件界面一律由清单驱动远程加载，宿主不再手写插件页静态路由。
 - **pluginViewLoader 缓存键 = 版本号**：入口 URL `/plugins/{id}/web/dist/index.js?v={version}`；版本未变时浏览器从磁盘缓存取旧 bundle，**同版本内的纯前端改动（如文案/icon）用户看不到，需硬刷**。对策：(a) 纯文案/样式改 → 文档化为已知限制；(b) 行为变更 → 升 patch 版本触发重抓；(c) 未来优化缓存键为 `version + hash`。
 - **项目 logo/图标三处落点，换 logo 必须三处全更**：① web 前端源 `ForgeSelf.Web/public/`（favicon.ico + `logo/*.png`）；② 构建中间产物 `ForgeSelf.Api/wwwroot/`（陈旧则发布回旧图）；③ exe 图标源 `ForgeSelf.Api/Assets/ForgeSelf.ico`（**不会从 web logo 自动派生**，须显式重新生成 + 重编译 exe 才生效）。
+- **块注释里不许出现通配路径（`*/` 会提前闭合注释）**（design-system 2026-09-29 两次踩）：注释写 `size.*/font.*`、`Plugins/*/web` 这类内容会让 esbuild/vite 报 `Unexpected "."`，症状像"代码语法错了"其实是注释被截断。对策：注释里写"xxx 系列"或改用行注释；一旦构建报 `Unexpected "."` 在注释行，先怀疑这个坑。
+- **vue-tsc 把 `.vue` 当纯 TS 解析**（表现为 `</script>` 那行报 `'}' expected`、模板行报"未终止的正则字面量"）：模板 `{{ }}` 里的**多行嵌套三元**（尤其字符串内含双引号）会让 SFC 工具链错位。对策：模板只放简单插值，复杂文案/分支挪进 `<script>` 的 computed；模板里 `list.filter((x) => ...)` 这类回调推不出参数类型（TS7006）→ 先在 computed 里算好。
+- **插件前端不装工具链**：`check`/`test` 一律委托宿主（`pnpm -C ../../../ForgeSelf.Web exec vue-tsc --noEmit -p ../Plugins/<X>/web/tsconfig.check.json`、`exec vitest run ../Plugins/<X>/web/src`）。注意 `-C` 之后 cwd 变宿主，相对路径必须以宿主为基准。宿主 vitest 的 include 已含 `../Plugins/*/web/src/**/*.test.ts`，插件单测无需自带 vitest。
+- **CSS 变量别名只许引用"真存在的变量"**（design-system 2026-09-29）：`--ds-bg: var(--ds-semantic-surface-bg)` 若后者未定义，
+  整条声明在 computed-value 阶段失效，`background: var(--ds-bg, fallback)` 也跟着失效 → 页面**全透明**（比不换肤更糟，且只有真浏览器能发现）。
+  对策：从注入的 CSS 文本扫出已定义变量集合，别名按集合过滤；CSS 还没到位时两段样式都不注入。
+- **给 `<input type="color">` 塞空串 = 每帧一条浏览器告警**：形状不合要**不渲染**该控件（`v-if`），
+  而不是 `:value="''"`（Vue 对 input 的 `value` 走 DOM property 赋值，`null/undefined` 也会被 coerce 成空串，摘不掉）。
 
 ## B4 后端工程规则
-
 ### 分层 / 鉴权 / 配置
 - 分层：Controllers/Services/Entities；新插件走 `Plugins/` + `plugin.json` 注册；异步统一 `async/await`，不 `.Result` 阻塞。
 - **管理面/CRUD 控制器必须类级 `[Authorize("ApiKeyPolicy")]`**（命名策略 = `ApiKeyAuthenticationHandler` Bearer 方案，注册于 AppBuilder.cs）：前端 `request.ts` 已全局注入 Authorization 头，勿因"前端会带 token"而漏加鉴权（踩坑：AIProviderController 曾无 [Authorize]；PluginController 2026-09-24 补课）。
@@ -584,8 +591,33 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **解决方案文件 = `ForgeSelf.slnx`**（2026-09-21 由 .sln 迁移，19 项目全量保留）。解决方案级构建命令 = `dotnet build ForgeSelf.slnx`。
 - **dotnet test 被 dev server 锁 exe 的规避**：运行中 dev server 持有 exe，`dotnet test`（Debug 构建）拷贝 apphost→exe 会 MSB3027/3021 失败。规避：`dotnet test -p:UseAppHost=false`；若 DLL 也被锁（加载中程序集），构建/测试一律加 `-p:OutDir=<临时目录>` 旁路验证。
 - **git worktree 新检出目录首构失败 ≠ 代码事实**：全新目录无 obj/project.assets.json，restore/构建顺序问题所致（报 CS0246 但 HEAD 代码自洽）。判定「某提交能否编译/测试」不要用未先 restore 的 worktree；用 `git show HEAD:path` 核对代码事实，或先 `dotnet restore && dotnet build`。
+- **"统计列"要么有人维护，要么读出时现算，否则就是假数字**（design-system 2026-09-29）：`DesignProject.TokenCount/ComponentCount` 建表时写了列，但没有任何写入路径更新它 → 界面显示"有效令牌 250 / 令牌数 0"，e2e 也直接判死。规则：出参一律现算（`FindCount` 直查库），缓存列只当历史兼容；要保留缓存列就必须写清"谁在什么时候更新它"。
+- **复合令牌的 `ValueJson` 是真源，读值路径都要展开它**：DTCG 的 `shadow/typography/transition/cubicBezier` 的 `$value` 就是对象/数组，库里 `Value` 可能为空。任何投影（导出 CSS、换肤、发布快照）只读 `Value` 就会产出 `--ds-x: ;` 这类**空声明**（看似成功、下游全失效）。
+- **`catch { return ""; }` 会把"修了但没修对"伪装成"修好了"**：JSON 数字被 `Num()` 写成字符串后 `GetValue<Double>()` 抛异常 → 整个展开函数返回空串，测试不细看就通过。对策：宽容解析（数字/字符串都吃）+ 保留兜底 + **断言写成"必须是非空真值"**而不是"有这一行"。
+- **XCode `FindCount` 返回 `Int64`**：与 `Int32` 变量/断言混用会报 CS0266/CS1503，需要显式 `(int)`；写计数辅助方法时当场钉死返回类型。
+- **令牌/规格"目录"必须从真实生成结果反推，不许写死清单**（design-system 2026-09-29）：`generate` 过去只写 `component.*` 令牌，
+  组件目录表一直 0 行 → "组件库"页面对新项目永远空（读图才看得见）。补的 `SeedComponentCatalog` 规定：
+  清单取本次真实生成的路径、这次没生成的组件就不建目录；测试断言"目录里每条 tokenRef 都能在库里查到"。
+- **宿主 SQLite 并发读写会冒 `code = Busy (5) / database is locked` 并把接口打成 500**（design-system e2e 2026-09-29 三次命中，写与只读路径都中）：
+  库虽已是 WAL（文件头 offset18/19 = `2 2`），但 `XCodeConfig` 派生的连接串原本**没有任何 Busy Timeout**（立即失败）。
+  已补 `Busy Timeout=5000`（宿主级、影响全部插件库，需用户复核）；调用方一律**只给只读请求退避重试，写请求绝不重试**（重复落库比红屏更糟）。
+  根因（写串行化/统一重试策略）仍在宿主 DAL，未闭合 → 不得叙述成"已修"。
+- **同一套测试两个 filter 计数不一致时，禁止对外报"共 N 项"**：本轮 `~Plugins.DesignSystemTests`=85、`~DesignSystem`=154（均 0 失败），
+  差 69 项未解释前只报"失败 0 + 所用命令原文"。
+- **`dotnet test` 默认(quiet) logger 会假绿**（2026-09-29 定性）：测试主机中途崩溃时它把"已跑完的条数"当总数报，
+  并且照样打印 `已通过! 失败: 0`（实测同一命令：quiet 报 85/154 且"崩溃"，`--logger "console;verbosity=normal"` 跑完 **164/164 无崩溃**）。
+  规则：本仓跑 dotnet test **一律带 verbose console logger**，或先 `--list-tests` 拿发现数、再与执行数比对；
+  两者不等就是事故，不能当通过。
 
 ## B5 插件体系与发布
+
+### 发布包「内容」才算发布验证（design-system 2026-09-29）
+- 脚本 `ALL DONE` 不等于交付：必须解包核三件事 —— ① 目标插件目录在包内且时间戳是本次构建；② 新实现**在包里能探到**；
+  ③ `SHA256SUMS.txt` 与实测哈希一致。探针一律用仓内正规入口 `scripts/probe-dll-string.cjs`，解包目录放仓库外 `$TEMP`，用完即删。
+- **minified 前端产物探"实现指纹"，不要探函数名**：函数名会被压掉，但它携带的正则/常量/选择器字面量不会
+  （例：探 `--ds-[\w-]+` 证明变量扫描逻辑进了 `dist/index.js`）。
+- `SHA256SUMS.txt` 是 CRLF → `sha256sum -c` 报 "No such file or directory"，**不是包坏**；逐字比对或先 `tr -d '\r'`。
+- 宿主 zip 版本号必须**高于当前运行版本**（页面才检测得到）；本地打包不打 tag、不触发 CI；**agent 不停/启/杀用户宿主**。
 
 ### 插件体系（ForgeSelf.Api/Plugins）
 - **两层命名（刻意设计，非不一致）**：目录/程序集(.dll)/EntryType 用 PascalCase（代码身份）；`plugin.json` 的 `Id`/数据目录/`~/.forgeself/plugins/{id}`/路由/库文件用 kebab-case（运行时身份）。

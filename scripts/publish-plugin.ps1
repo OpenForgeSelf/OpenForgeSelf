@@ -75,7 +75,7 @@ if ([string]::IsNullOrWhiteSpace($sourceVersion)) { throw "plugin.json missing V
 if ($sourceId -ne $Plugin) { Write-Warning "plugin.json Id='$sourceId' does not match -Plugin '$Plugin'" }
 
 # Compute staged target: <PluginsRoot>/<id>/versions/<version>/（2026-09-28 去 _backups，直落 side-by-side 版本目录）
-$stagedDir = Join-Path (Join-Path (Join-Path (Join-Path $PluginsRoot $sourceId) 'versions') $sourceVersion)
+$stagedDir = Join-Path (Join-Path (Join-Path $PluginsRoot $sourceId) 'versions') $sourceVersion
 
 Write-Host "==============================================================="
 Write-Host "[publish-plugin] Plugin:       $sourceId"

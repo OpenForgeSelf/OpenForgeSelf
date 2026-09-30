@@ -41,7 +41,7 @@
 ```
 ForgeSelf.Api/   后端（.NET 10 / XCode / 插件）
 ForgeSelf.Web/  前端（Vue3/Vite/Element Plus/Pinia）
-specs/NNN-*/             speckit 产物（开发中功能）
+docs/ai/pilot/YYYY-MM-DD-<task-id>/   开发任务工件（AI-Native 闭环；替代已 gitignore 的 specs/）
 docs/                    人工沉淀知识（本体系）
 .forgeself/memory/       按天工作日记 + MEMORY
 ```

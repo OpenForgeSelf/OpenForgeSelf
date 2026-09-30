@@ -2,9 +2,9 @@
 
 本文件是 AI Agent 在 OpenForgeSelf（铸己匣）项目中的**每次必守工作手册**（每次任务循环都必须执行的内容）。
 采用 **Loop Engineering** 闭环模型：Goal → Context → Plan → Execute → Verify → Iterate，直到验证通过或升级给人。
-所有**开发类任务**的流程**一律按 §11 AI-Native Engineering 九阶段闭环执行**（Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review；规范 `docs/04-standards/ai-native-engineering-workflow.md`，独立自含、闸门1/2/3 见其 §1.1）。该规范与其他流程描述冲突时，**以 §11 为准**（用户指令 seq14：不做体系映射）。
+所有**开发类任务**的流程**一律按 §11 AI-Native Engineering 九阶段闭环执行**（Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review；规范 `docs/04-standards/ai-native-engineering-workflow.md`，独立自含、闸门1/2/3 见其 §1.1）。该规范与其他流程描述冲突时，**以 §11 为准**（用户指令 seq14：不做体系映射）。**本项目只有这一套开发流程**：`specs/`/`speckit` 等其余流程已全部弃用（§9），任何文档残留的相关指引一律无效。
 
-> **分层说明**：本文只列「每次都要遵守」的规则；「需要触发才用」的细节（技能职责边界、验证决策表、迭代细则、文档工作流操作规范、汇报完整模板、设计稿与 speckit 流程、项目工程规则与踩坑）一律引用 **`docs/04-standards/agent-workflow.md`**（Part A = 工作流细节，Part B = 项目不变工程规则，2026-09-24 起原 `.forgeself/memory/MEMORY.md` 的规则已归档于此，随 git 入库）。
+> **分层说明**：本文只列「每次都要遵守」的规则；「需要触发才用」的细节（技能职责边界、验证决策表、迭代细则、文档工作流操作规范、汇报完整模板、设计稿工作流、项目工程规则与踩坑）一律引用 **`docs/04-standards/agent-workflow.md`**（Part A = 工作流细节，Part B = 项目不变工程规则，2026-09-24 起原 `.forgeself/memory/MEMORY.md` 的规则已归档于此，随 git 入库）。
 
 ---
 
@@ -16,15 +16,17 @@
    ⛔ 未写此行，禁止调用任何文件读/写工具。
 2. **【建待办】** 在 `TODO.md` 新建或引用一条待办（🔄 进行中，标 P1>P2>P3，来源:输入N）。**开发过程中发现的其他问题，当场记入 `TODO.md` 待办区（标 P1>P2>P3，来源:输入N），本次会话不顺手解决**（范围控制见 §1.3）；任务完成时该待办勾选归档到工作日记并**移除出 `TODO.md`**，保持队列新鲜不爆炸。
    ⛔ 无对应 TODO 项，禁止修改任何业务文件。
-3. **【查技能】** 任务拆解后从技能目录（§2.4）挑一个流程执行：有对应技能则**先读再动手**；**技能清单无对应流程时，先创建一个技能流程（沉淀为 `.agents/skills/<name>/SKILL.md`，按 skill-creator 规范）→ 执行 → 持续迭代完善**；同类任务下次重复出现时，先选既有技能流程。
+3. **【读规范·强制】** 开发类任务动手前必须**完整读** `docs/04-standards/ai-native-engineering-workflow.md`（v1.1.0，强制）——本项目**唯一**开发流程——并按其九阶段产出 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 工件：00-04（Repository Understanding / Intent / Spec / Plan / Task）先行，**闸门1 经用户批准后才允许 Implement**；05-07（Evidence / Review / Final Report）在验证与审查后补齐。模板 `docs/18-templates/ai-pilot/`，可参照既有 pilot 目录样例。
+   ⛔ 未读规范、或闸门1 未批就改业务代码 = 流程违规（2026-09-30 实证缺口：AGENTS.md 残留的 specs/speckit 指引曾诱导跳过 pilot，已全部封堵）。
+4. **【查技能】** 任务拆解后从技能目录（§2.4）挑一个流程执行：有对应技能则**先读再动手**；**技能清单无对应流程时，先创建一个技能流程（沉淀为 `.agents/skills/<name>/SKILL.md`，按 skill-creator 规范）→ 执行 → 持续迭代完善**；同类任务下次重复出现时，先选既有技能流程。
    宿主/插件类任务必须读 `plugin-development`（及其转派的专项技能）。
    ⛔ 未读技能就改宿主/插件代码，视为流程违规——历史上已因此漏发插件、漏跑插件层 e2e。
-4. **【Context → Plan → Execute → Verify】** 按第 1-5 节执行；Verify 必须真跑（前端 `pnpm run check`+`pnpm run test` / 后端 `dotnet build`+`dotnet test`）。
-5. **【出口·完成检查清单】** 回复"完成"前，必须：
+5. **【Context → Plan → Execute → Verify】** 按第 1-5 节执行；Verify 必须真跑（前端 `pnpm run check`+`pnpm run test` / 后端 `dotnet build`+`dotnet test`）。
+6. **【出口·完成检查清单】** 回复"完成"前，必须：
    - Read 当天日记，确认含本次输入拆解 + 验证结果；
-   - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（spec / `docs/` / README）已同步更新；
+   - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（`docs/ai/pilot/` 工件 / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow.md 或本文。
-   - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/<task-id>/` 的 00-07 八件工件（含关键节）齐全，缺失/缺位提交被拒；新 clone / 新环境第一步执行 `scripts/install-git-hooks.ps1` 安装 hook（幂等）。
+   - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `scripts/install-git-hooks.ps1` 安装 hook（幂等）。
    - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部五步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 测试）② 插件层 e2e（`e2e/plugins/<id>`，走 e2e 隔离实例，按 `e2e-testing` 技能）③ 发布（**打 tag 自动发布** → CI 打包 GitHub Release；或本地 `release-local.ps1 -UpdateDir` + 设置页本地目录更新源 + 页面自动更新）④ 走查（e2e 隔离实例按用户视角点一遍、截图读图、清测试数据）⑤ **运行实例只读复验**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）。**五步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-09-27 用户指令）**：**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责打 tag 发布与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
@@ -39,7 +41,7 @@
 - 任何"我手跑个脚本看看"的冲动，先查 §5.0 决策表：有对应正规入口就走正规入口。
 
 **开发类任务禁止跳过 AI-Native 闭环工件直接写代码。**
-每个开发任务（新功能 / 缺陷修复 / 插件任务 / 宿主与 CI 变更）的流程**唯一依据是 §11 规范**（模板 `docs/18-templates/ai-pilot/`，产物 `docs/ai/pilot/<task-id>/`；独立自含，不与其他流程体系做映射）；Evidence 或 Review 缺件即视为未完成。纯问答 / 查状态不占工件链。
+每个开发任务（新功能 / 缺陷修复 / 插件任务 / 宿主与 CI 变更）的流程**唯一依据是 §11 规范**（模板 `docs/18-templates/ai-pilot/`，产物 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`；独立自含，不与其他流程体系做映射）；Evidence 或 Review 缺件即视为未完成。纯问答 / 查状态不占工件链。`specs/`/`speckit` 已弃用（见 §9），**禁止**再走 specs/speckit 流程。
 
 核心原则：
 
@@ -53,7 +55,7 @@
 ## 1. Goal — 目标与完成定义
 
 ### 1.1 任务来源
-按优先级从高到低：用户直接指令（最高优先级）→ `TODO.md` 未完成条目 → `specs/` 当前阶段待实现任务 → Verify 环节发现的失败项。
+按优先级从高到低：用户直接指令（最高优先级）→ `TODO.md` 未完成条目 → Verify 环节发现的失败项。**开发类任务一律走 §11 AI-Native 闭环（产物 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`），不再使用 `specs/`（已 gitignore）**。
 
 ### 1.2 完成标准（Definition of Done）
 一个任务"完成"当且仅当：
@@ -61,7 +63,7 @@
 - 变更范围未超出任务边界（不顺手改无关代码）
 - 若涉及 UI，与设计稿视觉对齐已确认
 - 新增/修改的行为有对应测试覆盖
-- TODO.md 或 specs 中对应条目已更新状态
+- TODO.md 中对应条目已更新状态
 
 ### 1.3 范围控制
 - 做且只做明确要求的事；发现的额外问题记入 `TODO.md`，不自行扩展。
@@ -78,18 +80,18 @@
 | `ForgeSelf.Api/` | ASP.NET Core API | .NET 10 + SQLite + NewLife.XCode（唯一 ORM）+ 插件架构 |
 | `ForgeSelf.Api.Tests/` | 后端测试 | xUnit + Moq + FluentAssertions + Coverlet |
 | `forgeself-design/` | 设计原型 | 自包含 HTML + Element Plus CDN + Tailwind CDN |
-| `specs/` | 功能规格 | 编号 001–005，spec → plan → tasks 流程 |
+| `docs/ai/pilot/` | 开发任务工件（AI-Native 闭环） | 替代原 `specs/`（已 gitignore）；`YYYY-MM-DD-<task-id>/` 下 00-07 八件 |
 | `openwiki/` | 自动生成文档 | 勿手动编辑，由 CI 刷新 |
 
 ### 2.2 收集清单
-开始编码前按需确认：**查 §2.4 技能清单，读取对应技能**（宿主/插件任务必读）→ 阅读相关 spec → 查看设计稿（`forgeself-design/pages/`）→ 用 CodeGraph 或 grep 定位相关代码 → 阅读待修改文件的当前内容（不凭记忆改代码）→ 确认 `TODO.md` 中该任务的上下文和约束。
+开始编码前按需确认：**查 §2.4 技能清单，读取对应技能**（宿主/插件任务必读）→ 阅读相关 `docs/ai/pilot/` 工件（同域历史任务的 02-spec/03-plan）→ 查看设计稿（`forgeself-design/pages/`）→ 用 CodeGraph 或 grep 定位相关代码 → 阅读待修改文件的当前内容（不凭记忆改代码）→ 确认 `TODO.md` 中该任务的上下文和约束。
 
 ### 2.3 关键约定速记
 - 包管理器：**pnpm**（不是 npm），Node >= 20
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
-- 运行端口：Backend `:7102`，Frontend `:7002`；本环境长期运行的 publish 实例用 `:51888`
+- 运行端口：Backend `:7102`，Frontend `:7002`（**默认回落值**）；本环境长期运行的 publish 实例用 `:51888`。**端口覆盖（PILOT-050，2026-09-30）**：宿主支持 `FORGESELF_PORT` 环境变量（优先）或 `--server-port` 参数动态覆盖，覆盖即落盘 `ForgeSetting.config`（重启一致）；e2e/多 worktree 并行一律走动态端口（认领注册表 + 稳定目录 `wt-<hash>`），e2e 侧地址真源 = `e2e/helpers/e2e-env.ts`（env → current.json → 默认），**禁止新代码硬编码 7102/7002**
 - **发布规范（2026-09-27 起；输入42 补签名、输入2 2026-09-30 改默认关闭）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**发布默认不签名，需要时传 `-Sign` Authenticode 签名**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + DigiCert 时间戳，商业证书 -PfxPath 可插拔；**CI 默认不签**，签名策略真源见 `docs/04-standards/packaging-upgrade-backup.md` §1.1）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
 - **打包/升级/备份/缓存/安装目录结构（真源引用，2026-09-28 输入30；目录命名统一小写 2026-09-29 输入37）**：相关规则的**唯一真源 = docs/04-standards/packaging-upgrade-backup.md**——含现状盘点、空间浪费点、**QQNT 式目标目录结构**（公共外置 + 宿主每次更新的内容入 ersions/<ver>/ + plugins/ 与 ersions/ 并排 + **去插件备份/_backups**，插件多版本共存即回滚能力）与生命周期规则（§3/§4/R9）与**程序架构分层**（§1.6：入口=根启动器 / 业务+服务+托盘=版本层宿主 / 更新=update-agent / 插件=隔离程序集）；**目录命名统一小写**（安装/运行布局：plugins/data/log/config；源码工程目录 ForgeSelf.Api/Plugins/Plugins/<X> 保持 PascalCase 不动）。AGENTS.md / agent-workflow.md / 功能文档 / 技能只保留操作流程与踩坑，不再重复承载结构事实；规则冲突以该真源为准。
 - 更全的工程规则/踩坑（数据落盘、XCode、DLL 锁、PS 编码等）→ `docs/04-standards/agent-workflow.md` Part B
@@ -129,11 +131,11 @@
 5. **代价与风险** — ≤2 行，含回滚点。
 6. **待你拍板** — ≤2 个问题，**每个都带默认推荐项**（无问题就写「无，默认按上述执行」）。
 
-**不进回复正文的东西**：实测数据表、算法分析、参考实现对照、探针/合规交代、历史过程 → 一律落 `.forgeself/memory/YYYY-MM-DD.md` 或 `docs/ai/pilot/<task-id>/`，正文最多一句话指路（「数据见日记 输入16」）。
+**不进回复正文的东西**：实测数据表、算法分析、参考实现对照、探针/合规交代、历史过程 → 一律落 `.forgeself/memory/YYYY-MM-DD.md` 或 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`，正文最多一句话指路（「数据见日记 输入16」）。
 **汇报同理**（见 §10.4）：结论先行，证据在文档里，不在聊天里堆。
 
 **方案必须落盘为文件，聊天里只给路径**（2026-09-28 用户立，硬性）：
-- 六段方案**先写成文件**再回复用户；文件落点 = `docs/ai/pilot/<task-id>/`（每任务一目录），格式**只按** `docs/18-templates/ai-pilot/` 模板与规范 §4：全量 = `00`~`06` 七件；轻量（≤3 文件缺陷修复/边界测试）= 单文件 **`mini-task.md`**（合并 Intent/Spec/Plan/Task，Evidence/Review 完成后单独产出 `05-evidence.md`/`06-review.md`）。**禁止自创文件名、自创章节结构、塞进别人任务的目录**（2026-09-28 我曾产出 `08-mini-task-perf-1.1.2.md`，三项全违，已纠）。
+- 六段方案**先写成文件**再回复用户；文件落点 = `docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一目录，日期前缀规则见规范 §0），格式**只按** `docs/18-templates/ai-pilot/` 模板与规范 §4：全量 = `00`~`06` 七件；轻量（≤3 文件缺陷修复/边界测试）= 单文件 **`mini-task.md`**（合并 Intent/Spec/Plan/Task，Evidence/Review 完成后单独产出 `05-evidence.md`/`06-review.md`）。**禁止自创文件名、自创章节结构、塞进别人任务的目录**（2026-09-28 我曾产出 `08-mini-task-perf-1.1.2.md`，三项全违，已纠）。
 - **回复正文只允许三样**：① 文件路径（用户点开就能审）② 一句话摘要 ③ 待拍板项。
 - ⛔ 只在聊天里"给方案"而不落盘、或落盘了却不报路径 = 视同没给（用户原话：「给完了怎么不提在哪个文件夹让我审核？？？谁特么知道你给了」）。
 
@@ -181,13 +183,14 @@ dotnet test
 
 ### 5.3 测试方式铁律（项目唯一测试体系，禁止另起炉灶）
 - **验证 / 截图 / 浏览器驱动类任务 → 写成 Playwright e2e 用例**（`ForgeSelf.Web/e2e/**/*.spec.ts`），走 `e2e-testing` 技能 SOP（globalSetup 自动构建宿主 + 起 publish 宿主 + 解密真实 token，零 mock）。
+- **e2e 后端/前端地址一律取自 `e2e/helpers/e2e-env.ts`**（`backendUrl()`/`frontendUrl()`，env → current.json → 默认回落），禁止在 spec 里硬编码 `localhost:7102/7002`（PILOT-050 起，多 worktree 动态端口）。
 - **纯逻辑 / 组件行为 → 写成 vitest 单测**（`src/**/*.spec.ts`）。
 - 一次性 `.cjs` 脚本只可作「探索期临时探针」，**不得作为验证手段提交或长期依赖**；结论必须沉淀为可重复测试，探针用完即删、不进 `temp/` 留存。
 - e2e 视觉检查按 `e2e-testing` 技能 Level 3 清单读图核对，截图固定落 `ForgeSelf.Web/screenshots/e2e/<插件id>/`。
 - **需求 → 该跑什么的完整决策表**（含仓内工具 `scripts/get-forge-token.cjs` / `scripts/probe-dll-string.cjs` 的正规入口）→ `docs/04-standards/agent-workflow.md` §A4。
 
 ### 5.4 设计对齐验证（涉及 UI 变更时）
-打开对应设计稿（`forgeself-design/pages/xxx.html`）对比，条件允许时截图对比；布局/间距/颜色须与设计稿一致，组件交互行为须与 spec 描述一致。
+打开对应设计稿（`forgeself-design/pages/xxx.html`）对比，条件允许时截图对比；布局/间距/颜色须与设计稿一致，组件交互行为须与 `02-spec` 工件描述一致。
 
 ### 5.5 验证严重级别
 **Critical**（构建失败/测试失败/类型错误）→ 必须修复否则不完成；**Warning**（ESLint warning/覆盖率低）→ 记录 TODO 不阻断；**Info** → 记录不处理。
@@ -202,7 +205,7 @@ dotnet test
 | **深** | **全量 e2e**（单配置整跑） | ~38 分钟 | 碰了①`e2e/global-setup.ts` / `playwright.*.config.ts` / `e2e/fixtures/**`（所有插件 e2e 共用）②发版/tag 前③专跑「e2e 基线治理」批次 |
 
 - **禁止拿「快」的结果报「门禁绿」**：汇报必须写明跑的是哪一档、覆盖哪些；跨切面改动停在「快」就报绿 = 违规（本条由 2026-09-28 我拿三入口子集报绿、被用户追问后补跑全量才发现自己引入的 B6 红 而确立）。
-- **基线红先对表再判责**：本 worktree 全量并非全绿（后端 1516/13 红、e2e 102 passed/82 failed，多为环境依赖与陈旧断言）。跑完全量先比对基线清单（项目记忆 `project-baseline-test-reds` / `TODO.md`），**新增的红才是我的**；非我的红也要给真实报错 + 归属并记 TODO，不许一句「无关」带过。
+- **基线红先对表再判责**：本 worktree 全量并非全绿（后端 1516/13 红、e2e 102 passed/82 failed，多为环境依赖与陈旧断言；PILOT-050 起后端测试总数因 040-B1 新增已超 1686，基线数字以最近一次全量日志为准）。跑完全量先比对基线清单（项目记忆 `project-baseline-test-reds` / `TODO.md`），**新增的红才是我的**；非我的红也要给真实报错 + 归属并记 TODO，不许一句「无关」带过。
 - 深档成本可控化：全量 e2e 用 4 worker、`--output=<空目录>`；只需复验单插件时仍走 `e2e/plugins/<id>` 定向跑。
 
 ---
@@ -227,8 +230,8 @@ Verify 失败
 
 每轮循环结束后（无论成功或升级）：
 1. **更新 TODO.md**：完成的待办**立即移除**（不留 ✅ 历史堆积，保持队列新鲜）；仅记录新发现的问题与未完成项
-2. **更新 specs 状态**：若任务对应某个 spec 的 task，标记进度
-3. **记录决策**：重要技术决策写入对应 spec 或 TODO.md，格式：决策 → 背景 → 理由 → 准则
+2. **更新工件状态**：确认对应 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 随任务推进补齐（Implement 后补 05-07）
+3. **记录决策**：重要技术决策写入对应 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 或 TODO.md，格式：决策 → 背景 → 理由 → 准则
 4. **沉淀规律**：可复用规律（约定/踩坑/ADR）→ 写入 `docs/04-standards/agent-workflow.md` 对应小节（入库）；走通的流程技能缺失或可优化 → 回写/新建技能并登记 §2.4；新形成的项目不变规范 → agent-workflow.md 或本文
 
 ---
@@ -253,7 +256,7 @@ Verify 失败
    ▼
 [1 Goal]  解析目标 → TODO.md 生成待办项（🔄/⬜，P1>P2>P3，来源:输入N）
    ▼
-[2 Context] 收集上下文（spec / 设计稿 / 相关代码 / TODO 约束）
+[2 Context] 收集上下文（docs/ai/pilot 工件 / 设计稿 / 相关代码 / TODO 约束）
    ▼
 [3 Plan]  规划步骤（拆分为可独立验证的子任务）
    ▼
@@ -275,7 +278,7 @@ Verify 失败
 ### 7.5.3 操作规范要点（完整版 → §A6）
 **① 新用户输入到达时**（第一步必做）：立即写日志（输入原文 + 任务拆解 `- [ ]` 清单，**完成一项勾选一项**）→ TODO.md 生成待办（`- [ ] <任务>（P<优先级>，来源:输入<N>）`）→ 开始执行时移到「🔄 进行中」。
 **② 执行过程中**：边做边追加当天工作记录；决策记录格式：`决策 → 背景 → 理由 → 准则`。
-**③ 任务完成时**（完成 = 代码闭环 + 文档同步 + 待办清除，三者缺一不可）：追加完整工作记录（含验证结果）→ TODO 待办**直接移除**（不留 ✅/[x] 堆积）→ 同步相关文档（spec / docs / README）→ 提炼规律入 agent-workflow.md → 完善/新建技能并登记 §2.4。
+**③ 任务完成时**（完成 = 代码闭环 + 文档同步 + 待办清除，三者缺一不可）：追加完整工作记录（含验证结果）→ TODO 待办**直接移除**（不留 ✅/[x] 堆积）→ 同步相关文档（docs/ai/pilot 工件 / docs / README）→ 提炼规律入 agent-workflow.md → 完善/新建技能并登记 §2.4。
 **④ 每日/每周检视**：日记「下一步」回流 TODO；重复模式提炼为规则；清除 TODO 中已完成残留（✅/[x]），保持队列新鲜。
 **⑤ 逐回合原文记录（用户 2026-09-28 立，强制）**：工作日记与项目文档必须**逐回合**记录每个对话方（用户、项目管理员哥、需求分析师、测试审查、DevOps哥、项管哥等）的**发言原文 + 序号(seqN)**；Agent 自己的发言同样**原样记录**。**禁止只记结论或转述**。落地写法：每输入一批次先落「原文」，收尾时补「逐回合原文记录」小节（T1..Tn 或真实 seqN），含自己每一次对外汇报的原文要点；被推翻的判断与自己的错误陈述也要原文留档，不得只留更正后的结论。
 **⑥ 常见错误（必须避免）**：把输入原文堆在 TODO.md；在 MEMORY 复制待办列表；任务完成不更新 TODO；完成任务只标 ✅ 不移除；不写「下一步」字段；把用户或群内角色的发言写成我的转述/结论。
@@ -288,9 +291,9 @@ Verify 失败
 
 ---
 
-## 9. speckit SDD 开发流程
+## 9. 功能开发流程（specs/speckit 已弃用，统一为 §11 AI-Native 闭环）
 
-功能开发走 speckit 规格驱动开发（specify → plan → tasks → implement），命令文件在 `.codebuddy/commands/speckit.*.md`，产物在 `specs/NNN-功能名/`，当前功能目录记录在 `.specify/feature.json`。四步顺序执行不得跳步；implement 阶段禁止 `git stash/checkout/reset` 改工作区。详见 `docs/04-standards/agent-workflow.md` §A8。
+功能开发流程已统一为 **§11 AI-Native Engineering 九阶段闭环**（产物 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`，见规范）。原 `specs/`（speckit 规格驱动开发：`specify → plan → tasks → implement`）**已弃用**：`specs/` 进入 gitignore 不再入库，相关历史内容以 `docs/ai/pilot/` 工件为准。**禁止再走 speckit 流程或新建 `specs/` 目录**；`.codebuddy/commands/speckit.*.md` 与 `.specify/feature.json` 不再使用。
 
 ---
 
@@ -338,7 +341,8 @@ Verify 失败
 
 > 完整规范（九阶段定义、硬性约束、闸门1/2/3 自含定义、裁剪规则、禁止事项）→ `docs/04-standards/ai-native-engineering-workflow.md`（v1.1.0，强制）
 > 文档模板 → `docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review + 07-final-report）
-> 产物落点 → `docs/ai/pilot/<task-id>/`（每任务一目录）｜群 SOP → `ai-native-engineering-loop`
+> 产物落点 → `docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一目录，日期前缀规则见规范 §0）｜群 SOP → `ai-native-engineering-loop`
+> ⚠️ **唯一开发流程**：任何开发类任务都必须走本闭环并产出 00-07 工件，禁止跳过工件直接写代码，也禁止用已弃用的 `specs/`/`speckit` 替代。
 > **用户指令（seq14）**：本流程不与其他体系做映射；开发任务的流程以本节及其规范为唯一依据，与本文或其他文档的流程描述冲突时以 §11 为准。
 
 九阶段：`Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review`。要点：
@@ -346,7 +350,7 @@ Verify 失败
 1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
 2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
 3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
-4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
+4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
 5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。
 
 ---

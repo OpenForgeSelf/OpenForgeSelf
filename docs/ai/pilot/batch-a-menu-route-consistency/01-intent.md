@@ -20,7 +20,7 @@
 
 以下路径被 `.gitignore` 忽略，**不随提交入库**，任务上下文不能依赖它们：
 - `specs/`（整目录）、`/TODO.md`（根级）
-- `.workbuddy/memory/`（工作日志）
+- `.forgeself/memory/`（工作日志）
 - `.tmp/`、`.tmp-tests/`、`.tmp-env/`、`.userprofile/`（沙箱绕法产物）
 
 → 因此本任务全部上下文收敛于 `docs/ai/pilot/batch-a-menu-route-consistency/`（00–07 八件）。

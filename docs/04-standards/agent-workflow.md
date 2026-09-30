@@ -317,9 +317,11 @@ Verify 失败
 - 新增设置项 SOP：app-shell.js categories 加条目 → 复制现有设置页改 active 和内容区
 - 设计稿 file:// 协议下禁止跨目录引用 CSS，主题文件须在 `forgeself-design/themes/` 放本地副本
 
-## A8 speckit SDD 开发流程（对应 AGENTS.md §9）
+## A8 speckit SDD 开发流程（**已弃用** · 由 AGENTS.md §11 AI-Native 闭环替代）
 
-功能开发走 speckit 的规格驱动开发（SDD）流程，命令文件位于 `.codebuddy/commands/speckit.*.md`：
+> ⚠️ **废弃声明**：`specs/`（speckit SDD：`specify → plan → tasks → implement`）已进入 gitignore 不再入库，**不再作为开发流程使用**。开发类任务一律走 AGENTS.md §11 AI-Native 工程九阶段闭环，产物落 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`。本 §A8 仅作历史保留，**禁止新任务参照执行**。
+
+（历史内容）功能开发走 speckit 的规格驱动开发（SDD）流程，命令文件位于 `.codebuddy/commands/speckit.*.md`：
 ```
 specify → plan → tasks → implement → （analyze/converge 一致性检查）
 ```
@@ -444,9 +446,9 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 ## B2 验证与测试铁律（e2e / Playwright / 工具）
 
 ### e2e 测试铁律
-- **绝不 mock**：Playwright e2e 一律对接真实后端（`http://localhost:7102`）+ 真实认证（`e2e/helpers/real-auth.ts` 解密 ForgeSetting.config 注入 localStorage）；防破坏类隔离（如真实重启）除外并注释说明。
+- **绝不 mock**：Playwright e2e 一律对接真实后端（地址取 `e2e/helpers/e2e-env.ts` 的 `backendUrl()`，默认回落 `http://localhost:7102`，PILOT-050 起禁止 spec 硬编码端口）+ 真实认证（`e2e/helpers/real-auth.ts` 解密 ForgeSetting.config 注入 localStorage）；防破坏类隔离（如真实重启）除外并注释说明。
 - 新增功能测试遵循「测试-修改-验证-推进」循环。
-- **正常验证流程必须走 root `playwright.config.ts`（含 globalSetup），禁止 `E2E_SKIP_GLOBAL_SETUP=1` 直连 51888**：globalSetup 会 `dotnet publish` 临时宿主 7102 + 前端 dev 7002 + 首启 `GET /api/api-server/init-token` 拿明文 token 注入 `E2E_API_TOKEN`。跳过它 → token 未注入 → `real-auth.ts` 回退解密 `ForgeSetting.config`，而 030 已升级 v2 机器绑定令牌（`v2:` 前缀 + PBKDF2 机器派生），旧 v1 写法直接崩 → 鉴权全挂。
+- **正常验证流程必须走 root `playwright.config.ts`（含 globalSetup），禁止 `E2E_SKIP_GLOBAL_SETUP=1` 直连 51888**：globalSetup 会 `dotnet publish` 临时宿主（动态端口，默认回落 7102）+ 前端 dev（动态端口，默认回落 7002）+ 首启 `GET /api/api-server/init-token` 拿明文 token 注入 `E2E_API_TOKEN`。跳过它 → token 未注入 → `real-auth.ts` 回退解密 `ForgeSetting.config`，而 030 已升级 v2 机器绑定令牌（`v2:` 前缀 + PBKDF2 机器派生），旧 v1 写法直接崩 → 鉴权全挂。
 - **`real-auth.ts` 与 `host-api-token.ts` 解密算法必须一致**：均按 v2（PBKDF2 机器派生，与 `ForgeSelf-AIProvider-Default-Encryption-Key` 同源）优先、非 `v2:` 前缀再回退 v1。两处重复逻辑易漂移，改一处须同步另一处。
 - **global-setup SQLite provider 复制（输入38 简化）**：`System.Data.SQLite.dll` 现为包依赖（bin/发布自然落盘），复制源优先 `publish/` 根；旧「根 + plugins/ 双候选双目标」逻辑仅为兼容历史产物可保留兜底。
 - **正常 e2e 用全新临时 DB**：会暴露宿主建表未覆盖的插件表缺失 bug（如 MemorySystem `chat/memories` 500）。51888 旧库已迁移故不显，勿以 51888 通过等同「全新库通过」。
@@ -463,10 +465,11 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ### 统一 e2e 测试体系（2026-08-31 建立）
 - 现状：**前端 e2e 是项目唯一前后端集成测试手段**（无独立单测体系）。既有 `ForgeSelf.Web/e2e/*.spec.ts` 28 个（应用层）+ 插件层 e2e，统一归口 `e2e-testing` 技能，**单一 Playwright 配置 + 单一 globalSetup**。
-- 关键代码事实：后端默认端口 `7102`（`ForgeSetting.Current.PortNumber`，config 可改；51888 是历史手动冷启验收端口非默认）；前端 dev `7002`；token 键 `localStorage['forge_api_token']`；插件前端路由 = `plugin.json` 的 `frontend.route`（sems=`/sems`），宿主经 `/plugin-view/<id>` 命名空间注册（仅冲突回退时）。
+- 关键代码事实：后端默认端口 `7102`（`ForgeSetting.Current.PortNumber`，config 可改；51888 是历史手动冷启验收端口非默认）；前端 dev `7002`（均为**默认回落值**，PILOT-050 起实际端口动态派生）；token 键 `localStorage['forge_api_token']`；插件前端路由 = `plugin.json` 的 `frontend.route`（sems=`/sems`），宿主经 `/plugin-view/<id>` 命名空间注册（仅冲突回退时）。
 - **宿主全局 Mutex 需实例标识**：`Program.cs` 硬编码 `Global\ForgeSelf-{GUID}` 单例锁；e2e 经 `FORGESelf_INSTANCE_ID`（env）或 `--instance-id=`（CLI）以独立 Mutex 并存。
-- **数据目录隔离**：发布版 exe 设 `ASPNETCORE_ENVIRONMENT=Development` → 数据根=发布目录/Data（每次 temp 全新），天然隔离 `~/.forgeself`。
-- **token**：宿主启动幂等生成 `ApiToken`，globalSetup 调 `GET /api/api-server/init-token`（首启无鉴权）拿明文注入 `E2E_API_TOKEN`。
+- **数据目录隔离（PILOT-050 更新）**：globalSetup 显式设 `FORGESELF_DATA_ROOT=<publish>/data`（小写，B9-4 最前置重载）→ 数据根完全隔离 `~/.forgeself`，宿主落盘的 ForgeSetting.config 全进隔离目录。
+- **token**：宿主启动幂等生成 `ApiToken`，globalSetup 调 `GET /api/api-server/init-token`（首启无鉴权）拿明文注入 `E2E_API_TOKEN`；跨进程真源 = `.temp/e2e/current.json`（含 hostPid 存活校验），`real-auth.ts` 经 `e2e-env.readCurrentRun()` 读取（不再扫描时间戳目录）。
+- **动态端口基建（PILOT-050，2026-09-30）**：`playwright.config.ts` 求值期经 `e2e/helpers/free-port.ts` 同步认领前后端端口（tmpdir 认领注册表 `forgeself-e2e-ports/<port>.lock`，wx 独占 + PID/cwd/TTL 陈旧判定，跨 worktree 互斥；单 worktree 无冲突仍得 7002/7102）→ `webServer.env` 透传 `E2E_FRONTEND_PORT`/`E2E_BACKEND_URL` → globalSetup 经 `FORGESELF_PORT` 注入宿主（宿主 `StartupPortResolver` 覆盖 `ForgeSetting.Current.PortNumber` 并落盘，重启一致）。运行目录 = `<仓库根>/.temp/e2e/wt-<hash8>`（按 worktree 稳定派生，不再用时间戳——时间戳随机目录是 Windows 防火墙弹窗根因）；残留宿主按 current.json 保护性清理（只认本 worktree 记录）。**e2e 侧地址真源 = `e2e-env.ts`（env → current.json → 默认），新 spec 禁止硬编码 7102/7002**。
 
 ### WebApplicationFactory 测试宿主
 - **AddControllers 必须显式 AddApplicationPart**：宿主 AppBuilder.cs 用 AddControllers() 裸调用，WAF 测试宿主下 entry assembly 是 testhost → 控制器扫描不到宿主程序集（40 例全 404）。修法：`AddControllers().AddApplicationPart(typeof(AppBuilder).Assembly)`（生产幂等）。
@@ -542,7 +545,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **管理面/CRUD 控制器必须类级 `[Authorize("ApiKeyPolicy")]`**（命名策略 = `ApiKeyAuthenticationHandler` Bearer 方案，注册于 AppBuilder.cs）：前端 `request.ts` 已全局注入 Authorization 头，勿因"前端会带 token"而漏加鉴权（踩坑：AIProviderController 曾无 [Authorize]；PluginController 2026-09-24 补课）。
 - **鉴权 token 唯一真源 = `ForgeSetting.config` 的 `ApiToken`（AES-256-CBC 解密），绝非 appsettings 的 "ApiKey"**：`ApiKeyAuthenticationHandler` 比对的正是 `ForgeSetting.Current.ApiToken`（解密后）；appsettings 的 "ApiKey" 是 AI provider key，误用会 401。解密用 `AesSecretEncryptionService`（密钥 `Encryption:Key`/`FORGESELF_ENCRYPTION_KEY`/默认 `ForgeSelf-AIProvider-Default-Encryption-Key`）。
 - **`ForgeConfig<T>` 路径覆盖触发铁律**：`ForgeConfig<TConfig> : Config<TConfig>` 基类在静态构造里把 `FileConfigProvider.FileName` 覆盖为绝对数据根路径（`数据根/Config/{Name}.config`）。该静态构造**只在 `TConfig` 实例被创建时触发**（经 `ForgeSetting.Current` 的 `new TConfig()` 路径），**只读 `ForgeSetting.Provider` 不触发**。断言用 `BeAssignableTo<FileConfigProvider>()`（勿 `BeOfType`，默认 XmlConfigProvider 继承 FileConfigProvider 但精确类型断言失败）。新增 `Config<T>` 子类须继承 `ForgeConfig<T>` 且至少经一次 `.Current` 访问。
-- **启动后端必须用 `dotnet run`（不带 `--urls`）**：NewLife.Agent 宿主会**吞掉** `--urls` 参数并回退到默认 5000。正确命令：工作目录 `ForgeSelf.Api` 跑 `dotnet run`（端口取 `ForgeSetting.config` 的 `PortNumber`，默认 7102）。**改端口改 `ForgeSetting.config` 的 `PortNumber`，勿用 `--urls`**。
+- **启动后端必须用 `dotnet run`（不带 `--urls`）**：NewLife.Agent 宿主会**吞掉** `--urls` 参数并回退到默认 5000。正确命令：工作目录 `ForgeSelf.Api` 跑 `dotnet run`（端口取 `ForgeSetting.config` 的 `PortNumber`，默认 7102）。**改端口三选一（PILOT-050 起）**：① `FORGESELF_PORT` 环境变量（最优先，宿主自动覆盖并落盘 config）；② `--server-port <n>` 参数（次优先）；③ 直接改 `ForgeSetting.config` 的 `PortNumber`。勿用 `--urls`（被吞）。
 - **宿主启动会写回 ForgeSetting.config（端口事故 2026-09-23）**：宿主启动流程会持久化自身运行端口（SettingsController/ApiServerController 的 ForgeSetting.Save 路径）。起宿主/发布前先读配置记录原值；冷启动后立即核对配置未被改写，被改写则恢复；发布脚本起宿主前加「备份配置 + 起后核对」防护（进 035 待办）。
 
 ### 运行时数据落盘铁律
@@ -789,6 +792,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-09-30 | **e2e 共享基建改造（PILOT-050）**：① 宿主新增启动端口覆盖 `FORGESELF_PORT`（env 优先）/`--server-port`（`StartupPortResolver`，覆盖即落盘 ForgeSetting.config，重启一致）；② e2e 运行目录按 worktree 稳定派生 `wt-<hash8>`（去时间戳，消除 Windows 防火墙弹窗根因）+ 残留宿主保护 + SQLite 无条件覆盖；③ 前后端端口动态认领（tmpdir 注册表跨 worktree 互斥）+ 三通道注入（`E2E_BACKEND_URL`/`E2E_FRONTEND_URL`/`FORGESELF_PORT`），e2e 地址真源统一 `e2e/helpers/e2e-env.ts`，spec 硬编码 7102/7002 清零（代码级 11 处）；④ port-config.spec 端口无关化；⑤ e2e-published 修 `publishDir` 越级 bug；⑥ AGENTS.md 收口唯一开发流程（specs/speckit 弃用、§0 强制读规范）、pilot 目录加日期前缀。B2/统一 e2e 体系/B4 已同步。 |
 | 2026-09-28 | dsh 对齐专项 B8（六闸门）+ B9（退役与清理）收官：新增 B12 小节沉淀——XCode 原生 SQL 片段绕 NotLike、Known Folder 不读 USERPROFILE 环境变量、`[..N]` 必须 clamp、插件 vitest 归宿主收集、多 call FIFO 配对契约、grep 守门模式、前端全量抖动定性法、.NET 测试环境绕法固化。 |
 | 2026-09-27 | 用户指令（seq17）发布规范改写：更新地址支持**本地目录**（`UpdateConfig.Provider=local` + `LocalDir`、`UpdateSettingsService` 运行时可变配置、UpdateChecker 本地分支、`release-local.ps1 -UpdateDir`、设置页更新源配置卡片）；发布规范改为**打 tag 自动发布 + 页面自动更新**，**禁止 agent 停/启/杀用户宿主**（AGENTS.md §0 门禁、§2.3/§2.4、plugin-development/plugin-publish-verify 技能、B5/B10 同步；run-plugin-publish-verify.ps1 降级为插件侧载可选路径、须用户同意）。 |
 | 2026-09-27 | AI-Native 闭环规范回炉（用户指令 seq14「不与既有体系映射，完全按新规范走」）：规范升 **v1.1.0**——删除与 Loop/speckit/plugin-team-sop 的映射节，改为「开发流程唯一依据 + 冲突以本规范为准 + 闸门1/2/3 自含定义（§1.1）」；AGENTS.md 头部/红线/§11 同步去映射；群 SOP `ai-native-engineering-loop` 升 **1.1.0**（自含闸门/熔断/汇报，去除 plugin-team-sop 依赖）并重绑本群。 |

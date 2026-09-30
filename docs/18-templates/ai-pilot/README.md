@@ -1,7 +1,7 @@
 # AI-Native Engineering 闭环文档模板
 
 > 配套规范：`docs/04-standards/ai-native-engineering-workflow.md`（强制）｜群 SOP：`ai-native-engineering-loop`
-> 产物落点：`docs/ai/pilot/<task-id>/`（每任务一目录；文件去掉 `.tpl` 后缀：`00-repository-understanding.md` ~ `06-review.md`，最终汇报直接用 `07-final-report.tpl.md` 结构发群消息）
+> 产物落点：`docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一目录，**目录名前端加日期前缀**，如 `2026-09-30-e2e-shared-infra-dynamic-port`；从 2026-09-30 起执行）；文件去掉 `.tpl` 后缀：`00-repository-understanding.md` ~ `06-review.md`，最终汇报直接用 `07-final-report.tpl.md` 结构发群消息）
 
 | 模板 | 阶段 | 产出文件 |
 | --- | --- | --- |

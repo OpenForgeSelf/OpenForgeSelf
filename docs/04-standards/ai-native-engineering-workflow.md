@@ -3,9 +3,9 @@
 > 版本：v1.1.0（2026-09-27）｜状态：**强制**——本项目所有开发类任务必须遵守
 > 来源：用户群内指令（conv_01m3gqx2bgeqbpwyqk9b3qj22z · seq10 制定方案；seq14 明确本规范**独立自洽，不与任何其他流程体系做映射**，开发任务完全按本规范执行）。
 > 配套模板：`docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review 七份）
-> 产物目录约定：`docs/ai/pilot/<task-id>/`（每任务一个目录；首切实验可直接用 `docs/ai/pilot/` 平铺）
+> 产物目录约定：`docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一个目录，**目录名前端加日期前缀**，如 `2026-09-30-e2e-shared-infra-dynamic-port`；**从 2026-09-30 起执行，已有旧目录不回溯重命名**；首切实验可直接用 `docs/ai/pilot/` 平铺）
 > 群 SOP 引用：SOP 技能 `ai-native-engineering-loop`（流程定义与本规范一致，闸门定义见 §1.1，不依赖任何其他 SOP）
-> **规范优先级**：开发任务的流程以本规范为唯一依据；项目内任何其他文档（含 AGENTS.md §1~§10、docs/04-standards/agent-workflow.md、specs 流程、其他 SOP）与本规范在流程上冲突时，一律以本规范为准。代码级工程规范（技术栈约定、测试命令、格式规范等）不属流程冲突，继续遵循仓库既有文档。
+> **规范优先级**：开发任务的流程以本规范为唯一依据；项目内任何其他文档（含 AGENTS.md §1~§10、docs/04-standards/agent-workflow.md、其他流程（含已弃用的 specs/speckit）、其他 SOP）与本规范在流程上冲突时，一律以本规范为准。代码级工程规范（技术栈约定、测试命令、格式规范等）不属流程冲突，继续遵循仓库既有文档。
 
 ---
 

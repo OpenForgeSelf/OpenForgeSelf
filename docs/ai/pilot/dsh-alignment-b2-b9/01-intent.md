@@ -36,7 +36,7 @@
 以下路径被 `.gitignore` 忽略，**不随提交入库**，因此任务上下文不能依赖它们：
 - `specs/`（整目录）
 - `/TODO.md`（根级，插件级 `Plugins/*/TODO.md` 仍入库）
-- `.workbuddy/memory/`（工作日志）
+- `.forgeself/memory/`（工作日志）
 - `.tmp/`、`.tmp-tests/`、`.tmp-env/`、`.userprofile/`（dotnet test 沙箱绕法产物）
 
 → 这就是为什么「一次任务执行的所有上下文都要维护到 `docs/ai/pilot` 相关目录」。

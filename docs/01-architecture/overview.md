@@ -2,7 +2,7 @@
 
 > 功能编号：—
 > 状态：已实现（与代码对齐，2026-08-12 反向更新）
-> 最后更新：2026-09-08
+> 最后更新：2026-09-30
 
 本文档从代码实现反推系统全貌：分层、模块关系、技术栈、核心数据流。**设计意图见 `00-vision/`**，**单功能设计见 `02-features/`**，**代码级细节以 `openwiki/`（CI 自动生成）为准**。
 
@@ -86,6 +86,17 @@
 - **代理录制**：`UnifiedAI/*` 控制器解析 `x-interaction-id` 等透传头 → `ResolveConversationKey` → upsert `ChatSession` → 写 `ChatTurn`（外键 + TurnIndex + Preview + tokens）。
 - **应用聊天**：`ChatController`（路由 `api/chat`：`POST` 收发、`POST stream` 流式、`GET history/{sessionId}` 历史）收发消息时按 `SessionId` 字符串 upsert `ChatSession`（Source='App'）。
 - **会话视图**：`ChatRecordsController`（`api/chat-sessions` GET 列表 + `api/chat-sessions/{id}` 详情）为前端聊天记录面板提供聚合后的会话维度数据。
+
+#### 3.2.1 会话事件溯源（唯一真相源，dsh 对齐 B1–B9）
+
+> 设计真源：[`ai/pilot/dsh-alignment-b2-b9/02-spec.md`](../ai/pilot/dsh-alignment-b2-b9/02-spec.md)；运行时架构图见 [`dsh-runtime-architecture.md`](dsh-runtime-architecture.md)。
+
+上面 `ChatSession`/`ChatTurn` 是**录制聚合**视角；而**会话记录的正确性唯一来源 = append-only 会话日志**（`SessionEventEntity`，落盘于 `ISessionStore.Append`），与录制表解耦：
+
+- **不变量 1（Model-visible means logged）**：一切进入模型的消息先落日志再派生，`model ⊆ log`；旧 `ChatController.SaveMessageAsync` 双写已删除。
+- **`ChatMessage` 降级为只读投影**：由 `SessionProjectionService.SyncAsync` 从日志**幂等全量重投影**（前缀对齐 + 孤儿行自愈），控制器/服务不得直写。
+- **事件类型可辨识联合**：`system/user/assistant/tool` 四类投影进模型历史；`assistant/attempt`、turn/step 结构类、`request/*`、`agent/inbox/*` 落盘但不投影（轨迹/审计）。
+- **运行期校验**：`SessionEventMap.EnsureKnown` 强制注册；库中出现未注册类型直接抛（旧数据删除 = 破坏性变更，必须显式迁移）。
 
 ### 3.3 插件体系（Cordis 内核驱动）
 

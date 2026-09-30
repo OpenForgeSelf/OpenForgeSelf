@@ -288,6 +288,8 @@ ForgeSelf.Core.Tests / ForgeSelf.Abstractions.Tests           # 内核/契约测
 
 > 以下 SVG 架构图展示四层分层、核心组件、依赖方向与插件间服务互通路径。可直接在浏览器打开或嵌入文档。
 
+> **dsh 对齐后的运行时架构图**（分层 + 会话日志真源 + turn/step 运行流程 + 工具六闸门）见 [`dsh-runtime-architecture.md`](dsh-runtime-architecture.md)。
+
 ```svg
 <svg viewBox="0 0 720 820" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
   <defs>

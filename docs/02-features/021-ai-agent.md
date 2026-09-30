@@ -12,7 +12,7 @@ AI 智能体编排框架：多 Agent 协调与执行（`AgentsController`）、�
 | 层 | 文件 |
 |----|------|
 | 控制器 | `Plugins/AIAgent/Controllers/`：`AgentsController.cs`（`[Route("api/agents")]`）、`PlanningController.cs`（`[Route("api/planning")]`）、`AIWorkflowController.cs`（`[Route("api/ai-agent/workflow")]`）、`AIScriptController.cs`（`[Route("api/ai-agent/script")]`）、`AIChatController.cs`（`[Route("api/ai-agent/chat")]`）、`ProjectController.cs`（`[Route("api/project")]`） |
-| 服务 | `Plugins/AIAgent/Services/`：`AIAgentService`（Agent 工具循环 `RunAgentLoopAsync`）、`AgentRegistryService`（Agent 定义加载 + 空表 seed 内置 Agent）、`AgentExecutorService`、`AgentCoordinatorService`、`WorkflowPlannerService`、`AIWorkflowAssistant`、`ProactivePlanningService`、`ProjectWorkspaceService` 等 |
+| 服务 | `Plugins/AIAgent/Services/`：`AIAgentService`（Agent 编排入口；循环运行时现委派统一 `ReactLoopAgent` 状态机驱动，`RunAgentLoopAsync` 为历史命名，详见 dsh 对齐 B5）、`AgentRegistryService`（Agent 定义加载 + 空表 seed 内置 Agent）、`AgentExecutorService`、`AgentCoordinatorService`、`WorkflowPlannerService`、`AIWorkflowAssistant`、`ProactivePlanningService`、`ProjectWorkspaceService` 等 |
 | 模型 | `Plugins/AIAgent/Models/AgentModels.cs`（`AgentDefinition` / `AgentWorkflowRef` / 任务与实例模型）、`SkillDefinition.cs` |
 | 数据 | `Plugins/AIAgent/Data/`：XCode 实体 `AgentDefinition`（含 `ConfigJson` 持久化人格/工具/工作流关联）、`AIChatMessage`（连接名 `AIAgent`，`Model.xml` 生成模式） |
 | 前端视图 | 插件自带界面 `Plugins/AIAgent/web/`（`plugin.json.frontend.route = /ai-agent`）：`AiAgentView` + `SessionPanel`（会话/Agent 列表）/ `ChatPanel`（对话 + composer）/ `ContextPanel`（AI 上下文）/ `AgentEditDialog`（Agent 编辑）；宿主残留 `src/views/AgentsManageView.vue`（管理视图） |
@@ -59,7 +59,7 @@ AI 智能体编排框架：多 Agent 协调与执行（`AgentsController`）、�
 
 **计划驱动循环不受影响**：`PlanGeneratorService` / `RunOrchestratorService`（B7 升格后为编排薄壳，步骤执行由统一 `ReactLoopAgent` 状态机承担，原 `StepRunLoopService` 已删除）走 `maxTurns = 1` + `extraTools` 显式挂载 `submit_plan` / `complete_step` / `request_help`，行为与修复前完全一致。
 
-**ReactLoopAgent（dsh B5，循环运行时现状）**：Agent 循环由 AIAgent 插件 `ReactLoopAgent`（实现 `IAgent`，经 `IAgentRegistry` 按会话解析）驱动——九态 turn/step 帧联合推进；工具调度走宿主 `IToolRegistry.ExecuteBatchAsync`（model-ordered commit：N 个 call 必有 N 个 result，取消合成 Skipped）；出口工具（complete_step/request_help）分区直达；step 超时看门狗将 turn 挂起（`TurnEndReason.Suspended`），steer 后恢复；followup/steer/inject 三语义经 `IInbox` 注入。详见 dsh 三部曲（`specs/040..042` 与 `01-architecture/dsh-alignment-施工总览.md`）。
+**ReactLoopAgent（dsh B5，循环运行时现状）**：Agent 循环由 AIAgent 插件 `ReactLoopAgent`（实现 `IAgent`，经 `IAgentRegistry` 按会话解析）驱动——九态 turn/step 帧联合推进；工具调度走宿主 `IToolRegistry.ExecuteBatchAsync`（model-ordered commit：N 个 call 必有 N 个 result，取消合成 Skipped）；出口工具（complete_step/request_help）分区直达；step 超时看门狗将 turn 挂起（`TurnEndReason.Suspended`），steer 后恢复；followup/steer/inject 三语义经 `IInbox` 注入。详见 dsh 三部曲设计（`specs/040..042` 与 [`ai/pilot/dsh-alignment-b2-b9/02-spec.md`](../ai/pilot/dsh-alignment-b2-b9/02-spec.md)，上下文真源与收官报告在该 pilot 目录 00–07）；运行时架构图见 [`dsh-runtime-architecture.md`](dsh-runtime-architecture.md)。
 
 **验证**：单测 `ForgeSelf.Api.Tests/Plugins/FinishToolTests.cs`（14 用例）+ `web/src/http.test.ts`（5 用例，SSE 分片解析）；e2e `e2e/plugins/ai-agent/agent-loop-autonomous.spec.ts`（4 用例，覆盖 `completed` / `finish` / `max_turns` 三条出口）。
 

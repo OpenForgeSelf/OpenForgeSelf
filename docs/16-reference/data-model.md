@@ -1,7 +1,7 @@
 # 数据模型参考
 
 > 项目使用 NewLife.XCode ORM，实体继承 `IEntity<T>` 接口，通过 `BindTable`/`BindColumn` 注解映射到 SQLite 表。XCode 在首次运行时自动建表（`DAL.Migration` 默认 On），无需手写迁移脚本。
-> 最后更新：2026-08-20
+> 最后更新：2026-09-30
 
 ## 实体关系总览
 
@@ -62,6 +62,17 @@ erDiagram
         int MaxContext "最大上下文"
         bool Enabled "是否启用"
     }
+
+    SessionEvent {
+        long Id PK "事件ID（全局单调递增，行主键即真相源）"
+        string SessionId FK "会话ID（冗余免 JOIN）"
+        long Ts "事件时间戳（Unix 毫秒）"
+        string Type "事件类型名（须在 SessionEventMap 注册）"
+        string PayloadJson "事件载荷（record 完整序列化 JSON）"
+    }
+
+    ChatSession ||--o{ SessionEvent : "1:N (SessionId) append-only 真相源"
+    SessionEvent ||..o{ ChatMessage : "派生（只读投影，非真相源）"
 ```
 
 ## 核心实体字段表
@@ -138,7 +149,38 @@ erDiagram
 
 **索引**：`IX_ChatMessage_SessionId`、`IX_ChatMessage_CreateTime`、`IX_ChatMessage_SessionId_CreateTime`（复合）
 
-> 注意：`ChatMessage` 为旧版实体，新代码使用 `ChatSession` + `ChatTurn` 两级结构。旧数据保留不迁移。
+> **dsh 对齐后降级为只读投影**：`ChatMessage` 不再是正确性来源。B4 改序后 `ISessionStore.Append` 是唯一写路径，本表数据由 `SessionProjectionService.SyncAsync` 从 `SessionEvent`（append-only 会话日志）**幂等全量重投影**得到（前缀对齐 + 孤儿行自愈）。控制器/服务一律不得直接写它；旧 `ChatController.SaveMessageAsync` 双写已删除。会话记录正确性唯一来源 = 会话日志（见下节）。
+
+### SessionEvent — 会话事件日志（append-only 真相源，dsh 对齐 B1–B9）
+
+> 实体类 `SessionEventEntity`，连接名 `ForgeSelf`（宿主库 `Data/ForgeSelf.db`）。一行 = 一条 `ForgeSelf.Abstractions.SessionEvent` 可辨识联合 record；只追加、不更新、不删除。
+> 不变量 1（**Model-visible means logged**）：一切进入模型的消息先落本日志再派生，`model ⊆ log`。
+
+| 字段 | 类型 | 长度 | 说明 |
+|------|------|------|------|
+| Id | Int64 | — | 事件 ID（自增主键，全局单调递增，行主键即真相源） |
+| SessionId | String | 100 | 会话 ID（外键/冗余免 JOIN，`Master`） |
+| Ts | Int64 | — | 事件时间戳（Unix 毫秒，规避时区与精度漂移） |
+| Type | String | 50 | 事件类型名（如 `user/message`；必须在 `SessionEventMap` 注册，未注册类型写/读均抛） |
+| PayloadJson | String | -1（文本不限长） | 事件载荷（record 完整序列化 JSON，多态还原见 `SessionEventJsonConverter`） |
+
+**索引**：`IX_SessionEvent_SessionId`、`IX_SessionEvent_SessionId_Id`（复合）。
+
+**事件类型（可辨识联合，编译期 record 层级穷举 + 运行期 `SessionEventMap` 强制注册）**：
+
+| Type | record | 类别 | 是否投影进模型历史 |
+|------|--------|------|--------------------|
+| `system/message` | `SystemMessageEvent` | 消息 | ✅ |
+| `user/message` | `UserMessageEvent` | 消息 | ✅（带 `MessageSource` 来源标记） |
+| `assistant/message` | `AssistantMessageEvent` | 消息 | ✅（携带 ToolCalls/Usage/FinishReason） |
+| `assistant/attempt` | `AssistantAttemptEvent` | 消息（轨迹） | ❌（失败/重试/取消，不入模型历史，仅供轨迹与诊断） |
+| `tool/call` / `tool/result` | `ToolCallEvent` / `ToolResultEvent` | 工具 | ✅ call；result 四态（Ok/Error/Denied/**Skipped** 合成）保证「N call 必有 N result」日志闭合 |
+| `turn/start` / `turn/end` | `TurnStartEvent` / `TurnEndEvent` | 结构 | ❌（`TurnEndReason`：Completed/MaxTokens/Aborted/NoInput/**Suspended**） |
+| `step/start` / `step/end` | `StepStartEvent` / `StepEndEvent` | 结构 | ❌（`StepEndReason` 含 ExitTool/Suspended） |
+| `request/header` / `request/context` | `RequestHeaderEvent` / `RequestContextEvent` | 请求信封 | ❌（对模型可见但独立成事件便于审计） |
+| `agent/inbox/spliced` | `InboxSplicedEvent` | 收件箱投影 | ❌（followup/steer/inject 落地投影） |
+
+> 投影规则：`ISessionStore.DeriveMessages` 仅取 system/user/assistant/tool 四类；attempt/结构/context 事件被排除。遇到未覆盖类型必须抛异常（漏投影在开发期炸出）。详见 [`01-architecture/dsh-runtime-architecture.md`](../01-architecture/dsh-runtime-architecture.md) 与 [`ai/pilot/dsh-alignment-b2-b9/02-spec.md`](../ai/pilot/dsh-alignment-b2-b9/02-spec.md)。
 
 ### AIProvider — AI 提供方配置
 
@@ -268,7 +310,9 @@ erDiagram
 | 关系 | 源实体 | 目标实体 | 外键字段 | 说明 |
 |------|--------|----------|----------|------|
 | 1:N | ChatSession | ChatTurn | ChatTurn.ChatSessionId | 一个会话包含多轮对话 |
-| 1:N | ChatSession | ChatMessage | ChatMessage.SessionId | 旧版消息（不迁移） |
+| 1:N | ChatSession | ChatMessage | ChatMessage.SessionId | 只读投影（由会话日志重投影，非真相源） |
+| 1:N | ChatSession | SessionEvent | SessionEvent.SessionId | 会话日志（append-only 真相源，model ⊆ log） |
+| 派生 | SessionEvent | ChatMessage | — | 只读投影：`SessionProjectionService.SyncAsync` 幂等全量重投影 |
 | 1:N | AIProvider | AIModel | AIModel.ProviderId | 一个提供方有多个模型 |
 | N:1 | UsageDailySummary | UsageRecord | — | 按日期/插件/工具聚合 |
 

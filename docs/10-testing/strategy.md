@@ -52,3 +52,26 @@
 - `ChatRecordRealLLMTests` 全量跑偶发红（疑测试间状态干扰，TODO 已知）；
 - `TruncatedContent.test.ts` 的 `navigator.clipboard` 只读致 1 失败（环境缺陷，与样式无关）；
 - `pnpm run build` 约 31 个预存类型错误（非本轮回归，待独立修，T032）。
+
+## 6. 会话日志不变量铁律（dsh 对齐 B1–B9）
+
+> 来源：dsh 对齐 040/041/042 三部曲；核心契约见 `ForgeSelf.Abstractions/ISessionStore.cs` 顶部注释「不变量 1（Model-visible means logged）」。
+> 设计真源：[`docs/ai/pilot/dsh-alignment-b2-b9/02-spec.md`](../ai/pilot/dsh-alignment-b2-b9/02-spec.md)；运行时架构图见 [`01-architecture/dsh-runtime-architecture.md`](../01-architecture/dsh-runtime-architecture.md)。
+
+### 铁律：Model-visible means logged（可见即已记录）
+
+一切进入模型的消息必须先落**会话日志**（`ISessionStore.Append`），再从日志 `DeriveMessages` 派生；模型看到的消息集合 `model ⊆ log`。旧 `ChatController` 双写 `SaveMessageAsync` 已删除，聊天记录的正确性唯一来源 = append-only 会话日志（`SessionEventEntity`），`ChatMessage` 表降级为**只读投影**（由 `SessionProjectionService.SyncAsync` 幂等全量重投影）。
+
+### 落地测试（证明不变量成立，非空断言）
+
+| 测试 | 位置 | 断言要点 |
+|------|------|----------|
+| `SessionStoreContractTests.DeriveMessages_OnlyModelVisible()` | `ForgeSelf.Abstractions.Tests/SessionStoreContractTests.cs` | 从日志派生的消息仅含已落盘、对模型可见的记录（system/user/assistant/tool），attempt/结构/context 事件被排除 |
+| `ChatControllerInvariantTests.Invariant1_EveryModelVisibleMessage_IsRebuildableFromLog()` | `ForgeSelf.Api.Tests/Integration/ChatControllerInvariantTests.cs` | 每条模型可见消息都能从日志重建 |
+| `ChatCompletionWritePathTests`（断言「模型看到的每一条消息都能从日志重建 `model ⊆ log`」） | `ForgeSelf.Api.Tests/...` | 写路径不变量：模型输入 = 日志投影 |
+
+### 回归红线
+
+- 任何新增「模型可见消息」的来源路径，**必须**先 `Append` 再 `Derive`，不得旁路日志直接构造模型输入；
+- 不得恢复 `ChatController.SaveMessageAsync` 双写或新增等价直写；
+- 改 `ISessionStore` / `SessionProjectionService` 时，上述三类测试必须仍全绿。

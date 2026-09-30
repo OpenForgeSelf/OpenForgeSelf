@@ -314,7 +314,7 @@ onBeforeUnmount(stopPolling);
           <div class="text-sm text-text-regular">当前版本</div>
           <div class="text-lg font-semibold text-text mt-1">v{{ status?.currentVersion ?? '…' }}</div>
         </div>
-        <el-button :loading="checking || busy()" @click="onCheck">检查更新</el-button>
+        <el-button :loading="checking" :disabled="busy()" @click="onCheck">检查更新</el-button>
       </div>
     </el-card>
 
@@ -333,8 +333,8 @@ onBeforeUnmount(stopPolling);
           </div>
           <el-button
             type="primary"
-            :loading="downloading || busy()"
-            :disabled="isReady()"
+            :loading="downloading"
+            :disabled="busy() || isReady()"
             @click="onDownload"
           >
             {{ isReady() ? '已下载' : '下载更新' }}

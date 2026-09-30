@@ -9,6 +9,18 @@ using ForgeSelf.Api.Plugins.TodoTracker.Services;
 namespace ForgeSelf.Api.Plugins.TodoTracker;
 
 /// <summary>
+/// 工具函数的服务解析回落：插件 <c>Apply(IContext)</c> 传进来的常是插件上下文（<c>ForgeSelf.Core.Context</c>），
+/// 其自有服务表没有 MS DI 的 <c>IServiceScopeFactory</c>，直接 <c>CreateScope()</c> 会抛
+/// 「No service for type 'IServiceScopeFactory'」。宿主由 PluginManager.ProvideHostServices 把根
+/// <see cref="IServiceProvider"/> seed 进 root Context，故先经它回落宿主容器。
+/// </summary>
+public static class TodoToolProvider
+{
+    public static IServiceProvider? Resolve(IServiceProvider? services)
+        => (services?.GetService(typeof(IServiceProvider)) as IServiceProvider) ?? services;
+}
+
+/// <summary>
 /// create_todo 工具函数：创建一个新的待办事项。
 /// </summary>
 public class CreateTodoToolFunction : IToolFunctionExtension
@@ -23,7 +35,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
 
     public CreateTodoToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = serviceProvider;
+        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -122,7 +134,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
 
     public ListTodosToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = serviceProvider;
+        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -210,7 +222,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
 
     public CompleteTodoToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = serviceProvider;
+        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
     }
 
     public async Task<string> ExecuteAsync(string parameters)

@@ -20,7 +20,7 @@ import { injectRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const SNIPPET_BASE = 'http://localhost:7102/api/codesnippets'
+const SNIPPET_BASE = `${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/api/codesnippets`
 
 /** 通过真实后端 API 删除测试片段（忽略 404） */
 async function deleteTestSnippet(id: number): Promise<void> {

@@ -23,7 +23,7 @@ import { injectRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const BACKEND_URL = 'http://localhost:7102'
+const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 const TODOS_BASE = `${BACKEND_URL}/api/todos`
 
 /** 通过真实后端 API 创建待办，返回 id */

@@ -1,8 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getRealApiKey } from './helpers/real-auth';
+import { backendUrl, forgeSettingConfigPath } from './helpers/e2e-env';
 
 /**
  * 端口配置 E2E 测试 —— 对接真实后端 API。
@@ -12,28 +11,21 @@ import { getRealApiKey } from './helpers/real-auth';
  *   不硬编码——密钥轮换后硬编码值会失效导致 status 401），使认证请求通过
  * - 所有 API 调用走真实后端，不 mock
  * - 仅 mock 重启端点（POST /api/api-server/restart）与健康轮询：真实重启会
- *   把端口从 7102 改为 9090 并中断并行测试、破坏开发环境，属防破坏隔离；
- *   其余接口全部真实请求
+ *   切换监听端口并中断并行测试、破坏开发环境，属防破坏隔离；其余接口全部真实请求
  * - 保存测试会真实修改后端端口配置，测试后通过 API / 配置文件恢复，保证可重复运行
- *
- * 覆盖范围：
- * - 端口配置卡片加载
- * - 编辑端口并取消还原
- * - 端口号范围验证
- * - 端口可用性检查
- * - 保存端口配置（真实 save + mock 重启）
- * - 重启超时处理
+ * - **端口无关**（PILOT-050 T7）：后端地址走 E2E_BACKEND_URL / current.json 级联，
+ *   断言用模板串；不再假设 7102，多 worktree 动态端口下同样成立
  */
 
 // ============================================================
 // 真实后端 API 密钥（运行时从 ForgeSetting.config 解密）
 // ============================================================
 const REAL_API_KEY = getRealApiKey();
-const BACKEND_URL = 'http://localhost:7102';
-/** 后端配置文件路径（发布版），用于恢复被测试保存污染的端口 */
-const BACKEND_CONFIG_PATH =
-  process.env.FORGE_SETTING_CONFIG ??
-  path.resolve(fileURLToPath(new URL('../../publish/Config/ForgeSetting.config', import.meta.url)));
+const BACKEND_URL = backendUrl();
+/** 实际监听端口（= 配置端口的期望值：UI 地址展示取自配置端口，二者一致断言才稳） */
+const LISTENING_PORT = Number(new URL(BACKEND_URL).port);
+/** 后端配置文件路径（{数据根}/config/ForgeSetting.config），用于恢复被测试保存污染的端口 */
+const BACKEND_CONFIG_PATH = forgeSettingConfigPath();
 
 // ============================================================
 // 辅助函数
@@ -102,15 +94,19 @@ async function restorePort(originalPort: number): Promise<void> {
       `<PortNumber>${originalPort}</PortNumber>`,
     );
     writeFileSync(BACKEND_CONFIG_PATH, updated, 'utf8');
-    // 等待配置缓存刷新后验证
-    for (let i = 0; i < 12; i++) {
-      await new Promise((r) => setTimeout(r, 500));
-      if ((await getCurrentPort()) === originalPort) return;
-    }
-    console.warn(`恢复端口 ${originalPort} 后配置未刷新，当前仍为 ${await getCurrentPort()}`);
   } catch (e) {
-    console.warn(`恢复端口配置失败: ${e instanceof Error ? e.message : e}`);
+    // 文件回退失败 → 快速失败暴露（挂 cause 保留原始异常，preserve-caught-error）
+    throw new Error(
+      `恢复端口配置失败（文件回退写 ${BACKEND_CONFIG_PATH}）: ${e instanceof Error ? e.message : e}`,
+      { cause: e },
+    );
   }
+  // 等待配置缓存刷新后验证；超时未刷新 → 快速失败（否则后续断言全部失真）
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if ((await getCurrentPort()) === originalPort) return;
+  }
+  throw new Error(`恢复端口 ${originalPort} 后配置未刷新，当前仍为 ${await getCurrentPort()}`);
 }
 
 // ============================================================
@@ -121,8 +117,8 @@ test.describe('端口配置管理（API 服务器面板）', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async () => {
-    // 保证初始端口为 7102，使断言稳定
-    await restorePort(7102);
+    // 保证配置端口与实际监听端口一致（e2e 动态口），使地址展示断言稳定
+    await restorePort(LISTENING_PORT);
   });
 
   test('加载 API 服务器页面，端口配置卡片可见', async ({ page }) => {
@@ -132,7 +128,7 @@ test.describe('端口配置管理（API 服务器面板）', () => {
     // 端口配置卡片存在
     await expect(page.getByText('端口配置')).toBeVisible();
     // 显示当前端口地址（真实后端返回）
-    await expect(page.getByText('http://localhost:7102/v1')).toBeVisible();
+    await expect(page.getByText(`${BACKEND_URL}/v1`)).toBeVisible();
   });
 
   test('编辑端口并取消，端口恢复原始值', async ({ page }) => {
@@ -147,8 +143,8 @@ test.describe('端口配置管理（API 服务器面板）', () => {
     // 点击"取消"
     await page.getByRole('button', { name: '取消' }).click();
 
-    // 验证显示恢复为原始端口（真实后端 7102）
-    await expect(page.getByText('http://localhost:7102/v1')).toBeVisible();
+    // 验证显示恢复为原始端口（真实后端监听口）
+    await expect(page.getByText(`${BACKEND_URL}/v1`)).toBeVisible();
   });
 
   test('端口号超出范围时显示错误信息', async ({ page }) => {

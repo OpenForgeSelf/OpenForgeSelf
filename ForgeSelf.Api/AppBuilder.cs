@@ -94,6 +94,13 @@ public static class AppBuilder
         ConfigUnifier.UnifyAllConfigFiles(configRoot);
         XTrace.Log.Info("配置文件统一目录: {0}", configRoot);
 
+        // 启动期端口覆盖（e2e / 多实例并行隔离）：FORGESELF_PORT 环境变量 ＞ --server-port 命令行。
+        // 覆盖后落盘 ForgeSetting.config，使 ApplicationRestartService 重启（不传 env）仍读到同一端口，
+        // 保证「env 覆盖 / config 落盘 / 重启读取」三方一致；未提供覆盖时零副作用。
+        // 须在 ConfigUnifier 之后调用，确保 Save() 落到统一的 {数据根}/config 目录，
+        // 且后续 TrayIconManager 注册(263) / StartTrayIcon(272) / 端口绑定(524) 均读到覆盖值。
+        StartupPortResolver.ResolveAndApply(args);
+
         builder.Services.AddXCode(builder.Configuration, dataLocation.GetHostDataDirectory());
 
         // 项目工作区宿主实现（L1 能力接缝 IProjectRegistry）：seed 进插件 root 上下文（常驻）。

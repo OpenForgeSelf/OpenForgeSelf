@@ -45,7 +45,7 @@ test.describe('个人中心（/profile）', () => {
     const requested: string[] = []
     page.on('response', (resp) => {
       if (resp.url().includes('/api/planning/')) {
-        requested.push(`${resp.status()} ${resp.url().replace('http://localhost:7002', '')}`)
+        requested.push(`${resp.status()} ${resp.url().replace(process.env.E2E_FRONTEND_URL ?? 'http://localhost:7002', '')}`)
       }
     })
 

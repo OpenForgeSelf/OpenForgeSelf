@@ -269,6 +269,17 @@ static TrayIconManager? StartTrayIcon(WebApplication app)
 {
     try
     {
+        // e2e / 无人值守环境禁用托盘（FORGESELF_NO_TRAY=1，PILOT-050）：
+        // 托盘创建失败（H.NotifyIcon TryCreate failed）发生在独立 STA 线程且未捕获，
+        // 会以 Unhandled exception 打崩整个宿主进程（2026-09-30 深档 e2e 实证：
+        // 本机多实例托盘并存时 Explorer 拒绝创建 → 宿主监听已就绪仍被托盘拖崩）。
+        // 无人交互场景托盘无意义，直接跳过最稳。
+        if (Environment.GetEnvironmentVariable("FORGESELF_NO_TRAY") == "1")
+        {
+            XTrace.Log.Info("FORGESELF_NO_TRAY=1，跳过托盘图标（e2e/无人值守模式）");
+            return null;
+        }
+
         var port = ForgeSetting.Current.PortNumber;
 
         // 从 DI 容器解析服务

@@ -55,7 +55,7 @@ test.describe('Token 再生流程（真实后端）', () => {
     expect(stored).toMatch(/^sk-/);
 
     // 新密钥可真实认证 status（旧密钥已失效，新密钥必须可用）
-    const statusRes = await fetch('http://localhost:7102/api/api-server/status', {
+    const statusRes = await fetch(`${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/api/api-server/status`, {
       headers: { Authorization: `Bearer ${stored}` },
     });
     expect(statusRes.status).toBe(200);

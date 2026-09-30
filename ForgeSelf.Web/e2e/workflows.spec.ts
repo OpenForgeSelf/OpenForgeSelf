@@ -20,7 +20,7 @@ import { injectRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const WORKFLOW_BASE = 'http://localhost:7102/api/workflows'
+const WORKFLOW_BASE = `${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/api/workflows`
 
 /** 通过真实后端 API 删除测试工作流（忽略 404） */
 async function deleteTestWorkflow(id: number): Promise<void> {

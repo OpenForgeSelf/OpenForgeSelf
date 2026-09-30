@@ -27,7 +27,7 @@ import { getRealApiKey } from './helpers/real-auth'
  */
 
 const API_KEY = process.env.OPENFORGE_API_KEY ?? getRealApiKey()
-const BACKEND_URL = process.env.OPENFORGE_BACKEND_URL ?? 'http://localhost:7102'
+const BACKEND_URL = process.env.OPENFORGE_BACKEND_URL ?? process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 const MOCK_PROVIDER = process.env.OPENFORGE_E2E_MOCK_PROVIDER
 
 // 公共：带 API key 的 headers 构造器

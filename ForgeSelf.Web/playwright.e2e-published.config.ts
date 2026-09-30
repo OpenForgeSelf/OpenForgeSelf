@@ -9,8 +9,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers');
 
 const root = resolve(__dirname, '..');
-const publishDir = resolve(root, '../publish');
+// [PILOT-050 T8 修复] 原写法 resolve(root, '../publish') 越级到仓库父目录（本机不存在），
+// 导致 webServer 起不来；正确目标是仓库根的 publish/（build.ps1 产物）。
+const publishDir = resolve(root, 'publish');
 const backendExe = resolve(publishDir, 'ForgeSelf.exe');
+// 端口来源：E2E_BACKEND_URL（e2e 动态端口注入）→ 默认 7102（向后兼容）
+const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102';
 
 /**
  * Playwright 发布模式 E2E 测试配置。
@@ -18,7 +22,7 @@ const backendExe = resolve(publishDir, 'ForgeSelf.exe');
  * 与默认 playwright.config.ts 的区别：
  * - webServer 直接启动发布后的后端 exe，不依赖前端 dev server
  * - 仅 chromium（发布模式不需要跨浏览器验证路由行为）
- * - baseURL 指向后端端口 7102
+ * - baseURL 指向后端（E2E_BACKEND_URL ?? 7102）
  * - 仅运行 spa-fallback 相关测试
  *
  * 前置条件：
@@ -38,7 +42,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: 'http://localhost:7102',
+    baseURL: BACKEND_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -53,7 +57,7 @@ export default defineConfig({
   // 启动方式：cd publish && .\ForgeSelf.exe --console
   webServer: {
     command: `"${backendExe}" --console`,
-    url: 'http://localhost:7102/api/health',
+    url: `${BACKEND_URL}/api/health`,
     reuseExistingServer: true,
     timeout: 30000,
     cwd: publishDir,

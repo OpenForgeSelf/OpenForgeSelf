@@ -28,7 +28,7 @@ import { injectRealApiKey, getRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const BACKEND_URL = 'http://localhost:7102'
+const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 const API_BASE = `${BACKEND_URL}/api/ai-providers`
 
 /** 认证请求头（真实密钥） */

@@ -22,7 +22,7 @@ import { injectRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const BACKEND = 'http://localhost:7102/api/quicklinks'
+const BACKEND = `${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/api/quicklinks`
 
 /** 通过真实后端 API 创建测试分类，返回 id */
 async function createTestCategory(name: string): Promise<number> {

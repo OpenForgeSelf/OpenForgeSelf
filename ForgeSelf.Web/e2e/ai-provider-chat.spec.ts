@@ -29,7 +29,7 @@ const LM_KEY = process.env.LM_STUDIO_API_KEY ?? ''
 /** LM Studio 实际可加载的模型（fetch-models 拉取后模型列表可见，且可真实聊天） */
 const LM_MODEL = 'llama-3.2-1b-instruct'
 
-const BACKEND_URL = 'http://localhost:7102'
+const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 const API_BASE = `${BACKEND_URL}/api/ai-providers`
 
 // ============================================================

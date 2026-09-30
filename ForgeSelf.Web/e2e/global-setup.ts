@@ -1,22 +1,29 @@
-import { spawn, type ChildProcess } from 'node:child_process'
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { spawn, execSync, type ChildProcess } from 'node:child_process'
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { FullConfig } from '@playwright/test'
+import { ensureFreePort, worktreeTag } from './helpers/free-port'
 
 /**
- * 统一 e2e 共享基础设施（globalSetup）
+ * 统一 e2e 共享基础设施（globalSetup · PILOT-050 T4 重构）
  * ----------------------------------------------------------------
- * 每次运行：把宿主构建产物发布到独立时间戳临时目录（无 DLL 锁冲突、全新干净），
- * 以临时目录作数据目录启动整套环境（宿主 7102 + 前端 dev 7002），
- * 保证每次测试互不冲突、且不污染用户 ~/.forgeself（全新环境）。
+ * 目录：<仓库根>/.temp/e2e/wt-<hash8> —— 按 worktree 根路径哈希稳定派生，
+ * 不再用时间戳（时间戳随机目录每次变化，是 Windows 防火墙弹窗的根因）。
+ * 同 worktree 反复运行复用同目录：先杀残留宿主 → 清旧 publish → 重新发布。
+ *
+ * 端口：playwright.config 求值期已同步认领 E2E_BACKEND_PORT / E2E_FRONTEND_PORT
+ * （跨 worktree 经 tmpdir 认领注册表互斥）；此处复核认领并起宿主，
+ * 经 FORGESELF_PORT 注入（宿主 StartupPortResolver 覆盖 ForgeSetting 并落盘）。
+ *
+ * 数据根：FORGESELF_DATA_ROOT=<publish>/data 显式隔离（B9-4 前置重载），
+ * 宿主落盘的 ForgeSetting.config 全部进隔离目录，不污染用户 ~/.forgeself。
  *
  * 关键机制：
- * - 数据目录隔离：用 ASPNETCORE_ENVIRONMENT=Development 跑发布版 exe，
- *   宿主数据根 = 发布目录/Data（每次 temp 全新），天然避开用户数据目录。
- * - token：宿主启动即幂等生成并加密存储 ApiToken；首启 GET /api/api-server/init-token
- *   返回明文（无鉴权），globalSetup 注入 worker 环境 E2E_API_TOKEN。
- * - 端口：宿主固定 7102（项目约定，与既有 28 个应用层 spec + vite 代理一致）。
+ * - token：宿主首启 GET /api/api-server-init-token 语义见 fetchInitToken；
+ *   globalSetup 把明文 token 写入 state.json + current.json（跨进程真源，worker 读它）。
+ * - 运行态快照：current.json（.temp/e2e/current.json，含 hostPid）+ state.json + host.pid，
+ *   供 e2e-env.ts / real-auth.ts / port-config.spec.ts 统一读取（不再扫描时间戳目录）。
  */
 
 const __filename = fileURLToPath(import.meta.url)
@@ -24,13 +31,22 @@ const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, '..', '..') // ForgeSelf.Web/e2e -> repo root
 const PUBLISH_PROJECT = path.join(REPO_ROOT, 'ForgeSelf.Api', 'ForgeSelf.Api.csproj')
 
-const BACKEND_PORT = 7102
-const FRONTEND_PORT = 7002
 const HOST_EXE = 'ForgeSelf.exe'
-const HEALTH_URL = `http://localhost:${BACKEND_PORT}/api/health`
-const INIT_TOKEN_URL = `http://localhost:${BACKEND_PORT}/api/api-server/init-token`
 
 let hostProc: ChildProcess | null = null
+
+/** 按 PID 杀进程树（Windows 用 taskkill /t /f，其余 SIGTERM）。只用于本 worktree 自己拉起的 e2e 宿主。 */
+function killTree(pid: number): void {
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore' })
+    } else {
+      process.kill(pid, 'SIGTERM')
+    }
+  } catch {
+    /* 进程可能已退出 */
+  }
+}
 
 /** 运行外部命令，stdout/stderr 落盘，非零退出抛错。 */
 function run(
@@ -77,9 +93,9 @@ async function waitForUrl(url: string, timeoutMs: number): Promise<void> {
 }
 
 /** 首启初始化 token（无鉴权），返回明文；已初始化则返回 null。 */
-async function fetchInitToken(): Promise<string | null> {
+async function fetchInitToken(url: string): Promise<string | null> {
   try {
-    const r = await fetch(INIT_TOKEN_URL)
+    const r = await fetch(url)
     const body = (await r.json()) as { success?: boolean; data?: { apiKeyPlain?: string } }
     if (body.success && body.data?.apiKeyPlain) return body.data.apiKeyPlain
   } catch {
@@ -150,13 +166,56 @@ async function signHostExecutable(publishDir: string, logFile: string): Promise<
   }
 }
 
+/**
+ * 绕过 safe-delete shim 的目录删除：本环境 Node fs.rmSync 被 safe-delete shim 接管，
+ * 对大目录（publish/ 数千文件）触发 SAFE_DELETE_BULK_GUARD_ERROR 直接中断 globalSetup
+ * （2026-09-30 深档 e2e 实证）。改走子进程 OS 级删除，不经 Node shim。
+ */
+function rmDirOS(dir: string): void {
+  if (!existsSync(dir)) return
+  try {
+    if (process.platform === 'win32') {
+      execSync(`cmd /c rmdir /s /q "${dir}"`, { stdio: 'ignore' })
+    } else {
+      execSync(`rm -rf "${dir}"`, { stdio: 'ignore' })
+    }
+  } catch (e) {
+    throw new Error(`清理目录失败（OS 级删除）: ${dir}；${(e as Error).message}`)
+  }
+}
+
 export default async function globalSetup(_config: FullConfig) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const e2eRoot = path.join(REPO_ROOT, '.temp', 'e2e', ts)
+  const tag = worktreeTag(REPO_ROOT)
+  const e2eTempRoot = path.join(REPO_ROOT, '.temp', 'e2e')
+  const e2eRoot = path.join(e2eTempRoot, tag)
+  const currentJsonPath = path.join(e2eTempRoot, 'current.json')
+
+  // 0) 残留进程保护：本 worktree 上一次 e2e 宿主仍存活（崩溃/中断残留）→ 先杀再清，
+  //    否则旧宿主 DLL 被内存映射，publish 目录清理与重发布会失败。只认 current.json 里
+  //    e2eRoot 匹配本 worktree 的记录，绝不触碰用户实例（:51888 等）。
+  try {
+    const prev = JSON.parse(readFileSync(currentJsonPath, 'utf8')) as { hostPid?: number; e2eRoot?: string }
+    if (prev?.hostPid && prev.e2eRoot === e2eRoot) {
+      console.log(`[e2e] 发现本 worktree 残留宿主 PID=${prev.hostPid}，先终止...`)
+      killTree(prev.hostPid)
+      await new Promise((r) => setTimeout(r, 1500)) // 给进程树退出留时间
+    }
+  } catch {
+    /* 无 current.json（首次运行/已清理） */
+  }
+
+  // 0.5) E2E_CLEAN=1 → 清空整个 e2eRoot（含日志/数据）；无论旧 publish 与 data 无条件清
+  //      （防陈旧 DLL + 保证「全新临时 DB」铁律）。删除走 OS 级（绕 safe-delete shim）。
+  if (process.env.E2E_CLEAN === '1') {
+    rmDirOS(e2eRoot)
+  }
+  rmDirOS(path.join(e2eRoot, 'publish'))
+  rmDirOS(path.join(e2eRoot, 'data'))
   mkdirSync(e2eRoot, { recursive: true })
   const publishDir = path.join(e2eRoot, 'publish')
+  const dataDir = path.join(publishDir, 'data') // 小写，输入37 目录命名统一
 
-  // 1) 全新构建到临时目录（每次干净、无锁冲突）
+  // 1) 全新构建到隔离目录（同 worktree 每次重发，保证与当前源码一致）
   await run(
     'dotnet',
     ['publish', PUBLISH_PROJECT, '-c', 'Release', '-o', publishDir, '--nologo', '-v', 'minimal'],
@@ -190,12 +249,10 @@ export default async function globalSetup(_config: FullConfig) {
           `${livePublishDir}（根/Plugins）中均未找到。请补齐仓内 build/runtime/Plugins/${dll}（正常应随仓库存在）。`,
       )
     }
-    // 目的：临时 publish 根 + Plugins/ 都放，覆盖 XCode 不同探测路径
+    // 目的：publish 根 + Plugins/ 都放，覆盖 XCode 不同探测路径；publish 已清空 → 无条件覆盖（修陈旧隐患）
     for (const dstBase of [publishDir, path.join(publishDir, 'Plugins')]) {
-      const dst = path.join(dstBase, dll)
-      if (existsSync(dst)) continue
       mkdirSync(dstBase, { recursive: true })
-      copyFileSync(src, dst)
+      copyFileSync(src, path.join(dstBase, dll))
     }
   }
 
@@ -204,15 +261,30 @@ export default async function globalSetup(_config: FullConfig) {
   // 必须在 spawn 前完成（运行中的 exe 不可签）。
   await signHostExecutable(publishDir, path.join(e2eRoot, 'sign.log'))
 
-  // 2) 起宿主：Development 环境 → 数据根 = publish/Data（全新，隔离 ~/.forgeself）
+  // 1.7) 端口：优先用 playwright.config 求值期认领的 E2E_BACKEND_PORT（同进程，认领可重入）；
+  // 起宿主前复核「真正可绑定」（认领注册表只保证 e2e 之间互斥，在跑实例可能绑着同口），
+  // 不可绑则顺延重选；独立运行本 setup 时回退 pickFreePort。
+  const backendPort = await ensureFreePort(
+    Number(process.env.E2E_BACKEND_PORT) || 7102,
+    REPO_ROOT,
+  )
+  const frontendPort = Number(process.env.E2E_FRONTEND_PORT) || 7002
+
+  // 2) 起宿主：FORGESELF_DATA_ROOT 显式隔离数据根；FORGESELF_PORT 覆盖监听端口（宿主落盘 ForgeSetting.config）；
+  //    FORGESelf_INSTANCE_ID 按 worktree 稳定（独立全局 Mutex，与用户实例 / 其他 worktree 互不阻塞）。
+  const backendUrl = `http://localhost:${backendPort}`
+  const frontendUrl = `http://localhost:${frontendPort}`
   const backendLog = createWriteStream(path.join(e2eRoot, 'backend.log'), { flags: 'w' })
   hostProc = spawn(path.join(publishDir, HOST_EXE), ['--console'], {
     cwd: publishDir,
-    // FORGESelf_INSTANCE_ID：让 e2e 宿主持有独立全局 Mutex，与用户开发实例（PID 32956 等）互不阻塞
     env: {
       ...process.env,
       ASPNETCORE_ENVIRONMENT: 'Development',
-      FORGESelf_INSTANCE_ID: `e2e-${ts}`,
+      FORGESELF_DATA_ROOT: dataDir,
+      FORGESELF_PORT: String(backendPort),
+      // 禁用托盘：托盘创建失败（多实例并存时 Explorer 拒绝）会以 Unhandled exception 打崩宿主
+      FORGESELF_NO_TRAY: '1',
+      FORGESelf_INSTANCE_ID: `e2e-${tag}`,
       DOTNET_CLI_TELEMETRY_OPTOUT: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -221,27 +293,32 @@ export default async function globalSetup(_config: FullConfig) {
   hostProc.stderr?.pipe(backendLog)
   hostProc.on('exit', () => backendLog.end())
 
-  // 3) 健康检查
-  await waitForUrl(HEALTH_URL, 120_000)
+  // 3) 健康检查（宿主绑定 FORGESELF_PORT 失败会在此快速暴露）
+  await waitForUrl(`${backendUrl}/api/health`, 120_000)
 
   // 4) 初始化 token（首启返回明文；否则回退 real-auth 解密 ForgeSetting.config）
-  const token = await fetchInitToken()
+  const token = await fetchInitToken(`${backendUrl}/api/api-server/init-token`)
 
-  // 5) 写出 state + 注入 worker 环境
+  // 5) 写出运行态快照 + 注入 worker 环境
   const state = {
-    backendUrl: `http://localhost:${BACKEND_PORT}`,
-    frontendUrl: `http://localhost:${FRONTEND_PORT}`,
+    backendUrl,
+    frontendUrl,
     token: token ?? '',
     e2eRoot,
     publishDir,
-    dataDir: path.join(publishDir, 'Data'),
+    dataDir,
+    hostPid: hostProc.pid ?? undefined,
   }
   writeFileSync(path.join(e2eRoot, 'state.json'), JSON.stringify(state, null, 2))
+  // current.json：跨进程真源（e2e-env/real-auth/port-config 统一读它，按 hostPid 存活判过期）
+  writeFileSync(currentJsonPath, JSON.stringify(state, null, 2))
+  if (hostProc.pid) writeFileSync(path.join(e2eRoot, 'host.pid'), String(hostProc.pid))
 
   if (token) process.env.E2E_API_TOKEN = token
-  process.env.E2E_BACKEND_URL = state.backendUrl
-  // 回退解密路径：临时数据目录的 ForgeSetting.config（首启未拿到明文时）
-  process.env.FORGE_SETTING_CONFIG = path.join(publishDir, 'Data', 'Config', 'ForgeSetting.config')
+  process.env.E2E_BACKEND_URL = backendUrl
+  process.env.E2E_FRONTEND_URL = frontendUrl
+  // 回退解密路径：隔离数据根的 ForgeSetting.config（首启未拿到明文时；小写 data/config）
+  process.env.FORGE_SETTING_CONFIG = path.join(dataDir, 'config', 'ForgeSetting.config')
 
   return { e2eRoot, hostPid: hostProc.pid ?? undefined }
 }

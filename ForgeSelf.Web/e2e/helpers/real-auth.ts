@@ -1,8 +1,7 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { createHash, createDecipheriv, pbkdf2Sync } from 'node:crypto'
 import { execSync } from 'node:child_process'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { forgeSettingConfigPath, readCurrentRun } from './e2e-env'
 import type { Page } from '@playwright/test'
 
 /**
@@ -17,10 +16,12 @@ import type { Page } from '@playwright/test'
  * 硬编码会导致 status 401；本模块每次从配置解密，始终拿到当前有效密钥。
  */
 
-/** 后端配置文件路径（发布版），可通过 FORGE_SETTING_CONFIG 覆盖 */
-const CONFIG_PATH =
-  process.env.FORGE_SETTING_CONFIG ??
-  path.resolve(fileURLToPath(new URL('../../../publish/Config/ForgeSetting.config', import.meta.url)))
+/** 后端配置文件路径（{数据根}/config/ForgeSetting.config，小写 data/config；FORGE_SETTING_CONFIG 可覆盖）。
+ *  惰性求值：不得在模块加载期取值——--list / 无运行态时 current.json 尚不存在，
+ *  模块期求值会把空串焊死在常量上（PILOT-050 教训），必须在调用时再解析。 */
+function configPath(): string {
+  return forgeSettingConfigPath()
+}
 
 /** 与 AesSecretEncryptionService.ResolveKey 一致的密钥源（配置/环境变量/默认） */
 const KEY_SOURCE =
@@ -41,7 +42,14 @@ export function getRealApiKey(): string {
     return stateToken
   }
 
-  const xml = readFileSync(CONFIG_PATH, 'utf8')
+  const cfgPath = configPath()
+  if (!cfgPath) {
+    throw new Error(
+      '未定位到 ForgeSetting.config（无 current.json 且未设 FORGE_SETTING_CONFIG）；' +
+        '请先完整跑一次 e2e（globalSetup 会落盘 current.json），或直接设置 E2E_API_TOKEN',
+    )
+  }
+  const xml = readFileSync(cfgPath, 'utf8')
   const match = xml.match(/<ApiToken>([^<]+)<\/ApiToken>/)
   if (!match) throw new Error('ForgeSetting.config 中未找到 ApiToken')
 
@@ -50,24 +58,11 @@ export function getRealApiKey(): string {
   return plain
 }
 
-/** 读取最近一次 globalSetup 落盘的 state.json 中的 token（跨进程真源，弥补 env 不传递）。 */
+/** 读取当前运行的 token（跨进程真源，弥补 globalSetup env 不传 worker）。
+ *  走 e2e-env 的 current.json（含宿主 PID 存活校验），替代旧的「扫描时间戳目录」——
+ *  目录稳定化（wt-<hash>）后时间戳正则必然失配（PILOT-050 T3）。 */
 function readLatestStateToken(): string | null {
-  try {
-    const root = path.resolve(fileURLToPath(new URL('../../../.temp/e2e', import.meta.url)))
-    const dirs = readdirSync(root)
-      .filter((d) => /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(d))
-      .sort()
-      .reverse()
-    for (const d of dirs) {
-      const st = JSON.parse(readFileSync(path.join(root, d, 'state.json'), 'utf8')) as {
-        token?: string
-      }
-      if (st?.token) return st.token
-    }
-  } catch {
-    /* 无 state.json（非 e2e 运行）时回退解密 */
-  }
-  return null
+  return readCurrentRun()?.token ?? null
 }
 
 /**

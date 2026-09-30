@@ -52,7 +52,7 @@ test.describe('Token 首次初始化（真实后端）', () => {
       // 分支 1：init-token 返回 200 且有 token → 必验证 token 已存储 + 地址展示
       const stored = await page.evaluate(() => localStorage.getItem('forge_api_token'));
       expect(stored).toBe(body.data!.apiKeyPlain!);
-      await expect(page.getByText('http://localhost:7102/v1')).toBeVisible();
+      await expect(page.getByText(`${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/v1`)).toBeVisible();
     } else {
       // 分支 2：真实后端已初始化（success=false 无 token）→ 不存储，页面走 401 认证提示
       const stored = await page.evaluate(() => localStorage.getItem('forge_api_token'));
@@ -70,7 +70,7 @@ test.describe('Token 首次初始化（真实后端）', () => {
     // 真实认证通过：status 返回配置，端口配置卡片可见
     await expect(page.getByText('端口配置')).toBeVisible();
     // 页面上正常展示 API 服务地址（真实后端返回 apiBaseUrl）
-    await expect(page.getByText('http://localhost:7102/v1')).toBeVisible();
+    await expect(page.getByText(`${process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'}/v1`)).toBeVisible();
     // 密钥已存在（真实密钥注入生效）
     const stored = await page.evaluate(() => localStorage.getItem('forge_api_token'));
     expect(stored).toBe(getRealApiKey());

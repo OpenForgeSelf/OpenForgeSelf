@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
+import { claimPortSync, worktreeTag } from './e2e/helpers/free-port'
 
 // 浏览器二进制固定落在「仓库内」<repo>/.playwright-browsers（已在根 .gitignore 忽略），
 // 而非用户级缓存 ~/.cache/ms-playwright。原因：沙箱只持久化工作区，用户级缓存属临时态，
@@ -11,10 +12,31 @@ import { dirname, resolve } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-browsers')
 
+// ── e2e 端口同步分配（PILOT-050 T5）───────────────────────────────────────────
+// Playwright 时序：webServer（vite）先于 globalSetup 启动 → 前后端端口必须在 config
+// 求值期「同步」定下，globalSetup 才能把同一端口注入宿主（FORGESELF_PORT）。
+// 跨 worktree 互斥：经 tmpdir 认领注册表，从默认口起顺延认领第一个可用段；
+// 单 worktree 无冲突时仍拿 7002/7102（向后兼容既有行为）。
+function claimE2ePort(start: number): number {
+  for (let i = 0; i < 50; i++) {
+    const p = start + i
+    if (p > 65535) break
+    if (claimPortSync(p, __dirname)) return p
+  }
+  throw new Error(`e2e 端口分配失败：自 ${start} 起连续 50 个端口均被认领`)
+}
+const FRONTEND_PORT = Number(process.env.E2E_FRONTEND_PORT) || claimE2ePort(7002)
+const BACKEND_PORT = Number(process.env.E2E_BACKEND_PORT) || claimE2ePort(7102)
+process.env.E2E_FRONTEND_PORT = String(FRONTEND_PORT)
+process.env.E2E_BACKEND_PORT = String(BACKEND_PORT)
+process.env.E2E_BACKEND_URL ??= `http://localhost:${BACKEND_PORT}`
+process.env.E2E_FRONTEND_URL ??= `http://localhost:${FRONTEND_PORT}`
+
 // MCP 中心（034 v2.0.0）e2e：为 e2e 宿主分配独立 MCP 端口，避免与常驻实例（51888 走 config.json 端口 18890）
 // 的默认端口 18889 冲突。环境变量名保留 v1.0.0 旧名 FORGESELF_MCP_GATEWAY_PORT（兼容决策）。
-// globalSetup 与各 worker 均继承本环境变量，宿主与用例看到同一端口。
-process.env.FORGESELF_MCP_GATEWAY_PORT ??= '18889'
+// 多 worktree 并行会互抢固定 18889 → 默认改按 worktree 哈希派生（19000-19899，避开 18889/18890 段）。
+const wtHash = parseInt(worktreeTag(__dirname).slice(3), 16)
+process.env.FORGESELF_MCP_GATEWAY_PORT ??= String(19000 + (wtHash % 900))
 
 export default defineConfig({
   testDir: './e2e',
@@ -34,7 +56,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:7002',
+    baseURL: `http://localhost:${FRONTEND_PORT}`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -57,7 +79,14 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm run dev',
-    url: 'http://localhost:7002',
+    url: `http://localhost:${FRONTEND_PORT}`,
     reuseExistingServer: !process.env.CI,
+    // vite 冷启（tailwind/组件按需预构建）在低配机上可能超默认 60s
+    timeout: 120_000,
+    env: {
+      // vite 子进程据此绑端口并把代理指向 e2e 宿主（vite.config.ts 消费）
+      E2E_FRONTEND_PORT: String(FRONTEND_PORT),
+      E2E_BACKEND_URL: `http://localhost:${BACKEND_PORT}`,
+    },
   },
 })

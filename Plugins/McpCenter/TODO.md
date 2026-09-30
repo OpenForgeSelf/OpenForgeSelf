@@ -38,3 +38,5 @@
   外部命名空间写进 `UniversalToolForwarder.ToolDefinitionJson`；`ListToolsToolFunctionTests` 覆盖。
 - 插件验收标准文档：`.agents/skills/plugin-development/references/plugin-acceptance.md`
   （管理面鉴权写入技能铁律 17、工具可发现性写入铁律 18）。
+- [ ] **e2e 212 用例套内顺序 flake（P2，来源:输入1 回归复跑发现；输入13 迁移自根 TODO.md）**：
+      单跑 PASS、套内紧跟 71 用例后必红（SPA main 空 = manifest/动态路由 5s 内未就绪）；待首屏等待加宽。

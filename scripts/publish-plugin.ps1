@@ -141,10 +141,11 @@ if (-not $DryRun) {
     # 宿主共享程序集（ForgeSelf.* / NewLife.*）：由宿主在默认加载上下文加载，插件经 ALC 回落宿主获取。
     # 若把它们复制进插件目录，插件 ALC 会再加载一份副本 → IPlugin 等类型身份不一致 →
     # 「插件类型未实现 IPlugin 接口」。工作插件目录（如 TodoTracker）只含入口 dll + plugin.json，故此处排除。
+    # pdb 同理由宿主侧产生，原过滤只匹配 .dll 会让宿主共享 pdb 混进版本目录（2026-09-29 实测），故 dll/pdb 一并排除。
     $HostSharedAssemblies = {
         param($file)
         $name = [System.IO.Path]::GetFileName($file)
-        ($name -match '^ForgeSelf\..*\.dll$') -or ($name -match '^NewLife\..*\.dll$') -or ($name -eq 'XCode.dll') -or ($name -eq 'MX.dll')
+        ($name -match '^ForgeSelf\..*\.(dll|pdb)$') -or ($name -match '^NewLife\..*\.(dll|pdb)$') -or ($name -match '^(XCode|MX)\.(dll|pdb)$')
     }
 
     # Copy plugin.json (force overwrite to ensure match with source)

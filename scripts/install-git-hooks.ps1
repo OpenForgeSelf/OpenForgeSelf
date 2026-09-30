@@ -13,13 +13,21 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$gitDir = Join-Path $repoRoot '.git'
-if (-not (Test-Path -LiteralPath $gitDir)) {
-    throw ".git 目录不存在（$gitDir），请在仓库根下运行本脚本"
+
+# hooks 目录必须问 git 本身：git worktree 的 <worktree>/.git 是**文件**（gitdir 指针），
+# 硬拼 '.git\hooks' 会 DirectoryNotFound（2026-09-30 worktree 实测）。
+# rev-parse 返回的路径可能相对当前目录，统一解析成绝对路径。
+$gitHooks = (& git -C $repoRoot rev-parse --git-path hooks) -join ''
+if (-not $gitHooks) {
+    throw "git rev-parse --git-path hooks 无输出（$repoRoot 不是 git 仓库？）"
+}
+$dstDir = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($repoRoot, $gitHooks))
+if (-not (Test-Path -LiteralPath $dstDir)) {
+    New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
 }
 
 $src = Join-Path $repoRoot 'scripts\hooks\pre-commit'
-$dst = Join-Path $gitDir 'hooks\pre-commit'
+$dst = Join-Path $dstDir 'pre-commit'
 if (-not (Test-Path -LiteralPath $src)) {
     throw "hook 源文件不存在: $src"
 }

@@ -207,6 +207,23 @@ Result: PASS（exit 0；来源等级：Verified）
 未做（按用户「只做这一步，别的不用你管」）：未动宿主进程、未部署宿主二进制、未触发插件热切换。
 ```
 
+## Walkthrough（④ 浏览器走查读图，2026-09-30，基线 `b357a32` 那轮 e2e 产物）
+
+逐张读图核对（判据：图标/间距/对齐/溢出/文案/状态闭合）：
+
+| 截图 | 结论 |
+|------|------|
+| `sems.png`（空态） | PASS：标题 +「项目工作区」chip + 自洽说明文案；添加项目/刷新；三统计卡 0/0/0；运行面板空态引导 + 「启动全部」禁用；底部无项目引导再给一个入口。分级空态成立 |
+| `sems-picker.png`（目录弹层） | PASS（1 处轻微）：上级/路径框/进入 + 子目录空态文案 + 可选项目名（预填目录名）+「选择此目录」。轻微：底部「将登记为项目：C:\Users\…\nForgeSe…」长路径被裁切无省略号提示 |
+| `sems-running.png`（启动后） | PASS：v1.1.0 徽标在位；统计 1/1/1 与面板 1 条闭合；条目含 PID/已运行时长/「本面板启动」标签/停止按钮；**卡片保持展开**（证明重挂载缺陷已修）；来源 manual、最近活动时间正确 |
+| `sems-remove-confirm.png`（移除二次确认） | 文案 PASS（只删档案 / 不动磁盘 / 可重加 / 不可撤销）+ 取消·确认移除；**发现真实缺陷**：此时运行面板已 0 条、顶部 toast 已「已停止」，但统计卡「运行中」仍显示 **1** |
+
+走查发现的缺陷（已按 TDD 处理）：
+
+- 现象：面板内「停止」只调 `RunPanel.refresh()` 更新自身列表，`SemsView.runningCount` 只在 `reloadProjects()` 时被赋值 → 统计卡停在旧值（1），与面板（0）自相矛盾。
+- 复现测试：`sems.spec.ts` 停止步骤后新增断言 `.sems__stat-num` 第 3 格 == '0'（先红后绿，红/绿输出见 Post-Sync Re-Verification 节）。
+- 修法：`RunPanel` 在 `refresh()`/`check()` 后 `emit('count', runs.length)`，`SemsView` 绑定 `@count` 同步统计。
+
 ## Post-Sync Re-Verification（基线 `b357a32`，2026-09-30）
 
 四次快进同步（`78d065c → 81b9609 → 8acac95 → f501077 → b357a32`，共 18 个上游提交）后重跑门禁（来源等级：Verified）：
@@ -224,6 +241,29 @@ Result: PASS（exit 0；来源等级：Verified）
 2. pilot 目录日期前缀新规注明「旧目录不回溯重命名」→ 本任务 `docs/ai/pilot/sems-selfcontained-mcp-tools/`（09-28 建）保持原名。
 
 先前两遍全量里的 `RunnerServiceTests` 2 例红（`taskkill /T /F` 返回非 0）在独占跑下 **86/86 全绿** → 定性为并发/负载下的外部进程终止时序 flake（两遍都紧接 26–34 分钟全量之后），非代码回归、非本任务引入。
+
+## Fifth Sync + Walkthrough-fix Re-Verification（基线 `2f21b1b`，2026-09-30）
+
+**同步（第 5 次）**：本地领先 1（`de2347f` 未 push）、落后 2 → 首次出现分叉，非 FF。来件（`b37a622` dsh 架构文档、`2b984f0` UpdatePanel loading 解耦）与我的脏文件**零交集**，故未走 stash（`refs/stash` 全仓库共享，兄弟 worktree 会话也在用，pop 可能取错条目），改 `git merge --no-edit github/main` → 合并点 `2f21b1b`；合并后 8 脏文件 + 3 未跟踪件全部健在。
+
+**TDD 红（Verified，基线 `de2347f`）**：`sems.spec.ts:353` 停止步骤后新增断言
+
+```
+> 353 |     await expect(page.locator('.sems__stat-num').nth(2)).toHaveText('0', { timeout: 10000 })
+  1 failed · 2 did not run · 1 passed (2.1m)
+```
+
+断言前已核对 DOM 顺序（`.sems__stat-num` 依次 = 项目总数 / 运行命令 / **运行中**），`nth(2)` 指向的就是「运行中」格，排除"断言指错元素"这种假红。
+
+**绿（改法收敛）**：`RunPanel` 在 `refresh()` / `check()` 拿到列表后 `emit('count', runs.length)`；`SemsView` 绑 `@count` 写 `runningCount`，并把原先 `reloadProjects()` 里 `runningCount.value = await runPanelRef.refresh()` 的赋值删掉 —— **`runningCount` 只留一个写入点**（事件），避免"两条路径写同一个数"再次漂开。
+
+| 门禁 | 真实输出 |
+|------|----------|
+| `pnpm run build`（`Plugins/Sems/web`） | `dist/index.js 40.27 kB`，`✓ built in 439ms`；裸导入 `from "vue"`=1、`from "element-plus"`=1（依赖 shim 契约成立） |
+| sems 定向 e2e（基线 `2f21b1b`） | **4 passed (1.2m)** —— 红已转绿；`.tmp-e2e-out/.last-run.json` = `{"status":"passed","failedTests":[]}`。同轮 MCP 链路证据：网关 `19352`、`tools/list=["universal_tool"]`、`list_tools keyword=sems` 枚举 **13** 个 `sems_*`、`sems_list_projects total=1` 与 `GET api/projects total=1` 对账一致、required 缺参仍 `INVALID_PARAMETERS`、移除后 `final total=0`（宿主构建由 globalSetup 实跑，含签名 exe） |
+
+**版本升位 `1.1.0 → 1.1.1`（决策）**：`1.1.0` 已侧载进运行实例 `versions/1.1.0`，本次又改了 UI 内容 —— 若继续用同一版本号发布，仓库里的 `1.1.0` 与现场 `1.1.0` 是两份不同产物，日后排障无法对应。按「版本内容变了必须升版」升到 `1.1.1`（`plugin.json` + `web/package.json` 同步）。
+顺带把 `sems.spec.ts` 里 `expect(PLUGIN_VERSION).toBe('1.1.0')` 的字面量断言改成 semver 格式校验：徽标==清单版本的断言本就在位（那才是有效判据），写死具体版本号会让每次正常升版必然拖红。
 
 ## Screenshots
 

@@ -111,7 +111,7 @@ AIAgent 的「选工作目录」仍是登记触发源之一（来源记 `ai-agen
 
 ## 前端结构（sems `web/`，原生 HTML+CSS + `--el-*` 变量）
 
-- `SemsView.vue`：标题 + `v1.1.0` 版本徽标（铁律 13，数据来自 `GET /api/plugin`）+ 「添加项目/刷新」工具条 + 统计卡（项目总数 / 运行命令 / 运行中）+ 项目网格 + 运行面板；空态分级（加载中 / 失败可重试 / 无项目引导 / 有项目）。
+- `SemsView.vue`：标题 + 版本徽标（铁律 13，数据来自 `GET /api/plugin`，恒等于 `plugin.json` 的 `Version`，文档与用例都不写死版本号）+ 「添加项目/刷新」工具条 + 统计卡（项目总数 / 运行命令 / 运行中）+ 项目网格 + 运行面板；空态分级（加载中 / 失败可重试 / 无项目引导 / 有项目）。
 - `DirectoryPickerDialog.vue`：目录浏览（盘符起步、逐级进入、上级、可直接输入绝对路径回车跳转）+ 可选项目名 → `POST api/projects`（点即登记，无需二次保存）。
 - `ProjectCard.vue`：类型徽标、标签 chip、描述省略、git/不可达徽标、展开内嵌 `CommandList`、✎ 编辑、**✕ 移除项目**（`ElMessageBox` 二次确认，文案明示不动磁盘）。
 - `CommandList.vue`：命令列表 + 新增/编辑/删除（`confirmOps` 二次确认）/排序（上移下移并持久化 Sort）+ 启动；零命令引导文案。
@@ -135,6 +135,13 @@ AIAgent 的「选工作目录」仍是登记触发源之一（来源记 `ai-agen
 - sems：`IProjectService` 扩为完整操作面并新增 `browse`；控制器改薄委托；**移除冗余 `RunnerController`**；`ToolExtensions.cs` 提供 13 个对外工具；`plugin.json` `1.0.3 → 1.1.0`。
 - 前端：添加项目弹层、移除项目二次确认、空态分级、版本徽标、确认编排模块（含 vitest）。
 - 缺陷修复：`GET /api/projects` 之前每条项目 `commands` 恒为空（`GetAll` 不附带、服务层未补），导致统计「运行命令」恒 0、运行面板快捷访问图标永不出现、**「启动全部」空转**；现由 `ProjectService.GetProjects()` 补齐并有回归测试 + e2e 断言。
+
+## v1.1.1 变更（2026-09-30）
+
+- 缺陷修复（走查实抓）：**在运行面板内点「停止」后，统计卡「运行中」仍停在旧值**（面板 0 / 统计 1，两者自相矛盾）。根因是 `runningCount` 只在父级 `reloadProjects()` 里赋值，面板自身的 `refresh()`/`check()` 不回传。现由 `RunPanel` 在两条取列表路径后统一 `emit('count', …)`，`SemsView` 只经该事件写 `runningCount`（**单一写入点**）。
+- 回归断言：`sems.spec.ts` 停止步骤后新增「`.sems__stat-num` 第 3 格（运行中）== 0」，先红（实抓 `1 failed`）后绿。
+- 版本：`plugin.json`/`web/package.json` `1.1.0 → 1.1.1`（`1.1.0` 已按原样侧载进运行实例，内容变更不复用同一版本号）。
+- 用例治理：徽标断言由「等于硬编码 `1.1.0`」改为「等于清单版本 + semver 格式」，避免每次正常升版把 e2e 拖红。
 
 ## 已知问题 / 待办
 

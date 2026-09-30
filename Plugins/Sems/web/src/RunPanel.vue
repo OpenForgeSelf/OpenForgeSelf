@@ -96,7 +96,7 @@ const busyPid = ref<number | null>(null)
 
 onMounted(refresh)
 
-/** 刷新运行列表，返回当前条数（供父级同步「运行中」统计）。 */
+/** 刷新运行列表，返回当前条数并上报（面板内停止/启动后统计卡必须同源，否则停在旧值）。 */
 async function refresh(): Promise<number> {
   try {
     const r = await apiGet<RunsResp>('/api/runs')
@@ -104,6 +104,7 @@ async function refresh(): Promise<number> {
   } catch {
     // 静默：面板失败不影响项目列表（项目区已有错误态与重试）
   }
+  emit('count', runs.value.length)
   return runs.value.length
 }
 
@@ -112,6 +113,7 @@ async function check() {
   try {
     const r = await apiPost<RunsResp>('/api/runs/check', {})
     runs.value = r?.runs ?? []
+    emit('count', runs.value.length)
   } catch (e) {
     ElMessage.error(`检查失败：${errorMessage(e)}`)
   } finally {
@@ -132,9 +134,10 @@ function commandUrl(r: RunSession): string {
 
 const hasLaunchable = computed(() => (props.launchableCount ?? 0) > 0)
 
-/** 父级装配待启动命令列表；这里只上报事件。 */
+/** 父级装配待启动命令列表；这里只上报事件。count = 运行中条数，供统计卡与面板同源。 */
 const emit = defineEmits<{
   (e: 'run-all'): void
+  (e: 'count', running: number): void
 }>()
 
 async function runAll() {

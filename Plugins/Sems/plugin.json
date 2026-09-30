@@ -1,7 +1,7 @@
 {
   "Id": "sems",
   "Name": "软件工程管理系统",
-  "Version": "1.1.0",
+  "Version": "1.1.1",
   "Author": "ForgeSelf Team",
   "Description": "软件工程管理系统：插件内自助管理项目档案（添加/编辑/移除，支持目录浏览）、运行命令维护、进程启动停止与本机进程检测；并对外提供 13 个 sems_* 工具，经 mcp-center 的 list_tools / universal_tool 供外部调用。",
   "IconUrl": "https://example.com/sems-icon.png",

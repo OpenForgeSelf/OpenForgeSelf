@@ -229,7 +229,9 @@ test.describe('统一 e2e（插件层）：sems 界面远程加载（真实后�
     // ---- 断言 3：标题 + 版本徽标（铁律 13：走查时能确认当前跑的是哪版）----
     await expect(page.locator('.sems__title')).toHaveText('软件工程管理系统', { timeout: 15000 })
     await expect(page.locator('.sems__version')).toHaveText(`v${PLUGIN_VERSION}`)
-    expect(PLUGIN_VERSION, 'plugin.json 版本应已升到 1.1.0（本次自洽化 + 工具化）').toBe('1.1.0')
+    // 这里只校验「徽标 == 清单版本」与版本号格式；「改了内容必须升版」属发布纪律，
+    // 不在断言里写死具体版本字面量，否则每次正常升版都会把用例拖红。
+    expect(PLUGIN_VERSION, 'plugin.json Version 必须是 x.y.z').toMatch(/^\d+\.\d+\.\d+$/)
 
     // ---- 断言 4：界面自洽入口存在，且不再把用户支去别的页面 ----
     await expect(page.getByRole('button', { name: '添加项目' }).first()).toBeVisible()
@@ -348,6 +350,9 @@ test.describe('统一 e2e（插件层）：sems 插件内项目全生命周期�
     await expect(confirmBox.locator('.el-message-box__message')).toContainText('不可恢复')
     await clickMessageBoxButton(page, '确认停止')
     await expect(page.locator('.run__item')).toHaveCount(0, { timeout: 20000 })
+    // 停止后统计卡「运行中」必须一起归零：面板内停止只刷新面板自身时，
+    // 父级 runningCount 会停在旧值（2026-09-30 走查截图实抓：面板 0 / 统计仍 1）。
+    await expect(page.locator('.sems__stat-num').nth(2)).toHaveText('0', { timeout: 10000 })
 
     // ---- 6. 移除项目：取消路径必须零请求 ----
     const deletesBefore = deletes.length

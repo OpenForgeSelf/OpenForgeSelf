@@ -1,6 +1,6 @@
 {
   "name": "forgeself-plugin-sems-web",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "description": "sems 软件工程管理系统插件自带界面（构建为 ESM，由宿主运行时远程加载）",

@@ -36,6 +36,7 @@
       :command-urls="commandUrls"
       :launchable-count="launchableCount"
       @run-all="runAll"
+      @count="(n: number) => (runningCount = n)"
     />
 
     <section class="sems__body">
@@ -146,7 +147,7 @@ onMounted(async () => {
 
 async function reloadProjects() {
   await loadProjects()
-  runningCount.value = await (runPanelRef.value?.refresh() ?? Promise.resolve(0))
+  await runPanelRef.value?.refresh()
 }
 
 /** 命令总数（统计卡）。 */

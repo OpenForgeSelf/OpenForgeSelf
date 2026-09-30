@@ -54,8 +54,10 @@ L1 — 见 05-evidence Known Limitations：宿主重启丢运行态（NFR 已接
 
 ### Minor
 
-- TodoTracker 工具基类与 sems 旧实现同款 `_services.CreateScope()` 写法，一旦被真调会同款失败——记 TODO P2，建议后续统一收敛（本次不动其他插件）。
+- TodoTracker 工具基类与 sems 旧实现同款 `_services.CreateScope()` 写法，一旦被真调会同款失败——**后续轮次已修**（`TodoToolProvider.Resolve` 经 Context 回落宿主根 `IServiceProvider`，并加 4 例回归 `ForgeSelf.Api.Tests/Plugins/TodoTracker/TodoToolProviderTests.cs`）；因跨插件，单独成批提交，不混入 sems 提交。
 - 宿主日志将「工具返回 success=false 信封」记为「执行工具成功」，排障时看 isError 会误判——已在日记沉淀，建议后续宿主侧改进（范围外，未动）。
+- 走查（④）实抓到**统计卡与运行面板不同源**：面板内停止后「运行中」停在旧值。已按 TDD 先红后绿修复（详见 05-evidence「Fifth Sync + Walkthrough-fix Re-Verification」）。教训：**跨组件传递的计数必须有单一写入点**——原实现 `reloadProjects()` 赋值 + 面板自己刷新，两条路径必然漂开；改为面板 `emit('count')` 唯一来源。
+- 版本号治理：`1.1.0` 已侧载进运行实例后又要改 UI 内容 → 升 `1.1.1`，不复用同一版本号（否则现场产物与仓库产物同名不同物）；并把 e2e 里写死 `toBe('1.1.0')` 的断言改为「徽标==清单版本 + semver 格式」，防止正常升版把用例拖红。
 
 ## Final Decision
 

@@ -52,6 +52,8 @@ export interface PluginInfo {
   description: string
   iconUrl?: string
   state: PluginState
+  /** 插件最近一次装载/注册/初始化失败的错误摘要（消息+类型）；无错误为 null/undefined */
+  error?: string | null
   isEnabled: boolean
   category: string
   tags: string[]

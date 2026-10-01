@@ -416,6 +416,14 @@ onMounted(() => {
 
           <div class="card-body">
             <p class="plugin-desc">{{ plugin.description }}</p>
+            <!-- 错误可见（PILOT-plugin-dev-experience FR-5.3）：Error 态插件直接展示失败原因，不再只有置灰按钮 -->
+            <p
+              v-if="plugin.error"
+              class="plugin-error"
+              :title="plugin.error"
+            >
+              ⚠ {{ plugin.error }}
+            </p>
           </div>
 
           <div class="card-meta">
@@ -895,6 +903,23 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 插件错误原因展示（0 自定义 token：仅 --el-* 变量） */
+.plugin-error {
+  font-size: 12px;
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-danger) 30%, transparent);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 8px 0 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
 }
 
 .card-meta {

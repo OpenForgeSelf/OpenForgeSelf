@@ -207,8 +207,10 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 
 ### 3.1 后端骨架
 
+> ⚠ **插件源码在仓库根 `Plugins/<PascalCase>/`**（不是 `ForgeSelf.Api/Plugins/`——那是宿主的插件**装载器运行时代码**目录，两者易混淆）。
+
 ```
-ForgeSelf.Api/Plugins/<PascalCase>/
+Plugins/<PascalCase>/
 ├── plugin.json                        # 清单（Id/Version/EntryAssembly/EntryType/frontend）
 ├── <PascalCase>Plugin.cs              # 实现 IPlugin
 ├── Controllers/                       # [Route("api/<小写控制器名>")] 或自定义前缀
@@ -252,7 +254,7 @@ ForgeSelf.Api/Plugins/<PascalCase>/
 
 ```powershell
 pwsh .agents/skills/plugin-frontend-scaffold/scripts/scaffold-plugin-frontend.ps1 -Plugin <PascalCase>
-cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
+cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ```
 
 > **沙箱内构建兜底（2026-09-22 实证）**：本环境插件目录内 `pnpm i && pnpm run build` 跑不通——
@@ -330,6 +332,14 @@ cd ForgeSelf.Api/Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ```
 读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
 ```
+
+> ⚡ **开发态快速回路（2026-10-01 新增，仅 dev 宿主）**：本地迭代阶段不必走完整发布链——
+> 以 `FORGESELF_DEV_MODE=1 --plugins-dir <repo>/Plugins` 起 dev 宿主后：
+> - 改插件 C#：`dotnet build Plugins/<X>` → `pwsh scripts/dev-plugin.ps1 -Plugin <X>`
+>   （shadow-copy 同版本热重载，秒级生效、无需 bump plugin.json 版本；`-All` 全量）；
+> - 改插件 UI：`pnpm run build`（或 watch 构建）→ 刷新页面即生效（内容指纹破缓存 + dev no-store）；
+> - 诊断：`GET /api/dev/diagnostics`（插件状态/最近错误/shadow 统计/日志尾，日志带 `[plugin:<id>]` 前缀）。
+> 完整五步闭环仍是**交付门禁**，快速回路只替代其中的"本地看效果"环节。
 
 0. **改实体时（先做这一步，再改代码）**：按铁律 9 走
    `改 Data/Model.xml → cd Data && xcode Model.xml → 确认无字段漂移`；

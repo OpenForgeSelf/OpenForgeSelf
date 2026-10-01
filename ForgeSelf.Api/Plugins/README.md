@@ -161,20 +161,32 @@ Plugins/{id}/
 
 | 触发 | 入口 | 适用场景 |
 |---|---|---|
-| **HTTP API**（推荐，CI/手动） | `POST /api/plugins/update/{id}` | 自动化部署、精确控制触发时机 |
-| **FileSystemWatcher**（自动） | 修改 `Plugins/{id}/versions/<new>/` 或 `current` 指针 | 开发期、保存即生效 |
+| **HTTP API**（推荐，CI/手动） | `POST /api/plugin/update/{id}` | 自动化部署、精确控制触发时机 |
+| **dev 同版本热重载**（dev-only） | `POST /api/dev/plugin/{id}/reload` | 开发迭代：FORGESELF_DEV_MODE=1 + shadow-copy 装载，改代码重新编译后**同版本号**秒级重载，无需 bump 版本 |
 | **`scripts/publish-plugin.ps1`** | `pwsh ./scripts/publish-plugin.ps1 -Plugin AIAgent` | CI 流水线、运维发布；脚本只负责"编译 + staged 复制"，运行时切换由宿主 API 触发 |
 
-HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 `api/plugins`）：
+> ⚠ **文件监听（FileSystemWatcher）已于 2026-09-24 一刀切移除**（`PluginHotReloadWatcher` 删除）：
+> 自动 reload 会绕过版本化控制、与 side-by-side 布局冲突。插件生效一律走版本化显式更新或冷启动；
+> 开发态的高频迭代请走 `POST /api/dev/plugin/{id}/reload`（dev-only）。
+
+HTTP 端点清单（`Controllers/PluginController.cs`，路由前缀 **`api/plugin`**，单数）：
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
-| `GET` | `/api/plugins` | 列出已加载插件（含 Version / 启用状态） |
-| `GET` | `/api/plugins/updates` | 检查 versions/ 中已直落未生效版本与包目录的可用更新（2026-09-28 输入31 去 `_backups`） |
-| `POST` | `/api/plugins/update/{id}` | 触发更新（版本比较 → 切 current → 卸载旧 ALC → 加载新 DLL → 刷新 MVC 端点） |
-| `POST` | `/api/plugins/rollback/{id}` | 回滚到指定版本（body `{"version":"1.0.0"}`） |
-| `POST` | `/api/plugins/enable/{id}` | 热启用已停用插件 |
-| `POST` | `/api/plugins/disable/{id}` | 热停用插件（保留数据） |
+| `GET` | `/api/plugin` | 列出已加载插件（含 Version / 启用状态 / 最近错误 Error） |
+| `GET` | `/api/plugin/updates` | 检查 versions/ 中已直落未生效版本与包目录的可用更新（2026-09-28 输入31 去 `_backups`） |
+| `POST` | `/api/plugin/update/{id}` | 触发更新（版本比较 → 切 current → 卸载旧 ALC → 加载新 DLL → 刷新 MVC 端点） |
+| `POST` | `/api/plugin/rollback/{id}` | 回滚到指定版本（body `{"version":"1.0.0"}`） |
+| `POST` | `/api/plugin/{id}/enable` | 热启用已停用插件 |
+| `POST` | `/api/plugin/{id}/disable` | 热停用插件（保留数据） |
+
+dev-only 端点（`Controllers/DevController.cs`，路由前缀 `api/dev`，需 `FORGESELF_DEV_MODE=1`）：
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| `POST` | `/api/dev/plugin/{id}/reload` | 同版本热重载（shadow-copy 装载，不 bump 版本、不产生 versions/） |
+| `POST` | `/api/dev/plugin/reload-all` | 全部已发现插件依次热重载 |
+| `GET` | `/api/dev/diagnostics` | 插件状态表 / 最近错误 / shadow 统计 / 当日日志尾 |
 
 ### 9.3 内部机制（为什么"不重启"是可行的）
 

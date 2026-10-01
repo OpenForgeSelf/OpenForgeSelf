@@ -10,7 +10,7 @@
 2. `public/shared/{vue,vue-router,pinia,element-plus}.js` 为 shim，从全局**具名再导出**（ESM 不支持动态 `export * from window.xxx`，必须枚举）。
 3. `index.html` 注入 `<script type="importmap">`，把裸模块名映射到上述 shim URL。
 4. 插件 `web/` 用 Vite lib 模式构建，把上述 4 个依赖设为 `external`，产物保留裸导入 → 浏览器解析到宿主同一实例。
-5. 宿主 `PluginFrontendFileMiddleware` 服务 `/plugins/<id>/frontend/**`；前端 `pluginViewLoader` 按清单 `entry` 远程加载 `index.js` 并注入同目录 `style.css`。
+5. 宿主 `PluginFrontendFileMiddleware` 服务 `/plugins/<id>/web/dist/**`；前端 `pluginViewLoader` 按清单 `entry`（形如 `web/dist/index.js`）远程加载并注入同目录 `style.css`。
 
 > 双 Vue 实例陷阱：插件若打包自己的 Vue，`ref`/`reactive` 响应式与组件通信全部失效 —— 必须靠 external + import map 共享。
 
@@ -26,7 +26,7 @@
 8. **构建**：`cd Plugins/<Dir>/web && pnpm i && pnpm run build` → 产物 `dist/index.js` + `dist/style.css`。
 9. **注册**：在 `plugin.json` 加
    ```json
-   "frontend": { "route": "/<id>", "entry": "index.js", "views": ["<ViewName>"], "menu": "...", "icon": "..." }
+   "frontend": { "route": "/<id>", "entry": "web/dist/index.js", "views": ["<ViewName>"], "menu": "...", "icon": "..." }
    ```
    字段用 camelCase（与既有插件一致）。
 10. **宿主拷贝 dist**：`ForgeSelf.Api.csproj` 须声明
@@ -42,7 +42,8 @@
 
 - **单元**：`src/utils/__tests__/pluginViewLoader.test.ts` 钉住加载器解析逻辑。
 - **端到端**：`ForgeSelf.Web/e2e/plugin-remote-view.spec.ts` 对接真实 publish 宿主，断言版本徽标 / 入口脚本 / 静态资源 200、真实 LLM 对话气泡渲染。**版本断言须与 `plugin.json` 同步**（硬编码，升版本后改文件）。
-- **发布态验证**：走 `.agents/skills/plugin-publish-verify/` —— 全量发布 → 起 `publish/ForgeSelf.exe --console` → 只发插件 → `PluginHotReloadWatcher` 自动热重载（不重启宿主）。
+- **发布态验证**：走 `.agents/skills/plugin-publish-verify/` —— 全量发布 → 起 `publish/ForgeSelf.exe --console` → 只发插件 → 走版本化侧载 `POST /api/plugin/update/{id}` 热换载（不重启宿主）。
+- **开发态快速回路**：dev 宿主（`FORGESELF_DEV_MODE=1 --plugins-dir <repo>/Plugins`）改 UI 后 `pnpm run build`（或 `pnpm run dev` watch 构建）→ 内容指纹 `?v=` 自动破缓存，刷新页面即见新界面；`FORGESELF_DEV_WEB_SRC=1`（随总闸默认开）下 web 资源一律 no-store 双保险。
 
 ## 五、反模式（踩过的坑，禁止）
 

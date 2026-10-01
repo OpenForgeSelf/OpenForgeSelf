@@ -1,0 +1,3 @@
+  失败 ForgeSelf.Api.Tests.Integration.RealLLMIntegrationTests.AIService_ShouldBeRegisteredWithRealConfig [1 ms]
+  失败 ForgeSelf.Api.Tests.Unit.ConfigUnifierTests.UnifyAllConfigFiles_DirectoryPathIsExistingFile_DoesNotThrow [14 ms]
+失败!  - 失败:   118，通过:  1835，已跳过:     0，总计:  1953，持续时间: 16 m 3 s - ForgeSelf.Api.Tests.dll (net10.0)

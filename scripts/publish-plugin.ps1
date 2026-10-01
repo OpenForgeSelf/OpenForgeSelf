@@ -6,10 +6,13 @@
 # Design: this script only handles "build + staged copy" (backend DLLs AND, when
 # present, the plugin's built web assets under <Plugin>/web/dist/; its sources
 # under <Plugin>/web/src/ are NOT shipped).
-# Version comparison,
-# `current` pointer switch, unloading old ALC, MVC endpoint refresh, and
-# file-system watch are handled by the host runtime (PluginVersionService +
-# PluginManager + FileSystemWatcher). Clean separation of concerns.
+# Version comparison, `current` pointer switch, unloading old ALC, and MVC
+# endpoint refresh are handled by the host runtime (PluginVersionService +
+# PluginManager) via POST /api/plugin/update/{id}.
+# NOTE: the file-system watcher was REMOVED (2026-09-24); staged copies only take
+# effect after the explicit update API or a cold host start.
+# For dev-iteration (same-version reload without bumping plugin.json), use
+# scripts/dev-plugin.ps1 against a FORGESELF_DEV_MODE=1 host instead.
 #
 # Layout (2026-09-28 输入31 去 _backups）：side-by-side 直落
 #   <PluginsRoot>/<id>/versions/<version>/   ← 本脚本的 stage 目标

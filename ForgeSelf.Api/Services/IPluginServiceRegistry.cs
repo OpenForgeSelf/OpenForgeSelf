@@ -22,6 +22,12 @@ public interface IPluginServiceRegistry
     object? Resolve(Type serviceType);
 
     /// <summary>
+    /// 查询服务类型归属的插件 Id（索引 ServiceType → pluginId）；未索引返回 null（宿主原生服务）。
+    /// 供 <c>PluginAwareControllerActivator</c> 判定控制器归属，为请求期日志加插件维度。
+    /// </summary>
+    string? GetOwnerPluginId(Type serviceType);
+
+    /// <summary>
     /// 产出宿主转发描述符（去重 ServiceType）。所有转发一律 <see cref="ServiceLifetime.Transient"/>，
     /// 由子 provider 自身管理真实生命周期；卸载后工厂再次执行即抛 <see cref="InvalidOperationException"/>。
     /// </summary>

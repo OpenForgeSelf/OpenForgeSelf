@@ -4,6 +4,7 @@ using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Models.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
+using ForgeSelf.Api.Plugins.Dev;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Core;
 using Microsoft.AspNetCore.Mvc;
@@ -358,6 +359,8 @@ public class PluginManager
 
         try
         {
+            using var __logScope = PluginLogScope.Push(pluginId);
+
             XTrace.Log.Info("开始加载插件: {0}", pluginId);
             _pluginStates[pluginId] = PluginState.Loaded;
 
@@ -377,12 +380,14 @@ public class PluginManager
             _pluginStates[pluginId] = PluginState.Loaded;
 
             XTrace.Log.Info("插件加载成功: {0} v{1}", metadata.Name, metadata.Version);
+            PluginErrorStore.Clear(pluginId);
             EmitLifecycleEvent(metadata, "loaded");
             return true;
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("加载插件失败 [{0}]: {1}", pluginId, ex.Message);
+            PluginErrorStore.Set(pluginId, ex);
             _pluginStates[pluginId] = PluginState.Error;
             return false;
         }
@@ -402,6 +407,20 @@ public class PluginManager
         {
             // side-by-side 版本目录 / 旧版扁平布局优先；均无独立 DLL 时回退主程序集（内嵌插件）。
             var assemblyPath = PluginVersionLayout.ResolveEntryAssemblyPath(metadata);
+
+            // dev-only shadow-copy 装载（FORGESELF_DEV_SHADOWCOPY）：把产物复制到 %TEMP% 副本再从副本加载，
+            // 源 DLL 不被锁 → 支持「重新编译 → 同版本热重载」。Production 不走此分支，行为不变。
+            // 源码树布局（--plugins-dir 指向 Plugins/ 源码）下常规解析为 null，由 Prepare 回退 bin/<config>/<tfm> 解析。
+            if (DevMode.ShadowCopyEnabled)
+            {
+                var shadowed = PluginShadowCopy.Prepare(metadata, assemblyPath);
+                if (!string.IsNullOrWhiteSpace(shadowed))
+                {
+                    XTrace.Log.Debug("dev shadow 装载: {0} -> {1}", metadata.Id, shadowed);
+                    assemblyPath = shadowed;
+                }
+            }
+
             Assembly assembly;
             if (!string.IsNullOrWhiteSpace(assemblyPath) && File.Exists(assemblyPath))
             {
@@ -419,12 +438,16 @@ public class PluginManager
             if (pluginType == null)
             {
                 XTrace.Log.Error("插件入口类型不存在: {0}", metadata.EntryType);
+                PluginErrorStore.Set(metadata.Id, new InvalidOperationException(
+                    $"插件入口类型不存在: {metadata.EntryType}（检查 plugin.json 的 EntryType 与程序集实际类型是否一致）"));
                 return null;
             }
 
             if (!typeof(IPlugin).IsAssignableFrom(pluginType))
             {
                 XTrace.Log.Error("插件类型未实现 IPlugin 接口: {0}", metadata.EntryType);
+                PluginErrorStore.Set(metadata.Id, new InvalidOperationException(
+                    $"插件类型未实现 IPlugin 接口: {metadata.EntryType}"));
                 return null;
             }
 
@@ -432,6 +455,8 @@ public class PluginManager
             if (plugin == null)
             {
                 XTrace.Log.Error("创建插件实例失败: {0}", metadata.EntryType);
+                PluginErrorStore.Set(metadata.Id, new InvalidOperationException(
+                    $"创建插件实例失败: {metadata.EntryType}（构造函数抛异常或返回 null）"));
                 return null;
             }
 
@@ -445,6 +470,7 @@ public class PluginManager
         catch (Exception ex)
         {
             XTrace.Log.Error("解析插件实例失败 [{0}]: {1}", metadata.Id, ex.Message);
+            PluginErrorStore.Set(metadata.Id, ex);
             return null;
         }
     }
@@ -550,6 +576,8 @@ public class PluginManager
         {
             try
             {
+                using var __logScope = PluginLogScope.Push(metadata.Id);
+
                 var plugin = ResolvePluginInstance(metadata, out var loadContext);
                 if (plugin == null)
                 {
@@ -563,10 +591,12 @@ public class PluginManager
                 _serviceRegistry.Mount(metadata.Id, perPluginServices);
 
                 XTrace.Log.Info("插件服务注册成功: {0} v{1}", metadata.Name, metadata.Version);
+                PluginErrorStore.Clear(metadata.Id);
             }
             catch (Exception ex)
             {
                 XTrace.Log.Error("注册插件服务失败 [{0}]: {1}", metadata.Id, ex.Message);
+                PluginErrorStore.Set(metadata.Id, ex);
                 _pluginStates[metadata.Id] = PluginState.Error;
             }
         }
@@ -602,6 +632,8 @@ public class PluginManager
 
         try
         {
+            using var __logScope = PluginLogScope.Push(pluginId);
+
             XTrace.Log.Info("开始初始化插件: {0}", pluginId);
             _pluginStates[pluginId] = PluginState.Initializing;
 
@@ -621,11 +653,13 @@ public class PluginManager
 
             _pluginStates[pluginId] = PluginState.Running;
             XTrace.Log.Info("插件初始化成功: {0}", pluginId);
+            PluginErrorStore.Clear(pluginId);
             return true;
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("初始化插件失败 [{0}]: {1}", pluginId, ex.Message);
+            PluginErrorStore.Set(pluginId, ex);
             _pluginStates[pluginId] = PluginState.Error;
             return false;
         }
@@ -724,6 +758,8 @@ public class PluginManager
 
         try
         {
+            using var __logScope = PluginLogScope.Push(pluginId);
+
             XTrace.Log.Info("销毁插件: {0}", pluginId);
             _pluginStates[pluginId] = PluginState.Destroying;
 
@@ -762,6 +798,7 @@ public class PluginManager
         catch (Exception ex)
         {
             XTrace.Log.Error("销毁插件失败 [{0}]: {1}", pluginId, ex.Message);
+            PluginErrorStore.Set(pluginId, ex);
             _pluginStates[pluginId] = PluginState.Error;
             return false;
         }

@@ -1,3 +1,4 @@
+using ForgeSelf.Api.Plugins.Dev;
 using ForgeSelf.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -37,10 +38,18 @@ public class PluginAwareControllerActivator : IControllerActivator
         var controllerType = context.ActionDescriptor.ControllerTypeInfo.AsType();
 
         // 插件控制器：经由插件子 provider 实时解析（含其服务依赖 + 重载后的新类型身份）。
-        var resolved = _registry.Resolve(controllerType);
-        if (resolved != null)
+        // dev-only 附加：命中插件控制器时进入插件日志作用域，请求期日志自动带 [plugin:<id>] 前缀
+        // （Create 在 MVC 调用链的 async 流内同步执行，AsyncLocal 随 ExecutionContext 流动到 action 执行期）。
+        var pluginId = _registry.GetOwnerPluginId(controllerType);
+        if (pluginId != null)
         {
-            return resolved;
+            var resolved = _registry.Resolve(controllerType);
+            if (resolved != null)
+            {
+                // 作用域租约挂在 HttpContext.Items 上，Release 时退出（恢复外层值）
+                context.HttpContext?.Items[PluginLogScopeItemKey] = PluginLogScope.Push(pluginId);
+                return resolved;
+            }
         }
 
         // 宿主原生控制器：与 MVC 默认行为一致，从宿主请求服务（request scope）按构造参数解析激活。
@@ -54,6 +63,13 @@ public class PluginAwareControllerActivator : IControllerActivator
     /// <inheritdoc />
     public void Release(ControllerContext context, object controller)
     {
+        // 退出请求期插件日志作用域（Create 时若有推送）
+        if (context.HttpContext?.Items.Remove(PluginLogScopeItemKey, out var lease) == true
+            && lease is IDisposable disposableScope)
+        {
+            disposableScope.Dispose();
+        }
+
         // 插件控制器由子 provider 每次新建（Transient），完成后释放即可；宿主控制器亦由 Disposable 释放。
         if (controller is IAsyncDisposable asyncDisposable)
         {
@@ -64,4 +80,7 @@ public class PluginAwareControllerActivator : IControllerActivator
             disposable.Dispose();
         }
     }
+
+    /// <summary>HttpContext.Items 中存放插件日志作用域租约的键。</summary>
+    private const string PluginLogScopeItemKey = "__ForgeSelf.PluginLogScope";
 }

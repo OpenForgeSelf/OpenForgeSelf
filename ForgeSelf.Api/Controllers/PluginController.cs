@@ -84,6 +84,10 @@ public class PluginController : ControllerBase
                     Description = m.Description,
                     IconUrl = m.IconUrl,
                     State = state,
+                    // 错误可见（PILOT-plugin-dev-experience FR-5）：Error 态不再零信息，前端展示原因
+                    Error = ForgeSelf.Api.Plugins.Dev.PluginErrorStore.TryGet(m.Id) is { } err
+                        ? $"{err.Message}（{err.ExceptionType}）"
+                        : null,
                     IsEnabled = isRunning,
                     Category = "工具"
                 };
@@ -128,6 +132,10 @@ public class PluginController : ControllerBase
                 Description = metadata.Description,
                 IconUrl = metadata.IconUrl,
                 State = state,
+                // 错误可见（FR-5）：详情页同列表一致展示失败原因
+                Error = ForgeSelf.Api.Plugins.Dev.PluginErrorStore.TryGet(pluginId) is { } detailErr
+                    ? $"{detailErr.Message}（{detailErr.ExceptionType}）"
+                    : null,
                 IsEnabled = state == PluginState.Running,
                 Dependencies = metadata.Dependencies,
                 Permissions = metadata.Permissions,
@@ -335,13 +343,32 @@ public class PluginController : ControllerBase
             var manifest = metadatas.Select(m =>
             {
                 var state = _pluginManager.GetPluginState(m.Id);
+
+                // dev-only 真 HMR 对接（FORGESELF_DEV_WEB_HMR=1）：插件 web/.dev-server.json 存在
+                // （scripts/dev-plugin-web.ps1 启动 vite serve 时写入）→ entry 指向 dev server 源模块，
+                // 浏览器直连 vite 获得秒级 HMR；文件缺失/损坏时回落静态产物 entry（零影响）。
+                string? devEntry = null;
+                if (ForgeSelf.Api.Plugins.Dev.DevMode.WebHmrEnabled)
+                    devEntry = TryReadDevServerEntry(m.Id, m.PluginDirectory);
+
                 return new PluginFrontendManifestDto
                 {
                     Id = m.Id,
                     Name = m.Name,
                     Version = m.Version,
-                    WebVersion = ComputeWebVersion(m.PluginDirectory, m.Frontend?.Entry),
-                    Frontend = m.Frontend,
+                    WebVersion = devEntry != null ? string.Empty : ComputeWebVersion(m.PluginDirectory, m.Frontend?.Entry),
+                    Frontend = devEntry != null
+                        ? (m.Frontend == null
+                            ? null
+                            : new FrontendContributes
+                            {
+                                Views = m.Frontend.Views,
+                                Menu = m.Frontend.Menu,
+                                Route = m.Frontend.Route,
+                                Icon = m.Frontend.Icon,
+                                Entry = devEntry
+                            })
+                        : m.Frontend,
                     IsEnabled = state == PluginState.Running
                 };
             })
@@ -354,6 +381,38 @@ public class PluginController : ControllerBase
         {
             XTrace.Log.Error("获取前端插件清单失败: {0}", ex.Message);
             return StatusCode(500, ApiResponse<List<PluginFrontendManifestDto>>.Error("获取前端插件清单失败: " + ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// dev-only：读取插件 <c>web/.dev-server.json</c>（scripts/dev-plugin-web.ps1 启动 HMR dev server 时写入），
+    /// 返回 dev server 的源模块入口 URL（<c>http://localhost:&lt;port&gt;/src/index.ts</c>）。
+    /// 文件缺失、JSON 损坏或端口非法时返回 null（回落静态产物 entry，零影响）。
+    /// </summary>
+    private static string? TryReadDevServerEntry(string pluginId, string? pluginDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(pluginDirectory))
+            return null;
+
+        try
+        {
+            var markerPath = Path.Combine(pluginDirectory, "web", ".dev-server.json");
+            if (!System.IO.File.Exists(markerPath))
+                return null;
+
+            var json = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                System.IO.File.ReadAllText(markerPath));
+            var port = json.TryGetProperty("port", out var p) && p.TryGetInt32(out var portValue) ? portValue : 0;
+            if (port is < 1 or > 65535)
+                return null;
+
+            XTrace.Log.Debug("[dev] 插件 {0} 使用 HMR dev server 端口 {1}", pluginId, port);
+            return $"http://localhost:{port}/src/index.ts";
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[dev] 读取 HMR 标记失败（回落静态产物）[{0}]: {1}", pluginId, ex.Message);
+            return null;
         }
     }
 

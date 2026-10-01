@@ -122,10 +122,15 @@ public class PluginFrontendFileMiddleware
 
         // 缓存策略：入口 URL 携带 ?v={版本} 时视为不可变资源长缓存；
         // 未带版本号时走协商缓存，保证版本提升前也能及时取到新内容（FR-008）。
+        // dev-only（FORGESELF_DEV_WEB_SRC）：一律 no-store —— 开发迭代期防浏览器陈旧缓存兜底
+        // （内容指纹 ?v= 仍是主破缓存机制，此处仅兜底；Production 不受影响）。
         var version = context.Request.Query["v"].ToString();
-        context.Response.Headers.CacheControl = string.IsNullOrWhiteSpace(version)
-            ? "no-cache"
-            : "public, max-age=31536000, immutable";
+        context.Response.Headers.CacheControl =
+            ForgeSelf.Api.Plugins.Dev.DevMode.WebSrcEnabled
+                ? "no-store"
+                : string.IsNullOrWhiteSpace(version)
+                    ? "no-cache"
+                    : "public, max-age=31536000, immutable";
 
         try
         {

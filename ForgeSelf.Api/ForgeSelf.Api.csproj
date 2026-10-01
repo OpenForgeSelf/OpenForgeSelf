@@ -22,6 +22,11 @@
     <Copyright>©2026 OpenForgeSelf</Copyright>
   </PropertyGroup>
 
+  <!-- 测试可见内部成员：DevController 的 devGate 注入测试构造（PILOT-plugin-dev-experience） -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ForgeSelf.Api.Tests" />
+  </ItemGroup>
+
   <!-- 插件自带界面（spec 010）：只把构建产物 web/dist 输出，排除源码与依赖。
        目录约定见 specs/010-plugin-frontend-runtime/design/plugin-directory-layout.md。
        - web/dist/**        → 唯一对外提供的界面资源（由 /plugins/{id}/web/dist/** 提供）

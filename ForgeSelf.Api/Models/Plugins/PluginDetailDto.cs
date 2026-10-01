@@ -18,6 +18,9 @@ public class PluginDetailDto
 
     public PluginState State { get; set; }
 
+    /// <summary>插件最近一次失败的完整错误摘要（消息 + 异常类型）；无错误为 null。</summary>
+    public string? Error { get; set; }
+
     public bool IsEnabled { get; set; }
 
     public List<string> Dependencies { get; set; } = new();

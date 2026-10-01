@@ -75,6 +75,13 @@ public sealed class PluginServiceRegistry : IPluginServiceRegistry
     }
 
     /// <inheritdoc />
+    public string? GetOwnerPluginId(Type serviceType)
+    {
+        ArgumentNullException.ThrowIfNull(serviceType);
+        return _index.TryGetValue(serviceType, out var pluginId) ? pluginId : null;
+    }
+
+    /// <inheritdoc />
     public IEnumerable<ServiceDescriptor> CollectForwardDescriptors()
     {
         foreach (var serviceType in _index.Keys)

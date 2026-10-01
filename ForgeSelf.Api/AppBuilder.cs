@@ -35,6 +35,10 @@ public static class AppBuilder
     /// <returns>已配置好所有中间件和服务的 WebApplication，尚未启动。</returns>
     public static WebApplication CreateWebApplication(string[] args)
     {
+        // dev 模式总闸（PILOT-plugin-dev-experience）：必须最早初始化，此后所有 dev 分支据此短路。
+        // 未显式启用（FORGESELF_DEV_MODE=1 / --dev）时全部为 false，宿主行为与改动前一致。
+        Plugins.Dev.DevMode.Initialize(args);
+
         // 显式固定 WebRoot 为「程序所在目录下的 wwwroot」，兼容开发期项目目录 wwwroot。
         // 必须在 CreateBuilder 阶段通过 WebApplicationOptions 设定：若在 CreateBuilder 之后调用
         // builder.WebHost.UseWebRoot，ASP.NET Core 会抛 NotSupportedException
@@ -84,7 +88,16 @@ public static class AppBuilder
         XTrace.LogPath = Path.Combine(dataLocation.GetHostDataDirectory(), "log");
         NewLife.Setting.Current.Save();
 
-        XTrace.Log.Level = NewLife.Log.LogLevel.Info;
+        // dev-only：包装 XTrace.Log 为带插件维度前缀的装饰器（[plugin:<id>] 前缀 + 插件分文件），
+        // 并放开日志级别到 Debug（插件里大量 XTrace.Log.Debug 在 Info 级别下全被丢弃，dev 定位需要它们）。
+        // Production 不包装、保持 Info —— 日志路径与改动前逐字节一致。
+        if (Plugins.Dev.DevMode.Enabled)
+        {
+            XTrace.Log = new Plugins.Dev.PluginTaggedLog(XTrace.Log);
+            Plugins.Dev.PluginShadowCopy.CleanupUnlocked();
+        }
+
+        XTrace.Log.Level = Plugins.Dev.DevMode.Enabled ? NewLife.Log.LogLevel.Debug : NewLife.Log.LogLevel.Info;
         XTrace.Log.Info("运行时数据根目录: {0}", dataLocation.GetHostDataDirectory());
 
         // 统一所有 NewLife Config<T> 配置文件落盘位置（XCode/Core/Agent/项目自有等），
@@ -301,7 +314,15 @@ public static class AppBuilder
 
         builder.Services.AddPluginManager();
 
-        var pluginsPath = Path.Combine(AppContext.BaseDirectory, "plugins");
+        // 插件根目录：--plugins-dir=<path>（CLI）＞ FORGESELF_PLUGINS_DIR（env）＞ 默认 BaseDirectory/plugins。
+        // dev 场景用 --plugins-dir 指向源码 Plugins/ 目录即可直接装载源码树插件（配合 shadow-copy 热重载）。
+        var pluginsPath = Plugins.Dev.DevMode.PluginsDirectoryOverride
+                          ?? Path.Combine(AppContext.BaseDirectory, "plugins");
+        if (!string.Equals(pluginsPath, Path.Combine(AppContext.BaseDirectory, "plugins"), StringComparison.OrdinalIgnoreCase))
+        {
+            XTrace.Log.Info("插件根目录已覆盖: {0}", pluginsPath);
+        }
+
         PluginManager pluginManager;
         using (var bootstrap = builder.Services.BuildServiceProvider())
         {

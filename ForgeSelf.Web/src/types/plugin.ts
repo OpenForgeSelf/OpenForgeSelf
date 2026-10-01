@@ -3,22 +3,26 @@
  */
 
 /**
- * 插件状态枚举 —— 必须与后端 `PluginState`（数字枚举）顺序一致：
- * 后端 `PluginState.cs`（Plugins/Abstractions）为默认数字枚举 0-9，
- * JSON 序列化后 `state` 为数字（0=NotLoaded … 9=Error）。
+ * 插件状态枚举 —— 必须与后端 `PluginState`（数字枚举）顺序 + 值一致。
+ * 后端 `PluginState.cs`（Plugins/Abstractions）为默认数字枚举，共 11 值 0-10：
+ * 0=NotLoaded … 2=Initializing … 10=Error。
+ * JSON 序列化后 `state` 为数字，前端用 `PluginState[state]` 反查名用于徽标 class/文案。
+ * ⚠️ 旧版缺 `Initializing` 且自 `Initialized` 起整体错位一位（前端 Error=9 / 后端 Error=10），
+ *    导致坏插件 state=10 被解析为 'unknown' 而非 'error'（2026-10-01 修正）。
  * 曾误用字符串枚举导致 `state.toLowerCase()` 渲染崩溃（2026-09-22 修复）。
  */
 export enum PluginState {
   NotLoaded = 0,
   Loaded = 1,
-  Initialized = 2,
-  Starting = 3,
-  Running = 4,
-  Stopping = 5,
-  Stopped = 6,
-  Destroying = 7,
-  Destroyed = 8,
-  Error = 9
+  Initializing = 2,
+  Initialized = 3,
+  Starting = 4,
+  Running = 5,
+  Stopping = 6,
+  Stopped = 7,
+  Destroying = 8,
+  Destroyed = 9,
+  Error = 10
 }
 
 export enum PluginPermission {

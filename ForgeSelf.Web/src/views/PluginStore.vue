@@ -41,7 +41,7 @@ function pluginIconSvg(plugin: PluginInfo): string {
   return lucideIconSvg(raw.replace(/^fa-/, ''))
 }
 
-/** 状态徽标 CSS 类名：后端 state 是数字枚举（0-9），反查名后小写（running/stopped/error/notloaded…）。 */
+/** 状态徽标 CSS 类名：后端 state 是数字枚举（0-10），反查名后小写（running/stopped/error/notloaded…）。 */
 function pluginStateClass(state: PluginState): string {
   return PluginState[state]?.toLowerCase() ?? 'unknown'
 }
@@ -53,6 +53,8 @@ function pluginStateLabel(state: PluginState): string {
       return '未加载'
     case PluginState.Loaded:
       return '已加载'
+    case PluginState.Initializing:
+      return '初始化中'
     case PluginState.Initialized:
       return '已初始化'
     case PluginState.Starting:

@@ -22,6 +22,8 @@ const stateLabel = computed(() => {
       return '未加载'
     case PluginState.Loaded:
       return '已加载'
+    case PluginState.Initializing:
+      return '初始化中'
     case PluginState.Initialized:
       return '已初始化'
     case PluginState.Starting:

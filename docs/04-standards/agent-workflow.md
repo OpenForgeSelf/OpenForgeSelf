@@ -608,6 +608,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
   并且照样打印 `已通过! 失败: 0`（实测同一命令：quiet 报 85/154 且"崩溃"，`--logger "console;verbosity=normal"` 跑完 **164/164 无崩溃**）。
   规则：本仓跑 dotnet test **一律带 verbose console logger**，或先 `--list-tests` 拿发现数、再与执行数比对；
   两者不等就是事故，不能当通过。
+- **全量 `dotnet test` 的环境前置（2026-10-01 plugin-dev-experience 实证）**：① 跑测前必须停掉本会话自起的 dev/调试宿主实例——运行中实例占住 `ConfigUnifier` 的 `.tmp` 文件名导致重建被拒，全量跑测会冒 496/535 假失败（TODO.md:86 已录此坑）；② 本机系统 `TEMP`/`TMP` 已对测试主机拒访，须在命令前 `TMP=<工作区>\temp\test-tmp TEMP=<同>` 重定向到工作区临时目录绕过（否则大量测试抛 `UnauthorizedAccessException`）。两项缺一都会把"环境劣化"误判为"代码回归"。
 
 ## B5 插件体系与发布
 

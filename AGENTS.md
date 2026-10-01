@@ -103,13 +103,14 @@
 |------|--------|----------|
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；完成后复盘回写技能 |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
+| `pilot-handoff` | **跨 AI 规划交接**：用户要求「只做规划、实现交别的 AI、完成后你验收」时；产出 00–07 交接包 + 预注册验收清单后停下 | 05 只留骨架/栏位；**06 验收清单必须在实现开始前写好**（防看实现定标准）；实现方不得改 06/07 结论栏；收尾不提交 git |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
 | `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 10 条"假能力"自查表 | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 
-**选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/ `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`。职责边界、新建插件硬顺序、登记规则、技能缺失策略 → `docs/04-standards/agent-workflow.md` §A1。
+**选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/ `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`；**规划与实现分属不同 AI/会话**（用户要求「只做规划、实现交他人、完成后由本会话验收」）→ 先读 `pilot-handoff`。职责边界、新建插件硬顺序、登记规则、技能缺失策略 → `docs/04-standards/agent-workflow.md` §A1。
 **新增技能必须同步登记到本节**（技能不在表里 = 等于不存在，后续会话必然再次漏读）。
 
 ---

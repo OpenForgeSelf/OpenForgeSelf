@@ -62,6 +62,8 @@ public class McpJsonRpcHandlerTests
         Assert.Equal("2025-06-18", json.GetProperty("result").GetProperty("protocolVersion").GetString());
         Assert.Equal(ServerName, json.GetProperty("result").GetProperty("serverInfo").GetProperty("name").GetString());
         Assert.Equal(ServerVersion, json.GetProperty("result").GetProperty("serverInfo").GetProperty("version").GetString());
+        // v2.2.0：MCP 2.0（2025-11-25）Implementation.description 可选字段
+        Assert.False(string.IsNullOrWhiteSpace(json.GetProperty("result").GetProperty("serverInfo").GetProperty("description").GetString()));
         Assert.False(json.GetProperty("result").GetProperty("capabilities").GetProperty("tools").GetProperty("listChanged").GetBoolean());
     }
 
@@ -82,6 +84,16 @@ public class McpJsonRpcHandlerTests
         var json = await SendAsync(handler, """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2099-01-01"}}""");
 
         Assert.Equal(McpJsonRpcHandler.ProtocolVersion, json.GetProperty("result").GetProperty("protocolVersion").GetString());
+    }
+
+    [Fact]
+    public async Task Initialize_NewClientVersion2025_11_25_IsNegotiated()
+    {
+        var handler = CreateHandler();
+        var json = await SendAsync(handler, """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test"}}}""");
+
+        // MCP 2.0（v2.2.0）：客户端声明 2025-11-25 → 服务端回显 2025-11-25
+        Assert.Equal("2025-11-25", json.GetProperty("result").GetProperty("protocolVersion").GetString());
     }
 
     [Fact]

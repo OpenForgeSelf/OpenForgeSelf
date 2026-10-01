@@ -1,6 +1,6 @@
 ﻿# 034 - MCP 中心（mcp-center 插件）
 
-> 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.1.0**。
+> 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.2.0**。
 > 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
 > 前身：`mcp-gateway` v1.0.0（034-MCP 统一网关）更名 + 整合宿主内置「MCP 工具」管理（`api/mcp` + McpService）合并而成。
 
@@ -79,9 +79,9 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
         └── tools/call universal_tool（对外仍恒 1 个工具）
 ```
 
-- **传输格式全支持（用户要求「标准 MCP 协议 2.0 所有格式转发」）**：stdio / Streamable HTTP / 旧版 HTTP+SSE 三传输；协议版本协商 `2025-06-18` / `2025-03-26` / `2024-11-05`（客户端与服务端双向）。
+- **传输格式全支持（用户要求「标准 MCP 协议 2.0 所有格式转发」）**：stdio / Streamable HTTP / 旧版 HTTP+SSE 三传输；协议版本协商 `2025-11-25`（**MCP 2.0**）/ `2025-06-18` / `2025-03-26` / `2024-11-05`（客户端与服务端双向，v2.2.0 起支持 2.0）。
 
-- 协议：手写最小 JSON-RPC 2.0 + Streamable HTTP（协议版本 2025-06-18），**零新增依赖**（无 MCP SDK）。
+- 协议：手写最小 JSON-RPC 2.0 + Streamable HTTP（默认协议版本 2025-06-18，v2.2.0 起支持协商 2025-11-25 = MCP 2.0），**零新增依赖**（无 MCP SDK）。MCP 2.0 的 OAuth / tasks / icons / elicitation 等均为**可选能力**，本网关不声明相应 capabilities 即合规，不实现。
 - 传输：`POST /mcp`（JSON 响应）、`GET /mcp`（SSE keep-alive 心跳）、`GET /health`（探活）。
 - 生命周期：插件 `IPlugin.Apply` 里自管（铁律 14）：`StartAsync` 幂等启动自托管 Kestrel；`ctx.Effect` 挂停止器，热重载逆序释放先停服务器再卸载 ALC。
 - 软依赖：`ctx.Get<IToolRegistry>()`（宿主 seed 晚于 Apply），拿不到时**仅预置数据 + Warn，网关照常启动**（`McpService` 降级、调用转发正常——转发器经 `IContext` 运行期取宿主工具注册表，与 McpService 的软依赖相互独立）。
@@ -108,7 +108,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 
 | 方法 | 请求 | 响应要点 |
 |---|---|---|
-| `initialize` | `{protocolVersion}` | 版本协商：`2025-06-18` / `2025-03-26` / `2024-11-05`，未知回退 `2025-06-18`；返回 `serverInfo.name="ForgeSelf McpCenter"`、`capabilities.tools.listChanged=false` |
+| `initialize` | `{protocolVersion}` | 版本协商：`2025-11-25`（MCP 2.0）/ `2025-06-18` / `2025-03-26` / `2024-11-05`，未知回退 `2025-06-18`；返回 `serverInfo.name="ForgeSelf McpCenter"`（v2.2.0 起含可选 `description`）、`capabilities.tools.listChanged=false` |
 | `ping` | — | 空结果 |
 | `tools/list` | — | 恒 1 条：`universal_tool`，`inputSchema.required=["tool"]`；description 含发现工具引导（先调 `list_tools` 枚举）、常规能力分类（读写文件/执行命令/搜索/计算/系统监控/工作流）与外部命名空间说明 |
 | `tools/call` | `{name:"universal_tool", arguments:{tool, parameters}}` | 转发目标工具；`tool="list_tools"` 枚举全部已注册工具（名称/说明/参数 schema，`parameters:{keyword?, includeSchema?}`）；`result.content[0].type="text"`，文本为宿主 `ToolExecutionResult` 原样透传（`{"success":true,...,"result":...}`）；失败时 `isError=true` 且保留 `error` 字段 |
@@ -166,7 +166,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 - 坏格式（缺工具名段）提示：「外部工具名格式应为 mcp.<服务器id>.<工具名>（当前: ...；例如 mcp.deepwiki.search）」。
 - 未连接：「外部服务器 '...' 未连接（请先在 MCP 中心连接并拉取工具清单）」。
 - 外部工具**不进宿主注册表**（决策 D10），不影响 Agent 的 `/api/ai-agent/chat/tools` 清单。
-- 协议版本双向协商：客户端 initialize 带 `2025-06-18`，服务器回退 `2025-03-26`/`2024-11-05` 时客户端以服务器为准。
+- 协议版本双向协商：客户端 initialize 带 `2025-11-25`（MCP 2.0，v2.2.0 起），服务器回退 `2025-06-18`/`2025-03-26`/`2024-11-05` 时客户端以服务器为准。
 
 ## 与 Agent（AIAgent）的关系
 
@@ -210,6 +210,13 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - 工具管理 tab：搜索框 + 分类筛选（全部/系统/文件/网络/数据/开发）+ 工具表（名称/服务器/描述/状态开关/测试按钮）。
 - 网关配置 tab：3 状态卡（MCP 服务地址 + 复制地址 / 运行状态 / 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
 - 插件前端契约：`export { McpCenterView }`（= plugin.json `frontend.views[0]`）；`vue/vue-router/pinia/element-plus` external；`<ElTabs/ElTabPane/ElSwitch/ElInputNumber/ElInput/ElCheckbox/ElButton/ElSelect/ElOption>` 需宿主 `exposeSharedDeps` 暴露（已在 `ForgeSelf.Web/src/shared/exposeSharedDeps.ts` + `public/shared/element-plus.js` 补齐）。
+
+## 验证记录（v2.2.0 · MCP 2.0 协议支持）
+
+- 变更：`McpJsonRpcHandler.SupportedProtocolVersions` 与 `McpClientSession.SupportedProtocolVersions` 白名单加入 `2025-11-25`（MCP 2.0）；默认/回退版本保持 `2025-06-18`（1.x 客户端行为不变）；`initialize` 响应 `serverInfo` 增加可选 `description`（2.0 `Implementation.description`）；版本统一 2.2.0（plugin.json + csproj）。
+- 单测（worktree `wt-mcp2`，过滤器 `FullyQualifiedName~McpCenter`）：新增 `Initialize_NewClientVersion2025_11_25_IsNegotiated`（声明 `2025-11-25` → 回显 `2025-11-25`）、`serverInfo.description` 非空断言、客户端声明列表含 `2025-11-25` 断言；未知版本回退 `2025-06-18` 回归通过。
+- 插件层 e2e：`mcp-center.spec.ts` 新增 MCP 2.0 声明用例（initialize `2025-11-25` → 回显 `2025-11-25` + description 非空）。
+- 已知边界：MCP 2.0 可选能力（OAuth / tasks / icons / elicitation）未实现——本网关 capabilities 不声明即合规；SEP-1303「输入校验错误返回 Tool Execution Error」语义未采纳（保持 `-32602` 现状，见 `docs/ai/pilot/2026-10-01-mcp2-protocol/02-spec.md` D1）。
 
 ## 验证记录（v2.1.0）
 

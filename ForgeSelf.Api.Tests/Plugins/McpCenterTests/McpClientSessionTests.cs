@@ -42,7 +42,7 @@ public class McpClientSessionTests
         Assert.Equal("2024-11-05", session.ProtocolVersion);
         Assert.Equal("Legacy", session.ServerInfoName);
         transport.Verify(t => t.InitializeAsync(
-            It.Is<IReadOnlyList<string>>(v => v.Contains("2025-06-18") && v.Contains("2025-03-26") && v.Contains("2024-11-05")),
+            It.Is<IReadOnlyList<string>>(v => v.Contains("2025-11-25") && v.Contains("2025-06-18") && v.Contains("2025-03-26") && v.Contains("2024-11-05")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

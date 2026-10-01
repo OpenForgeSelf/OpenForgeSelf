@@ -94,7 +94,8 @@ public class McpClientIntegrationTests
 
             await using var session = await ConnectSession(new StdioMcpTransport(cfg));
             Assert.Equal(2, session.ToolCount);
-            Assert.Contains("2025-06-18", session.ProtocolVersion);
+            // v2.2.0：客户端与 mock 均声明支持 2025-11-25（MCP 2.0）→ 协商结果应为 2.0（此前 2025-06-18）
+            Assert.Contains("2025-11-25", session.ProtocolVersion);
             Assert.Equal("MockMcpServer", session.ServerInfoName);
 
             var echo = await session.CallToolAsync("echo", """{"text":"你好"}""", CancellationToken.None);

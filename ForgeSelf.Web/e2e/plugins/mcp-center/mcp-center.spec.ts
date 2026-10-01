@@ -114,6 +114,13 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     ).toBe(false)
     evidence.push(`initialize: ${JSON.stringify(initResult)}`)
 
+    // 2.1) MCP 2.0（v2.2.0）：客户端声明 2025-11-25 → 服务端回显 2025-11-25（serverInfo 含 description）
+    const init2 = await mcpCall('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'e2e' } }, 6)
+    const init2Result = resultOf(init2)
+    expect(init2Result.protocolVersion).toBe('2025-11-25')
+    expect((init2Result.serverInfo as { name: string; description?: string }).description).toBeTruthy()
+    evidence.push(`initialize(2025-11-25): ${JSON.stringify(init2Result)}`)
+
     // 3) tools/list：恒 1 个工具，名 universal_tool
     const list = await mcpCall('tools/list', {}, 2)
     const tools = (resultOf(list).tools as { name: string }[])

@@ -7,14 +7,15 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// MCP JSON-RPC 2.0 分发器（纯逻辑，可脱离 HTTP 单测）。
 /// 支持方法：initialize / notifications/initialized / ping / tools/list / tools/call；
 /// 支持单条与批处理；通知（无 id）不返回响应体。
-/// 协议版本：2025-06-18（Streamable HTTP），兼容 2025-03-26 / 2024-11-05 客户端声明。
+/// 协议版本：2025-11-25（MCP 2.0）/ 2025-06-18（Streamable HTTP），兼容 2025-03-26 / 2024-11-05 客户端声明；
+/// 客户端声明未知版本时回退默认 2025-06-18（向后兼容 1.x）。
 /// </summary>
 public sealed class McpJsonRpcHandler
 {
     public const string ProtocolVersion = "2025-06-18";
     private const string DefaultProtocolVersion = "2025-06-18";
 
-    private static readonly string[] SupportedProtocolVersions = { "2025-06-18", "2025-03-26", "2024-11-05" };
+    private static readonly string[] SupportedProtocolVersions = { "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05" };
 
     private const int ParseError = -32700;
     private const int InvalidRequest = -32600;
@@ -184,7 +185,7 @@ public sealed class McpJsonRpcHandler
         {
             protocolVersion = negotiated,
             capabilities = new { tools = new { listChanged = false } },
-            serverInfo = new { name = _serverName, version = _serverVersion }
+            serverInfo = new { name = _serverName, version = _serverVersion, description = "OpenForgeSelf MCP Center（万能工具网关，支持 MCP 2.0）" }
         });
 
         return Task.FromResult(Response(id, result));

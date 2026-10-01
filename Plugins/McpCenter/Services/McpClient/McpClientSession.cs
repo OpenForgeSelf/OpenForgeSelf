@@ -10,8 +10,8 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
 /// </summary>
 public sealed class McpClientSession : IAsyncDisposable
 {
-    /// <summary>客户端支持的 MCP 协议版本（标准版本列表）。</summary>
-    public static readonly string[] SupportedProtocolVersions = { "2025-06-18", "2025-03-26", "2024-11-05" };
+    /// <summary>客户端支持的 MCP 协议版本（标准版本列表，偏好顺序：2.0 最前）。</summary>
+    public static readonly string[] SupportedProtocolVersions = { "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05" };
 
     private readonly McpExternalServerConfig _config;
     private readonly IMcpClientTransport _transport;

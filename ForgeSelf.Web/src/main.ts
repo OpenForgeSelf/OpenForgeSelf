@@ -91,7 +91,11 @@ router.beforeEach(async (to) => {
     console.error('[main] 解析首页重定向失败，回退 /home:', e)
     setHomeRedirectTarget('/home')
   }
-  return { path: to.fullPath, replace: true }
+  // 重新解析本次导航（注册完动态路由后）。必须把 path/query/**hash** 三件套原样带回：
+  // 插件界面的「模式 / 深链」自路由走 URL fragment（如 `#/showroom/admin-dashboard?theme=dark`），
+  // vue-router 重写地址时不会自动继承 fragment；若这里只用 fullPath（把 `#...` 并进 path）或不带 hash，
+  // fragment 会被抹掉 → 插件读到空 hash，深链与初始模式判定全部失效（M2 AC22 实测根因）。
+  return { path: to.path, query: to.query, hash: to.hash, replace: true }
 })
 
 // 消费托盘跳转携带的一次性 token（#token=xxx）。

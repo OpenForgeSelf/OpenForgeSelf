@@ -50,6 +50,30 @@ function extractTokenFromHash(hash: string): string | null {
 }
 
 /**
+ * 从 fragment 中摘掉 `token=` 项，**保留其余内容**（路由/查询项原样，不解码也不重编码）。
+ *
+ * 情形：
+ * - 不含 `token=` → 原样返回（不动 fragment）；
+ * - `#token=xxx`（裸 token）→ 摘掉后为空 → 返回 `''`；
+ * - `#/route?token=xxx` → `#/route`；
+ * - `#/route?a=1&token=xxx` → `#/route?a=1`。
+ *
+ * @param hash 带或不带前导 `#` 的 fragment
+ * @returns 摘掉 token 后的 fragment（含前导 `#`）；内容为空时返回 `''`
+ */
+function stripTokenFromHash(hash: string): string {
+  const fragment = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!fragment.includes(TOKEN_HASH_KEY)) return hash;
+  const qIndex = fragment.indexOf('?');
+  const pathPart = qIndex >= 0 ? fragment.slice(0, qIndex) : '';
+  const rawQuery = qIndex >= 0 ? fragment.slice(qIndex + 1) : fragment;
+  const kept = rawQuery.split('&').filter((p) => p && !p.startsWith(TOKEN_HASH_KEY));
+  const nextQuery = kept.join('&');
+  if (!pathPart && !nextQuery) return '';
+  return `#${pathPart}${nextQuery ? `?${nextQuery}` : ''}`;
+}
+
+/**
  * 判断 token 格式是否可接受（Q5：直接覆盖本地 token，不做二次确认）。
  * 只做长度与非空校验——真正的合法性由后端认证判定，前端不重复实现业务规则。
  */
@@ -61,8 +85,8 @@ function isTokenWellFormed(token: string): boolean {
  * 消费 URL fragment 中携带的一次性 token（托盘「打开主界面」入口）。
  *
  * 托盘会以 `http://localhost:{port}/#token=xxx` 拉起浏览器，fragment 不会发往服务器，
- * 也不会进入服务端访问日志；前端在挂载前把它落到 localStorage，随后立即清掉 fragment，
- * 避免 token 残留在地址栏与浏览器历史里。
+ * 也不会进入服务端访问日志；前端在挂载前把它落到 localStorage，随后立即摘掉 fragment 里的
+ * token 那一段（**只摘 token，其余片段保留**），避免 token 残留在地址栏与浏览器历史里。
  *
  * 必须**同步**执行且早于 `initAuthToken()` 与 `app.mount`：
  * 写入后 `initAuthToken()` 会因 `getStoredToken()` 有值而自然跳过，
@@ -90,12 +114,15 @@ export function consumeTokenFromHash(): boolean {
     console.warn('[Auth] 解析 URL token 失败：', e);
   }
 
-  // 无论成功还是失败都要清掉 fragment：非法 token 同样不该留在地址栏/历史里
+  // 只摘掉 fragment 里的 token 项（含非法 token），其余片段原样保留：
+  // 宿主自身走 path 路由，但插件/页面可以有各自的 `#/...` 通道（如设计系统的展厅深链），
+  // 整段清空会把这类深链一并抹掉（PILOT-ds-m2 输入14 实测：深链 `#/showroom/...` 被清空）。
   try {
+    const nextHash = stripTokenFromHash(window.location.hash || '');
     window.history.replaceState(
       null,
       '',
-      window.location.pathname + window.location.search,
+      window.location.pathname + window.location.search + nextHash,
     );
   } catch {
     // 极少数环境（如 file:// 下）replaceState 可能受限，清不掉也不影响主流程

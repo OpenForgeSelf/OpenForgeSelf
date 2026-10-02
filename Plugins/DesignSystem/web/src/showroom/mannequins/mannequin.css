@@ -1,0 +1,834 @@
+/* =============================================================================
+ * 展厅模特共用样式（切片 A：6 个静态样板页）
+ *
+ * 为什么集中在一份、且只读 `--ds-*`：模特是设计系统的"样板间"，用来让人看见
+ * 这套皮肤长在真实后台里是什么样子。只要页面上写死一个颜色或一个尺寸字面量，
+ * 换主题/换疏密时这一处就不跟着走，"展厅里看到的"与"导出交付的"就会分叉 ——
+ * 而这种漂移在 build/test 全绿时完全看不出来。于是：结构放 `.vue`，观感全在这里，
+ * 值一律走变量。类名统一 `mq-` 前缀，避免与外壳全局的 `ds-*` 词汇表相互覆盖。
+ * ========================================================================== */
+
+/* 页面外壳：底色必须是 surface-bg（e2e 会拿计算样式与后端该主题逐位比对） */
+.mq-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+  min-height: 100%;
+  padding: var(--ds-space-5);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-size-body);
+  line-height: var(--ds-leading-body);
+  color: var(--ds-semantic-text-1);
+  background: var(--ds-semantic-surface-bg);
+}
+
+/* 标题颜色必须跟着"这件衣服"走，不能被外壳的工作台样式劫走。
+ * 外壳 `styles/base.css` 的 `.ds h1..h4` 用了工作台自己的**静态**令牌 `--ds-fg-1`（light 固定 #0f172a），
+ * 且 `.ds h1` 特异度 0-1-1 会压过 `.mq-*` 的继承与单类规则。后果（AC24 视觉 QA 实测）：标题色无论明暗
+ * 恒为 rgb(15,23,42)，深色档就成了深底深字、几乎不可读 —— 而浅色档看不出问题，所以只有明暗都量过才暴露。
+ * 模特页是"穿衣服的样板页"，标题只该跟着容器：页面级标题 → semantic.text-1；
+ * 卡/对话框内的标题 → 跟随各自的 foreground（component.card / component.dialog）。 */
+.ds-outfit .mq-page h1,
+.ds-outfit .mq-page h2,
+.ds-outfit .mq-page h3,
+.ds-outfit .mq-page h4 {
+  color: var(--ds-semantic-text-1);
+}
+.ds-outfit .mq-page .mq-card h1,
+.ds-outfit .mq-page .mq-card h2,
+.ds-outfit .mq-page .mq-card h3,
+.ds-outfit .mq-page .mq-card h4,
+.ds-outfit .mq-page .mq-dialog h1,
+.ds-outfit .mq-page .mq-dialog h2,
+.ds-outfit .mq-page .mq-dialog h3,
+.ds-outfit .mq-page .mq-dialog h4 {
+  color: inherit;
+}
+
+/* ---------- 通用排版 / 布局原语 ---------- */
+.mq-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+}
+.mq-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.mq-row--between {
+  justify-content: space-between;
+}
+.mq-row--wrap {
+  flex-wrap: wrap;
+}
+.mq-spacer {
+  flex: 1;
+}
+.mq-grid {
+  display: grid;
+  gap: var(--ds-space-5);
+}
+.mq-grid--kpi {
+  grid-template-columns: repeat(4, 1fr);
+}
+.mq-grid--cards {
+  grid-template-columns: repeat(3, 1fr);
+}
+.mq-grid--split {
+  grid-template-columns: 2fr 1fr;
+}
+.mq-muted {
+  color: var(--ds-semantic-text-3);
+}
+.mq-small {
+  font-size: var(--ds-size-small);
+}
+.mq-caption {
+  font-size: var(--ds-size-caption);
+  color: var(--ds-semantic-text-3);
+}
+.mq-mono {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-size-code);
+}
+.mq-section-title {
+  font-size: var(--ds-size-h3);
+  font-weight: var(--ds-weight-semibold);
+}
+
+/* ---------- 顶栏 ---------- */
+.mq-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  background: var(--ds-semantic-surface-1);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-elevation-1);
+}
+.mq-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  font-size: var(--ds-size-h4);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-topbar__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ds-space-6);
+  height: var(--ds-space-6);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-semantic-brand);
+  color: var(--ds-component-button-primary-foreground);
+  font-weight: var(--ds-weight-bold);
+}
+
+/* ---------- 侧栏 / 导航（含当前项指示条） ---------- */
+.mq-shell {
+  display: flex;
+  gap: var(--ds-space-5);
+  flex: 1;
+  min-height: 0;
+}
+.mq-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  width: 22%;
+  min-width: 0;
+  padding: var(--ds-space-4);
+  background: var(--ds-semantic-surface-1);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-lg);
+}
+.mq-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+.mq-nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  font-size: var(--ds-size-small);
+  color: var(--ds-component-nav-item-foreground);
+  border-radius: var(--ds-radius-md);
+  transition: background var(--ds-duration-micro) var(--ds-ease-standard);
+}
+.mq-nav__item:hover {
+  background: var(--ds-component-nav-item-background-hover);
+}
+.mq-nav__item--active {
+  background: var(--ds-component-nav-item-background-active);
+  color: var(--ds-component-nav-item-foreground-active);
+  font-weight: var(--ds-weight-medium);
+}
+.mq-nav__indicator {
+  position: absolute;
+  top: var(--ds-space-2);
+  bottom: var(--ds-space-2);
+  left: 0;
+  width: var(--ds-border-thick);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-component-nav-indicator);
+}
+
+/* ---------- 主区 ---------- */
+.mq-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+  flex: 1;
+  min-width: 0;
+}
+.mq-page__title {
+  margin: 0;
+  font-size: var(--ds-size-h2);
+  line-height: var(--ds-leading-h2);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-page__subtitle {
+  font-size: var(--ds-size-small);
+  color: var(--ds-semantic-text-2);
+}
+
+/* ---------- 卡片 ---------- */
+.mq-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  padding: var(--ds-component-card-padding);
+  background: var(--ds-component-card-background);
+  color: var(--ds-component-card-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-card-border);
+  border-radius: var(--ds-component-card-radius);
+  box-shadow: var(--ds-component-card-shadow);
+}
+.mq-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+.mq-card__title {
+  margin: 0;
+  font-size: var(--ds-size-h4);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-card__metric {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-size-h1);
+  line-height: var(--ds-leading-h1);
+  font-weight: var(--ds-weight-bold);
+}
+
+/* ---------- 徽标 ---------- */
+.mq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  font-size: var(--ds-size-caption);
+  font-weight: var(--ds-weight-medium);
+  background: var(--ds-component-badge-tint);
+  color: var(--ds-component-badge-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-badge-border);
+  border-radius: var(--ds-component-badge-radius);
+}
+.mq-badge--success {
+  color: var(--ds-semantic-success);
+  border-color: var(--ds-semantic-success);
+}
+.mq-badge--warning {
+  color: var(--ds-semantic-warning);
+  border-color: var(--ds-semantic-warning);
+}
+.mq-badge--danger {
+  color: var(--ds-semantic-danger);
+  border-color: var(--ds-semantic-danger);
+}
+.mq-badge--info {
+  color: var(--ds-semantic-info);
+  border-color: var(--ds-semantic-info);
+}
+.mq-badge--brand {
+  color: var(--ds-semantic-brand);
+  border-color: var(--ds-semantic-brand);
+}
+.mq-badge--neutral {
+  color: var(--ds-semantic-text-3);
+}
+
+/* ---------- 按钮 ---------- */
+.mq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-component-button-padding-block) var(--ds-component-button-padding-inline);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-size-small);
+  font-weight: var(--ds-weight-medium);
+  background: var(--ds-component-button-secondary-background);
+  color: var(--ds-component-button-secondary-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-button-secondary-border);
+  border-radius: var(--ds-component-button-radius);
+  transition: background var(--ds-duration-micro) var(--ds-ease-standard);
+}
+.mq-btn--primary {
+  background: var(--ds-component-button-primary-background);
+  color: var(--ds-component-button-primary-foreground);
+  border-color: var(--ds-component-button-primary-background);
+}
+.mq-btn--primary:hover {
+  background: var(--ds-component-button-primary-background-hover);
+}
+.mq-btn--danger {
+  background: var(--ds-component-button-danger-background);
+  color: var(--ds-component-button-danger-foreground);
+  border-color: var(--ds-component-button-danger-background);
+}
+.mq-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ds-semantic-link);
+}
+.mq-btn--sm {
+  padding: var(--ds-component-button-md-padding-block) var(--ds-component-button-md-padding-inline);
+  min-height: var(--ds-component-button-md-min-height);
+  font-size: var(--ds-size-caption);
+  border-radius: var(--ds-component-button-md-radius);
+}
+
+/* ---------- 涨跌 ---------- */
+.mq-delta {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-size-caption);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-delta--up {
+  color: var(--ds-semantic-success);
+}
+.mq-delta--down {
+  color: var(--ds-semantic-danger);
+}
+
+/* ---------- 柱状图（4 根柱分别取图表色阶 1..4） ---------- */
+.mq-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+}
+.mq-chart__plot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  aspect-ratio: 16 / 6;
+}
+.mq-bar {
+  flex: 1;
+  border-radius: var(--ds-radius-md) var(--ds-radius-md) var(--ds-radius-xs) var(--ds-radius-xs);
+}
+.mq-bar--1 {
+  height: 42%;
+  background: var(--ds-chart-series-1);
+}
+.mq-bar--2 {
+  height: 58%;
+  background: var(--ds-chart-series-2);
+}
+.mq-bar--3 {
+  height: 76%;
+  background: var(--ds-chart-series-3);
+}
+.mq-bar--4 {
+  height: 50%;
+  background: var(--ds-chart-series-4);
+}
+.mq-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  color: var(--ds-semantic-text-3);
+  font-size: var(--ds-size-caption);
+}
+.mq-chart__axis span {
+  flex: 1;
+  text-align: center;
+}
+
+/* ---------- 表格 ---------- */
+.mq-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  border: var(--ds-border-hairline) solid var(--ds-component-table-border);
+  border-radius: var(--ds-radius-lg);
+}
+.mq-table__head,
+.mq-table__row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+.mq-table--5 .mq-table__head,
+.mq-table--5 .mq-table__row {
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+}
+.mq-table--3 .mq-table__head,
+.mq-table--3 .mq-table__row {
+  grid-template-columns: 1fr 3fr 1fr;
+}
+.mq-table__head {
+  background: var(--ds-component-table-header-background);
+  color: var(--ds-semantic-text-2);
+  font-size: var(--ds-size-caption);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-table__row {
+  background: var(--ds-semantic-surface-1);
+  border-top: var(--ds-border-hairline) solid var(--ds-component-table-border);
+  font-size: var(--ds-size-small);
+  transition: background var(--ds-duration-micro) var(--ds-ease-standard);
+}
+.mq-table__row:hover {
+  background: var(--ds-component-table-row-background-hover);
+}
+.mq-table__strong {
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-semantic-text-1);
+}
+.mq-table__num {
+  font-family: var(--ds-font-mono);
+}
+
+/* ---------- 筛选栏 / 表单控件 ---------- */
+.mq-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+  padding: var(--ds-component-card-padding);
+  background: var(--ds-component-card-background);
+  border: var(--ds-border-hairline) solid var(--ds-component-card-border);
+  border-radius: var(--ds-component-card-radius);
+}
+.mq-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  flex: 1;
+  min-width: 0;
+}
+.mq-label {
+  font-size: var(--ds-size-caption);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-semantic-text-2);
+}
+.mq-input,
+.mq-textarea {
+  width: 100%;
+  min-height: var(--ds-component-input-md-min-height);
+  padding: var(--ds-component-input-md-padding-block) var(--ds-space-3);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-size-small);
+  background: var(--ds-component-input-background);
+  color: var(--ds-component-input-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-input-border);
+  border-radius: var(--ds-component-input-radius);
+}
+.mq-input::placeholder,
+.mq-textarea::placeholder {
+  color: var(--ds-component-input-placeholder);
+}
+.mq-input--invalid {
+  border-color: var(--ds-semantic-danger);
+}
+.mq-select {
+  width: 100%;
+  min-height: var(--ds-component-input-md-min-height);
+  padding: var(--ds-component-input-md-padding-block) var(--ds-space-3);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-size-small);
+  background: var(--ds-component-select-background);
+  color: var(--ds-component-select-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-select-border);
+  border-radius: var(--ds-component-select-radius);
+}
+.mq-textarea {
+  min-height: var(--ds-space-8);
+  resize: none;
+}
+.mq-error {
+  font-size: var(--ds-size-caption);
+  color: var(--ds-semantic-danger);
+}
+.mq-hint {
+  font-size: var(--ds-size-caption);
+  color: var(--ds-semantic-text-3);
+}
+
+/* ---------- 页签 ---------- */
+.mq-tabs {
+  display: flex;
+  gap: var(--ds-space-2);
+  border-bottom: var(--ds-border-hairline) solid var(--ds-component-tabs-border);
+}
+.mq-tab {
+  padding: var(--ds-space-2) var(--ds-space-3);
+  font-size: var(--ds-size-small);
+  color: var(--ds-component-tabs-tab-foreground);
+  border-bottom: var(--ds-border-thick) solid transparent;
+  transition: background var(--ds-duration-micro) var(--ds-ease-standard);
+}
+.mq-tab:hover {
+  background: var(--ds-component-tabs-tab-background-hover);
+}
+.mq-tab--active {
+  color: var(--ds-component-tabs-tab-foreground-active);
+  border-bottom-color: var(--ds-component-tabs-indicator);
+  font-weight: var(--ds-weight-medium);
+}
+
+/* ---------- 分页 ---------- */
+.mq-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+}
+.mq-pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--ds-component-button-md-min-height);
+  padding: var(--ds-component-button-md-padding-block) var(--ds-component-button-md-padding-inline);
+  font-size: var(--ds-size-caption);
+  background: var(--ds-component-button-secondary-background);
+  color: var(--ds-component-button-secondary-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-button-secondary-border);
+  border-radius: var(--ds-component-button-md-radius);
+}
+.mq-pager__btn--active {
+  background: var(--ds-component-button-primary-background);
+  color: var(--ds-component-button-primary-foreground);
+  border-color: var(--ds-component-button-primary-background);
+}
+
+/* ---------- 面包屑 ---------- */
+.mq-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-size-small);
+  color: var(--ds-semantic-text-2);
+}
+.mq-breadcrumb__item {
+  color: var(--ds-semantic-link);
+}
+.mq-breadcrumb__item--current {
+  color: var(--ds-semantic-text-1);
+  font-weight: var(--ds-weight-medium);
+}
+.mq-breadcrumb__sep {
+  color: var(--ds-semantic-text-3);
+}
+
+/* ---------- 描述列表 ---------- */
+.mq-desc {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--ds-space-3) var(--ds-space-4);
+}
+.mq-desc__term {
+  font-size: var(--ds-size-small);
+  color: var(--ds-semantic-text-2);
+}
+.mq-desc__value {
+  font-size: var(--ds-size-small);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-semantic-text-1);
+}
+
+/* ---------- 提示条 ---------- */
+.mq-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-size-small);
+  border: var(--ds-border-hairline) solid transparent;
+  border-radius: var(--ds-radius-md);
+}
+.mq-alert--success {
+  color: var(--ds-semantic-success);
+  background: var(--ds-semantic-surface-2);
+  border-color: var(--ds-semantic-success);
+}
+.mq-alert--danger {
+  color: var(--ds-semantic-danger);
+  background: var(--ds-semantic-surface-2);
+  border-color: var(--ds-semantic-danger);
+}
+
+/* ---------- 静态展示的 tooltip ---------- */
+.mq-tooltip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-1);
+}
+.mq-tooltip__anchor {
+  font-size: var(--ds-size-small);
+  color: var(--ds-semantic-link);
+  border-bottom: var(--ds-border-hairline) dashed var(--ds-semantic-link);
+}
+.mq-tooltip__tip {
+  padding: var(--ds-component-tooltip-padding-block) var(--ds-component-tooltip-padding-inline);
+  font-size: var(--ds-size-caption);
+  background: var(--ds-component-tooltip-background);
+  color: var(--ds-component-tooltip-foreground);
+  border-radius: var(--ds-component-tooltip-radius);
+  box-shadow: var(--ds-component-tooltip-shadow);
+}
+
+/* ---------- 静态展示的打开态对话框 ---------- */
+.mq-dialog-stage {
+  position: relative;
+  display: block;
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+}
+.mq-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-5);
+  background: var(--ds-component-dialog-scrim);
+}
+.mq-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  width: 100%;
+  max-width: 60%;
+  padding: var(--ds-component-dialog-padding);
+  background: var(--ds-component-dialog-background);
+  color: var(--ds-component-dialog-foreground);
+  border: var(--ds-border-hairline) solid var(--ds-component-dialog-border);
+  border-radius: var(--ds-component-dialog-radius);
+  box-shadow: var(--ds-component-dialog-shadow);
+}
+.mq-dialog__title {
+  margin: 0;
+  font-size: var(--ds-size-h4);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+}
+
+/* ---------- 危险操作区 ---------- */
+.mq-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding: var(--ds-component-card-padding);
+  background: var(--ds-semantic-surface-2);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-danger);
+  border-radius: var(--ds-component-card-radius);
+}
+.mq-danger-zone__title {
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-semantic-danger);
+}
+
+/* ---------- 状态板：迷你进度条 ---------- */
+.mq-status-card {
+  align-items: flex-start;
+}
+.mq-status-card__value {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-size-h3);
+  font-weight: var(--ds-weight-semibold);
+}
+.mq-progress {
+  width: 100%;
+  height: var(--ds-space-2);
+  overflow: hidden;
+  background: var(--ds-semantic-surface-3);
+  border-radius: var(--ds-radius-pill);
+}
+.mq-progress__bar {
+  height: 100%;
+  border-radius: var(--ds-radius-pill);
+}
+.mq-progress__bar--success {
+  width: 82%;
+  background: var(--ds-semantic-success);
+}
+.mq-progress__bar--warning {
+  width: 64%;
+  background: var(--ds-semantic-warning);
+}
+.mq-progress__bar--danger {
+  width: 35%;
+  background: var(--ds-semantic-danger);
+}
+.mq-progress__bar--info {
+  width: 48%;
+  background: var(--ds-semantic-info);
+}
+
+/* ---------- 分隔线 ---------- */
+.mq-divider {
+  height: var(--ds-border-hairline);
+  background: var(--ds-semantic-border-1);
+}
+
+/* =============================================================================
+ * 切片 B：工具/工作台 · 官网/落地页 · 移动端 H5 三页新增观感
+ * （同样只读 `--ds-*`；类名继续 `mq-` 前缀，新页优先复用上面的原语）
+ * ========================================================================== */
+
+/* ---------- 工作台编辑器 ---------- */
+/* 三栏：文件树 / 编辑区 / 属性面板（左窄中宽右窄，布局不限字面量） */
+.mq-grid--editor {
+  grid-template-columns: 18% minmax(0, 1fr) 26%;
+}
+/* 代码区：等宽字体 + 弱底色，用来验证 `--ds-font-mono` 与 surface 层级 */
+.mq-code {
+  display: block;
+  margin: 0;
+  padding: var(--ds-space-4);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  color: var(--ds-component-card-foreground);
+  background: var(--ds-semantic-surface-2);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-lg);
+}
+.mq-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  color: var(--ds-semantic-text-3);
+  font-size: var(--ds-size-caption);
+  background: var(--ds-semantic-surface-1);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-md);
+}
+
+/* ---------- 官网 / 落地页 ---------- */
+/* 横向导航（`.mq-nav` 默认竖排，落地页顶栏要横排） */
+.mq-nav--row {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--ds-space-4);
+}
+.mq-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-6);
+  background: var(--ds-semantic-surface-1);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-lg);
+}
+/* Hero 主标题：取展示档字号（`--ds-size-display`） */
+.mq-hero__title {
+  margin: 0;
+  font-size: var(--ds-size-display);
+  line-height: var(--ds-leading-h1);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-semantic-text-1);
+}
+.mq-hero__sub {
+  margin: 0;
+  font-size: var(--ds-size-body);
+  color: var(--ds-semantic-text-2);
+}
+.mq-price {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-size-h2);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-semantic-text-1);
+}
+/* 高亮定价卡：换品牌描边 + 提升阴影层级（值仍全部来自后端令牌） */
+.mq-pricing--featured {
+  border-color: var(--ds-semantic-brand);
+  box-shadow: var(--ds-shadow-elevation-3);
+}
+.mq-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4) var(--ds-space-1) 0;
+  font-size: var(--ds-size-caption);
+  color: var(--ds-semantic-text-3);
+  border-top: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+}
+
+/* ---------- 移动端 H5 ---------- */
+/* 列表卡：卡片本体复用 `.mq-card`，仅改为主轴横向排布 */
+.mq-listcard {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+/* 底部标签栏（nav）：四项等距，当前项带顶部指示条 */
+.mq-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  background: var(--ds-semantic-surface-1);
+  border: var(--ds-border-hairline) solid var(--ds-semantic-border-1);
+  border-radius: var(--ds-radius-lg);
+}
+.mq-tabbar__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  font-size: var(--ds-size-caption);
+  color: var(--ds-component-nav-item-foreground);
+}
+.mq-tabbar__item--active {
+  color: var(--ds-component-nav-item-foreground-active);
+  font-weight: var(--ds-weight-medium);
+}
+.mq-tabbar__indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--ds-space-5);
+  height: var(--ds-border-thick);
+  transform: translateX(-50%);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-component-nav-indicator);
+}

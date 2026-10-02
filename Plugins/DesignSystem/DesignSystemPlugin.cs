@@ -52,6 +52,7 @@ public class DesignSystemPlugin : IPlugin
             var quickCreate = new QuickCreateService(projects, generation);
             var brief = new DesignBriefBuilder(export, projects, catalog, review);
             export.BriefBuilder = brief;
+            var previewCss = new PreviewCssService(export);
 
             // 同一实例注册：控制器与工具由此用同一批对象（§G）
             services.AddSingleton(paths);
@@ -67,6 +68,7 @@ public class DesignSystemPlugin : IPlugin
             services.AddSingleton(review);
             services.AddSingleton(quickCreate);
             services.AddSingleton(brief);
+            services.AddSingleton(previewCss);
 
             var kit = new DesignToolKit(projects, tokens, catalog, audits, auditEngine, export, releases,
                 generation, agentAccess, review, quickCreate, brief);

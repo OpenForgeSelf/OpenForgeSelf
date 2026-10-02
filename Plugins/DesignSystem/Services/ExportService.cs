@@ -90,6 +90,28 @@ public sealed class ExportService
         var themeId = themeCode.IsNullOrEmpty() ? DesignSystemConstants.SharedThemeId : _projects.ResolveThemeId(projectId, themeCode);
         var graph = _tokens.LoadGraph(projectId, themeId > 0 ? themeId : null, themeCode);
 
+        var components = _catalog.ListComponents(projectId, null).ToList();
+        // 一次批量取变体：以前逐组件查（N+1），导出页并行预览多个格式时把上百次查询压到同一个
+        // SQLite 文件上，实测 database is locked（v2.6.8 e2e 抓到的 500）
+        var variants = _catalog.VariantsByComponent(components.Select(c => c.Id).ToList());
+        return new Snapshot(project, themeCode, BuildSnaps(graph), _projects.ListThemes(projectId).ToList(),
+            _catalog.ListFonts(projectId).ToList(),
+            _catalog.ListAssets(projectId, null).ToList(),
+            _catalog.ListScreens(projectId).ToList(),
+            components,
+            components.SelectMany(c => variants[c.Id]).ToList(),
+            _catalog.ListIcons(projectId, null, null).ToList());
+    }
+
+    /// <summary>
+    /// 内存令牌图 → 投影令牌行（层级/路径排序 + 有效值解析 + 颜色补 hex）。
+    ///
+    /// 抽成公开静态方法的唯一理由：`preview-css`（内存预览）与落库导出必须**共用这一份构造逻辑**。
+    /// 若内存预览自己再写一遍排序/解析，两份就会漂 —— AC2「展厅看到的 == 交付拿到的」随之失去守卫。
+    /// 排序不可省：它决定 CSS 里变量行的**出现次序**，同源判据要求逐字相同。
+    /// </summary>
+    public static IReadOnlyList<Snap> BuildSnaps(TokenGraph graph)
+    {
         var list = new List<Snap>();
         foreach (var node in graph.All().OrderBy(n => TokenTiers.Rank(n.Tier)).ThenBy(n => n.Path, StringComparer.Ordinal))
         {
@@ -100,7 +122,7 @@ public sealed class ExportService
         }
 
         // 颜色有效值补 hex/对比度（供 DESIGN.md 与 CSS 注释用）
-        var withColor = list.Select(s =>
+        return list.Select(s =>
         {
             if (s.Type != TokenTypes.Color) return s;
             var c = graph.ResolveColor(s.Path);
@@ -108,19 +130,15 @@ public sealed class ExportService
             var hex = Oklch.ToRgb8(c.Value).ToHex();
             return s with { ColorHex = hex };
         }).ToList();
-
-        var components = _catalog.ListComponents(projectId, null).ToList();
-        // 一次批量取变体：以前逐组件查（N+1），导出页并行预览多个格式时把上百次查询压到同一个
-        // SQLite 文件上，实测 database is locked（v2.6.8 e2e 抓到的 500）
-        var variants = _catalog.VariantsByComponent(components.Select(c => c.Id).ToList());
-        return new Snapshot(project, themeCode, withColor, _projects.ListThemes(projectId).ToList(),
-            _catalog.ListFonts(projectId).ToList(),
-            _catalog.ListAssets(projectId, null).ToList(),
-            _catalog.ListScreens(projectId).ToList(),
-            components,
-            components.SelectMany(c => variants[c.Id]).ToList(),
-            _catalog.ListIcons(projectId, null, null).ToList());
     }
+
+    /// <summary>
+    /// 用一张内存令牌图装配投影快照（`preview-css` 专用）。
+    /// 品牌/组件/页面等目录一律空：内存预览只承诺"令牌层 CSS 与落库导出一致"，
+    /// 不假装自己带了资产与页面清单（能力面诚实——空目录就是空目录，不编造条目）。
+    /// </summary>
+    public Snapshot SnapshotFromGraph(TokenGraph graph, DesignProject project, String? themeCode) =>
+        new(project, themeCode, BuildSnaps(graph), [], [], [], [], [], [], []);
 
     static String RenderAlias(String path) => "{" + path + "}";
 

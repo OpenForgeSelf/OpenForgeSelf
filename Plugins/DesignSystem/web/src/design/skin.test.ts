@@ -6,7 +6,7 @@
  * 页面表现是"颜色突然变透明"。两条都有用例钉住。
  */
 import { describe, expect, it } from 'vitest'
-import { buildAliasCss, buildSkinStyles, definedVars, scopeCssToSkin } from './skin'
+import { buildAliasCss, buildSkinStyles, composeCss, definedVars, pickVars, scopeCssToSkin } from './skin'
 
 const BACKEND_CSS = `/* 生成物 */
 :root {
@@ -94,5 +94,95 @@ describe('buildSkinStyles', () => {
     const refs = [...alias.matchAll(/var\((--ds-[\w-]+)\)/g)].map((m) => m[1] as string)
     expect(refs.length).toBeGreaterThan(0)
     expect(refs.filter((r) => !defined.has(r))).toEqual([])
+  })
+})
+
+describe('scopeCssToSkin 自定义作用域（v3 参数化，AC10）', () => {
+  it('自定义属性选择器作用域下两处 :root 与焦点环都被收窄', () => {
+    const out = scopeCssToSkin(BACKEND_CSS, '[data-outfit="preset:a"]')
+    expect(out).toContain('[data-outfit="preset:a"] {')
+    expect(out).not.toContain(':root')
+    expect(out).toContain('[data-outfit="preset:a"] :where(a, button, input, select, textarea, [tabindex]):focus-visible')
+    // reduced-motion 媒体块必须保留
+    expect(out).toContain('@media (prefers-reduced-motion: reduce)')
+  })
+
+  it('默认作用域仍是 .ds-skin（旧行为不变，旧用例已锁）', () => {
+    expect(scopeCssToSkin(':root { --a: 1; }')).toBe('.ds-skin { --a: 1; }')
+  })
+})
+
+describe('pickVars（v3，AC10）', () => {
+  const CSS = `/* 头注释 */
+:root {
+  --ds-semantic-brand: #2563eb;
+  --ds-semantic-text-1: #111827;
+  --ds-component-card-background: #ffffff;
+  --ds-radius-md: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-duration-base: 0.01ms;
+  }
+}
+
+@font-face {
+  font-family: "x";
+}`
+
+  it('只保留 wanted 且 CSS 里真定义的声明，逐字不变', () => {
+    const out = pickVars(CSS, new Set(['--ds-semantic-brand', '--ds-radius-md']))
+    expect(out).toContain('--ds-semantic-brand: #2563eb;')
+    expect(out).toContain('--ds-radius-md: 10px;')
+    expect(out).not.toContain('--ds-semantic-text-1')
+    expect(out).not.toContain('--ds-component-card-background')
+  })
+
+  it('丢弃 @media 与 @font-face 及注释', () => {
+    const out = pickVars(CSS, new Set(['--ds-semantic-brand']))
+    expect(out).not.toContain('@media')
+    expect(out).not.toContain('@font-face')
+    expect(out).not.toContain('/*')
+    expect(out).not.toContain('--ds-duration-base')
+  })
+
+  it('wanted 里 CSS 没定义的变量被忽略（不新造声明）', () => {
+    const out = pickVars(CSS, new Set(['--ds-semantic-brand', '--ds-no-such']))
+    expect(out).toContain('--ds-semantic-brand')
+    expect(out).not.toContain('--ds-no-such')
+  })
+
+  it('引用链补齐：保留项的值引用 var(--ds-x) 而 x 未保留时，把 x 一并保留', () => {
+    const css = `:root {
+  --ds-component-card-background: var(--ds-semantic-surface-1);
+  --ds-semantic-surface-1: #f8fafc;
+  --ds-semantic-brand: #2563eb;
+}`
+    const out = pickVars(css, new Set(['--ds-component-card-background']))
+    expect(out).toContain('--ds-component-card-background: var(--ds-semantic-surface-1);')
+    // 被引用的 --ds-semantic-surface-1 沿链补进来，避免悬空引用
+    expect(out).toContain('--ds-semantic-surface-1: #f8fafc;')
+    // 无关变量不掺和
+    expect(out).not.toContain('--ds-semantic-brand')
+  })
+
+  it('无 :root 块返回空串', () => {
+    expect(pickVars('@media print { body { color: red } }', new Set(['--ds-x']))).toBe('')
+    expect(pickVars('', new Set(['--ds-x']))).toBe('')
+  })
+})
+
+describe('composeCss（v3，AC10）', () => {
+  it('按序拼接，后者覆盖前者（密度 CSS 覆盖配色 CSS 的同名变量）', () => {
+    const color = ':root {\n  --ds-space-4: 16px;\n}'
+    const compact = ':root {\n  --ds-space-4: 8px;\n  --ds-radius-md: 6px;\n}'
+    const out = composeCss([color, compact])
+    expect(out.indexOf('--ds-space-4: 16px;')).toBeLessThan(out.indexOf('--ds-space-4: 8px;'))
+  })
+
+  it('空段跳过', () => {
+    expect(composeCss(['', '  ', ':root {\n  --a: 1;\n}'])).toBe(':root {\n  --a: 1;\n}')
+    expect(composeCss([])).toBe('')
   })
 })

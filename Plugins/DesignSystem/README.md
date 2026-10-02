@@ -1,7 +1,14 @@
-﻿# 设计插件 DesignSystem · 设计语言底座（v2.8.0）
+# 设计插件 DesignSystem · 设计语言底座（v3.0.0）
 
 > 铸己匣（ForgeSelf）的**设计系统**插件：把设计系统落成**可持久化、可校验、可版本化、可标准交付**的库。
 > 插件 ID `design-system`，挂载路由 `/design-system`，界面由插件自带（`web/dist`），宿主运行时远程加载。
+>
+> **v3.0.0（2026-10-02，展厅与向导）**：从"只有专业工作台"扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入），
+> 让非设计师也能"试穿"：**向导**四步真落库建系统 → **展厅**把五类场景（后台·中台 / 状态板 / 工具·工作台 / 官网·落地页 / 移动端 H5）
+> 的 9 页模特"穿上"任意预设或自己项目的设计（`OutfitScope` 收窄**后端文本投影**，画布与导出必然同源）→
+> **交付与接入页**给 Agent 网关地址/工具清单/规则与说明书原文/试审查；术语词典默认大白话（可切专业）；
+> 新增 `generate/preview-css`（**零写库**且与落库导出逐字同源，供展厅试穿取数）、哈希深链、衣柜/模式条方向键与焦点可见。
+> 判据与验收见 `docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard/`。
 >
 > **v2.8.0（2026-10-01，Agent 工具层）**：向宿主工具注册表暴露 **8 个 `design_*` 工具**（经 McpCenter 网关
 > `universal_tool` 与内置 AIAgent 白名单均可用）：`design_guide/context/lookup/review/audit/presets/create/edit`
@@ -494,6 +501,27 @@ diff 因此能报到"哪一条的哪个字段"（例：`asset/logo 的 svgBody` 
   项目上下文由右侧选择器承担），「设计系统」标题与版本徽标（模型/生成器/投影）收进同一行、副标题独立一行；
   `BrandLogo.vue` 随之成为零引用死组件，按「声明了没人用＝假能力」口径移入 `.trash/`
   （`classes.test.ts` 的逐文件守卫自动少一条 BrandLogo 用例，属预期）。vitest **75**、`index.js` 297.56 kB。
+
+- **2026-10-02**：**v3.0.0** 展厅与向导（M2，`docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard/`）——把插件从"只有专业工作台"
+  扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入；工作台 14 个 section 原样不动，既有 e2e 断言不删不改）：
+  ① **开始**：四步向导（场景 → 预设 → 风格微调 → 命名），提交真落库（令牌 >100、审计无 critical），失败保留输入、单飞防重复、陈旧推荐响应不覆盖；
+  ② **展厅**：衣柜里每件"衣服"（8 个风格预设 + 自己的项目）都在舞台上给同一个模特试穿——五类场景 9 页模特
+  （后台·中台 5 页 / 状态板 / 工具·工作台 / 官网·落地页 / 移动端 H5）只认 `--ds-*`，`OutfitScope` 把**后端文本投影**收窄到本件衣服上，
+  故"画布上看到的 == 导出交付的"（有断言钉住：画布 computed 底色 == 后端 `semantic.surface-bg`）。设备三档（1280/820/390）只表达"这段界面在多大屏上"，
+  移动场景强制手机框；支持两件并排对比（各帧作用域独立，互不污染）。
+  ③ **交付与接入**：Agent 网关地址（页面不含真实令牌，只显示占位片段）、8 个 `design_*` 工具清单（== `GET agent/tools` == `meta.agentTools`）、
+  `brief`/`agent-rules` 原文（== REST 导出）、试审查（与 `POST review` 同源，>200KB 客户端拦截不发请求）、写开关 PUT 往返；
+  ④ 新增后端 `POST api/design-system/generate/preview-css`：**内存构图产 CSS、零写库**，且与落库导出**逐字同源**（去注释规整空白后相等）——
+  展厅试穿若走"生成一次落一次库"会污染用户的项目列表；入口另有数值域校验 → 400（生成器本身对任意输入不抛）。
+  ⑤ 术语词典（默认大白话、可切专业）、哈希深链（`#/showroom/<page>?outfit=&theme=&device=`）、衣柜/模式条方向键与 `:focus-visible` 焦点可见。
+  **宿主侧配套修复（本轮 e2e 抓到的真缺陷）**：插件的"模式 / 深链"自路由走 URL fragment，而宿主两处会抹掉整段 fragment ——
+  `authInit.consumeTokenFromHash()` 无条件 `replaceState(pathname+search)`（**没有 token 也照抹**）、
+  `main.ts` 的 `router.beforeEach` 重写地址时只带 `fullPath`（把 `#...` 并进 path 且不带 hash）。修复：只摘 `token=` 那一项、其余 fragment 原样保留；
+  beforeEach 回填 `{ path, query, hash }`。token 仍被清除（安全意图不变），深链不再失效。
+  验证：插件 web `check` 0 error / `test` 15 文件 / `build` 产出 `dist/index.js` + `style.css`；后端过滤集总数 == 发现数；既有 e2e 无新增红；
+  视觉 QA 矩阵 3 预设 × 5 场景 × 明/暗 30 张截图逐张读图（`screenshots/e2e/design-system/m2/qa-*.png`）。
+- **2026-10-01**：**v2.8.0** Agent 工具层（M1，`docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`）——见文件头 v2.8.0 段；
+  §九 本条由 M1 交付方补记，本任务不改 M1 范围。
 
 关键修复：
 - 移除 CSS 顶部 `@import url(fonts.googleapis.com)`，避免渲染阻塞导致插件无样式。

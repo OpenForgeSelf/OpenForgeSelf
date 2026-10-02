@@ -184,6 +184,16 @@ async function projectField(page: Page, pid: number, field: 'tokenCount' | 'comp
 
 const nav = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true })
 
+/**
+ * 进入「工作台」模式（M2 四模式外壳起，插件默认落在 开始/展厅：无项目→开始、有项目→展厅，
+ * 14 入口导航只在工作台模式渲染）。幂等：重复调用只是再点一次模式条。
+ * 调用点：goto 之后、任何依赖 .ds-nav / 14 入口的断言之前；page.reload() 之后同样要再进一次。
+ */
+async function enterWorkbench(page: Page): Promise<void> {
+  await page.getByRole('tab', { name: '工作台', exact: true }).click()
+  await expect(page.locator('.ds-nav')).toBeVisible({ timeout: 20_000 })
+}
+
 /** 令牌里的 hex 换成浏览器计算样式写法，用于"预览底色 == 后端令牌值"的逐位比对 */
 function hexToRgb(hex: string): string | null {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
@@ -226,6 +236,9 @@ test.describe('设计系统插件 v2 · 库驱动工作台全链路', () => {
     expect(meta.generatorVersion).toBe(meta.modelVersion)
     expect(meta.projectionVersion).toBe(meta.modelVersion)
     await expect(page.locator('.ds-badge')).toContainText(`模型 ${meta.modelVersion}`)
+
+    // M2 四模式外壳：先进入「工作台」模式，14 入口导航才渲染（默认落 开始/展厅）
+    await enterWorkbench(page)
 
     // ---- 3. 导航按能力面出现，14 个入口都在 ----
     const navLabels = [
@@ -1060,6 +1073,7 @@ test.describe('设计系统插件 v2 · 库驱动工作台全链路', () => {
     // ---- 16. 刷新后仍从库里读得到（库驱动，不靠 localStorage）----
     await page.reload()
     await expect(page.locator('.ds-root')).toBeVisible({ timeout: 30_000 })
+    await enterWorkbench(page)
     await expect(page.getByText(RUN_CODE).first()).toBeVisible({ timeout: 30_000 })
 
     // ---- 17. 无致命控制台错误（组件解析/模块加载一类）----

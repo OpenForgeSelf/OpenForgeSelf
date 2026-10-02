@@ -12,7 +12,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { buildSkinStyles, definedVars } from './design/skin'
 import {
-  createProject,
   currentProject,
   lastError,
   loadEffective,
@@ -34,6 +33,14 @@ import {
   unauthorized,
 } from './state'
 import PanelState from './components/PanelState.vue'
+import ModeBar from './shell/ModeBar.vue'
+import { NAV, isSectionKey, type NavItem, type SectionKey } from './shell/nav'
+import { readStoredMode, resolveInitialMode, storeMode, type Mode } from './shell/mode'
+import { formatHash, parseHash, type RouteState } from './design/route'
+import { proTerms, toggleProTerms } from './design/glossary'
+import StartMode from './start/StartMode.vue'
+import Showroom from './showroom/Showroom.vue'
+import DeliveryMode from './delivery/DeliveryMode.vue'
 
 import Projects from './sections/Projects.vue'
 import TokenStudio from './sections/TokenStudio.vue'
@@ -50,50 +57,62 @@ import ExportCenter from './sections/ExportCenter.vue'
 import ReleaseBoard from './sections/ReleaseBoard.vue'
 import TokenShowcase from './sections/TokenShowcase.vue'
 
-type SectionKey =
-  | 'projects'
-  | 'studio'
-  | 'color'
-  | 'type'
-  | 'scale'
-  | 'motion'
-  | 'themes'
-  | 'brand'
-  | 'components'
-  | 'icons'
-  | 'audit'
-  | 'export'
-  | 'releases'
-  | 'showcase'
+/** 初始深链：只在挂载时解析一次（写回用 replaceState，不监听 back/forward，故无需响应 hashchange） */
+const initialRoute = parseHash(location.hash)
 
-interface NavItem {
-  key: SectionKey
-  label: string
-  group: string
-  /** 需要的后端能力；缺能力时入口置灰并说明原因（不是藏起来装没看见） */
-  capability?: string
-  skin?: boolean
+/** 工作台栏目：深链给出合法栏目时用它，否则回落「项目」 */
+const active = ref<SectionKey>(
+  initialRoute?.mode === 'workbench' && initialRoute.sub && isSectionKey(initialRoute.sub) ? initialRoute.sub : 'projects',
+)
+const navError = ref('')
+
+/**
+ * 四模式外壳（FR2）：模式条切换 + 写回 `ds.mode`；「新建」切到开始模式。
+ * 初始判定在项目加载前只能假设"无项目"（projects 是异步的），加载完且用户未手动切过时重判一次。
+ */
+const mode = ref<Mode>(resolveInitialMode({ hash: location.hash, hasProjects: false, stored: readStoredMode() }))
+const userPicked = ref(false)
+/** 顶栏「新建」递增它，强制 StartMode 重新挂载（向导状态重置），见步骤6 */
+const wizardKey = ref(0)
+function pickMode(m: Mode): void {
+  userPicked.value = true
+  mode.value = m
+  storeMode(m)
 }
 
-const NAV: NavItem[] = [
-  { key: 'projects', label: '项目与生成', group: '建系统' },
-  { key: 'studio', label: '令牌工作台', group: '建系统' },
-  { key: 'color', label: '色彩实验室', group: '建系统' },
-  { key: 'type', label: '排版标度', group: '建系统' },
-  { key: 'scale', label: '尺度与密度', group: '建系统' },
-  { key: 'motion', label: '阴影与动效', group: '建系统' },
-  { key: 'themes', label: '主题实验室', group: '建系统' },
-  { key: 'brand', label: '品牌资产', group: '建系统', capability: 'assets' },
-  { key: 'icons', label: '图标库', group: '建系统' },
-  { key: 'audit', label: '审计与门禁', group: '把质量' },
-  { key: 'export', label: '导出交付', group: '把质量', capability: 'export' },
-  { key: 'releases', label: '版本与对比', group: '把质量', capability: 'releases' },
-  { key: 'components', label: '组件库', group: '看效果', skin: true },
-  { key: 'showcase', label: '品牌展示页', group: '看效果', skin: true },
-]
+/* ---------------- 深链（FR15/AC22）：初始还原 + replaceState 写回 ---------------- */
 
-const active = ref<SectionKey>('projects')
-const navError = ref('')
+/** 展厅深链只在"初始就落在展厅"时下发一次（之后手动切到展厅不复活旧 URL 选择） */
+const showroomInitial: RouteState | null = mode.value === 'showroom' ? initialRoute : null
+
+/** 展厅舞台当前选择（由 Showroom 的 `route` 事件回填），供写回哈希 */
+const showroomRoute = ref<{ outfit: string; theme: string; device: string; page: string } | null>(null)
+
+/**
+ * 依当前模式 / 工作台栏目 / 展厅选择拼出哈希并用 `replaceState` 写回。
+ * 传入以 `#` 开头的相对 URL，浏览器只替换片段、保留宿主 history 模式的路径。
+ */
+function writeHash(): void {
+  const state: RouteState = { mode: mode.value }
+  if (mode.value === 'workbench') {
+    state.sub = active.value
+  } else if (mode.value === 'showroom' && showroomRoute.value) {
+    state.sub = showroomRoute.value.page
+    state.outfit = showroomRoute.value.outfit
+    state.theme = showroomRoute.value.theme
+    state.device = showroomRoute.value.device
+  }
+  const next = formatHash(state)
+  if (location.hash !== next) history.replaceState(null, '', next)
+}
+
+function onShowroomRoute(payload: { outfit: string; theme: string; device: string; page: string }): void {
+  showroomRoute.value = payload
+  writeHash()
+}
+
+// 模式切换 / 工作台换栏目 → 写回哈希（展厅选择另经 `onShowroomRoute` 写回）
+watch([mode, active], () => writeHash())
 
 const colorThemes = computed(() => themes.value.filter((t) => t.modeKind === 'color'))
 const densityThemes = computed(() => themes.value.filter((t) => t.modeKind === 'density'))
@@ -155,20 +174,34 @@ async function pickProject(id: number): Promise<void> {
   if (p) await selectProject(p)
 }
 
-async function newProject(): Promise<void> {
-  const name = window.prompt('新项目显示名（如 铸己匣控制台）')?.trim()
-  if (!name) return
-  const code = window.prompt('项目代码（小写字母/数字/短横线，将作为库内唯一键）', name.slice(0, 12).toLowerCase().replace(/[^a-z0-9-]/g, '-'))?.trim()
-  if (!code) return
-  const p = await createProject({ code, name })
-  if (!p) navError.value = lastError.value
+/** 顶栏「新建」：切到开始模式并重置向导（FR3：不再弹原生对话框） */
+function newProject(): void {
+  wizardKey.value++
+  pickMode('start')
+}
+
+/** 向导创建成功后：重载项目列表并选中新项目，让展厅/工作台立刻用上它 */
+async function onCreated(code: string): Promise<void> {
+  await loadProjects()
+  const p = projects.value.find((x) => x.code === code)
+  if (p) await selectProject(p)
 }
 
 async function refreshAll(): Promise<void> {
   navError.value = ''
   await Promise.all([loadMeta(), loadProjects()])
   await loadEffective()
-  await loadSkin()
+  // 投影只在预览页（nav.skin）才取：非预览页刷新不得污染「未取」语义（否则在别的页切档，
+  // 主题条会把"从没进过预览页"说成"待重取"——e2e 对 data-skin-state 的断言钉的就是这个前提）
+  if (currentNav.value?.skin) await loadSkin()
+  // 项目加载完成后重判默认模式：用户没手动切过才改（FR2 的"无项目→start"是按真实项目数算的）
+  if (!userPicked.value) {
+    mode.value = resolveInitialMode({
+      hash: location.hash,
+      hasProjects: projects.value.some((p) => p.status !== 'archived'),
+      stored: readStoredMode(),
+    })
+  }
 }
 
 watch(active, (key) => {
@@ -205,11 +238,25 @@ onMounted(() => {
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }} <span v-if="p.version">v{{ p.version }}</span></option>
           </select>
         </label>
+        <button
+          v-if="mode !== 'workbench'"
+          class="ds-mini"
+          type="button"
+          :aria-pressed="proTerms"
+          :title="proTerms ? '切换为大白话文案' : '切换为专业术语文案'"
+          @click="toggleProTerms"
+        >
+          {{ proTerms ? '大白话' : '专业术语' }}
+        </button>
         <button class="ds-mini" type="button" @click="newProject">新建</button>
         <button class="ds-mini" type="button" @click="refreshAll">刷新</button>
       </div>
     </header>
 
+    <!-- 必须显式走 pickMode：v-model 只改 mode.value，userPicked 不置位会导致 refreshAll 重判把工作台弹回 -->
+    <ModeBar :model-value="mode" @update:model-value="pickMode" />
+
+    <template v-if="mode === 'workbench'">
     <nav class="ds-nav">
       <template v-for="g in groups" :key="g.group">
         <span class="ds-nav__group">{{ g.group }}</span>
@@ -280,6 +327,13 @@ onMounted(() => {
         <TokenShowcase v-else />
       </div>
     </main>
+    </template>
+
+    <StartMode v-else-if="mode === 'start'" :key="wizardKey" @created="onCreated" @go="pickMode" />
+
+    <Showroom v-else-if="mode === 'showroom'" :initial="showroomInitial" @created="onCreated" @route="onShowroomRoute" />
+
+    <DeliveryMode v-else />
 
     <footer class="ds-footer ds-small">
       设计系统插件（design-system）· 数据源：宿主后端设计系统库 · 当前主题
@@ -397,23 +451,7 @@ onMounted(() => {
   flex-wrap: wrap;
   padding: var(--ds-space-2) var(--ds-space-6) 0;
 }
-.ds-chip {
-  font: inherit;
-  font-size: var(--ds-fs-micro);
-  padding: 3px 10px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-1);
-  color: var(--ds-fg-2);
-  cursor: pointer;
-}
-.ds-chip--on {
-  border-color: var(--ds-color-primary);
-  color: var(--ds-color-primary);
-}
-.ds-chip--density {
-  border-style: dashed;
-}
+/* .ds-chip / .ds-mode-pane 已上移到 styles/base.css（外壳共享词汇表，跨模式组件复用） */
 .ds-warn {
   margin: var(--ds-space-3) var(--ds-space-6) 0;
   color: var(--ds-danger);

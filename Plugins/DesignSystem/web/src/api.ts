@@ -473,6 +473,131 @@ export interface ExportFormats {
 }
 
 /* ------------------------------------------------------------------ */
+/* M1/M2 向导·展厅·交付契约（03-plan 步骤5；路径只在 api.ts 出现）       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 内置风格预设（`GET presets`，REST 只回目录字段）。
+ * 预设的 `request` 走 `presets/recommend` 的 `PresetMatch.request` 拿，这里不重复承载。
+ */
+export interface StylePreset {
+  id: string
+  name: string
+  tagline: string
+  tones: string[]
+  kinds: string[]
+  industries: string[]
+  keywords: string[]
+}
+
+/** 预设推荐命中（`POST presets/recommend`：`request` 为后端深拷贝，前端可安全改写后交回） */
+export interface PresetMatch {
+  id: string
+  name: string
+  tagline: string
+  score: number
+  reasons: string[]
+  request: GenerateRequest
+}
+
+/** `POST projects/quick-create` 入参（dryRun=false 落库；与工具 design_create 的 apply 方向相反） */
+export interface QuickCreateInput {
+  name: string
+  code?: string | null
+  kind?: string | null
+  description?: string | null
+  preset?: string | null
+  request?: GenerateRequest | null
+  dryRun?: boolean
+}
+
+/**
+ * `POST projects/quick-create` 出参。后端 `applied` 直接透传 `AppliedResult`
+ * （Project/Generation/Audit 全量），前端只消费 `project`/`warnings`；`code` 用于创建后回读核对。
+ */
+export interface QuickCreateResult {
+  uiRoute: string
+  dryRun: boolean
+  project: { code: string; name: string; status: string } | null
+  warnings: string[] | null
+}
+
+/** `POST generate/preview-css` 入参（GenerationRequest 平铺镜像 + 单个 theme；`themes` 恒被后端忽略） */
+export interface PreviewCssInput {
+  brief?: string | null
+  seedColor?: string | null
+  hue?: number | null
+  chroma?: number | null
+  density?: string | null
+  typeRatio?: number | null
+  typeBasePx?: number | null
+  radiusBase?: number | null
+  motionScale?: number | null
+  brandName?: string | null
+  industry?: string | null
+  accentHueOffset?: number | null
+  theme?: string | null
+}
+
+/** `POST generate/preview-css` 出参（css 与落库导出同源：去注释后逐字相同；theme 缺省回落 light） */
+export interface PreviewCssResult {
+  theme: string
+  css: string
+  seed: string
+  industry: string
+  hue: number
+  notes: string[]
+}
+
+/** `GET/PUT agent-access`（设计_* 工具的写动作门禁；令牌永不回显） */
+export interface AgentAccess {
+  allowWrite: boolean
+  source: string
+  corrupt: boolean
+  updatedAt: string
+}
+
+/** `GET agent/tools`（与 meta.agentTools / design_guide 同源，供外部枚举） */
+export interface AgentTool {
+  name: string
+  summary: string
+  readOnly: boolean
+  parameters: Record<string, unknown>
+}
+
+/** `GET api/mcp-center/config`（MCP 中心网关视图；token 只给掩码，明文绝不进前端） */
+export interface McpConfig {
+  port: number
+  listenHost: string
+  listenUrl: string
+  hasToken: boolean
+  tokenMasked: string
+  isRunning: boolean
+  version: string
+}
+
+/** `POST projects/{id}/review` 入参（files 与 code 至少其一；Code 缺省按 css 审查） */
+export interface ReviewInput {
+  files?: { path?: string | null; content?: string | null; language?: string | null }[]
+  code?: string | null
+  theme?: string | null
+  strict?: boolean
+  maxFindings?: number
+}
+
+/** `POST projects/{id}/review` 出参（summary/findings 均为后端原文，前端只渲染不改写） */
+export interface ReviewResult {
+  error: string
+  summary: string
+  findings: string[]
+  skipped: number
+  truncated: boolean
+  notes: string
+  theme: string
+  themeNote: string
+}
+
+/* ------------------------------------------------------------------ */
 /* 端点                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -560,6 +685,20 @@ export const api = {
     ),
   diffReleases: (id: number, from: number, to: number) =>
     get<ReleaseDiff>(withQuery(`${BASE}/projects/${id}/releases/diff`, { from, to })),
+
+  /* ---- M1/M2：向导 · 展厅 · 交付（03-plan 步骤5 新增） ---- */
+
+  listPresets: () => get<StylePreset[]>(`${BASE}/presets`),
+  recommendPresets: (input: { brief?: string | null; kind?: string | null; industry?: string | null; tone?: string | null; density?: string | null; brandColor?: string | null; limit?: number }) =>
+    post<PresetMatch[]>(`${BASE}/presets/recommend`, input),
+  quickCreate: (input: QuickCreateInput) => post<QuickCreateResult>(`${BASE}/projects/quick-create`, input),
+  previewCss: (input: PreviewCssInput) => post<PreviewCssResult>(`${BASE}/generate/preview-css`, input),
+  getAgentAccess: () => get<AgentAccess>(`${BASE}/agent-access`),
+  putAgentAccess: (enabled: boolean) => put<AgentAccess>(`${BASE}/agent-access`, { enabled }),
+  listAgentTools: () => get<AgentTool[]>(`${BASE}/agent/tools`),
+  reviewCode: (id: number, input: ReviewInput) => post<ReviewResult>(`${BASE}/projects/${id}/review`, input),
+  /** MCP 中心网关配置（跨插件只读消费，路径带完整前缀） */
+  getMcpConfig: () => get<McpConfig>('/api/mcp-center/config'),
 }
 
 export type { ApiError }

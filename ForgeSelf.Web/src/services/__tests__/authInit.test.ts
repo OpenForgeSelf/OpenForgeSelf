@@ -41,13 +41,13 @@ describe('consumeTokenFromHash', () => {
     expect(window.location.hash).toBe('');
   });
 
-  it('hash 中没有 token= 时不写入，但仍清掉 fragment', () => {
+  it('hash 中没有 token= 时不写入，且不动 fragment（保留插件深链片段）', () => {
     localStorage.setItem(STORAGE_KEY, 'sk-existing-token');
     setUrl('/#/settings');
 
     expect(consumeTokenFromHash()).toBe(false);
     expect(getStoredToken()).toBe('sk-existing-token');
-    expect(window.location.hash).toBe('');
+    expect(window.location.hash).toBe('#/settings');
   });
 
   it('token 长度不足 8 位时被忽略，且仍清掉 fragment', () => {
@@ -76,12 +76,20 @@ describe('consumeTokenFromHash', () => {
     expect(window.location.hash).toBe('');
   });
 
-  it('兼容 #/route?token= 形态（路由在前）', () => {
+  it('兼容 #/route?token= 形态（路由在前）：只摘 token，保留路由与其余查询项', () => {
     setUrl('/#/settings?from=tray&token=sk-abcdef1234567890');
 
     expect(consumeTokenFromHash()).toBe(true);
     expect(getStoredToken()).toBe('sk-abcdef1234567890');
-    expect(window.location.hash).toBe('');
+    expect(window.location.hash).toBe('#/settings?from=tray');
+  });
+
+  it('token 是唯一查询项时（#/route?token=）摘掉后归一为 #/route', () => {
+    setUrl('/#/settings?token=sk-abcdef1234567890');
+
+    expect(consumeTokenFromHash()).toBe(true);
+    expect(getStoredToken()).toBe('sk-abcdef1234567890');
+    expect(window.location.hash).toBe('#/settings');
   });
 
   it('非法转义串不抛异常，按未消费处理并清掉 fragment', () => {

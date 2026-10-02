@@ -16,12 +16,13 @@ description: 设计系统插件（design-system）的验收与自查流程。四
 #    必须带 verbose logger：quiet 模式下测试主机中途崩溃时会把"已跑条数"当总数并报"失败 0"（实测假绿）
 dotnet build Plugins/DesignSystem/DesignSystem.csproj
 dotnet test ForgeSelf.Api.Tests --filter "FullyQualifiedName~DesignSystem" --logger "console;verbosity=normal"
-#   核对：报告里的"测试总数"必须等于 --list-tests 的发现数（当前 164）；不等就是事故，不算通过
+#   核对：报告里的"测试总数"必须等于 --list-tests 的发现数（M2 起为 362；数字随用例增长，一律以 --list-tests 为准）；不等就是事故，不算通过
 
 # ② 插件前端（check/test 都借宿主工具链，插件本身不装 vue-tsc/vitest）
 cd Plugins/DesignSystem/web && pnpm run check && pnpm run test && pnpm run build
 
 # ③ 插件层 e2e（真实宿主 + 真实插件库 + 截图读图，零 mock）
+#    目录含三个 spec：工作台 / Agent 工具 / M2 展厅（A 向导·展厅、B 场景·对比、C 交付·深链·可达性、D 视觉 QA 矩阵）
 cd ForgeSelf.Web && pnpm exec playwright test --config=playwright.config.ts e2e/plugins/design-system
 
 # ④ 发布与走查（不打 tag，只出本地 zip）
@@ -221,6 +222,18 @@ design-system 的失败模式很特殊：**界面有数字、有颜色、有主�
     design_* 工具结果再套 `{success, data}`（data 才是载荷）；**`list_tools` 例外无封套**（直接是数据）。
     另：`EffectiveToken.ColorHex` 序列化后是 **`colorHex`** 不是 `hex`（`DesignMapper.cs:24`）；
     C# 元组直接 `Data(...)` 序列化会**丢字段名**（agent-access 初版 allowWrite=undefined）——REST 返回一律用显式匿名对象。
+41. **窄舞台下的"取景"必须量化，不能拿被裁的图当完整证据**（v3.0.0，M2）：展厅三栏 `240px / 1fr / 240px`
+    叠加插件内容 `max-width:1240`（`DesignSystemView.vue`）→ 舞台可见宽永远小于桌面档框宽 1280，
+    右侧被 `.ds-stage__viewport` 横向滚动裁掉（§FR9 的既定行为）。截图取证要拍**用户所见视口**（`.ds-stage__viewport`）
+    并把「框宽 / 可见宽」写进证据；读图时对裁切区标 Unknown，**不要把"看不到"当成"没问题"**。
+    （拍框元素会把相邻微调面板的像素也框进图里，是复合图，会误导读图。）
+42. **插件自路由的 URL fragment 会被宿主抹掉**（v3.0.0，M2 实测根因）：宿主 `authInit.consumeTokenFromHash()`
+    无条件 `replaceState(pathname+search)`（**没有 token 也照抹**）、`main.ts` 的 `router.beforeEach` 重写地址时只带 `fullPath`。
+    凡新增"哈希自路由 / 深链 / 初始模式判定"，**必须**有一条 e2e 断言 `location.hash` 在导航后仍在
+    （并可选加 `history.replaceState/pushState` 入参探针）——否则深链与初始模式会静默失效，
+    页面看起来"正常"（落默认态），这是最难肉眼发现的一类红。
+43. **交付/接入类页面不得出现令牌明文或掩码**（v3.0.0，M2）：断言 `page.content()` 既不含真实 api key、
+    也不含 `tokenMasked`（掩码含真令牌首尾片段），配置片段只写 `Bearer <你的令牌>` 占位符。
 
 ## 三、结构变更前必做（表）
 

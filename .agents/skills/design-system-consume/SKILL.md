@@ -84,7 +84,24 @@ tools/call { tool: "universal_tool", parameters: { tool: "design_context", param
 7. **端口**：MCP 网关端口由 `FORGESELF_MCP_GATEWAY_PORT` 覆盖（默认被用户实例占用时）；宿主端口 7102 被占
    = 测试打在旧产物，先验版本自洽。
 
-## 六、判据（集成代码写完后自查）
+## 六、插件内「交付与接入页」（v3.0.0 · 消费侧的可视入口）
+
+插件界面的四模式外壳里，`交付与接入` 模式（`DeliveryMode.vue`）就是**把上面这套消费方式做成页面**，
+给不想读文档的人一个"照抄就能接上"的入口。它展示的每一块都必须是**同源真值**，不许前端另算一套：
+
+| 区块 | 内容 | 真源（页面必须与它逐字/逐条一致） |
+|---|---|---|
+| Agent 网关 | 网关地址 + 调用片段 | 页面**不含真实令牌**：片段只写 `Bearer <你的令牌>` 占位符 |
+| 工具清单 | 8 个 `design_*` 工具名与说明 | `GET agent/tools` == `meta.agentTools` == `Agent/DesignToolIndex.cs`（三处必然一致） |
+| 写开关 | 当前 `allowWrite` + 切换 | `GET\|PUT api/design-system/agent-access`（PUT 往返，见 §三） |
+| 说明书 / 规则 | `brief` 与 `agent-rules` 原文 | REST 导出 `GET projects/{id}/brief` + `agent-rules` 格式（同源，可对照复制） |
+| 试审查 | 粘贴代码 → 审查结论 | 与 `POST projects/{id}/review` 同源；**>200KB 客户端直接拦截、不发请求** |
+
+- 自查：**里外一致**——页面上列的工具数/规则原文，与用 `design_context` / `list_tools` 拿到的必须一致；
+  页面不得出现真实令牌（连掩码都不渲染），否则截图/复制即泄露。
+- 相关 e2e：`e2e/plugins/design-system/design-system-showroom.spec.ts` C 片（AC18–AC23）。
+
+## 七、判据（集成代码写完后自查）
 
 - 工具返回与 REST 关键字段**逐字段一致**（同源：说明书里的颜色/变量名 == `tokens/effective`）。
 - 写工具三条路径都验：开关开→写成功；开关关→被拒且文案指开关；文件损坏→fail-closed 只读。

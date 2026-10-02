@@ -76,7 +76,7 @@ public class GenerateShapeTests : IDisposable
     DesignSystemController NewController() => new(_projects, _tokens, _catalog, _audits, _auditEngine, _export, _releases,
         _generation, new AgentAccess(new DesignSystemPaths(_dbDir)),
         new DesignReviewService(_export, _tokens, _projects),
-        new QuickCreateService(_projects, _generation), null!);
+        new QuickCreateService(_projects, _generation), null!, new PreviewCssService(_export));
 
     Int64 NewProject(String tag)
     {

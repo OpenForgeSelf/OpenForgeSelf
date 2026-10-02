@@ -36,11 +36,12 @@ public class DesignSystemController : ControllerBase
     private readonly DesignReviewService _review;
     private readonly QuickCreateService _quickCreate;
     private readonly DesignBriefBuilder _brief;
+    private readonly PreviewCssService _previewCss;
 
     public DesignSystemController(DesignProjectService projects, TokenRepository tokens, CatalogRepository catalog,
         AuditRepository audits, AuditEngine auditEngine, ExportService export, ReleaseService releases,
         GenerationService generation, AgentAccess agentAccess, DesignReviewService review,
-        QuickCreateService quickCreate, DesignBriefBuilder brief)
+        QuickCreateService quickCreate, DesignBriefBuilder brief, PreviewCssService previewCss)
     {
         _projects = projects;
         _tokens = tokens;
@@ -54,6 +55,7 @@ public class DesignSystemController : ControllerBase
         _review = review;
         _quickCreate = quickCreate;
         _brief = brief;
+        _previewCss = previewCss;
     }
 
     /// <summary>插件自描述：版本三元组 + 能力面清单。前端据 capabilities 对不支持项显式降级。</summary>
@@ -68,7 +70,7 @@ public class DesignSystemController : ControllerBase
         tiers = TokenTiers.All,
         tokenTypes = TokenTypes.All,
         lifecycles = TokenLifecycles.All,
-        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts", "brief", "review", "presets", "quick-create", "agent" },
+        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts", "brief", "review", "presets", "quick-create", "preview-css", "agent" },
         agentTools = DesignToolIndex.All.Select(t => t.Name).ToArray(),
         exportFormats = ExportFormats.All,
         // 导入面：格式清单与上限都由后端出，前端据此决定入口是否可用与怎么提示（不另抄一份数字）
@@ -394,6 +396,18 @@ public class DesignSystemController : ControllerBase
                 sample = result.Shared.Where(p => p.Type == TokenTypes.Color).Take(12)
                     .Select(p => new { p.Path, p.Value }).ToList(),
             };
+        });
+
+    /// <summary>
+    /// 内存预览 CSS（不落库）：展厅滑动生成参数时"立刻看到的那份换肤 CSS"。
+    /// 与落库导出同源（共用 ExportService 的构造与 ToCss 投影），故预览所见即交付所得。
+    /// </summary>
+    [HttpPost("generate/preview-css")]
+    public IActionResult GeneratePreviewCss([FromBody] PreviewCssInput? input) =>
+        Guard(() =>
+        {
+            var r = _previewCss.Preview(input?.ToRequest(), input?.Theme);
+            return new { theme = r.Theme, css = r.Css, seed = r.Seed, industry = r.Industry, hue = r.Hue, notes = r.Notes };
         });
 
     /// <summary>跑审计并落库（Critical 未清会在这里现形，发布端点据此拒绝）</summary>

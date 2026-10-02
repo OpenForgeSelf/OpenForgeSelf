@@ -12,6 +12,7 @@ import { createApp, h } from 'vue'
 import DesignSystemView from './DesignSystemView.vue'
 import './styles/tokens.css'
 import './styles/base.css'
+import './showroom/mannequins/mannequin.css'
 
 export { DesignSystemView }
 export default DesignSystemView

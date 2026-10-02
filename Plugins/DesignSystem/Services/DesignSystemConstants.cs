@@ -1,4 +1,4 @@
-﻿namespace ForgeSelf.Api.Plugins.DesignSystem;
+namespace ForgeSelf.Api.Plugins.DesignSystem;
 
 /// <summary>设计系统插件的契约常量（版本三元组 + 封闭枚举 + 保留 ID）。</summary>
 public static class DesignSystemConstants
@@ -12,13 +12,13 @@ public static class DesignSystemConstants
     /// Model 改 Model.xml 结构 / Generator 改派生算法或生成落库内容 / Projection 改任一投影格式。
     /// 因为对外只有一个交付版本号，任一发生变化都足以要求整包递增，故不再各走各的。
     /// </summary>
-    public const String ModelVersion = "2.8.0";
+    public const String ModelVersion = "3.0.0";
 
     /// <summary>生成器版本：改色阶/派生算法、或生成时落库的目录内容（组件种子、品牌资产）必须递增</summary>
-    public const String GeneratorVersion = "2.8.0";
+    public const String GeneratorVersion = "3.0.0";
 
     /// <summary>导出投影版本：改任一投影格式必须递增，消费方据此判兼容</summary>
-    public const String ProjectionVersion = "2.8.0";
+    public const String ProjectionVersion = "3.0.0";
 
     /// <summary>内置图标库的项目 ID 哨兵值：该库只读，任何写入必须被拒绝</summary>
     public const Int64 BuiltinProjectId = 0;

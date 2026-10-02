@@ -146,3 +146,65 @@
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--ds-space-3);
 }
+
+/* 外壳共享词汇表（M2 四模式：开始 / 展厅 / 工作台 / 交付与接入）
+ * 这些类跨多个模式组件复用，必须在全局定义一次 —— 写在某个组件的 <style scoped> 里
+ * 只是「那个组件碰巧有样式」，兄弟组件一用就掉样式（classes.test.ts 守卫的真实动机）。 */
+.ds-chip {
+  font: inherit;
+  font-size: var(--ds-fs-micro);
+  padding: 3px 10px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-border-1);
+  background: var(--ds-surface-1);
+  color: var(--ds-fg-2);
+  cursor: pointer;
+}
+.ds-chip--on {
+  border-color: var(--ds-color-primary);
+  color: var(--ds-color-primary);
+}
+.ds-chip--density {
+  border-style: dashed;
+}
+/* 键盘可见焦点（AC23）：外壳字符按钮同样要看得见落点 */
+.ds-chip:focus-visible {
+  outline: 2px solid var(--ds-color-primary);
+  outline-offset: 2px;
+}
+.ds-mode-pane {
+  flex: 1;
+  padding: var(--ds-space-6);
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+}
+.ds-done {
+  padding: var(--ds-space-4);
+  border: 1px solid var(--ds-color-primary);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-2);
+}
+
+/* 展厅换肤作用域容器（§S）：`OutfitScope` 把后端 CSS 收窄到 `[data-outfit="…"]` 上，
+ * 这个类只给盒子本身一个中性落点；并排对比时两帧各自独立、互不污染。
+ * 底色取该件衣服自己的 `--ds-semantic-surface-bg`（由注入的 scoped `<style>` 定义在同一元素上）——
+ * e2e 会拿它的计算样式与后端该主题的值逐位比对（AC13），所以它必须是"从后端文本来的"而不是中性常量。 */
+.ds-outfit {
+  display: block;
+  color: var(--ds-semantic-text-1);
+  background: var(--ds-semantic-surface-bg);
+}
+
+/* 尊重系统「减少动态效果」（AC23）：把过渡/动画压到近乎瞬时，消除连续动效带来的不适；
+ * 不用 `animation: none` / `transition: none`，以免依赖动画结束事件的逻辑卡死。 */
+@media (prefers-reduced-motion: reduce) {
+  .ds *,
+  .ds *::before,
+  .ds *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

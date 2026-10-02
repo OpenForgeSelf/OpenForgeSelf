@@ -42,6 +42,7 @@
 | 版本 | `POST projects/{id}/releases`、`GET releases`、`GET releases/{id}[?format=dtcg]`、`GET releases/diff?from=&to=` |
 | 目录 | `GET/POST components`、`GET/POST components/{code}/variants`、`GET icons`、`POST projects/{id}/icons`、`GET/POST projects/{id}/assets`、`GET/POST projects/{id}/screens`、`GET/POST projects/{id}/fonts` |
 | Agent（v2.8.0） | `GET meta` 增 `agentTools`（8 工具名数组）；`GET agent/tools`（工具枚举，与 `list_tools` 同源）；`POST projects/quick-create`（`QuickCreateRequest`，`DryRun=true` 干跑不落库——**与工具 `apply=false` 同语义，REST 默认 `DryRun=false` 落库**）；`GET projects/{id}/brief`（md/json 说明书）；`POST projects/{id}/review`（审查）；`GET presets` / `POST presets/recommend`；`GET|PUT agent-access`（写开关） |
+| 展厅（v3.0.0） | `POST generate/preview-css`（`PreviewCssRequest` → 内存构图产 CSS，**零写库**；入口数值域校验 → 400。供展厅"试穿"与并排对比取数，与落库 `export?format=css` 同源：去注释、规整空白后逐字相同） |
 
 ## Agent 工具层（v2.8.0 · 缺口 G15）
 
@@ -62,6 +63,19 @@
 - **封套**：工具结果 = `{success, data}`（camelCase 键）；`list_tools` 例外（直接是数据，无封套）。
 - **写开关 `AgentAccess`**（fail-closed）：`{数据根}/plugins/design-system/agent-access.json`，默认 fail-open，文件损坏→只读；PUT 立即生效、重启保持（现读文件不缓存）。
 - **契约与消费侧**：出参键、常见坑、REST 对等表见 `.agents/skills/design-system-consume/SKILL.md`；判据/偏差/证据见 `docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`。
+
+## 展厅与向导（v3.0.0 · M2）
+
+插件界面从"只有专业工作台"扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入；工作台 14 个 section 原样不动）：
+
+- **开始（向导）**：场景 → 预设 → 风格微调 → 命名四步，提交真落库（令牌 >100、审计无 critical）；失败保留输入并展示后端原文，创建期间单飞防重复，陈旧的预设推荐响应不覆盖新状态。
+- **展厅（试穿）**：衣柜 = 8 个风格预设 + 自己的项目；舞台上一个模特页被"穿上"任一件衣服。五类场景共 9 页模特：后台·中台 5 页（仪表盘/列表/表单/详情/设置）、状态板 1 页、工具·工作台 1 页、官网·落地页 1 页、移动端 H5 1 页。模特页只认 `--ds-*`（零字面量，有守卫），`OutfitScope` 把**后端文本投影**收窄到本件衣服上 → **画布上看到的 == 导出交付的**（e2e 断言画布 computed 底色 == 后端 `semantic.surface-bg`）。设备三档 1280/820/390 只表达"这段界面在多大屏上"；移动端场景强制手机框。支持两件并排对比（各帧作用域独立、互不污染，差异条列各帧字面值）。
+- **交付与接入**：Agent 网关地址（页面**不含真实令牌**，只显示占位片段与含掩码都不渲染）、8 个 `design_*` 工具清单（== `GET agent/tools` == `meta.agentTools`）、写开关 PUT 往返、`brief`/`agent-rules` 原文（== REST 导出）、试审查（与 `POST review` 同源；>200KB 客户端拦截、不发请求）。
+- **术语词典**：默认大白话、可切专业并向持久化开关写入。
+- **深链与可达性**：`#/showroom/<page>?outfit=<id>&theme=<code>&device=<id>` 往返；衣柜/模式条方向键可选、键盘焦点有 `:focus-visible` 轮廓、页面横向溢出 ≤2px。
+- **宿主侧配套（同批修复）**：插件自路由走 URL fragment，而宿主原先有两处会抹掉整段 fragment —— `authInit.consumeTokenFromHash()` 无条件 `replaceState(pathname+search)`（**无 token 也照抹**）、`main.ts` 的 `router.beforeEach` 只带 `fullPath`（把 `#...` 并进 path）。现改为"只摘 `token=` 一项、其余 fragment 原样保留；beforeEach 回填 `{path,query,hash}`"——token 仍被清除，深链不再失效。
+
+判据/偏差/证据：`docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard/`。
 
 ## 生成引擎的关键取舍
 
@@ -201,7 +215,9 @@ e2e 钉三个判据：UI 写入后 `effective` 读回别名顺到字面值 `#123
 
 40 枚本项目**原创绘制**（License=`Owned`，无第三方许可与归属负担），统一 24×24 网格、1.5px 描边、round 端点、`stroke="currentColor"`；每枚带中文名、检索标签与"什么时候用它"的用途约束。首植在插件 `Apply` 里幂等执行（已有则不重写），用户仍可导入自己的 Collection。
 
-## 自带界面（14 个库驱动 section）
+## 自带界面（四模式外壳 + 14 个库驱动 section）
+
+外壳分四模式（v3.0.0）：**开始**（向导）/ **展厅**（试穿）/ **工作台**（下方 14 个 section）/ **交付与接入**（Agent 接入与文档原文）。工作台 14 个 section：
 
 项目与生成 / 令牌工作台 / 色彩实验室 / 排版标度 / 尺度与密度 / 阴影与动效 / 主题实验室 / 图标库 / 审计与门禁 / 导出交付 / 版本与对比 / 组件库 / 品牌展示页 / 品牌资产。导航入口按后端 `capabilities` 灰化（后端没声明的能力不假装可用）；空态分四层（未登录 401 / 后端错误 / 无项目 / 无令牌）。
 
@@ -308,8 +324,9 @@ dotnet test ForgeSelf.Api.Tests --filter "FullyQualifiedName~DesignSystem" --log
 # 插件前端：类型检查 / 单测（走宿主 vitest 入口，含样式类完整性守卫 classes.test.ts）/ 构建
 cd Plugins/DesignSystem/web && pnpm run check && pnpm run test && pnpm run build
 
-# 插件层 e2e（真实宿主 + 真实库，18 段断言 + 截图读图；每段都用 API 复核后端事实）
+# 插件层 e2e（真实宿主 + 真实库，零 mock；三个 spec 文件：工作台 design-system.spec.ts / Agent design-system-agent.spec.ts / M2 展厅 design-system-showroom.spec.ts 的 A/B/C/D 片；每段都用 API 复核后端事实 + 截图读图）
 cd ForgeSelf.Web && pnpm exec playwright test --config=playwright.config.ts e2e/plugins/design-system
+#   视觉 QA 矩阵截图落 ForgeSelf.Web/screenshots/e2e/design-system/m2/qa-*.png（3 预设 × 5 场景 × 明/暗）
 ```
 
 ## 已知未做 / 风险

@@ -13,14 +13,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <!-- 输入39：根启动器文件图标 + 版本号生成 + 包信息（与业务层同源） -->
+    <!-- 根启动器文件图标 + 包信息（与业务层同源） -->
     <ApplicationIcon>..\ForgeSelf.Api\Assets\ForgeSelf.ico</ApplicationIcon>
-    <VersionPrefix>2.2</VersionPrefix>
-    <VersionSuffix>$([System.DateTime]::Now.ToString('yyyy.MMdd'))</VersionSuffix>
+    <!-- 版本号规则 = <major>.<minor>.<patch>.<yyMMddHHmm>（2026-10-02 修订）：
+         与业务层 csproj 同源同串（发行时由 release-local.ps1 / CI 生成完整串，经环境变量
+         FORGESELF_RELEASE_VERSION 注入本项目），未注入时兜底 2.3.0.<yyMMddHHmm>；
+         ⚠️ 不用命令行 -p:Version：全局属性会外溢到被引用项目并触发 NuGet/GenerateAssemblyInfo 版本校验
+         （NU1105 / NETSDK1018），详见业务层 csproj 注释与真源 §1.1。CS7035 为已知有意触发，显式抑制。
+         PackageVersion 显式给三段合法值：NuGet 按 int 解析版本各段，10 位时间码超 int.MaxValue 会 NU1105。 -->
+    <VersionPrefix>2.3</VersionPrefix>
+    <VersionSuffix>0.$([System.DateTime]::Now.ToString('yyMMddHHmm'))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
+    <!-- 发行串覆盖：发布脚本注入的环境变量优先（须排在 <Version> 之后才能胜出；未设置时为 no-op） -->
+    <Version Condition="'$(FORGESELF_RELEASE_VERSION)' != ''">$(FORGESELF_RELEASE_VERSION)</Version>
+    <PackageVersion>$(VersionPrefix).0</PackageVersion>
     <FileVersion>$(Version)</FileVersion>
     <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
     <Deterministic>false</Deterministic>
+    <NoWarn>$(NoWarn);CS7035</NoWarn>
     <AssemblyTitle>铸己匣启动器</AssemblyTitle>
     <Description>铸己匣根启动器：加载 versions/&lt;ver&gt;/ 业务层并透传进程生命周期（公共层，跨版本共享）</Description>
     <Company>OpenForgeSelf</Company>

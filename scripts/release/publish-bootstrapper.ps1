@@ -17,6 +17,7 @@
 [CmdletBinding()]
 param(
     [string]$RepoRoot = '',
+    [string]$Version = '',
     [string]$OutputDir = '',
     [string]$Configuration = 'Release'
 )
@@ -26,6 +27,18 @@ if (-not $RepoRoot) { $RepoRoot = Get-ReleaseRepoRoot }
 if (-not $OutputDir) { $OutputDir = Join-Path $RepoRoot 'artifacts/layout-root' }
 
 $proj = Join-Path $RepoRoot 'ForgeSelf.Bootstrapper/ForgeSelf.Bootstrapper.csproj'
+# 启动器版本注入（2026-10-02 版本规则）：公共层启动器 exe 与业务层 exe 必须同串
+# （release-local 单点生成发行串 → 分别注入两个 publish）。未传 -Version（本地直接调用）时
+# 不注入，由 csproj 兜底日期版本机制生成；非发行串（含预发布后缀）同样不注入。
+$ver = Get-NormalizedVersion $Version
+$versionArgs = @()
+# 版本注入走环境变量 FORGESELF_RELEASE_VERSION（由 ForgeSelf.Bootstrapper.csproj 主动读取），不用 -p:Version：
+# 全局 -p: 会外溢到被引用项目并触发 NuGet/GenerateAssemblyInfo 版本校验（NU1105 / NETSDK1018）→ 直接失败，
+# 详见 publish-host.ps1 同段注释（2026-10-02 实测）。
+$injectVersion = Get-ReleaseVersionInjectible $ver
+$hasReleaseVersion = [bool]$injectVersion
+$prevReleaseVersion = $env:FORGESELF_RELEASE_VERSION
+if ($hasReleaseVersion) { $env:FORGESELF_RELEASE_VERSION = $injectVersion }
 
 # 清空目标目录（构建产物；FDD publish 不会清理 -o 已有内容，残留会与运行时文件混装）
 if (Test-Path $OutputDir) { Remove-Item $OutputDir -Recurse -Force }
@@ -33,12 +46,16 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 # 第一步：FDD 单文件 publish → 薄壳启动器 exe（managed-only bundle，原地直跑，
 # BaseDirectory = exe 目录；无解压缓存）。应用自身不内嵌 native/content（无 wwwroot 等）。
-Invoke-ReleaseStep "boot: launcher publish ($Configuration, win-x64, FDD single-file)" {
-    & dotnet publish $proj -c $Configuration -r win-x64 --self-contained false `
-        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false `
-        -p:IncludeAllContentForSelfExtract=false `
-        -o $OutputDir -nologo -v minimal
-    Assert-ExitCode 'dotnet publish (bootstrapper launcher)'
+try {
+    Invoke-ReleaseStep "boot: launcher publish ($Configuration, win-x64, FDD single-file, Version=$(if ($hasReleaseVersion) { $injectVersion } else { 'csproj-fallback' }))" {
+        & dotnet publish $proj -c $Configuration -r win-x64 --self-contained false `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false `
+            -p:IncludeAllContentForSelfExtract=false `
+            -o $OutputDir -nologo -v minimal
+        Assert-ExitCode 'dotnet publish (bootstrapper launcher)'
+    }
+} finally {
+    $env:FORGESELF_RELEASE_VERSION = $prevReleaseVersion
 }
 
 # 第二步：组装公共运行时（DOTNET_ROOT 结构）——从本机 .NET 安装目录拷贝 host/fxr + shared

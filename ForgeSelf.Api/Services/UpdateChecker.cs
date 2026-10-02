@@ -913,15 +913,28 @@ public class UpdateChecker
         return trimmed.ToLowerInvariant();
     }
 
-    /// <summary>semver 解析结果：4 段 core + 可选预发布标识。</summary>
-    internal sealed record SemVer(int[] Core, string? Prerelease)
+    /// <summary>
+    /// 版本号解析结果：4 段 core（long，容纳 10 位时间码）+ 可选预发布标识。
+    /// 版本规则（2026-10-02）：发行串 = &lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;.&lt;yyMMddHHmm&gt;。
+    /// </summary>
+    internal sealed record SemVer(long[] Core, string? Prerelease)
     {
-        public Version ToVersion() => new(Core[0], Core[1], Core[2]);
+        /// <summary>
+        /// 是否属于「新规则世代」：第 4 段是 10 位时间码（&gt; 65535，超 PE 文件版本每段 16 位上限，
+        /// 旧编号规则不可能出现该量级）。
+        /// </summary>
+        public bool IsDateCoded => Core[3] > 65535;
+
+        /// <summary>取前 3 段构造 <see cref="Version"/>；段值超出 int 范围时夹取（构造器不容忍溢出）。</summary>
+        public Version ToVersion() => new(
+            (int)Math.Clamp(Core[0], 0L, int.MaxValue),
+            (int)Math.Clamp(Core[1], 0L, int.MaxValue),
+            (int)Math.Clamp(Core[2], 0L, int.MaxValue));
     }
 
     /// <summary>
     /// 解析 semver 风格版本号："v1.2.3"、"1.2.3"、"1.2.3.4"、"1.2.3-beta.1+build" 均可；
-    /// 解析失败返回 null。
+    /// 亦支持 2026-10-02 起的发行串形态 "2.3.0.2609161125"（第 4 段 = 10 位时间码）；解析失败返回 null。
     /// </summary>
     internal static SemVer? ParseSemVer(string? raw)
     {
@@ -948,10 +961,12 @@ public class UpdateChecker
         if (parts.Length is < 1 or > 4)
             return null;
 
-        var core = new int[4];
+        var core = new long[4];
         for (var i = 0; i < parts.Length; i++)
         {
-            if (!int.TryParse(parts[i], out var n) || n < 0)
+            // 必须按 long 解析（2026-10-02 版本规则）：第 4 段 = 10 位时间码 yyMMddHHmm（如 2609161125
+            // ≈ 2.6e9 > int.MaxValue），按 int 解析会失败 → 新规则发行被判为「解析失败」被静默跳过。
+            if (!long.TryParse(parts[i], out var n) || n < 0)
                 return null;
             core[i] = n;
         }
@@ -959,9 +974,17 @@ public class UpdateChecker
         return new SemVer(core, prerelease);
     }
 
-    /// <summary>semver 比较：core 逐段比较，无预发布标识 &gt; 有预发布标识。</summary>
+    /// <summary>
+    /// semver 比较：先比世代（第 4 段 &gt; 65535 的时间码世代恒大于旧编号世代），再 core 逐段比较，
+    /// 无预发布标识 &gt; 有预发布标识。
+    /// </summary>
     internal static int CompareSemVer(SemVer a, SemVer b)
     {
+        // 世代兜底（BR4）：旧编号形态如 2.2.2026.1002 的第 3 段是年份（2026），逐段数值比较会永远压过
+        // 新规则发行（2.3.0.&lt;时间码&gt; 第 3 段 0）→ 已安装旧实例永远收不到更新，故世代优先。
+        if (a.IsDateCoded != b.IsDateCoded)
+            return a.IsDateCoded ? 1 : -1;
+
         for (var i = 0; i < 4; i++)
         {
             var c = a.Core[i].CompareTo(b.Core[i]);
@@ -1091,6 +1114,13 @@ public class UpdateChecker
             if (Version.TryParse(padded, out version))
                 return version;
         }
+
+        // 2026-10-02 版本规则：发行串第 4 段是 10 位时间码（2.3.0.2609161125），超出 System.Version
+        // 每段的 int 上限，上面两步必然失败 → 退回按「前 3 段」解释（显示用的完整串由
+        // /api/update/status 的 currentVersion 原样给出，这里只要求不判空、不误告警）。
+        var sem = ParseSemVer(versionStr);
+        if (sem != null)
+            return sem.ToVersion();
 
         XTrace.Log.Warn("UpdateChecker: 无法解析版本号: {0}", versionStr);
         return null;

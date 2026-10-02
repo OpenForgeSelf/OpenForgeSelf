@@ -7,9 +7,12 @@
 # (launcher + runtime + framework + plugins/), business layer per version under versions/<ver>/, current pointer.
 #
 # Examples:
-#   ./release-local.ps1                                  # local dry run, Version=0.0.0-local
-#   ./release-local.ps1 -Version 0.1.0 -SkipFrontend     # reuse existing web dist (fast iteration)
-#   ./release-local.ps1 -Version v0.1.0 -Sign
+#   ./release-local.ps1                                  # local dry run, Version=0.0.0-local（不补时间码）
+#   ./release-local.ps1 -Version 2.3.0 -SkipFrontend     # 三段号自动补时间码 → 2.3.0.<yyMMddHHmm>
+#   ./release-local.ps1 -Version 2.3.0.2609161125        # 四段完整发行串，幂等原样使用
+#   ./release-local.ps1 -Version v2.3.0.2609161125 -Sign
+# 发行串规则（2026-10-02）：<major>.<minor>.<patch>.<yyMMddHHmm>；tag / versions/<ver>/ / zip 名 /
+# 两个 exe 的文件版本 / 设置页「当前版本」全部同串。真源 docs/04-standards/packaging-upgrade-backup.md §1.1
 
 [CmdletBinding()]
 param(
@@ -23,18 +26,22 @@ param(
 . (Join-Path $PSScriptRoot 'release-lib.ps1')
 $repoRoot = Get-ReleaseRepoRoot
 
-# In CI the tag name arrives via GITHUB_REF_NAME (e.g. v0.1.0); locally default to a dev version.
+# In CI the tag name arrives via GITHUB_REF_NAME (e.g. v2.3.0.2609161125); locally default to a dev version.
+$versionGiven = [bool]$Version
 if (-not $Version) {
     if ($env:GITHUB_REF_NAME) { $Version = $env:GITHUB_REF_NAME } else { $Version = '0.0.0-local' }
 }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
-$ver = Get-NormalizedVersion $Version
+# 发行串解析（2026-10-02 版本规则，真源 §1.1）：
+#   显式 -Version：3 段（2.3.0）自动补 yyMMddHHmm；4 段（含时间码）幂等原样；
+#   CI tag / 本地缺省串：视为发行标识原样使用，绝不改写（改写会让产物版本 ≠ tag）。
+$ver = if ($versionGiven) { Get-FullReleaseVersion $Version } else { Get-NormalizedVersion $Version }
 $publishDir = Join-Path $OutputRoot 'publish'
 $bootDir = Join-Path $OutputRoot 'layout-root'
 $layoutDir = Join-Path $OutputRoot 'layout'
 $releaseDir = Join-Path $OutputRoot 'release'
 
-Write-Host ("release-local: Version={0} OutputRoot={1}" -f $Version, $OutputRoot)
+Write-Host ("release-local: Version={0} -> release={1} OutputRoot={2}" -f $Version, $ver, $OutputRoot)
 
 $t0 = Get-Date
 
@@ -46,17 +53,17 @@ else {
     Write-Host 'SKIPPED build-frontend (-SkipFrontend): using existing wwwroot / plugin dists.'
 }
 
-& (Join-Path $PSScriptRoot 'publish-host.ps1') -RepoRoot $repoRoot -Version $Version -OutputDir $publishDir
+& (Join-Path $PSScriptRoot 'publish-host.ps1') -RepoRoot $repoRoot -Version $ver -OutputDir $publishDir
 if ($LASTEXITCODE -ne 0) { throw 'publish-host failed' }
 
-& (Join-Path $PSScriptRoot 'publish-bootstrapper.ps1') -RepoRoot $repoRoot -OutputDir $bootDir
+& (Join-Path $PSScriptRoot 'publish-bootstrapper.ps1') -RepoRoot $repoRoot -Version $ver -OutputDir $bootDir
 if ($LASTEXITCODE -ne 0) { throw 'publish-bootstrapper failed' }
 
-& (Join-Path $PSScriptRoot 'package-release.ps1') -RepoRoot $repoRoot -Version $Version `
+& (Join-Path $PSScriptRoot 'package-release.ps1') -RepoRoot $repoRoot -Version $ver `
     -PublishDir $publishDir -BootDir $bootDir -LayoutDir $layoutDir -OutputDir $releaseDir -Sign:$Sign
 if ($LASTEXITCODE -ne 0) { throw 'package-release failed' }
 
-& (Join-Path $PSScriptRoot 'make-release-notes.ps1') -RepoRoot $repoRoot -Version $Version -OutFile (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver))
+& (Join-Path $PSScriptRoot 'make-release-notes.ps1') -RepoRoot $repoRoot -Version $ver -OutFile (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver))
 if ($LASTEXITCODE -ne 0) { throw 'make-release-notes failed' }
 
 # 本地目录更新源（2026-09-27）：-UpdateDir <目录> 时把 zip + SHA256SUMS + 更新说明拷到该目录，

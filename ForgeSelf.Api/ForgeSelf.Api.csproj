@@ -7,14 +7,33 @@
     <AssemblyName>ForgeSelf</AssemblyName>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\ForgeSelf.ico</ApplicationIcon>
-    <!-- 输入39：版本号生成 + 包信息（参照 CrazyCoder.csproj）：
-         构建时自动生成日期版本（yyyy.MMdd），AssemblyVersion 通配由编译器补 build/revision -->
-    <VersionPrefix>2.2</VersionPrefix>
-    <VersionSuffix>$([System.DateTime]::Now.ToString('yyyy.MMdd'))</VersionSuffix>
+    <!-- 版本号规则 = <major>.<minor>.<patch>.<yyMMddHHmm>（2026-10-02 修订，示例 2.3.0.2609161125）：
+         正式发行的完整串由 release-local.ps1（本地）/ CI tag（GITHUB_REF_NAME）生成，经环境变量
+         FORGESELF_RELEASE_VERSION 传给发布脚本注入本项目；未传时（开发者本地直接 build）兜底生成
+         2.3.0.<yyMMddHHmm>（与发行形态同构，避免开发串与发行串混淆）。
+         ⚠️ 为什么用环境变量而不是命令行 -p:Version：-p: 是**全局属性**，会传播到项目图里所有被引用项目
+            （ForgeSelf.Core / ForgeSelf.Abstractions / Plugins/*），它们没有显式 AssemblyVersion/PackageVersion，
+            10 位时间码会同时触发 NuGet 项目版本校验（NU1105「不是有效的版本字符串」，错误只写进 obj 日志、
+            restore 静默失败）与 GenerateAssemblyInfo 的 GetAssemblyVersion 校验（NETSDK1018 无效的 NuGet
+            版本字符串）→ restore/编译直接失败。只让本项目读环境变量，即可做到「同串且不外溢」
+            （2026-10-02 实测两处失败后定案）。
+         FileVersion 承载完整发行串（更新判定即读此串）；PE 文件版本每段上限 65535，
+         第 4 段 10 位数字必然触发 CS7035，属已知且有意为之，故显式抑制（数值字段会被截断，仅影响按数值读版本的第三方工具）。
+         真源：docs/04-standards/packaging-upgrade-backup.md §1.1
+         ⚠️ PackageVersion 必须显式给出合法三段值：NuGet 校验项目版本号时按 int 解析每一段，
+            10 位时间码（如 2610021627 ≈ 2.61e9）超过 int.MaxValue（2.147e9）→ NU1105「不是有效的版本字符串」，
+            且该错误只写进 obj/project.assets.json 的 logs、不冒泡为可见报错（restore 静默失败）。
+            故发行串完整形态只走 FileVersion/$(Version) 的信息层，NuGet 身份层用三段 PackageVersion 兜底。 -->
+    <VersionPrefix>2.3</VersionPrefix>
+    <VersionSuffix>0.$([System.DateTime]::Now.ToString('yyMMddHHmm'))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
+    <!-- 发行串覆盖：发布脚本注入的环境变量优先（须排在 <Version> 之后才能胜出；未设置时为 no-op） -->
+    <Version Condition="'$(FORGESELF_RELEASE_VERSION)' != ''">$(FORGESELF_RELEASE_VERSION)</Version>
+    <PackageVersion>$(VersionPrefix).0</PackageVersion>
     <FileVersion>$(Version)</FileVersion>
     <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
     <Deterministic>false</Deterministic>
+    <NoWarn>$(NoWarn);CS7035</NoWarn>
     <AssemblyTitle>铸己匣</AssemblyTitle>
     <Description>铸己匣（OpenForgeSelf）：个人 AI 智能体桌面工作台——宿主 + 版本化插件系统 + 自动更新</Description>
     <Company>OpenForgeSelf</Company>

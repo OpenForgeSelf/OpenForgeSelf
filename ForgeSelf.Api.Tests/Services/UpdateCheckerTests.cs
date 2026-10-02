@@ -906,4 +906,115 @@ public class UpdateCheckerTests : IDisposable
                 r.RequestUri != null && r.RequestUri.ToString() == "https://gitee.com/test-owner/test-repo/releases/download/v2.0.0/OpenForgeSelf-2.0.0-win-x64.zip"),
             ItExpr.IsAny<CancellationToken>());
     }
+
+    // ==================================================================
+    // 版本规则（2026-10-02）：发行串 = <major>.<minor>.<patch>.<yyMMddHHmm>
+    //   第 4 段为 10 位时间码（可达 2.6e9，超 int.MaxValue）→ 解析必须用 long；
+    //   第 4 段 > 65535 视为「新规则世代」，恒大于旧编号形态（世代兜底）。
+    // ==================================================================
+
+    [Fact]
+    public void ParseSemVer_TenDigitDateCode_ParsedAsWhole()
+    {
+        var sem = UpdateChecker.ParseSemVer("2.3.0.2609161125");
+
+        sem.Should().NotBeNull();
+        sem!.Core.Should().Equal(2L, 3L, 0L, 2609161125L);
+        sem.IsDateCoded.Should().BeTrue();
+        sem.ToVersion().Should().Be(new Version(2, 3, 0));
+    }
+
+    [Fact]
+    public void ParseSemVer_LegacyShape_NotDateCoded()
+    {
+        // 旧形态：2.2（发行号）+ yyyy.MMdd（如 2026.1002）— 第 4 段仅 4 位
+        var legacy = UpdateChecker.ParseSemVer("2.2.2026.1002");
+
+        legacy.Should().NotBeNull();
+        legacy!.IsDateCoded.Should().BeFalse();
+        legacy.Core[3].Should().Be(1002L);
+    }
+
+    [Fact]
+    public void CompareSemVer_DateCodedGeneration_BeatsLegacyShapes()
+    {
+        var newRelease = UpdateChecker.ParseSemVer("2.3.0.2609161125")!;
+        var legacyDate = UpdateChecker.ParseSemVer("2.2.2026.1002")!;
+        var legacyPatch = UpdateChecker.ParseSemVer("2.2.11")!;
+
+        UpdateChecker.CompareSemVer(newRelease, legacyDate).Should().BePositive();
+        UpdateChecker.CompareSemVer(legacyDate, newRelease).Should().BeNegative();
+        UpdateChecker.CompareSemVer(newRelease, legacyPatch).Should().BePositive();
+        UpdateChecker.CompareSemVer(legacyPatch, newRelease).Should().BeNegative();
+    }
+
+    [Fact]
+    public void CompareSemVer_SameGeneration_ComparesBySegment()
+    {
+        var older = UpdateChecker.ParseSemVer("2.3.0.2609161125")!;
+        var newerStamp = UpdateChecker.ParseSemVer("2.3.0.2609161130")!;
+        var patchBump = UpdateChecker.ParseSemVer("2.3.1.2609161100")!;
+
+        UpdateChecker.CompareSemVer(newerStamp, older).Should().BePositive();
+        UpdateChecker.CompareSemVer(older, newerStamp).Should().BeNegative();
+        UpdateChecker.CompareSemVer(older, older).Should().Be(0);
+        // 前三段优先：2.3.1 比 2.3.0 新，即便时间码更早
+        UpdateChecker.CompareSemVer(patchBump, newerStamp).Should().BePositive();
+    }
+
+    [Fact]
+    public void CompareSemVer_LegacyGeneration_KeepsSegmentOrdering()
+    {
+        var shortForm = UpdateChecker.ParseSemVer("2.2.11")!;
+        var legacyDate = UpdateChecker.ParseSemVer("2.2.2026.1002")!;
+
+        // 旧行为不变：第 3 段 2026 > 11
+        UpdateChecker.CompareSemVer(legacyDate, shortForm).Should().BePositive();
+    }
+
+    [Fact]
+    public void ParseSemVer_InvalidOrOverflow_ReturnsNull()
+    {
+        UpdateChecker.ParseSemVer("").Should().BeNull();
+        UpdateChecker.ParseSemVer("2.3.0.-1").Should().BeNull();
+        UpdateChecker.ParseSemVer("2.3.0.abc").Should().BeNull();
+        UpdateChecker.ParseSemVer("1.2.3.4.5").Should().BeNull();
+        // 超出 long 范围（20 位）→ 解析失败而非溢出抛异常
+        UpdateChecker.ParseSemVer("2.3.0.99999999999999999999").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GitHub_DateCodedRelease_BeatsLegacyInstalledVersion()
+    {
+        // 回归防线（BR4 世代兜底）：旧规则下 2.2.2026.1002（第 3 段 2026）恒大于 2.3.0.<时间码>，
+        // 若不区分世代，已安装旧编号实例永远收不到新规则发行。
+        const string json = """
+            [
+              {
+                "tag_name": "v2.3.0.2609161125",
+                "draft": false,
+                "prerelease": false,
+                "body": "date-coded",
+                "assets": [
+                  {
+                    "name": "OpenForgeSelf-2.3.0.2609161125-win-x64.zip",
+                    "url": "https://api.github.com/repos/test-owner/test-repo/releases/assets/1",
+                    "browser_download_url": "https://example.com/forge-2.3.0.2609161125.zip",
+                    "digest": "sha256:aa",
+                    "size": 10
+                  }
+                ]
+              }
+            ]
+            """;
+        SetupHttpResponse(json);
+        var checker = new UpdateChecker(GitHubConfig(), _httpClient, _testAppName, currentVersion: "2.2.2026.1002");
+
+        var result = await checker.CheckForUpdateAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        result.HasUpdate.Should().BeTrue();
+        result.LatestVersionTag.Should().Be("v2.3.0.2609161125");
+        result.LatestVersion.Should().Be(new Version(2, 3, 0));
+    }
 }

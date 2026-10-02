@@ -267,5 +267,6 @@ N/A（本次无 UI 变更：设置页「当前版本」经 `/api/update/status` 
 
 ## Unresolved Issues
 
-- ~~预览版 Release 未发布（CI 红，非本任务引入）~~ **已解封（2026-10-02，用户授权修那一行）**：修复 `31ef0f9` + 新 tag `v2.3.0.2610022049-preview` → CI run 37009025753 成功、Release 已发布且 `isPrerelease=true`。遗留：首次失败 tag `v2.3.0.2610022023-preview` 仍在远端（无 Release，未被更新端使用），如需清理须单独授权。
+- ~~预览版 Release 未发布（CI 红，非本任务引入）~~ **已解封（2026-10-02，用户授权修那一行）**：修复 `31ef0f9` + 新 tag `v2.3.0.2610022049-preview` → CI run 37009025753 成功、Release 已发布且 `isPrerelease=true`。
+- 清理与重发（2026-10-02 输入13「删了，从新提交修改，推新的预览tag」）：失败 tag `v2.3.0.2610022023-preview` 本地 + 远端已删除；新预览 tag `v2.3.0.2610022106-preview` 打在最新提交 `ebceb5e`（含全部修改）→ CI run 37010782602 成功、Release `isPrerelease=true`（资产 zip 103.66 MB + `SHA256SUMS.txt`）。上一枚成功预览 `v2.3.0.2610022049-preview`（指向 `31ef0f9`）按用户口径暂保留，待确认是否一并清理。
 - 8 条 `UpdateServiceTests.ApplyUpdateAsync_*` 为环境类既有红（已用旧规则版本串实验证明与本改动无因果），归属未定 → 建议记 TODO 交测试 owner。

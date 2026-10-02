@@ -827,7 +827,9 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **多 call 帧序与前端配对契约**：B8 `ExecuteBatchAsync` 帧序 =「全部 `tool/call`+`ToolStarted` 先落 → 批执行 → 逐 result+`ToolCompleted`」；同名多次调用的结果事件必须按**最早 pending FIFO** 配对（`settleToolEventFifo`），LIFO 会互换结果。
 - **删除旧 API 必配 grep 守门测试**（仿 `IAgentLoop_Removed`/`LegacyToolExecutionFace_Removed`）：grep 源码断言旧符号零出现，注释行豁免——防止退役 API 静默回潮。
 - **前端全量 vitest 有并发资源竞争抖动**（同批失败数 1→6 漂移、单测 9s 超时）：失败先**单文件重跑复判定性**（单跑 18/18 绿 = 抖动），别急着当回归修。
-- **.NET 测试环境绕法（固化，B9-4 后最小化）**：跑前 `taskkill /F /IM testhost.exe`；命令行前缀赋值 `TEMP`/`TMP`（沙箱拒写系统 Temp，`XCodeTestFixture` 曾因此 597 连红）+ **`FORGESELF_DATA_ROOT=<仓库外或 .tmp 独立目录>`**（B9-4 根治：数据根整体重定向，**替代旧 USERPROFILE/HOME + Development 两变量绕法**，Known Folder 分支不再触达真实 `~/.forgeself`）。dev 实例窗口先 `tasklist`/`Get-CimInstance` 确认（MSBuild nodemode worker 不算实例）。
+- **.NET 测试环境绕法（固化，B9-4 后最小化；2026-10-02 输入4 起数据根自动隔离）**：跑前 `taskkill /F /IM testhost.exe`；命令行前缀赋值 `TEMP`/`TMP`（沙箱拒写系统 Temp，`XCodeTestFixture` 曾因此 597 连红）。**`FORGESELF_DATA_ROOT` 已无需手工设置**——`ForgeSelf.Api.Tests` 的 `TestDataRootIsolation`（`[ModuleInitializer]`）在测试程序集加载时自动兜底：未显式设置时把数据根指向仓库内 `.temp/dotnet-test/<时间戳>-<pid>`（`.temp/` 已 gitignore），并把 `XTrace.LogPath` / `Setting.LogPath` / 全部已知 `Config<T>` 的 `FileName` 一并归位到该隔离根，切断「读程序目录残留 Core.config（固化宿主 LogPath/连接串）→ 写宿主日志/库」链路。**手工前缀仅在需要指定位置/覆盖时使用**（显式设置时本机制短路，e2e/CI 链路不受影响）。dev 实例窗口先 `tasklist`/`Get-CimInstance` 确认（MSBuild nodemode worker 不算实例）。
+  - 🔴 **隔离必须三件套齐（2026-10-02 输入4 实证）**：只设数据根不足以隔离——`NewLife.Setting`/`XCodeSetting` 的 `Config<T>.FileName` 默认相对程序目录（`Config\Core.config`），程序目录一旦残留固化了宿主 `LogPath` 的旧 Core.config，测试进程读到即绕过隔离。且**顺序敏感**：必须**先 `ConfigUnifier.UnifyAllConfigFiles` 重定向 FileName，再设 `XTrace.LogPath`**；反序会在 `XTrace` 首访时触发 `NewLife.Setting` 按默认相对路径自动创建 `bin/Config/Core.config` 脏文件。
+  - ⚠️ **宿主侧关联缺陷（已知，未修）**：`Program.cs:38` 与 `AppBuilder.cs:89` 的 `Setting.Save()` 早于 `ConfigUnifier` 重定向 → 生产 publish 程序目录仍可能残留 Core.config；测试侧已由上述机制规避，宿主侧修复另立 TODO。
 
 ---
 
@@ -835,6 +837,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-02 | **dotnet test 数据根自动隔离（输入4）**：修复「本地开发污染真实宿主根 `~/.forgeself`」架构缺陷——`ForgeSelf.Api.Tests` 新增 `TestDataRootIsolation`（`[ModuleInitializer]` 兜底数据根到仓库内 `.temp/dotnet-test/<ts>-<pid>` + 重定向 `XTrace.LogPath`/`Setting.LogPath`/全部已知 `Config<T>.FileName`）+ `TestDataRootIsolationGuardTests`（4 守卫）；B12 第 830 行由「手工前缀必须设 `FORGESELF_DATA_ROOT`」改为「已自动隔离，手工仅用于覆盖」。同时记录宿主侧关联缺陷（`Program.cs:38`/`AppBuilder.cs:89` 的 `Save()` 早于 `ConfigUnifier`）另立 TODO。 |
 | 2026-10-01 | **e2e 宿主签名 shell 选择实证（design-system M1 验收中发现）**：从 Node spawn 的 `powershell.exe`（5.1）无 `Cert:` 提供程序（`drive=False certs=0`，签名必失败）；`pwsh` 同语境正常（`drive=True certs=1`）。`e2e/global-setup.ts` 宿主签名固定 `pwsh`；B6 增补「Node→PowerShell 证书/签名操作只用 pwsh」规则；`e2e-testing` 技能同步。 |
 | 2026-09-30 | **e2e 共享基建改造（PILOT-050）**：① 宿主新增启动端口覆盖 `FORGESELF_PORT`（env 优先）/`--server-port`（`StartupPortResolver`，覆盖即落盘 ForgeSetting.config，重启一致）；② e2e 运行目录按 worktree 稳定派生 `wt-<hash8>`（去时间戳，消除 Windows 防火墙弹窗根因）+ 残留宿主保护 + SQLite 无条件覆盖；③ 前后端端口动态认领（tmpdir 注册表跨 worktree 互斥）+ 三通道注入（`E2E_BACKEND_URL`/`E2E_FRONTEND_URL`/`FORGESELF_PORT`），e2e 地址真源统一 `e2e/helpers/e2e-env.ts`，spec 硬编码 7102/7002 清零（代码级 11 处）；④ port-config.spec 端口无关化；⑤ e2e-published 修 `publishDir` 越级 bug；⑥ AGENTS.md 收口唯一开发流程（specs/speckit 弃用、§0 强制读规范）、pilot 目录加日期前缀。B2/统一 e2e 体系/B4 已同步。 |
 | 2026-09-28 | dsh 对齐专项 B8（六闸门）+ B9（退役与清理）收官：新增 B12 小节沉淀——XCode 原生 SQL 片段绕 NotLike、Known Folder 不读 USERPROFILE 环境变量、`[..N]` 必须 clamp、插件 vitest 归宿主收集、多 call FIFO 配对契约、grep 守门模式、前端全量抖动定性法、.NET 测试环境绕法固化。 |

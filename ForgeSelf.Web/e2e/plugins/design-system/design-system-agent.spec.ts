@@ -174,7 +174,7 @@ test.describe('设计系统 Agent 工具层（M1 v2.8.0）：网关枚举 + 同�
     const tokens = effBody.data.items
     const surface = tokens.find((t) => t.path === 'semantic.surface-bg')
     expect(surface?.colorHex, 'REST effective 应有 semantic.surface-bg 的 colorHex').toBeTruthy()
-    surfaceBgHex = surface!.colorHex
+    surfaceBgHex = surface!.colorHex ?? ''
 
     const ctx = await dsTool('design_context', { project: projectCode, theme: 'light', sections: ['colors'] })
     const ctxData = dataOf(ctx)

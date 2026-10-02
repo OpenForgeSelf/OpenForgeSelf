@@ -1,7 +1,7 @@
 # 036 - 设计系统（design-system 插件）
 
-> 插件形态：仓库根 `Plugins/DesignSystem/`，运行时 id `design-system`，当前版本 **2.3.0**
-> （2.0.0 = 库驱动重写；2.1.0 = 组件规格 + 变体矩阵 + 尺寸轴；2.2.0 = 资产/字体/页面三表补齐写入口与生成种子；2.3.0 = 版本快照与 diff 覆盖品牌三表和组件目录）。
+> 插件形态：仓库根 `Plugins/DesignSystem/`，运行时 id `design-system`，当前版本 **2.8.0**
+> （2.0.0 = 库驱动重写；2.1.0 = 组件规格 + 变体矩阵 + 尺寸轴；2.2.0 = 资产/字体/页面三表补齐写入口与生成种子；2.3.0 = 版本快照与 diff 覆盖品牌三表和组件目录；2.4.0 = 组件规格进机器可读产物；2.5.0 = Element Plus 换肤接缝；2.6.x = 门禁盯手改之后/对比度全覆盖/顺序收口/尺度词表/导入回流前置；2.7.0 = DTCG 导入/回流；2.8.0 = **Agent 工具层**：8 个 `design_*` 工具 + REST 对等 + 写开关）。
 > 自带界面（路由 `/design-system`，`plugin.json` 的 `frontend.route`），经宿主远程加载（`frontend.entry = web/dist/index.js` + 同目录 `style.css`）。
 > 管理端点全部要求 `ApiKeyPolicy` 鉴权；数据落在插件自建库 `~/.forgeself/Plugins/design-system/DesignSystem.db`（ConnName=`DesignSystem`，12 张表）。
 
@@ -41,6 +41,27 @@
 | 导出 | `GET projects/{id}/export?format=&theme=`（文件原文）、`GET export/formats`、`GET {id}/{entity}.json`（Stardust 十类逻辑实体明细，裸 `{entity,source,generated,total,data[]}`，`?theme=` 可切主题） |
 | 版本 | `POST projects/{id}/releases`、`GET releases`、`GET releases/{id}[?format=dtcg]`、`GET releases/diff?from=&to=` |
 | 目录 | `GET/POST components`、`GET/POST components/{code}/variants`、`GET icons`、`POST projects/{id}/icons`、`GET/POST projects/{id}/assets`、`GET/POST projects/{id}/screens`、`GET/POST projects/{id}/fonts` |
+| Agent（v2.8.0） | `GET meta` 增 `agentTools`（8 工具名数组）；`GET agent/tools`（工具枚举，与 `list_tools` 同源）；`POST projects/quick-create`（`QuickCreateRequest`，`DryRun=true` 干跑不落库——**与工具 `apply=false` 同语义，REST 默认 `DryRun=false` 落库**）；`GET projects/{id}/brief`（md/json 说明书）；`POST projects/{id}/review`（审查）；`GET presets` / `POST presets/recommend`；`GET|PUT agent-access`（写开关） |
+
+## Agent 工具层（v2.8.0 · 缺口 G15）
+
+设计系统向 Agent（外部经 McpCenter 网关 `universal_tool`、内置 AIAgent 白名单 `ToolScopePluginIds` 含 `design-system`）暴露 **8 个 `design_*` 工具**，读 6 写 2：
+
+| 工具 | Kind | 作用 |
+|---|---|---|
+| `design_guide` | read | 使用指南：版本/工具清单/三条工作流/可选项目与预设/写开关/发现提示 |
+| `design_context` | read | 设计说明书（唯一真源）：身份/规则/颜色/排版/尺度/组件/品牌/交付清单，md 或 json |
+| `design_lookup` | read | 令牌分页/组件/导出/图标；`nearest` 按值反查最近令牌（六类：color/length/duration/shadow/font-family/font-weight） |
+| `design_review` | read | 审查代码与设计系统一致性（15 条规则：硬编码色/魔法数字/未知令牌/已移除引用…）；`checklist` 交付清单。**hardcoded 默认 warning，`strict:true` 升 error** |
+| `design_audit` | read | 读可达性审计结论；`run=true` 重跑并落库（写动作，受写开关约束） |
+| `design_presets` | read | `list` 8 预设全字段 / `recommend` 按 brief/industry/kind/tone/density 打分推荐 |
+| `design_create` | **write** | 从预设+显式参数快速创建设计系统项目（令牌/组件/审计）；`apply=false` 干跑零写库 |
+| `design_edit` | **write** | `set_token` 写单令牌 / `regenerate` 重生成 / `publish` 发布（critical 未清拒） |
+
+- **唯一真源**：`Agent/DesignToolIndex.cs`（8 Entry；`meta.agentTools` = `All.Select(Name)`；`list_tools` 枚举同一张表）。
+- **封套**：工具结果 = `{success, data}`（camelCase 键）；`list_tools` 例外（直接是数据，无封套）。
+- **写开关 `AgentAccess`**（fail-closed）：`{数据根}/plugins/design-system/agent-access.json`，默认 fail-open，文件损坏→只读；PUT 立即生效、重启保持（现读文件不缓存）。
+- **契约与消费侧**：出参键、常见坑、REST 对等表见 `.agents/skills/design-system-consume/SKILL.md`；判据/偏差/证据见 `docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`。
 
 ## 生成引擎的关键取舍
 

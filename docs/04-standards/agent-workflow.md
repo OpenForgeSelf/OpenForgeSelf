@@ -689,6 +689,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **核验 .NET DLL 内字符串必须原始字节 hex（UTF-16LE）或 ildasm，禁止 shell 中文字面量**：PowerShell→`python -c` 传中文搜索词跨进程编码损坏、UTF-8 解码 #US 堆都会假阴性。定论手段：`ildasm /text` 看 IL（`ldstr bytearray`）+ Python `bytes.fromhex(...) in data` 精确比对 UTF-16LE 字节。
 - **PS 5.1 读写中文路径/内容用 .NET API + `-Encoding UTF8` 显式**；`Get-Content` 默认 ANSI 解码 UTF-8 无 BOM 文件显示乱码 ≠ 文件损坏（两文件哈希一致即文件正常）。
 - **`Edit` 工具反复报 "File has not been read yet"**：改用 PowerShell `[IO.File]::ReadAllText/WriteAllText(UTF8Encoding(false))` 精确替换；若用 .Replace，替换后先 `if($t -ne $o)` 判断再写，命中失败打印 'NO MATCH'。
+- **从 Node（Playwright / 脚本链）spawn PowerShell 做证书 / 签名类操作必须用 `pwsh`（PowerShell 7），不要用 `powershell.exe`**（2026-10-01 e2e 实证）：同一 `powershell.exe` 在终端语境正常，但从 Node `spawn` 时（5.1）**没有 `Cert:` 提供程序**（`Get-PSDrive Cert`=False、代码签名证书查不到、`-CodeSigningCert` 参数不识别 → 签名必失败）；`pwsh` 在同语境完全正常（`drive=True certs=1`）。`e2e/global-setup.ts` 宿主签名已固定 `pwsh`；无签名环境用 `E2E_SIGN_EXE=false` 跳过。**取代此前任何"两个 shell 均可"的默认假设。**
 
 ## B7 环境速查
 
@@ -834,6 +835,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-01 | **e2e 宿主签名 shell 选择实证（design-system M1 验收中发现）**：从 Node spawn 的 `powershell.exe`（5.1）无 `Cert:` 提供程序（`drive=False certs=0`，签名必失败）；`pwsh` 同语境正常（`drive=True certs=1`）。`e2e/global-setup.ts` 宿主签名固定 `pwsh`；B6 增补「Node→PowerShell 证书/签名操作只用 pwsh」规则；`e2e-testing` 技能同步。 |
 | 2026-09-30 | **e2e 共享基建改造（PILOT-050）**：① 宿主新增启动端口覆盖 `FORGESELF_PORT`（env 优先）/`--server-port`（`StartupPortResolver`，覆盖即落盘 ForgeSetting.config，重启一致）；② e2e 运行目录按 worktree 稳定派生 `wt-<hash8>`（去时间戳，消除 Windows 防火墙弹窗根因）+ 残留宿主保护 + SQLite 无条件覆盖；③ 前后端端口动态认领（tmpdir 注册表跨 worktree 互斥）+ 三通道注入（`E2E_BACKEND_URL`/`E2E_FRONTEND_URL`/`FORGESELF_PORT`），e2e 地址真源统一 `e2e/helpers/e2e-env.ts`，spec 硬编码 7102/7002 清零（代码级 11 处）；④ port-config.spec 端口无关化；⑤ e2e-published 修 `publishDir` 越级 bug；⑥ AGENTS.md 收口唯一开发流程（specs/speckit 弃用、§0 强制读规范）、pilot 目录加日期前缀。B2/统一 e2e 体系/B4 已同步。 |
 | 2026-09-28 | dsh 对齐专项 B8（六闸门）+ B9（退役与清理）收官：新增 B12 小节沉淀——XCode 原生 SQL 片段绕 NotLike、Known Folder 不读 USERPROFILE 环境变量、`[..N]` 必须 clamp、插件 vitest 归宿主收集、多 call FIFO 配对契约、grep 守门模式、前端全量抖动定性法、.NET 测试环境绕法固化。 |
 | 2026-09-27 | 用户指令（seq17）发布规范改写：更新地址支持**本地目录**（`UpdateConfig.Provider=local` + `LocalDir`、`UpdateSettingsService` 运行时可变配置、UpdateChecker 本地分支、`release-local.ps1 -UpdateDir`、设置页更新源配置卡片）；发布规范改为**打 tag 自动发布 + 页面自动更新**，**禁止 agent 停/启/杀用户宿主**（AGENTS.md §0 门禁、§2.3/§2.4、plugin-development/plugin-publish-verify 技能、B5/B10 同步；run-plugin-publish-verify.ps1 降级为插件侧载可选路径、须用户同意）。 |

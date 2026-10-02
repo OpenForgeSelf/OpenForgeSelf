@@ -1,7 +1,14 @@
-﻿# 设计插件 DesignSystem · 设计语言底座（v2.6.5）
+﻿# 设计插件 DesignSystem · 设计语言底座（v2.8.0）
 
 > 铸己匣（ForgeSelf）的**设计系统**插件：把设计系统落成**可持久化、可校验、可版本化、可标准交付**的库。
 > 插件 ID `design-system`，挂载路由 `/design-system`，界面由插件自带（`web/dist`），宿主运行时远程加载。
+>
+> **v2.8.0（2026-10-01，Agent 工具层）**：向宿主工具注册表暴露 **8 个 `design_*` 工具**（经 McpCenter 网关
+> `universal_tool` 与内置 AIAgent 白名单均可用）：`design_guide/context/lookup/review/audit/presets/create/edit`
+> （读 6 写 2）；配套 REST 对等端点（`quick-create`/`brief`/`review`/`presets`/`agent-access`/`agent/tools`）、
+> `brief`/`agent-rules` 导出格式、**写开关 AgentAccess**（fail-closed）。消费侧指南见
+> `.agents/skills/design-system-consume/SKILL.md`；判据与验收见
+> `docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`。
 >
 > ⚠️ **本文 v1 段落已作废**：v1 把"生成/导出"写在浏览器里（`web/src/design/generate.ts`、`exporters.ts`）、数据落 `localStorage`、`selfCheck` 自称对比度 ≥4.5:1 却从不计算。
 > v2.0.0 起**设计值只由后端 C# 产生一份**：界面读 `tokens/effective`，预览复用 `export?format=css`（预览与交付同源）。

@@ -1,4 +1,5 @@
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.DesignSystem.Agent;
 using ForgeSelf.Api.Plugins.DesignSystem.Data;
 using ForgeSelf.Api.Plugins.DesignSystem.Services;
 using ForgeSelf.Core;
@@ -19,6 +20,9 @@ namespace ForgeSelf.Api.Plugins.DesignSystem;
 /// </summary>
 public class DesignSystemPlugin : IPlugin
 {
+    /// <summary>对外暴露的 design_* 工具（宿主 ToolRegistry 自动收集的约定入口）。</summary>
+    public List<IToolFunctionExtension> ToolExtensions { get; } = new();
+
     public void Apply(IContext ctx)
     {
         XTrace.Log.Info("初始化设计系统插件（设计语言底座）");
@@ -34,17 +38,53 @@ public class DesignSystemPlugin : IPlugin
         {
             // 随数据走的文件（版本快照等）落插件数据目录，发布覆盖不影响
             var dataDir = ctx.EnsurePluginDataDirectory();
-            services.AddSingleton(new DesignSystemPaths(dataDir));
-            services.AddSingleton<DesignProjectService>();
-            services.AddSingleton<TokenRepository>();
-            services.AddSingleton<CatalogRepository>();
-            services.AddSingleton<AuditRepository>();
-            services.AddSingleton<AuditEngine>();
-            services.AddSingleton<ExportService>();
-            services.AddSingleton<ReleaseService>();
+            var paths = new DesignSystemPaths(dataDir);
+            var projects = new DesignProjectService();
+            var tokens = new TokenRepository();
+            var catalog = new CatalogRepository();
+            var audits = new AuditRepository();
+            var auditEngine = new AuditEngine(tokens, projects, audits);
+            var export = new ExportService(tokens, projects, catalog);
+            var releases = new ReleaseService(tokens, projects, audits, auditEngine, paths, catalog);
+            var generation = new GenerationService(tokens, projects, catalog, auditEngine);
+            var agentAccess = new AgentAccess(paths);
+            var review = new DesignReviewService(export, tokens, projects);
+            var quickCreate = new QuickCreateService(projects, generation);
+            var brief = new DesignBriefBuilder(export, projects, catalog, review);
+            export.BriefBuilder = brief;
+
+            // 同一实例注册：控制器与工具由此用同一批对象（§G）
+            services.AddSingleton(paths);
+            services.AddSingleton(projects);
+            services.AddSingleton(tokens);
+            services.AddSingleton(catalog);
+            services.AddSingleton(audits);
+            services.AddSingleton(auditEngine);
+            services.AddSingleton(export);
+            services.AddSingleton(releases);
+            services.AddSingleton(generation);
+            services.AddSingleton(agentAccess);
+            services.AddSingleton(review);
+            services.AddSingleton(quickCreate);
+            services.AddSingleton(brief);
+
+            var kit = new DesignToolKit(projects, tokens, catalog, audits, auditEngine, export, releases,
+                generation, agentAccess, review, quickCreate, brief);
+            services.AddSingleton(kit);
+
+            var pluginId = ctx.Get<PluginMetadata>()?.Id ?? DesignSystemConstants.PluginId;
+            ToolExtensions.Add(new DesignGuideTool(kit));
+            ToolExtensions.Add(new DesignContextTool(kit));
+            ToolExtensions.Add(new DesignLookupTool(kit));
+            ToolExtensions.Add(new DesignReviewTool(kit));
+            ToolExtensions.Add(new DesignAuditTool(kit));
+            ToolExtensions.Add(new DesignPresetsTool(kit));
+            ToolExtensions.Add(new DesignCreateTool(kit));
+            ToolExtensions.Add(new DesignEditTool(kit));
+            XTrace.Log.Info("设计系统插件已注册 {0} 个工具函数", ToolExtensions.Count);
         }
 
-        XTrace.Log.Info("设计系统插件初始化完成");
+        XTrace.Log.Info("设计系统插件初始化完成（tools={0}）", ToolExtensions.Count);
     }
 
     /// <summary>
@@ -78,4 +118,7 @@ public sealed record DesignSystemPaths(String DataDirectory)
             return dir;
         }
     }
+
+    /// <summary>Agent 写开关文件（只写不删；文件损坏按只读处理）</summary>
+    public String AgentAccessFile => Path.Combine(DataDirectory, "agent-access.json");
 }

@@ -1,9 +1,9 @@
 {
   "Id": "design-system",
   "Name": "设计系统插件",
-  "Version": "2.7.1",
+  "Version": "2.8.0",
   "Author": "ForgeSelf Team",
-  "Description": "设计语言底座：把设计系统落成可持久化、可校验、可版本化的库——项目 / 主题（明暗·密度·品牌）/ 三层令牌（primitive→semantic→component + 别名图）/ 组件与变体矩阵 / 图标与资产 / 页面清单 / 字体登记 / WCAG 2.2 可达性审计 / 版本快照与 diff，并可导出 DTCG、CSS、Tailwind v4、Element Plus 换肤接缝、Tokens Studio、DESIGN.md 等标准工件。",
+  "Description": "设计语言底座：把设计系统落成可持久化、可校验、可版本化的库——项目 / 主题（明暗·密度·品牌）/ 三层令牌（primitive→semantic→component + 别名图）/ 组件与变体矩阵 / 图标与资产 / 页面清单 / 字体登记 / WCAG 2.2 可达性审计 / 版本快照与 diff，并可导出 DTCG、CSS、Tailwind v4、Element Plus 换肤接缝、Tokens Studio、DESIGN.md、BRIEF.md、agent-rules.md 等标准工件；对外暴露 design_* 工具（经 McpCenter 网关与内置 AIAgent 均可调用）。",
   "EntryAssembly": "DesignSystem.dll",
   "EntryType": "ForgeSelf.Api.Plugins.DesignSystem.DesignSystemPlugin",
   "Dependencies": [],

@@ -800,8 +800,25 @@ public static class DesignGenerator
     static String ResolveIndustry(GenerationRequest req, String brief)
     {
         if (!req.Industry.IsNullOrEmpty() && Industries.ContainsKey(req.Industry!)) return req.Industry!;
+        return InferIndustry(brief) ?? "general";
+    }
+
+    /// <summary>行业清单（取 Industries 字典键，单一来源；供预设推荐/工具枚举用，不另抄）</summary>
+    public static IReadOnlyList<String> KnownIndustries => Industries.Keys.OrderBy(x => x, StringComparer.Ordinal).ToList();
+
+    /// <summary>从 brief 关键词推断行业；无命中返回 null（调用方回落 general）</summary>
+    public static String? InferIndustry(String? brief)
+    {
+        if (brief.IsNullOrEmpty()) return null;
         foreach (var (kw, ind) in IndustryClues)
             if (brief.Contains(kw, StringComparison.OrdinalIgnoreCase)) return ind;
+        return null;
+    }
+
+    /// <summary>把传入行业规范到 KnownIndustries；未知 → general</summary>
+    public static String NormalizeIndustry(String? industry)
+    {
+        if (!industry.IsNullOrEmpty() && Industries.ContainsKey(industry!)) return industry!;
         return "general";
     }
 

@@ -42,6 +42,8 @@ public class ExportProjectionTests : IDisposable
         DesignIcon.Meta.Cache.Expire = 0;
 
         _export = new ExportService(_tokens, _projects, _catalog);
+        _export.BriefBuilder = new DesignBriefBuilder(_export, _projects, _catalog,
+            new DesignReviewService(_export, _tokens, _projects));
         var p = _projects.Create(new ProjectInput { Code = $"x-{Guid.NewGuid():N}"[..22], Name = "导出验证系统" });
         _projectId = p.Id;
         var generated = DesignGenerator.ApplyToProject(_tokens, _projects, _projectId,

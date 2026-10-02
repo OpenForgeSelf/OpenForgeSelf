@@ -562,18 +562,21 @@ public class AIAgentService : IAIAgentService
     }
 
     /// <summary>
-    /// Agent 工具范围：本插件自己的工具 + 记忆系统（memory-system）的 5 个记忆工具。
+    /// 内置 Agent 工具作用域插件白名单：本插件自己的工具 + 记忆系统（memory-system）+ 设计系统（design-system，M1）。
+    /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。
+    /// </summary>
+    public static IReadOnlyCollection<String> ToolScopePluginIds(String ownPluginId) =>
+        [ownPluginId, "memory-system", "design-system"];
+
+    /// <summary>
+    /// Agent 工具范围：本插件自己的工具 + 记忆系统（memory-system）的 5 个记忆工具 + 设计系统（design-system）的 8 个 design_* 工具（M1）。
     /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。
     /// 记忆工具经 L1 契约（IMemoryService）由 MemorySystem 提供，Agent 可检索注入、也可主动 add_memory。
     /// </summary>
     private List<AIToolDefinition> ResolveOwnToolDefinitions()
     {
         var pluginId = _ctx.Get<PluginMetadata>()?.Id ?? string.Empty;
-        var allowedPlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            pluginId,        // 本插件自带工具（时间/计算/文件/工作流）
-            "memory-system"  // 记忆检索/保存/管理
-        };
+        var allowedPlugins = new HashSet<string>(ToolScopePluginIds(pluginId), StringComparer.OrdinalIgnoreCase);
         var result = new List<AIToolDefinition>();
         foreach (var tool in ToolRegistry.GetAllTools())
         {

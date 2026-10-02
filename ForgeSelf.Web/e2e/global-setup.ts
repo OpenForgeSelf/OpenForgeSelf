@@ -136,8 +136,11 @@ async function signHostExecutable(publishDir: string, logFile: string): Promise<
 
   console.log('[e2e] 对宿主 exe 做 Authenticode 签名（避免无签名被拦截）...')
   try {
+    // 必须用 pwsh（PowerShell 7）：2026-10-01 实测，从 Node spawn 的 powershell.exe（5.1）
+    // 无法加载 Security 模块 → Cert: 提供程序缺失、代码签名证书查不到，签名必失败；
+    // pwsh 同语境 Cert: 正常（drive=True certs=1）。规范见 docs/04-standards/agent-workflow.md。
     await run(
-      'powershell.exe',
+      'pwsh',
       [
         '-NoProfile',
         '-ExecutionPolicy',
@@ -159,7 +162,7 @@ async function signHostExecutable(publishDir: string, logFile: string): Promise<
       console.warn(`[e2e] ⚠ ${msg}（e2e 仍继续，但无签名 exe 可能被拦截）`)
     } else {
       throw new Error(
-        `${msg}；如需跳过请设置 E2E_SIGN_EXE=false，或先安装 Windows SDK 的 Signing Tools（signtool.exe）`,
+        `${msg}；如需跳过请设置 E2E_SIGN_EXE=false；签名环境要求：PowerShell 7（pwsh）+ 可用代码签名证书（自签会自动创建）`,
         { cause: e },
       )
     }

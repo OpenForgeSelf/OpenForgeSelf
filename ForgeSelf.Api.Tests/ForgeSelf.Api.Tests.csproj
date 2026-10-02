@@ -23,6 +23,15 @@
     <PackageReference Include="FluentAssertions" Version="7.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.8" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.9" />
+    <!-- SQLite 驱动选择（2026-10-01 输入N，基线 98 例 no such table 根因修复）：
+         经 ForgeSelf.Api 传递的 XCode.SQLite 会把 NuGet 版 System.Data.SQLite.dll（lib/netstandard2.0，397312 字节）
+         复制到测试输出根目录。XCode 12 的 DriverLoader.Load 探测链（AppDomain.BaseDirectory）LoadFrom 该版本后，
+         在当前 .NET 10 + e_sqlite3 3.50.4.5 组合下写入落在未提交 rollback journal（任何后续连接热恢复即回滚归零），
+         建表全消失 → no such table（探针 v26 复现 / v28 对照：根目录无 397312、探测落 Plugins/ 的 zip 完整版 395776
+         时 13 表全建、FindCount 正常）。宿主单文件发布同样剔除 NuGet 版、由 publish-host.ps1 外置 zip 完整版兜底。
+         此处屏蔽 runtime 资产 = 与宿主同构：测试进程探测链落 Plugins\System.Data.SQLite.dll（zip 完整版）。
+         测试代码零直接引用 System.Data.SQLite 类型（编译引用不受影响）。 -->
+    <PackageReference Include="System.Data.SQLite" Version="2.0.2" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

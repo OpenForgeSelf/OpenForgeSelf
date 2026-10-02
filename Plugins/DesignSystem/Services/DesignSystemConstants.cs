@@ -12,13 +12,13 @@ public static class DesignSystemConstants
     /// Model 改 Model.xml 结构 / Generator 改派生算法或生成落库内容 / Projection 改任一投影格式。
     /// 因为对外只有一个交付版本号，任一发生变化都足以要求整包递增，故不再各走各的。
     /// </summary>
-    public const String ModelVersion = "2.7.1";
+    public const String ModelVersion = "2.8.0";
 
     /// <summary>生成器版本：改色阶/派生算法、或生成时落库的目录内容（组件种子、品牌资产）必须递增</summary>
-    public const String GeneratorVersion = "2.7.1";
+    public const String GeneratorVersion = "2.8.0";
 
     /// <summary>导出投影版本：改任一投影格式必须递增，消费方据此判兼容</summary>
-    public const String ProjectionVersion = "2.7.1";
+    public const String ProjectionVersion = "2.8.0";
 
     /// <summary>内置图标库的项目 ID 哨兵值：该库只读，任何写入必须被拒绝</summary>
     public const Int64 BuiltinProjectId = 0;
@@ -28,6 +28,9 @@ public static class DesignSystemConstants
 
     /// <summary>内置图标集合名（本项目自绘，无第三方许可证负担）</summary>
     public const String BuiltinIconCollection = "forge";
+
+    /// <summary>插件自带界面路由（真源 = plugin.json frontend.route；此处是运行时唯一引用点，不手写第二份）</summary>
+    public const String FrontendRoute = "/design-system";
 
     /// <summary>别名链解析深度上限：超过即判为异常设计，直接报错而非继续深挖</summary>
     public const Int32 MaxAliasDepth = 16;

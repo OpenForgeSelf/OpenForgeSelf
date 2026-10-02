@@ -200,6 +200,27 @@ design-system 的失败模式很特殊：**界面有数字、有颜色、有主�
     有断言钉字节数吗？④ 每一条被拒/冲突的条目**有名字和原因吗**（不许"好的进去了、坏的没人知道"）？
     另注意：e2e 里"导入写进哪个主题档"要从**页面自己的下拉 value** 取（可见文本被 `.ds-micro` uppercase 成 `DARK`，
     靠 SQLite 大小写不敏感才碰巧相等——这种巧合不算证据）。
+34. **插件前端 dist 与源码不同步 = 新失败模式**（v2.8.0）：改过插件 `web/src` 后忘了 `pnpm run build`，
+    页面会加载**旧产物**——e2e 断言 `.ds-badge` 之类新 UI 时表现为"代码明明改了却找不到"。
+    判据：跑 e2e 前先 `pnpm run build`（或断言产物含新指纹），并在走查页核对版本徽标；
+    dist 重建后体积变化（本批 index.js 297.56kB / style.css 58.38kB）记入证据。
+35. **Agent 通道必须与 REST/导出同源**（v2.8.0，M1）：工具、REST、导出调用同一服务函数；
+    判据 = 同一输入下工具返回与 REST 关键字段**逐字段一致**（说明书里的颜色/变量名 == `tokens/effective`；
+    e2e 断言 `semantic.surface-bg` 的 hex 逐位相等）。
+36. **审查类判据用"自产语料零误报 + 每条规则反例必响"双向验证**（v2.8.0，M1）：本插件自己导出的 CSS（全主题）
+    必须 0 命中；每条规则至少一个反例必触发（只测其一都会骗人）。注意 **hardcoded 默认 warning 级、
+    `strict:true` 才升 error**——断言 `errors≥1` 必须传 strict，否则拿 0 当红。
+37. **Agent 写能力必须有开关、默认值与降级**（v2.8.0，M1）：关写后写工具被拒且文案指向开关路径；
+    配置文件损坏→**fail-closed 只读**而不是可写；PUT 立即生效、新实例保持（`AgentAccess` 现读文件不缓存）。
+38. **干跑（`apply=false`）零写库**（v2.8.0，M1）：前后项目数与 `DesignToken` 行数不变；不要只看返回值。
+    REST 侧注意语义相反：`DryRun=false` = 落库。
+39. **工具数量与 prompt 预算是声明也是风险**（v2.8.0，M1）：对内置 agent 的工具数量用真实 `ToolRegistry` 计数
+    断言（≤8，AIAgent `ToolScopePluginIds` 白名单 = `[ownPluginId, "memory-system", "design-system"]`）；
+    文档写明降级预案。工具唯一真源 = `DesignToolIndex.All`（读 6 写 2），`meta.agentTools` 即其 Name 数组。
+40. **网关直连契约是"封套叠封套"**（v2.8.0，M1 实测）：`universal_tool` 转发本身有 `{isError, content}`，
+    design_* 工具结果再套 `{success, data}`（data 才是载荷）；**`list_tools` 例外无封套**（直接是数据）。
+    另：`EffectiveToken.ColorHex` 序列化后是 **`colorHex`** 不是 `hex`（`DesignMapper.cs:24`）；
+    C# 元组直接 `Data(...)` 序列化会**丢字段名**（agent-access 初版 allowWrite=undefined）——REST 返回一律用显式匿名对象。
 
 ## 三、结构变更前必做（表）
 

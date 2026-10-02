@@ -29,11 +29,13 @@ public static class ExportFormats
     public const String Registry = "registry";
     public const String StardustJson = "stardust-json";
     public const String StardustSql = "stardust-sql";
+    public const String Brief = "brief";
+    public const String AgentRules = "agent-rules";
     public const String Bundle = "bundle";
 
     public static readonly String[] All =
     [
-        Dtcg, Css, Tailwind, Scss, Less, TypeScript, TokensStudio, DesignMd, ElementPlus, Registry, StardustJson, StardustSql, Bundle
+        Dtcg, Css, Tailwind, Scss, Less, TypeScript, TokensStudio, DesignMd, ElementPlus, Registry, StardustJson, StardustSql, Brief, AgentRules, Bundle
     ];
 
     /// <summary>尚未实现的目标一律不声明（能力面诚实）</summary>
@@ -57,6 +59,12 @@ public sealed class ExportService
         _projects = projects;
         _catalog = catalog;
     }
+
+    /// <summary>
+    /// brief / agent-rules 两种导出由 DesignBriefBuilder 提供（§E 同源：hex==Load 的 ColorHex、变量名==CssVarName）。
+    /// 由插件 Apply 装配时注入（避免构造循环：DesignBriefBuilder 依赖 ExportService 解析快照）。
+    /// </summary>
+    public DesignBriefBuilder? BriefBuilder { get; set; }
 
     /// <summary>
     /// 某主题的导出快照：共享层 + 该主题覆盖层，别名解析后带有效值。
@@ -136,9 +144,26 @@ public sealed class ExportService
             ExportFormats.Registry => Json("registry.json", ToRegistry(snap)),
             ExportFormats.StardustJson => Json("design-system.api.json", ToStardustIndex(snap)),
             ExportFormats.StardustSql => Text("design-system.data.sql", "application/sql", ToStardustSql(snap)),
+            ExportFormats.Brief => Brief(snap, projectId, themeCode, suffix),
+            ExportFormats.AgentRules => AgentRules(snap, projectId, themeCode),
             ExportFormats.Bundle => Bundle(projectId, themeCode),
             _ => throw new ArgumentException($"未知导出格式 {format}，可用：{String.Join(",", ExportFormats.All)}", nameof(format)),
         };
+    }
+
+    /// <summary>设计说明书（BRIEF.md）：同源要求见 <see cref="DesignBriefBuilder"/>（密度主题下无语义色则省略 colors 节，不抛错）。</summary>
+    ExportedFile Brief(Snapshot snap, Int64 projectId, String? themeCode, String suffix)
+    {
+        var builder = BriefBuilder ?? throw new ArgumentException("brief 导出未装配（DesignBriefBuilder 未注入），请用 REST 或工具取说明书");
+        var outcome = builder.Build(projectId, themeCode, null, 60000, DesignBriefBuilder.Markdown);
+        return Text($"BRIEF{suffix}.md", "text/markdown", outcome.Markdown ?? "");
+    }
+
+    /// <summary>接入规则（agent-rules.md，与主题无关）。</summary>
+    ExportedFile AgentRules(Snapshot snap, Int64 projectId, String? themeCode)
+    {
+        var builder = BriefBuilder ?? throw new ArgumentException("agent-rules 导出未装配（DesignBriefBuilder 未注入）");
+        return Text("agent-rules.md", "text/markdown", builder.BuildAgentRules(projectId, themeCode));
     }
 
     /// <summary>全套工件打包成 zip（一次交付给下游工程）</summary>
@@ -157,6 +182,17 @@ public sealed class ExportService
             ("brand/fonts.json", JsonBytes(BrandFonts(snap))),
             ("brand/screens.json", JsonBytes(BrandScreens(snap))),
         };
+
+        // 接入规则与设计说明书进包（§E5/§I：agent-rules 与主题无关；brief 按非密度主题逐份）
+        if (BriefBuilder != null)
+        {
+            files.Add(("agent-rules.md", Encoding.UTF8.GetBytes(BriefBuilder.BuildAgentRules(projectId, themeCode))));
+            foreach (var theme in snap.Themes.Where(t => t.ModeKind != ThemeModeKinds.Density))
+            {
+                var brief = BriefBuilder.Build(projectId, theme.Code, null, 60000, DesignBriefBuilder.Markdown);
+                files.Add(($"brief/BRIEF.{theme.Code}.md", Encoding.UTF8.GetBytes(brief.Markdown ?? "")));
+            }
+        }
 
         // 图形资产以独立 .svg 落进包里：下游要的是能直接引用的文件，不是一段藏在 JSON 里的字符串
         foreach (var a in snap.Assets.Where(a => !a.SvgBody.IsNullOrEmpty()))
@@ -363,7 +399,8 @@ public sealed class ExportService
 
     #region CSS / Tailwind / SCSS / LESS / TS
 
-    static String CssVarName(String path) => "--ds-" + path.Replace('.', '-');
+    /// <summary>令牌路径 → CSS 变量名（`--ds-` + 路径 `.`→`-`）；供 brief/reviewer/lookup 同源复用（不改行为）</summary>
+    public static String CssVarName(String path) => "--ds-" + path.Replace('.', '-');
 
     public String ToCss(Snapshot snap)
     {
@@ -482,7 +519,8 @@ public sealed class ExportService
         return sb.ToString();
     }
 
-    static Boolean ShouldSkipCss(Snap t) => t.Type is TokenTypes.Typography or TokenTypes.Transition or TokenTypes.Shadow
+    /// <summary>CSS 投影跳过的行：复合类型（Typography/Transition/Shadow）由专用渲染器出值，CubicBezier 空值跳过</summary>
+    public static Boolean ShouldSkipCss(Snap t) => t.Type is TokenTypes.Typography or TokenTypes.Transition or TokenTypes.Shadow
         ? false : t.Type == TokenTypes.CubicBezier && t.Value.IsNullOrEmpty();
 
     static String CssValue(Snap t)
@@ -967,7 +1005,8 @@ public sealed class ExportService
     /// 轴内按 <see cref="VariantAxes"/> 的档位序（字母序会把 `sm / md / lg` 排成 `lg / md / sm`，读起来像随机），
     /// 轴间按已知轴在前、其余字母序；表外的轴/值一律退回字母序。
     /// </summary>
-    static List<String> AxisSummary(IReadOnlyList<DesignComponentVariant> cells)
+    /// <summary>变体格子上的轴摘要（供 DESIGN.md / brief 复用；不改行为）</summary>
+    public static List<String> AxisSummary(IReadOnlyList<DesignComponentVariant> cells)
     {
         var byKey = new Dictionary<String, List<String>>(StringComparer.Ordinal);
         foreach (var cell in cells)
@@ -1106,8 +1145,8 @@ public sealed class ExportService
         }.ToJsonString(JsonOpts);
     }
 
-    /// <summary>`guidanceJson` 里的 anatomy 段（生成器写的是 `{ anatomy: [...], variants: [...] }`）</summary>
-    static String? AnatomyJson(String? guidanceJson)
+    /// <summary>`guidanceJson` 里的 anatomy 段（生成器写的是 `{ anatomy: [...], variants: [...] }`）；供 brief/reviewer 复用</summary>
+    public static String? AnatomyJson(String? guidanceJson)
     {
         if (guidanceJson.IsNullOrEmpty()) return null;
         try
@@ -1117,7 +1156,8 @@ public sealed class ExportService
         catch (JsonException) { return null; }   // 手改坏的 JSON 不许把整个导出带崩，按"没有"处理
     }
 
-    static List<String> ParseStringArray(String? json)
+    /// <summary>解析 JSON 字符串数组（供 brief/reviewer 复用；不改行为）</summary>
+    public static List<String> ParseStringArray(String? json)
     {
         if (json.IsNullOrEmpty()) return [];
         try
@@ -1471,6 +1511,8 @@ public sealed class ExportService
         sb.AppendLine("| `registry.json` | shadcn 风格条目清单 |");
         sb.AppendLine("| `stardust/` | 参考物兼容投影：index.json / data.sql / design-system.xml |");
         sb.AppendLine("| `brand/` | 品牌工件：图形资产逐文件 `.svg` + `fonts.json`（含许可证）+ `screens.json` |");
+        sb.AppendLine("| `agent-rules.md` | 可粘贴进目标项目 AGENTS.md / CLAUDE.md / .cursorrules 的接入规则 |");
+        sb.AppendLine("| `brief/BRIEF.<theme>.md` | 设计说明书（按非密度主题逐份；唯一真源声明 + 使用规则 + 令牌速查） |");
         sb.AppendLine();
         sb.AppendLine($"## 品牌工件计数（来自库里登记，不是模板占位）");
         sb.AppendLine();

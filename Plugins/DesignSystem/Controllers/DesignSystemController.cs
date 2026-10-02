@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using ForgeSelf.Api.Plugins.DesignSystem.Agent;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
 using ForgeSelf.Api.Plugins.DesignSystem.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -30,9 +31,16 @@ public class DesignSystemController : ControllerBase
     private readonly AuditEngine _auditEngine;
     private readonly ExportService _export;
     private readonly ReleaseService _releases;
+    private readonly GenerationService _generation;
+    private readonly AgentAccess _agentAccess;
+    private readonly DesignReviewService _review;
+    private readonly QuickCreateService _quickCreate;
+    private readonly DesignBriefBuilder _brief;
 
     public DesignSystemController(DesignProjectService projects, TokenRepository tokens, CatalogRepository catalog,
-        AuditRepository audits, AuditEngine auditEngine, ExportService export, ReleaseService releases)
+        AuditRepository audits, AuditEngine auditEngine, ExportService export, ReleaseService releases,
+        GenerationService generation, AgentAccess agentAccess, DesignReviewService review,
+        QuickCreateService quickCreate, DesignBriefBuilder brief)
     {
         _projects = projects;
         _tokens = tokens;
@@ -41,6 +49,11 @@ public class DesignSystemController : ControllerBase
         _auditEngine = auditEngine;
         _export = export;
         _releases = releases;
+        _generation = generation;
+        _agentAccess = agentAccess;
+        _review = review;
+        _quickCreate = quickCreate;
+        _brief = brief;
     }
 
     /// <summary>插件自描述：版本三元组 + 能力面清单。前端据 capabilities 对不支持项显式降级。</summary>
@@ -55,7 +68,8 @@ public class DesignSystemController : ControllerBase
         tiers = TokenTiers.All,
         tokenTypes = TokenTypes.All,
         lifecycles = TokenLifecycles.All,
-        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts" },
+        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts", "brief", "review", "presets", "quick-create", "agent" },
+        agentTools = DesignToolIndex.All.Select(t => t.Name).ToArray(),
         exportFormats = ExportFormats.All,
         // 导入面：格式清单与上限都由后端出，前端据此决定入口是否可用与怎么提示（不另抄一份数字）
         importFormats = ImportFormats.All,
@@ -339,11 +353,10 @@ public class DesignSystemController : ControllerBase
         RequireProject(id);
         return Guard(() =>
         {
-            var result = DesignGenerator.ApplyToProject(_tokens, _projects, id, request ?? new GenerationRequest(), overwrite);
-            // 组件层令牌要落成可浏览的组件规格 + 变体矩阵，否则"组件库"对刚生成的项目永远是 0 条
-            var seed = DesignGenerator.SeedComponentCatalog(_catalog, id, result);
-            var brand = DesignGenerator.SeedBrandCatalog(_catalog, id, result);
-            var summary = _auditEngine.Run(id);
+            var outcome = _generation.Run(id, request ?? new GenerationRequest(), overwrite);
+            var result = outcome.Result;
+            var seed = outcome.Components;
+            var brand = outcome.Brand;
             return new
             {
                 seed = result.Seed,
@@ -359,7 +372,7 @@ public class DesignSystemController : ControllerBase
                 notes = result.Notes,
                 skippedProtected = result.SkippedProtected,
                 conflicts = result.Conflicts,
-                audit = summary,
+                audit = outcome.Audit,
             };
         });
     }
@@ -424,6 +437,118 @@ public class DesignSystemController : ControllerBase
             formats = ExportFormats.All.Select(f => new { name = f, bundle = f == ExportFormats.Bundle }),
         });
     }
+
+    #endregion
+
+    #region Agent 接入（M1：设计系统对外部智能体的桥）
+
+    /// <summary>设计说明书（BRIEF）：REST 与 design_lookup export=brief 同源（同 DesignBriefBuilder）。</summary>
+    [HttpGet("projects/{id:long}/brief")]
+    public IActionResult Brief(Int64 id, [FromQuery] String? theme = null, [FromQuery] String? sections = null,
+        [FromQuery] Int32 maxChars = 60000, [FromQuery] String format = "markdown")
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var outcome = _brief.Build(id, theme, sections?.Split(',').Where(s => !s.IsNullOrWhiteSpace()).ToArray(),
+                Math.Clamp(maxChars, 2000, 60000), format);
+            return new
+            {
+                theme = outcome.Theme, contentHash = outcome.ContentHash, sections = outcome.Sections,
+                omitted = outcome.Omitted, truncated = outcome.Truncated, markdown = outcome.Markdown, notes = outcome.Notes,
+            };
+        });
+    }
+
+    /// <summary>设计审查（代码/样式反例检查）：REST 与 design_review 同源。</summary>
+    [HttpPost("projects/{id:long}/review")]
+    public IActionResult Review(Int64 id, [FromBody] ReviewRequest? body)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            _review.LoadIndex(id, body?.Theme, out var theme, out var notesList);
+            var note = notesList.FirstOrDefault();
+            var files = body?.Files?.Select(f => new ReviewInput(f.Path ?? "", f.Content ?? "", f.Language)).ToList() ?? [];
+            if (!body?.Code.IsNullOrEmpty() ?? true)
+                files.Add(new ReviewInput("input.css", body!.Code!, "css"));
+            var outcome = _review.Review(id, theme, files, body?.Strict ?? false, body?.MaxFindings ?? 50);
+            return new
+            {
+                error = outcome.Error, summary = outcome.Summary, findings = outcome.Findings,
+                skipped = outcome.Skipped, truncated = outcome.Truncated, notes = string.Join("\n", outcome.Notes),
+                theme, themeNote = note,
+            };
+        });
+    }
+
+    /// <summary>内置风格预设清单（design_presets action=list 的 REST 同源）。</summary>
+    [HttpGet("presets")]
+    public IActionResult ListPresets() => Data(StylePresets.All.Select(p => new
+    {
+        p.Id, p.Name, p.Tagline, p.Tones, p.Kinds, p.Industries, p.Keywords,
+    }));
+
+    /// <summary>按简述推荐预设（design_presets action=recommend 的 REST 同源）。</summary>
+    [HttpPost("presets/recommend")]
+    public IActionResult RecommendPreset([FromBody] PresetRecommendRequest? body)
+    {
+        var matches = PresetRecommender.Recommend(body?.Brief, body?.Kind, body?.Industry,
+            body?.Tone == null ? null : [body.Tone], body?.Density, body?.BrandColor, body?.Limit ?? 3);
+        return Data(matches.Select(m => new
+        {
+            m.Id, m.Name, m.Tagline, m.Score, m.Reasons, Request = m.Request,
+        }));
+    }
+
+    /// <summary>一键创建项目（design_create 的 REST 同源）。dryRun=false 落库。</summary>
+    [HttpPost("projects/quick-create")]
+    public IActionResult QuickCreate([FromBody] QuickCreateRequest? body)
+    {
+        var dryRun = body?.DryRun ?? false;
+        return Guard(() =>
+        {
+            _quickCreate.Create(
+                body?.Name ?? "", body?.Code, body?.Kind, body?.Description, body?.Preset,
+                body?.Request ?? new GenerationRequest(), !dryRun,
+                out var uiRoute, out var applied, out var error);
+            if (error != null) throw new ArgumentException(error);
+            return new
+            {
+                uiRoute, applied, dryRun,
+                project = applied?.Project == null ? null : new { applied.Project.Code, applied.Project.Name, applied.Project.Status },
+                warnings = applied?.Warnings,
+            };
+        });
+    }
+
+    /// <summary>写入开关（design_* 工具的写动作门禁）。</summary>
+    [HttpGet("agent-access")]
+    public IActionResult GetAgentAccess()
+    {
+        var (allow, source, corrupt, updatedAt) = _agentAccess.Get();
+        return Data(new { allowWrite = allow, source, corrupt, updatedAt });
+    }
+
+    [HttpPut("agent-access")]
+    public IActionResult SetAgentAccess([FromBody] AgentAccessPatch? body)
+    {
+        if (body == null || !body.Enabled.HasValue)
+            return BadRequest(ErrorBody("请提供 { enabled: true|false }"));
+        return Guard(() =>
+        {
+            _agentAccess.Set(body.Enabled.Value);
+            var (allow, source, corrupt, updatedAt) = _agentAccess.Get();
+            return new { allowWrite = allow, source, corrupt, updatedAt };
+        });
+    }
+
+    /// <summary>agent 工具清单（design_guide / meta.agentTools 同源，供外部枚举）。</summary>
+    [HttpGet("agent/tools")]
+    public IActionResult ListAgentTools() => Data(DesignToolIndex.All.Select(t => new
+    {
+        t.Name, t.Summary, ReadOnly = t.Kind == "read", Parameters = t.Schema,
+    }));
 
     #endregion
 
@@ -686,4 +811,53 @@ public sealed class ShadowLayerBatchInput
 {
     public String? Theme { get; set; }
     public List<ShadowLayerInput>? Layers { get; set; }
+}
+
+// ---- Agent 接入 REST 请求体（M1）----
+
+/// <summary>POST projects/{id}/review 输入</summary>
+public sealed class ReviewRequest
+{
+    public List<ReviewFileInput>? Files { get; set; }
+    public String? Code { get; set; }
+    public String? Theme { get; set; }
+    public Boolean Strict { get; set; }
+    public Int32 MaxFindings { get; set; } = 50;
+}
+
+public sealed class ReviewFileInput
+{
+    public String? Path { get; set; }
+    public String? Content { get; set; }
+    public String? Language { get; set; }
+}
+
+/// <summary>POST presets/recommend 输入</summary>
+public sealed class PresetRecommendRequest
+{
+    public String? Brief { get; set; }
+    public String? Kind { get; set; }
+    public String? Industry { get; set; }
+    public String? Tone { get; set; }
+    public String? Density { get; set; }
+    public String? BrandColor { get; set; }
+    public Int32 Limit { get; set; } = 3;
+}
+
+/// <summary>POST projects/quick-create 输入（dryRun=false 落库；与工具 design_create 的 apply 方向相反，见接口注释）</summary>
+public sealed class QuickCreateRequest
+{
+    public String? Name { get; set; }
+    public String? Code { get; set; }
+    public String? Kind { get; set; }
+    public String? Description { get; set; }
+    public String? Preset { get; set; }
+    public GenerationRequest? Request { get; set; }
+    public Boolean DryRun { get; set; }
+}
+
+/// <summary>PUT agent-access 输入</summary>
+public sealed class AgentAccessPatch
+{
+    public Boolean? Enabled { get; set; }
 }

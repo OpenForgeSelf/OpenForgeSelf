@@ -183,6 +183,33 @@ artifacts/publish|layout-root|layout/versions/<V>/ForgeSelf.exe
 
 结论：预览版 tag 下「tag / versions 目录 / zip 名 / Release 页」同串，exe 文件版本 = 该串的数字前半段（`-preview` 后缀无法进入 `AssemblyFileVersion`）；`ParseSemVer` 能解析带后缀串并把 `preview` 作为 prerelease 参与比较 → 更新通道按频道过滤（`channel != stable` 才收 prerelease，`UpdateChecker.cs:336/L351`）符合预期（Verified：解析/比较逻辑由单测 `ParseSemVer_*` / `CompareSemVer_*` 覆盖）。
 
+### git / push / tag / CI（输入12）
+
+```text
+git add（仅本次 19 个文件）→ 预提交 hook: PASS: 全部 PILOT 工件链齐全（00-07 八件 + 关键节）
+commit  c80149b  feat(release): 版本号规则改为「三段号 + 10 位时间码」，发行线升到 2.3（19 files changed, 1189 insertions(+), 49 deletions(-)）
+git push github main           → 远端 refs/heads/main = c80149b（含既有未推送 8c85ea4）
+git tag -a v2.3.0.2610022023-preview -m "ForgeSelf v2.3.0.2610022023-preview"  → 指向 c80149b
+git push github <tag>          → 远端 refs/tags/v2.3.0.2610022023-preview 存在（tag obj e3f70b6 → commit c80149b）
+```
+
+CI（`gh run watch 37006395435`）：**失败**，卡在 `release-local.ps1` 的前端构建步：
+
+```text
+> npm run clean && vue-tsc -b && vite build
+##[error]e2e/plugins/design-system/design-system-agent.spec.ts(177,5): error TS2322: Type 'string | null' is not assignable to type 'string'.
+     pnpm build (host-web) failed with exit code 2
+```
+
+**归属（Verified，非本任务引入）**：
+
+- 报错文件 `ForgeSelf.Web/e2e/plugins/design-system/design-system-agent.spec.ts` 本次提交**从未触碰**（`git status` 对它是 clean、`git diff --cached` 无它）；
+- 该文件最后一次修改 = `5fa914c feat(ds) DesignSystem v2.8.0 Agent 工具层（M1）…`，而 `5fa914c` **正是本次推送前的远端 main**（`git merge-base --is-ancestor 5fa914c 8c85ea4^` → True）⇒ 该类型错误**在本次推送前就已在远端**，任何 tag 触发的 release 都会在此步失败；
+- 本任务零前端改动（本轮把 `release-local.ps1` 的版本注入改到环境变量后，`-SkipFrontend` 与含前端两条路径的差异只在前端构建本身）；
+- 报错位置：spec 第 177 行 `surfaceBgHex = surface!.colorHex;`（`string | null` → `string`）。
+
+结论：预览版 Release **未发布成功**（CI 在打包步失败，`Create GitHub Release` 步被跳过）；tag 已在远端但无对应 Release（对更新端无影响：`UpdateChecker` 读 releases API，无 release 即不可见）。解封需先修该类型错误（属 DesignSystem M1/M2 工作范围，本任务不擅自改他人文件）。
+
 ## E2E
 
 Result: N/A（依据：本任务未触碰 `e2e/**` 共享基建（`global-setup.ts` / `playwright.*.config.ts` / `fixtures/**`），按 AGENTS §5.6 未触发「深档全量 e2e」；更新链的端到端行为由既有 e2e 用例 `e2e/update-live-apply.spec.ts:91` 的断言约束，该断言用 `startsWith(targetTag.replace(/^v/,''))`，新规则串仍成立 → Inferred）
@@ -232,5 +259,5 @@ N/A（本次无 UI 变更：设置页「当前版本」经 `/api/update/status` 
 
 ## Unresolved Issues
 
-- **未提交 git / 未打 tag / 未生成 GitHub Release**：按用户偏好与 AGENTS 约束，提交与推送须用户明确指示；当前 HEAD = `8c85ea4`，工作树内含并行在飞任务（DesignSystem M2）改动，提交时须排除。
-- 全量后端测试与前端门禁：见本文 Build/Unit Test/Static Analysis 的 PENDING 项（本次运行后补记）。
+- **预览版 Release 未发布（CI 红，非本任务引入）**：tag `v2.3.0.2610022023-preview` 已在远端，但 CI（run 37006395435）卡在 `vue-tsc -b`：`e2e/plugins/design-system/design-system-agent.spec.ts(177,5) TS2322`，该文件由既有提交 `5fa914c`（推送前的远端 main）引入 → 解封需 DesignSystem 侧修该类型错误，之后打**新的时间码 tag** 重试（同串 tag 不复用）。详见上文「git / push / tag / CI」。
+- 8 条 `UpdateServiceTests.ApplyUpdateAsync_*` 为环境类既有红（已用旧规则版本串实验证明与本改动无因果），归属未定 → 建议记 TODO 交测试 owner。

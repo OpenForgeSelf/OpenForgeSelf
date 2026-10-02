@@ -208,7 +208,15 @@ CI（`gh run watch 37006395435`）：**失败**，卡在 `release-local.ps1` 的
 - 本任务零前端改动（本轮把 `release-local.ps1` 的版本注入改到环境变量后，`-SkipFrontend` 与含前端两条路径的差异只在前端构建本身）；
 - 报错位置：spec 第 177 行 `surfaceBgHex = surface!.colorHex;`（`string | null` → `string`）。
 
-结论：预览版 Release **未发布成功**（CI 在打包步失败，`Create GitHub Release` 步被跳过）；tag 已在远端但无对应 Release（对更新端无影响：`UpdateChecker` 读 releases API，无 release 即不可见）。解封需先修该类型错误（属 DesignSystem M1/M2 工作范围，本任务不擅自改他人文件）。
+结论：预览版 Release **未发布成功**（CI 在打包步失败，`Create GitHub Release` 步被跳过）；tag 已在远端但无对应 Release（对更新端无影响：`UpdateChecker` 读 releases API，无 release 即不可见）。
+
+### 解封（用户授权「授权我修这一行」后）
+
+- 修复：`design-system-agent.spec.ts:177` `surface!.colorHex` → `surface!.colorHex ?? ''`（声明处为 `let surfaceBgHex = ''`，第 176 行已断言 truthy，语义不变）→ commit `31ef0f9` 推送。
+- 本地验证口径修正：上一次本地发布链用了 `-SkipFrontend`（**恰好跳过 CI 失败的前端段**）⇒ 复现 CI 必须同参数。改跑**含前端**的完整链 `release-local.ps1 -Version 2.3.0.2610022037-preview`：frontend host web 147.3s + plugin webs 235.5s + host publish 136.1s + package 全绿，`ALL DONE in 583s`、`WRAPPER-EXIT=0`；exe FileVersion=`2.3.0.2610022037`，`versions/current`/zip/notes = `2.3.0.2610022037-preview`；`pnpm run check` → 0 error（81 存量 warning）。
+- 重打 tag：`v2.3.0.2610022049-preview`（指向 `31ef0f9`）→ CI run 37009025753 **成功**（`release in 3m54s`，Build + package ✓ / Create GitHub Release ✓）。
+- 发布结果（`gh release view`）：`isPrerelease=true`、`isDraft=false`，资产 `OpenForgeSelf-2.3.0.2610022049-preview-win-x64.zip`（103.6 MB）+ `SHA256SUMS.txt`；URL `https://github.com/OpenForgeSelf/OpenForgeSelf/releases/tag/v2.3.0.2610022049-preview`（来源等级：Verified）。
+- 首次失败 tag `v2.3.0.2610022023-preview` 仍在远端（无对应 Release，未被更新端使用；如需清理可 `git push github :refs/tags/...`）。
 
 ## E2E
 
@@ -259,5 +267,5 @@ N/A（本次无 UI 变更：设置页「当前版本」经 `/api/update/status` 
 
 ## Unresolved Issues
 
-- **预览版 Release 未发布（CI 红，非本任务引入）**：tag `v2.3.0.2610022023-preview` 已在远端，但 CI（run 37006395435）卡在 `vue-tsc -b`：`e2e/plugins/design-system/design-system-agent.spec.ts(177,5) TS2322`，该文件由既有提交 `5fa914c`（推送前的远端 main）引入 → 解封需 DesignSystem 侧修该类型错误，之后打**新的时间码 tag** 重试（同串 tag 不复用）。详见上文「git / push / tag / CI」。
+- ~~预览版 Release 未发布（CI 红，非本任务引入）~~ **已解封（2026-10-02，用户授权修那一行）**：修复 `31ef0f9` + 新 tag `v2.3.0.2610022049-preview` → CI run 37009025753 成功、Release 已发布且 `isPrerelease=true`。遗留：首次失败 tag `v2.3.0.2610022023-preview` 仍在远端（无 Release，未被更新端使用），如需清理须单独授权。
 - 8 条 `UpdateServiceTests.ApplyUpdateAsync_*` 为环境类既有红（已用旧规则版本串实验证明与本改动无因果），归属未定 → 建议记 TODO 交测试 owner。

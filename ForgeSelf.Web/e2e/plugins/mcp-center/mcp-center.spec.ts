@@ -12,7 +12,7 @@ import { getRealApiKey } from '../../helpers/real-auth'
  * 统一 e2e（插件层）：mcp-center（034 v2.1.0，前身 mcp-gateway + 宿主 mcp-tools 合并）。
  * 真实后端，零 mock。覆盖四条链路：
  *  1. 宿主侧：GET /api/plugin 返回 mcp-center（插件已发现并加载，旧 mcp-gateway 不再存在）
- *  2. MCP 服务端端口（FORGESELF_MCP_GATEWAY_PORT，默认 18889）：
+ *  2. MCP 服务端端口（FORGESELF_MCP_GATEWAY_PORT，生产默认 18890，e2e 走 worktree 派生 19000+）：
  *     - GET /health 探活（tools=1）
  *     - initialize → serverInfo.name = ForgeSelf McpCenter
  *     - tools/list → 恒 1 个工具 universal_tool（整体对外只有一个工具）
@@ -34,7 +34,7 @@ const PLUGIN_MANIFEST = JSON.parse(
 // 兼容旧 spec 的小写读取习惯：插件清单用 PascalCase（Version），后端 /api/plugin DTO 序列化为小写（version）
 const PLUGIN_VERSION = PLUGIN_MANIFEST.Version
 
-const MCP_PORT = Number(process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18889')
+const MCP_PORT = Number(process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18891')
 const MCP_BASE = `http://127.0.0.1:${MCP_PORT}`
 const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 
@@ -64,7 +64,7 @@ function errorOf(resp: unknown): { code: number; message: string } {
 }
 
 test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API + 自带界面（真实后端，零 mock）', () => {
-  // 3 个用例共享同一 MCP 端口（18889），且首用例会临时改端口→改回：
+  // 3 个用例共享同一 MCP 端口（FORGESELF_MCP_GATEWAY_PORT 覆盖，e2e 默认 19000+），首用例临时改端口→改回：
   // 必须串行执行，否则并行用例会在端口切换窗口内互相踩（ECONNREFUSED）。
   test.describe.configure({ mode: 'serial' })
 

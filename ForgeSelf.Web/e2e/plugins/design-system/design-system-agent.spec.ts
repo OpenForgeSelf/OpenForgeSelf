@@ -15,7 +15,7 @@ import { getRealApiKey } from '../../helpers/real-auth'
  *  6. PUT agent-access 关写 → design_edit 被拒 → 收尾改回 → design_edit 恢复可写
  * 网关直连写法沿用 mcp-center.spec.ts（Streamable HTTP POST /mcp）。
  */
-const MCP_PORT = Number(process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18889')
+const MCP_PORT = Number(process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18891')
 const MCP_BASE = `http://127.0.0.1:${MCP_PORT}`
 const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
 const AUTH_HEADERS = { Authorization: `Bearer ${getRealApiKey()}` }

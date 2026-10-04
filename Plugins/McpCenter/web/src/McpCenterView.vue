@@ -154,7 +154,7 @@ function dismissTestResult(): void {
 const gatewayConfig = ref<McpCenterConfigDto | null>(null)
 const configLoading = ref(false)
 const savingConfig = ref(false)
-const portInput = ref<number>(18889)
+const portInput = ref<number>(18890)
 const listenHostInput = ref('127.0.0.1')
 const tokenInput = ref('')
 const clearTokenFlag = ref(false)

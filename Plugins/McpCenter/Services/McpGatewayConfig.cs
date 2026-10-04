@@ -11,7 +11,7 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 public sealed class McpGatewayConfig
 {
     public const string DefaultHost = "127.0.0.1";
-    public const int DefaultPort = 18889;
+    public const int DefaultPort = 18890;
     public const string DefaultToken = "";
 
     public const string EnvPort = "FORGESELF_MCP_GATEWAY_PORT";
@@ -37,7 +37,7 @@ public sealed class McpGatewayConfig
             if (File.Exists(configPath))
             {
                 // 大小写不敏感：config.json 属用户可手改文件，小写/驼峰键都应被识别（实测踩坑：手写
-                // {"port": ...} 因默认大小写敏感被忽略 → 绑定回退默认端口 18889）。
+                // {"port": ...} 因默认大小写敏感被忽略 → 绑定回退默认端口 18890）。
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var fromFile = JsonSerializer.Deserialize<McpGatewayConfig>(File.ReadAllText(configPath), options);
                 if (fromFile != null)

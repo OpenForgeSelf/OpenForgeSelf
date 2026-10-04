@@ -45,9 +45,9 @@ public class McpCenterRuntimeTests
 
         Assert.False(info.HasToken);
         Assert.Equal("", info.TokenMasked);
-        Assert.Equal(18889, info.Port); // 默认
+        Assert.Equal(18890, info.Port); // 默认
         Assert.Equal("127.0.0.1", info.ListenHost);
-        Assert.Equal("http://127.0.0.1:18889", info.ListenUrl);
+        Assert.Equal("http://127.0.0.1:18890", info.ListenUrl);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class McpCenterRuntimeTests
             () => runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto { Port = 80 })).Result;
 
         Assert.Contains("1024-65535", ex.Message);
-        Assert.Equal(18889, config.Port); // 回滚到原值
+        Assert.Equal(18890, config.Port); // 回滚到原值
         Assert.Equal("127.0.0.1", config.ListenHost);
     }
 

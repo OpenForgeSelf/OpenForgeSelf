@@ -1,4 +1,4 @@
-﻿# 034 - MCP 中心（mcp-center 插件）
+# 034 - MCP 中心（mcp-center 插件）
 
 > 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.2.0**。
 > 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
@@ -14,7 +14,7 @@
 
 | 能力 | 说明 | 入口 |
 |---|---|---|
-| ① 对外 MCP 服务端 | 独立端口 JSON-RPC 2.0，仅暴露 `universal_tool`，转发宿主全部工具 | MCP 端口（生产 `18890`，默认 `18889`） |
+| ① 对外 MCP 服务端 | 独立端口 JSON-RPC 2.0，仅暴露 `universal_tool`，转发宿主全部工具 | MCP 端口 `18890`（唯一默认；用户可覆盖；e2e 走 worktree 派生的 19000–19899） |
 | ② 外部 MCP 服务器/工具管理 | 预置 4 台服务器（ForgeSelf Local/Filesystem/GitHub API/Database，12 个预置工具）+ 工具启用开关 + 测试 | `api/mcp/servers`、`api/mcp/servers/{id}/tools`、`/mcp-center` 工具管理 tab |
 | ③ 网关配置 | 查看监听地址/端口/令牌状态（脱敏）、修改并热重启 | `api/mcp-center/config`（GET/PUT）、`/mcp-center` 网关配置 tab |
 | ④ 外部 MCP 客户端（v2.1.0） | 按标准 MCP 协议连接外部 MCP 服务器（stdio / Streamable HTTP / HTTP+SSE 三传输），其工具经 `universal_tool` 的 `mcp.<服务器id>.<工具名>` 命名空间统一转发 | `api/mcp-center/servers`（GET/POST/PUT/DELETE + `{id}/connect|disconnect|tools|test`）、`/mcp-center` 网关配置 tab「外部 MCP 服务器」区块 |
@@ -93,15 +93,15 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 
 | 项 | 环境变量 | config.json 键 | 默认值 |
 |---|---|---|---|
-| 端口 | `FORGESELF_MCP_GATEWAY_PORT` | `port` / `Port`（大小写不敏感） | `18889` |
+| 端口 | `FORGESELF_MCP_GATEWAY_PORT` | `port` / `Port`（大小写不敏感） | `18890` |
 | 监听地址 | `FORGESELF_MCP_GATEWAY_HOST` | `listenHost` | `127.0.0.1` |
 | Bearer 令牌 | `FORGESELF_MCP_GATEWAY_TOKEN` | `token` | 空（不鉴权） |
 
-> **兼容决策（v2.0.0 更名时保留）**：环境变量前缀**沿用旧名** `FORGESELF_MCP_GATEWAY_*`，不改为 `MCP_CENTER_*`——兼容既有运维/e2e（`playwright.config.ts` 强制 18889 的 env 写法）与已写死该前缀的部署脚本；类名亦保留（`McpGatewayConfig/McpGatewayServer/...`），仅 namespace/日志前缀/`serverInfo.name` 改。config.json 数据目录随更名迁移到 `{宿主数据根}/plugins/mcp-center/`（旧 `mcp-gateway/` 目录保留未删）。
+> **兼容决策（v2.0.0 更名时保留）**：环境变量前缀**沿用旧名** `FORGESELF_MCP_GATEWAY_*`，不改为 `MCP_CENTER_*`——兼容既有运维/e2e（`playwright.config.ts` 走 env 覆盖 e2e 端口的写法）与已写死该前缀的部署脚本；类名亦保留（`McpGatewayConfig/McpGatewayServer/...`），仅 namespace/日志前缀/`serverInfo.name` 改。config.json 数据目录随更名迁移到 `{宿主数据根}/plugins/mcp-center/`（旧 `mcp-gateway/` 目录保留未删）。
 
 - 插件数据根：`{宿主数据根}/plugins/mcp-center/`（publish 实例 = `~/.forgeself/plugins/mcp-center/`）。
 - config.json 缺失时自动生成默认值（幂等）。
-- **端口占用约定**：e2e 宿主固定 `18889`（`playwright.config.ts` 强制环境变量）；51888 常驻实例用 `18890`（`~/.forgeself/plugins/mcp-center/config.json` 已固化 `{"port":18890,"listenHost":"127.0.0.1","token":""}`），互不冲突。
+- **端口占用约定**（2026-10-04 统一）：**默认端口 = `18890`**（`McpGatewayConfig.DefaultPort`，用户机 `config.json` 未显式设定时即生效）；生产实例、DSH 侧配置全部对齐 `18890`。e2e 走 `playwright.config.ts` 按 worktree 哈希派生的 `19000–19899` 独立段（`FORGESELF_MCP_GATEWAY_PORT` 环境变量），显式避开 `18890`；3 个 spec（`mcp-center.spec.ts` / `design-system-agent.spec.ts` / `sems.spec.ts`）的 env 兜底值为 `18891`（`?? '18891'`），仅在有人绕过 `playwright.config.ts` 直跑单 spec 且未设 env 时才会用到，同样避开生产 `18890`。新机器开箱即为 `18890`，无迁移负担。
 - 配置 API `PUT /api/mcp-center/config`：校验端口 1024-65535 → 写 config.json → 停旧服务器 → 启动新服务器热重启；失败回滚旧配置。token 传**空串 = 清除鉴权**，**不传 = 保留**原令牌。
 
 ## MCP 协议契约
@@ -258,7 +258,7 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - **stdio 帧必须字节级读取**：`ReadLine` 按 char 读中文/多字节会错位，须底层 Stream 字节读再 UTF-8 解码（`McpFrameTests` 覆盖粘包/UTF-8 长度）。
 - **stdio Args 禁手工加引号**：含空格路径手写引号会被当字面量，`ArgumentList` 自动转义（集成测试传裸路径）。
 - **mock SSE 标准行为**：POST 202 空体 + 响应经 SSE 流回传；客户端兼容「POST body 直接回 SSE」变体。
-- **e2e fullyParallel 端口竞态（本次实证）**：`playwright.config.ts` `fullyParallel:true` 使同文件 3 个用例并行；首用例 PUT 改端口→改回期间，并行用例连 18889 得 `ECONNREFUSED`。**修法**：共享 MCP 端口的用例组必须 `test.describe.configure({ mode: 'serial' })`，且改回后轮询 `/health` 就绪再继续。
+- **e2e fullyParallel 端口竞态（历史实证）**：`playwright.config.ts` `fullyParallel:true` 使同文件 3 个用例并行；首用例 PUT 改端口→改回期间，并行用例连**同一 MCP 端口**（e2e worktree 派生物理端口 19000+ 段）得 `ECONNREFUSED`。**修法**：共享 MCP 端口的用例组必须 `test.describe.configure({ mode: 'serial' })`，且改回后轮询 `/health` 就绪再继续。
 - **宿主 shim 缓存戳必须 bump（本次实证）**：`ForgeSelf.Web/index.html` import map 的 `element-plus.js?v=2` 是浏览器缓存键；改了 `public/shared/element-plus.js` 但**不 bump v=** → 生产浏览器仍加载旧 shim → 插件报「The requested module 'element-plus' does not provide an export named 'ElSelect'」。**修法**：改 shim 内容同步 bump index.html 对应 `?v=N`（本次 2→4）+ 重建前端 + 覆盖 publish/wwwroot + **删除 publish/wwwroot 下旧 `.br`/`.gz` 预压缩文件**（StaticFiles 优先回旧压缩内容，删后回退未压缩新文件）。
 - **错误消息 JSON 转义**：转发器错误文本以 JSON 序列化（中文 `\uXXXX` 转义），e2e 断言错误提示须 `JSON.parse` 后断言，不能直接 `toContain('未连接')`。
 - **host http_get 不证明浏览器模块加载**：`http_get` 拿到的磁盘内容 ≠ 浏览器 module cache 命中的内容（带 `?v=` 的 URL 按缓存键整体缓存）。排查此类问题先看 import map 缓存键。

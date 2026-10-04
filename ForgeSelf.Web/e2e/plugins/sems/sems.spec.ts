@@ -385,7 +385,7 @@ test.describe('统一 e2e（插件层）：sems 工具经 McpCenter 对外可达
   /** 网关端口由 McpCenter 运行时配置决定（mcp-center e2e 会临时改端口），故按 config 现值解析并等 /health 就绪。 */
   async function resolveMcpBase(): Promise<string> {
     const cfg = await api<{ data?: { listenUrl?: string } }>('/api/mcp-center/config')
-    const base = cfg?.data?.listenUrl ?? `http://127.0.0.1:${process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18889'}`
+    const base = cfg?.data?.listenUrl ?? `http://127.0.0.1:${process.env.FORGESELF_MCP_GATEWAY_PORT ?? '18891'}`
     const deadline = Date.now() + 60_000
     while (Date.now() < deadline) {
       try {

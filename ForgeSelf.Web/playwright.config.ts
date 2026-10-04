@@ -32,9 +32,9 @@ process.env.E2E_BACKEND_PORT = String(BACKEND_PORT)
 process.env.E2E_BACKEND_URL ??= `http://localhost:${BACKEND_PORT}`
 process.env.E2E_FRONTEND_URL ??= `http://localhost:${FRONTEND_PORT}`
 
-// MCP 中心（034 v2.0.0）e2e：为 e2e 宿主分配独立 MCP 端口，避免与常驻实例（51888 走 config.json 端口 18890）
-// 的默认端口 18889 冲突。环境变量名保留 v1.0.0 旧名 FORGESELF_MCP_GATEWAY_PORT（兼容决策）。
-// 多 worktree 并行会互抢固定 18889 → 默认改按 worktree 哈希派生（19000-19899，避开 18889/18890 段）。
+// MCP 中心（034 v2.0.0，2026-10-04 端口统一）：为 e2e 宿主分配独立 MCP 端口，避免与常驻生产
+// 实例（默认 18890）冲突。环境变量名保留 v1.0.0 旧名 FORGESELF_MCP_GATEWAY_PORT（兼容决策）。
+// 多 worktree 并行会互抢生产 18890 → 按 worktree 哈希派生 19000-19899（显式避开 18890 段）。
 const wtHash = parseInt(worktreeTag(__dirname).slice(3), 16)
 process.env.FORGESELF_MCP_GATEWAY_PORT ??= String(19000 + (wtHash % 900))
 

@@ -22,6 +22,8 @@ import { getRealApiKey } from '../../helpers/real-auth'
  *  4. 外部 MCP 服务器接入（v2.1.0）：stdio / Streamable HTTP / HTTP+SSE 三传输配置→连接→工具→
  *     universal_tool 的 mcp.<服务器id>.<工具名> 转发（真连 node mock 服务器，零 mock 断言）
  *  5. 插件自带界面 /mcp-center：标题 + 版本徽标 + 服务器列表 + 工具表格 + 网关配置 tab（截图读图）
+ *  6. 地址展示（v2.2.1 / PILOT-052）：界面展示与复制的必须是**可直连的端点** `listenUrl + /mcp`
+ *     （含反向腿：根地址 404 ⇒ 少了 /mcp 就连不上，这是"地址必须带路径"的事实依据）
  */
 
 const PLUGIN_MANIFEST = JSON.parse(
@@ -224,8 +226,42 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     await expect(page.getByRole('heading', { name: 'MCP 中心' })).toBeVisible()
     await expect(page.locator('.version-badge')).toContainText(`v${PLUGIN_VERSION}`)
 
-    // 网关地址 chip 显示监听地址
-    await expect(page.locator('.gateway-address-chip')).toContainText('127.0.0.1')
+    // 地址展示（v2.2.1 / PILOT-052）：界面给出的必须是**可直连的端点**（listenUrl + /mcp），
+    // 不再是裸 host:port —— 根路径 404，照裸地址填客户端必然连不上（2026-09-27 输入16 的欠账）。
+    const cfgUiRes = await fetch(`${BACKEND_URL}/api/mcp-center/config`, { headers: AUTH_HEADERS })
+    expect(cfgUiRes.ok, `GET /api/mcp-center/config 应成功（HTTP ${cfgUiRes.status}）`).toBeTruthy()
+    const cfgData = ((await cfgUiRes.json()) as {
+      data?: { listenUrl?: string; listenHost?: string; port?: number }
+    }).data
+    const listenUrl = (cfgData?.listenUrl ?? '').trim().replace(/\/+$/, '')
+    expect(listenUrl, 'config.listenUrl 应有值（网关运行中）').not.toBe('')
+    const expectedEndpoint = `${listenUrl}/mcp`
+
+    await expect(page.locator('.gateway-address-chip')).toHaveText(expectedEndpoint)
+    expect(
+      await page.locator('.gateway-address-chip').getAttribute('title'),
+      'chip 的 title 也应是端点地址（悬停同样不误导）',
+    ).toBe(expectedEndpoint)
+
+    // 反向腿 + 正向腿：证明"少一段 /mcp 就连不上、带上就能连"
+    /** 对任意地址发一次 JSON-RPC（同一份请求，仅换地址）。 */
+    async function postRpc(url: string): Promise<Response> {
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 99, method: 'tools/list', params: {} }),
+      })
+    }
+    const rootRes = await postRpc(`${listenUrl}/`)
+    expect(rootRes.status, '根地址（缺少 /mcp）不是 MCP 端点 —— 界面不写路径必然误导').toBe(404)
+    const endpointRes = await postRpc(expectedEndpoint)
+    expect(endpointRes.status, '界面给出的端点地址必须可直接调用').toBe(200)
+    const endpointBody = (await endpointRes.json()) as { result?: { tools?: { name: string }[] } }
+    expect(endpointBody.result?.tools?.[0]?.name).toBe('universal_tool')
+    console.log(
+      `\n[evidence] 地址展示：config.listenUrl=${listenUrl} → 界面展示=${expectedEndpoint}；` +
+        `根地址 ${rootRes.status} / 端点 ${endpointRes.status}（tools[0]=${endpointBody.result?.tools?.[0]?.name}）\n`,
+    )
 
     // 服务器列表（预置 4 台）
     await expect(page.locator('.server-item')).toHaveCount(4)
@@ -238,6 +274,13 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     await page.getByRole('tab', { name: '网关配置' }).click()
     await expect(page.locator('.gateway-status-cards')).toBeVisible()
     await expect(page.locator('.status-card')).toHaveCount(3)
+
+    // 「MCP 服务地址」卡（v2.2.1）：与 chip 同源端点 + 一行 /mcp 说明；运行状态卡仍暴露真实绑定地址
+    await expect(page.locator('[data-mcp-url]')).toHaveText(expectedEndpoint)
+    await expect(page.locator('[data-mcp-url]').locator('xpath=following-sibling::div[1]')).toContainText('/mcp')
+    await expect(page.locator('.status-card').nth(1).locator('.card-sub')).toContainText(
+      `监听 ${cfgData?.listenHost}:${cfgData?.port}`,
+    )
     await expect(page.getByRole('heading', { name: '修改网关配置' })).toBeVisible()
     await expect(page.locator('.port-input')).toBeVisible()
 

@@ -122,8 +122,8 @@ PluginController 鉴权后，前端必须走 `authFetch`（src/services/authFetc
   一律走打 tag 自动发布（或本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源），宿主由 update-agent 自更新。
   旧教训（2026-09-24）：`build.ps1` 覆盖 publish/ 时运行中宿主锁住 `ForgeSelf.dll` 被静默跳过、脚本仍报成功；
   这条在 tag 发布路径下由 CI 全量重建天然规避。
-- **PowerShell 相关**：本环境 `pwsh` 是 `...\WindowsApps\pwsh.exe` 残桩（静默不执行），可用的是 **PS 5.1**；
-  且 PowerShell 工具可能**不回显 stdout** —— 跑脚本时务必 `*> <log>` 重定向后读日志，
+- **PowerShell 相关（2026-10-05 实测更正，旧文已作废）**：本机 `pwsh` 可用且为 **7.6.6**；发布链**必须**用 `pwsh`（`AGENTS.md` §2.3 / `agent-workflow.md` §B6：5.1 按 GBK 写重定向日志、从 Node spawn 时没有 `Cert:` 提供程序致签名必失败）。旧文「本环境 `pwsh` 是 `...\WindowsApps\pwsh.exe` 残桩（静默不执行），可用的是 PS 5.1」**与今天实测相反，不要再据它行事**。
+  另：PowerShell 工具可能**不回显 stdout**（2026-10-05 再现）—— 跑脚本时务必 `*> <log>` 重定向后读日志，
   否则会误判"没跑"而重复执行（曾因此重跑发布脚本，实际第一次已成功）。
   ⚠ 但在 **git-bash** 里调 PS 脚本时**不要用 `*>`**：`*` 会被 bash 通配展开成当前目录文件名、把多余参数喂给 PS
   （2026-09-29 实测：`-Configuration` 收到 `"AGENTS.md"` 触发 ValidateSet 报错）→ 用 `> <log> 2>&1`。

@@ -160,6 +160,17 @@ const tokenInput = ref('')
 const clearTokenFlag = ref(false)
 const configCopyHint = ref(false)
 
+/**
+ * MCP 端点地址（客户端真正要填的地址）：由后端真源 `listenUrl` 去掉尾部斜杠后补 `/mcp`。
+ * 后端 `ListenUrl` 是 Kestrel 的**绑定串**（`McpGatewayServer` 的 `UseUrls`），不能在后端加路径，
+ * 故端点一律在此派生；算法与设计系统插件 `delivery/snippets.ts` 的 `mcpEndpoint()` 同构。
+ * 地址为空（未运行 / 未配置）时回空串——宁可不给，也不编造一个连不上的地址。
+ */
+const mcpEndpointUrl = computed(() => {
+  const base = (gatewayConfig.value?.listenUrl ?? '').trim().replace(/\/+$/, '')
+  return base ? `${base}/mcp` : ''
+})
+
 async function loadGatewayConfig(): Promise<void> {
   configLoading.value = true
   try {
@@ -178,8 +189,8 @@ async function loadGatewayConfig(): Promise<void> {
   }
 }
 
-async function copyListenUrl(): Promise<void> {
-  const url = gatewayConfig.value?.listenUrl
+async function copyMcpUrl(): Promise<void> {
+  const url = mcpEndpointUrl.value
   if (!url) return
   try {
     await navigator.clipboard.writeText(url)
@@ -549,8 +560,8 @@ onMounted(() => {
         <div class="header-left">
           <h1 class="page-title">MCP 中心</h1>
           <span v-if="version" class="version-badge">v{{ version }}</span>
-          <span v-if="gatewayConfig" class="gateway-address-chip" :title="gatewayConfig.listenUrl">
-            {{ gatewayConfig.listenUrl }}
+          <span v-if="gatewayConfig && mcpEndpointUrl" class="gateway-address-chip" :title="mcpEndpointUrl">
+            {{ mcpEndpointUrl }}
           </span>
         </div>
         <div class="header-right">
@@ -649,12 +660,15 @@ onMounted(() => {
               <div v-loading="configLoading" class="gateway-status-cards">
                 <div class="status-card">
                   <div class="card-label">MCP 服务地址</div>
-                  <div class="card-value mono">
-                    {{ gatewayConfig?.listenUrl ?? '加载中...' }}
+                  <div class="card-value mono" data-mcp-url>
+                    {{ gatewayConfig ? (mcpEndpointUrl || '（未运行，暂无地址）') : '加载中...' }}
+                  </div>
+                  <div class="card-sub">
+                    客户端须使用 /mcp 路径（根路径 404）
                   </div>
                   <button
-                    class="btn-copy" :disabled="!gatewayConfig"
-                    @click="copyListenUrl"
+                    class="btn-copy" :disabled="!mcpEndpointUrl"
+                    @click="copyMcpUrl"
                   >
                     {{ configCopyHint ? '已复制 ✓' : '复制地址' }}
                   </button>

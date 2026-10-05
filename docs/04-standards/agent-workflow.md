@@ -497,6 +497,10 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 补丁：未跟踪文件的受控复现还原验证改用**内容校验**——① 变异标记 grep 计数 = 0；② 被变异的原始行在位（行号+内容双核）。B6 复验已按此执行（ReactLoopAgent 红轮还原验证）。
 - 该坑提示：受控复现尽量对**已跟踪**文件做变异；确需变异新文件时，红轮跑完先 `git add -N`（intent-to-add）再验证 diff 亦可。
 
+### 本机跑 e2e / 测试前先排环境（2026-10-05 PILOT-052 实证，两类「假红」）
+- **Playwright webServer 恒 120s 超时 → 先查 `HTTP_PROXY`**：本机环境注入 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而**不设 `NO_PROXY`** 时，Playwright 对 `http://localhost:<port>` 的可用性探测走代理 → **恒返回 502** → 永远等不到"可用"，报 `Error: Timed out waiting 120000ms from config.webServer.`。此时 vite 其实早已 ready（`[WebServer] VITE v6.4.3 ready ... ➜ Local: http://localhost:7002/`），默认 reporter 只显示"超时"，极易被误判成前端构建/依赖问题（本轮为此白跑两轮回合）。定位手法：`$env:DEBUG='pw:webserver'` 再跑一次，日志里 `pw:webserver HTTP Status: 502` 与 `[WebServer] ... ready` 同框即命中。处置：跑 e2e 前 `$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）；**不要**为此改仓库配置/代码。
+- **后端测试整片 `UnauthorizedAccessException` → 先查 `%TEMP%` 能否建目录**：本机不允许在用户 `%TEMP%` 下新建目录，凡用 `Path.GetTempPath()` 建隔离目录的用例会集体报 `Access to the path 'C:\Users\...\Temp\<前缀>_<guid>' is denied`（PILOT-052 实测 `--filter McpCenter` **22/96 红**，形似大面积回归）。处置：把 `TEMP`/`TMP` 重定向到仓库内目录（如 `.temp/api-tests-tmp`）再跑 → 同一命令 **96/96 绿**。**这类红不会出现在仓库全量基线里**，故 §5.6「基线红先对表」查不出来，须按本条先排环境再判责。**同因的另外两面（2026-10-05 当天各命中一次，别当成三个问题）**：① 宿主前端 `vite build` 的 esbuild 临时文件清理同样被拒 —— `[vite:esbuild-transpile] remove C:\Users\...\Temp\esbuild-<hash>: Access is denied`，会让 `release-local.ps1` 在 `build-frontend` 段整体失败（本地发布链首跑即红，改成仓库内 TEMP 后 EXIT=0）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 → dev server 退不出启动 ⇒ `ERR_CONNECTION_REFUSED`（并行 worktree 实测）。**统一处置（一条命令覆盖三面）**：跑「后端测试 / 插件 e2e / 本地发布链」前先 `$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。
+
 ## B3 前端工程规则
 
 ### Element Plus 组件导入

@@ -205,11 +205,23 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 
 ## 前端界面（/mcp-center）
 
-- 顶部：标题「MCP 中心」+ **版本徽标**（铁律 13，`GET /api/plugin` 解包 `.data` 按 id 过滤）+ 网关地址 chip + 运行状态。
+- 顶部：标题「MCP 中心」+ **版本徽标**（铁律 13，`GET /api/plugin` 解包 `.data` 按 id 过滤）+ **MCP 端点地址 chip**（v2.2.1：显示 `listenUrl + /mcp`，即**可直接粘进 MCP 客户端**的地址）+ 运行状态。
 - 左侧：MCP 服务器列表（名称 + 工具数），点击联动右侧工具表。
 - 工具管理 tab：搜索框 + 分类筛选（全部/系统/文件/网络/数据/开发）+ 工具表（名称/服务器/描述/状态开关/测试按钮）。
-- 网关配置 tab：3 状态卡（MCP 服务地址 + 复制地址 / 运行状态 / 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
+- 网关配置 tab：3 状态卡（**MCP 服务地址 = `listenUrl + /mcp`**（v2.2.1：带 `data-mcp-url` 挂点 + 一行「客户端须使用 /mcp 路径（根路径 404）」说明）+ 复制地址 / 运行状态（仍展示真实绑定 `监听 host:port`）/ 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
+  - ⚠ **地址口径（v2.2.1 起）**：界面展示/复制的地址一律是**端点** `http://<host>:<port>/mcp`（客户端唯一可用地址）；后端 `McpGatewayConfig.ListenUrl` 仍是 **Kestrel 绑定串**（`http://<host>:<port>`，被 `McpGatewayServer` 的 `UseUrls` 使用），**禁止**在后端给它加路径 —— 端点由前端 `mcpEndpointUrl`（去尾斜杠 + `/mcp`，与设计系统插件 `delivery/snippets.ts` 的 `mcpEndpoint()` 同构）派生。
 - 插件前端契约：`export { McpCenterView }`（= plugin.json `frontend.views[0]`）；`vue/vue-router/pinia/element-plus` external；`<ElTabs/ElTabPane/ElSwitch/ElInputNumber/ElInput/ElCheckbox/ElButton/ElSelect/ElOption>` 需宿主 `exposeSharedDeps` 暴露（已在 `ForgeSelf.Web/src/shared/exposeSharedDeps.ts` + `public/shared/element-plus.js` 补齐）。
+
+## 验证记录（v2.2.1 · 界面地址补 /mcp 路径）
+
+- 变更：界面三处（顶部 chip / 「MCP 服务地址」卡 / 「复制地址」）从裸 `listenUrl`（`http://host:port`）改为**可直连端点** `listenUrl + /mcp`；卡片增 `data-mcp-url` 挂点与一行「客户端须使用 /mcp 路径（根路径 404）」说明；运行状态卡仍展示真实绑定 `监听 host:port`。**后端零改动**（`ListenUrl` 仍是 Kestrel 绑定串）。版本 2.2.0 → **2.2.1**（plugin.json + csproj 同串）。工件链 `docs/ai/pilot/2026-10-05-mcp-center-endpoint-url/`（00–07）。
+- 插件前端构建：`cd Plugins/McpCenter/web && pnpm run build` 成功（`dist/index.js` 49.62 kB / 14.3s）；产物内可检出 `客户端须使用 /mcp 路径（根路径 404）` 与空态 `（未运行，暂无地址）`。
+- 插件层 e2e（`mcp-center.spec.ts`，**3 passed / 2.1m**）：新增判据 = chip 文本（含 `title`）**等于** `GET /api/mcp-center/config`.listenUrl + `/mcp`、`[data-mcp-url]` 同值、状态卡仍为 3 张且运行状态卡含「监听 host:port」；**反向腿**：对根地址发 JSON-RPC → **404**，对端点发 → **200** 且 `tools[0]=universal_tool`。实读证据行：`地址展示：config.listenUrl=http://127.0.0.1:19483 → 界面展示=http://127.0.0.1:19483/mcp；根地址 404 / 端点 200`、`host plugin: mcp-center v2.2.1`。
+- 后端回归：`dotnet test --filter "FullyQualifiedName~McpCenter"` **96/96 通过**（首次 22 红系本机 `%TEMP%` 下新建目录被拒，把 TEMP 重定向到仓库内 `.temp/` 后全绿 ⇒ 环境问题，非代码）。
+- 宿主门禁：`pnpm run check` **0 errors / 81 warnings**（既有基线量级）。
+- 视觉：`screenshots/e2e/mcp-center/{gateway-tab,tools-tab}.png` 读图核对（chip 全串不截断、卡值 + 说明行、运行状态卡绑定地址保留）。
+- ⚠ 环境依赖（跑本插件 e2e 前必读）：本机设了 `HTTP_PROXY/HTTPS_PROXY=127.0.0.1:10808` 且无 `NO_PROXY` 时，Playwright 对 `localhost` 的 webServer 可用性探测**恒 502 → 120s 超时**（`DEBUG=pw:webserver` 可见）。跑法须带 `NO_PROXY=localhost,127.0.0.1,::1`；详细根因与两份控制实验见 05-evidence。
+- 发布与运行实例复验（2026-10-05 追加）：按用户指令做**本地离线整包**（未打 tag）→ `D:\src\my-proj\OpenForgeSelf\updates\OpenForgeSelf-2.7.3.2610051746-win-x64.zip`（106.7 MB；签名 `Valid`、SHA256 与 `SHA256SUMS.txt` **MATCH**、L1/L2/L3 布局不变量通过、包内 mcp-center **v2.2.1**）；用户升级完成后做**只读复验**：`GET /api/plugin` → `mcp-center 2.2.1`（共 18 个插件）、`GET /api/mcp-center/config` → `listenUrl=http://127.0.0.1:18890`（界面即展示 `…:18890/mcp`）、`GET /plugins/mcp-center/web/dist/index.js`（49624 B）sha256 **== 仓库产物**（逐字节一致 ⇒ 跑的就是本批产物）。未做：浏览器截图那一格（以产物逐字节一致作为显式替代判据，见 05-evidence）。
 
 ## 验证记录（v2.2.0 · MCP 2.0 协议支持）
 

@@ -380,3 +380,10 @@ In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the re
 
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 <!-- CODEGRAPH_END -->
+### 5.0 本机环境前置（跑测试 / e2e / 发布链前必做 · 2026-10-05 输入2 立）
+> 立规背景：以下三条在同一天里分别让快档门禁**假红**、e2e **白跑两轮**、本地发布链**首跑即失败**，且**都不在仓库全量基线里**（「基线红先对表」查不出来）⇒ 先排环境，再判责。
+- **代理**：`$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）。本机注入了 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而无 `NO_PROXY` 时，Playwright 对 `localhost:<port>` 的可用性探测**走代理恒 502** ⇒ e2e 报 `Timed out waiting 120000ms from config.webServer`（此时 vite 其实早已 ready，极易误判成前端构建问题）。**不要为此改仓库配置/代码。**
+- **临时目录**：`$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。本机 `%TEMP%` 拒写，同一成因在三面各红一次：① 后端测试 `Temp\<前缀>_<guid>` 被拒 ⇒ 整片假红（形似大面积回归）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 ⇒ dev server 退出、`ERR_CONNECTION_REFUSED`；③ **本地发布链宿主前端 `vite build` 的 esbuild 临时文件清理被拒 ⇒ `build-frontend` 段整体失败**。
+- **取读数**：判据一律看**日志正文**（`*> <log>` 重定向后读），**不许拿 exit code 当证据**；PowerShell 工具**可能不回显 stdout**，没回显 ≠ 没跑（先重定向再读，别重复执行）。
+- 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow.md` §B2。
+

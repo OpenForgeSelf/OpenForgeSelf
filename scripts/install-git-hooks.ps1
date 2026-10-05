@@ -8,7 +8,7 @@
   新 clone / 新环境第一步执行本脚本；hook 源文件更新后重跑本脚本即同步。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1
+  pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1
 #>
 $ErrorActionPreference = 'Stop'
 

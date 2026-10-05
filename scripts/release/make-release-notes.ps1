@@ -37,7 +37,21 @@ try {
         } catch { $prev = '' }
     }
 
-    $lines = @()
+    # git 输出是 UTF-8；PowerShell 5.1 默认按控制台 OEM 码页（本环境 = GBK 936）解码子进程 stdout，
+# 中文提交标题会在捕获瞬间被烤成乱码再写进 RELEASE-NOTES（宿主只是原样显示）。故捕获期间强制 UTF-8，用完复位。
+function Invoke-GitUtf8 {
+    param([Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)] [string[]] $GitArgs)
+    $prev = $null
+    try {
+        $prev = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        & git @GitArgs
+    } finally {
+        if ($null -ne $prev) { [Console]::OutputEncoding = $prev }
+    }
+}
+
+$lines = @()
     $lines += "# OpenForgeSelf $tag"
     $lines += ''
     if ($annotation.Trim()) {
@@ -46,12 +60,12 @@ try {
     }
     if ($prev) {
         $lines += "## Changes since $prev"
-        $log = & git log --no-merges --pretty=format:'- %s (%h)' "$prev..$tag"
+        $log = Invoke-GitUtf8 log --no-merges --pretty=format:'- %s (%h)' "$prev..$tag"
         if ($log) { $lines += $log }
     }
     else {
         # 无 tag（本地打包）：取最近 20 条提交（HEAD）
-        $log = & git log --no-merges -20 --pretty=format:'- %s (%h)' HEAD
+        $log = Invoke-GitUtf8 log --no-merges -20 --pretty=format:'- %s (%h)' HEAD
         if ($log) {
             $lines += '## Recent commits'
             $lines += $log

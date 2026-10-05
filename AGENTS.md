@@ -26,7 +26,7 @@
    - Read 当天日记，确认含本次输入拆解 + 验证结果；
    - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（`docs/ai/pilot/` 工件 / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow.md 或本文。
-   - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `scripts/install-git-hooks.ps1` 安装 hook（幂等）。
+   - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` 安装 hook（幂等；**脚本一律用 `pwsh` 跑，禁止 `powershell` 5.1**，见 §2.3）。
    - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部五步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 测试）② 插件层 e2e（`e2e/plugins/<id>`，走 e2e 隔离实例，按 `e2e-testing` 技能）③ 发布（**打 tag 自动发布** → CI 打包 GitHub Release；或本地 `release-local.ps1 -UpdateDir` + 设置页本地目录更新源 + 页面自动更新）④ 走查（e2e 隔离实例按用户视角点一遍、截图读图、清测试数据）⑤ **运行实例只读复验**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）。**五步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-09-27 用户指令）**：**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责打 tag 发布与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
@@ -88,11 +88,12 @@
 
 ### 2.3 关键约定速记
 - 包管理器：**pnpm**（不是 npm），Node >= 20
+- **脚本执行统一用 `pwsh`（PowerShell 7），禁止 `powershell` / `powershell.exe`（= Windows PowerShell 5.1）**（2026-10-04 输入12 立；本机 `pwsh` 实测 7.6.6，CI `.github/workflows/release.yml` 早已是 `shell: pwsh`）：涵盖跑仓内 `*.ps1`、从 Git Bash / Node `spawn` 调 PowerShell 的一切场景，写法 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\<某脚本>.ps1 …`。三条**实测**代价（不是风格偏好）：① 5.1 按控制台码页（GBK/936）写重定向日志并解码外部命令输出 → 中文变乱码、乱码还会被烤进交付物（2026-10-04：`release-local -Sign` 的签名段整段 GBK；更早 `make-release-notes` 把乱码写进 RELEASE-NOTES，现由脚本内 UTF-8 切码页 + 仓库级守卫 `RepositoryScriptTests` 封堵）；② 5.1 从 Node `spawn` 时**没有 `Cert:` 提供程序** → Authenticode 签名必失败（2026-10-01 实证）；③ 5.1 靠 BOM 判定 `.ps1` 编码，UTF-8 无 BOM 脚本被当 GBK 解析 → 解析期崩溃、连日志都写不出（update-agent 曾据此把 51888 实例弄下线）。**唯一保留例外**：专门复现 5.1 解析/编码行为以证明某缺陷时反而必须用 `powershell`（Core 复现不出来），见 `docs/04-standards/agent-workflow.md` §B6；除此之外一律 `pwsh`。脚本文件自身**仍须带 UTF-8 BOM**（随包分发时可能被旧 shell 拉起）。既有偏差登记：`scripts/hooks/pre-commit` 仍在用 `powershell.exe` 调工件门禁（见 TODO）
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
 - 运行端口：Backend `:7102`，Frontend `:7002`（**默认回落值**）；本环境长期运行的 publish 实例用 `:51888`。**端口覆盖（PILOT-050，2026-09-30）**：宿主支持 `FORGESELF_PORT` 环境变量（优先）或 `--server-port` 参数动态覆盖，覆盖即落盘 `ForgeSetting.config`（重启一致）；e2e/多 worktree 并行一律走动态端口（认领注册表 + 稳定目录 `wt-<hash>`），e2e 侧地址真源 = `e2e/helpers/e2e-env.ts`（env → current.json → 默认），**禁止新代码硬编码 7102/7002**
-- **发布规范（2026-09-27 起；输入42 补签名、输入2 2026-09-30 改默认关闭）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**发布默认不签名，需要时传 `-Sign` Authenticode 签名**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + DigiCert 时间戳，商业证书 -PfxPath 可插拔；**CI 默认不签**，签名策略真源见 `docs/04-standards/packaging-upgrade-backup.md` §1.1）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
+- **发布规范（2026-09-27 起；输入42 补签名、输入2 2026-09-30 改默认关闭）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**签名策略（2026-10-04 定稿）：本地发布给人装的宿主包必须带 `-Sign` Authenticode 签名（签名无效的包不得交付）；CI 流水线默认不传 ⇒ 不签**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + DigiCert 时间戳，商业证书 -PfxPath 可插拔；**CI 默认不签**，签名策略真源见 `docs/04-standards/packaging-upgrade-backup.md` §1.1）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
 - **版本号规则（2026-10-02 输入9/输入10 起，输入12 补预览版）**：发行串 = `<major>.<minor>.<patch>.<yyMMddHHmm>`（10 位时间码 = yyMMddHHmm，例 `2.3.0.2609161125`；发行线自 2.3 起）；git tag / `versions/<ver>/` 目录名 / zip 名 / 两个 exe 的 FileVersion+ProductVersion / 设置页「当前版本」**同一串**。生成入口 `scripts/release/new-version.ps1 -Version 2.3.0`（只打印完整串与 `git tag` 命令，不做任何 git 写操作）；发行串由 `release-local.ps1` 单点补时间码并贯穿发布链。**预览版 tag** = `v<三段号>-preview`（如 `v2.3.0-preview`）：tag / `versions/` 目录名 / zip 名 / Release 页带 `-preview` 后缀（并自动发为 GitHub prerelease，仅 `channel != stable` 的实例会收到），**exe 文件版本不带后缀**（PE 段只接受纯数字）。完整规则、代价与踩坑（CS7035 / NuGet NU1105 / 世代比较 / 预览版后缀）→ 真源 `docs/04-standards/packaging-upgrade-backup.md` §4-R10
 - **打包/升级/备份/缓存/安装目录结构（真源引用，2026-09-28 输入30；目录命名统一小写 2026-09-29 输入37）**：相关规则的**唯一真源 = docs/04-standards/packaging-upgrade-backup.md**——含现状盘点、空间浪费点、**QQNT 式目标目录结构**（公共外置 + 宿主每次更新的内容入 versions/<ver>/ + plugins/ 与 versions/ 并排 + **去插件备份/_backups**，插件多版本共存即回滚能力）与生命周期规则（§3/§4/R9）与**程序架构分层**（§1.6：入口=根启动器 / 业务+服务+托盘=版本层宿主 / 更新=update-agent / 插件=隔离程序集）；**目录命名统一小写**（安装/运行布局：plugins/data/log/config；源码工程目录 ForgeSelf.Api/Plugins/Plugins/<X> 保持 PascalCase 不动）。AGENTS.md / agent-workflow.md / 功能文档 / 技能只保留操作流程与踩坑，不再重复承载结构事实；规则冲突以该真源为准。
 - 更全的工程规则/踩坑（数据落盘、XCode、DLL 锁、PS 编码等）→ `docs/04-standards/agent-workflow.md` Part B
@@ -108,7 +109,7 @@
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
-| `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 33 条"假能力"自查表 | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
+| `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 「假能力」自查表（条目按编号递增，去技能里读最新全表，别在此记条数） | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
 | `design-system-consume` | **设计系统插件消费侧**：外部/内置 agent 如何发现与调用 8 个 design_* 工具（封套、写开关、REST 对等、常见坑） | 写集成/测试时用；维护工具本身走 design-system-verify；出参键 camelCase；`list_tools` 无封套 |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 
@@ -211,7 +212,8 @@ dotnet test
 - **禁止拿「快」的结果报「门禁绿」**：汇报必须写明跑的是哪一档、覆盖哪些；跨切面改动停在「快」就报绿 = 违规（本条由 2026-09-28 我拿三入口子集报绿、被用户追问后补跑全量才发现自己引入的 B6 红 而确立）。
 - **本地复现 CI/发布链必须同参数、不跳段**（2026-10-02 输入12 立）：例如 `release-local.ps1` 带 `-SkipFrontend` 会跳过前端构建（`vue-tsc -b`），我曾据此报「本地发布链全绿」而 CI 恰在该段失败；本地验证若跳过某段，汇报必须写明「本段未验证」，不得以「本地已通过」代替。
 - **基线红先对表再判责**：本 worktree 全量并非全绿（后端 1516/13 红、e2e 102 passed/82 failed，多为环境依赖与陈旧断言；PILOT-050 起后端测试总数因 040-B1 新增已超 1686，基线数字以最近一次全量日志为准）。跑完全量先比对基线清单（项目记忆 `project-baseline-test-reds` / `TODO.md`），**新增的红才是我的**；非我的红也要给真实报错 + 归属并记 TODO，不许一句「无关」带过。
-- 深档成本可控化：全量 e2e 用 4 worker、`--output=<空目录>`；只需复验单插件时仍走 `e2e/plugins/<id>` 定向跑。
+- **深档成本可控化**：全量 e2e 用 4 worker、`--output=<空目录>`；只需复验单插件时仍走 `e2e/plugins/<id>` 定向跑。
+- **本节所有 PowerShell 入口一律 `pwsh` 调用**（`release-local.ps1`、`verify-pilot-artifacts.ps1`、`install-git-hooks.ps1`、`package-plugin.ps1`、`sign-publish.ps1`…；写法 `pwsh -NoProfile -ExecutionPolicy Bypass -File <脚本> …`），**禁止 `powershell`（5.1）**——理由与例外见 §2.3；跑门禁的判定要看**日志正文**（`PASS`/`通过数`），不许拿 exit code 当证据。
 
 ---
 

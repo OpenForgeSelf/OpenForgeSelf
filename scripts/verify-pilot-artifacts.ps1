@@ -9,8 +9,8 @@
   配套：.github/workflows/artifact-gate.yml 在 push/PR 时自动执行，漏文件 CI 直接红。
 
 .EXAMPLE
-  powershell -File scripts/verify-pilot-artifacts.ps1                                    # 扫全部任务目录
-  powershell -File scripts/verify-pilot-artifacts.ps1 -TaskId 027-plugin-local-update-source
+  pwsh -File scripts/verify-pilot-artifacts.ps1                                          # 扫全部任务目录
+  pwsh -File scripts/verify-pilot-artifacts.ps1 -TaskId 027-plugin-local-update-source
   pwsh scripts/verify-pilot-artifacts.ps1 -RepoRoot <repo>                              # CI 用法
 #>
 [CmdletBinding()]

@@ -36,7 +36,7 @@ pnpm exec playwright test --config=playwright.config.ts e2e/app.spec.ts
 ## 单一环境（globalSetup 做了什么）（Level 2）
 
 1. **构建宿主**：`dotnet publish` 到 `.temp/e2e/<ts>/publish/`（独立目录，避开运行中宿主对 DLL 的独占锁）；
-   ⚠️ **宿主签名（`scripts/sign-publish.ps1`）必须经 `pwsh` 调用**：从 Node `spawn` 的 `powershell.exe`（5.1）无 `Cert:` 提供程序（`drive=False certs=0`，2026-10-01 实证），签名必失败；`pwsh` 同语境正常（`global-setup.ts` 已固定 `pwsh`）。开关：`E2E_SIGN_EXE=false` 完全跳过 / `warn` 失败仅告警（默认 `true` 必须签名成功）；
+   ⚠️ **宿主签名（`scripts/sign-publish.ps1`）必须经 `pwsh` 调用**（2026-10-04 起这只是全局规则的局部体现：**执行脚本统一 `pwsh`、禁止 `powershell` 5.1** → AGENTS §2.3 / agent-workflow §B6）：从 Node `spawn` 的 `powershell.exe`（5.1）无 `Cert:` 提供程序（`drive=False certs=0`，2026-10-01 实证），签名必失败；`pwsh` 同语境正常（`global-setup.ts` 已固定 `pwsh`）。开关：`E2E_SIGN_EXE=false` 完全跳过 / `warn` 失败仅告警（默认 `true` 必须签名成功）；
 2. **起 publish 宿主**：`ForgeSelf.exe --console`，端口取 `ForgeSetting.config` 的 `PortNumber`（默认 `7102`；`51888` 是历史手动冷启验收端口，非默认，勿硬编码），**必须带实例标识** `FORGESelf_INSTANCE_ID=<id>`（env）或 `--instance-id=<id>`（CLI）——宿主有硬编码全局 Mutex 单例锁，缺省会与开发实例（如用户手动起的 `ForgeSelf.exe`）互斥而「另一个实例已在运行」拒启动；e2e 用独立 id（如 `e2e-<ts>`）即可并存。数据目录经 `ASPNETCORE_ENVIRONMENT=Development` 落到 `publish/Data`（全新、隔离用户 `~/.forgeself`），轮询 `GET /api/health` 直到 200；
    ⚠️ **端口被占 = 测试会悄悄打在旧产物上**（2026-09-30 实测）：7102 上若已有宿主在答（上一次被中断的 e2e 残留、或用户自己起的），
    新宿主绑不上但健康检查照样 200，于是断言读的是**旧构建**——本案里"版本自洽"断言（`plugin.json.Version == meta.modelVersion`）把它抓了出来
@@ -92,6 +92,7 @@ ForgeSelf.Web/e2e/
 
 - **深档跑完先对基线再判责**：本仓全量并非全绿（2026-09-28 实测 102 passed / 82 failed），四类既有红 = 陈旧断言（`chat.spec.ts` 28 等，签名 `.input-textarea`/`.menu-button`/`.hero-section`）、需真实 LLM 通道、依赖 :51888 实跑宿主却跑在隔离配置下（`quick-links` 那批）、4 worker 并发超时。**新增的红才是自己引入的**；非自己的也要贴真实报错 + 归属 + 记 TODO。
 - 汇报必须写明**跑的是哪一档、覆盖哪些文件**；跨切面改动停在「快」就报绿 = 流程违规。
+- **插件目录的 e2e 在同一宿主库上不可并行（2026-10-03 实测，深档跑法要点）**：全量 `--workers=4` 时 `e2e/plugins/design-system` 红 A1（`试穿/微调不得改动任何已有项目`，收到的 `e2e-mushxak1` 其实是同目录 `design-system.spec.ts` 的项目），而把该目录**单独**升到 4 worker，红的却是**另外两条**（S3 向导超时、工作台 `page.evaluate: Error: 500`）——**红项随时序漂移**；同一份终态源码 `--workers=1` 整目录 33/33 绿。⇒ 深档要么整跑 `--workers=1`，要么并行批次里把插件目录排除后单跑串行；**不要因为 4-worker 的红去收窄用例判据**（那类"任何已有项目都不许变"的守卫本来就是全局的）。另记最新基线：`145 passed / 75 failed / 4 skipped / 1 did not run（15.2m，4 worker，总数 225）`。
 - 依赖 :51888 的 spec 与默认隔离配置天然冲突（会 `积极拒绝`）：这类要么显式走 `playwright.live.config.ts`，要么改造成隔离实例可跑。
 
 ## 运行态宿主（51888）手工走查：token 注入标准入口（2026-09-24 内置）

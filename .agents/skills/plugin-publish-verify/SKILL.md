@@ -37,7 +37,7 @@ description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 
 pwsh scripts/release/release-local.ps1 -Version v0.2.5 -Sign -UpdateDir D:\updates
 ```
 
-常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。**`-Sign` 可选（输入2 起默认不签，需要签名时才传；输入42 曾立「必带」已废止）**：Authenticode 签名走 `scripts/sign-publish.ps1`（自签证书自动生成/复用 + DigiCert 时间戳；商业证书 `-PfxPath/-PfxPassword` 可插拔），签名在 zip 打包前，递归签顶层根启动器 + `versions/<ver>/` 全部 exe。**CI 流水线默认不传 `-Sign`**（release.yml），签名策略真源 = `docs/04-standards/packaging-upgrade-backup.md` §1.1。
+常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。**⚠️ 执行发布脚本一律用 `pwsh`，禁止 `powershell`（5.1）**（2026-10-04 输入12 立，AGENTS §2.3 / agent-workflow §B6）：5.1 按 GBK 码页写重定向日志与解码 `git` 输出，中文会乱码并可能被烤进 RELEASE-NOTES 这类交付物（实测：更新说明乱码 = 输入11；`release-local -Sign` 的签名段日志整段 GBK）。**签名策略（2026-10-04 输入11 定稿）：本地发布必带 `-Sign`，流水线默认不签**——**只要这版宿主是给人装的**（出到本地更新源 `-UpdateDir`、或交给用户点「检查更新 → 下载 → 重启并更新」）**就必须显式加 `-Sign`**，并且**出完要自己验签名有效再交**：`Get-AuthenticodeSignature <exe>` 必须回 `Status=Valid`（自签证书本机未受信时会显示 NotTrusted，此时按真源 §1.1 的 certutil 静默信任步骤处理，别把"签了但无效"的包交付）；而 **CI 流水线默认不传 `-Sign`**（自签证书生成会卡死 runner，实测 run 36664225915 两次 20min+，故 2026-09-30 输入2 定为不签）。一句话：**本地=签名交付，CI=不签**，两边都用同一条 `release-local.ps1` 通道，差别只在有没有传 `-Sign`。Authenticode 签名走 `scripts/sign-publish.ps1`（自签证书自动生成/复用 + DigiCert 时间戳；商业证书 `-PfxPath/-PfxPassword` 可插拔），签名在 zip 打包前（`package-release.ps1` 的 `if ($Sign)` 段），递归签顶层根启动器 + `versions/<ver>/` 全部 exe——漏签业务层会破坏多版本回滚的签名一致性。**CI 流水线默认不传 `-Sign`**（release.yml），签名策略真源 = `docs/04-standards/packaging-upgrade-backup.md` §1.1。
 
 ## 流程骨架（主路径）
 
@@ -71,6 +71,21 @@ DLL 字符串是 UTF-16LE（strings/grep 漏检）。这两件事历史上反复
 
 **铁律**：走查 token 一律来自上述入口；验证产物一律用 `probe-dll-string.cjs`。
 发现新场景缺正规入口 → 先补工具/用例再走，不现写一次性脚本（AGENTS §5.0）。
+
+## 出包后必查的三条布局不变量（宿主升级链，2026-10-04 输入18/19 立）
+
+**为什么单独列**：这两条缺陷都是「包能出、签名有效、校验和 MATCH、页面能起，但升级后插件整批消失 / 版本目录逐代嵌套」——
+四层门禁里只有「按包内容验真」才抓得到，靠 exit code 和「看起来装上了」都抓不到。
+
+| # | 不变量 | 机器判据（不靠肉眼） | 违反时的现场形态 |
+|---|--------|----------------------|------------------|
+| L1 | 内置插件随版本走：包内必须有 `versions/<ver>/plugins/<Id>/plugin.json` | 列包内条目数（`Expand-Archive` 到临时目录后计数），或跑常驻守卫 `RepositoryScriptTests.PackageRelease_MustKeepBundledPluginsInsideVersionDirectory`；`package-release.ps1` 自身在缺 `versions/<ver>/plugins` 时**当场 throw** | 升级后 `GET /api/plugin` 返回 `data:[]`，宿主日志 `插件目录不存在: …\versions\<ver>\plugins` |
+| L2 | 安装根 = 公共层所在层：更新链路交给代理的 `-InstallDir` 必须是安装根，不是业务层版本目录 | 常驻判据 `HostInstallRootTests`（含**实跑 `pwsh` 比对宿主侧与代理侧归一化结果**，以及真跑代理的沙箱用例：断言新版本落真根、`current` 切过去、`versions/<ver>/versions` 不存在） | 嵌套形态：versions\2.2.11\versions\2.2.2026.0930\versions\2.7.2.0\ForgeSelf.exe 这种逐代嵌套；代理日志里 `InstallDir=` 指向版本目录 |
+| L3 | 两路插件根（内置 + 数据根 `~/.forgeself/plugins/`），安装根 `plugins/` **不是**扫描点 | `PluginRootsTests`（两路各一插件都发现／同 Id 按版本裁决／只有 `*.db` 的数据子目录不当插件／一路缺失另一路仍生效） | 把插件手工放到安装根 `plugins/` 却"装不上"，或反过来把内置插件外置到安装根导致版本目录被掏空 |
+
+**规则**：① 判定看日志正文（`通过数/失败数`、代理 `agent-*.log` 的落点行），不看 exit code；
+② 用户已装的**嵌套实例升级一次即回正**（新版本落真根 + `current` 指过去 + 重启根启动器），但**存量多余层与历史 `plugins/` 残留不会被自动清理**——那是不可逆面，必须用户在场另批处理，不得在发布流程里顺手删；
+③ 版本串规则不变（§4-R10：三段号 + 10 位时间码；老宿主需先跳号才重新进入更新链）。
 
 ## 运行实例只读复验（交付后必做，2026-09-28 补）
 

@@ -314,8 +314,10 @@ public static class AppBuilder
 
         builder.Services.AddPluginManager();
 
-        // 插件根目录：--plugins-dir=<path>（CLI）＞ FORGESELF_PLUGINS_DIR（env）＞ 默认 BaseDirectory/plugins。
-        // dev 场景用 --plugins-dir 指向源码 Plugins/ 目录即可直接装载源码树插件（配合 shadow-copy 热重载）。
+        // 插件根（两路，2026-10-04 输入18）：
+        //   第一路＝内置根，随宿主版本发布，位于业务层旁边 versions/<ver>/plugins（--plugins-dir / FORGESELF_PLUGINS_DIR 可覆盖，dev 场景指向源码 Plugins/）；
+        //   第二路＝数据目录根 {数据根}/plugins（用户自行安装的插件包；与「插件数据」同树，扫描只认带 plugin.json 的子目录）。
+        // 同 Id 跨根时由版本号裁决（内置在前，版本更高者生效），来源逐条写进发现日志。
         var pluginsPath = Plugins.Dev.DevMode.PluginsDirectoryOverride
                           ?? Path.Combine(AppContext.BaseDirectory, "plugins");
         if (!string.Equals(pluginsPath, Path.Combine(AppContext.BaseDirectory, "plugins"), StringComparison.OrdinalIgnoreCase))
@@ -328,6 +330,8 @@ public static class AppBuilder
         {
             pluginManager = bootstrap.GetRequiredService<PluginManager>();
             pluginManager.SetPluginsDirectory(pluginsPath);
+            pluginManager.AddPluginRoot(
+                Path.Combine(dataLocation.GetHostDataDirectory(), IDataLocationService.PluginDataRootName), "数据目录");
             // 提前把数据位置服务 seed 进插件根上下文：RegisterAllServices 会立刻触发插件 Apply，
             // 而 Apply 内就要 ctx.GetPluginDataDirectory()；ProvideHostServices 却要等 Build 之后
             // 才能解析 DI —— 不提前 seed，用到数据目录的插件会整体注册失败。

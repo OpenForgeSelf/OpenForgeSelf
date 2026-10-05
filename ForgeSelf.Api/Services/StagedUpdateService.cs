@@ -223,11 +223,20 @@ public class StagedUpdateService
             return false;
         }
 
-        var installDir = Path.GetDirectoryName(Environment.ProcessPath)
+        // 安装根 = 公共层目录（根启动器 + update-agent.ps1 所在层）。业务层在 versions/<ver>/ 内，
+        // 直接取自身目录会让新版本落进 versions/<ver>/versions/<new> 逐代嵌套（2026-10-04 输入19）。
+        var exeDir = Path.GetDirectoryName(Environment.ProcessPath)
             ?? throw new InvalidOperationException("无法确定应用程序目录。");
+        var installDir = HostInstallRoot.Resolve(exeDir);
+        var layers = HostInstallRoot.VersionLayerCount(exeDir);
+        if (layers > 1)
+            XTrace.Log.Warn("StagedUpdate: 检测到版本目录嵌套 {0} 层，安装根已归一化: {1} → {2}", layers, exeDir, installDir);
+        else
+            XTrace.Log.Info("StagedUpdate: 安装根 = {0}（业务层 {1}，versions 层 {2}）", installDir, exeDir, layers);
+
         var extractDir = Path.Combine(current.StagedDir, "extracted");
 
-        // 代理脚本优先用 staged 新版（随包更新），回退到安装目录
+        // 代理脚本优先用 staged 新版（随包更新），回退到安装根公共层
         var agentPath = new[]
             {
                 Path.Combine(extractDir, "update-agent.ps1"),

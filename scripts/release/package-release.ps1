@@ -4,9 +4,10 @@
 #     ForgeSelf.exe (FDD single-file launcher) + .NET runtime DOTNET_ROOT structure
 #       (host/fxr + shared frameworks, from BootDir/bootstrapper publish)
 #     update-agent.ps1
-#     plugins/                      (side-by-side with versions/, multi-version coexistence)
+#     (2026-10-04 输入18: bundled plugins are NOT here anymore — they live inside each version, see below)
 #   versions/<ver>/                  (business layer, FDD single-file, per release)
 #     ForgeSelf.exe (single-file: managed assemblies + satellites embedded)
+#     plugins/                       bundled plugins, shipped with this version (host scans this dir)
 #     wwwroot + appsettings.json + SQLite native libs (externally extracted)
 #   versions/current                 (pointer file)
 # The SQLite probe libs are NOT NuGet deps: NewLife.XCode probes System.Data.SQLite.dll /
@@ -52,18 +53,27 @@ Invoke-ReleaseStep 'package: assemble QQNT layout' {
     New-Item -ItemType Directory -Force -Path $versionDir | Out-Null
     Copy-Item (Join-Path $PublishDir '*') $versionDir -Recurse -Force
 
-    # 3) 内置插件初始版本：业务层 publish 的 plugins/ 移到公共根 plugins/（与 versions/ 并排）
-    #    （业务层 publish 会随 csproj targets 带上内置插件；宿主包负责首次安装形态）
+    # 3) 内置插件随版本走：保留 versions/<ver>/plugins/（2026-10-04 输入18 改，不再外置到安装根）
+    #    宿主运行期只扫两路：业务层旁边的 plugins/（内置，随版本）+ 数据根 ~/.forgeself/plugins/
+    #    （用户自行安装）。安装根 plugins 不再作为扫描路径（用户裁定「只保持两路」）。
+    #    publish 产出的是大写 Plugins/（csproj Content Include 的源码目录名），复制进来必须规范化成
+    #    小写 plugins/——运行布局目录名一律小写（真源 §4-R9/输入37）。Windows 大小写不敏感，
+    #    Rename-Item 不能做纯大小写改名，走两步改名。
     $pubPlugins = Join-Path $PublishDir 'plugins'
-    $layoutPlugins = Join-Path $LayoutDir 'plugins'
-    if (Test-Path $pubPlugins) {
-        New-Item -ItemType Directory -Force -Path $layoutPlugins | Out-Null
-        Get-ChildItem $pubPlugins | ForEach-Object {
-            Copy-Item $_.FullName $layoutPlugins -Recurse -Force
-        }
-        # 业务层不再携带插件目录（插件公共外置，避免每版本复制）
-        Remove-Item (Join-Path $versionDir 'plugins') -Recurse -Force -ErrorAction SilentlyContinue
+    $upper = @(Get-ChildItem -LiteralPath $versionDir -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ceq 'Plugins' })
+    if ($upper.Count -gt 0) {
+        $tmp = 'plugins.tmp-casefix'
+        Rename-Item -LiteralPath $upper[0].FullName -NewName $tmp
+        Rename-Item -LiteralPath (Join-Path $versionDir $tmp) -NewName 'plugins'
+        Write-Host ("package-release: normalized bundled plugin dir case Plugins → plugins under {0}" -f $versionDir)
     }
+    $exactLower = @(Get-ChildItem -LiteralPath $versionDir -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ceq 'plugins' })
+    if ($exactLower.Count -eq 0) {
+        throw "package-release: 业务层版本目录缺少内置插件目录 versions/<ver>/plugins（publish 产出异常）: $versionDir"
+    }
+    Write-Host ("package-release: bundled plugins kept inside versions/{0}/plugins (source publish: {1})" -f $ver, $pubPlugins)
 
     # 4) 更新代理脚本（公共层）
     $agentSrc = Join-Path $PublishDir 'update-agent.ps1'
@@ -84,6 +94,9 @@ Invoke-ReleaseStep 'package: sanitize output' {
     }
     $bk = Join-Path $LayoutDir 'plugins/_backups'
     if (Test-Path $bk) { Remove-Item $bk -Recurse -Force }
+    # 内置插件已随版本走（输入18），同名的历史残留也要清（避免把 _backups 打进包）
+    $bkVer = Join-Path $versionDir 'plugins/_backups'
+    if (Test-Path $bkVer) { Remove-Item $bkVer -Recurse -Force }
     if (-not $IncludePdb) {
         Get-ChildItem $LayoutDir -Recurse -Filter '*.pdb' | Remove-Item -Force
     }

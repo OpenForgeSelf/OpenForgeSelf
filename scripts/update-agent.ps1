@@ -2,8 +2,9 @@
 # 由宿主 StagedUpdateService 拉起：等待宿主进程退出 → 新版本落 versions/<ver>/（不动公共层旧版本）
 # → 更新 versions/current 指针 → 重启根启动器（公共层跨版本共享，无需复刻）。
 # 目录结构唯一真源：docs/04-standards/packaging-upgrade-backup.md §3（QQNT T1-T6）
-#   安装根（公共层，跨版本共享）：ForgeSelf.exe + .NET 运行时 + 框架 + update-agent.ps1 + plugins/
+#   安装根（公共层，跨版本共享）：ForgeSelf.exe + .NET 运行时 + 框架 + update-agent.ps1
 #   versions/<ver>/（业务层，每次更新新增，多版本共存 = 回滚能力，不设任何备份目录）
+#     └ plugins/：内置插件随版本走（2026-10-04 输入18，不再外置到安装根）
 # 约定（2026-09-28；目录命名统一小写 2026-09-29 输入37）：
 #   - 不创建任何整目录备份（Backups/ 已退役并清理存量；版本回退 = 保留 versions 多版本）
 #   - 运行数据目录（data / log / config / _backups）不备份也不覆盖
@@ -42,6 +43,24 @@ function Invoke-Robocopy([string]$source, [string]$dest, [string[]]$extra) {
     Write-AgentLog "robocopy 完成，退出码 $code"
 }
 
+# 安装根归一化（2026-10-04 输入19）：宿主业务层在 versions/<ver>/ 内，旧宿主会把该层当安装根传入，
+# 新版本就落进 versions/<ver>/versions/<new>/，每升一代多一层嵌套（现场实测三层）。规则与宿主
+# ForgeSelf.Api/Services/HostInstallRoot.cs 完全一致：父目录名为 versions 就一路上跳两级。
+function Resolve-ForgeInstallRoot([string]$StartDir) {
+    $current = [IO.Path]::GetFullPath($StartDir).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $layers = 0
+    while ($true) {
+        $versionsDir = [IO.Path]::GetDirectoryName($current)
+        if (-not $versionsDir) { break }
+        if (([IO.Path]::GetFileName($versionsDir)) -ne 'versions') { break }
+        $root = [IO.Path]::GetDirectoryName($versionsDir)
+        if (-not $root) { break }
+        $current = $root
+        $layers++
+    }
+    return @{ Root = $current; Layers = $layers }
+}
+
 # 纯大小写目录改名（Plugins → plugins）：PS5.1 Rename-Item / .NET Directory.Move 均报
 # 「源路径和目标路径必须不同」，必须走 Win32 MoveFileEx（NTFS 大小写不敏感，改名只改大小写标志）。
 try {
@@ -56,6 +75,18 @@ public static class ForgeNativeMove {
 
 try {
     Write-AgentLog "更新代理启动: HostPid=$HostPid InstallDir=$InstallDir StagedDir=$StagedDir Exe=$ExeName"
+
+    # ── 0. 安装根归一化 + 嵌套硬拦（2026-10-04 输入19：不允许 versions/<ver>/ 内再建 versions/） ──
+    $resolved = Resolve-ForgeInstallRoot $InstallDir
+    if ($resolved.Root -ne $InstallDir) {
+        Write-AgentLog "安装根归一化: $InstallDir → $($resolved.Root)（versions 层 $($resolved.Layers)）"
+    }
+    $InstallDir = $resolved.Root
+    $parentOfRoot = [IO.Path]::GetDirectoryName($InstallDir)
+    if ($parentOfRoot -and ([IO.Path]::GetFileName($parentOfRoot)) -eq 'versions') {
+        throw "安装根仍位于 versions/<ver>/ 内，拒绝产生逐代嵌套: $InstallDir"
+    }
+    Write-AgentLog "安装根 = $InstallDir（版本层 $($resolved.Layers)，公共层在此、业务层在 versions/<ver>/）"
 
     # ── 1. 等待宿主进程退出（最多 60s，超时则强制结束） ──
     $deadline = (Get-Date).AddSeconds(60)

@@ -32,6 +32,10 @@ public class PluginManager
     private readonly ConcurrentDictionary<string, IServiceCollection> _pluginServices = new();
     private string _pluginsDirectory = string.Empty;
 
+    // 插件根列表（按优先级）：内置根（随版本发布，BaseDirectory/plugins）在前，数据目录根（用户安装）在后。
+    // 2026-10-04 输入18：插件从"单根"改为"两路合并扫描"，同 Id 冲突由版本号裁决。
+    private readonly List<string> _pluginRoots = new();
+
     // 动态端点移除（卸载插件时移除其控制器 AssemblyPart）：
     // _partManager 为宿主 MVC ApplicationPartManager（启动接线时设置，可选为 null）；
     // _registeredApplicationParts 记录「插件 → 已注册的 AssemblyPart」，保证注册/移除幂等；
@@ -94,9 +98,14 @@ public class PluginManager
     }
 
     /// <summary>
-    /// 插件目录
+    /// 插件目录（第一路＝内置根：随宿主版本发布，位于业务层旁边 <c>BaseDirectory/plugins</c>）
     /// </summary>
     public string PluginsDirectory => _pluginsDirectory;
+
+    /// <summary>
+    /// 全部插件根（按扫描优先级排序）。2026-10-04 输入18 起为两路：内置根 + 数据目录根（用户安装的插件包）。
+    /// </summary>
+    public IReadOnlyList<string> PluginRoots => _pluginRoots;
 
     /// <summary>
     /// 所有已加载的插件ID列表
@@ -127,13 +136,33 @@ public class PluginManager
     }
 
     /// <summary>
-    /// 设置插件目录
+    /// 设置插件目录（内置根，随宿主版本发布）
     /// </summary>
     /// <param name="pluginsDirectory">插件目录路径</param>
     public void SetPluginsDirectory(string pluginsDirectory)
     {
         _pluginsDirectory = pluginsDirectory;
+        _pluginRoots.Clear();
+        if (!string.IsNullOrWhiteSpace(pluginsDirectory)) _pluginRoots.Add(pluginsDirectory);
         XTrace.Log.Info("插件目录设置为: {0}", pluginsDirectory);
+    }
+
+    /// <summary>
+    /// 追加一路插件根（2026-10-04 输入18：数据目录根 <c>{数据根}/plugins</c>，承载用户自行安装的插件包）。
+    /// 与已有根同路径（忽略大小写）时不重复追加；追加顺序＝扫描优先级（内置根在前）。
+    /// </summary>
+    /// <param name="pluginsDirectory">要一并扫描的插件根</param>
+    /// <param name="source">日志里标识这一路来源的名字（如"数据目录"）</param>
+    public void AddPluginRoot(string? pluginsDirectory, string source = "附加根")
+    {
+        if (string.IsNullOrWhiteSpace(pluginsDirectory)) return;
+        if (_pluginRoots.Any(r => string.Equals(r, pluginsDirectory, StringComparison.OrdinalIgnoreCase)))
+        {
+            XTrace.Log.Info("插件根已在本路，跳过追加（{0}）: {1}", source, pluginsDirectory);
+            return;
+        }
+        _pluginRoots.Add(pluginsDirectory);
+        XTrace.Log.Info("追加插件根（{0}）: {1}，存在={2}", source, pluginsDirectory, Directory.Exists(pluginsDirectory));
     }
 
     /// <summary>
@@ -261,51 +290,92 @@ public class PluginManager
     }
 
     /// <summary>
-    /// 扫描并发现所有插件
+    /// 扫描并发现所有插件（两路合并：内置根随版本发布 + 数据目录根用户安装；同 Id 由版本号裁决）
     /// </summary>
     /// <returns>发现的插件元数据列表</returns>
     public List<PluginMetadata> DiscoverPlugins()
     {
         var metadatas = new List<PluginMetadata>();
+        var roots = _pluginRoots.Count > 0 ? _pluginRoots : new List<string> { _pluginsDirectory };
 
-        if (!Directory.Exists(_pluginsDirectory))
+        // Id → 已生效的那份（含来源根），用于跨根去重与版本裁决
+        var winners = new Dictionary<string, PluginMetadata>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var root in roots)
         {
-            XTrace.Log.Warn("插件目录不存在: {0}", _pluginsDirectory);
-            return metadatas;
-        }
+            if (string.IsNullOrWhiteSpace(root)) continue;
 
-        XTrace.Log.Info("开始扫描插件目录: {0}", _pluginsDirectory);
-
-        var pluginDirectories = Directory.GetDirectories(_pluginsDirectory);
-        foreach (var pluginDir in pluginDirectories)
-        {
-            try
+            if (!Directory.Exists(root))
             {
-                var manifestPath = Path.Combine(pluginDir, "plugin.json");
-                if (!File.Exists(manifestPath))
-                {
-                    XTrace.Log.Debug("跳过目录（无plugin.json）: {0}", pluginDir);
-                    continue;
-                }
+                XTrace.Log.Warn("插件目录不存在: {0}", root);
+                continue;
+            }
 
-                var metadata = LoadPluginManifest(manifestPath);
-                if (metadata != null)
+            XTrace.Log.Info("开始扫描插件目录: {0}", root);
+
+            foreach (var pluginDir in Directory.GetDirectories(root))
+            {
+                try
                 {
+                    var manifestPath = Path.Combine(pluginDir, "plugin.json");
+                    if (!File.Exists(manifestPath))
+                    {
+                        // 数据目录根与「插件数据」目录同居一处（{数据根}/plugins/{插件Id}/*.db），
+                        // 没有 plugin.json 的子目录一律不是插件包——这是两路合并的安全边界。
+                        XTrace.Log.Debug("跳过目录（无plugin.json）: {0}", pluginDir);
+                        continue;
+                    }
+
+                    var metadata = LoadPluginManifest(manifestPath);
+                    if (metadata == null) continue;
+
                     metadata.PluginDirectory = pluginDir;
+
+                    if (winners.TryGetValue(metadata.Id, out var kept))
+                    {
+                        var cmp = ComparePluginVersions(metadata.Version, kept.Version);
+                        if (cmp <= 0)
+                        {
+                            XTrace.Log.Info("同名插件已发现更高或同版本，跳过: {0} v{1}（来源 {2}；生效版本 v{3} 来自 {4}）",
+                                metadata.Id, metadata.Version, pluginDir, kept.Version, kept.PluginDirectory);
+                            continue;
+                        }
+                        XTrace.Log.Warn("同名插件按版本覆盖生效: {0} v{1}（来源 {2}）取代 v{3}（来源 {4}）",
+                            metadata.Id, metadata.Version, pluginDir, kept.Version, kept.PluginDirectory);
+                        winners[metadata.Id] = metadata;
+                        metadatas.RemoveAll(m => string.Equals(m.Id, metadata.Id, StringComparison.OrdinalIgnoreCase));
+                        metadatas.Add(metadata);
+                        _metadatas[metadata.Id] = metadata;
+                        continue;
+                    }
+
+                    winners[metadata.Id] = metadata;
                     _metadatas.TryAdd(metadata.Id, metadata);
                     _pluginStates.TryAdd(metadata.Id, PluginState.NotLoaded);
                     metadatas.Add(metadata);
-                    XTrace.Log.Info("发现插件: {0} v{1} - {2}", metadata.Name, metadata.Version, metadata.Id);
+                    XTrace.Log.Info("发现插件: {0} v{1} - {2}（来源 {3}）", metadata.Name, metadata.Version, metadata.Id, pluginDir);
                 }
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Error("扫描插件目录失败 [{0}]: {1}", pluginDir, ex.Message);
+                catch (Exception ex)
+                {
+                    XTrace.Log.Error("扫描插件目录失败 [{0}]: {1}", pluginDir, ex.Message);
+                }
             }
         }
 
-        XTrace.Log.Info("插件扫描完成，共发现 {0} 个插件", metadatas.Count);
+        XTrace.Log.Info("插件扫描完成，共发现 {0} 个插件（插件根 {1} 个：{2}）",
+            metadatas.Count, roots.Count(r => !string.IsNullOrWhiteSpace(r)), string.Join(" | ", roots));
         return metadatas;
+    }
+
+    /// <summary>
+    /// 插件版本号比较：可解析为 <see cref="Version"/>（2~4 段）时按数值比；
+    /// 任一不可解析则视为相等（返回 0 ⇒ 保留先扫到的内置根，避免被畸形版本号夺走）。
+    /// </summary>
+    internal static int ComparePluginVersions(string? candidate, string? kept)
+    {
+        if (Version.TryParse(candidate, out var a) && Version.TryParse(kept, out var b))
+            return a.CompareTo(b);
+        return 0;
     }
 
     /// <summary>

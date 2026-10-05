@@ -6,7 +6,7 @@
 //      或 Controllers/UnifiedAI/<key>Controller.cs；plugins -> Plugins/<key>/ 目录）
 //   - 孤儿检查（硬失败）：代码中的控制器 / 插件 / 功能页，必须被某个功能的 signals 覆盖
 //
-// 新增功能：先在 src/data/features.ts 登记并填 signals；本脚本会随 CI 自动校验。
+// 新增功能：先在 src/data/features.ts 登记并填 signals；随后本地跑本脚本校验（目前未接入 CI）。
 // 运行：node scripts/check-features.mjs  （或 pnpm run check:features）
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'

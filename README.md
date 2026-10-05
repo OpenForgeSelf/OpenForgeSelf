@@ -27,7 +27,7 @@
 
 ## 功能模块
 
-> 清单派生自单一真源 [`ForgeSelf.Web/src/data/features.ts`](ForgeSelf.Web/src/data/features.ts)（新增功能须先在该文件登记，`scripts/check-features.mjs` 在 CI 中校验代码与清单一致性）。
+> 清单派生自单一真源 [`ForgeSelf.Web/src/data/features.ts`](ForgeSelf.Web/src/data/features.ts)（新增功能须先在该文件登记，再用 `pnpm run check:features` 校验代码与清单一致性——幻影登记与孤儿产物两类脱节都是硬失败；该脚本目前**未接入 CI**，靠本地与提交前手工跑）。
 
 | 模块 | 分类 | 说明 |
 |---|---|---|

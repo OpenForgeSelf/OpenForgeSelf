@@ -123,7 +123,11 @@ Get-ChildItem -LiteralPath $publishTemp -Directory | ForEach-Object {
 
 # 3) Zip package (root = staging contents: plugin.json + DLLs + web/dist)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $pkgPath -CompressionLevel Optimal -Force
+# Compress-Archive rejects any destination extension other than .zip, while the host
+# scans *.forgeself-plugin (PluginVersionService), so archive to a temp .zip then rename.
+$zipTemp = Join-Path ([System.IO.Path]::GetTempPath()) ("plugin-pkg-" + [Guid]::NewGuid().ToString('N') + ".zip")
+Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipTemp -CompressionLevel Optimal -Force
+Move-Item -LiteralPath $zipTemp -Destination $pkgPath -Force
 
 # 4) Verify + hash
 if (-not (Test-Path $pkgPath)) { throw "Package not produced: $pkgPath" }

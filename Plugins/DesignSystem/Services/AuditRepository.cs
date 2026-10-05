@@ -36,7 +36,7 @@ public sealed class AuditRepository
         var exp = DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId;
         if (!kind.IsNullOrEmpty()) exp &= DesignAudit._.Kind == kind;
         if (passed != null) exp &= DesignAudit._.Passed == passed.Value;
-        return DesignAudit.FindAll(exp)
+        return DesignAudit.QueryAll(exp)
             .OrderBy(a => a.Severity, StringComparer.Ordinal)
             .ThenBy(a => a.Kind, StringComparer.Ordinal)
             .ThenBy(a => a.TargetPath, StringComparer.Ordinal).ToList();
@@ -61,7 +61,7 @@ public sealed class AuditRepository
         using var et = new EntityTransaction<DesignAudit>();
         foreach (var item in list)
         {
-            var e = DesignAudit.FindAll(DesignAudit._.ProjectId == projectId
+            var e = DesignAudit.QueryAll(DesignAudit._.ProjectId == projectId
                 & DesignAudit._.ReleaseId == releaseId
                 & DesignAudit._.Kind == item.Kind
                 & DesignAudit._.TargetType == item.TargetType
@@ -94,7 +94,7 @@ public sealed class AuditRepository
         }
 
         var live = new HashSet<String>(list.Select(i => Key(i.Kind, i.TargetType, i.TargetPath)), StringComparer.Ordinal);
-        foreach (var stale in DesignAudit.FindAll(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId)
+        foreach (var stale in DesignAudit.QueryAll(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId)
                      .Where(e => !live.Contains(Key(e.Kind, e.TargetType, e.TargetPath))))
             stale.Delete();
 
@@ -107,7 +107,7 @@ public sealed class AuditRepository
     /// <summary>草稿态（releaseId=0）审计汇总</summary>
     public AuditSummary Summarize(Int64 projectId, Int64 releaseId = DesignSystemConstants.SharedThemeId)
     {
-        var rows = DesignAudit.FindAll(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId);
+        var rows = DesignAudit.QueryAll(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId);
         return new AuditSummary(
             rows.Count,
             rows.Count(r => r.Passed),
@@ -118,6 +118,6 @@ public sealed class AuditRepository
 
     /// <summary>是否存在未通过的 critical 项（发布门禁判据）</summary>
     public Boolean HasBlocking(Int64 projectId, Int64 releaseId = DesignSystemConstants.SharedThemeId) =>
-        DesignAudit.FindCount(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId
+        DesignAudit.QueryCount(DesignAudit._.ProjectId == projectId & DesignAudit._.ReleaseId == releaseId
             & DesignAudit._.Passed == false & DesignAudit._.Severity == "critical") > 0;
 }

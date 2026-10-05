@@ -16,7 +16,7 @@ import { api, type PresetMatch, type Theme } from '../api'
 import PanelState from '../components/PanelState.vue'
 import { createLatest } from '../design/latest'
 import { mapLimit } from '../design/pool'
-import { projects as sharedProjects, projectsState } from '../state'
+import { meta, projects as sharedProjects, projectsState } from '../state'
 import AdminDashboard from './mannequins/AdminDashboard.vue'
 import AdminDetail from './mannequins/AdminDetail.vue'
 import AdminForm from './mannequins/AdminForm.vue'
@@ -32,7 +32,8 @@ import TunePanel from './TunePanel.vue'
 import Wardrobe from './Wardrobe.vue'
 import { applyProjectThemes, buildOutfits, createOutfitLoader, OUTFIT_LIMIT, type Outfit, type PresetInput } from './outfits'
 import { SCENES, deviceById, findPage, firstPage, sceneById, type DeviceId } from './scenes'
-import { defaultTune, tuneFromPreset, tuneToRequest, type DensityId, type TuneState } from './tune'
+import { axisFields, defaultTune, tuneFromPreset, tuneToRequest, type DensityId, type TuneState } from './tune'
+import { readStoredView, storeView, type ViewMode } from './fit'
 import type { RouteState } from '../design/route'
 
 /** 深链还原入参（root 从 `parseHash` 拿到后传入；无深链时 null，走原有默认） */
@@ -139,6 +140,10 @@ const pageId = ref(firstPage(SCENES[0]).id)
 const device = ref<DeviceId>(SCENES[0].device)
 const theme = ref('light')
 const density = ref<DensityId>('default')
+/** 视图档（输入22）：适应 / 1:1 / 最大化。属显示偏好 ⇒ 不进 URL 哈希，单独持久化 */
+const view = ref<ViewMode>(readStoredView())
+
+watch(view, (v) => storeView(v))
 
 /** 深链待还原主题：选中衣服稳定后由主题重置 watcher 消费一次（声明须先于该 watcher，避免 TDZ） */
 const restoreTheme = ref('')
@@ -282,6 +287,10 @@ watch([selectedId, theme, device, pageId], () => {
 
 /* ---------------- 微调 ---------------- */
 
+/** 风格轴清单只从 `meta.styleAxes` 读（后端 `StyleAxes` 是唯一真源；界面不许另列轴名或取值） */
+const styleAxes = computed(() => meta.value?.styleAxes ?? [])
+const tuneFields = computed(() => axisFields(styleAxes.value))
+
 const tune = ref<TuneState>(defaultTune())
 const tuneError = ref('')
 const saving = ref(false)
@@ -291,7 +300,7 @@ const tuneEnabled = computed(() => selectedOutfit.value != null && selectedOutfi
 watch(selectedId, () => {
   const outfit = selectedOutfit.value
   tuneError.value = ''
-  tune.value = tuneFromPreset(outfit?.request ?? null)
+  tune.value = tuneFromPreset(outfit?.request ?? null, tuneFields.value)
 })
 
 function onTune(patch: Partial<TuneState>): void {
@@ -299,7 +308,7 @@ function onTune(patch: Partial<TuneState>): void {
 }
 
 function resetTune(): void {
-  tune.value = tuneFromPreset(selectedOutfit.value?.request ?? null)
+  tune.value = tuneFromPreset(selectedOutfit.value?.request ?? null, tuneFields.value)
 }
 
 async function saveTuned(): Promise<void> {
@@ -400,7 +409,7 @@ function onSave(): void {
       />
     </div>
 
-    <div v-else class="ds-showroom__layout">
+    <div v-else class="ds-showroom__layout" data-showroom-layout :class="{ 'ds-showroom__layout--max': view === 'max' }">
       <Wardrobe
         :mine="mine"
         :presets="bundle.presets"
@@ -424,15 +433,18 @@ function onSave(): void {
         :device="device"
         :scene-id="sceneId"
         :page-id="pageId"
+        :view="view"
         @update:theme="theme = $event"
         @update:density="density = $event"
         @update:device="device = $event"
+        @update:view="view = $event"
         @pick:scene="pickScene"
         @pick:page="pageId = $event"
       />
 
       <TunePanel
         :tune="tune"
+        :style-axes="styleAxes"
         :enabled="tuneEnabled"
         :saving="saving"
         :error="tuneError"
@@ -462,6 +474,11 @@ function onSave(): void {
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-4);
+  /* 展厅这一栏不跟着工作台一起被 1240 封顶：预览的是 1280 的桌面稿，实测 1920 窗口下中列仍只有
+   * 648（`max-width:1240` 来自共享的 `.ds-mode-pane`），用户"屏幕更大"换不来更大的画布。
+   * 1872 = 桌面稿 1280 + 两侧栏 2×240 + 两条列间距 2×24 + 左右内衬 2×32 ⇒ 宽屏上「适应」档正好 1:1 全幅。
+   * 只放宽展厅；开始 / 工作台 / 交付三栏仍按 1240。 */
+  max-width: 1872px;
 }
 .ds-showroom__head {
   display: flex;
@@ -485,6 +502,13 @@ function onSave(): void {
   .ds-showroom__layout {
     grid-template-columns: 1fr;
   }
+}
+/* 最大化档（输入22）：两侧栏让位成单列，舞台排到最前吃满整幅宽度 */
+.ds-showroom__layout--max {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ds-showroom__layout--max > .ds-stage {
+  order: -1;
 }
 .ds-showroom__loading {
   margin: 0;

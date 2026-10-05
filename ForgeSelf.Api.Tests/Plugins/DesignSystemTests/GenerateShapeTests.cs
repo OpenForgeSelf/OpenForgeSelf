@@ -23,10 +23,12 @@ namespace ForgeSelf.Api.Tests.Plugins.DesignSystemTests;
 public class GenerateShapeTests : IDisposable
 {
     static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    /// <summary>M3 基线增量：末尾追加 `guidelines`（AC14「生成后规范到底有没有」在响应里可见），其余键顺序一字未动</summary>
     static readonly String[] ShapeBaseline =
     [
         "seed", "industry", "hue", "tokens", "components", "variants",
         "fonts", "screens", "assets", "themes", "notes", "skippedProtected", "conflicts", "audit",
+        "guidelines",
     ];
 
     readonly String _dbDir;
@@ -38,6 +40,7 @@ public class GenerateShapeTests : IDisposable
     readonly ExportService _export;
     readonly ReleaseService _releases;
     readonly GenerationService _generation;
+    readonly GuidelineService _guidelines;
 
     public GenerateShapeTests()
     {
@@ -60,11 +63,15 @@ public class GenerateShapeTests : IDisposable
         DesignFontFace.Meta.Cache.Expire = 0;
         DesignAudit.Meta.Cache.Expire = 0;
         DesignRelease.Meta.Cache.Expire = 0;
+        DesignGuideline.Meta.Cache.Expire = 0;
 
         _auditEngine = new AuditEngine(_tokens, _projects, _audits);
         _export = new ExportService(_tokens, _projects, _catalog);
         _releases = new ReleaseService(_tokens, _projects, _audits, _auditEngine, new DesignSystemPaths(_dbDir), _catalog);
         _generation = new GenerationService(_tokens, _projects, _catalog, _auditEngine);
+        // 与插件 DI 一致：生成链路挂上规范服务，generate 响应的 guidelines 才是真数而不是 null
+        _guidelines = new GuidelineService(_projects, _tokens, new GuidelineRepository());
+        _generation.Guidelines = _guidelines;
     }
 
     public void Dispose()
@@ -76,7 +83,7 @@ public class GenerateShapeTests : IDisposable
     DesignSystemController NewController() => new(_projects, _tokens, _catalog, _audits, _auditEngine, _export, _releases,
         _generation, new AgentAccess(new DesignSystemPaths(_dbDir)),
         new DesignReviewService(_export, _tokens, _projects),
-        new QuickCreateService(_projects, _generation), null!, new PreviewCssService(_export));
+        new QuickCreateService(_projects, _generation), null!, new PreviewCssService(_export), _guidelines);
 
     Int64 NewProject(String tag)
     {

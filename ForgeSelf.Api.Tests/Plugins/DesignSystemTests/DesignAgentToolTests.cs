@@ -43,7 +43,7 @@ public class DesignAgentToolContractTests
     public void 每个工具_元数据合规()
     {
         var kit = new DesignToolKit(new DesignProjectService(), new TokenRepository(), new CatalogRepository(),
-            new AuditRepository(), null!, null!, null!, null!, null!, null!, null!, null!);
+            new AuditRepository(), null!, null!, null!, null!, null!, null!, null!, null!, null!);
         foreach (var e in All)
         {
             var t = Tool(e, kit);
@@ -89,7 +89,7 @@ public class DesignAgentToolContractTests
     static DesignToolKit Kit() => new(new DesignProjectService(), new TokenRepository(),
         new CatalogRepository(), new AuditRepository(), null!, null!, null!, null!,
         new AgentAccess(new DesignSystemPaths(Path.Combine(Path.GetTempPath(), $"forge-ds-agt-contract_{Guid.NewGuid():N}"))),
-        null!, null!, null!);
+        null!, null!, null!, null!);
 }
 
 /// <summary>§B 工具行为：真实隔离库（XCode）+ 真实生成，零 mock。只建不删（铁律 10）。</summary>
@@ -109,6 +109,8 @@ public class DesignAgentToolBehaviorTests : IDisposable
     readonly DesignReviewService _review;
     readonly QuickCreateService _quickCreate;
     readonly DesignBriefBuilder _brief;
+    readonly GuidelineRepository _guidelineRepo = new();
+    readonly GuidelineService _guidelines;
     readonly DesignToolKit _kit;
 
     public DesignAgentToolBehaviorTests()
@@ -131,18 +133,23 @@ public class DesignAgentToolBehaviorTests : IDisposable
         DesignFontFace.Meta.Cache.Expire = 0;
         DesignAudit.Meta.Cache.Expire = 0;
         DesignRelease.Meta.Cache.Expire = 0;
+        DesignGuideline.Meta.Cache.Expire = 0;
 
         _auditEngine = new AuditEngine(_tokens, _projects, _audits);
         _generation = new GenerationService(_tokens, _projects, _catalog, _auditEngine);
         _export = new ExportService(_tokens, _projects, _catalog);
-        _releases = new ReleaseService(_tokens, _projects, _audits, _auditEngine, new DesignSystemPaths(_dbDir), _catalog);
+        _guidelines = new GuidelineService(_projects, _tokens, _guidelineRepo);
+        // 与插件 DI 同形：规范服务挂到生成/导出/发布三条链路上，工具走的必须是同一批实例
+        _generation.Guidelines = _guidelines;
+        _export.Guidelines = _guidelines;
+        _releases = new ReleaseService(_tokens, _projects, _audits, _auditEngine, new DesignSystemPaths(_dbDir), _catalog, _guidelineRepo);
         _agentAccess = new AgentAccess(new DesignSystemPaths(_dbDir));
         _review = new DesignReviewService(_export, _tokens, _projects);
         _quickCreate = new QuickCreateService(_projects, _generation);
         _brief = new DesignBriefBuilder(_export, _projects, _catalog, _review);
         _export.BriefBuilder = _brief;
         _kit = new DesignToolKit(_projects, _tokens, _catalog, _audits, _auditEngine, _export, _releases,
-            _generation, _agentAccess, _review, _quickCreate, _brief);
+            _generation, _agentAccess, _review, _quickCreate, _brief, _guidelines);
     }
 
     public void Dispose() => GC.SuppressFinalize(this);
@@ -305,7 +312,7 @@ public class DesignAgentToolBehaviorTests : IDisposable
     public void Presets_list_recommend()
     {
         var list = Ok(new DesignPresetsTool(_kit).ExecuteAsync(@"{""action"":""list""}").Result);
-        list.GetProperty("presets").EnumerateArray().Count().Should().Be(8);
+        list.GetProperty("presets").EnumerateArray().Count().Should().Be(13);
 
         var rec = Ok(new DesignPresetsTool(_kit).ExecuteAsync(
             @"{""action"":""recommend"",""brief"":""后台管理控制台"",""kind"":""console"",""limit"":3}").Result);

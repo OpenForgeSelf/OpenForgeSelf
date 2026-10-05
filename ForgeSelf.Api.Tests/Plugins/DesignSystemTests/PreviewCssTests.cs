@@ -13,7 +13,7 @@ namespace ForgeSelf.Api.Tests.Plugins.DesignSystemTests;
 /// M2 FR1 / AC1-AC3：内存预览 CSS（`preview-css`）。
 ///
 /// 两条硬判据：
-/// ① **零写库**：内存构图 → ToCss 全程不碰库，8 预设 × 明暗调用前后 12 张表行数不变（AC1）。
+/// ① **零写库**：内存构图 → ToCss 全程不碰库，全部预设 × 明暗调用前后各表行数不变（AC1）。
 /// ② **同源**：把同一请求真落库后 `export?format=css`，与内存预览去掉注释规整空白后**逐字相同**（AC2）——
 ///    这条是"展厅看到的 == 交付拿到的"的唯一证据，一旦快照构造出现第二份逻辑立刻变红。
 ///
@@ -61,13 +61,20 @@ public class PreviewCssTests : IDisposable
 
     public void Dispose() => GC.SuppressFinalize(this);
 
-    /// <summary>12 张表行数快照：AC1「调用前后行数不变」的判据。</summary>
-    static Int64[] Counts() =>
-    [
-        DesignProject.FindCount(), DesignTheme.FindCount(), DesignToken.FindCount(), DesignShadowLayer.FindCount(),
-        DesignComponent.FindCount(), DesignComponentVariant.FindCount(), DesignIcon.FindCount(), DesignAsset.FindCount(),
-        DesignScreen.FindCount(), DesignFontFace.FindCount(), DesignAudit.FindCount(), DesignRelease.FindCount(),
-    ];
+    /// <summary>全部表行数快照：AC1「调用前后行数不变」的判据。新表必须一起进这张清单（下面那条长度断言会兜住）。</summary>
+    static Int64[] Counts()
+    {
+        var counts = new[]
+        {
+            DesignProject.FindCount(), DesignTheme.FindCount(), DesignToken.FindCount(), DesignShadowLayer.FindCount(),
+            DesignComponent.FindCount(), DesignComponentVariant.FindCount(), DesignIcon.FindCount(), DesignAsset.FindCount(),
+            DesignScreen.FindCount(), DesignFontFace.FindCount(), DesignAudit.FindCount(), DesignRelease.FindCount(),
+            DesignGuideline.FindCount(),
+        };
+        // 加了表却没加进行数快照 = "零写库"这条断言悄悄少盯一张表（M3 新增 DesignGuideline 时就是这里）
+        counts.Length.Should().Be(DesignSystemTables.EntityTypes.Length, "行数快照必须覆盖全部实体表");
+        return counts;
+    }
 
     // ---------- AC1 ----------
 
@@ -88,7 +95,7 @@ public class PreviewCssTests : IDisposable
                 r.Css.Should().Contain("--ds-semantic-surface-bg", $"{preset.Id}/{theme} 必须给出画布底色变量（展厅据此认账）");
             }
 
-        Counts().Should().Equal(before);   // 零写库：12 张表一行没动
+        Counts().Should().Equal(before);   // 零写库：全部表一行没动
     }
 
     // ---------- AC2 ----------
@@ -191,6 +198,39 @@ public class PreviewCssTests : IDisposable
     {
         var req = new GenerationRequest { Hue = 0, Chroma = 0.05, TypeRatio = 0.5, TypeBasePx = 1, RadiusBase = 0, MotionScale = 0.1 };
         _preview.Preview(req, "light").Css.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>
+    /// 03 §A3：`shadowStrength` 是各层 alpha 的乘数，**0 = 阴影不可见但令牌仍在**。
+    /// 老投影把 `alpha=0` 判成"不用 color-mix"→ 直接输出实心色，于是"强度调到 0"反而拿到一条最重的黑投影
+    /// （M3 视觉矩阵 V3 的 `m3v3-shadowStrength-0` 实测：computed box-shadow = `rgb(15, 23, 42) 0px 2px 9.1px -1px`）。
+    /// 两端（默认 1 / 拉满 2）同时核，防止这条判据只在 0 那一侧成立、公式其实整条没接上。
+    /// </summary>
+    [Fact]
+    public void AC3_阴影强度0_投影必须是transparent_而不是实心色()
+    {
+        var zero = ShadowLine(_preview.Preview(new GenerationRequest { ShadowStrength = 0 }, "light").Css);
+        zero.Should().Contain("transparent", "alpha=0 的层必须投影成 transparent（不可见）");
+        zero.Should().NotContain("color-mix", "0% 的 color-mix 是废话，直接给 transparent 才不依赖消费端算色");
+
+        var one = ShadowLine(_preview.Preview(new GenerationRequest(), "light").Css);
+        var strong = ShadowLine(_preview.Preview(new GenerationRequest { ShadowStrength = 2 }, "light").Css);
+        one.Should().Contain("color-mix(", "默认强度的阴影仍是半透明（这条判据不许把正常路径也改成 transparent）");
+        MixPercent(strong).Should().BeGreaterThan(MixPercent(one), "强度越大 alpha 越高——同一条公式的两端都要跟着动");
+    }
+
+    static String ShadowLine(String css)
+    {
+        var m = Regex.Match(css, @"--ds-shadow-elevation-3:\s*([^;]+);");
+        m.Success.Should().BeTrue("预览 CSS 里必须有 elevation-3（拿不到 = 上面的断言全在空转）");
+        return m.Groups[1].Value;
+    }
+
+    static Double MixPercent(String shadowCss)
+    {
+        var m = Regex.Match(shadowCss, @"color-mix\(in oklab,[^)]*?([\d.]+)%");
+        m.Success.Should().BeTrue();
+        return Double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>去掉 `/* … */` 注释并规整空白（Output 契约的"同形"判据；注释里含项目 code/version，天然会不同）。</summary>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
+using ForgeSelf.Api.Plugins.DesignSystem.Services;
 using ForgeSelf.Abstractions;
 using NewLife;
 
@@ -105,6 +106,18 @@ public abstract class DesignToolBase : IToolFunctionExtension
         };
     }
 
+    /// <summary>可选数值参数（M3：design_create/design_edit 的风格轴是 Double?，缺省 null = 用默认值）</summary>
+    protected static Double? GetDouble(JsonElement args, String key)
+    {
+        if (!args.TryGetProperty(key, out var v)) return null;
+        return v.ValueKind switch
+        {
+            JsonValueKind.Number => v.GetDouble(),
+            JsonValueKind.String => Double.TryParse(v.GetString(), out var d) ? d : null,
+            _ => null,
+        };
+    }
+
     protected static Int32 GetInt(JsonElement args, String key, Int32 fallback, Int32 min, Int32 max)
     {
         if (!args.TryGetProperty(key, out var v)) return fallback;
@@ -161,6 +174,47 @@ public abstract class DesignToolBase : IToolFunctionExtension
     }
 
     String ListCodes() => String.Join(", ", Kit.Projects.List(null, null).Take(20).Select(x => x.Code));
+
+    /// <summary>
+    /// 规范出参（M3，lookup/edit 共用一个形状）：正文与规则文本经 <see cref="GuidelineRenderer"/> 括注当前值，
+    /// 同时给出 <c>*Raw</c> 原文与 <c>tokenValues</c> —— agent 既能读到"这条要求怎么说"，也能拿到现在到底是多少。
+    /// 取值函数由调用方注入（一律来自 <see cref="ExportService.GuidelineView"/>），保证与界面/导出同一个来源。
+    /// </summary>
+    protected static Object GuidelineDto(DesignGuideline g, Func<String, String?> valueOf)
+    {
+        var rules = GuidelineRepository.ReadRules(g.RulesJson);
+        var refs = GuidelineRepository.ReadPaths(g.TokenRefsJson);
+        return new
+        {
+            code = g.Code,
+            category = g.Category,
+            categoryLabel = GuidelineCategories.Display(g.Category),
+            title = g.Title,
+            summary = GuidelineRenderer.Annotate(g.Summary, valueOf),
+            body = GuidelineRenderer.Annotate(g.Body, valueOf),
+            bodyRaw = g.Body,
+            rules = rules.Select(r => new
+            {
+                id = r.Id, level = r.Level,
+                text = GuidelineRenderer.Annotate(r.Text, valueOf), textRaw = r.Text,
+            }).ToList(),
+            tokenRefs = refs,
+            tokenValues = refs.ToDictionary(p => p, p => valueOf(p), StringComparer.Ordinal),
+            brokenRefs = refs.Distinct(StringComparer.Ordinal).Where(p => valueOf(p).IsNullOrEmpty())
+                .OrderBy(p => p, StringComparer.Ordinal).ToList(),
+            appliesTo = GuidelineRepository.ReadPaths(g.AppliesToJson),
+            source = g.Source,
+            status = g.Status,
+            generatorVersion = g.GeneratorVersion,
+            generatorSeed = g.GeneratorSeed,
+            sortOrder = g.SortOrder,
+            updatedAt = g.UpdatedAt,
+        };
+    }
+
+    /// <summary>规范取值函数：走导出侧同一个视图（默认色彩主题），不自己解析令牌</summary>
+    protected Func<String, String?> GuidelineValues(DesignProject project, String? themeCode) =>
+        ExportService.ValueOf(Kit.Export.GuidelineView(Kit.Export.Load(project.Id, themeCode)));
 
     /// <summary>主题解析：缺省项目默认主题；请求主题不存在则回落默认并带说明。</summary>
     protected (String Theme, String? Note) ResolveTheme(DesignProject project, String? theme)

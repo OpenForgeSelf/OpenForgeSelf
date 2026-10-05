@@ -81,11 +81,11 @@ public sealed class CatalogRepository
     {
         var exp = DesignComponent._.ProjectId == projectId;
         if (!category.IsNullOrEmpty()) exp &= DesignComponent._.Category == category;
-        return DesignComponent.FindAll(exp).OrderBy(c => c.SortOrder).ThenBy(c => c.Code, StringComparer.Ordinal).ToList();
+        return DesignComponent.QueryAll(exp).OrderBy(c => c.SortOrder).ThenBy(c => c.Code, StringComparer.Ordinal).ToList();
     }
 
     public DesignComponent? FindComponent(Int64 projectId, String code) =>
-        DesignComponent.FindAll(DesignComponent._.ProjectId == projectId & DesignComponent._.Code == code.Trim()).FirstOrDefault();
+        DesignComponent.QueryAll(DesignComponent._.ProjectId == projectId & DesignComponent._.Code == code.Trim()).FirstOrDefault();
 
     public DesignComponent SaveComponent(Int64 projectId, ComponentInput input)
     {
@@ -116,7 +116,7 @@ public sealed class CatalogRepository
     /// 分组这一步是必要的：用户自己补的格子 `SortOrder` 可能是 0，只按 `SortOrder` 排会让它们整批跳到矩阵最前面。
     /// </summary>
     public IList<DesignComponentVariant> ListVariants(Int64 componentId) =>
-        DesignComponentVariant.FindAll(DesignComponentVariant._.ComponentId == componentId)
+        DesignComponentVariant.QueryAll(DesignComponentVariant._.ComponentId == componentId)
             .OrderBy(v => AxisSortKey(v.VariantKey), StringComparer.Ordinal)
             .ThenBy(v => v.VariantKey, StringComparer.Ordinal)
             .ThenBy(v => v.SortOrder).ThenBy(v => v.Code, StringComparer.Ordinal).ToList();
@@ -133,7 +133,7 @@ public sealed class CatalogRepository
         if (componentIds.Count == 0) return grouped;
 
         var ids = componentIds.Distinct().ToArray();
-        var ordered = DesignComponentVariant.FindAll(DesignComponentVariant._.ComponentId.In(ids))
+        var ordered = DesignComponentVariant.QueryAll(DesignComponentVariant._.ComponentId.In(ids))
             .OrderBy(v => AxisSortKey(v.VariantKey), StringComparer.Ordinal)
             .ThenBy(v => v.VariantKey, StringComparer.Ordinal)
             .ThenBy(v => v.SortOrder).ThenBy(v => v.Code, StringComparer.Ordinal).ToList();
@@ -190,7 +190,7 @@ public sealed class CatalogRepository
         var state = input.State.IsNullOrEmpty() ? "default" : input.State.Trim().ToLowerInvariant();
         var key = CanonicalJson(input.VariantJson ?? "{}");
 
-        var e = DesignComponentVariant.FindAll(DesignComponentVariant._.ComponentId == component.Id
+        var e = DesignComponentVariant.QueryAll(DesignComponentVariant._.ComponentId == component.Id
                     & DesignComponentVariant._.VariantKey == key
                     & DesignComponentVariant._.State == state
                     & DesignComponentVariant._.ThemeId == input.ThemeId).FirstOrDefault()
@@ -234,12 +234,12 @@ public sealed class CatalogRepository
         if (!keyword.IsNullOrEmpty())
             exp &= DesignIcon._.Code.Contains(keyword!) | DesignIcon._.Name.Contains(keyword!) | DesignIcon._.Tags.Contains(keyword!);
 
-        return DesignIcon.FindAll(exp).OrderBy(i => i.Collection, StringComparer.Ordinal)
+        return DesignIcon.QueryAll(exp).OrderBy(i => i.Collection, StringComparer.Ordinal)
             .ThenBy(i => i.Code, StringComparer.Ordinal).ToList();
     }
 
     public DesignIcon? FindIcon(Int64 projectId, String code) =>
-        DesignIcon.FindAll(DesignIcon._.ProjectId == projectId & DesignIcon._.Code == code.Trim()).FirstOrDefault();
+        DesignIcon.QueryAll(DesignIcon._.ProjectId == projectId & DesignIcon._.Code == code.Trim()).FirstOrDefault();
 
     /// <summary>写入项目图标；内置库只读，拒绝写入</summary>
     public DesignIcon SaveIcon(Int64 projectId, IconInput input)
@@ -301,14 +301,14 @@ public sealed class CatalogRepository
     {
         var exp = DesignAsset._.ProjectId == projectId;
         if (!kind.IsNullOrEmpty()) exp &= DesignAsset._.Kind == kind;
-        return DesignAsset.FindAll(exp).OrderBy(a => a.SortOrder).ThenBy(a => a.Code, StringComparer.Ordinal).ToList();
+        return DesignAsset.QueryAll(exp).OrderBy(a => a.SortOrder).ThenBy(a => a.Code, StringComparer.Ordinal).ToList();
     }
 
     public DesignAsset SaveAsset(Int64 projectId, String code, String? name, String? kind, String? svgBody, String? fileRef, String? tokenRefsJson, String? description, String? license)
     {
         code = code.Trim();
         if (code.IsNullOrEmpty()) throw new ArgumentException("资产 Code 不能为空", nameof(code));
-        var e = DesignAsset.FindAll(DesignAsset._.ProjectId == projectId & DesignAsset._.Code == code).FirstOrDefault()
+        var e = DesignAsset.QueryAll(DesignAsset._.ProjectId == projectId & DesignAsset._.Code == code).FirstOrDefault()
                 ?? new DesignAsset { ProjectId = projectId, Code = code, CreatedAt = DateTime.Now };
         e.Name = name.IsNullOrEmpty() ? code : name!;
         if (!kind.IsNullOrEmpty()) e.Kind = kind!;
@@ -324,13 +324,13 @@ public sealed class CatalogRepository
     }
 
     public IList<DesignScreen> ListScreens(Int64 projectId) =>
-        DesignScreen.FindAll(DesignScreen._.ProjectId == projectId).OrderBy(s => s.SortOrder).ThenBy(s => s.Code, StringComparer.Ordinal).ToList();
+        DesignScreen.QueryAll(DesignScreen._.ProjectId == projectId).OrderBy(s => s.SortOrder).ThenBy(s => s.Code, StringComparer.Ordinal).ToList();
 
     public DesignScreen SaveScreen(Int64 projectId, String code, String? title, String? iconCode, String? route, String? componentIdsJson, String? description, String? notes, Int64 themeId, Int32 sortOrder)
     {
         code = code.Trim();
         if (code.IsNullOrEmpty()) throw new ArgumentException("页面 Code 不能为空", nameof(code));
-        var e = DesignScreen.FindAll(DesignScreen._.ProjectId == projectId & DesignScreen._.Code == code).FirstOrDefault()
+        var e = DesignScreen.QueryAll(DesignScreen._.ProjectId == projectId & DesignScreen._.Code == code).FirstOrDefault()
                 ?? new DesignScreen { ProjectId = projectId, Code = code, CreatedAt = DateTime.Now };
         e.Title = title.IsNullOrEmpty() ? code : title!;
         if (iconCode != null) e.IconCode = iconCode;
@@ -346,7 +346,7 @@ public sealed class CatalogRepository
     }
 
     public IList<DesignFontFace> ListFonts(Int64 projectId) =>
-        DesignFontFace.FindAll(DesignFontFace._.ProjectId == projectId | DesignFontFace._.ProjectId == DesignSystemConstants.BuiltinProjectId)
+        DesignFontFace.QueryAll(DesignFontFace._.ProjectId == projectId | DesignFontFace._.ProjectId == DesignSystemConstants.BuiltinProjectId)
             .OrderBy(f => f.Family, StringComparer.Ordinal).ThenBy(f => f.Weight).ToList();
 
     public DesignFontFace SaveFont(Int64 projectId, String family, Int32 weight, String style, String? fileName, String? fileRef, String? display, String? role, String? sourceUrl, String? license, String? metricsJson)
@@ -354,7 +354,7 @@ public sealed class CatalogRepository
         if (family.IsNullOrWhiteSpace()) throw new ArgumentException("字族名不能为空", nameof(family));
         style = style.IsNullOrEmpty() ? "normal" : style!.Trim().ToLowerInvariant();
 
-        var e = DesignFontFace.FindAll(DesignFontFace._.ProjectId == projectId
+        var e = DesignFontFace.QueryAll(DesignFontFace._.ProjectId == projectId
             & DesignFontFace._.Family == family.Trim()
             & DesignFontFace._.Weight == weight
             & DesignFontFace._.Style == style).FirstOrDefault()

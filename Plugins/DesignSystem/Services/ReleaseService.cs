@@ -29,24 +29,33 @@ public sealed record ReleaseRequest(String Version, String? Notes, Int64 SourceR
 /// 不可变发布快照。
 /// `Specs` 可空是为了读得动 **schema 1 的旧快照文件**（那时只有令牌）：
 /// 旧文件不能凭空补一节，比对时必须如实报"不可比"而不是"新增 N 条"。
+/// schema 2→3 只多了一类规格（`kind="guideline"`，M3 UX 规范），所以按**类**判可比性，见 <see cref="Schema3SpecKinds"/>。
 /// </summary>
 public sealed record ReleaseSnapshot(Int32 SchemaVersion, String Project, String Version, DateTime GeneratedAt,
     IReadOnlyList<ReleaseToken> Tokens, IReadOnlyList<ReleaseSpec>? Specs)
 {
-    public const Int32 CurrentSchema = 2;
+    public const Int32 CurrentSchema = 3;
+
+    /// <summary>schema 3 才出现的规格类：与 schema≤2 的快照互比时这类**不可比**（旧文件里从来没记过，报"新增 14 条"是假的）</summary>
+    public static readonly String[] Schema3SpecKinds = ["guideline"];
+
+    public static Boolean KindComparable(Int32 schemaA, Int32 schemaB, String kind) =>
+        !(Schema3SpecKinds.Contains(kind, StringComparer.Ordinal) && (schemaA < 3 || schemaB < 3));
 }
 
 /// <summary>两个快照的差异（令牌 + 规格两节）</summary>
 public sealed record ReleaseDiff(String From, String To, IReadOnlyList<ReleaseToken> Added, IReadOnlyList<ReleaseToken> Removed,
     IReadOnlyList<TokenChange> Changed, IReadOnlyList<String> MissingThemes,
     IReadOnlyList<ReleaseSpec> SpecsAdded, IReadOnlyList<ReleaseSpec> SpecsRemoved, IReadOnlyList<SpecChange> SpecsChanged,
-    Boolean SpecsComparable)
+    Boolean SpecsComparable,
+    /// <summary>整节能比但某一类不可比（schema 2↔3 的 guideline）：界面必须写"这一类无法比较"，而不是"没有变化"</summary>
+    IReadOnlyList<String>? NotComparableKinds = null)
 {
     /// <summary>不可比时不算"有变更"：否则老快照一比就凭空冒出整节新增</summary>
     public Boolean IsEmpty => Added.Count == 0 && Removed.Count == 0 && Changed.Count == 0
-                              && (!SpecsComparable || (SpecsAdded.Count == 0 && SpecsRemoved.Count == 0 && SpecsChanged.Count == 0));
+                              && SpecsAdded.Count == 0 && SpecsRemoved.Count == 0 && SpecsChanged.Count == 0;
     public Int32 Total => Added.Count + Removed.Count + Changed.Count
-                          + (SpecsComparable ? SpecsAdded.Count + SpecsRemoved.Count + SpecsChanged.Count : 0);
+                          + SpecsAdded.Count + SpecsRemoved.Count + SpecsChanged.Count;
 }
 
 /// <summary>单个令牌字段的变更</summary>
@@ -66,6 +75,7 @@ public sealed class ReleaseService
     readonly AuditEngine _audit;
     readonly DesignSystemPaths _paths;
     readonly CatalogRepository _catalog;
+    readonly GuidelineRepository? _guidelines;
 
     static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -74,8 +84,9 @@ public sealed class ReleaseService
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <param name="guidelines">M3 规范仓储：不给时快照不含 guideline 类（旧装配照跑），给了就把规范一起钉进版本</param>
     public ReleaseService(TokenRepository tokens, DesignProjectService projects, AuditRepository audits, AuditEngine audit,
-        DesignSystemPaths paths, CatalogRepository catalog)
+        DesignSystemPaths paths, CatalogRepository catalog, GuidelineRepository? guidelines = null)
     {
         _tokens = tokens;
         _projects = projects;
@@ -83,12 +94,13 @@ public sealed class ReleaseService
         _audit = audit;
         _paths = paths;
         _catalog = catalog;
+        _guidelines = guidelines;
     }
 
     public IList<DesignRelease> List(Int64 projectId) =>
-        DesignRelease.FindAll(DesignRelease._.ProjectId == projectId).OrderByDescending(r => r.CreatedAt).ToList();
+        DesignRelease.QueryAll(DesignRelease._.ProjectId == projectId).OrderByDescending(r => r.CreatedAt).ToList();
 
-    public DesignRelease? Find(Int64 releaseId) => DesignRelease.FindAll(DesignRelease._.Id == releaseId).FirstOrDefault();
+    public DesignRelease? Find(Int64 releaseId) => DesignRelease.QueryAll(DesignRelease._.Id == releaseId).FirstOrDefault();
 
     /// <summary>
     /// 同一项目的发布串行化。并发或重复投递的两个 POST /releases 会各跑一遍审计写库，
@@ -125,7 +137,7 @@ public sealed class ReleaseService
         if (snapshot.Tokens.Count == 0) throw new DesignConflictException("项目还没有任何令牌，无内容可发布（先生成或导入令牌）");
         var hash = Hash(snapshot);
 
-        var existing = DesignRelease.FindAll(DesignRelease._.ProjectId == projectId & DesignRelease._.Version == version).FirstOrDefault();
+        var existing = DesignRelease.QueryAll(DesignRelease._.ProjectId == projectId & DesignRelease._.Version == version).FirstOrDefault();
         if (existing != null)
         {
             if (string.Equals(existing.TokensHash, hash, StringComparison.OrdinalIgnoreCase)) return existing;
@@ -219,8 +231,10 @@ public sealed class ReleaseService
 
         // 规格节：任何一边没有这一节（schema 1 的旧快照）就报"不可比"，绝不把整节凭空报成新增
         var comparable = a.Specs is not null && b.Specs is not null;
-        var specA = (a.Specs ?? []).ToDictionary(SpecKey);
-        var specB = (b.Specs ?? []).ToDictionary(SpecKey);
+        // 类级不可比（M3）：schema≤2 的快照里从来没记过 guideline，这一类必须报"无法比较"而不是"新增 14 条"
+        Boolean KindOk(String kind) => ReleaseSnapshot.KindComparable(a.SchemaVersion, b.SchemaVersion, kind);
+        var specA = (a.Specs ?? []).Where(s => KindOk(s.Kind)).ToDictionary(SpecKey);
+        var specB = (b.Specs ?? []).Where(s => KindOk(s.Kind)).ToDictionary(SpecKey);
         var specAdded = comparable ? specB.Where(kv => !specA.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList() : [];
         var specRemoved = comparable ? specA.Where(kv => !specB.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList() : [];
         var specChanged = new List<SpecChange>();
@@ -245,7 +259,9 @@ public sealed class ReleaseService
             specAdded.OrderBy(s => s.Kind).ThenBy(s => s.Key).ToList(),
             specRemoved.OrderBy(s => s.Kind).ThenBy(s => s.Key).ToList(),
             specChanged.OrderBy(c => c.Kind).ThenBy(c => c.Key).ThenBy(c => c.Field, StringComparer.Ordinal).ToList(),
-            comparable);
+            comparable,
+            // 由 schema 版本号判定，不依赖数据里是否恰好出现过这类（两边都是空的也可能是"旧侧根本没记"）
+            ReleaseSnapshot.Schema3SpecKinds.Where(k => !KindOk(k)).ToList());
     }
 
     static String Key(ReleaseToken t) => t.Theme + "\u0000" + t.Path;
@@ -310,6 +326,16 @@ public sealed class ReleaseService
             specs.Add(new ReleaseSpec("font", $"{f.Family}|{f.Weight}|{f.Style}", Dict(
                 ("role", f.Role), ("fileName", f.FileName), ("fileRef", f.FileRef),
                 ("display", f.Display), ("license", f.License))));
+
+        // UX 规范（M3，schema 3 新增类）：口径与交付一致 —— 不含 archived（归档就是"这一版不再要求它"，diff 报删除是对的）。
+        // 只存**原文**（RulesJson/TokenRefsJson 是库里那份），括注值不进快照：值由令牌层自己进快照，避免同一数字存两处。
+        List<DesignGuideline> guidelineRows = _guidelines?.List(projectId).ToList() ?? [];
+        foreach (var g in guidelineRows)
+            specs.Add(new ReleaseSpec("guideline", g.Code, Dict(
+                ("category", g.Category), ("status", g.Status), ("title", g.Title), ("summary", g.Summary),
+                ("body", g.Body), ("rules", g.RulesJson), ("tokenRefs", g.TokenRefsJson),
+                ("appliesTo", g.AppliesToJson), ("source", g.Source),
+                ("generatorVersion", g.GeneratorVersion), ("generatorSeed", g.GeneratorSeed))));
 
         return specs.OrderBy(s => s.Kind, StringComparer.Ordinal).ThenBy(s => s.Key, StringComparer.Ordinal).ToList();
 

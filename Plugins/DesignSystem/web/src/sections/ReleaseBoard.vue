@@ -323,11 +323,14 @@ onMounted(() => {
               其中一版是 schema 1 的旧快照（当时只快照令牌），规格节**不可比** —— 不把它整节报成新增。
             </p>
             <template v-else>
+              <p v-if="diff.notComparableKinds?.length" class="rb__warn" data-diff-not-comparable>
+                这些规格类跨版本**无法比较**（其中一版的快照里根本没记过）：{{ diff.notComparableKinds.join(' / ') }} —— 不是"没有变化"。
+              </p>
               <div class="ds-row ds-wrap ds-gap-3 ds-small">
                 <span class="rb__pill rb__pill--ok">+{{ diff.specsAdded.length }}</span>
                 <span class="rb__pill rb__pill--no">−{{ diff.specsRemoved.length }}</span>
                 <span class="rb__pill rb__pill--muted">Δ{{ diff.specsChanged.length }}</span>
-                <span class="ds-micro">kind = component / variant / asset / screen / font</span>
+                <span class="ds-micro">kind = component / variant / asset / screen / font / guideline</span>
               </div>
               <ul v-if="diff.specsAdded.length || diff.specsRemoved.length" class="rb__spec-list">
                 <li v-for="(s, i) in diff.specsAdded.slice(0, 40)" :key="'sa' + i" class="ds-mono rb__li">

@@ -94,6 +94,12 @@ export class Wizard {
   presetRequest: GenerateRequest | null = null
   tune: TuneState = defaultTune()
 
+  /**
+   * 风格轴字段清单（由界面从 `meta.styleAxes` 注入）。
+   * 状态机自己不列轴名：填了才认，没填（词表还没到）就一个轴都不带，绝不猜。
+   */
+  axisFields: string[] = []
+
   /** 推荐的 Top-3（进②时取；陈旧响应丢弃） */
   matches: PresetChoice[] = []
   /** 「全部风格」展开后的全量（惰性取；推荐失败时也用它兜底） */
@@ -209,10 +215,15 @@ export class Wizard {
     if (!choice) return
     this.presetId = id
     this.presetRequest = choice.request
-    this.tune = tuneFromPreset(choice.request)
+    this.tune = tuneFromPreset(choice.request, this.axisFields)
   }
 
   /* ---- 第③步微调 ---- */
+
+  /** 选一条风格轴的取值（`field` 来自 meta，值来自该轴的 values；本方法不认识任何具体轴名） */
+  setAxis(field: string, value: string | number): void {
+    this.tune = { ...this.tune, axes: { ...this.tune.axes, [field]: value } }
+  }
 
   setTune(patch: Partial<TuneState>): void {
     this.tune = { ...this.tune, ...patch }

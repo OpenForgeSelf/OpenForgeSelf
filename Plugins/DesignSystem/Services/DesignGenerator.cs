@@ -35,6 +35,29 @@ public sealed class GenerationRequest
 
     /// <summary>行业倾向覆盖：null=由 brief 推断</summary>
     public String? Industry { get; set; }
+
+    // ---- M3 风格轴（全部可空；null = 默认 = M3 之前的唯一做法，产物必须逐字节不变） ----
+    // 取值词表的唯一真源是 StyleAxes，界面与工具都不另抄一份
+    /// <summary>阴影风格：soft（默认）|crisp|flat|layered</summary>
+    public String? ShadowStyle { get; set; }
+
+    /// <summary>阴影强度 0~2（默认 1）；越界夹取并写 Notes</summary>
+    public Double? ShadowStrength { get; set; }
+
+    /// <summary>描边强度：regular（默认 1px/2px）|bold（2px/3px）</summary>
+    public String? BorderStrength { get; set; }
+
+    /// <summary>中性色温：brand（默认，随品牌色相）|cool|warm|pure</summary>
+    public String? NeutralTemp { get; set; }
+
+    /// <summary>字体搭配：modern（默认）|system|humanist|editorial（editorial 才有衬线展示字族）</summary>
+    public String? FontPairing { get; set; }
+
+    /// <summary>圆角风格：soft（默认映射）|sharp|round|pill —— 改的是"组件到圆角档的映射"，不是圆角基准</summary>
+    public String? RadiusStyle { get; set; }
+
+    /// <summary>强调色策略：complement（≡默认偏移 168°）|analogous|split|triadic|mono；给了就优先于 AccentHueOffset</summary>
+    public String? AccentStrategy { get; set; }
 }
 
 /// <summary>生成产物</summary>
@@ -98,6 +121,9 @@ public static class DesignGenerator
     public static GenerationResult Generate(GenerationRequest req)
     {
         req ??= new GenerationRequest();
+        // 风格轴先校验：非法取值当场抛（REST 经 Guard 回 400），越界的强度夹取并留下 Notes。
+        // 放在最前面是为了"参数错了不产出半成品令牌"，而不是产出一套带错值的系统。
+        var axisNotes = StyleAxes.Normalize(req);
         var brief = (req.Brief ?? "").Trim();
         var industry = ResolveIndustry(req, brief);
         var (indRatio, indChroma, indRadius, indDensity, indMotion) = Industries[industry];
@@ -120,6 +146,10 @@ public static class DesignGenerator
         else { seedColor = null; hue = StableHue(brief); seedSource = "brief-hash"; }
         var anchorStep = seedColor == null ? null : ColorRampGenerator.NearestStep(seedColor.Value.L);
 
+        // 强调色：策略优先于数值偏移（§A1）。未传策略 = 沿用既有 AccentHueOffset，默认路径一字不改
+        var strategy = req.AccentStrategy.IsNullOrEmpty() ? null : StyleAxes.Effective(StyleAxes.AccentStrategy, req.AccentStrategy);
+        var accentOffset = strategy == null ? req.AccentHueOffset : StyleAxes.AccentOffsetOf(strategy);
+
         var result = new GenerationResult
         {
             Industry = industry,
@@ -128,14 +158,21 @@ public static class DesignGenerator
         };
         if (seedSource == "brief-hash" && brief.Length > 0)
             result.Notes.Add($"未给种子色，色相按需求文本稳定哈希取 {Math.Round(hue, 1)}°（同文本必同色，不含色彩心理学判断）");
+        // 用了哪个非默认轴必须可见：否则"传了参数但看不出有没有生效"又是一次假能力
+        result.Notes.AddRange(axisNotes);
+        if (strategy != null)
+            result.Notes.Add($"强调色策略 {strategy} → 偏移 {Num(accentOffset)}°（覆盖 accentHueOffset={Num(req.AccentHueOffset)}）");
 
-        var opts = new ScaleOptions(density, radius, 1, motion);
-        var typeOpts = new TypeOptions(basePx, ratio, 320, 1280, 0.35);
+        var opts = new ScaleOptions(density, radius, StyleAxes.ShadowStrengthOf(req), motion,
+            StyleAxes.ShadowStyleOf(req), StyleAxes.BorderStrengthOf(req));
+        var (fontSans, fontMono, fontDisplay) = StyleAxes.FontsFor(StyleAxes.FontPairingOf(req));
+        var typeOpts = new TypeOptions(basePx, ratio, 320, 1280, 0.35, fontSans, fontMono, fontDisplay);
+        var neutralTemp = StyleAxes.NeutralTempOf(req);
 
         // 1) primitive 色阶：族序 = ColorFamilies.All（同一张表经 /meta 供给界面排色阶条带）。
         //    逐族产出按表遍历（不靠 Dictionary 的枚举序），产出的语义层也从同一份 ramps 选 tone。
         var ramps = ColorFamilies.All.ToDictionary(f => f,
-            f => RampFor(f, hue, chroma, req.AccentHueOffset, seedColor, anchorStep), StringComparer.Ordinal);
+            f => RampFor(f, hue, chroma, accentOffset, seedColor, anchorStep, neutralTemp), StringComparer.Ordinal);
         foreach (var family in ColorFamilies.All)
             foreach (var s in ramps[family])
                 result.Shared.Add(new TokenPatch
@@ -224,7 +261,7 @@ public static class DesignGenerator
         }
 
         // 4) component 层：只引用 semantic（绝不直连 primitive，违规会被审计抓）
-        result.Shared.AddRange(ComponentTokens());
+        result.Shared.AddRange(ComponentTokens(StyleAxes.RadiusStyleOf(req)));
         return result;
     }
 
@@ -460,7 +497,8 @@ public static class DesignGenerator
         var knownAssets = new HashSet<String>(catalog.ListAssets(projectId, null).Select(a => a.Code), StringComparer.Ordinal);
 
         var fonts = knownFonts.Count;
-        foreach (var (role, stack) in new[] { ("sans", Value("font.sans")), ("mono", Value("font.mono")) })
+        // display 只在字体搭配轴取 editorial 时才存在；缺失时 Value() 回空串，下面的循环原样跳过（不造假登记）
+        foreach (var (role, stack) in new[] { ("sans", Value("font.sans")), ("mono", Value("font.mono")), ("display", Value("font.display")) })
         {
             if (stack.IsNullOrEmpty()) continue;
             foreach (var raw in stack.Split(','))
@@ -543,17 +581,28 @@ public static class DesignGenerator
     /// 但**族名必须来自 <see cref="ColorFamilies.All"/>**：表里多一族而这里没规则 = 当场抛，
     /// 而不是安静地少一族（少一族时界面的色阶条带只是少一条，很难被发现）。
     /// </summary>
-    static IReadOnlyList<RampStep> RampFor(String family, Double hue, Double chroma, Double accentOffset, Oklch.Color? seedColor, String? anchorStep) => family switch
+    static IReadOnlyList<RampStep> RampFor(String family, Double hue, Double chroma, Double accentOffset, Oklch.Color? seedColor, String? anchorStep, String neutralTemp) => family switch
     {
         ColorFamilies.Brand => ColorRampGenerator.Generate(new RampOptions(hue, chroma, AnchorStep: anchorStep, AnchorColor: seedColor)),
         ColorFamilies.Accent => ColorRampGenerator.Generate(new RampOptions(Oklch.NormalizeHue(hue + accentOffset), chroma * 0.92)),
-        ColorFamilies.Neutral => ColorRampGenerator.GenerateNeutral(hue),
+        ColorFamilies.Neutral => NeutralRamp(neutralTemp, hue),
         ColorFamilies.Success => ColorRampGenerator.Generate(new RampOptions(152, chroma * 0.78)),
         ColorFamilies.Warning => ColorRampGenerator.Generate(new RampOptions(85, chroma * 0.86)),
         ColorFamilies.Danger => ColorRampGenerator.Generate(new RampOptions(27, chroma * 0.9)),
         ColorFamilies.Info => ColorRampGenerator.Generate(new RampOptions(Oklch.NormalizeHue(hue + accentOffset), chroma * 0.7)),
         _ => throw new InvalidOperationException($"色族 {family} 在 ColorFamilies.All 里但没有产出规则"),
     };
+
+    /// <summary>
+    /// 中性色温轴 → 中性阶。`brand`（默认）= 现状：随品牌色相、微染 0.012；
+    /// `cool`/`warm` 是把灰的色相钉到冷/暖端（灰不再跟着品牌走，这是"性冷淡"与"手作暖"的实际来源）；
+    /// `pure` = 彩度 0 的死灰。
+    /// </summary>
+    static IReadOnlyList<RampStep> NeutralRamp(String temp, Double brandHue)
+    {
+        var (hue, tint) = StyleAxes.NeutralFor(temp, brandHue);
+        return ColorRampGenerator.GenerateNeutral(hue ?? brandHue, tint);
+    }
 
     /// <summary>
     /// 主题码 → 密度档（mode 轴里的密度档）。认紧凑/舒适两组常见写法，其余返回 null（=按色向主题处理）。
@@ -627,8 +676,42 @@ public static class DesignGenerator
             };
     }
 
+    /// <summary>
+    /// 圆角风格 → 组件到圆角档的映射（§A4 的表，一档不差）。
+    /// 值序与 <see cref="StyleAxes.RadiusStyleValues"/> 同序（soft|sharp|round|pill），
+    /// **首列必须逐字等于 M3 之前写死的那份映射**：`soft` 走的是存量项目的轮廓。
+    /// 注意这一轴改的是"引用哪个档"，不是档本身的值——所以它不会动 `radius.*` primitive，只动 `component.*.radius` 的别名目标。
+    /// </summary>
+    static readonly Dictionary<String, String[]> RadiusMap = new(StringComparer.Ordinal)
+    {
+        ["button"] = ["md", "sm", "lg", "pill"],
+        ["button.sm"] = ["sm", "xs", "md", "pill"],
+        ["button.md"] = ["md", "sm", "lg", "pill"],
+        ["button.lg"] = ["lg", "md", "xl", "pill"],
+        ["input"] = ["md", "sm", "lg", "lg"],
+        ["input.sm"] = ["sm", "xs", "md", "md"],
+        ["input.md"] = ["md", "sm", "lg", "lg"],
+        ["input.lg"] = ["lg", "md", "xl", "xl"],
+        ["select"] = ["md", "sm", "lg", "lg"],
+        ["badge"] = ["pill", "xs", "pill", "pill"],
+        ["card"] = ["lg", "md", "xl", "xl"],
+        ["dialog"] = ["lg", "md", "xl", "xl"],
+        ["tooltip"] = ["sm", "xs", "md", "md"],
+    };
+
+    /// <summary>取某组件槽位在该圆角风格下应引用的档位令牌路径</summary>
+    static String RadiusFor(String style, String slot)
+    {
+        var i = Array.FindIndex(StyleAxes.RadiusStyleValues, x => x == style);
+        if (i < 0)
+            throw new ArgumentException($"风格轴 {StyleAxes.RadiusStyle} 的取值 {style} 不在 [{String.Join(", ", StyleAxes.RadiusStyleValues)}] 内");
+        if (!RadiusMap.TryGetValue(slot, out var steps))
+            throw new InvalidOperationException($"圆角映射表缺槽位 {slot}（新组件的圆角必须在表里显式给四档，不许默认成一个档）");
+        return $"radius.{steps[i]}";
+    }
+
     /// <summary>组件层令牌：一律 alias 到 semantic，附带 tint/alpha 的 $extension 供 CSS 用 color-mix 派生</summary>
-    static IEnumerable<TokenPatch> ComponentTokens()
+    static IEnumerable<TokenPatch> ComponentTokens(String radiusStyle)
     {
         yield return Comp("button.primary.background", "semantic.brand");
         yield return Comp("button.primary.background-hover", "semantic.brand-hover");
@@ -639,26 +722,26 @@ public static class DesignGenerator
         yield return Comp("button.secondary.foreground", "semantic.text-1");
         yield return Comp("button.danger.background", "semantic.danger");
         yield return Comp("button.danger.foreground", "semantic.surface-1");
-        yield return Comp("button.radius", "radius.md");
+        yield return Comp("button.radius", RadiusFor(radiusStyle, "button"));
         yield return Comp("button.padding-block", "space.2");
         yield return Comp("button.padding-inline", "space.4");
         yield return Comp("button.type", "type.body");
 
         // 尺寸轴：sm/md/lg 的内外边距与圆角一律别名到既有 space/radius 令牌（不新造数字）；
         // min-height 是唯一字面值，取 WCAG 2.5.8「目标不小于 24px」之上的可用档位。
-        foreach (var (size, padBlock, padInline, radius, minH) in new[]
+        foreach (var (size, padBlock, padInline, minH) in new[]
         {
-            ("sm", "space.1", "space.3", "radius.sm", "28px"),
-            ("md", "space.2", "space.4", "radius.md", "34px"),
-            ("lg", "space.3", "space.5", "radius.lg", "42px"),
+            ("sm", "space.1", "space.3", "28px"),
+            ("md", "space.2", "space.4", "34px"),
+            ("lg", "space.3", "space.5", "42px"),
         })
         {
             yield return Comp($"button.{size}.padding-block", padBlock);
             yield return Comp($"button.{size}.padding-inline", padInline);
-            yield return Comp($"button.{size}.radius", radius);
+            yield return Comp($"button.{size}.radius", RadiusFor(radiusStyle, $"button.{size}"));
             yield return MinHeight($"button.{size}.min-height", minH, size);
             yield return Comp($"input.{size}.padding-block", padBlock);
-            yield return Comp($"input.{size}.radius", radius);
+            yield return Comp($"input.{size}.radius", RadiusFor(radiusStyle, $"input.{size}"));
             yield return MinHeight($"input.{size}.min-height", minH, size);
         }
 
@@ -678,7 +761,7 @@ public static class DesignGenerator
         yield return Comp("badge.tint", "semantic.success", tint: 0.15);
         yield return Comp("badge.foreground", "semantic.success");
         yield return Comp("badge.border", "semantic.success", tint: 0.3);
-        yield return Comp("badge.radius", "radius.pill");
+        yield return Comp("badge.radius", RadiusFor(radiusStyle, "badge"));
         yield return Comp("badge.type", "type.caption");
 
         yield return Comp("input.background", "semantic.surface-1");
@@ -686,14 +769,14 @@ public static class DesignGenerator
         yield return Comp("input.placeholder", "semantic.text-3");
         yield return Comp("input.border", "semantic.border-1");
         yield return Comp("input.border-active", "semantic.brand");
-        yield return Comp("input.radius", "radius.md");
+        yield return Comp("input.radius", RadiusFor(radiusStyle, "input"));
 
         yield return Comp("card.background", "semantic.surface-1");
         yield return Comp("card.foreground", "semantic.text-1");
         yield return Comp("card.border", "semantic.border-1");
         yield return Comp("card.shadow", "shadow.elevation-2");
         yield return new TokenPatch { Path = "component.card.padding", Tier = TokenTiers.Component, Type = TokenTypes.Dimension, Value = null, AliasPath = "space.5", Group = "card", Generator = TokenGenerators.Derived };
-        yield return new TokenPatch { Path = "component.card.radius", Tier = TokenTiers.Component, Type = TokenTypes.Dimension, Value = null, AliasPath = "radius.lg", Group = "card", Generator = TokenGenerators.Derived };
+        yield return new TokenPatch { Path = "component.card.radius", Tier = TokenTiers.Component, Type = TokenTypes.Dimension, Value = null, AliasPath = RadiusFor(radiusStyle, "card"), Group = "card", Generator = TokenGenerators.Derived };
 
         yield return Comp("nav.item.background-hover", "semantic.surface-2");
         yield return Comp("nav.item.foreground", "semantic.text-2");
@@ -712,13 +795,13 @@ public static class DesignGenerator
         yield return Comp("dialog.border", "semantic.border-1");
         yield return Comp("dialog.scrim", "semantic.overlay", tint: 0.55);
         yield return Comp("dialog.shadow", "shadow.elevation-5");
-        yield return Comp("dialog.radius", "radius.lg");
+        yield return Comp("dialog.radius", RadiusFor(radiusStyle, "dialog"));
         yield return Comp("dialog.padding", "space.6");
 
         yield return Comp("tooltip.background", "semantic.text-1");
         yield return Comp("tooltip.foreground", "semantic.surface-1");
         yield return Comp("tooltip.shadow", "shadow.elevation-2");
-        yield return Comp("tooltip.radius", "radius.sm");
+        yield return Comp("tooltip.radius", RadiusFor(radiusStyle, "tooltip"));
         yield return Comp("tooltip.padding-block", "space.1");
         yield return Comp("tooltip.padding-inline", "space.2");
         yield return Comp("tooltip.type", "type.caption");
@@ -737,7 +820,7 @@ public static class DesignGenerator
         yield return Comp("select.option.background-active", "semantic.surface-2");
         yield return Comp("select.option.foreground-active", "semantic.text-1");
         yield return Comp("select.menu.shadow", "shadow.elevation-3");
-        yield return Comp("select.radius", "radius.md");
+        yield return Comp("select.radius", RadiusFor(radiusStyle, "select"));
 
         yield return Comp("overlay.scrim", "semantic.overlay", tint: 0.55);
         yield return new TokenPatch
@@ -841,7 +924,8 @@ public static class DesignGenerator
             industry, Num(hue), Num(chroma), Num(req.AccentHueOffset), density, Num(ratio), Num(basePx), Num(radius), Num(motion),
             String.Join(",", req.Themes), req.BrandName ?? "", (req.Brief ?? "").ToLowerInvariant());
         var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw));
-        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
+        // 全默认时后缀为空串，种子与 M3 之前逐字相同；有非默认取值才带上轴短键，见 StyleAxes.SeedKey
+        return Convert.ToHexString(bytes)[..16].ToLowerInvariant() + StyleAxes.SeedSuffix(req);
     }
 
     static String Num(Double v) => Math.Round(v, 4).ToString("0.####", CultureInfo.InvariantCulture);

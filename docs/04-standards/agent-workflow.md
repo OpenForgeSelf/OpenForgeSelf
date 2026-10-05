@@ -497,6 +497,12 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - 补丁：未跟踪文件的受控复现还原验证改用**内容校验**——① 变异标记 grep 计数 = 0；② 被变异的原始行在位（行号+内容双核）。B6 复验已按此执行（ReactLoopAgent 红轮还原验证）。
 - 该坑提示：受控复现尽量对**已跟踪**文件做变异；确需变异新文件时，红轮跑完先 `git add -N`（intent-to-add）再验证 diff 亦可。
 
+### 测试里起外部子进程做判据的写法（2026-10-04 输入19 实证两次）
+- **必须并发抽干 stdout 与 stderr 再等退出**：`Process.Start` 后先 `WaitForExit(timeout)`、再 `StandardOutput.ReadToEnd()` 的写法，会在子进程输出填满管道缓冲（Windows 约 4KB）时**双向死锁**——子进程卡在写、父进程卡在等。症状极具迷惑性：短输出用例正常通过，长输出用例**超时或退出码 -1 且两条管道全空**（`HostInstallRootTests` 跑 `scripts/update-agent.ps1` 时实测：robocopy 回显足够填满 ⇒ 30s 后 exit=-1、stdout/stderr 皆空，一度被误判成「脚本没运行/环境变量没生效」）。正解：`BeginOutputReadLine`/`BeginErrorReadLine` + 事件累加，`WaitForExit(timeout)` 通过后再无参 `WaitForExit()` 一次确保回调把剩余行投完。
+- **判据优先读子进程自己的日志文件，不读 stdout**：`Write-Host` 在子进程管道里不可靠（实测全空）。代理脚本 `%LOCALAPPDATA%/ForgeSelf/Updates/agent-*.log` 这类"它对外承诺的落盘产物"才是稳定判据源；失败消息里把日志正文带上，否则读数只剩 `exit=-1`。
+- **给子进程传"必须已消失"的 PID 时，要用子进程同一套 API 预检**：代理步骤 1 用 PowerShell `Get-Process -Id`，测试若用 .NET `Process.GetProcessById` 判"已退出"，两者对"刚退出、句柄尚未完全释放"的 PID 判定不一致。做法：起一个立刻退出的进程 ⇒ `Dispose()` 释放句柄 ⇒ 用 `pwsh -Command "Get-Process -Id N"` 确认 GONE ⇒ 才传给被测脚本（被测脚本 60s 后会对该 PID 下 `Stop-Process -Force`，预检不严有误杀风险）。
+- **临时目录隔离要连 `LOCALAPPDATA` 一起重定向**：被测脚本会往 `%LOCALAPPDATA%` 写日志并清理历史目录（`Backups`）；测试用 `psi.Environment["LOCALAPPDATA"]=<沙箱>` 把副作用关进临时目录，别让它碰用户配置目录。
+
 ### 本机跑 e2e / 测试前先排环境（2026-10-05 PILOT-052 实证，两类「假红」）
 - **Playwright webServer 恒 120s 超时 → 先查 `HTTP_PROXY`**：本机环境注入 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而**不设 `NO_PROXY`** 时，Playwright 对 `http://localhost:<port>` 的可用性探测走代理 → **恒返回 502** → 永远等不到"可用"，报 `Error: Timed out waiting 120000ms from config.webServer.`。此时 vite 其实早已 ready（`[WebServer] VITE v6.4.3 ready ... ➜ Local: http://localhost:7002/`），默认 reporter 只显示"超时"，极易被误判成前端构建/依赖问题（本轮为此白跑两轮回合）。定位手法：`$env:DEBUG='pw:webserver'` 再跑一次，日志里 `pw:webserver HTTP Status: 502` 与 `[WebServer] ... ready` 同框即命中。处置：跑 e2e 前 `$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）；**不要**为此改仓库配置/代码。
 - **后端测试整片 `UnauthorizedAccessException` → 先查 `%TEMP%` 能否建目录**：本机不允许在用户 `%TEMP%` 下新建目录，凡用 `Path.GetTempPath()` 建隔离目录的用例会集体报 `Access to the path 'C:\Users\...\Temp\<前缀>_<guid>' is denied`（PILOT-052 实测 `--filter McpCenter` **22/96 红**，形似大面积回归）。处置：把 `TEMP`/`TMP` 重定向到仓库内目录（如 `.temp/api-tests-tmp`）再跑 → 同一命令 **96/96 绿**。**这类红不会出现在仓库全量基线里**，故 §5.6「基线红先对表」查不出来，须按本条先排环境再判责。**同因的另外两面（2026-10-05 当天各命中一次，别当成三个问题）**：① 宿主前端 `vite build` 的 esbuild 临时文件清理同样被拒 —— `[vite:esbuild-transpile] remove C:\Users\...\Temp\esbuild-<hash>: Access is denied`，会让 `release-local.ps1` 在 `build-frontend` 段整体失败（本地发布链首跑即红，改成仓库内 TEMP 后 EXIT=0）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 → dev server 退不出启动 ⇒ `ERR_CONNECTION_REFUSED`（并行 worktree 实测）。**统一处置（一条命令覆盖三面）**：跑「后端测试 / 插件 e2e / 本地发布链」前先 `$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。
@@ -558,6 +564,22 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
   对策：从注入的 CSS 文本扫出已定义变量集合，别名按集合过滤；CSS 还没到位时两段样式都不注入。
 - **给 `<input type="color">` 塞空串 = 每帧一条浏览器告警**：形状不合要**不渲染**该控件（`v-if`），
   而不是 `:value="''"`（Vue 对 input 的 `value` 走 DOM property 赋值，`null/undefined` 也会被 coerce 成空串，摘不掉）。
+- **量"有没有滚动条"必须分轴，且不能拿"占位"当唯一判据**（2026-10-05 输入22 实测两处）：
+  ① 轴向：横向滚动条吃的是**高度**（`offsetHeight - clientHeight`），纵向才吃宽度（`offsetWidth - clientWidth`）——
+  拿 `offsetWidth-clientWidth` 判"横向有没有条"会把"量错轴"误读成"浏览器没画条"。
+  ② 本项目 e2e 用本机 Chrome（`playwright.config.ts` 的 `channel: 'chrome'`）是**浮层滚动条**：
+  连 `overflow:scroll` 的空白 div 都量出占位 0px；给元素写 `::-webkit-scrollbar { width: 40px; background: #f0f }`
+  **一个像素都不画**，`scrollbar-width: thin` 同样 0px ⇒ 自定义滚动条样式被这台浏览器的滚动条策略忽略。
+  ⇒ 判据只能钉"**溢出末端可达**（`scrollLeft` 能推到 `scrollWidth-clientWidth`，且被裁元素的右缘进入可见区）+ 界面上有一行说明"，
+  不得钉"条占位 > 0"（那是浏览器策略，写死必然假红）；"条常驻可见"要如实写进 README 已知缺口，不许默默承诺。
+- **等比缩放预览用 CSS `zoom`，不用 `transform: scale()`**（同批）：`zoom` 参与布局 ⇒ 盒子尺寸与滚动范围随缩放一起变，
+  不必再测一次内容高去折算容器高（那要第二个 `ResizeObserver`，且和滚动条互相抖）；`getBoundingClientRect()` 在 `zoom` 下
+  返回**缩放后的真实屏幕尺寸**，正好用来判"有没有被裁"。副作用要预防：观测器读的是容器 `clientWidth`（已扣滚动条），
+  与 `max-height` 共存时存在"滚动条吃宽 → 重算"的回环，因 `k` 单调下降 + `min-width` 下界而收敛。
+- **共享外壳的 `max-width` 会静默封死某个模式的可用宽**（同批）：`.ds-mode-pane { max-width:1240px }` 让展厅在 1920 窗口下
+  与 1372 窗口下**一样宽**（放大窗口画布不变宽），排查方法是"改 `setViewportSize` 后量同一元素"。
+  对策：只给需要宽画面的那一栏在**组件 scoped 样式**里覆写（`.ds-showroom[data-v-*]` 特异度 0-2-0 压过全局 0-1-0，不依赖注入顺序），
+  其余模式保持原值；覆写值要能从"装下最宽的稿"推导出来，不许拍一个数。
 
 ## B4 后端工程规则
 ### 分层 / 鉴权 / 配置
@@ -593,7 +615,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **插件子 provider 手动 `BuildServiceProvider` 默认 `ValidateScopes=false`** → 插件内 `AddScoped` 服务解析为「俘获单例」，符合 Cordis「每上下文单例」设计（027-cordis-kernel），**不 500**；已显式锁定该契约，防未来误开校验重引入 500。
 - **新增 Backend 插件报 CS0579「assemblyinfo 特性重复」** → 查 `ForgeSelf.Api.csproj` 的 `<Compile Remove>` 列表是否漏该插件（插件 .cs 被 Api 与插件自身 csproj 双重编译）；补 `<Compile Remove="Plugins\<Id>\**\*.cs" />` + bin/obj `<Content Remove>` 即解。**注意区分内嵌/拆分**：运行时依赖宿主程序集内嵌类型的插件禁止整目录 `Compile Remove`（类型会从宿主消失），只排除嵌套 `obj\**`/`bin\**` 止血；拆分插件才补全套 Remove+引用+staging。
 - **解决方案文件 = `ForgeSelf.slnx`**（2026-09-21 由 .sln 迁移，19 项目全量保留）。解决方案级构建命令 = `dotnet build ForgeSelf.slnx`。
-- **dotnet test 被 dev server 锁 exe 的规避**：运行中 dev server 持有 exe，`dotnet test`（Debug 构建）拷贝 apphost→exe 会 MSB3027/3021 失败。规避：`dotnet test -p:UseAppHost=false`；若 DLL 也被锁（加载中程序集），构建/测试一律加 `-p:OutDir=<临时目录>` 旁路验证。
+- **dotnet test 被 dev server 锁 exe 的规避**：运行中 dev server 持有 exe，`dotnet test`（Debug 构建）拷贝 apphost→exe 会 MSB3027/3021 失败。规避：`dotnet test -p:UseAppHost=false`；若 DLL 也被锁（加载中程序集），构建/测试一律加 `-p:OutDir=<临时目录>` 旁路验证。 **同一类锁不必等外部进程，自己就能造出来**（2026-10-04 实测踩到）：`dotnet test` 正在跑时再起一次 `dotnet build --no-incremental`，抢的是同一套 `bin/Debug` 输出树，直接报 48 条 MSB3021/MSB3027（`无法复制文件…另一个进程正在使用此文件`）。⇒ 规则：本仓任何 `dotnet build` / `dotnet test` **一律串行**，包括"只是想顺手数一下警告数"的 no-incremental 重建；并发跑出来的那份构建日志**整体作废**，不能拿来当"新增代码 0 warning"的证据（我那次就是靠它才误判过一次）。
 - **git worktree 新检出目录首构失败 ≠ 代码事实**：全新目录无 obj/project.assets.json，restore/构建顺序问题所致（报 CS0246 但 HEAD 代码自洽）。判定「某提交能否编译/测试」不要用未先 restore 的 worktree；用 `git show HEAD:path` 核对代码事实，或先 `dotnet restore && dotnet build`。
 - **"统计列"要么有人维护，要么读出时现算，否则就是假数字**（design-system 2026-09-29）：`DesignProject.TokenCount/ComponentCount` 建表时写了列，但没有任何写入路径更新它 → 界面显示"有效令牌 250 / 令牌数 0"，e2e 也直接判死。规则：出参一律现算（`FindCount` 直查库），缓存列只当历史兼容；要保留缓存列就必须写清"谁在什么时候更新它"。
 - **复合令牌的 `ValueJson` 是真源，读值路径都要展开它**：DTCG 的 `shadow/typography/transition/cubicBezier` 的 `$value` 就是对象/数组，库里 `Value` 可能为空。任何投影（导出 CSS、换肤、发布快照）只读 `Value` 就会产出 `--ds-x: ;` 这类**空声明**（看似成功、下游全失效）。
@@ -679,6 +701,8 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 ## B6 PowerShell 工程坑（本项目高频）
 
+- **铁律（2026-10-04 输入12 定，AGENTS §2.3 同条）：执行脚本一律 `pwsh`（PowerShell 7，本机 7.6.6），禁止 `powershell` / `powershell.exe`（5.1）**——跑仓内 `*.ps1`、Git Bash 里调 PS、Node `spawn` 全部适用（CI `release.yml` 已是 `shell: pwsh`）。5.1 的三条实测代价：① 重定向日志与外部命令输出按控制台码页（GBK/936）处理 → 中文乱码且会被烤进交付物；② 从 Node spawn 无 `Cert:` 提供程序 → 签名必失败（见本节末条）；③ 靠 BOM 判定脚本编码 → UTF-8 无 BOM 中文脚本解析期崩（update-agent 事故）。**唯一例外**：为证明"无 BOM / 码页"这类 5.1 专属缺陷而做复现排查时必须用 `powershell`，用 Core 复现不出来 = 假绿（见下方"排查/验证"条）。**已登记偏差**：`scripts/hooks/pre-commit:24` 仍用 `powershell.exe` 调工件门禁——改它要考虑"没有 pwsh 的 clone 会不会提交不了"，属高风险，已入 TODO 待拍板，本条不擅自改。
+- **捕获 `git` 等外部命令的 UTF-8 输出，必须先切 `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`（用完还原）**：5.1 下不切码页直接 `& git log --pretty=...` 拿到的是**已解码损坏的字符串**，把乱码写进 RELEASE-NOTES 就是不可逆交付缺陷（2026-10-04 输入11 实测：更新说明整段乱码）。正规写法见 `scripts/release/make-release-notes.ps1` 的 `Invoke-GitUtf8` 助手。自动化守卫：`ForgeSelf.Api.Tests/RepositoryScriptTests.cs::GitLogCapturingScripts_MustSwitchConsoleToUtf8First`（扫 `scripts/**/*.ps1`，出现 `& git log` / `Invoke-GitUtf8 log` 的脚本必须在它之前设置 UTF-8 码页，并带"扫到文件数 > 0"阳性对照）。
 - **铁律**：涉及中文的 PowerShell 脚本/写文件，绝不能直接用 `Get-Content`/`Add-Content`/here-string 管道。PS 5.1 默认按 ANSI 处理 → (1) 脚本自身解析失败（UTF-8 无 BOM 含中文 → 括号失配 → `ParserError`）；(2) 写入内容损坏。
 - **修既有中文脚本首选「前置 UTF-8 BOM」**（字节级、**不重编码**、零内容损坏）：`$b=[System.IO.File]::ReadAllBytes($p); if(-not($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)){ $n=New-Object byte[]($b.Length+3); $n[0]=0xEF;$n[1]=0xBB;$n[2]=0xBF; [Array]::Copy($b,0,$n,3,$b.Length); [System.IO.File]::WriteAllBytes($p,$n) }`
 - 新脚本内容全英文（最省事）；读写文件用 .NET API（`ReadAllText($p,[System.Text.Encoding]::UTF8)` / `WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding($false)))`）。
@@ -841,6 +865,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 
 | 日期 | 变更 |
 |------|------|
+| 2026-10-04 | **PowerShell 执行口径统一（输入11/12）**：B6 新增两条铁律——① 执行脚本一律 `pwsh`（7.x）、禁止 `powershell`（5.1），唯一例外是"专门复现 5.1 专属缺陷"，并登记 `scripts/hooks/pre-commit` 的既有偏差（改法待拍板，入 TODO）；② 捕获 git 等外部命令 UTF-8 输出前必须先切 `[Console]::OutputEncoding`（乱码曾被烤进 RELEASE-NOTES，守卫 = `RepositoryScriptTests.GitLogCapturingScripts_MustSwitchConsoleToUtf8First`）。同批：签名策略定稿「本地发布必带 `-Sign`、CI 默认不签」（真源 `packaging-upgrade-backup.md` §1.1、AGENTS §2.3、`plugin-publish-verify` 同步）。 |
 | 2026-10-02 | **dotnet test 数据根自动隔离（输入4）**：修复「本地开发污染真实宿主根 `~/.forgeself`」架构缺陷——`ForgeSelf.Api.Tests` 新增 `TestDataRootIsolation`（`[ModuleInitializer]` 兜底数据根到仓库内 `.temp/dotnet-test/<ts>-<pid>` + 重定向 `XTrace.LogPath`/`Setting.LogPath`/全部已知 `Config<T>.FileName`）+ `TestDataRootIsolationGuardTests`（4 守卫）；B12 第 830 行由「手工前缀必须设 `FORGESELF_DATA_ROOT`」改为「已自动隔离，手工仅用于覆盖」。同时记录宿主侧关联缺陷（`Program.cs:38`/`AppBuilder.cs:89` 的 `Save()` 早于 `ConfigUnifier`）另立 TODO。 |
 | 2026-10-01 | **e2e 宿主签名 shell 选择实证（design-system M1 验收中发现）**：从 Node spawn 的 `powershell.exe`（5.1）无 `Cert:` 提供程序（`drive=False certs=0`，签名必失败）；`pwsh` 同语境正常（`drive=True certs=1`）。`e2e/global-setup.ts` 宿主签名固定 `pwsh`；B6 增补「Node→PowerShell 证书/签名操作只用 pwsh」规则；`e2e-testing` 技能同步。 |
 | 2026-09-30 | **e2e 共享基建改造（PILOT-050）**：① 宿主新增启动端口覆盖 `FORGESELF_PORT`（env 优先）/`--server-port`（`StartupPortResolver`，覆盖即落盘 ForgeSetting.config，重启一致）；② e2e 运行目录按 worktree 稳定派生 `wt-<hash8>`（去时间戳，消除 Windows 防火墙弹窗根因）+ 残留宿主保护 + SQLite 无条件覆盖；③ 前后端端口动态认领（tmpdir 注册表跨 worktree 互斥）+ 三通道注入（`E2E_BACKEND_URL`/`E2E_FRONTEND_URL`/`FORGESELF_PORT`），e2e 地址真源统一 `e2e/helpers/e2e-env.ts`，spec 硬编码 7102/7002 清零（代码级 11 处）；④ port-config.spec 端口无关化；⑤ e2e-published 修 `publishDir` 越级 bug；⑥ AGENTS.md 收口唯一开发流程（specs/speckit 弃用、§0 强制读规范）、pilot 目录加日期前缀。B2/统一 e2e 体系/B4 已同步。 |

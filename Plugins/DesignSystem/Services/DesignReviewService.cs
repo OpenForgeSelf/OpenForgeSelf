@@ -80,12 +80,57 @@ public sealed class DesignReviewService
         return outcome;
     }
 
-    /// <summary>交付前清单（≥8 条基础条目，page 特有条目有对应令牌才加）。tokens[] 逐项校验存在。</summary>
+    /// <summary>交付前清单（≥8 条基础条目，page 特有条目有对应令牌才加）。tokens[] 逐项校验存在。
+    /// M3：再接上"由项目 UX 规范派生"的条目（<see cref="DerivedItems"/>），两条来源同出一个清单。</summary>
     public IReadOnlyList<ChecklistItem> Checklist(Int64 projectId, String? themeCode, String page)
     {
         var index = LoadIndex(projectId, themeCode, out _, out _);
-        return BuildItems(index, page);
+        var items = BuildItems(index, page).ToList();
+        items.AddRange(DerivedItems(projectId, themeCode));
+        return items;
     }
+
+    /// <summary>
+    /// 由规范 <c>MUST/SHOULD/MAY</c> 规则派生的清单条目：级别映射 error/warning/info，
+    /// id 固定为 <c>g:&lt;规范code&gt;:&lt;规则id&gt;</c>（下游可以稳定引用一条规则，不随文本改动漂移）。
+    /// <c>tokens[]</c> 只列当前取值视图里真存在的路径 —— 但**允许为空**：
+    /// "按钮文字用动词+宾语"这类规则没有令牌引用，套用静态条目的"无令牌即省略"会把规范的一半要求悄悄丢掉。
+    /// </summary>
+    IReadOnlyList<ChecklistItem> DerivedItems(Int64 projectId, String? themeCode)
+    {
+        var service = _export.Guidelines;
+        if (service == null) return [];
+
+        var view = _export.GuidelineView(_export.Load(projectId, themeCode));
+        var valueOf = ExportService.ValueOf(view);
+        var items = new List<ChecklistItem>();
+        foreach (var g in service.List(projectId))
+        {
+            foreach (var r in GuidelineRepository.ReadRules(g.RulesJson))
+            {
+                var paths = GuidelineRenderer.ConcreteRefs(r.Text)
+                    .Where(p => !valueOf(p).IsNullOrEmpty())
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                items.Add(new ChecklistItem(
+                    $"g:{g.Code}:{r.Id}",
+                    SeverityOf(r.Level),
+                    $"{g.Title}：{r.Text}",
+                    $"来源 UX 规范「{g.Title}」（{g.Code} · {GuidelineCategories.Display(g.Category)}）；要改这条请回插件改规范（design_edit action=guideline），不要在代码里就地绕开",
+                    paths));
+            }
+        }
+        return items;
+    }
+
+    /// <summary>级别→严重度。<c>level</c> 声明为非空：仓储读侧已把缺失级别规一成 SHOULD（`GuidelineRepository.ReadRules`），
+    /// 判据用例 <c>AC18_脏规则行_级别为null_checklist不抛且回落SHOULD</c> 钉着这条不变量，所以这里不需要再兜 null。</summary>
+    static String SeverityOf(String level) => level switch
+    {
+        _ when level.Equals("MUST", StringComparison.OrdinalIgnoreCase) => "error",
+        _ when level.Equals("SHOULD", StringComparison.OrdinalIgnoreCase) => "warning",
+        _ => "info",
+    };
 
     /// <summary>清单条目构造（纯函数，无 DB；服务层加载索引后调用）</summary>
     public static IReadOnlyList<ChecklistItem> BuildItems(TokenIndex index, String page)

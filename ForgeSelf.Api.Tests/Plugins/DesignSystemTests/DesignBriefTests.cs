@@ -20,6 +20,7 @@ public class DesignBriefTests : IDisposable
     readonly AuditEngine _auditEngine;
     readonly ExportService _export;
     readonly GenerationService _generation;
+    readonly GuidelineService _guidelines;
     readonly DesignReviewService _review;
     readonly QuickCreateService _quickCreate;
     readonly DesignBriefBuilder _brief;
@@ -44,10 +45,16 @@ public class DesignBriefTests : IDisposable
         DesignFontFace.Meta.Cache.Expire = 0;
         DesignAudit.Meta.Cache.Expire = 0;
         DesignRelease.Meta.Cache.Expire = 0;
+        DesignGuideline.Meta.Cache.Expire = 0;
 
         _auditEngine = new AuditEngine(_tokens, _projects, _audits);
         _generation = new GenerationService(_tokens, _projects, _catalog, _auditEngine);
         _export = new ExportService(_tokens, _projects, _catalog);
+        // 规范必须挂进生成与导出两侧（与控制器装配同形）：漏挂的后果是 brief 的 guidelines 章整章消失，
+        // 而 E1 那句「Sections == SectionOrder」会把它读成"章节序坏了"——夹具装配与产品装配不同形就是假红。
+        _guidelines = new GuidelineService(_projects, _tokens, new GuidelineRepository());
+        _generation.Guidelines = _guidelines;
+        _export.Guidelines = _guidelines;
         _review = new DesignReviewService(_export, _tokens, _projects);
         _quickCreate = new QuickCreateService(_projects, _generation);
         _brief = new DesignBriefBuilder(_export, _projects, _catalog, _review);
@@ -70,7 +77,7 @@ public class DesignBriefTests : IDisposable
     {
         SeedProject();
         var o = _brief.Build(_projects.FindByCode("brief-proj")!.Id, null, null, 60000, DesignBriefBuilder.Markdown);
-        o.Sections.Should().Equal(DesignBriefBuilder.SectionOrder);   // identity→rules→colors→typography→scales→components→brand→checklist
+        o.Sections.Should().Equal(DesignBriefBuilder.SectionOrder);   // identity→rules→colors→typography→scales→components→brand→guidelines→checklist
         o.Markdown.Should().Contain("# ");
     }
 

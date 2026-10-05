@@ -358,5 +358,32 @@
         <Index Columns="ProjectId,CreatedAt" />
       </Indexes>
     </Table>
+    <Table Name="DesignGuideline" Description="UX 规范">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="规范ID" />
+        <Column Name="ProjectId" DataType="Int64" Description="项目ID" />
+        <Column Name="Code" DataType="String" Length="100" Nullable="False" Description="规范标识（项目内唯一，kebab）" />
+        <Column Name="Category" DataType="String" Length="30" DefaultValue="layout" Description="分类：layout|page|navigation|form|feedback|state|content|a11y|motion|data" />
+        <Column Name="Title" DataType="String" Master="True" Length="100" Description="标题" />
+        <Column Name="Summary" DataType="String" Length="500" Description="一句话摘要" />
+        <Column Name="Body" DataType="String" Length="4000" Description="正文（Markdown 文本；只写令牌路径不写数字）" />
+        <Column Name="RulesJson" DataType="String" Length="4000" Description="规则清单（JSON：[{id,level,text}]，level=MUST|SHOULD|MAY）" />
+        <Column Name="TokenRefsJson" DataType="String" Length="2000" Description="引用的令牌路径（JSON 字符串数组）" />
+        <Column Name="AppliesToJson" DataType="String" Length="500" Description="适用用途类型（JSON 字符串数组，对应 DesignProject.Kind）" />
+        <Column Name="Source" DataType="String" Length="20" DefaultValue="generated" Description="来源：generated|manual（manual 受重新生成保护）" />
+        <Column Name="Status" DataType="String" Length="20" DefaultValue="adopted" Description="状态：adopted|draft|archived（归档为软删除）" />
+        <Column Name="GeneratorVersion" DataType="String" Length="20" Description="生成器版本" />
+        <Column Name="GeneratorSeed" DataType="String" Length="100" Description="生成种子（kind/industry/density）" />
+        <Column Name="SortOrder" DataType="Int32" Description="排序" />
+        <Column Name="Extensions" DataType="String" Length="2000" Description="扩展元数据袋（JSON）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间，兼作乐观并发依据" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ProjectId,Code" Unique="True" />
+        <Index Columns="ProjectId,Category" />
+        <Index Columns="ProjectId,Status" />
+      </Indexes>
+    </Table>
   </Tables>
 </EntityModel>

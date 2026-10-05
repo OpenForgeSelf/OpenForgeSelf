@@ -2603,3 +2603,218 @@
     </tbody>
 </table>
 <br></br>
+<h3>UX规范（DesignGuideline）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>规范ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ProjectId</td>
+            <td>项目ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Code</td>
+            <td>规范标识（项目内唯一</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>kebab）</td>
+        </tr>
+
+        <tr>
+            <td>Category</td>
+            <td>分类</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：layout|page|navigation|form|feedback|state|content|a11y|motion|data</td>
+        </tr>
+
+        <tr>
+            <td>Title</td>
+            <td>标题</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Summary</td>
+            <td>一句话摘要</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Body</td>
+            <td>正文（Markdown文本</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>正文（Markdown 文本；只写令牌路径不写数字）</td>
+        </tr>
+
+        <tr>
+            <td>RulesJson</td>
+            <td>规则清单（JSON</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：[{id,level,text}]，level=MUST|SHOULD|MAY）</td>
+        </tr>
+
+        <tr>
+            <td>TokenRefsJson</td>
+            <td>引用的令牌路径（JSON字符串数组）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>引用的令牌路径（JSON 字符串数组）</td>
+        </tr>
+
+        <tr>
+            <td>AppliesToJson</td>
+            <td>适用用途类型（JSON字符串数组</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>适用用途类型（JSON 字符串数组，对应 DesignProject.Kind）</td>
+        </tr>
+
+        <tr>
+            <td>Source</td>
+            <td>来源</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：generated|manual（manual 受重新生成保护）</td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：adopted|draft|archived（归档为软删除）</td>
+        </tr>
+
+        <tr>
+            <td>GeneratorVersion</td>
+            <td>生成器版本</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>GeneratorSeed</td>
+            <td>生成种子（kind_industry_density）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>生成种子（kind/industry/density）</td>
+        </tr>
+
+        <tr>
+            <td>SortOrder</td>
+            <td>排序</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Extensions</td>
+            <td>扩展元数据袋（JSON）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedAt</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>兼作乐观并发依据</td>
+        </tr>
+    </tbody>
+</table>
+<br></br>

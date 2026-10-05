@@ -1,15 +1,15 @@
 # 036 - 设计系统（design-system 插件）
 
-> 插件形态：仓库根 `Plugins/DesignSystem/`，运行时 id `design-system`，当前版本 **2.8.0**
-> （2.0.0 = 库驱动重写；2.1.0 = 组件规格 + 变体矩阵 + 尺寸轴；2.2.0 = 资产/字体/页面三表补齐写入口与生成种子；2.3.0 = 版本快照与 diff 覆盖品牌三表和组件目录；2.4.0 = 组件规格进机器可读产物；2.5.0 = Element Plus 换肤接缝；2.6.x = 门禁盯手改之后/对比度全覆盖/顺序收口/尺度词表/导入回流前置；2.7.0 = DTCG 导入/回流；2.8.0 = **Agent 工具层**：8 个 `design_*` 工具 + REST 对等 + 写开关）。
+> 插件形态：仓库根 `Plugins/DesignSystem/`，运行时 id `design-system`，当前版本 **3.1.0**
+> （2.0.0 = 库驱动重写；2.1.0 = 组件规格 + 变体矩阵 + 尺寸轴；2.2.0 = 资产/字体/页面三表补齐写入口与生成种子；2.3.0 = 版本快照与 diff 覆盖品牌三表和组件目录；2.4.0 = 组件规格进机器可读产物；2.5.0 = Element Plus 换肤接缝；2.6.x = 门禁盯手改之后/对比度全覆盖/顺序收口/尺度词表/导入回流前置；2.7.0 = DTCG 导入/回流；2.8.0 = **Agent 工具层**：8 个 `design_*` 工具 + REST 对等 + 写开关；3.0.0 = **展厅与向导**（M2，四模式外壳 + 模特穿衣服试穿 + 预览零写库同源）；3.1.0 = **风格轴与 UX 规范**（M3，7 个风格轴 + 预设 8→13 + 第 13 张表 `DesignGuideline` 与 14 条默认规范进全部交付物））。
 > 自带界面（路由 `/design-system`，`plugin.json` 的 `frontend.route`），经宿主远程加载（`frontend.entry = web/dist/index.js` + 同目录 `style.css`）。
-> 管理端点全部要求 `ApiKeyPolicy` 鉴权；数据落在插件自建库 `~/.forgeself/Plugins/design-system/DesignSystem.db`（ConnName=`DesignSystem`，12 张表）。
+> 管理端点全部要求 `ApiKeyPolicy` 鉴权；数据落在插件自建库 `~/.forgeself/Plugins/design-system/DesignSystem.db`（ConnName=`DesignSystem`，13 张表）。
 
 ## 功能定位
 
 给"本系统自己"当**设计语言底座**：把一个产品的设计系统落成**可持久化、可校验、可版本化、可标准交付**的库，而不是生成一张好看但没人能接手的设计稿。
 
-覆盖的能力面：项目与多品牌层级、主题（mode 轴：色向 / 密度 / 品牌）、三层令牌（primitive → semantic → component + 别名图）、确定性生成引擎（oklch 色阶 + 对比度定向选 tone + 排版模块化 + 尺度/阴影/动效）、WCAG 2.2 可达性审计与发布门禁、组件与变体矩阵、图标库（内置零许可证负担一套 + 用户可导入）、资产/页面/字体登记、不可变版本快照与令牌级 diff、行业标准投影导出（格式清单由 `GET export/formats` 现报，界面不写死）。
+覆盖的能力面：项目与多品牌层级、主题（mode 轴：色向 / 密度 / 品牌）、三层令牌（primitive → semantic → component + 别名图）、确定性生成引擎（oklch 色阶 + 对比度定向选 tone + 排版模块化 + 尺度/阴影/动效 + **7 个风格轴**）、WCAG 2.2 可达性审计与发布门禁、组件与变体矩阵、图标库（内置零许可证负担一套 + 用户可导入）、资产/页面/字体登记、**UX 规范（14 条确定性默认，可编辑、进快照与全部交付物）**、不可变版本快照与令牌级 diff、行业标准投影导出（格式清单由 `GET export/formats` 现报，界面不写死）。
 
 ## 为什么重写（v1 是玩具的具体证据）
 
@@ -24,9 +24,9 @@
 | 组件库 | `ComponentGallery.vue` 渲染写死的 SRE fixture | 读 `api.listComponents/listVariants`，样张样式一律取 `component.*` 令牌 |
 | 界面预览 | 前端另算一套 CSS | 换肤容器复用后端 `export?format=css`（`:root` 收窄成 `.ds-skin` + 变量别名表）→ **预览与交付同源** |
 
-## 数据模型（12 表）
+## 数据模型（13 表）
 
-`DesignProject`（含 `Kind`/`ParentProjectId` 支持多品牌派生，`SchemaVersion`/`GeneratorVersion`/`ProjectionVersion` 三元组）、`DesignTheme`（`ModeKind∈{color,density,brand}`）、`DesignToken`（**三层统一一张表**：Tier/Path/Type/Value/ValueJson/AliasPath/ThemeId + oklch 三分量拆列 + ContrastRatio/WcagLevel + Generator/Seed/Version + Lifecycle/ReplacedBy/Deprecated + Extensions JSON 袋；唯一键 `(ProjectId,ThemeId,Path)`）、`DesignShadowLayer`（复合阴影逐层展开，`(TokenId,Layer)` 唯一）、`DesignComponent`、`DesignComponentVariant`（`(ComponentId,VariantKey,State,ThemeId)` 唯一）、`DesignIcon`（`SvgBody` 真实路径数据 + Collection + License）、`DesignAsset`、`DesignScreen`、`DesignFontFace`、`DesignAudit`、`DesignRelease`。
+`DesignProject`（含 `Kind`/`ParentProjectId` 支持多品牌派生，`SchemaVersion`/`GeneratorVersion`/`ProjectionVersion` 三元组）、`DesignTheme`（`ModeKind∈{color,density,brand}`）、`DesignToken`（**三层统一一张表**：Tier/Path/Type/Value/ValueJson/AliasPath/ThemeId + oklch 三分量拆列 + ContrastRatio/WcagLevel + Generator/Seed/Version + Lifecycle/ReplacedBy/Deprecated + Extensions JSON 袋；唯一键 `(ProjectId,ThemeId,Path)`）、`DesignShadowLayer`（复合阴影逐层展开，`(TokenId,Layer)` 唯一）、`DesignComponent`、`DesignComponentVariant`（`(ComponentId,VariantKey,State,ThemeId)` 唯一）、`DesignIcon`（`SvgBody` 真实路径数据 + Collection + License）、`DesignAsset`、`DesignScreen`、`DesignFontFace`、`DesignAudit`、`DesignRelease`、**`DesignGuideline`**（v3.1.0 新增，唯一键 `(ProjectId,Code)`；`Category/Title/Summary/Body/RulesJson/TokenRefsJson/AppliesToJson` + `Source(generated|manual)` + `Status(adopted|draft|archived)` + `GeneratorVersion/GeneratorSeed/SortOrder`；**正文与规则只存原文（含反引号令牌路径），数值一律不入库**）。
 
 表结构由 `Plugins/DesignSystem/Data/Model.xml` 经 `xcode Model.xml` 生成（生成物不手改，业务码写进 `.Biz.cs`）；已验证二次生成**逐字节一致**且 `BindColumn` 无字段漂移。每张表都带 `Extensions` JSON 袋，长期演进不必每次迁表。
 
@@ -34,7 +34,7 @@
 
 | 组 | 端点 |
 |---|---|
-| 自描述 | `GET meta`（版本三元组 + tiers/tokenTypes/lifecycles + `capabilities` + exportFormats） |
+| 自描述 | `GET meta`（版本三元组 + tiers/tokenTypes/lifecycles + `capabilities`（v3.1.0 起含 `guidelines`）+ exportFormats + `styleAxes`（7 个风格轴的封闭取值表，v3.1.0）+ `guidelineCategories` / `guidelineLevels`（规范词表，前端不另抄一份）） |
 | 项目/主题 | `GET/POST projects`、`GET/PUT projects/{id}`、`POST projects/{id}/archive`（软删）、`GET/POST projects/{id}/themes` |
 | 令牌 | `GET projects/{id}/tokens`（分页原行）、`GET tokens/effective?theme=`（解析别名 + 真算 hex/对比度/判级 + description/valueJson/extensions）、`POST tokens`、`POST tokens/batch`（校验失败整批回滚）、`POST tokens/retire`、`POST tokens/{path}/shadow-layers` |
 | 生成/审计 | `POST projects/{id}/generate?overwrite=`（除令牌外，还把 `component.*` 反推成组件目录 + 变体矩阵，并落**字体/页面清单/资产**三类种子）、`POST generate/preview`（不落库）、`POST projects/{id}/audit`（跑并落库）、`GET projects/{id}/audit` |
@@ -43,6 +43,7 @@
 | 目录 | `GET/POST components`、`GET/POST components/{code}/variants`、`GET icons`、`POST projects/{id}/icons`、`GET/POST projects/{id}/assets`、`GET/POST projects/{id}/screens`、`GET/POST projects/{id}/fonts` |
 | Agent（v2.8.0） | `GET meta` 增 `agentTools`（8 工具名数组）；`GET agent/tools`（工具枚举，与 `list_tools` 同源）；`POST projects/quick-create`（`QuickCreateRequest`，`DryRun=true` 干跑不落库——**与工具 `apply=false` 同语义，REST 默认 `DryRun=false` 落库**）；`GET projects/{id}/brief`（md/json 说明书）；`POST projects/{id}/review`（审查）；`GET presets` / `POST presets/recommend`；`GET|PUT agent-access`（写开关） |
 | 展厅（v3.0.0） | `POST generate/preview-css`（`PreviewCssRequest` → 内存构图产 CSS，**零写库**；入口数值域校验 → 400。供展厅"试穿"与并排对比取数，与落库 `export?format=css` 同源：去注释、规整空白后逐字相同） |
+| UX 规范（v3.1.0） | `GET projects/{id}/guidelines[?status=&category=&theme=]`（默认**不含 archived**，每条带 `tokenRefs/tokenValues/brokenRefs/valueTheme/categoryLabel`）、`GET guidelines/{code}`、`PUT guidelines/{code}`（upsert；写入即 `Source=manual`；带 `expectUpdatedAt` 做乐观并发，不一致 409 不写；引用不存在的令牌 → 400 并逐条列出且零行写入）、`POST guidelines/generate?overwrite=`（只补空 + 保护手改，回 `created/skipped/skippedProtected/overwritten/total`）、`POST guidelines/{code}/archive`（**软删**）。本插件**没有任何 DELETE 端点**（恢复 = PUT 回来带 `status=adopted`） |
 
 ## Agent 工具层（v2.8.0 · 缺口 G15）
 
@@ -50,32 +51,58 @@
 
 | 工具 | Kind | 作用 |
 |---|---|---|
-| `design_guide` | read | 使用指南：版本/工具清单/三条工作流/可选项目与预设/写开关/发现提示 |
-| `design_context` | read | 设计说明书（唯一真源）：身份/规则/颜色/排版/尺度/组件/品牌/交付清单，md 或 json |
-| `design_lookup` | read | 令牌分页/组件/导出/图标；`nearest` 按值反查最近令牌（六类：color/length/duration/shadow/font-family/font-weight） |
-| `design_review` | read | 审查代码与设计系统一致性（15 条规则：硬编码色/魔法数字/未知令牌/已移除引用…）；`checklist` 交付清单。**hardcoded 默认 warning，`strict:true` 升 error** |
+| `design_guide` | read | 使用指南：版本/工具清单/**四条**工作流（`consume` / `create` / `maintain` / **`guideline`（v3.1.0 加）**）/可选项目与预设/写开关/发现提示 |
+| `design_context` | read | 设计说明书（唯一真源）：身份/规则/颜色/排版/尺度/组件/品牌/**UX 规范（v3.1.0 `sections=["guidelines"]`）**/交付清单，md 或 json |
+| `design_lookup` | read | 令牌分页/组件/导出/图标/**规范（v3.1.0 `kind=guideline`）**；`nearest` 按值反查最近令牌（六类：color/length/duration/shadow/font-family/font-weight） |
+| `design_review` | read | 审查代码与设计系统一致性（15 条规则：硬编码色/魔法数字/未知令牌/已移除引用…）；`checklist` 交付清单 = 静态基线 + **v3.1.0 起把库里的规范规则派生成条目**（MUST→error / SHOULD→warning / MAY→info，id=`g:<code>:<ruleId>`）。**hardcoded 默认 warning，`strict:true` 升 error** |
 | `design_audit` | read | 读可达性审计结论；`run=true` 重跑并落库（写动作，受写开关约束） |
-| `design_presets` | read | `list` 8 预设全字段 / `recommend` 按 brief/industry/kind/tone/density 打分推荐 |
-| `design_create` | **write** | 从预设+显式参数快速创建设计系统项目（令牌/组件/审计）；`apply=false` 干跑零写库 |
-| `design_edit` | **write** | `set_token` 写单令牌 / `regenerate` 重生成 / `publish` 发布（critical 未清拒） |
+| `design_presets` | read | `list` 预设全字段（v3.1.0 起 **13** 个）/ `recommend` 按 brief/industry/kind/tone/density 打分推荐 |
+| `design_create` | **write** | 从预设+显式参数快速创建设计系统项目（令牌/组件/审计/**规范**）；`apply=false` 干跑零写库 |
+| `design_edit` | **write** | `set_token` 写单令牌 / `regenerate` 重生成 / `publish` 发布（critical 未清拒）/ **`guideline` 增改一条规范（v3.1.0）** |
 
 - **唯一真源**：`Agent/DesignToolIndex.cs`（8 Entry；`meta.agentTools` = `All.Select(Name)`；`list_tools` 枚举同一张表）。
+- **v3.1.0 增量仍是"加参数不是加工具"**：`design_lookup kind=guideline`、`design_edit action=guideline`、`design_context sections=["guidelines"]`——工具数保持 8，发现面（`agentTools`/`GET agent/tools`）不变形；参数枚举与长度上限由后端词表（`GuidelineCategories.SchemaProperties()` / `StyleAxes.SchemaProperties()`）生成，不在 C# 之外再抄一份。
 - **封套**：工具结果 = `{success, data}`（camelCase 键）；`list_tools` 例外（直接是数据，无封套）。
 - **写开关 `AgentAccess`**（fail-closed）：`{数据根}/plugins/design-system/agent-access.json`，默认 fail-open，文件损坏→只读；PUT 立即生效、重启保持（现读文件不缓存）。
 - **契约与消费侧**：出参键、常见坑、REST 对等表见 `.agents/skills/design-system-consume/SKILL.md`；判据/偏差/证据见 `docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`。
+- **"外部客户端经网关调 design_*"这句话是有常驻判据的**：插件层 e2e 有一条用例真走 `GET /api/mcp-center/config` 取被测实例自己的网关地址 → `tools/list`（对外只有 `universal_tool`）→ `list_tools` 枚举到的 design_* **必须等于** `meta.agentTools` → 经网关真调到 `design_guide`；并自带两条反向腿（未知工具名必须报错、不能绕过 `universal_tool` 直呼 `design_guide`）。以前这一跳只有宿主启动日志可看，现在每次 e2e 都会响。
 
 ## 展厅与向导（v3.0.0 · M2）
 
 插件界面从"只有专业工作台"扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入；工作台 14 个 section 原样不动）：
 
 - **开始（向导）**：场景 → 预设 → 风格微调 → 命名四步，提交真落库（令牌 >100、审计无 critical）；失败保留输入并展示后端原文，创建期间单飞防重复，陈旧的预设推荐响应不覆盖新状态。
-- **展厅（试穿）**：衣柜 = 8 个风格预设 + 自己的项目；舞台上一个模特页被"穿上"任一件衣服。五类场景共 9 页模特：后台·中台 5 页（仪表盘/列表/表单/详情/设置）、状态板 1 页、工具·工作台 1 页、官网·落地页 1 页、移动端 H5 1 页。模特页只认 `--ds-*`（零字面量，有守卫），`OutfitScope` 把**后端文本投影**收窄到本件衣服上 → **画布上看到的 == 导出交付的**（e2e 断言画布 computed 底色 == 后端 `semantic.surface-bg`）。设备三档 1280/820/390 只表达"这段界面在多大屏上"；移动端场景强制手机框。支持两件并排对比（各帧作用域独立、互不污染，差异条列各帧字面值）。
+- **展厅（试穿）**：衣柜 = 13 个风格预设（v3.1.0 起，原 8 个 + 5 个轴驱动预设）+ 自己的项目；舞台上一个模特页被"穿上"任一件衣服。五类场景共 9 页模特：后台·中台 5 页（仪表盘/列表/表单/详情/设置）、状态板 1 页、工具·工作台 1 页、官网·落地页 1 页、移动端 H5 1 页。模特页只认 `--ds-*`（零字面量，有守卫），`OutfitScope` 把**后端文本投影**收窄到本件衣服上 → **画布上看到的 == 导出交付的**（e2e 断言画布 computed 底色 == 后端 `semantic.surface-bg`）。设备三档 1280/820/390 只表达"这段界面在多大屏上"；移动端场景强制手机框。支持两件并排对比（各帧作用域独立、互不污染，差异条列各帧字面值）。
+  **预览取景（v3.1.0 输入22）**：舞台控制条有「视图」三档——**适应**（默认，整页按画布可用宽等比缩放 `k=min(1,可用宽/稿宽)`，永远不放大）、**1:1**（真实像素）、**最大化**（让开两侧栏，画布吃满整幅）；三档都可拖画布右下角改尺寸（缩放比随之重算），档位记在 `localStorage` 刷新不丢；控制条右端实时显示缩放比读数（`[data-stage-zoom]`），非适应档另给一行"画布外怎么到达"的提示。展厅栏宽单独放宽到 1872（不再与工作台共用 1240），故 1920 窗口下"适应"档就是 1:1 全幅。
 - **交付与接入**：Agent 网关地址（页面**不含真实令牌**，只显示占位片段与含掩码都不渲染）、8 个 `design_*` 工具清单（== `GET agent/tools` == `meta.agentTools`）、写开关 PUT 往返、`brief`/`agent-rules` 原文（== REST 导出）、试审查（与 `POST review` 同源；>200KB 客户端拦截、不发请求）。
 - **术语词典**：默认大白话、可切专业并向持久化开关写入。
 - **深链与可达性**：`#/showroom/<page>?outfit=<id>&theme=<code>&device=<id>` 往返；衣柜/模式条方向键可选、键盘焦点有 `:focus-visible` 轮廓、页面横向溢出 ≤2px。
 - **宿主侧配套（同批修复）**：插件自路由走 URL fragment，而宿主原先有两处会抹掉整段 fragment —— `authInit.consumeTokenFromHash()` 无条件 `replaceState(pathname+search)`（**无 token 也照抹**）、`main.ts` 的 `router.beforeEach` 只带 `fullPath`（把 `#...` 并进 path）。现改为"只摘 `token=` 一项、其余 fragment 原样保留；beforeEach 回填 `{path,query,hash}`"——token 仍被清除，深链不再失效。
 
 判据/偏差/证据：`docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard/`。
+
+## 风格轴与 UX 规范（v3.1.0 · M3）
+
+M2 之前"换风格"只能换色：预设写死八套，阴影/描边/字族/圆角/强调色策略都不在参数面上。M3 把这些做成**轴**，并把 UX 规范落成库里的第 13 张表。
+
+**A 片 · 7 个风格轴（默认值逐字节兼容）**
+
+- 轴序与取值（真源 `Services/StyleAxes.cs`：`meta.styleAxes` 由它生成，界面「更多风格选项」与 agent JSON Schema 消费同一份，前端不另抄）：`shadowStyle`(soft|crisp|flat|layered) / `borderStrength`(regular|bold) / `neutralTemp`(brand|cool|warm|pure) / `fontPairing`(modern|system|humanist|editorial) / `radiusStyle`(soft|sharp|round|pill) / `accentStrategy`(complement|analogous|split|triadic|mono) 六个枚举轴 + 一个数值轴 `shadowStrength`(0–2，默认 1；越界**夹取并写 Notes**，滑杆多走一格不该报错)。每个轴**首项 = 默认**，默认值同时是 const 供生成参数默认值引用。
+- **兼容性是机器判据不是口头承诺**：录制器（`DS_RECORD_GOLDEN=1`）把每个"生成输入 → 各主题各层令牌文本"的 SHA-256 钉成基线（50 条），任何改动只要让默认档的产物变一个字节就红。轴只在显式传非默认值时才起作用。
+- 预设 **8 → 13**：新增 `editorial-serif` / `flat-minimal` / `warm-craft` / `tech-crisp` / `kids-playful`（各带自己的轴组合）。展厅微调面板按 `meta.styleAxes` 渲染轴 chip，选中值随"保存为新设计"进 `quick-create` 请求体 → 真的落到令牌上（e2e 在**后端单测同一条公式结果**上做双重门禁，防止"界面选了、后端没吃"）。
+- 已知缺口（**记 TODO 未修，用户拍板本批不动**）：复合排版令牌导出时 `fontFamily` 被丢弃 → "标题在展厅里看起来是衬线"这条还不成立；e2e 如实拍下该事实而不是假装它成立。
+
+**B 片 · UX 规范（`DesignGuideline` + 14 条确定性默认）**
+
+- **一条规范 = 原文 + 规则 + 引用令牌**，正文与规则文本里只写反引号令牌路径，**数值一律不入库**：显示与导出的数字由 `GuidelineRenderer.Annotate` 现查。取值主题口径定死为**参考主题 = 项目默认色彩主题**（`ExportService.GuidelineView`），与导出请求主题无关 —— 规范引用的 `semantic.*` / `shadow.*` 只存在于主题层，用共享层或密度主题当视图会把整片引用误判成断链（M3 实测踩到，由 `GuidelineRestTests` / `GuidelineExportTests` 钉住）。出参用 `valueTheme` 交代实际取值主题，界面不许假装它是"当前主题"。
+- 生成器 `GuidelineGenerator` 确定性产出 14 条（按钮 / 表单 / 布局栅格 / 状态 / 层级…），种子 `kind;industry;density` 写进每行 `GeneratorSeed`；**density 从产物反推**（代回 `ScaleGenerators.BaseUnit` 逐档试，读倍率为 1 的 `space.2`），不在服务里重列像素数字。
+- **只补空、手改保护、归档=软删**：`Generate` 跳过已存在行，`Source=manual` 的行默认更不动（要覆盖必须显式 `overwrite=true` 并在响应里点名）；判重连 archived 一起看（否则"归档后重新生成"会撞唯一索引）；恢复 = PUT 回来带 `status=adopted`。播种挂在生成链路里（`SeedGuidelines` 返回"库里现存未归档条数"，不是"本次新增数"——第二次生成零新增，返回新增数会让界面上的规范凭空变 0）。
+- **进全部交付物**（否则"库里有、产物没有"是另一半假能力）：DESIGN.md 增「## UX 规范」章；bundle 落 `guidelines/GUIDELINES.md` + `guidelines/guidelines.json`（**只有非空才写文件**，Manifest 也只列包里真有的路径）；`brief` 增 `guidelines` 章（紧凑形态只列 MUST，排在 `checklist` 前）；`agent-rules.md` 两行指路；`design_review mode=checklist` 把规则派生成条目（MUST→error / SHOULD→warning / MAY→info，id=`g:<code>:<ruleId>`）。规范原文进 `ContentHash` 与发布快照。
+- 快照 schema **2 → 3**：`specs` 新增 `guideline` 类（11 字段，只存原文）；旧侧从未记过 → diff 报 `notComparableKinds=["guideline"]` 与"不可比"，**不许报成"新增 14 条"**。
+- 工具面**仍是 8 个** `design_*`（不新增工具）：`design_lookup kind=guideline`（列表带 `total/archived/returned/truncated/omittedByQuery`，详情带 candidates）、`design_edit action=guideline`（`apply=false` 干跑回读 `before`；`tokens:[]`/`rules:[]` 一律当"这次不改"，否则 agent 只想改标题就会清空引用清单）、`design_context sections=["guidelines"]`。JSON Schema 的枚举与长度上限全部由 `GuidelineCategories.SchemaProperties()` 从后端词表生成。
+- 界面第 15 个 section「UX 规范」：清单/筛选/关键词、编辑器（绑 `*Raw` 原文，括注只用于展示）、规则行增删、引用令牌 chip（值 == `tokens/effective`，不在前端再查一遍）、来源徽标（生成器产出 / 手改受保护）、页内二次确认的归档与恢复 —— 本插件没有删除能力，所以也没有"删除"按钮。
+
+判据/偏差/证据：`docs/ai/pilot/2026-10-01-design-system-m3-style-guideline/`。
 
 ## 生成引擎的关键取舍
 
@@ -215,11 +242,11 @@ e2e 钉三个判据：UI 写入后 `effective` 读回别名顺到字面值 `#123
 
 40 枚本项目**原创绘制**（License=`Owned`，无第三方许可与归属负担），统一 24×24 网格、1.5px 描边、round 端点、`stroke="currentColor"`；每枚带中文名、检索标签与"什么时候用它"的用途约束。首植在插件 `Apply` 里幂等执行（已有则不重写），用户仍可导入自己的 Collection。
 
-## 自带界面（四模式外壳 + 14 个库驱动 section）
+## 自带界面（四模式外壳 + 15 个库驱动 section）
 
-外壳分四模式（v3.0.0）：**开始**（向导）/ **展厅**（试穿）/ **工作台**（下方 14 个 section）/ **交付与接入**（Agent 接入与文档原文）。工作台 14 个 section：
+外壳分四模式（v3.0.0）：**开始**（向导）/ **展厅**（试穿）/ **工作台**（下方 15 个 section）/ **交付与接入**（Agent 接入与文档原文）。工作台 15 个 section（v3.1.0 起第 15 个是「UX 规范」）：
 
-项目与生成 / 令牌工作台 / 色彩实验室 / 排版标度 / 尺度与密度 / 阴影与动效 / 主题实验室 / 图标库 / 审计与门禁 / 导出交付 / 版本与对比 / 组件库 / 品牌展示页 / 品牌资产。导航入口按后端 `capabilities` 灰化（后端没声明的能力不假装可用）；空态分四层（未登录 401 / 后端错误 / 无项目 / 无令牌）。
+项目与生成 / 令牌工作台 / 色彩实验室 / 排版标度 / 尺度与密度 / 阴影与动效 / 主题实验室 / 品牌资产 / 图标库 / 审计与门禁 / 导出交付 / 版本与对比 / **UX 规范** / 组件库 / 品牌展示页。导航入口按后端 `capabilities` 灰化（后端没声明的能力不假装可用）；空态分四层（未登录 401 / 后端错误 / 无项目 / 无令牌）。
 
 ## 品牌资产三表（资产 / 字体 / 页面清单）
 
@@ -245,6 +272,8 @@ e2e 钉三个判据：UI 写入后 `effective` 读回别名顺到字面值 `#123
 两条规矩：**规格进哈希**（不然"只换了 logo"会被判为与上一版一致、同版本号幂等放行）；
 **旧快照不许凭空补一节**（schema 1 文件没有 `specs` → 后端回 `specsComparable=false`，界面显示"不可比"而不是"新增 N 条"）。
 内置图标库（`ProjectId=0`）不进快照：它随插件版本走，不是某个项目的一次发布内容。
+
+**v3.1.0 升到 schema 3**：`specs` 再增 `guideline` 类（11 字段，只存规范原文与级别，不存括注后的数值——同一数字存两处就会漂）。同一条老规矩照样生效：规范改动**进哈希**（"只改了规范、令牌没动"必须能发出一版，否则同版本重发被幂等放行）；**旧快照不许凭空补一节**——对 schema≤2 的快照做 diff 时 `guideline` 类整体标不可比（出参 `notComparableKinds`，界面显示"不可比"并把原因说清），绝不报成"新增 14 条规范"。
 
 种子的定位要说清楚：**建议值，不是产品事实**。重跑生成对这三张表**只补空不覆盖**——按自然键（资产 code / 页面 code / 字族+字重+样式）跳过已存在的行，所以用户换过的 logo、改过的起手屏、登记的可分发字体不会被静默写回（令牌侧靠 `Generator=manual` 保护，这里按同名键保护）。
 
@@ -324,7 +353,7 @@ dotnet test ForgeSelf.Api.Tests --filter "FullyQualifiedName~DesignSystem" --log
 # 插件前端：类型检查 / 单测（走宿主 vitest 入口，含样式类完整性守卫 classes.test.ts）/ 构建
 cd Plugins/DesignSystem/web && pnpm run check && pnpm run test && pnpm run build
 
-# 插件层 e2e（真实宿主 + 真实库，零 mock；三个 spec 文件：工作台 design-system.spec.ts / Agent design-system-agent.spec.ts / M2 展厅 design-system-showroom.spec.ts 的 A/B/C/D 片；每段都用 API 复核后端事实 + 截图读图）
+# 插件层 e2e（真实宿主 + 真实库，零 mock；三个 spec 文件：工作台 design-system.spec.ts / Agent design-system-agent.spec.ts / M2 展厅 design-system-showroom.spec.ts 的 A/B/C/D/E 片；每段都用 API 复核后端事实 + 截图读图）
 cd ForgeSelf.Web && pnpm exec playwright test --config=playwright.config.ts e2e/plugins/design-system
 #   视觉 QA 矩阵截图落 ForgeSelf.Web/screenshots/e2e/design-system/m2/qa-*.png（3 预设 × 5 场景 × 明/暗）
 ```

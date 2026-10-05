@@ -59,12 +59,13 @@ public class DesignSystemStoreTests : IDisposable
     }
 
     [Fact]
-    public void EnsureCreated_十二张表可用_且重复调用幂等()
+    public void EnsureCreated_十三张表可用_且重复调用幂等()
     {
         DesignSystemTables.EnsureCreated().Should().BeTrue();
         DesignSystemTables.EnsureCreated().Should().BeTrue();
 
-        DesignSystemTables.EntityTypes.Should().HaveCount(12);
+        // M3 增量：12 → 13（唯一新增表 DesignGuideline，既有 12 张的表/列/索引一字未动）
+        DesignSystemTables.EntityTypes.Should().HaveCount(13);
 
         // 每张表都能直查（表不存在会抛 no such table）
         DesignProject.FindAll(DesignProject._.Id > 0).Should().NotBeNull();
@@ -79,6 +80,7 @@ public class DesignSystemStoreTests : IDisposable
         DesignFontFace.FindAll(DesignFontFace._.Id > 0).Should().NotBeNull();
         DesignAudit.FindAll(DesignAudit._.Id > 0).Should().NotBeNull();
         DesignRelease.FindAll(DesignRelease._.Id > 0).Should().NotBeNull();
+        DesignGuideline.FindAll(DesignGuideline._.Id > 0).Should().NotBeNull();
     }
 
     [Fact]

@@ -42,6 +42,8 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   seed: { plain: '随机种子', pro: '种子 Seed' },
   'agent-rules': { plain: '给 AI 的使用规则', pro: 'Agent 规则' },
   brief: { plain: '设计说明书', pro: 'Brief 说明书' },
+  'style axes': { plain: '更多风格选项', pro: '风格轴 Style Axes' },
+  'style axis hint': { plain: '这几项改的是轮廓本身：阴影怎么打、线多粗、字用哪族、角多圆、灰偏冷还是偏暖。', pro: '七条风格轴贯穿阴影公式、描边宽、中性色阶、字体栈、圆角映射与强调色偏移；缺省取值与 M2 之前逐字节一致。' },
 }
 
 /** 开关状态（响应式，默认大白话）。读 localStorage 失败/无值 = false */

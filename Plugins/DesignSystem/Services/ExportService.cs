@@ -67,6 +67,12 @@ public sealed class ExportService
     public DesignBriefBuilder? BriefBuilder { get; set; }
 
     /// <summary>
+    /// UX 规范服务（M3）。与 BriefBuilder 同样用属性注入：导出与规范互相需要（导出要读规范、规范的当前值要由导出的取值函数给），
+    /// 构造期互引会把注册顺序变成隐藏契约。未设置时导出不含规范章（不是空章，是"这一层没接上"，见 brief 的 omitted 说明）。
+    /// </summary>
+    public GuidelineService? Guidelines { get; set; }
+
+    /// <summary>
     /// 某主题的导出快照：共享层 + 该主题覆盖层，别名解析后带有效值。
     /// 品牌三表（字体/资产/页面）也进快照 —— 投影不许只给令牌：
     /// 库里登记了字体却不出 `@font-face`、有 logo 却不进 bundle，就是"库里有了、交付物里没有"的半套交付。
@@ -75,9 +81,15 @@ public sealed class ExportService
     /// </summary>
     public sealed record Snapshot(DesignProject Project, String? ThemeCode, IReadOnlyList<Snap> Tokens, IReadOnlyList<DesignTheme> Themes,
         IReadOnlyList<DesignFontFace> Fonts, IReadOnlyList<DesignAsset> Assets, IReadOnlyList<DesignScreen> Screens,
-        IReadOnlyList<DesignComponent> Components, IReadOnlyList<DesignComponentVariant> Variants, IReadOnlyList<DesignIcon> Icons)
+        IReadOnlyList<DesignComponent> Components, IReadOnlyList<DesignComponentVariant> Variants, IReadOnlyList<DesignIcon> Icons,
+        // UX 规范（M3）：未接规范服务或项目没有规范时为空 —— 空就不开章、不写空文件。
+        // 口径：**不含 archived**（用户归档掉的规范不该出现在交付物里），与界面默认清单一致。
+        IReadOnlyList<DesignGuideline>? Guidelines = null)
     {
         public IEnumerable<Snap> InTier(String tier) => Tokens.Where(t => t.Tier == tier);
+
+        /// <summary>规范行（永不为 null，导出侧直接遍历）</summary>
+        public IReadOnlyList<DesignGuideline> GuidelineRows => Guidelines ?? [];
     }
 
     /// <summary>投影用的单个令牌（已解析有效值）</summary>
@@ -94,13 +106,30 @@ public sealed class ExportService
         // 一次批量取变体：以前逐组件查（N+1），导出页并行预览多个格式时把上百次查询压到同一个
         // SQLite 文件上，实测 database is locked（v2.6.8 e2e 抓到的 500）
         var variants = _catalog.VariantsByComponent(components.Select(c => c.Id).ToList());
+        // 规范与主题无关，只在带规范服务的快照里出现；null（未注入）与"项目没有规范"都落成空清单
+        IReadOnlyList<DesignGuideline> guidelines = Guidelines?.List(projectId).ToList() ?? [];
         return new Snapshot(project, themeCode, BuildSnaps(graph), _projects.ListThemes(projectId).ToList(),
             _catalog.ListFonts(projectId).ToList(),
             _catalog.ListAssets(projectId, null).ToList(),
             _catalog.ListScreens(projectId).ToList(),
             components,
             components.SelectMany(c => variants[c.Id]).ToList(),
-            _catalog.ListIcons(projectId, null, null).ToList());
+            _catalog.ListIcons(projectId, null, null).ToList(),
+            guidelines);
+    }
+
+    /// <summary>
+    /// 快照上的令牌取值函数（规范括注的唯一取值入口，导出侧）。
+    /// 与 REST 侧 <c>tokens/effective</c> 同源：两边的 <see cref="Snap.Value"/> 都由 <see cref="BuildSnaps"/>
+    /// 里的 <c>graph.Resolve</c> 产出，所以"导出里括注的数"与"令牌页显示的数"必然一致；
+    /// 取值取不到（路径不在快照里或值为空）回 null → 由 <see cref="GuidelineRenderer"/> 标成「令牌已不存在」，不静默。
+    /// </summary>
+    public static Func<String, String?> ValueOf(Snapshot snap)
+    {
+        var map = new Dictionary<String, String?>(StringComparer.Ordinal);
+        foreach (var t in snap.Tokens)
+            if (!t.Value.IsNullOrEmpty()) map[t.Path] = t.Value;
+        return path => map.TryGetValue(path, out var v) ? v : null;
     }
 
     /// <summary>
@@ -200,6 +229,13 @@ public sealed class ExportService
             ("brand/fonts.json", JsonBytes(BrandFonts(snap))),
             ("brand/screens.json", JsonBytes(BrandScreens(snap))),
         };
+
+        // UX 规范（M3 FR11）：有规范才出这两个文件，空规范不写空文件（下游宁缺勿空）
+        if (snap.GuidelineRows.Count > 0)
+        {
+            files.Add(("guidelines/GUIDELINES.md", Encoding.UTF8.GetBytes(GuidelinesMd(snap))));
+            files.Add(("guidelines/guidelines.json", Encoding.UTF8.GetBytes(GuidelinesJson(snap))));
+        }
 
         // 接入规则与设计说明书进包（§E5/§I：agent-rules 与主题无关；brief 按非密度主题逐份）
         if (BriefBuilder != null)
@@ -312,6 +348,127 @@ public sealed class ExportService
             ["screens"] = screens,
         });
     }
+
+    #region UX 规范投影（M3）
+
+    /// <summary>
+    /// 规范正文块（每条一段，由 <see cref="GuidelineRenderer.RenderFull"/> 出）：DESIGN.md 的「UX 规范」章
+    /// 与 bundle 的 `guidelines/GUIDELINES.md` **共用这一份**，两条产物不可能各写一套口径。
+    /// 空规范回空串 —— 调用方据此不开章、不写空文件（FR11）。
+    /// </summary>
+    public static String GuidelinesBody(Snapshot snap)
+    {
+        var rows = snap.GuidelineRows;
+        if (rows.Count == 0) return "";
+        var valueOf = ValueOf(snap);
+        var sb = new StringBuilder();
+        foreach (var g in rows)
+        {
+            sb.AppendLine(GuidelineRenderer.RenderFull(g.Code, g.Category, g.Title, g.Summary, g.Body,
+                GuidelineRepository.ReadRules(g.RulesJson), GuidelineRepository.ReadPaths(g.TokenRefsJson), valueOf));
+            sb.AppendLine();
+        }
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 规范投影用的视图：规范正文里引用的多半是语义/组件/阴影令牌，它们只在**主题层**存在，
+    /// 而导出侧的主题五花八门（共享层快照、密度主题 compact…），逐个试就会把同一批引用判成「令牌已不存在」
+    /// —— 实测 design-md@compact 整章都是假断链。
+    /// 所以定死一条口径：**规范章的取值一律用项目默认色彩主题（参考主题），与导出请求的主题无关**，
+    /// 并在产物里写明用的哪个主题。令牌真改了值，重新导出即可；DESIGN.md 的 YAML 表仍然按请求主题出，不受影响。
+    /// 公开理由：brief 章由 <see cref="DesignBriefBuilder"/> 渲染紧凑形态，必须走同一个视图口径。
+    /// </summary>
+    public Snapshot GuidelineView(Snapshot snap)
+    {
+        if (snap.GuidelineRows.Count == 0) return snap;
+        var themes = snap.Themes.Where(t => t.ModeKind != ThemeModeKinds.Density).ToList();
+        var code = (themes.FirstOrDefault(t => t.IsDefault) ?? themes.FirstOrDefault())?.Code;
+        return code.IsNullOrEmpty() || code == snap.ThemeCode ? snap : Load(snap.Project.Id, code);
+    }
+
+    /// <summary>bundle 的 `guidelines/GUIDELINES.md`：给下游工程直接读的那一份</summary>
+    public String GuidelinesMd(Snapshot snap)
+    {
+        var view = GuidelineView(snap);
+        var rows = view.GuidelineRows;
+        if (rows.Count == 0) return "";
+        var body = GuidelinesBody(view);
+        return $"""
+            # {snap.Project.Name} · UX 规范（{rows.Count} 条）
+
+            > 生成器 v{GuidelineGenerator.Version}｜项目 `{snap.Project.Code}`｜取值参考主题 `{view.ThemeCode ?? "shared"}`（规范章只取参考主题的值，与导出请求的主题无关）。
+            > 正文只写**令牌路径**，括注里的数字是该主题当时的解析值（与 `tokens/effective?theme={view.ThemeCode ?? "shared"}` 同源）。
+            > 令牌改了值不必改规范：重新导出即可；规范改了口径才需要回插件里重新生成。
+
+            {body}
+            """;
+    }
+
+    /// <summary>
+    /// bundle 的 `guidelines/guidelines.json`：结构化工件（含每条引用令牌的**当前值**与断链清单）。
+    /// 与 REST 出参同键名，下游不必为导出再写一套解析。
+    /// </summary>
+    public String GuidelinesJson(Snapshot snap)
+    {
+        var view = GuidelineView(snap);
+        var rows = view.GuidelineRows;
+        var valueOf = ValueOf(view);
+        var items = new JsonArray();
+        foreach (var g in rows)
+        {
+            var rules = GuidelineRepository.ReadRules(g.RulesJson);
+            var refs = GuidelineRepository.ReadPaths(g.TokenRefsJson);
+            var broken = new List<String>();
+            foreach (var r in rules)
+                foreach (var p in GuidelineRenderer.ConcreteRefs(r.Text))
+                    if (valueOf(p).IsNullOrEmpty() && !refs.Contains(p)) broken.Add(p);
+            foreach (var p in refs.Where(p => valueOf(p).IsNullOrEmpty())) broken.Add(p);
+
+            var values = new JsonObject();
+            foreach (var p in refs) values[p] = valueOf(p) is { } v ? JsonValue.Create(v) : null;
+
+            items.Add((JsonNode)new JsonObject
+            {
+                ["code"] = g.Code,
+                ["category"] = g.Category,
+                ["categoryLabel"] = GuidelineCategories.Display(g.Category),
+                ["title"] = g.Title,
+                ["summary"] = GuidelineRenderer.Annotate(g.Summary, valueOf),
+                ["body"] = GuidelineRenderer.Annotate(g.Body, valueOf),
+                ["bodyRaw"] = g.Body,
+                ["rules"] = new JsonArray(rules.Select(r => (JsonNode)new JsonObject
+                {
+                    ["id"] = r.Id,
+                    ["level"] = r.Level,
+                    ["text"] = GuidelineRenderer.Annotate(r.Text, valueOf),
+                    ["textRaw"] = r.Text,
+                }).ToArray()),
+                ["tokenRefs"] = new JsonArray(refs.Select(p => (JsonNode)p).ToArray()),
+                ["tokenValues"] = values,
+                ["brokenRefs"] = new JsonArray(broken.Distinct(StringComparer.Ordinal)
+                    .OrderBy(x => x, StringComparer.Ordinal).Select(p => (JsonNode)p).ToArray()),
+                ["appliesTo"] = new JsonArray(GuidelineRepository.ReadPaths(g.AppliesToJson).Select(p => (JsonNode)p).ToArray()),
+                ["source"] = g.Source,
+                ["status"] = g.Status,
+                ["generatorVersion"] = g.GeneratorVersion,
+                ["generatorSeed"] = g.GeneratorSeed,
+                ["sortOrder"] = g.SortOrder,
+            });
+        }
+
+        return JsonSerializer.Serialize(new JsonObject
+        {
+            ["note"] = "正文只写令牌路径；tokenValues 取参考主题（默认色彩主题）的解析值，与 tokens/effective?theme=该主题 同源；brokenRefs 非空说明规范引用的令牌已被删改。",
+            ["project"] = snap.Project.Code,
+            ["theme"] = view.ThemeCode ?? "shared",
+            ["generatorVersion"] = GuidelineGenerator.Version,
+            ["count"] = rows.Count,
+            ["guidelines"] = items,
+        }, JsonOpts);
+    }
+
+    #endregion
 
     #region DTCG
 
@@ -603,8 +760,17 @@ public sealed class ExportService
                 var color = Ref(o["color"]);
                 if (color.IsNullOrEmpty()) color = Ref(o["colorAliasPath"]);
                 if (color.IsNullOrEmpty()) color = "currentcolor";
+                var hasAlpha = o["alpha"] is not null;
                 var alpha = Dbl(o["alpha"]);
-                var colorCss = alpha > 0 && alpha < 1 ? $"color-mix(in oklab, {color} {Num(alpha * 100)}%, transparent)" : color;
+                // alpha=0 必须是**看不见**（`shadowStrength=0` 的既定语义：阴影不可见但令牌仍在），
+                // 老写法 `alpha > 0 && alpha < 1` 会把 0 判成"不加 color-mix"→ 直接输出实心色，
+                // 强度调到 0 反而得到一条最重的黑投影（M3 视觉矩阵 V3 实测抓到）。
+                // 没有 alpha 字段的层仍按原样输出颜色（手写令牌的既有形态，不在这条里改语义）。
+                var colorCss = !hasAlpha || alpha >= 1
+                    ? color
+                    : alpha <= 0
+                        ? "transparent"
+                        : $"color-mix(in oklab, {color} {Num(alpha * 100)}%, transparent)";
                 var inset = o["inset"]?.GetValueKind() == System.Text.Json.JsonValueKind.True ? "inset " : "";
                 layers.Add($"{inset}{Num(Dbl(o["offsetX"]))}px {Num(Dbl(o["offsetY"]))}px {Num(Dbl(o["blur"]))}px {Num(Dbl(o["spread"]))}px {colorCss}".Trim());
             }
@@ -980,6 +1146,18 @@ public sealed class ExportService
         sb.AppendLine("- 所有可交互元素必须有 `:focus-visible` 表现。");
         AppendComponentSpecs(sb, snap);
         AppendBrandSections(sb, snap);
+        // UX 规范章（M3 FR11）：空规范不开章——没有规范时 DESIGN.md 与开工前逐字节一致。
+        // 取值走 GuidelineView：调用方给的是共享层快照时，规范章自己补默认主题，别把语义/阴影引用判成断链。
+        var guidelineView = GuidelineView(snap);
+        if (guidelineView.GuidelineRows.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"## UX 规范（{guidelineView.GuidelineRows.Count} 条 · 生成器 v{GuidelineGenerator.Version}）");
+            sb.AppendLine();
+            sb.AppendLine($"正文只写**令牌路径**，括注里的数字取默认色彩主题 `{guidelineView.ThemeCode ?? "shared"}` 的解析值（与 `tokens/effective?theme={guidelineView.ThemeCode ?? "shared"}` 同源，与本文件其余部分的主题无关）。");
+            sb.AppendLine();
+            sb.AppendLine(GuidelinesBody(guidelineView));
+        }
         sb.AppendLine();
         sb.AppendLine("## Do / Don't");
         sb.AppendLine("- Do：用语义角色（`semantic.text-1`）表达意图。");
@@ -1531,6 +1709,12 @@ public sealed class ExportService
         sb.AppendLine("| `brand/` | 品牌工件：图形资产逐文件 `.svg` + `fonts.json`（含许可证）+ `screens.json` |");
         sb.AppendLine("| `agent-rules.md` | 可粘贴进目标项目 AGENTS.md / CLAUDE.md / .cursorrules 的接入规则 |");
         sb.AppendLine("| `brief/BRIEF.<theme>.md` | 设计说明书（按非密度主题逐份；唯一真源声明 + 使用规则 + 令牌速查） |");
+        // 规范工件只在真的有规范时列出来：清单里写一个包里不存在的路径 = 假交付
+        if (snap.GuidelineRows.Count > 0)
+        {
+            sb.AppendLine($"| `guidelines/GUIDELINES.md` | UX 规范 {snap.GuidelineRows.Count} 条全文（正文只写令牌路径，括注当前值） |");
+            sb.AppendLine("| `guidelines/guidelines.json` | 同上的结构化形态（`tokenValues` 当前值 + `brokenRefs` 断链清单） |");
+        }
         sb.AppendLine();
         sb.AppendLine($"## 品牌工件计数（来自库里登记，不是模板占位）");
         sb.AppendLine();

@@ -55,6 +55,7 @@ import IconLibrary from './sections/IconLibrary.vue'
 import AuditBoard from './sections/AuditBoard.vue'
 import ExportCenter from './sections/ExportCenter.vue'
 import ReleaseBoard from './sections/ReleaseBoard.vue'
+import Guidelines from './sections/Guidelines.vue'
 import TokenShowcase from './sections/TokenShowcase.vue'
 
 /** 初始深链：只在挂载时解析一次（写回用 replaceState，不监听 back/forward，故无需响应 hashchange） */
@@ -314,6 +315,7 @@ onMounted(() => {
       <AuditBoard v-else-if="active === 'audit'" />
       <ExportCenter v-else-if="active === 'export'" />
       <ReleaseBoard v-else-if="active === 'releases'" />
+      <Guidelines v-else-if="active === 'guidelines'" />
       <div v-else class="ds-skin" :data-skin-theme="skinTheme">
         <component :is="'style'">{{ skinStyles.scoped }}</component>
         <component :is="'style'">{{ skinStyles.alias }}</component>

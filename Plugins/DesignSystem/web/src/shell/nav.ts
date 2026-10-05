@@ -1,9 +1,11 @@
 /**
  * 工作台导航常量（v3：从 `DesignSystemView.vue` 原样搬出，供外壳与深链共用）。
  *
- * 唯一真源约束：标签 / 分组 / capability **一字不改**（既有的 14 入口文案与能力置灰
+ * 唯一真源约束：既有条目的标签 / 分组 / capability **一字不改**（它们的文案与能力置灰
  * 是 e2e 与 AC6 的判据）。抽到独立模块是为了 `design/route.ts`（深链）能校验
  * section key 而不反向依赖根视图，避免"视图文件被路由文件 import"的循环。
+ *
+ * M3 增量：追加第 15 个入口 `guidelines`（UX 规范，capability=`guidelines`）—— 只追加不改既有条目。
  */
 export type SectionKey =
   | 'projects'
@@ -19,6 +21,7 @@ export type SectionKey =
   | 'audit'
   | 'export'
   | 'releases'
+  | 'guidelines'
   | 'showcase'
 
 export interface NavItem {
@@ -43,6 +46,7 @@ export const NAV: NavItem[] = [
   { key: 'audit', label: '审计与门禁', group: '把质量' },
   { key: 'export', label: '导出交付', group: '把质量', capability: 'export' },
   { key: 'releases', label: '版本与对比', group: '把质量', capability: 'releases' },
+  { key: 'guidelines', label: 'UX 规范', group: '把质量', capability: 'guidelines' },
   { key: 'components', label: '组件库', group: '看效果', skin: true },
   { key: 'showcase', label: '品牌展示页', group: '看效果', skin: true },
 ]

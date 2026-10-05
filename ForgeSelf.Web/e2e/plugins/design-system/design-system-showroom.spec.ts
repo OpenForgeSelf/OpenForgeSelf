@@ -7,8 +7,11 @@ import {
   apiPost,
   apiText,
   attachCollectors,
+  canvasBg,
+  contrastRatio,
   dumpEvidence,
   hexToRgb,
+  relLuminance,
   shot,
   shotOf,
   type Evidence,
@@ -84,26 +87,7 @@ async function effectiveValue(page: Page, pid: number, theme: string, tokenPath:
   return view.items.find((t) => t.path === tokenPath)?.value ?? ''
 }
 
-/** 舞台画布底色（`.ds-outfit` 由后端文本投影上色） */
-const canvasBg = (page: Page) => page.locator('[data-stage] .ds-outfit').evaluate((el) => getComputedStyle(el).backgroundColor)
-
-/** WCAG 2.2 相对亮度（输入 `rgb(r, g, b)` / `rgba(...)` 计算值字符串） */
-function relLuminance(color: string): number {
-  const m = color.match(/rgba?\(([^)]+)\)/)
-  if (!m) return Number.NaN
-  const [r, g, b] = m[1].split(',').slice(0, 3).map((v) => Number(v.trim()) / 255)
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-}
-
-/** WCAG 2.2 对比度（1~21） */
-function contrastRatio(a: string, b: string): number {
-  const la = relLuminance(a)
-  const lb = relLuminance(b)
-  if (Number.isNaN(la) || Number.isNaN(lb)) return Number.NaN
-  const [hi, lo] = la >= lb ? [la, lb] : [lb, la]
-  return (hi + 0.05) / (lo + 0.05)
-}
+// WCAG 亮度/对比度与画布底色三个函数已上移到 `design-system-helpers.ts`（M3 V 片要用同一套公式，不留第二份）
 
 /** AC14 判据：六个 A 片页面及其元素/种类下限（03-plan §M） */
 const ADMIN_PAGES = [
@@ -1087,5 +1071,360 @@ test.describe('M2 展厅 · D 片（AC24 视觉 QA 矩阵）', () => {
     // 钉死在工作台的静态深色（light 固定 #0f172a）上 —— 深色档就是深底深字。读图时只在浅色档
     // 看不出问题，这条断言让该缺陷无法回潮。
     expect(lowContrast, `标题对比度低于 4.5:1 的档位`).toEqual([])
+  })
+})
+
+/* ================================================================== */
+/* E 片：预览视图档（输入22 · 2026-10-04）                              */
+/* ================================================================== */
+
+/**
+ * 用户现场原话：「展厅展示，应该缩放，或者可以最大化，或者可以自由调尺寸，并且有滚动条，不能只看到部分」。
+ * 实测成因（`:51888`，视口 1372x768）：桌面档 1280px 的稿被 1:1 塞进 648px 的列，右侧卡片被裁一半，
+ * 纵向只剩约 434px 可见 —— 见 `docs/ai/pilot/2026-10-04-showroom-preview-fit/mini-task.md`。
+ *
+ * 六条常驻判据 = 一句用户话一条，且每条都先**断言前提成立**再断言结果（"稿宽 < 可用宽"式的白捡证据不接受）：
+ *   E1 缩放：适应档把整幅缩进可用宽，右缘不越界、横向溢出 ≤2px；
+ *   E2 滚动条：1:1 下必然溢出（前提），且横滚到末端后**稿的右边缘进入可见区**（可达，不只是可滚）；
+ *   E3 最大化：两侧栏让位成单列，画布可用宽比三列时宽出 ≥1.5×；
+ *   E4 自由调尺寸：真拖右下角（原生 `resize`），拖窄后缩放比读数跟着变小（证明是重算，不是写死）；
+ *   E5 记忆：切档刷新不丢（`ds.showroom.view`），脏值回落「适应」；
+ *   E6 宽窗口（1920x1080）：展厅栏不再与工作台共用 1240 封顶 ⇒ 中列宽到 1280，「适应」档即 1:1 全幅、最大化更宽。
+ * 反向探针（记 05-evidence）：把 `fitScale` 改成恒返回 1 ⇒ E1 的"右缘不越界"与 E4 的"读数变小"必须转红。
+ */
+test.describe('M2 展厅 · E 片（预览视图档：缩放 / 1:1 / 最大化 / 拖拽 / 记忆）', () => {
+  test.describe.configure({ timeout: 180_000 })
+  // 按用户报障的那一档窗口跑：判据只有在"看不全"的尺寸上成立才有意义
+  test.use({ viewport: { width: 1372, height: 768 } })
+
+  /** 深链钉死"桌面档 + 后台仪表盘 + 内置预设"：不依赖实例里有没有项目，也不受衣柜顺序影响 */
+  const SHOWROOM_LINK = `${PLUGIN_ROUTE}#/showroom/admin-dashboard?outfit=preset:admin-calm&theme=light&device=desktop`
+
+  const stageOf = (page: Page) => page.locator('[data-stage]')
+  const viewOf = (page: Page) => page.locator('[data-stage-viewport]')
+  const groupBox = (page: Page) => stageOf(page).locator('[role="radiogroup"][aria-label="视图"]')
+
+  /** 缩放比读数（`[data-stage-zoom]` 是唯一出口，不读内部变量） */
+  async function zoomPct(page: Page): Promise<number> {
+    const raw = ((await stageOf(page).locator('[data-stage-zoom]').textContent()) ?? '').replace('%', '').trim()
+    return Number(raw)
+  }
+
+  interface Box {
+    left: number
+    right: number
+    width: number
+    height: number
+    clientWidth: number
+    clientHeight: number
+    offsetWidth: number
+    offsetHeight: number
+    scrollWidth: number
+    scrollHeight: number
+    scrollLeft: number
+    scrollTop: number
+  }
+  const sizeOf = (page: Page): Promise<Box> =>
+    viewOf(page).evaluate((el: HTMLElement) => {
+      const b = el.getBoundingClientRect()
+      return {
+        left: b.left,
+        right: b.right,
+        width: b.width,
+        height: b.height,
+        clientWidth: el.clientWidth,
+        clientHeight: el.clientHeight,
+        offsetWidth: el.offsetWidth,
+        offsetHeight: el.offsetHeight,
+        scrollWidth: el.scrollWidth,
+        scrollHeight: el.scrollHeight,
+        scrollLeft: el.scrollLeft,
+        scrollTop: el.scrollTop,
+      }
+    })
+  /** 设备框（稿）自己的右缘：`zoom` 会参与布局，这里读到的就是屏幕上真实画到的位置 */
+  const frameRight = (page: Page): Promise<number> =>
+    stageOf(page).locator('[data-stage-frame]').evaluate((el) => el.getBoundingClientRect().right)
+  const frameLeft = (page: Page): Promise<number> =>
+    stageOf(page).locator('[data-stage-frame]').evaluate((el) => el.getBoundingClientRect().left)
+
+  /** 预览里被试穿的"图形"是否真渲染：柱高 + 柱底色。只量高度会放过"有骨架没皮肤"（G17 取数窗口的空图） */
+  const barBoxes = (page: Page): Promise<{ h: number; bg: string }[]> =>
+    page.locator('[data-mq-page] .mq-bar').evaluateAll((els) =>
+      els.map((e) => ({
+        h: (e as HTMLElement).getBoundingClientRect().height,
+        bg: getComputedStyle(e).backgroundColor,
+      })),
+    )
+
+  /** 进展厅 → 等模特页上色 → 返回视图控件 */
+  async function openStage(page: Page): Promise<void> {
+    await injectRealApiKey(page)
+    await page.goto(SHOWROOM_LINK)
+    await expect(stageOf(page)).toBeVisible({ timeout: 30_000 })
+    await expect(stageOf(page)).toHaveAttribute('data-device', 'desktop')
+    await expect.poll(() => canvasBg(page), { timeout: 30_000 }).not.toBe('rgba(0, 0, 0, 0)')
+    await expect(stageOf(page).locator('[data-mq-page]')).toHaveCount(1)
+  }
+
+  test('E1 缩放：适应档整幅缩进可用宽，右侧不再被裁', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    // 无存储值时默认就是「适应」（用户第一眼必须看到不被裁的那一档）
+    await expect(groupBox(page).getByRole('radio', { name: '适应', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+
+    const b = await sizeOf(page)
+    const k = await zoomPct(page)
+    // 前提：桌面稿宽 1280 必须**放不下**当前可用宽，否则"没被裁"是白捡的、不构成证据
+    expect(b.clientWidth, `可用宽应 < 桌面稿宽 1280（实际 ${b.clientWidth}）`).toBeLessThan(1280)
+    expect(k, `适应档应真缩了（读数 ${k}%）`).toBeLessThan(100)
+    expect(k, `缩放比不得压到看不见（读数 ${k}%）`).toBeGreaterThan(30)
+
+    const overflow = b.scrollWidth - b.clientWidth
+    expect(overflow, `适应档横向溢出 ${overflow}px 应 ≤2px`).toBeLessThanOrEqual(2)
+    expect(
+      await frameRight(page),
+      `框右缘 ${await frameRight(page)} 不得越过容器内容区右缘 ${b.left + b.clientWidth}`,
+    ).toBeLessThanOrEqual(b.left + b.clientWidth + 2)
+    // 缩完还要"用满"：框应贴着可用宽，而不是缩成一个居中小区块
+    expect(
+      (await frameRight(page)) - (await frameLeft(page)),
+      '框渲染宽应基本等于可用宽（缩放后不留大片空白）',
+    ).toBeGreaterThanOrEqual(b.clientWidth * 0.9)
+
+    mark(
+      `E1 适应：可用宽=${b.clientWidth} 稿宽=1280 读数=${k}% 横向溢出=${overflow}px 纵向溢出=${b.scrollHeight - b.clientHeight}px` +
+        `（盒高 ${b.clientHeight}/${b.scrollHeight}）框右缘=${await frameRight(page)}`,
+    )
+    // 缩放不许把图形压没，也不许"有骨架没皮肤"：4 根柱既要有高度，也要有后端皮肤给的底色
+    const bars = await barBoxes(page)
+    expect(bars.length, '仪表盘模特页应有 4 根柱').toBe(4)
+    expect(Math.min(...bars.map((x) => x.h)), `适应档下柱高不应为 0（实测 ${bars.map((x) => x.h.toFixed(0)).join('/')}）`).toBeGreaterThan(8)
+    expect(
+      bars.filter((x) => x.bg === 'rgba(0, 0, 0, 0)').length,
+      `柱子底色不得为透明（有高度没颜色＝皮肤还没注入的骨架，G17 同族）：${bars.map((x) => x.bg).join(' | ')}`,
+    ).toBe(0)
+    // 适应档横向不溢出 ⇒ "画布外还有东西"的提示行不该出现（提示只在 1:1 / 最大化档才有意义）
+    await expect(page.locator('[data-stage-hint]')).toHaveCount(0)
+    await shotOf(viewOf(page), 'e1-fit')
+  })
+
+  test('E2 滚动条：1:1 溢出可滚，且横滚到末端后稿右缘进入可见区', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    await groupBox(page).getByRole('radio', { name: '1:1', exact: true }).click()
+    await expect.poll(() => zoomPct(page), { timeout: 10_000 }).toBe(100)
+
+    const b = await sizeOf(page)
+    // 前提：1:1 下 1280 的稿必须真放不下（溢出为 0 的话下面的"可达"判据就是空的）
+    expect(b.scrollWidth, `1:1 下应横向溢出（scrollWidth=${b.scrollWidth} clientWidth=${b.clientWidth}）`).toBeGreaterThan(
+      b.clientWidth,
+    )
+    // 「并且有滚动条」为什么钉"可达 + 提示行"，不钉"条占位"：
+    // 本机 Chrome（e2e 用 `channel: 'chrome'`）走**浮层滚动条** —— 连 `overflow:scroll` 的空白 div
+    // 都量出 `offsetWidth-clientWidth = 0`；给画布容器写 `::-webkit-scrollbar{width:40px;background:#f0f}`
+    // 也**一个像素都没画**（2026-10-05 实测，见本行 mark 与日记输入22）⇒ 自定义条样式被浏览器策略忽略，
+    // "条常驻"不是本插件能兑现的承诺。于是这里钉两件真能兑现的：溢出末端可达（下面三条）+ 提示行在场。
+    const uaGutter = await viewOf(page).evaluate(() => {
+      const probe = document.createElement('div')
+      probe.style.cssText = 'width:100px;height:100px;overflow:scroll'
+      document.body.appendChild(probe)
+      const w = probe.offsetWidth - probe.clientWidth
+      const h = probe.offsetHeight - probe.clientHeight
+      probe.remove()
+      return `w=${w} h=${h}`
+    })
+    mark(
+      `E2 条厚探针：UA条宽 ${uaGutter}（0=浮层条，故不断言"条占位"）；` +
+        `容器 offsetWidth-clientWidth=${b.offsetWidth - b.clientWidth}px offsetHeight-clientHeight=${b.offsetHeight - b.clientHeight}px`,
+    )
+    // 提示行：1:1 与最大化档要告诉用户"画布外还有东西、怎么到达"
+    await expect(page.locator('[data-stage-hint]')).toBeVisible()
+
+    await viewOf(page).evaluate((el) => {
+      el.scrollLeft = el.scrollWidth
+      el.scrollTop = el.scrollHeight
+    })
+    const r = await sizeOf(page)
+    expect(r.scrollLeft, '横向滚动条应可达右端（scrollLeft 停在 0）').toBeGreaterThan(0)
+    expect(
+      r.scrollLeft + r.clientWidth,
+      `横向末端未到达：scrollLeft=${r.scrollLeft} + clientWidth=${r.clientWidth} < scrollWidth=${r.scrollWidth}`,
+    ).toBeGreaterThanOrEqual(r.scrollWidth - 2)
+    expect(
+      r.scrollTop + r.clientHeight,
+      `纵向末端未到达：scrollTop=${r.scrollTop} + clientHeight=${r.clientHeight} < scrollHeight=${r.scrollHeight}`,
+    ).toBeGreaterThanOrEqual(r.scrollHeight - 2)
+    // 「不能只看到部分」的硬判据：滚到最右后，稿的右边缘就在可见区内
+    expect(
+      await frameRight(page),
+      `滚到最右后框右缘 ${await frameRight(page)} 应进入可见区（容器左缘 ${r.left} + 可用宽 ${r.clientWidth}）`,
+    ).toBeLessThanOrEqual(r.left + r.clientWidth + 2)
+
+    mark(
+      `E2 1:1：clientWidth=${b.clientWidth} scrollWidth=${b.scrollWidth} 滚动条占位=${b.offsetWidth - b.clientWidth}px；` +
+        `滚到末端 scrollLeft=${r.scrollLeft} scrollTop=${r.scrollTop} 框右缘=${await frameRight(page)}`,
+    )
+    await shotOf(viewOf(page), 'e2-actual-scrolled-right')
+  })
+
+  test('E3 最大化：两侧栏让位成单列，画布可用宽宽出 ≥1.5×', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    const threeCol = (await sizeOf(page)).clientWidth
+
+    await groupBox(page).getByRole('radio', { name: '最大化', exact: true }).click()
+    await expect(page.locator('[data-showroom-layout]')).toHaveClass(/ds-showroom__layout--max/)
+    const cols = await page.locator('[data-showroom-layout]').evaluate((el) => getComputedStyle(el).gridTemplateColumns)
+    expect(cols.trim().split(/\s+/).length, `最大化后应只剩一列（实测 ${cols}）`).toBe(1)
+
+    await expect
+      .poll(async () => (await sizeOf(page)).clientWidth, { timeout: 10_000, message: '最大化后画布应变宽' })
+      .toBeGreaterThanOrEqual(threeCol * 1.5)
+    expect(await zoomPct(page), '最大化不靠缩小换宽度，读数应为 100%').toBe(100)
+
+    const b = await sizeOf(page)
+    mark(`E3 最大化：三列可用宽=${threeCol} → 单列=${b.clientWidth}（${(b.clientWidth / threeCol).toFixed(2)}×）列=${cols}`)
+    await shotOf(stageOf(page), 'e3-max')
+  })
+
+  test('E4 自由调尺寸：拖窄画布盒后缩放比跟着重算', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    await viewOf(page).scrollIntoViewIfNeeded()
+    let box = await viewOf(page).boundingBox()
+    expect(box, '画布容器应有可拖的右下角').toBeTruthy()
+    // 右下角若落在折屏之外，先把页面滚上来，保证拖点真的在视口内
+    if (box!.y + box!.height > 700) {
+      await page.mouse.wheel(0, box!.y + box!.height - 560)
+      box = await viewOf(page).boundingBox()
+    }
+    const before = { w: box!.width, k: await zoomPct(page) }
+    const grip = { x: box!.x + box!.width - 3, y: box!.y + box!.height - 3 }
+
+    await page.mouse.move(grip.x, grip.y)
+    await page.mouse.down()
+    await page.mouse.move(grip.x - 220, grip.y, { steps: 12 })
+    await page.mouse.up()
+
+    const after = await sizeOf(page)
+    const kAfter = await zoomPct(page)
+    expect(after.width, `拖拽应改小画布盒宽度：${before.w} → ${after.width}`).toBeLessThanOrEqual(before.w - 40)
+    expect(kAfter, `可用宽变窄后缩放比应跟着重算：${before.k}% → ${kAfter}%`).toBeLessThan(before.k)
+    expect(
+      after.scrollWidth - after.clientWidth,
+      `缩完仍不得裁切（溢出 ${after.scrollWidth - after.clientWidth}px）`,
+    ).toBeLessThanOrEqual(2)
+
+    mark(`E4 拖拽：宽 ${before.w.toFixed(0)}→${after.width.toFixed(0)}，读数 ${before.k}%→${kAfter}%`)
+    await shotOf(viewOf(page), 'e4-resized-narrow')
+  })
+
+  test('E6 宽窗口（1920x1080）：画布跟着窗口变宽，适应档几乎 1:1 且无裁切', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    const narrow = await sizeOf(page)
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    // 放两帧让 ResizeObserver 与 `zoom` 重排落地，再读（不靠固定 sleep）
+    await page.evaluate(
+      () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))),
+    )
+    const b = await sizeOf(page)
+    const k = await zoomPct(page)
+    // 这一条钉的是"屏幕更大 → 画布更大，大到 1:1 装得下整幅稿"：展厅栏的 `max-width` 曾与工作台共用
+    // 1240，于是 1920 窗口下中列仍只有 648（读数 51%）。现放宽到 1872（= 1280 稿 + 两侧栏 2×240
+    // + 两条间距 2×24 + 左右内衬 2×32），实测 1920 下中列恰为 **1280**、读数 100%（不放大也不裁）。
+    // 宽度判据留 10px 余量：宿主自身内衬/滚动条会让可用宽略小于算式值；用户可见的那个数（读数）不留。
+    expect(b.clientWidth, `1920 下中列应容得下 1280 的稿（1372 时是 ${narrow.clientWidth}，现在是 ${b.clientWidth}）`).toBeGreaterThanOrEqual(
+      1270,
+    )
+    expect(k, `宽屏富余时不该放大（读数 ${k}%）`).toBeLessThanOrEqual(100)
+    expect(k, `宽屏下「适应」档就该是 1:1（读数 ${k}%）`).toBe(100)
+    expect(b.scrollWidth - b.clientWidth, '适应档不得有横向溢出').toBeLessThanOrEqual(2)
+    expect(await frameRight(page)).toBeLessThanOrEqual(b.left + b.clientWidth + 2)
+    mark(
+      `E6 1920 适应：可用宽 ${narrow.clientWidth} → ${b.clientWidth} 读数=${k}% 溢出=${b.scrollWidth - b.clientWidth}px`,
+    )
+    await shotOf(viewOf(page), 'e6-fit-1920')
+
+    // 最大化：单列更宽，1280 的稿整幅放下
+    await groupBox(page).getByRole('radio', { name: '最大化', exact: true }).click()
+    await expect
+      .poll(async () => (await sizeOf(page)).clientWidth, { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(b.clientWidth)
+    const m = await sizeOf(page)
+    expect(await zoomPct(page), '最大化档不靠缩小换宽度').toBe(100)
+    expect(m.scrollWidth - m.clientWidth, `最大化 1:1 全幅应无溢出（${m.scrollWidth - m.clientWidth}px）`).toBeLessThanOrEqual(2)
+    expect(await frameRight(page)).toBeLessThanOrEqual(m.left + m.clientWidth + 2)
+    mark(`E6 1920 最大化：可用宽=${m.clientWidth} 溢出=${m.scrollWidth - m.clientWidth}px 框右缘=${await frameRight(page)}`)
+    await shotOf(viewOf(page), 'e6-max-1920')
+  })
+
+  test('E5 记忆：切到 1:1 刷新后仍是 1:1', async ({ page }) => {
+    const evidence = attachCollectors(page)
+    const extra: string[] = []
+    sink = { evidence, extra }
+    const mark = (s: string) => extra.push(s)
+
+    await openStage(page)
+    await groupBox(page).getByRole('radio', { name: '1:1', exact: true }).click()
+    await expect(groupBox(page).getByRole('radio', { name: '1:1', exact: true })).toHaveAttribute('aria-checked', 'true')
+    expect(await page.evaluate(() => localStorage.getItem('ds.showroom.view'))).toBe('actual')
+
+    await page.reload()
+    await expect(stageOf(page)).toBeVisible({ timeout: 30_000 })
+    // 刷新后先等画布**被后端文本上色**再判/再拍：皮肤未注入时的骨架图没有卡片底色与柱色，
+    // 拿它当"最终状态"取证会拍到一张空图（本用例首版读图就拍到过，见 05-evidence）。
+    await expect
+      .poll(() => canvasBg(page), { timeout: 30_000, message: '刷新后画布必须已被后端皮肤上色' })
+      .not.toBe('rgba(0, 0, 0, 0)')
+    await expect
+      .poll(() => zoomPct(page), { timeout: 30_000, message: '刷新后应仍是 1:1（读数回到适应档那种 <100% 即为失忆）' })
+      .toBe(100)
+    await expect(groupBox(page).getByRole('radio', { name: '1:1', exact: true })).toHaveAttribute('aria-checked', 'true')
+    // 脏值不崩：手改存储成未知档位时应回落「适应」，而不是让舞台消失
+    await page.evaluate(() => localStorage.setItem('ds.showroom.view', 'maximise'))
+    await page.reload()
+    await expect(stageOf(page)).toBeVisible({ timeout: 30_000 })
+    await expect
+      .poll(() => canvasBg(page), { timeout: 30_000, message: '脏值回落后的画布也必须真上色' })
+      .not.toBe('rgba(0, 0, 0, 0)')
+    await expect(groupBox(page).getByRole('radio', { name: '适应', exact: true })).toHaveAttribute('aria-checked', 'true')
+
+    // 读图时这张曾出现"柱子是空的"：机器判据同时钉"有高度"和"有皮肤色"（只量高度会放过骨架图）
+    await expect
+      .poll(async () => {
+        const bars = await barBoxes(page)
+        if (bars.length !== 4) return -1
+        const painted = bars.filter((x) => x.bg !== 'rgba(0, 0, 0, 0)').length
+        return painted === 4 ? Math.min(...bars.map((x) => x.h)) : -1
+      }, { timeout: 15_000, message: '回落适应档后 4 根柱要既有高度又有底色（-1＝还没皮肤/柱数不对）' })
+      .toBeGreaterThan(8)
+    const final = await barBoxes(page)
+    mark(`E5 记忆：1:1 刷新保持；脏值回落适应档；回落柱=${final.map((x) => `${x.h.toFixed(0)}px/${x.bg}`).join(' ')}`)
+    await shotOf(viewOf(page), 'e5-persist')
   })
 })

@@ -10,6 +10,8 @@ import {
   RADIUS_DEFAULT,
   RADIUS_MAX,
   RADIUS_MIN,
+  axisFields,
+  axesFromPreset,
   defaultTune,
   isValidBrandColor,
   tuneFromPreset,
@@ -35,12 +37,13 @@ describe('tuneFromPreset', () => {
       density: 'compact',
       radiusBase: 4,
       motionScale: 0.8,
+      axes: {},
     })
   })
 
   it('无预设 → 通用默认', () => {
     expect(tuneFromPreset(null)).toEqual(defaultTune())
-    expect(defaultTune()).toEqual({ seedColor: '', density: 'default', radiusBase: RADIUS_DEFAULT, motionScale: 1 })
+    expect(defaultTune()).toEqual({ seedColor: '', density: 'default', radiusBase: RADIUS_DEFAULT, motionScale: 1, axes: {} })
   })
 
   it('预设缺字段 → 该项回落默认', () => {
@@ -117,5 +120,49 @@ describe('档位词表（§U 契约文案）', () => {
 
   it('圆润度范围 2–16', () => {
     expect([RADIUS_MIN, RADIUS_MAX]).toEqual([2, 16])
+  })
+})
+
+/**
+ * 风格轴（M3 AC10）。判据落在"叠加语义"上，不落在取值词表上：
+ * 词表必须来自 `meta.styleAxes`（`design/vocabulary.test.ts` 盯着界面别抄一份），
+ * 所以这里的字段名与取值都是测试自己造的样例值。
+ */
+describe('风格轴叠加（M3）', () => {
+  const fields = ['shadowStyle', 'fontPairing', 'radiusStyle', 'shadowStrength']
+  const withAxes: GenerateRequest = { ...preset, shadowStyle: 'crisp', fontPairing: 'editorial', shadowStrength: 1.4 }
+
+  it('axisFields 原样沿用 meta 给的字段与顺序（前端不重排、不补默认）', () => {
+    expect(axisFields(undefined)).toEqual([])
+    expect(axisFields([{ field: 'radiusStyle' }, { field: 'shadowStyle' }])).toEqual(['radiusStyle', 'shadowStyle'])
+  })
+
+  it('axesFromPreset 只挑声明过的字段，别的一律不带进来', () => {
+    expect(axesFromPreset(withAxes, fields)).toEqual({ shadowStyle: 'crisp', fontPairing: 'editorial', shadowStrength: 1.4 })
+    expect(axesFromPreset(withAxes, [])).toEqual({})
+    expect(axesFromPreset(null, fields)).toEqual({})
+  })
+
+  it('不传 fields 时旧调用方行为不变（预设里没有的键不会凭空冒出来）', () => {
+    expect(tuneFromPreset(withAxes).axes).toEqual({})
+  })
+
+  it('不动控件（初值 == 预设值）→ 带轴的预设也逐字一致', () => {
+    const out = tuneToRequest(withAxes, tuneFromPreset(withAxes, fields))
+    expect(out).toEqual(withAxes)
+  })
+
+  it('用户改一条轴 → 只覆盖那一条，其余轴与预设参数都不动', () => {
+    const tune = { ...tuneFromPreset(withAxes, fields), axes: { shadowStyle: 'flat', fontPairing: 'editorial', shadowStrength: 1.4 } }
+    const out = tuneToRequest(withAxes, tune)
+    expect(out.shadowStyle).toBe('flat')
+    expect(out.fontPairing).toBe('editorial')
+    expect(out.hue).toBe(preset.hue)
+    expect(out.density).toBe(tune.density)
+  })
+
+  it('空值不写进 request（后端按 null = 默认处理，空串会被当成一个取值）', () => {
+    const out = tuneToRequest(preset, { ...tuneFromPreset(preset, fields), axes: { shadowStyle: '' } })
+    expect(out.shadowStyle).toBeUndefined()
   })
 })

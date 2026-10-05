@@ -37,11 +37,12 @@ public class DesignSystemController : ControllerBase
     private readonly QuickCreateService _quickCreate;
     private readonly DesignBriefBuilder _brief;
     private readonly PreviewCssService _previewCss;
+    private readonly GuidelineService _guidelines;
 
     public DesignSystemController(DesignProjectService projects, TokenRepository tokens, CatalogRepository catalog,
         AuditRepository audits, AuditEngine auditEngine, ExportService export, ReleaseService releases,
         GenerationService generation, AgentAccess agentAccess, DesignReviewService review,
-        QuickCreateService quickCreate, DesignBriefBuilder brief, PreviewCssService previewCss)
+        QuickCreateService quickCreate, DesignBriefBuilder brief, PreviewCssService previewCss, GuidelineService guidelines)
     {
         _projects = projects;
         _tokens = tokens;
@@ -56,6 +57,7 @@ public class DesignSystemController : ControllerBase
         _quickCreate = quickCreate;
         _brief = brief;
         _previewCss = previewCss;
+        _guidelines = guidelines;
     }
 
     /// <summary>插件自描述：版本三元组 + 能力面清单。前端据 capabilities 对不支持项显式降级。</summary>
@@ -70,7 +72,7 @@ public class DesignSystemController : ControllerBase
         tiers = TokenTiers.All,
         tokenTypes = TokenTypes.All,
         lifecycles = TokenLifecycles.All,
-        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts", "brief", "review", "presets", "quick-create", "preview-css", "agent" },
+        capabilities = new[] { "projects", "themes", "tokens", "effective", "generate", "audit.read", "audit.run", "export", "import", "releases", "releases.diff", "components", "variants", "icons", "assets", "screens", "fonts", "brief", "review", "presets", "quick-create", "preview-css", "agent", "guidelines" },
         agentTools = DesignToolIndex.All.Select(t => t.Name).ToArray(),
         exportFormats = ExportFormats.All,
         // 导入面：格式清单与上限都由后端出，前端据此决定入口是否可用与怎么提示（不另抄一份数字）
@@ -86,6 +88,11 @@ public class DesignSystemController : ControllerBase
             radius = ScaleGenerators.RadiusOrder,
             duration = ScaleGenerators.DurationOrder,
         },
+        // 风格轴词表（M3）：轴/取值/默认值/范围都由 StyleAxes 单点供给，界面按它渲染控件，不许在 TS 里抄
+        styleAxes = StyleAxes.Vocabulary(),
+        // 规范分类词表（M3）：界面的分组与筛选按它排，新增分类只改后端 GuidelineCategories 一处
+        guidelineCategories = GuidelineCategories.All,
+        guidelineLevels = GuidelineCategories.Levels,
         // 色族序 = 生成器逐族产阶用的那张表（同一处消费：界面排色阶条带不许自己抄一份）
         colorFamilies = ColorFamilies.All,
         // 审计类别序 = 后端 AuditKinds 的展示序；界面据此排筛选下拉，新增一类不必改前端
@@ -375,6 +382,8 @@ public class DesignSystemController : ControllerBase
                 skippedProtected = result.SkippedProtected,
                 conflicts = result.Conflicts,
                 audit = outcome.Audit,
+                // 规范条数由后端种子流程给（只补空，故是"现存"），界面据此判断"生成后规范到底有没有"
+                guidelines = outcome.Guidelines,
             };
         });
     }
@@ -416,6 +425,127 @@ public class DesignSystemController : ControllerBase
     {
         RequireProject(id);
         return Guard(() => _auditEngine.Run(id, releaseId));
+    }
+
+    #endregion
+
+    #region UX 规范（M3）
+
+    /// <summary>
+    /// 规范清单。默认**不含 archived**（归档是软删，仍可按 <c>status=all|archived</c> 读到并可恢复）。
+    /// 每条附 <c>tokenValues</c> 与 <c>brokenRefs</c>：引用令牌在取值主题里取不到值时逐条列出，不静默（§G4）。
+    /// </summary>
+    [HttpGet("projects/{id:long}/guidelines")]
+    public IActionResult ListGuidelines(Int64 id, [FromQuery] String? status, [FromQuery] String? category, [FromQuery] String? theme)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var (valueOf, valueTheme) = GuidelineValues(id, theme);
+            return _guidelines.List(id, status, category).Select(g => GuidelineDto(g, valueOf, valueTheme)).ToList();
+        });
+    }
+
+    [HttpGet("projects/{id:long}/guidelines/{code}")]
+    public IActionResult GetGuideline(Int64 id, String code, [FromQuery] String? theme)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var (valueOf, valueTheme) = GuidelineValues(id, theme);
+            var g = _guidelines.Find(id, code) ?? throw new KeyNotFoundException($"规范 {code} 不存在");
+            return GuidelineDto(g, valueOf, valueTheme);
+        });
+    }
+
+    /// <summary>
+    /// 新增或更新一条规范（upsert）。写入即置 <c>Source=manual</c>：用户改过的东西不该被下次重新生成悄悄覆盖。
+    /// 带 <c>expectUpdatedAt</c> 时做乐观并发，不一致回 409（不写）。引用的令牌不存在 → 400 并逐条列出。
+    /// </summary>
+    [HttpPut("projects/{id:long}/guidelines/{code}")]
+    public IActionResult SaveGuideline(Int64 id, String code, [FromBody] GuidelinePatch patch)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var (valueOf, valueTheme) = GuidelineValues(id, null);
+            return GuidelineDto(_guidelines.Save(id, code, patch), valueOf, valueTheme);
+        });
+    }
+
+    /// <summary>生成/补齐默认规范。只补空：已存在的不动，手改行更不动（在 skippedProtected 里点名）</summary>
+    [HttpPost("projects/{id:long}/guidelines/generate")]
+    public IActionResult GenerateGuidelines(Int64 id, [FromQuery] Boolean overwrite = false)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var r = _guidelines.Generate(id, overwrite);
+            return new { created = r.Created, skipped = r.Skipped, skippedProtected = r.SkippedProtected, overwritten = r.Overwritten, total = r.Total };
+        });
+    }
+
+    /// <summary>归档（软删）。本插件**不提供任何删除端点**，恢复 = PUT 回来带 status=adopted。</summary>
+    [HttpPost("projects/{id:long}/guidelines/{code}/archive")]
+    public IActionResult ArchiveGuideline(Int64 id, String code)
+    {
+        RequireProject(id);
+        return Guard(() =>
+        {
+            var (valueOf, valueTheme) = GuidelineValues(id, null);
+            var g = _guidelines.Archive(id, code) ?? throw new KeyNotFoundException($"规范 {code} 不存在");
+            return GuidelineDto(g, valueOf, valueTheme);
+        });
+    }
+
+    /// <summary>
+    /// 规范出参的取值口径：直接借用导出侧那一份视图与取值函数（<see cref="ExportService.GuidelineView"/> +
+    /// <see cref="ExportService.ValueOf"/>），REST / brief / design-md / bundle / 界面 chip 从此是同一个函数的调用。
+    /// 主题口径：请求主题 → 项目默认色彩主题 → 首个非密度主题（规范引用的语义/阴影令牌只在主题层，
+    /// 共享层视图会把它们整片判成断链 —— M3 实测踩过，由 GuidelineRestTests 钉住）。
+    /// 第二项是实际取值的主题编码，出参里作为 <c>valueTheme</c> 交代清楚，界面不许假装它是"当前主题"。
+    /// </summary>
+    private (Func<String, String?> ValueOf, String? Theme) GuidelineValues(Int64 projectId, String? theme)
+    {
+        var view = _export.GuidelineView(_export.Load(projectId, theme));
+        return (ExportService.ValueOf(view), view.ThemeCode);
+    }
+
+    static Object GuidelineDto(Entities.DesignGuideline g, Func<String, String?> valueOf, String? valueTheme)
+    {
+        var rules = GuidelineRepository.ReadRules(g.RulesJson);
+        var refs = GuidelineRepository.ReadPaths(g.TokenRefsJson);
+        var broken = new List<String>();
+        foreach (var r in rules)
+            foreach (var p in GuidelineRenderer.ConcreteRefs(r.Text))
+                if (valueOf(p).IsNullOrEmpty() && !refs.Contains(p)) broken.Add(p);
+        foreach (var p in refs.Where(p => valueOf(p).IsNullOrEmpty())) broken.Add(p);
+
+        return new
+        {
+            code = g.Code,
+            category = g.Category,
+            categoryLabel = GuidelineCategories.Display(g.Category),
+            title = g.Title,
+            // 摘要与正文走同一个标注函数：界面上"一句话摘要"里出现的间距档必须和令牌页当前值一致
+            summary = GuidelineRenderer.Annotate(g.Summary, valueOf),
+            // 正文按纯文本给（界面与导出都不做 HTML 渲染），但当前值括注由同一个渲染函数加
+            body = GuidelineRenderer.Annotate(g.Body, valueOf),
+            bodyRaw = g.Body,
+            rules = rules.Select(r => new { id = r.Id, level = r.Level, text = GuidelineRenderer.Annotate(r.Text, valueOf), textRaw = r.Text }).ToList(),
+            tokenRefs = refs,
+            // 界面 chip 直接读这份值：前端自己再查一次 effective 就等于给"这条规范说多少"写第二份真相
+            tokenValues = refs.ToDictionary(p => p, p => valueOf(p), StringComparer.Ordinal),
+            valueTheme,
+            brokenRefs = broken.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToList(),
+            appliesTo = GuidelineRepository.ReadPaths(g.AppliesToJson),
+            source = g.Source,
+            status = g.Status,
+            generatorVersion = g.GeneratorVersion,
+            generatorSeed = g.GeneratorSeed,
+            sortOrder = g.SortOrder,
+            updatedAt = g.UpdatedAt,
+        };
     }
 
     #endregion
@@ -730,6 +860,8 @@ public class DesignSystemController : ControllerBase
             specsChanged = diff.SpecsChanged,
             // 旧快照（schema 1）没有这一节：界面必须显示"不可比"，而不是把整节报成新增
             specsComparable = diff.SpecsComparable,
+            // M3：整节能比但某一类（guideline）在旧 schema 里从来没记过 → 界面写"这一类无法比较"，不写"没有变化"
+            notComparableKinds = diff.NotComparableKinds ?? [],
             total = diff.Total,
             isEmpty = diff.IsEmpty,
         });

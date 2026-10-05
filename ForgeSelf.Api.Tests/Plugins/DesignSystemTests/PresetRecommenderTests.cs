@@ -65,9 +65,10 @@ public class PresetRecommenderTests
     }
 
     [Fact]
-    public void limit_钳制到1到8()
+    public void limit_钳制到1到目录数()
     {
-        PresetRecommender.Recommend(null, null, null, null, null, null, 99).Should().HaveCount(8);
+        // M3 偏差登记：M1 时这里钳到 8（目录就是 8 个）。目录扩到 13 后上限必须跟着走，否则新 5 个永远推不出来
+        PresetRecommender.Recommend(null, null, null, null, null, null, 99).Should().HaveCount(13);
         PresetRecommender.Recommend(null, null, null, null, null, null, 0).Should().HaveCount(1);
     }
 

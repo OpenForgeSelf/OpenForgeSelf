@@ -240,10 +240,11 @@ test.describe('设计系统插件 v2 · 库驱动工作台全链路', () => {
     // M2 四模式外壳：先进入「工作台」模式，14 入口导航才渲染（默认落 开始/展厅）
     await enterWorkbench(page)
 
-    // ---- 3. 导航按能力面出现，14 个入口都在 ----
+    // ---- 3. 导航按能力面出现，入口清单都在（M3 增量：追加第 15 个「UX 规范」） ----
     const navLabels = [
       '项目与生成', '令牌工作台', '色彩实验室', '排版标度', '尺度与密度', '阴影与动效',
       '主题实验室', '图标库', '审计与门禁', '导出交付', '版本与对比', '组件库', '品牌展示页', '品牌资产',
+      'UX 规范',
     ]
     for (const label of navLabels) await expect(nav(page, label)).toBeVisible()
     await shot(page, '01-shell-loaded')

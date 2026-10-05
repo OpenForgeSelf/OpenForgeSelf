@@ -23,6 +23,15 @@ public sealed class PreviewCssInput
     public String? BrandName { get; set; }
     public String? Industry { get; set; }
 
+    // ---- M3 风格轴（与 GenerationRequest 同名同义；不镜像就等于展厅调了轴但预览不变，见 03-plan 偏差） ----
+    public String? ShadowStyle { get; set; }
+    public Double? ShadowStrength { get; set; }
+    public String? BorderStrength { get; set; }
+    public String? NeutralTemp { get; set; }
+    public String? FontPairing { get; set; }
+    public String? RadiusStyle { get; set; }
+    public String? AccentStrategy { get; set; }
+
     /// <summary>要预览的主题（缺省 light）；只影响这一份内存 CSS，不落库</summary>
     public String? Theme { get; set; }
 
@@ -41,6 +50,13 @@ public sealed class PreviewCssInput
         MotionScale = MotionScale,
         BrandName = BrandName,
         Industry = Industry,
+        ShadowStyle = ShadowStyle,
+        ShadowStrength = ShadowStrength,
+        BorderStrength = BorderStrength,
+        NeutralTemp = NeutralTemp,
+        FontPairing = FontPairing,
+        RadiusStyle = RadiusStyle,
+        AccentStrategy = AccentStrategy,
     };
 }
 

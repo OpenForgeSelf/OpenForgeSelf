@@ -3,11 +3,14 @@ using NewLife;
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
 /// <summary>
-/// §D 预设目录（8 个）。id / 名称 / 性格词 / 适用范围 / 关键词为契约不可改；
+/// §D 预设目录（M1 起 8 个，M3 起 13 个）。id / 名称 / 性格词 / 适用范围 / 关键词为契约不可改；
 /// 数值（hue/chroma/density/typeRatio/typeBasePx/radiusBase/motionScale/themes/request.industry）
 /// 可按下述规则微调：生成→审计出 critical 时先把 chroma ±0.03 内调整；仍不过再去掉 high-contrast
 /// 并在 05-evidence 登记。不得改 id、名称、性格词、适用范围、关键词。
 /// Request 是 GenerationRequest 的深拷贝，调用方改它不得影响目录。
+///
+/// M3 追加的 5 个（§P）专职一件事：**让每个风格轴的每个非默认取值都至少被一个预设真的用到**。
+/// 原 8 个一律不写轴字段（= null = 默认），它们的产物仍由黄金基线钉住；新 5 个才带轴取值。
 /// </summary>
 public sealed class StylePreset
 {
@@ -151,6 +154,98 @@ public static class StylePresets
                 Industries = ["general"],
                 Keywords = ["移动", "H5", "小程序", "app", "手机"],
                 Request = Req(205, 0.14, "comfortable", 1.25, 16, 12, 1.0, "general", "light", "dark", "high-contrast", "compact"),
+            },
+
+            // ---- M3 §P：以下 5 个专门把风格轴的非默认取值带到目录里，让"换一套系统"真的换得动 ----
+
+            new StylePreset
+            {
+                Id = "editorial-serif",
+                Name = "杂志·衬线",
+                Tagline = "阅读与出版：衬线标题、环线阴影、暖灰",
+                Tones = ["elegant", "editorial", "calm"],
+                Kinds = ["brand", "marketing"],
+                Industries = ["media"],
+                Keywords = ["杂志", "阅读", "出版", "博客", "文章", "专栏"],
+                Request = new GenerationRequest
+                {
+                    Hue = 25, Chroma = 0.12, Density = "default", TypeRatio = 1.33, TypeBasePx = 16,
+                    RadiusBase = 4, MotionScale = 0.9, Industry = "media",
+                    Themes = ["light", "dark", "high-contrast", "compact"],
+                    FontPairing = "editorial", ShadowStyle = "flat", RadiusStyle = "sharp",
+                    NeutralTemp = "warm", AccentStrategy = "split",
+                },
+            },
+            new StylePreset
+            {
+                Id = "flat-minimal",
+                Name = "极简·扁平",
+                Tagline = "工具与文档的极简：低彩度、粗描边、系统字体",
+                Tones = ["minimal", "precise", "neutral"],
+                Kinds = ["console", "system", "product"],
+                Industries = ["general", "devtools"],
+                Keywords = ["极简", "扁平", "文档", "知识库", "笔记"],
+                Request = new GenerationRequest
+                {
+                    Hue = 265, Chroma = 0.08, Density = "compact", TypeRatio = 1.15, TypeBasePx = 14,
+                    RadiusBase = 3, MotionScale = 0.8, Industry = "devtools",
+                    Themes = ["light", "dark", "high-contrast", "compact"],
+                    ShadowStyle = "flat", ShadowStrength = 0.9, BorderStrength = "bold", RadiusStyle = "sharp",
+                    NeutralTemp = "pure", FontPairing = "system", AccentStrategy = "mono",
+                },
+            },
+            new StylePreset
+            {
+                Id = "warm-craft",
+                Name = "手作·温暖",
+                Tagline = "生活/社区/手作的暖琥珀与圆润",
+                Tones = ["warm", "handcrafted", "friendly"],
+                Kinds = ["product", "marketing"],
+                Industries = ["commerce", "education", "general"],
+                Keywords = ["手作", "生活", "社区", "咖啡", "家居", "烘焙"],
+                Request = new GenerationRequest
+                {
+                    Hue = 55, Chroma = 0.14, Density = "comfortable", TypeRatio = 1.25, TypeBasePx = 16,
+                    RadiusBase = 10, MotionScale = 1.1, Industry = "commerce",
+                    Themes = ["light", "dark", "high-contrast", "compact"],
+                    ShadowStyle = "layered", RadiusStyle = "round", NeutralTemp = "warm",
+                    FontPairing = "humanist", AccentStrategy = "analogous",
+                },
+            },
+            new StylePreset
+            {
+                Id = "tech-crisp",
+                Name = "科技·锐利",
+                Tagline = "科技/云/安全产品的紫蓝与锐利阴影",
+                Tones = ["technical", "sharp", "futuristic"],
+                Kinds = ["product", "console", "brand"],
+                Industries = ["devtools"],
+                Keywords = ["科技", "AI", "云", "数据", "安全", "区块链"],
+                Request = new GenerationRequest
+                {
+                    Hue = 285, Chroma = 0.2, Density = "default", TypeRatio = 1.2, TypeBasePx = 16,
+                    RadiusBase = 4, MotionScale = 0.85, Industry = "devtools",
+                    Themes = ["light", "dark", "high-contrast", "compact"],
+                    ShadowStyle = "crisp", ShadowStrength = 1.15, RadiusStyle = "sharp", NeutralTemp = "cool",
+                },
+            },
+            new StylePreset
+            {
+                Id = "kids-playful",
+                Name = "童趣·圆润",
+                Tagline = "儿童/游戏/亲子的明亮粉紫与胶囊圆角",
+                Tones = ["playful", "bright", "round"],
+                Kinds = ["product", "marketing"],
+                Industries = ["education"],
+                Keywords = ["儿童", "游戏", "童趣", "亲子", "幼教"],
+                Request = new GenerationRequest
+                {
+                    Hue = 330, Chroma = 0.2, Density = "comfortable", TypeRatio = 1.3, TypeBasePx = 16,
+                    RadiusBase = 12, MotionScale = 1.2, Industry = "education",
+                    Themes = ["light", "dark", "high-contrast", "compact"],
+                    RadiusStyle = "pill", ShadowStyle = "layered", FontPairing = "humanist",
+                    AccentStrategy = "triadic",
+                },
             },
         ];
     }

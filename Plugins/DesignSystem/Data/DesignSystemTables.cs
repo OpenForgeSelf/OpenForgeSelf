@@ -8,8 +8,10 @@ namespace ForgeSelf.Api.Plugins.DesignSystem.Data;
 /// DesignSystem 插件的建表入口（单一真源）。
 ///
 /// 为什么插件要自己建表：宿主 <c>XCodeConfig.EnsureTablesCreated</c> 只扫「当前已加载程序集」，
-/// 而插件 <c>Apply</c> 与插件 DLL 的加载都晚于宿主建表 → 本插件的 12 张表不会被宿主建出来，
+/// 而插件 <c>Apply</c> 与插件 DLL 的加载都晚于宿主建表 → 本插件的表不会被宿主建出来，
 /// 结果是「库文件存在但无表」，首个查询即 <c>no such table</c>（建表铁律 12）。
+///
+/// 表数：M1/M2 时代 12 张，M3 起 13 张（新增 <c>DesignGuideline</c>）。
 ///
 /// 库文件位置由宿主 <c>XCodeConfig.PluginDbs</c> 登记（连接名 DesignSystem → 插件 id design-system），
 /// 落 <c>{数据根}/Plugins/design-system/DesignSystem.db</c>，与 <c>ctx.EnsurePluginDataDirectory()</c> 重合。
@@ -34,10 +36,11 @@ public static class DesignSystemTables
         typeof(Entities.DesignFontFace),
         typeof(Entities.DesignAudit),
         typeof(Entities.DesignRelease),
+        typeof(Entities.DesignGuideline),   // M3 新增：UX 规范（唯一一张新表，旧表旧数据不动）
     ];
 
     /// <summary>
-    /// 确保 DesignSystem 库与 12 张表就绪（幂等，可重复调用）。
+    /// 确保 DesignSystem 库与 13 张表就绪（幂等，可重复调用；旧库上只会补建缺的表，不动既有表）。
     /// 用 <see cref="EntityFactory.InitConnection"/> 全量建表：不依赖「实体 Meta 首次初始化」的按需自动建表。
     /// </summary>
     /// <returns>连接是否成功打开并完成建表</returns>

@@ -8,7 +8,9 @@
  * 已存项目不在展厅内改（本项目里程碑刻意不做"项目另存起点"）——那时面板置灰并说明去处。
  */
 import { computed } from 'vue'
-import { DENSITY_OPTIONS, MOTION_OPTIONS, RADIUS_MAX, RADIUS_MIN, isValidBrandColor, type TuneState } from './tune'
+import type { StyleAxisInfo } from '../api'
+import { term } from '../design/glossary'
+import { DENSITY_OPTIONS, MOTION_OPTIONS, RADIUS_MAX, RADIUS_MIN, isValidBrandColor, type StyleAxesState, type TuneState } from './tune'
 
 const props = defineProps<{
   tune: TuneState
@@ -16,6 +18,8 @@ const props = defineProps<{
   enabled: boolean
   saving: boolean
   error: string
+  /** 风格轴清单：一律来自 `GET meta.styleAxes`（本组件不列任何轴名或取值，见 vocabulary 守卫） */
+  styleAxes: StyleAxisInfo[]
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +34,22 @@ const pickerValue = computed(() => props.tune.seedColor || '#3366ff')
 
 function setSeed(v: string): void {
   emit('update:tune', { seedColor: v })
+}
+
+/** 轴控件的当前值：没选过就显示后端给的默认值（不显示成空白，否则用户以为没生效） */
+function axisValue(axis: StyleAxisInfo): string | number {
+  const v = props.tune.axes?.[axis.field]
+  return v === undefined || v === '' ? axis.default : v
+}
+
+function setAxis(axis: StyleAxisInfo, value: string | number): void {
+  const axes: StyleAxesState = { ...(props.tune.axes ?? {}), [axis.field]: value }
+  emit('update:tune', { axes })
+}
+
+/** 数值轴的显示值（range 控件不接受 undefined） */
+function axisNumber(axis: StyleAxisInfo): number {
+  return Number(axisValue(axis))
 }
 </script>
 
@@ -114,6 +134,46 @@ function setSeed(v: string): void {
       </div>
     </div>
 
+    <details v-if="styleAxes.length" class="ds-tune__axes" data-style-axes>
+      <summary class="ds-tune__label">{{ term('style axes') }}</summary>
+      <p class="ds-tune__hint ds-small">{{ term('style axis hint') }}</p>
+
+      <div v-for="axis in styleAxes" :key="axis.field" class="ds-tune__field" :data-axis="axis.field" :data-axis-kind="axis.kind">
+        <span class="ds-tune__label">
+          {{ axis.label }}<template v-if="axis.kind === 'number'">（{{ axisNumber(axis) }}）</template>
+        </span>
+        <div v-if="axis.kind === 'number'" class="ds-tune__row">
+          <input
+            class="ds-tune__range"
+            type="range"
+            :aria-label="axis.label"
+            :min="axis.min"
+            :max="axis.max"
+            :step="axis.step ?? 0.05"
+            :value="axisNumber(axis)"
+            :disabled="!enabled"
+            @input="setAxis(axis, Number(($event.target as HTMLInputElement).value))"
+          />
+        </div>
+        <div v-else class="ds-tune__row" role="radiogroup" :aria-label="axis.label">
+          <button
+            v-for="v in axis.values ?? []"
+            :key="v"
+            type="button"
+            class="ds-chip"
+            :class="{ 'ds-chip--on': String(axisValue(axis)) === v }"
+            role="radio"
+            :aria-checked="String(axisValue(axis)) === v"
+            :data-axis-value="v"
+            :disabled="!enabled"
+            @click="setAxis(axis, v)"
+          >
+            {{ axis.valueLabels?.[v] ?? v }}
+          </button>
+        </div>
+      </div>
+    </details>
+
     <div class="ds-tune__actions">
       <button type="button" class="ds-tune__btn" :disabled="!enabled" @click="emit('reset')">还原</button>
       <button
@@ -174,6 +234,23 @@ function setSeed(v: string): void {
 }
 .ds-tune__range {
   inline-size: 100%;
+}
+.ds-tune__axes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 1px solid var(--ds-border-1);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-2);
+}
+.ds-tune__axes > summary {
+  cursor: pointer;
+  font-size: var(--ds-fs-small);
+  color: var(--ds-fg-2);
+}
+.ds-tune__axes[open] > summary {
+  color: var(--ds-fg-1);
 }
 .ds-tune__actions {
   display: flex;

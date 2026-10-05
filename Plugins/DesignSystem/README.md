@@ -1,7 +1,29 @@
-# 设计插件 DesignSystem · 设计语言底座（v3.0.0）
+# 设计插件 DesignSystem · 设计语言底座（v3.1.0）
 
 > 铸己匣（ForgeSelf）的**设计系统**插件：把设计系统落成**可持久化、可校验、可版本化、可标准交付**的库。
 > 插件 ID `design-system`，挂载路由 `/design-system`，界面由插件自带（`web/dist`），宿主运行时远程加载。
+>
+> **v3.1.0（2026-10-03，风格轴 + UX 规范）**：两件事，都遵循"产物不许说假话"。
+> ① **7 条风格轴**（阴影风格 / 阴影强度 / 描边强度 / 中性色温 / 字体搭配 / 圆润度风格 / 强调色策略）进生成器，
+>   预设目录 8 → **13** 件衣服；**不传新参数时产物（含 CSS）与 v3.0.0 逐字节一致**，由 50 项黄金基线钉住；
+>   轴词表只有一处（后端 `StyleAxes`），`meta` / agent schema / 界面控件三处都从它生成。
+>   **七条轴里 `fontPairing` 目前只改令牌与规范文本，不改交付 CSS 里的字族声明**（既有排版投影缺口，见 §七 **G16**；修它会改变默认导出文本，属产物格式变更，需单独一次带变更说明的拍板）。
+> ② **UX 规范**（第 13 张表 `DesignGuideline`）：按项目用途/行业/密度确定式生成 **14 条**规范，
+>   **正文只写令牌路径、不写数字**（数值由渲染端现查当前令牌，改值不必改规范）；进 brief/design-md/bundle
+>   （`guidelines/GUIDELINES.md` + `guidelines/guidelines.json`）与 agent-rules；快照 schema 2 → **3**
+>   （跨 schema 的 `guideline` 类如实报"无法比较"，不凭空报新增）；工具面**仍是 8 个**，只增
+>   `design_edit action=guideline` / `design_lookup kind=guideline` / `design_context sections=guidelines`，
+>   交付清单（`design_review mode=checklist`）追加由 MUST/SHOULD/MAY 派生的条目（`id=g:<code>:<ruleId>`）；
+>   工作台第 **15** 个区「UX 规范」可编辑、可归档（**归档=软删，本插件不提供任何删除能力**）。
+> ③ **展厅预览区不再"只看到部分"**（2026-10-05，输入22 用户拍板）：舞台控制条多一组「视图」档——
+>   **适应**（默认，整页按画布可用宽等比缩放，`k = min(1, 可用宽/稿宽)`；1372x768 下桌面稿 780/1280 ⇒ 61%、横向溢出 0px；
+>   1920x1080 下画布宽恰容 1:1 ⇒ 读数 100%，**放大永远不做**）/
+>   **1:1**（真实像素看细节，超出部分滚轮或滚动条到达末端）/ **最大化**（让开两侧栏：1372 下 780 → **1308**，1.68×）；
+>   三档都可**拖画布右下角改尺寸**（拖窄后缩放比自动重算），档位记在 `localStorage` 刷新不丢，读数显示在控制条右侧。
+>   另一处成因同时修掉：展厅这一栏原先与工作台共用 `max-width:1240`，**屏幕再大画布也不变宽**（1920 下中列仍 648）；
+>   现按"1280 稿 + 两侧栏 + 间距 + 内衬 = 1872"单独放宽（工作台/开始/交付三栏不变）。
+>   滚动条是否常驻由浏览器滚动条策略决定，本插件只保证"可达 + 有提示"（见 **G22**）。
+> 判据与验收见 `docs/ai/pilot/2026-10-01-design-system-m3-style-guideline/` 与 `docs/ai/pilot/2026-10-04-showroom-preview-fit/`。
 >
 > **v3.0.0（2026-10-02，展厅与向导）**：从"只有专业工作台"扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入），
 > 让非设计师也能"试穿"：**向导**四步真落库建系统 → **展厅**把五类场景（后台·中台 / 状态板 / 工具·工作台 / 官网·落地页 / 移动端 H5）
@@ -77,7 +99,7 @@ Plugins/DesignSystem/
 ├── DesignSystem.csproj         # 引用 NewLife.Core + NewLife.XCode（自带持久化）
 ├── DesignSystemPlugin.cs       # 建表 + 内置图标幂等首植 + DI 注册
 ├── Data/
-│   ├── Model.xml               # 12 张表的结构真源（xcode 生成实体，生成物不手改）
+│   ├── Model.xml               # 13 张表的结构真源（xcode 生成实体，生成物不手改）
 │   └── Entities/               # 生成实体 + *.Biz.cs 手写业务成员
 ├── Services/                   # 设计系统的"后端真相"（色彩数学只有一份，在这里）
 │   ├── Oklch.cs / ContrastMath.cs
@@ -123,7 +145,7 @@ dotnet test ForgeSelf.Api.Tests --filter "FullyQualifiedName~DesignSystem" --log
 - 正规入口是 **e2e 隔离实例**（自动 publish 宿主 + 起前端 + 注入真实 token，数据落在 `.temp/e2e/<ts>/publish/Data`，不碰用户运行中的宿主）：
   `cd ForgeSelf.Web && pnpm exec playwright test --config=playwright.config.ts e2e/plugins/design-system`
 - 首次使用：进「项目与生成」新建项目 → 填种子色/参数 → ① 预览（不落库）→ ② 确认写入；之后各 section 都读同一份库。
-- 需要看运行态宿主（例如用户正在用的实例）时，用仓内工具拿 token：`node ForgeSelf.Web/scripts/get-forge-token.cjs`，**不要**为了验证写一次性脚本，也不要由 agent 停/启用户宿主。
+- 需要看运行态宿主（例如用户正在用的实例）时，用仓内工具拿 token：`node scripts/get-forge-token.cjs`（**仓库根**的 `scripts/`，不在 `ForgeSelf.Web/` 下——实测 `find . -name get-forge-token*` 只此一处），**不要**为了验证写一次性脚本，也不要由 agent 停/启用户宿主。
 
 ### 3.4 关键约定
 
@@ -137,9 +159,20 @@ dotnet test ForgeSelf.Api.Tests --filter "FullyQualifiedName~DesignSystem" --log
 - **换肤别名只引用后端 CSS 里真存在的变量**：指向未定义变量的 `var()` 会让整条声明在 computed-value 阶段失效，
   表现是"预览突然全透明"（`design/skin.ts` 的 `definedVars` 就是为堵这个）。
 
+
+### 3.5 把某一版插件装到运行实例上（本地插件更新源）
+
+- 出包（仓库根执行，`-Plugin` 用**目录名** PascalCase）：
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package-plugin.ps1 -Plugin DesignSystem -OutDir "<一个本地目录>" -Force`（脚本执行统一 `pwsh`，禁止 `powershell` 5.1 → AGENTS.md §2.3）
+- 产物名固定是 `<id>-<ver>.forgeself-plugin`（= `design-system-3.1.0.forgeself-plugin`），本质是个 zip，**只是扩展名不同**；
+  宿主只认这个扩展名：设置页「插件更新源」填那个目录，插件市场「检查更新」会列出版本更高的包（扫描逻辑 `PluginVersionService`）。
+- 包内应当只有：`plugin.json` + `DesignSystem.dll`（+ `.deps.json`/`.pdb`）+ `web/dist/**`；宿主共享的程序集（`ForgeSelf.*` / `NewLife.*` / `XCode.dll` / `MX.dll`）**必须不在包里**，带上了会让插件 ALC 重复加载、类型身份不一致。
+- ⚠️ 两个已知事实：① `Compress-Archive` 只认 `.zip`，所以脚本是"压成临时 .zip 再改名"（直接给 `Compress-Archive` 传 `.forgeself-plugin` 会当场报错）；② 当前共享名单只过滤 `.dll`，宿主 `.pdb` 会混进包里（不致命、不参与加载，已记待办）。
+- **由用户在页面点更新**：agent 不停/启/杀任何运行中的宿主；升级后要做的是只读复验，不是替用户重启。
+
 ---
 
-## 四、设计体系模型（v2：库里的 12 张表）
+## 四、设计体系模型（v3.1：库里的 13 张表）
 
 真源是 `Data/Model.xml`（结构）+ 后端服务（语义），不再是前端的一个 TS 类型：
 
@@ -155,11 +188,15 @@ DesignProject ─┬─ DesignTheme（ModeKind: color | density | brand；mode �
                ├─ DesignIcon（SvgBody 真实路径数据 + Collection + License）
                ├─ DesignAsset / DesignScreen / DesignFontFace
                ├─ DesignAudit（审计结论，唯一键含 ReleaseId/Kind/Target）
-               └─ DesignRelease（不可变快照：Version + TokensHash + SnapshotFile + 审计摘要）
+               ├─ DesignRelease（不可变快照：Version + TokensHash + SnapshotFile + 审计摘要）
+               └─ DesignGuideline（M3 UX 规范：唯一键 (ProjectId,Code) + Category/Title/Summary/Body
+                                    + RulesJson[{id,level,text}] + TokenRefsJson + AppliesToJson
+                                    + Source(generated|manual) + Status(adopted|draft|archived) + GeneratorVersion/Seed）
 ```
 
 要点：
 - **三层不是三张表**：同一张 `DesignToken` 用 `Tier` 区分，别名把 component→semantic→primitive 串成图，解析与环检测在 `TokenGraph`。
+- **规范正文不存数字**：`DesignGuideline` 只存令牌路径，数值由 `GuidelineRenderer` 现查当前令牌——存了数字就有了第二份真相，令牌改值后规范会开始说谎。
 - **每张表都有 `Extensions` JSON 袋**：长期演进（新指标、新派生）不必每次迁表。
 - **颜色推导规则不变但搬到后端并实测**：显式给色 > 色相 > 行业默认色相；辅助色相带偏移；中性/语义/尺度随参数计算而非固定表；可达性由 `ContrastMath` 判，不靠文案承诺。
 
@@ -317,6 +354,14 @@ diff 因此能报到"哪一条的哪个字段"（例：`asset/logo 的 svgBody` 
 | G13 | ~~设计系统落不到"被它服务的系统"身上~~ **已闭合（2026-09-30，v2.5.0 · spec U3）**：新增 `element-plus` 投影（`--el-*` → `--ds-*`，零字面色值、缺档如实未映射）+ bundle 内逐主题一份 | 后端 3 条用例（181/181）+ e2e 核对每个引用都能在同主题 tokens.css 里定义 | ✅ |
 | G14 | ~~审计只盯生成器、不盯手改~~ **已闭合（2026-09-30，v2.6.0）**：新增 `target-size` / `ramp-monotonic` / `naming` / `lifecycle-ref` 四类维度（档序取自 `ScaleGenerators` 同一张表，不另列第二份） | 后端 4 条用例（185/185）+ e2e 现场改值跑审计（18px 被抓、改回 28px 消失） | ✅ |
 | G10 | 整包 `bundle` 在**浏览器侧**取不到 zip：`page.evaluate(fetch)` → `Failed to fetch`；点 `<a download>` → 事件到了但 `download.path: canceled`。已排除"太慢"（后端构建 605ms） | 产物本身是好的（后端用例直接量过体积/构件数），但**用户点下载这条路径没有证据**；根因待查（见 TODO） | P1 |
+| G15 | **写成功后立刻读，可能读到"残缺的交付产物"（v3.1.0 M3 批 C 实测复现 2/2）**：`quick-create` 已回 200，紧接着 `GET .../export?format=css` 会少掉整个 `--ds-shadow-elevation-*` 族；`GET projects` 也可能查不到刚建的那条。同一瞬间 `tokens/effective` 库里是齐的、服务层用例（同库两项目、五档必齐）全绿 ⇒ 不是生成/落库丢数据。**归因更正（2026-10-04 输入49，用户当场指出后核到源码）**：先前这条写的"读侧滞后＝实体缓存"**不成立**——XCode 的 `Find` / `FindAll` / `FindCount` 不读实体缓存；走缓存的是显式 `Meta.Cache.*` 与生成器另造的 `FindByXxx` / `FindAllByXxx` 助手，而本插件对这两类的**调用数为 0**（`Meta.Cache` 只出现在两行注释里）。三次复现尝试（单测把缓存摆回生产值 10 / e2e 单跑 / 全目录 33 条串行）读数全部完整 ⇒ 本轮无法复现，状态改为**未定案（待复现条件）**，唯一剩余嫌疑是 SQLite 连接快照/可见性（未证）。已落地的机械改动＝全插件 47 处实体查询包进各 `.Biz.cs` 的高级查询（`QueryAll` / `QueryFirst` / `QueryCount`），并由 `BizDirectQueryGuardTests` 常驻守着（`.Biz.cs` 之外出现实体 `Find*` 即红）——**那是"读路径单一出口"，不是对这个缺陷的修复，也没有假装修好** | **用户可见后果不变**：新建或生成后马上点导出、下载整包、看项目清单，可能拿到不完整的东西——对"交付工作台"是核心承诺。e2e 侧判据仍挂在**不吃这条写读链的权威源**（`generate/preview-css` 变量全集）上，缺一个变量就红；`TODO.md` P1「待复现」含复现配方与本次证伪记录 | 🟡 P1 待复现（原「P1 待拍板缓存修法」作废） |
+| G16 | **字体搭配轴改的是令牌与规范文本，交付 CSS 里看不到字族变化**：`ExportService.TypographyCss()` 读了复合排版令牌的 `fontFamily` 却只输出 `weight/size/line-height/letterSpacing`；模特页 `.mq-page__title` 也从不设 `font-family`（e2e 实测 editorial 与 tech-crisp 的标题 computed `font-family` 完全相同） | 用户选了"衬线标题"这档，导出的 CSS 标题字族不变。修它**必然改变默认导出 CSS 文本** = 存量项目重新导出会 diff ⇒ 属产物格式变更，须单独一次带变更说明的次版本，不在 M3 里顺手改（`TODO.md` P2） | P2 需拍板 |
+| G17 | **展厅换装的取数窗口内，DOM 是"新衣服的 id + 上一件的正文"**：`Showroom.vue:loadCss()` 换装时不清空旧 `css`，`Stage.vue` 把新 `outfit.id` 与旧文本一起交给 `OutfitScope` 现算作用域 | 用户侧＝点了新皮肤画布短暂还是旧样子（底部已写着在取新皮肤）；取证侧＝截图/自动化会拿到**带错标签的证据**。e2e 判据已改成"舞台注入必须逐条等于该件衣服自己的权威交付 CSS"，红线不再依赖这个窗口；产品修复要动 M2 已交付交互 → 另立批次（`TODO.md` P2） | P2 |
+| G18 | **项目清单在"已有条目"时切进「项目与生成」不会自动刷新**：`Projects.vue` 的挂载读取条件是 `if (!projects.value.length) void loadProjects()` —— 库里只要已有别的项目，界面就一直显示上次加载的那一份（v3.1.0 M3 全目录 e2e 串行首跑暴露：G1 先用 REST 建项目再看清单，等了 20s 也没出现，快照里清单写着「2 个」而**后端日志同一时刻确实已写入第三条**） | 用户侧＝经 REST / 别的客户端 / 另一台机器新建的项目看不见，必须手点表头「重新读取」（这不算数据丢失，但"刷新即回读库"的界面自述与现实不符）； e2e 侧已按用户真实出口加固：点「重新读取」后再断言该行可见，并把"刷新第几次才出现"记成读数（**判据未放宽**）； 产品修法＝挂载即读或列表非空也做一次静默刷新 → 属 M1/M2 既有交互，另立批次（`TODO.md` P2） | P2 |
+| G19 | **`SQLITE BUSY` 的规格判据（读重试 / 写绝不重试）未按原样实现**：全仓 `grep BUSY` 只有两处注释记录过它把请求打成 500（`AuditRepository.cs:48`、`ReleaseService.cs:107`），实际缓解是**发布串行化**（同项目并发发布排队），不是"读侧重试" | 用户侧＝并发写/读撞锁时仍可能见到一次 500，重试即可恢复，但错误不透明；改法＝在只读路径统一加"BUSY 有限重试 + 写路径绝不重试"的包装，属**全站读路径语义**改动（影响 M1/M2 全部端点与既有测试口径）→ 另立批次，需用户拍板（`TODO.md` P2）　**10-04 升级**：此前只在并行 4-worker 轮出现，10-04 16:16 的**串行** `--workers=1` 全目录轮里也出现一次（`dtcg` 导出 500，栈 `Export→RequireProject→DesignProjectService.Find→XCode→code = Busy (5) / database is locked`，单跑同一条 1 passed ⇒ 偶发）；且本批把 47 处实体读改成 `.Biz.cs` 高级查询直接打库，撞锁频次是否因此上升**未量化** ⇒ 修法候选里的"只读退避 + 会响的常驻判据"优先级上调| P2 |
+| G20 | **零令牌项目点「重新生成默认规范」会立刻出现一排红色「断链 N」徽标**：`brokenRefs` 除 `TokenRefsJson` 外还计入**规则文本里反引号包住的令牌路径**（`DesignSystemController.cs:519-522`），项目一个令牌都没有时这些引用自然取不到值 | 行为**正确**（规格要求"引用取不到值必须可见、不静默"，e2e G5 已钉），缺的是解释：界面没说"这个项目还没生成过令牌"，用户容易读成"规范坏了"。改法＝空态/徽标旁给一句"该项目尚未生成令牌，先跑一次生成或导入"的引导 → 只动文案，P3 另批（`TODO.md`） | P3 |
+| G21 | **宿主升级链的两处目录布局缺陷已修，但要「升级一次」才对你可见**（2026-10-04 输入18/19）：① 内置插件曾被发布脚本外置到安装根并从 `versions/<ver>/` 删除 ⇒ 升级后整台实例 0 插件（含本插件）；② 更新链路把业务层版本目录当安装根交给更新代理 ⇒ 新版本落进 `versions/<ver>/versions/<new>/` 逐代嵌套。现修法＝内置插件随版本走 + 插件根两路合并（内置 `versions/<ver>/plugins/` 与数据根 `~/.forgeself/plugins/`）＋安装根唯一解析口径（宿主与代理两侧同源，代理在异常形态下当场拒绝、不动盘）。**残留限制**：已存在的嵌套层与历史 `plugins/` 残留不会被自动清理（不可逆面，需用户在场另批处理）；老布局（安装根 `plugins/`）不再是扫描点，靠升级到新包生效 | 用户可见，需一次升级 | P1（已修，真机复验待做） |
+| G22 | **展厅画布的"有没有那根滚动条"不由本插件决定**（2026-10-05 输入22 实测）：e2e 用本机 Chrome（`channel: 'chrome'`）量到**浮层滚动条**——连 `overflow:scroll` 的空白 div 都是 `offsetWidth-clientWidth = 0`；给画布容器写 `::-webkit-scrollbar { width: 40px; background: #f0f }` **一个像素都没画**，`scrollbar-width: thin` 同样量出 0px ⇒ 自定义滚动条样式被这台浏览器的滚动条策略忽略，"条常驻可见"本插件兑现不了 | 用户侧＝1:1 / 最大化档下，画布外的部分**能到达**（滚轮、拖滚动条、拖右下角改画布尺寸三条都实测可用，e2e E2/E4 钉住末端可达），但那条 bar 平时不显示、滚动/悬停时才浮出来；界面另给一行提示说明"画布外还有东西、怎么到达"（`[data-stage-hint]`，适应档不显示——它横向不溢出）。若确需常驻可见的条，只能自绘一套滚动条组件（新依赖 + 新交互面），未做 | P3（Unknown：用户机器上的观感需一次真实走查确认） |
 
 > v1 的 G2「产物不落后端」与 G4「无自动对比度校验」已在 v2.0.0 关闭；历史描述留在 `ROADMAP.md` 正文里作决策记录。
 
@@ -502,6 +547,39 @@ diff 因此能报到"哪一条的哪个字段"（例：`asset/logo 的 svgBody` 
   `BrandLogo.vue` 随之成为零引用死组件，按「声明了没人用＝假能力」口径移入 `.trash/`
   （`classes.test.ts` 的逐文件守卫自动少一条 BrandLogo 用例，属预期）。vitest **75**、`index.js` 297.56 kB。
 
+- **2026-10-03**：**v3.1.0** 风格轴与 UX 规范（M3，`docs/ai/pilot/2026-10-01-design-system-m3-style-guideline/`）——
+  ① 生成器加 **7 条风格轴**（`shadowStyle/shadowStrength/borderStrength/neutralTemp/fontPairing/radiusStyle/accentStrategy`），
+  预设目录 8 → 13；**不传轴时全部产物逐字节不变**（50 项黄金基线 + 逐轴白名单断言），轴词表单点在 `Services/StyleAxes.cs`，
+  `meta.styleAxes` / agent schema / 界面「更多风格选项」三处都由它生成；`editorial` 搭配新增 `font.display` 语义令牌。
+  ② 第 13 张表 `DesignGuideline` 与 **14 条 UX 规范**：`GuidelineGenerator`（确定性、只写令牌路径、数字守卫核）+
+  仓储/服务（只补空、`Source=manual` 受保护、`overwrite` 点名、归档软删）+ 5 个 REST 端点（**无 DELETE**）+
+  导出四处（brief 章 / design-md 章 / bundle `guidelines/*` 两文件 / agent-rules 指路，空规范不开章不写文件）+
+  快照 schema 3（跨 schema 的 `guideline` 类报"无法比较"）+ 工具增量（总数仍 8）+ 工作台第 15 区「UX 规范」。
+  实测修掉的六处真缺陷（都不是"顺手重构"，是门禁逼出来的）：① quick-create 丢轴（A 块 e2e：界面选了轴、请求体里没有）；
+  ② 密度反推串档（读 `space.4` 会把 default 项目认成 comfortable，因为倍率 2 撞上另一档的基准）；
+  ③ `SeedGuidelines` 回的是"本次新增数"→ 第二次生成会让界面上的规范凭空变 0；
+  ④ 规范章取值走错主题视图（共享层/密度层没有 `semantic.*`/`shadow.*` → `design-md@compact` 整章假断链）；
+  ⑤ 界面两处（点「新建规范」后右侧编辑器根本不出现＝草稿是摆设；归档成功后提示语随详情面板一起消失＝点完零反馈），由 B 块 e2e 抓到；
+  ⑥ `shadowStrength=0` 在 CSS 投影里变成**不透明实心**阴影（`ExportService.ShadowCss` 把 `alpha==0` 落进"不加 color-mix"的分支），
+  与"0 = 不可见但令牌仍在"的既定语义相反 → 现在显式 0 投成 `transparent`（由视觉矩阵 V3 的读图 + 计算值抓到，`PreviewCssTests` 常驻守卫）。
+  验证（终态 2026-10-03 20:12）：后端过滤集 **529 报告 == 529 发现 == 529 通过 / 0 失败**；插件 web `check` 0 error / `test` **19 文件 250 用例** / `build` 442,971 B + 96,481 B；
+  宿主 `check` 0 error / 81 warning（十次复跑同基线，末次 21:55 复验终态文件）、`test` 741/741；插件层 e2e 全目录串行 **33 passed / 0 失败（终态 21:26，跑在终态源码与终态 DLL 上）**，视觉矩阵 **59 张**逐张读图
+  （V1 13 预设 × 明暗 26 / V2 新预设 × 落地页·移动端 10 / V3 每条轴每个非默认取值 20 / **V4 插件自己的控制面：轴面板 + 衣柜 3**）；
+  e2e 里有一条 **G7** 专门走**外部 MCP 客户端那条链**（`universal_tool` → `list_tools` 枚举到的 design_* 必须等于 `meta.agentTools`，并真调到 `design_guide`；带"未知工具必报错""不许绕过 `universal_tool`"两条反向腿）——
+  这条链以前只有宿主启动日志作证据，现在常驻自动比；
+  本地 zip 产物走查按**包内容**验真（`plugin.json=3.1.0` + DLL/前端实现指纹 FOUND + `SHA256SUMS` MATCH）。
+- **2026-10-05**：**v3.1.0 展厅「看得全」批**（输入21 报障 + 输入22 拍板，`docs/ai/pilot/2026-10-04-showroom-preview-fit/`）——
+  只动插件前端三个文件（新增 `showroom/fit.ts` + `fit.test.ts`，改 `Stage.vue` / `Showroom.vue`）：
+  ① 舞台控制条加「视图」三档（**适应** = `k=min(1,可用宽/稿宽)` 的 CSS `zoom`、**1:1**、**最大化**），默认适应，读数挂在 `[data-stage-zoom]`；
+  ② 画布盒可**拖右下角改尺寸**（原生 `resize`，`ResizeObserver` 重算缩放比，不自研拖拽数学）；
+  ③ 档位记 `localStorage['ds.showroom.view']`，脏值回落适应档；④ 非适应档加一行"画布外怎么到达"的提示；
+  ⑤ 第二个成因一起修：展厅栏原先与工作台共用 `.ds-mode-pane{max-width:1240px}` ⇒ **放大窗口画布不变宽**，现单独放宽到 1872（= 1280 稿 + 2×240 侧栏 + 2×24 间距 + 2×32 内衬）。
+  判据：`fit.test.ts` 12 条 + 展厅 e2e 新增 **E 片 6 条**（1372x768 五档 + 1920x1080 一档，真实宿主零 mock）——
+  实测 1372 下适应档读数 61% 且横纵溢出均 0px、1:1 滚到末端 `scrollLeft=500` 后框右缘进入可见区、最大化 780→1308（1.68×）、
+  真鼠标拖窄 780→560 时读数 61%→44%、1920 下中列恰 1280 ⇒ 适应档即 1:1 全幅。
+  反向探针两级都实红后还原（`fitScale` 写死 1 ⇒ 单测红 2 条 / e2e 红 2 条）。
+  **诚实交代两处做不到**：滚动条是否常驻可见由浏览器滚动条策略决定（本机 Chrome 是浮层条，自定义 `::-webkit-scrollbar` 一个像素都不画）⇒ 记 **G22**；
+  `fit` 档盒高 `min(80vh,940px)` 是估值，矮窗口下盒内仍会纵向滚动。
 - **2026-10-02**：**v3.0.0** 展厅与向导（M2，`docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard/`）——把插件从"只有专业工作台"
   扩成**四模式外壳**（开始 / 展厅 / 工作台 / 交付与接入；工作台 14 个 section 原样不动，既有 e2e 断言不删不改）：
   ① **开始**：四步向导（场景 → 预设 → 风格微调 → 命名），提交真落库（令牌 >100、审计无 critical），失败保留输入、单飞防重复、陈旧推荐响应不覆盖；
@@ -518,7 +596,7 @@ diff 因此能报到"哪一条的哪个字段"（例：`asset/logo 的 svgBody` 
   `authInit.consumeTokenFromHash()` 无条件 `replaceState(pathname+search)`（**没有 token 也照抹**）、
   `main.ts` 的 `router.beforeEach` 重写地址时只带 `fullPath`（把 `#...` 并进 path 且不带 hash）。修复：只摘 `token=` 那一项、其余 fragment 原样保留；
   beforeEach 回填 `{ path, query, hash }`。token 仍被清除（安全意图不变），深链不再失效。
-  验证：插件 web `check` 0 error / `test` 15 文件 / `build` 产出 `dist/index.js` + `style.css`；后端过滤集总数 == 发现数；既有 e2e 无新增红；
+  验证：插件 web `check` 0 error / `test` 18 文件 239 用例（M2 复验 m-1 更正：原写「15 文件」是陈旧计数）/ `build` 产出 `dist/index.js` + `style.css`；后端过滤集总数 == 发现数；既有 e2e 无新增红；
   视觉 QA 矩阵 3 预设 × 5 场景 × 明/暗 30 张截图逐张读图（`screenshots/e2e/design-system/m2/qa-*.png`）。
 - **2026-10-01**：**v2.8.0** Agent 工具层（M1，`docs/ai/pilot/2026-10-01-design-system-m1-agent-tools/`）——见文件头 v2.8.0 段；
   §九 本条由 M1 交付方补记，本任务不改 M1 范围。

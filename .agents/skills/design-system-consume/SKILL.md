@@ -14,13 +14,13 @@ description: 设计系统插件（design-system）的**消费侧**指南：外�
 | 工具 | Kind | 作用 | 关键参数 |
 |---|---|---|---|
 | `design_guide` | read | 使用指南：版本/工具清单/三条工作流/可选项目与预设/写开关/发现提示 | `-` |
-| `design_context` | read | 设计说明书（唯一真源）：项目身份/使用规则/颜色/排版/尺度/组件/品牌/交付清单 | `project, format(md\|json), sections[], budget` |
-| `design_lookup` | read | 查令牌/组件/导出/图标；`nearest` 按值反查 | `project, kind, path, prefix, tier, type, page, pageSize` |
-| `design_review` | read | 审查代码与设计系统一致性：硬编码/未知令牌引用；`checklist` 交付清单 | `project, code\|files, language, mode(code\|checklist), strict` |
+| `design_context` | read | 设计说明书（唯一真源）：项目身份/使用规则/颜色/排版/尺度/组件/品牌/**UX 规范（v3.1.0）**/交付清单 | `project, format(md\|json), sections[], budget` |
+| `design_lookup` | read | 查令牌/组件/导出/图标/**规范（v3.1.0 `kind=guideline`）**；`nearest` 按值反查 | `project, kind, path, prefix, tier, type, page, pageSize, q, code, theme` |
+| `design_review` | read | 审查代码与设计系统一致性：硬编码/未知令牌引用；`checklist` 交付清单（**含规范派生条目**） | `project, code\|files, language, mode(code\|checklist), strict` |
 | `design_audit` | read | 读可达性审计结论（`run=true` 才重跑并落库 = 写动作） | `project, run, kind, passed, page` |
-| `design_presets` | read | 风格预设目录：`list` 8 预设全字段 / `recommend` 按 brief/industry 打分 | `action(list\|recommend), brief, industry, kind, tone, density` |
-| `design_create` | **write** | 快速创建设计系统项目：从预设+显式参数生成令牌/组件/审计 | `name, code, kind, description, presetId, overrides, apply` |
-| `design_edit` | **write** | 改项目：`set_token` 写单令牌 / `regenerate` / `publish`（critical 未清拒） | `project, action(set_token\|regenerate\|publish), path, value, theme` |
+| `design_presets` | read | 风格预设目录：`list` 预设全字段（**v3.1.0 起 13 个**）/ `recommend` 按 brief/industry 打分 | `action(list\|recommend), brief, industry, kind, tone, density` |
+| `design_create` | **write** | 快速创建设计系统项目：从预设+显式参数生成令牌/组件/审计/**规范** | `name, code, kind, description, presetId, overrides, apply` |
+| `design_edit` | **write** | 改项目：`set_token` / `regenerate` / `publish`（critical 未清拒）/ **`guideline` 增改一条规范（v3.1.0）** | `project, action(set_token\|regenerate\|publish\|guideline), path, value, theme, code, title, summary, body, rules[], tokens[], category, status` |
 
 - 读写归类：**read 6 / write 2**（`design_audit` 归类 read，`run=true` 时执行写动作）。
 - 出参键全小写 **camelCase**（`DesignToolBase.ExecuteAsync` 统一 `JsonNamingPolicy.CamelCase`）。
@@ -68,6 +68,9 @@ tools/call { tool: "universal_tool", parameters: { tool: "design_context", param
 | `GET\|PUT agent-access` | 写开关 | 见 §三 |
 | `GET agent/tools` | `list_tools` | 同源枚举 |
 | `GET projects/{id}/tokens/effective?theme=` | `design_lookup` | `{theme, themeId, count, items[], diagnostics}` |
+| `GET projects/{id}/guidelines[?status=&category=&theme=]` | `design_lookup kind=guideline` | v3.1.0；**默认不含 archived**（`status=all\|archived` 才看得到），每条带 `tokenRefs/tokenValues/brokenRefs/valueTheme/categoryLabel/rules[]` |
+| `GET projects/{id}/guidelines/{code}` / `PUT …/{code}` | `design_edit action=guideline` | v3.1.0；PUT = upsert（同 code 第二次是更新不是新增），写入即 `source=manual`；带 `expectUpdatedAt` 不一致回 **409** 且不写 |
+| `POST projects/{id}/guidelines/generate?overwrite=` / `POST …/{code}/archive` | （工具侧只读，生成挂在 `design_create/regenerate`） | v3.1.0；generate 回 `created/skipped/skippedProtected/overwritten/total`；archive = **软删**，恢复 = PUT 带 `status=adopted`。**没有 DELETE 端点** |
 
 ## 五、消费侧常见坑（逐条实测）
 
@@ -83,6 +86,24 @@ tools/call { tool: "universal_tool", parameters: { tool: "design_context", param
 6. **REST `DryRun` 与工具 `apply` 语义相反**：REST `DryRun=false` = 落库；工具 `apply=false` = 干跑不落库。
 7. **端口**：MCP 网关端口由 `FORGESELF_MCP_GATEWAY_PORT` 覆盖（默认被用户实例占用时）；宿主端口 7102 被占
    = 测试打在旧产物，先验版本自洽。
+8. **规范出参的数值是"现查"的，不是库存的**（v3.1.0）：`body/rules[].text` 里只有反引号令牌路径；
+   同一份规范在括注后的 `body`（展示）与 `bodyRaw`（原文）里长得不一样 —— **写回时必须用 `*Raw`**，
+   把括注文本 PUT 回去就等于把 `24px` 存进库里（令牌改值后就成了旧数字）。
+   `tokenValues[path]` 与 `brokenRefs` 的取值口径是 `valueTheme` 那一套主题（**参考主题 = 项目默认色彩主题**），
+   与 `?theme=` 请求的导出主题不是一回事；别拿它当"当前主题的数"用。
+9. **`design_edit action=guideline` 里空数组 = "这次不改"，不是"清空"**（v3.1.0）：`tokens:[]` / `rules:[]` 一律忽略，
+   避免"只想改标题却把引用令牌清单清空"。要真的清空必须显式给非空表达（当前版本不提供清空语义）。
+   写入即把 `source` 置 `manual`：下次 `generate`（`overwrite=false`）会保护它并在 `skippedProtected` 里点名。
+10. **规范没有删除**（v3.1.0，全插件铁律）：只有 `archive`（软删，默认清单读不到、`status=all` 读得到）与
+    PUT `status=adopted` 恢复。集成方要"移除一条规范"就归档它，别去找 DELETE —— 控制器里一个都没有（有反射守卫）。
+
+11. **写成功后"立刻读"可能读到旧视图，集成方必须轮询而不是单次判定**（v3.1.0 实测，M3 批 C 复现；根因在读侧，修法待拍板）：
+    `design_create` / `quick-create` 已返回 200 并给出项目 id，紧接着 `design_lookup kind=export` 可能拿到**少掉整个 `--ds-shadow-elevation-*` 族**的 CSS，
+    `GET projects` 也可能查不到刚建的那条；而同一瞬间读 `tokens/effective` 是齐的 —— 也就是**库里不缺，是读路径先读到旧视图**。
+    对自动化脚本的三条硬要求：① 写后读一律**带退避地轮询**到"结构完整"（例：断言五档 `elevation-1..5` 全在）再用，不要单次判定就落盘；
+    ② 需要"产物是否完整"的判据时，走**不吃写读链**的 `generate/preview-css`（纯内存投影，与导出同源）当权威源；
+    ③ 别把"读到的第一份"当事实写进下游仓库/PR —— 这类缺陷最难查，因为写侧的 200 是真的。
+    跟踪状态见 `Plugins/DesignSystem/README.md` 已知缺口 **G15**；插件侧的常驻判据写法见 `design-system-verify` 自查表 #52。
 
 ## 六、插件内「交付与接入页」（v3.0.0 · 消费侧的可视入口）
 
@@ -106,4 +127,4 @@ tools/call { tool: "universal_tool", parameters: { tool: "design_context", param
 - 工具返回与 REST 关键字段**逐字段一致**（同源：说明书里的颜色/变量名 == `tokens/effective`）。
 - 写工具三条路径都验：开关开→写成功；开关关→被拒且文案指开关；文件损坏→fail-closed 只读。
 - 干跑（`apply=false` / `DryRun=true`）前后项目数与 `DesignToken` 行数不变（不只信返回值）。
-- 工具数量：`list_tools` 枚举 == `meta.agentTools` == 8，读 6 写 2。
+- 工具数量：`list_tools` 枚举（按 `pluginId` 归因）== `meta.agentTools`；**这条等式已由 e2e 常驻用例 G7 每次真跑网关自动比对**（`design-system-guidelines.spec.ts`，含"未知工具必 `isError`""不许绕过 `universal_tool`"两条反向腿），所以本技能**不抄件数**——抄了就会漂。读/写分档看 `GET agent/tools` 的 `readOnly` 字段，别照记忆数。

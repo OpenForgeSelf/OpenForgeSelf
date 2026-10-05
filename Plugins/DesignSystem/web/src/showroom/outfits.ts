@@ -176,6 +176,15 @@ function toPreviewInput(request: GenerateRequest | undefined, opts: LoadOpts): P
     brandName: r.brandName ?? undefined,
     industry: r.industry ?? undefined,
     accentHueOffset: r.accentHueOffset ?? undefined,
+    // M3 风格轴：衣服带的轴取值必须一路传到 preview-css，
+    // 否则"衣柜里选了衬线标题，舞台却还是无衬线"——预览与交付不同源（AC11 就是拍这个）
+    shadowStyle: r.shadowStyle ?? undefined,
+    shadowStrength: r.shadowStrength ?? undefined,
+    borderStrength: r.borderStrength ?? undefined,
+    neutralTemp: r.neutralTemp ?? undefined,
+    fontPairing: r.fontPairing ?? undefined,
+    radiusStyle: r.radiusStyle ?? undefined,
+    accentStrategy: r.accentStrategy ?? undefined,
     theme: opts.theme,
   }
 }

@@ -147,6 +147,16 @@ public sealed class QuickCreateService
         target.MotionScale = o.MotionScale ?? target.MotionScale;
         target.BrandName = o.BrandName ?? target.BrandName;
         target.Industry = o.Industry ?? target.Industry;
+        // M3 风格轴：这里曾是"手写逐字段"的漏网之鱼——界面把轴发过来了，快速创建把它丢掉，
+        // 于是"选了 flat 却拿到 soft 阴影"（e2e S2 实测抓到）。新增可空字段必须同步到这里，
+        // 由 QuickCreateServiceTests 的反射守卫逐字段核对。
+        target.ShadowStyle = o.ShadowStyle ?? target.ShadowStyle;
+        target.ShadowStrength = o.ShadowStrength ?? target.ShadowStrength;
+        target.BorderStrength = o.BorderStrength ?? target.BorderStrength;
+        target.NeutralTemp = o.NeutralTemp ?? target.NeutralTemp;
+        target.FontPairing = o.FontPairing ?? target.FontPairing;
+        target.RadiusStyle = o.RadiusStyle ?? target.RadiusStyle;
+        target.AccentStrategy = o.AccentStrategy ?? target.AccentStrategy;
         if (o.Themes is { Count: > 0 }) target.Themes = [.. o.Themes];
     }
 

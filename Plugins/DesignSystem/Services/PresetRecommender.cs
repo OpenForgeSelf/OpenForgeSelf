@@ -16,7 +16,8 @@ public static class PresetRecommender
     public static IReadOnlyList<PresetMatch> Recommend(String? brief, String? kind, String? industry,
         IReadOnlyList<String>? tones, String? density, String? brandColor, Int32 limit)
     {
-        limit = Math.Clamp(limit, 1, 8);
+        // 上限跟目录走（M1 时目录 8 个，这里曾写死 8）：写死的数字会在预设变 13 个后静默截断，新预设永远推不出来
+        limit = Math.Clamp(limit, 1, StylePresets.All.Count);
         var inferred = DesignGenerator.InferIndustry(brief);
         var target = industry.IsNullOrEmpty() ? inferred : DesignGenerator.NormalizeIndustry(industry);
 
@@ -115,5 +116,13 @@ public static class PresetRecommender
         BrandName = src.BrandName,
         Industry = src.Industry,
         Themes = [.. src.Themes],
+        // M3 风格轴：漏一条就等于"深链/预设里的轴取值在推荐链路里被静默丢掉"
+        ShadowStyle = src.ShadowStyle,
+        ShadowStrength = src.ShadowStrength,
+        BorderStrength = src.BorderStrength,
+        NeutralTemp = src.NeutralTemp,
+        FontPairing = src.FontPairing,
+        RadiusStyle = src.RadiusStyle,
+        AccentStrategy = src.AccentStrategy,
     };
 }

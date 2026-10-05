@@ -158,3 +158,28 @@ export function hexToRgb(hex: string): string | null {
     ? `rgb(${Number.parseInt(m[1], 16)}, ${Number.parseInt(m[2], 16)}, ${Number.parseInt(m[3], 16)})`
     : null
 }
+/** 舞台画布底色（`.ds-outfit` 由后端文本投影上色） */
+export const canvasBg = (page: Page): Promise<string> =>
+  page.locator('[data-stage] .ds-outfit').evaluate((el) => getComputedStyle(el).backgroundColor)
+
+/**
+ * WCAG 2.2 相对亮度（输入 `rgb(r, g, b)` / `rgba(...)` 计算值字符串）。
+ * 从 `design-system-showroom.spec.ts` 上移到这里：M3 的视觉 QA 矩阵（V 片）要算同一件事，
+ * 两处各写一遍公式＝对比度判据会有第二份真相。
+ */
+export function relLuminance(color: string): number {
+  const m = color.match(/rgba?\(([^)]+)\)/)
+  if (!m) return Number.NaN
+  const [r, g, b] = m[1].split(',').slice(0, 3).map((v) => Number(v.trim()) / 255)
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+/** WCAG 2.2 对比度（1~21） */
+export function contrastRatio(a: string, b: string): number {
+  const la = relLuminance(a)
+  const lb = relLuminance(b)
+  if (Number.isNaN(la) || Number.isNaN(lb)) return Number.NaN
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la]
+  return (hi + 0.05) / (lo + 0.05)
+}

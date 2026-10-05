@@ -12,9 +12,10 @@ public sealed class DesignBriefBuilder
     public const String Markdown = "markdown";
     public const String Json = "json";
 
-    /// <summary>章节声明序（identity 恒含；components/brand 空则不开节）</summary>
+    /// <summary>章节声明序（identity 恒含；components/brand/guidelines 空则不开节）。
+    /// M3 在 checklist 前插入 guidelines —— 与 <c>design_context</c> 的默认章节序一致。</summary>
     public static readonly String[] SectionOrder =
-        ["identity", "rules", "colors", "typography", "scales", "components", "brand", "checklist"];
+        ["identity", "rules", "colors", "typography", "scales", "components", "brand", "guidelines", "checklist"];
 
     public sealed record BriefOutcome(
         Object Project, String Theme, String ContentHash, IReadOnlyList<String> Sections,
@@ -75,6 +76,8 @@ public sealed class DesignBriefBuilder
                 "scales" => hasTokens ? RenderScales(snap) : null,
                 "components" => snap.Components.Count > 0 ? RenderComponents(snap) : null,
                 "brand" => (snap.Fonts.Count + snap.Assets.Count + snap.Screens.Count) > 0 ? RenderBrand(snap) : null,
+                // 规范为空不开章（FR11）：空章在 brief 里读起来像"这个项目没有 UX 要求"，比缺章更坏
+                "guidelines" => snap.GuidelineRows.Count > 0 ? RenderGuidelines(_export.GuidelineView(snap)) : null,
                 "checklist" => hasTokens ? RenderChecklist(projectId) : null,
                 _ => null,
             };
@@ -128,6 +131,9 @@ public sealed class DesignBriefBuilder
             sb.Append($"{a.Code}|{a.Kind}|{a.SvgBody}\n");
         foreach (var s in snap.Screens)
             sb.Append($"{s.Code}|{s.Route}\n");
+        // 规范进 hash（FR11/AC16）：改了规范而不改 hash，下游就无法发现"交付物还是那套规范吗"
+        foreach (var g in snap.GuidelineRows)
+            sb.Append($"{g.Code}|{g.Status}|{g.Title}|{g.Summary}|{g.Body}|{g.RulesJson}|{g.TokenRefsJson}\n");
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
         return Convert.ToHexString(hash, 0, 8).ToLowerInvariant();
     }
@@ -331,6 +337,29 @@ public sealed class DesignBriefBuilder
         return sb.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 规范紧凑章（FR11）：每条只给标题 + 其 <c>MUST</c> 规则（<see cref="GuidelineRenderer.RenderCompact"/>），
+    /// SHOULD/MAY 与正文交给 DESIGN.md / bundle 的 GUIDELINES.md —— brief 有字符预算，塞全文会把后面的章节挤成 omitted。
+    /// 值一律现查：这里出现的是 <paramref name="snap"/> 那个主题视图的当前值，不是规范文本里存的数字。
+    /// </summary>
+    static String RenderGuidelines(ExportService.Snapshot snap)
+    {
+        var rows = snap.GuidelineRows;
+        var valueOf = ExportService.ValueOf(snap);
+        var sb = new StringBuilder();
+        sb.AppendLine($"## UX 规范（{rows.Count} 条 · 只列 MUST，全文见 design-md / `guidelines/GUIDELINES.md`）");
+        sb.AppendLine();
+        sb.AppendLine($"括注里的数值取参考主题 `{snap.ThemeCode ?? "shared"}` 的当前值，与令牌页 `tokens/effective` 同一来源。");
+        sb.AppendLine();
+        foreach (var g in rows)
+        {
+            sb.AppendLine(GuidelineRenderer.RenderCompact(g.Code, g.Title, g.Summary,
+                GuidelineRepository.ReadRules(g.RulesJson), valueOf));
+            sb.AppendLine();
+        }
+        return sb.ToString().TrimEnd();
+    }
+
     String RenderChecklist(Int64 projectId)
     {
         var items = _review.Checklist(projectId, null, "any");
@@ -375,6 +404,13 @@ public sealed class DesignBriefBuilder
         sb.AppendLine("## 写代码时");
         sb.AppendLine("- 只用 `var(--ds-*)` 取样式，禁字面色值/随意像素");
         sb.AppendLine("- 不知令牌名用 `design_lookup {\"kind\":\"nearest\",\"value\":\"…\"}`");
+        if (snap.GuidelineRows.Count > 0)
+        {
+            // 只在真有规范时指路：指向一个包里没有的文件 = 假交付
+            sb.AppendLine($"- UX 约束（布局/页面结构/表单/反馈/状态/文案/可达性/动效，共 {snap.GuidelineRows.Count} 条）看随包 `guidelines/GUIDELINES.md`；" +
+                          "有 MCP 用 `design_context {\"project\":\"<code>\",\"sections\":[\"guidelines\"]}`");
+            sb.AppendLine("- 规范正文只写令牌路径，具体数值以 `tokens.css` 当时的值为准（同一份来源）");
+        }
         sb.AppendLine();
         sb.AppendLine("## 写完后");
         sb.AppendLine("- `design_review {\"files\":[…],\"strict\":true}`，`summary.passed` 必须为 true、`tokenCoverage` 不得低于改动前");

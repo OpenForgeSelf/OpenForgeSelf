@@ -5,11 +5,15 @@ namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 /// <param name="RadiusBase">圆角中点基准 px</param>
 /// <param name="ShadowStrength">阴影整体强度 0~2</param>
 /// <param name="MotionScale">动效时长倍率 0.5~2</param>
+/// <param name="ShadowStyle">M3 阴影风格轴取值（`soft` = M3 之前的唯一做法，默认必须仍是它）</param>
+/// <param name="BorderStrength">M3 描边强度轴取值（`regular` = 现状 1px/2px）</param>
 public sealed record ScaleOptions(
     String Density = "default",
     Double RadiusBase = 6,
     Double ShadowStrength = 1,
-    Double MotionScale = 1);
+    Double MotionScale = 1,
+    String ShadowStyle = StyleAxes.ShadowStyleDefault,
+    String BorderStrength = StyleAxes.BorderStrengthDefault);
 
 /// <summary>
 /// 非色彩尺度生成。**必须随参数变化**：v1 的 spacing/radius/shadow/motion 在
@@ -95,15 +99,23 @@ public static class ScaleGenerators
         return list;
     }
 
-    public static IReadOnlyList<TokenPatch> Border(ScaleOptions o) =>
-    [
-        new() { Path = "border.hairline", Tier = TokenTiers.Primitive, Type = TokenTypes.Dimension, Value = "1px", Group = "border", Generator = TokenGenerators.Derived, Description = "分隔线/描边默认宽" },
-        new() { Path = "border.thick", Tier = TokenTiers.Primitive, Type = TokenTypes.Dimension, Value = "2px", Group = "border", Generator = TokenGenerators.Derived, Description = "焦点环/强调描边宽" },
-    ];
+    public static IReadOnlyList<TokenPatch> Border(ScaleOptions o)
+    {
+        var (hairline, thick) = StyleAxes.BorderFor(o.BorderStrength);
+        return
+        [
+            new() { Path = "border.hairline", Tier = TokenTiers.Primitive, Type = TokenTypes.Dimension, Value = hairline, Group = "border", Generator = TokenGenerators.Derived, Description = "分隔线/描边默认宽" },
+            new() { Path = "border.thick", Tier = TokenTiers.Primitive, Type = TokenTypes.Dimension, Value = thick, Group = "border", Generator = TokenGenerators.Derived, Description = "焦点环/强调描边宽" },
+        ];
+    }
 
     /// <summary>
     /// 阴影：按层展开（一层一行），亮色用 drop shadow、暗色用 inset 高光替代——
     /// 参考物 Stardust 在暗色主题下正是这么做的（colors_and_type.css:155-158），照抄其"暗色不靠黑投影"的判断。
+    ///
+    /// M3 起阴影有四种风格（<see cref="StyleAxes.ShadowStyleValues"/>）。**默认 `soft` 的算式与取整一字未改**：
+    /// 阴影是"看起来是不是同一套系统"最强的信号，动它等于动存量项目的脸。其余三种各是一个明确取向——
+    /// `crisp` 锐利单层、`flat` 环线无投影、`layered` 多层加环境光；`shadowStrength` 对四者都是 alpha 乘数。
     /// </summary>
     public static IReadOnlyList<ShadowToken> Shadows(ScaleOptions o, String themeCode)
     {
@@ -114,24 +126,86 @@ public static class ScaleGenerators
 
         foreach (var level in levels)
         {
-            var y = Math.Round(level * 1.0 * d, 1);
-            var blur = Math.Round(Math.Pow(level, 1.6) * 3 * d, 1);
-            var spread = Math.Round(-level * 0.5, 1);
-            var alpha = Oklch.Clamp(o.ShadowStrength * (0.05 + level * 0.045), 0, 0.45);
-
-            var layers = new List<ShadowLayerInput>
+            var layers = o.ShadowStyle switch
             {
-                new() { OffsetY = y, Blur = blur, Spread = spread, ColorValue = dark ? "#000000" : "#0f172a", Alpha = alpha },
+                "crisp" => CrispLayers(level, d, o.ShadowStrength, dark),
+                "flat" => FlatLayers(level, o.ShadowStrength, dark),
+                "layered" => LayeredLayers(level, d, o.ShadowStrength, dark),
+                _ => SoftLayers(level, d, o.ShadowStrength, dark),
             };
-            if (!dark && level >= 3)
-                layers.Add(new() { OffsetY = Math.Round(y / 2, 1), Blur = Math.Round(blur / 3, 1), ColorValue = "#0f172a", Alpha = alpha * 0.6 });
-            if (dark)
-                // 暗色用 1px inset 高光勾边代替外投影，避免"黑块叠黑块"看不出层次
-                layers.Insert(0, new() { IsInset = true, OffsetY = 1, Blur = 0, ColorValue = "#ffffff", Alpha = 0.06, Usage = "暗色顶边高光" });
-
-            list.Add(new ShadowToken($"elevation-{level}", layers, dark ? "inset 高光 + 外投影" : "多层外投影"));
+            var note = o.ShadowStyle switch
+            {
+                "crisp" => "锐利单层",
+                "flat" => "环形描边（无投影）",
+                "layered" => "多层 + 环境光",
+                _ => dark ? "inset 高光 + 外投影" : "多层外投影",
+            };
+            list.Add(new ShadowToken($"elevation-{level}", layers, note));
         }
         return list;
+    }
+
+    /// <summary>现状（默认）阴影层：多层外投影，`level>=3` 补一层近距投影，暗色首层换 1px inset 白高光</summary>
+    static List<ShadowLayerInput> SoftLayers(Int32 level, Double d, Double S, Boolean dark)
+    {
+        var y = Math.Round(level * 1.0 * d, 1);
+        var blur = Math.Round(Math.Pow(level, 1.6) * 3 * d, 1);
+        var spread = Math.Round(-level * 0.5, 1);
+        var alpha = Oklch.Clamp(S * (0.05 + level * 0.045), 0, 0.45);
+
+        var layers = new List<ShadowLayerInput>
+        {
+            new() { OffsetY = y, Blur = blur, Spread = spread, ColorValue = dark ? "#000000" : "#0f172a", Alpha = alpha },
+        };
+        if (!dark && level >= 3)
+            layers.Add(new() { OffsetY = Math.Round(y / 2, 1), Blur = Math.Round(blur / 3, 1), ColorValue = "#0f172a", Alpha = alpha * 0.6 });
+        if (dark)
+            // 暗色用 1px inset 高光勾边代替外投影，避免"黑块叠黑块"看不出层次
+            layers.Insert(0, new() { IsInset = true, OffsetY = 1, Blur = 0, ColorValue = "#ffffff", Alpha = 0.06, Usage = "暗色顶边高光" });
+
+        return layers;
+    }
+
+    /// <summary>锐利：只留一层，模糊随 `L^1.35` 收敛（比 soft 更硬但不成描边），暗色仍先勾一道 inset 高光</summary>
+    static List<ShadowLayerInput> CrispLayers(Int32 level, Double d, Double S, Boolean dark)
+    {
+        var alpha = Oklch.Clamp(S * (0.07 + 0.05 * level), 0, 0.5);
+        var layers = new List<ShadowLayerInput>
+        {
+            new() { OffsetY = Math.Round(level * 1.0 * d, 1), Blur = Math.Round(Math.Pow(level, 1.35) * 1.8 * d, 1), Spread = 0, ColorValue = dark ? "#000000" : "#0f172a", Alpha = alpha },
+        };
+        if (dark)
+            layers.Insert(0, new() { IsInset = true, OffsetY = 1, Blur = 0, ColorValue = "#ffffff", Alpha = 0.06, Usage = "暗色顶边高光" });
+        return layers;
+    }
+
+    /// <summary>环线：不投影，用 1~2px 的实描边环表现层级（`y=0 blur=0`）；暗色用白环，不叠 inset 高光</summary>
+    static List<ShadowLayerInput> FlatLayers(Int32 level, Double S, Boolean dark)
+    {
+        var alpha = Oklch.Clamp(S * (0.08 + 0.02 * level), 0, 0.3);
+        return
+        [
+            new() { OffsetY = 0, Blur = 0, Spread = level <= 3 ? 1 : 2, ColorValue = dark ? "#ffffff" : "#0f172a", Alpha = alpha },
+        ];
+    }
+
+    /// <summary>多层 = 现状的软阴影 + `level>=2` 再叠一层大范围低透明环境光（大浮层的"空气感"）</summary>
+    static List<ShadowLayerInput> LayeredLayers(Int32 level, Double d, Double S, Boolean dark)
+    {
+        var layers = SoftLayers(level, d, S, dark);
+        if (level < 2) return layers;
+
+        var color = dark ? "#000000" : "#0f172a";
+        layers.Add(new()
+        {
+            OffsetY = Math.Round(0.4 * level * d, 1),
+            Blur = Math.Round(Math.Pow(level, 1.6) * 1.5 * d, 1),
+            Spread = 0,
+            ColorValue = color,
+            Alpha = Oklch.Clamp(S * (0.03 + 0.02 * level), 0, 0.25),
+            Usage = "环境光",
+        });
+        return layers;
     }
 
     public static IReadOnlyList<TokenPatch> Motion(ScaleOptions o)

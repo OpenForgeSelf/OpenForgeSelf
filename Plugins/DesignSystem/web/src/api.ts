@@ -19,6 +19,27 @@ export interface AxisVocabulary {
   values: string[]
 }
 
+/**
+ * 风格轴词表（M3 `GET meta.styleAxes`，唯一真源是后端 `StyleAxes`）。
+ * 界面的「更多风格选项」控件**全部按这份清单渲染**：轴名、取值、默认值、范围都来自这里，
+ * TS 里一旦再出现 `crisp/flat/...` 这类字面量清单，`design/vocabulary.test.ts` 直接判红。
+ */
+export interface StyleAxisInfo {
+  axis: string
+  /** 生成请求上的字段名（camelCase），控件写回时按它拼进 request */
+  field: string
+  kind: 'enum' | 'number'
+  /** 后端给的中文名（轴的名字），前端不另译一份 */
+  label: string
+  default: string | number
+  values?: string[]
+  /** 取值的中文说法（后端 StyleAxes 单点给出）：界面显示它，写回请求仍用 `values` 里的机器值 */
+  valueLabels?: Record<string, string>
+  min?: number
+  max?: number
+  step?: number
+}
+
 export interface MetaInfo {
   pluginId: string
   modelVersion: string
@@ -39,6 +60,12 @@ export interface MetaInfo {
   auditKinds: string[]
   /** 十类逻辑实体名（后端 `ExportService.StardustEntities`）：导出台按它列出真实 url，前端不许另列 */
   entities: string[]
+  /** 风格轴清单（后端 `StyleAxes.Vocabulary()`）：微调面板按它排控件，前端不许另列取值 */
+  styleAxes?: StyleAxisInfo[]
+  /** M3 规范分类词表（后端 `GuidelineCategories.All`）：界面分组/筛选按它排，不在 TS 里另列一份 */
+  guidelineCategories?: string[]
+  /** M3 规则级别词表（后端 `GuidelineCategories.Levels`）：规则行的级别下拉按它出 */
+  guidelineLevels?: string[]
   /** 导入格式面（后端 `ImportFormats.All`）：不在清单里的格式，界面不许摆出"能导入"的样子 */
   importFormats: string[]
   /** 单次导入上限（后端 `ImportLimits`）：提示文案读它，前端不抄数字 */
@@ -415,6 +442,8 @@ export interface ReleaseDiff {
   specsChanged: SpecChange[]
   /** false = 有一边是 schema 1 的旧快照（没有规格节）：界面必须显示"不可比"而不是"新增 N 条" */
   specsComparable: boolean
+  /** M3：整节能比但某一类（如 guideline）在旧 schema 里根本没记过 → 显示"这一类无法比较"，不是"没有变化" */
+  notComparableKinds?: string[]
   total: number
   isEmpty: boolean
 }
@@ -433,6 +462,17 @@ export interface GenerateRequest {
   brandName?: string | null
   themes?: string[]
   industry?: string | null
+  /**
+   * M3 风格轴（缺省 = null = 默认 = 与 M3 之前逐字节相同）。
+   * 这里只是给"预设 request 原样带过来"的字段留位；界面按 `meta.styleAxes` 的 `field` 写回，不另列轴名。
+   */
+  shadowStyle?: string | null
+  shadowStrength?: number | null
+  borderStrength?: string | null
+  neutralTemp?: string | null
+  fontPairing?: string | null
+  radiusStyle?: string | null
+  accentStrategy?: string | null
 }
 
 export interface GenerateResult {
@@ -536,6 +576,14 @@ export interface PreviewCssInput {
   brandName?: string | null
   industry?: string | null
   accentHueOffset?: number | null
+  /** M3 风格轴：预览必须收到轴取值，否则「展厅里调了轴但预览不变」= 预览与交付不同源 */
+  shadowStyle?: string | null
+  shadowStrength?: number | null
+  borderStrength?: string | null
+  neutralTemp?: string | null
+  fontPairing?: string | null
+  radiusStyle?: string | null
+  accentStrategy?: string | null
   theme?: string | null
 }
 
@@ -595,6 +643,67 @@ export interface ReviewResult {
   notes: string
   theme: string
   themeNote: string
+}
+
+/* ------------------------------------------------------------------ */
+/* M3：UX 规范                                                         */
+/* ------------------------------------------------------------------ */
+
+/** 一条规则（`text` 已由后端 GuidelineRenderer 括注当前值，`textRaw` 是库里原文） */
+export interface GuidelineRuleView {
+  id: string
+  level: string
+  text: string
+  textRaw: string
+}
+
+/** 一条 UX 规范（键名与后端 GuidelineDto 一一对应，前端不改写任何判定） */
+export interface Guideline {
+  code: string
+  category: string
+  categoryLabel: string
+  title: string
+  summary: string
+  body: string
+  bodyRaw: string
+  rules: GuidelineRuleView[]
+  tokenRefs: string[]
+  /** 每个引用令牌在 `valueTheme` 里的当前值（后端同一个取值函数算的，界面 chip 直接读这份） */
+  tokenValues: Record<string, string | null>
+  /** 实际取值的主题编码（规范章取值口径=项目默认色彩主题，界面不许假装它是"当前主题"） */
+  valueTheme?: string | null
+  /** 引用的令牌在取值主题里取不到值时逐条点名（不静默） */
+  brokenRefs: string[]
+  appliesTo: string[]
+  source: string
+  status: string
+  generatorVersion: string
+  generatorSeed: string
+  sortOrder: number
+  updatedAt: string
+}
+
+/** `PUT guidelines/{code}` 入参：字段缺省 = 不改这一项；空数组 = 清成空 */
+export interface GuidelinePatch {
+  title?: string | null
+  summary?: string | null
+  body?: string | null
+  rules?: { id?: string | null; level?: string | null; text?: string | null }[] | null
+  tokenRefs?: string[] | null
+  appliesTo?: string[] | null
+  category?: string | null
+  status?: string | null
+  /** 乐观并发：传了就必须与库里 UpdatedAt 一致，否则 409 */
+  expectUpdatedAt?: string | null
+}
+
+/** `POST guidelines/generate` 出参：四类计数全给，"生成了但一条没建"不能看着像成功 */
+export interface GuidelineGenerateResult {
+  created: string[]
+  skipped: string[]
+  skippedProtected: string[]
+  overwritten: string[]
+  total: number
 }
 
 /* ------------------------------------------------------------------ */
@@ -697,6 +806,17 @@ export const api = {
   putAgentAccess: (enabled: boolean) => put<AgentAccess>(`${BASE}/agent-access`, { enabled }),
   listAgentTools: () => get<AgentTool[]>(`${BASE}/agent/tools`),
   reviewCode: (id: number, input: ReviewInput) => post<ReviewResult>(`${BASE}/projects/${id}/review`, input),
+  /* ---- M3：UX 规范（五个端点，后端没有任何 DELETE 路由，恢复=PUT 回 status） ---- */
+  listGuidelines: (id: number, q: { status?: string; category?: string; theme?: string } = {}) =>
+    get<Guideline[]>(withQuery(`${BASE}/projects/${id}/guidelines`, q)),
+  getGuideline: (id: number, code: string, theme?: string) =>
+    get<Guideline>(withQuery(`${BASE}/projects/${id}/guidelines/${encodeURIComponent(code)}`, { theme })),
+  saveGuideline: (id: number, code: string, patch: GuidelinePatch) =>
+    put<Guideline>(`${BASE}/projects/${id}/guidelines/${encodeURIComponent(code)}`, patch),
+  generateGuidelines: (id: number, overwrite = false) =>
+    post<GuidelineGenerateResult>(withQuery(`${BASE}/projects/${id}/guidelines/generate`, { overwrite }), {}),
+  archiveGuideline: (id: number, code: string) =>
+    post<Guideline>(`${BASE}/projects/${id}/guidelines/${encodeURIComponent(code)}/archive`, {}),
   /** MCP 中心网关配置（跨插件只读消费，路径带完整前缀） */
   getMcpConfig: () => get<McpConfig>('/api/mcp-center/config'),
 }

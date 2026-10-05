@@ -10,11 +10,12 @@
  * `aria-label="设计系统名称"` / `"项目代码"` / `"高级设置"`、按钮可访问名 `创建我的设计系统`、
  * 成功区 `[data-wizard-done]`（三个去向按钮）。
  */
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { api } from '../api'
 import { term } from '../design/glossary'
+import { meta } from '../state'
 import type { Mode } from '../shell/mode'
-import { DENSITY_OPTIONS, MOTION_OPTIONS, RADIUS_MAX, RADIUS_MIN } from '../showroom/tune'
+import { DENSITY_OPTIONS, MOTION_OPTIONS, RADIUS_MAX, RADIUS_MIN, axisFields } from '../showroom/tune'
 import { SCENES, Wizard } from './wizard'
 
 const emit = defineEmits<{ created: [code: string]; go: [mode: Mode] }>()
@@ -32,6 +33,19 @@ const w = reactive(
     },
   }),
 )
+
+/**
+ * 风格轴控件的数据源：只读 `GET meta.styleAxes`（后端 `StyleAxes` 是唯一真源）。
+ * 词表没到（还没加载完）时这一整块**不渲染** —— 摆一排空控件比不摆更糟。
+ */
+const styleAxes = computed(() => meta.value?.styleAxes ?? [])
+watch(styleAxes, (v) => { w.axisFields = axisFields(v) }, { immediate: true })
+
+/** 控件当前值：没选过就显示后端给的默认值，让用户看得见"现在在哪一档" */
+function axisValue(field: string, fallback: string | number): string | number {
+  const v = w.tune.axes?.[field]
+  return v === undefined || v === '' ? fallback : v
+}
 
 const steps = [
   { n: 1, label: '做什么' },
@@ -185,6 +199,50 @@ function submit(): void {
           @input="w.setTune({ radiusBase: Number(($event.target as HTMLInputElement).value) })"
         />
       </label>
+
+      <div v-if="styleAxes.length" class="ds-field" data-style-axes>
+        <details>
+          <summary class="ds-field__label">{{ term('style axes') }}</summary>
+          <p class="ds-micro">{{ term('style axis hint') }}</p>
+          <div
+            v-for="axis in styleAxes"
+            :key="axis.field"
+            class="ds-stack ds-gap-1"
+            :data-axis="axis.field"
+            :data-axis-kind="axis.kind"
+          >
+            <span class="ds-field__label">
+              {{ axis.label }}<template v-if="axis.kind === 'number'">（{{ axisValue(axis.field, axis.default) }}）</template>
+            </span>
+            <input
+              v-if="axis.kind === 'number'"
+              class="ds-range"
+              type="range"
+              :aria-label="axis.label"
+              :min="axis.min"
+              :max="axis.max"
+              :step="axis.step ?? 0.05"
+              :value="axisValue(axis.field, axis.default)"
+              @input="w.setAxis(axis.field, Number(($event.target as HTMLInputElement).value))"
+            />
+            <div v-else class="ds-row ds-wrap ds-gap-2" role="radiogroup" :aria-label="axis.label">
+              <button
+                v-for="v in axis.values ?? []"
+                :key="v"
+                type="button"
+                class="ds-chip"
+                :class="{ 'ds-chip--on': String(axisValue(axis.field, axis.default)) === v }"
+                role="radio"
+                :aria-checked="String(axisValue(axis.field, axis.default)) === v"
+                :data-axis-value="v"
+                @click="w.setAxis(axis.field, v)"
+              >
+                {{ axis.valueLabels?.[v] ?? v }}
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
 
       <div class="ds-field">
         <span class="ds-field__label">动效</span>

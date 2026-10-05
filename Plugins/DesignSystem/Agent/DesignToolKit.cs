@@ -15,7 +15,8 @@ public sealed class DesignToolKit(
     AgentAccess agentAccess,
     DesignReviewService review,
     QuickCreateService quickCreate,
-    DesignBriefBuilder brief)
+    DesignBriefBuilder brief,
+    GuidelineService guidelines)
 {
     public DesignProjectService Projects { get; } = projects;
     public TokenRepository Tokens { get; } = tokens;
@@ -29,4 +30,6 @@ public sealed class DesignToolKit(
     public DesignReviewService Review { get; } = review;
     public QuickCreateService QuickCreate { get; } = quickCreate;
     public DesignBriefBuilder Brief { get; } = brief;
+    /// <summary>M3 UX 规范：与控制器/生成链路同一实例（判重与手改保护只在服务层做一次）</summary>
+    public GuidelineService Guidelines { get; } = guidelines;
 }

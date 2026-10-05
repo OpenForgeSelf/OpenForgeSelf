@@ -120,6 +120,26 @@ public partial class DesignIcon : Entity<DesignIcon>
 
     #region 高级查询
 
+    // ── M3 收口（2026-10-03 输入48）：本插件的实体读取统一经 Biz 直查方法 ──────────────
+    // Entities/<Name>.cs 是 xcode 生成物、会被覆写，业务查询只能写在这里（plugin-development 铁律 9）。
+    // 也别把下面三个与生成器的「缓存助手」混淆：FindByXxx / FindAllByXxx 那一族，
+    // 函数体首行注释就是「// 实体缓存」、内部走 Meta.Cache；本插件从不调用它们
+    // （例：DesignProjectService.FindByCode 已改写成 FindAll 直查）。
+    // XCode 的 Find / FindAll / FindCount 本身不读实体缓存，故下面三个方法对调用点行为等价；
+    // 收益是「全插件只有一处读入口，将来换读法只改这三行」。
+
+    /// <summary>直查：条件匹配的全部行（不过实体缓存）</summary>
+    public static IList<DesignIcon> QueryAll(Expression exp) => FindAll(exp);
+
+    /// <summary>直查：条件匹配的第一行；无匹配返回 null</summary>
+    public static DesignIcon? QueryFirst(Expression exp) => Find(exp);
+
+    /// <summary>直查：条件匹配的行数</summary>
+    public static Int64 QueryCount(Expression exp) => FindCount(exp);
+
+    /// <summary>直查：分页取条件匹配的行（不过实体缓存）</summary>
+    public static IList<DesignIcon> QueryAll(Expression exp, PageParameter page) => FindAll(exp, page);
+
     // Select Count(Id) as Id,Collection From DesignIcon Where CreateTime>'2020-01-24 00:00:00' Group By Collection Order By Id Desc limit 20
     static readonly FieldCache<DesignIcon> _CollectionCache = new(nameof(Collection))
     {

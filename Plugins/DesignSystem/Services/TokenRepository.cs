@@ -63,7 +63,8 @@ public sealed record TokenPage(IList<DesignToken> Items, Int32 Total, Int32 Page
 /// 令牌库读写门面。控制器与服务只经此访问 DesignToken / DesignShadowLayer 两张表。
 ///
 /// 并发与正确性纪律：
-/// - 唯一性/存在性判断一律 <c>FindCount/FindAll(exp)</c> 直查库，不碰 <c>Meta.Cache</c>
+/// - 唯一性/存在性判断一律走 <c>DesignToken.QueryCount/QueryAll(exp)</c>（Biz 高级查询，直查库），
+///   不碰 <c>Meta.Cache</c>，也不调用生成器另造的 <c>FindAllByXxx</c> 助手（那种函数体首行就是实体缓存）
 ///   （缓存是 AsyncLocal 每执行上下文一份，切库/多实例时会读出幽灵行，见 plugin-development 铁律 11）；
 /// - 批量写入必须在事务内，校验失败整批回滚，不留半成品（design G11）；
 /// - 别名/分层合规校验以 <see cref="TokenGraph"/> 为唯一裁决点（design G4）。
@@ -76,15 +77,15 @@ public sealed class TokenRepository
 
     /// <summary>取单条令牌（直查库）</summary>
     public DesignToken? Find(Int64 projectId, Int64 themeId, String path) =>
-        DesignToken.FindAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == themeId & DesignToken._.Path == path).FirstOrDefault();
+        DesignToken.QueryAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == themeId & DesignToken._.Path == path).FirstOrDefault();
 
     /// <summary>共享层全部令牌</summary>
     public IList<DesignToken> FindShared(Int64 projectId) =>
-        DesignToken.FindAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == DesignSystemConstants.SharedThemeId);
+        DesignToken.QueryAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == DesignSystemConstants.SharedThemeId);
 
     /// <summary>某主题的覆盖层令牌</summary>
     public IList<DesignToken> FindThemed(Int64 projectId, Int64 themeId) =>
-        DesignToken.FindAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == themeId);
+        DesignToken.QueryAll(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == themeId);
 
     /// <summary>
     /// 载入别名图：共享层 + 指定主题的覆盖层。
@@ -100,15 +101,15 @@ public sealed class TokenRepository
 
     /// <summary>按 Id 取主题（直查库）</summary>
     public DesignTheme? FindTheme(Int64 themeId) =>
-        DesignTheme.FindAll(DesignTheme._.Id == themeId).FirstOrDefault();
+        DesignTheme.QueryAll(DesignTheme._.Id == themeId).FirstOrDefault();
 
     /// <summary>按编码取主题</summary>
     public DesignTheme? FindThemeByCode(Int64 projectId, String code) =>
-        DesignTheme.FindAll(DesignTheme._.ProjectId == projectId & DesignTheme._.Code == code).FirstOrDefault();
+        DesignTheme.QueryAll(DesignTheme._.ProjectId == projectId & DesignTheme._.Code == code).FirstOrDefault();
 
     /// <summary>项目全部主题</summary>
     public IList<DesignTheme> ListThemes(Int64 projectId) =>
-        DesignTheme.FindAll(DesignTheme._.ProjectId == projectId).OrderBy(t => t.SortOrder).ThenBy(t => t.Id).ToList();
+        DesignTheme.QueryAll(DesignTheme._.ProjectId == projectId).OrderBy(t => t.SortOrder).ThenBy(t => t.Id).ToList();
 
     /// <summary>分页查询令牌（tier/group/关键字/色相区间过滤）</summary>
     public TokenPage List(Int64 projectId, Int64? themeId, String? tier, String? group, String? keyword, Int32 page, Int32 pageSize)
@@ -121,7 +122,7 @@ public sealed class TokenRepository
             exp &= DesignToken._.Path.Contains(keyword!) | DesignToken._.Name.Contains(keyword!) | DesignToken._.Tags.Contains(keyword!);
 
         var pp = new PageParameter { PageIndex = Math.Max(1, page), PageSize = Math.Clamp(pageSize, 1, 2000), Sort = DesignToken.__.SortOrder, RetrieveTotalCount = true };
-        var items = DesignToken.FindAll(exp, pp);
+        var items = DesignToken.QueryAll(exp, pp);
         return new TokenPage(items, (Int32)pp.TotalCount, pp.PageIndex, pp.PageSize);
     }
 
@@ -226,7 +227,7 @@ public sealed class TokenRepository
         var bestRank = new Dictionary<String, Int32>(StringComparer.Ordinal);
         var keys = new HashSet<String>(StringComparer.Ordinal);
 
-        foreach (var row in DesignToken.FindAll(DesignToken._.ProjectId == projectId))
+        foreach (var row in DesignToken.QueryAll(DesignToken._.ProjectId == projectId))
         {
             var path = NormalizePath(row.Path);
             var rank = row.ThemeId == targetThemeId ? 0 : row.ThemeId == DesignSystemConstants.SharedThemeId ? 1 : 2;
@@ -256,7 +257,7 @@ public sealed class TokenRepository
     /// <summary>写阴影层展开行（复合 shadow 令牌的真源仍是 ValueJson，本表为查询投影；二者由本方法成对维护，design G6）</summary>
     public void ReplaceShadowLayers(DesignToken token, IEnumerable<ShadowLayerInput> layers)
     {
-        var existing = DesignShadowLayer.FindAll(DesignShadowLayer._.TokenId == token.Id);
+        var existing = DesignShadowLayer.QueryAll(DesignShadowLayer._.TokenId == token.Id);
         var keep = new HashSet<Int64>();
         var idx = 0;
         foreach (var input in layers)
@@ -286,7 +287,7 @@ public sealed class TokenRepository
 
     /// <summary>读某 shadow 令牌的展开层（按层序）</summary>
     public IList<DesignShadowLayer> FindShadowLayers(Int64 tokenId) =>
-        DesignShadowLayer.FindAll(DesignShadowLayer._.TokenId == tokenId).OrderBy(l => l.Layer).ToList();
+        DesignShadowLayer.QueryAll(DesignShadowLayer._.TokenId == tokenId).OrderBy(l => l.Layer).ToList();
 
     #endregion
 
@@ -312,7 +313,7 @@ public sealed class TokenRepository
         }
 
         var themedByPath = new Dictionary<String, TokenNode>(StringComparer.Ordinal);
-        foreach (var theme in DesignTheme.FindAll(DesignTheme._.ProjectId == projectId))
+        foreach (var theme in DesignTheme.QueryAll(DesignTheme._.ProjectId == projectId))
             foreach (var n in FindThemed(projectId, theme.Id).Select(ToNode))
                 if (!themedByPath.ContainsKey(n.Path)) themedByPath[n.Path] = n;
 

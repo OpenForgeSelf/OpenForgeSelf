@@ -109,7 +109,7 @@ public static class BuiltinIcons
 
     /// <summary>已有内置图标数（直查库，绕开 XCode 实体级缓存，铁律 11）</summary>
     public static Int32 ExistingCount() =>
-        Entities.DesignIcon.FindAll(Entities.DesignIcon._.ProjectId == DesignSystemConstants.BuiltinProjectId).Count;
+        Entities.DesignIcon.QueryAll(Entities.DesignIcon._.ProjectId == DesignSystemConstants.BuiltinProjectId).Count;
 
     /// <summary>缺才补、有则跳过：插件每次启动都可能被调用，不能每次重写全套</summary>
     public static Int32 SeedIfMissing(CatalogRepository catalog) =>

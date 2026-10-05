@@ -43,16 +43,22 @@ public class DesignSystemPlugin : IPlugin
             var tokens = new TokenRepository();
             var catalog = new CatalogRepository();
             var audits = new AuditRepository();
+            // M3：UX 规范。仓储先建，发布服务要把它钉进版本快照（schema 3 的 guideline 类）
+            var guidelineRepository = new GuidelineRepository();
             var auditEngine = new AuditEngine(tokens, projects, audits);
             var export = new ExportService(tokens, projects, catalog);
-            var releases = new ReleaseService(tokens, projects, audits, auditEngine, paths, catalog);
-            var generation = new GenerationService(tokens, projects, catalog, auditEngine);
+            var releases = new ReleaseService(tokens, projects, audits, auditEngine, paths, catalog, guidelineRepository);
+            var generation = new GenerationService(tokens, projects, catalog, auditEngine);   // M3：规范种子经 generation.Guidelines 注入（属性可空，注册顺序不受影响）
             var agentAccess = new AgentAccess(paths);
             var review = new DesignReviewService(export, tokens, projects);
             var quickCreate = new QuickCreateService(projects, generation);
             var brief = new DesignBriefBuilder(export, projects, catalog, review);
             export.BriefBuilder = brief;
             var previewCss = new PreviewCssService(export);
+            // M3：UX 规范服务与上面的仓储同一实例，避免"两条路径各自一套判重"
+            var guidelines = new GuidelineService(projects, tokens, guidelineRepository);
+            generation.Guidelines = guidelines;
+            export.Guidelines = guidelines;
 
             // 同一实例注册：控制器与工具由此用同一批对象（§G）
             services.AddSingleton(paths);
@@ -68,10 +74,12 @@ public class DesignSystemPlugin : IPlugin
             services.AddSingleton(review);
             services.AddSingleton(quickCreate);
             services.AddSingleton(brief);
+            services.AddSingleton(guidelineRepository);
+            services.AddSingleton(guidelines);
             services.AddSingleton(previewCss);
 
             var kit = new DesignToolKit(projects, tokens, catalog, audits, auditEngine, export, releases,
-                generation, agentAccess, review, quickCreate, brief);
+                generation, agentAccess, review, quickCreate, brief, guidelines);
             services.AddSingleton(kit);
 
             var pluginId = ctx.Get<PluginMetadata>()?.Id ?? DesignSystemConstants.PluginId;

@@ -52,6 +52,11 @@ const VOCABULARIES: { name: string; members: string[] }[] = [
   { name: '状态档位 stateOrder', members: ['default', 'hover', 'active', 'focus-visible', 'disabled'] },
   { name: '尺寸档位 sizeOrder', members: ['xs', 'sm', 'md', 'lg', 'xl'] },
   { name: '间距/圆角档位 scaleOrders', members: ['hairline', 'thin', 'pill', 'thick', 'macro', 'quick'] },
+  {
+    name: '风格轴取值 styleAxes',
+    members: ['soft', 'crisp', 'flat', 'layered', 'regular', 'bold', 'brand', 'cool', 'warm', 'pure',
+      'modern', 'system', 'humanist', 'editorial', 'sharp', 'round', 'pill', 'complement', 'analogous', 'split', 'triadic', 'mono'],
+  },
 ]
 
 describe('界面不许再存一份后端词表', () => {

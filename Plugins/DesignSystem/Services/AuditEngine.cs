@@ -119,7 +119,7 @@ public sealed class AuditEngine
             // 密度轴不含颜色语义，按颜色审计它等于凭空造 80 条假 critical
             if (theme.ModeKind == ThemeModeKinds.Density) continue;
 
-            var themedCount = DesignToken.FindCount(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == theme.Id);
+            var themedCount = DesignToken.QueryCount(DesignToken._.ProjectId == projectId & DesignToken._.ThemeId == theme.Id);
             if (themedCount == 0)
             {
                 items.Add(new AuditItem(AuditKinds.Orphan, "theme-empty", "warning", "token", $"{theme.Code}:<semantic>", false,

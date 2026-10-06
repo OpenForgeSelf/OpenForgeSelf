@@ -230,6 +230,23 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
     （store 已有同版本包时离线即可生成 lock；直连 registry 会被本机代理 TLS 证书拦）。
     **交付前按 CI 同参数复现一次**：`pnpm install --frozen-lockfile && pnpm build`。
 
+21. **【输入形状矩阵铁律】凡"解析用户/外部文本"的功能，用例必须由**真实外部产物**驱动，且每种形状 × 「有无代码围栏」× 「裸发（无围栏）」各一条。**
+    实证（2026-10-06 ToolBridge，被用户当场抓住）：单测 **140/140 绿**，用户把网页 AI 的回复粘进界面点「解析」却报
+    "这段里没认出工具调用"。真因＝`CallParser` 只在 ``` 围栏**内部**试 JSON（`ParseFence`），正文区只走标签式/key=value；
+    而**从网页聊天复制代码块常常只带内容不带围栏**——这是该功能最常见的输入形态。
+    我写的用例全部自带围栏 ⇒ 覆盖的是我设想过形状，不是真实形状；"绿"因此毫无意义。
+    **机制化三条**（写这类功能时逐条落地，不许凭感觉）：
+    ① **拿到真实样例才收口**：spec 里标 `Unknown` 的输入样例（本例 U-1）属**阻塞项**，不是"备注"——
+       没有真样例就先别报"解析已完善"，要么向用户要一段原文，要么自己按最可能的形态补形状；
+    ② **围栏双向成对**：每种结构格式必须同时有"带 ``` 围栏"和"**裸发**（前后带散文）"两条用例；
+       裸发还要补一条**反向护栏**（散文中像结构却不是调用的内容，如工具目录 JSON，不得被硬掰成调用）；
+    ③ **界面空态文案要能自证成因**：报"没认出"时必须把解析器给的 `reason` 原文显示出来
+       （本例已具备，正因如此才定位到"未解析"而非"识别失败"）。
+    同场加一条环境教训（AGENTS §5.0 的又一实例）：`dotnet test` 的 TEMP 重定向**必须在 pwsh 内部赋值**
+    （`pwsh -Command "$env:TEMP='<repo>\.temp\tmp'; dotnet test …"`），在 Git-Bash 里 `export TEMP` **不会**传进
+    testhost ⇒ `ExecutorTests` 7 条 `UnauthorizedAccessException: …AppData\Local\Temp…is denied` 假红。
+    红先怀疑环境，但**必须用"同命令重跑 + 改赋值姿势"对照**才能定责，别拿"环境问题"当结论。
+
 ---
 
 ## 三、新建 / 迁移插件：步骤
@@ -539,3 +556,27 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
   （`..._Turn` vs 生成的 `..._TurnIndex`）会触发 XCode `CheckDeleteIndex` **删旧建新**，
   生成的类还会丢掉 `: IChatTurnModel, IEntity<IChatTurnModel>`（接口生成配置未复现）⇒ 重新生成会编译失败。
   ⇒ 要给宿主实体加列，**先请示用户**（备选：手改生成物 + 补模型 / 走近似关联不动表结构）。
+
+### F. 提交与验证：**工作区全绿 ≠ 提交内容正确**（2026-10-06 实证，最隐蔽的一类坑）
+
+- **症状**：收口时工作区跑测试 **227/227 全绿**，但在**干净检出**上跑同一套，立刻冒出 1 条自己范围内的失败。
+- **根因**：宿主侧那几处「一行改动」（`AppBuilder.cs` 的 DI 注册、`*.csproj` 的插件引用）在并行会话共享文件里
+  做「暂存后还原工作区」时**被当成别人的行留在了工作区**，从未入库。
+  而源码守卫类测试（读 `AppBuilder.cs` 断言含某行）读的是**工作区文件** ⇒ 未提交的行照样能读到，测试假绿。
+- **实证**：A3b 的 `builder.Services.AddScoped<ITurnTelemetryQuery, TurnTelemetryQueryService>()` 只在工作区、
+  未随 `032caa3` 入库 ⇒ 干净检出时宿主不注入 `ITurnTelemetryQuery`，插件取宿主数据的唯一通道**处于未接线状态**；
+  最终由守卫用例 `AppBuilder_注册了ITurnTelemetryQuery接缝` 在干净 worktree 全量回归中**实测转红**才暴露。
+- **硬要求（收口前必做）**：在**只含已提交内容**的干净检出上跑**全量**回归，而不是在工作区：
+
+  ```bash
+  git worktree add /d/tmp/ofs-verify <你的 HEAD>
+  cd /d/tmp/ofs-verify && dotnet test <TestProj>.csproj -v q --nologo   # 全量，不要 --filter
+  git worktree remove /d/tmp/ofs-verify --force
+  ```
+
+  判据：与基线（`git worktree add ... <你的起始提交>`）对比 —— **通过数应恰好 += 你新增的用例数，失败数不增加**；
+  若冒出的失败落在你的命名空间内 ⇒ 要么漏提交、要么真缺陷，二者都要修掉再收口。
+- **逐文件确认，别只看 `git status`**：`git status` 显示某共享文件为 `M` 时，里面可能**同时**有你的行和别人的行。
+  用 `git show <sha>:<file> | grep <你的唯一标记>` 逐个确认你的行**已在提交里**；
+  最直接的办法是整份 `git diff -- <file>` 看一遍归属（本例中 `AppBuilder.cs` 的未提交差异 100% 是我自己的行，
+  直接 `git add` 整个文件即可，反而不用走「取行」手法）。

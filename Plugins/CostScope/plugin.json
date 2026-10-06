@@ -1,0 +1,24 @@
+{
+  "Id": "cost-scope",
+  "Name": "成本观测插件",
+  "Version": "0.1.0",
+  "Author": "ForgeSelf Team",
+  "Description": "LLM 用量成本可视化：单价目录、预算、惰性日汇总，数据落在插件自有库（CostScope），与宿主库隔离。",
+  "IconUrl": "https://example.com/cost-scope-icon.png",
+  "EntryAssembly": "CostScope.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.CostScope.CostScopePlugin",
+  "Dependencies": [],
+  "Provides": [],
+  "Consumes": [],
+  "Permissions": [
+    "read_config",
+    "write_config"
+  ],
+  "frontend": {
+    "views": ["CostScopeView"],
+    "menu": "成本观测",
+    "route": "/cost-scope",
+    "icon": "fa-coins",
+    "entry": "web/dist/index.js"
+  }
+}

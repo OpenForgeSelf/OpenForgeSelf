@@ -1,0 +1,12 @@
+# pnpm 11 构建脚本白名单（与 DesignSystem / FileTools / McpCenter 保持一致）。
+#
+# 为什么需要：pnpm 11 默认**拦截依赖的 postinstall 脚本**，而 esbuild 的 postinstall
+# 负责把平台二进制放进 node_modules —— 被拦截后 esbuild 不可用，vite build 必然失败；
+# 且 `pnpm install` 会以 ERR_PNPM_IGNORED_BUILDS 退出 1，连带 `pnpm build` 一起挂。
+#
+# 注意：pnpm 11 **不再读 package.json 里的 `pnpm` 字段**，设置必须放在本文件。
+# `allowBuilds` 是 pnpm 11 的当前键；`onlyBuiltDependencies` 为旧版 pnpm 保留，双写以兼容。
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

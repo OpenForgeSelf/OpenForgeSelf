@@ -1,0 +1,555 @@
+﻿<style>
+    table {
+        border-collapse: collapse;
+        border: 1px solid;
+        border-color: rgb(211, 202, 221);
+    }
+
+    table thead,
+    table tr {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: rgb(211, 202, 221);
+    }
+
+    table {
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: rgb(211, 202, 221);
+    }
+
+    table td,
+    table th {
+        padding: 5px 10px;
+        font-size: 14px;
+        font-family: Verdana;
+        color: rgb(95, 74, 121);
+    }
+
+    table tr:nth-child(even) {
+        background: rgb(223, 216, 232)
+    }
+
+    table tr:nth-child(odd) {
+        background: #FFF
+    }
+</style>
+<h3>模型单价目录（CostModelPrice）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主键</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Model</td>
+            <td>模型名称（与ChatTurn</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>模型名称（与 ChatTurn.Model 对齐）</td>
+        </tr>
+
+        <tr>
+            <td>Provider</td>
+            <td>供应商（如openai_anthropic_本地）</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>供应商（如 openai / anthropic / 本地）</td>
+        </tr>
+
+        <tr>
+            <td>InputPricePer1M</td>
+            <td>输入单价（每1Mtoken</td>
+            <td>Decimal</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>输入单价（每 1M token，币种见 Currency）</td>
+        </tr>
+
+        <tr>
+            <td>OutputPricePer1M</td>
+            <td>输出单价（每1Mtoken</td>
+            <td>Decimal</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>输出单价（每 1M token，币种见 Currency）</td>
+        </tr>
+
+        <tr>
+            <td>Currency</td>
+            <td>币种（默认CNY）</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>币种（默认 CNY）</td>
+        </tr>
+
+        <tr>
+            <td>EffectiveFrom</td>
+            <td>生效起始时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>EffectiveTo</td>
+            <td>生效结束时间（null表示长期有效）</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>生效结束时间（null 表示长期有效）</td>
+        </tr>
+
+        <tr>
+            <td>IsEnabled</td>
+            <td>是否启用</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedTime</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>成本预算规则（CostBudget）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主键</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>规则名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Scope</td>
+            <td>作用域（global_model_session）</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>作用域（global/model/session）</td>
+        </tr>
+
+        <tr>
+            <td>Target</td>
+            <td>作用目标（Scope=model时为模型名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>作用目标（Scope=model 时为模型名；session 时为会话键；global 为 null）</td>
+        </tr>
+
+        <tr>
+            <td>LimitAmount</td>
+            <td>额度上限（币种见Currency）</td>
+            <td>Decimal</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>额度上限（币种见 Currency）</td>
+        </tr>
+
+        <tr>
+            <td>Currency</td>
+            <td>币种（默认CNY）</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>币种（默认 CNY）</td>
+        </tr>
+
+        <tr>
+            <td>Period</td>
+            <td>周期（daily_monthly）</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>周期（daily/monthly）</td>
+        </tr>
+
+        <tr>
+            <td>AlertThreshold</td>
+            <td>告警阈值（0-1</td>
+            <td>Double</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>达此比例触发横幅）</td>
+        </tr>
+
+        <tr>
+            <td>CreatedTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedTime</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>成本按日惰性汇总（CostTurnDaySummary）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主键</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Day</td>
+            <td>汇总日（按日期截断</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>；FR-3.7 口径为 Day×Model，故以日为寻址主键）</td>
+        </tr>
+
+        <tr>
+            <td>Model</td>
+            <td>模型名称</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Provider</td>
+            <td>供应商（经A4四级解析</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>供应商（经 A4 四级解析；未归属时留空，不猜）</td>
+        </tr>
+
+        <tr>
+            <td>PromptTokens</td>
+            <td>提示词token累计</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>提示词 token 累计</td>
+        </tr>
+
+        <tr>
+            <td>CompletionTokens</td>
+            <td>补全token累计</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>补全 token 累计</td>
+        </tr>
+
+        <tr>
+            <td>TotalTokens</td>
+            <td>总token累计</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>总 token 累计</td>
+        </tr>
+
+        <tr>
+            <td>CostAmount</td>
+            <td>当日成本金额（币种见Currency）</td>
+            <td>Decimal</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>当日成本金额（币种见 Currency）</td>
+        </tr>
+
+        <tr>
+            <td>CostIsLowerBound</td>
+            <td>true=含未配单价未知段</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>本值仅为下界（BR-2，绝不静默计 0）</td>
+        </tr>
+
+        <tr>
+            <td>Currency</td>
+            <td>币种（默认CNY）</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>币种（默认 CNY）</td>
+        </tr>
+
+        <tr>
+            <td>FailCount</td>
+            <td>失败轮次数（BR-4</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>：失败不计成本，但必须留痕）</td>
+        </tr>
+
+        <tr>
+            <td>TurnCount</td>
+            <td>轮次计数</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SessionKey</td>
+            <td>来源标注</td>
+            <td>String</td>
+            <td>64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：跨会话汇总写 *；按会话查询时写具体会话键</td>
+        </tr>
+
+        <tr>
+            <td>CreatedTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedTime</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>成本插件设置（CostSettings）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主键</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Key</td>
+            <td>设置键（唯一）</td>
+            <td>String</td>
+            <td>64</td>
+            <td></td>
+            <td title="唯一索引">UQ</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Value</td>
+            <td>设置值（JSON或纯文本）</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>设置值（JSON 或纯文本）</td>
+        </tr>
+
+        <tr>
+            <td>Description</td>
+            <td>说明</td>
+            <td>String</td>
+            <td>256</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdatedTime</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>

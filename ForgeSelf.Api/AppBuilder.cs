@@ -8,6 +8,7 @@ using ForgeSelf.Api.Plugins;
 using ForgeSelf.Api.Plugins.Services;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Api.Services.CostScope;
 using Scalar.AspNetCore;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
@@ -190,6 +191,8 @@ public static class AppBuilder
         builder.Services.AddScoped<ILogService, LogService>();
         builder.Services.AddScoped<IMessageService, MessageService>();
         builder.Services.AddScoped<IUsageStatsService, UsageStatsService>();
+        // A3b（PILOT-033）：成本/trace/聚合插件取宿主数据的唯一合法通道（只读取数，不含业务）
+        builder.Services.AddScoped<ITurnTelemetryQuery, TurnTelemetryQueryService>();
         builder.Services.AddScoped<IWorkflowUsageService, WorkflowUsageService>();
         builder.Services.AddScoped<IWorkflowRecommendationService, WorkflowRecommendationService>();
         builder.Services.AddScoped<IChatTurnService, ChatTurnService>();

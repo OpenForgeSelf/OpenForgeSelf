@@ -145,6 +145,25 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
      错误信息（`no such table`）与真因（建表抛异常）相距极远，极难定位。
    - 宿主侧还有一处必登记：`ForgeSelf.Api/Data/XCodeConfig.cs` 的 `PluginDbs` 加一行（连接名 → 插件 Id），
      库文件才会落到 `数据根/Plugins/{插件Id}/{连接名}.db`；**插件内禁止自注册 `DAL.AddConnStr`**。
+12b. **【插件登记三处必齐铁律】新插件除 `PluginDbs` 外，还必须登记 `ForgeSelf.Api.csproj` 与（有单测时）`ForgeSelf.Api.Tests.csproj`，判据只看宿主产物**（2026-10-05 PILOT-033 A2→A3 实证）。
+   - **三处登记**：① `ForgeSelf.Api/Data/XCodeConfig.cs` → `PluginDbs[<ConnName>] = <插件Id>`（建库建表，见铁律 12）；
+     ② `ForgeSelf.Api/ForgeSelf.Api.csproj` 的插件 `ItemGroup` → `<ProjectReference Include="..\Plugins\<X>\<X>.csproj" ReferenceOutputAssembly="false" />`
+     （**只建构建顺序**；缺它 ⇒ `dotnet build ForgeSelf.Api` 根本不编译该插件，`StageAllPlugins` 拷不到 DLL，
+     `publish`/CI 包里 `Plugins/<X>/` **只有 plugin.json 没有 DLL** ⇒ 运行实例里插件永不出现。`:127` DesignSystem 注释记录的 MSB3030 同一病）；
+     ③ 插件业务要写单测时，`ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj` → `<ProjectReference Include="..\Plugins\<X>\<X>.csproj" />`
+     （缺它 ⇒ 测试编译报 **CS0234 命名空间…中不存在类型或命名空间名**；插件业务测试的目录约定 = `ForgeSelf.Api.Tests/Plugins/<X>Tests/`）。
+   - **判据必须是宿主产物，不是插件目录自建**：`cd ForgeSelf.Api && dotnet build` 后核对
+     `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<X>/<X>.dll` 存在，且与 `Plugins/<X>/bin/Debug/net10.0/<X>.dll` **md5 相同**
+     （或按下方「查 DLL 字符串」条用 `scripts/probe-dll-string.cjs` 确认本次新增类型 FOUND）。
+     ⚠ **`dotnet build Plugins/<X>/<X>.csproj` 单编插件不算数**——它证明的是插件自身可编译，证明不了它进了宿主构建图；
+     A2 当时正是拿这条报了「骨架完成」，缺陷一直到 A3 才暴露。
+   - **为何不能直接引用宿主**：插件 csproj 一律只 `ProjectReference` `ForgeSelf.Core` + `ForgeSelf.Abstractions`
+     （实测 19/19），宿主 `ForgeSelf.Api` 对插件是 `ReferenceOutputAssembly="false"`——注释原文「避免插件类型进入默认 ALC
+     造成与 PluginLoadContext 的双重加载」。⇒ 插件要读宿主实体（`ChatTurn`/`SessionEventEntity` 等，都在 `ForgeSelf.Api/Entities/`）
+     **只能经 Abstractions 契约 + 宿主实现 + DI**（同构先例：`IUsageStatsService` @ `Abstractions` →
+     `AppBuilder.cs` 注册 → `Plugins/DevTools`/`MemorySystem`/`ScriptRunner` 消费）。插件侧**零编译宿主类型**。
+   - **net10.0 vs net10.0-windows**：插件是 `net10.0`、宿主与测试工程是 `net10.0-windows`，构建日志会出 **MSB3271** 兼容关系告警。
+     这是既有形态、非阻断；判据看 `error` 计数与测试是否真执行，别为这条告警改 TFM。
 
 13. **【版本展示铁律】每个插件根视图必须在标题旁展示自身当前版本号。**
    - 根视图 header 标题旁加版本徽标（如 `v2.0.0`），数据从宿主 `GET /api/plugin` 解包
@@ -200,6 +219,16 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
     ② 后端 IMenuExtension 仅用于无自带界面插件的后端菜单贡献，其 Path 必须等于真实可导航目标，且与 manifest 声明不得并存冲突；
     ③ 任何插件 route 改名/增删必须同步更新 e2e/menu-route-consistency.spec.ts（§四门禁清单加一条）；
     ④ 纯后端无界面插件不得声明界面菜单（撤销或待界面立项后恢复）。
+20. **【新建带界面插件·lockfile 铁律】`Plugins/<X>/web/` 必须带 `pnpm-lock.yaml` + `pnpm-workspace.yaml`，否则发布链在 CI 红。**
+    `scripts/release/build-frontend.ps1` 对每个 `Plugins/*/web`（glob 自动发现，无需登记）跑
+    `pnpm install --frozen-lockfile && pnpm build`（`:39/:41`）——**没有 lockfile 时 `--frozen-lockfile` 直接失败**，
+    红在 frontend 段（本地出树构建能过 ⇒ 极易漏检，2026-10-06 ToolBridge 实证）。
+    最小可用组合（照抄 `Plugins/QuickLinks/web/`）：`package.json` devDependencies 只放
+    `@vitejs/plugin-vue` + `vite`；`pnpm-workspace.yaml` 写 `allowBuilds.esbuild: true` 与
+    `onlyBuiltDependencies: [esbuild]`（缺前者 esbuild postinstall 被跳过，vite 起不来）。
+    本机装 lock：`cd Plugins/<X>/web && TEMP=<repo>\.temp\tmp pnpm install --offline`
+    （store 已有同版本包时离线即可生成 lock；直连 registry 会被本机代理 TLS 证书拦）。
+    **交付前按 CI 同参数复现一次**：`pnpm install --frozen-lockfile && pnpm build`。
 
 ---
 
@@ -251,6 +280,10 @@ Plugins/<PascalCase>/
 - 无 `entry` → 回退 `dynamicPlugins.ts` 里硬编码的主包组件映射（**存量兼容，新插件不要用**）
 
 ### 3.2 自带界面 `web/`
+
+> ⚠ **别手写 `web/`**（2026-10-06 实测）：手写 vite/pnpm 配置会同时踩「pnpm 11 构建白名单」与
+> 「vite 必须 lib 模式」两个坑，构建直接失败。**先跑下面的脚手架**，再改组件。
+> 两个坑的症状与修法见 `plugin-frontend-scaffold`「为什么不许手写 web/」。
 
 ```powershell
 pwsh .agents/skills/plugin-frontend-scaffold/scripts/scaffold-plugin-frontend.ps1 -Plugin <PascalCase>
@@ -423,3 +456,86 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 - **沙箱内起宿主进程跨工具调用会被回收**：`nohup ... &` 后下次工具调用 curl 返回 000。
   浏览器走查必须用 `run_in_background` 长驻宿主，用完 `TaskStop` 收掉；
   纯 API 验证则在同一 bash 调用内「启动 → curl → kill」完成。
+- **插件前端出树构建有正规脚本，别手搓 wrapper**：`pwsh scripts/build-plugin-web.ps1 -Plugin <PascalCase>`
+  已实现 §3.2 的兜底（复制到 `ForgeSelf.Web/.plugin-build-<id>/` + `publicDir:false` + 绝对 `--outDir` + 用完即删临时目录）。
+  手搓的临时配置容易把 `outDir` 相对层级写错（`.plugin-build-*` 在 `ForgeSelf.Web/` 下，回仓库根要 `../../`）。
+- **插件 csproj 用 global `Using` 收拢命名空间**：`<Using Include="ForgeSelf.Api.Plugins.<X>.Models" />` +
+  `System.Text.Json` / `System.Text.Json.Nodes` / `System.ComponentModel`，省掉每个 Service 文件四行 using；
+  漏 `System.ComponentModel` 会在 `Win32Exception`（进程启动失败分支）上编译断。
+- **想跨插件共享一个纯函数，先读两份共享层 csproj 再决定**：`ForgeSelf.Core` **零 PackageReference**、
+  `ForgeSelf.Abstractions` 只引 DI.Abstractions ⇒ 任何带 `XTrace`/NewLife 类型的代码都上移不了，
+  硬上移＝给内核层加依赖＝依赖结构变更（高风险，须出 ADR）。替代方案＝本地实现 + **跨实现对账测试**
+  （同一张金样表打两份实现，判定与原因原文逐条比），把"第二份真相"的漂移变成机器判据
+  （实证：PILOT-053 的 `ToolBridgeGuardParityTests`）。
+- **反向探针必须确认自己改了行为**：把探针代码放在 `return` 之后 = 不可达代码，跑出来照样全绿（2026-10-06 我自己中过一次）。
+  探针的判定标准是「**改动前后测试结果变化**」，不是「代码写上了」。
+- **`pnpm run check` 不等于"类型全绿"，发布链用的是 `vue-tsc -b`**：宿主 `check` 跑 `vue-tsc --noEmit`，
+  而 `pnpm build`（= 发布链 `build-frontend.ps1` 的第一段）跑 **`vue-tsc -b`（build 模式，按 tsconfig references 把 `e2e/**` 也编进来）**。
+  实证（2026-10-06 ToolBridge）：`check` 报 0 error、e2e 6 条运行时全绿，但发布链红在
+  `e2e/plugins/tool-bridge/tool-bridge.spec.ts error TS2559`（我把字符串当 `toHaveText` 的 options 传，Playwright 运行时容忍、类型不容忍）。
+  ⇒ **交付/发布前必须按同参数跑一次 `cd ForgeSelf.Web && npx vue-tsc -b`**；插件 e2e 用例里给断言写"说明文字"时，
+  一律用注释而不是第二个参数。
+- **本地发布给人装的包必须带 `-Sign`**（AGENTS.md §2.3 定稿）：
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version <三段号> -Sign -UpdateDir <上级目录>\updates`；
+  脚本自己把 `TEMP/TMP` 指进仓库 `.temp`（勿再手工改）。跑完**必须验包内容**而不是看退出码：
+  zip 存在 + `SHA256SUMS.txt` 逐字对 + L1/L2/L3 布局不变量 + 新插件真进 `versions/<ver>/plugins/<id>/`（DLL + plugin.json + web/dist）
+  + 两个 exe 的 FileVersion 与包名同串 + `signtool verify` 为 Valid（时间戳间歇失败 ⇒ 半签不得交付）。
+
+---
+
+## 七、常见坑（2026-10-06 CostScope 插件全程实测；症状 → 根因 → 修法）
+
+> 这一节只收「**真踩过**」的坑，按主题归类。前端构建两坑详见 `plugin-frontend-scaffold`「为什么不许手写 web/」。
+
+### A. 流程层：最贵的坑
+
+- **手写插件 `web/` 而不走 `plugin-frontend-scaffold`** → 连带踩 pnpm 11 构建白名单 + vite lib 模式两个坑，
+  构建直接失败。脚手架是整目录复制模板，模板里这些文件已经是对的。**先跑脚手架，再改组件。**
+- **.NET 全绿 ≠ 构建没问题**：本例 `dotnet build`（根 solution）**0 错误**，失败只在另一条构建链（前端）。
+  报「构建失败」时**先分清是哪条链**，别一头扎进 .NET。
+
+### B. 测试与守卫
+
+- **静态扫描守卫必须先剥注释再匹配**：文件里为了说明「**为什么**不能出现 X」必然会出现 X 的名字，
+  直接 `text.Contains("X")` 必然误报自己。两次踩到（`IHostedService` 守卫、`api/usage` 端点边界守卫）。
+  修法：扫前用 `StripComments` 去掉 `//`、`/* */`、`<!-- -->`。
+- **目录上溯 `while` 循环必须推进指针**：`while (dir is not null) { if (命中) return …; }` 漏写
+  `dir = dir.Parent;` ⇒ **死循环**，xUnit 表现为测试挂住不返回（实测挂 11 分钟才被察觉）。
+  写完这类循环立刻检查指针是否推进；xUnit 建议给测试方法加超时。
+- **探针判定标准是「改动前后测试结果变化」**，不是「代码写上了」——本技能第六章已强调，此处再确认一次：
+  每次写守门测试都要用 MUTATION 探针实测它会变红。
+
+### C. 后端 / 契约
+
+- **「新增防误覆盖」与「改价」必须是两个通道**：一个 `Save` 既当新增又当更新，结果「重复即拒绝」会把改价也堵死
+  （FR-3.4 改单价后历史重算直接不可实现）。拆成 `Save`（新增，重复且内容不同 ⇒ 拒绝）+ `Update`（要求已存在，
+  **不做 upsert**，否则掩盖「改了个不存在的模型」）。
+- **扩契约 DTO 必须同步契约测试里的字段清单**：「字段集一致」那条用例会立刻变红，而它变红是**正确的**
+  （提醒你清单要一起改），别误判成回归。
+- **服务层校验异常要映射 400，且刻意不捕获其它异常**：`ArgumentException`（含 `ArgumentOutOfRangeException`）
+  ⇒ 400 + 明确 message；**其它异常应如实冒泡为 500**，不能伪装成「参数错」（否则数据访问故障会被误诊）。
+- **查询类端点非法枚举值必须 400 + 列出可用值**，不得静默返回空表（02-spec Error Handling）。
+  注意口径：`null`（未传）可给默认值，但**显式传空串是客户端错误 ⇒ 400**。
+
+### D. XCode（本仓实体层）
+
+- `FindByXxx` **可能不存在**：索引非唯一时 XCode 只生成 `FindAllByXxx`（如 `FindAllByModel`，无 `FindByModel`）。
+  用前先 grep 生成的实体，别照抄名字。
+- `[InlineData]` **不能写 decimal 常量算术**（CS0182，如 `InPrice * 2`）⇒ 常量算术放方法体外，
+  或把测试方法改成普通方法 + 字面量。
+- `DAL` 在 **`XCode.DataAccessLayer`** 命名空间。
+- **record struct 的 `string` 字段默认是 `null`**（不是 `""`）：`acc.Key.Length` 会 NRE，
+  聚合累加时用 `string.IsNullOrEmpty(acc.Key)` 判首次入桶。
+- **插件库单测要自己 `DAL.AddConnStr` + 建表**（连不上宿主库）；注意 XCode 首次 `Insert` 会自动建表，
+  所以「反射调 `Meta.CreateTable`」其实可能静默没生效——别把它当权威结论。
+- **改 `Data/Model.xml` 后要重跑 `xcode`**，且 xcode 会**规范化 xml**（补默认值、去显式默认属性），
+  手改的 xml 与生成物会有差异，别以为是别人改的。
+
+### E. 宿主侧现状（不是本仓规范，是既成事实）
+
+- **宿主 `ForgeSelf.Api/Entities/` 下 30 个实体只有生成物、没有 `Model.xml`**（均生成于 2026-09-25）⇒
+  铁律 9/11「Model.xml 为真源、禁手改生成物」**在宿主侧从未成立**。
+  实测**重建不可行**：按当前列定义重建后逐行 diff 达数百行，且索引名不一致
+  （`..._Turn` vs 生成的 `..._TurnIndex`）会触发 XCode `CheckDeleteIndex` **删旧建新**，
+  生成的类还会丢掉 `: IChatTurnModel, IEntity<IChatTurnModel>`（接口生成配置未复现）⇒ 重新生成会编译失败。
+  ⇒ 要给宿主实体加列，**先请示用户**（备选：手改生成物 + 补模型 / 走近似关联不动表结构）。

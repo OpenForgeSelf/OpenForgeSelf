@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -70,6 +70,8 @@
     <ProjectReference Include="..\Plugins\McpCenter\McpCenter.csproj" />
     <!-- DesignSystem 插件 v2（设计语言底座）：单测直接引用其色彩数学 / 别名图 / 令牌库 / 建表入口 -->
     <ProjectReference Include="..\Plugins\DesignSystem\DesignSystem.csproj" />
+    <!-- CostScope 插件（PILOT-033）：单测直接引用其成本纯函数（A3 起）与后续 CRUD/聚合/trace 服务 -->
+    <ProjectReference Include="..\Plugins\CostScope\CostScope.csproj" />
   </ItemGroup>
 
   <ItemGroup>

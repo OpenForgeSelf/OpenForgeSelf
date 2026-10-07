@@ -38,6 +38,13 @@ function Invoke-PnpmBuild([string]$Dir, [string]$Label) {
     try {
         & $pnpm install --frozen-lockfile
         Assert-ExitCode "pnpm install ($Label)"
+        # Env workaround: the sandbox safe-delete shim blocks esbuild's Go binary from
+        # deleting its temp files (inputs >1MB / outputs >buffer), aborting the build
+        # with "remove <path>: Access is denied". patch-esbuild.mjs keeps inputs inline;
+        # ESBUILD_MAX_BUFFER keeps outputs inline. Both are valid in every environment,
+        # so applying them unconditionally is safe.
+        & node (Join-Path $PSScriptRoot 'patch-esbuild.mjs') $Dir
+        $env:ESBUILD_MAX_BUFFER = '1073741824'
         & $pnpm build
         Assert-ExitCode "pnpm build ($Label)"
     }

@@ -62,6 +62,22 @@ public partial class Todo : Entity<Todo>
         // Remark 长度校验
         if (Remark != null && Remark.Length > 1000) throw new ArgumentOutOfRangeException(nameof(Remark), "备注长度不能超过 1000 字符！");
 
+        // === PILOT-054 下发字段校验（真源 Data/Model.xml；此处只做「越界即拒」，业务口径在 Services）===
+        CheckLength(nameof(Objective), Objective, 500);
+        CheckLength(nameof(Content), Content, 262144);
+        CheckLength(nameof(AllowedScope), AllowedScope, 2000);
+        CheckLength(nameof(ForbiddenScope), ForbiddenScope, 2000);
+        CheckLength(nameof(Acceptance), Acceptance, 4000);
+        CheckLength(nameof(Verification), Verification, 2000);
+        CheckLength(nameof(Assignee), Assignee, 100);
+        CheckLength(nameof(ProjectRoot), ProjectRoot, 500);
+        CheckLength(nameof(ProjectPathRaw), ProjectPathRaw, 500);
+        CheckLength(nameof(ArtifactRef), ArtifactRef, 500);
+        CheckLength(nameof(AgentTaskKey), AgentTaskKey, 64);
+        CheckLength(nameof(PermissionMode), PermissionMode, 32);
+        if (Priority is < 1 or > 3) throw new ArgumentOutOfRangeException(nameof(Priority), "优先级只能是 1=P1 / 2=P2 / 3=P3！");
+        if (Stage is < 0 or > 7) throw new ArgumentOutOfRangeException(nameof(Stage), "下发阶段只能是 0..7！");
+
         // 建议先调用基类方法，基类方法会做一些统一处理
         if (!base.Valid(method)) return false;
 
@@ -71,6 +87,8 @@ public partial class Todo : Entity<Todo>
             if (CreatedAt == DateTime.MinValue) CreatedAt = DateTime.Now;
             if (UpdatedAt == DateTime.MinValue) UpdatedAt = DateTime.Now;
             if (Status == 0 && CompletedAt != DateTime.MinValue) Status = 1;
+            // 外部键：agent 侧用 TaskKey 引用任务（同 AgentHub DelegationTask.TaskKey 的做法）
+            if (TaskKey.IsNullOrEmpty()) TaskKey = Guid.NewGuid().ToString("N");
         }
         else if (method == DataMethod.Update)
         {
@@ -78,6 +96,13 @@ public partial class Todo : Entity<Todo>
         }
 
         return true;
+    }
+
+    /// <summary>长度越界即拒（null/空视为未填，放行）。</summary>
+    private static void CheckLength(String field, String? value, Int32 max)
+    {
+        if (value != null && value.Length > max)
+            throw new ArgumentOutOfRangeException(field, $"{field} 长度不能超过 {max} 字符！");
     }
 
     ///// <summary>首次连接数据库时初始化数据，仅用于实体类重载，用户不应该调用该方法</summary>
@@ -124,5 +149,22 @@ public partial class Todo : Entity<Todo>
     #endregion
 
     #region 业务操作
+
+    /// <summary>
+    /// 按外部键查任务。<b>直查数据库</b>，不走实体缓存（plugin-development 铁律 11：
+    /// 存在性/唯一性判断属正确性关键路径，<c>Meta.Cache</c> 是 AsyncLocal 进程内缓存，
+    /// 多实例/切库时可能读出别的库的幽灵行）。taskKey 一律小写比较（生成值即 <c>Guid.ToString("N")</c> 小写）。
+    /// </summary>
+    public static Todo? FindByKey(String? taskKey)
+    {
+        var key = NormalizeKey(taskKey);
+        if (key.IsNullOrEmpty()) return null;
+        return FindAll(_.TaskKey == key).FirstOrDefault();
+    }
+
+    /// <summary>把外部键归一为库内存储形状（去空白 + 小写）。空串返回空串。</summary>
+    public static String NormalizeKey(String? taskKey) =>
+        string.IsNullOrWhiteSpace(taskKey) ? String.Empty : taskKey.Trim().ToLowerInvariant();
+
     #endregion
 }

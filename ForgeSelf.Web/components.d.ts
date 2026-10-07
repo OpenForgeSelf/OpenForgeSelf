@@ -100,8 +100,6 @@ declare module 'vue' {
     TextInput: typeof import('./src/components/texttools/TextInput.vue')['default']
     TextOutput: typeof import('./src/components/texttools/TextOutput.vue')['default']
     TimestampTool: typeof import('./src/components/devtools/TimestampTool.vue')['default']
-    TodoEditDialog: typeof import('./src/components/todo/TodoEditDialog.vue')['default']
-    TodoListItem: typeof import('./src/components/todo/TodoListItem.vue')['default']
     ToolTabs: typeof import('./src/components/texttools/ToolTabs.vue')['default']
     TopNavbar: typeof import('./src/components/TopNavbar.vue')['default']
     TrendChart: typeof import('./src/components/systemmonitor/TrendChart.vue')['default']

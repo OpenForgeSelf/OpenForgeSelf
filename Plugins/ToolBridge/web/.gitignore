@@ -1,0 +1,6 @@
+# 插件界面构建产物与依赖（源码在 src/，产物 dist/ 由 pnpm build 生成）
+node_modules/
+dist/
+.vite/
+*.local
+.DS_Store

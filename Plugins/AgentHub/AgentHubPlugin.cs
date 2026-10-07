@@ -43,6 +43,13 @@ public class AgentHubPlugin : IPlugin
         // 确保表已创建（宿主 XCodeConfig 会经反射统一建表，这里触发实体元数据加载）
         EnsureTablesCreated();
 
+        // PILOT-054：向兄弟插件提供「把任务交给 agent 执行」的能力接缝（契约 IAgentDelegation 定义在 Abstractions）。
+        // 传插件容器本身而不是在 Apply 里 BuildServiceProvider 另起容器：后者会造出第二份 PermissionBroker/
+        // AgentRegistry 单例，导致「接缝发起的任务」与「控制器审批面板」不是同一份待审批队列（G2 人在回路失灵）。
+        // 提供即 effect，插件卸载时共享表条目自动摘除（见 ForgeSelf.Core.IContext.Register 注释）。
+        ctx.Register<IAgentDelegation>(new AgentDelegationProvider(ctx));
+        XTrace.Log.Info("Agent 中枢插件已提供 IAgentDelegation 能力接缝");
+
         // G5：宿主启动即收尾——把库里遗留的非终态任务标为 Interrupted
         RecoverOrphanTasks(ctx);
 

@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
+  <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
+    <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
+    <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
+    <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
+    <Namespace>ForgeSelf.Api.Plugins.CostScope.Entities</Namespace>
+    <!--引用命名空间-->
+    <ExtendNameSpace />
+    <!--输出目录-->
+    <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
+    <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
+    <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
+    <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
+    <Nullable>False</Nullable>
+    <!--数据库连接名-->
+    <ConnName>CostScope</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
+    <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
+    <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
+    <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
+    <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
+    <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
+    <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
+    <DisplayName />
+    <!--魔方控制器输出目录-->
+    <CubeOutput />
+  </Option>
+  <Tables>
+    <Table Name="CostModelPrice" Description="模型单价目录">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="Model" DataType="String" Master="True" Length="100" Nullable="False" Description="模型名称（与 ChatTurn.Model 对齐）" />
+        <Column Name="Provider" DataType="String" Nullable="False" Description="供应商（如 openai / anthropic / 本地）" />
+        <Column Name="InputPricePer1M" DataType="Decimal" Description="输入单价（每 1M token，币种见 Currency）" />
+        <Column Name="OutputPricePer1M" DataType="Decimal" Description="输出单价（每 1M token，币种见 Currency）" />
+        <Column Name="Currency" DataType="String" Length="10" Nullable="False" Description="币种（默认 CNY）" />
+        <Column Name="EffectiveFrom" DataType="DateTime" Nullable="False" Description="生效起始时间" />
+        <Column Name="EffectiveTo" DataType="DateTime" Description="生效结束时间（null 表示长期有效）" />
+        <Column Name="IsEnabled" DataType="Boolean" Description="是否启用" />
+        <Column Name="CreatedTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Model" />
+        <Index Columns="Provider" />
+        <Index Columns="Model,Provider" />
+        <Index Columns="IsEnabled" />
+      </Indexes>
+    </Table>
+    <Table Name="CostBudget" Description="成本预算规则">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="Name" DataType="String" Master="True" Length="100" Nullable="False" Description="规则名称" />
+        <Column Name="Scope" DataType="String" Length="20" Nullable="False" Description="作用域（global/model/session）" />
+        <Column Name="Target" DataType="String" Length="100" Description="作用目标（Scope=model 时为模型名；session 时为会话键；global 为 null）" />
+        <Column Name="LimitAmount" DataType="Decimal" Description="额度上限（币种见 Currency）" />
+        <Column Name="Currency" DataType="String" Length="10" Nullable="False" Description="币种（默认 CNY）" />
+        <Column Name="Period" DataType="String" Length="20" Nullable="False" Description="周期（daily/monthly）" />
+        <Column Name="AlertThreshold" DataType="Double" Description="告警阈值（0-1，达此比例触发横幅）" />
+        <Column Name="CreatedTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Scope" />
+        <Index Columns="Scope,Target" />
+      </Indexes>
+    </Table>
+    <Table Name="CostTurnDaySummary" Description="成本按日惰性汇总">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="Day" DataType="DateTime" Master="True" Nullable="False" Description="汇总日（按日期截断；FR-3.7 口径为 Day×Model，故以日为寻址主键）" />
+        <Column Name="Model" DataType="String" Length="100" Nullable="False" Description="模型名称" />
+        <Column Name="Provider" DataType="String" Description="供应商（经 A4 四级解析；未归属时留空，不猜）" />
+        <Column Name="PromptTokens" DataType="Int64" Description="提示词 token 累计" />
+        <Column Name="CompletionTokens" DataType="Int64" Description="补全 token 累计" />
+        <Column Name="TotalTokens" DataType="Int64" Description="总 token 累计" />
+        <Column Name="CostAmount" DataType="Decimal" Description="当日成本金额（币种见 Currency）" />
+        <Column Name="CostIsLowerBound" DataType="Boolean" Description="true=含未配单价未知段，本值仅为下界（BR-2，绝不静默计 0）" />
+        <Column Name="Currency" DataType="String" Length="10" Nullable="False" Description="币种（默认 CNY）" />
+        <Column Name="FailCount" DataType="Int32" Description="失败轮次数（BR-4：失败不计成本，但必须留痕）" />
+        <Column Name="TurnCount" DataType="Int32" Description="轮次计数" />
+        <Column Name="SessionKey" DataType="String" Length="64" Description="来源标注：跨会话汇总写 *；按会话查询时写具体会话键" />
+        <Column Name="CreatedTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdatedTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Day" />
+        <Index Columns="Model" />
+        <Index Columns="Day,Model" Unique="True" />
+        <Index Columns="Day,Provider" />
+      </Indexes>
+    </Table>
+    <Table Name="CostSettings" Description="成本插件设置">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="Key" DataType="String" Master="True" Length="64" Nullable="False" Description="设置键（唯一）" />
+        <Column Name="Value" DataType="String" Length="-1" Description="设置值（JSON 或纯文本）" />
+        <Column Name="Description" DataType="String" Length="256" Description="说明" />
+        <Column Name="UpdatedTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="Key" Unique="True" />
+      </Indexes>
+    </Table>
+  </Tables>
+</EntityModel>

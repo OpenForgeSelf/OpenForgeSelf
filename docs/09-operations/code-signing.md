@@ -56,7 +56,25 @@ $s = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe'
 & $s verify /pa publish\ForgeSelf.exe
 ```
 
-预期：退出码 0，输出含 `Signing Certificate Chain`、时间戳由 `DigiCert` 等 TSA 签署。
+预期：退出码 0，输出含 `Signing Certificate Chain`、时间戳由候选链中的某家 TSA 签署
+（2026-10-06 起多点回退：`sectigo → digicert → globalsign → comodoca`，具体哪家取决于当时哪家响应正常，
+所以**校验口径看 `Status=Valid` + 有时间戳，不要断言特定 TSA 名**）。
+
+补签/换时间戳源：
+
+```powershell
+# 把某家排到候选链最前（仍会回退到内置列表）
+.\scripts\sign-publish.ps1 -PublishDir publish -TimestampServer 'http://timestamp.sectigo.com'
+
+# 自定义回退顺序
+.\scripts\sign-publish.ps1 -PublishDir publish -TimestampFallbacks 'http://timestamp.sectigo.com','http://timestamp.digicert.com'
+```
+
+单点时间戳为什么必须回退：2026-10-06 实测 `release-local -Sign` 跑到**最后一段**被
+`SignTool Error: The specified timestamp server either could not be reached or returned an invalid response`
+挡死（`Number of files successfully Signed: 0`）⇒ **zip 根本不产出**，前面 8 分钟构建全废。
+同刻 `curl` 实测 sectigo/globalsign/comodoca/digicert 均可达且都能签成 ⇒ 是间歇故障，不是配置错。
+**不要用 `-NoTimestamp` 绕**：无时间戳的签名在证书 2029-09-26 到期后即失效，属"签名无效的包不得交付"。
 
 ## 6. 局限性（何时需要公共信任证书）
 

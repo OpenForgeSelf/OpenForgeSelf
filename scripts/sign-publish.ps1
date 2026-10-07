@@ -11,6 +11,12 @@
 #   .\scripts\sign-publish.ps1 -PfxPath a.pfx -PfxPassword xxx   # 使用 pfx（商业/云证书）
 #   .\scripts\sign-publish.ps1 -ExportPfx <路径>    # 自签时同时导出 pfx 备份（含私钥，慎存）
 #   .\scripts\sign-publish.ps1 -NoTimestamp         # 跳过 RFC3161 时间戳（离线环境；证书过期后签名失效）
+#   .\scripts\sign-publish.ps1 -TimestampServer X   # 把 X 排到候选链最前（仍会回退到内置列表）
+#   .\scripts\sign-publish.ps1 -TimestampFallbacks @('...')  # 自定义回退顺序
+#
+# 时间戳（2026-10-06 改为多点回退）：默认依次试 sectigo / digicert / globalsign / comodoca。
+#   原由：单一 digicert 本机实测会间歇返回无效响应，签名段一 throw，整条 release-local 链
+#   走到最后一步拿不到 zip（2026-10-06 22:33 实证）。仍**禁止**用 -NoTimestamp 交付给人装的包。
 #
 # 说明：证书策略可插拔——先用自签跑通流程，将来换商业/云证书只需传 -PfxPath，
 #       脚本其余逻辑无需改动。
@@ -25,7 +31,13 @@ param(
     [switch]$AllAssemblies,
     [switch]$Force,
     [switch]$NoTimestamp,
-    [string]$TimestampServer = 'http://timestamp.digicert.com',
+    [string]$TimestampServer = '',
+    [string[]]$TimestampFallbacks = @(
+        'http://timestamp.sectigo.com',
+        'http://timestamp.digicert.com',
+        'http://timestamp.globalsign.com/tsa/r6advanced1',
+        'http://timestamp.comodoca.com/rfc3161'
+    ),
     [int]$ValidYears = 3
 )
 
@@ -174,7 +186,18 @@ if ($targets.Count -eq 0) {
     exit 1
 }
 
-Write-Host "[4/5] 待签名 $($targets.Count) 个文件（时间戳: $(if ($NoTimestamp) { '关闭' } else { $TimestampServer })）" -ForegroundColor Cyan
+# 时间戳候选链：-TimestampServer 若给了就排最前（保留原覆盖用法），其后接回退列表，去重。
+$tsaCandidates = @()
+if (-not [string]::IsNullOrWhiteSpace($TimestampServer)) { $tsaCandidates += $TimestampServer }
+if ($TimestampFallbacks) { $tsaCandidates += $TimestampFallbacks }
+$tsaCandidates = @($tsaCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+if (-not $NoTimestamp -and $tsaCandidates.Count -eq 0) {
+    Write-Host '[错误] 时间戳已启用但候选列表为空（-TimestampServer / -TimestampFallbacks 都被清空），' -ForegroundColor Red
+    Write-Host '      请显式传 -NoTimestamp（离线，证书到期后签名即失效）或给至少一个 -TimestampFallbacks。' -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "[4/5] 待签名 $($targets.Count) 个文件（时间戳: $(if ($NoTimestamp) { '关闭' } else { $tsaCandidates -join ' -> ' })）" -ForegroundColor Cyan
 
 $signed = 0
 $skipped = 0
@@ -192,11 +215,29 @@ foreach ($file in $targets) {
         }
     }
 
-    $signArgs = @('sign', '/fd', 'SHA256', '/td', 'SHA256', '/sha1', $cert.Thumbprint, '/v')
-    if (-not $NoTimestamp) { $signArgs += @('/tr', $TimestampServer) }
-    $signArgs += $file.FullName
+    # 逐个候选时间戳服务尝试：任一返回无效响应不再让整条发布链断在这里（2026-10-06 实测：
+    # 单一 digicert 间歇 "could not be reached or returned an invalid response"，签名段一挂 zip 就出不来）。
+    # 空串 = 不带时间戳（-NoTimestamp 路径）。文件被占用与 TSA 无关，不重试。
+    $tsaList = if ($NoTimestamp) { @('') } else { $tsaCandidates }
+    $result = $null
+    foreach ($tsa in $tsaList) {
+        $signArgs = @('sign', '/fd', 'SHA256', '/td', 'SHA256', '/sha1', $cert.Thumbprint, '/v')
+        if ($tsa) { $signArgs += @('/tr', $tsa) }
+        $signArgs += $file.FullName
 
-    $result = Invoke-Native -Exe $signtool -Arguments $signArgs
+        $result = Invoke-Native -Exe $signtool -Arguments $signArgs
+        if ($result.ExitCode -eq 0) {
+            if ($tsa -and $tsa -ne $tsaList[0]) {
+                Write-Host "      （回退命中）时间戳: $tsa" -ForegroundColor Yellow
+            }
+            break
+        }
+        if ($result.Text -match 'being used by another process|Access is denied|共享冲突') { break }
+        if ($tsa) {
+            Write-Host "      时间戳不可用，换下一个: $tsa" -ForegroundColor Yellow
+        }
+    }
+
     if ($result.ExitCode -eq 0) {
         Write-Host "      已签名: $($file.Name)" -ForegroundColor Green
         $signed++
@@ -208,7 +249,7 @@ foreach ($file in $targets) {
             Write-Host "      被占用，无法写入: $($file.Name)（多半是实例正在运行，停止后重跑即可）" -ForegroundColor Yellow
         }
         else {
-            Write-Host "      签名失败: $($file.Name)" -ForegroundColor Red
+            Write-Host "      签名失败: $($file.Name)（已试时间戳: $($tsaList -join ', ')）" -ForegroundColor Red
             Write-Host $text.Trim() -ForegroundColor DarkRed
         }
         $failed++

@@ -1,9 +1,9 @@
 {
   "Id": "todo-tracker",
   "Name": "待办追踪插件",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Author": "ForgeSelf Team",
-  "Description": "待办事项追踪插件，提供 CRUD REST API、独立管理页与 AI 工具函数。",
+  "Description": "待办/任务台账：可向 agent 下发的工作单元（目标·正文·允许禁止范围·验收判据·验证命令），项目路径归一关联，工件组装正文，append-only 执行记录，一键经 agent-hub 委派执行。",
   "IconUrl": "https://example.com/todotracker-icon.png",
   "EntryAssembly": "TodoTracker.dll",
   "EntryType": "ForgeSelf.Api.Plugins.TodoTracker.TodoTrackerPlugin",
@@ -16,6 +16,7 @@
     "views": ["TodoView"],
     "menu": "待办事项",
     "route": "/todo",
-    "icon": "fa-check-square"
+    "icon": "fa-check-square",
+    "entry": "web/dist/index.js"
   }
 }

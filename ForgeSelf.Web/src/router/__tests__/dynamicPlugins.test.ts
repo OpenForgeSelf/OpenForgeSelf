@@ -70,7 +70,9 @@ describe('dynamicPlugins 动态视图挂载', () => {
         id: 'demo-conflict',
         name: '冲突演示插件',
         isEnabled: true,
-        frontend: { views: ['TodoView'], menu: '待办事项', route: '/todo' },
+        // 带 entry：走「插件自带 web/ 远程加载」分支（宿主已无待办视图回退映射），冲突判定才有意义。
+        // 视图名用中性替身，不与任何真实插件视图绑定——本用例只关心路径冲突与让位。
+        frontend: { views: ['DemoRemoteView'], menu: '待办事项', route: '/todo', entry: 'web/dist/index.js' },
       }),
     ])
 
@@ -139,7 +141,8 @@ describe('dynamicPlugins 动态视图挂载', () => {
         id: 'todo-tracker',
         name: '待办追踪插件',
         isEnabled: true,
-        frontend: { views: ['TodoView'], menu: '待办事项', route: '/todo', icon: 'fa-check-square' },
+        // views 用远程加载的替身名：幂等用例只断言路由名，不解析真实视图
+        frontend: { views: ['DemoRemoteView'], menu: '待办事项', route: '/todo', icon: 'fa-check-square', entry: 'web/dist/index.js' },
       }),
     ]
 

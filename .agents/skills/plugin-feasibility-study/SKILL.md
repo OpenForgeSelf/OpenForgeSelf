@@ -107,7 +107,12 @@ description: 新建 / 评估 OpenForgeSelf 插件前的「立项 · 可行性研
 
 ## 七、完成定义与衔接
 
-- 立项产出（`specs/<NNN>-<slug>/{research,feasibility,design}.md` + 命名 + **用户拍板**）齐活，本技能即完成。
+- 立项产出（调研 / 可行性 / 设计 / 命名 / **用户拍板**）齐活，本技能即完成。
+  **产物落点（2026-10-06 更正，优先于本文其它位置写的 `specs/<NNN>-<slug>/...`）**：本仓 `specs/` 与 speckit
+  **已弃用**（AGENTS.md §9），一律改落 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 并按 §11 九阶段命名：
+  调研+可行性 → `00-repository-understanding.md` + `01-intent.md`；设计方案 → `02-spec.md` + `03-plan.md`
+  （命名节与决策清单 D* 也在 03）；拍板后的工作单元 → `04-task.md`（Allowed/Forbidden）。
+  ⚠️ 立项产出（00~04）**必须经用户批准（闸门1）才能开写代码**；未批即改业务文件 = 流程违规。
 - **下一步**：用户确认后转 `plugin-development`（实现 → 门禁 → e2e → 发布 → 走查）。
 - **复盘回写（技能自进化闭环）**：插件做完后，把
   - 新坑事实（踩过的环境 / 协议 / 热重载坑）
@@ -126,3 +131,24 @@ description: 新建 / 评估 OpenForgeSelf 插件前的「立项 · 可行性研
 > 重建内容依据 `.workbuddy/memory/2026-09-19.md:13,17` 与 `.forgeself/memory/2026-09-20.md:38-42`
 > 的记载（职责 / 5 步流程 / 名实相符三问 / 流程图强制清单 / 扩展性四问 / 技能边界）。
 > 若原文件有上述记载之外的细节，请补充。
+
+---
+
+## 九、立项阶段的三条实证经验（2026-10-06 · PILOT-053 ToolBridge）
+
+1. **"能力真空"必须 grep 出来，不能靠感觉。**
+   本插件立项时先证明"全仓没有任何从 AI 自由文本里解析工具调用的代码"
+   （`tool_calls`/`function_call` 只出现在协议网关的字段名与事件名归一化里，唯一的抠 JSON 函数
+   `AIAgentService.ExtractJson` 服务于工作流计划），才判"可做且非重复建设"。
+   同时把两个"看着像"的候选用实读否掉：`McpService.TestToolAsync` 是 `Thread.Sleep` + 恒 `Success=true` 的**假端点**；
+   `FileTools` 只有批量运维面（rename/cleanup/archive/stats），没有内容读写面。**结论写进 00，全部带 文件:行号。**
+2. **命名要过三问，并写出"与近邻插件的边界"。**
+   `ToolBridge`（工具桥）过问的依据：桥=双向，覆盖五个职责段（送出去/接进来/跑掉/送回/留档），
+   且不含 `Paste`/`Manual`/`WebChat` 这类手段词；与 `AgentHub`（委派本机已装 agent 进程）、
+   `McpCenter`（协议网关）、`FileTools`/`ScriptRunner`（给人用的执行面）逐条写出区别。
+   反例教训仍是 `CliAgent`——名字把职责锁死在交互手段上，后来改名重做浪费一轮。
+3. **"能不能复用既有实现"要查到依赖结构那一层。**
+   想复用内置 agent 的命令守卫时，实读 `ForgeSelf.Core.csproj`（**零 PackageReference**）与
+   `ForgeSelf.Abstractions.csproj`（只引 DI.Abstractions）才发现含 `XTrace` 的纯函数根本上移不了
+   ⇒ 决策从"合并成一份"改成"插件自带 + 跨实现对账测试 + 真共享另立批次出 ADR"。
+   **教训：可行性结论不能停在"逻辑上能复用"，要落到"引用得到吗、加了会不会动内核"。**

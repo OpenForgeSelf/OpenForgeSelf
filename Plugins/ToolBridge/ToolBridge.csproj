@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ToolBridge</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.ToolBridge</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Microsoft.NET.Sdk（非 Web SDK）不含 ASP.NET Core 隐式 using，补全局 Using（同 AIAgent 形状） -->
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="System.Text.Json" />
+    <Using Include="System.Text.Json.Nodes" />
+    <Using Include="System.ComponentModel" />
+    <!-- 插件内 DTO 与服务同树，省掉每个 Service 文件一行 using（形状同 AIAgent 的全局 Using 段） -->
+    <Using Include="ForgeSelf.Api.Plugins.ToolBridge.Models" />
+  </ItemGroup>
+
+  <!-- 本插件无实体（台账走 JSON 文件，PILOT-053 决策 D2），故只引 NewLife.Core 取 XTrace，不引 NewLife.XCode -->
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

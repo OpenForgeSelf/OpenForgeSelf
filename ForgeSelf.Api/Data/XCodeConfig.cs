@@ -34,6 +34,10 @@ public static class XCodeConfig
         // key=连接名（PascalCase，须与 Data/Model.xml 的 ConnName 一致），value=插件 Id（kebab，须与 plugin.json 一致）。
         ["FileTools"] = "file-tools",
         ["DesignSystem"] = "design-system",
+        // 批次D（PILOT-033 LLM 可观测性）：CostScope 成本观测插件自有库。
+        // key=连接名（PascalCase，须与 Data/Model.xml 的 ConnName 及 CostScopeDbNaming.ConnName 一致）；
+        // value=插件 Id（kebab，须与 plugin.json 的 Id 一致）。
+        ["CostScope"] = "cost-scope",
     };
 
     /// <summary>

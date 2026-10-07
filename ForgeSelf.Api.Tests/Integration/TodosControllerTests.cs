@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.TodoTracker.Controllers;
 using ForgeSelf.Api.Plugins.TodoTracker.Models;
@@ -9,12 +10,16 @@ using Xunit;
 namespace ForgeSelf.Api.Tests.Integration;
 
 /// <summary>
-/// TodosController 集成测试（直接构造控制器 + TodoService，依赖 XCodeTestFixture 建表）
+/// TodosController 集成测试（直接构造控制器 + TodoService，依赖 XCodeTestFixture 建表）。
+/// PILOT-054 起控制器多了下发服务参数；本文件只验旧端点（CRUD/完成/重开/分页），
+/// 下发侧一律给缺席桩 —— 桩不参与断言，出现被调用即说明旧端点在偷偷做下发的事。
 /// </summary>
 [Collection("XCode")]
 public class TodosControllerTests : IClassFixture<XCodeTestFixture>
 {
-    private readonly TodosController _controller = new(new TodoService());
+    private static ITodoDispatchService NoDispatch => new Mock<ITodoDispatchService>().Object;
+
+    private readonly TodosController _controller = new(new TodoService(), NoDispatch);
 
     public TodosControllerTests(XCodeTestFixture fixture)
     {
@@ -22,7 +27,7 @@ public class TodosControllerTests : IClassFixture<XCodeTestFixture>
 
     private static async Task<int> CreateTodoAndGetIdAsync(string title)
     {
-        var controller = new TodosController(new TodoService());
+        var controller = new TodosController(new TodoService(), NoDispatch);
         var result = await controller.CreateTodo(new CreateTodoRequest { Title = title });
         var created = (ObjectResult)result.Result!;
         return ((ApiResponse<TodoDto>)created.Value!).Data!.Id;

@@ -3,7 +3,7 @@
 规范定位: 打包·升级·备份·缓存 目录结构与生命周期规则——**唯一真源**
 状态: 真源建立（2026-09-28，输入30）；批次1（输入31）与批次2（输入34）已全部实施：插件去 _backups / 更新缓存应用后清理 / Backups 退役 / 图片缓存 TTL / 宿主 QQNT 式 versions 结构（根启动器 + 发布脚本布局 + update-agent 版本化应用 + 008 冻结）；输入36 单文件化**部分实施**：公共层 FDD 单文件启动器 + DOTNET_ROOT 结构运行时已落地并验证（启动器进程模式、退出码透传、组装 zip），业务层 FDD 单文件 publish 已于 2026-09-29 随 040-B1 收口验证；输入37 目录命名统一小写**已实施**（Plugins/Data/Log/Config → plugins/data/log/config，代码+脚本+测试+文档；update-agent 带存量目录规范化；日志外置数据根/log）；**2026-10-02 输入9/输入10：版本号规则改为「三段号 + 时间码」（§4-R10），废止输入43 双轨**
 最后更新: 2026-10-02
-关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、008-tray-service-autoupdate.md（036 链路功能文档）、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
+关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow/README.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、008-tray-service-autoupdate.md（036 链路功能文档）、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
 ---
 
 # 打包·升级·备份·缓存 —— 目录结构与生命周期规范（唯一真源）
@@ -13,7 +13,7 @@
 本文是「**打包 / 宿主自更新 / 备份 / 缓存 / 安装目录结构**」相关规则的**唯一真源**：
 
 1. **目录结构、版本保留策略、备份与缓存生命周期规则**以本文为准；
-2. AGENTS.md、agent-workflow.md（B4/B5/B10）、035/036/038 功能文档、插件技能、发布脚本中的相关描述**只保留操作流程与踩坑记录，不再承载目录结构事实**，并引用本文；
+2. AGENTS.md、agent-workflow/README.md（B4/B5/B10）、035/036/038 功能文档、插件技能、发布脚本中的相关描述**只保留操作流程与踩坑记录，不再承载目录结构事实**，并引用本文；
 3. 规则冲突时以本文为准。**现状事实以代码为准（标注代码位置）**；**目标规则以本文为准（标注「目标」）**；未实施的规则不得被当作已实现写入其他文档。
 
 ---
@@ -31,7 +31,7 @@
 | 发版/发布 | `make-release-notes.ps1` / `publish-release.ps1` | tag 注解→RELEASE-NOTES；`gh release create` |
 | CI | `.github/workflows/release.yml` | tag `v*` 触发，只调 `release-local.ps1` + `publish-release.ps1`。**本地复现 CI 必须用同参数（不带 `-SkipFrontend`）**：该开关会跳过前端构建段（`vue-tsc -b`），2026-10-02 输入12 实测「本地带 `-SkipFrontend` 全绿、CI 在 `vue-tsc` 处失败」——本地发布链验证不得跳段 |
 | 版本号机制 | ForgeSelf.Api.csproj / ForgeSelf.Bootstrapper.csproj（VersionPrefix 2.3 + VersionSuffix 0.<yyMMddHHmm>）+ scripts/release/release-local.ps1（发行串单点生成）+ new-version.ps1（辅助打印） | **2026-10-02 起新规则（输入9/输入10）：发行串 = 三段号 + 时间码** —— `V = <major>.<minor>.<patch>.<yyMMddHHmm>`（10 位时间码，例 `2.3.0.2609161125`）；git tag / `versions/<ver>/` 目录名 / `versions/current` / zip 名 / 两个 exe 的 FileVersion+ProductVersion / 设置页「当前版本」**全部同一串**。发行串由 `release-local.ps1` 单点生成（显式 `-Version 2.3.0` → 自动补时间码；4 段 → 幂等原样；CI tag / 本地缺省串 `0.0.0-local` 原样不改写）并逐级注入 publish-host / publish-bootstrapper。**废止输入43 的「发行号与文件版本各司其职」双轨**。完整规则、代价与踩坑（CS7035 / NuGet NU1105 / 世代比较）见 §4-R10 |
-| Authenticode 签名 | scripts/sign-publish.ps1（经 `release-local.ps1 -Sign` 调用，签名在 zip 打包前） | **签名策略（2026-10-04 输入11 定稿）：本地发布＝必带签名，流水线＝默认不签**。凡**给人装的本地宿主包**（`release-local.ps1` 出到本地更新源、交给用户点「重启并更新」的那一类）**必须显式加 `-Sign`**，签名无效的包不得交付；CI 流水线**默认不传** ⇒ 不签（原因：自签证书生成会把 GitHub runner 卡死 20min+，run 36664225915 两次实测，见变更记录 2026-09-30 行）。签与不签都走同一条 `release-local.ps1 -Sign` 通道：自签证书 CN=OpenForgeSelf 铸己匣 自动生成/复用 + certutil 静默信任 + signtool SHA256 + DigiCert RFC3161 时间戳；商业证书传 -PfxPath/-PfxPassword 可插拔；指纹记录 .forgeself/codesign-thumbprint.txt（CI 可 -Thumbprint 复用）。**递归签全部 exe**（顶层根启动器 + `versions/<ver>/` 业务层每版快照），漏签会破坏多版本回滚的签名一致性 |
+| Authenticode 签名 | scripts/sign-publish.ps1（经 `release-local.ps1 -Sign` 调用，签名在 zip 打包前） | **签名策略（2026-10-04 输入11 定稿）：本地发布＝必带签名，流水线＝默认不签**。凡**给人装的本地宿主包**（`release-local.ps1` 出到本地更新源、交给用户点「重启并更新」的那一类）**必须显式加 `-Sign`**，签名无效的包不得交付；CI 流水线**默认不传** ⇒ 不签（原因：自签证书生成会把 GitHub runner 卡死 20min+，run 36664225915 两次实测，见变更记录 2026-09-30 行）。签与不签都走同一条 `release-local.ps1 -Sign` 通道：自签证书 CN=OpenForgeSelf 铸己匣 自动生成/复用 + certutil 静默信任 + signtool SHA256 + **RFC3161 时间戳多点回退（2026-10-06 改，此前单点 DigiCert）**：默认候选链 `sectigo → digicert → globalsign → comodoca`，某个文件当前一家失败自动换下一家，全链仍失败才 throw；`-TimestampServer` 只是把某家排到最前，`-TimestampFallbacks` 可自定义顺序。**改此单点的原因（实测）**：2026-10-06 22:33 `release-local -Sign` 整条链跑到最后一段被 `SignTool Error: The specified timestamp server either could not be reached or returned an invalid response` 挡死，`Number of files successfully Signed: 0` ⇒ **zip 根本没产出**；同日 `curl` 实测该主机对四家 TSA 均可达、均能签成，即 digicert 是**间歇返回无效响应**（2026-10-04 亦红过一次），单点依赖＝发布链的可用性瓶颈。仍**禁止**用 `-NoTimestamp` 交付给人装的包（无时间戳＝证书 2029-09-26 过期即签名失效）；商业证书传 -PfxPath/-PfxPassword 可插拔；指纹记录 .forgeself/codesign-thumbprint.txt（CI 可 -Thumbprint 复用）。**递归签全部 exe**（顶层根启动器 + `versions/<ver>/` 业务层每版快照），漏签会破坏多版本回滚的签名一致性 |
 | 内置插件落位 | `scripts/release/package-release.ps1` 第 3 步（2026-10-04 输入18 改） | **内置插件必须留在 `versions/<ver>/plugins/`**：publish 产出什么就随版本进什么，不再复制到安装根、也不再从版本目录删除；版本目录里没有 `plugins/` 时脚本**当场 throw**（不许静默出"升级后 0 插件"的空包）。常驻守卫：`ForgeSelf.Api.Tests/RepositoryScriptTests.PackageRelease_MustKeepBundledPluginsInsideVersionDirectory`。运行侧判据见 §1.6 ③。
 | 插件打包 | `scripts/package-plugin.ps1`（输入27/038） | 产 `<id>-<ver>.forgeself-plugin`（plugin.json + 入口 DLL + web/dist；排除宿主共享 DLL）→ `artifacts/plugin-packages` |
 | 插件侧载 | `scripts/publish-plugin.ps1` / `publish-plugin-full.ps1` | 直落 stage 到 `Plugins/<id>/versions/<ver>/`（2026-09-28 输入31 去 _backups） |
@@ -100,6 +100,48 @@
 **启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + 托盘 + PluginManager **两路合并扫描插件根**（内置 `versions/<ver>/plugins/` 在前 + 数据目录 `~/.forgeself/plugins/` 在后，同 Id 按版本号裁决；版本化 current 生效）→ 用户点「检查更新」→ 宿主调用 → update-agent.ps1 下载新 zip → 落 `versions/<新ver>/` + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
 
 **职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务/后台服务/托盘=业务层进程（托盘管的就是本进程，故不拆独立程序）；更新=update-agent 独立脚本；插件=各自隔离程序集。一层一个程序，各做各的。
+
+---
+
+## 1.7 插件落位与生效裁决（速答表 · 2026-10-07 实测沉淀）
+
+> 立此节的原因：2026-10-07 用户连问「同名插件放两个根哪个生效」「内置根为什么是 PascalCase」「只发插件该放哪」，
+> §1.6 只有"同 Id 由版本号裁决"一句结论，**精度不够**（漏了"比的是哪份版本号""同版本谁胜""current 不参与"），
+> 命名成因与动线则完全没写 ⇒ 我又去读一遍代码、还脑补了一个不存在的 UI 入口。**下次先查本节。**
+
+| 问题 | 答案（含证据位置） |
+| --- | --- |
+| 两路根同名插件谁生效？ | **比版本号，高者胜**；**同版本则保留先扫者＝内置根**（内置在前）。`PluginManager.cs:299-353`（`winners` 字典 + `ComparePluginVersions` `:374-379`，`cmp<=0` 跳过）。日志形态：`同名插件按版本覆盖生效: <id> v1.0.2（来源 …\.forgeself\plugins\tool-bridge）取代 v1.0.0（来源 …\versions\<ver>\plugins\ToolBridge）` |
+| 比的是哪份版本号？ | **各插件目录「顶层扁平 `plugin.json`」的 `Version`**（`PluginManager.cs:320-330` 只读顶层清单）。⚠️ `versions/<ver>/` 与 `current` **不参与跨根裁决**——只放 `versions/1.0.3` 而不改顶层清单，裁决时它仍是旧版本 |
+| 那 `versions/<current>` 管什么？ | 管**胜者目录内部**加载哪份程序集：`versions/<current>/<入口DLL>` 优先、回退扁平（`PluginVersionLayout.cs:76-85`）；前端同理 `versions/<current>/web` 优先（`PluginFrontendFileMiddleware.cs:153-181`）。依赖解析吃**入口 DLL 同目录的 `deps.json`**（`PluginLoadContext.cs:29`）⇒ 版本目录必须自带 `deps.json` |
+| 目录名到底该是什么格式？ | **加载不认名字**（只认"子目录顶层有 plugin.json"，身份取清单 `Id`）。但**宿主代码约定＝kebab `metadata.Id`**：安装器建目录 `Path.Combine(_pluginsDirectory, metadata.Id)`（`PluginInstallerService.cs:60`）、版本服务同口径（`PluginVersionService.cs:126`）。**内置根里的 PascalCase 是构建链副产品**：`ForgeSelf.Api.csproj` 按工程名产出 `Plugins\ToolBridge\`，而 §4-R9/输入37 的小写归一**只改了外层 `Plugins→plugins`**（`package-release.ps1:71-78`），插件子目录名没人动 ⇒ 现状：内置根 PascalCase、数据根 kebab 并存，**不是规范，是遗留**（用户 2026-10-07 裁定：沿用现状，不做迁移） |
+| 只发一个插件该放哪？ | 放进**该插件实际所在的那个目录**（＝裁决胜者的 `metadata.PluginDirectory`）下的 `versions/<新版本>/`，含 `plugin.json` + 入口 DLL + `deps.json` + `web/dist/*`。**不要动 `current`、不要手改顶层清单**——那是宿主 `ActivateVersion` 的职责（切指针 + `SyncActiveManifest` + 热切换）。内置根场景**别用 `publish-plugin.ps1 -PluginsRoot <内置根>` 直跑**：它按 kebab 新建目录且只写 `versions/`，缺顶层清单 ⇒ 冷启动扫不到、更新判定也看不见（孤岛） |
+| 光放文件会生效吗？ | **不会**。文件系统监视器 2026-09-24 已移除（`publish-plugin.ps1` 头部原文），staged 副本只在「显式切换」或「冷启动」后生效。不重启的三条口子见 §1.8 |
+
+## 1.8 用户更新动线（2026-10-07 真访问宿主实测 · 含未修缺陷）
+
+**插件更新（不重启宿主）的真实路径**：地址栏 `http://<host>:<port>/plugins/updates` →「插件更新」页 → 目标插件行点「更新」（或右上「全部更新」）。
+后端动作＝`POST /api/plugin/update/{id}` → `ActivateVersion`：停旧 → 回收释放 DLL 句柄 → 切 `current` → `SyncActiveManifest` → 刷新元数据 → 从 `versions/<new>` 加载 → 裁剪旧版（`PluginVersionService.cs:215-260`）。
+
+**⚠️ 当前该动线不可发现（缺陷，未修）**：`/plugins`（插件市场）与 `/plugins/updates` **没有任何导航指向**——
+顶部导航只有 `首页 / AI Agent / 技能管理 / 系统监控`（可关闭标签，关掉就没了）+「所有功能」+「设置」；
+「所有功能」`/all-features` 是插件卡片墙只有「打开/配置」；「设置 → 插件管理」面板只有**「插件更新源」目录输入框**，无更新动作。
+另：插件市场 `onMounted` 不调 `checkForUpdates()`（`PluginStore.vue:245-250`），所以其左侧「可更新」角标恒空（数据源 `:290-294` 脱节）。
+⇒ 只能手输 URL。已记 TODO（P1 UX 债：入口可达性 3 处）。**汇报口径铁律**：说"入口在 X"必须先在真实页面走到一次（截图为证），不得由后端能力/路由表反推 UI。
+
+**三条不重启口子的判据**：
+
+| 口子 | 生效条件 | 坑 |
+| --- | --- | --- |
+| `POST /api/plugin/update/{id}` | `versions/` 最高 staged **>** 内存 `metadata.Version`（`:167-173`） | 若有人手工把顶层清单改成新版本 ⇒ 内存版本被抬高，判"已是最新"，**切换不发生**（2026-10-06 我踩过） |
+| `POST /api/plugin/rollback/{id}` `{version}` | 只校验 `versions/<version>/` 存在（`:200-205`），**不比版本号** | 最稳的强制激活；但页面入口是「版本历史」弹窗，而该弹窗受下述缺陷影响 |
+| `disable` → `enable` | 启用时重走 `ResolveEntryAssemblyPath`，`versions/<current>/` 优先 | 需 `current` 已指向目标版本 |
+
+**已知宿主缺陷（本批未修，见 TODO）**：① `PluginVersionService.cs:126` 用 `_pluginsDirectory + pluginId` 硬拼路径，
+不用 `metadata.PluginDirectory`、不跟随两路根 ⇒ 内置根 PascalCase 目录与数据根插件的**版本历史查不到**
+（实测 `GET /api/plugin/tool-bridge/versions` 只回内存那一条，`versions/1.0.3` 在盘上也不显示）⇒ 页面「回滚」按钮出不来；
+② `AppBuilder.cs:335-336` + `PluginVersionService.Initialize(pluginsPath)`（`AppBuilder.cs:390`）只喂内置根 ⇒ **数据根那一路无版本化能力**（Inferred，未实测）；
+③ `SyncActiveManifest` 只同步清单**不拷 DLL**（`:515-524`）⇒ 顶层扁平件可能长期是旧字节，`current` 丢失时回退到"显示新版跑旧版"。
 
 ---
 
@@ -191,7 +233,7 @@
 | 文档 | 引用方式 |
 |---|---|
 | `AGENTS.md` | §2.3 打包流程收敛为操作要点 + 引用本文（真源说明） |
-| `docs/04-standards/agent-workflow.md` | B5（插件体系与发布）、B10（CI 自动发布）顶部加引用；目录结构/备份事实不再重复定义 |
+| `docs/04-standards/agent-workflow/README.md` | B5（插件体系与发布）、B10（CI 自动发布）顶部加引用；目录结构/备份事实不再重复定义 |
 | `docs/02-features/035-plugin-versioned-layout.md` / `038-plugin-local-update-source.md` / `008-tray-service-autoupdate.md` | 关联段加引用（`_backups` 目标语义以本文 §3-T4/§4-R4 为准；036 升级链路以本文 §1.2/§3/§4 为准） |
 | `.agents/skills/plugin-development` / `plugin-publish-verify` | 关键事实速查加引用（活动目录/`_backups` 描述指向本文） |
 | 发布/升级脚本 | 头注释引用本文 |

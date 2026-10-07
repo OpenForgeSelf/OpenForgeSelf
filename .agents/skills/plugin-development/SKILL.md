@@ -145,6 +145,25 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
      错误信息（`no such table`）与真因（建表抛异常）相距极远，极难定位。
    - 宿主侧还有一处必登记：`ForgeSelf.Api/Data/XCodeConfig.cs` 的 `PluginDbs` 加一行（连接名 → 插件 Id），
      库文件才会落到 `数据根/Plugins/{插件Id}/{连接名}.db`；**插件内禁止自注册 `DAL.AddConnStr`**。
+12b. **【插件登记三处必齐铁律】新插件除 `PluginDbs` 外，还必须登记 `ForgeSelf.Api.csproj` 与（有单测时）`ForgeSelf.Api.Tests.csproj`，判据只看宿主产物**（2026-10-05 PILOT-033 A2→A3 实证）。
+   - **三处登记**：① `ForgeSelf.Api/Data/XCodeConfig.cs` → `PluginDbs[<ConnName>] = <插件Id>`（建库建表，见铁律 12）；
+     ② `ForgeSelf.Api/ForgeSelf.Api.csproj` 的插件 `ItemGroup` → `<ProjectReference Include="..\Plugins\<X>\<X>.csproj" ReferenceOutputAssembly="false" />`
+     （**只建构建顺序**；缺它 ⇒ `dotnet build ForgeSelf.Api` 根本不编译该插件，`StageAllPlugins` 拷不到 DLL，
+     `publish`/CI 包里 `Plugins/<X>/` **只有 plugin.json 没有 DLL** ⇒ 运行实例里插件永不出现。`:127` DesignSystem 注释记录的 MSB3030 同一病）；
+     ③ 插件业务要写单测时，`ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj` → `<ProjectReference Include="..\Plugins\<X>\<X>.csproj" />`
+     （缺它 ⇒ 测试编译报 **CS0234 命名空间…中不存在类型或命名空间名**；插件业务测试的目录约定 = `ForgeSelf.Api.Tests/Plugins/<X>Tests/`）。
+   - **判据必须是宿主产物，不是插件目录自建**：`cd ForgeSelf.Api && dotnet build` 后核对
+     `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<X>/<X>.dll` 存在，且与 `Plugins/<X>/bin/Debug/net10.0/<X>.dll` **md5 相同**
+     （或按下方「查 DLL 字符串」条用 `scripts/probe-dll-string.cjs` 确认本次新增类型 FOUND）。
+     ⚠ **`dotnet build Plugins/<X>/<X>.csproj` 单编插件不算数**——它证明的是插件自身可编译，证明不了它进了宿主构建图；
+     A2 当时正是拿这条报了「骨架完成」，缺陷一直到 A3 才暴露。
+   - **为何不能直接引用宿主**：插件 csproj 一律只 `ProjectReference` `ForgeSelf.Core` + `ForgeSelf.Abstractions`
+     （实测 19/19），宿主 `ForgeSelf.Api` 对插件是 `ReferenceOutputAssembly="false"`——注释原文「避免插件类型进入默认 ALC
+     造成与 PluginLoadContext 的双重加载」。⇒ 插件要读宿主实体（`ChatTurn`/`SessionEventEntity` 等，都在 `ForgeSelf.Api/Entities/`）
+     **只能经 Abstractions 契约 + 宿主实现 + DI**（同构先例：`IUsageStatsService` @ `Abstractions` →
+     `AppBuilder.cs` 注册 → `Plugins/DevTools`/`MemorySystem`/`ScriptRunner` 消费）。插件侧**零编译宿主类型**。
+   - **net10.0 vs net10.0-windows**：插件是 `net10.0`、宿主与测试工程是 `net10.0-windows`，构建日志会出 **MSB3271** 兼容关系告警。
+     这是既有形态、非阻断；判据看 `error` 计数与测试是否真执行，别为这条告警改 TFM。
 
 13. **【版本展示铁律】每个插件根视图必须在标题旁展示自身当前版本号。**
    - 根视图 header 标题旁加版本徽标（如 `v2.0.0`），数据从宿主 `GET /api/plugin` 解包
@@ -200,6 +219,56 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
     ② 后端 IMenuExtension 仅用于无自带界面插件的后端菜单贡献，其 Path 必须等于真实可导航目标，且与 manifest 声明不得并存冲突；
     ③ 任何插件 route 改名/增删必须同步更新 e2e/menu-route-consistency.spec.ts（§四门禁清单加一条）；
     ④ 纯后端无界面插件不得声明界面菜单（撤销或待界面立项后恢复）。
+20. **【新建带界面插件·lockfile 铁律】`Plugins/<X>/web/` 必须带 `pnpm-lock.yaml` + `pnpm-workspace.yaml`，否则发布链在 CI 红。**
+    `scripts/release/build-frontend.ps1` 对每个 `Plugins/*/web`（glob 自动发现，无需登记）跑
+    `pnpm install --frozen-lockfile && pnpm build`（`:39/:41`）——**没有 lockfile 时 `--frozen-lockfile` 直接失败**，
+    红在 frontend 段（本地出树构建能过 ⇒ 极易漏检，2026-10-06 ToolBridge 实证）。
+    最小可用组合（照抄 `Plugins/QuickLinks/web/`）：`package.json` devDependencies 只放
+    `@vitejs/plugin-vue` + `vite`；`pnpm-workspace.yaml` 写 `allowBuilds.esbuild: true` 与
+    `onlyBuiltDependencies: [esbuild]`（缺前者 esbuild postinstall 被跳过，vite 起不来）。
+    本机装 lock：`cd Plugins/<X>/web && TEMP=<repo>\.temp\tmp pnpm install --offline`
+    （store 已有同版本包时离线即可生成 lock；直连 registry 会被本机代理 TLS 证书拦）。
+    **交付前按 CI 同参数复现一次**：`pnpm install --frozen-lockfile && pnpm build`。
+
+21. **【输入形状矩阵铁律】凡"解析用户/外部文本"的功能，用例必须由**真实外部产物**驱动，且每种形状 × 「有无代码围栏」× 「裸发（无围栏）」各一条。**
+    实证（2026-10-06 ToolBridge，被用户当场抓住）：单测 **140/140 绿**，用户把网页 AI 的回复粘进界面点「解析」却报
+    "这段里没认出工具调用"。真因＝`CallParser` 只在 ``` 围栏**内部**试 JSON（`ParseFence`），正文区只走标签式/key=value；
+    而**从网页聊天复制代码块常常只带内容不带围栏**——这是该功能最常见的输入形态。
+    我写的用例全部自带围栏 ⇒ 覆盖的是我设想过形状，不是真实形状；"绿"因此毫无意义。
+    **机制化三条**（写这类功能时逐条落地，不许凭感觉）：
+    ① **拿到真实样例才收口**：spec 里标 `Unknown` 的输入样例（本例 U-1）属**阻塞项**，不是"备注"——
+       没有真样例就先别报"解析已完善"，要么向用户要一段原文，要么自己按最可能的形态补形状；
+    ② **围栏双向成对**：每种结构格式必须同时有"带 ``` 围栏"和"**裸发**（前后带散文）"两条用例；
+       裸发还要补一条**反向护栏**（散文中像结构却不是调用的内容，如工具目录 JSON，不得被硬掰成调用）；
+    ③ **界面空态文案要能自证成因**：报"没认出"时必须把解析器给的 `reason` 原文显示出来
+       （本例已具备，正因如此才定位到"未解析"而非"识别失败"）。
+    同场加一条环境教训（AGENTS §5.0 的又一实例）：`dotnet test` 的 TEMP 重定向**必须在 pwsh 内部赋值**
+    （`pwsh -Command "$env:TEMP='<repo>\.temp\tmp'; dotnet test …"`），在 Git-Bash 里 `export TEMP` **不会**传进
+    testhost ⇒ `ExecutorTests` 7 条 `UnauthorizedAccessException: …AppData\Local\Temp…is denied` 假红。
+    红先怀疑环境，但**必须用"同命令重跑 + 改赋值姿势"对照**才能定责，别拿"环境问题"当结论。
+
+22. **【交付动线成本铁律】每次"发布/更新/新界面"交付，必须走一遍"用户从收到我的消息到真正用上"的动线，并把步骤数与不可达入口写进证据；说"入口在 X"必须有真实页面截图为证。**
+    实证（2026-10-07 ToolBridge）：我把"更新插件"讲成"设置·插件管理 → 检查更新 → 更新"，用户回
+    「没有看见你说的插件管理哪里有更新操作哦 / 你访问宿主看看」——真访问宿主才知：更新页确实存在（`/plugins/updates`，
+    实测显示「发现 1 个可更新插件 · 工具桥 v1.0.2 → v1.0.3」），**但没有任何导航通向它**，只能手输地址；
+    而插件市场 `onMounted` 不调 `checkForUpdates()` ⇒ 「可更新」角标恒空。我先前那句路径是**照后端能力/路由表反推 UI** 得来的，
+    与"假能力"同一类错误（有端点 ≠ 用户可用），只是这次假的是入口而不是数据。
+    **三条机械动作**：
+    ① **动线走查归到 §四 第④步「走查」里做**（不新增第五步）：从"产物落位"开始，按用户视角一路点到生效，
+       逐步记录（点哪、看到什么、是否需要手输 URL/是否需要重启）；**出现"必须手输 URL""找不到入口"即记 P1 UX 债**，
+       不许以"功能已可用"交付。
+    ② **UI 断言必须有截图证据**：入口路径、按钮文案、角标数字，一律以 `screenshots/live-<端口>/` 或 e2e 截图为准；
+       没走到过就不要写"在 X 处点 Y"。（本条与 `design-system-verify` 的"假能力自查表"同源。）
+    ③ **动线成本写进 05-evidence**：新增一行「用户动线成本 = N 步 / 不可达入口 M 个 / 需重启?」，
+       与"门禁档位"并列；M>0 时任务状态不得写 COMPLETED（最多 PARTIALLY_COMPLETED）。
+
+23. **【真源优先问答铁律】插件的事实型问题（谁生效 / 放在哪 / 从哪进 / 会不会重启 / 这字段什么含义）一律先走 `AGENTS.md` §2.5 五步**：
+    查 `docs/README.md` §一「30 秒定位速查」→ 判精度 → 读码或走现场 → **回写同一份真源** → 带出处回答。
+    插件域最容易触发这条：两路插件根、`versions/<current>`、顶层扁平清单、热切换口子这些事实散在宿主代码里，
+    而 `packaging-upgrade-backup.md` §1.6 当年只有一句"同 Id 由版本号裁决"——精度不足、又没条文要求读完必须回写，
+    结果同一个问题 2026-10-07 被问了三次、我读了三遍码。
+    **两条判据**：① 文档里有句子 ≠ 够答——答不出"比的是哪个字段 / 哪段代码 / 界面上点哪"就是**精度不足**，按无真源处理；
+    ② **读完代码只回答、不回写 = 该问题仍未解决**（回写属免闸门1 的文档动作，写进被问的那份真源，别在第二处复制一份）。
 
 ---
 
@@ -251,6 +320,10 @@ Plugins/<PascalCase>/
 - 无 `entry` → 回退 `dynamicPlugins.ts` 里硬编码的主包组件映射（**存量兼容，新插件不要用**）
 
 ### 3.2 自带界面 `web/`
+
+> ⚠ **别手写 `web/`**（2026-10-06 实测）：手写 vite/pnpm 配置会同时踩「pnpm 11 构建白名单」与
+> 「vite 必须 lib 模式」两个坑，构建直接失败。**先跑下面的脚手架**，再改组件。
+> 两个坑的症状与修法见 `plugin-frontend-scaffold`「为什么不许手写 web/」。
 
 ```powershell
 pwsh .agents/skills/plugin-frontend-scaffold/scripts/scaffold-plugin-frontend.ps1 -Plugin <PascalCase>
@@ -330,7 +403,7 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 四、维护闭环（改完插件必走）
 
 ```
-读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
+读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e →（可选：本地预览给用户先体验，见下 👀；用户表露意图时必做）→ 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
 ```
 
 > ⚡ **开发态快速回路（2026-10-01 新增，仅 dev 宿主）**：本地迭代阶段不必走完整发布链——
@@ -340,6 +413,68 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 > - 改插件 UI：`pnpm run build`（或 watch 构建）→ 刷新页面即生效（内容指纹破缓存 + dev no-store）；
 > - 诊断：`GET /api/dev/diagnostics`（插件状态/最近错误/shadow 统计/日志尾，日志带 `[plugin:<id>]` 前缀）。
 > 完整五步闭环仍是**交付门禁**，快速回路只替代其中的"本地看效果"环节。
+
+> 👀 **给用户先体验一遍（本地预览，不发布）** —— **触发条件**：用户表露"我看看效果 / 先别发布 / 本地跑一下 / 传统起前后端"
+> 这类意图时，**直接按下面走**，不要继续往下发布、也不要拿 e2e 截图代替真人体验、更不要反问用户"要不要跑 e2e"。
+> 预览只是收反馈的环节，**不替代 §四 的任何一步**（预览完仍要 ③发布 ④走查 ⑤运行实例只读复验，且发布需授权）。
+>
+> 1. **先看端口，绝不碰用户实例**：`netstat -ano | grep -E "7102|7002"`。被占就换备用端口起；
+>    `:51888` 与 `D:\src\tools\ForgeSelf` 是**用户的运行实例，不停不杀不动配置**。
+> 2. **起后端**：`cd ForgeSelf.Api && dotnet run`（端口真源与"勿用 `--urls`"见
+>    `docs/04-standards/agent-workflow.md` §分层/鉴权/配置；改端口三选一：`FORGESELF_PORT` > `--server-port` > 改 config）。
+>    要边改边看就用上面 ⚡ 的 `FORGESELF_DEV_MODE=1 --plugins-dir <repo>/Plugins` + `scripts/dev-plugin.ps1`。
+> 3. **起前端**：`cd ForgeSelf.Web && pnpm run dev`（7002）。**后端换了端口就必须同时设**
+>    `VITE_APP_BASE_API=http://localhost:<后端端口>` —— dev 代理的 `/api` 与 `/plugins/**/web/**`
+>    默认打 7102（`ForgeSelf.Web/vite.config.ts:37-54`），不改会出现"页面开得了、接口全 404"。
+> 4. **交地址 + 交动线**：给用户 `http://localhost:7002<plugin.json.frontend.route>`，并说清**点几下、入口在哪**
+>    （侧栏菜单有没有项 / 只能直连 URL）、以及"这一步会真的写库"。动线说不清就是交付缺陷，不是小事。
+>
+> **四条必知的坑（2026-10-07 todo-tracker 预览实测）**
+> - **插件 UI 是远程加载的** ⇒ 预览前必须已 `dotnet build`（把 `plugin.json` + `web/dist/*` 落进
+>   `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<Id>/`）且插件前端 `pnpm build` 过。缺产物时页面落在
+>   `.plugin-view-state--error`；全新 worktree 里 `Plugins/*/web/dist` **一个都没有**（gitignored，见 `e2e-testing` §失败排查）。
+> - **鉴权**：插件管理面 API 带 `[Authorize("ApiKeyPolicy")]` ⇒ 浏览器要已有 `forge_api_token`。
+>   前端 `services/authInit.ts` 首启会自动打 `GET /api/init-token` 落 localStorage，正常不用管；
+>   若页面空态且 network 里是 401，先直接开 `http://localhost:<后端端口>/api/init-token` 或清 localStorage 刷新。
+> - **数据不互通**：dev 数据根 = 程序目录 `Data/`，发布/服务态 = `~/.forgeself`（真源 agent-workflow §运行时数据落盘铁律）
+>   ⇒ 预览实例是**空台账**，用户看不到自己现有数据。**起预览前就要一句话说明**，否则会被当成"数据丢了"。
+>   要让用户看真实数据只有一条路：发布 + 用户自己在真实实例启用新版本。
+> - **宿主启动会写回 `ForgeSetting.config`**（端口事故在册）⇒ 起完核对端口/配置未被改写；并行会话共用机器时
+>    优先 `FORGESELF_PORT` 起备用端口，别抢默认 7102。
+>
+> **2026-10-07 现踩现记的三条（预览专属，代价最高的一类）**
+> - **必须隔离数据根**：起预览就带 `FORGESELF_DATA_ROOT=<repo>\.temp\preview-data`。
+>   `dotnet run` 的 Development 判定来自 launchSettings，一旦绕开它（`--no-launch-profile`）或环境不匹配，
+>   dev 实例会把数据根解析成 **`~/.forgeself` = 与用户长期实例共用一份库和配置**。
+>   实测事故：预览实例对真实 `TodoTracker.db` 做了建表加列，并把 `ForgeSetting.config` 的 `PortNumber` 改成 7102
+>   （用户实例重启就会跑到 7102）。恢复三步：备份到 `.trash/` → 只改回目标值 → `Compare-Object` 逐行 diff 核对
+>   "只有那一行变了、行数与 CRLF 未变"。
+> - **同机已有实例 ⇒ 用环境变量换实例标识，别用命令行参数**：全局 Mutex 会拒启动
+>   （`错误：另一个实例已在运行，请勿重复启动。`）。正确写法是 env `FORGESelf_INSTANCE_ID=preview`
+>   （**大小写就是这样**）；`--instance-id=preview` 当 CLI 参数传会被 NewLife.Agent 当成服务命令
+>   （日志 `ProcessCommand cmd=--instance-id=preview` → `ProcessFinished`）然后**进程直接退出**——
+>   与"`--urls` 被吞"是同一类坑。
+> - **别替用户点 `init-token`**：`GET /api/api-server/init-token` 只在**首次**有效，调用即把 `IsFirstInit` 置 false，
+>   之后用户浏览器再拿不到 token（页面 401 空列表）。预览时只验 `200` 的静态资源与 `/api/health`，
+>   token 交给前端 `authInit.ts` 自己去取。
+> - **起完必查三件**：① 日志里 `运行时数据根目录` 落在隔离目录；② `~/.forgeself/config/*` 的 mtime 没被本次改动；
+>   ③ 用户实例端口仍在监听（`netstat`）。收尾时**只停自己起的**进程。
+>
+> **收尾**：预览进程是 agent 起的 ⇒ 记下 PID，用完**只停自己起的**；用户的实例一律不碰。
+
+> 🚶 **走查（④）不是发布产物的专属仪式，双绿不能替代它**（2026-10-07 todo-tracker 实证）：
+> 单测 226/226 + 插件层 e2e 8/8 的同时，用户明确要求的那条"一致的路径认为是同一个项目"在数据层是**坏的**
+> （点「关联项目」界面显示成功、路径也归一了，但 `ProjectId=0` ⇒ 项目过滤筛不到、`ListProjects` 计数恒 0、
+> 详情面板仍写「未关联项目」）。两道门禁都抓不到的原因是结构性的：
+> - **单测绕过了真实入口**：用例直接调 `Resolve(registerIfMissing: true)`，而坏的是服务层 `ApplyProjectFields` 的传参；
+>   且断言 `Distinct().HaveCount(1)` 缺阳性对照——**四个 `0` 也算"只有一个不同值"**。
+> - **e2e 断言了"回显"而不是"落库的身份"**：只查 `projectRoot` 有显示，没查 `projectId > 0` 与详情面板的关联态。
+>
+> 所以：**门禁绿之后、发布之前，先在 dev 预览实例用真浏览器走一遍主链路**（按 §3.4 交互清单逐项核对 +
+> 截图读图 + 只清自己造的测试数据），这一遍标注为"dev 态预走查"，**不冒充 §四④ 的发布产物版走查**
+> （发布后仍要用 `e2e` 隔离实例点一遍，⑤ 运行实例只读复验另有 `plugin-publish-verify`）。
+> 写判据时的两条硬规矩：**断言锚在真实服务入口的返回**（不是绕过它直调内层），**"计数/唯一性"断言必配阳性对照**
+> （先证"正确值确实可能出现"，再证"只出现一次"）。
 
 0. **改实体时（先做这一步，再改代码）**：按铁律 9 走
    `改 Data/Model.xml → cd Data && xcode Model.xml → 确认无字段漂移`；
@@ -423,3 +558,127 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 - **沙箱内起宿主进程跨工具调用会被回收**：`nohup ... &` 后下次工具调用 curl 返回 000。
   浏览器走查必须用 `run_in_background` 长驻宿主，用完 `TaskStop` 收掉；
   纯 API 验证则在同一 bash 调用内「启动 → curl → kill」完成。
+- **插件前端出树构建有正规脚本，别手搓 wrapper**：`pwsh scripts/build-plugin-web.ps1 -Plugin <PascalCase>`
+  已实现 §3.2 的兜底（复制到 `ForgeSelf.Web/.plugin-build-<id>/` + `publicDir:false` + 绝对 `--outDir` + 用完即删临时目录）。
+  手搓的临时配置容易把 `outDir` 相对层级写错（`.plugin-build-*` 在 `ForgeSelf.Web/` 下，回仓库根要 `../../`）。
+- **插件 csproj 用 global `Using` 收拢命名空间**：`<Using Include="ForgeSelf.Api.Plugins.<X>.Models" />` +
+  `System.Text.Json` / `System.Text.Json.Nodes` / `System.ComponentModel`，省掉每个 Service 文件四行 using；
+  漏 `System.ComponentModel` 会在 `Win32Exception`（进程启动失败分支）上编译断。
+- **想跨插件共享一个纯函数，先读两份共享层 csproj 再决定**：`ForgeSelf.Core` **零 PackageReference**、
+  `ForgeSelf.Abstractions` 只引 DI.Abstractions ⇒ 任何带 `XTrace`/NewLife 类型的代码都上移不了，
+  硬上移＝给内核层加依赖＝依赖结构变更（高风险，须出 ADR）。替代方案＝本地实现 + **跨实现对账测试**
+  （同一张金样表打两份实现，判定与原因原文逐条比），把"第二份真相"的漂移变成机器判据
+  （实证：PILOT-053 的 `ToolBridgeGuardParityTests`）。
+- **反向探针必须确认自己改了行为**：把探针代码放在 `return` 之后 = 不可达代码，跑出来照样全绿（2026-10-06 我自己中过一次）。
+  探针的判定标准是「**改动前后测试结果变化**」，不是「代码写上了」。
+- **`pnpm run check` 不等于"类型全绿"，发布链用的是 `vue-tsc -b`**：宿主 `check` 跑 `vue-tsc --noEmit`，
+  而 `pnpm build`（= 发布链 `build-frontend.ps1` 的第一段）跑 **`vue-tsc -b`（build 模式，按 tsconfig references 把 `e2e/**` 也编进来）**。
+  实证（2026-10-06 ToolBridge）：`check` 报 0 error、e2e 6 条运行时全绿，但发布链红在
+  `e2e/plugins/tool-bridge/tool-bridge.spec.ts error TS2559`（我把字符串当 `toHaveText` 的 options 传，Playwright 运行时容忍、类型不容忍）。
+  ⇒ **交付/发布前必须按同参数跑一次 `cd ForgeSelf.Web && npx vue-tsc -b`**；插件 e2e 用例里给断言写"说明文字"时，
+  一律用注释而不是第二个参数。
+- **本地发布给人装的包必须带 `-Sign`**（AGENTS.md §2.3 定稿）：
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version <三段号> -Sign -UpdateDir <上级目录>\updates`；
+  脚本自己把 `TEMP/TMP` 指进仓库 `.temp`（勿再手工改）。跑完**必须验包内容**而不是看退出码：
+  zip 存在 + `SHA256SUMS.txt` 逐字对 + L1/L2/L3 布局不变量 + 新插件真进 `versions/<ver>/plugins/<id>/`（DLL + plugin.json + web/dist）
+  + 两个 exe 的 FileVersion 与包名同串 + `signtool verify` 为 Valid（时间戳间歇失败 ⇒ 半签不得交付）。
+
+---
+
+## 七、常见坑（2026-10-06 CostScope 插件全程实测；症状 → 根因 → 修法）
+
+> 这一节只收「**真踩过**」的坑，按主题归类。前端构建两坑详见 `plugin-frontend-scaffold`「为什么不许手写 web/」。
+
+### A. 流程层：最贵的坑
+
+- **手写插件 `web/` 而不走 `plugin-frontend-scaffold`** → 连带踩 pnpm 11 构建白名单 + vite lib 模式两个坑，
+  构建直接失败。脚手架是整目录复制模板，模板里这些文件已经是对的。**先跑脚手架，再改组件。**
+- **.NET 全绿 ≠ 构建没问题**：本例 `dotnet build`（根 solution）**0 错误**，失败只在另一条构建链（前端）。
+  报「构建失败」时**先分清是哪条链**，别一头扎进 .NET。
+
+### B. 测试与守卫
+
+- **静态扫描守卫必须先剥注释再匹配**：文件里为了说明「**为什么**不能出现 X」必然会出现 X 的名字，
+  直接 `text.Contains("X")` 必然误报自己。两次踩到（`IHostedService` 守卫、`api/usage` 端点边界守卫）。
+  修法：扫前用 `StripComments` 去掉 `//`、`/* */`、`<!-- -->`。
+- **目录上溯 `while` 循环必须推进指针**：`while (dir is not null) { if (命中) return …; }` 漏写
+  `dir = dir.Parent;` ⇒ **死循环**，xUnit 表现为测试挂住不返回（实测挂 11 分钟才被察觉）。
+  写完这类循环立刻检查指针是否推进；xUnit 建议给测试方法加超时。
+- **探针判定标准是「改动前后测试结果变化」**，不是「代码写上了」——本技能第六章已强调，此处再确认一次：
+  每次写守门测试都要用 MUTATION 探针实测它会变红。
+
+### C. 后端 / 契约
+
+- **「新增防误覆盖」与「改价」必须是两个通道**：一个 `Save` 既当新增又当更新，结果「重复即拒绝」会把改价也堵死
+  （FR-3.4 改单价后历史重算直接不可实现）。拆成 `Save`（新增，重复且内容不同 ⇒ 拒绝）+ `Update`（要求已存在，
+  **不做 upsert**，否则掩盖「改了个不存在的模型」）。
+- **扩契约 DTO 必须同步契约测试里的字段清单**：「字段集一致」那条用例会立刻变红，而它变红是**正确的**
+  （提醒你清单要一起改），别误判成回归。
+- **服务层校验异常要映射 400，且刻意不捕获其它异常**：`ArgumentException`（含 `ArgumentOutOfRangeException`）
+  ⇒ 400 + 明确 message；**其它异常应如实冒泡为 500**，不能伪装成「参数错」（否则数据访问故障会被误诊）。
+- **查询类端点非法枚举值必须 400 + 列出可用值**，不得静默返回空表（02-spec Error Handling）。
+  注意口径：`null`（未传）可给默认值，但**显式传空串是客户端错误 ⇒ 400**。
+
+### D. XCode（本仓实体层）
+
+- `FindByXxx` **可能不存在**：索引非唯一时 XCode 只生成 `FindAllByXxx`（如 `FindAllByModel`，无 `FindByModel`）。
+  用前先 grep 生成的实体，别照抄名字。
+- `[InlineData]` **不能写 decimal 常量算术**（CS0182，如 `InPrice * 2`）⇒ 常量算术放方法体外，
+  或把测试方法改成普通方法 + 字面量。
+- `DAL` 在 **`XCode.DataAccessLayer`** 命名空间。
+- **record struct 的 `string` 字段默认是 `null`**（不是 `""`）：`acc.Key.Length` 会 NRE，
+  聚合累加时用 `string.IsNullOrEmpty(acc.Key)` 判首次入桶。
+- **插件库单测要自己 `DAL.AddConnStr` + 建表**（连不上宿主库）；注意 XCode 首次 `Insert` 会自动建表，
+  所以「反射调 `Meta.CreateTable`」其实可能静默没生效——别把它当权威结论。
+- **改 `Data/Model.xml` 后要重跑 `xcode`**，且 xcode 会**规范化 xml**（补默认值、去显式默认属性），
+  手改的 xml 与生成物会有差异，别以为是别人改的。
+
+### E. 宿主侧现状（不是本仓规范，是既成事实）
+
+- **宿主 `ForgeSelf.Api/Entities/` 下 30 个实体只有生成物、没有 `Model.xml`**（均生成于 2026-09-25）⇒
+  铁律 9/11「Model.xml 为真源、禁手改生成物」**在宿主侧从未成立**。
+  实测**重建不可行**：按当前列定义重建后逐行 diff 达数百行，且索引名不一致
+  （`..._Turn` vs 生成的 `..._TurnIndex`）会触发 XCode `CheckDeleteIndex` **删旧建新**，
+  生成的类还会丢掉 `: IChatTurnModel, IEntity<IChatTurnModel>`（接口生成配置未复现）⇒ 重新生成会编译失败。
+  ⇒ 要给宿主实体加列，**先请示用户**（备选：手改生成物 + 补模型 / 走近似关联不动表结构）。
+
+### F. 提交与验证：**工作区全绿 ≠ 提交内容正确**（2026-10-06 实证，最隐蔽的一类坑）
+
+- **症状**：收口时工作区跑测试 **227/227 全绿**，但在**干净检出**上跑同一套，立刻冒出 1 条自己范围内的失败。
+- **根因**：宿主侧那几处「一行改动」（`AppBuilder.cs` 的 DI 注册、`*.csproj` 的插件引用）在并行会话共享文件里
+  做「暂存后还原工作区」时**被当成别人的行留在了工作区**，从未入库。
+  而源码守卫类测试（读 `AppBuilder.cs` 断言含某行）读的是**工作区文件** ⇒ 未提交的行照样能读到，测试假绿。
+- **实证**：A3b 的 `builder.Services.AddScoped<ITurnTelemetryQuery, TurnTelemetryQueryService>()` 只在工作区、
+  未随 `032caa3` 入库 ⇒ 干净检出时宿主不注入 `ITurnTelemetryQuery`，插件取宿主数据的唯一通道**处于未接线状态**；
+  最终由守卫用例 `AppBuilder_注册了ITurnTelemetryQuery接缝` 在干净 worktree 全量回归中**实测转红**才暴露。
+- **硬要求（收口前必做）**：在**只含已提交内容**的干净检出上跑**全量**回归，而不是在工作区：
+
+  ```bash
+  git worktree add /d/tmp/ofs-verify <你的 HEAD>
+  cd /d/tmp/ofs-verify && dotnet test <TestProj>.csproj -v q --nologo   # 全量，不要 --filter
+  git worktree remove /d/tmp/ofs-verify --force
+  ```
+
+  判据：与基线（`git worktree add ... <你的起始提交>`）对比 —— **通过数应恰好 += 你新增的用例数，失败数不增加**；
+  若冒出的失败落在你的命名空间内 ⇒ 要么漏提交、要么真缺陷，二者都要修掉再收口。
+- **逐文件确认，别只看 `git status`**：`git status` 显示某共享文件为 `M` 时，里面可能**同时**有你的行和别人的行。
+  用 `git show <sha>:<file> | grep <你的唯一标记>` 逐个确认你的行**已在提交里**；
+  最直接的办法是整份 `git diff -- <file>` 看一遍归属（本例中 `AppBuilder.cs` 的未提交差异 100% 是我自己的行，
+  直接 `git add` 整个文件即可，反而不用走「取行」手法）。
+
+### G. 插件自带界面的三类"看着对"的缺陷（2026-10-07 todo-tracker 1.1.0 全程实测；只有跑 e2e + 读图才暴露）
+
+- **「点即保存」+「响应带整行快照」= 旧数据盖新数据**。连续失焦会连发多个 PUT，宿主日志证明**四个都落库了**，
+  界面却仍显示「还缺：验收判据、验证命令」——因为响应**乱序回来**，最后一次落地的是较早那次写的旧快照。
+  修法（普适，建议每个自带界面的插件都这么做）：前端 HTTP 封装把**非 GET 请求串成一条队列**（读不串），
+  于是"最后到达的响应必然是最新状态"。参考 `Plugins/TodoTracker/web/src/http.ts` 的 `dispatch/writeChain`。
+  写用例时**必须**同时断言两件事：界面翻对了 **且** REST 读回是真值（"界面翻对了不代表存对了"）。
+- **空列表时不许替后端编原因**。`artifact-sets` 返回 `data: []` 时前端固定显示「该项目没有 docs/ai/pilot 目录」，
+  而后端其实分得开"没目录"与"有目录但没匹配到 NN-*.md"，两种成因的下一步完全不同。
+  修法：取封套时**连 `message` 一起返回**（`requestEnvelope`），空态优先显示后端给的那句，后端没说才用自己的兜底文案。
+- **toast 会叠住你刚点过的控件**。四次失焦 = 四条「已保存」，实测正好压在「交给 AgentHub 执行」按钮上。
+  修法：同文案同类型**去重并重置计时**、同时最多 3 条（`notify.ts`）。读图时专门看一眼"提示有没有挡住入口"。
+- **禁用态的文案要分状态说**。委派按钮只用一个 fallback 文案（`先生成提示词`）时，"预览已生成但不可委派"
+  会撒谎。要么按状态给四种文案，要么把后端 `delegationError` 原文端出来。
+- **接口给了字段但界面没入口 = 假能力**。`preview.agents` 下发了 agent 候选却没有任何下拉，等于没做；
+  补成 `data-test="delegate-agent"` 下拉才算闭环（对齐 `design-system-verify` 的"假能力自查"思路）。

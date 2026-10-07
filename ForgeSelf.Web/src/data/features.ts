@@ -310,11 +310,13 @@ export const features: FeatureItem[] = [
     categoryLabel: '工具',
     color: '#3B82F6',
     bgColor: 'rgba(59, 130, 246, 0.12)',
-    description: '本地待办清单，跟踪个人任务',
+    description: '可下发给 agent 的任务台账：工作单元字段 + 项目路径关联 + 工件组装正文 + 执行记录',
     stats: '待办跟踪',
+    // 视图已随 PILOT-054 迁到插件自带 web/（Plugins/TodoTracker/web），故不再声明 views 信号，
+    // 否则 scripts/check-features.mjs 的幽灵页门禁会要求宿主 src/views 下存在对应的待办视图文件。
     enabled: true,
     path: '/todo',
-    signals: { plugins: ['TodoTracker'], views: ['TodoView'] },
+    signals: { plugins: ['TodoTracker'] },
   },
   {
     id: 'profile',

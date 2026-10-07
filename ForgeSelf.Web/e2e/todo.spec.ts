@@ -1,21 +1,26 @@
-import { test, expect } from '@playwright/test'
-import { injectRealApiKey } from './helpers/real-auth'
+import { test, expect, type Page } from '@playwright/test'
+import { getRealApiKey, injectRealApiKey } from './helpers/real-auth'
+import { backendUrl } from './helpers/e2e-env'
 
 /**
- * 待办追踪 E2E 测试 —— 对接真实后端 API（无 mock、真实认证）。
+ * 首页待办面板 E2E（应用层视角）—— 对接真实后端 API（无 mock、真实认证）。
+ *
+ * 归属说明（PILOT-054）：`/todo` 页面本身的用例已随界面迁移改由插件层 e2e 负责
+ * （`e2e/plugins/todo-tracker/todo-tracker.spec.ts`）；本文件只保留**首页面板**这一应用层视角 ——
+ * 它测的是 Home 插件如何消费 todo-tracker 的公开 API，属于跨插件集成，不归任一插件自己的 e2e。
  *
  * 设计原则：
- * - **零 mock**：不拦截任何 /api/* 请求，全部走真实后端（http://localhost:7102）
+ * - **零 mock**：不拦截任何 /api/* 请求，全部走真实后端
  * - **真实认证**：注入 ForgeSetting.config 解密出的真实 API 密钥
- * - **数据隔离**：每个用例用唯一名称（E2E-Real-*）创建自己的待办，
- *   用例结束立即删除；绝不依赖/污染他人数据（fullyParallel 下互不干扰）
- * - **无 waitForTimeout**：全部用 auto-waiting + waitForResponse
- * - **语义化 selector**：优先 getByRole/getByText/getByPlaceholder
+ * - **直连 API 也必须带 token**：PILOT-054 起 `api/todos*` 全部加了 `[Authorize("ApiKeyPolicy")]`
+ *   （铁律 17），浏览器里的界面由宿主注入 token 所以照常工作，但**本文件里自己发的 fetch 不会**——
+ *   不带就是 401 空响应体，`res.json()` 会炸成 "Unexpected end of JSON input" 把成因糊掉。
+ *   因此统一走 `todoJson()`：非 JSON 响应直接把状态码 + 原文抛出来。
+ * - **数据隔离**：每个用例用唯一名称（E2E-Real-*）创建自己的待办，用例结束立即删除
+ * - **地址取自 e2e-env**：端口由 globalSetup 动态派生（PILOT-050 起禁止硬编码 7102/7002）
  *
  * 覆盖范围：
- * - /todo 页面 CRUD 流程（创建 → 查看 → 完成 → 重开 → 删除）
- * - /todo 页面状态过滤（真实后端分页查询）
- * - 首页 `/` 待办面板：展示最近待办、快捷添加、跳转、完成
+ * - 首页 `/` 待办面板：展示最近待办、快捷添加、跳转 /todo、勾选完成
  * - 控制台无报错、UI 截图
  */
 
@@ -23,17 +28,29 @@ import { injectRealApiKey } from './helpers/real-auth'
 // 辅助函数
 // ============================================================
 
-const BACKEND_URL = process.env.E2E_BACKEND_URL ?? 'http://localhost:7102'
+const BACKEND_URL = backendUrl()
 const TODOS_BASE = `${BACKEND_URL}/api/todos`
+const AUTH_HEADER = { Authorization: `Bearer ${getRealApiKey()}` }
+
+/** 读 JSON，且把"非 JSON 的失败响应"原样端出来（401/404 的空体最容易糊掉成因）。 */
+async function todoJson<T>(res: Response): Promise<T> {
+  const text = await res.text()
+  if (!text) throw new Error(`${res.status} 空响应体（需鉴权的端点没带 token 就是这个形态）`)
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`${res.status} 响应不是 JSON：${text.slice(0, 200)}`)
+  }
+}
 
 /** 通过真实后端 API 创建待办，返回 id */
 async function createTodo(title: string, remark = ''): Promise<number> {
   const res = await fetch(TODOS_BASE, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...AUTH_HEADER },
     body: JSON.stringify({ title, remark }),
   })
-  const json = (await res.json()) as { success: boolean; data?: { id: number } }
+  const json = await todoJson<{ success: boolean; data?: { id: number } }>(res)
   if (!res.ok || !json.success || !json.data) {
     throw new Error(`创建待办失败: ${res.status} ${JSON.stringify(json)}`)
   }
@@ -42,223 +59,47 @@ async function createTodo(title: string, remark = ''): Promise<number> {
 
 /** 通过真实后端 API 标记完成（用于构造 Completed 测试数据） */
 async function completeTodo(id: number): Promise<void> {
-  const res = await fetch(`${TODOS_BASE}/${id}/complete`, { method: 'POST' })
-  if (!res.ok) throw new Error(`标记完成失败: ${res.status}`)
+  const res = await fetch(`${TODOS_BASE}/${id}/complete`, { method: 'POST', headers: AUTH_HEADER })
+  if (!res.ok) throw new Error(`标记完成失败: ${res.status} ${await res.text()}`)
 }
 
 /** 通过真实后端 API 删除测试待办（忽略 404） */
 async function deleteTodo(id: number): Promise<void> {
   try {
-    await fetch(`${TODOS_BASE}/${id}`, { method: 'DELETE' })
+    await fetch(`${TODOS_BASE}/${id}`, { method: 'DELETE', headers: AUTH_HEADER })
   } catch {
     // 清理阶段失败不影响用例结果，由 finally 兜底
   }
 }
 
+/**
+ * 记录**浏览器里**首页真实打过的后端响应。
+ * 「暂无待处理待办」这一种界面表现至少有三种成因（401 鉴权 / 500 / 200 但空表），
+ * 只看 DOM 分不出来；而"一次请求都没发"是第四种成因（首页聚合根本没跑起来），
+ * 所以这里收的是**全部 /api/ 响应**，不只 todos —— 用来区分"被拒"和"根本没发起"。
+ */
+function trackApiRequests(page: Page, sink: string[]): void {
+  page.on('response', r => {
+    const url = r.url()
+    if (!url.includes('/api/')) return
+    r.text()
+      .then(body => sink.push(`${r.request().method()} ${r.status()} ${url.slice(url.indexOf('/api/')).slice(0, 90)} ⇒ ${body.slice(0, 120)}`))
+      .catch(() => sink.push(`${r.request().method()} ${r.status()} ${url.slice(url.indexOf('/api/')).slice(0, 90)} （响应体读取失败）`))
+  })
+}
+
+/** 从收集到的响应里挑出 todos 相关的那几条（失败消息太长会淹没重点）。 */
+function todosOnly(sink: string[]): string {
+  const hits = sink.filter(l => l.includes('/api/todos'))
+  return hits.length ? hits.join(' | ') : `（无 todos 请求；首页共发了 ${sink.length} 个 /api/ 请求）`
+}
+
 // ============================================================
-// /todo 页面测试
+// /todo 页面本身的用例已随 PILOT-054 迁到插件层 e2e：
+//   e2e/plugins/todo-tracker/todo-tracker.spec.ts
+// （界面已从宿主 src/views 迁到 Plugins/TodoTracker/web/，本文件只保留首页面板这一应用层视角。）
 // ============================================================
 
-test.describe('待办追踪 /todo 页面（真实后端）', () => {
-  test.beforeEach(async ({ page }) => {
-    await injectRealApiKey(page)
-  })
-
-  test('T1: 页面加载并展示真实创建的待办', async ({ page }) => {
-    const title = `E2E-Real-T1-${Date.now()}`
-    const id = await createTodo(title, '来自真实后端的测试数据')
-    try {
-      await page.goto('/todo')
-      await expect(page.getByRole('heading', { name: '待办追踪' })).toBeVisible()
-      // 真实创建的待办出现在列表中（含备注）
-      await expect(page.getByText(title, { exact: true })).toBeVisible()
-      await expect(page.getByText('来自真实后端的测试数据')).toBeVisible()
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-
-  test('T2: 状态过滤 - 仅看待处理', async ({ page }) => {
-    const pendingTitle = `E2E-Real-T2P-${Date.now()}`
-    const completedTitle = `E2E-Real-T2C-${Date.now()}`
-    const pendingId = await createTodo(pendingTitle)
-    const completedId = await createTodo(completedTitle)
-    await completeTodo(completedId)
-    try {
-      await page.goto('/todo')
-      await expect(page.getByText(pendingTitle, { exact: true })).toBeVisible()
-      await expect(page.getByText(completedTitle, { exact: true })).toBeVisible()
-
-      // 点击「待处理」→ 列表只剩 Pending 项
-      const responsePromise = page.waitForResponse(
-        (r) => r.url().includes('status=Pending') && r.status() === 200
-      )
-      await page.locator('.el-radio-button').filter({ hasText: '待处理' }).click()
-      await responsePromise
-
-      await expect(page.getByText(pendingTitle, { exact: true })).toBeVisible()
-      await expect(page.getByText(completedTitle, { exact: true })).toBeHidden()
-    } finally {
-      await deleteTodo(pendingId)
-      await deleteTodo(completedId)
-    }
-  })
-
-  test('T3: 通过对话框创建新待办', async ({ page }) => {
-    await page.goto('/todo')
-    await expect(page.getByRole('heading', { name: '待办追踪' })).toBeVisible()
-
-    const title = `E2E-Real-T3-${Date.now()}`
-
-    await page.getByRole('button', { name: '新建待办' }).click()
-    const dialog = page.locator('.el-dialog').filter({ hasText: '新建待办' })
-    await expect(dialog).toBeVisible()
-
-    await dialog.getByPlaceholder('请输入待办标题').fill(title)
-    await dialog.getByPlaceholder('可选：备注说明').fill('来自 Playwright 真实创建')
-
-    const createResponse = page.waitForResponse(
-      (r) => r.url().endsWith('/api/todos') && r.request().method() === 'POST' && r.status() === 201
-    )
-    await dialog.getByRole('button', { name: '创建' }).click()
-    await createResponse
-
-    // 对话框关闭，列表顶部出现新项
-    await expect(dialog).toBeHidden()
-    await expect(page.getByText(title, { exact: true })).toBeVisible()
-
-    // 记录 id 供清理
-    const list = (await (await fetch(`${TODOS_BASE}?page=1&pageSize=20`)).json()) as {
-      data: { items: { id: number; title: string }[] }
-    }
-    const createdId = list.data.items.find((t) => t.title === title)?.id ?? null
-    if (createdId != null) await deleteTodo(createdId)
-  })
-
-  test('T4: 勾选 Pending 待办 → 标记完成', async ({ page }) => {
-    const title = `E2E-Real-T4-${Date.now()}`
-    const id = await createTodo(title)
-    try {
-      await page.goto('/todo')
-      const firstItem = page.locator('.todo-item').filter({ hasText: title })
-      await expect(firstItem).toBeVisible()
-
-      const checkbox = firstItem.getByRole('checkbox', { name: '标记完成状态' })
-      const completeResponse = page.waitForResponse(
-        (r) => r.url().includes('/complete') && r.request().method() === 'POST' && r.status() === 200
-      )
-      await checkbox.click()
-      await completeResponse
-
-      // 该项出现「已完成」标签（真实后端状态更新）
-      await expect(firstItem.getByText('已完成', { exact: true })).toBeVisible()
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-
-  test('T5: 勾选 Completed 待办 → 重新打开', async ({ page }) => {
-    const title = `E2E-Real-T5-${Date.now()}`
-    const id = await createTodo(title)
-    await completeTodo(id)
-    try {
-      await page.goto('/todo')
-      const completedItem = page.locator('.todo-item').filter({ hasText: title })
-      // 初始有「已完成」标签
-      await expect(completedItem.getByText('已完成', { exact: true })).toBeVisible()
-
-      const checkbox = completedItem.getByRole('checkbox', { name: '标记完成状态' })
-      const reopenResponse = page.waitForResponse(
-        (r) => r.url().includes('/reopen') && r.request().method() === 'POST' && r.status() === 200
-      )
-      await checkbox.click()
-      await reopenResponse
-
-      // 「已完成」标签消失（真实后端状态更新）
-      await expect(completedItem.getByText('已完成', { exact: true })).toBeHidden()
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-
-  test('T6: 删除待办 - 取消删除', async ({ page }) => {
-    const title = `E2E-Real-T6-${Date.now()}`
-    const id = await createTodo(title)
-    try {
-      await page.goto('/todo')
-      const targetItem = page.locator('.todo-item').filter({ hasText: title })
-      await expect(targetItem).toBeVisible()
-
-      await targetItem.getByRole('button', { name: '删除待办' }).click()
-      const msgBox = page.locator('.el-message-box')
-      await expect(msgBox).toBeVisible()
-      await msgBox.getByRole('button', { name: '取消' }).click()
-
-      // 待办仍存在（真实删除未发生）
-      await expect(page.getByText(title, { exact: true })).toBeVisible()
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-
-  test('T7: 删除待办 - 确认删除', async ({ page }) => {
-    const title = `E2E-Real-T7-${Date.now()}`
-    const id = await createTodo(title)
-    try {
-      await page.goto('/todo')
-      const targetItem = page.locator('.todo-item').filter({ hasText: title })
-      await expect(targetItem).toBeVisible()
-
-      await targetItem.getByRole('button', { name: '删除待办' }).click()
-      const msgBox = page.locator('.el-message-box')
-      await expect(msgBox).toBeVisible()
-
-      const deleteResponse = page.waitForResponse(
-        (r) =>
-          r.url().match(/\/api\/todos\/\d+\/?$/) !== null &&
-          r.request().method() === 'DELETE' &&
-          r.status() === 204
-      )
-      await msgBox.getByRole('button', { name: '删除' }).click()
-      await deleteResponse
-
-      // 待办消失（真实删除生效）
-      await expect(page.getByText(title, { exact: true })).toBeHidden()
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-
-  test('T8: 截图与控制台无报错', async ({ page, browserName }) => {
-    const title = `E2E-Real-T8-${Date.now()}`
-    const id = await createTodo(title)
-    try {
-      const errors: string[] = []
-      page.on('console', (msg) => {
-        if (msg.type() === 'error') errors.push(msg.text())
-      })
-      page.on('pageerror', (err) => {
-        errors.push(`pageerror: ${err.message}`)
-      })
-
-      await page.goto('/todo')
-      await expect(page.getByText(title, { exact: true })).toBeVisible()
-
-      await page.screenshot({
-        path: `test-results/todo-${browserName}-list.png`,
-        fullPage: true,
-      })
-
-      // 允许资源加载类网络错误日志，但不应有 JS 运行时错误
-      const realErrors = errors.filter(
-        (e) => !e.includes('Failed to load resource') && !e.includes('404')
-      )
-      expect(realErrors, `控制台报错: ${realErrors.join('\n')}`).toEqual([])
-    } finally {
-      await deleteTodo(id)
-    }
-  })
-})
 
 // ============================================================
 // 首页待办面板测试
@@ -275,13 +116,16 @@ test.describe('首页 / 待办面板（真实后端）', () => {
     const pendingId = await createTodo(pendingTitle)
     const completedId = await createTodo(completedTitle)
     await completeTodo(completedId)
+    const seen: string[] = []
+    trackApiRequests(page, seen)
     try {
       await page.goto('/')
       const todoPanel = page.locator('.todo-panel')
       await expect(todoPanel.getByText('待办', { exact: true })).toBeVisible()
 
       // 首页面板只显示 Pending 项
-      await expect(todoPanel.getByText(pendingTitle, { exact: true })).toBeVisible()
+      await expect(todoPanel.getByText(pendingTitle, { exact: true }),
+        `面板没列出新建的待办；浏览器实际响应：${todosOnly(seen)}`).toBeVisible()
       await expect(todoPanel.getByText(completedTitle, { exact: true })).toBeHidden()
     } finally {
       await deleteTodo(pendingId)
@@ -290,20 +134,25 @@ test.describe('首页 / 待办面板（真实后端）', () => {
   })
 
   test('H2: 点击「新建待办」打开快捷添加对话框并创建', async ({ page }) => {
+    const seen: string[] = []
+    trackApiRequests(page, seen)
     await page.goto('/')
     const todoPanel = page.locator('.todo-panel')
     await expect(todoPanel.getByText('待办', { exact: true })).toBeVisible()
 
     await todoPanel.getByRole('button', { name: '新建待办' }).click()
-    const dialog = page.locator('.el-dialog').filter({ hasText: '新建待办' })
+    // 弹窗是 Home 插件自带的 `.todo-modal`（role=dialog，占位符「待办标题」，提交按钮「保存」）；
+    // 本用例原先按**宿主旧版**写死 `.el-dialog` + 「请输入待办标题」+「创建」，Home 界面迁到插件 web 后就一直是陈旧红
+    // （证据：`Plugins/Home/web/src/HomeView.vue:569-597` 的文案与旧选择器不一致，且本批未改 `Plugins/Home/**`）。
+    const dialog = page.getByRole('dialog', { name: '新建待办' })
     await expect(dialog).toBeVisible()
 
     const title = `E2E-Real-H2-${Date.now()}`
-    await dialog.getByPlaceholder('请输入待办标题').fill(title)
+    await dialog.getByPlaceholder('待办标题').fill(title)
     const createResponse = page.waitForResponse(
       (r) => r.url().endsWith('/api/todos') && r.request().method() === 'POST' && r.status() === 201
     )
-    await dialog.getByRole('button', { name: '创建' }).click()
+    await dialog.getByRole('button', { name: '保存' }).click()
     await createResponse
 
     // 对话框关闭，新待办出现在首页面板
@@ -311,9 +160,9 @@ test.describe('首页 / 待办面板（真实后端）', () => {
     await expect(todoPanel.getByText(title, { exact: true })).toBeVisible()
 
     // 清理：从列表读取 id 并删除
-    const list = (await (await fetch(`${TODOS_BASE}?page=1&pageSize=20`)).json()) as {
-      data: { items: { id: number; title: string }[] }
-    }
+    const list = await todoJson<{ data: { items: { id: number; title: string }[] } }>(
+      await fetch(`${TODOS_BASE}?page=1&pageSize=20`, { headers: AUTH_HEADER }),
+    )
     const created = list.data.items.find((t) => t.title === title)
     if (created) await deleteTodo(created.id)
   })
@@ -325,17 +174,20 @@ test.describe('首页 / 待办面板（真实后端）', () => {
 
     await todoPanel.getByRole('button', { name: '查看全部待办' }).click()
     await expect(page).toHaveURL(/\/todo$/)
-    await expect(page.getByRole('heading', { name: '待办追踪' })).toBeVisible()
+    // /todo 自 PILOT-054 起由插件自带界面渲染（宿主内置页已删），标题以插件页面为准
+    await expect(page.getByRole('heading', { name: '待办任务' })).toBeVisible()
   })
 
   test('H4: 勾选首页待办 → 调用 complete 接口并消失', async ({ page }) => {
     const title = `E2E-Real-H4-${Date.now()}`
     const id = await createTodo(title)
+    const seen: string[] = []
+    trackApiRequests(page, seen)
     try {
       await page.goto('/')
       const todoPanel = page.locator('.todo-panel')
       const item = todoPanel.locator('.todo-item').filter({ hasText: title })
-      await expect(item).toBeVisible()
+      await expect(item, `面板没有这条待办；浏览器实际响应：${todosOnly(seen)}`).toBeVisible()
 
       const completeResponse = page.waitForResponse(
         (r) => r.url().includes('/complete') && r.request().method() === 'POST' && r.status() === 200

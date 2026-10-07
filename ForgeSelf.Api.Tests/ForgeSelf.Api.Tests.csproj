@@ -68,6 +68,8 @@
     <ProjectReference Include="..\Plugins\AgentHub\AgentHub.csproj" />
     <!-- McpCenter 插件（034 v2.0.0，前身 McpGateway）：单测直接引用其转发器 / JSON-RPC 处理器 / 服务类型 -->
     <ProjectReference Include="..\Plugins\McpCenter\McpCenter.csproj" />
+    <!-- ToolBridge 插件（PILOT-053）：单测直接引用其解析/守卫/格式化与执行器类型 -->
+    <ProjectReference Include="..\Plugins\ToolBridge\ToolBridge.csproj" />
     <!-- DesignSystem 插件 v2（设计语言底座）：单测直接引用其色彩数学 / 别名图 / 令牌库 / 建表入口 -->
     <ProjectReference Include="..\Plugins\DesignSystem\DesignSystem.csproj" />
     <!-- CostScope 插件（PILOT-033）：单测直接引用其成本纯函数（A3 起）与后续 CRUD/聚合/trace 服务 -->

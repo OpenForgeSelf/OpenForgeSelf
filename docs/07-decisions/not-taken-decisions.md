@@ -326,6 +326,40 @@
 
 ---
 
+## 034 · 工具桥不把命令守卫"上移成一份共享实现"，改用两份实现 + 机器对账
+
+- **决策**：不做（2026-10-06，PILOT-053 03-plan 决策 D1，用户「按推荐执行」批准）。替代物＝`Plugins/ToolBridge/Services/CommandGuard.cs` 自带一份同规则实现，并由常驻判据 `ForgeSelf.Api.Tests/Plugins/ToolBridgeTests/ToolBridgeGuardParityTests.cs`（40+ 命令金样表）逐条对账两份实现的**判定与拒绝原因原文**，漂移即红。
+- **背景**：记忆与技能都要求"不留第二份真相"，第一直觉是把 `Plugins/AIAgent/Services/TerminalCommandGuard.cs` 移到共享层给两个插件用。
+- **为何不做**：实读两份共享层工程文件——`ForgeSelf.Core/ForgeSelf.Core.csproj` **零 PackageReference**、`ForgeSelf.Abstractions/ForgeSelf.Abstractions.csproj` 只引 `Microsoft.Extensions.DependencyInjection.Abstractions` ⇒ 守卫里的 `XTrace.Log.Warn` 上移即编译不过；要上移就得给内核层加 NewLife 依赖（= 依赖结构变更，规范 §1.3 高风险，须 `architecture-design` 出 ADR），另外 `TerminalCommandGuard.cs:23` 的第 3 道 CWD 门还依赖 AIAgent 私有的 `IProjectWorkspaceService`，搬一个纯函数会牵出整个工作区契约。在"交付一个测试用插件"的批次里做这件事，爆炸半径与需求不成比例。
+- **重新审视的触发条件**：出现**第三个**要执行命令的插件；或用户要求把白名单做成可配置（`TerminalCommandGuard.cs:25` 自述"预留配置扩展位"至今无入口，届时必然要合并成一份）；或任一侧要放宽红线（两条实现各自放宽就是安全事故）。
+- **状态**：有效。已挂 TODO（【P2 架构】命令安全策略要真共享，须先解内核依赖结构）。
+
+## 035 · 工具桥的四个工具不注册进宿主 ToolRegistry，也不进内置 agent 白名单
+
+- **决策**：不做（2026-10-06，PILOT-053 决策 D3）。本插件只在 `api/tool-bridge` 自己的 REST 面上执行，`ToolBridgePlugin.ToolExtensions` 保持空列表，并由 `ToolBridgeAuthTests.本插件不向宿主注册工具扩展点_D3` 钉住。
+- **背景**：宿主有现成扩展点（`ExtensionPointManager.cs:173-177` 自动把插件的 `ToolExtensions` 注册进全局 `ToolRegistry`），注册一下就能让内置 AIAgent 也调用这四个工具，看起来很"顺手"。
+- **为何不做**：① AIAgent 已注册 `read_file`/`write_file`/`list_files`（`AIAgentPlugin.cs:132-134`），再来一份**同名工具**会在全局注册表里并存；② 要让内置 agent 看得见还得改 `AIAgentService.ToolScopePluginIds:564-567`，而 `:566` 注释已实证「不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）」，并有 `AIAgentToolScopeTests` 的数量守卫；③ 本插件的定位是**评估外部模型**，工具语义（AI 写的名字、被拒原因原文回传）与内置 agent 的结构化通道不是一套。
+- **重新审视的触发条件**：确实要"内置 agent 也走这套带越界拒绝/守卫回显语义的执行器"（那时须先解决同名问题并出 ADR）。
+- **状态**：有效。
+
+## 036 · 工具桥不做台账删除/清理自动化，也不给 README 功能表加行
+
+- **决策**：不做（2026-10-06，PILOT-053）。① 台账 `ledger/{turnId}.json` 只追加，无删除端点、无退出清理、无容量裁剪；② `README.md` 的「功能模块」表**不加** ToolBridge 行，功能档案只落 `docs/02-features/039-tool-bridge.md`。
+- **背景**：① 追加式记录会一直占盘，"顺手加个清空/保留最近 N 条"很自然；② "新增一个功能模块，README 该提一句"也自然。
+- **为何不做**：① plugin-development 铁律 10 明文禁止把删除自动化进运行路径（收益是少几个文件，代价是路径判断失误一次即删真实数据，且 `ProcessExit` 挂钩在强杀时根本不执行）；真有清理需求应由人手动执行或走独立确认脚本。② 实读 `README.md:30` 写明该表**派生自** `ForgeSelf.Web/src/data/features.ts`，而 `features.ts` 与 README 里都搜不到「成本/cost-scope/设计系统」等既有插件条目 ⇒ 惯例就是插件功能不进该表；单加 README 行会制造 `check:features` 式脱节（该守卫自身还带着 21 处过期路径误报，见 TODO）。
+- **重新审视的触发条件**：① 台账体积成为真实抱怨（此时做"用户点确认的归档/清理"，仍不做自动删除）；② `features.ts` 的登记口径整体改造（连 `check:features` 的路径假设一起修）时，再统一决定插件功能是否入表。
+- **状态**：有效。
+
+## 037 · 工具桥 P0 不接任何 AI API、不做多轮会话树
+
+- **决策**：不做（2026-10-06，PILOT-053 02-spec U-3 与 Constraints）。本插件只承接"人肉搬运"那一段：提示词出去、调用进来、结果回去；不直连任何模型服务，也不把多轮串成会话树。
+- **背景**：既然做的是"测试 AI 工具调用能力"，接上 API 自动跑多轮看起来更"完整"。
+- **为何不做**：① 用户的场景就是网页版聊天（无 API），接 API 等于换成另一个产品；② 会话树要求先定义回合间上下文传递与失败恢复语义，属另一套规格；③ 规范要求"不为展示 Agent 能力扩大任务范围"（§1 硬性约束 7）。
+- **重新审视的触发条件**：用户明确要"批量跑 N 个模型对比工具调用正确率"（那时自动接线 + 回合树才有价值，且应经 `plugin-feasibility-study` 重新立项）。
+- **状态**：有效。
+
+---
+
 ## 新旧决策衔接原则
 
 - 已被本台账**否掉**的方案，若日后又要立项，**必须**在此标注「已被推翻」并写明新依据，不得悄悄改判。

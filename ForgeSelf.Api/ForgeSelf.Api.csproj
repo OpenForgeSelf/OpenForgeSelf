@@ -131,6 +131,9 @@
     <!-- CostScope 插件（PILOT-033 A2/A3）：仅建立构建顺序。此前缺此行 ⇒ 宿主构建不编译该插件、
          publish/CI 产物里 Plugins/CostScope 只有 plugin.json 无 DLL（与 DesignSystem 的 MSB3030 同病）。 -->
     <ProjectReference Include="..\Plugins\CostScope\CostScope.csproj" ReferenceOutputAssembly="false" />
+    <!-- ToolBridge 插件（PILOT-053）：仅建立构建顺序。缺此行 ⇒ 宿主构建不编译该插件、
+         publish/CI 产物里 Plugins/ToolBridge 只有 plugin.json 无 DLL（与 CostScope 同病，04-task AC13 判据）。 -->
+    <ProjectReference Include="..\Plugins\ToolBridge\ToolBridge.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 将仓库根 Plugins/<Name>/bin/<Config>/net10.0 下各插件的完整输出（DLL + deps.json + 非宿主共享

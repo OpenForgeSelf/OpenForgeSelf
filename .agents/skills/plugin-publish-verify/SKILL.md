@@ -87,6 +87,71 @@ DLL 字符串是 UTF-16LE（strings/grep 漏检）。这两件事历史上反复
 ② 用户已装的**嵌套实例升级一次即回正**（新版本落真根 + `current` 指过去 + 重启根启动器），但**存量多余层与历史 `plugins/` 残留不会被自动清理**——那是不可逆面，必须用户在场另批处理，不得在发布流程里顺手删；
 ③ 版本串规则不变（§4-R10：三段号 + 10 位时间码；老宿主需先跳号才重新进入更新链）。
 
+## 发布链的两种「跑到没跑完」形态（2026-10-06 输入9/10 实证）
+
+**A. 签名段是整条链的最后一道闸，它一挂就没有包**（不是"包有瑕疵"）：
+`release-local.ps1` 的次序是 前端 → publish-host → publish-bootstrapper → **package-release（组布局 → 签名 → zip → SHA256SUMS）** → make-release-notes → 拷 `-UpdateDir`。
+签名在 **zip 之前**，所以时间戳失败时**前面 8 分钟的构建全部作废**，更新源里仍是上一轮的旧 zip——
+现场判据：日志出现 `Number of files successfully Signed: 0` + `SignTool Error: The specified timestamp server either could not be reached or returned an invalid response`，
+且 `artifacts/release/` 里**没有**本轮版本串的 zip。
+⇒ 汇报口径只能写「未出包」，不得写「本地发布已通过」。
+
+**B. 单点时间戳已改为多点回退**（`scripts/sign-publish.ps1`）：候选链 `sectigo → digicert → globalsign → comodoca`，
+一家不行自动换下一家（实测：故意把第一家设成不可达域名，日志打 `时间戳不可用，换下一个:` + `（回退命中）时间戳:`，最终 `校验通过 1 / 1`、exit 0）。
+`-TimestampServer` 只把某家排到最前，`-TimestampFallbacks` 自定义顺序。
+**禁止用 `-NoTimestamp` 交付给人装的包**（无时间戳＝证书 2029-09-26 到期即签名失效）。
+另：校验口径看 `Status=Valid` + 有时间戳，**不要断言特定 TSA 名**（回退后哪家都可能）。
+
+**C. 停一条后台发布链 ≠ 它停了**：`TaskStop` 杀的是 Git-Bash 包装进程，**pwsh 子进程会继续跑并往同一批 `artifacts/` 写**；
+随后再起一轮就是**两条链并发同一目录**（互踩 DLL/zip/layout，报错形态看起来像代码缺陷）。
+⇒ 停链后必须实证复核，别凭通知判定：
+`Get-CimInstance Win32_Process | ? { $_.CommandLine -match 'release-local' }` 看还有没有活口 + 看旧日志 mtime 是否已冻结。
+顺带一条同源教训：**pwsh 重定向到文件是块缓冲**，日志"停在几十行"不代表进程停了（本次就是这样误判过一次），
+判进度要同时看 `size/mtime` 是否在长与 `==> <段名>` 标记。
+
+## 只发插件（side-by-side 落位）：生效路径与"别手改顶层清单"（2026-10-07 实证）
+
+**先把"生效"讲死（读代码定案，别再靠目录名猜）**：
+
+- **加载与目录名无关**——`PluginManager.cs:316-328` 只遍历根的直接子目录，唯一硬条件＝**该子目录顶层有 `plugin.json`**，
+  身份取自清单 `Id`。⇒ 生效问题从来不是 PascalCase/kebab 之争，而是「顶层有没有清单」。
+- **宿主代码约定＝kebab `metadata.Id`**：`PluginInstallerService.cs:60` 建目录用 `Path.Combine(_pluginsDirectory, metadata.Id)`
+  且首次安装**直接扁平解包到该目录**（顶层就有清单）；`PluginVersionService.cs:126` 同样按 kebab 拼。
+- **内置根里为什么是 PascalCase**：`ForgeSelf.Api.csproj` 的 `ProjectReference`/`Content Include="Plugins\**\plugin.json"` glob
+  按**工程名**产出；`package-release.ps1:71-78` 只把**外层** `Plugins → plugins` 归一，**插件子目录名没人管** ⇒ 历史遗留，非规范。
+- ⇒ **两个已知缺陷**（遇到"版本历史空/回滚按钮没出现"先想它们，别怀疑自己放错文件）：
+  ① `PluginVersionService.cs:126` 硬拼 `_pluginsDirectory + pluginId`，不用 `metadata.PluginDirectory`、不跟随两路根
+  ⇒ PascalCase 内置目录与数据根插件都查不到版本目录（只剩 `:146` 用内存元数据补一条）；同文件的更新/激活却用
+  `metadata.PluginDirectory` ⇒ 一个服务两套口径，表现就是「检查更新看得见、版本历史看不见」。
+  ② `AppBuilder.cs:335-336` + `PluginVersionService.Initialize(pluginsPath)` 只喂**内置根** ⇒ 数据根那一路无版本化能力。
+
+**放哪里才生效**：放进**该插件实际所在的那个目录**（= `metadata.PluginDirectory`；内置根里就是 PascalCase `ToolBridge\`），
+形态 `<pluginDir>\versions\<新版本>\`，内含 `plugin.json` + `<Entry>.dll` + `<Entry>.deps.json` + `web/dist/*`。
+插件根 = **业务层 exe 旁边的 `plugins/`**（`AppBuilder.cs:326` 用 `AppContext.BaseDirectory`；`Get-Process ForgeSelf` 实测路径才算数，
+别拿安装根那个 09-29 的旧 `plugins/` 当现场）。数据根 `~/.forgeself/plugins/<id>/` 是第二路，跨版本持久，两份可并存
+（同 Id 同版本按"内置根先扫、保留先者"裁决 `PluginManager.cs:336-346`）。`deps.json` 必须与入口 DLL 同目录——
+`PluginLoadContext.cs:29` 的 `AssemblyDependencyResolver` 吃**入口程序集旁边那份**。
+
+**⚠️ 不要拿 `publish-plugin.ps1 -PluginsRoot <内置根>` 直跑**：它按 kebab 新建 `<root>/tool-bridge/` 且**只写 `versions/<ver>/`、不写顶层清单**
+⇒ 那个目录冷启动被跳过（缺顶层 plugin.json），而更新判定看的是 `metadata.PluginDirectory`（PascalCase 的 `ToolBridge`）⇒ **两边都不靠，成为孤岛**。
+它在"数据根 + 宿主 update 流程接管"的场景才是对的（那是宿主自己的命名口径）。内置根场景请手工放进已存在的 `ToolBridge\versions\<ver>\`。
+
+**光放文件不生效**：`publish-plugin.ps1` 头部原文＝文件系统监视器 2026-09-24 已移除，staged 副本只在
+「显式切换」或「冷启动」后生效。不重启的三条口子：
+
+| 口子 | 判据/条件 | 现场形态 |
+| --- | --- | --- |
+| `POST /api/plugin/update/{id}` | 需要 `versions/` 里最高 staged 版本 **>** 内存 `metadata.Version`（`PluginVersionService.cs:167-173`） | 若顶层清单已被手改成新版本，这里直接判"已经是最新版本"，**切换不发生** |
+| `POST /api/plugin/rollback/{id}` `{"version":"X"}` | 只校验 `versions/X/` 存在（`:200-205`），**不比版本号** ⇒ 最稳的强制激活 | 页面等价：插件市场「版本」→ 版本历史 → 该行点「回滚」 |
+| `disable` → `enable` | 启用时重走 `ResolveEntryAssemblyPath`，`versions/<current>/` 优先 | 页面：插件卡片上的「禁用」→「启用」；current 已指向新版本时可用 |
+
+**⚠️ 教训：不要手工覆盖顶层活动清单 `plugin.json`。** 同步顶层清单是宿主 `ActivateVersion` 第 5 步 `SyncActiveManifest`
+该做的事（`PluginVersionService.cs:248-249`）。我 2026-10-06 手改它之后，实测连带关掉两条不重启的口子：
+`GET /api/plugin/updates` 返回空（`update` 判"已最新"），且 `PluginStore.vue:491-495` 的版本历史按钮因
+`v.version === activePlugin?.version` 而**置灰**，用户在页面上无路可点。
+⇒ 正确顺序：只写 `versions/<ver>/`（+ `current`），然后走 `rollback`/`enable` 让宿主自己同步清单；
+若已经手改过，就靠 `rollback`（不比版本号）或 `disable→enable` 收口。
+
 ## 运行实例只读复验（交付后必做，2026-09-28 补）
 
 **触发**：用户已在运行实例（如 `:51888`）启用/更新到新版本之后 —— 这一步**不属于**开发期 e2e 的替代，

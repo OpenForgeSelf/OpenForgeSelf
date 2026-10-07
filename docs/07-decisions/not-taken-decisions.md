@@ -378,6 +378,37 @@
 
 ---
 
+## 040 · todo-tracker 不在宿主 `HostProjectRegistry` 做路径归一（改在插件内）
+
+- **决策**：不做宿主改造。路径多格式归一（`/d/project`、`D:\project`、`D:/project/`、`/mnt/d/project`、UNC、`~`）只落在 `Plugins/TodoTracker/Services/ProjectPathCanonicalizer.cs`。
+- **背景**：宿主 `Register` 只做 `Path.GetFullPath` + `Project.FindByRoot` 精确匹配（`ForgeSelf.Api/Services/HostProjectRegistry.cs:56,71`），Git-Bash 写法会被解成 `C:\d\project` 直接判「目录不存在」。在宿主做归一是"一处修好、三方受益"（AIAgent/sems/插件）。
+- **为何不做**：用户 2026-10-07 明确拍板「插件内部支持多种格式」。宿主那条路要付的代价更大：改公共接缝语义会同时改变 AIAgent/sems 的登记行为，且 `Project` 表 30 个宿主实体无 Model.xml、历史脏行合并属数据迁移（规范 §1.2 高风险）。收益（一致性）已由插件侧「比对前双方都归一」拿到。
+- **重新审视的触发条件**：出现第二个需要多格式路径的插件消费方，或用户在 AIAgent/sems 界面也撞上"同一目录登记成两条"时，再把它升为 L1 契约层的公共能力（届时需出 ADR 并跑全量）。
+- **状态**：有效。
+
+## 041 · todo-tracker 不让插件前端直连 agent-hub 的 HTTP 端点
+
+- **决策**：否掉。「一键交给 AgentHub 执行」经 `IAgentDelegation` 能力接缝（提供方 AgentHub、消费方 todo-tracker）。
+- **为何不做**：architecture-design 铁律 2/3 明确「契约入 Abstractions、插件间禁止直连 HTTP 传递数据」。仓内确有 6 处存量反例（`Plugins/Home/web/src/homeStore.ts`），但那属未追讨的技术债，不能作为新增耦合的依据。
+- **重新审视的触发条件**：若 L1 契约被证明无法满足（例如必须复用 AgentHub 的 SSE/审批 UI），再按 `host-capability-seams.md` §3 决策树重新选型并补 ADR。
+- **状态**：有效。
+
+## 042 · todo-tracker 不做「agent 回报自由文本」的解析
+
+- **决策**：不做。执行记录只接受结构化入参（REST JSON / AI 工具函数 / 表单），"改了哪些文件"仅归一**明确给出的路径列表**（数组或一行一个）。
+- **为何不做**：02-spec U-1 —— 手上没有外部 CLI agent 真实回报文本样例。plugin-development 铁律 21 的教训正是"我设想的输入形状全绿、真实输入一来就报解析不出"。没有真样例就写解析器，等于把猜测固化成功能。
+- **重新审视的触发条件**：拿到 ≥2 段真实回报原文（含"从网页复制、代码块只剩内容不带围栏"这种形态）后，再按「围栏/裸发成对 + 反向护栏」补解析。
+- **状态**：有效。
+
+## 043 · todo-tracker 不做「按任务算 token 成本」与任务依赖图/自动重试
+
+- **决策**：不做。成本关联（宿主 `ITurnTelemetryQuery` 已有会话遥测）、任务依赖图、agent 自动重试编排，一律不在本批。
+- **为何不做**：与"把任务下发出去、把结果收回来"这条主链路无关；自动重试会把状态机从"人可解释的台账"变成"没人看得懂的调度器"（且需要跨插件事件，偏差#5 未修）。
+- **重新审视的触发条件**：用户开始按任务统计投入（成本）或出现"任务链跑批"的真实诉求时，另立批次并先做可行性研究（`plugin-feasibility-study`）。
+- **状态**：有效。
+
+---
+
 ## 新旧决策衔接原则
 
 - 已被本台账**否掉**的方案，若日后又要立项，**必须**在此标注「已被推翻」并写明新依据，不得悄悄改判。

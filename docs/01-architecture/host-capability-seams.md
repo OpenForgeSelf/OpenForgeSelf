@@ -103,3 +103,20 @@ L3 拦截管道（waterfall/serial，特例）
 
 - `dotnet build` 0 错误 + `dotnet test` 全绿（含新增契约/降级测试）。
 - 运行时：宿主 51888 冷启动 → AIAgent 选目录 → sems `/api/projects` 200 且数据一致（Playwright）。
+
+## 7. 第二个落地：agent 委派接缝 `IAgentDelegation`（2026-10-07，PILOT-054）
+
+| 项 | 内容 |
+|------|------|
+| 契约 | `ForgeSelf.Abstractions/AgentDelegationContracts.cs`：`IAgentDelegation{ SubmitAsync(AgentDelegationRequest) / FindAsync(taskKey) / ListAvailableAgents() }` + 纯 POCO（无 NewLife/XCode 类型） |
+| 提供方 | **插件** `agent-hub`：`AgentHubPlugin.Apply` 内 `ctx.Register<IAgentDelegation>(new AgentDelegationProvider(ctx))`（§2 表第 1 行的标准形状；随 Fiber 卸载自动摘除） |
+| 消费方 | `todo-tracker`（`Services/AgentTaskGateway.cs`）：`ctx.Get<IAgentDelegation>()` **每次用每次取**，null ⇒ 映射 HTTP 503 + 原文 |
+| 语义边界 | 接缝只做「入队 + 按 key 读回」的适配；状态机、cwd 白名单（G7）、人在回路审批（G2）、并发互斥（G6）**仍由 AgentHub 单方持有** |
+| 为什么不走 L2 事件 | 消费方是「请求时拉取」（用户点一下看进展），能降级 ⇒ 按 §3 决策树停在 L1（调研 Q4）；且跨插件事件受偏差#5 限制 |
+
+两个实操坑（都写进了代码注释）：
+
+1. **提供方适配器不要在 `Apply` 里 `services.BuildServiceProvider()` 另起容器解析单例**。那样会造出第二份 `PermissionBroker`/`AgentRegistry`，于是「接缝发起的委派任务」与「控制器审批面板」看的不是同一份待审批队列 —— G2 人在回路静默失灵。正确做法：把插件容器本身交给适配器，**每次调用现取服务**（同 `Plugins/AgentHub/Tools/AgentHubToolBase.GetService<T>()`）。
+2. **消费方不得用「原因文本」判依赖缺席**。委派失败映射 503 还是 400 取决于 `GatewayResult.SeamMissing` 标志位；靠字符串嗅探，提供方一改措辞，503 就静默退化成 400，用户会被指去改参数而不是装插件。
+
+对照记录：`Plugins/Home/web/src/homeStore.ts` 等**插件前端直连其他插件 REST**（6 处）是本模型之外的存量做法，本文不为其背书；新写的跨插件能力供给一律先建 L1 契约（PILOT-054 曾评估过「插件前端 fetch `/api/agent-hub/tasks`」，因违反 §2 的互通裁决而否掉，见 `docs/07-decisions/not-taken-decisions.md` 2026-10-07 条目）。

@@ -298,6 +298,47 @@ Verify 失败
 4. **编号冲突处理**（多代理/并发会话）：若发现同一天已有相同「输入 N」编号，**保留各自完整内容**并在其中一条加注说明，**不得互相覆盖或删除**
 5. **子代理（worker）任务边界**：派发子代理执行待办时，在任务说明中明确「只做编译/单元验证，不做运行时验证（重启后端/跑 e2e/git 提交）」，运行时验证由主代理完成后在 TODO 标注「（已实现，待运行时验证）」→ 验证通过后移除待办
 
+### 功能确认问答的唯一真源优先流程（对应 AGENTS.md §2.5 详细）
+
+> **五步流程本身只有一份，写在 `AGENTS.md` §2.5**（定位真源 → 判精度 → 补齐 → 回写同一份真源 → 带出处回答）。
+> 本节只承载"怎么判、写到哪、和相邻 SOP 怎么分工"的细则，不复述步骤。
+> 立规实证：2026-10-07 用户连问「同名插件放两个根哪个生效 / 内置根目录名为何 PascalCase / 页面上哪里更新插件」，
+> 我三次都重新读码；`packaging-upgrade-backup.md` §1.6 当时只有一句"同 Id 由版本号裁决"——**比的是哪份版本号、
+> 同版本谁胜、`current` 参与不参与，全没说**，界面入口更是没有 ⇒ 文档没兜住、我也没回写。
+
+**① 真源归属表（新问题按此落位；落位前先查 `docs/README.md` §一「30 秒定位速查」）**
+
+| 被问到的主题 | 唯一真源 |
+| --- | --- |
+| 某个功能做成什么样 / 怎么用 / 有什么坑 | `docs/02-features/<NNN>-<功能名>.md` |
+| 目录布局、插件落位与生效裁决、更新动线、备份/缓存、签名与版本串 | `docs/04-standards/packaging-upgrade-backup.md`（§1.6 程序分层 / **§1.7 落位与裁决** / **§1.8 更新动线与不重启口子** / §3-§4 生命周期 / R9-R10 命名与版本串） |
+| Agent 每次怎么干活（技能、验证档位、汇报、文档工作流） | `AGENTS.md`（必守摘要）+ 本文件 Part A（细则） |
+| 项目不变工程规则与踩坑（数据落盘、DLL 锁、PS 编码、环境前置） | 本文件 Part B |
+| 接口怎么调、字段怎么传、服务什么职责、前端什么结构 | `docs/16-reference/*`（代码级全量在 `openwiki/`，**不手编**） |
+| 报错/异常现象怎么回事 | `docs/11-troubleshooting/index.md`（一条一例） |
+| 当初为什么这么选 / 明确不做或缓做 | `docs/07-decisions/`（不做台账 `not-taken-decisions.md`） |
+| 这个任务正在做到哪一步 | `docs/ai/pilot/YYYY-MM-DD-<task-id>/` |
+
+**② 「精度不足」的四条判据**（文档里有答案 ≠ 够回答；命中任一条就按"无真源"处理）：
+(a) 答不出**比的是哪个字段 / 哪份清单 / 哪条判据**；(b) 答不出**证据位置**（`文件:行`）；
+(c) 答不出**界面上点哪**，或只有后端端点没有页面路径；(d) 结论可能与现场读数冲突（版本串会漂、按秒变的值）。
+§1.6 当年同时中了 (a) 与 (c)。
+
+**③ 回写三件套（写进真源文件的每条事实都要带）**：`结论（含判据）` + `证据位置（文件:行 / 端点 / 页面路径）` +
+`现场形态（日志原文片段 / 接口响应 / 截图路径）`。第三件拿不到时只准写 `Inferred` 或 `Unknown`，**不得写成既成事实**；
+同一条事实**只允许一处承载**，别处要引用就写指路链接（见记忆「不留第二份真相」）。
+
+**④ 入口表同步**：新建主题文件必须回 `docs/README.md` §一 加一行——**那张表就是"先查文档"的第一步**，
+表里没这行，后续会话第一步就扑空，然后照旧去读码。
+
+**⑤ 与「文档反向同步 SOP」的分工**：反向同步（`doc-reverse-sync-sop.md`）＝**批量**把落后的 `docs/` 追平代码，
+按目录编号增量推进；本节＝**单次问答顺带补一格**，当场、只补被问到的那一条。
+两者都以代码为事实源、都禁止第二份真相，区别只在触发与范围。
+
+**⑥ 免批边界（防这条被闸门1 卡死）**：纯问答回合只允许写 `docs/**`、`.agents/skills/**`、`TODO.md`、`.forgeself/memory/**`；
+一旦要碰业务代码（`ForgeSelf.Api/**`、`ForgeSelf.Web/**`、`Plugins/**`、`scripts/**`、`*.ps1`）就转为开发任务，
+按 AGENTS.md §11 走工件链与闸门1。**不得借补文档之名改代码。**
+
 ### 文档反向同步（docs/ 落后于代码时）
 > 详规与完整校验清单见 `doc-reverse-sync-sop.md`（同目录）。
 
@@ -716,6 +757,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **PowerShell 追加文件后若再用 WriteAllText 覆盖整个内容，会丢掉刚追加的文本**（AppendAllText 与 WriteAllText 混用顺序错误）——追加类/内容后用 ReadAllText 校验。
 - **核验 .NET DLL 内字符串必须原始字节 hex（UTF-16LE）或 ildasm，禁止 shell 中文字面量**：PowerShell→`python -c` 传中文搜索词跨进程编码损坏、UTF-8 解码 #US 堆都会假阴性。定论手段：`ildasm /text` 看 IL（`ldstr bytearray`）+ Python `bytes.fromhex(...) in data` 精确比对 UTF-16LE 字节。
 - **PS 5.1 读写中文路径/内容用 .NET API + `-Encoding UTF8` 显式**；`Get-Content` 默认 ANSI 解码 UTF-8 无 BOM 文件显示乱码 ≠ 文件损坏（两文件哈希一致即文件正常）。
+- **Git-Bash 里给 `pwsh -File` 写 `*> <log>` 会被 bash 先展开通配符**（2026-10-07 实测）：bash 不认识 PowerShell 的全流重定向操作符 `*>`，于是把 `*` 当 glob 展开成**当前目录的文件名列表**，`CONTEXT.md` 之类被当作位置参数塞进脚本 → 报「找不到接受实际参数 'CONTEXT.md' 的位置形式参数」、exit 1，**形态完全像被调脚本自己坏了**（我当时因此去读了 `verify-pilot-artifacts.ps1` 源码，白绕一圈）。Git-Bash 侧一律写 `> log 2>&1`；要用 `*>` 就放进 `pwsh -Command "… *> log"` 里由 PS 自己解析。
 - **`Edit` 工具反复报 "File has not been read yet"**：改用 PowerShell `[IO.File]::ReadAllText/WriteAllText(UTF8Encoding(false))` 精确替换；若用 .Replace，替换后先 `if($t -ne $o)` 判断再写，命中失败打印 'NO MATCH'。
 - **从 Node（Playwright / 脚本链）spawn PowerShell 做证书 / 签名类操作必须用 `pwsh`（PowerShell 7），不要用 `powershell.exe`**（2026-10-01 e2e 实证）：同一 `powershell.exe` 在终端语境正常，但从 Node `spawn` 时（5.1）**没有 `Cert:` 提供程序**（`Get-PSDrive Cert`=False、代码签名证书查不到、`-CodeSigningCert` 参数不识别 → 签名必失败）；`pwsh` 在同语境完全正常（`drive=True certs=1`）。`e2e/global-setup.ts` 宿主签名已固定 `pwsh`；无签名环境用 `E2E_SIGN_EXE=false` 跳过。**取代此前任何"两个 shell 均可"的默认假设。**
 

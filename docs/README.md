@@ -3,6 +3,9 @@
 > 入口 + 总索引。本文件回答两个问题：**这个文档体系里有什么**、**你要的东西该去哪个文档找**。
 > 目录按**阅读时序**排序（理解 → 操作 → 决策 → 学习 → 规划 → 参考 → 记录 → 产出 → 归档），数字前缀即顺序，`ls` 自然排序。
 > 维护规则：新增文档必须更新本索引；文档头部带 front-matter（功能编号/状态/最后更新）。
+> **本表同时是 `AGENTS.md` §2.5「功能确认问答先查唯一真源」的第一步入口**：要回答"某功能到底怎么做/谁生效/放哪/从哪进"，
+> 先在下面找这一主题的行。**表里没有这行 = 真源缺失** ⇒ 读代码或走现场补齐后，**必须回来在这里加一行**，
+> 否则下一个会话照样扑空、照样重新读一遍码。
 
 ---
 
@@ -21,6 +24,9 @@
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
 | 查**打包/升级/备份/缓存/安装目录结构**的规则（唯一真源：QQNT 式目标结构/版本保留/缓存清理） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) |
+| 确认**某个功能到底做成什么样 / 怎么用 / 有什么坑**（插件功能也算） | `02-features/<NNN>-<功能名>.md`（功能档案；编号总表见本页末「已归档内容」，缺项用 `ls docs/02-features/`） |
+| 确认**插件落位与生效裁决**（两路同名谁胜、比的是哪份版本号、目录名为何是 PascalCase、只发一个插件放哪） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.7** |
+| 确认**用户更新动线**（插件更新页从哪进、不重启生效的三条口子、已知宿主缺陷） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.8** |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |
 | 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |

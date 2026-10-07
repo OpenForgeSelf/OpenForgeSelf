@@ -24,7 +24,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 
 ---
 
-## 二、铁律（先看这 19 条）
+## 二、铁律（先看这 20 条）
 
 1. **先读技能再动手。** 涉及插件的任务，开工前先读本技能 + 上表对应的专项技能。
    历史上正是因为技能没被读取、也没登记进 `AGENTS.md`，导致改完插件后
@@ -269,6 +269,25 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
     结果同一个问题 2026-10-07 被问了三次、我读了三遍码。
     **两条判据**：① 文档里有句子 ≠ 够答——答不出"比的是哪个字段 / 哪段代码 / 界面上点哪"就是**精度不足**，按无真源处理；
     ② **读完代码只回答、不回写 = 该问题仍未解决**（回写属免闸门1 的文档动作，写进被问的那份真源，别在第二处复制一份）。
+
+20. **【一键起环境铁律·禁止手敲运行命令】本地起前后端**只能**用 `scripts/dev-stack.ps1`，
+    **禁止**手工敲 `dotnet <宿主dll> ...` / `node .../vite ...` / `npx vite` 之类的运行命令。
+    - **为什么**：手工启动有两个已实证的**静默陷阱**，都不报错、都让人误判为「环境没起来」：
+      ① **dev 宿主首参必须是 `--console`** —— `Program.Main` 只看 `args[0]` 分支（`Program.cs:86`），
+      首参是别的（如 `--instance-id=`）会落到 `Program.cs:146` 兜底 `new WindowsService().Main(args)`，
+      NewLife.Agent 把它当命令解析，日志只留 `ProcessCommand` / `ProcessFinished` 就 exit 0，
+      **无 error、无端口**，表现为「探活一直 000 而日志干干净净」；
+      ② **vite dev 的 optimizeDeps 会让 esbuild（Go 二进制）写 `node_modules/.vite/deps_temp_*`**，
+      在沙箱里报 `Failed to write to output file: ... Access is denied` 并崩掉 dev server ——
+      与目录权限无关（实测 `os.tmpdir()` 同样失败），但**同目录用 Node fs 写是成功的**。
+    - **脚本已内置规避**：`--console` 恒在 `args[0]`；起前端前先跑 `scripts/probe-esbuild-write.mjs`
+      探测 esbuild 写盘能力，不可写时生成的配置里关掉预打包（`optimizeDeps.noDiscovery`）——
+      实测裸导入 `vue` / `pinia` / `element-plus` 仍被正确重写到 `.pnpm` 下的 ESM 文件，功能不受影响。
+    - **端口被占用自动顺延**（+1 重试，最多 50 次），实际端口与令牌写入 `.temp/dev-stack.json`；
+      宿主以 `FORGESelf_INSTANCE_ID=dev-stack` 隔离，**不影响用户正在运行的宿主实例**。
+    - 用法：`pwsh scripts/dev-stack.ps1`（默认后端 7301 / 前端 7399）、`-SkipBuild` 跳过 `dotnet build`、
+      `-BackendPort` / `-FrontendPort` / `-PluginsDir` / `-DataRoot` 覆盖、`-Stop` 停止并清理。
+    - 同一铁律适用于插件前端：要真 HMR 用 `scripts/dev-plugin-web.ps1`，同样不许手敲 vite。
 
 ---
 
@@ -526,6 +545,12 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 
 ## 六、关键事实速查
 
+- **本地起前后端：一律 `pwsh scripts/dev-stack.ps1`（铁律 20），禁止手敲 dotnet / vite 运行命令。**
+  默认后端 `7301` / 前端 `7399`，**被占用自动顺延**；实际端口、令牌、PID 在 `.temp/dev-stack.json`；
+  停止用 `-Stop`。插件前端要真 HMR 另用 `scripts/dev-plugin-web.ps1`。
+- **esbuild 写盘（沙箱）**：`vite build` 不受影响（产物由 rollup/Node 写）；`vite dev` 的 optimizeDeps
+  由 esbuild Go 侧写盘 → `Access is denied`，dev-stack.ps1 会自动关预打包绕开（探测脚本
+  `scripts/probe-esbuild-write.mjs`）。**别再用手敲 `npx vite` 去"手动修"**。
 - 后端默认端口 `7102`，本环境长期运行的 publish 实例用 `51888`
 - 插件目录 = `AppContext.BaseDirectory/plugins` → publish 实例即 `publish/plugins`
 - **插件数据目录** = `ctx.EnsurePluginDataDirectory()` → `{数据根}/plugins/{插件Id}`（生产即 `~/.forgeself/plugins/{id}`）。

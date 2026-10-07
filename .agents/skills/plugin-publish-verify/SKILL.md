@@ -68,12 +68,13 @@ DLL 字符串是 UTF-16LE（strings/grep 漏检）。这两件事历史上反复
 
 | 场景 | 正规入口 | 说明 |
 |------|---------|------|
+| **本地前后端环境（走查前置）** | `pwsh scripts/dev-stack.ps1`（停止 `-Stop`） | **唯一**允许起本地前后端的方式（plugin-development 铁律 20）：`--console` 恒在首参、vite dev 的 esbuild 写盘自动绕开、**端口被占用自动顺延**；实际端口/令牌/PID → `.temp/dev-stack.json`。**禁止手敲 `dotnet` / `vite` 运行命令** |
 | 插件页走查（推荐） | `node ForgeSelf.Web/node_modules/@playwright/test/cli.js test --config=playwright.config.ts e2e/plugin-store.spec.ts --output=<空目录>` | globalSetup 自动构建宿主→起隔离实例→解密真实 token→注入 localStorage；断言版本徽标/启用标签/卡片渲染 + 截图存档（`screenshots/e2e/plugin-store/plugin-store-walkthrough.png`）。**必须给 `--output=<空目录>`**（防 safe-delete 拦截器） |
 | 运行态宿主（51888）手工通道 | `node scripts/get-forge-token.cjs` → 拿明文 token → 注入 `localStorage['forge_api_token']` → 导航 | 默认读 `%USERPROFILE%\.forgeself\Config\ForgeSetting.config`（当前运行实例真源）；`--config <path>` / `FORGE_SETTING_CONFIG` 可覆盖。⚠ 触碰运行态宿主前必须获用户同意；新规范优先用 e2e 隔离实例走查 |
 | DLL 字符串验证（发布产物） | `node scripts/probe-dll-string.cjs <dll> <目标串> [--expect-absent]` | UTF-8 + UTF-16LE 双检；`--expect-absent` 用于验证「已删除实现不在产物」；FOUND→exit 0 / ABSENT→exit 1（expect-absent 反转） |
 | e2e 全自动 | 直接写/跑 `e2e/plugins/<id>/<id>.spec.ts` | `e2e/helpers/real-auth.ts` 的 `injectRealApiKey` 已内置解密+注入 |
 
-**铁律**：走查 token 一律来自上述入口；验证产物一律用 `probe-dll-string.cjs`。
+**铁律**：走查前的一起环境一律用 `dev-stack.ps1`（禁手敲运行命令）；走查 token 一律来自上述入口；验证产物一律用 `probe-dll-string.cjs`。
 发现新场景缺正规入口 → 先补工具/用例再走，不现写一次性脚本（AGENTS §5.0）。
 
 ## 出包后必查的三条布局不变量（宿主升级链，2026-10-04 输入18/19 立）

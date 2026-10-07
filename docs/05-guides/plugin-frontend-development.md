@@ -43,7 +43,7 @@
 - **单元**：`src/utils/__tests__/pluginViewLoader.test.ts` 钉住加载器解析逻辑。
 - **端到端**：`ForgeSelf.Web/e2e/plugin-remote-view.spec.ts` 对接真实 publish 宿主，断言版本徽标 / 入口脚本 / 静态资源 200、真实 LLM 对话气泡渲染。**版本断言须与 `plugin.json` 同步**（硬编码，升版本后改文件）。
 - **发布态验证**：走 `.agents/skills/plugin-publish-verify/` —— 全量发布 → 起 `publish/ForgeSelf.exe --console` → 只发插件 → 走版本化侧载 `POST /api/plugin/update/{id}` 热换载（不重启宿主）。
-- **开发态快速回路**：dev 宿主（`FORGESELF_DEV_MODE=1 --plugins-dir <repo>/Plugins`）改 UI 后 `pnpm run build`（或 `pnpm run dev` watch 构建）→ 内容指纹 `?v=` 自动破缓存，刷新页面即见新界面；`FORGESELF_DEV_WEB_SRC=1`（随总闸默认开）下 web 资源一律 no-store 双保险。
+- **开发态快速回路**：**环境一律 `pwsh scripts/dev-stack.ps1` 起**（plugin-development 铁律 20，禁止手敲 `dotnet` / `vite` 运行命令）——dev 宿主（`FORGESELF_DEV_MODE=1` + `--plugins-dir <repo>/Plugins`，脚本已保证 `--console` 在首参）+ 宿主前端 dev server，**端口被占用自动顺延**，实际端口与令牌写 `.temp/dev-stack.json`。改 UI 后 `pnpm run build`（或 `pnpm run dev` watch 构建）→ 内容指纹 `?v=` 自动破缓存，刷新页面即见新界面；`FORGESELF_DEV_WEB_SRC=1`（随总闸默认开）下 web 资源一律 no-store 双保险。插件前端要真 HMR 用 `scripts/dev-plugin-web.ps1`。
 
 ## 五、反模式（踩过的坑，禁止）
 

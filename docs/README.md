@@ -19,7 +19,7 @@
 | 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md)；可交互架构图 [`01-architecture/architecture-diagram.html`](01-architecture/architecture-diagram.html)（四层总览+启动装配链）；宿主→插件能力供给（三层模型 L1 契约/L2 事件/L3 拦截）见 [`01-architecture/host-capability-seams.md`](01-architecture/host-capability-seams.md)；**对标 DeepSeek Harness 的改造总纲与施工计划** [`01-architecture/dsh-alignment-plan.md`](01-architecture/dsh-alignment-plan.md) + [`01-architecture/dsh-alignment-施工总览.md`](01-architecture/dsh-alignment-施工总览.md)（三阶段 × 八批次） |
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
-| 查 **Agent 工作流完整规范**（AGENTS.md 详细版：技能体系/验证决策表/迭代流程/文档工作流/汇报模板）**与项目工程规则、踩坑规律** | [`04-standards/agent-workflow.md`](04-standards/agent-workflow.md)（Part A = 工作流细节，Part B = 原 `.forgeself/memory/MEMORY.md` 项目不变规则归档，随 git 入库） |
+| 查 **Agent 工作流完整规范**（AGENTS.md 详细版：技能体系/验证决策表/迭代流程/文档工作流/汇报模板）**与项目工程规则、踩坑规律** | [`04-standards/agent-workflow/README.md`](04-standards/agent-workflow/README.md)（Part A = 工作流细节，Part B = 原 `.forgeself/memory/MEMORY.md` 项目不变规则归档，随 git 入库） |
 | 开发任务**必须走的 AI-Native 闭环工件链**（Repository Understanding→Intent→Spec→Plan→Task→Implement→Test→Evidence→Review） | [`04-standards/ai-native-engineering-workflow.md`](04-standards/ai-native-engineering-workflow.md)（**开发流程唯一依据，独立自含不与其他体系映射**，用户指令 seq14；模板在 [`18-templates/ai-pilot/`](18-templates/ai-pilot/)；产物落 `docs/ai/pilot/<task-id>/`；群 SOP `ai-native-engineering-loop` 已发布绑定） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
@@ -97,11 +97,11 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 代码必须符合的**硬规则**：命名规范、代码风格、API 契约格式、错误码约定、提交规范、目录结构约定；含 [`agent-workflow.md`](04-standards/agent-workflow.md)（Agent 工作流完整规范 = AGENTS.md 详细版 + 项目不变工程规则/踩坑归档，2026-09-24 起承接原 `.forgeself/memory/MEMORY.md`）与 [`doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md)（文档反向同步 SOP） |
+| **做什么** | 代码必须符合的**硬规则**：命名规范、代码风格、API 契约格式、错误码约定、提交规范、目录结构约定；含 [`agent-workflow/README.md`](04-standards/agent-workflow/README.md)（Agent 工作流完整规范 = AGENTS.md 详细版 + 项目不变工程规则/踩坑归档，2026-09-24 起承接原 `.forgeself/memory/MEMORY.md`）与 [`doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md)（文档反向同步 SOP） |
 | **不做什么** | 不写操作流程（那是 `05-guides/`）、不写设计模式（那是 `03-design/`）、不写"为什么"（那是 `07-decisions/`） |
 | **解释什么** | "代码/接口/提交必须长成什么样"；"Agent 每次怎么干活、遇到 X 走什么流程、有什么踩坑" |
 | **不解释什么** | 不解释为什么定这条规则 → `07-decisions/`（ADR 记录理由） |
-| **何时读** | 写代码前、Review 时对照；与 AGENTS.md 分工：AGENTS.md 管"每次必守的规则"，standards 管"完整规范与细节"（`agent-workflow.md` = AGENTS.md 详细版 + 工程规则与踩坑） |
+| **何时读** | 写代码前、Review 时对照；与 AGENTS.md 分工：AGENTS.md 管"每次必守的规则"，standards 管"完整规范与细节"（`agent-workflow/README.md` = AGENTS.md 详细版 + 工程规则与踩坑） |
 
 ### 05-guides/ — 操作指南（SOP）
 
@@ -281,11 +281,11 @@
 
 | 体系 | 管什么 | 生命周期 |
 |------|--------|----------|
-| `docs/`（本目录） | 愿景、设计、规范、指南、调研、决策等**人工沉淀知识**（含 `04-standards/agent-workflow.md`：Agent 工作流规范 + 项目工程规则，**唯一入库的规则库**） | 长期维护（入库） |
+| `docs/`（本目录） | 愿景、设计、规范、指南、调研、决策等**人工沉淀知识**（含 `04-standards/agent-workflow/README.md`：Agent 工作流规范 + 项目工程规则，**唯一入库的规则库**） | 长期维护（入库） |
 | `docs/ai/pilot/YYYY-MM-DD-<task-id>/` | 开发中功能的规格/计划/任务（AI-Native 工程九阶段闭环，**唯一开发流程**；speckit `specs/` 已弃用且已 gitignore） | 功能开发期间 |
 | `openwiki/` | 自动生成的架构/代码文档（全量、代码级） | CI 自动刷新，**不手编** |
-| `AGENTS.md` | Agent **每次必守**的工作规则（预飞铁律/验证门禁/汇报铁律），详细版引用 `docs/04-standards/agent-workflow.md` | 长期维护（入库） |
-| `.forgeself/memory/` | 按天工作记录（`YYYY-MM-DD.md`）+ 会话级索引（`MEMORY.md`，**不再承载不变项目规则**——`.forgeself` 被 git 忽略不入库，规则已归档 `docs/04-standards/agent-workflow.md`） | 会话级沉淀（不入库） |
+| `AGENTS.md` | Agent **每次必守**的工作规则（预飞铁律/验证门禁/汇报铁律），详细版引用 `docs/04-standards/agent-workflow/README.md` | 长期维护（入库） |
+| `.forgeself/memory/` | 按天工作记录（`YYYY-MM-DD.md`）+ 会话级索引（`MEMORY.md`，**不再承载不变项目规则**——`.forgeself` 被 git 忽略不入库，规则已归档 `docs/04-standards/agent-workflow/README.md`） | 会话级沉淀（不入库） |
 
 **一句话分工**：`docs/` 管"应该是什么 + 完整规则"，`docs/ai/pilot/` 管"正在做什么"，`openwiki/` 管"代码实际是什么"，`memory/` 管"每天发生了什么"，`AGENTS.md` 管"每次怎么干活（必守版，详细在 docs）"。
 

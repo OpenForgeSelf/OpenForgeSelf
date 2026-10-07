@@ -3,7 +3,7 @@
 规范定位: 打包·升级·备份·缓存 目录结构与生命周期规则——**唯一真源**
 状态: 真源建立（2026-09-28，输入30）；批次1（输入31）与批次2（输入34）已全部实施：插件去 _backups / 更新缓存应用后清理 / Backups 退役 / 图片缓存 TTL / 宿主 QQNT 式 versions 结构（根启动器 + 发布脚本布局 + update-agent 版本化应用 + 008 冻结）；输入36 单文件化**部分实施**：公共层 FDD 单文件启动器 + DOTNET_ROOT 结构运行时已落地并验证（启动器进程模式、退出码透传、组装 zip），业务层 FDD 单文件 publish 已于 2026-09-29 随 040-B1 收口验证；输入37 目录命名统一小写**已实施**（Plugins/Data/Log/Config → plugins/data/log/config，代码+脚本+测试+文档；update-agent 带存量目录规范化；日志外置数据根/log）；**2026-10-02 输入9/输入10：版本号规则改为「三段号 + 时间码」（§4-R10），废止输入43 双轨**
 最后更新: 2026-10-02
-关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、008-tray-service-autoupdate.md（036 链路功能文档）、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
+关联: AGENTS.md §0/§2.3；docs/04-standards/agent-workflow/README.md B4/B5/B10；docs/02-features/035-plugin-versioned-layout.md、008-tray-service-autoupdate.md（036 链路功能文档）、038-plugin-local-update-source.md；.agents/skills/plugin-development、plugin-publish-verify；scripts/release/*、update-agent.ps1、package-plugin.ps1、publish-plugin.ps1、migrate-plugin-versions.ps1、build.ps1；ForgeSelf.Api（StagedUpdateService/UpdateService/UpdateChecker/PluginVersionService/PluginInstallerService/PluginVersionLayout/AppBuilder/DataLocationService）
 ---
 
 # 打包·升级·备份·缓存 —— 目录结构与生命周期规范（唯一真源）
@@ -13,7 +13,7 @@
 本文是「**打包 / 宿主自更新 / 备份 / 缓存 / 安装目录结构**」相关规则的**唯一真源**：
 
 1. **目录结构、版本保留策略、备份与缓存生命周期规则**以本文为准；
-2. AGENTS.md、agent-workflow.md（B4/B5/B10）、035/036/038 功能文档、插件技能、发布脚本中的相关描述**只保留操作流程与踩坑记录，不再承载目录结构事实**，并引用本文；
+2. AGENTS.md、agent-workflow/README.md（B4/B5/B10）、035/036/038 功能文档、插件技能、发布脚本中的相关描述**只保留操作流程与踩坑记录，不再承载目录结构事实**，并引用本文；
 3. 规则冲突时以本文为准。**现状事实以代码为准（标注代码位置）**；**目标规则以本文为准（标注「目标」）**；未实施的规则不得被当作已实现写入其他文档。
 
 ---
@@ -233,7 +233,7 @@
 | 文档 | 引用方式 |
 |---|---|
 | `AGENTS.md` | §2.3 打包流程收敛为操作要点 + 引用本文（真源说明） |
-| `docs/04-standards/agent-workflow.md` | B5（插件体系与发布）、B10（CI 自动发布）顶部加引用；目录结构/备份事实不再重复定义 |
+| `docs/04-standards/agent-workflow/README.md` | B5（插件体系与发布）、B10（CI 自动发布）顶部加引用；目录结构/备份事实不再重复定义 |
 | `docs/02-features/035-plugin-versioned-layout.md` / `038-plugin-local-update-source.md` / `008-tray-service-autoupdate.md` | 关联段加引用（`_backups` 目标语义以本文 §3-T4/§4-R4 为准；036 升级链路以本文 §1.2/§3/§4 为准） |
 | `.agents/skills/plugin-development` / `plugin-publish-verify` | 关键事实速查加引用（活动目录/`_backups` 描述指向本文） |
 | 发布/升级脚本 | 头注释引用本文 |

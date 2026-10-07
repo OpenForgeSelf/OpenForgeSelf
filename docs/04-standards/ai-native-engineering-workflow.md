@@ -5,7 +5,7 @@
 > 配套模板：`docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review 七份）
 > 产物目录约定：`docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一个目录，**目录名前端加日期前缀**，如 `2026-09-30-e2e-shared-infra-dynamic-port`；**从 2026-09-30 起执行，已有旧目录不回溯重命名**；首切实验可直接用 `docs/ai/pilot/` 平铺）
 > 群 SOP 引用：SOP 技能 `ai-native-engineering-loop`（流程定义与本规范一致，闸门定义见 §1.1，不依赖任何其他 SOP）
-> **规范优先级**：开发任务的流程以本规范为唯一依据；项目内任何其他文档（含 AGENTS.md §1~§10、docs/04-standards/agent-workflow.md、其他流程（含已弃用的 specs/speckit）、其他 SOP）与本规范在流程上冲突时，一律以本规范为准。代码级工程规范（技术栈约定、测试命令、格式规范等）不属流程冲突，继续遵循仓库既有文档。
+> **规范优先级**：开发任务的流程以本规范为唯一依据；项目内任何其他文档（含 AGENTS.md §1~§10、docs/04-standards/agent-workflow/README.md、其他流程（含已弃用的 specs/speckit）、其他 SOP）与本规范在流程上冲突时，一律以本规范为准。代码级工程规范（技术栈约定、测试命令、格式规范等）不属流程冲突，继续遵循仓库既有文档。
 
 ---
 
@@ -153,4 +153,4 @@ Review
 
 ## 7. 持续改进
 
-每次闭环结束，Process Evaluation（模板 §9）指出的「卡点/信息丢失/Agent 猜测」若有规律性 → 沉淀到本规范或 agent-workflow.md 对应小节；流程变更须升格本规范版本号并同步群 SOP。
+每次闭环结束，Process Evaluation（模板 §9）指出的「卡点/信息丢失/Agent 猜测」若有规律性 → 沉淀到本规范或 agent-workflow/README.md 对应小节；流程变更须升格本规范版本号并同步群 SOP。

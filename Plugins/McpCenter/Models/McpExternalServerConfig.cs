@@ -86,6 +86,9 @@ public sealed class McpExternalToolDto
     /// <summary>完整转发名：mcp.&lt;服务器id&gt;.&lt;工具名&gt;。</summary>
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>所属外部服务器 id（v2.3.0：工具测试台按服务器发起调用时用）。</summary>
+    public string ServerId { get; set; } = string.Empty;
+
     /// <summary>外部工具原生名（tools/list 返回）。</summary>
     public string Name { get; set; } = string.Empty;
 

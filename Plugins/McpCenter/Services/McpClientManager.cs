@@ -102,6 +102,19 @@ public sealed class McpClientManager
         return await session.CallToolAsync(toolName, argumentsJson, ct);
     }
 
+    /// <summary>
+    /// 工具测试台调用（v2.3.0）：按服务器 id + 工具原生名调用外部工具，返回完整结果（文本 + isError + 原文）。
+    /// 与 CallExternalAsync 的区别：后者返回拼接文本供 universal_tool 转发，本方法保留结构化信息供界面展示。
+    /// </summary>
+    public async Task<McpToolCallOutcome> InvokeToolAsync(string serverId, string toolName, string argumentsJson, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(toolName))
+            throw new McpClientException("工具名不能为空");
+        if (!_sessions.TryGetValue(serverId, out var session))
+            throw new McpClientException($"外部服务器 '{serverId}' 未连接（请先在 MCP 中心连接并拉取工具清单）");
+        return await session.CallToolDetailedAsync(toolName, argumentsJson, ct);
+    }
+
     /// <summary>运行状态视图（配置脱敏）。</summary>
     public List<McpExternalServerStateDto> GetStates()
     {

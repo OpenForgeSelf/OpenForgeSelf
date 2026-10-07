@@ -159,6 +159,65 @@ public class McpExternalController : ControllerBase
         return Ok(ApiResponse<List<McpExternalToolDto>>.Ok(tools, tools.Count == 0 ? "该服务器未连接或无工具" : "获取工具清单成功"));
     }
 
+    /// <summary>
+    /// 工具测试台（v2.3.0）：按工具原生名真实调用该服务器的外部工具（tools/call）。
+    /// 返回文本 + isError + 原始 JSON + 耗时；远端声明 isError 时 Ok=false 但 HTTP 仍 200（调用本身成功）。
+    /// </summary>
+    [HttpPost("{id}/tools/invoke")]
+    public async Task<ActionResult<ApiResponse<McpToolInvokeResult>>> InvokeTool(string id, [FromBody] McpToolInvokeRequest request)
+    {
+        try
+        {
+            var tool = request?.Tool?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(tool))
+                return StatusCode(400, ApiResponse<McpToolInvokeResult>.Error("工具名不能为空", 400));
+
+            var argsJson = string.IsNullOrWhiteSpace(request?.ArgumentsJson) ? "{}" : request!.ArgumentsJson!;
+            try
+            {
+                using var _ = System.Text.Json.JsonDocument.Parse(argsJson);
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                return StatusCode(400, ApiResponse<McpToolInvokeResult>.Error($"参数 JSON 解析失败: {ex.Message}", 400));
+            }
+
+            var known = _manager.GetTools(id);
+            if (known.Count > 0 && known.All(t => t.Name != tool))
+            {
+                var hint = string.Join("、", known.Take(10).Select(t => t.Name));
+                return StatusCode(400, ApiResponse<McpToolInvokeResult>.Error(
+                    $"工具 '{tool}' 不在该服务器的工具清单中（可用：{hint}）", 400));
+            }
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var outcome = await _manager.InvokeToolAsync(id, tool, argsJson, HttpContext.RequestAborted);
+            sw.Stop();
+
+            var result = new McpToolInvokeResult
+            {
+                ServerId = id,
+                Tool = tool,
+                Ok = !outcome.IsError,
+                IsError = outcome.IsError,
+                Text = outcome.Text,
+                RawJson = outcome.RawJson,
+                ElapsedMs = sw.ElapsedMilliseconds
+            };
+            return Ok(ApiResponse<McpToolInvokeResult>.Ok(result,
+                outcome.IsError ? $"工具已调用，但远端返回 isError（{sw.ElapsedMilliseconds}ms）" : $"调用成功（{sw.ElapsedMilliseconds}ms）"));
+        }
+        catch (McpClientException ex)
+        {
+            return StatusCode(400, ApiResponse<McpToolInvokeResult>.Error(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("调用外部工具失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<McpToolInvokeResult>.Error("调用外部工具失败: " + ex.Message));
+        }
+    }
+
     /// <summary>真实握手测试（initialize + ping，非模拟；不建会话、不保存）。</summary>
     [HttpPost("{id}/test")]
     public async Task<ActionResult<ApiResponse<object>>> Test(string id)

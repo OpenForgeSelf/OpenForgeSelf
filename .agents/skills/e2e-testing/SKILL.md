@@ -146,6 +146,17 @@ node scripts/get-forge-token.cjs
 
 纯视觉问题（无法用 DOM 断言）用截图对比替代并记录原因（AGENTS §6.2）。
 
+### 视觉取证用例必须锚定「截图里这条就是我建的那条」（2026-10-08 todo-tracker V1 实测）
+
+- **踩到的形态**：取证用例**先用接口建数据、再 `locator('.xx-item').first().click()`**，然后截图 + 断"详情可见"。
+  被测页面**不轮询**（§3.4 防闪要求），所以接口建的东西在界面上根本不会出现 —— 它能绿，
+  只因为库里躺着**别人留下的残留**；截的图、断的详情全都属于另一条数据。库里一干净就红。
+- **两条判据（缺一即算假绿）**：① 建完数据后**显式触发刷新**（点页面上的「刷新」按钮，顺带覆盖这个入口）
+  或**先建后 `goto`**（挂载即拉到）；② 定位一律用本用例的**唯一标题**，进详情后再把界面渲染的
+  **身份字段**（如 taskKey/uuid）与 `GET /api/<资源>/<id>` 的回读值断**相等** —— 只断"存在/可见"锁不住"是哪条"。
+- **同类排查动作**：写"接口建 → 界面读"的用例时，`grep -n "\.first()\.click()"` 本文件，
+  凡是裸 `.first()` 且数据来自接口直建的，都要按上面两条补锚点。
+
 ## 三条硬规矩（批次C 五跑 e2e 换来，2026-09-28）
 
 1. **跑完必须读截图，且要为「中间态」写断言。** 只断言终态或只看 DOM 存在性会系统性放过时序缺陷：
@@ -174,8 +185,34 @@ node scripts/get-forge-token.cjs
 
 另：Playwright 的 globalSetup 与 worker 是独立进程，globalSetup 写的 `process.env.*` 不会传到 worker ——
 token 兜底走 `real-auth.ts#readLatestStateToken()`（读 state.json，跨进程真源）。
+
+### 鉴权改造后，**e2e 自己发的 fetch 也算前端**（2026-10-07 PILOT-054 实测）
+
+给 `api/todos*` 全类加 `[Authorize("ApiKeyPolicy")]` 后，应用层用例 `e2e/todo.spec.ts` 里的
+`fetch(TODOS_BASE, { method: 'POST' })`（不带 token）当场 401，而 `await res.json()` 把它糊成一句
+**`SyntaxError: Unexpected end of JSON input`**，看不出成因。两条口径：
+1. 用例内的直连请求一律带 `Authorization: Bearer ${getRealApiKey()}`（`getRealApiKey` 与浏览器注入同源）；
+2. 读响应统一走一个"空体/非 JSON 就把**状态码 + 原文**抛出"的小函数，禁止 `res.json()` 裸用 ——
+   否则 401/404 永远伪装成 JSON 解析错误。
+
+### 界面"没数据"要能区分四种成因：用响应收集器，不要只看 DOM
+
+`暂无待处理待办` 这一种界面表现至少有四种成因：① 401 被拒 ② 500 ③ 200 但空表 ④ **前端根本没发请求**。
+只看 DOM 一种都分不出。做法：`page.on('response')` 把 `/api/` 的 `方法 状态 URL 响应片段` 收进数组，
+塞进断言消息（`expect(item, \`面板没有这条待办；浏览器实际响应：${todosOnly(seen)}\`)`）。
+实测收益：本批靠它当场把 3 条首页红定性成「首页共发了 0~2 个 `/api/` 请求、其中**没有** `/api/todos`」，
+从而排除"被新鉴权拒掉"，把归属落到 `Plugins/Home/web` 的初始化上（另立 TODO）。
+
 ## 失败排查（Level 4）
 
+- **全新 worktree 首跑插件 UI e2e 必红的两件缺件（先排环境再判责，2026-10-07 实测）**：
+  ① `global-setup.ts:250` 缺 `System.Data.SQLite.dll` / `e_sqlite3.dll` —— 注释声称的仓内
+  `build/runtime/Plugins` **不在仓库里**（`git ls-files build/runtime` 为空），新 worktree 也没有 gitignored 的
+  `publish/` ⇒ 直接中止。就地解封：从 `ForgeSelf.Api/bin/Debug/net10.0-windows/`（及其 `runtimes/win-x64/native/`）
+  复制到 `build/runtime/Plugins/`。
+  ② **所有** `Plugins/*/web/dist` 是 gitignored ⇒ 新 worktree 一个插件前端产物都没有，远程入口 404，表现为
+  「`menu-route-consistency` 某路由停在 `.plugin-view-state--error`」「首页面板 `.todo-panel` 不存在」，
+  **与被测改动无关**。先跑 `for d in Plugins/*/web; do (cd "$d" && pnpm install && pnpm build); done`。
 - `宿主构建失败` → 看 globalSetup 报错；多为编译错误需 `dotnet restore`。
 - `等待宿主启动超时` → 看 `.temp/e2e/<ts>/backend.log`（DB 连不上、插件加载崩多在此暴露）。
 - `401 鉴权失败` → token 唯一真源是 `ForgeSetting.config` 的 `ApiToken`（AES 解密），非 appsettings 的 `ApiKey`（易错点，见 MEMORY）。

@@ -105,7 +105,7 @@
 
 | 技能 | 何时用 | 关键约束 |
 |------|--------|----------|
-| `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；完成后复盘回写技能 |
+| `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么、**用户说"我看看效果/先别发布/本地跑一下"（→ §四 的 👀 本地预览）** | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；本地预览不替代任何一步；完成后复盘回写技能 |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `pilot-handoff` | **跨 AI 规划交接**：用户要求「只做规划、实现交别的 AI、完成后你验收」时；产出 00–07 交接包 + 预注册验收清单后停下 | 05 只留骨架/栏位；**06 验收清单必须在实现开始前写好**（防看实现定标准）；实现方不得改 06/07 结论栏；收尾不提交 git |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
@@ -409,4 +409,6 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 - **临时目录**：`$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。本机 `%TEMP%` 拒写，同一成因在三面各红一次：① 后端测试 `Temp\<前缀>_<guid>` 被拒 ⇒ 整片假红（形似大面积回归）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 ⇒ dev server 退出、`ERR_CONNECTION_REFUSED`；③ **本地发布链宿主前端 `vite build` 的 esbuild 临时文件清理被拒 ⇒ `build-frontend` 段整体失败**。
 - **取读数**：判据一律看**日志正文**（`*> <log>` 重定向后读），**不许拿 exit code 当证据**；PowerShell 工具**可能不回显 stdout**，没回显 ≠ 没跑（先重定向再读，别重复执行）。
 - 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow.md` §B2。
+- **全新 worktree 跑插件 UI e2e 前先补两件缺件（2026-10-07 输入2 立）**：① **SQLite provider** —— `e2e/global-setup.ts:250` 要 `System.Data.SQLite.dll` + `e_sqlite3.dll`，注释声称"仓内 `build/runtime/Plugins` 受版本控制"但**该目录不在仓库里**（`git ls-files build/runtime` 为空），新 worktree 也没有 gitignored 的 `publish/` ⇒ 直接中止。就地解封：从 `ForgeSelf.Api/bin/Debug/net10.0-windows/`（及其 `runtimes/win-x64/native/`）复制到 `build/runtime/Plugins/`。② **各插件前端产物** —— `Plugins/*/web/dist` 是 gitignored，新 worktree 里一个都没有 ⇒ 远程加载的插件页全落在 `.plugin-view-state--error`，表现为「`menu-route-consistency` 某路由停在错误态」「首页面板没数据」，**与被测改动无关**。跑 `for d in Plugins/*/web; do (cd "$d" && pnpm install && pnpm build); done` 后再跑 e2e。两类都记入 `TODO.md` 待固化（入库 or 改 globalSetup 的候选源/加自动构建）。
+- **同源自洽的断言不算证据**：路径类断言（`归一后 == REPO_ROOT`）若两边都来自同一个可能写错的变量，错了也会绿。判据要锚在**仓库独有文件**（`ForgeSelf.slnx` 存在）或独立来源上，并加一句"前提自查"阳性对照（`existsSync(<项目根>/docs/ai/pilot/<task-id>)`）。实测：本批 e2e 的 `REPO_ROOT` 少写一层 `../` 拿到 `ForgeSelf.Web`，关联项目断言照样绿，直到工件清单接口回「该项目没有 docs\ai\pilot 目录」才暴露。
 

@@ -7,8 +7,11 @@ $ErrorActionPreference = 'Stop'
 
 # Resolve repo root: scripts/ -> plugin-frontend-scaffold/ -> skills/ -> .agents/ -> repo
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
-$src = Join-Path $repo "ForgeSelf.Api/Plugins/$Template/web"
-$dst = Join-Path $repo "ForgeSelf.Api/Plugins/$Plugin/web"
+# 插件源码在仓库根 Plugins/<PascalCase>/（不是 ForgeSelf.Api/Plugins/ —— 那是宿主的插件装载器运行时目录）。
+# 本脚本原先写的是旧路径，插件目录搬迁后一直没跟：2026-10-07 跑 TodoTracker 时报
+# "Template web not found: <repo>\ForgeSelf.Api\Plugins\AIAgent\web"，故改为仓库根 Plugins。
+$src = Join-Path $repo "Plugins/$Template/web"
+$dst = Join-Path $repo "Plugins/$Plugin/web"
 
 if (Test-Path $dst) {
   if (-not $Force) { Write-Error "Destination already exists: $dst. Use -Force to overwrite."; exit 1 }

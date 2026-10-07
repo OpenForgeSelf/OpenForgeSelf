@@ -403,7 +403,7 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 四、维护闭环（改完插件必走）
 
 ```
-读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e → 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
+读技能 → 改代码（实体改动走 Model.xml→xcode）→ 门禁 → 插件层 e2e →（可选：本地预览给用户先体验，见下 👀；用户表露意图时必做）→ 发布（打 tag 自动发布 / 本地目录更新源 + 页面自动更新）→ 走查（e2e 隔离实例）→ **运行实例只读复验（用户启用新版本后；见 `plugin-publish-verify`「运行实例只读复验」）** → 更新插件文档 → 记日志
 ```
 
 > ⚡ **开发态快速回路（2026-10-01 新增，仅 dev 宿主）**：本地迭代阶段不必走完整发布链——
@@ -413,6 +413,68 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 > - 改插件 UI：`pnpm run build`（或 watch 构建）→ 刷新页面即生效（内容指纹破缓存 + dev no-store）；
 > - 诊断：`GET /api/dev/diagnostics`（插件状态/最近错误/shadow 统计/日志尾，日志带 `[plugin:<id>]` 前缀）。
 > 完整五步闭环仍是**交付门禁**，快速回路只替代其中的"本地看效果"环节。
+
+> 👀 **给用户先体验一遍（本地预览，不发布）** —— **触发条件**：用户表露"我看看效果 / 先别发布 / 本地跑一下 / 传统起前后端"
+> 这类意图时，**直接按下面走**，不要继续往下发布、也不要拿 e2e 截图代替真人体验、更不要反问用户"要不要跑 e2e"。
+> 预览只是收反馈的环节，**不替代 §四 的任何一步**（预览完仍要 ③发布 ④走查 ⑤运行实例只读复验，且发布需授权）。
+>
+> 1. **先看端口，绝不碰用户实例**：`netstat -ano | grep -E "7102|7002"`。被占就换备用端口起；
+>    `:51888` 与 `D:\src\tools\ForgeSelf` 是**用户的运行实例，不停不杀不动配置**。
+> 2. **起后端**：`cd ForgeSelf.Api && dotnet run`（端口真源与"勿用 `--urls`"见
+>    `docs/04-standards/agent-workflow.md` §分层/鉴权/配置；改端口三选一：`FORGESELF_PORT` > `--server-port` > 改 config）。
+>    要边改边看就用上面 ⚡ 的 `FORGESELF_DEV_MODE=1 --plugins-dir <repo>/Plugins` + `scripts/dev-plugin.ps1`。
+> 3. **起前端**：`cd ForgeSelf.Web && pnpm run dev`（7002）。**后端换了端口就必须同时设**
+>    `VITE_APP_BASE_API=http://localhost:<后端端口>` —— dev 代理的 `/api` 与 `/plugins/**/web/**`
+>    默认打 7102（`ForgeSelf.Web/vite.config.ts:37-54`），不改会出现"页面开得了、接口全 404"。
+> 4. **交地址 + 交动线**：给用户 `http://localhost:7002<plugin.json.frontend.route>`，并说清**点几下、入口在哪**
+>    （侧栏菜单有没有项 / 只能直连 URL）、以及"这一步会真的写库"。动线说不清就是交付缺陷，不是小事。
+>
+> **四条必知的坑（2026-10-07 todo-tracker 预览实测）**
+> - **插件 UI 是远程加载的** ⇒ 预览前必须已 `dotnet build`（把 `plugin.json` + `web/dist/*` 落进
+>   `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<Id>/`）且插件前端 `pnpm build` 过。缺产物时页面落在
+>   `.plugin-view-state--error`；全新 worktree 里 `Plugins/*/web/dist` **一个都没有**（gitignored，见 `e2e-testing` §失败排查）。
+> - **鉴权**：插件管理面 API 带 `[Authorize("ApiKeyPolicy")]` ⇒ 浏览器要已有 `forge_api_token`。
+>   前端 `services/authInit.ts` 首启会自动打 `GET /api/init-token` 落 localStorage，正常不用管；
+>   若页面空态且 network 里是 401，先直接开 `http://localhost:<后端端口>/api/init-token` 或清 localStorage 刷新。
+> - **数据不互通**：dev 数据根 = 程序目录 `Data/`，发布/服务态 = `~/.forgeself`（真源 agent-workflow §运行时数据落盘铁律）
+>   ⇒ 预览实例是**空台账**，用户看不到自己现有数据。**起预览前就要一句话说明**，否则会被当成"数据丢了"。
+>   要让用户看真实数据只有一条路：发布 + 用户自己在真实实例启用新版本。
+> - **宿主启动会写回 `ForgeSetting.config`**（端口事故在册）⇒ 起完核对端口/配置未被改写；并行会话共用机器时
+>    优先 `FORGESELF_PORT` 起备用端口，别抢默认 7102。
+>
+> **2026-10-07 现踩现记的三条（预览专属，代价最高的一类）**
+> - **必须隔离数据根**：起预览就带 `FORGESELF_DATA_ROOT=<repo>\.temp\preview-data`。
+>   `dotnet run` 的 Development 判定来自 launchSettings，一旦绕开它（`--no-launch-profile`）或环境不匹配，
+>   dev 实例会把数据根解析成 **`~/.forgeself` = 与用户长期实例共用一份库和配置**。
+>   实测事故：预览实例对真实 `TodoTracker.db` 做了建表加列，并把 `ForgeSetting.config` 的 `PortNumber` 改成 7102
+>   （用户实例重启就会跑到 7102）。恢复三步：备份到 `.trash/` → 只改回目标值 → `Compare-Object` 逐行 diff 核对
+>   "只有那一行变了、行数与 CRLF 未变"。
+> - **同机已有实例 ⇒ 用环境变量换实例标识，别用命令行参数**：全局 Mutex 会拒启动
+>   （`错误：另一个实例已在运行，请勿重复启动。`）。正确写法是 env `FORGESelf_INSTANCE_ID=preview`
+>   （**大小写就是这样**）；`--instance-id=preview` 当 CLI 参数传会被 NewLife.Agent 当成服务命令
+>   （日志 `ProcessCommand cmd=--instance-id=preview` → `ProcessFinished`）然后**进程直接退出**——
+>   与"`--urls` 被吞"是同一类坑。
+> - **别替用户点 `init-token`**：`GET /api/api-server/init-token` 只在**首次**有效，调用即把 `IsFirstInit` 置 false，
+>   之后用户浏览器再拿不到 token（页面 401 空列表）。预览时只验 `200` 的静态资源与 `/api/health`，
+>   token 交给前端 `authInit.ts` 自己去取。
+> - **起完必查三件**：① 日志里 `运行时数据根目录` 落在隔离目录；② `~/.forgeself/config/*` 的 mtime 没被本次改动；
+>   ③ 用户实例端口仍在监听（`netstat`）。收尾时**只停自己起的**进程。
+>
+> **收尾**：预览进程是 agent 起的 ⇒ 记下 PID，用完**只停自己起的**；用户的实例一律不碰。
+
+> 🚶 **走查（④）不是发布产物的专属仪式，双绿不能替代它**（2026-10-07 todo-tracker 实证）：
+> 单测 226/226 + 插件层 e2e 8/8 的同时，用户明确要求的那条"一致的路径认为是同一个项目"在数据层是**坏的**
+> （点「关联项目」界面显示成功、路径也归一了，但 `ProjectId=0` ⇒ 项目过滤筛不到、`ListProjects` 计数恒 0、
+> 详情面板仍写「未关联项目」）。两道门禁都抓不到的原因是结构性的：
+> - **单测绕过了真实入口**：用例直接调 `Resolve(registerIfMissing: true)`，而坏的是服务层 `ApplyProjectFields` 的传参；
+>   且断言 `Distinct().HaveCount(1)` 缺阳性对照——**四个 `0` 也算"只有一个不同值"**。
+> - **e2e 断言了"回显"而不是"落库的身份"**：只查 `projectRoot` 有显示，没查 `projectId > 0` 与详情面板的关联态。
+>
+> 所以：**门禁绿之后、发布之前，先在 dev 预览实例用真浏览器走一遍主链路**（按 §3.4 交互清单逐项核对 +
+> 截图读图 + 只清自己造的测试数据），这一遍标注为"dev 态预走查"，**不冒充 §四④ 的发布产物版走查**
+> （发布后仍要用 `e2e` 隔离实例点一遍，⑤ 运行实例只读复验另有 `plugin-publish-verify`）。
+> 写判据时的两条硬规矩：**断言锚在真实服务入口的返回**（不是绕过它直调内层），**"计数/唯一性"断言必配阳性对照**
+> （先证"正确值确实可能出现"，再证"只出现一次"）。
 
 0. **改实体时（先做这一步，再改代码）**：按铁律 9 走
    `改 Data/Model.xml → cd Data && xcode Model.xml → 确认无字段漂移`；
@@ -603,3 +665,20 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
   用 `git show <sha>:<file> | grep <你的唯一标记>` 逐个确认你的行**已在提交里**；
   最直接的办法是整份 `git diff -- <file>` 看一遍归属（本例中 `AppBuilder.cs` 的未提交差异 100% 是我自己的行，
   直接 `git add` 整个文件即可，反而不用走「取行」手法）。
+
+### G. 插件自带界面的三类"看着对"的缺陷（2026-10-07 todo-tracker 1.1.0 全程实测；只有跑 e2e + 读图才暴露）
+
+- **「点即保存」+「响应带整行快照」= 旧数据盖新数据**。连续失焦会连发多个 PUT，宿主日志证明**四个都落库了**，
+  界面却仍显示「还缺：验收判据、验证命令」——因为响应**乱序回来**，最后一次落地的是较早那次写的旧快照。
+  修法（普适，建议每个自带界面的插件都这么做）：前端 HTTP 封装把**非 GET 请求串成一条队列**（读不串），
+  于是"最后到达的响应必然是最新状态"。参考 `Plugins/TodoTracker/web/src/http.ts` 的 `dispatch/writeChain`。
+  写用例时**必须**同时断言两件事：界面翻对了 **且** REST 读回是真值（"界面翻对了不代表存对了"）。
+- **空列表时不许替后端编原因**。`artifact-sets` 返回 `data: []` 时前端固定显示「该项目没有 docs/ai/pilot 目录」，
+  而后端其实分得开"没目录"与"有目录但没匹配到 NN-*.md"，两种成因的下一步完全不同。
+  修法：取封套时**连 `message` 一起返回**（`requestEnvelope`），空态优先显示后端给的那句，后端没说才用自己的兜底文案。
+- **toast 会叠住你刚点过的控件**。四次失焦 = 四条「已保存」，实测正好压在「交给 AgentHub 执行」按钮上。
+  修法：同文案同类型**去重并重置计时**、同时最多 3 条（`notify.ts`）。读图时专门看一眼"提示有没有挡住入口"。
+- **禁用态的文案要分状态说**。委派按钮只用一个 fallback 文案（`先生成提示词`）时，"预览已生成但不可委派"
+  会撒谎。要么按状态给四种文案，要么把后端 `delegationError` 原文端出来。
+- **接口给了字段但界面没入口 = 假能力**。`preview.agents` 下发了 agent 候选却没有任何下拉，等于没做；
+  补成 `data-test="delegate-agent"` 下拉才算闭环（对齐 `design-system-verify` 的"假能力自查"思路）。

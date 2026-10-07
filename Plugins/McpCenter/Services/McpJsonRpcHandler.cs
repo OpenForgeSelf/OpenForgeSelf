@@ -10,6 +10,15 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// 协议版本：2025-11-25（MCP 2.0）/ 2025-06-18（Streamable HTTP），兼容 2025-03-26 / 2024-11-05 客户端声明；
 /// 客户端声明未知版本时回退默认 2025-06-18（向后兼容 1.x）。
 /// </summary>
+/// <remarks>
+/// ⚠️ **自 2.4.0 起本类不再参与 MCP 网关链路**：传输层与协议协商已交由官方 MCP C# SDK
+/// （ModelContextProtocol.AspNetCore 2.2.0）托管，见 <see cref="McpGatewayServer"/> 的 AddMcpServer + MapMcp；
+/// 对外工具改由 <see cref="McpUniversalTool"/> 以 SDK 方式暴露。
+/// **本类保留仅为回退路径与既有单测（McpJsonRpcHandlerTests）**，逻辑未改动、不对外提供服务；
+/// 待官方 SDK 链路稳定运行后随其测试一并下线（已登记 TODO）。
+/// 注意：本类的「未知版本静默回退默认」行为与官方 SDK 的「显式报错 -32022 + supported 列表」不一致，
+/// 回退到本类即恢复旧行为，属已知取舍。
+/// </remarks>
 public sealed class McpJsonRpcHandler
 {
     public const string ProtocolVersion = "2025-06-18";

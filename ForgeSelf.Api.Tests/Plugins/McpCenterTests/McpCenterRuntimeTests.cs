@@ -25,8 +25,8 @@ public class McpCenterRuntimeTests
         var ctx = new Mock<IContext>();
         var store = new ExternalServersStore(Path.Combine(Path.GetTempPath(), "mcpcenter-tests", Guid.NewGuid().ToString("N")));
         var forwarder = new UniversalToolForwarder(ctx.Object, new McpClientManager(store));
-        var handler = new McpJsonRpcHandler(forwarder, "ForgeSelf McpCenter", "2.0.0-test");
-        var server = new McpGatewayServer(config, handler, "2.0.0-test");
+        // 网关改用官方 MCP SDK 后构造入参为业务转发器（不再经自研 McpJsonRpcHandler）
+        var server = new McpGatewayServer(config, forwarder, "2.0.0-test");
         return new McpCenterRuntime(dir, config, server, "2.0.0-test");
     }
 

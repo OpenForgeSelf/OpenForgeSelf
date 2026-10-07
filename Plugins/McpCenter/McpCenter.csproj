@@ -28,6 +28,9 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- 官方 MCP C# SDK（微软 + Anthropic 共同维护）：托管 Streamable HTTP 传输与协议协商，
+         替代自研 McpJsonRpcHandler 的传输层职责；有状态模式由网关显式开启（Stateless=false）。 -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>

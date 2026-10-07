@@ -55,8 +55,9 @@ public class McpCenterPlugin : IPlugin
             var clientManager = new McpClientManager(externalStore);
 
             var forwarder = new UniversalToolForwarder(ctx, clientManager);
-            var handler = new McpJsonRpcHandler(forwarder, ServerName, version);
-            var server = new McpGatewayServer(config, handler, version);
+            // 传输层与协议协商已交由官方 MCP SDK 托管（见 McpGatewayServer：AddMcpServer + MapMcp，有状态会话）。
+            // 此处只把业务转发器交给网关；自研 McpJsonRpcHandler 保留但不再参与网关链路（见其头注释）。
+            var server = new McpGatewayServer(config, forwarder, version);
             _server = server;
 
             // 网关配置运行时单例：供配置 API 查询/更新/热重启
@@ -76,8 +77,8 @@ public class McpCenterPlugin : IPlugin
             // 停止器：插件 Fiber 逆序回滚（热重载/卸载）时先停服务器、断外部连接，再卸载 ALC
             ctx.Effect(() => new McpCenterStopDisposable(server, clientManager));
 
-            XTrace.Log.Info("[McpCenter] MCP 中心插件初始化完成（{0}，协议版本 {1}，对外工具数 1，外部服务器 {2} 台，服务器/工具管理已就绪）",
-                server.ListenUrl, McpJsonRpcHandler.ProtocolVersion, externalStore.Load().Count);
+            XTrace.Log.Info("[McpCenter] MCP 中心插件初始化完成（{0}，协议协商由官方 MCP SDK 托管 · 有状态会话，对外工具数 1，外部服务器 {1} 台，服务器/工具管理已就绪）",
+                server.ListenUrl, externalStore.Load().Count);
         }
         catch (Exception ex)
         {

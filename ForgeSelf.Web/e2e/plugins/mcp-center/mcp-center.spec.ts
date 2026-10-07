@@ -65,6 +65,39 @@ function errorOf(resp: unknown): { code: number; message: string } {
   return (resp as { error: { code: number; message: string } }).error
 }
 
+/**
+ * 真实 MCP mock 服务器脚本（仓库内固定路径，node 可执行）。
+ * 提供 echo{text:string} 与 add{a:number,b:number} 两个**带 inputSchema** 的工具，
+ * 因此既能测协议连通，也能测工具测试台的「按 schema 动态渲染参数表单」。
+ */
+const MOCK_SCRIPT = path.resolve(
+  fileURLToPath(new URL('../../../../ForgeSelf.Api.Tests/Plugins/McpCenterTests/Fixtures/mock-mcp-server.js', import.meta.url)),
+)
+
+/** 起一个 http/sse 模式 mock，返回监听端口与 kill（供多个用例复用）。 */
+function startMock(mode: 'http' | 'sse'): Promise<{ port: number; kill: () => void }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('node', [MOCK_SCRIPT, '--mode', mode], { stdio: ['ignore', 'pipe', 'pipe'] })
+    let out = ''
+    const timer = setTimeout(() => {
+      child.kill()
+      reject(new Error(`mock ${mode} 启动超时`))
+    }, 15_000)
+    child.stdout.on('data', (d: Buffer) => {
+      out += d.toString()
+      const m = /LISTENING (\d+)/.exec(out)
+      if (m) {
+        clearTimeout(timer)
+        resolve({ port: Number(m[1]), kill: () => { try { child.kill() } catch { /* 已退出 */ } } })
+      }
+    })
+    child.on('exit', (code) => {
+      clearTimeout(timer)
+      reject(new Error(`mock ${mode} 提前退出 code=${code}`))
+    })
+  })
+}
+
 test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API + 自带界面（真实后端，零 mock）', () => {
   // 3 个用例共享同一 MCP 端口（FORGESELF_MCP_GATEWAY_PORT 覆盖，e2e 默认 19000+），首用例临时改端口→改回：
   // 必须串行执行，否则并行用例会在端口切换窗口内互相踩（ECONNREFUSED）。
@@ -299,35 +332,7 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     mkdirSync(OUT_DIR, { recursive: true })
     const evidence: string[] = []
 
-    // mock 服务器脚本（仓库内固定路径，node 可执行）
-    const mockScript = path.resolve(
-      fileURLToPath(new URL('../../../../ForgeSelf.Api.Tests/Plugins/McpCenterTests/Fixtures/mock-mcp-server.js', import.meta.url)),
-    )
-
-    /** 起一个 http/sse 模式 mock，返回监听端口与 kill。 */
-    function startMock(mode: 'http' | 'sse'): Promise<{ port: number; kill: () => void }> {
-      return new Promise((resolve, reject) => {
-        const child = spawn('node', [mockScript, '--mode', mode], { stdio: ['ignore', 'pipe', 'pipe'] })
-        let out = ''
-        const timer = setTimeout(() => {
-          child.kill()
-          reject(new Error(`mock ${mode} 启动超时`))
-        }, 15_000)
-        child.stdout.on('data', (d: Buffer) => {
-          out += d.toString()
-          const m = /LISTENING (\d+)/.exec(out)
-          if (m) {
-            clearTimeout(timer)
-            resolve({ port: Number(m[1]), kill: () => { try { child.kill() } catch { /* 已退出 */ } } })
-          }
-        })
-        child.on('exit', (code) => {
-          clearTimeout(timer)
-          reject(new Error(`mock ${mode} 提前退出 code=${code}`))
-        })
-      })
-    }
-
+    // startMock / MOCK_SCRIPT 已提到模块级（工具测试台用例复用同一份 mock）
     const httpMock = await startMock('http')
     const sseMock = await startMock('sse')
     evidence.push(`mock http:${httpMock.port} / sse:${sseMock.port} 已启动`)
@@ -363,7 +368,7 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
       // ── 1) stdio：node mock --mode stdio，工具 echo/add ──
       await createServer({
         id: 'e2e-stdio', name: 'e2e stdio', transport: 'stdio', enabled: true,
-        command: 'node', args: [mockScript, '--mode', 'stdio'],
+        command: 'node', args: [MOCK_SCRIPT, '--mode', 'stdio'],
       })
       const s1 = await waitConnected('e2e-stdio')
       expect(s1.toolCount).toBe(2)
@@ -444,6 +449,104 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
       }
       httpMock.kill()
       sseMock.kill()
+    }
+  })
+
+  /**
+   * 工具测试台（v2.3.0）：按 tools/list 的 inputSchema 动态渲染参数表单 → 填参 → 真实调用。
+   * 判据分三层：① 表单由 schema 生成（必填标记 + number 类型字段）② 发送的 JSON 正确
+   * ③ 结果面板出现耗时与真实返回文本（mock 的 add(3,4) = 7）。
+   * 用仓库内 mock MCP 服务器（含 echo/add 两个带 schema 的工具），不依赖外网。
+   */
+  test('工具测试台：按 inputSchema 动态渲染参数表单并发起真实调用（v2.3.0）', async ({ page }) => {
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence: string[] = []
+    const mock = await startMock('http')
+    evidence.push(`mock http:${mock.port} 已启动`)
+
+    const SERVER_ID = 'e2e-playground'
+    try {
+      // ── 1) 建一台指向真 mock 的外部服务器并等它连上 ──
+      const created = await fetch(`${BACKEND_URL}/api/mcp-center/servers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
+        body: JSON.stringify({
+          id: SERVER_ID, name: 'e2e playground', transport: 'streamable-http', enabled: true,
+          url: `http://127.0.0.1:${mock.port}/mcp`,
+        }),
+      })
+      expect(created.ok, `POST 外部服务器应成功（HTTP ${created.status}）`).toBeTruthy()
+
+      let toolCount = 0
+      const deadline = Date.now() + 30_000
+      while (Date.now() < deadline) {
+        const res = await fetch(`${BACKEND_URL}/api/mcp-center/servers`, { headers: AUTH_HEADERS })
+        const body = (await res.json()) as { data?: { id: string; connected: boolean; toolCount: number }[] }
+        const s = (body.data ?? []).find((x) => x.id === SERVER_ID)
+        if (s?.connected) { toolCount = s.toolCount; break }
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      expect(toolCount, '应连上 mock 且拉到 2 个工具').toBe(2)
+      evidence.push(`已连接：toolCount=${toolCount}`)
+
+      // ── 2) 界面：打开工具测试台 ──
+      await page.goto('/mcp-center')
+      await page.waitForLoadState('networkidle')
+      await page.locator('.external-item', { hasText: 'e2e playground' })
+        .getByRole('button', { name: '工具' })
+        .click()
+      const playground = page.getByTestId('tool-playground')
+      await expect(playground).toBeVisible()
+
+      // 工具清单来自真实 tools/list：echo / add
+      await expect(page.getByTestId('tp-tool-add')).toBeVisible()
+      await expect(page.getByTestId('tp-tool-echo')).toBeVisible()
+      evidence.push('工具清单渲染：add / echo')
+
+      // ── 3) 选 add：schema 声明 a、b 两个 number 且都必填 ⇒ 表单必须出现两个必填字段 ──
+      await page.getByTestId('tp-tool-add').click()
+      await expect(page.getByTestId('tp-selected')).toHaveText('add')
+      await expect(page.getByTestId('tp-field-a')).toBeVisible()
+      await expect(page.getByTestId('tp-field-b')).toBeVisible()
+      await expect(page.getByTestId('tp-required-a')).toBeVisible()
+      await expect(page.getByTestId('tp-required-b')).toBeVisible()
+      evidence.push('schema→表单：add 的 a/b 两个必填字段已渲染')
+
+      // 必填未填时调用被拦（不会出现"点了没反应"）
+      await page.getByTestId('tp-invoke').click()
+      await expect(page.getByTestId('tp-result')).toHaveCount(0)
+
+      // 填参：a=3, b=4（el-input-number 的输入框）
+      await page.getByTestId('tp-field-a').locator('input').fill('3')
+      await page.getByTestId('tp-field-b').locator('input').fill('4')
+      const preview = await page.getByTestId('tp-preview').textContent()
+      expect(JSON.parse((preview ?? '{}').trim()) as Record<string, number>).toEqual({ a: 3, b: 4 })
+      evidence.push(`将发送：${(preview ?? '').trim()}`)
+
+      // ── 4) 发起真实调用 ──
+      await page.getByTestId('tp-invoke').click()
+      const resultPanel = page.getByTestId('tp-result')
+      await expect(resultPanel).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByTestId('tp-result-text')).toContainText('"sum":7')
+      const elapsed = (await page.getByTestId('tp-elapsed').textContent()) ?? ''
+      expect(Number.parseInt(elapsed, 10)).toBeGreaterThanOrEqual(0)
+      evidence.push(`调用结果：${(await page.getByTestId('tp-result-text').textContent()) ?? ''}（${elapsed.trim()}）`)
+
+      // 原始 JSON 可展开
+      await page.getByRole('button', { name: '查看原始 JSON' }).click()
+      await expect(page.getByTestId('tp-result-raw')).toContainText('"isError":false')
+
+      await page.screenshot({ path: path.join(OUT_DIR, 'tool-playground.png') })
+
+      writeFileSync(path.join(OUT_DIR, 'tool-playground.log'), evidence.join('\n'), 'utf8')
+      console.log(`\n[evidence] 工具测试台 e2e 通过，证据 ${evidence.length} 行\n${evidence.join('\n')}\n`)
+    } finally {
+      try {
+        await fetch(`${BACKEND_URL}/api/mcp-center/servers/${SERVER_ID}`, {
+          method: 'DELETE', headers: AUTH_HEADERS,
+        })
+      } catch { /* 清理失败不阻塞 */ }
+      mock.kill()
     }
   })
 })

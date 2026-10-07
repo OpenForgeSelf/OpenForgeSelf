@@ -157,8 +157,36 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | `api/mcp-center/servers/{id}` | DELETE | 删除（断开 + 落盘） |
 | `api/mcp-center/servers/{id}/connect` | POST | 手动连接 |
 | `api/mcp-center/servers/{id}/disconnect` | POST | 断开 |
-| `api/mcp-center/servers/{id}/tools` | GET | 已拉取的外部工具清单 |
+| `api/mcp-center/servers/{id}/tools` | GET | 已拉取的外部工具清单（含 `inputSchemaJson`） |
 | `api/mcp-center/servers/{id}/test` | POST | 真实连接测试（initialize+ping） |
+| `api/mcp-center/servers/{id}/tools/invoke` | POST | **工具测试台**（v2.3.0）：按工具原生名真实 `tools/call` |
+
+### 工具测试台（v2.3.0）
+
+**用途**：接入一台外部 MCP 服务器后，就地确认「每个工具要传什么参数、传了能不能跑通」，不必绕到宿主的
+`universal_tool` 从外部 MCP 客户端侧去打。
+
+- 请求体：`{ "tool": "<工具原生名>", "argumentsJson": "<参数 JSON 字符串>" }`
+  - `tool` 用 **tools/list 的原生名**，不是 `mcp.<id>.<name>` 全名；`argumentsJson` 为空时按 `{}` 处理。
+- 响应体（`data`）：`{ serverId, tool, ok, isError, text, rawJson, elapsedMs }`
+  - `ok=false` 表示远端声明了 `isError`（**HTTP 仍是 200**——调用本身成功了，只是工具报错）。
+- 错误：工具名为空 / 参数非合法 JSON / 服务器未连接 / 工具不在清单中 → HTTP 400 并带明确消息。
+- 鉴权：动作落在 `McpExternalController` 内，继承类级 `[Authorize("ApiKeyPolicy")]`，无宿主令牌 401。
+
+**前端**（`/mcp-center` → 外部 MCP 服务器 → 「工具」按钮 → 工具测试台）：
+
+- 左侧工具清单来自真实 `tools/list`；选中后按该工具的 `inputSchema` **动态生成参数表单**
+  （类型标签、必填标记、说明、默认值预填、`enum` 渲染为下拉）。
+- 支持切到 **JSON 模式**直编参数（处理嵌套 object/array）。
+- 调用后展示：状态标签、耗时、返回文本、可展开的原始 JSON。
+- 「新增服务器」表单提供 **DeepWiki 预设**按钮（一键填入官方公开端点，见下）。
+
+**schema 解析规则**（纯函数 `web/src/playground/schemaForm.ts`，有 vitest 常驻判据）：
+
+- 类型优先级：`enum > type > anyOf/oneOf 首个带 type 的分支 > unknown`（不猜，无法识别就降级）。
+- 参数序列化：空的可选字段丢弃；空的必填字段保留（让远端给明确报错）；
+  `number/integer` 转数值，`boolean` 按 `true`/`"true"` 判定，`array/object` 先试 `JSON.parse`。
+- 已知降级：`array`/`object` 在表单模式下是多行文本框（填 JSON），嵌套结构建议用 JSON 模式。
 
 ### 转发契约（对外仍恒 1 个 `universal_tool`）
 

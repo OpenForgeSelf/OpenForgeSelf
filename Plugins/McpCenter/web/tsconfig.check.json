@@ -1,0 +1,33 @@
+{
+  "//": [
+    "类型检查专用配置（不是构建配置）。",
+    "为什么单独一份：插件前端产物把 vue/vite 等全部 external，自己不装工具链（见 vite.config.ts 注释），",
+    "所以这里的 moduleResolution 指向**宿主那一份 node_modules**，用宿主已装的 vue-tsc 跑，",
+    "避免为每个插件复制一套 TS 工具（仓库既有约定：插件单测也走宿主 vitest 入口）。",
+    "与 Plugins/DesignSystem/web/tsconfig.check.json 同款（2026-10-04 工具测试台引入）。"
+  ],
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "vue": ["../../../ForgeSelf.Web/node_modules/vue"],
+      "vitest": ["../../../ForgeSelf.Web/node_modules/vitest"],
+      "@vue/*": ["../../../ForgeSelf.Web/node_modules/@vue/*"]
+    },
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

@@ -10,6 +10,8 @@ import type {
   McpExternalServerStateDto,
   McpExternalServerUpsertDto,
   McpExternalToolDto,
+  McpToolInvokeRequest,
+  McpToolInvokeResult,
 } from '../types/external'
 
 const BASE = '/api/mcp-center/servers'
@@ -50,6 +52,17 @@ export function disconnectExternalServer(id: string): Promise<McpExternalServerS
 /** 拉取该服务器的外部工具清单（真实 initialize + tools/list）。 */
 export function fetchExternalTools(id: string): Promise<McpExternalToolDto[] | undefined> {
   return apiGet<McpExternalToolDto[]>(`${BASE}/${id}/tools`)
+}
+
+/**
+ * 工具测试台：真实调用该服务器的某个外部工具（tools/call）。
+ * 远端声明 isError 时 HTTP 仍是 200、result.ok=false（调用本身成功了，只是工具报错）。
+ */
+export function invokeExternalTool(
+  id: string,
+  body: McpToolInvokeRequest,
+): Promise<McpToolInvokeResult | undefined> {
+  return apiPost<McpToolInvokeResult>(`${BASE}/${id}/tools/invoke`, body)
 }
 
 /** 连接测试（真实握手：initialize + ping）。 */

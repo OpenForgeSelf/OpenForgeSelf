@@ -32,7 +32,32 @@ export interface McpExternalToolDto {
   serverId: string
   name: string
   description?: string
-  inputSchema?: Record<string, unknown>
+  /**
+   * 输入 schema 的**原文 JSON 字符串**（后端 McpExternalToolDto.InputSchemaJson）。
+   * 不是对象——由 playground/schemaForm.ts 的 parseInputSchema 解析，解析不出就降级。
+   */
+  inputSchemaJson?: string
+}
+
+/** 工具测试台调用请求（POST api/mcp-center/servers/{id}/tools/invoke）。 */
+export interface McpToolInvokeRequest {
+  /** 外部工具原生名（不是 mcp.<id>.<name> 全名）。 */
+  tool: string
+  /** 参数 JSON 字符串；为空时后端按 {} 处理。 */
+  argumentsJson?: string
+}
+
+/** 工具测试台调用结果。 */
+export interface McpToolInvokeResult {
+  serverId: string
+  tool: string
+  /** 调用成功（远端未声明 isError）。 */
+  ok: boolean
+  /** 远端 MCP 声明的 isError。 */
+  isError: boolean
+  text: string
+  rawJson: string
+  elapsedMs: number
 }
 
 /** 新增 / 更新请求体（PUT 时省略未修改字段）。 */

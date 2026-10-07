@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 // window.__FORGE_SHARED__.elementPlus 取宿主同一份实例；宿主 exposeSharedDeps 已暴露这些组件）。
 // 模板 `<ElXxx>` 若未显式导入会编译成 resolveComponent（宿主全局注册表无按需组件）→ 组件静默失效。
 import { ElMessage, ElTabs, ElTabPane, ElSwitch, ElInputNumber, ElInput, ElCheckbox, ElButton, ElSelect, ElOption, ElDialog, ElTag } from 'element-plus'
-import { fetchMcpServers, fetchMcpTools, testMcpServer, testMcpTool, toggleMcpTool } from './api/mcp'
+import { fetchMcpServers, fetchMcpTools, testMcpTool, toggleMcpTool } from './api/mcp'
 import { fetchGatewayConfig, updateGatewayConfig } from './api/gateway'
 import { fetchDshMcpConfig, writeDshMcpConfig } from './api/dsh'
 import type { DshMcpConfigDto } from './types/dsh'
@@ -22,6 +22,7 @@ import {
 import type { McpServerDto, McpTestResultDto, McpToolDto } from './types/mcp'
 import type { McpCenterConfigDto } from './types/gateway'
 import type { McpExternalServerStateDto, McpExternalServerUpsertDto, McpExternalToolDto } from './types/external'
+import ToolPlayground from './playground/ToolPlayground.vue'
 
 /* ── 版本徽标（铁律 13：GET /api/plugin 解包 .data 按 id 过滤） ── */
 const version = ref('')
@@ -310,6 +311,12 @@ const externalTools = ref<McpExternalToolDto[]>([])
 const externalToolsDialog = ref(false)
 const externalBusy = ref<string | null>(null) // 操作中的服务器 id
 
+/** 工具测试台对话框标题：带上服务器名，避免多服务器时不知道在调谁。 */
+const externalToolsTitle = computed(() => {
+  const s = externalServers.value.find(x => x.id === externalToolsOf.value)
+  return s ? `工具测试台 · ${s.name}` : '工具测试台'
+})
+
 // 新增/编辑表单
 const externalFormVisible = ref(false)
 const externalFormTitle = ref('')
@@ -430,6 +437,28 @@ function parseArgs(text: string | undefined): string[] {
   if (!text) return []
   // 简单分词：按空白拆分（不支持引号内空格——引号场景请用 JSON 数组）
   return text.split(/\s+/).filter(Boolean)
+}
+
+/**
+ * 填入 DeepWiki MCP 预设（v2.3.0 工具测试台）：
+ * 官方公开的 Streamable HTTP 端点，免鉴权、无状态（响应无 Mcp-Session-Id），
+ * tools/list 公开 ask_wiki_question / read_wiki_contents / read_wiki_structure 三个工具，
+ * 适合当作「参数对不对、能不能调通」的联调靶子。
+ */
+function fillDeepWikiPreset(): void {
+  externalForm.value = {
+    ...externalForm.value,
+    id: 'deepwiki',
+    name: 'DeepWiki',
+    enabled: true,
+    transport: 'streamable-http',
+    url: 'https://mcp.deepwiki.com/mcp',
+    headersText: '',
+    command: '',
+    argsText: '',
+    envText: '',
+  }
+  ElMessage.info('已填入 DeepWiki 预设，点保存即会自动连接')
 }
 
 async function saveExternal(): Promise<void> {
@@ -938,9 +967,19 @@ onMounted(() => {
         :title="externalFormTitle"
         width="560px"
         append-to-body
-        @update:model-value="v => { externalFormVisible = v }"
+        @update:model-value="(v: boolean) => { externalFormVisible = v }"
       >
         <div class="external-form-body">
+          <div class="external-form-row external-form-preset">
+            <span class="external-form-label" />
+            <ElButton
+              size="small"
+              data-testid="fill-deepwiki-preset"
+              @click="fillDeepWikiPreset"
+            >
+              填入 DeepWiki 预设（官方公开端点，免鉴权，用于联调）
+            </ElButton>
+          </div>
           <div class="external-form-row">
             <label class="external-form-label">ID</label>
             <ElInput
@@ -1024,24 +1063,21 @@ onMounted(() => {
         </template>
       </ElDialog>
 
-      <!-- 外部工具清单对话框 -->
+      <!-- 外部工具清单 + 测试台对话框（v2.3.0：按 inputSchema 动态渲染参数表单并发起调用） -->
       <ElDialog
         :model-value="externalToolsDialog"
-        title="外部服务器工具"
-        width="560px"
+        :title="externalToolsTitle"
+        width="860px"
         append-to-body
         class="external-tools-dialog"
-        @update:model-value="v => { externalToolsDialog = v }"
+        @update:model-value="(v: boolean) => { externalToolsDialog = v }"
       >
-        <div v-loading="externalToolsLoading">
-          <div v-if="!externalToolsLoading && externalTools.length === 0" class="external-tools-empty">
-            该服务器未暴露工具（或未连接）
-          </div>
-          <div v-for="t in externalTools" :key="t.fullName" class="external-tool-item">
-            <span class="external-tool-name">{{ t.fullName }}</span>
-            <span class="external-tool-desc">{{ t.description || '（无描述）' }}</span>
-          </div>
-        </div>
+        <ToolPlayground
+          v-if="externalToolsOf"
+          :server-id="externalToolsOf"
+          :tools="externalTools"
+          :loading="externalToolsLoading"
+        />
       </ElDialog>
     </main>
   </div>
@@ -1698,6 +1734,11 @@ export default { name: 'McpCenterView' }
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* DeepWiki 预设按钮行：沿用表单行的栅格（标签列占位 + 控件列），按钮不抢标题视觉 */
+.external-form-preset {
+  margin-bottom: 4px;
 }
 
 .external-form-label {

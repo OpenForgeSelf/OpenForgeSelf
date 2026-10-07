@@ -24,6 +24,15 @@ param(
 if (-not $RepoRoot) { $RepoRoot = Get-ReleaseRepoRoot }
 if (-not $OutputDir) { $OutputDir = Join-Path $RepoRoot 'artifacts/publish' }
 
+# 构建/发布临时目录统一指向项目内 .temp，避开沙箱 safe-delete shim 对系统 TEMP（AppData\Local\Temp）
+# 删除的拦截——dotnet publish / Roslyn 会清理大量临时文件，落到系统 TEMP 报 Access is denied / ETIMEDOUT
+# （2026-10-06 实证）。.temp 已被 .gitignore 与 check-git-content.ps1 排除。
+$buildTemp = Join-Path $RepoRoot '.temp'
+if (-not (Test-Path $buildTemp)) { New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null }
+$env:TEMP   = $buildTemp
+$env:TMP    = $buildTemp
+$env:TMPDIR = $buildTemp
+
 $ver = Get-NormalizedVersion $Version
 $proj = Join-Path $RepoRoot 'ForgeSelf.Api/ForgeSelf.Api.csproj'
 # 注意：变量与 switch 参数（$SelfContained）大小写不敏感同名会触发 SwitchParameter 类型转换错误，

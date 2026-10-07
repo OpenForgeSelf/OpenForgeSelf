@@ -35,6 +35,15 @@ if (-not $BootDir) { $BootDir = Join-Path $RepoRoot 'artifacts/layout-root' }
 if (-not $OutputDir) { $OutputDir = Join-Path $RepoRoot 'artifacts/release' }
 if (-not $LayoutDir) { $LayoutDir = Join-Path $RepoRoot 'artifacts/layout' }
 
+# 构建/发布临时目录统一指向项目内 .temp，避开沙箱 safe-delete shim 对系统 TEMP（AppData\Local\Temp）
+# 删除的拦截——打包/解压/dotnet 会清理临时文件，落到系统 TEMP 报 Access is denied / ETIMEDOUT
+# （2026-10-06 实证）。.temp 已被 .gitignore 与 check-git-content.ps1 排除。
+$buildTemp = Join-Path $RepoRoot '.temp'
+if (-not (Test-Path $buildTemp)) { New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null }
+$env:TEMP   = $buildTemp
+$env:TMP    = $buildTemp
+$env:TMPDIR = $buildTemp
+
 $ver = Get-NormalizedVersion $Version
 if (-not (Test-Path (Join-Path $PublishDir 'ForgeSelf.exe'))) { throw "not a publish dir (business layer single-file): $PublishDir" }
 if (-not (Test-Path (Join-Path $BootDir 'ForgeSelf.exe'))) { throw "not a bootstrapper dir (common layer): $BootDir" }

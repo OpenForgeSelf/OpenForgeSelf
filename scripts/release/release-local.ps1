@@ -26,6 +26,16 @@ param(
 . (Join-Path $PSScriptRoot 'release-lib.ps1')
 $repoRoot = Get-ReleaseRepoRoot
 
+# 构建/发布临时目录统一指向项目内 .temp，避开沙箱 safe-delete shim 对系统 TEMP（AppData\Local\Temp）
+# 删除的拦截——dotnet publish / esbuild 在构建与收尾时会清理大量临时文件，落到系统 TEMP 会报
+# Access is denied / ETIMEDOUT（2026-10-06 实证，曾多次复发）。.temp 已被 .gitignore 与
+# check-git-content.ps1 排除，不会入库。子脚本同进程继承此环境变量。
+$buildTemp = Join-Path $repoRoot '.temp'
+if (-not (Test-Path $buildTemp)) { New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null }
+$env:TEMP   = $buildTemp
+$env:TMP    = $buildTemp
+$env:TMPDIR = $buildTemp
+
 # In CI the tag name arrives via GITHUB_REF_NAME (e.g. v2.3.0.2609161125); locally default to a dev version.
 $versionGiven = [bool]$Version
 if (-not $Version) {

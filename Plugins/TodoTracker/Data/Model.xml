@@ -1,24 +1,43 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
+    <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
     <ClassNameTemplate>{name}</ClassNameTemplate>
+    <!--显示名模板。其中{displayName}替换为Table.DisplayName-->
     <DisplayNameTemplate>{name}</DisplayNameTemplate>
+    <!--基类。可能包含基类和接口，其中{name}替换为Table.Name-->
     <BaseClass>Entity</BaseClass>
+    <!--命名空间-->
     <Namespace>ForgeSelf.Api.Plugins.TodoTracker.Entities</Namespace>
+    <!--引用命名空间-->
     <ExtendNameSpace />
+    <!--输出目录-->
     <Output>Entities</Output>
+    <!--是否使用中文文件名。默认false-->
     <ChineseFileName>False</ChineseFileName>
+    <!--用于生成Copy函数的参数类型。例如{name}或I{name}-->
     <ModelNameForCopy />
+    <!--带有索引器。实现IModel接口-->
     <HasIModel>False</HasIModel>
+    <!--可为null上下文。生成String?等-->
     <Nullable>False</Nullable>
+    <!--数据库连接名-->
     <ConnName>TodoTracker</ConnName>
+    <!--模型类模版。设置后生成模型类，用于接口数据传输，例如{name}Model-->
     <ModelClass />
+    <!--模型类输出目录。默认当前目录的Models子目录-->
     <ModelsOutput>.\Models\</ModelsOutput>
+    <!--模型接口模版。设置后生成模型接口，用于约束模型类和实体类，例如I{name}-->
     <ModelInterface />
+    <!--模型接口输出目录。默认当前目录的Interfaces子目录-->
     <InterfacesOutput>.\Interfaces\</InterfacesOutput>
+    <!--用户实体转为模型类的模型类。例如{name}或{name}DTO-->
     <ModelNameForToModel />
+    <!--命名格式。Default/Upper/Lower/Underline-->
     <NameFormat>Default</NameFormat>
+    <!--魔方区域显示名-->
     <DisplayName />
+    <!--魔方控制器输出目录-->
     <CubeOutput />
   </Option>
   <Tables>
@@ -27,14 +46,61 @@
         <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="待办ID" />
         <Column Name="Title" DataType="String" Master="True" Length="200" Nullable="False" Description="标题" />
         <Column Name="Remark" DataType="String" Length="1000" Description="备注" />
-        <Column Name="Status" DataType="Int32" Description="状态 0=Pending 1=Completed" DefaultValue="0" />
+        <Column Name="Status" DataType="Int32" DefaultValue="0" Description="状态 0=Pending 1=Completed" />
         <Column Name="DueDate" DataType="DateTime" Description="截止日期" />
         <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
         <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
         <Column Name="CompletedAt" DataType="DateTime" Description="完成时间" />
+        <Column Name="TaskKey" DataType="String" Length="32" Description="任务外部键 GUID(N)，供 agent 侧引用" />
+        <Column Name="ProjectId" DataType="Int32" DefaultValue="0" Description="关联宿主项目 Id（IProjectRegistry.ProjectInfo.Id），0=未关联" />
+        <Column Name="ProjectRoot" DataType="String" Length="500" Description="关联项目根（归一后的绝对路径快照）" />
+        <Column Name="ProjectPathRaw" DataType="String" Length="500" Description="用户输入的原始路径写法（如 /d/project），便于回溯" />
+        <Column Name="Objective" DataType="String" Length="500" Description="可验证目标（一句话）" />
+        <Column Name="Content" DataType="String" Length="262144" Description="任务正文（markdown，可由工件组装）" />
+        <Column Name="AllowedScope" DataType="String" Length="2000" Description="允许改动范围" />
+        <Column Name="ForbiddenScope" DataType="String" Length="2000" Description="禁止改动范围" />
+        <Column Name="Acceptance" DataType="String" Length="4000" Description="验收判据，每行一条" />
+        <Column Name="Verification" DataType="String" Length="2000" Description="验证命令，每行一条" />
+        <Column Name="Priority" DataType="Int32" DefaultValue="1" Description="优先级 1=P1 2=P2 3=P3" />
+        <Column Name="Assignee" DataType="String" Length="100" Description="下发对象（agent 名/manual）" />
+        <Column Name="Stage" DataType="Int32" DefaultValue="0" Description="下发阶段 0=Draft 1=Ready 2=Dispatched 3=Running 4=Blocked 5=Review 6=Done 7=Cancelled" />
+        <Column Name="ArtifactRef" DataType="String" Length="500" Description="来源工件目录（相对项目根）" />
+        <Column Name="DispatchedAt" DataType="DateTime" Description="下发时间，MinValue=未下发" />
+        <Column Name="AgentTaskKey" DataType="String" Length="64" Description="AgentHub 委派任务 taskKey（一键执行后回填）" />
+        <Column Name="AgentId" DataType="Int32" DefaultValue="0" Description="AgentHub agent Id，0=自动选路" />
+        <Column Name="PermissionMode" DataType="String" Length="32" DefaultValue="read-only" Description="委派权限模式 read-only|workspace-write|accept-edits" />
       </Columns>
       <Indexes>
         <Index Columns="Status" />
+        <Index Columns="CreatedAt" />
+        <Index Columns="ProjectId" />
+        <Index Columns="Stage" />
+        <Index Columns="TaskKey" />
+      </Indexes>
+    </Table>
+    <Table Name="TaskExecution" Description="待办执行记录（append-only 台账）">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="记录ID" />
+        <Column Name="TodoId" DataType="Int32" Description="所属任务 Id" />
+        <Column Name="Seq" DataType="Int32" DefaultValue="0" Description="任务内序号，从 1 递增" />
+        <Column Name="Actor" DataType="String" Length="100" Description="执行者（agent 名/manual/agent-hub）" />
+        <Column Name="Action" DataType="String" Length="300" Nullable="False" Description="做了什么操作（一句话）" />
+        <Column Name="Detail" DataType="String" Length="8000" Description="操作明细（步骤/命令/说明）" />
+        <Column Name="Result" DataType="String" Length="8000" Description="什么结果（含输出要点）" />
+        <Column Name="FilesChanged" DataType="String" Length="8000" Description="改了哪些文件，JSON 数组 [{path,change}]" />
+        <Column Name="Verification" DataType="String" Length="4000" Description="跑了什么验证 + 结果" />
+        <Column Name="Risks" DataType="String" Length="2000" Description="风险" />
+        <Column Name="Residuals" DataType="String" Length="2000" Description="遗留/未做" />
+        <Column Name="Evidence" DataType="String" Length="1000" Description="证据（截图/日志/工件路径/链接）" />
+        <Column Name="StageFrom" DataType="Int32" DefaultValue="-1" Description="流转前阶段，-1=不变" />
+        <Column Name="StageTo" DataType="Int32" DefaultValue="-1" Description="流转后阶段，-1=不变" />
+        <Column Name="ElapsedMs" DataType="Int32" DefaultValue="0" Description="耗时（毫秒）" />
+        <Column Name="BlockReason" DataType="String" Length="1000" Description="阻塞原因（Stage=Blocked 时填）" />
+        <Column Name="NextStep" DataType="String" Length="1000" Description="下一步（回流入口）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="记录时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="TodoId,Seq" />
         <Index Columns="CreatedAt" />
       </Indexes>
     </Table>

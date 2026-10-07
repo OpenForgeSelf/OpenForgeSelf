@@ -239,9 +239,52 @@ pnpm exec playwright test e2e/plugins/todo-tracker e2e/todo.spec.ts e2e/menu-rou
 
 **未消除的遮挡（记录为已知限制）**：toast 浮层仍固定在右下角，最多 3 条时会压住详情面板右下约 1/5 高度的内容；位置改成宿主同款（顶部居中）属另一批 UI 收口，本批不动。
 
+## 提交与集成（闸门3 的"提交"步，2026-10-08 输入1 授权）
+
+分支 `feat/todo-agent-dispatch`（原 HEAD 是 detached `a1f7ce8` ⇒ 先建分支再提交，避免提交落在游离头上丢失归属）。
+按归属拆 **10 个 commit**（`git log --oneline github/main..HEAD` 原文）：
+
+| # | 哈希 | 内容 |
+| --- | --- | --- |
+| 1 | `8a0c839` | 数据层：Model.xml + xcode 生成物 + TaskExecution 实体/Tables.cs/建表页（7 文件） |
+| 2 | `66dba35` | Abstractions 委派契约 + AgentHub 提供方与注册（3 文件） |
+| 3 | `5366fd8` | 插件后端服务/控制器/DTO（30 文件） |
+| 4 | `8410404` | 5 个 agent 工具 + 插件装配 + `plugin.json` 1.1.0（4 文件） |
+| 5 | `42af08e` | 插件自带前端 `web/`（16 文件，`node_modules/`、`dist/` 由插件自身 .gitignore 排除） |
+| 6 | `f06ed9b` | 宿主内置待办页面/组件/store/api 删除 + 路由与 features 接管（13 文件） |
+| 7 | `31cfafb` | 后端用例 7 新一改 + 插件层 e2e + 应用层用例鉴权对齐（10 文件） |
+| 8 | `51bcad0` | PILOT 工件 00–07（pre-commit 工件门禁 PASS） |
+| 9 | `c1d39ea` | 功能文档 / 能力接缝 §7 / 未采纳决策 4 条 |
+| 10 | `d23d888` | 技能与 AGENTS 回写（预览、走查、e2e 取证锚定、worktree 环境前置） |
+
+**未提交（有意排除）**：`build/runtime/Plugins/{System.Data.SQLite.dll,e_sqlite3.dll}` —— 06-review 批准条件 3 明写"不得顺手 git add"，是否入库仍待拍板。
+`.temp/`、`screenshots/`、`*.trx`、`*.log`、`.forgeself/`、`TODO.md` 由仓库 `.gitignore` 挡下（实测 `git check-ignore -v` 逐条命中）。
+
+**与远程的集成**：`git fetch` 后本地 `main`/`github/main` 已领先 4 个 commit（工具桥 PILOT-053、签名时间戳多点回退、AGENTS §2.5、agent-workflow 拆分）。
+顺序是**先提交再 `git rebase github/main`**（保持线性历史；脏工作区直接 rebase 需 autostash，75 项改动不该冒这个险）。
+冲突 1 处：`docs/07-decisions/not-taken-decisions.md` —— 远程把条目编号排到 039，本批原来是"日期标题 + 1)2)3)4)"的写法；
+按该文件既有约定改为 **040–043** 四条并保留原文，未丢任何一方内容。rebase 结果：`0 behind / 10 ahead`，`git diff --shortstat github/main..HEAD` = **99 files, +13569 / −1634**。
+
+**rebase 换了基线 ⇒ 快档门禁重跑（全部 Verified，看日志正文/TRX 计数，不看 exit code）**：
+
+| 门禁 | 读数 | 证据 |
+| --- | --- | --- |
+| `dotnet build ForgeSelf.Api` | **0 错误** / 1343 警告（存量 nullable 噪声） | `build-postrebase.log` 正文 |
+| 后端定向测试 | **227 passed / 0 failed** | `post-rebase2.trx` `<Counters>`；阳性对照 `grep -c 类名`：TodoDispatchFlow 69 / ProjectPathCanonicalizer 96 / TodoAgentDelegation 24 / TodoTrackerWebAsset 21 |
+| 插件层 e2e | **8 passed (1.3m)** | `e2e-postrebase.log` 正文 |
+| 宿主前端 `pnpm run check` | **0 error / 76 warning** | `check-postrebase.log` |
+| 宿主前端 `pnpm run test` | **742 passed (65 files)** | `test-web-postrebase.log` |
+
+**这一轮重跑当场抓到的一个坑**：第一次跑定向测试用了 `--filter "FullyQualifiedName~A|~B|~C"` 的简写 ⇒ vstest 报
+`TestCaseFilter 错误: 无效条件"~AgentHub"`，**TRX 计数 total=0 而 exit code 是 0**（`post-rebase.trx` 实证）。
+每个条件都必须自带 `FullyQualifiedName~` 前缀。这是"exit code 不是证据"的又一个现场样本，已按此重写命令。
+
+**未跑（如实标注）**：中档全量 `dotnet test`（2717 条）与深档全量 e2e 在 rebase 后**未重跑**；打 tag/发布、
+发布产物版隔离实例走查、运行实例只读复验仍未做（需授权）。
+
 ## Known Limitations
 
-- 路径同一性只在 todo-tracker 入口成立：宿主 `HostProjectRegistry.Register` 仍按 `Path.GetFullPath` + 精确匹配（用户拍板"插件内部支持多种格式"），故 AIAgent/sems 若写入怪异写法仍可能形成第二条宿主档案；插件比对侧对双方都归一，读取侧不会误判（`docs/07-decisions/not-taken-decisions.md` 2026-10-07 第 1 条）。
+- 路径同一性只在 todo-tracker 入口成立：宿主 `HostProjectRegistry.Register` 仍按 `Path.GetFullPath` + 精确匹配（用户拍板"插件内部支持多种格式"），故 AIAgent/sems 若写入怪异写法仍可能形成第二条宿主档案；插件比对侧对双方都归一，读取侧不会误判（`docs/07-decisions/not-taken-decisions.md` 第 **040** 条）。
 - 符号链接 / junction / 8.3 短名 / 网络盘映射不判为同一目录（需 OS 互操作，代价与收益不对称）。
 - 不做 agent 回报**自由文本**解析（无真实样例，U-1）；只收结构化入参。
 - 插件前端 `web/` 无 vitest 配置，纯函数单测落在后端 xUnit 侧 + e2e（偏差记录 20:30）。
@@ -250,7 +293,7 @@ pnpm exec playwright test e2e/plugins/todo-tracker e2e/todo.spec.ts e2e/menu-rou
 
 ## Unresolved Issues
 
-1. **交付五步只走了 ①②**（plugin-development §四）：③ 发布（提交 + 打 tag/本地目录更新源）④ 隔离实例走查 ⑤ 运行实例只读复验 **未做** —— 全部需要用户授权（AGENTS 发布规范：agent 不得停/启/杀宿主，也不得擅自提交）。⇒ 任务状态 🟡 PARTIALLY_COMPLETED。
+1. **交付五步做到 ①② + dev 态预走查 + 提交**（plugin-development §四）：① 门禁 ② 插件层 e2e 已跑（rebase 后重跑仍绿，见上表），走查已在 dev 预览实例补做一遍（抓到 ProjectId 缺陷），**提交**已按 10 个 commit 落到 `feat/todo-agent-dispatch` 并 rebase 到 `github/main`；③ 发布（打 tag / 本地目录更新源）④ **发布产物版**隔离实例走查 ⑤ 运行实例只读复验 **仍未做** —— 需用户授权（AGENTS 发布规范：agent 不得停/启/杀宿主，也不得擅自打 tag 发布）。⇒ 任务状态 🟡 PARTIALLY_COMPLETED。
 2. **鉴权变更的影响面未完整证伪**：`Home` 面板现在不发 `/api/todos`（实测 H1 共 2 个、H4 共 0 个 `/api/` 请求），所以"Home 消费 todo API 会不会被新鉴权静默打断"仍是 **Unknown**；`addTodo` 的 `catch {}` 让它在界面上也不可见。已入 `TODO.md` P2（含复现命令与读图/日志证据）。
 3. **`HostInstallRootTests` 一条"曾绿今红"**：本批无因果但今天确定性复现（`t9.trx` 13/1），根因**未查**（不写根因）；附带风险是它会对传入 PID 走 `Stop-Process -Force`，多会话并发机器上可能反杀别人的进程。已入 `TODO.md` P2。
 4. **环境/工具债 4 条仍在**：`check-features.mjs` 的 `pluginsDir` 过期；`global-setup` 的 SQLite provider 候选源不在仓库（本批临时放了两个**未跟踪**二进制进 `build/runtime/Plugins/`，是否入库需拍板）；`Plugins/*/web/dist` 需手工构建才能跑插件 UI e2e；AGENTS §5.6 曾指向一份不存在的基线记忆（本批已在项目记忆里建立）。

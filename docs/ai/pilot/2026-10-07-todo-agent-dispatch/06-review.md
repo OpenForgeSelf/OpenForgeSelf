@@ -92,6 +92,6 @@ Plan 期我原本要 `BuildServiceProvider()` 注入 `DelegationRuntime`，实�
 **APPROVED**（就"本批实现 + 验证 + 证据"而言，可交闸门 2 用户验收）
 
 批准的条件与边界（不得被当成"任务已完成"）：
-1. 提交、打 tag/发布、隔离实例走查、运行实例只读复验（AC-20 的 ③④⑤）**待用户授权后执行**；本 Review 不构成发布许可。
+1. **提交已按用户 2026-10-08 授权完成**（10 个 commit → 分支 `feat/todo-agent-dispatch`，`git rebase github/main` 后 0 behind / 10 ahead，**未 push**；批次表与 rebase 后门禁读数见 05「提交与集成」）。打 tag/发布、**发布产物版**隔离实例走查、运行实例只读复验（AC-20 的 ③④⑤）仍待授权；本 Review 不构成发布许可。
 2. 上面 Major-2（Home 鉴权影响面）与 Major-3（`HostInstallRootTests` 新红）**必须**在收口后的下一条批次里被处理，不得只留在 TODO 里；Major-1 已在走查当场修复并补守卫，其**流程教训**（走查不可跳）已回写 `plugin-development`。
 3. `build/runtime/Plugins/**` 两个未跟踪二进制**不得**被顺手 `git add`。

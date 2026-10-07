@@ -1,7 +1,7 @@
 # AI-Native Pilot Result（最终汇报）
 
-> Task ID：PILOT-054 ｜ 日期：2026-10-07 ｜ 状态：**🟡 PARTIALLY_COMPLETED**（实现 + 验证完成；交付五步的 ③④⑤ 待用户授权）
-> 回滚点：HEAD `a1f7ce8`（工作区未提交，75 项变更）
+> Task ID：PILOT-054 ｜ 日期：2026-10-07（提交于 2026-10-08）｜ 状态：**🟡 PARTIALLY_COMPLETED**（实现 + 验证 + **提交**完成；交付五步的 ③发布 ④发布产物版走查 ⑤运行实例只读复验 待用户授权）
+> 提交落点：分支 `feat/todo-agent-dispatch`，10 个 commit，已 `git rebase github/main`（0 behind / 10 ahead）；回滚点 = `github/main` `a505757`
 
 ## 1. Repository Understanding
 
@@ -78,4 +78,4 @@ Walkthrough（§四④ 的走查形态，dev 预览实例）：
 ## 11. 下一步建议
 
 只做一件、且能自己关：**给"点即保存 + 整行快照响应"这一类缺陷加机器守卫**——在 `plugin-development` 的收口清单里要求任何自带界面的插件，其前端 HTTP 封装必须把非 GET 请求串行化（或按序号丢弃旧响应），并写一条静态守卫用例扫各插件 `web/src/http.ts` 是否具备该形态。这样第 ⑨ 号缺陷不会在别的插件重演。
-（紧随其后、但需用户先授权的：AC-20 的 ③④ 三步——提交 + 打 tag/本地目录发布 + 隔离实例走查 + 运行实例只读复验。）
+（紧随其后、但需用户先授权的：AC-20 的 ③④⑤ —— 打 tag/本地目录发布 + 发布产物版隔离实例走查 + 运行实例只读复验。**提交已完成**：2026-10-08 按 10 个 commit 落在 `feat/todo-agent-dispatch` 并 rebase 到 `github/main`，批次表与 rebase 后门禁读数见 05「提交与集成」。未 push。）

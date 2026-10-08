@@ -68,6 +68,7 @@ public class McpCenterPlugin : IPlugin
             services?.AddSingleton<IMcpService>(mcpService);
             services?.AddSingleton(runtime);
             services?.AddSingleton(externalStore);
+            services?.AddSingleton(new DshMcpConfigWriter(config));
             services?.AddSingleton(clientManager);
 
             // 启动（幂等；内部 catch 所有异常，失败仅降级不阻塞宿主）+ 外部服务器按 enabled 建连

@@ -1,4 +1,4 @@
-# build-frontend.ps1 - builds the host SPA and every plugin web UI.
+﻿# build-frontend.ps1 - builds the host SPA and every plugin web UI.
 # Outputs (all git-ignored build artifacts):
 #   ForgeSelf.Web            -> ForgeSelf.Api/wwwroot            (vite outDir)
 #   Plugins/<X>/web          -> Plugins/<X>/web/dist             (picked up by StageAllPlugins)

@@ -86,3 +86,5 @@ specs/
 .tmp-env/
 .userprofile/
 .tmp/
+.*/
+CONTEXT.md

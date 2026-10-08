@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
   一键起「宿主后端 + 宿主前端」开发栈（dev-stack）。被占用自动换端口。

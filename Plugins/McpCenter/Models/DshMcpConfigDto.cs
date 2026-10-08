@@ -43,6 +43,24 @@ public class DshMcpConfigDto
     /// <summary>默认写入地址 = 当前网关地址 + /mcp（供界面预填）。</summary>
     public string DefaultUrl { get; set; } = string.Empty;
 
+    // ── 写入目标条目字段（DshMcpConfigWriter.GetStatus/Upsert 与前端 dsh 面板共用）──
+    // Dto 重构为「配置总览」形状后一度漏掉这几个字段，导致 Writer 编译不过（CS0117/CS1061）。
+    // 这里按 Writer 与前端 types/dsh.ts 的既有用法补回，纯新增、不改变既有语义。
+    /// <summary>本次写入的目标条目 id（补丁行 id，默认 mcp-forgeself）。</summary>
+    public string EntryId { get; set; } = string.Empty;
+
+    /// <summary>写入条目暴露给 dsh 的 serverName。</summary>
+    public string ServerName { get; set; } = string.Empty;
+
+    /// <summary>写入条目的传输类型（默认 streamable-http）。</summary>
+    public string Transport { get; set; } = string.Empty;
+
+    /// <summary>目标条目当前已配置的 url（未配置时回落到 DefaultUrl）。</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>目标条目是否已存在于 cordis.patch.yml。</summary>
+    public bool EntryExists { get; set; }
+
     /// <summary>当前 dsh 已配置的全部 MCP 客户端条目。</summary>
     public List<DshMcpServerDto> Servers { get; set; } = new();
 

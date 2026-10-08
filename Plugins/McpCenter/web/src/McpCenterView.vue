@@ -6,6 +6,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElTabs, ElTabPane, ElSwitch, ElInputNumber, ElInput, ElCheckbox, ElButton, ElSelect, ElOption, ElDialog, ElTag } from 'element-plus'
 import { fetchMcpServers, fetchMcpTools, testMcpServer, testMcpTool, toggleMcpTool } from './api/mcp'
 import { fetchGatewayConfig, updateGatewayConfig } from './api/gateway'
+import { fetchDshMcpConfig, writeDshMcpConfig } from './api/dsh'
+import type { DshMcpConfigDto } from './types/dsh'
 import { fetchPluginVersion } from './http'
 import {
   fetchExternalServers,
@@ -239,6 +241,64 @@ async function saveGatewayConfig(): Promise<void> {
 
 watch(selectedServerId, () => {
   loadTools()
+})
+
+/* ── dsh（DeepSeek Harness）MCP 配置写入（v2.3.0 新增） ── */
+const dshConfig = ref<DshMcpConfigDto | null>(null)
+const dshLoading = ref(false)
+const dshWriting = ref(false)
+const dshProfileInput = ref('desktop')
+const dshUrlInput = ref('')
+
+async function loadDshConfig(): Promise<void> {
+  dshLoading.value = true
+  try {
+    const cfg = await fetchDshMcpConfig(dshProfileInput.value.trim() || undefined)
+    if (cfg) {
+      dshConfig.value = cfg
+      if (!dshUrlInput.value) dshUrlInput.value = cfg.url
+    }
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '加载 dsh 配置失败')
+  } finally {
+    dshLoading.value = false
+  }
+}
+
+async function writeDshConfig(): Promise<void> {
+  const url = dshUrlInput.value.trim()
+  if (!url) {
+    ElMessage.warning('请填写要写入 dsh 的 MCP 地址')
+    return
+  }
+  const target = dshConfig.value?.configPath ?? '~/.dsh/profiles/<profile>/cordis.patch.yml'
+  const entry = dshConfig.value?.entryId ?? 'mcp-forgeself'
+  if (!window.confirm(`确认写入 dsh 配置？\n\n目标：${target}\n条目：${entry}\n地址：${url}\n\n已存在同 id 条目时只改其 url，写入前自动备份 .bak。`)) {
+    return
+  }
+  dshWriting.value = true
+  try {
+    const cfg = await writeDshMcpConfig({
+      profile: dshProfileInput.value.trim() || undefined,
+      url,
+    })
+    if (cfg) {
+      dshConfig.value = cfg
+      dshUrlInput.value = cfg.url
+      ElMessage.success('已写入 dsh MCP 配置')
+    }
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '写入 dsh 配置失败')
+  } finally {
+    dshWriting.value = false
+  }
+}
+
+// 首次切到「网关配置」页签时拉一次 dsh 写入状态（不影响其它页签）
+watch(activeTab, (tab) => {
+  if (tab === 'gateway' && !dshConfig.value && !dshLoading.value) {
+    loadDshConfig()
+  }
 })
 
 /* ── 外部服务器管理（v2.1.0：标准 MCP 客户端接入） ── */
@@ -735,6 +795,57 @@ onMounted(() => {
                   <ElButton type="primary" :loading="savingConfig" @click="saveGatewayConfig">
                     保存并重启生效
                   </ElButton>
+                </div>
+              </div>
+
+              <!-- ═══ dsh（DeepSeek Harness）MCP 配置写入（v2.3.0 新增） ═══ -->
+              <div class="external-section">
+                <div class="external-head">
+                  <div class="external-title-area">
+                    <h2 class="form-title">写入 dsh 配置</h2>
+                    <p class="form-desc">
+                      把一段 MCP 客户端配置（<code class="mono-inline">@deepseek-ai/dsh-mcp-client</code> 的 insert 条目）
+                      幂等写入 dsh 的 profile 补丁层
+                      <code class="mono-inline">~/.dsh/profiles/&lt;profile&gt;/cordis.patch.yml</code>：同 id 条目已存在则就地改写其 url，
+                      不存在则追加；写入前自动留 <code class="mono-inline">.bak</code> 备份。
+                    </p>
+                  </div>
+                  <span class="form-hint">
+                    {{ dshConfig ? (dshConfig.entryExists ? '已存在同 id 条目（写入将改其 url）' : '尚未写入') : '' }}
+                  </span>
+                </div>
+
+                <div v-loading="dshLoading">
+                  <p v-if="dshConfig?.lastError" class="form-desc">
+                    读取 dsh 配置失败：{{ dshConfig.lastError }}
+                  </p>
+
+                  <div class="form-row">
+                    <label class="form-label">dsh profile</label>
+                    <ElInput v-model="dshProfileInput" class="host-input" placeholder="desktop" />
+                    <span class="form-hint">默认 desktop</span>
+                  </div>
+
+                  <div class="form-row">
+                    <label class="form-label">MCP 地址</label>
+                    <ElInput v-model="dshUrlInput" class="host-input" placeholder="http://127.0.0.1:51888/mcp" />
+                    <span class="form-hint">留空 = 当前网关地址 + /mcp</span>
+                  </div>
+
+                  <p v-if="dshConfig" class="form-desc">
+                    目标文件：<code class="mono-inline">{{ dshConfig.configPath }}</code>
+                    · 条目：<code class="mono-inline">{{ dshConfig.entryId }}</code>
+                    · 当前 url：<code class="mono-inline">{{ dshConfig.url }}</code>
+                  </p>
+
+                  <div class="form-actions">
+                    <ElButton size="small" :loading="dshLoading" @click="loadDshConfig">
+                      刷新状态
+                    </ElButton>
+                    <ElButton type="primary" size="small" :loading="dshWriting" @click="writeDshConfig">
+                      写入 dsh 配置
+                    </ElButton>
+                  </div>
                 </div>
               </div>
 

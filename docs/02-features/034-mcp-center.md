@@ -274,3 +274,49 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - **宿主 shim 缓存戳必须 bump（本次实证）**：`ForgeSelf.Web/index.html` import map 的 `element-plus.js?v=2` 是浏览器缓存键；改了 `public/shared/element-plus.js` 但**不 bump v=** → 生产浏览器仍加载旧 shim → 插件报「The requested module 'element-plus' does not provide an export named 'ElSelect'」。**修法**：改 shim 内容同步 bump index.html 对应 `?v=N`（本次 2→4）+ 重建前端 + 覆盖 publish/wwwroot + **删除 publish/wwwroot 下旧 `.br`/`.gz` 预压缩文件**（StaticFiles 优先回旧压缩内容，删后回退未压缩新文件）。
 - **错误消息 JSON 转义**：转发器错误文本以 JSON 序列化（中文 `\uXXXX` 转义），e2e 断言错误提示须 `JSON.parse` 后断言，不能直接 `toContain('未连接')`。
 - **host http_get 不证明浏览器模块加载**：`http_get` 拿到的磁盘内容 ≠ 浏览器 module cache 命中的内容（带 `?v=` 的 URL 按缓存键整体缓存）。排查此类问题先看 import map 缓存键。
+
+## v2.3.0 新增：写入 dsh（DeepSeek Harness）MCP 配置
+
+**是什么**：MCP 中心可以把自己（或任意本地聚合网关）的 MCP 地址**一键写进 dsh 的 profile 补丁层**，
+让 dsh 作为 MCP 客户端直接接入，不必手工编辑 YAML。
+
+**写入位置**：`%USERPROFILE%\.dsh\profiles\<profile>\cordis.patch.yml`（默认 profile = `desktop`）。
+该文件是 dsh 的补丁层（顶层 YAML 数组），MCP 客户端条目形态为：
+
+```yaml
+- insert:
+    - id: mcp-forgeself
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: ForgeSelf
+        transport: streamable-http
+        url: http://127.0.0.1:51888/mcp
+```
+
+**写入语义（幂等）**：按条目 `id`（默认 `mcp-forgeself`）做 upsert ——
+已存在则**就地改写其 `config.url`**，不存在则**追加一段 `insert` 块**。
+只做文本级最小改写（不整篇 YAML 往返），保留用户注释与既有格式；
+写入前自动备份 `<文件>.bak`，先写 `.tmp` 再原子替换；从不删除任何数据目录（铁律 10）。
+
+**契约（REST，管理面鉴权：类级 `[Authorize("ApiKeyPolicy")]`，铁律 17）**：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `api/mcp-center/dsh?profile=&serverId=&serverName=` | 查看状态：目标文件路径/是否存在、条目是否存在、当前 url（不读任何密钥） |
+| POST | `api/mcp-center/dsh` | 幂等写入。body = `{ profile?, serverId?, serverName?, url? }`，字段全可省：省略时 profile=`desktop`、id=`mcp-forgeself`、name=`ForgeSelf`、url=当前网关地址 + `/mcp`；`url` 仅支持 http/https 绝对地址，非法返回 400 |
+
+**返回视图 `DshMcpConfigDto`**：
+`profile / configPath / configExists / entryId / serverName / transport / url / entryExists / lastError`。
+
+**实现落点**：
+- `Services/DshMcpConfigWriter.cs` —— profile 白名单校验 + 路径解析 + 幂等 upsert + `.bak` 备份 + 原子写；
+- `Models/DshMcpConfigDto.cs` —— 状态视图 / 写入 DTO；
+- `Controllers/McpCenterDshController.cs` —— GET / POST 两个端点；
+- 前端：`web/src/api/dsh.ts`、`web/src/types/dsh.ts`，以及 `McpCenterView.vue`「网关配置」页签内的
+  「写入 dsh 配置」卡片（profile 输入 + MCP 地址输入 + 写入二次确认 + 状态回显）。
+
+**已知边界**：
+- 写入只覆盖 `config.url` 一个字段（`serverName` / `transport` 保持原样）；
+- dsh profile 名做白名单校验（禁止路径分隔符与 `..`），非法即 400；
+- dsh 侧需重启 / 重载 profile 才会读取新的补丁层；
+- 本功能为新增端点，尚未补插件层 e2e（`e2e/plugins/mcp-center/`）与前端 `pnpm run check`（见插件 TODO.md）。

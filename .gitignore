@@ -86,3 +86,7 @@ specs/
 .tmp-env/
 .userprofile/
 .tmp/
+.*/
+CONTEXT.md
+.github/agents/
+.github/prompts/

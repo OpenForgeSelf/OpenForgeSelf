@@ -1,7 +1,28 @@
+---
+feature_key: F038
+feature_no: 038
+status: implemented
+last_updated: 2026-10-06
+aliases: ["038-plugin-local-update-source"]
+---
+
 # 038 · 插件更新源（本地包目录）
 
 > 状态：已实现（2026-09-28，输入27）；2026-09-28 输入31 去 `_backups` 后同步更新｜设计：`docs/ai/pilot/027-plugin-local-update-source/`
 > 关联：`docs/02-features/035-plugin-versioned-layout.md`（版本化侧载）、`docs/02-features/036-github-release-auto-update.md`（宿主自动更新）；`_backups` 目标语义见 `docs/04-standards/packaging-upgrade-backup.md` §3-T4/§4-R4（真源：去 `_backups`，包源直接 stage 到 `versions/`）
+
+## 需求清单（稳定 ID，只增不改号）
+
+> 规范见 `docs/04-standards/feature-requirement-ids.md`。ID 只增不改号；"验收要点"须是可执行判定。
+
+| ID | 需求 | 类型 | 验收要点 | 状态 | 覆盖测试 | 来源 |
+|----|------|------|----------|------|----------|------|
+| F038-R01 | 插件本地包目录更新源配置 `PluginUpdateSettings.LocalDir`，落盘 Config/plugin-update-settings.json | FR | `GET/PUT /api/plugin/update-settings`；空串=停用；目录不存在 PUT 返回 400 | 已实现 | ForgeSelf.Api.Tests/Services/PluginUpdateSettingsServiceTests.cs | docs/ai/pilot/027-plugin-local-update-source |
+| F038-R02 | 从包目录发现更高版本（source=package/staged，校验版本号与入口 DLL） | FR | `GET /api/plugin/updates` 返回 source 字段与更高版本项 | 已实现 | ForgeSelf.Api.Tests/Plugins/PluginVersionUpdateSourceTests.cs | docs/ai/pilot/027-plugin-local-update-source |
+| F038-R03 | 纯包源更新：versions/ 无更高版本时自动从包源 stage 并激活（不重启宿主） | FR | `POST /api/plugin/update/{id}` 落 versions/<id>/<ver>/ 并切 current | 已实现 | ForgeSelf.Api.Tests/Plugins/PluginVersionUpdateSourceTests.cs | docs/ai/pilot/027-plugin-local-update-source |
+| F038-R04 | 插件包格式 `<id>-<ver>.forgeself-plugin`（zip），由 `scripts/package-plugin.ps1` 生成 | FR | 包根含 plugin.json + 入口 DLL + web/dist/** | 已实现 | RepositoryScriptTests（BOM） | docs/ai/pilot/027-plugin-local-update-source |
+| F038-R05 | 与宿主更新源完全分离，各自独立配置与链路 | BR | 插件更新源配置不写 UpdateConfig；宿主更新页不显示插件项 | 已实现 | ForgeSelf.Api.Tests/Services/PluginUpdateSettingsServiceTests.cs | docs/ai/pilot/027-plugin-local-update-source |
+
 
 ## 一、背景与目标
 

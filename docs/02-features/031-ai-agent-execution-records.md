@@ -1,3 +1,11 @@
+﻿---
+feature_key: F031a
+feature_no: 031
+status: draft
+last_updated: 2026-10-06
+aliases: ["031-ai-agent-execution-records"]
+---
+
 # 031 · AIAgent 执行记录与可复盘机制
 
 > 版本：2026-09-11 · 状态：**已落地（方案A）**

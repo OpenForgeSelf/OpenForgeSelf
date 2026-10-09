@@ -1,3 +1,11 @@
+﻿---
+feature_key: F028b
+feature_no: 028
+status: draft
+last_updated: 2026-10-06
+aliases: ["028-wxt-dual-mode"]
+---
+
 # 028 · 前端双形态：浏览器插件（WXT）+ 独立 Web
 
 > 状态：方案已定，待实施（Phase 0 起）

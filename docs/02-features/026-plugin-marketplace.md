@@ -1,3 +1,11 @@
+﻿---
+feature_key: F026
+feature_no: 026
+status: implemented
+last_updated: 2026-10-06
+aliases: ["026-plugin-marketplace"]
+---
+
 # 026 · 插件体系与插件市场（Plugin System & Marketplace）
 
 > 状态：已实现（代码中已落地）

@@ -227,7 +227,7 @@ public class TodoService : ITodoService
         return true;
     }
 
-    public async Task<TodoDto?> CompleteTodoAsync(int id)
+    public async Task<TodoDto?> CompleteTodoAsync(int id, string actor = "rest")
     {
         XTrace.Log.Info("标记待办完成，id={0}", id);
 
@@ -236,18 +236,24 @@ public class TodoService : ITodoService
 
         if (todo.Status != TodoStatus.CompletedValue || todo.Stage != TodoStage.Done)
         {
+            var from = todo.Stage;
             todo.Status = TodoStatus.CompletedValue;
             todo.Stage = TodoStage.Done;
             todo.CompletedAt = DateTime.Now;
             todo.UpdatedAt = DateTime.Now;
             await todo.UpdateAsync();
+
+            // 留痕：完成动作必须可回放（PILOT-055 P1，对齐 ChangeStageInternalAsync 模式）
+            await _records.AppendSystemAsync(todo.Id, actor, "标记完成",
+                stageFrom: from, stageTo: TodoStage.Done, result: $"状态：{TodoStatus.CompletedName}");
+
             XTrace.Log.Info("待办标记完成成功，Id={0}", id);
         }
 
         return TodoProjection.ToDto(todo, ProjectName(todo.ProjectId));
     }
 
-    public async Task<TodoDto?> ReopenTodoAsync(int id)
+    public async Task<TodoDto?> ReopenTodoAsync(int id, string actor = "rest")
     {
         XTrace.Log.Info("重新打开待办，id={0}", id);
 
@@ -256,11 +262,17 @@ public class TodoService : ITodoService
 
         if (todo.Status != TodoStatus.PendingValue || todo.Stage != TodoStage.Draft)
         {
+            var from = todo.Stage;
             todo.Status = TodoStatus.PendingValue;
             todo.Stage = TodoStage.Draft;
             todo.CompletedAt = DateTime.MinValue;
             todo.UpdatedAt = DateTime.Now;
             await todo.UpdateAsync();
+
+            // 留痕：重开动作必须可回放（PILOT-055 P1，对齐 ChangeStageInternalAsync 模式）
+            await _records.AppendSystemAsync(todo.Id, actor, "重新打开",
+                stageFrom: from, stageTo: TodoStage.Draft, result: $"状态：{TodoStatus.PendingName}");
+
             XTrace.Log.Info("待办重新打开成功，Id={0}", id);
         }
 

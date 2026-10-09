@@ -1,3 +1,11 @@
+﻿---
+feature_key: F015
+feature_no: 015
+status: implemented
+last_updated: 2026-10-06
+aliases: ["015-system-monitor"]
+---
+
 # 015 · 系统监控（System Monitor）
 
 > 状态：已实现（代码中已落地）

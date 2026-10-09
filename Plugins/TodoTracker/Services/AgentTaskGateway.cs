@@ -86,4 +86,23 @@ public class AgentTaskGateway : IAgentTaskGateway
             return GatewayResult<AgentDelegationSnapshot>.Failed($"读回委派状态失败：{ex.Message}");
         }
     }
+
+    /// <inheritdoc />
+    public async Task<GatewayResult<bool>> MarkCompleted(string taskKey)
+    {
+        var delegation = Delegation;
+        if (delegation == null) return GatewayResult<bool>.Missing(SeamNotAvailableMessage);
+
+        try
+        {
+            var marked = await delegation.MarkCompletedAsync(taskKey);
+            return GatewayResult<bool>.Ok(marked);
+        }
+        catch (Exception ex)
+        {
+            // 标记失败不阻断回报主链路：记录在案即可（下次轮询仍可见真实状态）
+            XTrace.Log.Warn("[todo-tracker] 标记委派完成异常（taskKey={0}）：{1}", taskKey, ex.Message);
+            return GatewayResult<bool>.Failed($"标记委派完成失败：{ex.Message}");
+        }
+    }
 }

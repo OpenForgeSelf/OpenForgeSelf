@@ -24,7 +24,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 
 ---
 
-## 二、铁律（先看这 19 条）
+## 二、铁律（先看这 20 条）
 
 1. **先读技能再动手。** 涉及插件的任务，开工前先读本技能 + 上表对应的专项技能。
    历史上正是因为技能没被读取、也没登记进 `AGENTS.md`，导致改完插件后
@@ -83,6 +83,16 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
      （7 个插件无一例外），**不是缺陷，不要单独去修**（否则反而不一致）。
    - **改完必跑三件套**：① 编译 0 error；② 该插件测试全绿；
      ③ `diff <(grep -oE 'BindColumn\("[A-Za-z]+"' 备份.cs) <(同 新.cs)` 确认**无字段漂移**。
+   - **⚠ 数据落点（有实体库的插件必做，2026-10-09 实证教训）**：
+     凡插件有 XCode 实体（`BindTable` 的 `ConnName` 非 None），该连接名**必须**登记进
+     宿主 `ForgeSelf.Api/Data/XCodeConfig.cs` 的 `PluginDbs`（key=连接名 PascalCase，
+     value=插件 Id kebab，须与 `plugin.json` 的 `Id` 一致），否则库落
+     `{程序基目录}/Data/{连接名}.db`（发布态 = `versions/<ver>/Data/`），宿主升级换版本目录后
+     旧库不再被读 ⇒ **登记数据全丢**（2026-10-09 实证：AgentHub/ImGateway 漏登记，
+     2.3.2/2.3.3 库 512/385KB 有数据，2.3.4 起每版 57KB 空库）。登记后库落
+     `{数据根}/plugins/{插件Id}/{连接名}.db` 随版本持久。**自动守卫**：
+     `ForgeSelf.Api.Tests/XCodeConfigTests.cs`「有XCode实体库的插件连接名_必须在PluginDbs登记」
+     （扫 `Plugins/**/*.cs` 的 `ConnName` ⊇ `DbFiles.Keys`）——新增/改动插件实体后必跑该过滤集。
    - 历史教训（2026-09-21）：曾直接手改 `AgentDefinition.cs`（生成件）加自定义查询，
      被用户纠正「不要直接改实体，应该改 xml 然后执行 `xcode xx.xml` 更新实体」。
 10. **【数据安全铁律·禁止删除】测试与插件代码一律不许主动删除数据库文件 / 数据目录 —— 无例外。**
@@ -270,6 +280,25 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
     **两条判据**：① 文档里有句子 ≠ 够答——答不出"比的是哪个字段 / 哪段代码 / 界面上点哪"就是**精度不足**，按无真源处理；
     ② **读完代码只回答、不回写 = 该问题仍未解决**（回写属免闸门1 的文档动作，写进被问的那份真源，别在第二处复制一份）。
 
+20. **【一键起环境铁律·禁止手敲运行命令】本地起前后端**只能**用 `scripts/dev-stack.ps1`，
+    **禁止**手工敲 `dotnet <宿主dll> ...` / `node .../vite ...` / `npx vite` 之类的运行命令。
+    - **为什么**：手工启动有两个已实证的**静默陷阱**，都不报错、都让人误判为「环境没起来」：
+      ① **dev 宿主首参必须是 `--console`** —— `Program.Main` 只看 `args[0]` 分支（`Program.cs:86`），
+      首参是别的（如 `--instance-id=`）会落到 `Program.cs:146` 兜底 `new WindowsService().Main(args)`，
+      NewLife.Agent 把它当命令解析，日志只留 `ProcessCommand` / `ProcessFinished` 就 exit 0，
+      **无 error、无端口**，表现为「探活一直 000 而日志干干净净」；
+      ② **vite dev 的 optimizeDeps 会让 esbuild（Go 二进制）写 `node_modules/.vite/deps_temp_*`**，
+      在沙箱里报 `Failed to write to output file: ... Access is denied` 并崩掉 dev server ——
+      与目录权限无关（实测 `os.tmpdir()` 同样失败），但**同目录用 Node fs 写是成功的**。
+    - **脚本已内置规避**：`--console` 恒在 `args[0]`；起前端前先跑 `scripts/probe-esbuild-write.mjs`
+      探测 esbuild 写盘能力，不可写时生成的配置里关掉预打包（`optimizeDeps.noDiscovery`）——
+      实测裸导入 `vue` / `pinia` / `element-plus` 仍被正确重写到 `.pnpm` 下的 ESM 文件，功能不受影响。
+    - **端口被占用自动顺延**（+1 重试，最多 50 次），实际端口与令牌写入 `.temp/dev-stack.json`；
+      宿主以 `FORGESelf_INSTANCE_ID=dev-stack` 隔离，**不影响用户正在运行的宿主实例**。
+    - 用法：`pwsh scripts/dev-stack.ps1`（默认后端 7301 / 前端 7399）、`-SkipBuild` 跳过 `dotnet build`、
+      `-BackendPort` / `-FrontendPort` / `-PluginsDir` / `-DataRoot` 覆盖、`-Stop` 停止并清理。
+    - 同一铁律适用于插件前端：要真 HMR 用 `scripts/dev-plugin-web.ps1`，同样不许手敲 vite。
+
 ---
 
 ## 三、新建 / 迁移插件：步骤
@@ -382,7 +411,11 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 
 ---
 
-### 3.4 交互设计统一要求（设计 → 验证闭环，2026-09-23 用户要求）
+### 3.4 交互设计统一要求（设计 → 验证闭环，2026-09-23 用户要求；2026-10-08 强化为工件硬性环节）
+
+> **硬约束（2026-10-08 用户立）**：涉及用户可见 UI/交互的功能，Spec 工件**必须**含「Interaction Design（交互设计）」节
+> （模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`），写清「点什么出现什么」+ 验收标准 + 走查符合性；
+> 缺节 = 闸门1 不通过。设计审查与生成统一用 `.agents/skills/ui-ux-design` 技能（CRAP 四原则 + 配色 + 字体）。
 
 **设计阶段（改 UI/交互前必须做交互设计，并写入功能设计文档，不只"功能跑通"）：**
 1. **状态与持久化一致**：点即保存（添加/删除/编辑自动落盘），各存各的部分更新（接口按传参部分更新，如 `{proxy?} / {rules?}` 分传，谁变了传谁）——界面状态与持久化不一致 = 交互缺陷（曾因「添加规则只改内存表单、需再点保存配置」被用户点名批评）。
@@ -392,11 +425,13 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 5. **边界设计**：筛选 + 分页（筛选变化回第 1 页、数据更新后越界自动回退最后一页、计数「筛选 N/总数」、每页条数可调）；数据上限说明（如「内存态上限 1000 条」）；长文本溢出（title 提示）；窄屏不破版。
 6. **破坏性/状态变更操作二次确认**：见 §3.2（`ElMessageBox.confirm` + 可单测的确认编排函数）。
 7. **版本展示**：根视图标题旁版本徽标（铁律 13）。
+8. **禁用/不可用状态必须可见原因**：任何 disabled 控件下方/附近要有常驻可见文案说明原因（分态描述，如委派按钮四态），不许只挂 hover title、不许无声禁用。
 
 **验证阶段（走查必须按设计验证，不只看"能显示"）：**
-1. 走查前先读功能设计文档中的交互设计清单，逐项核对。
-2. 交互验证项：点即保存是否落盘（刷新/重进仍在）？操作失败是否留痕可查？轮询 12s+ 观察无闪动？空态分级各态文案正确？筛选/分页边界（筛选回第 1 页、越界回退、计数）？长进程名溢出？
-3. e2e 按 `e2e-testing` 技能覆盖交互路径（确认取消两条路、空态、分页边界）；纯视觉用截图读图对照设计。
+1. 走查前先读功能设计文档中的交互设计清单，逐项核对（交互规格「触发 → 结果」与实现一致）。
+2. 交互验证项：点即保存是否落盘（刷新/重进仍在）？操作失败是否留痕可查？轮询 12s+ 观察无闪动？空态分级各态文案正确？筛选/分页边界（筛选回第 1 页、越界回退、计数）？长进程名溢出？禁用态原因可见？
+3. 视觉验证按 `ui-ux-design`「走查 UI 符合性清单」逐项勾（CRAP：层级/重复/对齐/亲密性）。
+4. e2e 按 `e2e-testing` 技能覆盖交互路径（确认取消两条路、空态、分页边界）；纯视觉用截图读图对照设计基准。
 
 ---
 
@@ -526,6 +561,12 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 
 ## 六、关键事实速查
 
+- **本地起前后端：一律 `pwsh scripts/dev-stack.ps1`（铁律 20），禁止手敲 dotnet / vite 运行命令。**
+  默认后端 `7301` / 前端 `7399`，**被占用自动顺延**；实际端口、令牌、PID 在 `.temp/dev-stack.json`；
+  停止用 `-Stop`。插件前端要真 HMR 另用 `scripts/dev-plugin-web.ps1`。
+- **esbuild 写盘（沙箱）**：`vite build` 不受影响（产物由 rollup/Node 写）；`vite dev` 的 optimizeDeps
+  由 esbuild Go 侧写盘 → `Access is denied`，dev-stack.ps1 会自动关预打包绕开（探测脚本
+  `scripts/probe-esbuild-write.mjs`）。**别再用手敲 `npx vite` 去"手动修"**。
 - 后端默认端口 `7102`，本环境长期运行的 publish 实例用 `51888`
 - 插件目录 = `AppContext.BaseDirectory/plugins` → publish 实例即 `publish/plugins`
 - **插件数据目录** = `ctx.EnsurePluginDataDirectory()` → `{数据根}/plugins/{插件Id}`（生产即 `~/.forgeself/plugins/{id}`）。

@@ -1,3 +1,11 @@
+﻿---
+feature_key: F031b
+feature_no: 031
+status: implemented
+last_updated: 2026-10-06
+aliases: ["031-im-gateway"]
+---
+
 # 031 - IM 多渠道网关（im-gateway 插件）
 
 > 插件形态：`ForgeSelf.Api/Plugins/ImGateway/`，运行时 id `im-gateway`，当前版本 **2.0.0**。

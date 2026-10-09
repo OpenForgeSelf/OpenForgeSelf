@@ -1,4 +1,12 @@
-﻿# 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
+﻿---
+feature_key: F032
+feature_no: 032
+status: implemented
+last_updated: 2026-10-06
+aliases: ["032-agent-hub"]
+---
+
+# 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
 > 版本：2026-09-24（v1.0.9）· 状态：**已落地**
 > 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）

@@ -1,3 +1,11 @@
+﻿---
+feature_key: F008
+feature_no: 008
+status: implemented
+last_updated: 2026-10-06
+aliases: ["008-tray-service-autoupdate"]
+---
+
 # 008 托盘常驻与自更新 — 功能需求与设计
 
 > 功能编号：008

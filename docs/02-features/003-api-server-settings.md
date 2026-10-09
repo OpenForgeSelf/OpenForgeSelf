@@ -1,3 +1,11 @@
+﻿---
+feature_key: F003
+feature_no: 003
+status: implemented
+last_updated: 2026-10-06
+aliases: ["003-api-server-settings"]
+---
+
 # 003 API 服务器设置（初始化令牌）— 功能需求与设计
 
 > 功能编号：003

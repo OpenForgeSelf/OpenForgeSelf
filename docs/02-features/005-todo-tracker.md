@@ -1,3 +1,11 @@
+﻿---
+feature_key: F005
+feature_no: 005
+status: implemented
+last_updated: 2026-10-06
+aliases: ["005-todo-tracker"]
+---
+
 # 005 Todo Tracker（待办追踪插件）— 功能需求与设计
 
 > 功能编号：005 ｜ 插件：`Plugins/TodoTracker`（id `todo-tracker`）｜ 当前版本 **1.1.0**

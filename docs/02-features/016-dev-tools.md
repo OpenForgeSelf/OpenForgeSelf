@@ -1,3 +1,11 @@
+﻿---
+feature_key: F016
+feature_no: 016
+status: implemented
+last_updated: 2026-10-06
+aliases: ["016-dev-tools"]
+---
+
 # 016 · 开发工具箱（Dev Tools）
 
 > 状态：已实现（代码中已落地）

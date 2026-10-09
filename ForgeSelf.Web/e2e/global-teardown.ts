@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import { readFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,8 +19,8 @@ export default async function globalTeardown(
   if (pid) {
     try {
       if (process.platform === 'win32') {
-        // /t 杀进程树（含 dotnet 子进程），/f 强制
-        spawn('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore' })
+        // /t 杀进程树（含 dotnet 子进程），/f 强制；execSync 同步等待，避免 Playwright 收尾截断杀进程
+        execSync(`taskkill /pid ${pid} /t /f`, { stdio: 'ignore' })
       } else {
         process.kill(pid, 'SIGTERM')
       }

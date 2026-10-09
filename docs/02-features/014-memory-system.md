@@ -1,3 +1,11 @@
+﻿---
+feature_key: F014
+feature_no: 014
+status: implemented
+last_updated: 2026-10-06
+aliases: ["014-memory-system"]
+---
+
 # 014 · 记忆系统（Memory System）
 
 > 状态：已实现（代码中已落地）

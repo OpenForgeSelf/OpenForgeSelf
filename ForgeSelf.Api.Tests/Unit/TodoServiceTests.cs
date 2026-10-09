@@ -1,4 +1,5 @@
 using FluentAssertions;
+using ForgeSelf.Api.Plugins.TodoTracker.Entities;
 using ForgeSelf.Api.Plugins.TodoTracker.Models;
 using ForgeSelf.Api.Plugins.TodoTracker.Services;
 using Xunit;
@@ -182,5 +183,51 @@ public class TodoServiceTests : IClassFixture<XCodeTestFixture>
         var reopened = await _service.ReopenTodoAsync(99999);
 
         reopened.Should().BeNull();
+    }
+
+    // ── PILOT-055 P1：完成/重开必须留下可回放的系统记录（对齐 ChangeStageInternalAsync 模式）──
+
+    [Fact]
+    public async Task CompleteTodo_ShouldAppendSystemRecord_WithActorAndStage()
+    {
+        var created = await _service.CreateTodoAsync(new CreateTodoRequest { Title = "留痕-完成" });
+
+        var completed = await _service.CompleteTodoAsync(created!.Id, "test-actor");
+
+        completed.Should().NotBeNull();
+        var record = TaskExecution.FindAllByTask(created.Id).Should().ContainSingle().Subject;
+        record.Actor.Should().Be("test-actor");
+        record.Action.Should().Contain("标记完成");
+        record.StageFrom.Should().Be(TodoStage.Draft, "新建任务初始阶段是草稿");
+        record.StageTo.Should().Be(TodoStage.Done);
+        record.Result.Should().Contain("Completed");
+    }
+
+    [Fact]
+    public async Task ReopenTodo_ShouldAppendSystemRecord_WithStageFromDone()
+    {
+        var created = await _service.CreateTodoAsync(new CreateTodoRequest { Title = "留痕-重开" });
+        await _service.CompleteTodoAsync(created!.Id, "test-actor");
+
+        var reopened = await _service.ReopenTodoAsync(created.Id, "test-actor");
+
+        reopened.Should().NotBeNull();
+        var records = TaskExecution.FindAllByTask(created.Id);
+        records.Should().HaveCount(2);
+        records[1].Actor.Should().Be("test-actor");
+        records[1].Action.Should().Contain("重新打开");
+        records[1].StageFrom.Should().Be(TodoStage.Done);
+        records[1].StageTo.Should().Be(TodoStage.Draft);
+    }
+
+    [Fact]
+    public async Task CompleteTodo_AlreadyCompleted_ShouldNotAppendAnotherRecord()
+    {
+        var created = await _service.CreateTodoAsync(new CreateTodoRequest { Title = "留痕-幂等" });
+        await _service.CompleteTodoAsync(created!.Id, "test-actor");
+
+        await _service.CompleteTodoAsync(created.Id, "test-actor");
+
+        TaskExecution.FindAllByTask(created.Id).Should().HaveCount(1, "已是完成态再次标记完成是幂等动作，不应重复留痕");
     }
 }

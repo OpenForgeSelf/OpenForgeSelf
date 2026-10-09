@@ -55,6 +55,8 @@ public class AIAgentPlugin : IPlugin
         services?.AddSingleton(runFlowTools);
         services?.AddScoped<IPlanGeneratorService, PlanGeneratorService>();
         services?.AddScoped<IRunOrchestratorService, RunOrchestratorService>();
+        // 内置执行接缝（供 todo-tracker 等消费方经 ctx.Get<IBuiltInAgentExecution>() 把任务交给本工具内置 AI Agent）
+        services?.AddScoped<IBuiltInAgentExecution, BuiltInAgentExecutionService>();
 
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
         // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
@@ -91,6 +93,18 @@ public class AIAgentPlugin : IPlugin
             services.AddSingleton<IAgentRegistry>(registry);
             ctx.Register<IAgentRegistry>(registry);
             XTrace.Log.Info("[AIAgentPlugin] 已注册 IAgentRegistry（Agent 运行时注册表，B5/041）");
+        }
+
+        // eager 提供 IBuiltInAgentExecution（内置执行接缝）：经子容器 scope 解析其依赖链
+        // （BuiltInAgentExecutionService → IRunOrchestratorService/IAgentRegistryService），
+        // 再 ctx.Register<IBuiltInAgentExecution>(实例) 写入 root 共享服务表，供 todo-tracker 等消费。
+        if (services != null)
+        {
+            var builtinScope = services.BuildServiceProvider().CreateScope();
+            ctx.Effect(() => builtinScope);
+            var builtinExecutor = builtinScope.ServiceProvider.GetRequiredService<IBuiltInAgentExecution>();
+            ctx.Register<IBuiltInAgentExecution>(builtinExecutor);
+            XTrace.Log.Info("[AIAgentPlugin] 已注册 IBuiltInAgentExecution（内置 AI Agent 执行接缝）");
         }
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");

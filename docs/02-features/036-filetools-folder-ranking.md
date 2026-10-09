@@ -1,3 +1,11 @@
+﻿---
+feature_key: F036b
+feature_no: 036
+status: draft
+last_updated: 2026-10-06
+aliases: ["036-filetools-folder-ranking"]
+---
+
 # 036 · 文件工具 · 目录大小排行与快照（批次C）
 
 - 插件：`file-tools`（`Plugins/FileTools/`，宿主内嵌 UI：文件工具箱 → 第 5 个 tab「目录排行」）

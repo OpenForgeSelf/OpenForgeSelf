@@ -1,3 +1,11 @@
+﻿---
+feature_key: F001
+feature_no: 001
+status: implemented
+last_updated: 2026-10-06
+aliases: ["001-ai-provider-config"]
+---
+
 # 001 AI Provider 配置（数据库化）— 功能需求与设计
 
 > 功能编号：001

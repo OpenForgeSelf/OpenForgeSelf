@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -11,26 +10,30 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 
 /// <summary>
 /// MCP 网关服务器（自管理 Kestrel，独立于宿主端口）。
-/// 端点：POST /mcp（JSON-RPC 请求）、GET /mcp（服务器推送流，仅心跳）、GET /health（运维探活）。
+/// 传输层与协议协商交由官方 MCP C# SDK（ModelContextProtocol.AspNetCore 2.2.0）托管；
+/// 对外工具面**仍只有 1 个** universal_tool（见 <see cref="McpUniversalTool"/>），
+/// 业务转发语义由 <see cref="UniversalToolForwarder"/> 承担，本类不复制任何一份。
+/// 端点：/mcp（SDK MapMcp：POST JSON-RPC + GET SSE）、GET /health（运维探活，不鉴权）。
+/// 会话：**有状态模式**（Stateless=false）⇒ initialize 下发 Mcp-Session-Id（用户 2026-10-08 指定）。
 /// 生命周期自管理（铁律 14）：StartAsync 幂等启动；StopAsync 停止并释放；插件 ctx.Effect 注册停止器。
-/// 令牌：配置了 token 时 POST/GET /mcp 要求 Authorization: Bearer &lt;token&gt;，否则 401。
+/// 令牌：配置了 token 时 /mcp 要求 Authorization: Bearer &lt;token&gt;，否则 401；/health 永不鉴权。
 /// </summary>
 public sealed class McpGatewayServer : IAsyncDisposable
 {
-    private const int MaxRequestBodyBytes = 1024 * 1024; // 请求体上限 1 MB
+    private const int MaxRequestBodyBytes = 1024 * 1024; // 请求体上限 1 MB（改用 SDK 后经中间件保留该守卫）
 
     private readonly McpGatewayConfig _config;
-    private readonly McpJsonRpcHandler _handler;
+    private readonly UniversalToolForwarder _forwarder;
     private readonly string _pluginVersion;
 
     private WebApplication? _app;
     private readonly object _sync = new();
     private bool _started;
 
-    public McpGatewayServer(McpGatewayConfig config, McpJsonRpcHandler handler, string pluginVersion)
+    public McpGatewayServer(McpGatewayConfig config, UniversalToolForwarder forwarder, string pluginVersion)
     {
         _config = config;
-        _handler = handler;
+        _forwarder = forwarder;
         _pluginVersion = pluginVersion;
     }
 
@@ -54,10 +57,37 @@ public sealed class McpGatewayServer : IAsyncDisposable
             builder.Logging.ClearProviders(); // 网关日志走 XTrace，避免宿主控制台重复输出
             builder.WebHost.UseUrls(_config.ListenUrl);
 
+            // 工具外壳及其依赖的转发器交给 DI：SDK 的 WithTools<McpUniversalTool>() 由容器构造实例
+            builder.Services.AddSingleton(_forwarder);
+            builder.Services.AddSingleton<McpUniversalTool>();
+            builder.Services
+                .AddMcpServer()
+                .WithHttpTransport(o => o.Stateless = false) // 有状态：下发 Mcp-Session-Id
+                .WithTools<McpUniversalTool>();
+
             var app = builder.Build();
 
-            app.MapPost("/mcp", HandlePostAsync);
-            app.MapGet("/mcp", HandleGetAsync);
+            // /mcp 的前置守卫：MapMcp 之后无法在 handler 内联，改由中间件覆盖全部 MCP 方法
+            app.Use(async (context, next) =>
+            {
+                var isMcp = context.Request.Path.StartsWithSegments("/mcp");
+                if (isMcp && !IsAuthorized(context.Request))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return;
+                }
+
+                // 保留 1 MB 请求体上限（原 HandlePostAsync 行为；改用 SDK 后经此中间件维持）
+                if (isMcp && context.Request.ContentLength > MaxRequestBodyBytes)
+                {
+                    context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                    return;
+                }
+
+                await next(context);
+            });
+
+            app.MapMcp("/mcp");
             app.MapGet("/health", HandleHealthAsync);
 
             await app.StartAsync(cancellationToken);
@@ -68,7 +98,7 @@ public sealed class McpGatewayServer : IAsyncDisposable
                 _started = true;
             }
 
-            XTrace.Log.Info("[McpCenter] MCP 网关已启动: {0}（协议版本 2025-06-18，工具数 1）", _config.ListenUrl);
+            XTrace.Log.Info("[McpCenter] MCP 网关已启动: {0}（官方 SDK 2.2.0 · 有状态会话 · 工具数 1）", _config.ListenUrl);
         }
         catch (Exception ex)
         {
@@ -115,81 +145,6 @@ public sealed class McpGatewayServer : IAsyncDisposable
 
         var auth = request.Headers.Authorization.ToString();
         return auth.Equals($"Bearer {_config.Token}", StringComparison.Ordinal);
-    }
-
-    private async Task HandlePostAsync(HttpContext context)
-    {
-        if (!IsAuthorized(context.Request))
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
-
-        // 限流读取请求体（上限 1 MB），避免恶意超大请求
-        string body;
-        try
-        {
-            using var buffer = new MemoryStream();
-            await context.Request.Body.CopyToAsync(buffer, MaxRequestBodyBytes + 1, context.RequestAborted);
-            if (buffer.Length > MaxRequestBodyBytes)
-            {
-                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-                return;
-            }
-            body = Encoding.UTF8.GetString(buffer.ToArray());
-        }
-        catch (OperationCanceledException)
-        {
-            context.Response.StatusCode = StatusCodes.Status408RequestTimeout;
-            return;
-        }
-
-        var response = await _handler.HandleRequestAsync(body, context.RequestAborted);
-        if (response == null)
-        {
-            // 通知/空批：202 Accepted 空体
-            context.Response.StatusCode = StatusCodes.Status202Accepted;
-            return;
-        }
-
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsync(response, context.RequestAborted);
-    }
-
-    private async Task HandleGetAsync(HttpContext context)
-    {
-        if (!IsAuthorized(context.Request))
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
-
-        // Streamable HTTP：GET 必须要求 text/event-stream，否则 405
-        var accept = context.Request.Headers.Accept.ToString();
-        if (!accept.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase))
-        {
-            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
-            return;
-        }
-
-        context.Response.ContentType = "text/event-stream";
-        context.Response.Headers.CacheControl = "no-cache";
-        context.Response.Headers.Connection = "keep-alive";
-
-        try
-        {
-            // 本网关无服务器主动消息（tools/call 同步完成），仅保持连接 + 心跳
-            while (!context.RequestAborted.IsCancellationRequested)
-            {
-                await context.Response.WriteAsync(": keep-alive\n\n", context.RequestAborted);
-                await context.Response.Body.FlushAsync(context.RequestAborted);
-                await Task.Delay(TimeSpan.FromSeconds(15), context.RequestAborted);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 客户端断开，正常结束
-        }
     }
 
     private Task HandleHealthAsync(HttpContext context)

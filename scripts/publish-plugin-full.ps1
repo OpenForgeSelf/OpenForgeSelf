@@ -26,6 +26,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot  = Resolve-Path (Join-Path $PSScriptRoot '..')
+
+# 构建临时/缓存目录指向项目内 .temp，避开沙箱 safe-delete shim 对系统 TEMP（AppData\Local\Temp）
+# 删除的拦截——esbuild/vite 构建中会清理临时文件，落到系统 TEMP 会报 Access is denied（2026-10-06 实证）。
+# .temp 已被 .gitignore / check-git-content 排除，不会入库。
+$buildTemp = Join-Path $repoRoot '.temp'
+New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null
+$env:TEMP   = $buildTemp
+$env:TMP    = $buildTemp
+$env:TMPDIR = $buildTemp
+
 $pluginDir = Join-Path $repoRoot "Plugins/$Plugin"
 if (-not (Test-Path $pluginDir)) { throw "plugin dir not found: $pluginDir" }
 

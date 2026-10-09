@@ -1,0 +1,60 @@
+#!/bin/sh
+# OpenForgeSelf commit-msg hook: 非文档改动必须带 Pilot: <目录名> trailer。
+#
+# 规则（AGENTS.md §2.3 / §2.5，risk-policy）：
+#   改了业务代码（非 docs/*.md）却没有对应 pilot 工件 → 提交被拒绝。
+#   做法：commit message 末行写 `Pilot: <docs/ai/pilot 下的目录名>`；hook 校验该目录工件链齐全。
+# 注意：本 hook 只能“让偏离可见”，不能“让偏离不可能”——
+#       若 Agent 与用户共用同一 git 账号，--no-verify 仍可绕过；真正的强制需分支保护（只有人能合并）。
+# 安装：scripts/install-git-hooks.ps1（幂等）
+
+MSG_FILE="$1"
+[ -f "$MSG_FILE" ] || exit 0
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT" || exit 1
+
+# 本次提交暂存区里的“非文档”改动（提交过程中索引仍有效）
+CODE=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -vE '^docs/' \
+  | grep -vE '^TODO\.md$' \
+  | grep -vE '^README' \
+  | grep -vE '^\.forgeself/' \
+  | grep -vE '\.md$' \
+  || true)
+
+[ -z "$CODE" ] && exit 0
+
+TRAILER=$(grep -E '^Pilot:[[:space:]]*[^[:space:]]' "$MSG_FILE" | tail -1 \
+  | sed 's/^Pilot:[[:space:]]*//' | tr -d '\r' | tr -d '[:space:]')
+
+if [ -z "$TRAILER" ]; then
+  echo "[commit-msg] 本次提交修改了非文档文件，但 message 缺少 'Pilot: <目录名>' trailer。"
+  echo "[commit-msg] 涉及的非文档文件："
+  echo "$CODE" | sed 's/^/    /'
+  echo "[commit-msg] 请先按 AGENTS.md §2 走工件链，并在 message 末尾加一行：Pilot: <docs/ai/pilot 下的目录名>"
+  exit 1
+fi
+
+if [ ! -d "docs/ai/pilot/$TRAILER" ]; then
+  echo "[commit-msg] FAIL: Pilot trailer 指向不存在的目录 docs/ai/pilot/$TRAILER"
+  exit 1
+fi
+
+if command -v pwsh >/dev/null 2>&1; then
+  PS=pwsh
+elif command -v powershell.exe >/dev/null 2>&1; then
+  PS=powershell.exe
+else
+  echo "[commit-msg] 警告：未找到 pwsh / powershell.exe，跳过工件链校验（trailer 已存在：$TRAILER）。"
+  exit 0
+fi
+
+"$PS" -NoProfile -ExecutionPolicy Bypass \
+  -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$TRAILER" -EnforceHeader -EnforceAcCoverage
+if [ $? -ne 0 ]; then
+  echo "[commit-msg] FAIL: docs/ai/pilot/$TRAILER 工件链不通过，提交已拒绝。"
+  exit 1
+fi
+
+exit 0

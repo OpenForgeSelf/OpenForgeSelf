@@ -1,3 +1,11 @@
+﻿---
+feature_key: F012
+feature_no: 012
+status: implemented
+last_updated: 2026-10-06
+aliases: ["012-code-snippets"]
+---
+
 # 012 · 代码片段（Code Snippets）
 
 > 状态：已实现（代码中已落地）

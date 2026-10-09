@@ -86,6 +86,7 @@ Review
 - **产物**：`02-spec.md`。
 - 从真实 Repository 与 Intent 推导，至少含：Functional Requirements、Input、Output、Business Rules、Boundary Conditions、Error Handling、Compatibility、Non-functional Requirements、Acceptance Criteria。
 - ⛔ 不得发明不存在的接口、类、模块；不确定点必须显式记录为 `Unknown`，不得自行假定。
+- **【交互设计必写（2026-10-08 用户立）】凡涉及用户可见 UI/交互的功能，Spec 必须含「Interaction Design（交互设计）」节**：交互规格（「点什么出现什么」表：触发→结果/状态模型/反馈/空态/边界）、交互验收标准（并入 AC，逐条可测）、走查符合性（DoD 绑定，走查按 UI 符合性清单逐项核对）。模板见 `docs/18-templates/ai-pilot/02-spec.tpl.md`，编写与自查用 `.agents/skills/ui-ux-design` 技能（CRAP 四原则 + 配色 + 字体）。缺本节 = 闸门1 不通过。
 
 ### Stage 3：Plan（计划）
 - **产物**：`03-plan.md`。

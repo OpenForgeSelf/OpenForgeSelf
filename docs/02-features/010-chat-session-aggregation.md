@@ -1,3 +1,11 @@
+﻿---
+feature_key: F010
+feature_no: 010
+status: implemented
+last_updated: 2026-10-06
+aliases: ["010-chat-session-aggregation"]
+---
+
 # 010 聊天会话聚合（ChatSession / ChatTurn）— 功能需求与设计
 
 > 功能编号：010（无独立 spec，源于 ChatRecord 会话聚合重构）

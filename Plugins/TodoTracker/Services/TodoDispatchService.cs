@@ -1,4 +1,5 @@
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
 using ForgeSelf.Api.Plugins.TodoTracker.Entities;
 using ForgeSelf.Api.Plugins.TodoTracker.Models;
 using NewLife;
@@ -6,6 +7,7 @@ using NewLife.Data;
 using NewLife.Log;
 using XCode;
 using static ForgeSelf.Api.Plugins.TodoTracker.Entities.Todo;
+using System.Collections.Concurrent;
 
 namespace ForgeSelf.Api.Plugins.TodoTracker.Services;
 
@@ -30,12 +32,17 @@ public class TodoDispatchService : ITodoDispatchService
     private readonly ITaskExecutionService _records;
     private readonly IAgentTaskGateway _gateway;
     private readonly ITodoProjectService _projects;
+    private readonly IContext _ctx;
 
-    public TodoDispatchService(ITaskExecutionService records, IAgentTaskGateway gateway, ITodoProjectService projects)
+    /// <summary>自动回写推进的 todoId 粒度锁（读状态与推进分两步，防并发双写「agent 执行回写」记录）。</summary>
+    private static readonly ConcurrentDictionary<int, object> AutoAdvanceLocks = new();
+
+    public TodoDispatchService(ITaskExecutionService records, IAgentTaskGateway gateway, ITodoProjectService projects, IContext ctx)
     {
         _records = records;
         _gateway = gateway;
         _projects = projects;
+        _ctx = ctx;
     }
 
     /// <inheritdoc />
@@ -110,6 +117,11 @@ public class TodoDispatchService : ITodoDispatchService
         if (request?.AgentId is > 0) todo.AgentId = request.AgentId.Value;
         todo.PermissionMode = mode;
 
+        // 引擎分流：本工具 AI Agent（内置）vs 外部 AgentHub
+        var engine = (request?.Engine ?? todo.AgentEngine ?? "agenthub").Trim().ToLowerInvariant();
+        if (engine == "builtin")
+            return await DelegateToBuiltInAsync(todo, request, payload, actor);
+
         var prompt = DispatchPayloadBuilder.BuildMarkdown(payload, baseUrl);
         var outcome = await _gateway.SubmitAsync(new AgentDelegationRequest
         {
@@ -173,6 +185,70 @@ public class TodoDispatchService : ITodoDispatchService
         };
     }
 
+    /// <summary>
+    /// 一键交给「本工具 AI Agent」：触发内置计划驱动执行（Run 后台跑完），回填 run key + 引擎标记。
+    /// </summary>
+    private async Task<DelegateToAgentResultDto> DelegateToBuiltInAsync(Todo todo, DelegateToAgentRequest? request,
+        DispatchPayloadBuilder.TaskPayload payload, string actor)
+    {
+        var builtin = _ctx.Get<IBuiltInAgentExecution>();
+        if (builtin == null)
+        {
+            const string msg = "本工具 AI Agent 能力缺席（未启用 ai-agent 插件）";
+            await _records.AppendSystemAsync(todo.Id, actor, "一键交给本工具 AI Agent 执行",
+                result: $"失败：{msg}", risks: "内置执行接缝缺席");
+            return new DelegateToAgentResultDto { Ok = false, Error = msg, SeamMissing = true, TodoId = todo.Id };
+        }
+
+        var roleId = string.IsNullOrWhiteSpace(request?.AgentRoleId) ? null : request!.AgentRoleId!.Trim();
+        var prompt = DispatchPayloadBuilder.BuildMarkdown(payload, null);
+        var outcome = await builtin.StartAsync(new BuiltInAgentRequest
+        {
+            Prompt = prompt,
+            AgentRoleId = roleId,
+            Cwd = todo.ProjectRoot.IsNullOrEmpty() ? null : todo.ProjectRoot,
+            CreatedBy = "todo-tracker"
+        });
+
+        if (!outcome.Success)
+        {
+            await _records.AppendSystemAsync(todo.Id, actor, "一键交给本工具 AI Agent 执行",
+                result: $"失败：{outcome.Error}");
+            return new DelegateToAgentResultDto { Ok = false, Error = outcome.Error ?? "委派失败", TodoId = todo.Id };
+        }
+
+        var steps = await AdvanceToRunningAsync(todo, actor);
+
+        var from = todo.Stage;
+        todo.AgentTaskKey = $"run:{outcome.RunId}";
+        todo.AgentEngine = "builtin";
+        todo.AgentId = BuiltInRoleIndex(roleId ?? BuiltInDefaultRole);
+        todo.Stage = TodoStage.Running;
+        todo.Status = TodoStage.ToLegacyStatus(TodoStage.Running);
+        if (todo.DispatchedAt == DateTime.MinValue) todo.DispatchedAt = DateTime.Now;
+        todo.UpdatedAt = DateTime.Now;
+        await todo.UpdateAsync();
+
+        await _records.AppendSystemAsync(todo.Id, actor, "一键交给本工具 AI Agent 执行",
+            detail: $"角色={outcome.AgentName ?? roleId ?? "程序员"} run={outcome.RunId} 引擎=本工具AI",
+            result: $"已启动，状态 {outcome.Status ?? "Pending"}",
+            evidence: $"run:{outcome.RunId}",
+            stageFrom: from, stageTo: TodoStage.Running);
+
+        return new DelegateToAgentResultDto
+        {
+            Ok = true,
+            TodoId = todo.Id,
+            TaskKey = $"run:{outcome.RunId}",
+            AgentId = todo.AgentId,
+            AgentName = outcome.AgentName ?? roleId ?? "程序员",
+            Status = outcome.Status ?? "Pending",
+            Cwd = todo.ProjectRoot,
+            Backfilled = true,
+            Steps = steps
+        };
+    }
+
     /// <inheritdoc />
     public async Task<AgentStatusDto> AgentStatusAsync(int id)
     {
@@ -181,6 +257,25 @@ public class TodoDispatchService : ITodoDispatchService
         if (todo.AgentTaskKey.IsNullOrEmpty()) return AgentStatusDto.Failed("本任务还没委派给 agent", 400);
 
         return await ReadStatusAsync(todo);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<AgentStatusDto>> AgentStatusesAsync(IReadOnlyCollection<int> ids)
+    {
+        if (ids == null || ids.Count == 0) return [];
+
+        var todos = new List<Todo>();
+        foreach (var id in ids.Distinct())
+        {
+            var t = FindById(id);
+            if (t != null && !t.AgentTaskKey.IsNullOrEmpty()) todos.Add(t);
+        }
+        if (todos.Count == 0) return [];
+
+        // 并行单查（AgentHub FindAsync 是本地快照查询，不拉起进程；页大小 ≤ 20 量级可控）
+        var statuses = await Task.WhenAll(todos.Select(ReadStatusAsync));
+        // 接缝缺席（agent-hub 未装/未启用）的条目不返回——列表无委派能力时不该冒出 503 错误徽标
+        return statuses.Where(s => s.StatusCode != 503).ToList();
     }
 
     /// <inheritdoc />
@@ -224,6 +319,20 @@ public class TodoDispatchService : ITodoDispatchService
             Seq = TaskExecution.MaxSeqOf(todo.Id),
             Stage = TodoStage.ToName(latest.Stage)
         };
+    }
+
+    /// <inheritdoc />
+    public Task<GatewayResult<bool>> MarkDelegationCompleteAsync(int id)
+    {
+        var todo = FindById(id);
+        if (todo == null) return Task.FromResult(GatewayResult<bool>.Ok(false));
+        if (todo.AgentTaskKey.IsNullOrEmpty()) return Task.FromResult(GatewayResult<bool>.Ok(false));
+
+        // 内置引擎没有「外部回报」语义：todo 侧回报走 RecordAgentResultAsync（读 Run 快照），这里无操作返回。
+        if (todo.AgentTaskKey.StartsWith("run:", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(GatewayResult<bool>.Ok(true));
+
+        return _gateway.MarkCompleted(todo.AgentTaskKey);
     }
 
     /// <inheritdoc />
@@ -288,9 +397,17 @@ public class TodoDispatchService : ITodoDispatchService
             CanDelegate = DispatchPayloadBuilder.CanDispatch(payload) && _gateway.IsAvailable,
             Agents = _gateway.AvailableAgents()
                 .Select(a => new AgentOptionDto { Id = a.Id, Name = a.Name, Vendor = a.Vendor, DefaultCwd = a.DefaultCwd })
-                .ToList()
+                .ToList(),
+            BuiltInAvailable = BuiltIn != null,
+            BuiltInError = BuiltIn == null ? "本工具 AI Agent 能力缺席（未启用 ai-agent 插件）" : null,
+            BuiltInAgents = BuiltIn?.ListAgents()
+                .Select(a => new AgentOptionDto { Id = BuiltInRoleIndex(a.RoleId), Name = a.Name, Vendor = a.Vendor })
+                .ToList() ?? []
         };
     }
+
+    /// <summary>内置执行接缝（每次用每次取；null = 未装/未启用 ai-agent）。</summary>
+    private IBuiltInAgentExecution? BuiltIn => _ctx.Get<IBuiltInAgentExecution>();
 
     private async Task<List<string>> AdvanceToRunningAsync(Todo todo, string actor)
     {
@@ -319,17 +436,26 @@ public class TodoDispatchService : ITodoDispatchService
 
     private async Task<AgentStatusDto> ReadStatusAsync(Todo todo)
     {
+        // 内置引擎：taskKey = "run:{runId}"
+        if (todo.AgentTaskKey.StartsWith("run:", StringComparison.OrdinalIgnoreCase))
+        {
+            var builtin = await ReadBuiltInStatusAsync(todo);
+            await TryAutoAdvanceAsync(todo, builtin);
+            return builtin;
+        }
+
         var result = await _gateway.Query(todo.AgentTaskKey);
         if (result.SeamMissing) return AgentStatusDto.Failed(result.Error ?? AgentTaskGateway.SeamNotAvailableMessage, 503);
         if (!result.Success || result.Value == null)
             return AgentStatusDto.Failed(result.Error ?? "委派任务不存在", 404);
 
         var s = result.Value;
-        return new AgentStatusDto
+        var dto = new AgentStatusDto
         {
             Ok = true,
             TodoId = todo.Id,
             TaskKey = s.TaskKey,
+            AgentName = ResolveAgentName(todo),
             Status = s.Status,
             Terminal = s.Terminal,
             ExitCode = s.ExitCode,
@@ -343,6 +469,166 @@ public class TodoDispatchService : ITodoDispatchService
                 .Select(a => new ChangedFileDto { Path = a.Text!.Trim(), Change = a.Type })
                 .ToList()
         };
+        await TryAutoAdvanceAsync(todo, dto);
+        return dto;
+    }
+
+    /// <summary>
+    /// 委派终态自动回写（2026-10-09 输入9）：读到「Succeeded 且任务仍在 Running」时，
+    /// 自动推进到待验收并留一条「agent 执行回写」记录，列表/详情状态从此自动一致，
+    /// 不再要求用户手动点「记为执行记录」才翻转。幂等（推进后 Stage≠Running 不再推进）
+    /// + todoId 粒度锁内双检（防列表/详情并发各写一条）。失败/取消维持「由人判」语义不动状态。
+    /// </summary>
+    private async Task TryAutoAdvanceAsync(Todo todo, AgentStatusDto status)
+    {
+        // 只有「读到了真终态 + 还没离开 Running」才有推进可言
+        if (!status.Ok || !status.Terminal || todo.Stage != TodoStage.Running) return;
+        var target = AgentOutcomeStage(status.Status);
+        if (target < 0) return;
+
+        var gate = AutoAdvanceLocks.GetOrAdd(todo.Id, static _ => new object());
+        int? advancedFrom = null;
+        var advancedTo = TodoStage.Draft;
+        lock (gate)
+        {
+            var fresh = FindById(todo.Id);
+            if (fresh == null || fresh.Stage != TodoStage.Running) return;
+
+            advancedFrom = fresh.Stage;
+            fresh.Stage = target;
+            fresh.Status = TodoStage.ToLegacyStatus(fresh.Stage);
+            if (fresh.CompletedAt == DateTime.MinValue) fresh.CompletedAt = DateTime.Now;
+            fresh.UpdatedAt = DateTime.Now;
+            fresh.UpdateAsync().GetAwaiter().GetResult();
+            advancedTo = fresh.Stage;
+        }
+
+        // 留痕在锁外 await（锁内不能 await；且推进后 Stage≠Running，并发读不会再进此分支，天然不重复）
+        if (advancedFrom != null)
+            await AppendAdvanceRecordAsync(todo.Id, status, advancedFrom.Value, advancedTo);
+    }
+
+    private async Task AppendAdvanceRecordAsync(int todoId, AgentStatusDto status, int from, int to)
+    {
+        try
+        {
+            await _records.AppendSystemAsync(todoId, status.AgentName ?? "agent",
+                action: $"agent 执行回写：{status.Status}",
+                detail: $"taskKey={status.TaskKey} 耗时={status.ElapsedMs}ms 工作目录={OrNone(status.Cwd, "未记录")}",
+                result: status.ResultSummary,
+                evidence: $"taskKey:{status.TaskKey}",
+                stageFrom: from, stageTo: to);
+        }
+        catch (Exception ex)
+        {
+            // 状态推进已落盘，留痕失败不能回滚状态（宁可日志暴露，也不让状态停在中间）
+            XTrace.Log.Error("[todo-tracker] 自动回写留痕失败：todo={0} {1}", todoId, ex.Message);
+        }
+    }
+
+    /// <summary>内置引擎快照 → todo 词表（Pending→Queued；Planning/Running→Running；Completed→Succeeded；
+    /// Stuck→Running 非终态（ResultSummary 带卡住原因）；Failed/Cancelled 直转）。</summary>
+    private async Task<AgentStatusDto> ReadBuiltInStatusAsync(Todo todo)
+    {
+        var builtin = _ctx.Get<IBuiltInAgentExecution>();
+        if (builtin == null) return AgentStatusDto.Failed("本工具 AI Agent 能力缺席（未启用 ai-agent 插件）", 503);
+
+        if (!long.TryParse(todo.AgentTaskKey["run:".Length..], out var runId))
+            return AgentStatusDto.Failed("委派任务键格式异常", 404);
+
+        var snap = await builtin.FindAsync(runId);
+        if (snap == null) return AgentStatusDto.Failed("委派任务不存在（可能已被清理）", 404);
+
+        var rawStatus = (snap.Status ?? string.Empty).Trim().ToLowerInvariant();
+        var status = MapBuiltInStatus(snap.Status);
+        return new AgentStatusDto
+        {
+            Ok = true,
+            TodoId = todo.Id,
+            TaskKey = todo.AgentTaskKey,
+            AgentName = ResolveBuiltInAgentName(todo) ?? snap.AgentName,
+            Status = status,
+            Terminal = snap.Terminal,
+            ErrorCode = rawStatus is "stuck" or "failed" ? rawStatus : null,
+            ElapsedMs = snap.ElapsedMs,
+            Cwd = todo.ProjectRoot,
+            ResultSummary = Truncate(snap.ResultSummary, MaxResultSummary),
+            Verification = $"委派状态 {status}" +
+                (snap.Terminal ? "（已结束）" : snap.Status == "stuck" ? "（卡住，待人工介入）" : "（未结束）") +
+                $"，耗时 {snap.ElapsedMs}ms，产物 {snap.FilesChanged.Count} 项",
+            FilesChanged = snap.FilesChanged.Select(p => new ChangedFileDto { Path = p, Change = "FileChange" }).ToList()
+        };
+    }
+
+    /// <summary>内置 Run 状态 → todo 展示词表（对齐 AgentHub 语义，前端徽标零改动）。</summary>
+    public static string MapBuiltInStatus(string status) => status.Trim().ToLowerInvariant() switch
+    {
+        "pending" => "Queued",
+        "planning" or "running" => "Running",
+        "completed" => "Succeeded",
+        "stuck" => "Running",
+        "failed" => "Failed",
+        "cancelled" => "Cancelled",
+        _ => status
+    };
+
+    /// <summary>内置角色 id → 固定序号（1..7，与 ListAgents 顺序一致；未知返回 0）。</summary>
+    internal static int BuiltInRoleIndex(string roleId) => roleId.Trim().ToLowerInvariant() switch
+    {
+        "agent.coordinator" => 1,
+        "agent.analyst" => 2,
+        "agent.critic" => 3,
+        "agent.generalist" => 4,
+        "agent.writer" => 5,
+        "agent.researcher" => 6,
+        "agent.programmer" => 7,
+        _ => 0
+    };
+
+    /// <summary>内置默认角色（todo 下发 = 干活场景）。</summary>
+    internal const string BuiltInDefaultRole = "agent.programmer";
+
+    /// <summary>按 todo.AgentId（内置序号）从内置角色清单解析名字；未派/失效 → null。</summary>
+    private string? ResolveBuiltInAgentName(Todo todo)
+    {
+        if (todo.AgentId <= 0) return null;
+        try
+        {
+            var roleId = BuiltInRoleId(todo.AgentId);
+            return _ctx.Get<IBuiltInAgentExecution>()?.ListAgents().FirstOrDefault(a => a.RoleId == roleId)?.Name;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>内置序号 → 角色 id（1..7；0/未知返回空串）。</summary>
+    internal static string BuiltInRoleId(int index) => index switch
+    {
+        1 => "agent.coordinator",
+        2 => "agent.analyst",
+        3 => "agent.critic",
+        4 => "agent.generalist",
+        5 => "agent.writer",
+        6 => "agent.researcher",
+        7 => "agent.programmer",
+        _ => string.Empty
+    };
+
+    /// <summary>按 todo.AgentId 从网关可用 agent 清单解析名字；未派 agent / 已失效 / 清单读取异常 → null（界面兜底 agent#id）。</summary>
+    private string? ResolveAgentName(Todo todo)
+    {
+        if (todo.AgentId <= 0) return null;
+        try
+        {
+            var hit = _gateway.AvailableAgents().FirstOrDefault(a => a.Id == todo.AgentId);
+            return hit?.Name;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string BuildVerification(AgentDelegationSnapshot snapshot) =>

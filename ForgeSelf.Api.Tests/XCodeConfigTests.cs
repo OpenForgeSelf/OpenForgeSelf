@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ForgeSelf.Api.Data;
 using XCode;
 using XCode.DataAccessLayer;
+using System.Text.RegularExpressions;
 using Xunit;
 
 using System.Text.Json;
@@ -177,6 +178,32 @@ public class XCodeConfigTests
         {
             knownIds.Should().Contain(pluginId,
                 "PluginDbs 里 {0} 的插件 Id「{1}」必须在某个 plugin.json 中存在", connName, pluginId);
+        }
+    }
+
+    [Fact]
+    public void 有XCode实体库的插件连接名_必须在PluginDbs登记()
+    {
+        // 反向守卫（2026-10-09 输入8 实证缺陷）：扫描仓库 Plugins 源码中全部 [BindTable(... ConnName="...")]，
+        // 每个连接名必须已登记进 DbFiles——否则 XCode 按连接名派生默认路径 {程序基目录}/Data/{连接名}.db，
+        // 发布态 = versions/<ver>/Data/，宿主升级换版本目录后旧库不再被读 ⇒ 登记数据「全丢」
+        // （AgentHub 2.3.2/2.3.3 库 512/385KB 有数据 → 2.3.4 起每版 57KB 空库，2026-10-08 实测）。
+        // 排除 _ 前缀工具目录（发布暂存）、obj/bin 生成物（避免误扫复制品）。
+        var declaredConnNames = Directory.GetFiles(PluginsRootOfRepository(), "*.cs", SearchOption.AllDirectories)
+            .Where(p => p.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .All(s => !s.StartsWith('_') && !s.Equals("obj", StringComparison.OrdinalIgnoreCase)
+                          && !s.Equals("bin", StringComparison.OrdinalIgnoreCase)))
+            .SelectMany(f => Regex.Matches(File.ReadAllText(f), @"ConnName\s*=\s*""([^""]+)""").Cast<System.Text.RegularExpressions.Match>())
+            .Select(m => m.Groups[1].Value)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToList();
+
+        declaredConnNames.Should().NotBeEmpty("仓库 Plugins 源码内应存在 XCode 实体连接名（BindTable ConnName）");
+        foreach (var conn in declaredConnNames)
+        {
+            XCodeConfig.DbFiles.Keys.Should().Contain(conn,
+                "实体连接名「{0}」必须登记进 XCodeConfig.DbFiles，否则库落 {程序基目录}/Data/ 随版本目录升级丢失", conn);
         }
     }
 

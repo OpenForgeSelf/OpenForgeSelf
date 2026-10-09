@@ -10,6 +10,7 @@
  */
 import { computed, reactive } from 'vue'
 import * as api from './http'
+import { stageLabel } from './actions'
 import { confirmAction, showFailure, showToast } from './notify'
 import type {
   AgentStatus,
@@ -42,6 +43,8 @@ export const state = reactive({
   recordsTotal: 0,
   preview: null as DispatchPreview | null,
   agent: null as AgentStatus | null,
+  /** 列表实时徽标数据（FR-3.1）：taskId → 批量接口读回的委派状态。 */
+  agentStatuses: {} as Record<number, AgentStatus>,
   operating: false
 })
 
@@ -102,22 +105,29 @@ function syncSelected(): void {
 async function refreshSelected(): Promise<void> {
   try {
     const fresh = await api.getTodo(state.selectedId)
-    state.selected = fresh ?? null
-    if (!fresh) state.selectedId = 0
+    if (fresh) {
+      // 统一走 applyUpdated：详情与列表同一份数据（委派后 agentTaskKey 才会出现在列表行，徽标才能渲染）
+      applyUpdated(fresh)
+    } else {
+      state.selectedId = 0
+    }
   } catch (e) {
     showFailure('读取任务详情', e)
   }
 }
 
 export async function selectTodo(id: number): Promise<void> {
+  stopDetailStatusPolling()
   state.selectedId = id
   state.preview = null
   state.agent = null
   syncSelected()
   await loadRecords()
+  if (state.selected?.agentTaskKey) startDetailStatusPolling()
 }
 
 export function closeDetail(): void {
+  stopDetailStatusPolling()
   state.selectedId = 0
   state.selected = null
   state.records = []
@@ -138,10 +148,10 @@ export async function loadRecords(): Promise<void> {
   }
 }
 
-export async function createTodo(title: string): Promise<TodoItem | null> {
+export async function createTodo(title: string, projectId?: number): Promise<TodoItem | null> {
   try {
-    const created = await api.createTodo({ title })
-    showToast('已创建任务（草稿），补齐四栏后可下发', 'success')
+    const created = await api.createTodo({ title, projectId })
+    showToast(projectId ? '已创建任务（草稿），已关联所选项目' : '已创建任务（草稿），补齐四栏后可下发', 'success')
     await loadTodos()
     if (created) await selectTodo(created.id)
     return created ?? null
@@ -169,10 +179,13 @@ export async function saveDetail(patch: TodoSaveRequest): Promise<boolean> {
 }
 
 export async function removeTodo(task: TodoItem): Promise<void> {
+  // 记录数取真实来源：详情侧对象被变更接口 DTO 覆盖后 recordCount 恒 0，
+  // 选中任务改用 recordsTotal（各写路径已刷新，PILOT-055 P2）
+  const count = state.selectedId === task.id ? state.recordsTotal : task.recordCount
   const ok = await confirmAction({
     title: '删除任务',
     message: `确认删除「${task.title}」？`,
-    detail: `该任务的 ${task.recordCount} 条执行记录会一并删除，删除后不可撤销。`,
+    detail: `该任务的 ${count} 条执行记录会一并删除，删除后不可撤销。`,
     confirmText: '删除',
     danger: true
   })
@@ -226,6 +239,8 @@ export async function completeOrReopen(task: TodoItem): Promise<void> {
     showFailure(toDone ? '标记完成' : '重新打开', e)
   } finally {
     state.operating = false
+    // 完成/重开会留系统记录（PILOT-055 P1），即时刷新记录区与删除弹窗计数
+    await loadRecords()
   }
 }
 
@@ -276,6 +291,28 @@ export async function unlinkProject(task: TodoItem): Promise<void> {
     showToast('已解除关联', 'success')
   } catch (e) {
     showFailure('解除项目关联', e)
+  } finally {
+    state.operating = false
+  }
+}
+
+/** 按宿主项目档案 id 关联（FR-1.2）：选中项目即带出项目名 + 完整地址，落库后回显。 */
+export async function linkProjectById(task: TodoItem, projectId: number): Promise<boolean> {
+  state.operating = true
+  try {
+    const saved = await api.linkProjectById(task.id, projectId)
+    if (saved) {
+      applyUpdated(saved)
+      showToast(saved.projectName
+        ? `已关联项目：${saved.projectName}（${saved.projectRoot}）`
+        : `已关联项目：${saved.projectRoot}`, 'success', 6000)
+      await loadProjects()
+      return true
+    }
+    return false
+  } catch (e) {
+    showFailure('选择项目', e)
+    return false
   } finally {
     state.operating = false
   }
@@ -335,16 +372,18 @@ export async function dispatchTask(task: TodoItem, assignee: string): Promise<vo
 }
 
 export async function delegateToAgent(
-  task: TodoItem, agentId?: number, permissionMode?: string): Promise<DelegateResult | null> {
+  task: TodoItem, agentId?: number, permissionMode?: string, engine?: string, agentRoleId?: string): Promise<DelegateResult | null> {
   state.operating = true
   try {
-    const result = await api.delegateToAgent(task.id, agentId, permissionMode)
+    const result = await api.delegateToAgent(task.id, agentId, permissionMode, engine, agentRoleId)
     if (result?.ok) {
       await refreshSelected()
       const note = result.backfillWarning
         ?? `已交给 ${result.agentName}（${result.status}），taskKey=${result.taskKey}`
       showToast(note, result.backfillWarning ? 'warning' : 'success', 8000)
       await loadAgentStatus()
+      // 委派当下才落 agentTaskKey：此刻启动详情轮询（selectTodo 时还没有 key，轮询不启动 → 终态无人提示）
+      startDetailStatusPolling()
       await loadRecords()
     } else if (result?.seamMissing) {
       showToast(result.error ?? '未检测到 agent 委派能力（agent-hub 未启用）', 'warning', 6000)
@@ -368,8 +407,93 @@ export async function loadAgentStatus(): Promise<void> {
   try {
     state.agent = (await api.agentStatus(state.selected.id)) ?? null
   } catch (e) {
+    // PILOT-056：委派任务不存在（升级清库等）是常态而非错误 —— 静默降级为「不存在」态，不弹 toast
+    if (e instanceof api.ApiError && e.status === 404) {
+      state.agent = {
+        ok: false,
+        error: '委派任务不存在（可能已被清理）',
+        statusCode: 404,
+        taskKey: state.selected.agentTaskKey,
+        agentName: null,
+        status: '',
+        terminal: false,
+        exitCode: null,
+        errorCode: null,
+        elapsedMs: 0,
+        resultSummary: null,
+        filesChanged: [],
+        cwd: null
+      }
+      return
+    }
     state.agent = null
     showFailure('读取委派状态', e)
+  }
+}
+
+// ── 委派进度轮询（FR-3.1/3.3）─────────────────────────────────────────
+
+let listPollTimer: number | null = null
+let detailPollTimer: number | null = null
+
+/** 列表实时徽标：对已委派任务批量读状态（接缝缺席返回空 → 无徽标不报错）。 */
+export async function loadAgentStatuses(): Promise<void> {
+  const ids = state.items.filter(t => t.agentTaskKey).map(t => t.id)
+  if (ids.length === 0) {
+    state.agentStatuses = {}
+    return
+  }
+  try {
+    const list = (await api.agentStatusesBatch(ids)) ?? []
+    const next: Record<number, AgentStatus> = {}
+    for (const s of list) if (s?.todoId) next[s.todoId] = s
+    // 不闪：整体 JSON 一致就不赋值
+    if (!same(next, state.agentStatuses)) state.agentStatuses = next
+  } catch (e) {
+    // 批量轮询失败静默保留上次数据（下次 tick 重试），不 toast 打扰列表浏览
+  }
+}
+
+/** 启动列表轮询（TodoView 挂载时调；加载/过滤/翻页后 loadTodos 已刷新 items，下个 tick 自然重拉）。 */
+export function startAgentStatusPolling(intervalMs = 15_000): void {
+  stopAgentStatusPolling()
+  void loadAgentStatuses()
+  listPollTimer = window.setInterval(() => void loadAgentStatuses(), intervalMs)
+}
+
+export function stopAgentStatusPolling(): void {
+  if (listPollTimer !== null) {
+    clearInterval(listPollTimer)
+    listPollTimer = null
+  }
+}
+
+/** 详情委派状态轮询：非终态每 15s 刷新，终态停 + toast 一次。 */
+export function startDetailStatusPolling(intervalMs = 15_000): void {
+  stopDetailStatusPolling()
+  void loadAgentStatus()
+  detailPollTimer = window.setInterval(() => void pollDetailStatus(), intervalMs)
+}
+
+export function stopDetailStatusPolling(): void {
+  if (detailPollTimer !== null) {
+    clearInterval(detailPollTimer)
+    detailPollTimer = null
+  }
+}
+
+async function pollDetailStatus(): Promise<void> {
+  const before = state.agent
+  await loadAgentStatus()
+  const s = state.agent
+  // 只在新结束（前一次非终态、这次终态）时 toast；打开详情本就已终态 → 静默展示结果，不打扰
+  if (s && s.terminal) {
+    stopDetailStatusPolling()
+    if (before && !before.terminal) {
+      showToast(`委派已结束：${s.status}${s.errorCode ? `（${s.errorCode}）` : ''}`, s.ok ? 'success' : 'warning', 6000)
+    }
+  } else if (before && s && before.status !== s.status) {
+    // 非终态状态变化（Queued→Running 等）静默更新徽标/状态区，不打断浏览
   }
 }
 
@@ -378,7 +502,7 @@ export async function recordAgentResult(task: TodoItem): Promise<void> {
   try {
     const r = await api.recordAgentResult(task.id)
     if (r?.ok) {
-      showToast(`agent 结果已记入执行记录（第 ${r.seq} 条，当前 ${r.stage}）`, 'success')
+      showToast(`agent 结果已记入执行记录（第 ${r.seq} 条；任务阶段：${stageLabel(r.stage)}）`, 'success')
       await refreshSelected()
       await loadRecords()
     } else {

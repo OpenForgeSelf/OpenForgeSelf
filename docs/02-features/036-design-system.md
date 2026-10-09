@@ -1,9 +1,34 @@
+---
+feature_key: F036a
+feature_no: 036
+status: implemented
+last_updated: 2026-10-06
+aliases: ["036-design-system"]
+---
+
 # 036 - 设计系统（design-system 插件）
 
 > 插件形态：仓库根 `Plugins/DesignSystem/`，运行时 id `design-system`，当前版本 **3.1.0**
 > （2.0.0 = 库驱动重写；2.1.0 = 组件规格 + 变体矩阵 + 尺寸轴；2.2.0 = 资产/字体/页面三表补齐写入口与生成种子；2.3.0 = 版本快照与 diff 覆盖品牌三表和组件目录；2.4.0 = 组件规格进机器可读产物；2.5.0 = Element Plus 换肤接缝；2.6.x = 门禁盯手改之后/对比度全覆盖/顺序收口/尺度词表/导入回流前置；2.7.0 = DTCG 导入/回流；2.8.0 = **Agent 工具层**：8 个 `design_*` 工具 + REST 对等 + 写开关；3.0.0 = **展厅与向导**（M2，四模式外壳 + 模特穿衣服试穿 + 预览零写库同源）；3.1.0 = **风格轴与 UX 规范**（M3，7 个风格轴 + 预设 8→13 + 第 13 张表 `DesignGuideline` 与 14 条默认规范进全部交付物））。
 > 自带界面（路由 `/design-system`，`plugin.json` 的 `frontend.route`），经宿主远程加载（`frontend.entry = web/dist/index.js` + 同目录 `style.css`）。
 > 管理端点全部要求 `ApiKeyPolicy` 鉴权；数据落在插件自建库 `~/.forgeself/Plugins/design-system/DesignSystem.db`（ConnName=`DesignSystem`，13 张表）。
+
+## 需求清单（稳定 ID，只增不改号）
+
+> 规范见 `docs/04-standards/feature-requirement-ids.md`。ID 只增不改号；"验收要点"须是可执行判定。
+
+| ID | 需求 | 类型 | 验收要点 | 状态 | 覆盖测试 | 来源 |
+|----|------|------|----------|------|----------|------|
+| F036a-R01 | 设计项目与多品牌派生（SchemaVersion/GeneratorVersion/ProjectionVersion 三元组） | FR | 创建项目/派生品牌后库中存在对应 DesignProject 记录 | 已实现 | Plugins/DesignSystem（后端 + e2e） | docs/ai/pilot/2026-10-01-design-system-m1-agent-tools |
+| F036a-R02 | 三层令牌（primitive→semantic→component）+ 主题轴（color/density/brand） | FR | 切档后同一令牌有效值不同；有测试钉 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m1-agent-tools |
+| F036a-R03 | 确定性生成引擎（oklch 色阶 + 对比度定向选 tone） | FR | 同参数重跑产出同一 GeneratorSeed 结果 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m1-agent-tools |
+| F036a-R04 | WCAG 2.2 可达性审计与发布门禁（critical 未清则 409） | BR | 存在 critical 项时发布端点返回 409 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m1-agent-tools |
+| F036a-R05 | 多格式导出（DTCG/CSS/Tailwind v4/SCSS/… ，清单由 GET export/formats 现报） | FR | `GET export/formats` 返回实际支持格式；界面不写死 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard |
+| F036a-R06 | 不可变版本快照 + 令牌级 diff | FR | DesignRelease 文件只增不改；diff 到令牌粒度 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard |
+| F036a-R07 | Agent 工具层 8 个 `design_*` + REST 对等 | FR | `design_*` 工具与 REST 端点行为一致 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m1-agent-tools |
+| F036a-R08 | 展厅与向导（四模式外壳 + 库驱动 section） | FR | 预览与交付同源（复用 export?format=css） | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m2-showroom-wizard |
+| F036a-R09 | 风格轴与 UX 规范（7 风格轴 + DesignGuideline 表 + 14 条默认规范） | FR | 13 表含 DesignGuideline；规范进全部交付物 | 已实现 | Plugins/DesignSystem | docs/ai/pilot/2026-10-01-design-system-m3-style-guideline |
+
 
 ## 功能定位
 

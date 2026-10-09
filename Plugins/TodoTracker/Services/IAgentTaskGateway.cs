@@ -34,4 +34,10 @@ public interface IAgentTaskGateway
 
     /// <summary>按委派 taskKey 读回状态快照。找不到 ⇒ Success=false 且 <see cref="GatewayResult{T}.SeamMissing"/>=false。</summary>
     Task<GatewayResult<AgentDelegationSnapshot>> Query(string taskKey);
+
+    /// <summary>
+    /// 按委派 taskKey 标记完成（PILOT-057B：回报优先于进程退出判定）。
+    /// 已终态/不存在 ⇒ Value=false 且 Success=true（不是错误，是「无需再标」）；接缝缺席 ⇒ SeamMissing。
+    /// </summary>
+    Task<GatewayResult<bool>> MarkCompleted(string taskKey);
 }

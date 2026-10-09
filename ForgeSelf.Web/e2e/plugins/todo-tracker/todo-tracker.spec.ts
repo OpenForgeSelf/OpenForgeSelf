@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { mkdirSync, readFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getRealApiKey, injectRealApiKey } from '../../helpers/real-auth'
@@ -265,12 +265,20 @@ test.describe('todo-tracker 插件界面（远程加载 + 下发主链路）', (
       await running.click()
       await expect(page.locator('.tt-toast').last()).toContainText('已流转', { timeout: 15_000 })
 
+      // PILOT-055 P1：标记完成前先快照记录数，完成后必须 +1 且时间线顶部出现「标记完成」
+      const beforeComplete = (await api<{ total: number }>(`/api/todos/${id}/records?page=1&pageSize=100`)).total
+
       // 标记完成要二次确认
       await page.getByRole('button', { name: '标记完成', exact: true }).click()
       await expect(page.locator('.tt-confirm')).toBeVisible()
       await page.locator('[data-test=confirm-ok]').click()
       await expect(page.locator('.tt-toast').last()).toContainText('已标记完成', { timeout: 15_000 })
       await expect(page.locator('.td-stage')).toHaveText('完成')
+
+      const afterComplete = (await api<{ total: number }>(`/api/todos/${id}/records?page=1&pageSize=100`)).total
+      expect(afterComplete, '标记完成后服务端应新增一条系统记录（PILOT-055 P1）').toBe(beforeComplete + 1)
+      await expect(page.locator('.tl-item').first(), '「标记完成」应在时间线顶部可见（完成路径已刷新记录）')
+        .toContainText('标记完成', { timeout: 15_000 })
     } finally {
       await removeTask(id)
     }
@@ -297,6 +305,44 @@ test.describe('todo-tracker 插件界面（远程加载 + 下发主链路）', (
       await page.locator('[data-test=confirm-ok]').click()
       await expect(page.locator('.tt-toast').last()).toContainText('已删除', { timeout: 15_000 })
       await expect(page.locator('.tt-item', { hasText: title })).toHaveCount(0)
+    } finally {
+      await removeTask(id)
+    }
+  })
+
+  test('C2 删除确认弹窗必须显示真实执行记录数（P2 回归：详情对象被变更 DTO 覆盖后不再恒 0）', async ({ page }) => {
+    const title = `E2E-删除计数-${Date.now()}`
+    const id = await createTask(title)
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+
+      // 第 1 条走 UI 表单：appendRecord 会把详情对象覆盖成 recordCount=0 的 DTO，正是 P2 的触发场景。
+      // 等时间线条数收敛（toast 先于 loadRecords 完成，且同文案 toast 去重，不能拿 toast 当完成信号）
+      const input = page.locator('[data-test=record-action]')
+      if (!(await input.isVisible())) await page.locator('[data-test=toggle-record-form]').click()
+      await input.fill('第一条记录')
+      await page.locator('[data-test=record-submit]').click()
+      await expect(page.locator('.tl-item'), '第 1 条记录应出现在时间线').toHaveCount(1, { timeout: 15_000 })
+
+      // 第 2 条直连后端（绕开表单二次提交与 operating/刷新时序竞态），再用时间线「刷新」收敛 UI
+      await api(`/api/todos/${id}/records`, {
+        method: 'POST',
+        body: JSON.stringify({ action: '第二条记录', actor: 'e2e' }),
+      })
+      await page.locator('.tl-head').getByRole('button', { name: '刷新' }).click()
+      await expect(page.locator('.tl-item'), '时间线应显示 2 条记录（刷新收敛后）')
+        .toHaveCount(2, { timeout: 15_000 })
+
+      await page.getByRole('button', { name: '删除任务' }).click()
+      const detail = page.locator('.tt-confirm-detail')
+      await expect(detail).toBeVisible()
+      await expect(detail, '弹窗记录数必须等于真实总数（PILOT-055 P2）').toContainText('2 条执行记录')
+      await page.locator('[data-test=confirm-cancel]').click()
+      await expect(page.locator('.tt-confirm')).toBeHidden()
+
+      const total = (await api<{ total: number }>(`/api/todos/${id}/records?page=1&pageSize=100`)).total
+      expect(total, '取消删除后后端记录应原封不动').toBe(2)
     } finally {
       await removeTask(id)
     }
@@ -386,6 +432,325 @@ test.describe('todo-tracker 插件界面（远程加载 + 下发主链路）', (
       await shot(page, 'v1-long-title')
     } finally {
       await removeTask(long)
+    }
+  })
+
+  test('E1 真实委派端到端：登记本机 opencode → 一键委派（read-only）→ 状态回读 → 记录回写', async ({ page }) => {
+    // PILOT-055：真实 agent CLI 委派走查。opencode 是原生 exe（opencode.ps1 只是包装），登记直指二进制。
+    // 本机未装该二进制时条件跳过（CI 无此依赖也能全绿）；装了就跑真实委派，结果如实取证（Succeeded/Failed 都算链路证据）。
+    const OPENCODE_EXE = 'C:\\nvm4w\\nodejs\\node_modules\\opencode-ai\\bin\\opencode.exe'
+    if (!existsSync(OPENCODE_EXE)) {
+      test.skip(true, `本机未安装 opencode 原生二进制（${OPENCODE_EXE}），跳过真实委派`)
+      return
+    }
+    test.setTimeout(300_000)
+
+    // scratch 工作目录：只创建不删除（plugin-development 铁律 10）
+    const scratch = path.join(REPO_ROOT, '.temp', `e2e-opencode-scratch-${Date.now()}`)
+    mkdirSync(scratch, { recursive: true })
+    writeFileSync(path.join(scratch, 'a.txt'), 'alpha\n')
+    writeFileSync(path.join(scratch, 'b.md'), '# Beta\n')
+
+    // 登记 agent（vendor=opencode 每库唯一；同库重复跑 → 400，复用既有实例）
+    let agentId: number
+    try {
+      const created = await api<{ id: number }>('/api/agent-hub/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `opencode-e2e-${Date.now()}`, vendor: 'opencode', kind: 'Coding', enabled: true,
+          accessPoints: [{ executable: OPENCODE_EXE, isDefault: true }],
+          // 60s 超时：opencode 对模型端点错误可能静默重试不退出（PILOT-055 实测），
+          // 短超时让运行时确定性终止 → Failed(timeout) 同样构成完整链路证据；模型端点可达时自然 Succeeded。
+          policy: { permissionMode: 'read-only', timeoutSeconds: 60 },
+        }),
+      })
+      agentId = created.id
+    } catch (err) {
+      const list = await api<Array<{ id: number; vendor: string }>>('/api/agent-hub/agents?enabledOnly=true')
+      const existing = list.find(a => a.vendor === 'opencode')
+      if (!existing) throw err
+      agentId = existing.id
+    }
+    // 探测：可执行文件真实存在且版本可识别（走 opencode.exe --version）
+    const probe = await api<{ health: string; version?: string | null; path?: string | null; error?: string | null }>(
+      `/api/agent-hub/agents/${agentId}/probe`, { method: 'POST' })
+    expect(['Ok', 'Degraded'].includes(probe.health), `opencode 探测异常：${JSON.stringify(probe)}`).toBe(true)
+    expect(probe.version, `探测应拿到 opencode 版本：${JSON.stringify(probe)}`).toMatch(/\d+\.\d+\.\d+/)
+
+    const title = `E2E-真实委派-${Date.now()}`
+    const id = await createTask(title, {
+      objective: '只读探索 scratch 目录并回报文件清单',
+      content: '用只读方式列出工作目录下的全部文件；不得写、改、删任何文件',
+      acceptance: '- [ ] 回报文件清单',
+      verification: 'ls -la',
+    })
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+
+      // 关联 scratch 项目（cwd 真实存在；委派进程将在此目录启动）
+      const projectBlock = page.locator('.td-block').filter({ has: page.getByText('项目路径', { exact: true }) })
+      await projectBlock.locator('input.td-input').first().fill(scratch)
+      await projectBlock.getByRole('button', { name: '关联' }).click()
+      await expect(page.locator('.tt-toast').last()).toContainText('已关联项目', { timeout: 15_000 })
+
+      // 生成提示词 → 选中登记的真实 agent → 一键委派（read-only）
+      await page.getByRole('button', { name: '生成提示词' }).click()
+      await expect(page.locator('textarea[aria-label="下发提示词"]')).toBeVisible({ timeout: 15_000 })
+      const agentSelect = page.locator('[data-test=delegate-agent]')
+      await expect(agentSelect, '登记后预览必须给出 agent 下拉（假能力自查：候选下发 ≠ 有入口）').toBeVisible({ timeout: 15_000 })
+      await agentSelect.selectOption(String(agentId))
+      const delegateBtn = page.getByRole('button', { name: '交给 AgentHub 执行' })
+      await expect(delegateBtn).toBeEnabled({ timeout: 15_000 })
+      await delegateBtn.click()
+      // toast 会堆叠（plugin-development §G4），不能取「最后一条」——过滤出委派回执那条
+      const dispatchToast = page.locator('.tt-toast').filter({ hasText: /已交给|已入队|失败/ }).last()
+      await expect(dispatchToast, '委派必须给出可解释回执（成功或失败都行，不能无声）').toBeVisible({ timeout: 25_000 })
+      const toastText = await dispatchToast.innerText()
+      expect(/已交给|已入队|失败/.test(toastText), `委派回执不可解释：${toastText}`).toBe(true)
+
+      // 后端契约：必须拿到 taskKey 并进入 Running
+      await expect.poll(async () => {
+        const t = await api<{ agentTaskKey: string; stage: string }>(`/api/todos/${id}`)
+        return t.agentTaskKey && t.stage === 'Running' ? t.agentTaskKey : ''
+      }, { message: '委派后 taskKey/阶段未落库', timeout: 20_000 }).not.toBe('')
+
+      // 轮询委派状态到终态（进程已真实拉起；模型端点是否可达决定 Succeeded/Failed，两种都如实取证）
+      let terminal: { status: string; exitCode?: number | null; errorCode?: string | null; resultSummary?: string | null } | null = null
+      await expect.poll(async () => {
+        const s = await api<{ ok: boolean; status: string; terminal: boolean; exitCode?: number | null; errorCode?: string | null; resultSummary?: string | null; error?: string | null }>(
+          `/api/todos/${id}/agent-status`)
+        terminal = s
+        return s.terminal
+      }, { message: '委派未在时限内到达终态', timeout: 180_000 }).toBe(true)
+      expect(terminal!.status, `终态应为 Succeeded/Failed；实际 ${terminal!.status}（err=${terminal!.errorCode} summary=${terminal!.resultSummary}）`)
+        .toMatch(/^(Succeeded|Failed)$/)
+
+      // 终态 toast（AC-6）：详情轮询发现「刚结束」→ 自动提示，不必盯手动刷新
+      const endToast = page.locator('.tt-toast').filter({ hasText: '委派已结束' }).last()
+      await expect(endToast, '轮询到终态必须自动提示「委派已结束」').toBeVisible({ timeout: 60_000 })
+
+      // 列表行实时徽标（FR-3.1/AC-5）：有 agentTaskKey 立即出阶段兜底徽标 + taskKey 短显
+      const row = page.locator('.tt-item', { hasText: title }).first()
+      await expect(row.locator('.tt-deleg'), '已委派任务列表行必须出现委派徽标').toBeVisible({ timeout: 15_000 })
+      await expect(row.locator('.tt-key'), '列表行必须显示 taskKey 短显').toContainText(/^\s*#\S/)
+      // 详情委派区 agent 名 + 记录锚点（FR-3.3/AC-7）：委派状态行有 data-test 锚（057A 三卡片后 .td-block 存在父子嵌套，不再按块定位）
+      await expect(page.locator('[data-test=delegation-status]'))
+        .toContainText(/agent /, { timeout: 15_000 })
+      const goRecords = page.getByRole('button', { name: '查看执行记录 ↓' })
+      await expect(goRecords, '委派区必须给「查看执行记录」锚点').toBeVisible()
+
+      // 记为执行记录 → 回写记录必须落库并出现在时间线
+      await page.getByRole('button', { name: '记为执行记录' }).click()
+      await expect.poll(async () => {
+        const recs = await api<{ items: Array<{ action: string }> }>(`/api/todos/${id}/records?page=1&pageSize=100`)
+        return recs.items.some(r => r.action.includes('agent 执行回写'))
+      }, { message: '点击「记为执行记录」后回写记录未落库', timeout: 20_000 }).toBe(true)
+      await expect(page.locator('.tl-item').first()).toContainText('agent 执行回写', { timeout: 15_000 })
+      // AC-7：点击「查看执行记录」锚点滚动到记录区（scrollIntoView 无副作用，断言记录区可见）
+      await goRecords.click()
+      await expect(page.locator('[data-test=execution-timeline]')).toBeVisible()
+      await shot(page, 'e1-delegate-opencode')
+    } finally {
+      await removeTask(id)
+      try { await api(`/api/agent-hub/agents/${agentId}`, { method: 'DELETE' }) } catch { /* 清理失败不影响结论 */ }
+    }
+  })
+
+  // ── 本批 UX 三缺陷（2026-10-08-ux-close）的交互用例 ─────────────────────────────
+
+  test('U1 新建任务可选项目（FR-1.1/AC-1）：选中后创建自动带出项目地址', async ({ page }) => {
+    // 档案种子：先用接口建一条任务并关联仓库根（详情关联会自动登记宿主项目档案）
+    const seedTitle = `U1-档案种子-${Date.now()}`
+    const seedId = await createTask(seedTitle)
+    const linked = await api<{ projectId: number; projectRoot: string; projectName?: string | null }>(
+      `/api/todos/${seedId}/project`, { method: 'POST', body: JSON.stringify({ path: REPO_ROOT }) })
+    expect(linked.projectId, '关联应返回宿主项目档案 id').toBeGreaterThan(0)
+    expect(linked.projectRoot, '关联应归一出 Windows 根').toContain('OpenForgeSelf')
+    const projectId = linked.projectId
+
+    const title = `U1-新建选项目-${Date.now()}`
+    try {
+      await openTodoPage(page)
+      const createSelect = page.locator('select[aria-label="新建任务所属项目"]')
+      // 前置用例（E1 等）可能已在宿主登记过项目档案，故断言「不选 + 至少 1 档案」而非锁死计数
+      await expect.poll(async () => (await createSelect.locator('option').count()),
+        { timeout: 15_000, message: '新建下拉应列出宿主项目档案（不选项目 + ≥1 档案）' }).toBeGreaterThanOrEqual(2)
+      await createSelect.selectOption(String(projectId))
+      await page.locator('input[placeholder*="新任务标题"]').fill(title)
+      await page.getByRole('button', { name: '新建' }).click()
+
+      // 创建成功回执（选中项目时 createTodo 提示「已关联所选项目」）
+      await expect(page.locator('.tt-toast').last()).toContainText('已创建任务（草稿）', { timeout: 15_000 })
+      // 后端契约：新建必须带 projectId + projectRoot（不是"看起来关联了"）；创建是异步的，轮询等落库
+      await expect.poll(async () => {
+        const list = await api<{ items: Array<{ id: number; title: string }> }>(
+          `/api/todos?q=${encodeURIComponent(title)}&pageSize=100`)
+        const hit = list.items.find(t => t.title === title)
+        if (!hit) return ''
+        const t = await api<{ projectId: number; projectRoot: string }>(`/api/todos/${hit.id}`)
+        return t.projectId === projectId && t.projectRoot === REPO_ROOT ? hit.id : ''
+      }, { message: '新建任务未带出所选项目（projectId/projectRoot 未落库）', timeout: 20_000 }).not.toBe('')
+    } finally {
+      await removeTask(seedId)
+      const list = await api<{ items: Array<{ id: number; title: string }> }>(`/api/todos?page=1&pageSize=100`)
+      const hit = list.items.find(t => t.title === title)
+      if (hit) await removeTask(hit.id)
+    }
+  })
+
+  test('U2 详情「选择项目」模式（FR-1.2/AC-2）：选中档案即带出项目名 + 完整地址', async ({ page }) => {
+    const seedTitle = `U2-档案种子-${Date.now()}`
+    const seedId = await createTask(seedTitle)
+    const linked = await api<{ projectId: number }>(
+      `/api/todos/${seedId}/project`, { method: 'POST', body: JSON.stringify({ path: REPO_ROOT }) })
+    const projectId = linked.projectId
+
+    const title = `U2-详情选项目-${Date.now()}`
+    const id = await createTask(title) // 不关联项目
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+
+      const projectBlock = page.locator('.td-block').filter({ has: page.getByText('项目路径', { exact: true }) })
+      await projectBlock.getByRole('button', { name: '选择项目' }).click()
+      const select = page.locator('[data-test=project-select]')
+      await expect(select, '切到「选择项目」应出现档案下拉').toBeVisible()
+      await select.selectOption(String(projectId))
+      await projectBlock.getByRole('button', { name: '关联' }).click()
+
+      await expect(page.locator('.tt-toast').last()).toContainText('已关联项目', { timeout: 15_000 })
+      // 页面显示项目名 + 完整地址
+      await expect(projectBlock.locator('.td-proj-line')).toContainText('OpenForgeSelf', { timeout: 15_000 })
+      await expect(projectBlock.locator('.td-mono').first()).toContainText(REPO_ROOT)
+      // 后端落库一致
+      const t = await api<{ projectId: number; projectRoot: string }>(`/api/todos/${id}`)
+      expect(t.projectId).toBe(projectId)
+      expect(t.projectRoot).toBe(REPO_ROOT)
+    } finally {
+      await removeTask(id)
+      await removeTask(seedId)
+    }
+  })
+
+  test('U3 委派按钮禁用原因可见（FR-2.1/AC-3）：四态文案是可见文本，不是 title', async ({ page }) => {
+    const title = `U3-禁用四态-${Date.now()}`
+    const id = await createTask(title) // 缺四栏
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+      const delegateBtn = page.getByRole('button', { name: '交给 AgentHub 执行' })
+      const hint = page.locator('[data-test=delegate-hint]')
+
+      // 态1：打开详情即自动加载预览（不再要求先点「生成提示词」）→ 缺四栏时 hint 给可委派前置条件
+      await expect(delegateBtn).toBeDisabled()
+      await expect(hint).toHaveText(/四栏齐备|未检测到 agent 委派能力/, { timeout: 15_000 })
+
+      // 态2：生成预览后缺四栏 → 「四栏齐备…」或接缝缺席原文（隔离宿主装了 agent-hub → 走四栏不齐文案）
+      await page.getByRole('button', { name: '生成提示词' }).click()
+      await expect(page.locator('textarea[aria-label="下发提示词"]')).toBeVisible({ timeout: 15_000 })
+      await expect(hint).toHaveText(/四栏齐备|未检测到 agent 委派能力/, { timeout: 15_000 })
+      await expect(delegateBtn).toBeDisabled()
+
+      // 态3：补齐四栏再生成 → 按钮可用、hint 消失（可委派不需要提示）
+      await page.locator('#td-obj').fill('可验证目标：界面能跑通委派链路')
+      await page.locator('#td-obj').blur()
+      await page.locator('#td-content').fill('任务正文：补齐四栏后委派按钮应可用')
+      await page.locator('#td-content').blur()
+      await page.locator('#td-accept').fill('- [ ] 委派按钮可用')
+      await page.locator('#td-accept').blur()
+      await page.locator('#td-verify').fill('pnpm run build')
+      await page.locator('#td-verify').blur()
+      await expect.poll(async () => {
+        const t = await api<{ objective: string; acceptance: string }>(`/api/todos/${id}`)
+        return t.objective && t.acceptance
+      }, { message: '四栏未落库', timeout: 15_000 }).toBeTruthy()
+      await page.getByRole('button', { name: '生成提示词' }).click()
+      await expect(page.locator('textarea[aria-label="下发提示词"]')).toBeVisible({ timeout: 15_000 })
+      await expect(delegateBtn, '四栏齐备 + 接缝在场时应可委派').toBeEnabled({ timeout: 15_000 })
+      await expect(hint, '可委派时不显示禁用原因').toHaveCount(0)
+    } finally {
+      await removeTask(id)
+    }
+  })
+
+  test('U4 agents 空态引导（FR-2.2/AC-4）：接缝在但无 agent 时给「去 Agent 中枢登记」入口', async ({ page }) => {
+    const title = `U4-agents空态-${Date.now()}`
+    const id = await createTask(title, {
+      objective: '可验证目标：有可执行 agent',
+      content: '任务正文：验证 agents 空态引导',
+      acceptance: '- [ ] 引导可见',
+      verification: 'echo ok',
+    })
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+      await page.getByRole('button', { name: '生成提示词' }).click()
+      await expect(page.locator('textarea[aria-label="下发提示词"]')).toBeVisible({ timeout: 15_000 })
+      // 与 E1（登记/删除真实 agent）并行时 agents 可能非空 → 空态引导不出现，此时跳过空态分支（分支自适应）
+      const agentSelect = page.locator('[data-test=delegate-agent]')
+      if (await agentSelect.isVisible().catch(() => false)) {
+        test.info().annotations.push({ type: 'skip', description: '预览已列出可用 agent（与 E1 并行登记），空态引导不适用' })
+        return
+      }
+      const fatal: string[] = []
+      page.on('console', m => {
+        if (m.type() === 'error' && FATAL_CONSOLE.some(p => p.test(m.text()))) fatal.push(m.text())
+      })
+      const go = page.locator('[data-test=go-register-agent]')
+      await expect(go, 'agents 空时必须给出登记引导，不许只剩禁用按钮').toBeVisible({ timeout: 15_000 })
+      await expect(go).toContainText('去 Agent 中枢登记')
+      await go.click()
+      expect(fatal, `点击登记引导不得抛组件级错误：${fatal.join('; ')}`).toEqual([])
+      // 实际跳转在走查截图验证（隔离环境导航桥行为以宿主注入为准，见 02-spec Unknown 表）
+    } finally {
+      await removeTask(id)
+    }
+  })
+
+  test('U5 未委派任务无徽标（FR-3.1/AC-5）：列表行不出现委派徽标与 taskKey 短显', async ({ page }) => {
+    const title = `U5-无徽标-${Date.now()}`
+    const id = await createTask(title)
+    try {
+      await openTodoPage(page)
+      const row = page.locator('.tt-item', { hasText: title }).first()
+      await expect(row).toBeVisible({ timeout: 15_000 })
+      await expect(row.locator('.tt-deleg'), '未委派任务不得有委派徽标').toHaveCount(0)
+      await expect(row.locator('.tt-key'), '未委派任务不得显示 taskKey 短显').toHaveCount(0)
+    } finally {
+      await removeTask(id)
+    }
+  })
+
+  test('U6 委派区双下拉开箱即用（FR-3.4）：打开详情自动加载预览，引擎/角色/agent 下拉无需先点「生成提示词」', async ({ page }) => {
+    const title = `U6-双下拉-${Date.now()}`
+    const id = await createTask(title, {
+      objective: '可验证目标：委派区下拉自动就绪',
+      content: '任务正文：验证引擎与角色下拉不依赖先生成提示词',
+      acceptance: '- [ ] 角色下拉可见',
+      verification: 'echo ok',
+    })
+    try {
+      await openTodoPage(page)
+      await openDetail(page, title)
+
+      // 引擎下拉（外部 AgentHub / 本工具 AI Agent）始终可见
+      const engine = page.locator('[data-test=delegate-engine]')
+      await expect(engine).toBeVisible({ timeout: 15_000 })
+      await expect(engine.locator('option')).toHaveCount(2)
+
+      // 默认外部引擎 → agent 下拉可见（preview 自动加载：有 agent → 选项；无 → 占位项；disabled 占位不可见但存在）
+      const agentSel = page.locator('[data-test=delegate-agent]')
+      await expect(agentSel).toBeVisible({ timeout: 15_000 })
+      await expect(agentSel.locator('option'), 'agent 下拉至少有一个占位/默认选项，不能整块消失').not.toHaveCount(0)
+
+      // 切到本工具 AI Agent → 角色下拉可见（七角色或「未就绪」占位，不能整块消失）
+      await engine.selectOption('builtin')
+      const roleSel = page.locator('[data-test=delegate-role]')
+      await expect(roleSel).toBeVisible({ timeout: 15_000 })
+      await expect(roleSel.locator('option'), '角色下拉至少有一个占位/默认选项，不能整块消失').not.toHaveCount(0)
+    } finally {
+      await removeTask(id)
     }
   })
 })

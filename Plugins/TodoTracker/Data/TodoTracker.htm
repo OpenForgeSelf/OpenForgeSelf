@@ -304,13 +304,13 @@
 
         <tr>
             <td>AgentTaskKey</td>
-            <td>AgentHub委派任务taskKey（一键执行后回填）</td>
+            <td>委派任务key（AgentHubtaskKey或本工具AIAgent的run</td>
             <td>String</td>
             <td>64</td>
             <td></td>
             <td></td>
             <td></td>
-            <td>AgentHub 委派任务 taskKey（一键执行后回填）</td>
+            <td>委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）</td>
         </tr>
 
         <tr>
@@ -321,7 +321,18 @@
             <td></td>
             <td></td>
             <td>N</td>
-            <td>AgentHub agent Id，0=自动选路</td>
+            <td>AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7</td>
+        </tr>
+
+        <tr>
+            <td>AgentEngine</td>
+            <td>委派引擎agenthub=外部AgentHub_builtin=本工具AIAgent</td>
+            <td>String</td>
+            <td>16</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent</td>
         </tr>
 
         <tr>

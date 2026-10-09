@@ -1,3 +1,11 @@
+﻿---
+feature_key: F025
+feature_no: 025
+status: implemented
+last_updated: 2026-10-06
+aliases: ["025-user-profile"]
+---
+
 # 025 · 用户配置（User Profile）
 
 > 状态：已实现（前端视图存在；后端暂无独立 Profile 模块）

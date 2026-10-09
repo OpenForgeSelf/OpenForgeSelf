@@ -6,18 +6,23 @@
  * 三条要求：标题旁版本徽标（铁律 13）、滚动容器子区块 flex-shrink:0（铁律 8）、
  * 空态分级（无任务 / 筛选无匹配 / 未关联项目）文案各不相同（§3.4 交互要求 4）。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import NotifyHost from './NotifyHost.vue'
 import TaskDetail from './components/TaskDetail.vue'
 import * as store from './store'
 import { fetchPluginVersion } from './http'
-import { missingLabels, priorityLabel, relativeTime, shortPath, sortTasks, stageLabel, stageTagType } from './actions'
+import {
+  agentFallbackByStage, agentNameOrFallback, agentStatusMeta, missingLabels, priorityLabel,
+  relativeTime, shortPath, sortTasks, stageLabel, stageTagType
+} from './actions'
+import type { TagType } from './actions'
 import type { TodoItem, TodoStage } from './types'
 
 const STAGES: TodoStage[] = ['Draft', 'Ready', 'Dispatched', 'Running', 'Blocked', 'Review', 'Done', 'Cancelled']
 const STAGE_LABELS: Record<string, string> = Object.fromEntries(STAGES.map(s => [s, stageLabel(s)]))
 
 const newTitle = ref('')
+const newProjectId = ref(0)
 const version = ref('加载中…')
 const s = store.state
 
@@ -26,7 +31,23 @@ const filtered = computed(() => !!(s.stageFilter || s.statusFilter || s.projectF
 const pageCount = computed(() => Math.max(1, Math.ceil(s.total / s.pageSize)))
 
 const projectOptions = computed(() =>
-  store.state.projects.map(p => ({ id: p.id, label: p.name || shortPath(p.root, 28), count: p.taskCount })))
+  store.state.projects.map(p => ({ id: p.id, label: p.name || shortPath(p.root, 28), count: p.taskCount, root: p.root })))
+
+/** 列表行委派徽标（FR-3.1）：有批量实时数据用 agent 状态，缺失按阶段兜底；未委派返回 null。 */
+const delegationBadges = computed(() => {
+  const map = new Map<number, { label: string; type: TagType; agent: string }>()
+  for (const task of visibleItems.value) {
+    if (!task.agentTaskKey) continue
+    const live = s.agentStatuses[task.id]
+    const meta = live ? agentStatusMeta(live.status) : agentFallbackByStage(task.stage)
+    map.set(task.id, { ...meta, agent: agentNameOrFallback(live?.agentName, task.agentId) })
+  }
+  return map
+})
+
+function shortKey(key: string): string {
+  return key.length > 8 ? `${key.slice(0, 8)}…` : key
+}
 
 async function reload(): Promise<void> {
   await store.loadTodos()
@@ -35,12 +56,15 @@ async function reload(): Promise<void> {
 onMounted(async () => {
   void store.loadProjects()
   await reload()
+  store.startAgentStatusPolling()
   try {
     version.value = await fetchPluginVersion('todo-tracker')
   } catch {
     version.value = '版本未知'
   }
 })
+
+onUnmounted(() => store.stopAgentStatusPolling())
 
 // 过滤条件变了就回第 1 页再取（沿用 §3.4 交互要求 5：筛选变化回第 1 页）
 watch(() => [s.stageFilter, s.statusFilter, s.projectFilter], () => {
@@ -66,8 +90,11 @@ function page(target: number): void {
 async function create(): Promise<void> {
   const title = newTitle.value.trim()
   if (!title) return
-  const created = await store.createTodo(title)
-  if (created) newTitle.value = ''
+  const created = await store.createTodo(title, newProjectId.value || undefined)
+  if (created) {
+    newTitle.value = ''
+    newProjectId.value = 0
+  }
 }
 
 function open(task: TodoItem): void {
@@ -85,6 +112,10 @@ function open(task: TodoItem): void {
         <span class="tt-version" :title="`插件版本 ${version}`">{{ version }}</span>
       </div>
       <div class="tt-create">
+        <select v-model.number="newProjectId" class="tt-input tt-select tt-create-proj" aria-label="新建任务所属项目">
+          <option :value="0">不选项目</option>
+          <option v-for="p in projectOptions" :key="p.id" :value="p.id" :title="`${p.root}`">{{ p.label }} · {{ shortPath(p.root, 30) }}（{{ p.count }} 任务）</option>
+        </select>
         <input v-model="newTitle" class="tt-input tt-create-input" maxlength="200"
           placeholder="新任务标题（回车创建）" @keyup.enter="create">
         <button type="button" class="tt-btn is-primary" :disabled="!newTitle.trim()" @click="create">新建</button>
@@ -102,7 +133,7 @@ function open(task: TodoItem): void {
       <div class="tt-filter-right">
         <select v-model.number="s.projectFilter" class="tt-input tt-select" aria-label="项目过滤">
           <option :value="0">全部项目</option>
-          <option v-for="p in projectOptions" :key="p.id" :value="p.id">{{ p.label }}（{{ p.count }}）</option>
+          <option v-for="p in projectOptions" :key="p.id" :value="p.id" :title="`${p.root}`">{{ p.label }} · {{ shortPath(p.root, 30) }}（{{ p.count }} 任务）</option>
         </select>
         <select v-model="s.statusFilter" class="tt-input tt-select" aria-label="完成状态过滤">
           <option value="">不限完成态</option>
@@ -150,6 +181,14 @@ function open(task: TodoItem): void {
                 {{ task.projectName || shortPath(task.projectRoot, 34) }}
               </span>
               <span v-else class="tt-proj is-missing">未关联项目</span>
+              <span v-if="task.agentTaskKey" class="tt-deleg"
+                :class="`tag-${delegationBadges.get(task.id)?.type ?? 'info'}`"
+                :title="`委派给 ${delegationBadges.get(task.id)?.agent ?? 'agent'} · 编号 ${task.agentTaskKey}（实时以详情页为准）`">
+                {{ delegationBadges.get(task.id)?.label ?? '委派中' }} · {{ delegationBadges.get(task.id)?.agent ?? 'agent' }}
+              </span>
+              <span v-if="task.agentTaskKey" class="tt-dim tt-key" :title="`委派编号 ${task.agentTaskKey}`">
+                #{{ shortKey(task.agentTaskKey) }}
+              </span>
               <span v-if="task.assignee" class="tt-dim">→ {{ task.assignee }}</span>
               <span v-if="task.recordCount" class="tt-dim">记录 {{ task.recordCount }}</span>
               <span class="tt-dim">{{ relativeTime(task.updatedAt) }}</span>
@@ -191,8 +230,9 @@ function open(task: TodoItem): void {
 /* 滚动容器的直接子区块必须不许被压扁（plugin-development 铁律 8） */
 .tt-body { flex: 1; min-height: 0; overflow: auto; display: flex; gap: 16px; padding-bottom: 16px; }
 .tt-body > * { flex-shrink: 0; }
-.tt-list-panel { flex: 1 1 auto; min-width: 320px; display: flex; flex-direction: column; gap: 8px; }
-.tt-detail-panel { flex: 0 0 520px; max-width: 520px; }
+/* PILOT-057A：列表稳定 400px，详情吃满剩余主区（原 520px 固定侧边栏太挤） */
+.tt-list-panel { flex: 0 0 400px; min-width: 320px; display: flex; flex-direction: column; gap: 8px; }
+.tt-detail-panel { flex: 1 1 auto; min-width: 0; max-width: none; }
 
 .tt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-shrink: 0; }
 .tt-head-left { display: flex; align-items: baseline; gap: 8px; }
@@ -235,6 +275,9 @@ function open(task: TodoItem): void {
 .tt-item-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; font-size: 12px; color: var(--el-text-color-secondary); }
 .tt-proj { color: var(--el-color-primary); }
 .tt-proj.is-missing { color: var(--el-color-warning); }
+.tt-create-proj { max-width: 200px; }
+.tt-deleg { font-size: 11px; padding: 1px 7px; border-radius: 3px; }
+.tt-key { font-size: 11px; }
 .tt-item-gap { margin-top: 5px; font-size: 12px; color: var(--el-color-danger); }
 .tt-item-obj { margin-top: 4px; font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

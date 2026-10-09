@@ -35,7 +35,7 @@ public class TodoDispatchFlowTests : IClassFixture<XCodeTestFixture>
         ctx.Register<IProjectRegistry>(_sharedRegistry);
         _projects = new TodoProjectService(ctx);
         _todos = new TodoService(_projects, _records);
-        _dispatch = new TodoDispatchService(_records, new AgentTaskGateway(new Context()), _projects);
+        _dispatch = new TodoDispatchService(_records, new AgentTaskGateway(new Context()), _projects, ctx);
         _ = fixture;
     }
 

@@ -6,9 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>McpCenter</AssemblyName>
     <RootNamespace>ForgeSelf.Api.Plugins.McpCenter</RootNamespace>
-    <Version>2.2.1</Version>
-    <AssemblyVersion>2.2.1.0</AssemblyVersion>
-    <FileVersion>2.2.1.0</FileVersion>
+    <Version>2.3.0</Version>
+    <AssemblyVersion>2.3.0.0</AssemblyVersion>
+    <FileVersion>2.3.0.0</FileVersion>
+    <!-- 2026-10-09（2.3.8 崩溃事故）：插件首个第三方 NuGet 依赖（ModelContextProtocol.AspNetCore 2.2.0）
+         未随插件进版本目录 → 宿主 MVC 扫描插件程序集时 ReflectionTypeLoadException → 宿主异常退出。
+         普通类库 bin 默认不含 PackageReference 的 dll（CopyLocalLockFileAssemblies=false）；
+         宿主 StageAllPlugins 从插件 bin 拷贝，依赖 dll 必须在本目录才能进发布包。 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +33,9 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- 官方 MCP C# SDK（微软 + Anthropic 共同维护）：托管 Streamable HTTP 传输与协议协商，
+         替代自研 McpJsonRpcHandler 的传输层职责；有状态模式由网关显式开启（Stateless=false）。 -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>

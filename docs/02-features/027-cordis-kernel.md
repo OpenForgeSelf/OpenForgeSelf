@@ -1,3 +1,11 @@
+﻿---
+feature_key: F027
+feature_no: 027
+status: implemented
+last_updated: 2026-10-06
+aliases: ["027-cordis-kernel"]
+---
+
 # 027 · Cordis 内核（一切皆插件运行时）
 
 > 状态：已实现/已闭环（ADR 001；内核、契约层、插件自注册、可变 MS DI、文件级热更新、动态端点移除、事件总线贯穿、会话/LLM 接缝接线、11 插件全部拆独立程序集、前端清单驱动动态挂载均已落地；剩余项见「已知问题 / 待办」。dsh 对齐 B1–B9 收官后接缝现状已同步，旧 `IAgentLoop`/`InMemoryAgentLoop`/`ToolCallContext` 退役删除）

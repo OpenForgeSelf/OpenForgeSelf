@@ -50,7 +50,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="tl">
+  <div class="tl" data-test="execution-timeline">
     <div class="tl-head">
       <span class="tl-title">执行记录</span>
       <span class="tl-dim">{{ s.recordsTotal }} 条</span>

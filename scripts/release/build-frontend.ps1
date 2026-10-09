@@ -1,4 +1,4 @@
-# build-frontend.ps1 - builds the host SPA and every plugin web UI.
+﻿# build-frontend.ps1 - builds the host SPA and every plugin web UI.
 # Outputs (all git-ignored build artifacts):
 #   ForgeSelf.Web            -> ForgeSelf.Api/wwwroot            (vite outDir)
 #   Plugins/<X>/web          -> Plugins/<X>/web/dist             (picked up by StageAllPlugins)
@@ -20,6 +20,15 @@ param(
 . (Join-Path $PSScriptRoot 'release-lib.ps1')
 if (-not $RepoRoot) { $RepoRoot = Get-ReleaseRepoRoot }
 
+# 构建临时/缓存目录指向项目内 .temp，避开沙箱 safe-delete shim 对系统 TEMP（AppData\Local\Temp）
+# 删除的拦截——esbuild/vite 构建中会清理临时文件，落到系统 TEMP 会报 Access is denied（2026-10-06 实证）。
+# .temp 已被 .gitignore / check-git-content 排除，不会入库。
+$buildTemp = Join-Path $RepoRoot '.temp'
+New-Item -ItemType Directory -Force -Path $buildTemp | Out-Null
+$env:TEMP   = $buildTemp
+$env:TMP    = $buildTemp
+$env:TMPDIR = $buildTemp
+
 $pnpm = Get-ReleaseToolPath 'pnpm'
 if (-not $pnpm) { throw 'pnpm not found on PATH. Install pnpm (corepack enable) first.' }
 
@@ -29,6 +38,13 @@ function Invoke-PnpmBuild([string]$Dir, [string]$Label) {
     try {
         & $pnpm install --frozen-lockfile
         Assert-ExitCode "pnpm install ($Label)"
+        # Env workaround: the sandbox safe-delete shim blocks esbuild's Go binary from
+        # deleting its temp files (inputs >1MB / outputs >buffer), aborting the build
+        # with "remove <path>: Access is denied". patch-esbuild.mjs keeps inputs inline;
+        # ESBUILD_MAX_BUFFER keeps outputs inline. Both are valid in every environment,
+        # so applying them unconditionally is safe.
+        & node (Join-Path $PSScriptRoot 'patch-esbuild.mjs') $Dir
+        $env:ESBUILD_MAX_BUFFER = '1073741824'
         & $pnpm build
         Assert-ExitCode "pnpm build ($Label)"
     }

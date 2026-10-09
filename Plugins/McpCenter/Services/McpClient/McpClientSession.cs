@@ -56,6 +56,7 @@ public sealed class McpClientSession : IAsyncDisposable
                 fresh.Add(new McpExternalToolDto
                 {
                     Name = name,
+                    ServerId = _config.Id,
                     FullName = $"mcp.{_config.Id}.{name}",
                     Description = t.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString()! : string.Empty,
                     InputSchemaJson = t.TryGetProperty("inputSchema", out var s) ? s.GetRawText() : string.Empty
@@ -78,11 +79,42 @@ public sealed class McpClientSession : IAsyncDisposable
     /// <summary>
     /// 调用外部工具，返回给 MCP 客户端的文本负载：
     /// text content 拼接；结构化 content 逐项 JSON 透传；isError 时包 {success:false,error:...}。
+    /// 语义由 McpClientSessionTests 钉住，v2.3.0 起改为委托 Inspect（与 CallToolDetailedAsync 共用一处提取逻辑）。
     /// </summary>
     public async Task<string> CallToolAsync(string name, string argumentsJson, CancellationToken ct)
     {
-        var result = await _transport.CallToolAsync(name, argumentsJson, ct);
+        var view = Inspect(await _transport.CallToolAsync(name, argumentsJson, ct));
+        if (view.IsError)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = string.IsNullOrWhiteSpace(view.Text) ? "外部工具执行失败" : view.Text
+            });
+        }
+        // content 数组存在但拼不出文本 → 沿用既有 "{}"；无 content 字段 → 原样透传 result 原文。
+        return view.HasContent ? (string.IsNullOrWhiteSpace(view.Text) ? "{}" : view.Text) : view.RawJson;
+    }
+
+    /// <summary>
+    /// 调用外部工具并返回完整结果（v2.3.0 工具测试台）：在文本之外保留 isError 与原始 JSON。
+    /// </summary>
+    public async Task<McpToolCallOutcome> CallToolDetailedAsync(string name, string argumentsJson, CancellationToken ct)
+    {
+        var view = Inspect(await _transport.CallToolAsync(name, argumentsJson, ct));
+        return new McpToolCallOutcome
+        {
+            IsError = view.IsError,
+            Text = view.Text,
+            RawJson = view.RawJson
+        };
+    }
+
+    /// <summary>tools/call 结果的统一提取（唯一一处解析逻辑，供两个入口共用）。</summary>
+    private static (bool IsError, bool HasContent, string Text, string RawJson) Inspect(JsonElement result)
+    {
         var isError = result.TryGetProperty("isError", out var ie) && ie.ValueKind == JsonValueKind.True;
+        var raw = result.GetRawText();
 
         if (result.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
         {
@@ -99,16 +131,11 @@ public sealed class McpClientSession : IAsyncDisposable
                     sb.Append(item.GetRawText());
                 }
             }
-            var text = sb.ToString();
-            if (isError)
-            {
-                return JsonSerializer.Serialize(new { success = false, error = string.IsNullOrWhiteSpace(text) ? "外部工具执行失败" : text });
-            }
-            return string.IsNullOrWhiteSpace(text) ? "{}" : text;
+            return (isError, true, sb.ToString(), raw);
         }
 
-        var raw = result.GetRawText();
-        return isError ? JsonSerializer.Serialize(new { success = false, error = raw }) : raw;
+        // 无 content 字段：文本为空，原文即 result 本身（既有语义：结构化结果原样透传）
+        return (isError, false, string.Empty, raw);
     }
 
     public Task PingAsync(CancellationToken ct) => _transport.PingAsync(ct);

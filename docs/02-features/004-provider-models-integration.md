@@ -1,3 +1,11 @@
+﻿---
+feature_key: F004
+feature_no: 004
+status: implemented
+last_updated: 2026-10-06
+aliases: ["004-provider-models-integration"]
+---
+
 # 004 Provider 与模型集成（统一网关路由）— 功能需求与设计
 
 > 功能编号：004

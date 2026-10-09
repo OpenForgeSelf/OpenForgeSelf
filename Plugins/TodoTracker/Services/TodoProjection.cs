@@ -46,6 +46,7 @@ internal static class TodoProjection
             DispatchedAt = todo.DispatchedAt == DateTime.MinValue ? null : todo.DispatchedAt,
             AgentTaskKey = todo.AgentTaskKey ?? string.Empty,
             AgentId = todo.AgentId,
+            AgentEngine = string.IsNullOrEmpty(todo.AgentEngine) ? "agenthub" : todo.AgentEngine,
             PermissionMode = string.IsNullOrEmpty(todo.PermissionMode) ? "read-only" : todo.PermissionMode,
             RecordCount = recordCount,
             AllowedTargets = TodoStage.NextOf(stage).Select(TodoStage.ToName).ToList(),

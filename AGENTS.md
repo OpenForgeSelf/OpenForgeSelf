@@ -94,6 +94,7 @@
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
+- **本地起前后端：只能用 `pwsh -NoProfile -File scripts/dev-stack.ps1`（停止 `-Stop`），禁止手敲 `dotnet <宿主dll>` / `node …/vite` / `npx vite` 等运行命令**（2026-10-08 立；详见 plugin-development 铁律 20）。手工起有两个**静默陷阱**：① dev 宿主首参必须是 `--console`（否则落到 `Program.cs:146` 兜底，被 NewLife.Agent 当命令解析后 exit 0，无 error 无端口）；② vite dev 的 optimizeDeps 由 esbuild（Go 二进制）写 `node_modules/.vite/deps_temp_*`，沙箱里 `Access is denied` 直接崩（与目录权限无关）。脚本已内置规避（`--console` 恒在首参 + `scripts/probe-esbuild-write.mjs` 探测后按需关预打包）并**端口被占用自动顺延**；实际端口/令牌/PID → `.temp/dev-stack.json`。插件前端真 HMR 用 `scripts/dev-plugin-web.ps1`
 - 运行端口：Backend `:7102`，Frontend `:7002`（**默认回落值**）；本环境长期运行的 publish 实例用 `:51888`。**端口覆盖（PILOT-050，2026-09-30）**：宿主支持 `FORGESELF_PORT` 环境变量（优先）或 `--server-port` 参数动态覆盖，覆盖即落盘 `ForgeSetting.config`（重启一致）；e2e/多 worktree 并行一律走动态端口（认领注册表 + 稳定目录 `wt-<hash>`），e2e 侧地址真源 = `e2e/helpers/e2e-env.ts`（env → current.json → 默认），**禁止新代码硬编码 7102/7002**
 - **发布规范（2026-09-27 起；输入42 补签名、输入2 2026-09-30 改默认关闭）**：打 tag 自动发布（CI 打包 GitHub Release）+ 页面「自动更新」；或本地目录更新源（`release-local.ps1 -UpdateDir` + 设置页填写本地目录）。**签名策略（2026-10-04 定稿）：本地发布给人装的宿主包必须带 `-Sign` Authenticode 签名（签名无效的包不得交付）；CI 流水线默认不传 ⇒ 不签**（`scripts/sign-publish.ps1`，自签证书自动生成/复用 + **RFC3161 时间戳多点回退**（2026-10-06 起：sectigo→digicert→globalsign→comodoca，单点 digicert 间歇返回无效响应曾把整条发布链挡在签名段、zip 根本不产出；禁用 `-NoTimestamp` 交付），商业证书 -PfxPath 可插拔；**CI 默认不签**，签名策略真源见 `docs/04-standards/packaging-upgrade-backup.md` §1.1）。**禁止 agent 停/启/杀宿主进程**，宿主由 update-agent 自更新（见 §0 门禁 / plugin-publish-verify）
 - **版本号规则（2026-10-02 输入9/输入10 起，输入12 补预览版）**：发行串 = `<major>.<minor>.<patch>.<yyMMddHHmm>`（10 位时间码 = yyMMddHHmm，例 `2.3.0.2609161125`；发行线自 2.3 起）；git tag / `versions/<ver>/` 目录名 / zip 名 / 两个 exe 的 FileVersion+ProductVersion / 设置页「当前版本」**同一串**。生成入口 `scripts/release/new-version.ps1 -Version 2.3.0`（只打印完整串与 `git tag` 命令，不做任何 git 写操作）；发行串由 `release-local.ps1` 单点补时间码并贯穿发布链。**预览版 tag** = `v<三段号>-preview`（如 `v2.3.0-preview`）：tag / `versions/` 目录名 / zip 名 / Release 页带 `-preview` 后缀（并自动发为 GitHub prerelease，仅 `channel != stable` 的实例会收到），**exe 文件版本不带后缀**（PE 段只接受纯数字）。完整规则、代价与踩坑（CS7035 / NuGet NU1105 / 世代比较 / 预览版后缀）→ 真源 `docs/04-standards/packaging-upgrade-backup.md` §4-R10
@@ -113,6 +114,7 @@
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
 | `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 「假能力」自查表（条目按编号递增，去技能里读最新全表，别在此记条数） | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
 | `design-system-consume` | **设计系统插件消费侧**：外部/内置 agent 如何发现与调用 8 个 design_* 工具（封套、写开关、REST 对等、常见坑） | 写集成/测试时用；维护工具本身走 design-system-verify；出参键 camelCase；`list_tools` 无封套 |
+| `ui-ux-design` | **通用 UI/UX 设计审查与生成**（《写给大家看的设计书》CRAP 四原则 + 配色 + 字体）：审查既有界面/设计稿/截图、生成布局与视觉方案、Spec「交互设计」节编写与自查、走查前设计符合性核对 | 涉及用户可见 UI 改动的 Spec/走查必用；交互规格写「点什么出现什么」+ 空态/反馈/边界；走查按 UI 符合性清单逐项核对，不只"能显示" |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
 
 **选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/ `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`；**规划与实现分属不同 AI/会话**（用户要求「只做规划、实现交他人、完成后由本会话验收」）→ 先读 `pilot-handoff`。职责边界、新建插件硬顺序、登记规则、技能缺失策略 → `docs/04-standards/agent-workflow/a-workflow-core.md` §A1。
@@ -186,6 +188,15 @@
 ## 5. Verify — 验证门禁
 
 验证是闭环的核心。不通过 Verify 的变更 **不算完成**。
+
+### 5.0 本机环境前置（跑测试 / e2e / 发布链前必做 · 2026-10-05 输入2 立）
+> 立规背景：以下三条在同一天里分别让快档门禁**假红**、e2e **白跑两轮**、本地发布链**首跑即失败**，且**都不在仓库全量基线里**（「基线红先对表」查不出来）⇒ 先排环境，再判责。
+- **代理**：`$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）。本机注入了 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而无 `NO_PROXY` 时，Playwright 对 `localhost:<port>` 的可用性探测**走代理恒 502** ⇒ e2e 报 `Timed out waiting 120000ms from config.webServer`（此时 vite 其实早已 ready，极易误判成前端构建问题）。**不要为此改仓库配置/代码。**
+- **临时目录**：`$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。本机 `%TEMP%` 拒写，同一成因在三面各红一次：① 后端测试 `Temp\<前缀>_<guid>` 被拒 ⇒ 整片假红（形似大面积回归）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 ⇒ dev server 退出、`ERR_CONNECTION_REFUSED`；③ **本地发布链宿主前端 `vite build` 的 esbuild 临时文件清理被拒 ⇒ `build-frontend` 段整体失败**。
+- **取读数**：判据一律看**日志正文**（`*> <log>` 重定向后读），**不许拿 exit code 当证据**；PowerShell 工具**可能不回显 stdout**，没回显 ≠ 没跑（先重定向再读，别重复执行）。
+- 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow.md` §B2。
+- **全新 worktree 跑插件 UI e2e 前先补两件缺件（2026-10-07 输入2 立）**：① **SQLite provider** —— `e2e/global-setup.ts:250` 要 `System.Data.SQLite.dll` + `e_sqlite3.dll`，注释声称"仓内 `build/runtime/Plugins` 受版本控制"但**该目录不在仓库里**（`git ls-files build/runtime` 为空），新 worktree 也没有 gitignored 的 `publish/` ⇒ 直接中止。就地解封：从 `ForgeSelf.Api/bin/Debug/net10.0-windows/`（及其 `runtimes/win-x64/native/`）复制到 `build/runtime/Plugins/`。② **各插件前端产物** —— `Plugins/*/web/dist` 是 gitignored，新 worktree 里一个都没有 ⇒ 远程加载的插件页全落在 `.plugin-view-state--error`，表现为「`menu-route-consistency` 某路由停在错误态」「首页面板没数据」，**与被测改动无关**。跑 `for d in Plugins/*/web; do (cd "$d" && pnpm install && pnpm build); done` 后再跑 e2e。两类都记入 `TODO.md` 待固化（入库 or 改 globalSetup 的候选源/加自动构建）。
+- **同源自洽的断言不算证据**：路径类断言（`归一后 == REPO_ROOT`）若两边都来自同一个可能写错的变量，错了也会绿。判据要锚在**仓库独有文件**（`ForgeSelf.slnx` 存在）或独立来源上，并加一句"前提自查"阳性对照（`existsSync(<项目根>/docs/ai/pilot/<task-id>)`）。实测：本批 e2e 的 `REPO_ROOT` 少写一层 `../` 拿到 `ForgeSelf.Web`，关联项目断言照样绿，直到工件清单接口回「该项目没有 docs\ai\pilot 目录」才暴露。
 
 ### 5.1 前端验证（修改 `ForgeSelf.Web/` 后必须执行）
 ```bash
@@ -376,7 +387,7 @@ Verify 失败
 九阶段：`Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review`。要点：
 
 1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
-2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
+2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`；**凡涉及用户可见 UI/交互，Spec 必含「Interaction Design（交互设计）」节**——交互规格「点什么出现什么」+ 验收标准 + 走查符合性，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能，缺节闸门1 不通过）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
 3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
 4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
 5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。
@@ -403,12 +414,3 @@ In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the re
 
 If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
 <!-- CODEGRAPH_END -->
-### 5.0 本机环境前置（跑测试 / e2e / 发布链前必做 · 2026-10-05 输入2 立）
-> 立规背景：以下三条在同一天里分别让快档门禁**假红**、e2e **白跑两轮**、本地发布链**首跑即失败**，且**都不在仓库全量基线里**（「基线红先对表」查不出来）⇒ 先排环境，再判责。
-- **代理**：`$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）。本机注入了 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而无 `NO_PROXY` 时，Playwright 对 `localhost:<port>` 的可用性探测**走代理恒 502** ⇒ e2e 报 `Timed out waiting 120000ms from config.webServer`（此时 vite 其实早已 ready，极易误判成前端构建问题）。**不要为此改仓库配置/代码。**
-- **临时目录**：`$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。本机 `%TEMP%` 拒写，同一成因在三面各红一次：① 后端测试 `Temp\<前缀>_<guid>` 被拒 ⇒ 整片假红（形似大面积回归）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 ⇒ dev server 退出、`ERR_CONNECTION_REFUSED`；③ **本地发布链宿主前端 `vite build` 的 esbuild 临时文件清理被拒 ⇒ `build-frontend` 段整体失败**。
-- **取读数**：判据一律看**日志正文**（`*> <log>` 重定向后读），**不许拿 exit code 当证据**；PowerShell 工具**可能不回显 stdout**，没回显 ≠ 没跑（先重定向再读，别重复执行）。
-- 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow.md` §B2。
-- **全新 worktree 跑插件 UI e2e 前先补两件缺件（2026-10-07 输入2 立）**：① **SQLite provider** —— `e2e/global-setup.ts:250` 要 `System.Data.SQLite.dll` + `e_sqlite3.dll`，注释声称"仓内 `build/runtime/Plugins` 受版本控制"但**该目录不在仓库里**（`git ls-files build/runtime` 为空），新 worktree 也没有 gitignored 的 `publish/` ⇒ 直接中止。就地解封：从 `ForgeSelf.Api/bin/Debug/net10.0-windows/`（及其 `runtimes/win-x64/native/`）复制到 `build/runtime/Plugins/`。② **各插件前端产物** —— `Plugins/*/web/dist` 是 gitignored，新 worktree 里一个都没有 ⇒ 远程加载的插件页全落在 `.plugin-view-state--error`，表现为「`menu-route-consistency` 某路由停在错误态」「首页面板没数据」，**与被测改动无关**。跑 `for d in Plugins/*/web; do (cd "$d" && pnpm install && pnpm build); done` 后再跑 e2e。两类都记入 `TODO.md` 待固化（入库 or 改 globalSetup 的候选源/加自动构建）。
-- **同源自洽的断言不算证据**：路径类断言（`归一后 == REPO_ROOT`）若两边都来自同一个可能写错的变量，错了也会绿。判据要锚在**仓库独有文件**（`ForgeSelf.slnx` 存在）或独立来源上，并加一句"前提自查"阳性对照（`existsSync(<项目根>/docs/ai/pilot/<task-id>)`）。实测：本批 e2e 的 `REPO_ROOT` 少写一层 `../` 拿到 `ForgeSelf.Web`，关联项目断言照样绿，直到工件清单接口回「该项目没有 docs\ai\pilot 目录」才暴露。
-

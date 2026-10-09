@@ -1,3 +1,11 @@
+﻿---
+feature_key: F019
+feature_no: 019
+status: implemented
+last_updated: 2026-10-06
+aliases: ["019-script-runner"]
+---
+
 # 019 · 脚本运行器（Script Runner）
 
 > 状态：已实现（代码中已落地）

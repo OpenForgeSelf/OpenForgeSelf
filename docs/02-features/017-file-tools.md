@@ -1,3 +1,11 @@
+﻿---
+feature_key: F017
+feature_no: 017
+status: implemented
+last_updated: 2026-10-06
+aliases: ["017-file-tools"]
+---
+
 # 017 · 文件工具（File Tools）
 
 > 状态：已实现（代码中已落地）

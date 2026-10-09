@@ -41,11 +41,11 @@ public abstract class AgentHubToolBase : IToolFunctionExtension
         Services = services;
     }
 
-    /// <summary>取服务（临时 scope）</summary>
+    /// <summary>取服务（宿主 DI，经宿主根 provider 回落；见 <see cref="AgentHubDi.ResolveHost{T}"/>）</summary>
     /// <typeparam name="T">服务类型</typeparam>
     /// <returns>服务实例；容器缺失返回 null</returns>
     protected T? GetService<T>() where T : class
-        => Services?.GetService(typeof(T)) as T;
+        => AgentHubDi.ResolveHost<T>(Services);
 
     /// <inheritdoc />
     public abstract Task<String> ExecuteAsync(String parameters);

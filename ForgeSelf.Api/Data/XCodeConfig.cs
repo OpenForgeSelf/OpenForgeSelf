@@ -38,6 +38,12 @@ public static class XCodeConfig
         // key=连接名（PascalCase，须与 Data/Model.xml 的 ConnName 及 CostScopeDbNaming.ConnName 一致）；
         // value=插件 Id（kebab，须与 plugin.json 的 Id 一致）。
         ["CostScope"] = "cost-scope",
+        // 2026-10-09（输入8 实证）：AgentHub/ImGateway 此前未登记 → XCode 按连接名派生默认路径
+        // {程序基目录}/Data/{连接名}.db（发布态 = versions/<ver>/Data/），宿主升级换版本目录后
+        // 旧库不再被读 ⇒ 登记数据「全丢」（2.3.2/2.3.3 库 512/385KB 有数据，2.3.4 起每版 57KB 空库）。
+        // key=连接名（PascalCase，须与各插件 Data 实体的 ConnName 一致），value=插件 Id（kebab，须与 plugin.json 一致）。
+        ["AgentHub"] = "agent-hub",
+        ["ImGateway"] = "im-gateway",
     };
 
     /// <summary>

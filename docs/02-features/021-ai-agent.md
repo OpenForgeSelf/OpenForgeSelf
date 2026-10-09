@@ -1,4 +1,12 @@
-﻿# 021 · AI 智能体（AI Agent）
+﻿---
+feature_key: F021
+feature_no: 021
+status: implemented
+last_updated: 2026-10-06
+aliases: ["021-ai-agent"]
+---
+
+# 021 · AI 智能体（AI Agent）
 
 > 状态：已实现（代码中已落地）
 > 最后更新：2026-09-21

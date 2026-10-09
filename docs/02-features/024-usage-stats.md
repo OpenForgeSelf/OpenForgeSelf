@@ -1,3 +1,11 @@
+﻿---
+feature_key: F024
+feature_no: 024
+status: implemented
+last_updated: 2026-10-06
+aliases: ["024-usage-stats"]
+---
+
 # 024 · 用量统计（Usage Stats）
 
 > 状态：已实现（代码中已落地）

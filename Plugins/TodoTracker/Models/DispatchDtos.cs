@@ -33,8 +33,17 @@ public class DispatchPreviewDto
     /// <summary>接缝缺席时的说明（可空）。</summary>
     public string? DelegationError { get; set; }
 
+    /// <summary>本工具 AI Agent 接缝是否在场（false=未装/未启用 ai-agent，界面应置灰并说明原因）。</summary>
+    public bool BuiltInAvailable { get; set; }
+
+    /// <summary>接缝缺席时的说明（可空）。</summary>
+    public string? BuiltInError { get; set; }
+
     /// <summary>当前可用 agent 候选（供界面下拉；接缝缺席时为空）。</summary>
     public List<AgentOptionDto> Agents { get; set; } = [];
+
+    /// <summary>本工具内置角色候选（供界面下拉；接缝缺席时为空）。</summary>
+    public List<AgentOptionDto> BuiltInAgents { get; set; } = [];
 }
 
 /// <summary>agent 候选项。</summary>
@@ -46,11 +55,17 @@ public class AgentOptionDto
     public string? DefaultCwd { get; set; }
 }
 
-/// <summary>一键交给 AgentHub 的请求。</summary>
+/// <summary>一键交给 agent 的请求。</summary>
 public class DelegateToAgentRequest
 {
-    /// <summary>指定 agent；null/0=由 AgentHub 自动选路。</summary>
+    /// <summary>委派引擎：agenthub=外部 AgentHub（默认）/ builtin=本工具 AI Agent。</summary>
+    public string? Engine { get; set; }
+
+    /// <summary>指定 agent；null/0=由 AgentHub 自动选路（仅 agenthub 引擎）。</summary>
     public int? AgentId { get; set; }
+
+    /// <summary>内置角色 id（如 agent.programmer；仅 builtin 引擎）。</summary>
+    public string? AgentRoleId { get; set; }
 
     /// <summary>权限模式 read-only|workspace-write|accept-edits；空=任务上的默认值。</summary>
     public string? PermissionMode { get; set; }
@@ -107,6 +122,9 @@ public class AgentStatusDto
 
     /// <summary>委派任务键。</summary>
     public string TaskKey { get; set; } = string.Empty;
+
+    /// <summary>执行 agent 名（由 todo.AgentId 从网关可用 agent 清单解析；未知/已失效为 null，界面兜底 agent#id）。</summary>
+    public string? AgentName { get; set; }
 
     /// <summary>Queued|Running|AwaitingPermission|Succeeded|Failed|Cancelled|Timeout|Interrupted。</summary>
     public string Status { get; set; } = string.Empty;

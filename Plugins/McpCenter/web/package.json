@@ -1,12 +1,14 @@
 {
-  "name": "forgeself-plugin-aiagent-web",
-  "version": "1.2.0",
+  "name": "forgeself-plugin-mcpcenter-web",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
-  "description": "AIAgent 插件自带界面（构建为 ESM，由宿主运行时远程加载）",
+  "description": "MCP 中心插件自带界面（构建为 ESM，由宿主运行时远程加载）",
   "scripts": {
     "build": "vite build",
-    "dev": "vite build --watch"
+    "dev": "vite build --watch",
+    "check": "pnpm -C ../../../ForgeSelf.Web exec vue-tsc --noEmit -p ../Plugins/McpCenter/web/tsconfig.check.json",
+    "test": "pnpm -C ../../../ForgeSelf.Web exec vitest run ../Plugins/McpCenter/web/src"
   },
   "devDependencies": {
     "@element-plus/icons-vue": "^2.3.2",

@@ -26,8 +26,18 @@ public interface ITodoDispatchService
     /// <summary>回读委派任务状态。</summary>
     Task<AgentStatusDto> AgentStatusAsync(int id);
 
+    /// <summary>批量回读委派任务状态（列表实时徽标数据源，FR-3.0）。只返回有 agentTaskKey 的任务；
+    /// 接缝缺席（agent-hub 未装）的条目不返回（调用方不报错）；任务不存在/委派 key 失效的条目原样返回（含 NotFound 标记）。</summary>
+    Task<List<AgentStatusDto>> AgentStatusesAsync(IReadOnlyCollection<int> ids);
+
     /// <summary>把委派结果落成一条执行记录。</summary>
     Task<RecordAgentResultDto> RecordAgentResultAsync(int id, string actor);
+
+    /// <summary>
+    /// 任务已进入待验收时，把 AgentHub 委派任务标记为完成（PILOT-057B 回报优先）。
+    /// 幂等：委派 key 为空 / 任务已终态 / 接缝缺席均不报错（各自返回可解释结果）。
+    /// </summary>
+    Task<GatewayResult<bool>> MarkDelegationCompleteAsync(int id);
 
     /// <summary>agent 领取下一条已下发任务（原子：领到即置 Running 并留痕）。无任务时 Ok=true 且 Data=null。</summary>
     Task<TodoOpResult> ClaimNextAsync(string? assignee, int projectId, string actor);

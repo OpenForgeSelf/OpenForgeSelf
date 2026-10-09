@@ -211,20 +211,28 @@ public partial class Todo
     public DateTime DispatchedAt { get => _DispatchedAt; set { if (OnPropertyChanging("DispatchedAt", value)) { _DispatchedAt = value; OnPropertyChanged("DispatchedAt"); } } }
 
     private String _AgentTaskKey;
-    /// <summary>AgentHub 委派任务 taskKey（一键执行后回填）</summary>
-    [DisplayName("AgentHub委派任务taskKey（一键执行后回填）")]
-    [Description("AgentHub 委派任务 taskKey（一键执行后回填）")]
+    /// <summary>委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）</summary>
+    [DisplayName("委派任务key（AgentHubtaskKey或本工具AIAgent的run")]
+    [Description("委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）")]
     [DataObjectField(false, false, true, 64)]
-    [BindColumn("AgentTaskKey", "AgentHub 委派任务 taskKey（一键执行后回填）", "")]
+    [BindColumn("AgentTaskKey", "委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）", "")]
     public String AgentTaskKey { get => _AgentTaskKey; set { if (OnPropertyChanging("AgentTaskKey", value)) { _AgentTaskKey = value; OnPropertyChanged("AgentTaskKey"); } } }
 
     private Int32 _AgentId;
-    /// <summary>AgentHub agent Id，0=自动选路</summary>
+    /// <summary>AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7</summary>
     [DisplayName("AgentHubagentId")]
-    [Description("AgentHub agent Id，0=自动选路")]
+    [Description("AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7")]
     [DataObjectField(false, false, false, 0)]
-    [BindColumn("AgentId", "AgentHub agent Id，0=自动选路", "", DefaultValue = "0")]
+    [BindColumn("AgentId", "AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7", "", DefaultValue = "0")]
     public Int32 AgentId { get => _AgentId; set { if (OnPropertyChanging("AgentId", value)) { _AgentId = value; OnPropertyChanged("AgentId"); } } }
+
+    private String _AgentEngine;
+    /// <summary>委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent</summary>
+    [DisplayName("委派引擎agenthub=外部AgentHub_builtin=本工具AIAgent")]
+    [Description("委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent")]
+    [DataObjectField(false, false, true, 16)]
+    [BindColumn("AgentEngine", "委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent", "", DefaultValue = "agenthub")]
+    public String AgentEngine { get => _AgentEngine; set { if (OnPropertyChanging("AgentEngine", value)) { _AgentEngine = value; OnPropertyChanged("AgentEngine"); } } }
 
     private String _PermissionMode;
     /// <summary>委派权限模式 read-only|workspace-write|accept-edits</summary>
@@ -268,6 +276,7 @@ public partial class Todo
             "DispatchedAt" => _DispatchedAt,
             "AgentTaskKey" => _AgentTaskKey,
             "AgentId" => _AgentId,
+            "AgentEngine" => _AgentEngine,
             "PermissionMode" => _PermissionMode,
             _ => base[name]
         };
@@ -300,6 +309,7 @@ public partial class Todo
                 case "DispatchedAt": _DispatchedAt = value.ToDateTime(); break;
                 case "AgentTaskKey": _AgentTaskKey = Convert.ToString(value); break;
                 case "AgentId": _AgentId = value.ToInt(); break;
+                case "AgentEngine": _AgentEngine = Convert.ToString(value); break;
                 case "PermissionMode": _PermissionMode = Convert.ToString(value); break;
                 default: base[name] = value; break;
             }
@@ -479,11 +489,14 @@ public partial class Todo
         /// <summary>下发时间，MinValue=未下发</summary>
         public static readonly Field DispatchedAt = FindByName("DispatchedAt");
 
-        /// <summary>AgentHub 委派任务 taskKey（一键执行后回填）</summary>
+        /// <summary>委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）</summary>
         public static readonly Field AgentTaskKey = FindByName("AgentTaskKey");
 
-        /// <summary>AgentHub agent Id，0=自动选路</summary>
+        /// <summary>AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7</summary>
         public static readonly Field AgentId = FindByName("AgentId");
+
+        /// <summary>委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent</summary>
+        public static readonly Field AgentEngine = FindByName("AgentEngine");
 
         /// <summary>委派权限模式 read-only|workspace-write|accept-edits</summary>
         public static readonly Field PermissionMode = FindByName("PermissionMode");
@@ -563,11 +576,14 @@ public partial class Todo
         /// <summary>下发时间，MinValue=未下发</summary>
         public const String DispatchedAt = "DispatchedAt";
 
-        /// <summary>AgentHub 委派任务 taskKey（一键执行后回填）</summary>
+        /// <summary>委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）</summary>
         public const String AgentTaskKey = "AgentTaskKey";
 
-        /// <summary>AgentHub agent Id，0=自动选路</summary>
+        /// <summary>AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7</summary>
         public const String AgentId = "AgentId";
+
+        /// <summary>委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent</summary>
+        public const String AgentEngine = "AgentEngine";
 
         /// <summary>委派权限模式 read-only|workspace-write|accept-edits</summary>
         public const String PermissionMode = "PermissionMode";

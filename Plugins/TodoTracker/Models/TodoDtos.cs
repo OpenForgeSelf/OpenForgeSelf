@@ -71,11 +71,14 @@ public class TodoDto
     /// <summary>下发时间，null=未下发。</summary>
     public DateTime? DispatchedAt { get; set; }
 
-    /// <summary>AgentHub 委派任务 taskKey（一键执行后回填）。</summary>
+    /// <summary>委派任务 key（AgentHub taskKey 或 本工具 AI Agent run:<id>，一键执行后回填）。</summary>
     public string AgentTaskKey { get; set; } = string.Empty;
 
-    /// <summary>AgentHub agent Id，0=自动选路。</summary>
+    /// <summary>委派 agent Id（AgentHub Id 或 内置角色序号 1..7），0=自动选路/未知。</summary>
     public int AgentId { get; set; }
+
+    /// <summary>委派引擎：agenthub=外部 AgentHub / builtin=本工具 AI Agent。</summary>
+    public string AgentEngine { get; set; } = "agenthub";
 
     /// <summary>委派权限模式。</summary>
     public string PermissionMode { get; set; } = "read-only";

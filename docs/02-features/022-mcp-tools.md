@@ -1,3 +1,11 @@
+﻿---
+feature_key: F022
+feature_no: 022
+status: implemented
+last_updated: 2026-10-06
+aliases: ["022-mcp-tools"]
+---
+
 # 022 · MCP 工具（MCP Tools）
 
 > 状态：已实现（代码中已落地）

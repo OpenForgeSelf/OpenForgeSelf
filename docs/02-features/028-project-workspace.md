@@ -1,3 +1,11 @@
+﻿---
+feature_key: F028a
+feature_no: 028
+status: implemented
+last_updated: 2026-10-06
+aliases: ["028-project-workspace"]
+---
+
 # 028 · 项目工作区（Project Workspace）
 
 > 状态：已实现/已闭环（sems v1.1.0：插件内自助项目生命周期 + 13 个对外工具，详见文末「v1.1.0 变更」）

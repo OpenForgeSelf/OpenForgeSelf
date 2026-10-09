@@ -39,7 +39,8 @@ let hostProc: ChildProcess | null = null
 function killTree(pid: number): void {
   try {
     if (process.platform === 'win32') {
-      spawn('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore' })
+      // 同步等待 taskkill 完成：异步 spawn 会在 Playwright 收尾时被截断，残留宿主锁住 publish 目录
+      execSync(`taskkill /pid ${pid} /t /f`, { stdio: 'ignore' })
     } else {
       process.kill(pid, 'SIGTERM')
     }
@@ -176,14 +177,18 @@ async function signHostExecutable(publishDir: string, logFile: string): Promise<
  */
 function rmDirOS(dir: string): void {
   if (!existsSync(dir)) return
-  try {
-    if (process.platform === 'win32') {
-      execSync(`cmd /c rmdir /s /q "${dir}"`, { stdio: 'ignore' })
-    } else {
-      execSync(`rm -rf "${dir}"`, { stdio: 'ignore' })
+  const cmd = process.platform === 'win32' ? `cmd /c rmdir /s /q "${dir}"` : `rm -rf "${dir}"`
+  // 宿主刚被杀时进程树句柄未回收（delete-pending），目录会临时删不掉；重试退避后仍失败才抛错
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      execSync(cmd, { stdio: 'ignore' })
+      return
+    } catch (e) {
+      if (attempt === 5) {
+        throw new Error(`清理目录失败（OS 级删除）: ${dir}；${(e as Error).message}`, { cause: e })
+      }
+      execSync(process.platform === 'win32' ? `cmd /c timeout /t 2 /nobreak >nul` : `sleep 2`, { stdio: 'ignore' })
     }
-  } catch (e) {
-    throw new Error(`清理目录失败（OS 级删除）: ${dir}；${(e as Error).message}`, { cause: e })
   }
 }
 
@@ -201,7 +206,7 @@ export default async function globalSetup(_config: FullConfig) {
     if (prev?.hostPid && prev.e2eRoot === e2eRoot) {
       console.log(`[e2e] 发现本 worktree 残留宿主 PID=${prev.hostPid}，先终止...`)
       killTree(prev.hostPid)
-      await new Promise((r) => setTimeout(r, 1500)) // 给进程树退出留时间
+      await new Promise((r) => setTimeout(r, 2500)) // 给进程树退出 + 句柄回收留时间
     }
   } catch {
     /* 无 current.json（首次运行/已清理） */

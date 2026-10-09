@@ -138,3 +138,47 @@ export function formSnapshot(task: TodoItem): string {
 export function allowedTargetsOf(task: TodoItem | null): string[] {
   return task?.allowedTargets ?? []
 }
+
+export type TagType = 'info' | 'primary' | 'success' | 'warning' | 'danger'
+
+/**
+ * 委派实时状态 → 徽标元数据（列表实时徽标，FR-3.1）。
+ * 词表以 AgentHub 为准（Queued|Running|AwaitingPermission|Succeeded|Failed|Cancelled|Timeout|Interrupted）；
+ * 未知值原样展示不编造。空状态（未拿到批量数据）交给调用方走 agentFallbackByStage。
+ */
+export function agentStatusMeta(status: string | undefined | null): { label: string; type: TagType } {
+  switch (status) {
+    case 'Queued': return { label: '排队中', type: 'info' }
+    case 'Running': return { label: '执行中', type: 'warning' }
+    case 'AwaitingPermission': return { label: '待授权', type: 'warning' }
+    case 'Succeeded': return { label: '已成功', type: 'success' }
+    case 'Failed': return { label: '失败', type: 'danger' }
+    case 'Cancelled': return { label: '已取消', type: 'info' }
+    case 'Timeout': return { label: '已超时', type: 'danger' }
+    case 'Interrupted': return { label: '已中断', type: 'danger' }
+    default: return { label: status || '执行中', type: 'warning' }
+  }
+}
+
+/**
+ * 批量状态数据缺失时的阶段兜底徽标（FR-3.1）：stage 是任务生命周期（流转有延迟），
+ * 徽标标题注明「按阶段」；agent 实时状态以详情页 agent-status 为准。
+ */
+export function agentFallbackByStage(stage: TodoStage | string): { label: string; type: TagType } {
+  switch (stage) {
+    case 'Dispatched':
+    case 'Running': return { label: '执行中', type: 'warning' }
+    case 'Review': return { label: '待验收', type: 'warning' }
+    case 'Done': return { label: '已完成', type: 'success' }
+    case 'Failed':
+    case 'Cancelled':
+    case 'Blocked': return { label: '已结束', type: 'info' }
+    default: return { label: '已下发', type: 'primary' }
+  }
+}
+
+/** agent 名显示兜底：未知（null/空）时显示 agent#id，不编名字。 */
+export function agentNameOrFallback(name: string | null | undefined, id: number | undefined): string {
+  if (name) return name
+  return id ? `agent#${id}` : 'agent'
+}

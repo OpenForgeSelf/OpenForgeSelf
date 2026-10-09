@@ -1,3 +1,11 @@
+﻿---
+feature_key: F011
+feature_no: 011
+status: implemented
+last_updated: 2026-10-06
+aliases: ["011-multimodal-image-cache"]
+---
+
 # 011 多模态图片识别本地缓存 — 功能需求与设计
 
 > 功能编号：011（无独立 spec，对应能力特性）

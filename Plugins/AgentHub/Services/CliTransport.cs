@@ -137,6 +137,13 @@ public class CliTransport : IAgentTransport
                 catch { /* 进程被强杀时正常 */ }
             });
 
+            // ⚠ PILOT-055 实测修复：超时计时必须**先于** stdout 读取循环。
+            // 旧实现把 timeoutCts 放在循环之后——子进程静默无输出（如 opencode 对模型 400 静默重试）时，
+            // ReadLineAsync(ct) 永远阻塞，超时杀进程逻辑根本执行不到，任务恒 Running。
+            // 现在 stdout 读取观察 timeoutCts：超时即 break → 走下方「杀进程树 + 报超时」分支。
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(req.TimeoutMs);
+
             // 逐行读 stdout，边读边归一化输出（流式）
             var lineNo = 0;
             while (true)
@@ -144,7 +151,7 @@ public class CliTransport : IAgentTransport
                 String? line;
                 try
                 {
-                    line = await process.StandardOutput.ReadLineAsync(ct);
+                    line = await process.StandardOutput.ReadLineAsync(timeoutCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -167,9 +174,6 @@ public class CliTransport : IAgentTransport
             }
 
             // 等进程真正退出（含超时/取消分支）
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(req.TimeoutMs);
-
             var timedOut = false;
             try
             {
@@ -188,6 +192,13 @@ public class CliTransport : IAgentTransport
             if (!errText.IsNullOrWhiteSpace())
             {
                 yield return AgentEvent.FromError(errText.TrimEnd());
+            }
+
+            // 超时先补一条 Error 事件（含英文 "timeout" 标记，供 RunAsync 的 ClassifyError 归类为 timeout，
+            // 否则中文文案会落入 upstream_error；exit 事件只负责携带退出码）
+            if (timedOut)
+            {
+                yield return AgentEvent.FromError($"执行超时（timeout after {req.TimeoutMs}ms），已终止进程树");
             }
 
             var exit = new AgentEvent

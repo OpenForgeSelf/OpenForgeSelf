@@ -216,6 +216,11 @@ public class TodoAgentDelegationTests
         public Task<AgentDelegationSnapshot?> FindAsync(string taskKey, CancellationToken ct = default) =>
             Task.FromResult(string.Equals(taskKey, Snapshot?.TaskKey, StringComparison.OrdinalIgnoreCase) ? Snapshot : null);
 
+        /// <summary>标记完成：命中已终态快照或未知 key 视为无需标记（false），否则 true。</summary>
+        public Task<bool> MarkCompletedAsync(string taskKey, CancellationToken ct = default) =>
+            Task.FromResult(Snapshot != null && Snapshot.Status != "Succeeded"
+                            && string.Equals(taskKey, Snapshot.TaskKey, StringComparison.OrdinalIgnoreCase));
+
         public IReadOnlyList<AgentDelegationAgent> ListAvailableAgents() =>
             [new AgentDelegationAgent { Id = 5, Name = "codex", Vendor = "codex" }];
     }
@@ -226,6 +231,9 @@ public class TodoAgentDelegationTests
             throw new InvalidOperationException("提供方库锁");
 
         public Task<AgentDelegationSnapshot?> FindAsync(string taskKey, CancellationToken ct = default) =>
+            throw new InvalidOperationException("提供方库锁");
+
+        public Task<bool> MarkCompletedAsync(string taskKey, CancellationToken ct = default) =>
             throw new InvalidOperationException("提供方库锁");
 
         public IReadOnlyList<AgentDelegationAgent> ListAvailableAgents() => throw new InvalidOperationException("提供方库锁");

@@ -24,11 +24,11 @@ public interface ITodoService
 
     Task<bool> DeleteTodoAsync(int id);
 
-    /// <summary>旧「标记完成」端点：内部同步 Stage=Done（语义保持）。</summary>
-    Task<TodoDto?> CompleteTodoAsync(int id);
+    /// <summary>旧「标记完成」端点：内部同步 Stage=Done（语义保持）。actor 留痕用，缺省 rest。</summary>
+    Task<TodoDto?> CompleteTodoAsync(int id, string actor = "rest");
 
-    /// <summary>旧「重新打开」端点：内部同步 Stage=Draft（语义保持）。</summary>
-    Task<TodoDto?> ReopenTodoAsync(int id);
+    /// <summary>旧「重新打开」端点：内部同步 Stage=Draft（语义保持）。actor 留痕用，缺省 rest。</summary>
+    Task<TodoDto?> ReopenTodoAsync(int id, string actor = "rest");
 
     /// <summary>状态流转（按 id）。非法流转 409 并列出可达目标。</summary>
     Task<TodoOpResult> ChangeStageAsync(int id, StageChangeRequest request, string actor);

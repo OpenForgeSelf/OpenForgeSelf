@@ -66,8 +66,9 @@
         <Column Name="Stage" DataType="Int32" DefaultValue="0" Description="下发阶段 0=Draft 1=Ready 2=Dispatched 3=Running 4=Blocked 5=Review 6=Done 7=Cancelled" />
         <Column Name="ArtifactRef" DataType="String" Length="500" Description="来源工件目录（相对项目根）" />
         <Column Name="DispatchedAt" DataType="DateTime" Description="下发时间，MinValue=未下发" />
-        <Column Name="AgentTaskKey" DataType="String" Length="64" Description="AgentHub 委派任务 taskKey（一键执行后回填）" />
-        <Column Name="AgentId" DataType="Int32" DefaultValue="0" Description="AgentHub agent Id，0=自动选路" />
+        <Column Name="AgentTaskKey" DataType="String" Length="64" Description="委派任务 key（AgentHub taskKey 或本工具 AI Agent 的 run:id，一键执行后回填）" />
+        <Column Name="AgentId" DataType="Int32" DefaultValue="0" Description="AgentHub agent Id，0=自动选路；内置引擎=角色序号 1..7" />
+        <Column Name="AgentEngine" DataType="String" Length="16" DefaultValue="agenthub" Description="委派引擎 agenthub=外部 AgentHub / builtin=本工具 AI Agent" />
         <Column Name="PermissionMode" DataType="String" Length="32" DefaultValue="read-only" Description="委派权限模式 read-only|workspace-write|accept-edits" />
       </Columns>
       <Indexes>

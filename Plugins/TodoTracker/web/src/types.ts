@@ -45,6 +45,7 @@ export interface TodoItem {
   dispatchedAt?: string | null
   agentTaskKey: string
   agentId: number
+  agentEngine: string
   permissionMode: string
   recordCount: number
   /** 服务端给出的可达下一阶段（界面只照它渲染按钮，不自己抄流转表）。 */
@@ -75,6 +76,8 @@ export interface TodoSaveRequest {
   priority?: number
   assignee?: string | null
   projectPath?: string | null
+  /** 新建时预选项目（宿主档案 id；后端 CreateTodoRequest.ProjectId）。 */
+  projectId?: number
   stage?: string | null
 }
 
@@ -167,6 +170,9 @@ export interface DispatchPreview {
   delegationAvailable: boolean
   delegationError?: string | null
   agents: AgentOption[]
+  builtInAvailable: boolean
+  builtInError?: string | null
+  builtInAgents: AgentOption[]
 }
 
 export interface DelegateResult {
@@ -188,6 +194,8 @@ export interface AgentStatus {
   error?: string | null
   statusCode: number
   taskKey: string
+  /** 执行 agent 名（后端按 AgentId 解析；未知为 null，界面兜底 agent#id）。 */
+  agentName?: string | null
   status: string
   terminal: boolean
   exitCode?: number | null

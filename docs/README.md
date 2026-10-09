@@ -26,6 +26,7 @@
 | 查**打包/升级/备份/缓存/安装目录结构**的规则（唯一真源：QQNT 式目标结构/版本保留/缓存清理） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) |
 | 确认**某个功能到底做成什么样 / 怎么用 / 有什么坑**（插件功能也算） | `02-features/<NNN>-<功能名>.md`（功能档案；编号总表见本页末「已归档内容」，缺项用 `ls docs/02-features/`） |
 | 确认**插件落位与生效裁决**（两路同名谁胜、比的是哪份版本号、目录名为何是 PascalCase、只发一个插件放哪） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.7** |
+| 确认**插件数据落点与升级丢失原因**（为什么有的插件库在用户根不丢、有的随版本目录丢；新增插件库怎么登记） | [`ForgeSelf.Api/Plugins/README.md`](../../ForgeSelf.Api/Plugins/README.md) **§三**（`XCodeConfig.PluginDbs` 登记 = 落数据根唯一入口；未登记 → `versions/<ver>/Data/` 升级即丢） |
 | 确认**用户更新动线**（插件更新页从哪进、不重启生效的三条口子、已知宿主缺陷） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.8** |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |

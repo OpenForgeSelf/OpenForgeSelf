@@ -108,16 +108,19 @@ public static class DispatchPayloadBuilder
         sb.Append($$"""
             ## 完成后必须回报
 
-            把结果写回任务台账（一条任务可多次回报，记录按序追加）：
+            把结果写回任务台账（一条任务可多次回报，记录按序追加）。
+
+            ⚠ 回报 JSON 的值字段请用**你自己语言的文字**写，但不要在 curl 命令行里夹带中文引号/花括号；
+            字段名与结构照抄下面模板（值占位符如 <your-id> 替换成真实内容）：
 
             ```bash
             curl -X POST "{{recordsUrl}}" \
               -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
-              -d '{"actor":"<你的标识>","action":"做了什么操作","result":"什么结果","filesChanged":[{"path":"文件路径","change":"A|M|D"}],"verification":"跑了什么命令 + 结果","risks":"风险","residuals":"遗留","stageTo":"Review"}'
+              -d '{"actor":"<your-id>","action":"<what-you-did>","result":"<summary-of-result>","filesChanged":[{"path":"<changed-file-path>","change":"A|M|D"}],"verification":"<commands-run-and-output>","risks":"<risks>","residuals":"<leftovers>","stageTo":"Review"}'
             ```
 
             - 读任务：`GET {{taskUrl}}`（正文、判据、验证命令与已有记录都在里面）
-            - 改状态：`POST {{stageUrl}}`，body `{"stage":"Blocked","reason":"阻塞在哪、缺什么"}`
+            - 改状态：`POST {{stageUrl}}`，body `{"stage":"Blocked","reason":"<blocked-reason>"}`
             - 宿主装了 AIAgent 时，等价的工具函数是 `get_agent_task` / `append_task_execution` / `update_task_stage`
 
             """);

@@ -35,6 +35,13 @@ public interface IAgentDelegation
     Task<AgentDelegationSnapshot?> FindAsync(string taskKey, CancellationToken ct = default);
 
     /// <summary>
+    /// 按 <c>taskKey</c> 把委派任务标记为「已由外部回报完成」（PILOT-057B）。
+    /// 语义：回报优先于进程退出判定 —— agent 已把结果写回台账（如 todo stageTo=Review）即视为完成；
+    /// 已处于终态的任务不改（先到先得），不存在返回 false，不抛业务异常。
+    /// </summary>
+    Task<bool> MarkCompletedAsync(string taskKey, CancellationToken ct = default);
+
+    /// <summary>
     /// 当前可用的 agent 候选（仅 <c>enabled</c> 的那些），供消费方在下发前自检/提示。
     /// 无候选返回空列表；提供方不可用时返回空列表而非抛异常。
     /// </summary>

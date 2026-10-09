@@ -1,3 +1,4 @@
 # git 属性规则
 # sh 脚本必须 LF（CRLF 会让 git-for-windows 的 hook 执行失败：$'\r': command not found）
 scripts/hooks/pre-commit text eol=lf
+scripts/hooks/commit-msg text eol=lf

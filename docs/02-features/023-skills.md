@@ -1,3 +1,11 @@
+﻿---
+feature_key: F023
+feature_no: 023
+status: implemented
+last_updated: 2026-10-06
+aliases: ["023-skills"]
+---
+
 # 023 · 技能系统（Skills）
 
 > 状态：已实现（代码中已落地）

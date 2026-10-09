@@ -102,6 +102,30 @@ public class TodoDispatchController : ControllerBase
         }
     }
 
+    /// <summary>批量回读委派任务状态（列表实时徽标，FR-3.0）。ids 逗号分隔；只返回有委派的任务；接缝缺席返回空列表不报错。</summary>
+    [HttpGet("agent-statuses/batch")]
+    public async Task<ActionResult<ApiResponse<List<AgentStatusDto>>>> AgentStatusesBatch([FromQuery] string? ids)
+    {
+        try
+        {
+            var parsed = (ids ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.TryParse(s, out var v) ? v : 0)
+                .Where(v => v > 0)
+                .ToList();
+            if (parsed.Count == 0)
+                return Ok(ApiResponse<List<AgentStatusDto>>.Ok([], "ids 为空或全为非法值，无可查任务"));
+
+            var statuses = await _dispatch.AgentStatusesAsync(parsed);
+            return Ok(ApiResponse<List<AgentStatusDto>>.Ok(statuses, $"批量读回 {statuses.Count} 条委派状态"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("批量读回委派状态失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<List<AgentStatusDto>>.Error("批量读回委派状态失败: " + ex.Message));
+        }
+    }
+
     /// <summary>把 agent 的结果落成一条执行记录（成功⇒待验收；未成功只记账不动状态）。</summary>
     [HttpPost("{id:int}/agent-status/record")]
     public async Task<ActionResult<ApiResponse<RecordAgentResultDto>>> RecordAgentResult(int id)

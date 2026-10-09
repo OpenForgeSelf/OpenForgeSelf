@@ -219,7 +219,7 @@ public class TodosController : ControllerBase
         {
             if (id <= 0) return BadRequest(ApiResponse<TodoDto>.Error("id 必须为正整数", 400));
 
-            var todo = await _todoService.CompleteTodoAsync(id);
+            var todo = await _todoService.CompleteTodoAsync(id, ActorHint());
             return todo == null
                 ? NotFound(ApiResponse<TodoDto>.Error("待办不存在", 404))
                 : Ok(ApiResponse<TodoDto>.Ok(todo, "标记完成成功"));
@@ -239,7 +239,7 @@ public class TodosController : ControllerBase
         {
             if (id <= 0) return BadRequest(ApiResponse<TodoDto>.Error("id 必须为正整数", 400));
 
-            var todo = await _todoService.ReopenTodoAsync(id);
+            var todo = await _todoService.ReopenTodoAsync(id, ActorHint());
             return todo == null
                 ? NotFound(ApiResponse<TodoDto>.Error("待办不存在", 404))
                 : Ok(ApiResponse<TodoDto>.Ok(todo, "重新打开成功"));

@@ -236,7 +236,7 @@ public partial class TaskExecution
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -254,7 +254,7 @@ public partial class TaskExecution
         if (seq < 0) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.TodoId == todoId && e.Seq == seq);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.TodoId == todoId && e.Seq == seq);
 
         return FindAll(_.TodoId == todoId & _.Seq == seq);
     }

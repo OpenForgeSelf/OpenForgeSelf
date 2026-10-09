@@ -455,7 +455,15 @@ public class DelegationRuntime
             if (usage.Count > 0) entity.UsageJson = JsonSerializer.Serialize(usage, JsonOpts);
             entity.SessionRef = session.SessionRef ?? entity.SessionRef;
 
-            Finish(entity, finalStatus, errorCode, errorMessage);
+            // PILOT-057B 回报优先：进程退出判定（含超时/非零退出码）不覆盖「已由回报标记完成」。
+            // 实测：agent 已 POST 回报（stageTo=Review）后进程未及时退出 → 600s 超时杀进程 →
+            // 若此处无条件覆盖，就会把「已成功回报」写成 Failed · exit -1 · timeout（双系统完成语义不一致）。
+            // CompleteByKey 与 RunAsync 的 finally 都在同一进程内串行，不存在真正并发写库竞态；
+            // 先到先得靠 IsTerminal 检查兜底（谁先落终态谁生效）。
+            if (!TaskStatus.IsTerminal(entity.Status))
+            {
+                Finish(entity, finalStatus, errorCode, errorMessage);
+            }
         }
 
         return ToDto(entity, agent.Name);
@@ -505,6 +513,38 @@ public class DelegationRuntime
 
         var entity = DelegationTask.FindByTaskKey(taskKey);
         return entity == null ? null : ToDto(entity, _registry.Get(entity.AgentId)?.Name);
+    }
+
+    /// <summary>
+    /// 按任务标识把委派任务标记为「已由外部回报完成」（PILOT-057B）。
+    /// 先到先得：已终态的任务不改写（不覆盖进程侧的超时/失败判定，也不被其覆盖）。
+    /// </summary>
+    /// <param name="taskKey">任务标识</param>
+    /// <returns>是否实际标记（不存在或已终态返回 false）</returns>
+    public Boolean CompleteByKey(String taskKey)
+    {
+        if (taskKey.IsNullOrEmpty()) return false;
+
+        var entity = DelegationTask.FindByTaskKey(taskKey);
+        if (entity == null) return false;
+        if (TaskStatus.IsTerminal(entity.Status)) return false;
+
+        entity.Status = TaskStatus.Succeeded;
+        entity.ErrorCode = null;
+        entity.ExitCode = 0;
+        entity.EndTime = DateTime.Now;
+        entity.Update();
+
+        AppendEvent(entity, AgentEventTypes.Exit, JsonSerializer.Serialize(new
+        {
+            status = TaskStatus.Succeeded,
+            errorCode = (String?)null,
+            message = "已由执行回报标记完成（回报优先于进程退出判定）",
+            exitCode = 0
+        }), "已由执行回报标记完成");
+
+        XTrace.Log.Info("[AgentHub] 任务 {0} 已由外部回报标记完成（{1}）", entity.Id, taskKey);
+        return true;
     }
 
     /// <summary>按主键取任务。</summary>
@@ -568,19 +608,31 @@ public class DelegationRuntime
     {
         var seq = DelegationEvent.GetMaxSeq(task.Id) + 1;
 
+        var json = payloadJson ?? (text != null ? JsonSerializer.Serialize(new { text }, JsonOpts) : null);
+
+        if (exitCode != null)
+        {
+            json = JsonSerializer.Serialize(new { text, exitCode }, JsonOpts);
+        }
+
+        // 长度保护：DB 字段 PayloadJson 上限 4000 字符（DataObjectField length=4000，见 DelegationEvent.cs:61）。
+        // 流解析层阈值是 64KB（EventPipeline.MaxEventTextLength），此处必须二次截断，
+        // 否则模型长文本输出（>4000）会 Insert 抛 ArgumentOutOfRangeException 把委派任务打成 spawn_failed。
+        const Int32 MaxPayloadLength = 4000;
+        if (json != null && json.Length > MaxPayloadLength)
+        {
+            json = json[..MaxPayloadLength];
+            truncated = true;
+        }
+
         var evt = new DelegationEvent
         {
             TaskId = task.Id,
             Seq = seq,
             Type = type,
-            PayloadJson = payloadJson ?? (text != null ? JsonSerializer.Serialize(new { text }, JsonOpts) : null),
+            PayloadJson = json,
             Truncated = truncated
         };
-
-        if (exitCode != null)
-        {
-            evt.PayloadJson = JsonSerializer.Serialize(new { text, exitCode }, JsonOpts);
-        }
 
         evt.Insert();
 

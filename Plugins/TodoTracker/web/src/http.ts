@@ -175,6 +175,9 @@ export const resolveProject = (path: string) =>
   apiPost<ResolveProjectResult>(`${BASE}/projects/resolve`, { path })
 export const linkProject = (id: number, path: string) =>
   apiPost<TodoItem>(`${BASE}/${id}/project`, { path })
+/** 按宿主项目档案 id 关联（FR-1.2：选中即带出项目名与完整地址，由服务端解析 known.Root）。 */
+export const linkProjectById = (id: number, projectId: number) =>
+  apiPost<TodoItem>(`${BASE}/${id}/project`, { projectId })
 export const unlinkProject = (id: number) => apiDelete(`${BASE}/${id}/project`)
 
 // ── 工件 ──────────────────────────────────────────────────────────────
@@ -195,9 +198,12 @@ export const importArtifacts = (id: number, dir: string, files: string[], overwr
 export const dispatchPreview = (id: number) => apiGet<DispatchPreview>(`${BASE}/${id}/dispatch`)
 export const dispatchTask = (id: number, assignee?: string) =>
   apiPost<TodoItem>(withQuery(`${BASE}/${id}/dispatch`, { assignee }))
-export const delegateToAgent = (id: number, agentId?: number, permissionMode?: string) =>
-  apiPost<DelegateResult>(`${BASE}/${id}/dispatch-to-agent`, { agentId, permissionMode })
+export const delegateToAgent = (id: number, agentId?: number, permissionMode?: string, engine?: string, agentRoleId?: string) =>
+  apiPost<DelegateResult>(`${BASE}/${id}/dispatch-to-agent`, { agentId, permissionMode, engine, agentRoleId })
 export const agentStatus = (id: number) => apiGet<AgentStatus>(`${BASE}/${id}/agent-status`)
+/** 批量委派状态（列表实时徽标，FR-3.0）：ids 逗号分隔；只返回有委派的任务；接缝缺席返回空不报错。 */
+export const agentStatusesBatch = (ids: number[]) =>
+  apiGet<AgentStatus[]>(withQuery(`${BASE}/agent-statuses/batch`, { ids: ids.join(',') }))
 export const recordAgentResult = (id: number) =>
   apiPost<{ ok: boolean; error?: string | null; seq: number; stage: string }>(
     `${BASE}/${id}/agent-status/record`)

@@ -1,3 +1,11 @@
+﻿---
+feature_key: F006
+feature_no: 006
+status: implemented
+last_updated: 2026-10-06
+aliases: ["006-background-image"]
+---
+
 # 006 设置背景图（背景图模式）— 功能需求与设计
 
 > 功能编号：006

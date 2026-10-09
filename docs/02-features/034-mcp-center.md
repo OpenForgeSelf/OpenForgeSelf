@@ -1,8 +1,29 @@
+---
+feature_key: F034
+feature_no: 034
+status: implemented
+last_updated: 2026-10-06
+aliases: ["034-mcp-center"]
+---
+
 # 034 - MCP 中心（mcp-center 插件）
 
 > 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.2.0**。
 > 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
 > 前身：`mcp-gateway` v1.0.0（034-MCP 统一网关）更名 + 整合宿主内置「MCP 工具」管理（`api/mcp` + McpService）合并而成。
+
+## 需求清单（稳定 ID，只增不改号）
+
+> 规范见 `docs/04-standards/feature-requirement-ids.md`。ID 只增不改号；"验收要点"须是可执行判定。
+
+| ID | 需求 | 类型 | 验收要点 | 状态 | 覆盖测试 | 来源 |
+|----|------|------|----------|------|----------|------|
+| F034-R01 | 对外经独立 MCP 端口以单工具 `universal_tool` 转发宿主全部工具 | FR | JSON-RPC `tools/list` 恒返 1 个 `universal_tool`；以 `{tool,parameters}` 调用返回宿主工具结果 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R02 | 网关配置查看/修改（监听地址/端口/令牌状态，脱敏） | FR | `GET/PUT api/mcp-center/config`；PUT 后热重启生效 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R03 | 外部 MCP 服务器与工具管理（stdio / Streamable HTTP / HTTP+SSE） | FR | `api/mcp-center/servers` CRUD + `{id}/connect|disconnect|tools|test` | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R04 | 外部工具以 `mcp.<serverId>.<tool>` 命名空间经 `universal_tool` 转发，不进宿主注册表 | BR | 外部工具不出现在宿主 IToolRegistry；仅经 mcp. 前缀可调 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R05 | 管理面鉴权（ApiKeyPolicy） | BR | 无 token 访问管理端点返回 401 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+
 
 ## 功能定位
 
@@ -157,8 +178,36 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | `api/mcp-center/servers/{id}` | DELETE | 删除（断开 + 落盘） |
 | `api/mcp-center/servers/{id}/connect` | POST | 手动连接 |
 | `api/mcp-center/servers/{id}/disconnect` | POST | 断开 |
-| `api/mcp-center/servers/{id}/tools` | GET | 已拉取的外部工具清单 |
+| `api/mcp-center/servers/{id}/tools` | GET | 已拉取的外部工具清单（含 `inputSchemaJson`） |
 | `api/mcp-center/servers/{id}/test` | POST | 真实连接测试（initialize+ping） |
+| `api/mcp-center/servers/{id}/tools/invoke` | POST | **工具测试台**（v2.3.0）：按工具原生名真实 `tools/call` |
+
+### 工具测试台（v2.3.0）
+
+**用途**：接入一台外部 MCP 服务器后，就地确认「每个工具要传什么参数、传了能不能跑通」，不必绕到宿主的
+`universal_tool` 从外部 MCP 客户端侧去打。
+
+- 请求体：`{ "tool": "<工具原生名>", "argumentsJson": "<参数 JSON 字符串>" }`
+  - `tool` 用 **tools/list 的原生名**，不是 `mcp.<id>.<name>` 全名；`argumentsJson` 为空时按 `{}` 处理。
+- 响应体（`data`）：`{ serverId, tool, ok, isError, text, rawJson, elapsedMs }`
+  - `ok=false` 表示远端声明了 `isError`（**HTTP 仍是 200**——调用本身成功了，只是工具报错）。
+- 错误：工具名为空 / 参数非合法 JSON / 服务器未连接 / 工具不在清单中 → HTTP 400 并带明确消息。
+- 鉴权：动作落在 `McpExternalController` 内，继承类级 `[Authorize("ApiKeyPolicy")]`，无宿主令牌 401。
+
+**前端**（`/mcp-center` → 外部 MCP 服务器 → 「工具」按钮 → 工具测试台）：
+
+- 左侧工具清单来自真实 `tools/list`；选中后按该工具的 `inputSchema` **动态生成参数表单**
+  （类型标签、必填标记、说明、默认值预填、`enum` 渲染为下拉）。
+- 支持切到 **JSON 模式**直编参数（处理嵌套 object/array）。
+- 调用后展示：状态标签、耗时、返回文本、可展开的原始 JSON。
+- 「新增服务器」表单提供 **DeepWiki 预设**按钮（一键填入官方公开端点，见下）。
+
+**schema 解析规则**（纯函数 `web/src/playground/schemaForm.ts`，有 vitest 常驻判据）：
+
+- 类型优先级：`enum > type > anyOf/oneOf 首个带 type 的分支 > unknown`（不猜，无法识别就降级）。
+- 参数序列化：空的可选字段丢弃；空的必填字段保留（让远端给明确报错）；
+  `number/integer` 转数值，`boolean` 按 `true`/`"true"` 判定，`array/object` 先试 `JSON.parse`。
+- 已知降级：`array`/`object` 在表单模式下是多行文本框（填 JSON），嵌套结构建议用 JSON 模式。
 
 ### 转发契约（对外仍恒 1 个 `universal_tool`）
 
@@ -274,3 +323,49 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - **宿主 shim 缓存戳必须 bump（本次实证）**：`ForgeSelf.Web/index.html` import map 的 `element-plus.js?v=2` 是浏览器缓存键；改了 `public/shared/element-plus.js` 但**不 bump v=** → 生产浏览器仍加载旧 shim → 插件报「The requested module 'element-plus' does not provide an export named 'ElSelect'」。**修法**：改 shim 内容同步 bump index.html 对应 `?v=N`（本次 2→4）+ 重建前端 + 覆盖 publish/wwwroot + **删除 publish/wwwroot 下旧 `.br`/`.gz` 预压缩文件**（StaticFiles 优先回旧压缩内容，删后回退未压缩新文件）。
 - **错误消息 JSON 转义**：转发器错误文本以 JSON 序列化（中文 `\uXXXX` 转义），e2e 断言错误提示须 `JSON.parse` 后断言，不能直接 `toContain('未连接')`。
 - **host http_get 不证明浏览器模块加载**：`http_get` 拿到的磁盘内容 ≠ 浏览器 module cache 命中的内容（带 `?v=` 的 URL 按缓存键整体缓存）。排查此类问题先看 import map 缓存键。
+
+## v2.3.0 新增：写入 dsh（DeepSeek Harness）MCP 配置
+
+**是什么**：MCP 中心可以把自己（或任意本地聚合网关）的 MCP 地址**一键写进 dsh 的 profile 补丁层**，
+让 dsh 作为 MCP 客户端直接接入，不必手工编辑 YAML。
+
+**写入位置**：`%USERPROFILE%\.dsh\profiles\<profile>\cordis.patch.yml`（默认 profile = `desktop`）。
+该文件是 dsh 的补丁层（顶层 YAML 数组），MCP 客户端条目形态为：
+
+```yaml
+- insert:
+    - id: mcp-forgeself
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: ForgeSelf
+        transport: streamable-http
+        url: http://127.0.0.1:51888/mcp
+```
+
+**写入语义（幂等）**：按条目 `id`（默认 `mcp-forgeself`）做 upsert ——
+已存在则**就地改写其 `config.url`**，不存在则**追加一段 `insert` 块**。
+只做文本级最小改写（不整篇 YAML 往返），保留用户注释与既有格式；
+写入前自动备份 `<文件>.bak`，先写 `.tmp` 再原子替换；从不删除任何数据目录（铁律 10）。
+
+**契约（REST，管理面鉴权：类级 `[Authorize("ApiKeyPolicy")]`，铁律 17）**：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `api/mcp-center/dsh?profile=&serverId=&serverName=` | 查看状态：目标文件路径/是否存在、条目是否存在、当前 url（不读任何密钥） |
+| POST | `api/mcp-center/dsh` | 幂等写入。body = `{ profile?, serverId?, serverName?, url? }`，字段全可省：省略时 profile=`desktop`、id=`mcp-forgeself`、name=`ForgeSelf`、url=当前网关地址 + `/mcp`；`url` 仅支持 http/https 绝对地址，非法返回 400 |
+
+**返回视图 `DshMcpConfigDto`**：
+`profile / configPath / configExists / entryId / serverName / transport / url / entryExists / lastError`。
+
+**实现落点**：
+- `Services/DshMcpConfigWriter.cs` —— profile 白名单校验 + 路径解析 + 幂等 upsert + `.bak` 备份 + 原子写；
+- `Models/DshMcpConfigDto.cs` —— 状态视图 / 写入 DTO；
+- `Controllers/McpCenterDshController.cs` —— GET / POST 两个端点；
+- 前端：`web/src/api/dsh.ts`、`web/src/types/dsh.ts`，以及 `McpCenterView.vue`「网关配置」页签内的
+  「写入 dsh 配置」卡片（profile 输入 + MCP 地址输入 + 写入二次确认 + 状态回显）。
+
+**已知边界**：
+- 写入只覆盖 `config.url` 一个字段（`serverName` / `transport` 保持原样）；
+- dsh profile 名做白名单校验（禁止路径分隔符与 `..`），非法即 400；
+- dsh 侧需重启 / 重载 profile 才会读取新的补丁层；
+- 本功能为新增端点，尚未补插件层 e2e（`e2e/plugins/mcp-center/`）与前端 `pnpm run check`（见插件 TODO.md）。

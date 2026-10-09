@@ -1,3 +1,11 @@
+﻿---
+feature_key: F009
+feature_no: 009
+status: implemented
+last_updated: 2026-10-06
+aliases: ["009-web-port-token-security"]
+---
+
 # 009 Web 端口与令牌安全 — 功能需求与设计
 
 > 功能编号：009

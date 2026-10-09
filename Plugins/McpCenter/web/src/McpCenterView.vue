@@ -4,8 +4,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 // window.__FORGE_SHARED__.elementPlus 取宿主同一份实例；宿主 exposeSharedDeps 已暴露这些组件）。
 // 模板 `<ElXxx>` 若未显式导入会编译成 resolveComponent（宿主全局注册表无按需组件）→ 组件静默失效。
 import { ElMessage, ElTabs, ElTabPane, ElSwitch, ElInputNumber, ElInput, ElCheckbox, ElButton, ElSelect, ElOption, ElDialog, ElTag } from 'element-plus'
-import { fetchMcpServers, fetchMcpTools, testMcpServer, testMcpTool, toggleMcpTool } from './api/mcp'
+import { fetchMcpServers, fetchMcpTools, testMcpTool, toggleMcpTool } from './api/mcp'
 import { fetchGatewayConfig, updateGatewayConfig } from './api/gateway'
+import { fetchDshMcpConfig, writeDshMcpConfig } from './api/dsh'
+import type { DshMcpConfigDto } from './types/dsh'
 import { fetchPluginVersion } from './http'
 import {
   fetchExternalServers,
@@ -20,6 +22,7 @@ import {
 import type { McpServerDto, McpTestResultDto, McpToolDto } from './types/mcp'
 import type { McpCenterConfigDto } from './types/gateway'
 import type { McpExternalServerStateDto, McpExternalServerUpsertDto, McpExternalToolDto } from './types/external'
+import ToolPlayground from './playground/ToolPlayground.vue'
 
 /* ── 版本徽标（铁律 13：GET /api/plugin 解包 .data 按 id 过滤） ── */
 const version = ref('')
@@ -241,6 +244,64 @@ watch(selectedServerId, () => {
   loadTools()
 })
 
+/* ── dsh（DeepSeek Harness）MCP 配置写入（v2.3.0 新增） ── */
+const dshConfig = ref<DshMcpConfigDto | null>(null)
+const dshLoading = ref(false)
+const dshWriting = ref(false)
+const dshProfileInput = ref('desktop')
+const dshUrlInput = ref('')
+
+async function loadDshConfig(): Promise<void> {
+  dshLoading.value = true
+  try {
+    const cfg = await fetchDshMcpConfig(dshProfileInput.value.trim() || undefined)
+    if (cfg) {
+      dshConfig.value = cfg
+      if (!dshUrlInput.value) dshUrlInput.value = cfg.url
+    }
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '加载 dsh 配置失败')
+  } finally {
+    dshLoading.value = false
+  }
+}
+
+async function writeDshConfig(): Promise<void> {
+  const url = dshUrlInput.value.trim()
+  if (!url) {
+    ElMessage.warning('请填写要写入 dsh 的 MCP 地址')
+    return
+  }
+  const target = dshConfig.value?.configPath ?? '~/.dsh/profiles/<profile>/cordis.patch.yml'
+  const entry = dshConfig.value?.entryId ?? 'mcp-forgeself'
+  if (!window.confirm(`确认写入 dsh 配置？\n\n目标：${target}\n条目：${entry}\n地址：${url}\n\n已存在同 id 条目时只改其 url，写入前自动备份 .bak。`)) {
+    return
+  }
+  dshWriting.value = true
+  try {
+    const cfg = await writeDshMcpConfig({
+      profile: dshProfileInput.value.trim() || undefined,
+      url,
+    })
+    if (cfg) {
+      dshConfig.value = cfg
+      dshUrlInput.value = cfg.url
+      ElMessage.success('已写入 dsh MCP 配置')
+    }
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '写入 dsh 配置失败')
+  } finally {
+    dshWriting.value = false
+  }
+}
+
+// 首次切到「网关配置」页签时拉一次 dsh 写入状态（不影响其它页签）
+watch(activeTab, (tab) => {
+  if (tab === 'gateway' && !dshConfig.value && !dshLoading.value) {
+    loadDshConfig()
+  }
+})
+
 /* ── 外部服务器管理（v2.1.0：标准 MCP 客户端接入） ── */
 const externalServers = ref<McpExternalServerStateDto[]>([])
 const externalLoading = ref(false)
@@ -249,6 +310,12 @@ const externalToolsOf = ref<string | null>(null)
 const externalTools = ref<McpExternalToolDto[]>([])
 const externalToolsDialog = ref(false)
 const externalBusy = ref<string | null>(null) // 操作中的服务器 id
+
+/** 工具测试台对话框标题：带上服务器名，避免多服务器时不知道在调谁。 */
+const externalToolsTitle = computed(() => {
+  const s = externalServers.value.find(x => x.id === externalToolsOf.value)
+  return s ? `工具测试台 · ${s.name}` : '工具测试台'
+})
 
 // 新增/编辑表单
 const externalFormVisible = ref(false)
@@ -370,6 +437,28 @@ function parseArgs(text: string | undefined): string[] {
   if (!text) return []
   // 简单分词：按空白拆分（不支持引号内空格——引号场景请用 JSON 数组）
   return text.split(/\s+/).filter(Boolean)
+}
+
+/**
+ * 填入 DeepWiki MCP 预设（v2.3.0 工具测试台）：
+ * 官方公开的 Streamable HTTP 端点，免鉴权、无状态（响应无 Mcp-Session-Id），
+ * tools/list 公开 ask_wiki_question / read_wiki_contents / read_wiki_structure 三个工具，
+ * 适合当作「参数对不对、能不能调通」的联调靶子。
+ */
+function fillDeepWikiPreset(): void {
+  externalForm.value = {
+    ...externalForm.value,
+    id: 'deepwiki',
+    name: 'DeepWiki',
+    enabled: true,
+    transport: 'streamable-http',
+    url: 'https://mcp.deepwiki.com/mcp',
+    headersText: '',
+    command: '',
+    argsText: '',
+    envText: '',
+  }
+  ElMessage.info('已填入 DeepWiki 预设，点保存即会自动连接')
 }
 
 async function saveExternal(): Promise<void> {
@@ -738,6 +827,57 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- ═══ dsh（DeepSeek Harness）MCP 配置写入（v2.3.0 新增） ═══ -->
+              <div class="external-section">
+                <div class="external-head">
+                  <div class="external-title-area">
+                    <h2 class="form-title">写入 dsh 配置</h2>
+                    <p class="form-desc">
+                      把一段 MCP 客户端配置（<code class="mono-inline">@deepseek-ai/dsh-mcp-client</code> 的 insert 条目）
+                      幂等写入 dsh 的 profile 补丁层
+                      <code class="mono-inline">~/.dsh/profiles/&lt;profile&gt;/cordis.patch.yml</code>：同 id 条目已存在则就地改写其 url，
+                      不存在则追加；写入前自动留 <code class="mono-inline">.bak</code> 备份。
+                    </p>
+                  </div>
+                  <span class="form-hint">
+                    {{ dshConfig ? (dshConfig.entryExists ? '已存在同 id 条目（写入将改其 url）' : '尚未写入') : '' }}
+                  </span>
+                </div>
+
+                <div v-loading="dshLoading">
+                  <p v-if="dshConfig?.lastError" class="form-desc">
+                    读取 dsh 配置失败：{{ dshConfig.lastError }}
+                  </p>
+
+                  <div class="form-row">
+                    <label class="form-label">dsh profile</label>
+                    <ElInput v-model="dshProfileInput" class="host-input" placeholder="desktop" />
+                    <span class="form-hint">默认 desktop</span>
+                  </div>
+
+                  <div class="form-row">
+                    <label class="form-label">MCP 地址</label>
+                    <ElInput v-model="dshUrlInput" class="host-input" placeholder="http://127.0.0.1:51888/mcp" />
+                    <span class="form-hint">留空 = 当前网关地址 + /mcp</span>
+                  </div>
+
+                  <p v-if="dshConfig" class="form-desc">
+                    目标文件：<code class="mono-inline">{{ dshConfig.configPath }}</code>
+                    · 条目：<code class="mono-inline">{{ dshConfig.entryId }}</code>
+                    · 当前 url：<code class="mono-inline">{{ dshConfig.url }}</code>
+                  </p>
+
+                  <div class="form-actions">
+                    <ElButton size="small" :loading="dshLoading" @click="loadDshConfig">
+                      刷新状态
+                    </ElButton>
+                    <ElButton type="primary" size="small" :loading="dshWriting" @click="writeDshConfig">
+                      写入 dsh 配置
+                    </ElButton>
+                  </div>
+                </div>
+              </div>
+
               <!-- ═══ 外部服务器（v2.1.0 标准 MCP 客户端接入） ═══ -->
               <div class="external-section">
                 <div class="external-head">
@@ -827,9 +967,19 @@ onMounted(() => {
         :title="externalFormTitle"
         width="560px"
         append-to-body
-        @update:model-value="v => { externalFormVisible = v }"
+        @update:model-value="(v: boolean) => { externalFormVisible = v }"
       >
         <div class="external-form-body">
+          <div class="external-form-row external-form-preset">
+            <span class="external-form-label" />
+            <ElButton
+              size="small"
+              data-testid="fill-deepwiki-preset"
+              @click="fillDeepWikiPreset"
+            >
+              填入 DeepWiki 预设（官方公开端点，免鉴权，用于联调）
+            </ElButton>
+          </div>
           <div class="external-form-row">
             <label class="external-form-label">ID</label>
             <ElInput
@@ -913,24 +1063,21 @@ onMounted(() => {
         </template>
       </ElDialog>
 
-      <!-- 外部工具清单对话框 -->
+      <!-- 外部工具清单 + 测试台对话框（v2.3.0：按 inputSchema 动态渲染参数表单并发起调用） -->
       <ElDialog
         :model-value="externalToolsDialog"
-        title="外部服务器工具"
-        width="560px"
+        :title="externalToolsTitle"
+        width="860px"
         append-to-body
         class="external-tools-dialog"
-        @update:model-value="v => { externalToolsDialog = v }"
+        @update:model-value="(v: boolean) => { externalToolsDialog = v }"
       >
-        <div v-loading="externalToolsLoading">
-          <div v-if="!externalToolsLoading && externalTools.length === 0" class="external-tools-empty">
-            该服务器未暴露工具（或未连接）
-          </div>
-          <div v-for="t in externalTools" :key="t.fullName" class="external-tool-item">
-            <span class="external-tool-name">{{ t.fullName }}</span>
-            <span class="external-tool-desc">{{ t.description || '（无描述）' }}</span>
-          </div>
-        </div>
+        <ToolPlayground
+          v-if="externalToolsOf"
+          :server-id="externalToolsOf"
+          :tools="externalTools"
+          :loading="externalToolsLoading"
+        />
       </ElDialog>
     </main>
   </div>
@@ -1587,6 +1734,11 @@ export default { name: 'McpCenterView' }
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* DeepWiki 预设按钮行：沿用表单行的栅格（标签列占位 + 控件列），按钮不抢标题视觉 */
+.external-form-preset {
+  margin-bottom: 4px;
 }
 
 .external-form-label {

@@ -1,3 +1,11 @@
+﻿---
+feature_key: F020
+feature_no: 020
+status: implemented
+last_updated: 2026-10-06
+aliases: ["020-quick-links"]
+---
+
 # 020 · 快捷链接（Quick Links）
 
 > 状态：已实现（代码中已落地）

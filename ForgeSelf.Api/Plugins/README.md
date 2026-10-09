@@ -34,6 +34,8 @@
 - **插件库路径（统一）**：`{数据根}/plugins/{插件Id}/{连接名}.db`
   - 例：`memory-system` → `~/.forgeself/plugins/memory-system/MemorySystem.db`（连接名 `MemorySystem`）
   - 例：`mcp-center` → `~/.forgeself/plugins/mcp-center/McpCenter.db`（连接名 `McpCenter`）
+- **⚠️ 登记 = 落数据根的唯一入口（2026-10-09 AgentHub 实证）**：库要落在 `{数据根}/plugins/{插件Id}/`，连接名**必须先登记进 `ForgeSelf.Api/Data/XCodeConfig.cs` 的 `PluginDbs` 字典**（key=连接名 PascalCase，value=插件 Id kebab），宿主 `AddXCode` 才会注册连接串并派生到数据根。**未登记的连接名没有任何连接串** → `DAL.Create` 走 XCode 默认派生 `{程序基目录}/Data/{连接名}.db`——发布态程序基目录 = `versions/<ver>/`，**库随版本目录走：宿主升级换新版本目录后，旧库留在旧目录不再被读，新目录首次启动新建空库 ⇒ 表现为「登记数据全丢」**。实测现场：`AgentHub`/`ImGateway` 未登记，AgentHub.db 落 `D:\src\tools\OpenForgeSelf\versions\<ver>\Data\AgentHub.db`（2.3.2=512KB、2.3.3=385KB 有登记数据；2.3.4 起每版本 57KB 空库）；`TodoTracker`/`AIAgent` 等已登记 → `~/.forgeself/plugins/<id>/<Conn>.db`，升级不丢。
+- **修复指引**：① 新插件库在 `PluginDbs` 登记一行；② 存量未登记插件库迁移 = 把有数据的旧版本目录 `Data/{连接名}.db` 拷到 `~/.forgeself/plugins/{插件Id}/` + 登记 + 重启宿主（宿主按数据根库优先读写）。
 - **父目录自建**：SQLite 不会自动创建父目录，宿主在 `AddXCode` / `InitializeXCodeDatabase` 时先 `EnsureDirectory`，插件侧也可用 `ctx.EnsurePluginDataDirectory()` 取得已建好的目录。
 - **库文件名铁律**：一律 `{连接名}.db`（连接名即数据库名，与 XCode 模型一致）。所有插件统一用 XCode 作为 ORM，连接名取自 `XCodeConfig.PluginDbs`。禁止以 `Id` 或任意写法命名（历史 `memory.db` / `capture.db` / `QuickLinks.db` 等混用写法已全部修正）。改名会生成第二份库，旧数据不可见。
 

@@ -1,3 +1,11 @@
+﻿---
+feature_key: F030
+feature_no: 030
+status: implemented
+last_updated: 2026-10-06
+aliases: ["030-api-keys"]
+---
+
 # 030 认证体系升级（机器派生密钥 + API 密钥分发）— 功能说明与架构流程
 
 > 功能编号：030（specs/030-authentication-upgrade）

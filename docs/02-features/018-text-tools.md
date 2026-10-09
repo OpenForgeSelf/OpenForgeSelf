@@ -1,3 +1,11 @@
+﻿---
+feature_key: F018
+feature_no: 018
+status: implemented
+last_updated: 2026-10-06
+aliases: ["018-text-tools"]
+---
+
 # 018 · 文本工具（Text Tools）
 
 > 状态：已实现（代码中已落地）

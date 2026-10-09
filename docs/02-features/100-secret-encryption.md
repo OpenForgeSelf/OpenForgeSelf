@@ -1,3 +1,11 @@
+﻿---
+feature_key: F100
+feature_no: 100
+status: implemented
+last_updated: 2026-10-06
+aliases: ["100-secret-encryption"]
+---
+
 # 密钥加密存储（Secret Encryption）— 功能需求与设计
 
 > 功能编号：N/A（核心安全基础设施）

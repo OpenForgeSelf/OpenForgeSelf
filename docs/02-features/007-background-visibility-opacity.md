@@ -1,3 +1,11 @@
+﻿---
+feature_key: F007
+feature_no: 007
+status: implemented
+last_updated: 2026-10-06
+aliases: ["007-background-visibility-opacity"]
+---
+
 # 007 背景可见性与透明度 — 功能需求与设计
 
 > 功能编号：007

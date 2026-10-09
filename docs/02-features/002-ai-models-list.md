@@ -1,3 +1,11 @@
+﻿---
+feature_key: F002
+feature_no: 002
+status: implemented
+last_updated: 2026-10-06
+aliases: ["002-ai-models-list"]
+---
+
 # 002 AI 模型列表 — 功能需求与设计
 
 > 功能编号：002

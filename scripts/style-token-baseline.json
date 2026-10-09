@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-10-06",
+  "total": 2559,
+  "dirs": {
+    "ForgeSelf.Web/src": 1638,
+    "Plugins/AgentHub/web/src": 104,
+    "Plugins/AIAgent/web/src": 397,
+    "Plugins/DesignSystem/web/src": 108,
+    "Plugins/FileTools/web/src": 14,
+    "Plugins/Home/web/src": 61,
+    "Plugins/ImGateway/web/src": 46,
+    "Plugins/McpCenter/web/src": 5,
+    "Plugins/QuickLinks/web/src": 8,
+    "Plugins/Sems/web/src": 178
+  }
+}

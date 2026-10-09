@@ -1,9 +1,9 @@
 {
   "Id": "mcp-center",
   "Name": "MCP 中心",
-  "Version": "2.2.1",
+  "Version": "2.3.1",
   "Author": "ForgeSelf Team",
-  "Description": "MCP 中心（原 MCP 统一网关 v1.0.0 更名 + 整合宿主 mcp-tools）：对外通过独立 MCP 端口（默认 18890）暴露本项目全部工具（仅一个万能工具 universal_tool）；v2.1.0 起支持按标准 MCP 协议（stdio / Streamable HTTP / 旧版 HTTP+SSE）连接外部 MCP 服务器，外部工具经 mcp.<服务器id>.<工具名> 统一转发；同时管理外部 MCP 服务器与工具开关（原宿主 MCP 工具页），自带界面可查看/编辑网关地址与令牌。",
+  "Description": "MCP 中心（原 MCP 统一网关 v1.0.0 更名 + 整合宿主 mcp-tools）：对外通过独立 MCP 端口（默认 18890）暴露本项目全部工具（仅一个万能工具 universal_tool）；v2.1.0 起支持按标准 MCP 协议（stdio / Streamable HTTP / 旧版 HTTP+SSE）连接外部 MCP 服务器，外部工具经 mcp.<服务器id>.<工具名> 统一转发；v2.3.1 起自带「工具测试台」——按 tools/list 返回的 inputSchema 动态渲染参数表单（必填/类型/说明/默认值），可填入参数直接发起调用并查看耗时、返回文本与原始 JSON（内置 DeepWiki 官方端点预设便于联调）；同时管理外部 MCP 服务器与工具开关（原宿主 MCP 工具页），自带界面可查看/编辑网关地址与令牌。",
   "IconUrl": "",
   "EntryAssembly": "McpCenter.dll",
   "EntryType": "ForgeSelf.Api.Plugins.McpCenter.McpCenterPlugin",

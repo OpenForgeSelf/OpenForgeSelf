@@ -15,10 +15,13 @@ namespace ForgeSelf.Api.Plugins.AgentHub.Services;
 /// 包成跨边界契约，<b>不新增任何执行语义</b>——状态机、cwd 白名单（G7）、权限审批、并发互斥（G6）
 /// 全部仍由 AgentHub 单方持有，避免同一事实两处实现。
 ///
-/// 依赖解析姿势：<b>每次调用都从插件容器取服务</b>（与 <c>Tools/AgentHubToolBase.GetService&lt;T&gt;()</c> 同款）。
-/// 不在构造期固化 <see cref="DelegationRuntime"/>/<see cref="IAgentRegistry"/> 实例：若在 Apply 里
-/// <c>services.BuildServiceProvider()</c> 另起一个容器，会造出**第二份** <c>PermissionBroker</c> 等单例，
-/// 于是「接缝发起的任务」与「控制器审批面板」看到的待审批队列不是同一份（G2 人在回路直接失灵）。
+/// 依赖解析姿势：<b>每次调用都从宿主 DI 取服务</b>（与 <c>Tools/AgentHubToolBase.GetService&lt;T&gt;()</c> 同款，统一走
+/// <see cref="AgentHubDi.ResolveHost{T}"/>）。不在构造期固化 <see cref="DelegationRuntime"/>/<see cref="IAgentRegistry"/> 实例：
+/// 插件 <c>IContext</c> 的 <c>GetService</c> 只解析「本地值 + 全局共享表」（<c>ForgeSelf.Core.Context</c>），
+/// 不含宿主容器；必须经 <c>ctx.Get&lt;IServiceProvider&gt;()</c>（宿主 ProvideHostServices 已 seed）回落宿主根 provider
+/// 再解析，才能与控制器共用同一份单例。若在 Apply 里 <c>services.BuildServiceProvider()</c> 另起一个容器，
+/// 会造出**第二份** <c>PermissionBroker</c> 等单例，于是「接缝发起的任务」与「控制器审批面板」看到的待审批队列
+/// 不是同一份（G2 人在回路直接失灵）。
 ///
 /// 失败口径：契约约定「业务失败返回 Success=false + 原因原文，不抛业务异常」，
 /// 判据与控制器 <c>AgentHubTasksController.Create</c> 一致（<c>Id&lt;=0</c> 或 <c>Status==Failed</c> 即前置失败，此时任务未落库）。
@@ -42,7 +45,7 @@ public class AgentDelegationProvider : IAgentDelegation
         if (request == null) return AgentDelegationOutcome.Fail("委派请求不能为空");
         if (request.Prompt.IsNullOrWhiteSpace()) return AgentDelegationOutcome.Fail("提示词不能为空");
 
-        var runtime = _services?.GetService(typeof(DelegationRuntime)) as DelegationRuntime;
+        var runtime = AgentHubDi.ResolveHost<DelegationRuntime>(_services);
         if (runtime == null) return AgentDelegationOutcome.Fail("AgentHub 运行时不可用（插件未正确加载）");
 
         // 权限模式在进运行时之前先拒（与 AgentPolicy 黑名单同口径；运行时内部还会再校验一次，双层不互相替代）
@@ -85,9 +88,18 @@ public class AgentDelegationProvider : IAgentDelegation
     {
         if (taskKey.IsNullOrEmpty()) return Task.FromResult<AgentDelegationSnapshot?>(null);
 
-        var runtime = _services?.GetService(typeof(DelegationRuntime)) as DelegationRuntime;
+        var runtime = AgentHubDi.ResolveHost<DelegationRuntime>(_services);
         var dto = runtime?.GetByKey(taskKey);
         return Task.FromResult(dto == null ? null : ToSnapshot(dto));
+    }
+
+    /// <inheritdoc />
+    public Task<bool> MarkCompletedAsync(string taskKey, CancellationToken ct = default)
+    {
+        if (taskKey.IsNullOrEmpty()) return Task.FromResult(false);
+
+        var runtime = AgentHubDi.ResolveHost<DelegationRuntime>(_services);
+        return Task.FromResult(runtime?.CompleteByKey(taskKey) ?? false);
     }
 
     /// <inheritdoc />
@@ -95,7 +107,7 @@ public class AgentDelegationProvider : IAgentDelegation
     {
         try
         {
-            var registry = _services?.GetService(typeof(IAgentRegistry)) as IAgentRegistry;
+            var registry = AgentHubDi.ResolveHost<IAgentRegistry>(_services);
             if (registry == null) return [];
 
             return registry.List(true)

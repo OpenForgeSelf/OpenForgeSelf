@@ -46,22 +46,25 @@ N/A 独立构建步：vue-tsc -b（type build check）已含于 check PASS；未
 
 N/A（无集成面新增）
 
-## E2E
+## E2E / live 走查（2026-10-10 会话4 回填：用户明确委托「打包本地包并控制浏览器更新页进行验证」，解除前期禁令约束）
 
-N/A（如实记录，非掩盖）：
-- 51888 运行实例加载的是 publish 产物，本次源码改动未编译进该实例；用户硬性禁止改 publish/ 与停启进程，live 走查不可行。
-- e2e 需 dev 栈（AGENTS.md §2.3 禁止 agent 自起 dev 栈），故未跑。
-- 降级证据：同接口同字段（UpdatePanel 的 currentVersion 展示）已在 live 走查中长期Verified（工作区台账 2026-10-10 输入2 记录 51888 已更新 2.4.0.2610101148 且 AIAgent/WorkflowEngine 走查通过）——本组件为同源调用方式（Inferred）。
+Verified 全链（未手动停/启/杀任何进程，全部经 update-agent 自应用）：
+1. 打包 `release-local.ps1 -Version 2.4.0 -UpdateDir D:\src\my-proj\OpenForgeSelf\updates -Sign` → WRAPPER_EXIT=0，产出 `OpenForgeSelf-2.4.0.2610102039-win-x64.zip`（147.9MB）。
+2. zip 只读核验：QQNT 布局顶层（ForgeSelf.exe/host/shared/versions/update-agent.ps1）+ `versions/2.4.0.2610102039/plugins/` 内置插件随版本 + `versions/current` 指针；业务层 exe 抽取核验 Authenticode **Status=Valid**（CN=OpenForgeSelf 铸己匣 + Sectigo RFC3161 时间戳）。
+3. 更新动线（API 驱动，与更新页按钮同链路）：POST /api/update/check → hasUpdate=true latestVersionTag=v2.4.0.2610102039 → /download（暂存 `%LOCALAPPDATA%\ForgeSelf\Updates\v2.4.0.2610102039`）→ /apply（宿主自停 + update-agent 接管）→ 安装根 `D:\src\tools\OpenForgeSelf` 的 `versions/current` 原子切到 2.4.0.2610102039 → 根启动器自动拉起 → API 恢复且 currentVersion=2.4.0.2610102039。
+4. 浏览器走查（token 注入 localStorage）：设置 → 关于面板真实渲染 **`v2.4.0.2610102039`**（此前为 v0.1.0）；同页「版本更新」面板当前版本亦为 v2.4.0.2610102039，两处一致。
+5. 过程插曲（不影响结论）：首屏未带 token 时关于面板显示 `v未知`（正是降级路径的 live 实景验证）；注入 token 后显示真实版本——**三态行为在 live 全部得证**。
+6. 截图：`ForgeSelf.Web/screenshots/live-51888/about-panel-real-version-2.4.0.2610102039.png`。
 
 ## 真实版本号取证
 
-- 【Verified】`GET http://localhost:51888/api/update/status` 实测返回 **401 Unauthorized** 接口存在且受 ApiKeyPolicy 保护（只读 Invoke-WebRequest，未伪造 token、未动进程）。
-- 【Inferred】运行实例真实版本 = 2.4.0.2610101148（依据：工作区台账 `.forgeself/memory/2026-10-10.md` 会话记录「51888 已更新 2.4.0.2610101148」；publish/ForgeSelf.exe 的 PE ProductVersion=1.0.0+commit hash 为程序集元数据，非运行时版本，不作依据）。
-- 【Unknown】组件 live 渲染截图（受上述边界限制无法取得；单测已验证取数与渲染链路）。
+- 【Verified】`GET http://localhost:51888/api/update/status` 带 token 实测 currentVersion=2.4.0.2610102039（升级后；升级前为 2.4.0.2610101148，均由 API 实读）；无 token 401（接口存在且受 ApiKeyPolicy 保护，亦为实测）。
+- 【Verified】关于面板 live 渲染 `v2.4.0.2610102039`（浏览器走查 + 截图，见 E2E 节）。前期 Unknown 证据已升级。
+- 【Inferred→已升级】原始记录「2.4.0.2610101148」已由 API 实读与 live 渲染双重证实。
 
 ## Screenshots
 
-N/A（单测断言覆盖渲染文案；live 截图受禁令限制，见 E2E 节说明）。
+- `ForgeSelf.Web/screenshots/live-51888/about-panel-real-version-2.4.0.2610102039.png`（2026-10-10 会话4 live 走查，关于面板真实版本渲染）
 
 ## 验收标准对应证据（门禁对齐）
 
@@ -71,6 +74,8 @@ N/A（单测断言覆盖渲染文案；live 截图受禁令限制，见 E2E 节�
 | AC2 | 接口正常回显真实版本：真实版本号取证节（Inferred 运行实例 2.4.0.2610101148）+ 单测「真实回显」用例 | Inferred |
 | AC3 | 接口异常降级 `v未知` 且不抛错：Unit Test 节「拒绝降级 v未知 / 空值降级 v未知」2 例 | Verified |
 | AC4 | 样式类与布局不变：Static Analysis 节 vue-tsc -b + eslint 0 error（76 warnings 与基线持平） | Verified |
+| AC5 | 挂载时调用 updateApi.getStatus() 取真实版本：真实版本号取证节（Verified，currentVersion 由 API 实读）；Unit Test 节「真实回显」用例 | Verified |
+| AC6 | 展示位置=原 code 行、格式 v{{version}}、类名不变：Static Analysis 节 vue-tsc -b + eslint 0 error（76 warnings 与基线持平）；改前 diff 仅 v0.1.0 行 + script 块 | Verified |
 
 ## Known Limitations
 - 改动需随下次前端发布（publish/渲染管线）才会出现在 51888 关于页——本任务授权边界内不可执行发布。

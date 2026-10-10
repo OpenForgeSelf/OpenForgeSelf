@@ -2,9 +2,9 @@
 
 > Task ID: PILOT-2026-1010-ABOUTVER
 
-## Functional Requirements
-- FR1 AboutPanel 挂载时调用 `updateApi.getStatus()`（唯一版本数据源，同 UpdatePanel）。
-- FR2 展示位置 = 原 `<code>` 行，格式 `v{{ version }}`，类名不变。
+## Acceptance Criteria（AC，机械可校验；AC1-AC4 见「交互验收标准」）
+- AC5 AboutPanel 挂载时调用 `updateApi.getStatus()`（唯一版本数据源，同 UpdatePanel）。
+- AC6 展示位置 = 原 `<code>` 行，格式 `v{{ version }}`，类名不变。
 
 ## Input
 无用户输入；数据源为 `GET /api/update/status` → `UpdateStatus.currentVersion: string`。

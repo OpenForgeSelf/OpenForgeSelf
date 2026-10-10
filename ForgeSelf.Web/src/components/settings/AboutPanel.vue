@@ -1,4 +1,18 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { updateApi } from '@/services/updateApi';
+
+/** 运行实例真实版本；null=加载中（占位 …），'未知'=获取失败或空值降级 */
+const version = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    const status = await updateApi.getStatus();
+    version.value = status.currentVersion || '未知';
+  } catch {
+    version.value = '未知';
+  }
+});
 </script>
 
 <template>
@@ -29,7 +43,7 @@
 
         <div class="text-center">
           <h3 class="text-lg font-semibold text-text m-0">铸己匣 ForgeSelf</h3>
-          <code class="text-sm text-text-secondary">v0.1.0</code>
+          <code class="text-sm text-text-secondary">v{{ version ?? '…' }}</code>
         </div>
 
         <p class="text-sm text-text-regular m-0">以器铸己，日积寸进</p>

@@ -5,18 +5,18 @@
 ## Files To Change
 | 文件 | 变更 |
 | --- | --- |
-| `Plugins/AIAgent/AIAgentPlugin.cs` | FR1 注册 UniversalTool/RunTerminalCommandTool；FR5 配套 `WorkflowServiceResolver` 助手 + 3 处工作流工具改软解析+可读错误 |
-| `Plugins/AIAgent/Services/AIAgentService.cs` | FR3 `ResolveOwnToolDefinitions`→`ResolveToolDefinitions(scopePluginsOnly)`，新增 `ResolveSelectableToolDefinitions`；两处挂载点（RunAgentLoopAsync / CreateAgent 链）显式勾选时放开候选池 |
-| `Plugins/WorkflowEngine/WorkflowEnginePlugin.cs` | FR5 Apply 内 ctx.Register 三契约 |
-| `Plugins/AIAgent/web/src/AiAgentView.vue` | FR2 loadAgentTools 去 pluginId 白名单、剔除运行流特殊工具、排序 |
-| `Plugins/AIAgent/web/src/components/ChatPanel.vue` | FR2 插件徽标 + 搜索含 pluginId + 底注文案 + 样式 |
-| `Plugins/AIAgent/web/src/components/AgentEditDialog.vue` | FR4 TagInput→ElSelect 多选 + toolOptions 懒加载 + 样式 |
-| `Plugins/AIAgent/web/src/index.ts` | FR4 补 select/option/tooltip 组件样式引入 |
-| `ForgeSelf.Web/src/data/homeEntries.ts` | FR6 新增 featureUsageKey / rankFeatures |
-| `ForgeSelf.Web/src/views/AllFeaturesView.vue` | FR6 rankFeatures 排序 + 钉住按钮 + 快照防抖 + 样式 |
-| `ForgeSelf.Web/src/components/TopNavbar.vue` | FR7 pinnedTabs/displayTabs + 图钉取消 + 插件入口按钮 |
+| `Plugins/AIAgent/AIAgentPlugin.cs` | AC1 注册 UniversalTool/RunTerminalCommandTool；AC5 配套 `WorkflowServiceResolver` 助手 + 3 处工作流工具改软解析+可读错误 |
+| `Plugins/AIAgent/Services/AIAgentService.cs` | AC3 `ResolveOwnToolDefinitions`→`ResolveToolDefinitions(scopePluginsOnly)`，新增 `ResolveSelectableToolDefinitions`；两处挂载点（RunAgentLoopAsync / CreateAgent 链）显式勾选时放开候选池 |
+| `Plugins/WorkflowEngine/WorkflowEnginePlugin.cs` | AC5 Apply 内 ctx.Register 三契约 |
+| `Plugins/AIAgent/web/src/AiAgentView.vue` | AC2 loadAgentTools 去 pluginId 白名单、剔除运行流特殊工具、排序 |
+| `Plugins/AIAgent/web/src/components/ChatPanel.vue` | AC2 插件徽标 + 搜索含 pluginId + 底注文案 + 样式 |
+| `Plugins/AIAgent/web/src/components/AgentEditDialog.vue` | AC4 TagInput→ElSelect 多选 + toolOptions 懒加载 + 样式 |
+| `Plugins/AIAgent/web/src/index.ts` | AC4 补 select/option/tooltip 组件样式引入 |
+| `ForgeSelf.Web/src/data/homeEntries.ts` | AC6 新增 featureUsageKey / rankFeatures |
+| `ForgeSelf.Web/src/views/AllFeaturesView.vue` | AC6 rankFeatures 排序 + 钉住按钮 + 快照防抖 + 样式 |
+| `ForgeSelf.Web/src/components/TopNavbar.vue` | AC7 pinnedTabs/displayTabs + 图钉取消 + 插件入口按钮 |
 | `ForgeSelf.Web/src/data/__tests__/homeEntries.test.ts` | rankFeatures/featureUsageKey 单测 |
-| `ForgeSelf.Api.Tests/Plugins/WorkflowEngineTests/WorkflowEnginePluginRegistrationTests.cs` | FR5 回归测试（新建） |
+| `ForgeSelf.Api.Tests/Plugins/WorkflowEngineTests/WorkflowEnginePluginRegistrationTests.cs` | AC5 回归测试（新建） |
 | `Plugins/AIAgent/plugin.json` / `Plugins/WorkflowEngine/plugin.json` | 版本 1.7.3→1.7.4 / 1.0.0→1.0.1 |
 
 ## Implementation Steps

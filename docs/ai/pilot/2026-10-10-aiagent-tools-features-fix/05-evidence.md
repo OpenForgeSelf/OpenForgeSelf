@@ -41,6 +41,18 @@ Verified：eslint（3 改动文件）0 error 0 warning。
 ## 二轮复验（2026-10-10 09:3x，用户要求确认）
 - Verified：重启 dev-stack 后重验 ④⑤（上述 evaluate 实测值）；③ 补强——WorkflowEnginePluginRegistrationTests 新增 `WorkflowServiceResolver.Resolve(ctx)` 断言（= AIAgent 工作流工具运行时的真实解析路径，两插件共存组合），1/1 通过。
 
+## 验收标准对应证据（门禁对齐）
+
+| AC | 证据（05-evidence 原文） | 等级 |
+|----|------------------------|------|
+| AC1 | 注册 UniversalTool/RunTerminalCommandTool：Changed Files + Build（AIAgent 0 错误）+ Unit Test（UniversalTool 相关用例通过） | Verified |
+| AC2 | composer 工具全量+插件徽标：Screenshots 节 composer-tools-all-plugins.png，实测 `total=112, hasUniversal=true, hasTerminal=true` | Verified |
+| AC3 | 挂载语义不变+候选池放开：Unit Test 节 AIAgentToolScopeTests 仍绿；新增 `ResolveSelectableToolDefinitions` | Verified |
+| AC4 | Agent 编辑工具 ElSelect 多选：Screenshots 节 agent-edit-tools-dropdown.png（多选下拉） | Verified |
+| AC5 | WorkflowEnginePlugin.Apply ctx.Register 三契约 + 工作流工具可读错误：Unit Test 节 WorkflowEnginePluginRegistrationTests 1/1；二轮复验 `WorkflowServiceResolver.Resolve(ctx)` 断言 | Verified |
+| AC6 | 所有功能页排序复用首页口径+钉住：Screenshots 节 all-features-pin*.png（钉住后置顶+顶栏标签）；Unit Test 节 rankFeatures 4 例 | Verified |
+| AC7 | TopNavbar 钉住常驻标签+插件管理按钮：Screenshots 节 plugin-icon-to-plugins.png（点击直达 /plugins）；顶栏按钮序 `[插件管理, 所有功能, 设置]` | Verified |
+
 ## Known Limitations
 - 工作流「执行」链路的端到端成功回报需真实 LLM（031 同因），本次验证到「契约可解析 + 错误文案可读」层；
 - 51888 运行实例只读复验未执行（实例未运行，无 401 风险点可验）；下次实例启动即用 staged 1.7.4/1.0.1。

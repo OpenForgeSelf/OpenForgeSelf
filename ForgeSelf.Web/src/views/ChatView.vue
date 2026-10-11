@@ -5,6 +5,7 @@ import { aiModelsApi } from '@/services/aiModelsApi'
 import type { AIModel } from '@/types/aiModel'
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
+import PageHead from '@/components/PageHead.vue'
 
 const chatStore = useChatStore()
 
@@ -147,59 +148,60 @@ function handleClearError() {
       </div>
     </Transition>
 
+    <!-- PageHead -->
+    <PageHead
+      eyebrow="Chat · 对话"
+      title="AI 对话"
+    >
+      <template #actions>
+        <span class="status-chip" :class="{ connected: chatStore.isWsConnected, disconnected: !chatStore.isWsConnected }">
+          <span class="status-dot" />
+          {{ chatStore.isWsConnected ? '就绪' : '离线' }}
+        </span>
+        <select
+          v-model="selectedModelId"
+          class="model-select"
+          :title="selectedModelName"
+          @change="persistModelChoice"
+        >
+          <option value="">默认模型</option>
+          <option v-for="model in models" :key="model.chatModelId" :value="model.chatModelId">
+            {{ model.alias || model.upstreamModelId }}
+          </option>
+        </select>
+        <span class="stats-badge">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="4" y1="9" x2="20" y2="9" />
+            <line x1="4" y1="15" x2="20" y2="15" />
+            <line x1="10" y1="3" x2="8" y2="21" />
+            <line x1="16" y1="3" x2="14" y2="21" />
+          </svg>
+          {{ chatStore.messages.length }} 条消息
+        </span>
+      </template>
+    </PageHead>
+
     <!-- 聊天主区 -->
     <section class="chat-anvil">
-      <!-- Chat Header -->
+      <!-- Chat Header (in-anvil toolbar) -->
       <div class="chat-header">
-        <div class="chat-header-left">
-          <button class="menu-button" title="切换侧边栏" @click="toggleSidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-          <div class="chat-title">
-            <div class="chat-status-indicator">
-              <span class="status-dot" :class="{ connected: chatStore.isWsConnected, disconnected: !chatStore.isWsConnected }" />
-              <span class="chat-agent-name">AI Agent</span>
-            </div>
-            <span class="chat-status-text" :class="{ connected: chatStore.isWsConnected }">
-              {{ chatStore.isWsConnected ? '就绪' : '离线' }}
-            </span>
-          </div>
-        </div>
-        <div class="chat-header-right">
-          <select
-            v-model="selectedModelId"
-            class="model-select"
-            :title="selectedModelName"
-            @change="persistModelChoice"
-          >
-            <option value="">默认模型</option>
-            <option v-for="model in models" :key="model.chatModelId" :value="model.chatModelId">
-              {{ model.alias || model.upstreamModelId }}
-            </option>
-          </select>
-          <span class="stats-badge">
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="4" y1="9" x2="20" y2="9" />
-              <line x1="4" y1="15" x2="20" y2="15" />
-              <line x1="10" y1="3" x2="8" y2="21" />
-              <line x1="16" y1="3" x2="14" y2="21" />
-            </svg>
-            {{ chatStore.messages.length }} 条消息
-          </span>
-        </div>
+        <button class="menu-button" title="切换侧边栏" @click="toggleSidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span class="chat-agent-name">AI Agent</span>
       </div>
 
       <!-- Message List -->
@@ -223,22 +225,87 @@ function handleClearError() {
 
 <style scoped>
 /* ============================
-   ChatView — 纯聊天页
-   侧边栏 + 聊天头部 + 消息列表 + 输入区
+   ChatView — 纯聊天页（冻结模式）
    ============================ */
 
 .chat-view {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--el-bg-color);
-  position: relative;
+  padding: 20px 24px;
   overflow: hidden;
-  padding: 16px 20px;
 }
 
 /* ============================
-   聊天主区（琥珀色边框）
+   状态 chip（PageHead actions）
+   ============================ */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-md);
+}
+
+.status-chip.connected {
+  color: var(--bronze-500);
+  background: var(--el-color-success-light-9);
+}
+
+.status-chip.disconnected {
+  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
+}
+
+.status-chip .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.model-select {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--fg-secondary);
+  background: var(--glass-bg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  cursor: pointer;
+  max-width: 200px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.model-select:hover,
+.model-select:focus {
+  border-color: var(--gold-400);
+}
+
+.stats-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  background: var(--paper-tint);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.stats-badge svg {
+  flex-shrink: 0;
+  color: var(--fg-tertiary);
+}
+
+/* ============================
+   聊天主区（玻璃卡）
    ============================ */
 .chat-anvil {
   display: flex;
@@ -248,33 +315,27 @@ function handleClearError() {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  background: linear-gradient(135deg, var(--el-bg-color-page) 0%, var(--el-fill-color-light) 100%);
-  border: 1px solid var(--el-border-color);
-  border-left: 3px solid var(--el-color-primary);
-  border-radius: 12px;
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow);
   overflow: hidden;
-  box-shadow: 0 0 50px rgba(245, 158, 11, 0.06), inset 0 1px 0 rgba(245, 158, 11, 0.04);
-  transition: border-color 250ms ease, box-shadow 250ms ease;
+  transition: border-color var(--dur-base) var(--ease-out);
 }
 
 .chat-anvil:focus-within {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 60px rgba(245, 158, 11, 0.1), inset 0 1px 0 rgba(245, 158, 11, 0.06);
+  border-color: var(--border-brand);
 }
 
 .chat-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   padding: 8px 16px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--el-border-color);
-}
-
-.chat-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .menu-button {
@@ -282,18 +343,18 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-regular);
-  transition: background 150ms ease, color 150ms ease;
+  color: var(--fg-secondary);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .menu-button:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .menu-button svg {
@@ -301,102 +362,11 @@ function handleClearError() {
   height: 16px;
 }
 
-.chat-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.chat-status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  flex-shrink: 0;
-}
-
-.status-dot.connected {
-  background: var(--el-color-success);
-  box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
-}
-
-.status-dot.disconnected {
-  background: var(--el-color-danger);
-  box-shadow: 0 0 6px rgba(248, 81, 73, 0.4);
-}
-
 .chat-agent-name {
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   white-space: nowrap;
-}
-
-.chat-status-text {
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.chat-status-text.connected {
-  color: var(--el-color-success);
-}
-
-.chat-status-text:not(.connected) {
-  color: var(--el-color-danger);
-}
-
-.chat-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.model-select {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
-  border: 1px solid transparent;
-  border-radius: var(--el-border-radius-small);
-  font-family: var(--font-family-mono);
-  white-space: nowrap;
-  cursor: pointer;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  outline: none;
-  transition: border-color 150ms ease;
-}
-
-.model-select:hover,
-.model-select:focus {
-  border-color: var(--el-color-primary);
-}
-
-.stats-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
-  border-radius: var(--el-border-radius-small);
-  font-family: var(--font-family-mono);
-  white-space: nowrap;
-}
-
-.stats-badge svg {
-  flex-shrink: 0;
-  color: var(--el-text-color-secondary);
 }
 
 .chat-messages {
@@ -424,7 +394,7 @@ function handleClearError() {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: var(--ink-veil);
   z-index: 100;
 }
 
@@ -434,8 +404,9 @@ function handleClearError() {
   left: 0;
   bottom: 0;
   width: 280px;
-  background-color: var(--el-bg-color-page);
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  background: var(--el-bg-color-overlay);
+  border-right: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   z-index: 101;
@@ -443,7 +414,7 @@ function handleClearError() {
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .new-chat-button {
@@ -452,19 +423,19 @@ function handleClearError() {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 16px;
-  background-color: var(--el-color-primary);
-  color: var(--el-color-white);
+  padding: 10px 16px;
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .new-chat-button:hover {
-  background-color: var(--el-color-primary-light-3);
+  background: var(--gold-300);
 }
 
 .new-chat-button svg {
@@ -481,25 +452,25 @@ function handleClearError() {
 .conversation-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-radius: var(--el-border-radius-small);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
   margin-bottom: 4px;
 }
 
 .conversation-item:hover {
-  background-color: var(--el-fill-color);
+  background: var(--paper-tint);
 }
 
 .conversation-item.active {
-  background-color: var(--el-color-primary-light-9);
+  background: var(--gold-tint);
 }
 
 .conversation-title {
   flex: 1;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
+  font-size: 13px;
+  color: var(--fg-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -510,13 +481,13 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 150ms ease, background-color 150ms ease;
+  transition: opacity var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .conversation-item:hover .delete-button {
@@ -524,20 +495,20 @@ function handleClearError() {
 }
 
 .delete-button:hover {
-  background-color: rgba(248, 81, 73, 0.15);
+  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
 }
 
 .delete-button svg {
   width: 16px;
   height: 16px;
-  color: var(--el-color-danger);
+  color: var(--cinnabar-400);
 }
 
 .empty-conversations {
   text-align: center;
   padding: 40px 20px;
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
+  color: var(--fg-tertiary);
+  font-size: 13px;
 }
 
 /* ============================
@@ -545,23 +516,23 @@ function handleClearError() {
    ============================ */
 .error-banner {
   position: fixed;
-  top: 54px;
+  top: 60px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
-  background-color: rgba(185, 28, 28, 0.12);
-  border: 1px solid rgba(185, 28, 28, 0.3);
-  border-radius: var(--el-border-radius-small);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  padding: 10px 18px;
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 30%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   z-index: 200;
 }
 
 .error-message {
-  font-size: 14px;
-  color: var(--el-color-danger);
+  font-size: 13px;
+  color: var(--cinnabar-400);
 }
 
 .error-close {
@@ -570,17 +541,17 @@ function handleClearError() {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 16px;
-  color: var(--el-color-danger);
+  font-size: 14px;
+  color: var(--cinnabar-400);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background-color 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .error-close:hover {
-  background-color: rgba(185, 28, 28, 0.15);
+  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
 }
 
 /* ============================
@@ -588,12 +559,12 @@ function handleClearError() {
    ============================ */
 .sidebar-enter-active,
 .sidebar-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--dur-base) var(--ease-out);
 }
 
 .sidebar-enter-active .sidebar,
 .sidebar-leave-active .sidebar {
-  transition: transform 0.3s ease;
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
 .sidebar-enter-from,
@@ -608,7 +579,7 @@ function handleClearError() {
 
 .error-enter-active,
 .error-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
 
 .error-enter-from,
@@ -618,15 +589,11 @@ function handleClearError() {
 }
 
 /* ============================
-   响应式：小屏适配
+   响应式
    ============================ */
 @media (max-width: 1023px) {
   .chat-view {
     padding: 12px;
-  }
-
-  .chat-anvil {
-    min-height: 400px;
   }
 }
 </style>

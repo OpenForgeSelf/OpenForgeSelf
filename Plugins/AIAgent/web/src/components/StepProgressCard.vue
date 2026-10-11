@@ -159,10 +159,10 @@ function stepStatusText(s: AgentStepStatus): string {
 /* 卡片：铸造主题描边 + 主色左缘（与消息气泡同语言） */
 .spc {
   flex-shrink: 0;
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
-  border-left: 3px solid var(--el-color-primary, #ffb84d);
+  border: 1px solid var(--el-border-color-dark);
+  border-left: 3px solid var(--el-color-primary);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   overflow: hidden;
 }
 
@@ -176,7 +176,7 @@ function stepStatusText(s: AgentStepStatus): string {
 }
 
 .spc__head:hover {
-  background: var(--el-fill-color-light, #303132);
+  background: var(--el-fill-color-light);
 }
 
 .spc__ico {
@@ -186,7 +186,7 @@ function stepStatusText(s: AgentStepStatus): string {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .spc__ico-svg {
@@ -211,14 +211,14 @@ function stepStatusText(s: AgentStepStatus): string {
   white-space: nowrap;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .spc__goal {
   margin-left: 6px;
   font-weight: normal;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .spc__badge {
@@ -230,41 +230,41 @@ function stepStatusText(s: AgentStepStatus): string {
 }
 
 .spc__badge--pending {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-dark, #2f3031);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-dark);
 }
 
 .spc__badge--planning,
 .spc__badge--running {
-  color: var(--el-color-warning, #e6a23c);
-  background: rgba(230, 162, 60, 0.12);
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
 }
 
 .spc__badge--completed {
-  color: var(--el-color-success, #67c23a);
-  background: rgba(103, 194, 58, 0.12);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .spc__badge--stuck {
-  color: var(--el-color-danger, #f56c6c);
-  background: rgba(245, 108, 108, 0.12);
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
 }
 
 .spc__badge--failed,
 .spc__badge--cancelled {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-dark, #2f3031);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-dark);
 }
 
 .spc__count {
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 
 .spc__caret {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
   font-size: 11px;
 }
 
@@ -276,8 +276,8 @@ function stepStatusText(s: AgentStepStatus): string {
   margin: 0 12px 8px;
   padding: 6px 8px;
   border-radius: var(--el-border-radius-small, 4px);
-  background: rgba(245, 108, 108, 0.08);
-  color: var(--el-color-danger, #f56c6c);
+  background: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  color: var(--el-color-danger);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.5;
 }
@@ -293,8 +293,8 @@ function stepStatusText(s: AgentStepStatus): string {
   margin: 0 12px 8px;
   padding: 6px 8px;
   border-radius: var(--el-border-radius-small, 4px);
-  background: rgba(245, 108, 108, 0.08);
-  color: var(--el-color-danger, #f56c6c);
+  background: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  color: var(--el-color-danger);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 
@@ -311,14 +311,14 @@ function stepStatusText(s: AgentStepStatus): string {
   gap: 6px;
   padding: 8px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 /* 步骤明细行 */
 .spc__step {
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
+  background: var(--el-bg-color);
   overflow: hidden;
 }
 
@@ -346,27 +346,27 @@ function stepStatusText(s: AgentStepStatus): string {
 }
 
 .spc__step-ico--pending {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .spc__step-ico--running {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 
 .spc__step-ico--completed {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 
 .spc__step-ico--skipped {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .spc__step-ico--stuck {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .spc__step-ico--failed {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .spc__step-idx {
@@ -377,10 +377,10 @@ function stepStatusText(s: AgentStepStatus): string {
   height: 18px;
   flex-shrink: 0;
   border-radius: 999px;
-  background: var(--el-fill-color-dark, #2f3031);
+  background: var(--el-fill-color-dark);
   font-family: var(--el-font-family-mono, monospace);
   font-size: 11px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .spc__step-name {
@@ -390,7 +390,7 @@ function stepStatusText(s: AgentStepStatus): string {
   white-space: nowrap;
   flex: 1;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .spc__step-status {
@@ -399,24 +399,24 @@ function stepStatusText(s: AgentStepStatus): string {
 }
 
 .spc__step-status--pending {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .spc__step-status--running {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 
 .spc__step-status--completed {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 
 .spc__step-status--skipped {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .spc__step-status--stuck,
 .spc__step-status--failed {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .spc__step-body {
@@ -424,26 +424,26 @@ function stepStatusText(s: AgentStepStatus): string {
   flex-direction: column;
   gap: 4px;
   padding: 6px 10px;
-  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-top: 1px solid var(--el-border-color-dark);
 }
 
 .spc__step-line {
   margin: 0;
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.6;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   word-break: break-word;
 }
 
 .spc__step-line--stuck {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .spc__step-label {
   display: inline-block;
   margin-right: 6px;
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .spc__step-output {

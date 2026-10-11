@@ -1,14 +1,10 @@
 <template>
   <div class="personal-library-view">
-    <div class="view-header">
-      <div class="header-left">
-        <h2>
-          <i class="fa-solid fa-gauge-high" />
-          个人工具库
-        </h2>
-        <p class="view-subtitle">查看你的工具使用情况和能力成长曲线</p>
-      </div>
-      <div class="header-right">
+    <PageHead
+      eyebrow="Personal Library · 个人工具库"
+      title="使用情况 · 能力成长"
+    >
+      <template #actions>
         <div class="time-range-selector">
           <button
             v-for="range in timeRanges"
@@ -24,73 +20,35 @@
           <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': isLoading }" />
           刷新
         </button>
-      </div>
+      </template>
+    </PageHead>
+
+    <div v-if="hasError" class="error-state">
+      <EmptyState
+        icon=""
+        title="加载数据失败"
+        sub="请检查后端服务后重试"
+      >
+        <template #action>
+          <button class="retry-btn" @click="loadAllData">重新加载</button>
+        </template>
+      </EmptyState>
     </div>
 
-    <div v-if="!hasError" class="view-content">
+    <div v-else class="view-content">
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon icon-script">
-            <i class="fa-solid fa-file-code" />
+        <ForgeCard v-for="card in statCards" :key="card.key" class="stat-card">
+          <div class="stat-icon" :class="card.iconClass">
+            <i :class="card.icon" />
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.scriptCount }}</div>
-            <div class="stat-label">脚本数量</div>
+            <div class="stat-value">{{ card.value }}</div>
+            <div class="stat-label">{{ card.label }}</div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-snippet">
-            <i class="fa-solid fa-code" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.codeSnippetCount }}</div>
-            <div class="stat-label">代码片段</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-workflow">
-            <i class="fa-solid fa-diagram-project" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.workflowCount }}</div>
-            <div class="stat-label">工作流数量</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-favorite">
-            <i class="fa-solid fa-star" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.favoriteCount }}</div>
-            <div class="stat-label">收藏数量</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-usage">
-            <i class="fa-solid fa-play-circle" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.totalUsageCount }}</div>
-            <div class="stat-label">总使用次数</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-time">
-            <i class="fa-solid fa-clock" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ formatDuration(stats.totalUsageDurationSeconds) }}</div>
-            <div class="stat-label">总使用时长</div>
-          </div>
-        </div>
+        </ForgeCard>
       </div>
 
-      <div class="chart-section">
+      <ForgeCard class="chart-section" :padding="16">
         <div class="section-header">
           <h3><i class="fa-solid fa-chart-line" /> 能力成长曲线</h3>
         </div>
@@ -100,16 +58,16 @@
             <i class="fa-solid fa-spinner fa-spin" />
           </div>
         </div>
-      </div>
+      </ForgeCard>
 
       <div class="rankings-grid">
-        <div class="ranking-card">
+        <ForgeCard :padding="0" class="ranking-card">
           <div class="section-header">
             <h3><i class="fa-solid fa-toolbox" /> 常用工具 Top 10</h3>
           </div>
           <div class="ranking-list">
             <div
-              v-for="(item, index) in stats.topTools?.slice(0, 10) || []"
+              v-for="(item, index) in (stats.topTools || []).slice(0, 10)"
               :key="item.toolId"
               class="ranking-item"
             >
@@ -120,19 +78,22 @@
               </div>
               <div class="rank-value">{{ item.useCount }} 次</div>
             </div>
-            <div v-if="!stats.topTools?.length" class="empty-ranking">
-              暂无数据
-            </div>
+            <EmptyState
+              v-if="!stats.topTools?.length"
+              icon="wrench"
+              title="暂无工具使用记录"
+              sub="暂无数据"
+            />
           </div>
-        </div>
+        </ForgeCard>
 
-        <div class="ranking-card">
+        <ForgeCard :padding="0" class="ranking-card">
           <div class="section-header">
             <h3><i class="fa-solid fa-file-code" /> 常用脚本 Top 10</h3>
           </div>
           <div class="ranking-list">
             <div
-              v-for="(item, index) in stats.topScripts?.slice(0, 10) || []"
+              v-for="(item, index) in (stats.topScripts || []).slice(0, 10)"
               :key="item.scriptId"
               class="ranking-item"
             >
@@ -143,19 +104,22 @@
               </div>
               <div class="rank-value">{{ item.usageCount }} 次</div>
             </div>
-            <div v-if="!stats.topScripts?.length" class="empty-ranking">
-              暂无数据
-            </div>
+            <EmptyState
+              v-if="!stats.topScripts?.length"
+              icon="code"
+              title="暂无脚本使用记录"
+              sub="暂无数据"
+            />
           </div>
-        </div>
+        </ForgeCard>
 
-        <div class="ranking-card">
+        <ForgeCard :padding="0" class="ranking-card">
           <div class="section-header">
             <h3><i class="fa-solid fa-diagram-project" /> 常用工作流 Top 10</h3>
           </div>
           <div class="ranking-list">
             <div
-              v-for="(item, index) in stats.topWorkflows?.slice(0, 10) || []"
+              v-for="(item, index) in (stats.topWorkflows || []).slice(0, 10)"
               :key="item.workflowId"
               class="ranking-item"
             >
@@ -166,14 +130,17 @@
               </div>
               <div class="rank-value">{{ item.executionCount }} 次</div>
             </div>
-            <div v-if="!stats.topWorkflows?.length" class="empty-ranking">
-              暂无数据
-            </div>
+            <EmptyState
+              v-if="!stats.topWorkflows?.length"
+              icon="network"
+              title="暂无工作流使用记录"
+              sub="暂无数据"
+            />
           </div>
-        </div>
+        </ForgeCard>
       </div>
 
-      <div class="time-saved-section">
+      <ForgeCard class="time-saved-section" :padding="0">
         <div class="section-header">
           <h3><i class="fa-solid fa-hourglass-half" /> 节省时间估算</h3>
         </div>
@@ -196,25 +163,22 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <div v-else class="error-state">
-      <i class="fa-solid fa-triangle-exclamation" />
-      <p>加载数据失败</p>
-      <button class="retry-btn" @click="loadAllData">重新加载</button>
+      </ForgeCard>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import type {
   PersonalLibraryStatsDto,
   GrowthCurvePoint,
   TimeSavedEstimateDto
 } from '@/types/usageStats'
 import { usageStatsApi } from '@/services/usageStatsApi'
+import PageHead from '@/components/PageHead.vue'
+import ForgeCard from '@/components/ForgeCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const timeRanges = [
   { label: '7天', value: '7d' },
@@ -252,6 +216,23 @@ const timeSaved = ref<TimeSavedEstimateDto>({
 
 const growthChartCanvas = ref<HTMLCanvasElement | null>(null)
 const chartContainer = ref<HTMLDivElement | null>(null)
+
+interface StatCard {
+  key: string
+  icon: string
+  iconClass: string
+  value: string | number
+  label: string
+}
+
+const statCards = computed<StatCard[]>(() => [
+  { key: 'scripts', icon: 'fa-solid fa-file-code', iconClass: 'icon-script', value: stats.value.scriptCount, label: '脚本数量' },
+  { key: 'snippets', icon: 'fa-solid fa-code', iconClass: 'icon-snippet', value: stats.value.codeSnippetCount, label: '代码片段' },
+  { key: 'workflows', icon: 'fa-solid fa-diagram-project', iconClass: 'icon-workflow', value: stats.value.workflowCount, label: '工作流数量' },
+  { key: 'favorites', icon: 'fa-solid fa-star', iconClass: 'icon-favorite', value: stats.value.favoriteCount, label: '收藏数量' },
+  { key: 'usage', icon: 'fa-solid fa-play-circle', iconClass: 'icon-usage', value: stats.value.totalUsageCount, label: '总使用次数' },
+  { key: 'time', icon: 'fa-solid fa-clock', iconClass: 'icon-time', value: formatDuration(stats.value.totalUsageDurationSeconds), label: '总使用时长' }
+])
 
 function formatDuration(seconds: number): string {
   if (!seconds) return '0秒'
@@ -311,6 +292,16 @@ function changeTimeRange(range: string) {
   loadAllData()
 }
 
+/** 从主题 token 读取画布配色（DESIGN.md：canvas 不硬编码色值，取色用 getComputedStyle） */
+function readThemeColors() {
+  const root = getComputedStyle(document.documentElement)
+  return {
+    gold: root.getPropertyValue('--gold-400').trim() || '#F59E0B',
+    fgTertiary: root.getPropertyValue('--fg-tertiary').trim() || '#8F8478',
+    fgPrimary: root.getPropertyValue('--fg-primary').trim() || '#F4F0E7'
+  }
+}
+
 function drawGrowthChart() {
   const canvas = growthChartCanvas.value
   const container = chartContainer.value
@@ -330,6 +321,8 @@ function drawGrowthChart() {
   canvas.style.height = height + 'px'
   ctx.scale(dpr, dpr)
 
+  const { gold, fgTertiary, fgPrimary } = readThemeColors()
+
   const padding = { top: 20, right: 20, bottom: 40, left: 50 }
   const chartWidth = width - padding.left - padding.right
   const chartHeight = height - padding.top - padding.bottom
@@ -341,7 +334,12 @@ function drawGrowthChart() {
 
   const maxValue = Math.max(...data.map(d => d.usageCount), 1)
 
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)'
+  // 网格线：用 fgPrimary 的低透明派生
+  ctx.strokeStyle = fgPrimary.replace(')', ', 0.08)').replace('rgb', 'rgba')
+  if (!ctx.strokeStyle.startsWith('rgba')) {
+    // hex 转 rgba 近似：直接用 color-mix 不行（canvas），退而用半透明黑/白
+    ctx.strokeStyle = 'rgba(245, 240, 231, 0.08)'
+  }
   ctx.lineWidth = 1
   for (let i = 0; i <= 4; i++) {
     const y = padding.top + (chartHeight / 4) * i
@@ -351,7 +349,7 @@ function drawGrowthChart() {
     ctx.stroke()
   }
 
-  ctx.fillStyle = '#6b7280'
+  ctx.fillStyle = fgTertiary
   ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
@@ -363,20 +361,17 @@ function drawGrowthChart() {
 
   const stepX = chartWidth / Math.max(data.length - 1, 1)
 
+  // 面积渐变：金 30% → 金 2%
   const usageGradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight)
-  usageGradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)')
-  usageGradient.addColorStop(1, 'rgba(59, 130, 246, 0.02)')
+  usageGradient.addColorStop(0, gold + '4D')  // 30% alpha
+  usageGradient.addColorStop(1, gold + '05')  // ~2% alpha
 
   ctx.beginPath()
   ctx.moveTo(padding.left, padding.top + chartHeight)
   data.forEach((point, i) => {
     const x = padding.left + i * stepX
     const y = padding.top + chartHeight - (point.usageCount / maxValue) * chartHeight
-    if (i === 0) {
-      ctx.lineTo(x, y)
-    } else {
-      ctx.lineTo(x, y)
-    }
+    ctx.lineTo(x, y)
   })
   ctx.lineTo(padding.left + (data.length - 1) * stepX, padding.top + chartHeight)
   ctx.closePath()
@@ -384,7 +379,7 @@ function drawGrowthChart() {
   ctx.fill()
 
   ctx.beginPath()
-  ctx.strokeStyle = '#3b82f6'
+  ctx.strokeStyle = gold
   ctx.lineWidth = 2
   data.forEach((point, i) => {
     const x = padding.left + i * stepX
@@ -402,11 +397,11 @@ function drawGrowthChart() {
     const y = padding.top + chartHeight - (point.usageCount / maxValue) * chartHeight
     ctx.beginPath()
     ctx.arc(x, y, 3, 0, Math.PI * 2)
-    ctx.fillStyle = '#3b82f6'
+    ctx.fillStyle = gold
     ctx.fill()
   })
 
-  ctx.fillStyle = '#6b7280'
+  ctx.fillStyle = fgTertiary
   ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
@@ -420,9 +415,9 @@ function drawGrowthChart() {
   })
 
   const legendY = padding.top + chartHeight + 28
-  ctx.fillStyle = '#3b82f6'
+  ctx.fillStyle = gold
   ctx.fillRect(padding.left, legendY, 12, 3)
-  ctx.fillStyle = '#6b7280'
+  ctx.fillStyle = fgTertiary
   ctx.textAlign = 'left'
   ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   ctx.fillText('使用次数', padding.left + 18, legendY - 1)
@@ -456,92 +451,65 @@ watch(() => growthCurve.value, () => {
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  background: var(--el-bg-color, #f9fafb);
-}
-
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  background: var(--el-bg-color, #fff);
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.header-left h2 {
-  margin: 0 0 4px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--el-text-color-primary, #1f2937);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-left h2 i {
-  color: var(--el-color-primary, #3b82f6);
-}
-
-.view-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: var(--el-text-color-regular, #6b7280);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 20px 24px 36px;
 }
 
 .time-range-selector {
   display: flex;
-  background: var(--el-bg-color-page, #f3f4f6);
-  border-radius: 8px;
+  gap: 4px;
   padding: 3px;
+  background: var(--paper-tint-weak);
+  border-radius: var(--radius-md);
 }
 
 .range-btn {
   padding: 6px 14px;
   border: none;
   background: transparent;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--fg-tertiary);
   font-size: 12px;
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.range-btn:hover {
+  color: var(--fg-primary);
 }
 
 .range-btn.active {
-  background: var(--el-bg-color, #fff);
-  color: var(--el-color-primary, #3b82f6);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
 }
 
 .refresh-btn {
   padding: 8px 14px;
-  border: 1px solid var(--el-border-color, #d1d5db);
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-regular, #6b7280);
-  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--fg-secondary);
+  border-radius: var(--radius-md);
   font-size: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--el-bg-color-page, #f3f4f6);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .view-content {
-  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .stats-grid {
@@ -554,71 +522,52 @@ watch(() => growthCurve.value, () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px;
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color, #e5e7eb);
-  border-radius: 10px;
 }
 
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: white;
+  color: var(--gold-400);
+  background: var(--gold-tint);
   flex-shrink: 0;
 }
 
-.icon-script { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.icon-snippet { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-.icon-workflow { background: linear-gradient(135deg, #10b981, #059669); }
-.icon-favorite { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.icon-usage { background: linear-gradient(135deg, #ec4899, #db2777); }
-.icon-time { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-
 .stat-value {
+  font-family: var(--font-mono);
   font-size: 24px;
   font-weight: 700;
-  color: var(--el-text-color-primary, #1f2937);
+  color: var(--fg-primary);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--fg-secondary);
   margin-top: 2px;
-}
-
-.chart-section,
-.ranking-card,
-.time-saved-section {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color, #e5e7eb);
-  border-radius: 10px;
-  overflow: hidden;
 }
 
 .section-header {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
-  background: var(--el-bg-color-page, #f9fafb);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .section-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary, #1f2937);
+  color: var(--fg-primary);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .section-header h3 i {
-  color: var(--el-color-primary, #3b82f6);
+  color: var(--gold-400);
   font-size: 13px;
 }
 
@@ -637,8 +586,8 @@ watch(() => growthCurve.value, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--el-text-color-secondary, #9ca3af);
+  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  color: var(--fg-tertiary);
 }
 
 .rankings-grid {
@@ -657,7 +606,7 @@ watch(() => growthCurve.value, () => {
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--el-border-color-light, #f3f4f6);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .ranking-item:last-child {
@@ -667,20 +616,21 @@ watch(() => growthCurve.value, () => {
 .rank-number {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius-full, 9999px);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  background: var(--el-bg-color-page, #f3f4f6);
-  color: var(--el-text-color-regular, #6b7280);
+  font-family: var(--font-mono);
+  background: var(--paper-tint);
+  color: var(--fg-tertiary);
   flex-shrink: 0;
 }
 
-.rank-1 { background: #fef3c7; color: #d97706; }
-.rank-2 { background: #e5e7eb; color: #6b7280; }
-.rank-3 { background: #fed7aa; color: #c2410c; }
+.rank-1 { background: var(--gold-tint-strong); color: var(--gold-400); }
+.rank-2 { background: var(--paper-tint); color: var(--fg-secondary); }
+.rank-3 { background: var(--gold-tint); color: var(--gold-300); }
 
 .rank-info {
   flex: 1;
@@ -690,7 +640,7 @@ watch(() => growthCurve.value, () => {
 .rank-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--el-text-color-primary, #1f2937);
+  color: var(--fg-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -698,22 +648,17 @@ watch(() => growthCurve.value, () => {
 
 .rank-subtitle {
   font-size: 11px;
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--fg-tertiary);
   margin-top: 2px;
+  font-family: var(--font-mono);
 }
 
 .rank-value {
   font-size: 12px;
   font-weight: 500;
-  color: var(--el-color-primary, #3b82f6);
+  color: var(--gold-400);
+  font-family: var(--font-mono);
   flex-shrink: 0;
-}
-
-.empty-ranking {
-  padding: 30px;
-  text-align: center;
-  color: var(--el-text-color-secondary, #9ca3af);
-  font-size: 13px;
 }
 
 .time-saved-content {
@@ -730,9 +675,10 @@ watch(() => growthCurve.value, () => {
 }
 
 .time-saved-value {
+  font-family: var(--font-mono);
   font-size: 36px;
   font-weight: 700;
-  color: var(--el-color-primary, #3b82f6);
+  color: var(--gold-400);
   line-height: 1;
 }
 
@@ -744,7 +690,7 @@ watch(() => growthCurve.value, () => {
 
 .time-saved-label {
   font-size: 13px;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--fg-secondary);
   margin-top: 6px;
 }
 
@@ -759,51 +705,46 @@ watch(() => growthCurve.value, () => {
   display: flex;
   justify-content: space-between;
   padding: 10px 12px;
-  background: var(--el-bg-color-page, #f9fafb);
-  border-radius: 6px;
+  background: var(--paper-tint-weak);
+  border-radius: var(--radius-md);
   font-size: 12px;
 }
 
 .breakdown-category {
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--fg-secondary);
 }
 
 .breakdown-value {
   font-weight: 500;
-  color: var(--el-text-color-primary, #1f2937);
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
 }
 
 .error-state {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-secondary, #9ca3af);
-  gap: 16px;
-}
-
-.error-state i {
-  font-size: 48px;
-  opacity: 0.3;
-}
-
-.error-state p {
-  margin: 0;
-  font-size: 14px;
 }
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--el-color-primary, #3b82f6);
-  color: white;
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition: box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 
 .retry-btn:hover {
-  background: var(--el-color-primary-light-3);
+  box-shadow: var(--shadow-brand);
+  transform: translateY(-1px);
+}
+
+.retry-btn:active {
+  transform: translateY(1px);
 }
 </style>

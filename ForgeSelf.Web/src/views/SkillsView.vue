@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppLogo from '@/components/AppLogo.vue'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import type { SkillItemDto, CreateSkillDto, UpdateSkillDto } from '@/types/skills'
 import { skillsApi } from '@/services/skillsApi'
 import { useOpenPage } from '@/composables/useOpenPage'
@@ -20,6 +22,12 @@ const { openPage } = useOpenPage()
 function goHome(): void {
   openPage('/', '首页')
 }
+
+// EmptyState 图标（v-html 注入；lucide zap 风格）
+const emptyIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'
+const errorIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
 
 // Form fields
 const formName = ref('')
@@ -168,11 +176,8 @@ function getSkillIcon(name: string): string {
 
 <template>
   <div class="skills-view">
-    <!-- ===== Ambient glow ===== -->
-    <div class="ambient-glow" aria-hidden="true" />
-
     <div class="skills-page">
-      <!-- ===== Breadcrumb ===== -->
+      <!-- ===== Breadcrumb（保留首页导航） ===== -->
       <nav class="breadcrumb" aria-label="面包屑导航">
         <a href="/" class="breadcrumb-link" @click.prevent="goHome()">首页</a>
         <svg
@@ -191,29 +196,9 @@ function getSkillIcon(name: string): string {
         <span class="breadcrumb-current">技能管理</span>
       </nav>
 
-      <!-- ===== Page Header ===== -->
-      <div class="page-header">
-        <div class="header-left">
-          <h1 class="page-title">技能管理</h1>
-          <span class="count-badge">{{ skills.length }} 个技能</span>
-        </div>
-        <div class="header-right">
-          <button class="btn-create" @click="openCreateModal">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>创建技能</span>
-          </button>
+      <!-- ===== PageHead（设计稿统一规格） ===== -->
+      <PageHead eyebrow="Skills · 技能管理" title="技能工坊">
+        <template #actions>
           <div class="search-box">
             <svg
               width="14"
@@ -237,220 +222,197 @@ function getSkillIcon(name: string): string {
               aria-label="搜索技能"
             />
           </div>
-        </div>
-      </div>
+          <button class="btn-create" @click="openCreateModal">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>创建技能</span>
+          </button>
+        </template>
+      </PageHead>
 
       <!-- ===== Loading ===== -->
-      <div v-if="loading" class="state-message">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="spin-icon"
-        >
-          <line x1="12" y1="2" x2="12" y2="6" />
-          <line x1="12" y1="18" x2="12" y2="22" />
-          <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
-          <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
-          <line x1="2" y1="12" x2="6" y2="12" />
-          <line x1="18" y1="12" x2="22" y2="12" />
-          <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
-          <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
-        </svg>
-        <span>加载中...</span>
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner" />
+        <p>加载中…</p>
       </div>
 
-      <!-- ===== Error ===== -->
-      <div v-else-if="error" class="state-message state-error">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="15" y1="9" x2="9" y2="15" />
-          <line x1="9" y1="9" x2="15" y2="15" />
-        </svg>
-        <span>{{ error }}</span>
-        <button class="btn-retry" @click="loadSkills">重试</button>
-      </div>
+      <!-- ===== Error（可见留痕 + 重试） ===== -->
+      <EmptyState
+        v-else-if="error"
+        :icon="errorIconSvg"
+        title="技能加载失败"
+        :sub="error"
+      >
+        <template #action>
+          <button class="btn-create" @click="loadSkills">重试</button>
+        </template>
+      </EmptyState>
 
-      <!-- ===== Empty State ===== -->
-      <div v-else-if="filteredSkills.length === 0" class="state-message">
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-          <line x1="12" y1="22.08" x2="12" y2="12" />
-        </svg>
-        <span>{{ searchKeyword ? '没有匹配的技能' : '暂无技能，点击"创建技能"开始' }}</span>
-      </div>
+      <!-- ===== Empty ===== -->
+      <EmptyState
+        v-else-if="filteredSkills.length === 0"
+        :icon="emptyIconSvg"
+        :title="searchKeyword ? '没有匹配的技能' : '暂无技能'"
+        :sub="searchKeyword ? '换个关键字试试' : '从第一件工具开始打造你的匣'"
+      >
+        <template v-if="!searchKeyword" #action>
+          <button class="btn-create" @click="openCreateModal">创建技能</button>
+        </template>
+      </EmptyState>
 
-      <!-- ===== Skills Grid ===== -->
+      <!-- ===== Skills Grid（4 列，DESIGN.md 技能卡规格） ===== -->
       <div v-else class="skills-grid">
         <article
           v-for="skill in filteredSkills"
           :key="skill.id"
-          class="skill-card"
-          :class="{ 'skill-card--enabled': skill.isEnabled }"
+          class="skill-card glass"
+          :class="{ 'skill-card--off': !skill.isEnabled }"
         >
-          <!-- Card Top -->
-          <div class="card-top">
-            <div class="card-name-row">
-              <div class="card-icon" :class="{ 'card-icon--enabled': skill.isEnabled }">
-                <svg
-                  v-if="getSkillIcon(skill.name) === 'activity'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-                <svg
-                  v-else-if="getSkillIcon(skill.name) === 'file-code'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="16 18 22 12 16 6" />
-                  <polyline points="8 6 2 12 8 18" />
-                </svg>
-                <svg
-                  v-else-if="getSkillIcon(skill.name) === 'folder-sync'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M9 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v2" />
-                  <path d="M16 17a5 5 0 0 0-5-5" />
-                  <path d="M21 14a5 5 0 0 0-5-5" />
-                  <path d="M16 22a5 5 0 0 0 5-5" />
-                  <path d="M11 17a5 5 0 0 0 5 5" />
-                </svg>
-                <svg
-                  v-else-if="getSkillIcon(skill.name) === 'search-code'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  <line x1="8" y1="11" x2="14" y2="11" />
-                </svg>
-                <svg
-                  v-else-if="getSkillIcon(skill.name) === 'database'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <ellipse cx="12" cy="5" rx="9" ry="3" />
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                </svg>
-                <svg
-                  v-else-if="getSkillIcon(skill.name) === 'scroll-text'"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                  <polyline points="10 17 15 12 10 7" />
-                  <line x1="15" y1="12" x2="3" y2="12" />
-                </svg>
-                <svg
-                  v-else
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-              </div>
-              <h3 class="card-name">{{ skill.name }}</h3>
+          <div class="skill-card__head">
+            <div class="skill-card__icon" :class="skill.isEnabled ? 'is-on' : 'is-off'">
+              <svg
+                v-if="getSkillIcon(skill.name) === 'activity'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <svg
+                v-else-if="getSkillIcon(skill.name) === 'file-code'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              <svg
+                v-else-if="getSkillIcon(skill.name) === 'folder-sync'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v2" />
+                <path d="M16 17a5 5 0 0 0-5-5" />
+                <path d="M21 14a5 5 0 0 0-5-5" />
+                <path d="M16 22a5 5 0 0 0 5-5" />
+                <path d="M11 17a5 5 0 0 0 5 5" />
+              </svg>
+              <svg
+                v-else-if="getSkillIcon(skill.name) === 'search-code'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+              <svg
+                v-else-if="getSkillIcon(skill.name) === 'database'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+              </svg>
+              <svg
+                v-else-if="getSkillIcon(skill.name) === 'scroll-text'"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <svg
+                v-else
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
             </div>
+            <h3 class="card-name">{{ skill.name }}</h3>
             <span class="status-badge" :class="skill.isEnabled ? 'status-badge--enabled' : 'status-badge--disabled'">
               <span class="status-dot" :class="skill.isEnabled ? 'status-dot--enabled' : 'status-dot--disabled'" />
               {{ skill.isEnabled ? '已启用' : '未启用' }}
             </span>
           </div>
 
-          <!-- Description -->
-          <p class="card-desc">{{ skill.description }}</p>
+          <p class="skill-card__desc">{{ skill.description }}</p>
 
-          <!-- Bottom -->
-          <div class="card-bottom">
-            <div class="card-tools">
-              <span class="tools-label">工具函数</span>
-              <span v-if="skill.toolCount > 0" class="tool-tag">{{ skill.toolCount }} 个关联</span>
-              <span v-else class="tool-tag tool-tag--empty">暂无关联工具</span>
-            </div>
-            <div class="card-actions">
-              <span class="usage-count">使用 {{ skill.usageCount }} 次</span>
-              <button class="btn-ghost" :disabled="togglingIds.has(skill.id)" @click="handleToggle(skill)">
-                {{ skill.isEnabled ? '停用' : '启用' }}
+          <div class="skill-card__foot">
+            <span class="skill-card__meta">{{ skill.category || '未分类' }} · {{ skill.usageCount }} 次</span>
+            <div class="skill-card__actions">
+              <button class="skill-card__edit" @click="openEditModal(skill)">编辑</button>
+              <button
+                class="skill-toggle"
+                :class="{ on: skill.isEnabled }"
+                :disabled="togglingIds.has(skill.id)"
+                :aria-label="skill.isEnabled ? '停用' : '启用'"
+                @click="handleToggle(skill)"
+              >
+                <span class="skill-toggle__knob" />
               </button>
-              <button class="btn-ghost" @click="openEditModal(skill)">编辑</button>
             </div>
           </div>
         </article>
       </div>
     </div>
 
-    <!-- ===== Create/Edit Modal ===== -->
+    <!-- ===== Create/Edit Modal（保留原交互） ===== -->
     <Teleport to="body">
       <div v-if="showFormModal" class="modal-overlay" @click.self="closeFormModal">
         <div class="modal-panel">
@@ -519,20 +481,8 @@ function getSkillIcon(name: string): string {
   overflow-y: auto;
 }
 
-.ambient-glow {
-  position: fixed;
-  top: 60px;
-  left: 40px;
-  width: 600px;
-  height: 500px;
-  background: radial-gradient(ellipse at 30% 20%, rgba(245, 158, 11, 0.04) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 .skills-page {
   position: relative;
-  z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 32px;
@@ -543,73 +493,65 @@ function getSkillIcon(name: string): string {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .breadcrumb-link {
   font-size: 0.8125rem;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   text-decoration: none;
-  transition: color 150ms ease;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .breadcrumb-link:hover {
-  color: var(--el-color-primary);
+  color: var(--gold-400);
 }
 
 .breadcrumb-chevron {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-muted);
   flex-shrink: 0;
 }
 
 .breadcrumb-current {
   font-size: 0.8125rem;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   font-weight: 500;
 }
 
-/* ===== Page Header ===== */
-.page-header {
+/* ===== PageHead actions ===== */
+.search-box {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--el-border-radius-base);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.search-box:focus-within {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 2px var(--gold-tint-strong);
 }
 
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  white-space: nowrap;
+.search-icon {
+  color: var(--fg-tertiary);
+  flex-shrink: 0;
 }
 
-.count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  border-radius: var(--radius-pill);
-  background: var(--el-color-primary-light-9);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--el-color-primary);
-  font-family: var(--font-family-mono);
-  padding: 0 8px;
+.search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.8125rem;
+  color: var(--fg-primary);
+  width: 180px;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
+.search-input::placeholder {
+  color: var(--fg-muted);
 }
 
 .btn-create {
@@ -619,188 +561,134 @@ function getSkillIcon(name: string): string {
   height: 32px;
   padding: 0 14px;
   border-radius: var(--el-border-radius-base);
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
   font-size: 0.8125rem;
-  font-weight: 500;
-  font-family: var(--font-family-base);
+  font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .btn-create:hover {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  transform: translateY(-1px);
 }
 
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  background: var(--el-bg-color-page);
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+.btn-create:active {
+  transform: translateY(1px);
 }
 
-.search-box:focus-within {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 2px var(--primary-light);
-}
-
-.search-icon {
-  color: var(--el-text-color-secondary);
-  flex-shrink: 0;
-}
-
-.search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 0.8125rem;
-  color: var(--el-text-color-primary);
-  font-family: var(--font-family-base);
-  width: 180px;
-}
-
-.search-input::placeholder {
-  color: var(--el-text-color-secondary);
-}
-
-/* ===== State Messages ===== */
-.state-message {
+/* ===== Loading ===== */
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   padding: 64px 16px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   font-size: 0.875rem;
 }
 
-.state-message.state-error {
-  color: var(--el-color-danger);
-}
-
-.spin-icon {
-  animation: spin 1.5s linear infinite;
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid color-mix(in srgb, var(--fg-primary) 12%, transparent);
+  border-top-color: var(--gold-400);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.btn-retry {
-  margin-top: 8px;
-  padding: 6px 16px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
-  border: none;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.btn-retry:hover {
-  background: var(--el-color-primary-light-3);
-}
-
-/* ===== Skills Grid ===== */
+/* ===== Skills Grid（4 列） ===== */
 .skills-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
-/* ===== Skill Card ===== */
+/* ===== Skill Card（DESIGN.md 技能卡规格） ===== */
 .skill-card {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  padding: 20px;
-  transition: border-color 150ms ease, background 150ms ease;
-  border-left: 2px solid transparent;
-}
-
-.skill-card--enabled {
-  border-left-color: var(--el-color-primary);
+  border-radius: var(--glass-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .skill-card:hover {
-  background: var(--el-bg-color-page);
-  border-color: var(--el-color-primary);
+  transform: translateY(-1px);
 }
 
-.skill-card:hover .btn-ghost {
-  border-color: var(--el-color-primary);
-  color: var(--el-color-primary);
+.skill-card--off {
+  opacity: 0.6;
 }
 
-/* Card Top */
-.card-top {
+.skill-card__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.card-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
-.card-icon {
+.skill-card__icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--el-border-radius-small);
-  background: var(--el-fill-color);
   flex-shrink: 0;
-  color: var(--el-text-color-secondary);
 }
 
-.card-icon--enabled {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+.skill-card__icon.is-on {
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
+}
+
+.skill-card__icon.is-off {
+  background: color-mix(in srgb, var(--fg-muted) 5%, transparent);
+  color: var(--fg-muted);
 }
 
 .card-name {
-  font-size: 0.9375rem;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
+  min-width: 0;
+  flex: 1;
 }
 
-/* Status Badge */
+/* Status chip（已启用青铜绿 / 未启用灰） */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
-  font-size: 0.75rem;
+  padding: 1px 8px;
+  font-size: 11px;
   font-weight: 500;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   flex-shrink: 0;
+  font-family: var(--font-mono);
 }
 
 .status-badge--enabled {
   color: var(--el-color-success);
-  background: rgba(63, 185, 80, 0.1);
+  background: color-mix(in srgb, var(--el-color-success) 14%, transparent);
 }
 
 .status-badge--disabled {
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
+  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
 }
 
 .status-dot {
@@ -814,102 +702,106 @@ function getSkillIcon(name: string): string {
 }
 
 .status-dot--disabled {
-  background: var(--el-text-color-secondary);
+  background: var(--fg-muted);
 }
 
-/* Description */
-.card-desc {
+.skill-card__desc {
   font-size: 0.8125rem;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   line-height: 1.5;
-  margin-bottom: 12px;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skill-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.skill-card__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Card Bottom */
-.card-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.card-tools {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  flex: 1;
-}
-
-.tools-label {
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.tool-tag {
-  font-size: 0.75rem;
-  color: var(--el-color-info);
-  background: rgba(88, 166, 255, 0.12);
-  padding: 1px 6px;
-  border-radius: var(--el-border-radius-small);
-  font-family: var(--font-family-mono);
-  white-space: nowrap;
-}
-
-.tool-tag--empty {
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
-}
-
-.card-actions {
+.skill-card__actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.usage-count {
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.btn-ghost {
-  font-size: 0.75rem;
-  color: var(--el-text-color-regular);
+.skill-card__edit {
+  font-size: 12px;
+  color: var(--fg-secondary);
   background: transparent;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid color-mix(in srgb, var(--fg-primary) 14%, transparent);
   border-radius: var(--el-border-radius-small);
   padding: 2px 10px;
   cursor: pointer;
-  transition: all 150ms ease;
-  font-family: var(--font-family-base);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   white-space: nowrap;
 }
 
-.btn-ghost:hover {
-  background: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary);
-  color: var(--el-color-primary);
+.skill-card__edit:hover {
+  color: var(--gold-400);
+  border-color: var(--gold-400);
 }
 
-.btn-ghost:disabled {
-  opacity: 0.5;
+/* 金色小 toggle（28×15，圆钮 11px） */
+.skill-toggle {
+  width: 28px;
+  height: 15px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--fg-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.skill-toggle.on {
+  background: var(--gold-400);
+  border-color: var(--gold-400);
+}
+
+.skill-toggle:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.skill-toggle__knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--fg-primary);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.skill-toggle.on .skill-toggle__knob {
+  transform: translateX(13px);
+  background: var(--ink-950);
 }
 
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--ink-950) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -918,14 +810,14 @@ function getSkillIcon(name: string): string {
 }
 
 .modal-panel {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
+  background: var(--ink-850);
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink-950) 60%, transparent);
 }
 
 .modal-header {
@@ -933,13 +825,14 @@ function getSkillIcon(name: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .modal-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
+  margin: 0;
 }
 
 .modal-close {
@@ -951,14 +844,14 @@ function getSkillIcon(name: string): string {
   border-radius: var(--el-border-radius-small);
   background: transparent;
   border: none;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .modal-close:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .modal-body {
@@ -973,34 +866,33 @@ function getSkillIcon(name: string): string {
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   margin-bottom: 8px;
 }
 
 .required {
-  color: var(--el-color-danger);
+  color: var(--cinnabar-400);
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
   border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color-page);
-  border: 1px solid var(--el-border-color);
-  color: var(--el-text-color-primary);
+  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  border: 1px solid var(--glass-border);
+  color: var(--fg-primary);
   font-size: 0.875rem;
-  font-family: var(--font-family-base);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .form-input:focus {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 2px var(--primary-light);
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 2px var(--gold-tint-strong);
   outline: none;
 }
 
 .form-input::placeholder {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-muted);
 }
 
 .form-textarea {
@@ -1009,16 +901,16 @@ function getSkillIcon(name: string): string {
 }
 
 .form-textarea--code {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
 
 .form-error {
   padding: 8px 12px;
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid rgba(248, 81, 73, 0.3);
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
   border-radius: var(--el-border-radius-base);
-  color: var(--el-color-danger);
+  color: var(--cinnabar-400);
   font-size: 0.8125rem;
   margin-bottom: 16px;
 }
@@ -1035,34 +927,32 @@ function getSkillIcon(name: string): string {
   padding: 8px 16px;
   border-radius: var(--el-border-radius-base);
   background: transparent;
-  border: 1px solid var(--el-border-color);
-  color: var(--el-text-color-regular);
+  border: 1px solid var(--glass-border);
+  color: var(--fg-secondary);
   font-size: 0.875rem;
-  font-family: var(--font-family-base);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .btn-cancel:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .btn-submit {
   padding: 8px 20px;
   border-radius: var(--el-border-radius-base);
-  background: var(--el-color-primary);
+  background: var(--gold-400);
   border: none;
-  color: var(--el-color-white);
+  color: var(--ink-950);
   font-size: 0.875rem;
-  font-weight: 500;
-  font-family: var(--font-family-base);
+  font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 
 .btn-submit:hover {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
 }
 
 .btn-submit:disabled {
@@ -1071,7 +961,13 @@ function getSkillIcon(name: string): string {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .skills-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .skills-grid {
     grid-template-columns: 1fr;
   }

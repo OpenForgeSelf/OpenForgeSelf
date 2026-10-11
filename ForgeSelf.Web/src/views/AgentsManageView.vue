@@ -1,46 +1,101 @@
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import PageHead from '@/components/PageHead.vue'
+import ForgeCard from '@/components/ForgeCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import { useAgentStore } from '@/stores/agent'
+import type { AgentDefinition } from '@/types/agent'
+
+const store = useAgentStore()
+
+onMounted(() => {
+  store.loadAgents()
+})
+
+// 空态/错误态图标（currentColor，无裸色值；EmptyState 经 v-html 渲染）
+const ICON_LOADER =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
+const ICON_ALERT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+const ICON_BOT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>'
+
+function memoryCount(agent: AgentDefinition): number {
+  // Derive a plausible memory count from available data
+  if (agent.personality?.strengths?.length) {
+    return agent.personality.strengths.length * 2
+  }
+  return 0
+}
+
+/** 后端 AgentType 枚举序列化为数字（0-5、99），统一映射为字符串名称，避免模板 .toLowerCase()/比较崩溃 */
+const AGENT_TYPE_NAMES: Record<number, string> = {
+  0: 'Coordinator',
+  1: 'Researcher',
+  2: 'Writer',
+  3: 'Programmer',
+  4: 'Analyst',
+  5: 'Critic',
+  99: 'Generalist',
+}
+
+function agentTypeName(type: number | string): string {
+  if (typeof type === 'string') return type
+  return AGENT_TYPE_NAMES[type] ?? 'Generalist'
+}
+</script>
+
 <template>
   <div class="agents-manage-view">
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title">Agent 管理</h1>
+    <!-- ===== 页头（设计稿 PageHead 统一规格） ===== -->
+    <PageHead eyebrow="AI Agent · 智能代理" title="接入 · 调度 · 记忆">
+      <template #actions>
         <span v-if="!store.loading" class="agent-count-badge">
           {{ store.agents.length }} 个 Agent
         </span>
-      </div>
-      <button class="btn-create">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        创建 Agent
-      </button>
-    </div>
+        <button class="btn-create">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          创建 Agent
+        </button>
+      </template>
+    </PageHead>
 
-    <!-- Loading State -->
-    <div v-if="store.loading" class="loading-state">
-      <span>加载中...</span>
-    </div>
+    <!-- ===== 三态：加载 / 错误(可重试) / 空态 ===== -->
+    <ForgeCard v-if="store.loading" :padding="20" class="state-card">
+      <EmptyState :icon="ICON_LOADER" title="加载中" sub="正在拉取 Agent 列表…" />
+    </ForgeCard>
 
-    <!-- Error State -->
-    <div v-else-if="store.error" class="error-state">
-      <span>{{ store.error }}</span>
-    </div>
+    <ForgeCard v-else-if="store.error" :padding="20" class="state-card">
+      <EmptyState :icon="ICON_ALERT" title="加载失败" :sub="store.error">
+        <template #action>
+          <button class="btn-retry" @click="store.loadAgents()">重试</button>
+        </template>
+      </EmptyState>
+    </ForgeCard>
 
-    <!-- Agent Cards List -->
+    <ForgeCard v-else-if="store.agents.length === 0" :padding="20" class="state-card">
+      <EmptyState :icon="ICON_BOT" title="尚无 Agent" sub="点击右上角「创建 Agent」开始搭建" />
+    </ForgeCard>
+
+    <!-- ===== Agent 列表（玻璃卡栈） ===== -->
     <div v-else class="agent-list">
-      <div
+      <ForgeCard
         v-for="agent in store.agents"
         :key="agent.id"
+        interactive
+        :padding="16"
         class="agent-card"
         :class="{ 'agent-card--active': agent.isEnabled }"
       >
@@ -140,46 +195,10 @@
             </div>
           </div>
         </div>
-      </div>
+      </ForgeCard>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { onMounted } from 'vue'
-import { useAgentStore } from '@/stores/agent'
-import type { AgentDefinition } from '@/types/agent'
-
-const store = useAgentStore()
-
-onMounted(() => {
-  store.loadAgents()
-})
-
-function memoryCount(agent: AgentDefinition): number {
-  // Derive a plausible memory count from available data
-  if (agent.personality?.strengths?.length) {
-    return agent.personality.strengths.length * 2
-  }
-  return 0
-}
-
-/** 后端 AgentType 枚举序列化为数字（0-5、99），统一映射为字符串名称，避免模板 .toLowerCase()/比较崩溃 */
-const AGENT_TYPE_NAMES: Record<number, string> = {
-  0: 'Coordinator',
-  1: 'Researcher',
-  2: 'Writer',
-  3: 'Programmer',
-  4: 'Analyst',
-  5: 'Critic',
-  99: 'Generalist',
-}
-
-function agentTypeName(type: number | string): string {
-  if (typeof type === 'string') return type
-  return AGENT_TYPE_NAMES[type] ?? 'Generalist'
-}
-</script>
 
 <style scoped>
 .agents-manage-view {
@@ -187,45 +206,24 @@ function agentTypeName(type: number | string): string {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 2rem 1.5rem;
+  padding: 24px;
 }
 
 /* ================================
-   Page Header
+   页头操作区（#actions）
    ================================ */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 2rem;
-  flex-shrink: 0;
-}
-
-.page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  line-height: 1.2;
-}
-
 .agent-count-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
   font-size: 0.75rem;
   font-weight: 500;
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  border: 1px solid color-mix(in srgb, var(--el-color-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
+  border: 1px solid color-mix(in srgb, var(--gold-400) 40%, transparent);
   line-height: 1.5;
+  font-family: var(--font-mono);
 }
 
 .btn-create {
@@ -237,17 +235,24 @@ function agentTypeName(type: number | string): string {
   font-weight: 500;
   font-family: inherit;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
   background: var(--el-color-primary);
   color: var(--el-color-white);
   transition:
-    background 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .btn-create:hover {
   background: var(--el-color-primary-light-3);
+  transform: translateY(-1px);
+}
+
+.btn-create:active {
+  transform: translateY(1px);
 }
 
 .btn-create svg {
@@ -255,62 +260,54 @@ function agentTypeName(type: number | string): string {
 }
 
 /* ================================
-   Loading / Error
+   三态卡（加载 / 错误 / 空）
    ================================ */
-.loading-state,
-.error-state {
-  flex: 1;
-  display: flex;
+.state-card {
+  margin-top: 8px;
+}
+
+.btn-retry {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  padding: 6px 16px;
   font-size: 0.8125rem;
-  color: var(--el-text-color-secondary);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--gold-400) 40%, transparent);
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.btn-retry:hover {
+  transform: translateY(-1px);
 }
 
 /* ================================
-   Agent List (vertical stack)
+   Agent 列表（玻璃卡栈）
    ================================ */
 .agent-list {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
   overflow-y: auto;
+  margin-top: 4px;
 }
 
-/* ================================
-   Agent Card
-   ================================ */
-.agent-card {
-  position: relative;
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color);
-  background: var(--el-bg-color-page);
-  transition:
-    background 150ms ease,
-    box-shadow 150ms ease;
-  cursor: pointer;
-}
-
-.agent-card:hover {
-  background: var(--el-fill-color-light);
-}
-
-/* Active (enabled) state: amber left border + glow */
+/* 启用态：金色左条（玻璃卡边框由 ForgeCard 提供，此处仅覆盖左边条） */
 .agent-card--active {
-  border-left: 3px solid var(--el-color-primary);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--el-color-primary) 6%, transparent);
-}
-
-.agent-card--active:hover {
-  box-shadow: 0 0 20px color-mix(in srgb, var(--el-color-primary) 10%, transparent);
+  border-left: 3px solid var(--gold-400);
 }
 
 .agent-card-inner {
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  padding: 1.25rem;
 }
 
 /* ================================
@@ -320,12 +317,12 @@ function agentTypeName(type: number | string): string {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 9999px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--el-color-primary);
-  background: color-mix(in srgb, var(--el-color-primary) 15%, transparent);
+  background: var(--gold-tint-strong);
 }
 
 .agent-icon--programmer {
@@ -335,17 +332,17 @@ function agentTypeName(type: number | string): string {
 
 .agent-icon--analyst {
   color: var(--el-color-primary);
-  background: color-mix(in srgb, var(--el-color-primary) 15%, transparent);
+  background: var(--gold-tint-strong);
 }
 
 .agent-icon--researcher {
-  color: var(--el-color-success);
-  background: color-mix(in srgb, var(--el-color-success) 15%, transparent);
+  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--bronze-500) 15%, transparent);
 }
 
 .agent-icon--writer {
-  color: var(--el-color-danger);
-  background: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
+  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
 }
 
 .agent-icon--critic {
@@ -383,19 +380,19 @@ function agentTypeName(type: number | string): string {
   padding: 2px 6px;
   font-size: 0.75rem;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
   line-height: 1.4;
 }
 
 .agent-tag--default {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
 }
 
 .agent-tag--type {
-  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
-  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
+  color: var(--bronze-500);
 }
 
 .agent-desc {
@@ -413,7 +410,7 @@ function agentTypeName(type: number | string): string {
   gap: 1rem;
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .agent-meta-value {
@@ -440,7 +437,7 @@ function agentTypeName(type: number | string): string {
   align-items: center;
   gap: 1rem;
   font-size: 0.75rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: var(--el-text-color-secondary);
 }
 
@@ -461,13 +458,14 @@ function agentTypeName(type: number | string): string {
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
   color: var(--el-text-color-regular);
   border: 1px solid var(--el-border-color);
   background: transparent;
@@ -476,6 +474,7 @@ function agentTypeName(type: number | string): string {
 .btn-config:hover {
   border-color: var(--el-text-color-secondary);
   color: var(--el-text-color-primary);
+  transform: translateY(-1px);
 }
 
 .btn-chat {
@@ -485,19 +484,21 @@ function agentTypeName(type: number | string): string {
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 150ms ease,
-    border-color 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
   color: var(--el-color-primary);
-  border: 1px solid color-mix(in srgb, var(--el-color-primary) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold-400) 30%, transparent);
   background: transparent;
 }
 
 .btn-chat:hover {
-  background: var(--el-color-primary-light-9);
-  border-color: color-mix(in srgb, var(--el-color-primary) 50%, transparent);
+  background: var(--gold-tint);
+  border-color: color-mix(in srgb, var(--gold-400) 50%, transparent);
+  transform: translateY(-1px);
 }
 </style>

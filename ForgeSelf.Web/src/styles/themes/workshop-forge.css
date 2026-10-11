@@ -1,86 +1,166 @@
 /* ============================================================
-   铸己匣 ForgeSelf — 主题：工坊锻造（Workshop Forge）
+   Workshop Forge · 器物美学主题（唯一主题文件）
    ------------------------------------------------------------
-   仅覆盖 Element Plus CSS Variables。
-   浅色 = :root 默认值，暗色 = html.dark 覆盖。
-   切换主题 = 替换本文件（或动态切换 <link> href）。
+   真源：design_files/colors_and_type.css + DESIGN.md（v2-target）
+   规则（DESIGN.md 三系统）：只覆盖官方 --el-* 与设计稿 token
+   （--ink-* / --gold-* / --paper-* / --cinnabar-* / --bronze-* / --fg-* / --dur-* / --ease-* / --font-* / --shadow-*）
+   禁止新增自定义 token 类（--forge-* / --surface-* / --app-* / --sidebar-*）。
+   色板：中性 90% · 熔金 8% · 朱砂 2%。
    ============================================================ */
 
-/* ===== 浅色模式（默认） ===== */
+/* ===== 设计稿 token（浅/暗共用基调） ===== */
 :root {
-  /* 主色·琥珀 */
-  --el-color-primary: #F59E0B;
-  --el-color-primary-light-3: #FBBF24;
-  --el-color-primary-light-5: #FCD34D;
-  --el-color-primary-light-7: #FDE68A;
-  --el-color-primary-light-8: #FEF3C7;
-  --el-color-primary-light-9: #FFFBEB;
-  --el-color-primary-dark-2: #D97706;
+  color-scheme: light;
 
-  /* 功能色 */
-  --el-color-success: #3FB950;
-  --el-color-success-light-3: #56D364;
-  --el-color-success-light-5: #7EE787;
-  --el-color-success-light-7: #AFF5B4;
-  --el-color-success-light-8: #D1FAE5;
-  --el-color-success-light-9: #ECFDF5;
-  --el-color-success-dark-2: #2EA043;
+  /* 品牌色板 */
+  --gold-300: #F9BC4E;        /* hover / active 文字 */
+  --gold-400: #F59E0B;        /* 熔金橙：主 CTA / 强调 / 选中 / 品牌徽标 */
+  --gold-500: #D97706;        /* 按下态 / 渐变终点 */
+  --gold-700: #B45309;        /* 浅色主题收敛主色 */
+  --cinnabar-400: #C0392B;    /* 朱砂红：印章 / 错误 / 警示 */
+  --bronze-500: #5A7A5A;      /* 青铜绿：成功 / 状态绿点 */
+  --ink-950: #0B0908;         /* 墨黑 canvas「熔炉深处」 */
+  --ink-900: #14110F;         /* surface 玻璃底色 */
+  --ink-850: #1B1815;         /* elevated 弹层浮层 */
+  --ink-700: #322D28;         /* 强边框 */
+  --paper-white: #FBF7EE;     /* 宣纸白：浅色主 canvas */
+  --paper-warm: #F4EEDF;      /* 浅色页面底 */
 
-  --el-color-warning: #D29922;
-  --el-color-warning-light-3: #E3B341;
-  --el-color-warning-light-5: #F0D060;
-  --el-color-warning-light-7: #F8E3A0;
-  --el-color-warning-light-8: #FDF6D8;
-  --el-color-warning-light-9: #FEFCE8;
-  --el-color-warning-dark-2: #B45309;
+  /* 前景 / 边框（设计稿 dark 系基准，浅色下于 html.light 覆盖） */
+  --fg-primary: #F4F0E7;
+  --fg-secondary: #B5AB9F;
+  --fg-tertiary: #8F8478;
+  --fg-muted: #6B6058;
+  --border-hairline: rgba(245, 240, 231, 0.06);
+  --border-subtle: rgba(245, 240, 231, 0.1);
+  --border-default: rgba(245, 240, 231, 0.16);
+  --border-strong: rgba(245, 240, 231, 0.28);
+  --border-brand: rgba(245, 158, 11, 0.48);
 
-  --el-color-error: #F85149;
-  --el-color-error-light-3: #FF7B72;
-  --el-color-error-light-5: #FFA198;
-  --el-color-error-light-7: #FFC1BC;
-  --el-color-error-light-8: #FFE0DE;
-  --el-color-error-light-9: #FFF5F5;
-  --el-color-error-dark-2: #DA3633;
+  /* 字体族（colors_and_type.css:175-180） */
+  --font-display: 'Noto Serif SC', 'LXGW WenKai', 'Songti SC', ui-serif, serif;
+  --font-serif-cn: 'LXGW WenKai', 'Noto Serif SC', 'Songti SC', 'SimSun', ui-serif, serif;
+  --font-sans-cn: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
-  --el-color-info: #58A6FF;
-  --el-color-info-light-3: #79C0FF;
-  --el-color-info-light-5: #A5D6FF;
-  --el-color-info-light-7: #C8E6FF;
-  --el-color-info-light-8: #E1F0FF;
-  --el-color-info-light-9: #F0F8FF;
-  --el-color-info-dark-2: #388BFD;
+  /* 动效（colors_and_type.css:247-258） */
+  --dur-instant: 90ms;
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+  --dur-slower: 540ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-forge: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* 类别色（Element Plus 无，扩展语义） */
-  --el-color-accent: #58A6FF;
-  --el-color-accent-teal: #2DD4BF;
+  /* 铸铁阴影阶梯（colors_and_type.css:111-119，暗色基准） */
+  --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-brand: 0 0 0 1px rgba(245, 158, 11, 0.4), 0 8px 24px rgba(245, 158, 11, 0.18);
+  --shadow-forge: 0 0 40px -8px rgba(245, 158, 11, 0.35);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03), inset 0 -1px 0 rgba(0, 0, 0, 0.4);
 
-  /* 背景 */
-  --el-bg-color: #FFFFFF;
-  --el-bg-color-page: #F6F8FA;
+  /* 圆角刻度（器物切角，colors_and_type.css:237-245；禁胶囊按钮） */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
+
+  /* 玻璃参数（kit-styles.css:129-155；blur 不得调高） */
+  --glass-bg: rgba(20, 17, 15, 0.32);
+  --glass-strong-bg: rgba(20, 17, 15, 0.55);
+  --glass-blur: 18px;
+  --glass-blur-strong: 24px;
+  --glass-saturate: 140%;
+  --glass-saturate-strong: 160%;
+  --glass-border: 1px solid rgba(245, 240, 231, 0.08);
+  --glass-radius: 12px;
+  --glass-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* 壳层精确值（kit-styles.css 映射；组件层只允许 var() 引用，禁止裸色值） */
+  --ink-veil: rgba(11, 9, 8, 0.4);              /* status-bar 玻璃底 */
+  --paper-tint-weak: rgba(245, 240, 231, 0.04); /* 上传按钮底 */
+  --paper-tint: rgba(245, 240, 231, 0.08);      /* 按钮 / 关闭 hover 底 */
+  --gold-tint: rgba(245, 158, 11, 0.05);        /* 金弱染 hover */
+  --gold-tint-strong: rgba(245, 158, 11, 0.12); /* 金强染 active */
+  --border-brand-hover: rgba(245, 158, 11, 0.7);
+  --gold-glow-soft: 0 0 6px rgba(245, 158, 11, 0.5);   /* logo 光晕 */
+  --gold-glow-md: 0 0 8px rgba(245, 158, 11, 0.6);     /* tab 下划线光晕 */
+  --gold-glow-lg: 0 0 20px rgba(245, 158, 11, 0.15);   /* 气泡外晕 */
+  --ring-active: 0 0 0 2px rgba(11, 9, 8, 0.8), 0 0 0 4px rgba(245, 158, 11, 0.5); /* swatch/preset 选中双环 */
+  --bubble-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.15);
+
+  /* ===== 浅色模式（宣纸「白日工坊」） ===== */
+  --el-color-primary: #B45309;
+  --el-color-primary-light-3: #C2610A;
+  --el-color-primary-light-5: #D97706;
+  --el-color-primary-light-7: #E59A1F;
+  --el-color-primary-light-8: #F0B83B;
+  --el-color-primary-light-9: #F9E4B8;
+  --el-color-primary-dark-2: #92400E;
+
+  --el-color-success: #5A7A5A;
+  --el-color-success-light-3: #6B8E4E;
+  --el-color-success-light-5: #8AA56A;
+  --el-color-success-light-7: #A8C08A;
+  --el-color-success-light-8: #C6D6A8;
+  --el-color-success-light-9: #E4EBC9;
+  --el-color-success-dark-2: #4A6B4A;
+
+  --el-color-warning: #B45309;
+  --el-color-warning-light-3: #C2610A;
+  --el-color-warning-light-5: #D97706;
+  --el-color-warning-light-7: #E59A1F;
+  --el-color-warning-light-8: #F0B83B;
+  --el-color-warning-light-9: #F9E4B8;
+  --el-color-warning-dark-2: #92400E;
+
+  --el-color-error: #C0392B;
+  --el-color-error-light-3: #C75043;
+  --el-color-error-light-5: #D97A6F;
+  --el-color-error-light-7: #E8A79E;
+  --el-color-error-light-8: #F2C9C4;
+  --el-color-error-light-9: #FAE5E2;
+  --el-color-error-dark-2: #A33127;
+
+  --el-color-info: #3B6E8F;
+  --el-color-info-light-3: #4A7A9B;
+  --el-color-info-light-5: #6B96B2;
+  --el-color-info-light-7: #93B7CB;
+  --el-color-info-light-8: #BBD3E0;
+  --el-color-info-light-9: #E2EDF3;
+  --el-color-info-dark-2: #315C78;
+
+  --el-color-accent: #4A7A9B;
+  --el-color-accent-teal: #5A7A5A;
+
+  /* 背景（宣纸暖） */
+  --el-bg-color: #FBF7EE;
+  --el-bg-color-page: #F4EEDF;
   --el-bg-color-overlay: #FFFFFF;
 
-  /* 填充 */
-  --el-fill-color: #F0F2F5;
-  --el-fill-color-light: #F6F8FA;
-  --el-fill-color-lighter: #FAFBFC;
+  --el-fill-color: #F4EEDF;
+  --el-fill-color-light: #FBF7EE;
+  --el-fill-color-lighter: #FFFDF7;
   --el-fill-color-blank: #FFFFFF;
 
-  /* 文字 */
-  --el-text-color-primary: #1F2328;
-  --el-text-color-regular: #656D76;
-  --el-text-color-secondary: #8C959F;
-  --el-text-color-placeholder: #8C959F;
-  --el-text-color-disabled: #B0B8C1;
+  --el-text-color-primary: #14110F;
+  --el-text-color-regular: #4A443C;
+  --el-text-color-secondary: #6B6058;
+  --el-text-color-placeholder: #8F8478;
+  --el-text-color-disabled: #A79C8F;
 
-  /* 边框 */
-  --el-border-color: #C4CDD5;        /* 主边框：保证在白色背景上可见，不偏白 */
-  --el-border-color-light: #D0D7DE;  /* 浅一层但仍可见，拒绝“白线条” */
-  --el-border-color-lighter: #D0D7DE;/* 卡片/面板/分割线最常用，必须看得见 */
-  --el-border-color-dark: #B6BDC5;
-  --el-border-color-darker: #9BA5AF;
+  --el-border-color: #D8CFBC;
+  --el-border-color-light: #E4DCCB;
+  --el-border-color-lighter: #EFE8D8;
+  --el-border-color-dark: #C8BEAB;
+  --el-border-color-darker: #B0A58F;
 
-  /* 字体 */
-  --el-font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --el-font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --el-font-size-extra-small: 12px;
   --el-font-size-small: 13px;
   --el-font-size-base: 14px;
@@ -88,95 +168,148 @@
   --el-font-size-large: 18px;
   --el-font-size-extra-large: 20px;
 
-  /* 圆角 */
   --el-border-radius-small: 4px;
-  --el-border-radius-base: 8px;
+  --el-border-radius-base: 6px;
   --el-border-radius-round: 9999px;
 
-  /* 阴影 */
-  --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --el-box-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.15);
+  --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --el-box-shadow-light: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  --el-box-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.2);
 
-  /* 过渡 */
-  --el-transition-duration: 0.25s;
-  --el-transition-duration-fast: 0.15s;
+  --el-transition-duration: 0.22s;
+  --el-transition-duration-fast: 0.16s;
 }
 
-/* ===== 暗色模式 ===== */
+/* ===== 暗色模式（熔炉深处，默认） ===== */
 html.dark {
   color-scheme: dark;
 
   --el-color-primary: #F59E0B;
-  --el-color-primary-light-3: #D97706;
-  --el-color-primary-light-5: #B45309;
-  --el-color-primary-light-7: #92400E;
-  --el-color-primary-light-8: #78350F;
-  --el-color-primary-light-9: #451A03;
-  --el-color-primary-dark-2: #FBBF24;
+  --el-color-primary-light-3: #F9BC4E;
+  --el-color-primary-light-5: #FBBF24;
+  --el-color-primary-light-7: #FCD34D;
+  --el-color-primary-light-8: #FDE68A;
+  --el-color-primary-light-9: #FEF3C7;
+  --el-color-primary-dark-2: #D97706;
 
-  --el-color-success: #3FB950;
-  --el-color-success-light-3: #2EA043;
-  --el-color-success-light-5: #238636;
-  --el-color-success-light-7: #196C2E;
-  --el-color-success-light-8: #0F5323;
-  --el-color-success-light-9: #0A3D1A;
-  --el-color-success-dark-2: #56D364;
+  --el-color-success: #6B8E4E;
+  --el-color-success-light-3: #5A7A5A;
+  --el-color-success-light-5: #4A6B4A;
+  --el-color-success-light-7: #3A5A3A;
+  --el-color-success-light-8: #2F4A2F;
+  --el-color-success-light-9: #243A24;
+  --el-color-success-dark-2: #A8C08A;
 
-  --el-color-warning: #D29922;
-  --el-color-warning-light-3: #B45309;
-  --el-color-warning-light-5: #92400E;
-  --el-color-warning-light-7: #78350F;
-  --el-color-warning-light-8: #5C2D0E;
+  --el-color-warning: #E0A030;
+  --el-color-warning-light-3: #D97706;
+  --el-color-warning-light-5: #B45309;
+  --el-color-warning-light-7: #92400E;
+  --el-color-warning-light-8: #78350F;
   --el-color-warning-light-9: #451A03;
-  --el-color-warning-dark-2: #E3B341;
+  --el-color-warning-dark-2: #F5C572;
 
-  --el-color-error: #F85149;
-  --el-color-error-light-3: #DA3633;
-  --el-color-error-light-5: #B62324;
-  --el-color-error-light-7: #8E1519;
-  --el-color-error-light-8: #6E0B0E;
+  --el-color-error: #C0392B;
+  --el-color-error-light-3: #A33127;
+  --el-color-error-light-5: #8E2A20;
+  --el-color-error-light-7: #78241C;
+  --el-color-error-light-8: #5F1D17;
   --el-color-error-light-9: #4D0507;
-  --el-color-error-dark-2: #FF7B72;
+  --el-color-error-dark-2: #E86A5B;
 
-  --el-color-info: #58A6FF;
-  --el-color-info-light-3: #388BFD;
-  --el-color-info-light-5: #1F6FEB;
-  --el-color-info-light-7: #1158C7;
-  --el-color-info-light-8: #0D419D;
-  --el-color-info-light-9: #0A2D6E;
-  --el-color-info-dark-2: #79C0FF;
+  --el-color-info: #4A7A9B;
+  --el-color-info-light-3: #3B6E8F;
+  --el-color-info-light-5: #315C78;
+  --el-color-info-light-7: #274A62;
+  --el-color-info-light-8: #1F3D51;
+  --el-color-info-light-9: #1A3242;
+  --el-color-info-dark-2: #7FA8C8;
 
-  --el-color-accent: #58A6FF;
-  --el-color-accent-teal: #2DD4BF;
+  --el-color-accent: #7FA8C8;
+  --el-color-accent-teal: #5A7A5A;
 
-  /* 背景（冷钢灰） */
-  --el-bg-color: #161B22;
-  --el-bg-color-page: #0D1117;
-  --el-bg-color-overlay: #21262D;
+  /* 背景（墨黑铸铁） */
+  --el-bg-color: #14110F;
+  --el-bg-color-page: #0B0908;
+  --el-bg-color-overlay: #1B1815;
 
-  --el-fill-color: #1C2128;
-  --el-fill-color-light: #21262D;
-  --el-fill-color-lighter: #282E36;
-  --el-fill-color-blank: #0D1117;
+  --el-fill-color: #1B1815;
+  --el-fill-color-light: #1B1815;
+  --el-fill-color-lighter: #24201C;
+  --el-fill-color-blank: #0B0908;
 
-  --el-text-color-primary: #FFFFFF;       /* VS Code 暗色：主文字纯白 */
-  --el-text-color-regular: #C9D1D9;       /* 常规文字提亮（原 #8B949E 偏灰黑） */
-  --el-text-color-secondary: #9DA7B3;     /* 次要/描述文字：比主文字灰一点，保留层次 */
-  --el-text-color-placeholder: #7D8590;
-  --el-text-color-disabled: #484F58;
+  --el-text-color-primary: #F4F0E7;
+  --el-text-color-regular: #B5AB9F;
+  --el-text-color-secondary: #8F8478;
+  --el-text-color-placeholder: #8F8478;
+  --el-text-color-disabled: #6B6058;
 
-  --el-border-color: #30363D;        /* 主边框：比暗色背景明显可见 */
-  --el-border-color-light: #3D444D;  /* 卡片/面板/分割线常用，提亮拒绝“黑线条” */
-  --el-border-color-lighter: #3D444D;/* 最轻量分隔也要看得见 */
-  --el-border-color-dark: #484F58;
-  --el-border-color-darker: #6E7681;
+  --el-border-color: #322D28;
+  --el-border-color-light: #24201C;
+  --el-border-color-lighter: #24201C;
+  --el-border-color-dark: #3D3730;
+  --el-border-color-darker: #4A443C;
 
-  --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.24);
-  --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  --el-box-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.48);
+  --el-box-shadow-lighter: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --el-box-shadow-light: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --el-box-shadow-dark: 0 12px 32px rgba(0, 0, 0, 0.65);
+}
+
+/* 浅色主题下覆盖前景/边框 token（宣纸「白日工坊」） */
+:root:not(html.dark) {
+  --fg-primary: #14110F;
+  --fg-secondary: #4A443C;
+  --fg-tertiary: #6B6058;
+  --fg-muted: #A79C8F;
+  --border-hairline: rgba(20, 17, 15, 0.06);
+  --border-subtle: rgba(20, 17, 15, 0.1);
+  --border-default: rgba(20, 17, 15, 0.16);
+  --border-strong: rgba(20, 17, 15, 0.28);
+  --border-brand: rgba(180, 83, 9, 0.48);
+  --glass-bg: rgba(251, 247, 238, 0.4);
+  --glass-strong-bg: rgba(251, 247, 238, 0.62);
+  --glass-border: 1px solid rgba(20, 17, 15, 0.08);
+  --glass-shadow: 0 6px 24px rgba(20, 17, 15, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --ink-veil: rgba(251, 247, 238, 0.5);
+  --paper-tint-weak: rgba(20, 17, 15, 0.04);
+  --paper-tint: rgba(20, 17, 15, 0.08);
+  --gold-tint: rgba(180, 83, 9, 0.05);
+  --gold-tint-strong: rgba(180, 83, 9, 0.12);
+  --border-brand-hover: rgba(180, 83, 9, 0.7);
+  --gold-glow-soft: 0 0 6px rgba(180, 83, 9, 0.5);
+  --gold-glow-md: 0 0 8px rgba(180, 83, 9, 0.6);
+  --gold-glow-lg: 0 0 20px rgba(180, 83, 9, 0.15);
+  --ring-active: 0 0 0 2px rgba(251, 247, 238, 0.9), 0 0 0 4px rgba(180, 83, 9, 0.5);
+  --bubble-shadow: 0 6px 20px rgba(20, 17, 15, 0.2), 0 0 20px rgba(180, 83, 9, 0.12);
+  --shadow-sm: 0 1px 2px rgba(20, 17, 15, 0.18), 0 0 0 1px rgba(20, 17, 15, 0.08);
+  --shadow-md: 0 4px 12px rgba(20, 17, 15, 0.2), 0 1px 2px rgba(20, 17, 15, 0.14);
+  --shadow-lg: 0 12px 32px rgba(20, 17, 15, 0.24), 0 2px 6px rgba(20, 17, 15, 0.16);
+  --shadow-xl: 0 24px 60px rgba(20, 17, 15, 0.28), 0 4px 12px rgba(20, 17, 15, 0.18);
+  --shadow-brand: 0 0 0 1px rgba(180, 83, 9, 0.35), 0 8px 24px rgba(180, 83, 9, 0.14);
+  --shadow-forge: 0 0 40px -8px rgba(180, 83, 9, 0.3);
+}
+
+/* ============================================================
+   玻璃卡片（设计稿 kit-styles.css:129-155，blur 参数不得调高）
+   组件统一引用：background / backdrop-filter / border / box-shadow
+   ============================================================ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ============================================================
@@ -184,5 +317,5 @@ html.dark {
    ------------------------------------------------------------
    背景图片模式的「表面透明 / 弱化」规则已整体迁移到独立文件
    src/styles/themes/bg-image-mode.css（唯一来源，含 surface 层与适配清单）。
-   本主题文件只负责 --el-* 色值，不掺杂背景图模式覆盖，避免漂移。
+   本主题文件只负责 --el-* 与设计稿 token，不掺杂背景图模式覆盖，避免漂移。
    ============================================================ */

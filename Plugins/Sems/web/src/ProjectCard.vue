@@ -105,7 +105,7 @@ const typeStyle = computed(() => {
     const [fg, bg] = colors[t]
     return { color: fg, background: bg }
   }
-  return { color: 'var(--el-text-color-secondary, #a3a6ad)', background: 'var(--el-fill-color, #262727)' }
+  return { color: 'var(--el-text-color-secondary)' }
 })
 
 function fmt(v?: string): string {
@@ -120,14 +120,14 @@ function fmt(v?: string): string {
 <style scoped>
 .pcard {
   padding: 14px 16px;
-  background: var(--el-bg-color, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   transition: border-color 0.15s ease;
 }
 
 .pcard:hover {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .pcard--dead {
@@ -151,7 +151,7 @@ function fmt(v?: string): string {
 .pcard__name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -175,10 +175,10 @@ function fmt(v?: string): string {
 .pcard__icon-btn {
   width: 26px;
   height: 26px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
@@ -186,20 +186,20 @@ function fmt(v?: string): string {
 }
 
 .pcard__icon-btn:hover {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .pcard__icon-btn--danger:hover {
-  border-color: var(--el-color-danger, #f56c6c);
-  color: var(--el-color-danger, #f56c6c);
+  border-color: var(--el-color-danger);
+  color: var(--el-color-danger);
 }
 
 .pcard__desc {
   margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -218,13 +218,13 @@ function fmt(v?: string): string {
   border-radius: 3px;
   font-size: 11px;
   line-height: 16px;
-  color: var(--el-color-success, #67c23a);
-  background: var(--el-color-success-light, rgba(103, 194, 58, 0.12));
+  color: var(--el-color-success);
+  background: var(--el-color-success-light);
 }
 
 .pcard__tag--warn {
-  color: var(--el-color-warning, #e6a23c);
-  background: var(--el-color-warning-light, rgba(230, 162, 60, 0.14));
+  color: var(--el-color-warning);
+  background: var(--el-color-warning-light);
 }
 
 .pcard__chip {
@@ -232,15 +232,15 @@ function fmt(v?: string): string {
   border-radius: 10px;
   font-size: 11px;
   line-height: 16px;
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
 }
 
 .pcard__root {
   margin: 8px 0 0;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--el-font-family-mono);
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -252,7 +252,7 @@ function fmt(v?: string): string {
   gap: 8px;
   margin-top: 10px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .pcard__source {
@@ -262,6 +262,6 @@ function fmt(v?: string): string {
 .pcard__cmds {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed var(--el-border-color, #414243);
+  border-top: 1px dashed var(--el-border-color);
 }
 </style>

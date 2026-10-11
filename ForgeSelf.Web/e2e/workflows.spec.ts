@@ -49,6 +49,7 @@ test.describe('工作流库（/workflows）', () => {
     await gotoWorkflows(page)
     await expect(page.getByPlaceholder('搜索工作流...')).toBeVisible()
     await expect(page.getByRole('button', { name: /创建工作流/ }).first()).toBeVisible()
+    await page.screenshot({ path: 'screenshots/e2e/workflows-load.png', fullPage: true })
   })
 
   test('创建工作流：真实 POST 后列表出现新工作流', async ({ page }) => {

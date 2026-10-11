@@ -629,7 +629,7 @@ onMounted(() => {
 .td-btn { border: 1px solid var(--el-border-color); background: var(--el-bg-color); color: var(--el-text-color-regular); border-radius: var(--el-border-radius-base, 4px); padding: 5px 12px; font-size: 13px; cursor: pointer; }
 .td-btn:disabled { opacity: .55; cursor: not-allowed; }
 .td-btn-sm { padding: 3px 9px; font-size: 12px; }
-.td-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: #fff; }
+.td-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .td-btn.is-danger { color: var(--el-color-danger); border-color: var(--el-color-danger-light-5); }
 .td-link { border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font-size: 12px; padding: 0; }
 .td-link:disabled { color: var(--el-text-color-placeholder); cursor: not-allowed; }

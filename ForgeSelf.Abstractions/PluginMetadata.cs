@@ -167,4 +167,16 @@ public sealed class FrontendContributes
     /// </para>
     /// </summary>
     public string? Entry { get; set; }
+
+    /// <summary>
+    /// 插件贡献的 UI surface 类型列表（<see cref="PluginSurfaces.Tab"/> /
+    /// <see cref="PluginSurfaces.HomeWidget"/> / <see cref="PluginSurfaces.QuickAction"/> /
+    /// <see cref="PluginSurfaces.StatusBadge"/>）。
+    /// <para>
+    /// 为空且声明了 <see cref="Route"/> + <see cref="Views"/> 时，宿主按既有约定视为
+    /// <see cref="PluginSurfaces.Tab"/>（向后兼容，既有插件零回归）。
+    /// 未知值在加载时由宿主经 <see cref="PluginSurfaces.NormalizeAll"/> 清洗并记日志，不阻断加载。
+    /// </para>
+    /// </summary>
+    public List<string> Surfaces { get; set; } = new();
 }

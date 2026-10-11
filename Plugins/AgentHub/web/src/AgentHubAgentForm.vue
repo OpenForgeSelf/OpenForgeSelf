@@ -235,8 +235,8 @@ function onSubmit() {
 
 <style>
 .ok-formbox {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-color-primary-light-7, #c6e2ff);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-color-primary-light-7);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 16px 18px;
   margin-bottom: 14px;
@@ -252,7 +252,7 @@ function onSubmit() {
   color: var(--el-text-color-regular);
   margin: 16px 0 10px;
   padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 .ok-formbox__note {
   margin-top: 14px;
@@ -260,7 +260,7 @@ function onSubmit() {
   font-size: 12px;
   line-height: 1.7;
   color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   border-radius: var(--el-border-radius-base, 6px);
 }
 .ok-formbox__actions {

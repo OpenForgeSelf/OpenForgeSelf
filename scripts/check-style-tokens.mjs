@@ -20,6 +20,15 @@ const BASELINE = path.join(ROOT, 'scripts', 'style-token-baseline.json')
 
 // 目标目录（相对仓库根）
 const targets = ['ForgeSelf.Web/src']
+// token 定义层豁免：主题 token 文件（workshop-forge.css / bg-image-mode.css）天然承载
+// 设计稿色板 hex（DESIGN.md「三系统」：token 单一来源），不算「硬编码色值」违规。
+// 组件层（*.vue / *.ts / 非 themes/ 的 css）仍受棘轮约束。
+const EXCLUDE_SUFFIXES = ['/styles/themes/']
+
+function isExcluded(rel) {
+  return EXCLUDE_SUFFIXES.some((s) => rel.includes(s))
+}
+
 const pluginsDir = path.join(ROOT, 'Plugins')
 if (fs.existsSync(pluginsDir)) {
   for (const d of fs.readdirSync(pluginsDir)) {
@@ -47,6 +56,8 @@ function countIn(rel) {
   let count = 0
   let files = 0
   for (const f of walk(abs)) {
+    const relF = path.posix.join(rel, path.relative(abs, f).split(path.sep).join('/'))
+    if (isExcluded(relF)) continue
     const txt = fs.readFileSync(f, 'utf8')
     const m = txt.match(COLOR_RE)
     if (m && m.length) { count += m.length; files++ }

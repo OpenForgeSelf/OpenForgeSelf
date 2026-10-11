@@ -659,7 +659,7 @@ function cancelExecute(): void {
 .rule-type-select:focus {
   outline: none;
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--gold-tint);
 }
 
 .empty-rules {
@@ -806,7 +806,7 @@ function cancelExecute(): void {
 .form-select:focus {
   outline: none;
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--gold-tint);
 }
 
 .form-checkbox {
@@ -983,7 +983,7 @@ function cancelExecute(): void {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: color-mix(in srgb, var(--ink-950) 60%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -995,7 +995,7 @@ function cancelExecute(): void {
   border-radius: 8px;
   width: 90%;
   max-width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-header {

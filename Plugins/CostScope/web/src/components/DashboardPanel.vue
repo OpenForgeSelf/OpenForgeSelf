@@ -72,7 +72,7 @@ onMounted(load)
         未配单价 {{ ov.coverage.unpricedCalls }} 次
       </span>
       <span v-if="!ov.coverage.mainChatObservable" class="dash__warn">
-        ⚠ {{ ov.coverage.note }}
+        {{ ov.coverage.note }}
       </span>
     </aside>
 
@@ -209,24 +209,24 @@ onMounted(load)
 
 <style scoped>
 .dash { display: flex; flex-direction: column; gap: 12px; }
-.dash__error { color: var(--el-color-danger, #f56c6c); }
+.dash__error { color: var(--el-color-danger); }
 .dash__cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .dash__two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
-.card { border: 1px solid var(--el-border-color, #e5e7eb); border-radius: 6px; padding: 12px; }
+.card { border: 1px solid var(--el-border-color); border-radius: 6px; padding: 12px; }
 .card h4 { margin: 0 0 8px; font-size: 14px; }
 .card table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.card th, .card td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5); }
+.card th, .card td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter); }
 .dash__coverage {
   display: flex; flex-direction: column; gap: 2px;
-  border: 1px solid var(--el-border-color, #e5e7eb);
-  border-left: 3px solid var(--el-color-info, #909399);
+  border: 1px solid var(--el-border-color);
+  border-left: 3px solid var(--el-color-info);
   border-radius: 4px; padding: 8px 12px; font-size: 13px;
 }
-.dash__coverage.is-warn { border-left-color: var(--el-color-warning, #e6a23c); }
-.dash__warn { color: var(--el-color-warning, #e6a23c); }
+.dash__coverage.is-warn { border-left-color: var(--el-color-warning); }
+.dash__warn { color: var(--el-color-warning); }
 .tag { font-size: 11px; border-radius: 3px; padding: 0 4px; margin-left: 4px; }
-.tag--warn { background: var(--el-color-warning-light-9, #fdf6ec); color: var(--el-color-warning, #e6a23c); }
+.tag--warn { background: var(--el-color-warning-light-9); color: var(--el-color-warning); }
 .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
 .bars__col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
-.bars__fill { width: 100%; background: var(--el-color-primary, #409eff); border-radius: 2px 2px 0 0; min-height: 2px; }
+.bars__fill { width: 100%; background: var(--el-color-primary); border-radius: 2px 2px 0 0; min-height: 2px; }
 </style>

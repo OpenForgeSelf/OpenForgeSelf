@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import PageHead from '@/components/PageHead.vue'
+import ForgeCard from '@/components/ForgeCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useWorkflowStore } from '@/stores/workflow'
 import type { WorkflowDefinition } from '@/types/workflow'
 import WorkflowEditor from '@/components/workflow/WorkflowEditor.vue'
@@ -88,23 +91,23 @@ function getStatusLabel(workflow: WorkflowDefinition): string {
 function getStatusColor(workflow: WorkflowDefinition): { text: string; bg: string; border: string } {
   switch (workflow.status) {
     case 'completed':
-      return { text: 'var(--el-color-success)', bg: 'rgba(52, 211, 153, 0.1)', border: 'var(--el-color-success)' }
+      return { text: 'var(--el-color-success)', bg: 'color-mix(in srgb, var(--bronze-500) 12%, transparent)', border: 'var(--el-color-success)' }
     case 'running':
       return { text: 'var(--el-color-primary)', bg: 'var(--el-color-primary-light-9)', border: 'var(--el-color-primary)' }
     case 'paused':
-      return { text: 'var(--el-text-color-secondary)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--el-border-color)' }
+      return { text: 'var(--fg-secondary)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
     case 'ready':
-      return { text: 'var(--el-color-info)', bg: 'rgba(96, 165, 250, 0.1)', border: 'var(--el-color-info)' }
+      return { text: 'var(--el-color-info)', bg: 'color-mix(in srgb, var(--el-color-info) 12%, transparent)', border: 'var(--el-color-info)' }
     default:
-      return { text: 'var(--el-text-color-secondary)', bg: 'rgba(138, 112, 97, 0.1)', border: 'var(--el-border-color)' }
+      return { text: 'var(--fg-secondary)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
   }
 }
 
 function getLeftBorderColor(workflow: WorkflowDefinition): string {
   if (workflow.status === 'completed' || workflow.status === 'running') {
-    return 'var(--el-color-primary)'
+    return 'var(--gold-400)'
   }
-  return 'var(--el-border-color)'
+  return 'var(--border-default)'
 }
 
 function getActionButton(workflow: WorkflowDefinition): { label: string; variant: 'run' | 'pause' | 'resume' } {
@@ -276,61 +279,10 @@ onMounted(() => {
 
 <template>
   <div class="workflow-library">
-    <!-- Ambient glow -->
-    <div class="ambient-glow" aria-hidden="true" />
-
     <div class="library-inner">
       <!-- ===== PAGE HEADER ===== -->
-      <header class="page-header">
-        <div class="header-left">
-          <!-- Workflow icon -->
-          <svg
-            class="header-icon"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect
-              x="3"
-              y="3"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="14"
-              y="3"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="3"
-              y="14"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="14"
-              y="14"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <line x1="10" y1="6.5" x2="14" y2="6.5" />
-            <line x1="6.5" y1="10" x2="6.5" y2="14" />
-          </svg>
-          <h1 class="page-title">工作流引擎</h1>
-          <span class="workflow-count-badge">{{ workflowStore.workflows.length }} 个工作流</span>
-        </div>
-        <div class="header-right">
-          <!-- Search input -->
+      <PageHead eyebrow="Workflow Engine · 工作流引擎" title="工作流 · 执行 · 调度">
+        <template #actions>
           <div class="search-box">
             <svg
               class="search-icon"
@@ -375,7 +327,6 @@ onMounted(() => {
               </svg>
             </button>
           </div>
-          <!-- Create button -->
           <button class="btn-create" @click="handleCreateWorkflow">
             <svg
               width="14"
@@ -392,8 +343,8 @@ onMounted(() => {
             </svg>
             创建工作流
           </button>
-        </div>
-      </header>
+        </template>
+      </PageHead>
 
       <!-- ===== FILTER TABS ===== -->
       <nav class="filter-tabs" aria-label="工作流筛选">
@@ -410,11 +361,14 @@ onMounted(() => {
 
       <!-- ===== WORKFLOW LIST ===== -->
       <div v-if="!workflowStore.isLoading" class="workflow-list">
-        <article
+        <ForgeCard
           v-for="workflow in filteredWorkflows"
           :key="workflow.id"
+          interactive
+          :padding="14"
           class="workflow-card"
           :style="{ borderLeftColor: getLeftBorderColor(workflow) }"
+          @click="handleCardClick(workflow)"
         >
           <!-- Left: Status Icon -->
           <div class="card-status-icon" :style="{ background: getStatusIconBg(workflow) }">
@@ -434,7 +388,7 @@ onMounted(() => {
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
             <!-- running: animated dot -->
-            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--el-color-primary)' }" />
+            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--gold-400)' }" />
             <!-- paused -->
             <svg
               v-else-if="workflow.status === 'paused'"
@@ -442,7 +396,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--el-text-color-secondary)"
+              stroke="var(--fg-secondary)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -484,7 +438,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--el-text-color-secondary)"
+              stroke="var(--fg-secondary)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -513,7 +467,7 @@ onMounted(() => {
                     'step-current': step.status === 'current',
                     'step-pending': step.status === 'pending'
                   }"
-                  :style="step.status === 'current' ? { borderColor: 'var(--el-color-primary)', background: 'var(--el-color-primary-light-9)' } : {}"
+                  :style="step.status === 'current' ? { borderColor: 'var(--gold-400)', background: 'var(--gold-tint)' } : {}"
                 >
                   <svg
                     v-if="step.status === 'completed'"
@@ -528,7 +482,7 @@ onMounted(() => {
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--el-color-primary)' }" />
+                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--gold-400)' }" />
                   {{ step.name }}
                 </span>
                 <svg
@@ -538,7 +492,7 @@ onMounted(() => {
                   height="12"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="var(--el-text-color-secondary)"
+                  stroke="var(--fg-tertiary)"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -555,7 +509,7 @@ onMounted(() => {
                   class="progress-fill"
                   :style="{
                     width: getStepProgress(workflow).pct + '%',
-                    background: workflow.status === 'ready' ? 'var(--el-color-info)' : 'var(--el-text-color-secondary)'
+                    background: workflow.status === 'ready' ? 'var(--el-color-info)' : 'var(--fg-tertiary)'
                   }"
                 />
               </div>
@@ -588,16 +542,13 @@ onMounted(() => {
           <div class="card-meta">
             <div class="meta-info">
               <span
-                :style="{
-                  fontSize: 'var(--text-xs)',
-                  color: workflow.status === 'running' ? 'var(--el-color-primary)' : 'var(--el-text-color-regular)',
-                  fontFamily: 'var(--font-family-mono)'
-                }"
+                class="meta-duration"
+                :style="{ color: workflow.status === 'running' ? 'var(--gold-400)' : 'var(--fg-secondary)' }"
               >{{ formatDuration(workflow) }}</span>
               <span v-if="formatTimeInfo(workflow)" class="meta-time">{{ formatTimeInfo(workflow) }}</span>
             </div>
             <div class="card-actions">
-              <button class="btn-ghost" @click="handleCardClick(workflow)">查看</button>
+              <button class="btn-ghost" @click.stop="handleCardClick(workflow)">查看</button>
               <button
                 class="btn-ghost"
                 :class="{
@@ -605,108 +556,108 @@ onMounted(() => {
                   'btn-action-pause': getActionButton(workflow).variant === 'pause',
                   'btn-action-resume': getActionButton(workflow).variant === 'resume'
                 }"
-                :style="getActionButton(workflow).variant === 'run' ? {} : 
-                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--el-color-warning)', borderColor: 'var(--el-color-primary)' } :
-                  { color: 'var(--el-color-info)', borderColor: 'rgba(96, 165, 250, 0.3)' }"
-                @click="handlePauseResume(workflow)"
+                :style="getActionButton(workflow).variant === 'run' ? {} :
+                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--gold-400)', borderColor: 'var(--border-brand)' } :
+                  { color: 'var(--el-color-info)', borderColor: 'color-mix(in srgb, var(--el-color-info) 30%, transparent)' }"
+                @click.stop="handlePauseResume(workflow)"
               >
                 {{ getActionButton(workflow).label }}
               </button>
             </div>
           </div>
-        </article>
+        </ForgeCard>
 
         <!-- Empty state -->
-        <div v-if="filteredWorkflows.length === 0" class="empty-state">
-          <svg
-            class="empty-icon"
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--el-text-color-secondary)"
-            stroke-width="1"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect
-              x="3"
-              y="3"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="14"
-              y="3"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="3"
-              y="14"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <rect
-              x="14"
-              y="14"
-              width="7"
-              height="7"
-              rx="1.5"
-            />
-            <line x1="10" y1="6.5" x2="14" y2="6.5" />
-            <line x1="6.5" y1="10" x2="6.5" y2="14" />
-          </svg>
-          <h3>没有找到工作流</h3>
-          <p v-if="searchKeyword">
-            试试调整搜索条件
-          </p>
-          <p v-else>
-            还没有工作流，点击"创建工作流"开始吧
-          </p>
-          <div class="empty-actions">
-            <button class="btn-create" @click="handleCreateWorkflow">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              创建工作流
-            </button>
-            <button class="btn-ghost btn-ai-gen" @click="handleAIGenerate">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              AI生成
-            </button>
-          </div>
-        </div>
+        <EmptyState
+          v-if="filteredWorkflows.length === 0"
+          title="没有找到工作流"
+          :sub="searchKeyword ? '试试调整搜索条件' : '还没有工作流，点击创建开始'"
+        >
+          <template #icon>
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect
+                x="3"
+                y="3"
+                width="7"
+                height="7"
+                rx="1.5"
+              />
+              <rect
+                x="14"
+                y="3"
+                width="7"
+                height="7"
+                rx="1.5"
+              />
+              <rect
+                x="3"
+                y="14"
+                width="7"
+                height="7"
+                rx="1.5"
+              />
+              <rect
+                x="14"
+                y="14"
+                width="7"
+                height="7"
+                rx="1.5"
+              />
+              <line x1="10" y1="6.5" x2="14" y2="6.5" />
+              <line x1="6.5" y1="10" x2="6.5" y2="14" />
+            </svg>
+          </template>
+          <template #action>
+            <div class="empty-actions">
+              <button class="btn-create" @click="handleCreateWorkflow">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                创建工作流
+              </button>
+              <button class="btn-ghost btn-ai-gen" @click="handleAIGenerate">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                AI生成
+              </button>
+            </div>
+          </template>
+        </EmptyState>
       </div>
 
       <!-- Loading state -->
       <div v-if="workflowStore.isLoading" class="loading-state">
         <div class="loading-spinner" />
-        <p>加载工作流中...</p>
+        <p>加载工作流中…</p>
       </div>
 
       <!-- ===== MODALS ===== -->
@@ -744,8 +695,6 @@ onMounted(() => {
 .workflow-library {
   height: 100%;
   overflow-y: auto;
-  position: relative;
-  background: var(--el-bg-color);
 }
 
 .library-inner {
@@ -756,83 +705,25 @@ onMounted(() => {
   padding: 24px 32px;
 }
 
-.ambient-glow {
-  position: absolute;
-  top: 60px;
-  left: 40px;
-  width: 600px;
-  height: 500px;
-  background: radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--el-color-primary) 20%, transparent) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ===================== Page Header ===================== */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.header-icon {
-  color: var(--el-color-primary);
-  flex-shrink: 0;
-}
-
-.page-title {
-  font-size: var(--text-xl, 1.375rem);
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  white-space: nowrap;
-}
-
-.workflow-count-badge {
-  font-size: var(--text-xs, 0.75rem);
-  color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  font-weight: 600;
-  font-family: var(--font-family-mono);
-  white-space: nowrap;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-/* ===================== Search Box ===================== */
+/* ===================== Page Header actions ===================== */
 .search-box {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: var(--el-fill-color-light);
-  border: 1px solid var(--el-border-color);
+  background: var(--paper-tint);
+  border: 1px solid var(--border-default);
   border-radius: var(--el-border-radius-base);
-  transition: border-color 150ms ease;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .search-box:focus-within {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 2px var(--el-color-primary-light-9);
+  border-color: var(--border-brand);
+  box-shadow: 0 0 0 2px var(--gold-tint);
 }
 
 .search-icon {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   flex-shrink: 0;
 }
 
@@ -841,14 +732,14 @@ onMounted(() => {
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--text-sm, 0.8125rem);
-  color: var(--el-text-color-primary);
-  font-family: var(--font-family-base);
+  font-size: 0.8125rem;
+  color: var(--fg-primary);
+  font-family: var(--font-sans-cn);
   width: 180px;
 }
 
 .search-input::placeholder {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .search-clear {
@@ -857,18 +748,18 @@ onMounted(() => {
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  border-radius: var(--el-border-round);
+  background: var(--paper-tint);
+  color: var(--fg-tertiary);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .search-clear:hover {
   background: var(--border-strong);
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
 }
 
 /* ===================== Buttons ===================== */
@@ -877,19 +768,19 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  font-size: var(--text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--el-color-white);
-  background: var(--el-color-primary);
+  color: var(--ink-950);
+  background: var(--gold-400);
   border: none;
   border-radius: var(--el-border-radius-base);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .btn-create:hover {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
 }
 
 .btn-ghost {
@@ -897,30 +788,30 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  font-size: var(--text-xs, 0.75rem);
-  color: var(--el-text-color-regular);
+  font-size: 0.75rem;
+  color: var(--fg-secondary);
   background: transparent;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--border-default);
   border-radius: var(--el-border-radius-small);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .btn-ghost:hover {
-  background: var(--el-fill-color);
-  border-color: var(--el-color-primary);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  border-color: var(--border-brand);
+  color: var(--fg-primary);
 }
 
 .btn-ai-gen {
   color: var(--el-color-primary);
-  border-color: var(--el-color-primary);
+  border-color: var(--border-brand);
 }
 
 .btn-ai-gen:hover {
-  background: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary);
+  background: var(--gold-tint);
+  border-color: var(--border-brand-hover);
   color: var(--el-color-primary);
 }
 
@@ -929,33 +820,33 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .filter-tab {
-  font-size: var(--text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   background: transparent;
   border: none;
   padding: 6px 12px;
   border-radius: var(--el-border-radius-small);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  margin-bottom: -11px;
-  transition: background 150ms ease, color 150ms ease;
+  margin-bottom: -13px;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .filter-tab:hover {
-  color: var(--el-text-color-primary);
-  background: var(--el-fill-color);
+  color: var(--fg-primary);
+  background: var(--paper-tint);
 }
 
 .filter-tab.active {
-  color: var(--el-text-color-primary);
-  border-bottom-color: var(--el-color-primary);
+  color: var(--fg-primary);
+  border-bottom-color: var(--gold-400);
 }
 
 /* ===================== Workflow Cards ===================== */
@@ -969,17 +860,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 16px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-left: 3px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  transition: border-color 150ms ease, background 150ms ease;
-}
-
-.workflow-card:hover {
-  border-color: var(--el-color-primary);
-  background: var(--el-bg-color-page);
+  border-left: 3px solid var(--border-default);
 }
 
 /* Status icon */
@@ -989,14 +870,14 @@ onMounted(() => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-round);
   flex-shrink: 0;
 }
 
 .pulse-dot {
   width: 10px;
   height: 10px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-round);
   animation: fs-pulse-dot 1.5s ease-in-out infinite;
 }
 
@@ -1016,13 +897,13 @@ onMounted(() => {
 }
 
 .card-name {
-  font-size: var(--text-sm, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .card-status-label {
-  font-size: var(--text-xs, 0.75rem);
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -1039,32 +920,32 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  font-size: var(--text-xs, 0.75rem);
+  font-size: 0.75rem;
   border-radius: var(--el-border-radius-small);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
 .step-completed {
-  color: var(--el-color-success);
-  background: rgba(52, 211, 153, 0.08);
+  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--bronze-500) 10%, transparent);
 }
 
 .step-current {
-  color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-  border: 1px solid var(--el-color-primary);
+  color: var(--gold-400);
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-400);
 }
 
 .step-pending {
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
+  color: var(--fg-tertiary);
+  background: var(--paper-tint);
 }
 
 .step-dot {
   width: 6px;
   height: 6px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-round);
   animation: fs-pulse-dot 1.5s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -1084,21 +965,21 @@ onMounted(() => {
   flex: 1;
   max-width: 200px;
   height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--el-fill-color-light);
+  border-radius: var(--el-border-round);
+  background: var(--paper-tint);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: var(--radius-pill);
-  transition: width 150ms ease;
+  border-radius: var(--el-border-round);
+  transition: width var(--dur-fast) var(--ease-out);
 }
 
 .progress-text {
-  font-size: var(--text-xs, 0.75rem);
-  color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -1107,11 +988,11 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  font-size: var(--text-xs, 0.75rem);
+  font-size: 0.75rem;
   color: var(--el-color-info);
-  background: rgba(96, 165, 250, 0.1);
+  background: color-mix(in srgb, var(--el-color-info) 12%, transparent);
   border-radius: var(--el-border-radius-small);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -1130,10 +1011,15 @@ onMounted(() => {
   gap: 2px;
 }
 
+.meta-duration {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
 .meta-time {
-  font-size: var(--text-xs, 0.75rem);
-  color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -1141,34 +1027,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-/* ===================== Empty State ===================== */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.empty-icon {
-  margin-bottom: 16px;
-  opacity: 0.4;
-}
-
-.empty-state h3 {
-  font-size: var(--text-lg, 1.125rem);
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 8px 0;
-}
-
-.empty-state p {
-  font-size: var(--text-sm, 0.8125rem);
-  color: var(--el-text-color-secondary);
-  margin: 0 0 20px 0;
 }
 
 .empty-actions {
@@ -1189,16 +1047,16 @@ onMounted(() => {
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid var(--el-border-color);
-  border-top-color: var(--el-color-primary);
+  border: 3px solid var(--border-default);
+  border-top-color: var(--gold-400);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
 }
 
 .loading-state p {
-  font-size: var(--text-sm, 0.8125rem);
-  color: var(--el-text-color-secondary);
+  font-size: 0.8125rem;
+  color: var(--fg-tertiary);
   margin: 0;
 }
 
@@ -1209,7 +1067,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink-950) 55%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1218,8 +1076,8 @@ onMounted(() => {
 }
 
 .modal {
-  background: var(--el-bg-color);
-  border-radius: 12px;
+  background: var(--el-bg-color-overlay);
+  border-radius: var(--radius-xl);
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -1265,23 +1123,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .library-inner {
     padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .header-right {
-    width: 100%;
-  }
-
-  .search-box {
-    flex: 1;
-  }
-
-  .search-input {
-    width: 100%;
   }
 
   .workflow-card {

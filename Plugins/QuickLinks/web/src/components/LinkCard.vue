@@ -70,7 +70,13 @@ function handleDragEnd(): void {
     <div class="card-header">
       <div class="link-icon">
         <span v-if="link.icon" class="icon-content">{{ link.icon }}</span>
-        <span v-else class="icon-fallback">🔗</span>
+        <span v-else class="icon-fallback">
+          <svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.5 9.5 9.5 6.5" />
+            <path d="M7.5 5.5 9 4a2.1 2.1 0 0 1 3 3l-1.5 1.5" />
+            <path d="M8.5 10.5 7 12a2.1 2.1 0 0 1-3-3l1.5-1.5" />
+          </svg>
+        </span>
       </div>
       <div class="link-info">
         <h3 class="link-name">{{ link.name }}</h3>
@@ -82,14 +88,18 @@ function handleDragEnd(): void {
           :aria-label="`编辑 ${link.name}`"
           @click="handleEdit"
         >
-          ✏️
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 2.5 13.5 5 6 12.5H3.5V10L11 2.5Z" />
+          </svg>
         </button>
         <button
           class="action-btn delete-btn"
           :aria-label="`删除 ${link.name}`"
           @click="handleDelete"
         >
-          🗑️
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9h6.6L12 4M6.5 7v4M9.5 7v4" />
+          </svg>
         </button>
       </div>
     </div>
@@ -100,7 +110,6 @@ function handleDragEnd(): void {
 
     <div class="card-footer">
       <span class="click-count">
-        <span class="click-icon">👆</span>
         {{ link.clickCount }} 次点击
       </span>
     </div>

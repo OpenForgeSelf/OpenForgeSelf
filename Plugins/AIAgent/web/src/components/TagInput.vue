@@ -84,10 +84,10 @@ function removeAt(i: number) {
   max-width: 100%;
   padding: 2px 8px;
   border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-color-primary-light-9, rgba(255, 184, 77, 0.08));
-  border: 1px solid var(--el-color-primary-light-8, rgba(255, 184, 77, 0.2));
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-8);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .ti__chip-text {
@@ -107,7 +107,7 @@ function removeAt(i: number) {
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -115,21 +115,21 @@ function removeAt(i: number) {
 }
 
 .ti__chip-x:hover {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .ti__input {
   padding: 6px 10px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-extra-small, 12px);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .ti__input:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 </style>

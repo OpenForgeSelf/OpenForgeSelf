@@ -57,30 +57,31 @@ function move(step: number): void {
   align-items: center;
   gap: var(--ds-space-1);
   padding: 0 var(--ds-space-6);
-  border-bottom: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
+  border-bottom: 1px solid var(--border-hairline);
 }
 .ds-modebar__tab {
   font: inherit;
+  font-family: var(--ds-font-sans);
   font-size: var(--ds-fs-small);
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--ds-fg-2);
+  color: var(--fg-secondary);
   padding: var(--ds-space-2) var(--ds-space-4);
   cursor: pointer;
-  border-radius: var(--ds-radius-sm) var(--ds-radius-sm) 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 .ds-modebar__tab:hover {
-  color: var(--ds-fg-1);
+  color: var(--fg-primary);
 }
 .ds-modebar__tab--active {
-  color: var(--ds-color-primary);
-  border-bottom-color: var(--ds-color-primary);
-  background: var(--ds-surface-1);
+  color: var(--gold-300);
+  border-bottom-color: var(--gold-400);
+  box-shadow: var(--gold-glow-md);
 }
 .ds-modebar__tab:focus-visible {
-  outline: 2px solid var(--ds-color-primary);
+  outline: 2px solid var(--gold-400);
   outline-offset: -2px;
 }
 </style>

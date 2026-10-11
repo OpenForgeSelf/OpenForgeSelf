@@ -17,6 +17,7 @@
 import type { Router, RouteRecordRaw } from 'vue-router'
 import type { PluginFrontendManifest } from '@/types/plugin'
 import { buildPluginAssetUrl, clearPluginViewCache, loadPluginView } from '@/utils/pluginViewLoader'
+import { hasSurface, resolveSurfaces } from '@/utils/pluginSurfaces'
 
 /**
  * 冲突回退用的命名空间前缀。
@@ -121,14 +122,18 @@ function isPathTaken(router: Router, path: string): boolean {
 /**
  * 根据插件前端清单动态注册路由。
  *
- * 只处理「已启用 + 声明了 route + 至少一个 views 且首个视图在试点注册表内」的条目；
- * 其余（未启用/无 frontend/无 route/未知视图）一律跳过，因此清单失败或为空时
- * 不会向 router 注入任何路由，现有静态路由原样兜底。
+ * 只处理「已启用 + 声明了 route + 至少一个 views + 解析出的 surfaces 含 tab」的条目；
+ * 其余（未启用/无 frontend/无 route/未知视图/仅贡献 home-widget/quick-action/status-badge）
+ * 一律跳过，因此清单失败或为空时不会向 router 注入任何路由，现有静态路由原样兜底。
+ *
+ * surfaces 归一规则见 `utils/pluginSurfaces.resolveSurfaces`：旧插件未声明 surfaces 但带
+ * route+views，按既有约定视为 tab（向后兼容）。
  */
 export function registerManifestRoutes(router: Router, manifest: PluginFrontendManifest[]): void {
   for (const entry of manifest) {
     const frontend = entry.frontend
     if (!entry.isEnabled || !frontend || !frontend.route) continue
+    if (!hasSurface(frontend, 'tab')) continue
 
     const viewName = frontend.views?.[0]
     if (!viewName) continue
@@ -164,6 +169,7 @@ export function registerManifestRoutes(router: Router, manifest: PluginFrontendM
         title: frontend.menu ?? entry.name,
         icon: frontend.icon ?? null,
         source: 'manifest',
+        surfaces: resolveSurfaces(frontend),
       },
     }
     router.addRoute(route)

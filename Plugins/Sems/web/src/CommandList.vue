@@ -252,31 +252,31 @@ async function save() {
 
 .clist__title {
   font-weight: 600;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .clist__add {
   padding: 3px 10px;
-  border: 1px solid var(--el-color-primary, #ffb84d);
+  border: 1px solid var(--el-color-primary);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   cursor: pointer;
   font-size: 12px;
 }
 
 .clist__add:hover {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  background: var(--el-color-primary-light);
 }
 
 .clist__hint {
   padding: 10px 4px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .clist__hint--error {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .clist__items {
@@ -293,8 +293,8 @@ async function save() {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
 }
 
@@ -308,18 +308,18 @@ async function save() {
 .clist__order-btn {
   width: 20px;
   height: 16px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 10px;
   line-height: 1;
 }
 
 .clist__order-btn:hover:not(:disabled) {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .clist__order-btn:disabled {
@@ -340,14 +340,14 @@ async function save() {
 
 .clist__name {
   font-weight: 600;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .clist__link {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   text-decoration: none;
   font-size: 13px;
 }
@@ -359,9 +359,9 @@ async function save() {
 .clist__script {
   display: block;
   margin-top: 2px;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--el-font-family-mono);
   font-size: 11px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -375,26 +375,26 @@ async function save() {
 
 .clist__op {
   padding: 3px 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 5px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 12px;
 }
 
 .clist__op:hover {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .clist__op--run {
-  color: var(--el-color-success, #67c23a);
-  border-color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
+  border-color: var(--el-color-success);
 }
 
 .clist__op--run:hover:not(:disabled) {
-  background: var(--el-color-success-light, rgba(103, 194, 58, 0.12));
+  background: var(--el-color-success-light);
 }
 
 .clist__op--run:disabled {
@@ -403,15 +403,15 @@ async function save() {
 }
 
 .clist__op--del:hover {
-  border-color: var(--el-color-danger, #f56c6c);
-  color: var(--el-color-danger, #f56c6c);
+  border-color: var(--el-color-danger);
+  color: var(--el-color-danger);
 }
 
 /* 轻量弹层 */
 .cmddlg__mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
   z-index: 50;
 }
 
@@ -424,16 +424,16 @@ async function save() {
   width: 380px;
   max-width: calc(100vw - 32px);
   padding: 18px 20px;
-  background: var(--el-bg-color-overlay, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-xl);
 }
 
 .cmddlg__title {
   margin: 0 0 12px;
   font-size: 15px;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .cmddlg__field {
@@ -445,27 +445,27 @@ async function save() {
 
 .cmddlg__field > span {
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .cmddlg__field input {
   padding: 6px 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
   font-size: 13px;
 }
 
 .cmddlg__field input:focus {
   outline: none;
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .cmddlg__err {
   margin: 0 0 8px;
   font-size: 12px;
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .cmddlg__foot {
@@ -477,21 +477,21 @@ async function save() {
 
 .cmddlg__btn {
   padding: 6px 14px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 13px;
 }
 
 .cmddlg__btn--primary {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .cmddlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  background: var(--el-color-primary-light);
 }
 
 .cmddlg__btn:disabled {

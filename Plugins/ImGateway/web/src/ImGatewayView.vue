@@ -192,6 +192,7 @@ function canReconnect(): boolean {
 <template>
   <div class="ig ig-root">
     <header class="ig-header">
+      <div class="ig-eyebrow">IM Gateway · 即时通讯网关</div>
       <div class="ig-header__row">
         <div class="ig-title">IM 网关</div>
         <span v-if="pluginVersion" class="ig-version">v{{ pluginVersion }}</span>
@@ -305,11 +306,10 @@ function canReconnect(): boolean {
 </template>
 
 <style>
-/* 仅走 --el-* token，不定义独立色值；插件无 Tailwind，布局类自写。 */
+/* 冻结模式：仅引用设计稿 token 与 --el-*（宿主级联），无裸色值、无 hex 回退。 */
 .ig-root {
-  font-family: var(--el-font-family, system-ui, sans-serif);
-  color: var(--el-text-color-primary);
-  background: var(--el-bg-color-page, #f5f7fa);
+  font-family: var(--font-sans-cn, var(--el-font-family, system-ui, sans-serif));
+  color: var(--fg-primary);
   padding: 20px;
   max-width: 880px;
   margin: 0 auto;
@@ -318,52 +318,66 @@ function canReconnect(): boolean {
 .ig-header {
   margin-bottom: 16px;
 }
+.ig-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 4px;
+}
 .ig-header__row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
 }
 .ig-version {
-  font-size: 12px;
-  font-weight: 500;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
   padding: 1px 8px;
-  border-radius: 10px;
-  background: var(--el-fill-color-light, #f4f4f5);
-  color: var(--el-text-color-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--gold-tint);
+  color: var(--gold-400);
 }
 .ig-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--font-display, serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: var(--fg-primary);
 }
 .ig-subtitle {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   line-height: 1.5;
 }
 .ig-alert {
   padding: 10px 14px;
-  border-radius: var(--el-border-radius-base, 6px);
+  border-radius: var(--radius-md);
   margin-bottom: 14px;
   font-size: 13px;
 }
 .ig-alert--ok {
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
-  border: 1px solid var(--el-color-success-light-5, #b3e19d);
+  background: color-mix(in srgb, var(--bronze-500) 14%, transparent);
+  color: var(--el-color-success);
+  border: 1px solid color-mix(in srgb, var(--bronze-500) 32%, transparent);
 }
 .ig-alert--err {
-  background: var(--el-color-danger-light-9, #fef0f0);
-  color: var(--el-color-danger, #f56c6c);
-  border: 1px solid var(--el-color-danger-light-5, #fab6b6);
+  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
+  color: var(--cinnabar-400);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 32%, transparent);
 }
 .ig-channel {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
-  border-radius: var(--el-border-radius-base, 6px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
   padding: 16px;
   margin-bottom: 14px;
-  box-shadow: var(--el-box-shadow-lighter, 0 1px 4px rgba(0, 0, 0, 0.04));
 }
 .ig-channel__head {
   display: flex;
@@ -372,30 +386,33 @@ function canReconnect(): boolean {
   margin-bottom: 12px;
 }
 .ig-channel__name {
+  font-family: var(--font-serif-cn, serif);
   font-size: 16px;
   font-weight: 600;
+  color: var(--fg-primary);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .ig-channel__desc {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   margin-top: 2px;
 }
 .ig-badge {
-  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
 }
 .ig-badge--on {
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
+  background: color-mix(in srgb, var(--bronze-500) 16%, transparent);
+  color: var(--el-color-success);
 }
 .ig-badge--off {
-  background: var(--el-fill-color-light, #f4f4f5);
-  color: var(--el-text-color-secondary);
+  background: var(--paper-tint);
+  color: var(--fg-secondary);
 }
 .ig-field,
 .ig-bind {
@@ -408,32 +425,33 @@ function canReconnect(): boolean {
 .ig-field label,
 .ig-bind label {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-regular, var(--fg-secondary));
 }
 .ig-field input,
 .ig-bind input {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--el-border-color, #dcdfe6);
-  border-radius: var(--el-border-radius-base, 6px);
-  background: var(--el-fill-color-blank, #fff);
-  color: var(--el-text-color-primary);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--radius-md);
+  background: var(--glass-strong-bg);
+  color: var(--fg-primary);
   font-size: 13px;
   box-sizing: border-box;
   outline: none;
 }
 .ig-field input:focus,
 .ig-bind input:focus {
-  border-color: var(--el-color-primary, #409eff);
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 3px var(--gold-tint);
 }
 /* 通道说明框（跨满两列栅格） */
 .ig-note {
   grid-column: 1 / -1;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light, #f4f4f5);
-  border-radius: var(--el-border-radius-base, 6px);
+  color: var(--fg-secondary);
+  background: var(--paper-tint-weak);
+  border-radius: var(--radius-md);
   padding: 8px 10px;
 }
 /* 长连接状态行 */
@@ -446,10 +464,10 @@ function canReconnect(): boolean {
   flex-wrap: wrap;
 }
 .ig-conn__text {
-  color: var(--el-text-color-regular);
+  color: var(--fg-regular, var(--fg-secondary));
 }
 .ig-conn__msg {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   word-break: break-all;
 }
 .ig-dot {
@@ -457,19 +475,19 @@ function canReconnect(): boolean {
   height: 8px;
   border-radius: 50%;
   flex: none;
-  background: var(--el-text-color-placeholder, #c0c4cc);
+  background: var(--fg-muted);
 }
 .ig-dot--connected {
-  background: var(--el-color-success, #67c23a);
+  background: var(--bronze-500);
 }
 .ig-dot--connecting {
-  background: var(--el-color-primary, #409eff);
+  background: var(--gold-400);
 }
 .ig-dot--failed {
-  background: var(--el-color-danger, #f56c6c);
+  background: var(--cinnabar-400);
 }
 .ig-dot--kicked {
-  background: var(--el-color-warning, #e6a23c);
+  background: var(--el-color-warning);
 }
 .ig-footer {
   display: flex;
@@ -480,21 +498,26 @@ function canReconnect(): boolean {
 .ig-btn {
   height: 34px;
   padding: 0 18px;
-  border-radius: var(--el-border-radius-base, 6px);
-  border: 1px solid var(--el-border-color, #dcdfe6);
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--el-border-color);
+  background: transparent;
+  color: var(--fg-primary);
   font-size: 13px;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
+.ig-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .ig-btn--primary {
-  background: var(--el-color-primary, #409eff);
-  border-color: var(--el-color-primary, #409eff);
-  color: #fff;
+  background: var(--gold-400);
+  border-color: var(--gold-400);
+  color: var(--ink-950);
+  font-weight: 500;
 }
+.ig-btn--primary:hover:not(:disabled) { background: var(--gold-300); }
 .ig-btn--primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 .ig-btn--reconnect {
   margin-left: 4px;
@@ -515,10 +538,11 @@ function canReconnect(): boolean {
   padding: 0 16px;
   font-size: 13px;
   font-weight: 500;
-  color: #fff;
-  border-color: var(--el-color-primary, #409eff);
-  background: var(--el-color-primary, #409eff);
+  color: var(--ink-950);
+  border-color: var(--gold-400);
+  background: var(--gold-400);
 }
+.ig-btn--scan:hover:not(:disabled) { background: var(--gold-300); }
 .ig-btn--scan:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -527,7 +551,7 @@ function canReconnect(): boolean {
 .ig-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -536,10 +560,12 @@ function canReconnect(): boolean {
   z-index: 2000;
 }
 .ig-modal__box {
-  background: var(--el-bg-color, #fff);
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
-  box-shadow: var(--el-box-shadow, 0 8px 32px rgba(0, 0, 0, 0.35));
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  border-radius: var(--radius-xl);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-xl);
   width: min(560px, calc(100vw - 40px));
   max-height: calc(100vh - 80px);
   display: flex;
@@ -551,9 +577,11 @@ function canReconnect(): boolean {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-bottom: var(--glass-border);
+  font-family: var(--font-serif-cn, serif);
   font-size: 15px;
   font-weight: 600;
+  color: var(--fg-primary);
 }
 .ig-btn--close {
   height: 24px;
@@ -561,68 +589,68 @@ function canReconnect(): boolean {
   border: none;
   background: transparent;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
 }
 .ig-modal__body {
   padding: 16px;
   overflow-y: auto;
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-regular, var(--fg-secondary));
 }
 .ig-scan-state {
   font-weight: 600;
   margin-bottom: 10px;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 .ig-qr {
   margin: 0 auto 10px;
   padding: 12px;
-  background: var(--el-fill-color-light, #f4f4f5);
-  border-radius: var(--el-border-radius-base, 6px);
-  font-family: var(--el-font-family-mono, monospace);
+  background: var(--paper-tint);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono, monospace);
   font-size: 10px;
   line-height: 1;
   letter-spacing: 0;
   white-space: pre;
   text-align: center;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 .ig-qr-link {
   display: block;
   margin-bottom: 10px;
   font-size: 12px;
-  color: var(--el-color-primary, #409eff);
+  color: var(--gold-400);
   word-break: break-all;
 }
 .ig-scan-tip {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
 }
 .ig-scan-ok {
   padding: 10px;
-  border-radius: var(--el-border-radius-base, 6px);
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bronze-500) 14%, transparent);
+  color: var(--el-color-success);
   font-size: 13px;
   word-break: break-all;
 }
 .ig-scan-err {
   padding: 10px;
-  border-radius: var(--el-border-radius-base, 6px);
-  background: var(--el-color-danger-light-9, #fef0f0);
-  color: var(--el-color-danger, #f56c6c);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
+  color: var(--cinnabar-400);
   font-size: 13px;
   word-break: break-all;
 }
 .ig-modal__foot {
   padding: 12px 16px;
-  border-top: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-top: var(--glass-border);
   display: flex;
   justify-content: flex-end;
 }
 .ig-hint {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
 }
 /* 原生开关（无 EP 组件）：checkbox 隐藏，用 track 表现 */
 .ig-switch {
@@ -647,9 +675,9 @@ function canReconnect(): boolean {
 .ig-switch__track {
   position: absolute;
   inset: 0;
-  background: var(--el-border-color, #dcdfe6);
-  border-radius: 12px;
-  transition: background 0.2s;
+  background: var(--el-border-color);
+  border-radius: var(--radius-full, 9999px);
+  transition: background var(--dur-fast) var(--ease-out);
 }
 .ig-switch__track::after {
   content: '';
@@ -658,12 +686,12 @@ function canReconnect(): boolean {
   left: 2px;
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: var(--paper-white);
   border-radius: 50%;
-  transition: transform 0.2s;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 .ig-switch input:checked + .ig-switch__track {
-  background: var(--el-color-primary, #409eff);
+  background: var(--gold-400);
 }
 .ig-switch input:checked + .ig-switch__track::after {
   transform: translateX(20px);

@@ -59,7 +59,7 @@ const filteredTools = computed(() => {
 
 const serverStatusColor = (status: string): string => {
   switch (status) {
-    case 'connected': return 'var(--brand-amber-500, #f59e0b)'
+    case 'connected': return 'var(--el-color-success)'
     case 'disconnected': return 'var(--el-text-color-secondary)'
     case 'error': return 'var(--el-color-danger)'
     default: return 'var(--el-text-color-secondary)'
@@ -1397,7 +1397,7 @@ export default { name: 'McpCenterView' }
 
 .table-row:last-child { border-bottom: none; }
 .table-row:hover { background: var(--el-fill-color); }
-.table-row.row-even { background: rgba(245, 158, 11, 0.04); }
+.table-row.row-even { background: color-mix(in srgb, var(--el-color-primary) 4%, transparent); }
 .table-row.row-even:hover { background: var(--el-fill-color); }
 
 .table-row.row-disabled .tool-name-text,
@@ -1445,7 +1445,7 @@ export default { name: 'McpCenterView' }
 
 .btn-test:hover:not(:disabled) {
   color: var(--el-text-color-primary);
-  border-color: var(--el-border-color-darker, #999);
+  border-color: var(--el-border-color-darker);
 }
 
 .btn-test:disabled {
@@ -1804,7 +1804,7 @@ export default { name: 'McpCenterView' }
 .test-toast-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--el-mask-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1818,7 +1818,7 @@ export default { name: 'McpCenterView' }
   padding: 20px;
   min-width: 320px;
   max-width: 480px;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .toast-header {

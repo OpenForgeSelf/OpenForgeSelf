@@ -258,8 +258,8 @@ const skillBars = computed(() => {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--el-bg-color, #1d1e1f);
-  border-left: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border-left: 1px solid var(--el-border-color);
   scrollbar-width: thin;
 }
 
@@ -268,7 +268,7 @@ const skillBars = computed(() => {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-bottom: 1px solid var(--el-border-color, #414243);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .sess__head {
@@ -287,17 +287,17 @@ const skillBars = computed(() => {
   padding: 0;
   background: transparent;
   border: none;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .sess__head-toggle:hover {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .sess__head-toggle:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
@@ -316,20 +316,20 @@ const skillBars = computed(() => {
   margin-left: auto;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .sess__head-icon {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .sess__title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .sess__name-row {
@@ -337,7 +337,7 @@ const skillBars = computed(() => {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   border-radius: var(--el-border-radius-small, 4px);
 }
 
@@ -345,14 +345,14 @@ const skillBars = computed(() => {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
   font-family: var(--el-font-family-mono, monospace);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .sess__icon-btn {
   display: flex;
   align-items: center;
   padding: 2px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -366,7 +366,7 @@ const skillBars = computed(() => {
 /* A3：键盘聚焦可见焦点环 */
 .sess__icon-btn:focus-visible,
 .sess__agent:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
@@ -382,13 +382,13 @@ const skillBars = computed(() => {
   justify-content: space-between;
   padding: 0 10px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .sess__stat-val {
   font-family: var(--el-font-family-mono, monospace);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 /* 能力画像条形 */
@@ -406,25 +406,25 @@ const skillBars = computed(() => {
 }
 
 .sess__skill-name {
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .sess__skill-val {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   font-weight: var(--el-weight-medium, 500);
   font-family: var(--el-font-family-mono, monospace);
 }
 
 .sess__skill-track {
   height: 4px;
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   border-radius: var(--el-border-radius-round, 999px);
   overflow: hidden;
 }
 
 .sess__skill-fill {
   height: 100%;
-  background: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary);
   border-radius: var(--el-border-radius-round, 999px);
   transition: width var(--el-transition-duration, 0.2s);
 }
@@ -446,19 +446,19 @@ const skillBars = computed(() => {
 }
 
 .sess__agent:hover:not(.sess__agent--active) {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .sess__agent--active {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  border-left-color: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary-light);
+  border-left-color: var(--el-color-primary);
 }
 
 .sess__agent-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary);
 }
 
 .sess__agent-name {
@@ -466,7 +466,7 @@ const skillBars = computed(() => {
   min-width: 0;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -474,7 +474,7 @@ const skillBars = computed(() => {
 
 .sess__agent-tag {
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   opacity: 0.7;
   flex-shrink: 0;
 }
@@ -489,19 +489,19 @@ const skillBars = computed(() => {
   background: transparent;
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
 }
 
 .sess__agent-edit:hover {
-  background: var(--el-fill-color, #262727);
-  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
 }
 
 .sess__agent-edit:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
@@ -517,7 +517,7 @@ const skillBars = computed(() => {
   background: transparent;
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
@@ -528,12 +528,12 @@ const skillBars = computed(() => {
 }
 
 .sess__add:hover {
-  background: var(--el-fill-color, #262727);
-  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
 }
 
 .sess__add:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
@@ -554,12 +554,12 @@ const skillBars = computed(() => {
 }
 
 .sess__item:hover:not(.sess__item--active) {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .sess__item--active {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  border-left-color: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary-light);
+  border-left-color: var(--el-color-primary);
 }
 
 .sess__item-main {
@@ -573,7 +573,7 @@ const skillBars = computed(() => {
 .sess__item-title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -581,7 +581,7 @@ const skillBars = computed(() => {
 
 .sess__item-meta {
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 /* 归档按钮：默认隐藏（图标 10px），鼠标悬浮整行或键盘聚焦时才显示，避免列表视觉噪音 */
@@ -595,7 +595,7 @@ const skillBars = computed(() => {
   background: transparent;
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   flex-shrink: 0;
   opacity: 0;
@@ -609,12 +609,12 @@ const skillBars = computed(() => {
 }
 
 .sess__item-archive:hover {
-  background: var(--el-fill-color, #262727);
-  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
 }
 
 .sess__item-archive:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 </style>

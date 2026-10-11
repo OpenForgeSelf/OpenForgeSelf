@@ -541,7 +541,7 @@ function fmtTime(t?: string): string {
   flex-direction: column;
   width: 260px;
   flex-shrink: 0;
-  border-right: 1px solid var(--el-border-color-lighter, #2a2b2c);
+  border-right: 1px solid var(--el-border-color-lighter);
   padding-right: 12px;
   min-height: 0;
 }
@@ -557,7 +557,7 @@ function fmtTime(t?: string): string {
 .rrp__list-title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .rrp__reload {
@@ -569,13 +569,13 @@ function fmtTime(t?: string): string {
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
 }
 
 .rrp__reload:hover {
-  background: var(--el-fill-color-light, #303132);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 
 .rrp__list-body {
@@ -591,20 +591,20 @@ function fmtTime(t?: string): string {
   width: 100%;
   padding: 8px 10px;
   margin-bottom: 6px;
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
+  background: var(--el-bg-color);
   text-align: left;
   cursor: pointer;
 }
 
 .rrp__run:hover {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .rrp__run--on {
-  border-color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light-9, rgba(255, 184, 77, 0.1));
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .rrp__run-badge {
@@ -615,25 +615,25 @@ function fmtTime(t?: string): string {
 
 .rrp__run-badge--running,
 .rrp__run-badge--planning {
-  color: var(--el-color-warning, #e6a23c);
-  background: rgba(230, 162, 60, 0.12);
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
 }
 
 .rrp__run-badge--completed {
-  color: var(--el-color-success, #67c23a);
-  background: rgba(103, 194, 58, 0.12);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .rrp__run-badge--stuck,
 .rrp__run-badge--failed {
-  color: var(--el-color-danger, #f56c6c);
-  background: rgba(245, 108, 108, 0.12);
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
 }
 
 .rrp__run-badge--cancelled,
 .rrp__run-badge--pending {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-dark, #2f3031);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-dark);
 }
 
 .rrp__run-task {
@@ -642,12 +642,12 @@ function fmtTime(t?: string): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .rrp__run-meta {
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 /* 右：详情 */
@@ -675,36 +675,36 @@ function fmtTime(t?: string): string {
 
 .rrp__detail-status--running,
 .rrp__detail-status--planning {
-  color: var(--el-color-warning, #e6a23c);
-  background: rgba(230, 162, 60, 0.12);
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
 }
 
 .rrp__detail-status--completed {
-  color: var(--el-color-success, #67c23a);
-  background: rgba(103, 194, 58, 0.12);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .rrp__detail-status--stuck,
 .rrp__detail-status--failed {
-  color: var(--el-color-danger, #f56c6c);
-  background: rgba(245, 108, 108, 0.12);
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
 }
 
 .rrp__detail-status--cancelled {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-dark, #2f3031);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-dark);
 }
 
 .rrp__detail-id {
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .rrp__detail-time {
   margin-left: auto;
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__stuck {
@@ -714,8 +714,8 @@ function fmtTime(t?: string): string {
   margin-bottom: 10px;
   padding: 6px 8px;
   border-radius: var(--el-border-radius-small, 4px);
-  background: rgba(245, 108, 108, 0.08);
-  color: var(--el-color-danger, #f56c6c);
+  background: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  color: var(--el-color-danger);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.5;
 }
@@ -723,9 +723,9 @@ function fmtTime(t?: string): string {
 /* B9-3：规划过程折叠区 */
 .rrp__plan {
   margin-bottom: 10px;
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
+  background: var(--el-bg-color);
   flex-shrink: 0;
 }
 
@@ -750,7 +750,7 @@ function fmtTime(t?: string): string {
 .rrp__plan-title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .rrp__plan-badge {
@@ -760,37 +760,37 @@ function fmtTime(t?: string): string {
 }
 
 .rrp__plan-badge--auto {
-  color: var(--el-color-success, #67c23a);
-  background: rgba(103, 194, 58, 0.12);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .rrp__plan-badge--fallback {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-dark, #2f3031);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-dark);
 }
 
 .rrp__plan-arrow {
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__plan-raw {
   border: none;
   background: transparent;
   font-size: 11px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .rrp__plan-raw:hover {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .rrp__plan-body {
   max-height: 200px;
-  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-top: 1px solid var(--el-border-color-dark);
   padding: 6px 8px;
 }
 
@@ -804,15 +804,15 @@ function fmtTime(t?: string): string {
 .rrp__plan-role {
   font-size: 11px;
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .rrp__plan-role--assistant {
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .rrp__plan-role--tool {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__pre--raw {
@@ -831,15 +831,15 @@ function fmtTime(t?: string): string {
 }
 
 .rrp__step {
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
-  border-left: 2px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color-dark);
+  border-left: 2px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
+  background: var(--el-bg-color);
   overflow: hidden;
 }
 
 .rrp__step--current {
-  border-left-color: var(--el-color-primary, #ffb84d);
+  border-left-color: var(--el-color-primary);
 }
 
 .rrp__step-row {
@@ -859,24 +859,24 @@ function fmtTime(t?: string): string {
 }
 
 .rrp__step-ico--pending {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__step-ico--running {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 
 .rrp__step-ico--completed {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 
 .rrp__step-ico--skipped {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__step-ico--stuck,
 .rrp__step-ico--failed {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .rrp__ico {
@@ -903,10 +903,10 @@ function fmtTime(t?: string): string {
   height: 18px;
   flex-shrink: 0;
   border-radius: 999px;
-  background: var(--el-fill-color-dark, #2f3031);
+  background: var(--el-fill-color-dark);
   font-family: var(--el-font-family-mono, monospace);
   font-size: 11px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .rrp__step-name {
@@ -916,7 +916,7 @@ function fmtTime(t?: string): string {
   white-space: nowrap;
   flex: 1;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .rrp__step-status {
@@ -925,31 +925,31 @@ function fmtTime(t?: string): string {
 }
 
 .rrp__step-status--pending {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__step-status--running {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 
 .rrp__step-status--completed {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 
 .rrp__step-status--skipped {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__step-status--stuck,
 .rrp__step-status--failed {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .rrp__step-dur {
   flex-shrink: 0;
   font-family: var(--el-font-family-mono, monospace);
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__step-detail {
@@ -957,27 +957,27 @@ function fmtTime(t?: string): string {
   flex-direction: column;
   gap: 4px;
   padding: 6px 10px;
-  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-top: 1px solid var(--el-border-color-dark);
 }
 
 .rrp__line {
   margin: 0;
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.6;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   word-break: break-word;
 }
 
 .rrp__line--stuck {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .rrp__line--human {
-  color: var(--el-color-primary-light-7, #fde68a);
+  color: var(--el-color-primary-light-7);
 }
 
 .rrp__line--meta {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__pre {
@@ -987,7 +987,7 @@ function fmtTime(t?: string): string {
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
   line-height: 1.5;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -996,7 +996,7 @@ function fmtTime(t?: string): string {
   display: inline-block;
   margin-right: 6px;
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 /* 操作按钮区 */
@@ -1005,7 +1005,7 @@ function fmtTime(t?: string): string {
   align-items: center;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter, #2a2b2c);
+  border-top: 1px solid var(--el-border-color-lighter);
   margin-top: 12px;
   flex-shrink: 0;
 }
@@ -1019,7 +1019,7 @@ function fmtTime(t?: string): string {
   padding: 12px;
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.6;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .rrp__empty--center {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { usePluginStore } from '@/stores/plugin'
 import { useOpenPage } from '@/composables/useOpenPage'
 import { PluginState } from '@/types/plugin'
@@ -114,23 +116,48 @@ watch(() => route.params.id, (newId) => {
 
 <template>
   <div class="plugin-detail-page">
-    <div class="detail-header">
-      <button class="back-btn" @click="handleBack">
-        ← 返回
-      </button>
-    </div>
+    <PageHead eyebrow="Plugin Detail · 插件详情" :title="plugin ? plugin.name : '插件详情'">
+      <template #actions>
+        <button class="back-btn" @click="handleBack">← 返回</button>
+        <button
+          v-if="plugin"
+          class="action-btn toggle-btn"
+          :class="{ active: plugin.isEnabled, loading: isToggling }"
+          :disabled="isToggling || plugin.state === PluginState.Error"
+          @click="handleToggle"
+        >
+          {{ plugin.isEnabled ? '禁用' : '启用' }}
+        </button>
+        <button
+          v-if="plugin && plugin.hasUpdate"
+          class="action-btn update-btn"
+          @click="handleUpdate"
+        >
+          更新到 v{{ plugin.latestVersion }}
+        </button>
+        <button v-if="plugin" class="action-btn uninstall-btn" @click="handleUninstall">
+          卸载
+        </button>
+      </template>
+    </PageHead>
 
     <div v-if="pluginStore.isLoading && !plugin" class="loading-state">
       <div class="loading-spinner" />
       <p>加载插件详情中...</p>
     </div>
 
-    <div v-else-if="pluginStore.error && !plugin" class="error-state">
-      <div class="error-icon">⚠️</div>
-      <p>{{ pluginStore.error }}</p>
-    </div>
+    <EmptyState
+      v-else-if="pluginStore.error && !plugin"
+      icon=""
+      title="插件加载失败"
+      :sub="pluginStore.error"
+    >
+      <template #action>
+        <button class="back-btn" @click="handleBack">返回插件市场</button>
+      </template>
+    </EmptyState>
 
-    <div v-else-if="plugin" class="detail-content">
+    <div v-else-if="plugin" class="detail-content glass">
       <div class="plugin-main-info">
         <div class="plugin-icon-large">
           <span v-if="plugin.iconUrl">
@@ -162,26 +189,6 @@ watch(() => route.params.id, (newId) => {
               <span>更新于 {{ formattedUpdatedAt }}</span>
             </span>
           </div>
-        </div>
-        <div class="plugin-actions">
-          <button
-            class="action-btn toggle-btn"
-            :class="{ active: plugin.isEnabled, loading: isToggling }"
-            :disabled="isToggling || plugin.state === PluginState.Error"
-            @click="handleToggle"
-          >
-            {{ plugin.isEnabled ? '禁用' : '启用' }}
-          </button>
-          <button
-            v-if="plugin.hasUpdate"
-            class="action-btn update-btn"
-            @click="handleUpdate"
-          >
-            更新到 v{{ plugin.latestVersion }}
-          </button>
-          <button class="action-btn uninstall-btn" @click="handleUninstall">
-            卸载
-          </button>
         </div>
       </div>
 
@@ -335,23 +342,23 @@ watch(() => route.params.id, (newId) => {
   min-height: 100%;
 }
 
-.detail-header {
-  margin-bottom: 16px;
-}
-
 .back-btn {
-  background: none;
-  border: none;
-  color: var(--el-color-primary);
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--fg-secondary);
+  font-size: 13px;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-radius: var(--el-border-radius-small);
-  transition: background 150ms ease;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .back-btn:hover {
-  background: var(--el-color-primary-light-9);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .loading-state,
@@ -386,9 +393,7 @@ watch(() => route.params.id, (newId) => {
 }
 
 .detail-content {
-  background: var(--el-bg-color);
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color);
+  border-radius: var(--glass-radius);
   overflow: hidden;
 }
 
@@ -489,14 +494,23 @@ watch(() => route.params.id, (newId) => {
 }
 
 .action-btn {
-  padding: 10px 20px;
+  padding: 6px 14px;
   border: none;
   border-radius: var(--el-border-radius-small);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   white-space: nowrap;
+}
+
+.action-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .toggle-btn {
@@ -673,7 +687,7 @@ watch(() => route.params.id, (newId) => {
 
 .version-item.latest {
   border-left-color: var(--el-color-success);
-  background: rgba(4, 120, 87, 0.08);
+  background: color-mix(in srgb, var(--el-color-success) 10%, transparent);
 }
 
 .version-header {

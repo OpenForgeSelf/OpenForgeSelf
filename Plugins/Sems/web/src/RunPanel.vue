@@ -223,8 +223,8 @@ defineExpose({ refresh, check })
 .run {
   margin: 24px 0;
   padding: 16px 18px;
-  background: var(--el-bg-color, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
 }
 
@@ -240,7 +240,7 @@ defineExpose({ refresh, check })
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -250,8 +250,8 @@ defineExpose({ refresh, check })
   padding: 0 8px;
   border-radius: 10px;
   font-size: 12px;
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
 }
 
 .run__ops {
@@ -261,35 +261,35 @@ defineExpose({ refresh, check })
 
 .run__btn {
   padding: 5px 12px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 13px;
 }
 
 .run__btn:hover:not(:disabled) {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .run__btn--primary {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .run__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  background: var(--el-color-primary-light);
 }
 
 .run__btn--stop {
-  color: var(--el-color-danger, #f56c6c);
-  border-color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
+  border-color: var(--el-color-danger);
 }
 
 .run__btn--stop:hover:not(:disabled) {
-  background: var(--el-color-danger-light, rgba(245, 108, 108, 0.12));
+  background: var(--el-color-danger-light);
 }
 
 .run__btn:disabled {
@@ -300,7 +300,7 @@ defineExpose({ refresh, check })
 .run__hint {
   padding: 20px 8px;
   font-size: 13px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   text-align: center;
 }
 
@@ -319,8 +319,8 @@ defineExpose({ refresh, check })
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
 }
 
@@ -337,12 +337,12 @@ defineExpose({ refresh, check })
 
 .run__proj {
   font-weight: 600;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .run__cmd {
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .run__origin {
@@ -353,13 +353,13 @@ defineExpose({ refresh, check })
 }
 
 .run__origin--launched {
-  color: var(--el-color-success, #67c23a);
-  background: var(--el-color-success-light, rgba(103, 194, 58, 0.12));
+  color: var(--el-color-success);
+  background: var(--el-color-success-light);
 }
 
 .run__origin--detected {
-  color: var(--el-color-warning, #e6a23c);
-  background: var(--el-color-warning-light, rgba(230, 162, 60, 0.14));
+  color: var(--el-color-warning);
+  background: var(--el-color-warning-light);
 }
 
 .run__line2 {
@@ -367,7 +367,7 @@ defineExpose({ refresh, check })
   gap: 12px;
   margin-top: 4px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .run__acts {
@@ -383,21 +383,21 @@ defineExpose({ refresh, check })
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   text-decoration: none;
   font-size: 14px;
 }
 
 .run__icon:hover {
-  border-color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
 }
 
 .run__note {
   margin: 12px 0 0;
   font-size: 11px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 </style>

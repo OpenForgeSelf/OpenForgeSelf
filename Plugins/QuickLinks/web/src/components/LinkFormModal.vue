@@ -355,7 +355,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--el-mask-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -372,7 +372,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--el-box-shadow);
 }
 
 .modal-header {

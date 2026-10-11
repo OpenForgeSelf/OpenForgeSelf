@@ -1,6 +1,6 @@
 /* =============================================================================
  * Stardust Design System — Base（reset + 基础排版类 + 布局原语）
- * 仅走 tokens.css 变量；不定义独立色值。
+ * M4c：外壳工具类引用宿主 workshop-forge token，不再维护独立色阶。
  * ========================================================================== */
 
 *,
@@ -14,7 +14,7 @@
   font-size: var(--ds-fs-body);
   line-height: var(--ds-lh-normal);
   color: var(--ds-fg-1);
-  background: var(--ds-surface-bg);
+  background: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -31,19 +31,23 @@
 
 /* 类型工具类 */
 .ds-display {
-  font-family: var(--ds-font-sans);
+  font-family: var(--font-display);
   font-size: var(--ds-fs-display);
   font-weight: var(--ds-fw-bold);
   line-height: var(--ds-lh-display);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
 }
 .ds-h1 {
+  font-family: var(--font-display);
   font-size: var(--ds-fs-h1);
   font-weight: var(--ds-fw-bold);
+  letter-spacing: 0.05em;
 }
 .ds-h2 {
+  font-family: var(--font-display);
   font-size: var(--ds-fs-h2);
   font-weight: var(--ds-fw-semibold);
+  letter-spacing: 0.03em;
 }
 .ds-h3 {
   font-size: var(--ds-fs-h3);
@@ -67,10 +71,11 @@
   color: var(--ds-fg-3);
 }
 .ds-micro {
+  font-family: var(--font-mono);
   font-size: var(--ds-fs-micro);
   font-weight: var(--ds-fw-medium);
-  color: var(--ds-fg-4);
-  letter-spacing: 0.04em;
+  color: var(--gold-400);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 .ds-mono {
@@ -107,16 +112,21 @@
 .ds-gap-5 { gap: var(--ds-space-5); }
 .ds-gap-6 { gap: var(--ds-space-6); }
 
+/* 玻璃卡：外壳面板统一走宿主玻璃参数 */
 .ds-surface {
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-lg);
-  box-shadow: var(--ds-shadow-sm);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 .ds-surface-2 {
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
 }
 .ds-section-title {
   display: flex;
@@ -125,20 +135,20 @@
   margin-bottom: var(--ds-space-5);
 }
 .ds-section-title .ds-eyebrow {
-  font-family: var(--ds-font-mono);
+  font-family: var(--font-mono);
   font-size: var(--ds-fs-micro);
-  color: var(--ds-color-accent);
+  color: var(--gold-400);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
 }
 
 .ds-link {
-  color: var(--ds-link);
+  color: var(--gold-400);
   text-decoration: none;
   cursor: pointer;
 }
 .ds-link:hover {
-  text-decoration: underline;
+  opacity: 0.85;
 }
 
 .ds-swatch-grid {
@@ -148,28 +158,36 @@
 }
 
 /* 外壳共享词汇表（M2 四模式：开始 / 展厅 / 工作台 / 交付与接入）
- * 这些类跨多个模式组件复用，必须在全局定义一次 —— 写在某个组件的 <style scoped> 里
- * 只是「那个组件碰巧有样式」，兄弟组件一用就掉样式（classes.test.ts 守卫的真实动机）。 */
+ * 这些类跨多个模式组件复用，必须在全局定义一次。 */
 .ds-chip {
   font: inherit;
+  font-family: var(--ds-font-sans);
   font-size: var(--ds-fs-micro);
-  padding: 3px 10px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-1);
-  color: var(--ds-fg-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-bg);
+  color: var(--fg-secondary);
   cursor: pointer;
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.ds-chip:hover {
+  opacity: 0.85;
+}
+.ds-chip:active {
+  transform: translateY(1px);
 }
 .ds-chip--on {
-  border-color: var(--ds-color-primary);
-  color: var(--ds-color-primary);
+  border-color: var(--gold-400);
+  color: var(--gold-400);
+  background: var(--gold-tint);
 }
 .ds-chip--density {
   border-style: dashed;
 }
-/* 键盘可见焦点（AC23）：外壳字符按钮同样要看得见落点 */
+/* 键盘可见焦点 */
 .ds-chip:focus-visible {
-  outline: 2px solid var(--ds-color-primary);
+  outline: 2px solid var(--gold-400);
   outline-offset: 2px;
 }
 .ds-mode-pane {
@@ -181,23 +199,19 @@
 }
 .ds-done {
   padding: var(--ds-space-4);
-  border: 1px solid var(--ds-color-primary);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
+  border: 1px solid var(--gold-400);
+  border-radius: var(--radius-md);
+  background: var(--gold-tint);
 }
 
-/* 展厅换肤作用域容器（§S）：`OutfitScope` 把后端 CSS 收窄到 `[data-outfit="…"]` 上，
- * 这个类只给盒子本身一个中性落点；并排对比时两帧各自独立、互不污染。
- * 底色取该件衣服自己的 `--ds-semantic-surface-bg`（由注入的 scoped `<style>` 定义在同一元素上）——
- * e2e 会拿它的计算样式与后端该主题的值逐位比对（AC13），所以它必须是"从后端文本来的"而不是中性常量。 */
+/* 展厅换肤作用域容器：底色取该件衣服自己的投影变量（由注入的 scoped <style> 定义） */
 .ds-outfit {
   display: block;
   color: var(--ds-semantic-text-1);
   background: var(--ds-semantic-surface-bg);
 }
 
-/* 尊重系统「减少动态效果」（AC23）：把过渡/动画压到近乎瞬时，消除连续动效带来的不适；
- * 不用 `animation: none` / `transition: none`，以免依赖动画结束事件的逻辑卡死。 */
+/* 尊重系统「减少动态效果」 */
 @media (prefers-reduced-motion: reduce) {
   .ds *,
   .ds *::before,

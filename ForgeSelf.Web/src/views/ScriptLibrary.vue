@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import AppLogo from '@/components/AppLogo.vue'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useScriptRunnerStore } from '@/stores/scriptRunner'
 import { scriptHub } from '@/services/scriptHub'
 import type { Script, ScriptParameter, ScriptExecutionLog, ScriptListParams } from '@/types/scriptRunner'
@@ -218,11 +220,8 @@ onUnmounted(() => {
 
 <template>
   <div class="script-runner">
-    <!-- ===== LEFT: Script Library (260px) ===== -->
-    <aside class="sidebar">
-      <!-- Script Library Header -->
-      <div class="sidebar-header">
-        <h2 class="sidebar-title">脚本库</h2>
+    <PageHead eyebrow="Script Runner · 脚本运行器" title="脚本库 · 编辑器 · 输出">
+      <template #actions>
         <button class="btn-new" @click="handleCreate">
           <svg
             width="12"
@@ -238,205 +237,214 @@ onUnmounted(() => {
           </svg>
           新建
         </button>
-      </div>
+      </template>
+    </PageHead>
 
-      <!-- Language Filter -->
-      <div class="lang-filters">
-        <button
-          v-for="filter in langFilters"
-          :key="filter"
-          class="lang-pill"
-          :data-active="activeLangFilter === filter"
-          @click="activeLangFilter = filter"
-        >
-          {{ filter }}
-        </button>
-      </div>
-
-      <!-- Script List -->
-      <div class="script-list">
-        <button
-          v-for="script in filteredScripts"
-          :key="script.id"
-          class="script-item"
-          :data-active="editingScript?.id === script.id"
-          @click="handleSelect(script)"
-        >
-          <div class="script-item-info">
-            <span class="script-item-name truncate">{{ script.name }}</span>
-            <div class="script-item-meta">
-              <span class="lang-badge" :class="langBadgeClass(script.language)">{{ langBadgeLabel(script.language) }}</span>
-              <span class="script-item-size">{{ fileSize(script.code) }}</span>
-            </div>
-          </div>
-          <span class="script-item-date">{{ formatDate(script.updatedAt) }}</span>
-        </button>
-
-        <div v-if="filteredScripts.length === 0 && !scriptRunnerStore.isLoading" class="script-list-empty">
-          <p>暂无脚本</p>
-        </div>
-        <div v-if="scriptRunnerStore.isLoading" class="script-list-loading">
-          <p>加载中...</p>
-        </div>
-      </div>
-    </aside>
-
-    <!-- ===== RIGHT: Editor & Output ===== -->
-    <div class="main-panel">
-      <!-- No Script Selected State -->
-      <div v-if="!showEditor && !showConsole" class="welcome-panel">
-        <div class="welcome-content">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="color: var(--el-text-color-secondary); opacity: 0.4;"
+    <div class="workspace">
+      <!-- ===== LEFT: Script Library (260px) ===== -->
+      <aside class="sidebar">
+        <!-- Language Filter -->
+        <div class="lang-filters">
+          <button
+            v-for="filter in langFilters"
+            :key="filter"
+            class="lang-pill"
+            :data-active="activeLangFilter === filter"
+            @click="activeLangFilter = filter"
           >
-            <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-          </svg>
-          <h3>选择或创建一个脚本</h3>
-          <p>从左侧列表选择一个脚本，或点击"新建"创建新的脚本</p>
-          <button class="btn-new btn-new--large" @click="handleCreate">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            新建脚本
+            {{ filter }}
           </button>
         </div>
-      </div>
 
-      <!-- Script Editor & Console -->
-      <template v-if="showEditor || showConsole">
-        <!-- Editor Toolbar -->
-        <div class="editor-toolbar">
-          <div class="toolbar-left">
-            <span v-if="activeScript" class="toolbar-script-name">{{ activeScript.name }}</span>
-            <span v-if="activeScript" class="lang-badge" :class="langBadgeClass(activeScript.language)">{{ langBadgeLabel(activeScript.language) }}</span>
+        <!-- Script List -->
+        <div class="script-list">
+          <button
+            v-for="script in filteredScripts"
+            :key="script.id"
+            class="script-item"
+            :data-active="editingScript?.id === script.id"
+            @click="handleSelect(script)"
+          >
+            <div class="script-item-info">
+              <span class="script-item-name truncate">{{ script.name }}</span>
+              <div class="script-item-meta">
+                <span class="lang-badge" :class="langBadgeClass(script.language)">{{ langBadgeLabel(script.language) }}</span>
+                <span class="script-item-size">{{ fileSize(script.code) }}</span>
+              </div>
+            </div>
+            <span class="script-item-date">{{ formatDate(script.updatedAt) }}</span>
+          </button>
+
+          <div v-if="filteredScripts.length === 0 && !scriptRunnerStore.isLoading" class="script-list-empty">
+            <p>暂无脚本</p>
           </div>
-          <div class="toolbar-actions">
-            <button class="btn-action btn-action--run" @click="activeScript && handleEditorRun(activeScript)">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              运行
-            </button>
-            <button class="btn-action btn-action--stop" :disabled="!showConsole" @click="handleConsoleCancel">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-              </svg>
-              停止
-            </button>
-            <button class="btn-action btn-action--ghost">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
-              </svg>
-              AI 生成
-            </button>
-            <button class="btn-action btn-action--ghost" @click="handleCodeSave">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-              </svg>
-              保存
-            </button>
+          <div v-if="scriptRunnerStore.isLoading" class="script-list-loading">
+            <p>加载中…</p>
           </div>
         </div>
+      </aside>
 
-        <!-- Code Editor Area -->
-        <div class="editor-body">
-          <div class="code-lines" aria-hidden="true">
-            <span v-for="n in lineNumbers" :key="n">{{ n }}</span>
-          </div>
-          <textarea
-            v-model="codeText"
-            class="code-editor"
-            spellcheck="false"
-            placeholder="在此输入代码..."
-          />
-        </div>
-
-        <!-- Output Panel -->
-        <div class="output-panel">
-          <div class="output-header">
-            <span class="output-title">输出</span>
-            <button class="btn-action btn-action--ghost btn-action--sm" @click="handleClearOutput">
+      <!-- ===== RIGHT: Editor & Output ===== -->
+      <div class="main-panel">
+        <!-- No Script Selected State -->
+        <div v-if="!showEditor && !showConsole" class="welcome-panel">
+          <EmptyState
+            title="选择或创建一个脚本"
+            sub="从左侧列表选择脚本，或新建"
+          >
+            <template #icon>
               <svg
-                width="12"
-                height="12"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2"
+                stroke-width="1.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
               </svg>
-              清除
-            </button>
+            </template>
+            <template #action>
+              <button class="btn-new btn-new--large" @click="handleCreate">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                新建脚本
+              </button>
+            </template>
+          </EmptyState>
+        </div>
+
+        <!-- Script Editor & Console -->
+        <template v-if="showEditor || showConsole">
+          <!-- Editor Toolbar -->
+          <div class="editor-toolbar">
+            <div class="toolbar-left">
+              <span v-if="activeScript" class="toolbar-script-name">{{ activeScript.name }}</span>
+              <span v-if="activeScript" class="lang-badge" :class="langBadgeClass(activeScript.language)">{{ langBadgeLabel(activeScript.language) }}</span>
+            </div>
+            <div class="toolbar-actions">
+              <button class="btn-action btn-action--run" @click="activeScript && handleEditorRun(activeScript)">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                运行
+              </button>
+              <button class="btn-action btn-action--stop" :disabled="!showConsole" @click="handleConsoleCancel">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                </svg>
+                停止
+              </button>
+              <button class="btn-action btn-action--ghost">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+                </svg>
+                AI 生成
+              </button>
+              <button class="btn-action btn-action--ghost" @click="handleCodeSave">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                </svg>
+                保存
+              </button>
+            </div>
           </div>
-          <div class="output-content">
-            <pre class="output-text"><span
+
+          <!-- Code Editor Area -->
+          <div class="editor-body">
+            <div class="code-lines" aria-hidden="true">
+              <span v-for="n in lineNumbers" :key="n">{{ n }}</span>
+            </div>
+            <textarea
+              v-model="codeText"
+              class="code-editor"
+              spellcheck="false"
+              placeholder="在此输入代码..."
+            />
+          </div>
+
+          <!-- Output Panel -->
+          <div class="output-panel">
+            <div class="output-header">
+              <span class="output-title">输出</span>
+              <button class="btn-action btn-action--ghost btn-action--sm" @click="handleClearOutput">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+                清除
+              </button>
+            </div>
+            <div class="output-content">
+              <pre class="output-text"><span
   v-for="(line, i) in outputLines"
   :key="i"
   class="output-line"
-            >{{ line }}</span><span v-if="outputLines.length === 0 && showConsole" class="output-line output-placeholder">等待输出...</span><span v-if="outputLines.length === 0 && !showConsole" class="output-line output-placeholder">点击"运行"开始执行脚本</span></pre>
+              >{{ line }}</span><span v-if="outputLines.length === 0 && showConsole" class="output-line output-placeholder">等待输出...</span><span v-if="outputLines.length === 0 && !showConsole" class="output-line output-placeholder">点击"运行"开始执行脚本</span></pre>
+            </div>
+            <div v-if="outputExitCode !== null || outputDuration" class="output-footer">
+              <span v-if="outputDuration" class="footer-duration">耗时 {{ outputDuration }}</span>
+              <span class="footer-exit-code" :class="{ 'exit-success': outputExitCode === 0, 'exit-error': outputExitCode !== null && outputExitCode !== 0 }">退出代码: {{ outputExitCode ?? '-' }}</span>
+            </div>
           </div>
-          <div v-if="outputExitCode !== null || outputDuration" class="output-footer">
-            <span v-if="outputDuration" class="footer-duration">耗时 {{ outputDuration }}</span>
-            <span class="footer-exit-code" :class="{ 'exit-success': outputExitCode === 0, 'exit-error': outputExitCode !== null && outputExitCode !== 0 }">退出代码: {{ outputExitCode ?? '-' }}</span>
-          </div>
-        </div>
-      </template>
+        </template>
+      </div>
     </div>
 
     <!-- Parameter Form Modal -->
@@ -488,16 +496,23 @@ onUnmounted(() => {
 
 <style scoped>
 /* ============================================
-   脚本运行器 — 工坊锻造风格
+   脚本运行器 — 工坊锻造风格（token 化）
    ============================================ */
 
 .script-runner {
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  font-family: var(--font-family-base);
+  color: var(--fg-primary);
+  font-family: var(--font-sans-cn);
+}
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  gap: 16px;
 }
 
 /* ===== LEFT SIDEBAR (260px) ===== */
@@ -506,50 +521,7 @@ onUnmounted(() => {
   min-width: 260px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--el-border-color);
-  background: var(--el-bg-color-page);
-}
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color);
-}
-
-.sidebar-title {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0;
-}
-
-.btn-new {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--el-color-primary);
-  background: transparent;
-  border: 1px solid var(--el-color-primary);
-  border-radius: var(--el-border-radius-base, 0.75rem);
-  cursor: pointer;
-  transition: background-color 180ms ease, color 180ms ease;
-}
-
-.btn-new:hover {
-  background: var(--primary-light);
-  color: var(--el-color-primary-light-3);
-  border-color: var(--el-color-primary-light-3);
-}
-
-.btn-new--large {
-  padding: 8px 20px;
-  font-size: 0.8125rem;
-  gap: 8px;
+  border-right: 1px solid var(--border-subtle);
 }
 
 /* Language Filter Pills */
@@ -557,8 +529,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--el-border-color);
+  padding: 4px 0 12px;
   flex-wrap: nowrap;
   overflow-x: auto;
 }
@@ -567,56 +538,56 @@ onUnmounted(() => {
   padding: 4px 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--el-border-radius-round);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .lang-pill:hover {
-  color: var(--el-text-color-primary);
-  background: var(--el-fill-color);
+  color: var(--fg-primary);
+  background: var(--paper-tint);
 }
 
 .lang-pill[data-active="true"] {
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
-  border-color: var(--el-color-primary);
+  background: var(--gold-tint-strong);
+  color: var(--el-color-primary);
+  border-color: var(--border-brand);
 }
 
 /* Script List */
 .script-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 .script-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   cursor: pointer;
   border: none;
   border-left: 3px solid transparent;
-  border-radius: 0 var(--el-border-radius-base, 0.75rem) var(--el-border-radius-base, 0.75rem) 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   background: transparent;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   text-align: left;
   width: 100%;
-  transition: background-color 180ms ease, border-color 180ms ease;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .script-item:hover {
-  background: var(--el-fill-color);
+  background: var(--paper-tint);
 }
 
 .script-item[data-active="true"] {
-  border-left-color: var(--el-color-primary);
-  background: var(--el-fill-color);
+  border-left-color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
 .script-item-info {
@@ -628,10 +599,10 @@ onUnmounted(() => {
 }
 
 .script-item-name {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -644,16 +615,16 @@ onUnmounted(() => {
 }
 
 .script-item-size {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .script-item-date {
   flex-shrink: 0;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .script-list-empty,
@@ -662,7 +633,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   font-size: 0.8125rem;
 }
 
@@ -676,23 +647,23 @@ onUnmounted(() => {
   font-size: 0.75rem;
   font-weight: 500;
   padding: 1px 8px;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--el-border-radius-round);
   white-space: nowrap;
 }
 
 .lang-badge--ps {
-  background: rgba(88, 166, 255, 0.15);
-  color: #58A6FF;
+  background: color-mix(in srgb, var(--el-color-info) 15%, transparent);
+  color: var(--el-color-info);
 }
 
 .lang-badge--py {
-  background: rgba(63, 185, 80, 0.15);
-  color: #3FB950;
+  background: color-mix(in srgb, var(--bronze-500) 15%, transparent);
+  color: var(--bronze-500);
 }
 
 .lang-badge--js {
-  background: rgba(245, 158, 11, 0.15);
-  color: #F59E0B;
+  background: color-mix(in srgb, var(--gold-400) 15%, transparent);
+  color: var(--gold-400);
 }
 
 /* ===== RIGHT MAIN PANEL ===== */
@@ -712,36 +683,13 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-.welcome-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-  padding: 32px;
-}
-
-.welcome-content h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0;
-}
-
-.welcome-content p {
-  font-size: 0.8125rem;
-  color: var(--el-text-color-regular);
-  margin: 0 0 8px;
-}
-
 /* Editor Toolbar */
 .editor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--el-border-color);
-  background: var(--el-bg-color-page);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
@@ -752,10 +700,10 @@ onUnmounted(() => {
 }
 
 .toolbar-script-name {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .toolbar-actions {
@@ -772,18 +720,18 @@ onUnmounted(() => {
   padding: 8px 16px;
   font-size: 0.8125rem;
   font-weight: 500;
-  border-radius: var(--el-border-radius-base, 0.75rem);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--el-text-color-regular);
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  color: var(--fg-secondary);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .btn-action:hover:not(:disabled) {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
-  border-color: var(--el-text-color-secondary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
+  border-color: var(--border-strong);
 }
 
 .btn-action:disabled {
@@ -796,20 +744,20 @@ onUnmounted(() => {
 }
 
 .btn-action--run {
-  color: var(--el-color-white);
-  background: var(--el-color-primary);
-  border-color: var(--el-color-primary);
+  color: var(--ink-950);
+  background: var(--gold-400);
+  border-color: var(--gold-400);
 }
 
 .btn-action--run:hover:not(:disabled) {
-  background: var(--el-color-primary-light-3);
-  border-color: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  border-color: var(--gold-300);
 }
 
 .btn-action--stop:hover:not(:disabled) {
-  background: rgba(248, 81, 73, 0.12);
-  color: #F85149;
-  border-color: #F85149;
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--cinnabar-400);
+  border-color: var(--cinnabar-400);
 }
 
 /* Code Editor Area */
@@ -817,23 +765,22 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   overflow: auto;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-subtle);
   min-height: 0;
 }
 
 .code-lines {
   display: flex;
   flex-direction: column;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.7;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   text-align: right;
   padding: 16px 12px 16px 16px;
   user-select: none;
-  border-right: 1px solid var(--el-border-color);
+  border-right: 1px solid var(--border-subtle);
   min-width: 48px;
-  background: var(--el-bg-color-page);
 }
 
 .code-lines span {
@@ -842,11 +789,11 @@ onUnmounted(() => {
 
 .code-editor {
   flex: 1;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.7;
-  color: var(--el-text-color-primary);
-  background: var(--el-bg-color);
+  color: var(--fg-primary);
+  background: transparent;
   padding: 16px;
   border: none;
   resize: none;
@@ -859,7 +806,7 @@ onUnmounted(() => {
 }
 
 .code-editor::placeholder {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   opacity: 0.5;
 }
 
@@ -870,22 +817,21 @@ onUnmounted(() => {
   flex-shrink: 0;
   min-height: 160px;
   max-height: 300px;
-  background: var(--el-bg-color-page);
 }
 
 .output-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 20px;
-  border-bottom: 1px solid var(--el-border-color);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .output-title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .output-content {
@@ -896,10 +842,10 @@ onUnmounted(() => {
 
 .output-text {
   margin: 0;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.7;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -909,43 +855,66 @@ onUnmounted(() => {
 }
 
 .output-placeholder {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   opacity: 0.6;
-}
-
-.output-line.success {
-  color: var(--el-color-success);
 }
 
 .output-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 20px;
-  border-top: 1px solid var(--el-border-color);
-  background: var(--el-fill-color-light);
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .footer-duration {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .footer-exit-code {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 500;
   padding: 1px 8px;
-  border-radius: var(--radius-pill, 999px);
-  background: rgba(63, 185, 80, 0.15);
-  color: var(--el-color-success);
+  border-radius: var(--el-border-radius-round);
+  background: color-mix(in srgb, var(--bronze-500) 15%, transparent);
+  color: var(--bronze-500);
 }
 
 .footer-exit-code.exit-error {
-  background: rgba(248, 81, 73, 0.15);
-  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
+  color: var(--cinnabar-400);
+}
+
+/* ===== PRIMARY NEW BUTTON ===== */
+.btn-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--el-color-primary);
+  background: transparent;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--el-border-radius-base);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.btn-new:hover {
+  background: var(--gold-tint-strong);
+  color: var(--el-color-primary);
+  border-color: var(--border-brand-hover);
+}
+
+.btn-new--large {
+  padding: 8px 20px;
+  font-size: 0.875rem;
+  gap: 8px;
 }
 
 /* ===== MODAL OVERLAY ===== */
@@ -955,7 +924,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink-950) 55%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -964,14 +933,14 @@ onUnmounted(() => {
 }
 
 .modal {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 1rem;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-medium {
@@ -989,13 +958,13 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .modal-header h3 {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   margin: 0;
 }
 
@@ -1005,17 +974,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--border-default);
   background: transparent;
-  border-radius: var(--el-border-radius-base, 0.75rem);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
-  color: var(--el-text-color-regular);
-  transition: background-color 180ms ease, color 180ms ease;
+  color: var(--fg-secondary);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .modal-close:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .modal-body {
@@ -1028,5 +997,19 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    max-height: 40%;
+  }
 }
 </style>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="铸己匣 印章 Logo">
+  <defs>
+    <filter id="ink-noise" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.75  0 0 0 0 0.16  0 0 0 0 0.10  0 0 0 0.6 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+  </defs>
+  <!-- 印章底 —— 朱砂红方章，四角略缺，模拟拓印 -->
+  <path d="M8 10 Q6 8 10 8 L110 8 Q114 8 112 12 L112 108 Q112 114 108 112 L12 112 Q6 112 8 108 Z"
+        fill="#C0392B"/>
+  <!-- 拓印肌理 -->
+  <path d="M8 10 Q6 8 10 8 L110 8 Q114 8 112 12 L112 108 Q112 114 108 112 L12 112 Q6 112 8 108 Z"
+        fill="#FBF7EE" opacity="0.08" filter="url(#ink-noise)"/>
+  <!-- 内圈方框 -->
+  <rect x="16" y="16" width="88" height="88" fill="none" stroke="#FBF7EE" stroke-width="2.2" opacity="0.92"/>
+
+  <!-- 「匣」字 —— 篆书简化：外框「匚」+ 内部「甲」 -->
+  <g stroke="#FBF7EE" stroke-width="6.5" stroke-linecap="square" stroke-linejoin="miter" fill="none" opacity="0.96">
+    <!-- 匚 上横 -->
+    <line x1="28" y1="30" x2="92" y2="30"/>
+    <!-- 匚 左竖 -->
+    <line x1="30" y1="30" x2="30" y2="92"/>
+    <!-- 匚 下横 -->
+    <line x1="28" y1="90" x2="92" y2="90"/>
+    <!-- 内「甲」的顶横 -->
+    <line x1="44" y1="46" x2="80" y2="46"/>
+    <!-- 内「甲」的中框左右竖 -->
+    <line x1="46" y1="46" x2="46" y2="76"/>
+    <line x1="78" y1="46" x2="78" y2="76"/>
+    <!-- 内「甲」的中横 -->
+    <line x1="44" y1="61" x2="80" y2="61"/>
+    <!-- 内「甲」的底横 -->
+    <line x1="44" y1="76" x2="80" y2="76"/>
+    <!-- 内「甲」的中竖（延伸至底） -->
+    <line x1="62" y1="46" x2="62" y2="86"/>
+  </g>
+</svg>

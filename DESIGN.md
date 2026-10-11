@@ -182,10 +182,10 @@ components:
 - Tailwind 不定义独立色值，所有 `--color-*` 映射到设计稿 token / `--el-*`。
 - 需要透明度派生时用 `color-mix(in srgb, var(--gold-400) 12%, transparent)`，不写硬编码 `rgba(245,158,11,…)` 进组件。
 
-**待对齐**：
-- 熔炉背景图外链 404（`App.jsx:74`），需本地化 6 张预设到 `assets/backgrounds/` 并改引用，或换可达图源。
-- 现有实现主题（`ForgeSelf.Web/src/styles/themes/workshop-forge.css`）仍为旧规范色值（`#C4CDD5` 边框等），需按本文件 token 迁移。
-- `scripts/check-style-tokens.mjs` 基线需随 token 迁移重建。
+**已对齐（2026-10-11）**：
+- ✅ 背景图资产本地化：6 张预设已落到宿主 `ForgeSelf.Web/public/backgrounds/`（含熔炉补图 `forge.jpg`，修复 `App.jsx:74` 外链 404），引用为本地 URL（`src/stores/appearance.ts` `BG_IMAGE_PRESETS`）；`App.vue` 图片加载失败自动降级纯色（`onBackgroundError`）。
+- ✅ 主题 token 迁移：`ForgeSelf.Web/src/styles/themes/workshop-forge.css` 已按本节色板重写（浅/暗两套，含设计稿 token `--ink-*`/`--gold-*`/`--paper-*`/`--cinnabar-*`/`--bronze-*`/`--fg-*`/`--dur-*`/`--ease-*`/`--shadow-*`/玻璃参数；浅色主色收敛 `#B45309`）。
+- ✅ 色值守卫基线重建：`scripts/check-style-tokens.mjs` 豁免 token 定义层（`**/styles/themes/`）后重建基线 `scripts/style-token-baseline.json`（合计 2501，PASS）。
 
 ---
 
@@ -404,11 +404,56 @@ components:
 
 ---
 
+## 新建页面与查询执行规范（2026-10-11 立 · 硬性）
+
+> 目的：保证以后**所有新建页面、新建查询**与既有 UI/UX/品牌一致，避免漂移（用户 2026-10-11 指令）。违反本节的改动在闸门1 不通过。
+
+**新建页面**（宿主 `ForgeSelf.Web/src/views/**` 或插件 `Plugins/<X>/web/src/**`）：
+1. 页头必须用 `PageHead` 三件套：eyebrow（mono 10px 大写 0.18em 金）+ 标题（display 26px/700/0.05em）+ 右侧主操作 chip（金底）。
+2. 布局骨架 = `.glass` / `.glass-strong` 卡片 + `--el-*` / 设计稿 token + Tailwind 布局原语；**禁止裸 hex/rgb**（含 `style` 内联与 `tailwind.config`，展示型开发工具除外须评审说明）。
+3. 状态三件套齐全：加载态 / 空态（图标 + 一句 serif 引言 + 可选主操作）/ 错误态（留痕可见）；不留白屏。
+4. 品牌语汇：主操作每屏仅一个（金底/金描边），破坏性用朱砂 `--cinnabar-400`；无 emoji 装饰、无胶囊按钮（极小 tag/chip 例外）、无蓝紫渐变、无可爱风插画。
+5. 响应式以 1440 桌面为基准；固定高度卡片 `flex-shrink-0`，日志/列表限高滚动。
+6. 交互反馈：hover = `translateY(-1px)` / opacity .85；active = `translateY(1px)` + 阴影收紧；动效取 `--dur-*`/`--ease-*`；焦点态金描边。
+
+**新建查询**（宿主/插件列表、看板、统计等取数 UI）：
+1. 统一走既有 API 层与 loading/error/empty 三态，禁止页面内裸 `fetch` + 手写状态拼装。
+2. 数据形态与设计稿一致：状态点（on 金 / off 灰 / 绿 青铜绿）、mono 数值、serif 名称、`status mono 10px` 等按「首页/功能屏」组件规格取值。
+3. 查询交互点（排序/过滤/分页/刷新）有明确可见状态与提示；交互规格写「点什么出现什么」（见方案 `docs/ai/pilot/2026-10-11-design-overhaul/02-spec.md` 交互点表）。
+4. 查询失败/为空必须有空态文案与重试入口，不得白屏或仅 console 报错。
+
+**验收（门禁三步，2026-10-11 强化，缺一不可）**：
+1. **静态守卫（自动）**：`pnpm run design:check`（= `scripts/check-style-tokens.mjs` 禁新增裸色值 + `scripts/check-design-compliance.mjs` 禁新增 token 族违规/胶囊按钮/玻璃过头/蓝紫渐变）PASS；pre-commit hook 在提交触及前端源码时自动拦截。
+2. **Spec 硬性环节（闸门1）**：涉用户可见 UI 的 Spec 必含「Interaction Design」节（`ui-ux-design` 技能审查），写清「点什么出现什么」+ 空态/反馈/边界；缺节闸门1 不通过。
+3. **走查符合性（验收）**：起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design` 走查清单逐项核对，并与设计稿（`design_files/`）截图对比。
+
+---
+
+## 门禁化说明（2026-10-11 立 · 强制，不靠自觉）
+
+> 目标：框架变更、页面开发、新建查询**必须**按本文件执行。除 Spec 交互节与走查（人工环节）外，
+> 本规范已做成**自动门禁**，违反即拦截（pre-commit + 交付门禁双保险）：
+
+| 规范条款 | 机器判据（脚本） | 违规示例 |
+|---|---|---|
+| token 单一来源：禁新增自定义 token 族 | `check-design-compliance.mjs` 规则 A（棘轮基线） | 组件层新增 `--surface-*` / `--forge-*` / `--app-*` / 白名单外 `--xxx` |
+| 禁裸色值（hex/rgb 硬编码） | `check-style-tokens.mjs`（棘轮基线） | `.vue` 里写 `#F59E0B` / `rgba(...)` |
+| 禁胶囊按钮 | 规则 B（`border-radius: 9999px` / `rounded-full` 于按钮上下文） | 主操作按钮做成胶囊 |
+| 禁玻璃拟态过头 | 规则 C（backdrop-filter/filter 的 blur > 40px） | blur 50px 的浮层 |
+| 禁蓝紫渐变 | 规则 D（indigo/violet/purple 系色值入 linear-gradient） | `linear-gradient(...#6366f1, #a855f7)` |
+| 可爱风 / 品牌语汇 / UX 一致性 | 人工：Spec 交互节（闸门1）+ ui-ux-design 走查 | emoji 装饰、插画风、对比度不足 |
+
+- 基线文件：`scripts/style-token-baseline.json` + `scripts/design-compliance-baseline.json`（随代码入库，棘轮只禁增量上涨）。
+- 存量违规已计入基线（逐步治理），**新提交不得让任何一项上涨**；确需上涨须先与维护者确认，禁止直接 `--update` 抹平。
+- 接线：`ForgeSelf.Web/package.json` 的 `design:check` → `scripts/hooks/pre-commit`（触及前端源码即跑）→ AGENTS.md §5.6 快档门禁必跑。
+
+---
+
 ## 维护说明
 
 - **修改 token**：只改设计稿 `design_files/colors_and_type.css`（真源）→ 同步实现主题文件（宿主 `ForgeSelf.Web/src/styles/themes/`）→ 回写本文件与设计稿。
 - **新增组件规格**：在「Components」补一行，并在对应原型页面验证；规格变化回写设计稿 `README.md` 屏幕清单。
 - **背景图资产**：本地化到 `assets/backgrounds/`（当前熔炉外链 404，优先修复）。
-- **色值守卫**：沿用 `scripts/check-style-tokens.mjs`（基线随 token 迁移重建）。
+- **色值守卫**：`scripts/check-style-tokens.mjs`（禁新增裸色值，基线随 token 迁移重建）+ `scripts/check-design-compliance.mjs`（禁新增设计规范违反，三禁红线机器判项），合并入口 `pnpm run design:check`。
 - **文档校验**：可用 `@google/design.md` 的 `lint` 检查本文件 token 引用完整性（命令待仓库验证后写入）。
 - **对齐节奏**：本文件是目标规范；实现层分批对齐（按页面/组件），每完成一块移除对应「待对齐」标注。

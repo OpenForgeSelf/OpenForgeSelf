@@ -47,7 +47,7 @@ import { toasts, dismissToast } from '../toast'
   color: var(--el-text-color-primary);
   font-size: 14px;
   line-height: 1.4;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--el-box-shadow-light);
   pointer-events: auto;
 }
 

@@ -1,27 +1,28 @@
 ﻿---
 name: plugin-publish-verify
-description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 = 打 tag 自动发布 + 页面自动更新）。用于「发插件」「发布新版本」「验证更新生效」「只发插件不重启宿主」「跑发布流程」。发布动作交给 tag→CI→GitHub Release（或本地 release-local.ps1 打包 + 页面自动更新）；**禁止 agent 停/启/杀用户运行中的宿主进程**；开发期验证走 e2e 隔离实例；确需在运行实例侧载插件（版本化更新，不重启宿主）须先获用户同意。
+description: 宿主/插件「发布 + 验证」闭环（2026-10-11 用户拍板：**主路径 = 本地目录更新源** + 页面自动更新；打 tag 自动发布降为可选）。用于「发插件」「发布新版本」「验证更新生效」「只发插件不重启宿主」「跑发布流程」。发布动作交给本地 `release-local.ps1 -UpdateDir` 打包（或用户明确要求时的 tag→CI→GitHub Release）；**禁止 agent 停/启/杀用户运行中的宿主进程**；开发期验证走起源码本地前后端 + 每插件 1 个冒烟 e2e；确需在运行实例侧载插件（版本化更新，不重启宿主）须先获用户同意。
 ---
 
-# 发布与验证（2026-09-27 新规范：打 tag 自动发布 + 页面自动更新）
+# 发布与验证（2026-10-11 用户拍板：主路径 = 本地目录更新源 + 页面自动更新）
 
 ## 何时用
 
 - 完成了一个宿主/插件功能，要把新版本交付出去
-- 要验证「打 tag 后 CI 打包的 Release 资产」能被页面自动更新链路正确检查/下载
-- 要确认发布产物（zip / 版本号 / SHA256SUMS）正确
+- 要验证「本地目录更新源打包的 zip / 版本号 / SHA256SUMS」能被页面自动更新链路正确检查/下载
+- 要确认发布产物（zip / 版本号 / SHA256SUMS / 布局不变量）正确
 
 > 🔁 **本技能只管"发布之后"**。用户表露"先看看效果 / 别发布"时走的是 `plugin-development` §四 的
 > **👀 本地预览**（不发布、不碰运行实例）与 **🚶 走查**（门禁绿之后、发布之前先在 dev 预览实例用真浏览器走一遍；
 > 双绿不能替代它）。本技能的「运行实例只读复验」是那条链的**最后**一步，不能被预览或 dev 预走查顶替。
+> **顺序铁律（2026-10-11）**：单测/集成 → 每插件 1 冒烟 e2e → **起源码本地前后端按验收标准验收（必做）** → 才到本技能（宿主操作）。
 
 ## 发布路径：主路径 vs 可选
 
 | | 方式 | 地位 |
 |---|------|------|
-| **主路径（推荐）** | **打 tag 自动发布**：`git tag -a v<X.Y.Z> -m "..."` → `git push github v<X.Y.Z>` → CI（`.github/workflows/release.yml`）自动构建打包并创建 GitHub Release → 用户/页面在「设置-版本更新」点「检查更新 → 下载 → 重启并更新」完成升级 | 一切交付的默认路径；宿主由 update-agent 自更新，**无人停宿主** |
-| **本地离线发布** | `pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -UpdateDir <目录>` → 设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」 | 内网/离线/不想推 GitHub 时；等价于主路径的本地版 |
-| **开发期侧载（可选）** | `scripts/publish-plugin.ps1 -Plugin <X> -PluginsRoot <运行实例>/plugins -Force`（stage 快照）→ `POST /api/plugin/update/{id}` 版本化切换，宿主不重启。**`run-plugin-publish-verify.ps1` 是旧布局产物**（2026-09-29 实测：plugin.json 路径仍指 `ForgeSelf.Api/Plugins/`，且其第 2 步会 `Stop-Process` 杀非 publish 实例 = 违反铁律 1），只可当验证清单参考，不可直接跑 | 仅插件自身 DLL 变更且**用户同意触碰运行实例**时；宿主二进制（ForgeSelf.Api/Web）变更一律走 tag 发布，不走此路径 |
+| **主路径（2026-10-11 用户拍板）** | **本地目录更新源**：`pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -Sign -UpdateDir <目录>`（给人装必带 `-Sign`）→ 设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」完成升级 | **一切交付的默认路径**；宿主由 update-agent 自更新，**无人停宿主**；不推 GitHub |
+| **可选** | **打 tag 自动发布**：`git tag -a v<X.Y.Z> -m "..."` → `git push github v<X.Y.Z>` → CI（`.github/workflows/release.yml`）自动构建打包并创建 GitHub Release → 用户/页面在「设置-版本更新」点「检查更新 → 下载 → 重启并更新」完成升级 | 仅用户明确要求时；等价主路径的远端版 |
+| **开发期侧载（可选）** | `scripts/publish-plugin.ps1 -Plugin <X> -PluginsRoot <运行实例>/plugins -Force`（stage 快照）→ `POST /api/plugin/update/{id}` 版本化切换，宿主不重启。**`run-plugin-publish-verify.ps1` 是旧布局产物**（2026-09-29 实测：plugin.json 路径仍指 `ForgeSelf.Api/Plugins/`，且其第 2 步会 `Stop-Process` 杀非 publish 实例 = 违反铁律 1），只可当验证清单参考，不可直接跑 | 仅插件自身 DLL 变更且**用户同意触碰运行实例**时；宿主二进制（ForgeSelf.Api/Web）变更一律走本地目录发布，不走此路径 |
 
 ## 铁律（先记住这 4 条）
 
@@ -38,22 +39,31 @@ description: 宿主/插件「发布 + 验证」闭环（2026-09-27 起主路径 
 ## 一键跑（本地打包，可选）
 
 ```powershell
-pwsh scripts/release/release-local.ps1 -Version v0.2.5 -Sign -UpdateDir D:\updates
+pwsh scripts/release/release-local.ps1 -Version v0.2.5 -Sign -UpdateDir D:\src\my-proj\OpenForgeSelf\updates
 ```
 
-常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。**⚠️ 执行发布脚本一律用 `pwsh`，禁止 `powershell`（5.1）**（2026-10-04 输入12 立，AGENTS §2.3 / agent-workflow §B6）：5.1 按 GBK 码页写重定向日志与解码 `git` 输出，中文会乱码并可能被烤进 RELEASE-NOTES 这类交付物（实测：更新说明乱码 = 输入11；`release-local -Sign` 的签名段日志整段 GBK）。**签名策略（2026-10-04 输入11 定稿）：本地发布必带 `-Sign`，流水线默认不签**——**只要这版宿主是给人装的**（出到本地更新源 `-UpdateDir`、或交给用户点「检查更新 → 下载 → 重启并更新」）**就必须显式加 `-Sign`**，并且**出完要自己验签名有效再交**：`Get-AuthenticodeSignature <exe>` 必须回 `Status=Valid`（自签证书本机未受信时会显示 NotTrusted，此时按真源 §1.1 的 certutil 静默信任步骤处理，别把"签了但无效"的包交付）；而 **CI 流水线默认不传 `-Sign`**（自签证书生成会卡死 runner，实测 run 36664225915 两次 20min+，故 2026-09-30 输入2 定为不签）。一句话：**本地=签名交付，CI=不签**，两边都用同一条 `release-local.ps1` 通道，差别只在有没有传 `-Sign`。Authenticode 签名走 `scripts/sign-publish.ps1`（自签证书自动生成/复用 + DigiCert 时间戳；商业证书 `-PfxPath/-PfxPassword` 可插拔），签名在 zip 打包前（`package-release.ps1` 的 `if ($Sign)` 段），递归签顶层根启动器 + `versions/<ver>/` 全部 exe——漏签业务层会破坏多版本回滚的签名一致性。**CI 流水线默认不传 `-Sign`**（release.yml），签名策略真源 = `docs/04-standards/packaging-upgrade-backup.md` §1.1。
+常用参数：`-Version v<X.Y.Z>`（打 tag 时的版本，缺省 `0.0.0-local`）、`-UpdateDir <目录>`（拷贝 zip+SHA256SUMS+更新说明到本地更新目录）、`-SkipFrontend`（复用已有 web dist 快速迭代）、`-FrameworkDependent`、`-Sign`。
 
-## 流程骨架（主路径）
+> **⚠️ `-UpdateDir` 项目默认值（2026-10-11 用户立）**：= **项目根的上级目录下的 `updates/`**，即本机 `D:\src\my-proj\OpenForgeSelf\updates`（项目根 = `D:\src\my-proj\OpenForgeSelf\OpenForgeSelf`）。这是运行实例设置页原本就配好的更新源路径，**不要自创 `D:\updates` 或其他盘根目录**。历史教训：技能旧版示例写了 `D:\updates`，2026-10-11 我照搬导致设置页路径被改错、用户质问。打包前先 `Get-Content <repo>\..\..\updates\SHA256SUMS.txt` 或看设置页当前值确认。**⚠️ 执行发布脚本一律用 `pwsh`，禁止 `powershell`（5.1）**（2026-10-04 输入12 立，AGENTS §2.3 / agent-workflow §B6）：5.1 按 GBK 码页写重定向日志与解码 `git` 输出，中文会乱码并可能被烤进 RELEASE-NOTES 这类交付物（实测：更新说明乱码 = 输入11；`release-local -Sign` 的签名段日志整段 GBK）。**签名策略（2026-10-04 输入11 定稿）：本地发布必带 `-Sign`，流水线默认不签**——**只要这版宿主是给人装的**（出到本地更新源 `-UpdateDir`、或交给用户点「检查更新 → 下载 → 重启并更新」）**就必须显式加 `-Sign`**，并且**出完要自己验签名有效再交**：`Get-AuthenticodeSignature <exe>` 必须回 `Status=Valid`（自签证书本机未受信时会显示 NotTrusted，此时按真源 §1.1 的 certutil 静默信任步骤处理，别把"签了但无效"的包交付）；而 **CI 流水线默认不传 `-Sign`**（自签证书生成会卡死 runner，实测 run 36664225915 两次 20min+，故 2026-09-30 输入2 定为不签）。一句话：**本地=签名交付，CI=不签**，两边都用同一条 `release-local.ps1` 通道，差别只在有没有传 `-Sign`。Authenticode 签名走 `scripts/sign-publish.ps1`（自签证书自动生成/复用 + DigiCert 时间戳；商业证书 `-PfxPath/-PfxPassword` 可插拔），签名在 zip 打包前（`package-release.ps1` 的 `if ($Sign)` 段），递归签顶层根启动器 + `versions/<ver>/` 全部 exe——漏签业务层会破坏多版本回滚的签名一致性。**CI 流水线默认不传 `-Sign`**（release.yml），签名策略真源 = `docs/04-standards/packaging-upgrade-backup.md` §1.1。
+
+## 流程骨架（主路径 = 本地目录更新源）
 
 | 步 | 动作 | 关键命令 / 路径 |
 |----|------|-----------------|
-| 1 | 门禁 | 前端 `pnpm run check && pnpm run test`；后端 `dotnet build && dotnet test`；插件层 e2e 绿 |
-| 2 | 汇总变更，向用户请示 git 提交（用户审批后才 commit） | 见 AGENTS.md §10 / 用户偏好（同一任务一次性提交） |
-| 3 | 打 tag 自动发布 | `git tag -a v<X.Y.Z> -m "发版说明"` → `git push github v<X.Y.Z>` → CI 自动打包 → GitHub Release（OpenForgeSelf/OpenForgeSelf，公开仓库） |
-| 4 | 通知用户页面自动更新 | 用户（或用户明确同意后代点）在设置-版本更新页「检查更新 → 下载 → 重启并更新」；宿主 update-agent 换文件并重启，全程无人停宿主 |
-| 5 | 验证发布产物 | `gh release view v<X.Y.Z>` + 下载 zip 核对 SHA256SUMS；更新检查/下载链路由单测 + e2e 覆盖 |
+| 1 | 门禁（单测+集成）+ 本插件 1 冒烟 e2e | 前端 `pnpm run check && pnpm run test`；后端 `dotnet build && dotnet test`；冒烟 e2e 一条主链路绿（见 plugin-development 铁律 24） |
+| 2 | **起源码本地前后端按验收标准验收（必做，前置）** | `pwsh scripts/dev-stack.ps1` 起本地前后端 → 按验收标准 + ui-ux-design 走查清单逐项核对 + 截图读图（见 plugin-development 铁律 25 / §四③） |
+| **2.5** | **【硬闸门】起源码走查给用户验收，等用户授权** | dev-stack **保持运行不撤**，把起源码地址（`.temp/dev-stack.json` 里的端口/令牌）+ 走查截图发给用户，**等用户明确说"可以发了/去宿主吧"** 才允许进步3。**agent 禁止自行判断"走查过了"就直接打包/操作宿主**——起源码走查是 agent 自检，用户过目是放行。2026-10-11 用户立：我曾跳过这一步直接发 :51888，被用户当场抓住。 |
+| 3 | 本地目录打包发布 | `pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -Sign -UpdateDir <目录>`（给人装必带 `-Sign`；打 tag 自动发布仅用户明确要求时） |
+| 4 | 通知用户页面自动更新 | **用户授权后**：在设置-版本更新页「更新源 = 本地目录」填目录 → 「检查更新 → 下载 → 重启并更新」；宿主 update-agent 换文件并重启，全程无人停宿主 |
+| 5 | 验证发布产物 + 真实走查 | 核对 `-UpdateDir` 目录 zip + `SHA256SUMS.txt` + 布局不变量 L1/L2/L3；用户启用新版本后跑「运行实例只读复验」 |
 
-> 第 3 步的 tag 是**唯一发布动作**。本地迭代若不想推 GitHub，用本地离线发布（`-UpdateDir` + 页面本地目录更新源）。
+> 第 3 步的本地目录发布是**唯一默认发布动作**。用户明确要求时才走打 tag → CI → GitHub Release。
+>
+> **🚫 红线（2026-10-11 用户立，不可逾越）**：
+> - **步 2.5 未获用户授权前，禁止执行步 3（打包）和步 4（操作宿主浏览器更新）**。
+> - 起源码 dev-stack 起来后**保持运行**给用户看，不要急着 `dev-stack.ps1 -Stop`。
+> - agent 自检走查通过 ≠ 用户验收通过；用户在起源码上亲眼看过、亲口说"可以发了"才算放行。
+> - 历史教训：2026-10-11 我连改三版（导航滚动条/设置宽度/logo/插件入口）都跳过起源码直接发宿主，每版都要用户在 :51888 上帮我找回归，浪费用户时间。
 
 细节见：
 - 发布治理硬规则与坑：[`docs/04-standards/agent-workflow.md`](../../../docs/04-standards/agent-workflow.md) B10

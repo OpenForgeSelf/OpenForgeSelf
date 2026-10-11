@@ -173,6 +173,19 @@ function qs(params: Record<string, string | number | undefined | null>): string 
   return s ? `?${s}` : ''
 }
 
+/** 读取本插件当前运行版本（宿主 /api/plugin 清单），用于界面展示自身版本（铁律 13）。 */
+export async function fetchPluginVersion(pluginId: string): Promise<string> {
+  try {
+    const res = await fetch('/api/plugin', { headers: authHeaders() })
+    if (!res.ok) return ''
+    const body = (await res.json()) as ApiEnvelope<Array<{ id: string; version: string }>>
+    const list = body?.data ?? []
+    return list.find((p) => p?.id === pluginId)?.version ?? ''
+  } catch {
+    return ''
+  }
+}
+
 export const costApi = {
   overview: (p: { from?: string; to?: string; model?: string; style?: string } = {}) =>
     request<CostOverview>(`/overview${qs(p)}`),

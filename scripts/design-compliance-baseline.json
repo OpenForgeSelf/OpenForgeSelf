@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-10-11",
+  "rules": {
+    "a": "token族白名单",
+    "b": "禁胶囊按钮",
+    "c": "禁玻璃过头blur>40px",
+    "d": "禁蓝紫渐变"
+  },
+  "total": {
+    "a": 244,
+    "b": 0,
+    "c": 0,
+    "d": 1
+  },
+  "dirs": {
+    "ForgeSelf.Web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 1
+    },
+    "Plugins/AgentHub/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/AIAgent/web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/CostScope/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/DesignSystem/web/src": {
+      "a": 124,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/FileTools/web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/Home/web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/ImGateway/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/McpCenter/web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/QuickLinks/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/Sems/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/TodoTracker/web/src": {
+      "a": 20,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    },
+    "Plugins/ToolBridge/web/src": {
+      "a": 0,
+      "b": 0,
+      "c": 0,
+      "d": 0
+    }
+  }
+}

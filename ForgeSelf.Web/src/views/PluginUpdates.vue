@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { usePluginStore } from '@/stores/plugin'
 import { useOpenPage } from '@/composables/useOpenPage'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const pluginStore = usePluginStore()
 const { openPage } = useOpenPage()
@@ -48,18 +50,13 @@ onMounted(() => {
 
 <template>
   <div class="plugin-updates-page">
-    <header class="page-header">
-      <div>
-        <h1 class="page-title">插件更新</h1>
-        <p class="page-subtitle">
-          {{ pluginStore.updates.length > 0 
-            ? `发现 ${pluginStore.updates.length} 个可更新插件` 
-            : '所有插件都是最新版本' }}
-        </p>
-      </div>
-      <div class="header-actions">
+    <PageHead
+      eyebrow="Plugin Updates · 插件更新"
+      :title="pluginStore.updates.length > 0 ? `发现 ${pluginStore.updates.length} 个可更新插件` : '插件更新'"
+    >
+      <template #actions>
         <button class="action-btn refresh-btn" :disabled="pluginStore.isLoading" @click="handleRefresh">
-          🔄 刷新
+          刷新
         </button>
         <button
           v-if="pluginStore.updates.length > 0"
@@ -69,35 +66,45 @@ onMounted(() => {
         >
           全部更新
         </button>
-      </div>
-    </header>
+      </template>
+    </PageHead>
 
     <div v-if="pluginStore.isLoading" class="loading-state">
       <div class="loading-spinner" />
       <p>正在检查更新...</p>
     </div>
 
-    <div v-else-if="pluginStore.error" class="error-state">
-      <div class="error-icon">⚠️</div>
-      <p>{{ pluginStore.error }}</p>
-      <button class="retry-btn" @click="handleRefresh">重试</button>
-    </div>
+    <EmptyState
+      v-else-if="pluginStore.error"
+      icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' /><line x1='12' y1='8' x2='12' y2='12' /><line x1='12' y1='16' x2='12.01' y2='16' /></svg>"
+      title="检查更新失败"
+      :sub="pluginStore.error"
+    >
+      <template #action>
+        <button class="retry-btn" @click="handleRefresh">重试</button>
+      </template>
+    </EmptyState>
 
-    <div v-else-if="pluginStore.updates.length === 0" class="empty-state">
-      <div class="empty-icon">🎉</div>
-      <h3>所有插件都是最新版本</h3>
-      <p>你目前使用的都是最新版本的插件</p>
-    </div>
+    <EmptyState
+      v-else-if="pluginStore.updates.length === 0"
+      icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14' /><polyline points='22 4 12 14.01 9 11.01' /></svg>"
+      title="所有插件都是最新版本"
+      sub="你目前使用的都是最新版本的插件"
+    />
 
     <div v-else class="updates-list">
       <div
         v-for="update in pluginStore.updates"
         :key="update.pluginId"
-        class="update-card"
+        class="update-card glass"
       >
         <div class="card-main">
           <div class="plugin-icon">
-            <span class="icon-fallback">📦</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
           </div>
           <div class="plugin-info" @click="handleViewDetail(update.pluginId)">
             <h3 class="plugin-name">{{ update.pluginName }}</h3>
@@ -127,72 +134,48 @@ onMounted(() => {
 .plugin-updates-page {
   padding: 24px;
   min-height: 100%;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 4px 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .action-btn {
-  padding: 10px 20px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
+  font-family: var(--font-sans-cn);
 }
 
 .refresh-btn {
-  background: var(--el-bg-color-page);
-  color: var(--el-text-color-regular);
-  border: 1px solid var(--el-border-color);
+  background: transparent;
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--el-fill-color);
+  background: var(--paper-tint);
+  transform: translateY(-1px);
 }
 
 .update-all-btn {
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
 }
 
 .update-all-btn:hover:not(:disabled) {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  transform: translateY(-1px);
 }
 
 .action-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.loading-state,
-.error-state,
-.empty-state {
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -204,8 +187,8 @@ onMounted(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--el-border-color-light);
-  border-top-color: var(--el-color-primary);
+  border: 3px solid var(--border-default);
+  border-top-color: var(--gold-400);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -215,38 +198,20 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.loading-state p,
-.empty-state p {
-  color: var(--el-text-color-secondary);
+.loading-state p {
+  color: var(--fg-secondary);
   margin: 0;
-}
-
-.error-state p {
-  color: var(--el-color-danger);
-  margin: 0 0 16px 0;
-}
-
-.error-icon,
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.empty-state h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 8px 0;
 }
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   cursor: pointer;
+  font-family: var(--font-sans-cn);
 }
 
 .updates-list {
@@ -260,15 +225,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 12px;
-  transition: all 0.2s;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .update-card:hover {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 2px 8px var(--primary-light);
+  border-color: var(--border-brand);
 }
 
 .card-main {
@@ -280,16 +241,13 @@ onMounted(() => {
 .plugin-icon {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
-  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-lg);
+  background: var(--gold-tint);
+  color: var(--gold-400);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.icon-fallback {
-  font-size: 28px;
 }
 
 .plugin-info {
@@ -299,7 +257,7 @@ onMounted(() => {
 .plugin-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   margin: 0 0 6px 0;
 }
 
@@ -308,42 +266,49 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  font-family: var(--font-mono);
 }
 
 .current-version {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .arrow {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .new-version {
-  color: var(--el-color-success);
+  color: var(--bronze-500);
   font-weight: 500;
 }
 
 .update-btn {
   padding: 10px 24px;
-  background: #ffc107;
-  color: var(--el-text-color-primary);
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-sans-cn);
 }
 
 .update-btn:hover:not(:disabled) {
-  background: #e0a800;
+  background: var(--gold-300);
+  transform: translateY(-1px);
+}
+
+.update-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .update-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -359,10 +324,6 @@ onMounted(() => {
 @media (max-width: 640px) {
   .plugin-updates-page {
     padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
   }
 
   .update-card {

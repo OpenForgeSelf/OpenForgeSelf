@@ -6,6 +6,7 @@ import { chatRecordsApi } from '@/services/chatRecordsApi'
 import { wsService } from '@/services/websocket'
 import ChatRecordsList from '@/components/chatrecords/ChatRecordsList.vue'
 import ChatRecordDetail from '@/components/chatrecords/ChatRecordDetail.vue'
+import PageHead from '@/components/PageHead.vue'
 
 const source = ref('')
 const clientKind = ref('')
@@ -206,24 +207,24 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-records-view">
-    <header class="view-header">
-      <h1 class="view-title">
-        <span class="title-icon">💬</span>
-        聊天会话查看
-      </h1>
-      <p class="view-subtitle">以「会话」维度查看 API 调用与 App 自有聊天，会话下按轮次（ChatTurn）展开明细</p>
-      <div class="live-indicator">
-        <span class="live-dot" :class="{ active: wsConnected }" />
-        <span class="live-text">
-          {{ wsConnected ? 'WebSocket 实时推送中' : '未连接（仅手动查询）' }}
-        </span>
-        <span v-if="lastUpdatedAt" class="live-time">更新于 {{ formatTime(lastUpdatedAt) }}</span>
-      </div>
-    </header>
+    <PageHead
+      eyebrow="Chat Records · 聊天记录"
+      title="聊天会话查看"
+    >
+      <template #actions>
+        <div class="live-indicator">
+          <span class="live-dot" :class="{ active: wsConnected }" />
+          <span class="live-text">
+            {{ wsConnected ? 'WebSocket 实时推送中' : '未连接（仅手动查询）' }}
+          </span>
+          <span v-if="lastUpdatedAt" class="live-time">更新于 {{ formatTime(lastUpdatedAt) }}</span>
+        </div>
+      </template>
+    </PageHead>
 
-    <div v-if="hasLiveStreams" class="live-streams">
+    <div v-if="hasLiveStreams" class="live-streams glass">
       <div class="live-streams-head">
-        <span class="live-streams-title">⚡ 实时流式响应</span>
+        <span class="live-streams-title">实时流式响应</span>
         <span class="live-streams-count">{{ liveStreamList.length }} 路进行中</span>
       </div>
       <div v-for="ls in liveStreamList" :key="ls.requestId" class="live-stream-card">
@@ -237,7 +238,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="filter-bar">
+    <div class="filter-bar glass">
       <div class="filter-row">
         <div class="filter-item">
           <label class="filter-label">来源</label>
@@ -300,11 +301,9 @@ onUnmounted(() => {
 
       <div class="filter-actions">
         <button class="search-btn" @click="handleSearch">
-          <i class="fa-solid fa-search" />
           搜索
         </button>
         <button class="reset-btn" @click="handleReset">
-          <i class="fa-solid fa-rotate-left" />
           重置
         </button>
       </div>
@@ -372,67 +371,44 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  padding: 20px 24px;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.view-header {
-  flex-shrink: 0;
-}
-
-.view-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 4px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.title-icon {
-  font-size: 28px;
-}
-
-.view-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin: 0;
 }
 
 .live-indicator {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
 }
 
 .live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--el-text-color-disabled);
-  transition: background-color 150ms ease;
+  background: var(--fg-muted);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .live-dot.active {
-  background: var(--el-color-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-success) 25%, transparent);
+  background: var(--bronze-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze-500) 25%, transparent);
   animation: pulse 1.6s ease-in-out infinite;
 }
 
 .live-text {
   font-weight: 500;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
 }
 
 .live-time {
   font-variant-numeric: tabular-nums;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 @keyframes pulse {
@@ -451,9 +427,6 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--el-bg-color-page);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
 }
 
 .live-streams-head {
@@ -465,19 +438,20 @@ onUnmounted(() => {
 .live-streams-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .live-streams-count {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .live-stream-card {
   padding: 10px 12px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
+  background: var(--paper-tint);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .live-stream-meta {
@@ -489,34 +463,35 @@ onUnmounted(() => {
 
 .live-badge {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
-  color: var(--el-color-primary);
-  background: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+  color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
 .live-badge.done {
-  color: var(--el-color-success);
-  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
 }
 
 .live-badge.error {
-  color: var(--el-color-danger);
-  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
 }
 
 .live-rid {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .live-text-preview {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 120px;
@@ -526,8 +501,6 @@ onUnmounted(() => {
 .filter-bar {
   flex-shrink: 0;
   padding: 16px;
-  background: var(--el-bg-color-page);
-  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -549,22 +522,23 @@ onUnmounted(() => {
 .filter-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .filter-input,
 .filter-select {
   padding: 8px 12px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   font-size: 14px;
-  background: var(--el-bg-color);
+  background: var(--glass-bg);
+  color: var(--fg-primary);
 }
 
 .filter-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: var(--el-color-primary);
+  border-color: var(--gold-400);
 }
 
 .filter-actions {
@@ -579,29 +553,33 @@ onUnmounted(() => {
   gap: 6px;
   padding: 8px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
+  font-family: var(--font-sans-cn);
 }
 
 .search-btn {
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
 }
 
 .search-btn:hover {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  transform: translateY(-1px);
 }
 
 .reset-btn {
-  background: var(--el-text-color-secondary);
-  color: var(--el-color-white);
+  background: var(--paper-tint);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
 }
 
 .reset-btn:hover {
   opacity: 0.85;
+  transform: translateY(-1px);
 }
 
 .content-area {
@@ -633,14 +611,14 @@ onUnmounted(() => {
   justify-content: center;
   gap: 12px;
   height: 100%;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--el-border-color);
-  border-top-color: var(--el-color-primary);
+  border: 3px solid var(--border-default);
+  border-top-color: var(--gold-400);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -658,28 +636,28 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  background: var(--el-bg-color-page);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
+  background: var(--paper-tint);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 .session-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
-.session-meta b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
+.session-meta b { color: var(--fg-secondary); font-weight: 600; margin-right: 4px; }
 .session-key {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
-  font-family: 'Monaco', 'Menlo', monospace;
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
   word-break: break-all;
 }
-.session-key b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
+.session-key b { color: var(--fg-secondary); font-weight: 600; margin-right: 4px; }
 .session-first {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
 }
 
 /* 轮次明细 */
@@ -695,20 +673,21 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
 }
 .turn-head {
   font-size: 12px;
   font-weight: 600;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--font-mono);
 }
 .empty-hint {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   text-align: center;
   padding: 24px 0;
 }

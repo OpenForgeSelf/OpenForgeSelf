@@ -48,7 +48,7 @@ defineEmits<{
 .grp {
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-bottom: 1px solid var(--el-border-color-dark);
 }
 
 .grp__head {
@@ -64,12 +64,12 @@ defineEmits<{
 }
 
 .grp__head:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 /* A3：键盘聚焦可见焦点环 */
 .grp__head:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: -1px;
 }
 
@@ -79,13 +79,13 @@ defineEmits<{
   gap: 6px;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .grp__chevron {
   width: 12px;
   height: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   transition: transform 0.15s ease;
 }
 
@@ -102,14 +102,14 @@ defineEmits<{
   padding: 0 5px;
   font-size: var(--el-font-size-extra-small, 12px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-bg-color-overlay, #1d1e1f);
+  color: var(--el-text-color-secondary);
+  background: var(--el-bg-color-overlay);
   border-radius: 999px;
 }
 
 .grp__badge--active {
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
 }
 
 .grp__body {
@@ -122,6 +122,6 @@ defineEmits<{
 .grp__error {
   margin: 0;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 </style>

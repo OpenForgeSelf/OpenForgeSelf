@@ -25,7 +25,7 @@ const props = withDefaults(
 const KINDS: Record<PanelKind, { icon: string; title: string; hint: string; live: string }> = {
   loading: { icon: '◌', title: '正在读取设计系统库…', hint: '数据来自宿主后端；若长时间未完成，请确认宿主正在运行。', live: 'polite' },
   unauthorized: {
-    icon: '🔒',
+    icon: '锁',
     title: '未登录宿主，设计系统接口拒绝访问',
     hint: '设计系统端点要求 ApiKey 鉴权。请先在宿主里登录（token 存在 localStorage 的 forge_api_token 键），再回到本页点刷新。',
     live: 'assertive',
@@ -67,30 +67,38 @@ const liveRole = computed(() => KINDS[kind.value].live)
   align-items: flex-start;
   gap: var(--ds-space-3);
   padding: var(--ds-space-5);
-  border: 1px dashed var(--ds-border-2);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-2);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  color: var(--fg-secondary);
 }
 .ps--error {
-  border-color: var(--ds-danger);
+  border-color: var(--cinnabar-400);
   border-style: solid;
 }
 .ps--unauthorized {
-  border-color: var(--ds-warning);
+  border-color: var(--gold-400);
 }
 .ps--loading {
   border-style: solid;
 }
 .ps__icon {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 28px;
   line-height: 1.2;
+  color: var(--gold-400);
 }
 .ps__title {
-  font-weight: var(--ds-fw-medium, 500);
+  font-family: var(--font-serif-cn);
+  font-weight: 500;
+  font-size: 14px;
 }
 .ps__hint {
-  color: var(--ds-fg-3);
-  margin-top: 2px;
+  color: var(--fg-tertiary);
+  margin-top: 4px;
+  font-family: var(--ds-font-sans);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 </style>

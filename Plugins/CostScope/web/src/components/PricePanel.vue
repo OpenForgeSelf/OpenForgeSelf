@@ -112,9 +112,9 @@ onMounted(load)
 
 <style scoped>
 .panel { display: flex; flex-direction: column; gap: 10px; }
-.panel__error { color: var(--el-color-danger, #f56c6c); }
-.panel__notice { color: var(--el-color-success, #67c23a); }
+.panel__error { color: var(--el-color-danger); }
+.panel__notice { color: var(--el-color-success); }
 .panel__form { display: flex; gap: 8px; flex-wrap: wrap; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5); }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter); }
 </style>

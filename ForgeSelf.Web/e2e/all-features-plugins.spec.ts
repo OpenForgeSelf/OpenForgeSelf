@@ -23,8 +23,8 @@ import { injectRealApiKey } from './helpers/real-auth'
 /** 打开指定页面并等待标题 */
 async function gotoAndExpectTitle(page: Page, path: string, title: string): Promise<void> {
   await page.goto(path)
-  await expect(page.locator('h1, .page-title').first()).toBeVisible({ timeout: 10000 })
-  await expect(page.locator('h1, .page-title').first()).toContainText(title)
+  await expect(page.locator('h1, .page-head__title').first()).toBeVisible({ timeout: 10000 })
+  await expect(page.locator('h1, .page-head__title').first()).toContainText(title)
 }
 
 // ============================================================
@@ -38,7 +38,7 @@ test.describe('全部功能与插件子页', () => {
 
   test('全部功能页：功能卡片网格渲染', async ({ page }) => {
     await page.goto('/all-features')
-    await expect(page.locator('.page-title').first()).toContainText('所有功能')
+    await expect(page.locator('.page-head__title').first()).toContainText('所有功能')
     // 功能卡片网格（真实渲染 9 个功能入口）
     const cards = page.locator('.feature-card')
     await expect(cards.first()).toBeVisible({ timeout: 10000 })
@@ -59,7 +59,7 @@ test.describe('全部功能与插件子页', () => {
 
   test('插件管理卡片提供「插件详情」+「插件页面」双入口（新增页面入口，不取代详情）', async ({ page }) => {
     await page.goto('/all-features')
-    await expect(page.locator('.page-title').first()).toContainText('所有功能')
+    await expect(page.locator('.page-head__title').first()).toContainText('所有功能')
 
     // 定位「插件管理」卡片：两个下拉入口并存
     const card = page.locator('.feature-card').filter({ hasText: '插件管理' })

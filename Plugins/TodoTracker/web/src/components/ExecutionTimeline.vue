@@ -179,7 +179,7 @@ async function submit(): Promise<void> {
 .tl-row { display: flex; align-items: center; gap: 8px; }
 .tl-btn { border: 1px solid var(--el-border-color); background: var(--el-bg-color); color: var(--el-text-color-regular); border-radius: var(--el-border-radius-base, 4px); padding: 5px 12px; font-size: 13px; cursor: pointer; }
 .tl-btn:disabled { opacity: .55; cursor: not-allowed; }
-.tl-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: #fff; }
+.tl-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 
 .tl-empty { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.7; }
 .tl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

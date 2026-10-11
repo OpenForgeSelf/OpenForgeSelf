@@ -43,7 +43,7 @@ import { confirmVisible, confirmOptions, resolveConfirm } from '../confirm'
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--el-mask-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -57,7 +57,7 @@ import { confirmVisible, confirmOptions, resolveConfirm } from '../confirm'
   width: 100%;
   max-width: 380px;
   padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--el-box-shadow);
 }
 
 .confirm-title {

@@ -77,8 +77,8 @@ watch(
   flex-direction: column;
   flex: 0 0 auto;
   max-height: 40%;
-  border-bottom: 1px solid var(--el-border-color, #414243);
-  background: var(--el-bg-color, #1d1e1f);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   padding-bottom: 8px;
 }
 
@@ -87,7 +87,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-bottom: 1px solid var(--el-border-color-dark);
 }
 
 .fedit__label {
@@ -96,26 +96,26 @@ watch(
   gap: 6px;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .fedit__icon {
   width: 13px;
   height: 13px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .fedit__close {
   padding: 2px 6px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   background: transparent;
   border: none;
   cursor: pointer;
 }
 
 .fedit__close:hover {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .fedit__bar {
@@ -134,15 +134,15 @@ watch(
   white-space: nowrap;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .fedit__save {
   padding: 2px 14px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  border: 1px solid var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
+  border: 1px solid var(--el-color-primary);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -161,24 +161,24 @@ watch(
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.6;
-  color: var(--el-text-color-primary, #e5eaf3);
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  color: var(--el-text-color-primary);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   outline: none;
 }
 
 .fedit__textarea:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .fedit__hint {
   margin: 6px 12px 0;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .fedit__hint--ok {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 </style>

@@ -1,6 +1,7 @@
 <template>
   <div class="sems">
     <header class="sems__head">
+      <div class="sems__eyebrow">Software Engineering Management System</div>
       <div class="sems__title-row">
         <h1 class="sems__title">软件工程管理系统</h1>
         <span class="sems__badge">项目工作区</span>
@@ -262,47 +263,60 @@ async function runAll() {
 }
 
 .sems__head {
-  border-bottom: 1px solid var(--el-border-color, #414243);
+  border-bottom: 1px solid var(--el-border-color);
   padding-bottom: 16px;
+}
+
+.sems__eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 4px;
 }
 
 .sems__title-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
 }
 
 .sems__title {
   margin: 0;
-  font-size: 22px;
+  font-family: var(--font-display, serif);
+  font-size: 26px;
   font-weight: 700;
-  color: var(--el-text-color-primary, #e5eaf3);
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: var(--fg-primary);
 }
 
 .sems__badge {
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
-/* 铁律 13：根视图标题旁展示自身版本号（小字号圆角灰底，不抢标题） */
+/* 铁律 13：根视图标题旁展示自身版本号（小字号圆角金底，不抢标题） */
 .sems__version {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 16px;
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color-light, #262727);
+  color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
 .sems__sub {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .sems__toolbar {
@@ -314,17 +328,19 @@ async function runAll() {
 .sems__btn {
   height: 30px;
   padding: 0 14px;
-  border: 1px solid var(--el-border-color, #414243);
-  border-radius: 6px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--fg-regular, var(--fg-secondary));
   font-size: 13px;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .sems__btn:hover:not(:disabled) {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  transform: translateY(-1px);
+  border-color: var(--gold-400);
+  color: var(--gold-400);
 }
 
 .sems__btn:disabled {
@@ -333,10 +349,15 @@ async function runAll() {
 }
 
 .sems__btn--primary {
-  border-color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary-dark, #1d1e1f);
+  border-color: var(--gold-400);
+  background: var(--gold-400);
+  color: var(--ink-950);
   font-weight: 600;
+}
+
+.sems__btn--primary:hover:not(:disabled) {
+  background: var(--gold-300);
+  color: var(--ink-950);
 }
 
 .sems__stats {
@@ -352,20 +373,22 @@ async function runAll() {
   gap: 2px;
   min-width: 120px;
   padding: 16px;
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
-  border-radius: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
 }
 
 .sems__stat-num {
   font-size: 30px;
   font-weight: 700;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--gold-400);
 }
 
 .sems__stat-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .sems__grid {
@@ -378,7 +401,7 @@ async function runAll() {
   padding: 40px 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .sems__empty p {
@@ -390,6 +413,6 @@ async function runAll() {
 }
 
 .sems__empty--error {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 </style>

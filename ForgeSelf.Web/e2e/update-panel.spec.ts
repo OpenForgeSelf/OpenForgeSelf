@@ -32,6 +32,9 @@ test.describe('设置 - 版本更新（spec 036）', () => {
     await openUpdatePanel(page);
     await expect(page.getByText('当前版本')).toBeVisible();
     await expect(page.getByRole('button', { name: '检查更新' })).toBeVisible();
+
+    // 走查证据：全页截图（设置壳：页头 + 左分类栏 + 右内容卡）
+    await page.screenshot({ path: 'screenshots/e2e/update-panel/settings-update.png', fullPage: true });
   });
 
   test('status 接口回填当前版本号', async ({ page }) => {

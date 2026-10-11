@@ -434,7 +434,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .form-select:focus {
   outline: none;
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--gold-tint);
 }
 
 .add-rule-bar {
@@ -456,7 +456,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 .rule-type-select:focus {
   outline: none;
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--gold-tint);
 }
 
 .empty-rules,
@@ -794,7 +794,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: color-mix(in srgb, var(--ink-950) 60%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -806,7 +806,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   border-radius: 8px;
   width: 90%;
   max-width: 450px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-header {

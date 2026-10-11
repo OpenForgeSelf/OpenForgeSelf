@@ -18,7 +18,7 @@ defineProps<{
   margin: 2px 0;
   padding: 4px 8px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   opacity: 0.75;
 }
 </style>

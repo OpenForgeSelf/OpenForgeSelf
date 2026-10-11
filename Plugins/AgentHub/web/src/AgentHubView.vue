@@ -759,7 +759,7 @@ onBeforeUnmount(() => {
 .ok-root {
   font-family: var(--el-font-family, system-ui, sans-serif);
   color: var(--el-text-color-primary);
-  background: var(--el-bg-color-page, #f5f7fa);
+  background: var(--el-bg-color-page);
   padding: 20px;
   box-sizing: border-box;
 }
@@ -780,7 +780,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   padding: 1px 8px;
   border-radius: 10px;
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   color: var(--el-text-color-secondary);
   vertical-align: middle;
 }
@@ -803,7 +803,7 @@ onBeforeUnmount(() => {
   margin-right: 2px;
 }
 .ok-stat--alert b {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 .ok-alert {
   padding: 10px 14px;
@@ -812,19 +812,19 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 .ok-alert--ok {
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
-  border: 1px solid var(--el-color-success-light-5, #b3e19d);
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
+  border: 1px solid var(--el-color-success-light-5);
 }
 .ok-alert--err {
-  background: var(--el-color-danger-light-9, #fef0f0);
-  color: var(--el-color-danger, #f56c6c);
-  border: 1px solid var(--el-color-danger-light-5, #fab6b6);
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+  border: 1px solid var(--el-color-danger-light-5);
 }
 .ok-tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   margin-bottom: 16px;
 }
 .ok-tab {
@@ -837,8 +837,8 @@ onBeforeUnmount(() => {
   border-bottom: 2px solid transparent;
 }
 .ok-tab--on {
-  color: var(--el-color-primary, #409eff);
-  border-bottom-color: var(--el-color-primary, #409eff);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
   font-weight: 500;
 }
 .ok-toolbar {
@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
 .ok-code {
   font-family: var(--el-font-family-mono, monospace);
   font-size: 12px;
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   padding: 1px 6px;
   border-radius: 4px;
   color: var(--el-text-color-regular);
@@ -865,43 +865,43 @@ onBeforeUnmount(() => {
   text-align: center;
   font-size: 13px;
   color: var(--el-text-color-secondary);
-  background: var(--el-bg-color, #fff);
-  border: 1px dashed var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px dashed var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
 }
 .ok-btn {
   height: 32px;
   padding: 0 14px;
   border-radius: var(--el-border-radius-base, 6px);
-  border: 1px solid var(--el-border-color, #dcdfe6);
-  background: var(--el-bg-color, #fff);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   color: var(--el-text-color-primary);
   font-size: 13px;
   cursor: pointer;
 }
 .ok-btn:hover {
-  border-color: var(--el-color-primary-light-5, #a0cfff);
-  color: var(--el-color-primary, #409eff);
+  border-color: var(--el-color-primary-light-5);
+  color: var(--el-color-primary);
 }
 .ok-btn--primary {
-  background: var(--el-color-primary, #409eff);
-  border-color: var(--el-color-primary, #409eff);
-  /* 主色按钮文字：用 token 反色，禁用裸 #fff —— 主题切换时才能跟着走 */
-  color: var(--el-color-white, #ffffff);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  /* 主色按钮文字：用 token 反色，禁用裸白色值 —— 主题切换时才能跟着走 */
+  color: var(--el-color-white);
 }
 .ok-btn--primary:hover {
-  background: var(--el-color-primary-light-3, #79bbff);
-  border-color: var(--el-color-primary-light-3, #79bbff);
-  color: var(--el-color-white, #ffffff);
+  background: var(--el-color-primary-light-3);
+  border-color: var(--el-color-primary-light-3);
+  color: var(--el-color-white);
 }
 .ok-btn--danger {
-  border-color: var(--el-color-danger-light-5, #fab6b6);
-  color: var(--el-color-danger, #f56c6c);
+  border-color: var(--el-color-danger-light-5);
+  color: var(--el-color-danger);
 }
 .ok-btn--danger:hover {
-  background: var(--el-color-danger-light-9, #fef0f0);
-  border-color: var(--el-color-danger, #f56c6c);
-  color: var(--el-color-danger, #f56c6c);
+  background: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger);
+  color: var(--el-color-danger);
 }
 .ok-btn--sm {
   height: 26px;
@@ -915,9 +915,9 @@ onBeforeUnmount(() => {
 .ok-input {
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--el-border-color, #dcdfe6);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-base, 6px);
-  background: var(--el-fill-color-blank, #fff);
+  background: var(--el-fill-color-blank);
   color: var(--el-text-color-primary);
   font-size: 13px;
   box-sizing: border-box;
@@ -926,7 +926,7 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .ok-input:focus {
-  border-color: var(--el-color-primary, #409eff);
+  border-color: var(--el-color-primary);
 }
 .ok-input--inline {
   width: auto;
@@ -946,30 +946,30 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .ok-badge--ok {
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 .ok-badge--run {
-  background: var(--el-color-primary-light-9, #ecf5ff);
-  color: var(--el-color-primary, #409eff);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 .ok-badge--wait {
-  background: var(--el-color-warning-light-9, #fdf6ec);
-  color: var(--el-color-warning, #e6a23c);
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning);
 }
 .ok-badge--idle {
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   color: var(--el-text-color-secondary);
 }
 .ok-badge--bad {
-  background: var(--el-color-danger-light-9, #fef0f0);
-  color: var(--el-color-danger, #f56c6c);
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
 }
 
 /* 附加扫描目录配置 */
 .ok-scan-dirs {
-  background: var(--el-bg-color, #fff);
-  border: 1px dashed var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px dashed var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -992,8 +992,8 @@ onBeforeUnmount(() => {
 
 /* 扫描候选 */
 .ok-discovered {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-color-primary-light-7, #c6e2ff);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-color-primary-light-7);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -1017,8 +1017,8 @@ onBeforeUnmount(() => {
 
 /* 表单 */
 .ok-form {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 18px;
   max-width: 720px;
@@ -1038,7 +1038,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 1.7;
   color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   border-radius: var(--el-border-radius-base, 6px);
 }
 .ok-form__actions {
@@ -1064,8 +1064,8 @@ onBeforeUnmount(() => {
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
   overflow: hidden;
   max-height: 620px;
@@ -1073,18 +1073,18 @@ onBeforeUnmount(() => {
 }
 .ok-task {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   cursor: pointer;
 }
 .ok-task:last-child {
   border-bottom: none;
 }
 .ok-task:hover {
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
 }
 .ok-task--on {
-  background: var(--el-color-primary-light-9, #ecf5ff);
-  box-shadow: inset 3px 0 0 var(--el-color-primary, #409eff);
+  background: var(--el-color-primary-light-9);
+  box-shadow: inset 3px 0 0 var(--el-color-primary);
 }
 .ok-task__top {
   display: flex;
@@ -1115,8 +1115,8 @@ onBeforeUnmount(() => {
   color: var(--el-text-color-secondary);
 }
 .ok-detail {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 14px;
   min-height: 320px;
@@ -1126,14 +1126,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   margin-bottom: 12px;
 }
 
 /* 审批台 */
 .ok-approvals {
-  border: 1px solid var(--el-color-warning-light-5, #f5dab1);
-  background: var(--el-color-warning-light-9, #fdf6ec);
+  border: 1px solid var(--el-color-warning-light-5);
+  background: var(--el-color-warning-light-9);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 12px;
   margin-bottom: 12px;
@@ -1141,7 +1141,7 @@ onBeforeUnmount(() => {
 .ok-approvals__title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
   margin-bottom: 8px;
 }
 .ok-approval {
@@ -1150,7 +1150,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   padding: 8px 0;
-  border-top: 1px solid var(--el-color-warning-light-7, #f8e3c5);
+  border-top: 1px solid var(--el-color-warning-light-7);
 }
 .ok-approval:first-of-type {
   border-top: none;
@@ -1165,7 +1165,7 @@ onBeforeUnmount(() => {
   font-family: var(--el-font-family-mono, monospace);
   font-size: 12px;
   font-weight: 600;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
   white-space: nowrap;
 }
 .ok-approval__detail {
@@ -1181,7 +1181,7 @@ onBeforeUnmount(() => {
 
 .ok-result {
   margin-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-top: 1px solid var(--el-border-color-lighter);
   padding-top: 10px;
 }
 .ok-result__title {
@@ -1192,7 +1192,7 @@ onBeforeUnmount(() => {
 .ok-result__body {
   margin: 0;
   padding: 10px;
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   border-radius: var(--el-border-radius-base, 6px);
   font-family: var(--el-font-family-mono, monospace);
   font-size: 12px;
@@ -1214,7 +1214,7 @@ onBeforeUnmount(() => {
   z-index: 2000;
 }
 .ok-modal__box {
-  background: var(--el-bg-color, #fff);
+  background: var(--el-bg-color);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 20px;
   width: 460px;

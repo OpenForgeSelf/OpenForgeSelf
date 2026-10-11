@@ -90,7 +90,7 @@ describe('ChatView', () => {
         },
       },
     })
-    const status = wrapper.find('.chat-status-text')
+    const status = wrapper.find('.status-chip')
     expect(status.exists()).toBe(true)
     expect(status.text()).toBe('离线')
     expect(status.classes()).not.toContain('connected')
@@ -107,7 +107,7 @@ describe('ChatView', () => {
         },
       },
     })
-    const status = wrapper.find('.chat-status-text')
+    const status = wrapper.find('.status-chip')
     expect(status.text()).toBe('就绪')
     expect(status.classes()).toContain('connected')
   })

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { usePluginStore } from '@/stores/plugin'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const pluginStore = usePluginStore()
 
@@ -134,10 +136,10 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 <template>
   <div class="plugin-import-export-page">
-    <header class="page-header">
-      <h1 class="page-title">插件导入导出</h1>
-      <p class="page-subtitle">导入新插件或导出已安装的插件</p>
-    </header>
+    <PageHead
+      eyebrow="Plugin IO · 插件导入导出"
+      title="插件导入导出"
+    />
 
     <div class="tabs-nav">
       <button
@@ -145,18 +147,18 @@ function downloadBlob(blob: Blob, fileName: string): void {
         :class="{ active: activeTab === 'import' }"
         @click="activeTab = 'import'"
       >
-        📥 导入插件
+        导入插件
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'export' }"
         @click="activeTab = 'export'"
       >
-        📤 导出插件
+        导出插件
       </button>
     </div>
 
-    <div class="tab-content">
+    <div class="tab-content glass">
       <div v-if="activeTab === 'import'" class="import-section">
         <div
           class="drop-zone"
@@ -174,13 +176,24 @@ function downloadBlob(blob: Blob, fileName: string): void {
             @change="handleFileSelect"
           />
           <div v-if="!selectedFile" class="drop-content">
-            <div class="drop-icon">📦</div>
+            <div class="drop-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="M17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
             <h3>拖拽插件包到此处</h3>
             <p>或点击选择文件</p>
             <p class="format-hint">支持 .forgeself-plugin 和 .zip 格式</p>
           </div>
           <div v-else class="file-info">
-            <div class="file-icon">📄</div>
+            <div class="file-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="M14 2 14 8 20 8" />
+              </svg>
+            </div>
             <div class="file-details">
               <span class="file-name">{{ selectedFile.name }}</span>
               <span class="file-size">{{ (selectedFile.size / 1024).toFixed(1) }} KB</span>
@@ -236,7 +249,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
           </div>
         </div>
 
-        <div class="plugin-list">
+        <div v-if="pluginStore.plugins.length > 0" class="plugin-list">
           <div
             v-for="plugin in pluginStore.plugins"
             :key="plugin.id"
@@ -250,7 +263,13 @@ function downloadBlob(blob: Blob, fileName: string): void {
               @click.stop
               @change="togglePluginSelection(plugin.id)"
             />
-            <div class="plugin-icon">📦</div>
+            <div class="plugin-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+            </div>
             <div class="plugin-info">
               <h4 class="plugin-name">{{ plugin.name }}</h4>
               <span class="plugin-version">v{{ plugin.version }}</span>
@@ -259,9 +278,12 @@ function downloadBlob(blob: Blob, fileName: string): void {
           </div>
         </div>
 
-        <div v-if="pluginStore.plugins.length === 0" class="empty-state">
-          暂无已安装的插件
-        </div>
+        <EmptyState
+          v-else
+          icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' /><polyline points='3.27 6.96 12 12.01 20.73 6.96' /><line x1='12' y1='22.08' x2='12' y2='12' /></svg>"
+          title="暂无已安装的插件"
+          sub="导入插件后即可在此导出"
+        />
       </div>
     </div>
   </div>
@@ -271,102 +293,95 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .plugin-import-export-page {
   padding: 24px;
   min-height: 100%;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 4px 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin: 0;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .tabs-nav {
   display: flex;
   gap: 4px;
-  margin-bottom: 24px;
-  border-bottom: 2px solid var(--el-border-color-light);
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-subtle);
 }
 
 .tab-btn {
-  padding: 12px 24px;
+  padding: 10px 20px;
   border: none;
   background: none;
-  font-size: 15px;
-  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  color: var(--fg-tertiary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  transition: all 0.2s;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   font-weight: 500;
+  font-family: var(--font-sans-cn);
 }
 
 .tab-btn:hover {
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
 }
 
 .tab-btn.active {
-  color: var(--el-color-primary);
-  border-bottom-color: var(--el-color-primary);
+  color: var(--gold-400);
+  border-bottom-color: var(--gold-400);
 }
 
 .tab-content {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 12px;
   padding: 24px;
 }
 
 .drop-zone {
-  border: 2px dashed var(--el-border-color);
-  border-radius: 12px;
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-lg);
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   margin-bottom: 20px;
+  color: var(--fg-tertiary);
+}
+
+.drop-zone:hover {
+  border-color: var(--gold-400);
 }
 
 .drop-zone.dragging {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
+  border-color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
 .drop-zone.has-file {
   border-style: solid;
-  border-color: var(--el-color-success);
-  background: rgba(4, 120, 87, 0.06);
+  border-color: var(--bronze-500);
+  background: color-mix(in srgb, var(--bronze-500) 8%, transparent);
 }
 
 .drop-content .drop-icon {
-  font-size: 48px;
+  color: var(--gold-400);
   margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 .drop-content h3 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   margin: 0 0 8px 0;
+  font-family: var(--font-serif-cn);
 }
 
 .drop-content p {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   margin: 0 0 4px 0;
+  font-size: 14px;
 }
 
 .format-hint {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .file-info {
@@ -377,7 +392,8 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .file-icon {
-  font-size: 32px;
+  color: var(--gold-400);
+  display: flex;
 }
 
 .file-details {
@@ -388,74 +404,83 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 .file-name {
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .file-size {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .remove-btn {
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--el-fill-color-light);
-  border-radius: 50%;
+  background: var(--paper-tint);
+  border-radius: var(--radius-sm);
   font-size: 18px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .remove-btn:hover {
-  background: var(--el-fill-color);
+  background: var(--paper-tint);
+  opacity: 0.85;
 }
 
 .install-result {
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin-bottom: 20px;
   font-size: 14px;
 }
 
 .install-result.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
+  color: var(--bronze-500);
+  border: 1px solid color-mix(in srgb, var(--bronze-500) 30%, transparent);
 }
 
 .install-result.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--cinnabar-400);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 30%, transparent);
 }
 
 .install-btn {
   width: 100%;
   padding: 14px;
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
   border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  font-family: var(--font-sans-cn);
 }
 
 .install-btn:hover:not(:disabled) {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  transform: translateY(-1px);
+}
+
+.install-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .install-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -486,7 +511,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   cursor: pointer;
 }
 
@@ -498,30 +523,33 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .action-btn {
   padding: 8px 20px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
+  font-family: var(--font-sans-cn);
 }
 
 .export-selected-btn {
-  background: var(--el-bg-color-page);
-  color: var(--el-text-color-regular);
-  border: 1px solid var(--el-border-color);
+  background: transparent;
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
 }
 
 .export-selected-btn:hover:not(:disabled) {
-  background: var(--el-fill-color);
+  background: var(--paper-tint);
+  transform: translateY(-1px);
 }
 
 .export-all-btn {
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
 }
 
 .export-all-btn:hover:not(:disabled) {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
+  transform: translateY(-1px);
 }
 
 .action-btn:disabled {
@@ -542,31 +570,30 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .plugin-item:hover {
-  border-color: var(--el-color-primary);
-  background: var(--el-bg-color-page);
+  border-color: var(--gold-400);
 }
 
 .plugin-item.selected {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
+  border-color: var(--gold-400);
+  background: var(--gold-tint);
 }
 
 .plugin-icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-md);
+  background: var(--gold-tint);
+  color: var(--gold-400);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -578,28 +605,23 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .plugin-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   margin: 0 0 2px 0;
 }
 
 .plugin-version {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .plugin-category {
-  background: var(--el-fill-color-light);
+  background: var(--paper-tint);
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   flex-shrink: 0;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--el-text-color-secondary);
 }
 
 @media (max-width: 640px) {

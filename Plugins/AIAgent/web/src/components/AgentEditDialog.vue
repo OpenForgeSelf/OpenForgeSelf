@@ -438,20 +438,20 @@ async function onDelete() {
 .aed__sec-title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
-  border-bottom: 1px solid var(--el-border-color-lighter, #2a2b2c);
+  color: var(--el-text-color-primary);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   padding-bottom: 6px;
 }
 
 .aed__hint {
   font-size: var(--el-font-size-extra-small, 12px);
   font-weight: normal;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   margin-left: 6px;
 }
 
 .aed__req {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .aed__row {
@@ -488,22 +488,22 @@ async function onDelete() {
 .aed__label {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .aed__input {
   padding: 8px 12px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-small, 13px);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .aed__input:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .aed__input--num {
@@ -516,10 +516,10 @@ async function onDelete() {
 
 .aed__select {
   padding: 8px 12px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-small, 13px);
   outline: none;
   appearance: none;
@@ -547,7 +547,7 @@ async function onDelete() {
   width: 36px;
   height: 20px;
   border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-fill-color-dark, #2f3031);
+  background: var(--el-fill-color-dark);
   position: relative;
   transition: background 0.2s;
   flex-shrink: 0;
@@ -561,12 +561,12 @@ async function onDelete() {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--el-color-white);
   transition: left 0.2s;
 }
 
 .aed__switch input:checked + .aed__switch-ui {
-  background: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary);
 }
 
 .aed__switch input:checked + .aed__switch-ui::after {
@@ -575,15 +575,15 @@ async function onDelete() {
 
 .aed__switch-label {
   font-size: var(--el-font-size-small, 13px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .aed__textarea {
   padding: 10px 12px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-small, 13px);
   font-family: var(--el-font-family-mono, monospace);
   line-height: 1.6;
@@ -593,7 +593,7 @@ async function onDelete() {
 }
 
 .aed__textarea:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 /* 五维画像滑块 */
@@ -613,7 +613,7 @@ async function onDelete() {
   width: 60px;
   flex-shrink: 0;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
 }
 
 .aed__range {
@@ -621,7 +621,7 @@ async function onDelete() {
   appearance: none;
   height: 4px;
   border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   outline: none;
   cursor: pointer;
 }
@@ -631,7 +631,7 @@ async function onDelete() {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary);
   cursor: pointer;
 }
 
@@ -640,7 +640,7 @@ async function onDelete() {
   height: 14px;
   border: none;
   border-radius: 50%;
-  background: var(--el-color-primary, #ffb84d);
+  background: var(--el-color-primary);
   cursor: pointer;
 }
 
@@ -650,32 +650,32 @@ async function onDelete() {
   text-align: right;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .aed__error {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 
 .aed__multiselect {
   padding: 8px 12px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-small, 13px);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .aed__multiselect:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .aed__multiselect option {
-  background: var(--el-bg-color, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
 }
 
 .aed__wf-chips {
@@ -689,17 +689,17 @@ async function onDelete() {
   align-items: center;
   padding: 2px 10px;
   border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-fill-color-dark, #2f3031);
-  border: 1px solid var(--el-color-primary, #ffb84d);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color-dark);
+  border: 1px solid var(--el-color-primary);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 
 .aed__wf-empty {
   padding: 8px 12px;
-  border: 1px dashed var(--el-border-color, #414243);
+  border: 1px dashed var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 

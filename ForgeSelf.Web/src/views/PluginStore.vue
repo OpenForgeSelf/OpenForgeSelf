@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { usePluginStore } from '@/stores/plugin'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
 import { useOpenPage } from '@/composables/useOpenPage'
@@ -11,6 +13,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const { openPage } = useOpenPage()
 const pluginStore = usePluginStore()
 const manifestStore = usePluginManifestStore()
+
+/** PageHead 动态标题：随 tab / 分类切换。 */
+const headerTitle = computed(() => {
+  if (activeTab.value === 'recommended') return '推荐插件'
+  if (activeTab.value === 'popular') return '热门插件'
+  if (activeTab.value === 'installed') return '已安装插件'
+  return selectedCategory.value === 'all' ? '全部插件' : selectedCategory.value
+})
 
 /** 插件 id → 前端页面 route（来自插件清单 frontend.route；未声明页面则无入口）。 */
 const routeById = computed<Map<string, string>>(() => {
@@ -307,59 +317,53 @@ onMounted(() => {
     </aside>
 
     <main class="main-content">
-      <header class="content-header">
-        <div class="header-top">
-          <h1 class="page-title">
-            {{ activeTab === 'recommended' ? '推荐插件' : 
-              activeTab === 'popular' ? '热门插件' :
-              activeTab === 'installed' ? '已安装插件' :
-              selectedCategory === 'all' ? '全部插件' : selectedCategory }}
-          </h1>
+      <PageHead eyebrow="Plugin Store · 插件市场" :title="headerTitle">
+        <template #actions>
           <div class="sort-controls">
-            <label class="sort-label">排序:</label>
+            <label class="sort-label">排序</label>
             <select v-model="sortBy" class="sort-select">
               <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
               </option>
             </select>
           </div>
-        </div>
+        </template>
+      </PageHead>
 
-        <div class="tabs-bar">
-          <button
-            v-for="tab in [
-              { value: 'all', label: '全部' },
-              { value: 'recommended', label: '推荐' },
-              { value: 'popular', label: '热门' },
-              { value: 'installed', label: '已安装' }
-            ]"
-            :key="tab.value"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.value }"
-            @click="handleTabChange(tab.value as any)"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+      <div class="tabs-bar">
+        <button
+          v-for="tab in [
+            { value: 'all', label: '全部' },
+            { value: 'recommended', label: '推荐' },
+            { value: 'popular', label: '热门' },
+            { value: 'installed', label: '已安装' }
+          ]"
+          :key="tab.value"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.value }"
+          @click="handleTabChange(tab.value as any)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
 
-        <div class="search-bar">
-          <span class="search-icon">🔍</span>
-          <input
-            v-model="searchKeyword"
-            type="text"
-            class="search-input"
-            placeholder="搜索插件名称、描述、标签或作者..."
-            @input="handleSearchInput"
-          />
-          <button
-            v-if="searchKeyword"
-            class="clear-btn"
-            @click="searchKeyword = ''; loadPlugins()"
-          >
-            ×
-          </button>
-        </div>
-      </header>
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input
+          v-model="searchKeyword"
+          type="text"
+          class="search-input"
+          placeholder="搜索插件名称、描述、标签或作者..."
+          @input="handleSearchInput"
+        />
+        <button
+          v-if="searchKeyword"
+          class="clear-btn"
+          @click="searchKeyword = ''; loadPlugins()"
+        >
+          ×
+        </button>
+      </div>
 
       <div class="results-info">
         <span v-if="!pluginStore.isLoading">
@@ -372,20 +376,18 @@ onMounted(() => {
         <p>加载插件中...</p>
       </div>
 
-      <div v-else-if="filteredPlugins.length === 0" class="empty-state">
-        <div class="empty-icon">📭</div>
-        <h3>没有找到插件</h3>
-        <p v-if="searchKeyword || selectedCategory !== 'all'">
-          试试调整搜索条件或筛选条件
-        </p>
-        <p v-else>暂无可用插件</p>
-      </div>
+      <EmptyState
+        v-else-if="filteredPlugins.length === 0"
+        icon=""
+        :title="searchKeyword || selectedCategory !== 'all' ? '没有找到插件' : '暂无可用插件'"
+        :sub="searchKeyword || selectedCategory !== 'all' ? '试试调整搜索条件或筛选条件' : '插件市场空空如也'"
+      />
 
       <div v-else class="plugins-grid">
         <div
           v-for="plugin in filteredPlugins"
           :key="plugin.id"
-          class="plugin-card"
+          class="plugin-card glass"
           @click="handleCardClick(plugin)"
         >
           <div class="card-header-row">
@@ -592,8 +594,8 @@ onMounted(() => {
 }
 
 .category-item.active .category-count {
-  background: var(--primary-light);
-  color: var(--el-color-primary);
+  background: var(--gold-tint-strong);
+  color: var(--gold-400);
 }
 
 .nav-item {
@@ -727,8 +729,8 @@ onMounted(() => {
 }
 
 .search-bar:focus-within {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 2px var(--gold-tint-strong);
 }
 
 .search-icon {
@@ -780,21 +782,17 @@ onMounted(() => {
 }
 
 .plugin-card {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
   padding: 18px;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
 .plugin-card:hover {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--border-brand), 0 8px 24px color-mix(in srgb, var(--ink-950) 45%, transparent);
+  transform: translateY(-1px);
 }
 
 .card-header-row {
@@ -842,23 +840,23 @@ onMounted(() => {
 }
 
 .plugin-status-badge.running {
-  background: rgba(4, 120, 87, 0.15);
+  background: color-mix(in srgb, var(--el-color-success) 15%, transparent);
   color: var(--el-color-success);
 }
 
 .plugin-status-badge.stopped {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+  color: var(--fg-secondary);
 }
 
 .plugin-status-badge.error {
-  background: rgba(185, 28, 28, 0.15);
+  background: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
   color: var(--el-color-danger);
 }
 
 .plugin-status-badge.notloaded {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+  color: var(--fg-secondary);
 }
 
 .card-body {
@@ -970,13 +968,13 @@ onMounted(() => {
 }
 
 .enabled-badge.on {
-  background: rgba(4, 120, 87, 0.15);
+  background: color-mix(in srgb, var(--el-color-success) 15%, transparent);
   color: var(--el-color-success);
 }
 
 .enabled-badge.off {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+  color: var(--fg-secondary);
 }
 
 /* 卡片 footer 操作按钮：统一尺寸（高 28px、同字号/圆角/边框），仅按角色换色 */
@@ -1032,7 +1030,7 @@ onMounted(() => {
   color: var(--el-color-danger);
 }
 .toggle-btn.active:hover {
-  background: rgba(248, 81, 73, 0.08);
+  background: color-mix(in srgb, var(--el-color-danger) 10%, transparent);
 }
 
 .version-btn {

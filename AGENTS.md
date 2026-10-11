@@ -29,7 +29,7 @@
    - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（`docs/ai/pilot/` 工件 / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow/README.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow/README.md 或本文。
    - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` 安装 hook（幂等；**脚本一律用 `pwsh` 跑，禁止 `powershell` 5.1**，见 §2.3）。
-   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部五步**：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 测试）② 插件层 e2e（`e2e/plugins/<id>`，走 e2e 隔离实例，按 `e2e-testing` 技能）③ 发布（**打 tag 自动发布** → CI 打包 GitHub Release；或本地 `release-local.ps1 -UpdateDir` + 设置页本地目录更新源 + 页面自动更新）④ 走查（e2e 隔离实例按用户视角点一遍、截图读图、清测试数据）⑤ **运行实例只读复验**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）。**五步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-09-27 用户指令）**：**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责打 tag 发布与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
+   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部六步**（2026-10-11 用户输入3 拍板重排）：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 单测/集成测试）② **本插件 1 个冒烟 e2e**（`e2e/plugins/<id>` 内一条主链路用例；**禁止铺全流程 e2e**，避免跑全量浪费时间）③ **起源码本地前后端按验收标准验收**（`pwsh scripts/dev-stack.ps1` 起源码前后端 → 按验收标准 + ui-ux-design 走查清单逐项核对 + 截图读图 + 清测试数据；**必做，双绿不能替代**）④ 发布（**默认本地目录更新源**：`release-local.ps1 -UpdateDir` + 设置页填本地目录 + 页面自动更新；打 tag 自动发布仅用户明确要求时）⑤ **真实走查（运行实例只读复验）**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）⑥ 更新插件文档 + 记日志。**六步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-10-11 用户拍板）**：**发布方式默认本地目录更新源**；**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责本地打包与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
 > 验证通过（测试绿）≠ 流程完成。Persist 与 Verify 同属 DoD，缺一项即未达标。
@@ -237,7 +237,7 @@ dotnet test
 
 | 档 | 跑什么 | 量级 | 触发条件（满足任一即跑） |
 |----|--------|------|--------------------------|
-| **快** | 本批相关过滤集（`dotnet test --filter`）+ `pnpm run check` + `pnpm run test` + 本插件 e2e | 分钟级 | **每次改完代码必跑**（§5.1/§5.2 的默认形态） |
+| **快** | 本批相关过滤集（`dotnet test --filter`）+ `pnpm run check` + `pnpm run test` + **`pnpm run design:check`（设计规范守卫，§8 门禁）** + 本插件 1 冒烟 e2e | 分钟级 | **每次改完代码必跑**（§5.1/§5.2 的默认形态） |
 | **中** | 后端**全量** `dotnet test` | ~15 分钟 | 碰了①宿主源码（`ForgeSelf.Api/**`，含 `XCodeConfig`/`AppBuilder`）②仓库级脚本（`scripts/**`、`*.ps1`）③共享测试基建（`ForgeSelf.Api.Tests` 夹具）—— 理由：`RepositoryScriptTests` 这类**仓库级守卫**只有全量才扫得到 |
 | **深** | **全量 e2e**（单配置整跑） | ~38 分钟 | 碰了①`e2e/global-setup.ts` / `playwright.*.config.ts` / `e2e/fixtures/**`（所有插件 e2e 共用）②发版/tag 前③专跑「e2e 基线治理」批次 |
 
@@ -324,9 +324,42 @@ Verify 失败
 
 ---
 
-## 8. 设计稿工作流
+## 8. 设计稿工作流（UI/UX/品牌三面一致 · 门禁三步，2026-10-11 用户输入3 强化）
 
-设计稿位于 `forgeself-design/`，实现层必须对齐其视觉与交互。新增设置项 SOP、file:// 协议限制等 → `docs/04-standards/agent-workflow/a-workflow-docs-report.md` §A7。
+设计稿唯一真源 = 高保真参考稿 `D:\Users\12504\Downloads\design_handoff_forgeself_home_plugin_system\design_files\`（入口 `index.html`；主壳 `App.jsx`；首页 `HomeScreen.jsx`；功能屏 `OtherScreens.jsx`；布局 `kit-styles.css`；tokens `colors_and_type.css`；说明 `../README.md`）。**项目级 UI/UX 规范 = 仓库根 `DESIGN.md`**（v2-target，唯一真源映射：色板/token/字体/组件规格/动效/Plugin-First 约定/三禁红线/新建页面·查询执行规范）。实现层必须对齐其视觉与交互——**UI、UX、品牌三面一致**。
+
+**设计门禁三步（框架变更 / 页面开发 / 新建查询，缺一不可，不许靠自觉）**：
+1. **静态守卫（自动，机器判）**：`pnpm run design:check`（= `scripts/check-style-tokens.mjs` 禁新增裸色值 + `scripts/check-design-compliance.mjs` 禁新增 token 族违规/胶囊按钮/玻璃过头/蓝紫渐变，棘轮基线）。**每次改完代码必跑（§5.6 快档已接线）**；pre-commit hook 亦拦截。
+2. **Spec 硬性环节（闸门1）**：涉用户可见 UI 的 Spec 必含「Interaction Design」节（模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能），写清「点什么出现什么」+ 空态/反馈/边界 + 验收标准；**缺节闸门1 不通过**。
+3. **走查符合性（验收）**：涉及 UI 的交付必经起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design`「走查 UI 符合性清单」逐项核对（CRAP + DESIGN.md 组件规格 + 品牌语汇），不只"能显示"。
+
+- **新建页面/新建查询**：一律按 `DESIGN.md`「新建页面与查询执行规范」节（PageHead/ForgeCard/EmptyState、token 引用禁裸色值、空态/反馈/边界、品牌语汇、三禁红线复查），并跑设计门禁三步。
+- 新增设置项 SOP、file:// 协议限制等 → `docs/04-standards/agent-workflow/a-workflow-docs-report.md` §A7。
+- 旧 `forgeself-design/`（自包含 HTML 原型）作为历史原型保留，不再承担「设计稿唯一真源」职责。
+
+---
+
+## 8.5 自动迭代与决策规范（2026-10-11 用户输入3 立）
+
+> 目标：**基础设施完善后，项目进入自动迭代模式**——agent 按项目规范自主推进、自主决策，尽量少打扰用户；
+> 如无必要无需用户决策；每次决策必须留痕可审计。
+
+1. **自动迭代范围**：凡在既有规范（AGENTS.md / DESIGN.md / 技能 / 门禁）覆盖内的迭代任务，agent 自主执行闭环
+   （Goal → Context → Plan → Execute → Verify → Persist），**无需逐项征求用户意见**。完成一项即按 §7.5 归档、
+   清理 TODO，再取下一项。
+2. **决策原则**：决策以**项目愿景（铸己匣 = 个人可扩展、可长期演进的工具平台）与长期可发展性**为最高准则——
+   优先选「可回滚、可复用、少耦合、符合既有真源」的路径；不做短期讨巧、不引入与 DESIGN/架构真源冲突的临时方案。
+3. **决策记录（局测记录）**：每个重要决策按固定格式写入当天工作日记与相关真源：
+   `决策 → 背景 → 理由 → 准则`（四要素缺一不可）；能沉淀为项目不变规律的，按 §7 Persist 入库。
+4. **打扰用户的边界（尽量少打扰，如无必要无需用户决策）**：以下情形**必须**请示用户（其余自主执行）：
+   - 破坏性 / 不可逆操作（删数据、改用户文件、覆盖配置、改运行实例状态）；
+   - 发布动作（git 提交/推送、打 tag、本地目录发布、通知用户点更新）——发布前必须征得同意；
+   - 高风险变更（数据库迁移、API 契约破坏性变更、主依赖大版本升级、架构调整）；
+   - 需新增依赖或改构建配置、以及现有流程/规范无法覆盖的新场景；
+   - 连续 3 次迭代失败无新思路（按 §6 升级规则）。
+   其余（常规开发、测试、走查、文档、守卫维护）自主完成，交付时按 §10.4 汇报即可。
+5. **迭代节奏**：优先完成基建与门禁 → 按方案（如 `docs/ai/pilot/2026-10-11-design-overhaul/`）里程碑逐批推进 →
+   每批走完 §5.6 对应档位门禁 + §8 设计门禁三步 → 汇报一批、归档一批。
 
 ---
 

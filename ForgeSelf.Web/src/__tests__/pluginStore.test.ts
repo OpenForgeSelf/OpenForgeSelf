@@ -143,8 +143,8 @@ describe('PluginStore', () => {
       await flushPromises()
 
       expect(wrapper.find('.empty-state').exists()).toBe(true)
-      expect(wrapper.find('.empty-state h3').text()).toBe('没有找到插件')
-      expect(wrapper.find('.empty-state p').text()).toBe('暂无可用插件')
+      expect(wrapper.find('.empty-state__title').text()).toBe('暂无可用插件')
+      expect(wrapper.find('.empty-state__sub').text()).toBe('插件市场空空如也')
       wrapper.unmount()
     })
 
@@ -163,7 +163,7 @@ describe('PluginStore', () => {
       await flushPromises()
 
       const emptyState = wrapper.find('.empty-state')
-      expect(emptyState.find('p').text()).toBe('试试调整搜索条件或筛选条件')
+      expect(emptyState.find('.empty-state__sub').text()).toBe('试试调整搜索条件或筛选条件')
       wrapper.unmount()
     })
   })
@@ -359,7 +359,7 @@ describe('PluginStore', () => {
 
       await flushPromises()
 
-      expect(wrapper.find('.page-title').text()).toBe('全部插件')
+      expect(wrapper.find('.page-head__title').text()).toBe('全部插件')
       wrapper.unmount()
     })
   })

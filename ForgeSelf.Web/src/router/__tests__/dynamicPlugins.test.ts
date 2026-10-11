@@ -134,6 +134,61 @@ describe('dynamicPlugins 动态视图挂载', () => {
     expect(router.getRoutes().filter((r) => String(r.name).startsWith('manifest-'))).toHaveLength(0)
   })
 
+  it('仅声明 home-widget/quick-action/status-badge 的插件不注册 tab 路由', () => {
+    // Plugin-First：surface 决定消费位。带 route 但 surfaces 不含 tab 的插件
+    // （典型：首页 slot 贡献者、状态栏徽标）不应被当作 tab 页注册。
+    const router = makeRouter()
+    registerManifestRoutes(router, [
+      makeManifestItem({
+        id: 'home-board',
+        name: '首页看板 slot',
+        isEnabled: true,
+        frontend: {
+          views: ['BoardSlotView'],
+          route: '/boards-slot',
+          entry: 'web/dist/index.js',
+          surfaces: ['home-widget'],
+        },
+      }),
+      makeManifestItem({
+        id: 'status-dot',
+        name: '状态点',
+        isEnabled: true,
+        frontend: {
+          views: ['StatusDotView'],
+          route: '/status-dot',
+          entry: 'web/dist/index.js',
+          surfaces: ['status-badge'],
+        },
+      }),
+    ])
+
+    expect(router.getRoutes().filter((r) => String(r.name).startsWith('manifest-'))).toHaveLength(0)
+  })
+
+  it('显式声明 surfaces: ["tab"] 的插件注册路由且 meta.surfaces 携带归一结果', () => {
+    const router = makeRouter()
+    registerManifestRoutes(router, [
+      makeManifestItem({
+        id: 'explicit-tab',
+        name: '显式 tab 插件',
+        isEnabled: true,
+        frontend: {
+          views: ['ExplicitTabView'],
+          menu: '显式 Tab',
+          route: '/explicit-tab',
+          entry: 'web/dist/index.js',
+          surfaces: ['tab', 'quick-action'],
+        },
+      }),
+    ])
+
+    const route = router.getRoutes().find((r) => r.name === 'manifest-explicit-tab')
+    expect(route).toBeDefined()
+    expect(route?.path).toBe('/explicit-tab')
+    expect(route?.meta.surfaces).toEqual(['tab', 'quick-action'])
+  })
+
   it('重复注册保持幂等（不产生同名重复路由）', () => {
     const router = makeRouter()
     const manifest = [

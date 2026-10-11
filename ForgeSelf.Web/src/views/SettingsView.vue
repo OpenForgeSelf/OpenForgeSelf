@@ -13,6 +13,7 @@ import {
   Key,
   Refresh
 } from '@element-plus/icons-vue';
+import PageHead from '@/components/PageHead.vue';
 import GeneralPanel from '@/components/settings/GeneralPanel.vue';
 import AiAgentPanel from '@/components/settings/AiAgentPanel.vue';
 import PluginsPanel from '@/components/settings/PluginsPanel.vue';
@@ -59,28 +60,34 @@ const navItems: NavItem[] = [
 </script>
 
 <template>
-  <div class="p-6 h-full min-h-0 overflow-y-auto">
-    <!-- 统一半透明面板：导航 + 内容在同一 surface 上，模仿 VS Code 设置页整体感 -->
-    <div class="settings-surface flex gap-6 max-w-[900px] mx-auto rounded-xl p-4">
-      <!-- 左侧导航 -->
-      <nav class="settings-cat-nav w-[180px] shrink-0 space-y-1" aria-label="设置分类">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-          class="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-r-md border-l-[3px] transition-colors cursor-pointer bg-transparent border-none font-inherit"
-          :class="
-            activeCategory === item.key
-              ? '!border-l-[var(--el-color-primary)] bg-primary/10 text-primary font-medium'
-              : '!border-l-transparent text-text-regular hover:bg-fill hover:text-text'
-          "
-          @click="activeCategory = item.key">
-          <el-icon :size="18"><component :is="item.icon" /></el-icon>
-          <span class="text-sm truncate">{{ item.label }}</span>
-        </button>
-      </nav>
+  <div class="settings-view">
+    <!-- ===== 页头（设计稿 PageHead 统一规格） ===== -->
+    <PageHead eyebrow="Settings · 通用设置" title="配置应用的基本行为与偏好" />
 
-      <!-- 右侧面板 -->
-      <div class="flex-1 min-w-0">
+    <!-- 左右分栏：左分类玻璃栏 + 右内容玻璃卡（用全局 .glass 裸容器，避免 ForgeCard 恒带 role=button 与真实按钮 getByRole 冲突） -->
+    <div class="settings-layout">
+      <!-- 左侧导航（玻璃卡） -->
+      <div class="glass settings-nav-card">
+        <nav class="settings-cat-nav" aria-label="设置分类">
+          <button
+            v-for="item in navItems"
+            :key="item.key"
+            class="settings-cat-btn w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-r-md border-l-[3px] transition-colors cursor-pointer bg-transparent border-none font-inherit"
+            :class="
+              activeCategory === item.key
+                ? '!border-l-[var(--el-color-primary)] bg-primary/10 text-primary font-medium'
+                : '!border-l-transparent text-text-regular hover:bg-fill hover:text-text'
+            "
+            @click="activeCategory = item.key"
+          >
+            <el-icon :size="18"><component :is="item.icon" /></el-icon>
+            <span class="text-sm truncate">{{ item.label }}</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- 右侧面板（玻璃卡） -->
+      <div class="glass settings-content-card">
         <GeneralPanel v-show="activeCategory === 'general'" />
         <AiAgentPanel v-show="activeCategory === 'ai-agent'" />
         <PluginsPanel v-show="activeCategory === 'plugins'" />
@@ -95,3 +102,62 @@ const navItems: NavItem[] = [
     </div>
   </div>
 </template>
+
+<style scoped>
+.settings-view {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* 左分类栏：贴合内容高度，滚动时吸顶 */
+.settings-nav-card {
+  position: sticky;
+  top: 0;
+  padding: 8px;
+}
+
+.settings-content-card {
+  padding: 20px;
+}
+
+.settings-cat-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-cat-btn {
+  font-family: inherit;
+  font-size: 13px;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.settings-cat-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* 窄屏收为单列 */
+@media (max-width: 720px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-nav-card {
+    position: static;
+  }
+}
+</style>

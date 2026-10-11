@@ -1,27 +1,24 @@
 <template>
   <div class="profile-view">
     <div class="profile-header">
-      <div class="header-content">
-        <h1 class="page-title">
-          <i class="fa-solid fa-user-astronaut" />
-          我的画像
-        </h1>
-        <p class="page-subtitle">了解你的使用习惯和能力成长</p>
-      </div>
+      <PageHead
+        eyebrow="Profile · 我的画像"
+        title="我的画像"
+      />
       <div class="header-stats">
-        <div class="stat-card">
+        <div class="stat-card glass">
           <div class="stat-value">{{ profile?.totalUsageDays || 0 }}</div>
           <div class="stat-label">使用天数</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card glass">
           <div class="stat-value">{{ profile?.totalActions || 0 }}</div>
           <div class="stat-label">总操作数</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card glass">
           <div class="stat-value">{{ Math.round((profile?.efficiencyScore || 0) * 100) }}%</div>
           <div class="stat-label">效率评分</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card glass">
           <div class="stat-value">{{ Math.round((profile?.learningRate || 0) * 100) }}%</div>
           <div class="stat-label">学习速率</div>
         </div>
@@ -30,15 +27,16 @@
 
     <div class="profile-content">
       <div class="profile-left">
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-chart-pie" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
               使用风格
             </h3>
           </div>
           <div class="style-badge">
-            <i class="fa-solid fa-robot" />
             <span>{{ profile?.usageStyle || '探索型' }}</span>
           </div>
           <p class="style-desc">{{ getStyleDescription(profile?.usageStyle) }}</p>
@@ -50,10 +48,12 @@
           </div>
         </div>
 
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-tools" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
+              </svg>
               技能图谱
             </h3>
             <span class="badge">{{ skills.length }} 项技能</span>
@@ -67,7 +67,8 @@
               <div class="skill-bar-bg">
                 <div
                   class="skill-bar-fill"
-                  :style="{ width: skill.proficiencyLevel * 100 + '%', background: getSkillColor(skill.proficiencyLevel) }"
+                  :class="getSkillLevelClass(skill.proficiencyLevel)"
+                  :style="{ width: skill.proficiencyLevel * 100 + '%' }"
                 />
               </div>
               <div class="skill-stats">
@@ -76,17 +77,20 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-skills">
-            <i class="fa-solid fa-seedling" />
-            <p>技能正在成长中...</p>
-            <p class="hint">继续使用各种工具和功能，你的技能树会逐渐成长</p>
-          </div>
+          <EmptyState
+            v-else
+            icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2L12 22' /><path d='M12 8L8 4' /><path d='M12 8L16 4' /><path d='M12 14L7 9' /><path d='M12 14L17 9' /></svg>"
+            title="技能正在成长中"
+            sub="继续使用各种工具和功能，你的技能树会逐渐成长"
+          />
         </div>
 
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-heart" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
               偏好分析
             </h3>
           </div>
@@ -105,19 +109,28 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-text">暂无偏好数据</div>
+          <EmptyState
+            v-else
+            icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' /><line x1='12' y1='16' x2='12' y2='12' /><line x1='12' y1='8' x2='12.01' y2='8' /></svg>"
+            title="暂无偏好数据"
+            sub="使用过程中会自动学习你的偏好"
+          />
         </div>
       </div>
 
       <div class="profile-right">
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-lightbulb" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d='M9 18h6' /><path d='M10 22h4' /><path d='M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z' />
+              </svg>
               智能建议
             </h3>
             <button class="btn-icon" title="刷新" @click="loadSuggestions">
-              <i class="fa-solid fa-refresh" :class="{ spinning: loading }" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="{ spinning: loading }">
+                <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
             </button>
           </div>
           <div v-if="suggestions.length > 0" class="suggestions-list">
@@ -129,7 +142,9 @@
             >
               <div class="suggestion-header">
                 <div class="suggestion-icon">
-                  <i :class="getSuggestionIcon(suggestion.type)" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d='M9 18h6' /><path d='M10 22h4' /><path d='M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z' />
+                  </svg>
                 </div>
                 <div class="suggestion-title">
                   <h4>{{ suggestion.title }}</h4>
@@ -145,27 +160,28 @@
               </div>
               <div class="suggestion-actions">
                 <button v-if="suggestion.actionUrl" class="btn btn-primary btn-sm" @click="actionSuggestion(suggestion)">
-                  <i class="fa-solid fa-arrow-right" />
                   去试试
                 </button>
                 <button class="btn btn-ghost btn-sm" @click="dismissSuggestion(suggestion.id)">
-                  <i class="fa-solid fa-xmark" />
                   忽略
                 </button>
               </div>
             </div>
           </div>
-          <div v-else class="empty-suggestions">
-            <i class="fa-solid fa-lightbulb" />
-            <p>暂无建议</p>
-            <p class="hint">继续使用系统，我们会为你生成个性化建议</p>
-          </div>
+          <EmptyState
+            v-else
+            icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18h6' /><path d='M10 22h4' /><path d='M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z' /></svg>"
+            title="暂无建议"
+            sub="继续使用系统，我们会为你生成个性化建议"
+          />
         </div>
 
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-radar" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
+              </svg>
               行为模式
             </h3>
           </div>
@@ -173,7 +189,9 @@
             <div v-for="pattern in patterns" :key="pattern.id" class="pattern-item">
               <div class="pattern-header">
                 <div class="pattern-icon" :class="'pattern-' + getPatternClass(pattern.patternType)">
-                  <i :class="getPatternIcon(pattern.patternType)" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
                 </div>
                 <div class="pattern-info">
                   <h4>{{ pattern.patternName }}</h4>
@@ -186,18 +204,25 @@
               </div>
               <p class="pattern-desc">{{ pattern.patternDescription }}</p>
               <div class="pattern-meta">
-                <span><i class="fa-solid fa-repeat" /> {{ pattern.occurrenceCount }} 次</span>
-                <span><i class="fa-solid fa-clock" /> 首次发现: {{ formatDate(pattern.firstObservedAt) }}</span>
+                <span>{{ pattern.occurrenceCount }} 次</span>
+                <span>首次发现: {{ formatDate(pattern.firstObservedAt) }}</span>
               </div>
             </div>
           </div>
-          <div v-else class="empty-text">暂无模式分析数据</div>
+          <EmptyState
+            v-else
+            icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10' /><circle cx='12' cy='12' r='6' /><circle cx='12' cy='12' r='2' /></svg>"
+            title="暂无模式分析数据"
+            sub="使用一段时间后将自动分析行为模式"
+          />
         </div>
 
-        <div class="section-card">
+        <div class="section-card glass">
           <div class="section-header">
             <h3>
-              <i class="fa-solid fa-fire" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d='M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' />
+              </svg>
               热门功能
             </h3>
           </div>
@@ -207,7 +232,12 @@
               <span class="tool-name">{{ tool }}</span>
             </div>
           </div>
-          <div v-else class="empty-text">暂无数据</div>
+          <EmptyState
+            v-else
+            icon="<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z' /><polyline points='13 2 13 9 20 9' /></svg>"
+            title="暂无数据"
+            sub="使用功能后将自动统计热门排名"
+          />
         </div>
       </div>
     </div>
@@ -218,6 +248,8 @@
 import { ref, onMounted } from 'vue'
 import { planningApi } from '@/services/planningApi'
 import type { SuggestionEntity, UsagePatternEntity, UserSkillEntity, UserPreferenceEntity, UserProfileSummary } from '@/types/planning'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const profile = ref<UserProfileSummary | null>(null)
 const skills = ref<UserSkillEntity[]>([])
@@ -322,25 +354,12 @@ function getSkillLevel(level: number): string {
   return '专家'
 }
 
-function getSkillColor(level: number): string {
-  if (level < 0.2) return '#94a3b8'
-  if (level < 0.4) return '#60a5fa'
-  if (level < 0.6) return '#34d399'
-  if (level < 0.8) return '#fbbf24'
-  return '#f472b6'
-}
-
-function getSuggestionIcon(type: number): string {
-  const icons: Record<number, string> = {
-    0: 'fa-solid fa-wrench',
-    1: 'fa-solid fa-diagram-project',
-    2: 'fa-solid fa-brain',
-    3: 'fa-solid fa-users-gear',
-    4: 'fa-solid fa-keyboard',
-    5: 'fa-solid fa-rocket',
-    6: 'fa-solid fa-graduation-cap'
-  }
-  return icons[type] || 'fa-solid fa-lightbulb'
+function getSkillLevelClass(level: number): string {
+  if (level < 0.2) return 'skill-level-1'
+  if (level < 0.4) return 'skill-level-2'
+  if (level < 0.6) return 'skill-level-3'
+  if (level < 0.8) return 'skill-level-4'
+  return 'skill-level-5'
 }
 
 function getSuggestionTypeLabel(type: number): string {
@@ -364,17 +383,6 @@ function getPriorityLabel(priority: number): string {
     3: '紧急'
   }
   return labels[priority] || '中'
-}
-
-function getPatternIcon(type: number): string {
-  const icons: Record<number, string> = {
-    0: 'fa-solid fa-clock',
-    1: 'fa-solid fa-layer-group',
-    2: 'fa-solid fa-chart-bar',
-    3: 'fa-solid fa-circle-nodes',
-    4: 'fa-solid fa-person'
-  }
-  return icons[type] || 'fa-solid fa-chart-line'
 }
 
 function getPatternTypeLabel(type: number): string {
@@ -408,72 +416,49 @@ function formatDate(dateStr: string): string {
 <style scoped>
 .profile-view {
   min-height: 100%;
-  background-color: var(--el-bg-color);
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .profile-header {
-  background: linear-gradient(135deg, var(--brand-amber-700) 0%, var(--brand-amber-600) 50%, var(--brand-amber-500) 100%);
-  color: white;
-  padding: 32px 24px;
-}
-
-.header-content {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  margin: 0;
-  opacity: 0.9;
+  margin-bottom: 20px;
 }
 
 .header-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  margin-top: 20px;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: var(--el-border-radius-base);
   padding: 16px;
   text-align: center;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-family: var(--font-mono);
+  font-size: 24px;
   font-weight: 700;
+  color: var(--gold-400);
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--fg-tertiary);
 }
 
 .profile-content {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
-  padding: 20px;
 }
 
 .section-card {
-  background: var(--el-bg-color);
-  border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid var(--el-border-color);
 }
 
 .section-header {
@@ -487,21 +472,22 @@ function formatDate(dateStr: string): string {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   display: flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-serif-cn);
 }
 
-.section-header h3 i {
-  color: var(--el-color-primary);
+.section-header h3 svg {
+  color: var(--gold-400);
 }
 
 .badge {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  background: var(--gold-tint);
+  color: var(--gold-400);
   padding: 2px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
 }
@@ -509,16 +495,17 @@ function formatDate(dateStr: string): string {
 .btn-icon {
   background: none;
   border: none;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   cursor: pointer;
   padding: 6px;
-  border-radius: var(--el-border-radius-small);
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .btn-icon:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-regular);
+  background: var(--paper-tint);
+  color: var(--fg-secondary);
 }
 
 .spinning {
@@ -534,23 +521,24 @@ function formatDate(dateStr: string): string {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.25) 100%);
-  color: var(--brand-amber-700);
+  background: var(--gold-tint);
+  color: var(--gold-400);
   padding: 8px 16px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   font-weight: 600;
   margin-bottom: 12px;
+  font-family: var(--font-serif-cn);
 }
 
 .style-desc {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   line-height: 1.6;
   margin: 0 0 16px 0;
 }
 
 .style-info {
-  border-top: 1px solid var(--el-border-color);
+  border-top: 1px solid var(--border-subtle);
   padding-top: 12px;
 }
 
@@ -561,12 +549,12 @@ function formatDate(dateStr: string): string {
 }
 
 .info-label {
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
 }
 
 .info-value {
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .skills-list {
@@ -577,8 +565,8 @@ function formatDate(dateStr: string): string {
 
 .skill-item {
   padding: 12px;
-  background: var(--el-fill-color-light);
-  border-radius: var(--el-border-radius-base);
+  background: var(--paper-tint);
+  border-radius: var(--radius-md);
 }
 
 .skill-info {
@@ -590,22 +578,22 @@ function formatDate(dateStr: string): string {
 
 .skill-name {
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   font-size: 14px;
 }
 
 .skill-level {
   font-size: 12px;
   padding: 2px 8px;
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  border-radius: var(--el-border-radius-small);
+  background: var(--gold-tint);
+  color: var(--gold-400);
+  border-radius: var(--radius-sm);
   font-weight: 500;
 }
 
 .skill-bar-bg {
   height: 8px;
-  background: var(--el-border-color);
+  background: var(--border-default);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -614,40 +602,21 @@ function formatDate(dateStr: string): string {
 .skill-bar-fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.3s;
+  transition: width var(--dur-base) var(--ease-out);
 }
+
+.skill-level-1 { background: var(--fg-muted); }
+.skill-level-2 { background: var(--el-color-info); }
+.skill-level-3 { background: var(--bronze-500); }
+.skill-level-4 { background: var(--gold-400); }
+.skill-level-5 { background: var(--cinnabar-400); }
 
 .skill-stats {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--el-text-color-secondary);
-}
-
-.empty-skills,
-.empty-suggestions {
-  text-align: center;
-  padding: 32px 16px;
-  color: var(--el-text-color-secondary);
-}
-
-.empty-skills i,
-.empty-suggestions i {
-  font-size: 36px;
-  margin-bottom: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.empty-skills p,
-.empty-suggestions p {
-  margin: 4px 0;
-  font-size: 14px;
-}
-
-.empty-skills .hint,
-.empty-suggestions .hint {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .preferences-list {
@@ -658,20 +627,20 @@ function formatDate(dateStr: string): string {
 
 .preference-item {
   padding: 10px 12px;
-  background: var(--el-fill-color-light);
-  border-radius: 10px;
+  background: var(--paper-tint);
+  border-radius: var(--radius-md);
 }
 
 .pref-key {
   font-size: 12px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   margin-bottom: 4px;
 }
 
 .pref-value {
   font-size: 14px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   margin-bottom: 6px;
 }
 
@@ -684,22 +653,23 @@ function formatDate(dateStr: string): string {
 .confidence-bar-bg {
   flex: 1;
   height: 4px;
-  background: var(--el-border-color);
+  background: var(--border-default);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .confidence-bar-fill {
   height: 100%;
-  background: var(--el-color-success);
+  background: var(--bronze-500);
   border-radius: 2px;
 }
 
 .pref-confidence span {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   min-width: 36px;
   text-align: right;
+  font-family: var(--font-mono);
 }
 
 .suggestions-list {
@@ -709,22 +679,22 @@ function formatDate(dateStr: string): string {
 }
 
 .suggestion-card {
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: 16px;
-  transition: all 150ms ease;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .suggestion-card:hover {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .suggestion-card.priority-2 {
-  border-left: 4px solid var(--el-color-warning);
+  border-left: 4px solid var(--gold-500);
 }
 
 .suggestion-card.priority-3 {
-  border-left: 4px solid var(--el-color-danger);
+  border-left: 4px solid var(--cinnabar-400);
 }
 
 .suggestion-header {
@@ -737,13 +707,12 @@ function formatDate(dateStr: string): string {
 .suggestion-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-md);
+  background: var(--gold-tint);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--el-color-primary);
-  font-size: 16px;
+  color: var(--gold-400);
   flex-shrink: 0;
 }
 
@@ -756,43 +725,43 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .suggestion-type {
   font-size: 11px;
-  color: var(--el-color-primary);
+  color: var(--gold-400);
 }
 
 .priority-badge {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--el-border-radius-small);
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--paper-tint);
+  color: var(--fg-tertiary);
   flex-shrink: 0;
 }
 
 .priority-2 .priority-badge {
-  background: rgba(217, 119, 6, 0.12);
-  color: var(--el-color-warning);
+  background: var(--gold-tint);
+  color: var(--gold-500);
 }
 
 .priority-3 .priority-badge {
-  background: rgba(185, 28, 28, 0.12);
-  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--cinnabar-400);
 }
 
 .suggestion-desc {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
 
 .suggestion-content {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   margin-bottom: 12px;
   line-height: 1.6;
 }
@@ -808,7 +777,7 @@ function formatDate(dateStr: string): string {
 
 .btn {
   padding: 8px 14px;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -816,7 +785,8 @@ function formatDate(dateStr: string): string {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 150ms ease;
+  transition: transform var(--dur-instant) var(--ease-out);
+  font-family: var(--font-sans-cn);
 }
 
 .btn-sm {
@@ -825,23 +795,23 @@ function formatDate(dateStr: string): string {
 }
 
 .btn-primary {
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  background: var(--gold-400);
+  color: var(--ink-950);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--primary-light);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .btn-ghost:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .patterns-list {
@@ -852,8 +822,8 @@ function formatDate(dateStr: string): string {
 
 .pattern-item {
   padding: 14px;
-  background: var(--el-fill-color-light);
-  border-radius: var(--el-border-radius-base);
+  background: var(--paper-tint);
+  border-radius: var(--radius-md);
 }
 
 .pattern-header {
@@ -866,37 +836,36 @@ function formatDate(dateStr: string): string {
 .pattern-icon {
   width: 36px;
   height: 36px;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   flex-shrink: 0;
 }
 
 .pattern-temporal {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  background: var(--gold-tint);
+  color: var(--gold-400);
 }
 
 .pattern-frequency {
-  background: rgba(4, 120, 87, 0.12);
-  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
+  color: var(--bronze-500);
 }
 
 .pattern-sequential {
-  background: rgba(217, 119, 6, 0.12);
-  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--gold-500) 12%, transparent);
+  color: var(--gold-500);
 }
 
 .pattern-behavioral {
-  background: rgba(139, 92, 246, 0.12);
-  color: #7c3aed;
+  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--cinnabar-400);
 }
 
 .pattern-contextual {
-  background: rgba(190, 24, 93, 0.12);
-  color: #be185d;
+  background: var(--gold-tint-strong);
+  color: var(--gold-300);
 }
 
 .pattern-info {
@@ -908,12 +877,12 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
 }
 
 .pattern-type {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .pattern-confidence {
@@ -925,17 +894,18 @@ function formatDate(dateStr: string): string {
   display: block;
   font-size: 16px;
   font-weight: 700;
-  color: var(--el-color-success);
+  color: var(--bronze-500);
+  font-family: var(--font-mono);
 }
 
 .confidence-label {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
 }
 
 .pattern-desc {
   font-size: 13px;
-  color: var(--el-text-color-regular);
+  color: var(--fg-secondary);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
@@ -944,7 +914,8 @@ function formatDate(dateStr: string): string {
   display: flex;
   gap: 16px;
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
+  font-family: var(--font-mono);
 }
 
 .pattern-meta span {
@@ -964,30 +935,31 @@ function formatDate(dateStr: string): string {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--el-fill-color-light);
-  border-radius: var(--el-border-radius-small);
+  background: var(--paper-tint);
+  border-radius: var(--radius-sm);
 }
 
 .rank {
   width: 24px;
   height: 24px;
-  border-radius: var(--el-border-radius-small);
-  background: var(--el-color-primary);
-  color: var(--el-color-white);
+  border-radius: var(--radius-sm);
+  background: var(--gold-400);
+  color: var(--ink-950);
   font-size: 12px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-mono);
 }
 
 .top-tool-item:nth-child(2) .rank {
-  background: var(--el-color-primary);
+  background: var(--gold-400);
   opacity: 0.8;
 }
 
 .top-tool-item:nth-child(3) .rank {
-  background: var(--el-color-primary);
+  background: var(--gold-400);
   opacity: 0.6;
 }
 
@@ -995,14 +967,7 @@ function formatDate(dateStr: string): string {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-.empty-text {
-  text-align: center;
-  padding: 24px;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+  color: var(--fg-primary);
 }
 
 @media (max-width: 1024px) {

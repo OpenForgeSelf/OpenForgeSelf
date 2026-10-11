@@ -9,8 +9,21 @@ import CategoryManager from './components/CategoryManager.vue'
 import LinkFormModal from './components/LinkFormModal.vue'
 import ToastHost from './components/ToastHost.vue'
 import ConfirmHost from './components/ConfirmHost.vue'
+import { apiGet } from './http'
 
 const quickLinksStore = useQuickLinksStore()
+
+// 版本徽标（plugin-development 铁律 13：根视图标题旁必须展示自身版本号）
+const version = ref('')
+async function loadPluginVersion(): Promise<void> {
+  try {
+    const list = await apiGet<Array<{ id?: string; version?: string }>>('/api/plugin')
+    const hit = Array.isArray(list) ? list.find((p) => p?.id === 'quick-links') : undefined
+    if (hit?.version) version.value = `v${hit.version}`
+  } catch {
+    // 版本拉取失败不阻断主流程
+  }
+}
 
 // 用变量绑定而非静态 src：Vite 会把静态 /logo/... 当作待解析资源，
 // 而该图片由宿主 wwwroot 提供，插件构建产物中不存在，静态写法会导致构建失败。
@@ -22,6 +35,7 @@ const showCategoryManager = ref(false)
 
 // 桌面端默认展开分类侧栏（移动端由汉堡按钮控制）；宽屏本就是常驻侧栏布局
 onMounted(() => {
+  loadPluginVersion()
   if (typeof window !== 'undefined' && window.innerWidth > 768) {
     showCategoryManager.value = true
   }
@@ -214,14 +228,22 @@ onMounted(() => {
           aria-label="显示分类"
           @click="toggleCategoryManager"
         >
-          ☰
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M2 4h12M2 8h12M2 12h12" />
+          </svg>
         </button>
         <h1 class="view-title">快捷链接</h1>
+        <span v-if="version" class="version-badge">{{ version }}</span>
       </div>
 
       <div class="header-center">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <circle cx="7" cy="7" r="4.5" />
+              <path d="M10.5 10.5 14 14" />
+            </svg>
+          </span>
           <input
             type="text"
             class="search-input"
@@ -234,11 +256,9 @@ onMounted(() => {
 
       <div class="header-right">
         <button class="action-btn import-btn" @click="triggerImport">
-          <span>📥</span>
           <span class="btn-text">导入</span>
         </button>
         <button class="action-btn export-btn" @click="handleExport">
-          <span>📤</span>
           <span class="btn-text">导出</span>
         </button>
         <button class="action-btn add-btn" @click="openAddModal">
@@ -260,13 +280,25 @@ onMounted(() => {
         </div>
 
         <div v-else-if="quickLinksStore.error" class="error-state">
-          <span class="error-icon">⚠️</span>
+          <span class="error-icon">
+            <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2 15 13H1L8 2Z" />
+              <path d="M8 6.5v3" />
+              <circle cx="8" cy="11.5" r="0.6" fill="currentColor" />
+            </svg>
+          </span>
           <p>{{ quickLinksStore.error }}</p>
           <button class="retry-btn" @click="loadData">重试</button>
         </div>
 
         <div v-else-if="sortedLinks.length === 0" class="empty-state">
-          <span class="empty-icon">🔗</span>
+          <span class="empty-icon">
+            <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 9.5 9.5 6.5" />
+              <path d="M7.5 5.5 9 4a2.1 2.1 0 0 1 3 3l-1.5 1.5" />
+              <path d="M8.5 10.5 7 12a2.1 2.1 0 0 1-3-3l1.5-1.5" />
+            </svg>
+          </span>
           <h3>暂无链接</h3>
           <p>点击"添加链接"按钮创建你的第一个快捷链接</p>
           <button class="add-first-btn" @click="openAddModal">
@@ -366,7 +398,11 @@ onMounted(() => {
                   @change="handleFileSelect"
                 />
                 <div class="upload-placeholder">
-                  <span class="upload-icon">📁</span>
+                  <span class="upload-icon">
+                    <svg viewBox="0 0 16 16" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5h4.5A1.5 1.5 0 0 1 14 6v5.5A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5v-7Z" />
+                    </svg>
+                  </span>
                   <p>点击选择 JSON 文件</p>
                   <p class="upload-hint">支持 .json 格式的链接数据</p>
                 </div>
@@ -428,6 +464,19 @@ onMounted(() => {
   font-weight: 600;
   color: var(--el-text-color-primary);
   margin: 0;
+}
+
+.version-badge {
+  font-family: var(--el-font-family);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--el-color-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 25%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .header-center {
@@ -641,7 +690,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--el-mask-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -657,7 +706,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--el-box-shadow);
 }
 
 .import-modal {
@@ -876,7 +925,7 @@ onMounted(() => {
     bottom: 0;
     z-index: 100;
     width: 260px;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--el-box-shadow-light);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }

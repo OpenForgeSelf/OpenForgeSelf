@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <filter id="paper-tex">
+      <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="4"/>
+      <feColorMatrix values="0 0 0 0 0.71  0 0 0 0 0.32  0 0 0 0 0.03  0 0 0 0.09 0"/>
+    </filter>
+  </defs>
+  <rect width="400" height="400" fill="#FBF7EE"/>
+  <rect width="400" height="400" filter="url(#paper-tex)"/>
+  <path d="M0 200 Q100 195 200 200 T400 200" stroke="#B45309" stroke-width="0.4" fill="none" opacity="0.08"/>
+  <path d="M0 100 Q100 95 200 100 T400 100" stroke="#B45309" stroke-width="0.4" fill="none" opacity="0.06"/>
+  <path d="M0 300 Q100 295 200 300 T400 300" stroke="#B45309" stroke-width="0.4" fill="none" opacity="0.06"/>
+</svg>

@@ -366,7 +366,8 @@ public class PluginController : ControllerBase
                                 Menu = m.Frontend.Menu,
                                 Route = m.Frontend.Route,
                                 Icon = m.Frontend.Icon,
-                                Entry = devEntry
+                                Entry = devEntry,
+                                Surfaces = m.Frontend.Surfaces,
                             })
                         : m.Frontend,
                     IsEnabled = state == PluginState.Running

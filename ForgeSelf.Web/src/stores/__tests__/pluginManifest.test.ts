@@ -105,4 +105,59 @@ describe('pluginManifest store', () => {
     expect(store.error).toBe('网络错误')
     expect(store.isLoading).toBe(false)
   })
+
+  it('surface getters 按 surface 分发已启用插件（含旧插件默认 tab）', () => {
+    const store = usePluginManifestStore()
+    store.manifest = [
+      // 旧插件：无 surfaces，带 route+views → 默认 tab
+      makeManifestItem({
+        id: 'memory',
+        name: '记忆',
+        isEnabled: true,
+        frontend: { views: ['MemoryView'], menu: '记忆', route: '/memory' },
+      }),
+      // 显式 home-widget
+      makeManifestItem({
+        id: 'home-widget-a',
+        name: '看板插件',
+        isEnabled: true,
+        frontend: { views: ['BoardView'], route: '/boards', surfaces: ['home-widget'] },
+      }),
+      // 显式多 surface：tab + quick-action
+      makeManifestItem({
+        id: 'composer',
+        name: '快捷动作',
+        isEnabled: true,
+        frontend: { views: ['ComposerView'], route: '/composer', surfaces: ['tab', 'quick-action'] },
+      }),
+      // 禁用：不进任何 getter
+      makeManifestItem({
+        id: 'disabled-badge',
+        name: '徽标(禁用)',
+        isEnabled: false,
+        frontend: { views: ['BadgeView'], surfaces: ['status-badge'] },
+      }),
+      // 纯后端：无 frontend
+      makeManifestItem({ id: 'backend', name: '后端', isEnabled: true, frontend: null }),
+    ]
+
+    expect(store.tabRoutes.map((m) => m.id).sort()).toEqual(['composer', 'memory'])
+    expect(store.homeWidgets.map((m) => m.id)).toEqual(['home-widget-a'])
+    expect(store.quickActions.map((m) => m.id)).toEqual(['composer'])
+    expect(store.statusBadges.map((m) => m.id)).toEqual([]) // 唯一 badge 被禁用
+  })
+
+  it('surfacesOf 返回指定插件归一后的 surfaces', () => {
+    const store = usePluginManifestStore()
+    store.manifest = [
+      makeManifestItem({
+        id: 'home',
+        isEnabled: true,
+        frontend: { views: ['HomeView'], route: '/home', surfaces: ['tab', 'home-widget'] },
+      }),
+    ]
+
+    expect(store.surfacesOf('home')).toEqual(['tab', 'home-widget'])
+    expect(store.surfacesOf('missing')).toEqual([])
+  })
 })

@@ -92,8 +92,8 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.state-message').exists()).toBe(true)
-      expect(wrapper.find('.spin-icon').exists()).toBe(true)
+      expect(wrapper.find('.loading-state').exists()).toBe(true)
+      expect(wrapper.find('.loading-spinner').exists()).toBe(true)
 
       resolveFn!(createMockSkills())
       await flushPromises()
@@ -107,8 +107,7 @@ describe('SkillsView', () => {
       await flushPromises()
 
       expect(wrapper.findAll('.skill-card')).toHaveLength(3)
-      expect(wrapper.find('.page-title').text()).toBe('技能管理')
-      expect(wrapper.find('.count-badge').text()).toBe('3 个技能')
+      expect(wrapper.find('.page-head__title').text()).toBe('技能工坊')
       wrapper.unmount()
     })
 
@@ -118,9 +117,9 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(wrapper.find('.state-error').exists()).toBe(true)
-      expect(wrapper.find('.state-error').text()).toContain('网络错误')
-      expect(wrapper.find('.btn-retry').exists()).toBe(true)
+      expect(wrapper.find('.empty-state').exists()).toBe(true)
+      expect(wrapper.find('.empty-state__sub').text()).toContain('网络错误')
+      expect(wrapper.find('.empty-state .btn-create').exists()).toBe(true)
       wrapper.unmount()
     })
 
@@ -130,8 +129,8 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(wrapper.find('.state-message').exists()).toBe(true)
-      expect(wrapper.find('.state-message').text()).toContain('暂无技能')
+      expect(wrapper.find('.empty-state').exists()).toBe(true)
+      expect(wrapper.find('.empty-state__title').text()).toContain('暂无技能')
       wrapper.unmount()
     })
   })
@@ -193,7 +192,7 @@ describe('SkillsView', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.findAll('.skill-card')).toHaveLength(0)
-      expect(wrapper.find('.state-message').text()).toContain('没有匹配的技能')
+      expect(wrapper.find('.empty-state__title').text()).toContain('没有匹配的技能')
       wrapper.unmount()
     })
   })
@@ -207,17 +206,16 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const toggleButtons = wrapper.findAll('.btn-ghost')
-      // 每个卡片有两个按钮：启用/停用、编辑
+      const toggles = wrapper.findAll('.skill-toggle')
       const disabledIndex = skills.findIndex(s => !s.isEnabled)
-      const toggleBtn = toggleButtons[disabledIndex * 2]
-      expect(toggleBtn.text()).toBe('启用')
+      const toggleBtn = toggles[disabledIndex]
+      expect(toggleBtn.exists()).toBe(true)
 
       await toggleBtn.trigger('click')
       await flushPromises()
 
       expect(skillsApi.toggleSkill).toHaveBeenCalledWith('skill_2')
-      expect(wrapper.findAll('.skill-card')[disabledIndex].classes()).toContain('skill-card--enabled')
+      expect(wrapper.findAll('.skill-card')[disabledIndex].classes()).not.toContain('skill-card--off')
       wrapper.unmount()
     })
 
@@ -229,16 +227,16 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const toggleButtons = wrapper.findAll('.btn-ghost')
+      const toggles = wrapper.findAll('.skill-toggle')
       const enabledIndex = skills.findIndex(s => s.isEnabled)
-      const toggleBtn = toggleButtons[enabledIndex * 2]
-      expect(toggleBtn.text()).toBe('停用')
+      const toggleBtn = toggles[enabledIndex]
+      expect(toggleBtn.exists()).toBe(true)
 
       await toggleBtn.trigger('click')
       await flushPromises()
 
       expect(skillsApi.toggleSkill).toHaveBeenCalledWith('skill_1')
-      expect(wrapper.findAll('.skill-card')[enabledIndex].classes()).not.toContain('skill-card--enabled')
+      expect(wrapper.findAll('.skill-card')[enabledIndex].classes()).toContain('skill-card--off')
       wrapper.unmount()
     })
   })
@@ -317,7 +315,7 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const editButtons = wrapper.findAll('.btn-ghost').filter((_, i) => i % 2 === 1)
+      const editButtons = wrapper.findAll('.skill-card__edit')
       await editButtons[0].trigger('click')
       await flushPromises()
 
@@ -335,7 +333,7 @@ describe('SkillsView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const editButtons = wrapper.findAll('.btn-ghost').filter((_, i) => i % 2 === 1)
+      const editButtons = wrapper.findAll('.skill-card__edit')
       await editButtons[0].trigger('click')
       await wrapper.vm.$nextTick()
 

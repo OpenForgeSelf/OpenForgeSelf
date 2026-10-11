@@ -258,7 +258,7 @@ function open(task: TodoItem): void {
   border: 1px solid var(--el-border-color-lighter); background: var(--el-bg-color);
   color: var(--el-text-color-regular); border-radius: 999px; padding: 3px 11px; font-size: 12px; cursor: pointer;
 }
-.tt-chip.is-on { background: var(--el-color-primary); border-color: var(--el-color-primary); color: #fff; }
+.tt-chip.is-on { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .tt-filter-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .tt-summary { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--el-text-color-regular); margin-bottom: 6px; flex-shrink: 0; }
@@ -310,7 +310,7 @@ function open(task: TodoItem): void {
 }
 .tt-btn:disabled { opacity: .55; cursor: not-allowed; }
 .tt-btn-sm { padding: 2px 9px; font-size: 12px; }
-.tt-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: #fff; }
+.tt-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .tt-dim { color: var(--el-text-color-secondary); }
 
 @media (max-width: 1100px) {

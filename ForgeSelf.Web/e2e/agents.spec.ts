@@ -40,6 +40,9 @@ test.describe('Agent 管理（/agents）', () => {
     await expect(page.locator('.agent-card').first()).toBeVisible({ timeout: 10000 })
     await expect(page.locator('.agent-name').filter({ hasText: '协调者' })).toBeVisible()
     await expect(page.locator('.agent-name').filter({ hasText: '程序员' })).toBeVisible()
+
+    // 走查证据：全页截图（页头三件套 + 玻璃卡栈）
+    await page.screenshot({ path: 'screenshots/e2e/agents/agents-list.png', fullPage: true })
   })
 
   test('Agent 卡片展示名称与启用状态', async ({ page }) => {

@@ -77,7 +77,7 @@ const confirmTitle = computed(() => confirmOptions.value.title ?? '请确认')
   position: fixed;
   inset: 0;
   z-index: 3100;
-  background: rgb(0 0 0 / 40%);
+  background: var(--el-mask-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -109,6 +109,6 @@ const confirmTitle = computed(() => confirmOptions.value.title ?? '请确认')
   cursor: pointer;
 }
 
-.tt-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: #fff; }
-.tt-btn.is-danger { background: var(--el-color-danger); border-color: var(--el-color-danger); color: #fff; }
+.tt-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
+.tt-btn.is-danger { background: var(--el-color-danger); border-color: var(--el-color-danger); color: var(--el-color-white); }
 </style>

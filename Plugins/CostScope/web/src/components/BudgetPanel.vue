@@ -137,11 +137,11 @@ onMounted(load)
 
 <style scoped>
 .panel { display: flex; flex-direction: column; gap: 10px; }
-.panel__error { color: var(--el-color-danger, #f56c6c); }
+.panel__error { color: var(--el-color-danger); }
 .panel__form { display: flex; gap: 8px; flex-wrap: wrap; }
 .banner { border-radius: 4px; padding: 8px 12px; font-size: 13px; border: 1px solid transparent; }
-.banner--warn { background: var(--el-color-warning-light-9, #fdf6ec); color: var(--el-color-warning, #e6a23c); }
-.banner--over { background: var(--el-color-danger-light-9, #fef0f0); color: var(--el-color-danger, #f56c6c); }
+.banner--warn { background: var(--el-color-warning-light-9); color: var(--el-color-warning); }
+.banner--over { background: var(--el-color-danger-light-9); color: var(--el-color-danger); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5); }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--el-border-color-lighter); }
 </style>

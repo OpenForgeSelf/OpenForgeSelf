@@ -83,16 +83,16 @@ onMounted(load)
 
 <style scoped>
 .panel { display: flex; flex-direction: column; gap: 10px; }
-.panel__error { color: var(--el-color-danger, #f56c6c); }
+.panel__error { color: var(--el-color-danger); }
 .panel__bar { display: flex; gap: 8px; }
-.notice { border: 1px solid var(--el-border-color, #e5e7eb); border-left: 3px solid var(--el-color-warning, #e6a23c); border-radius: 4px; padding: 8px 12px; font-size: 13px; }
-.notice__note { color: var(--el-color-warning, #e6a23c); }
+.notice { border: 1px solid var(--el-border-color); border-left: 3px solid var(--el-color-warning); border-radius: 4px; padding: 8px 12px; font-size: 13px; }
+.notice__note { color: var(--el-color-warning); }
 .tl { display: flex; flex-direction: column; gap: 6px; }
 .tl__row { display: grid; grid-template-columns: 220px 1fr 140px; align-items: center; gap: 8px; font-size: 13px; }
 .tl__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tl__track { position: relative; height: 14px; background: var(--el-fill-color-lighter, #fafafa); border-radius: 3px; }
+.tl__track { position: relative; height: 14px; background: var(--el-fill-color-lighter); border-radius: 3px; }
 .tl__bar { position: absolute; top: 0; height: 100%; border-radius: 3px; }
-.tl__bar--llm { background: var(--el-color-primary, #409eff); }
-.tl__bar--tool { background: var(--el-color-success, #67c23a); }
-.tl__meta { color: var(--el-color-info, #909399); text-align: right; }
+.tl__bar--llm { background: var(--el-color-primary); }
+.tl__bar--tool { background: var(--el-color-success); }
+.tl__meta { color: var(--el-color-info); text-align: right; }
 </style>

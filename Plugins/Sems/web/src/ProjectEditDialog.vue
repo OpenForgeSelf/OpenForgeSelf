@@ -156,7 +156,7 @@ watch(typeMode, onTypeModeChange)
 .pdlg__mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
   z-index: 50;
 }
 
@@ -169,22 +169,22 @@ watch(typeMode, onTypeModeChange)
   width: 440px;
   max-width: calc(100vw - 32px);
   padding: 18px 20px;
-  background: var(--el-bg-color-overlay, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-xl);
 }
 
 .pdlg__title {
   margin: 0 0 6px;
   font-size: 15px;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .pdlg__root {
   margin: 0 0 14px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -199,7 +199,7 @@ watch(typeMode, onTypeModeChange)
 
 .pdlg__field > span {
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .pdlg__type {
@@ -210,10 +210,10 @@ watch(typeMode, onTypeModeChange)
 .pdlg__select,
 .pdlg__input {
   padding: 6px 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
   font-size: 13px;
 }
 
@@ -227,15 +227,15 @@ watch(typeMode, onTypeModeChange)
 .pdlg__input:focus,
 .pdlg__textarea:focus {
   outline: none;
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .pdlg__textarea {
   padding: 6px 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   font-family: inherit;
   resize: vertical;
@@ -247,9 +247,9 @@ watch(typeMode, onTypeModeChange)
   gap: 6px;
   align-items: center;
   padding: 6px 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   min-height: 36px;
 }
 
@@ -260,21 +260,21 @@ watch(typeMode, onTypeModeChange)
   padding: 1px 6px;
   border-radius: 10px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-bg-color, #1d1e1f);
+  color: var(--el-text-color-secondary);
+  background: var(--el-bg-color);
 }
 
 .pdlg__chip-x {
   border: none;
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
 }
 
 .pdlg__chip-x:hover {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .pdlg__tag-field {
@@ -282,7 +282,7 @@ watch(typeMode, onTypeModeChange)
   min-width: 80px;
   border: none;
   background: transparent;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   outline: none;
 }
@@ -290,7 +290,7 @@ watch(typeMode, onTypeModeChange)
 .pdlg__err {
   margin: 0 0 8px;
   font-size: 12px;
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .pdlg__foot {
@@ -302,21 +302,21 @@ watch(typeMode, onTypeModeChange)
 
 .pdlg__btn {
   padding: 6px 14px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 13px;
 }
 
 .pdlg__btn--primary {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .pdlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  background: var(--el-color-primary-light);
 }
 
 .pdlg__btn:disabled {

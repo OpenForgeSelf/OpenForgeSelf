@@ -132,7 +132,7 @@ onMounted(() => {
 .dpick__mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
 }
 
 .dpick__box {
@@ -142,24 +142,24 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 18px 20px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 10px;
-  background: var(--el-bg-color-overlay, #1d1e1f);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  background: var(--el-bg-color-overlay);
+  box-shadow: var(--shadow-xl);
 }
 
 .dpick__title {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .dpick__hint {
   margin: 6px 0 12px;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .dpick__bar {
@@ -175,21 +175,21 @@ onMounted(() => {
   margin: 10px 0;
   padding: 4px;
   overflow-y: auto;
-  border: 1px solid var(--el-border-color-lighter, #3a3b3c);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
-  background: var(--el-fill-color-light, #222323);
+  background: var(--el-fill-color-light);
 }
 
 .dpick__empty {
   margin: 24px 12px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .dpick__err {
   margin: 10px 0;
   font-size: 12px;
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .dpick__row {
@@ -201,20 +201,20 @@ onMounted(() => {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   text-align: left;
   cursor: pointer;
 }
 
 .dpick__row:hover {
-  background: var(--el-fill-color, #262727);
-  color: var(--el-color-primary, #ffb84d);
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
 }
 
 .dpick__row--current {
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-color-primary);
+  background: var(--el-fill-color);
 }
 
 .dpick__folder {
@@ -232,19 +232,19 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .dpick__input {
   height: 30px;
   min-width: 0;
   padding: 0 10px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  background: var(--el-fill-color-blank, #1d1e1f);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color-blank);
+  color: var(--el-text-color-primary);
   font-size: 13px;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--el-font-family-mono);
 }
 
 .dpick__input--grow {
@@ -254,7 +254,7 @@ onMounted(() => {
 .dpick__current {
   margin: 10px 0 0;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -270,23 +270,23 @@ onMounted(() => {
 .dpick__btn {
   height: 30px;
   padding: 0 14px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   cursor: pointer;
 }
 
 .dpick__btn:hover:not(:disabled) {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .dpick__btn--primary {
-  border-color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary-dark, #1d1e1f);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: var(--el-color-primary-dark);
   font-weight: 600;
 }
 

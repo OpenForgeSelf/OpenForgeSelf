@@ -49,6 +49,7 @@ test.describe('代码片段（/code-snippets）', () => {
     await gotoCodeSnippets(page)
     await expect(page.getByRole('button', { name: '新建' })).toBeVisible()
     await expect(page.getByPlaceholder(/搜索/)).toBeVisible()
+    await page.screenshot({ path: 'screenshots/e2e/code-snippets-load.png', fullPage: true })
   })
 
   test('创建片段：真实 POST 后列表出现新片段', async ({ page }) => {

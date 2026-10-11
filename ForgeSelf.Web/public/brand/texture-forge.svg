@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <filter id="forge-tex">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="11"/>
+      <feColorMatrix values="0 0 0 0 0.08  0 0 0 0 0.07  0 0 0 0 0.06  0 0 0 0.7 0"/>
+    </filter>
+    <radialGradient id="ember" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.35"/>
+      <stop offset="40%" stop-color="#D97706" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#0B0908" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="400" fill="#14110F"/>
+  <rect width="400" height="400" filter="url(#forge-tex)"/>
+  <rect width="400" height="400" fill="url(#ember)"/>
+</svg>

@@ -360,9 +360,9 @@ function barWidth(row: FolderSizeRow, maxBytes?: number): string {
 }
 
 .btn.primary {
-  background-color: var(--el-color-primary);
-  border-color: var(--el-color-primary);
-  color: #fff;
+  background-color: var(--gold-400);
+  border-color: var(--gold-400);
+  color: var(--ink-950);
 }
 
 .link-btn {
@@ -379,10 +379,10 @@ function barWidth(row: FolderSizeRow, maxBytes?: number): string {
 }
 
 .error-detail {
-  border: 1px solid rgba(180, 83, 9, 0.25);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 28%, transparent);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
-  background-color: rgba(180, 83, 9, 0.06);
+  background-color: color-mix(in srgb, var(--cinnabar-400) 8%, transparent);
 }
 
 .error-title {
@@ -428,12 +428,12 @@ function barWidth(row: FolderSizeRow, maxBytes?: number): string {
 
 .warn-tag {
   color: var(--el-color-warning);
-  background-color: rgba(180, 83, 9, 0.1);
+  background-color: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
 }
 
 .ok-tag {
   color: var(--el-color-success);
-  background-color: rgba(103, 194, 58, 0.12);
+  background-color: color-mix(in srgb, var(--bronze-500) 14%, transparent);
 }
 
 .progress {

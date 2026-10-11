@@ -38,7 +38,7 @@ test.describe('Prompt 提示词页面（/prompts）', () => {
 
     // 侧栏提示词库 + 新建按钮
     await expect(page.getByText('提示词库', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: '新建提示词' })).toBeVisible()
+    await expect(page.locator('.btn-new-prompts')).toBeVisible()
     // 编辑器区域
     await expect(page.locator('.editor-textarea')).toBeVisible()
     await expect(page.getByPlaceholder('输入提示指令内容...')).toBeVisible()
@@ -129,16 +129,16 @@ test.describe('技能管理页面（/skills）', () => {
     await gotoPage(page, '/skills')
     await expect(page.getByText('代码审查', { exact: true })).toBeVisible({ timeout: 10000 })
 
-    // 找到第一张技能卡片的切换按钮（btn-ghost，文案为「停用/启用」）
+    // 找到第一张技能卡片的金色小 toggle（.skill-toggle，DESIGN.md 技能卡规格）
     const firstCard = page.locator('.skill-card').first()
-    const toggleBtn = firstCard.locator('button').filter({ hasText: /停用|启用/ })
-    await expect(toggleBtn.first()).toBeVisible()
+    const toggleBtn = firstCard.locator('.skill-toggle')
+    await expect(toggleBtn).toBeVisible()
 
     // 点击切换 → 真实 POST /api/skills/{id}/toggle
     const toggleResponsePromise = page.waitForResponse(
       (resp) => resp.request().method() === 'POST' && /\/api\/skills\/.+\/toggle/.test(resp.url())
     )
-    await toggleBtn.first().click()
+    await toggleBtn.click()
     await toggleResponsePromise
     // 切换成功（状态徽标存在即可，不锁死启用/禁用值）
     await expect(firstCard.locator('.status-badge')).toBeVisible()

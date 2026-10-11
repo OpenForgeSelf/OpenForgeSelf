@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useTextToolsStore } from '@/stores/textTools'
 import type { TextToolTab } from '@/types/textTools'
+import PageHead from '@/components/PageHead.vue'
 import ToolTabs from '@/components/texttools/ToolTabs.vue'
 import TextInput from '@/components/texttools/TextInput.vue'
 import TextOutput from '@/components/texttools/TextOutput.vue'
@@ -18,18 +19,14 @@ function handleTabChange(tab: TextToolTab): void {
 
 <template>
   <div class="text-tools-view">
-    <header class="view-header">
-      <h1 class="view-title">
-        <span class="title-icon">🛠️</span>
-        文本工具箱
-      </h1>
-      <p class="view-subtitle">格式化、编解码、哈希计算、文本统计等常用工具</p>
-    </header>
+    <PageHead
+      eyebrow="Text Tools · 文本工具箱"
+      title="格式化 · 编解码 · 哈希 · 统计"
+    />
 
     <ToolTabs :active-tab="store.currentTab" @change="handleTabChange" />
 
     <div v-if="store.error" class="error-banner" role="alert">
-      <span class="error-icon">⚠️</span>
       <span class="error-message">{{ store.error }}</span>
       <button class="error-close" aria-label="关闭错误提示" @click="store.clearError()">
         ✕
@@ -73,44 +70,15 @@ function handleTabChange(tab: TextToolTab): void {
   box-sizing: border-box;
 }
 
-.view-header {
-  flex-shrink: 0;
-}
-
-.view-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 4px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.title-icon {
-  font-size: 28px;
-}
-
-.view-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin: 0;
-}
-
 .error-banner {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(180, 83, 9, 0.08);
-  border: 1px solid rgba(180, 83, 9, 0.2);
-  border-radius: var(--el-border-radius-base, 8px);
-  color: var(--el-color-warning);
-  flex-shrink: 0;
-}
-
-.error-icon {
-  font-size: 18px;
+  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 25%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--cinnabar-400);
   flex-shrink: 0;
 }
 
@@ -123,12 +91,12 @@ function handleTabChange(tab: TextToolTab): void {
   background: none;
   border: none;
   font-size: 16px;
-  color: var(--el-color-warning);
+  color: var(--cinnabar-400);
   cursor: pointer;
   padding: 4px;
   line-height: 1;
   opacity: 0.7;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .error-close:hover {
@@ -185,14 +153,6 @@ function handleTabChange(tab: TextToolTab): void {
   .text-tools-view {
     padding: 12px;
     gap: 12px;
-  }
-
-  .view-title {
-    font-size: 20px;
-  }
-
-  .view-subtitle {
-    font-size: 13px;
   }
 }
 </style>

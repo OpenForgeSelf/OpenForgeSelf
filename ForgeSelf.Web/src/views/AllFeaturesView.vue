@@ -6,6 +6,9 @@ import { lucideIconSvg } from '@/data/featureIcons'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
 import type { PluginMenuContribution } from '@/types/plugin'
 import { useOpenPage } from '@/composables/useOpenPage'
+import PageHead from '@/components/PageHead.vue'
+import ForgeCard from '@/components/ForgeCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const manifestStore = usePluginManifestStore()
 
@@ -56,77 +59,87 @@ function openPluginDetail(p: PluginMenuContribution): void {
   openPage(`/plugins/${p.id}`, p.menu)
 }
 
+// 空态图标（lucide search-x / folder）
+const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`
 </script>
 
 <template>
   <div class="all-features-view">
-    <!-- Blueprint grid background -->
-    <div class="bg-grid">
-      <!-- Page Header -->
-      <section class="page-header">
-        <h1 class="page-title">所有功能</h1>
-        <p class="page-subtitle">{{ effectiveFeatures.length }} 个功能 · 持续扩展中</p>
+    <div class="page-content">
+      <!-- ===== PageHead ===== -->
+      <PageHead
+        eyebrow="Features · 全部功能"
+        title="所有功能"
+      >
+        <template #actions>
+          <div class="search-box">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="search-icon"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索插件或工具..."
+              class="search-input"
+              aria-label="搜索插件或工具"
+            />
+          </div>
+        </template>
+      </PageHead>
 
-        <!-- Search -->
-        <div class="search-box">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="search-icon"
-            aria-hidden="true"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索插件或工具..."
-            class="search-input"
-            aria-label="搜索插件或工具"
-          />
-        </div>
-
-        <!-- Category filter pills -->
-        <div class="filter-bar">
-          <button
-            v-for="cat in categories"
-            :key="cat.key"
-            class="filter-pill"
-            :class="{ 'filter-pill--active': activeCategory === cat.key }"
-            @click="setCategory(cat.key)"
-          >
-            {{ cat.label }}
-          </button>
-        </div>
-      </section>
+      <!-- Category filter pills -->
+      <div class="filter-bar">
+        <button
+          v-for="cat in categories"
+          :key="cat.key"
+          class="filter-pill"
+          :class="{ 'filter-pill--active': activeCategory === cat.key }"
+          @click="setCategory(cat.key)"
+        >
+          {{ cat.label }}
+        </button>
+      </div>
 
       <!-- Feature Grid -->
       <section class="grid-section">
-        <div v-if="filteredFeatures.length === 0" class="empty-state">
-          <p>没有找到匹配的功能</p>
+        <div v-if="filteredFeatures.length === 0" class="grid-empty">
+          <EmptyState
+            :icon="emptyIconSvg"
+            title="没有找到匹配的功能"
+            sub="试试调整搜索关键字或分类筛选"
+          />
         </div>
         <div v-else class="feature-grid">
-          <article
+          <ForgeCard
             v-for="item in filteredFeatures"
             :key="item.id"
             class="feature-card"
+            :padding="0"
+            :interactive="true"
+            @click="openPage(item.path as string, item.name)"
           >
-            <!-- Status dot -->
-            <div
-              class="status-dot"
-              :style="{ background: item.color, boxShadow: `0 0 8px ${item.color}` }"
-            />
             <!-- Accent bar -->
             <div class="accent-bar" :style="{ background: item.color }" />
 
             <div class="card-body">
+              <!-- Status dot -->
+              <div
+                class="status-dot"
+                :style="{ background: item.color, boxShadow: `0 0 8px ${item.color}` }"
+              />
+
               <!-- Icon + Name row -->
               <div class="card-header-row">
                 <div
@@ -168,10 +181,10 @@ function openPluginDetail(p: PluginMenuContribution): void {
               <!-- Status + Actions -->
               <div class="card-footer">
                 <div class="status-indicator">
-                  <div class="status-dot-sm" :style="{ background: 'var(--el-color-success)' }" />
-                  <span class="status-text" :style="{ color: 'var(--el-color-success)' }">已启用</span>
+                  <div class="status-dot-sm" :style="{ background: 'var(--bronze-500)' }" />
+                  <span class="status-text" :style="{ color: 'var(--bronze-500)' }">已启用</span>
                 </div>
-                <div class="card-actions">
+                <div class="card-actions" @click.stop>
                   <button
                     class="btn btn--primary"
                     :disabled="!item.path"
@@ -249,13 +262,13 @@ function openPluginDetail(p: PluginMenuContribution): void {
                 </div>
               </div>
             </div>
-          </article>
+          </ForgeCard>
         </div>
       </section>
 
       <!-- Bottom CTA -->
       <section class="cta-section">
-        <div class="cta-card">
+        <ForgeCard class="cta-card" :padding="20">
           <div class="cta-content">
             <div class="cta-icon-wrap">
               <svg
@@ -267,7 +280,7 @@ function openPluginDetail(p: PluginMenuContribution): void {
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                style="color: var(--el-color-primary);"
+                style="color: var(--gold-400);"
               >
                 <path d="M12 3v12" />
                 <path d="M8 8l4 4 4-4" />
@@ -277,7 +290,7 @@ function openPluginDetail(p: PluginMenuContribution): void {
             </div>
             <div class="cta-text">
               <p class="cta-title">铸己匣持续进化中</p>
-              <p class="cta-subtitle">更多插件与工具正在锻造</p>
+              <p class="cta-subtitle">{{ effectiveFeatures.length }} 个功能 · 持续扩展中</p>
             </div>
           </div>
           <button class="cta-btn">
@@ -296,7 +309,7 @@ function openPluginDetail(p: PluginMenuContribution): void {
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
-        </div>
+        </ForgeCard>
       </section>
     </div>
   </div>
@@ -306,67 +319,33 @@ function openPluginDetail(p: PluginMenuContribution): void {
 .all-features-view {
   height: 100%;
   overflow-y: auto;
-  background: var(--el-bg-color);
-  display: flex;
-  flex-direction: column;
+  padding: 24px;
 }
 
-.bg-grid {
-  flex: 1;
-  background-image:
-    repeating-linear-gradient(0deg, var(--el-border-color-light) 0px, var(--el-border-color-light) 1px, transparent 1px, transparent 48px),
-    repeating-linear-gradient(90deg, var(--el-border-color-light) 0px, var(--el-border-color-light) 1px, transparent 1px, transparent 48px);
-  background-size: 48px 48px;
+.page-content {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* ===== Page Header ===== */
-.page-header {
-  padding: 40px 24px 24px;
-}
-
-@media (min-width: 1024px) {
-  .page-header {
-    padding: 48px 48px 24px;
-  }
-}
-
-.page-title {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  line-height: 1.2;
-  margin-bottom: 8px;
-  overflow-wrap: break-word;
-  word-break: keep-all;
-}
-
-.page-subtitle {
-  font-size: 16px;
-  color: var(--el-text-color-regular);
-  line-height: 1.625;
-  margin-bottom: 24px;
-}
-
-/* ===== Search ===== */
+/* ===== Search (in PageHead actions) ===== */
 .search-box {
   display: flex;
   align-items: center;
-  gap: 12px;
-  max-width: 36rem;
-  margin-bottom: 20px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color-page);
-  padding: 12px 16px;
-  transition: border-color 150ms ease;
+  gap: 8px;
+  width: 280px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  padding: 6px 12px;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .search-box:focus-within {
-  border-color: var(--el-color-primary);
+  border-color: var(--gold-400);
 }
 
 .search-icon {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-tertiary);
   flex-shrink: 0;
 }
 
@@ -375,13 +354,12 @@ function openPluginDetail(p: PluginMenuContribution): void {
   border: none;
   outline: none;
   flex: 1;
-  font-size: 0.875rem;
-  color: var(--el-text-color-primary);
-  font-family: var(--font-family-base);
+  font-size: 13px;
+  color: var(--fg-primary);
 }
 
 .search-input::placeholder {
-  color: var(--el-text-color-secondary);
+  color: var(--fg-muted);
 }
 
 /* ===== Filter Pills ===== */
@@ -389,63 +367,51 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-}
-
-.filter-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.filter-bar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
 .filter-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem 12px;
+  padding: 4px 14px;
   white-space: nowrap;
-  flex-shrink: 0;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--el-text-color-regular);
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: transparent;
+  cursor: pointer;
   transition:
-    background 150ms ease,
-    color 150ms ease,
-    border-color 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .filter-pill:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 .filter-pill--active {
-  color: var(--el-color-white);
-  background: var(--el-color-primary);
-  border-color: var(--el-color-primary);
+  color: var(--ink-950);
+  background: var(--gold-400);
+  border-color: var(--gold-400);
 }
 
 .filter-pill--active:hover {
-  background: var(--el-color-primary-light-3);
-  color: var(--el-color-white);
+  background: var(--gold-300);
 }
 
 /* ===== Feature Grid ===== */
 .grid-section {
-  padding: 0 24px 48px;
+  margin-bottom: 32px;
 }
 
-@media (min-width: 1024px) {
-  .grid-section {
-    padding: 0 48px 48px;
-  }
+.grid-empty {
+  padding: 40px 0;
 }
 
 .feature-grid {
@@ -466,47 +432,16 @@ function openPluginDetail(p: PluginMenuContribution): void {
   }
 }
 
-.empty-state {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 0;
-  color: var(--el-text-color-secondary);
-  font-size: 16px;
-}
-
 /* ===== Feature Card ===== */
 .feature-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--el-border-color);
-  border-radius: 12px;
-  background: var(--el-bg-color-page);
   overflow: hidden;
-  transition:
-    transform 150ms cubic-bezier(.2,.8,.2,1),
-    border-color 150ms cubic-bezier(.2,.8,.2,1);
-}
-
-.feature-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--el-color-primary);
-}
-
-.status-dot {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  z-index: 1;
 }
 
 .accent-bar {
-  height: 4px;
+  height: 3px;
   flex-shrink: 0;
 }
 
@@ -514,7 +449,17 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 20px;
+  padding: 18px;
+}
+
+.status-dot {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 1;
 }
 
 /* Header row */
@@ -529,9 +474,9 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--el-border-radius-base);
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
@@ -550,24 +495,25 @@ function openPluginDetail(p: PluginMenuContribution): void {
 }
 
 .card-title {
-  font-size: 1.125rem;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--fg-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
 }
 
 .card-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 8px;
+  padding: 1px 8px;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: 11px;
   font-weight: 500;
-  border-radius: var(--el-border-radius-small);
+  border-radius: var(--radius-sm);
   width: fit-content;
 }
 
@@ -577,10 +523,10 @@ function openPluginDetail(p: PluginMenuContribution): void {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 0.875rem;
-  color: var(--el-text-color-regular);
-  line-height: 1.625;
-  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--fg-secondary);
+  line-height: 1.6;
+  margin: 0 0 16px 0;
 }
 
 .card-spacer {
@@ -592,17 +538,17 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .stat-item {
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  color: var(--fg-tertiary);
   white-space: nowrap;
 }
 
 .stat-mono {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
 }
 
 /* Footer */
@@ -610,6 +556,7 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .status-indicator {
@@ -625,14 +572,14 @@ function openPluginDetail(p: PluginMenuContribution): void {
 }
 
 .status-text {
-  font-size: 0.75rem;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* Buttons */
@@ -640,47 +587,42 @@ function openPluginDetail(p: PluginMenuContribution): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  padding: 5px 12px;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 500;
-  border-radius: var(--el-border-radius-base);
+  border-radius: var(--radius-md);
+  cursor: pointer;
   transition:
-    background 150ms ease,
-    color 150ms ease,
-    border-color 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .btn--primary {
-  color: var(--el-color-white);
-  background: var(--el-color-primary);
+  color: var(--ink-950);
+  background: var(--gold-400);
   border: none;
 }
 
 .btn--primary:hover {
-  background: var(--el-color-primary-light-3);
+  background: var(--gold-300);
 }
 
 .btn--ghost {
-  color: var(--el-text-color-regular);
-  border: 1px solid var(--el-border-color);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
   background: transparent;
 }
 
 .btn--ghost:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 
 /* ===== CTA Section ===== */
 .cta-section {
-  padding: 0 24px 48px;
-}
-
-@media (min-width: 1024px) {
-  .cta-section {
-    padding: 0 48px 48px;
-  }
+  margin-bottom: 32px;
 }
 
 .cta-card {
@@ -688,10 +630,6 @@ function openPluginDetail(p: PluginMenuContribution): void {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 12px;
-  background: var(--el-bg-color-page);
-  padding: 24px 32px;
 }
 
 @media (min-width: 640px) {
@@ -714,8 +652,8 @@ function openPluginDetail(p: PluginMenuContribution): void {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-color-primary-light-9);
+  border-radius: var(--radius-md);
+  background: var(--gold-tint);
   flex-shrink: 0;
 }
 
@@ -724,20 +662,16 @@ function openPluginDetail(p: PluginMenuContribution): void {
 }
 
 .cta-title {
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--fg-primary);
+  margin: 0;
 }
 
 .cta-subtitle {
-  font-size: 0.75rem;
-  color: var(--el-text-color-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--fg-tertiary);
+  margin: 2px 0 0 0;
 }
 
 .cta-btn {
@@ -747,19 +681,20 @@ function openPluginDetail(p: PluginMenuContribution): void {
   padding: 8px 16px;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--el-text-color-regular);
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: transparent;
+  cursor: pointer;
   transition:
-    background 150ms ease,
-    color 150ms ease;
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .cta-btn:hover {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-primary);
+  background: var(--paper-tint);
+  color: var(--fg-primary);
 }
 </style>

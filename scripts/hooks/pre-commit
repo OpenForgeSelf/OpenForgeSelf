@@ -29,11 +29,29 @@ DIRS=$(git diff --cached --name-only --diff-filter=ACMR \
   | sed -n 's#^docs/ai/pilot/\([^/]*\)/.*#\1#p' \
   | sort -u)
 
-if [ -z "$DIRS" ]; then
-  exit 0
+FAIL=0
+
+# 设计规范守卫（DESIGN.md 门禁三步第 1 步，2026-10-11 用户输入3 立）：
+# 提交触及前端源码（宿主 ForgeSelf.Web/src 或插件 web/src）时，必跑
+# check-style-tokens.mjs（禁新增裸色值）+ check-design-compliance.mjs（禁新增
+# token 族违规/胶囊按钮/玻璃过头/蓝紫渐变），违反即拒绝提交——不许靠自觉。
+STYLED=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '^(ForgeSelf\.Web/src|Plugins/[^/]+/web/src)/' || true)
+if [ -n "$STYLED" ]; then
+  echo "[pre-commit] 校验设计规范守卫 (design:check)"
+  (cd ForgeSelf.Web && node ../scripts/check-style-tokens.mjs && node ../scripts/check-design-compliance.mjs)
+  if [ $? -ne 0 ]; then
+    echo "[pre-commit] 设计规范守卫 FAIL：存在新增硬编码色值 / 设计规范违反（DESIGN.md 门禁），提交已拒绝。"
+    FAIL=1
+  fi
 fi
 
-FAIL=0
+if [ -z "$DIRS" ]; then
+  if [ $FAIL -ne 0 ]; then
+    exit 1
+  fi
+  exit 0
+fi
 for d in $DIRS; do
   echo "[pre-commit] 校验 PILOT 工件链: $d"
   "$PS" -NoProfile -ExecutionPolicy Bypass \

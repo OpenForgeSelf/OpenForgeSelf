@@ -153,8 +153,8 @@ function apHealthLabel(h?: string): string {
 
 <style>
 .ok-card {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: var(--el-border-radius-base, 6px);
   padding: 14px 16px;
   margin-bottom: 12px;
@@ -189,16 +189,16 @@ function apHealthLabel(h?: string): string {
   display: inline-block;
 }
 .ok-health--ok {
-  background: var(--el-color-success, #67c23a);
+  background: var(--el-color-success);
 }
 .ok-health--warn {
-  background: var(--el-color-warning, #e6a23c);
+  background: var(--el-color-warning);
 }
 .ok-health--bad {
-  background: var(--el-color-danger, #f56c6c);
+  background: var(--el-color-danger);
 }
 .ok-health--unknown {
-  background: var(--el-text-color-placeholder, #a8abb2);
+  background: var(--el-text-color-placeholder);
 }
 .ok-health__text {
   font-size: 12px;
@@ -214,7 +214,7 @@ function apHealthLabel(h?: string): string {
   font-size: 11px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: var(--el-fill-color-light, #f4f4f5);
+  background: var(--el-fill-color-light);
   color: var(--el-text-color-regular);
 }
 .ok-matrix {
@@ -238,12 +238,12 @@ function apHealthLabel(h?: string): string {
   border: 1px solid transparent;
 }
 .ok-matrix__cell--yes {
-  background: var(--el-color-success-light-9, #e1f3d8);
-  color: var(--el-color-success, #67c23a);
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 .ok-matrix__cell--no {
-  background: var(--el-fill-color-light, #f4f4f5);
-  color: var(--el-text-color-placeholder, #a8abb2);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-placeholder);
 }
 .ok-matrix__mark {
   font-weight: 700;
@@ -251,7 +251,7 @@ function apHealthLabel(h?: string): string {
 .ok-aps {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 .ok-aps__title {
   font-size: 12px;
@@ -275,15 +275,15 @@ function apHealthLabel(h?: string): string {
   color: var(--el-text-color-primary);
 }
 .ok-ap__health--ok {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 .ok-ap__health--bad {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 .ok-card__trusted {
   margin-top: 10px;
   font-size: 12px;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 .ok-card__notes {
   margin-top: 8px;

@@ -751,8 +751,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   height: 44px;
   flex-shrink: 0;
   padding: 0 16px;
-  background: var(--el-bg-color, #1d1e1f);
-  border-bottom: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .chat__bar-left,
@@ -765,7 +765,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .chat__title {
   font-size: var(--el-font-size-base, 14px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 /* 版本徽标：主色淡底胶囊 */
@@ -775,8 +775,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   padding: 1px 6px;
   font-size: var(--el-font-size-extra-small, 12px);
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
   border-radius: 999px;
   vertical-align: middle;
 }
@@ -786,18 +786,18 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   align-items: center;
   gap: 6px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 
 .chat__dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--el-color-success, #67c23a);
+  background: var(--el-color-success);
 }
 
 .chat__dot--busy {
-  background: var(--el-color-warning, #e6a23c);
+  background: var(--el-color-warning);
 }
 
 /* 左右栏折叠按钮 */
@@ -810,13 +810,13 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
 }
 
 .chat__fold:hover {
-  background: var(--el-fill-color-light, #303132);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 
 /* Fold/Expand 图标尺寸钳制（EP 图标 :size 在共享桥下不转 width/height，须显式给宽高） */
@@ -892,8 +892,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 
 .chat__avatar--user {
   padding: 6px;
-  background: var(--el-color-accent-muted, rgba(96, 165, 250, 0.15));
-  color: var(--el-color-accent, #60a5fa);
+  background: var(--el-color-accent-muted);
+  color: var(--el-color-accent);
 }
 
 .chat__avatar--user svg {
@@ -909,7 +909,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   flex: 1;
   padding-left: 12px;
   margin-left: -2px;
-  border-left: 2px solid var(--el-color-primary, #ffb84d);
+  border-left: 2px solid var(--el-color-primary);
 }
 
 /* 气泡：AI 与用户用不同底色，圆角左上/右上小、右下 base */
@@ -923,21 +923,21 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__bubble--ai {
-  color: var(--el-text-color-primary, #e5eaf3);
-  background: var(--el-bg-color, #1d1e1f);
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: 4px 4px 8px 4px;
 }
 
 .chat__msg--user .chat__bubble--user {
-  color: var(--el-text-color-primary, #e5eaf3);
-  background: var(--el-bg-color-overlay, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px 4px 8px 4px;
 }
 
 .chat__bubble--typing {
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 /* 工具调用卡片（可折叠） */
@@ -948,9 +948,9 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__tool-card {
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
   overflow: hidden;
 }
 
@@ -963,7 +963,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   list-style: none;
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   user-select: none;
 }
 
@@ -988,23 +988,23 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__tool-status--pending {
-  color: var(--el-color-warning, #e6a23c);
-  background: rgba(230, 162, 60, 0.12);
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
 }
 
 .chat__tool-status--ok {
-  color: var(--el-color-success, #67c23a);
-  background: rgba(103, 194, 58, 0.12);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .chat__tool-status--fail {
-  color: var(--el-color-danger, #f56c6c);
-  background: rgba(245, 108, 108, 0.12);
+  color: var(--el-color-danger);
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
 }
 
 .chat__tool-body {
   padding: 8px 10px;
-  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-top: 1px solid var(--el-border-color-dark);
 }
 
 .chat__tool-pre {
@@ -1013,7 +1013,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   overflow-y: auto;
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1026,7 +1026,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   display: block;
   margin-bottom: 2px;
   font-weight: var(--el-weight-medium, 500);
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 /* ---- 错误提示 ---- */
@@ -1034,31 +1034,31 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   margin: 0;
   padding: 6px 24px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-danger, #f56c6c);
-  background: var(--el-bg-color, #1d1e1f);
+  color: var(--el-color-danger);
+  background: var(--el-bg-color);
 }
 
 /* ---- Composer（输入区重构：chips + textarea + 操作栏 + popovers） ---- */
 .chat__composer-wrap {
   flex-shrink: 0;
   padding: 12px 24px 16px;
-  background: var(--el-bg-color, #1d1e1f);
-  border-top: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .chat__composer {
   position: relative;
   max-width: 820px;
   margin: 0 auto;
-  background: var(--el-bg-color, #1d1e1f);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-base, 8px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--el-box-shadow-light);
   transition: border-color 0.15s ease;
 }
 
 .chat__composer:focus-within {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 /* chips 区 */
@@ -1076,9 +1076,9 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   min-width: 0;
   padding: 3px 8px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color-light, #363637);
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 999px;
   white-space: nowrap; /* 图标+文字单行，文字过长由 chip-txt 省略 */
   animation: chat-chip-in 0.15s ease;
@@ -1109,13 +1109,13 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__chip--dir {
-  color: var(--el-color-primary-light-7, #fde68a);
-  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--el-color-primary-light-7);
+  border-color: color-mix(in srgb, var(--el-color-warning) 35%, transparent);
 }
 
 .chat__chip--agent {
-  color: var(--el-color-info, #58a6ff);
-  border-color: rgba(88, 166, 255, 0.35);
+  color: var(--el-color-info);
+  border-color: color-mix(in srgb, var(--el-color-info) 35%, transparent);
 }
 
 .chat__chip-ico {
@@ -1145,15 +1145,15 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
 }
 
 .chat__chip-x:hover {
-  background: rgba(245, 108, 108, 0.15);
-  color: var(--el-color-error, #f56c6c);
+  background: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
+  color: var(--el-color-error);
 }
 
 /* textarea：透明底、自动增高（2~6 行，上限 168px） */
@@ -1166,7 +1166,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   font-size: var(--el-font-size-small, 13px);
   font-family: var(--el-font-family, inherit);
   line-height: 1.6;
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   background: transparent;
   border: none;
   outline: none;
@@ -1174,7 +1174,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__textarea::placeholder {
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 /* 操作栏 */
@@ -1194,19 +1194,19 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
   background: transparent;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   font-size: var(--el-font-size-extra-small, 12px);
   cursor: pointer;
 }
 
 .chat__abtn:hover {
-  background: var(--el-fill-color-light, #303132);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 
 .chat__abtn--sel {
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light-9, rgba(255, 184, 77, 0.1));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .chat__abtn-ico {
@@ -1227,13 +1227,13 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 /* B2：popover 打开时入口按钮高亮 */
 .chat__abtn--open,
 .chat__abtn--open:hover {
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light-9, rgba(255, 184, 77, 0.1));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .chat__model-pick--open {
-  border-color: var(--el-color-primary, #ffb84d);
-  color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 /* A3：自研按钮键盘聚焦可见焦点环（ElButton 由 EP 自带聚焦样式） */
@@ -1242,7 +1242,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .chat__pop-go:focus-visible,
 .chat__pop-recent-item:focus-visible,
 .chat__opt:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
@@ -1259,7 +1259,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .chat__abtn-n {
   padding: 0 4px;
   border-radius: 999px;
-  background: rgba(245, 158, 11, 0.18);
+  background: color-mix(in srgb, var(--el-color-warning) 18%, transparent);
   font-family: var(--el-font-family-mono, monospace);
 }
 
@@ -1274,16 +1274,16 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-regular, #cfd3dc);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
   font-size: var(--el-font-size-extra-small, 12px);
   cursor: pointer;
 }
 
 .chat__model-pick:hover {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .chat__model-caret {
@@ -1299,8 +1299,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   margin-left: 8px;
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-color-primary, #ffb84d);
-  color: var(--el-text-color-inverse, #1d1e1f);
+  background: var(--el-color-primary);
+  color: var(--el-text-color-inverse);
   font-size: 15px;
   cursor: pointer;
   transition: opacity 0.15s ease;
@@ -1313,8 +1313,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__send--stop {
-  background: var(--el-color-error, #f56c6c);
-  color: #fff;
+  background: var(--el-color-error);
+  color: var(--el-color-white);
 }
 
 .chat__send:disabled {
@@ -1333,10 +1333,10 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   width: 340px;
   max-height: 320px;
   overflow: hidden;
-  background: var(--el-bg-color-overlay, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-base, 8px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--el-box-shadow);
   animation: chat-pop-in 0.12s ease;
 }
 
@@ -1361,13 +1361,13 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-bottom: 1px solid var(--el-border-color-dark);
 }
 
 .chat__pop-title {
   font-size: var(--el-font-size-extra-small, 12px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 
@@ -1376,17 +1376,17 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   height: 26px;
   min-width: 0;
   padding: 0 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
   outline: none;
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: inherit;
 }
 
 .chat__pop-search:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .chat__pop-body {
@@ -1396,9 +1396,9 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 
 .chat__pop-foot {
   padding: 6px 10px;
-  border-top: 1px solid var(--el-border-color-dark, #2b2b2c);
+  border-top: 1px solid var(--el-border-color-dark);
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .chat__pop-hint {
@@ -1406,7 +1406,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   padding: 6px 8px;
   font-size: var(--el-font-size-extra-small, 11px);
   line-height: 1.6;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 /* 选项行 */
@@ -1419,18 +1419,18 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   text-align: left;
   font-size: var(--el-font-size-small, 13px);
   cursor: pointer;
 }
 
 .chat__opt:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .chat__opt--on {
-  background: rgba(245, 158, 11, 0.1);
+  background: color-mix(in srgb, var(--el-color-warning) 10%, transparent);
 }
 
 .chat__opt-box {
@@ -1440,16 +1440,16 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: 3px;
   font-size: 11px;
   color: transparent;
 }
 
 .chat__opt--on .chat__opt-box {
-  background: var(--el-color-primary, #ffb84d);
-  border-color: var(--el-color-primary, #ffb84d);
-  color: #1d1e1f;
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-text-color-inverse);
 }
 
 .chat__opt-box--radio {
@@ -1471,7 +1471,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
   font-size: 11px;
 }
 
@@ -1490,17 +1490,17 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   height: 30px;
   min-width: 0;
   padding: 0 8px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
   outline: none;
-  background: var(--el-fill-color, #262727);
-  color: var(--el-text-color-primary, #e5eaf3);
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
 }
 
 .chat__pop-input:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .chat__pop-go {
@@ -1508,8 +1508,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   padding: 0 12px;
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
-  background: var(--el-color-primary, #ffb84d);
-  color: #1d1e1f;
+  background: var(--el-color-primary);
+  color: var(--el-text-color-inverse);
   font-size: var(--el-font-size-extra-small, 12px);
   cursor: pointer;
 }
@@ -1526,7 +1526,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .chat__pop-recent-t {
   margin-bottom: 4px;
   font-size: 11px;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .chat__pop-recent-item {
@@ -1537,7 +1537,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   border: none;
   border-radius: var(--el-border-radius-small, 4px);
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   font-size: var(--el-font-size-extra-small, 12px);
   font-family: var(--el-font-family-mono, monospace);
   text-align: left;
@@ -1548,7 +1548,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 }
 
 .chat__pop-recent-item:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 /* ---- Markdown 渲染（见 markdown.ts）---- */
@@ -1569,7 +1569,7 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   margin: 8px 0 4px;
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .md-list {
@@ -1584,16 +1584,16 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
 .md-quote {
   margin: 4px 0;
   padding: 2px 8px;
-  border-left: 3px solid var(--el-color-primary, #ffb84d);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  border-left: 3px solid var(--el-color-primary);
+  color: var(--el-text-color-secondary);
 }
 
 .md-code {
   padding: 1px 4px;
   font-family: var(--el-font-family-mono, monospace);
   font-size: 0.95em;
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-color-primary);
+  background: var(--el-fill-color);
   border-radius: 3px;
 }
 
@@ -1602,8 +1602,8 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   padding: 8px 10px;
   overflow-x: auto;
   max-height: 260px;
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color-dark, #2b2b2c);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color-dark);
   border-radius: 4px;
 }
 
@@ -1611,18 +1611,18 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.5;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   white-space: pre;
 }
 
 .md-hr {
   margin: 8px 0;
   border: none;
-  border-top: 1px solid var(--el-border-color, #414243);
+  border-top: 1px solid var(--el-border-color);
 }
 
 .md-link {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   text-decoration: underline;
 }
 </style>

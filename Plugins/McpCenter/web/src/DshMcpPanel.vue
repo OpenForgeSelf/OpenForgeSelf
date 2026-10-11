@@ -320,18 +320,18 @@ onMounted(load)
 .dsh-head-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .dsh-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; opacity: 0.75; flex-shrink: 0; }
 .dsh-path { word-break: break-all; }
-.dsh-error { padding: 8px 12px; border-radius: 6px; font-size: 12px; background: rgba(245, 108, 108, 0.12); color: #f56c6c; }
+.dsh-error { padding: 8px 12px; border-radius: 6px; font-size: 12px; background: var(--el-color-danger-light-9); color: var(--el-color-danger); }
 .dsh-warn {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 12px; border-radius: 6px; font-size: 12px;
-  background: rgba(230, 162, 60, 0.12); color: #e6a23c;
+  background: var(--el-color-warning-light-9); color: var(--el-color-warning);
 }
 .dsh-list { display: flex; flex-direction: column; gap: 10px; min-height: 80px; }
 .dsh-empty { padding: 32px; text-align: center; font-size: 13px; opacity: 0.55; }
 .dsh-card {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px; border-radius: 8px; border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color-page);
 }
 .dsh-card-off { opacity: 0.5; }
 .dsh-card-main { min-width: 0; flex: 1; }
@@ -346,8 +346,8 @@ onMounted(load)
 .dsh-label { font-size: 12px; opacity: 0.75; }
 .dsh-select {
   height: 32px; border-radius: 4px; padding: 0 8px; font-size: 13px;
-  background: rgba(255, 255, 255, 0.04); color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--el-fill-color-light); color: inherit;
+  border: 1px solid var(--el-border-color);
 }
 .mono-inline { font-family: var(--el-font-family, monospace); font-size: 0.92em; }
 </style>

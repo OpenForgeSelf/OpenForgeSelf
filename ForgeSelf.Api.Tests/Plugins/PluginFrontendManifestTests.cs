@@ -285,6 +285,99 @@ public class PluginFrontendManifestTests
         payload.Data.Should().ContainSingle(p => p.Id == "noentry.plugin").Subject.WebVersion.Should().BeNullOrEmpty();
     }
 
+    [Fact]
+    public void DiscoverPlugins_Surfaces_AreDeserialized_AndNormalized()
+    {
+        // Plugin-First（DESIGN.md）：frontend.surfaces 声明应被反序列化并归一化为规范小写形式。
+        _tempDir.CreatePluginManifest("home.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "HomeView" },
+                Menu = "首页",
+                Route = "/home",
+                Icon = "fa-house",
+                Entry = "web/dist/index.js",
+                // 故意混用大小写与重复项，验证归一去重
+                Surfaces = new List<string> { "Tab", "home-widget", "TAB", " Home-Widget " }
+            };
+        });
+
+        _manager.DiscoverPlugins();
+
+        var metadata = _manager.GetPluginMetadata("home.plugin");
+        metadata.Should().NotBeNull();
+        metadata!.Frontend.Should().NotBeNull();
+        metadata.Frontend!.Surfaces.Should().Equal("tab", "home-widget");
+    }
+
+    [Fact]
+    public void DiscoverPlugins_UnknownSurfaces_AreDropped_NotBlockLoading()
+    {
+        // 未知 surface 不阻断插件加载：清洗后丢弃，仅保留已知项。
+        _tempDir.CreatePluginManifest("weird.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "WeirdView" },
+                Route = "/weird",
+                Surfaces = new List<string> { "tab", "flying-widget", "status-badge" }
+            };
+        });
+
+        _manager.DiscoverPlugins();
+
+        var metadata = _manager.GetPluginMetadata("weird.plugin");
+        metadata.Should().NotBeNull("未知 surface 不应阻断插件加载");
+        metadata!.Frontend!.Surfaces.Should().Equal("tab", "status-badge");
+    }
+
+    [Fact]
+    public void GetFrontendManifest_Surfaces_FlowThrough()
+    {
+        // surfaces 应随 frontend 一并下发到前端清单 DTO。
+        _tempDir.CreatePluginManifest("badge.plugin", m =>
+        {
+            m.Frontend = new FrontendContributes
+            {
+                Views = new List<string> { "BadgeView" },
+                Menu = "徽标",
+                Route = "/badge",
+                Surfaces = new List<string> { "status-badge" }
+            };
+        });
+        _manager.DiscoverPlugins();
+        var controller = CreateController();
+
+        var result = controller.GetFrontendManifest();
+        var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var payload = ok.Value.Should().BeAssignableTo<ApiResponse<List<PluginFrontendManifestDto>>>().Subject;
+
+        var plugin = payload.Data.Should().ContainSingle(p => p.Id == "badge.plugin").Subject;
+        plugin.Frontend.Should().NotBeNull();
+        plugin.Frontend!.Surfaces.Should().ContainSingle("status-badge");
+    }
+
+    [Fact]
+    public void PluginSurfaces_Normalize_HandlesKnownAndUnknown()
+    {
+        // 规范工具自身：已知值归一为小写，未知/空白返回 null，批量去重保序。
+        PluginSurfaces.Normalize("TAB").Should().Be("tab");
+        PluginSurfaces.Normalize(" Home-Widget ").Should().Be("home-widget");
+        PluginSurfaces.Normalize("nope").Should().BeNull();
+        PluginSurfaces.Normalize("").Should().BeNull();
+        PluginSurfaces.IsKnown("Quick-Action").Should().BeTrue();
+        PluginSurfaces.IsKnown("side-drawer").Should().BeFalse();
+
+        var unknowns = new List<string>();
+        var norm = PluginSurfaces.NormalizeAll(
+            new[] { "tab", "TAB", "weird", "status-badge", "weird" },
+            u => unknowns.Add(u));
+
+        norm.Should().Equal("tab", "status-badge");
+        unknowns.Should().Equal("weird", "weird");
+    }
+
     private PluginController CreateController()
     {
         var extensionPointManager = new ExtensionPointManager(_manager);

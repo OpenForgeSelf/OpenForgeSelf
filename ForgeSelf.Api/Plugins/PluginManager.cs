@@ -399,6 +399,17 @@ public class PluginManager
                 return null;
             }
 
+            // Plugin-First（DESIGN.md）：清洗 frontend.surfaces——未知值记日志后丢弃，
+            // 不阻断插件加载；空且带 route+views 的旧插件由前端按既有约定视为 tab。
+            if (metadata.Frontend is { Surfaces.Count: > 0 } frontend)
+            {
+                var raw = frontend.Surfaces;
+                frontend.Surfaces = PluginSurfaces.NormalizeAll(raw, unknown =>
+                    XTrace.Log.Warn(
+                        "插件 {0} 清单声明了未知 surface '{1}'，已忽略；已知 surface: {2}",
+                        metadata.Id, unknown, string.Join("/", PluginSurfaces.All)));
+            }
+
             return metadata;
         }
         catch (JsonException ex)

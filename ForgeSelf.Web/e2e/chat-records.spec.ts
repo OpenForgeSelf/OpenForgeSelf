@@ -19,14 +19,14 @@ test.describe('聊天记录列表页', () => {
 
   test('页面标题与根容器渲染', async ({ page }) => {
     await expect(page.locator('.chat-records-view')).toBeVisible()
-    await expect(page.locator('.view-title')).toContainText('聊天记录查看')
+    await expect(page.locator('.page-head__title')).toContainText('聊天会话')
   })
 
   test('筛选栏包含 SessionId / Style / 搜索 / 重置', async ({ page }) => {
     await expect(page.locator('.filter-bar')).toBeVisible()
     // SessionId 为第一个文本输入框
     await expect(page.locator('.filter-input').first()).toBeVisible()
-    await expect(page.locator('.filter-select')).toBeVisible()
+    await expect(page.locator('.filter-select').first()).toBeVisible()
     await expect(page.locator('.search-btn')).toBeVisible()
     await expect(page.locator('.reset-btn')).toBeVisible()
   })

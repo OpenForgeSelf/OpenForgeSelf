@@ -41,8 +41,8 @@ function handleTabChange(tab: FileToolTab): void {
 <template>
   <div class="file-tools-view">
     <header class="view-header">
+      <div class="view-eyebrow">File Tools · 文件工具箱</div>
       <h1 class="view-title">
-        <span class="title-icon">📁</span>
         文件工具箱
         <span v-if="pluginVersion" class="ft-version">v{{ pluginVersion }}</span>
       </h1>
@@ -119,32 +119,41 @@ function handleTabChange(tab: FileToolTab): void {
   flex-shrink: 0;
 }
 
+.view-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 4px;
+}
+
 .view-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  font-family: var(--font-display, serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: var(--fg-primary);
   margin: 0 0 4px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.title-icon {
-  font-size: 28px;
+  gap: 10px;
 }
 
 .ft-version {
-  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
   font-weight: 400;
   padding: 2px 8px;
-  border-radius: 10px;
-  background-color: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  border-radius: var(--radius-sm);
+  background-color: var(--gold-tint);
+  color: var(--gold-400);
 }
 
 .view-subtitle {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--fg-secondary);
   margin: 0;
 }
 
@@ -179,9 +188,9 @@ function handleTabChange(tab: FileToolTab): void {
 }
 
 .tab-item.active {
-  background-color: var(--el-bg-color);
-  color: var(--el-color-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: var(--glass-strong-bg);
+  color: var(--gold-400);
+  box-shadow: var(--shadow-sm);
   font-weight: 500;
 }
 
@@ -198,10 +207,10 @@ function handleTabChange(tab: FileToolTab): void {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(180, 83, 9, 0.08);
-  border: 1px solid rgba(180, 83, 9, 0.2);
-  border-radius: var(--el-border-radius-base, 8px);
-  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 24%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--cinnabar-400);
   flex-shrink: 0;
 }
 

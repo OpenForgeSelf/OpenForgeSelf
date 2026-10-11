@@ -193,9 +193,9 @@ watch(
   white-space: nowrap;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
   scrollbar-width: thin;
 }
@@ -206,32 +206,32 @@ watch(
   border: none;
   border-radius: 3px;
   background: transparent;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
 }
 
 .dpick__crumb-item:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .dpick__loading {
   margin-left: auto;
   flex-shrink: 0;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 .dpick__error {
   margin: 0 0 6px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 /* 目录列表：固定高度内部滚动。 */
 .dpick__list {
   height: 260px;
-  border: 1px solid var(--el-border-color, #414243);
+  border: 1px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);
 }
 
@@ -243,21 +243,21 @@ watch(
   padding: 5px 8px;
   border: none;
   background: transparent;
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   font-size: var(--el-font-size-small, 13px);
   text-align: left;
   cursor: pointer;
 }
 
 .dpick__item:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .dpick__ico {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .dpick__name {
@@ -272,7 +272,7 @@ watch(
   padding: 12px 8px;
   text-align: center;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .dpick__foot {
@@ -290,6 +290,6 @@ watch(
   white-space: nowrap;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 </style>

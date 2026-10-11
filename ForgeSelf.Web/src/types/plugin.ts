@@ -201,7 +201,21 @@ export interface FrontendContributes {
    * 为空/undefined 表示插件不自带界面资源，前端走既有主包内组件映射（向后兼容）。
    */
   entry?: string
+  /**
+   * 插件贡献的 UI surface 类型（与后端 PluginSurfaces 对齐）。
+   * 为空且声明了 route+views 时，宿主按既有约定视为 `['tab']`（向后兼容）。
+   */
+  surfaces?: PluginSurface[]
 }
+
+/**
+ * 插件前端 surface 类型（Plugin-First 架构约定，DESIGN.md「Plugin-First 架构约定」）。
+ * - tab: 顶栏/侧边栏独立页面路由（带 route+views）
+ * - home-widget: 首页面板上的 slot，可被其他插件贡献/替换
+ * - quick-action: 全局快捷动作（composer / 命令面板入口）
+ * - status-badge: 状态栏（StatusBar）上的状态徽标
+ */
+export type PluginSurface = 'tab' | 'home-widget' | 'quick-action' | 'status-badge'
 
 /**
  * 前端插件清单条目（对应 GET /api/plugin/frontend-manifest）。

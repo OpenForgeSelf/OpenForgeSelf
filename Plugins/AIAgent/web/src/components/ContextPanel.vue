@@ -360,8 +360,8 @@ watch(
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--el-bg-color, #1d1e1f);
-  border-right: 1px solid var(--el-border-color, #414243);
+  background: var(--el-bg-color);
+  border-right: 1px solid var(--el-border-color);
 }
 
 .ctx__head {
@@ -370,19 +370,19 @@ watch(
   justify-content: space-between;
   padding: 10px 12px;
   min-height: 44px; /* 对齐中栏 .chat__bar(44px)，消除左栏头部比中栏矮导致的左上角错位 */
-  border-bottom: 1px solid var(--el-border-color, #414243);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .ctx__title {
   font-size: var(--el-font-size-small, 13px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .ctx__icon {
   width: 14px;
   height: 14px;
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 /* 列表项：选中态仿设计原型（左侧 2px 主色边框 + 主色淡底） */
@@ -393,7 +393,7 @@ watch(
   padding: 4px 8px;
   margin: 0;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   background: transparent;
   border: none;
   border-left: 2px solid transparent;
@@ -404,13 +404,13 @@ watch(
 }
 
 .ctx__item:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .ctx__item--active {
-  border-left-color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  color: var(--el-color-primary, #ffb84d);
+  border-left-color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
+  color: var(--el-color-primary);
 }
 
 .ctx__item--static {
@@ -438,13 +438,13 @@ watch(
 }
 
 .ctx__item-tag.--agents {
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
 }
 
 .ctx__item-tag.--commands {
-  color: var(--el-color-info, #909399);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-color-info);
+  background: var(--el-fill-color);
 }
 
 /* MCP 工具只读描述（去伪交互后：名称 + 描述） */
@@ -455,7 +455,7 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--el-font-size-extra-small, 10px);
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
 }
 
 /* MCP 工具分组底部说明：选择入口在 composer */
@@ -464,8 +464,8 @@ watch(
   padding: 3px 6px;
   font-size: var(--el-font-size-extra-small, 10px);
   line-height: 1.5;
-  color: var(--el-text-color-placeholder, #8c959f);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-text-color-placeholder);
+  background: var(--el-fill-color);
   border-radius: 4px;
 }
 
@@ -486,24 +486,24 @@ watch(
   min-width: 0;
   padding: 3px 6px;
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-primary, #e5eaf3);
-  background: var(--el-fill-color, #262727);
-  border: 1px solid var(--el-border-color, #414243);
+  color: var(--el-text-color-primary);
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   outline: none;
 }
 
 .pj__input:focus {
-  border-color: var(--el-color-primary, #ffb84d);
+  border-color: var(--el-color-primary);
 }
 
 .pj__btn {
   flex-shrink: 0;
   padding: 3px 8px;
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
-  border: 1px solid var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
+  border: 1px solid var(--el-color-primary);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -521,13 +521,13 @@ watch(
   white-space: nowrap;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .pj__error {
   margin: 0;
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 
 .pj__item {
@@ -539,7 +539,7 @@ watch(
   text-align: left;
   padding: 2px 4px;
   font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -547,11 +547,11 @@ watch(
 }
 
 .pj__item:hover {
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .pj__item--up {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
   font-family: var(--el-font-family, inherit);
 }
 
@@ -576,24 +576,24 @@ watch(
 .pj__btn:focus-visible,
 .pj__item:focus-visible,
 .ctx__item:focus-visible {
-  outline: 2px solid var(--el-color-primary, #ffb84d);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 1px;
 }
 
 .pj__item--dir .pj__item-name {
-  color: var(--el-color-primary, #ffb84d);
+  color: var(--el-color-primary);
 }
 
 .pj__item-size {
   flex-shrink: 0;
   font-size: var(--el-font-size-extra-small, 10px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 .pj__empty {
   margin: 0;
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-secondary, #a3a6ad);
+  color: var(--el-text-color-secondary);
 }
 
 /* ---- 记忆列表 ---- */
@@ -609,13 +609,13 @@ watch(
 .ctx-item {
   padding: 4px 6px;
   border-radius: 4px;
-  background: var(--el-fill-color, #262727);
+  background: var(--el-fill-color);
 }
 
 .ctx-item-title {
   font-size: var(--el-font-size-extra-small, 12px);
   font-weight: var(--el-weight-semibold, 600);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -624,7 +624,7 @@ watch(
 .ctx-item-desc {
   margin-top: 2px;
   font-size: var(--el-font-size-extra-small, 11px);
-  color: var(--el-text-color-regular, #cfd3dc);
+  color: var(--el-text-color-regular);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -644,13 +644,13 @@ watch(
   border-radius: 3px;
   font-size: var(--el-font-size-extra-small, 10px);
   line-height: 15px;
-  color: var(--el-color-primary, #ffb84d);
-  background: var(--el-color-primary-light, rgba(255, 184, 77, 0.12));
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
 }
 
 .ctx-badge--cat {
-  color: var(--el-text-color-secondary, #a3a6ad);
-  background: var(--el-fill-color, #262727);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
 }
 
 /* A2：数据加载骨架屏 */

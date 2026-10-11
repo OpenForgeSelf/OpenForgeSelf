@@ -272,9 +272,14 @@ onMounted(loadAll)
 <template>
   <div class="tb-root">
     <header class="tb-header">
-      <h2 class="view-title">工具桥</h2>
-      <span class="tb-version" :title="`插件版本（来自宿主 /api/plugin）`">v{{ version }}</span>
-      <span class="tb-sub">把外部 AI 的工具调用接到本机：指令出去 · 调用回来 · 结果原样送回</span>
+      <div class="tb-header__text">
+        <div class="tb-eyebrow">Tool Bridge · 工具桥</div>
+        <div class="tb-header__row">
+          <h2 class="view-title">工具桥</h2>
+          <span class="tb-version" :title="`插件版本（来自宿主 /api/plugin）`">v{{ version }}</span>
+        </div>
+      </div>
+      <p class="tb-sub">把外部 AI 的工具调用接到本机：指令出去 · 调用回来 · 结果原样送回</p>
     </header>
 
     <div v-if="errorText" class="tb-alert tb-alert--error" data-testid="tb-error">
@@ -503,43 +508,69 @@ onMounted(loadAll)
   overflow-y: auto;
   padding: 16px 18px 28px;
   box-sizing: border-box;
-  color: var(--el-text-color-primary);
-  background: var(--el-bg-color);
+  color: var(--fg-primary);
+  font-family: var(--font-sans-cn, var(--el-font-family));
 }
 .tb-root > * { flex-shrink: 0; }
 
-.tb-header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.view-title { margin: 0; font-size: 20px; font-weight: 600; }
-.tb-version {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+.tb-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.tb-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 2px;
 }
-.tb-sub { font-size: 13px; color: var(--el-text-color-secondary); }
+.tb-header__row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.view-title {
+  margin: 0;
+  font-family: var(--font-display, serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: var(--fg-primary);
+}
+.tb-version {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-tint);
+  color: var(--gold-400);
+}
+.tb-sub { margin: 0; font-size: 13px; color: var(--fg-secondary); }
 
 .tb-card {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 10px;
-  background: var(--el-fill-color-lighter);
-  padding: 12px 14px;
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow);
+  padding: 14px 16px;
 }
 .tb-card__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.tb-card__head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.tb-card__head h3 { margin: 0; font-family: var(--font-serif-cn, serif); font-size: 15px; font-weight: 600; color: var(--fg-primary); }
 
 .tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tb-btn {
-  border: 1px solid var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-  border-radius: 6px;
-  padding: 6px 12px;
+  border: 1px solid var(--gold-400);
+  background: var(--gold-400);
+  color: var(--ink-950);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.tb-btn--ghost { background: transparent; color: var(--el-color-primary); }
-.tb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.tb-btn:hover:not(:disabled) { background: var(--gold-300); transform: translateY(-1px); }
+.tb-btn:active:not(:disabled) { transform: translateY(1px); }
+.tb-btn--ghost { background: transparent; color: var(--gold-400); border-color: var(--border-brand); }
+.tb-btn--ghost:hover:not(:disabled) { background: var(--gold-tint); }
+.tb-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* 复制提示：紧挨按钮，成功用成功色，回退/空内容用警告色 */
 .tb-copy-note { font-size: 12.5px; color: var(--el-color-success); word-break: break-all; }

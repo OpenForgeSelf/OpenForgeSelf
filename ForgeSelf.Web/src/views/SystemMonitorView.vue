@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
+import PageHead from '@/components/PageHead.vue'
 import { useSystemMonitorStore } from '@/stores/systemMonitor'
 import { systemMonitorApi } from '@/services/systemMonitorApi'
 
@@ -81,37 +82,24 @@ onUnmounted(() => {
     <div class="ambient-glow" aria-hidden="true" />
 
     <div class="page-content">
-      <!-- ===== PAGE HEADER ===== -->
-      <div class="page-header">
-        <div class="header-left">
-          <svg
-            class="header-icon"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-          <h1 class="page-title">系统监控</h1>
+      <!-- ===== PAGE HEADER（设计稿 PageHead 统一规格） ===== -->
+      <PageHead
+        eyebrow="System Monitor · 系统监控"
+        title="资源 · 进程 · 日志"
+      >
+        <template #actions>
           <span class="live-badge">
             <span class="live-dot" />
             实时
           </span>
           <span class="refresh-hint">数据每 2 秒刷新</span>
-        </div>
-        <div class="header-right">
           <div class="connection-status" :class="{ connected: store.isConnected }">
             <span class="status-dot" />
             <span class="status-text">{{ store.isConnected ? '已连接' : '已断开' }}</span>
           </div>
           <span class="update-time">{{ formatLastUpdate(store.lastUpdateTime) }}</span>
-        </div>
-      </div>
+        </template>
+      </PageHead>
 
       <!-- Error banner -->
       <div v-if="store.error" class="error-banner" role="alert">

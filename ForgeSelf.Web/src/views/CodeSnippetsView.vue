@@ -1,12 +1,10 @@
 <template>
   <div class="code-snippets-view">
-    <div class="view-header">
-      <h2>
-        <i class="fa-solid fa-code" />
-        代码片段库
-      </h2>
-      <p class="view-subtitle">管理和复用你的常用代码片段</p>
-    </div>
+    <PageHead eyebrow="Code Snippets · 代码片段库" title="片段 · 列表 · 详情">
+      <template #actions>
+        <span class="count-badge">{{ totalSnippets }} 个片段</span>
+      </template>
+    </PageHead>
 
     <div class="view-content">
       <div class="list-panel">
@@ -49,11 +47,27 @@
             @toggle-favorite="onToggleFavorite"
           />
         </div>
-        <div v-else class="empty-detail">
-          <i class="fa-solid fa-code" />
-          <p>选择一个代码片段查看详情</p>
-          <p class="hint">或点击"新建"按钮创建新的代码片段</p>
-        </div>
+        <EmptyState
+          v-else
+          title="选择一个代码片段"
+          sub="从左侧列表选择，或新建片段"
+        >
+          <template #icon>
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </template>
+        </EmptyState>
       </div>
     </div>
   </div>
@@ -63,6 +77,8 @@
 import { ref, onMounted } from 'vue'
 import { useCodeSnippetStore } from '@/stores/codeSnippet'
 import { storeToRefs } from 'pinia'
+import PageHead from '@/components/PageHead.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import CodeSnippetList from '@/components/scriptrunner/CodeSnippetList.vue'
 import CodeSnippetViewer from '@/components/scriptrunner/CodeSnippetViewer.vue'
 import CodeSnippetEditor from '@/components/scriptrunner/CodeSnippetEditor.vue'
@@ -181,47 +197,30 @@ onMounted(async () => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--el-bg-color, #f9fafb);
 }
 
-.view-header {
-  padding: 20px 24px;
-  background: var(--el-bg-color, #fff);
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
-}
-
-.view-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--el-text-color-primary, #1f2937);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.view-header h2 i {
-  color: var(--el-color-primary, #3b82f6);
-}
-
-.view-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: var(--el-text-color-regular, #6b7280);
+.count-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-secondary);
+  background: var(--paper-tint);
+  border: 1px solid var(--border-default);
+  padding: 2px 10px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
 }
 
 .view-content {
   flex: 1;
   display: flex;
-  overflow: hidden;
+  gap: 16px;
+  min-height: 0;
 }
 
 .list-panel {
   width: 400px;
   min-width: 320px;
   max-width: 500px;
-  border-right: 1px solid var(--el-border-color, #e5e7eb);
-  background: var(--el-bg-color, #fff);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -229,6 +228,7 @@ onMounted(async () => {
 
 .detail-panel {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -242,28 +242,15 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.empty-detail {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--el-text-color-secondary, #9ca3af);
-  gap: 12px;
-}
+@media (max-width: 900px) {
+  .view-content {
+    flex-direction: column;
+  }
 
-.empty-detail i {
-  font-size: 64px;
-  opacity: 0.2;
-}
-
-.empty-detail p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.empty-detail .hint {
-  font-size: 12px;
-  opacity: 0.7;
+  .list-panel {
+    width: 100%;
+    max-width: none;
+    height: 40%;
+  }
 }
 </style>

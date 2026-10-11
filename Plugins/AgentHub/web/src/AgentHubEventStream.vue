@@ -146,12 +146,12 @@ function timeText(ts?: string): string {
   gap: 8px;
   align-items: baseline;
   padding: 5px 8px;
-  border-left: 2px solid var(--el-border-color-lighter, #ebeef5);
+  border-left: 2px solid var(--el-border-color-lighter);
   margin-bottom: 2px;
   border-radius: 0 var(--el-border-radius-base, 6px) var(--el-border-radius-base, 6px) 0;
 }
 .ok-evt__seq {
-  color: var(--el-text-color-placeholder, #a8abb2);
+  color: var(--el-text-color-placeholder);
   font-family: var(--el-font-family-mono, monospace);
   text-align: right;
 }
@@ -166,60 +166,60 @@ function timeText(ts?: string): string {
   color: var(--el-text-color-regular);
 }
 .ok-evt__time {
-  color: var(--el-text-color-placeholder, #a8abb2);
+  color: var(--el-text-color-placeholder);
   font-family: var(--el-font-family-mono, monospace);
   text-align: right;
 }
 .ok-evt__trunc {
   margin-left: 6px;
   font-size: 11px;
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 /* 按事件语义着色（全部走 --el-* token） */
 .ok-evt--text {
-  border-left-color: var(--el-color-primary, #409eff);
+  border-left-color: var(--el-color-primary);
 }
 .ok-evt--text .ok-evt__type {
-  color: var(--el-color-primary, #409eff);
+  color: var(--el-color-primary);
 }
 .ok-evt--thought {
-  border-left-color: var(--el-text-color-placeholder, #a8abb2);
+  border-left-color: var(--el-text-color-placeholder);
 }
 .ok-evt--thought .ok-evt__body {
   color: var(--el-text-color-secondary);
   font-style: italic;
 }
 .ok-evt--tool {
-  border-left-color: var(--el-color-primary-light-3, #79bbff);
+  border-left-color: var(--el-color-primary-light-3);
 }
 .ok-evt--tool .ok-evt__type {
-  color: var(--el-color-primary-light-3, #79bbff);
+  color: var(--el-color-primary-light-3);
 }
 .ok-evt--file {
-  border-left-color: var(--el-color-success, #67c23a);
+  border-left-color: var(--el-color-success);
 }
 .ok-evt--file .ok-evt__type {
-  color: var(--el-color-success, #67c23a);
+  color: var(--el-color-success);
 }
 .ok-evt--perm {
-  border-left-color: var(--el-color-warning, #e6a23c);
-  background: var(--el-color-warning-light-9, #fdf6ec);
+  border-left-color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
 }
 .ok-evt--perm .ok-evt__type {
-  color: var(--el-color-warning, #e6a23c);
+  color: var(--el-color-warning);
 }
 .ok-evt--error {
-  border-left-color: var(--el-color-danger, #f56c6c);
-  background: var(--el-color-danger-light-9, #fef0f0);
+  border-left-color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
 }
 .ok-evt--error .ok-evt__type {
-  color: var(--el-color-danger, #f56c6c);
+  color: var(--el-color-danger);
 }
 .ok-evt--exit {
   border-left-color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 .ok-evt--meta .ok-evt__body {
-  color: var(--el-text-color-placeholder, #a8abb2);
+  color: var(--el-text-color-placeholder);
 }
 </style>

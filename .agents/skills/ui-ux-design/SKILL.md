@@ -125,6 +125,8 @@ description: 基于《写给大家看的设计书》（Robin Williams）的 UI/U
 - [ ] 切背景后**弹窗/卡片/input/dialog** 跟着变（不是写死暗色）
 - [ ] 字体大小滑块拖动**实时生效**（不是只存不应用）
 - [ ] 主题（浅色/深色/跟随系统）切换后，所有页面/dialog/插件前端同步变
+- [ ] **PageHead 与内容卡片左右边界严格对齐**：标题 eyebrow/大标题/描述 的左边界必须和下方导航/内容卡片左边界在同一垂直线上；PageHead 必须包在和内容区相同的 max-width 容器里居中，不能直接挂全屏
+- [ ] 切换背景图/纯色后，页头对齐不被破坏（无论 has-bg-image 是否激活）
 
 ### B. 弹窗/模态专项（Element Plus dialog / drawer / message-box）
 - [ ] dialog 背景色走 token（不是写死 #000/#fff）

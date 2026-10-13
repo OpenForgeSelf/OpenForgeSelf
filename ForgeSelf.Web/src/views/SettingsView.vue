@@ -74,8 +74,10 @@ const navItems: NavItem[] = [
 
 <template>
   <div class="settings-view">
-    <!-- ===== 页头（设计稿 PageHead 统一规格） ===== -->
-    <PageHead :eyebrow="pageHeadMap[activeCategory].eyebrow" :title="pageHeadMap[activeCategory].title" />
+    <!-- ===== 页头（设计稿 PageHead 统一规格；与下方 settings-layout 同宽居中对齐） ===== -->
+    <div class="settings-head-wrap">
+      <PageHead :eyebrow="pageHeadMap[activeCategory].eyebrow" :title="pageHeadMap[activeCategory].title" />
+    </div>
 
     <!-- 左右分栏：左分类玻璃栏 + 右内容玻璃卡（用全局 .glass 裸容器，避免 ForgeCard 恒带 role=button 与真实按钮 getByRole 冲突） -->
     <div class="settings-layout">
@@ -131,6 +133,12 @@ const navItems: NavItem[] = [
   max-width: 1100px;
   margin: 0 auto;
   align-items: start;
+}
+
+/* 页头与内容同宽居中，保证标题左边界和卡片左边界对齐 */
+.settings-head-wrap {
+  max-width: 1100px;
+  margin: 0 auto 24px;
 }
 
 /* 左分类栏：贴合内容高度，滚动时吸顶 */

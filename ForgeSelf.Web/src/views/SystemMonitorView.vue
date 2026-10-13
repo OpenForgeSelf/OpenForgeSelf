@@ -215,7 +215,7 @@ onUnmounted(() => {
               <div class="h-bar-fill" :style="{ width: Math.min(100, (store.overview?.disks?.reduce((s, d) => s + d.usedSpace, 0) || 0) / Math.max(1, (store.overview?.disks?.reduce((s, d) => s + d.totalSize, 0) || 1)) * 100) + '%', background: 'var(--el-color-success)' }" />
             </div>
             <div class="h-bar-labels">
-              <span>{{ (store.overview?.disks?.reduce((s, d) => s + d.usagePercent, 0) ?? 0) / Math.max(1, store.overview?.disks?.length ?? 1) }}% 已用</span>
+              <span>{{ ((store.overview?.disks?.reduce((s, d) => s + d.usagePercent, 0) ?? 0) / Math.max(1, store.overview?.disks?.length ?? 1)).toFixed(1) }}% 已用</span>
               <span style="color: var(--el-color-success);">{{ store.overview?.disks ? systemMonitorApi.formatBytes(store.overview.disks.reduce((s, d) => s + d.freeSpace, 0), 1) : '--' }} 可用</span>
             </div>
           </div>

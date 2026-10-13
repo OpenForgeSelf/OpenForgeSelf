@@ -252,16 +252,6 @@ onBeforeUnmount(stopPolling);
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">版本更新</h2>
-        <p class="text-sm text-text-secondary mt-1 mb-0">
-          从 {{ providerOptions.find(o => o.value === (status?.provider ?? 'stardust'))?.label ?? '更新服务器' }} 检查并安装更新
-        </p>
-      </div>
-    </div>
-
     <!-- 更新源配置（2026-09-28：下拉 + 对应地址输入框，选项下简短说明） -->
     <el-card shadow="never">
       <div class="flex items-center justify-between mb-3">

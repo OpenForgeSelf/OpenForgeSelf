@@ -27,10 +27,23 @@ watch(() => appearanceStore.backgroundImage, (val) => {
   isImageBroken.value = false
 }, { immediate: true })
 
-// 遮罩浓度挂到 <body> CSS 变量（设计稿 body::before 遮罩机制；默认 55%）
-watch(() => appearanceStore.overlayOpacity, (val) => {
-  document.body.style.setProperty('--overlay-opacity', String(val / 100))
-}, { immediate: true })
+// 遮罩浓度挂到 <body> CSS 变量（设计稿 body::before 遮罩机制）
+// 设计稿规则（App.jsx:168）：图片模式用用户滑块值；纯色模式自动压 15%（浅米色 #F4EEDF/#FBF7EE 压 0%）
+function effectiveOverlay(): number {
+  if (appearanceStore.backgroundMode === 'image') {
+    return appearanceStore.overlayOpacity / 100
+  }
+  const c = appearanceStore.solidColor
+  if (c === '#F4EEDF' || c === '#FBF7EE') return 0
+  return 0.15
+}
+watch(
+  () => [appearanceStore.overlayOpacity, appearanceStore.backgroundMode, appearanceStore.solidColor],
+  () => {
+    document.body.style.setProperty('--overlay-opacity', String(effectiveOverlay()))
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -47,11 +60,10 @@ watch(() => appearanceStore.overlayOpacity, (val) => {
     :style="{ backgroundColor: appearanceStore.solidColor }"
     aria-hidden="true"
   />
-  <!-- 背景图片（fixed cover）；透明度由「背景图透明度」滑块控制；加载失败降级纯色 -->
+  <!-- 背景图片（fixed cover，全不透明铺满；遮罩浓度由 .app-bg-overlay 层控制）；加载失败降级纯色 -->
   <img
     v-if="appearanceStore.backgroundImage && !isImageBroken"
     :src="appearanceStore.backgroundImage"
-    :style="{ opacity: appearanceStore.backgroundOpacity / 100 }"
     class="app-bg"
     alt=""
     @error="onBackgroundError"
@@ -61,6 +73,7 @@ watch(() => appearanceStore.overlayOpacity, (val) => {
   <div
     class="app-layout"
     :class="{ 'has-bg-image': !!appearanceStore.backgroundImage }"
+    :style="!appearanceStore.backgroundImage ? { backgroundColor: appearanceStore.solidColor } : {}"
   >
     <TopNavbar />
     <main class="main-content">
@@ -114,8 +127,8 @@ watch(() => appearanceStore.overlayOpacity, (val) => {
   pointer-events: none;
   background-image: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--ink-950) calc(var(--overlay-opacity, 0.55) * 5%), transparent) 0%,
-    color-mix(in srgb, var(--ink-950) var(--overlay-opacity, 0.55), transparent) 100%
+    rgba(11, 9, 8, calc(var(--overlay-opacity, 0.55) - 0.05)) 0%,
+    rgba(11, 9, 8, var(--overlay-opacity, 0.55)) 100%
   );
   transition: opacity 360ms ease-out;
 }

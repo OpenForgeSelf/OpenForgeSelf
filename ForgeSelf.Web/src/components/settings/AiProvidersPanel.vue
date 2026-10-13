@@ -312,12 +312,8 @@ onMounted(() => {
 
 <template>
   <div class="space-y-4">
-    <!-- 页头 -->
-    <div class="flex items-center justify-between pb-4 border-b border-[var(--el-border-color)]">
-      <div class="flex items-center gap-3">
-        <h2 class="text-xl font-bold text-[var(--el-text-color-primary)] m-0">AI 提供者</h2>
-        <el-tag size="small" type="info">{{ providers.length }} 个提供方</el-tag>
-      </div>
+    <!-- 操作栏 -->
+    <div class="flex justify-end pb-2">
       <el-button type="primary" size="small" :icon="Plus" @click="openCreate">新建提供方</el-button>
     </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import type { ThemeMode } from '@/stores/theme';
 import BackgroundSettings from '@/components/BackgroundSettings.vue';
@@ -7,8 +7,28 @@ import BackgroundSettings from '@/components/BackgroundSettings.vue';
 const themeStore = useThemeStore();
 
 const accentColor = ref('amber');
+const FONT_SIZE_KEY = 'forgeself:fontSize';
 const fontSize = ref(15);
 const animationEnabled = ref(true);
+
+function applyFontSize(px: number) {
+  document.documentElement.style.fontSize = `${px}px`;
+}
+
+onMounted(() => {
+  const saved = Number(localStorage.getItem(FONT_SIZE_KEY));
+  if (saved >= 12 && saved <= 20) {
+    fontSize.value = saved;
+    applyFontSize(saved);
+  } else {
+    applyFontSize(fontSize.value);
+  }
+});
+
+watch(fontSize, (val) => {
+  applyFontSize(val);
+  localStorage.setItem(FONT_SIZE_KEY, String(val));
+});
 
 const colorOptions: { key: string; color: string; label: string }[] = [
   { key: 'amber', color: '#F59E0B', label: '琥珀色' },
@@ -25,14 +45,6 @@ function setTheme(mode: ThemeMode): void {
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">外观</h2>
-        <p class="text-sm text-text-regular mt-1 mb-0">主题、配色与视觉偏好</p>
-      </div>
-    </div>
-
     <!-- 基础设置 -->
     <el-card shadow="never">
       <!-- 主题 -->

@@ -347,16 +347,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="max-w-[900px] space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b" style="border-color: var(--el-border-color-light)">
-      <div>
-        <h2 class="text-2xl font-bold m-0 leading-tight" style="color: var(--el-text-color-primary)">
-          API 密钥
-        </h2>
-        <p class="text-sm mt-1 mb-0" style="color: var(--el-text-color-secondary)">
-          主密钥用于本机主界面，子密钥用于第三方客户端接入；明文仅在创建时展示一次
-        </p>
-      </div>
+    <!-- 操作栏 -->
+    <div class="flex justify-end pb-2">
       <el-button type="primary" :icon="Plus" @click="openCreate">新建密钥</el-button>
     </div>
 

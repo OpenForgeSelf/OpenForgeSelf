@@ -82,12 +82,19 @@ function removeAt(i: number) {
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  padding: 2px 8px;
-  border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-color-primary-light-9);
-  border: 1px solid var(--el-color-primary-light-8);
-  font-size: var(--el-font-size-extra-small, 12px);
-  color: var(--el-color-primary);
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(245, 240, 231, 0.04);
+  border: 1px solid rgba(245, 240, 231, 0.10);
+  font-size: 12px;
+  color: rgba(245, 240, 231, 0.75);
+  transition: all 0.16s;
+}
+
+.ti__chip:hover {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--el-color-warning, #f59e0b);
 }
 
 .ti__chip-text {

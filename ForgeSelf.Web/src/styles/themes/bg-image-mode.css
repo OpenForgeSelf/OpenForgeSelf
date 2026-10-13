@@ -126,3 +126,25 @@ body.app-bg-image-mode .el-dialog__body {
   background: transparent;
   padding: 12px 20px;
 }
+
+/* ===== Select 下拉 / Popper / 下拉菜单（teleport 到 body）
+   用户报"弹窗背景很黑"根因：这些浮层用 --el-bg-color-overlay，
+   在 .app-layout.has-bg-image 下虽半透，但 teleport 到 body 后不继承，
+   仍取主题实底色（暗色 #1B1815）。这里统一半透化，跟 dialog 一致。 ===== */
+body.app-bg-image-mode .el-select-dropdown,
+body.app-bg-image-mode .el-popper,
+body.app-bg-image-mode .el-dropdown-menu,
+body.app-bg-image-mode .el-cascader__dropdown,
+body.app-bg-image-mode .el-picker-panel,
+body.app-bg-image-mode .el-time-spinner,
+body.app-bg-image-mode .el-autocomplete-suggestion,
+body.app-bg-image-mode .el-message-box {
+  --el-bg-color-overlay: color-mix(in srgb, var(--el-text-color-primary) 10%, transparent);
+  background-color: var(--el-bg-color-overlay);
+  border-color: var(--el-border-color-light);
+}
+
+body.app-bg-image-mode .el-select-dropdown__item,
+body.app-bg-image-mode .el-dropdown-menu__item {
+  color: var(--el-text-color-primary);
+}

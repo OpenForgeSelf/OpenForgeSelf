@@ -9,14 +9,6 @@ const storagePercent = computed(() => Math.round((storageUsed / storageTotal) * 
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">数据与存储</h2>
-        <p class="text-sm text-text-regular mt-1 mb-0">管理本地数据、缓存与导出</p>
-      </div>
-    </div>
-
     <!-- 存储用量 -->
     <el-card shadow="never">
       <div class="flex items-center justify-between mb-3">

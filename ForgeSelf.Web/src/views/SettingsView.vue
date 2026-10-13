@@ -39,6 +39,19 @@ type SettingsCategory =
 
 const activeCategory = ref<SettingsCategory>('general');
 
+const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> = {
+  general: { eyebrow: 'Settings · 通用设置', title: '配置应用的基本行为与偏好' },
+  'ai-agent': { eyebrow: 'Settings · AI Agent', title: 'Agent 工作台行为与偏好' },
+  plugins: { eyebrow: 'Settings · 插件管理', title: '浏览与管理已安装插件' },
+  'ai-providers': { eyebrow: 'Settings · AI 提供方', title: '配置大模型服务提供商' },
+  'api-server': { eyebrow: 'Settings · API 服务器', title: '宿主 API 监听与端口' },
+  'api-keys': { eyebrow: 'Settings · API 密钥', title: '管理访问令牌与权限' },
+  appearance: { eyebrow: 'Settings · 外观', title: '主题、配色与视觉偏好' },
+  data: { eyebrow: 'Settings · 数据与存储', title: '数据目录与缓存管理' },
+  update: { eyebrow: 'Settings · 版本更新', title: '检查更新与发布通道' },
+  about: { eyebrow: 'Settings · 关于', title: '关于铸己匣' }
+};
+
 interface NavItem {
   key: SettingsCategory;
   label: string;
@@ -62,7 +75,7 @@ const navItems: NavItem[] = [
 <template>
   <div class="settings-view">
     <!-- ===== 页头（设计稿 PageHead 统一规格） ===== -->
-    <PageHead eyebrow="Settings · 通用设置" title="配置应用的基本行为与偏好" />
+    <PageHead :eyebrow="pageHeadMap[activeCategory].eyebrow" :title="pageHeadMap[activeCategory].title" />
 
     <!-- 左右分栏：左分类玻璃栏 + 右内容玻璃卡（用全局 .glass 裸容器，避免 ForgeCard 恒带 role=button 与真实按钮 getByRole 冲突） -->
     <div class="settings-layout">
@@ -129,6 +142,16 @@ const navItems: NavItem[] = [
 
 .settings-content-card {
   padding: 20px;
+}
+
+/* 内容区内的 el-card 透明，透出外层 .glass 的半透明，避免白方块突兀 */
+.settings-content-card :deep(.el-card) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.settings-content-card :deep(.el-card__body) {
+  padding: 0;
 }
 
 .settings-cat-nav {

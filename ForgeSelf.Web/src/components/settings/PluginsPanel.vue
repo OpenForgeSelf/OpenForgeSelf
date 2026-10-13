@@ -53,14 +53,6 @@ onMounted(loadUpdateSource)
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">插件管理</h2>
-        <p class="text-sm text-text-regular mt-1 mb-0">启用、禁用或导入第三方插件</p>
-      </div>
-    </div>
-
     <!-- 插件更新源（本地包目录） -->
     <el-card shadow="never">
       <div class="flex items-center justify-between mb-3">

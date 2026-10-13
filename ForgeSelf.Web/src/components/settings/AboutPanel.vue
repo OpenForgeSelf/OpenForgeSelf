@@ -17,13 +17,6 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">关于</h2>
-      </div>
-    </div>
-
     <!-- 应用信息 -->
     <el-card shadow="never">
       <div class="flex flex-col items-center py-6 gap-3">

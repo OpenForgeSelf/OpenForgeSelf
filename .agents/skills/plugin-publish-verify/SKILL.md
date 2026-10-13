@@ -1,4 +1,4 @@
-﻿---
+---
 name: plugin-publish-verify
 description: 宿主/插件「发布 + 验证」闭环（2026-10-11 用户拍板：**主路径 = 本地目录更新源** + 页面自动更新；打 tag 自动发布降为可选）。用于「发插件」「发布新版本」「验证更新生效」「只发插件不重启宿主」「跑发布流程」。发布动作交给本地 `release-local.ps1 -UpdateDir` 打包（或用户明确要求时的 tag→CI→GitHub Release）；**禁止 agent 停/启/杀用户运行中的宿主进程**；开发期验证走起源码本地前后端 + 每插件 1 个冒烟 e2e；确需在运行实例侧载插件（版本化更新，不重启宿主）须先获用户同意。
 ---
@@ -35,6 +35,31 @@ description: 宿主/插件「发布 + 验证」闭环（2026-10-11 用户拍板�
    - **开发期 = e2e 隔离实例**：`playwright.config.ts` globalSetup 自动构建宿主 → 起隔离实例（`FORGESELF_INSTANCE_ID`）→ 解密真实 token → 跑用例 → 回收。**不碰用户运行实例**。
    - **交付后 = 运行实例只读复验**：用户启用/更新到新版本之后，agent **必须**在运行实例（如 `:51888`）做一次**只读**走查（见下「运行实例只读复验」）。铁律1 禁的是停/启/杀与不可逆写，**不含只读走查**——别把它读成"别去看"（2026-09-28 我就因此漏走查，被用户指出）。
 4. **发布产物核对**：打 tag 后等 CI 完成，用资产 API 直链下载 zip 核对 SHA256（`package-release.ps1` 写 `SHA256SUMS.txt`）；页面自动更新链路已由 spec 036 单测 + e2e 覆盖。
+
+## 版本机制（release-local.ps1 怎么定版本 · 真源 packaging-upgrade-backup.md §1.1/§4-R10）
+
+**发行串形态**：`<major>.<minor>.<patch>.<yyMMddHHmm>`（4 段，第 4 段 = 10 位时间码，例 `2.3.0.2609161125`）。
+这条串是**单一真相**：git tag 名 / `versions/<ver>/` 目录 / zip 名 / 两个 exe 的 FileVersion+ProductVersion / 设置页「当前版本」全同串（更新判定 `UpdateChecker.GetCurrentVersion` 读 FileVersion）。
+
+**脚本怎么取版本**（`release-lib.ps1` `Get-FullReleaseVersion`）：
+
+| 你传的 `-Version` | 脚本产出 | 说明 |
+|---|---|---|
+| `2.3.0`（3 段） | `2.3.0.261010xxxx`（自动补**今天**时间码） | **本地发布常用**；时间码脚本算，不用手填 |
+| `2.3.0.2609161125`（4 段含时间码） | 原样（幂等） | 重复跑不会叠加第二段时间码 |
+| 不传（缺省） | `0.0.0-local` | **dry-run，非真发布**；exe 走 csproj 兜底（`VersionPrefix 2.3`+`VersionSuffix 0.<date>`），但包名 `0.0.0-local` → 51888 检测不到/非法 |
+| CI tag `v2.3.0.2609161125` | 原样 | CI 经 `GITHUB_REF_NAME` 传入 |
+
+**注入通道**：发行串经环境变量 `FORGESELF_RELEASE_VERSION` 注入 `ForgeSelf.Api.csproj`（`publish-host.ps1:50-53`），csproj 用它覆盖 `<Version>` → 成为 exe FileVersion。**不用 `-p:Version` 命令行注入**（全局属性污染被引用的 Core/Abstractions/Plugins 项目 → NU1105/NETSDK1018 编译失败，2026-10-02 实测）。
+
+**认知纠偏（2026-10-10）**：脚本**不读**当前 51888 已装版本、也不会"自己取来用"。版本前缀（2.3.0）必须你显式传 `-Version`；用户直觉"按当前宿主版本自动生成时间版本"只对一半——**时间码脚本自动补，前缀要你给**。给 51888 出更新包时，只要构建日期晚于已装版本日期（时间码单调），新包即被判定为更新（今天 `261010xxxx` > 9 月/昨天的 `2609xxxxxx`/`261009xxxx`，天然更高）。
+
+**本地离线发布命令（给人装的包必带 `-Sign`）**：
+```powershell
+# -UpdateDir 缺省时自动落到「项目上级 updates/」(即 ../updates，仓库外、不入 git)，也可显式指定
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/release-local.ps1 -Version 2.3.0 -Sign
+# 显式指定： pwsh ...\release-local.ps1 -Version 2.3.0 -Sign -UpdateDir D:\src\my-proj\OpenForgeSelf\updates
+```
 
 ## 一键跑（本地打包，可选）
 
@@ -166,6 +191,52 @@ DLL 字符串是 UTF-16LE（strings/grep 漏检）。这两件事历史上反复
 `v.version === activePlugin?.version` 而**置灰**，用户在页面上无路可点。
 ⇒ 正确顺序：只写 `versions/<ver>/`（+ `current`），然后走 `rollback`/`enable` 让宿主自己同步清单；
 若已经手改过，就靠 `rollback`（不比版本号）或 `disable→enable` 收口。
+
+## 运行实例更新（agent 代点，需用户显式授权）
+
+**性质**：这是流程骨架 step 4「用户明确同意后代点」的落地版，**不违反铁律1**（宿主重启由自身 update-agent 执行，agent 不 kill/start 进程）。**只在用户显式授权要求更新时走本流程**；否则更新动作归用户自己。
+
+**前置**：先确认发布产物已落到更新源（本地目录更新源 = `../updates`，即 `release-local.ps1` 缺省落点；或用户指定的 `-UpdateDir`）。
+
+### A. UI 代点流程（用户在场看，agent 点页面）
+1. 打开 `<host>/settings` 页面
+2. 进入「版本更新」区，点「检查更新」
+3. 确认**更新源 = 本地目录**且**文件夹路径正确**（本地包填 `../updates` 的绝对路径，如 `D:\src\my-proj\OpenForgeSelf\updates`）
+4. 点「检查」→ 有更新则出现「下载」
+5. 点「下载」→ 进度跑完（下载 / 校验 / 解压 / 应用）
+6. 点「重启」（下载完后的重启入口）
+7. 弹窗点「确认更新」→ 宿主自更新（update-agent 换文件并重启）
+8. 页面轮询 `api/update/status`，**更新完自动刷新**（无需人盯）
+
+### B. API / 命令轮询流程（agent 全程不盯页面，等恢复即可）
+所有请求带 `Authorization: Bearer <forge_api_token>`（与前端 `authFetch` 同套鉴权；token 取自 `node scripts/get-forge-token.cjs`）。端点前缀 `api/update`（UpdateController.cs）。**这就是上面对话里"我们可以请求命令轮询"的可执行版**。
+
+| 步 | 请求 | 判据 |
+|----|------|------|
+| 0 看现状 | `GET /api/update/config` | 确认 `provider=="local"` 且 `localDir` 正确；不对则 `PUT /api/update/config {"provider":"local","localDir":"<绝对路径>"}`（先校验目录存在；更新在途时拒绝改） |
+| 1 检查 | `POST /api/update/check` | 看 `data.HasUpdate`；`false` 即无更新，停下回报 |
+| 2 下载 | `POST /api/update/download` | 返回 `success=true`；已在下载/已就绪则幂等返回 |
+| 3 轮询进度 | `GET /api/update/progress` | 轮询直到 `state.Status=="ready"`（`downloading→verifying→extracting→applying→ready`） |
+| 4 应用 | `POST /api/update/apply` | **仅 `ready` 可调用**；返回后宿主即将退出并由 update-agent 重启 |
+| 5 等恢复 | `GET /api/update/status` | 轮询直到 `data.currentVersion` 变为新版本（即页面自动刷新那一刻）→ 完成 |
+
+**命令轮询示例**（替代盯页面，等价于页面轮询 `api/update/status`）：
+```bash
+TOKEN=$(node scripts/get-forge-token.cjs)          # 取明文 token
+TARGET=2.4.0.2610101148                            # 目标版本串
+BASE=http://localhost:51888
+for i in $(seq 1 60); do
+  V=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/update/status" \
+        | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).data.currentVersion)}catch(e){console.log('')}})")
+  echo "round $i -> $V"
+  [ "$V" = "$TARGET" ] && { echo OK_RECOVERED; break; }
+  sleep 3
+done
+```
+
+**边界（与只读复验一致）**：本流程的"重启"是宿主自更新（update-agent），**不是** agent 调停/启/杀；不得用 `Stop-Process` 杀宿主、不得手敲 `dotnet`/`vite` 起宿主。apply 之后宿主进程会自行终止并被代理拉起，agent 只需轮询恢复，不要"帮"它重启。
+
+**完成后**：接「运行实例只读复验（⑤）」—— 更新完自动刷新后，按下一节做只读走查（token 先验 → 版本徽标 → 主链路中间态 → 截图读图）。
 
 ## 运行实例只读复验（交付后必做，2026-09-28 补）
 

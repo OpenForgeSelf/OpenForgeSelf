@@ -57,14 +57,6 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">AI Agent 配置</h2>
-        <p class="text-sm text-text-regular mt-1 mb-0">调整模型参数、上下文长度与推理行为</p>
-      </div>
-    </div>
-
     <!-- 设置项列表 -->
     <el-card shadow="never">
       <!-- 默认模型 -->

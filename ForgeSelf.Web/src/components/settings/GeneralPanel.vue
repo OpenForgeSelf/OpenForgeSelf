@@ -57,14 +57,6 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-border">
-      <div>
-        <h2 class="text-xl font-bold text-text m-0 leading-tight">通用设置</h2>
-        <p class="text-sm text-text-regular mt-1 mb-0">配置应用的基本行为与偏好</p>
-      </div>
-    </div>
-
     <!-- 设置项列表 -->
     <el-card shadow="never">
       <!-- 语言 -->

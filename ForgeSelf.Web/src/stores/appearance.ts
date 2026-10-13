@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useThemeStore } from './theme'
 
 export const APPEARANCE_BG_IMAGE_KEY = 'forgeself.appearance.backgroundImage'
 export const APPEARANCE_BG_OPACITY_KEY = 'forgeself.appearance.backgroundOpacity'
@@ -132,11 +133,18 @@ export const useAppearanceStore = defineStore('appearance', () => {
     persistForgeBg()
   }
 
-  /** 选择纯色预设（墨黑/铁灰/宣纸…） */
+  /** 选择纯色预设（墨黑/铁灰/宣纸…）；浅米色自动切浅色主题，深色自动切暗色 */
   function selectSolidColor(color: string): void {
     solidColor.value = color
     backgroundMode.value = 'solid'
     backgroundImage.value = ''
+    // 浅米色自动联动浅色主题，避免深色卡片压在浅背景上
+    const themeStore = useThemeStore()
+    if (color === '#F4EEDF' || color === '#FBF7EE') {
+      themeStore.setMode('light')
+    } else {
+      themeStore.setMode('dark')
+    }
     persistForgeBg()
   }
 

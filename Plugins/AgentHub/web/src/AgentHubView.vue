@@ -492,6 +492,7 @@ onBeforeUnmount(() => {
   <div class="ok ok-root">
     <header class="ok-header">
       <div>
+        <div class="ok-eyebrow">AGENT HUB · 中枢调度</div>
         <div class="ok-title">Agent 中枢 <span v-if="pluginVersion" class="ok-version">v{{ pluginVersion }}</span></div>
         <div class="ok-subtitle">
           登记本机的其它 agent，选路后把任务委派给它，并收回可复盘的结果。CLI 只是交互口之一。
@@ -771,9 +772,19 @@ onBeforeUnmount(() => {
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
-.ok-title {
-  font-size: 20px;
+.ok-eyebrow {
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 6px;
+}
+.ok-title {
+  font-size: 28px;
+  font-weight: 600;
+  font-family: var(--el-font-family-serif, Georgia, 'Times New Roman', serif);
+  line-height: 1.2;
 }
 .ok-version {
   font-size: 12px;
@@ -820,6 +831,13 @@ onBeforeUnmount(() => {
   background: var(--el-color-danger-light-9);
   color: var(--el-color-danger);
   border: 1px solid var(--el-color-danger-light-5);
+}
+.ok-panel {
+  background: var(--el-bg-color, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--el-border-color-light, rgba(255, 255, 255, 0.15));
+  border-radius: var(--el-border-radius-lg, 12px);
+  padding: 20px;
+  backdrop-filter: blur(12px);
 }
 .ok-tabs {
   display: flex;

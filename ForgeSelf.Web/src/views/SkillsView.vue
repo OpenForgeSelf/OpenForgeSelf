@@ -5,7 +5,6 @@ import PageHead from '@/components/PageHead.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import type { SkillItemDto, CreateSkillDto, UpdateSkillDto } from '@/types/skills'
 import { skillsApi } from '@/services/skillsApi'
-import { useOpenPage } from '@/composables/useOpenPage'
 
 // ===== State =====
 const skills = ref<SkillItemDto[]>([])
@@ -17,11 +16,6 @@ const editingSkill = ref<SkillItemDto | null>(null)
 const formSubmitting = ref(false)
 const formError = ref('')
 const togglingIds = ref<Set<string>>(new Set())
-
-const { openPage } = useOpenPage()
-function goHome(): void {
-  openPage('/', '首页')
-}
 
 // EmptyState 图标（v-html 注入；lucide zap 风格）
 const emptyIconSvg =
@@ -177,25 +171,6 @@ function getSkillIcon(name: string): string {
 <template>
   <div class="skills-view">
     <div class="skills-page">
-      <!-- ===== Breadcrumb（保留首页导航） ===== -->
-      <nav class="breadcrumb" aria-label="面包屑导航">
-        <a href="/" class="breadcrumb-link" @click.prevent="goHome()">首页</a>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="breadcrumb-chevron"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        <span class="breadcrumb-current">技能管理</span>
-      </nav>
-
       <!-- ===== PageHead（设计稿统一规格） ===== -->
       <PageHead eyebrow="Skills · 技能管理" title="技能工坊">
         <template #actions>

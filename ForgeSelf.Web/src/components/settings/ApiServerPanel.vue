@@ -241,14 +241,8 @@ onMounted(async () => {
 
 <template>
   <div class="max-w-[800px] space-y-6">
-    <!-- 页头 -->
-    <div class="flex items-start justify-between pb-4 border-b border-gray-200">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900 m-0 leading-tight">API 服务器</h2>
-        <p class="text-sm text-gray-600 mt-1 mb-0">
-          通过 OpenAI 兼容的 HTTP API 暴露铸己匣的 AI 功能
-        </p>
-      </div>
+    <!-- 操作栏 -->
+    <div class="flex justify-end pb-2">
       <el-button type="success" :icon="Document" @click="openApiDocs">API 文档</el-button>
     </div>
 

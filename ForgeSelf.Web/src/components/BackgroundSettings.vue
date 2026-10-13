@@ -94,8 +94,8 @@ function resetDefaults(): void {
 
 <template>
   <div class="bg-settings">
-    <!-- 纯色 -->
-    <div class="row-label">纯色</div>
+    <!-- 纯色（已隐藏：主题切换自动联动背景色，不再独立选） -->
+    <!-- <div class="row-label">纯色</div>
     <div class="bg-swatches">
       <div
         v-for="s in BG_SOLID_PRESETS"
@@ -111,7 +111,7 @@ function resetDefaults(): void {
         :title="s.label"
         @click="selectSolid(s.value)"
       />
-    </div>
+    </div> -->
 
     <!-- 预设背景图 -->
     <div class="row-label">背景图</div>

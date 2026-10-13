@@ -1,34 +1,15 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import type { ThemeMode } from '@/stores/theme';
+import { useAppearanceStore } from '@/stores/appearance';
 import BackgroundSettings from '@/components/BackgroundSettings.vue';
 
 const themeStore = useThemeStore();
+const appearanceStore = useAppearanceStore();
 
 const accentColor = ref('amber');
-const FONT_SIZE_KEY = 'forgeself:fontSize';
-const fontSize = ref(15);
 const animationEnabled = ref(true);
-
-function applyFontSize(px: number) {
-  document.documentElement.style.fontSize = `${px}px`;
-}
-
-onMounted(() => {
-  const saved = Number(localStorage.getItem(FONT_SIZE_KEY));
-  if (saved >= 12 && saved <= 20) {
-    fontSize.value = saved;
-    applyFontSize(saved);
-  } else {
-    applyFontSize(fontSize.value);
-  }
-});
-
-watch(fontSize, (val) => {
-  applyFontSize(val);
-  localStorage.setItem(FONT_SIZE_KEY, String(val));
-});
 
 const colorOptions: { key: string; color: string; label: string }[] = [
   { key: 'amber', color: '#F59E0B', label: '琥珀色' },
@@ -40,6 +21,12 @@ const colorOptions: { key: string; color: string; label: string }[] = [
 
 function setTheme(mode: ThemeMode): void {
   themeStore.setMode(mode);
+  // 切主题时自动联动背景：浅色→浅米色，深色→墨黑
+  if (mode === 'light') {
+    appearanceStore.selectSolidColor('#F4EEDF');
+  } else if (mode === 'dark') {
+    appearanceStore.selectSolidColor('#0B0908');
+  }
 }
 </script>
 
@@ -51,7 +38,7 @@ function setTheme(mode: ThemeMode): void {
       <div class="flex items-center justify-between py-3 border-b border-border-light">
         <div>
           <span class="text-sm font-medium text-text">主题</span>
-          <p class="text-xs text-text-secondary mt-0.5 mb-0">界面明暗模式</p>
+          <p class="text-xs text-text-secondary mt-0.5 mb-0">界面明暗模式（切换自动联动背景色）</p>
         </div>
         <el-radio-group
           :model-value="themeStore.mode"
@@ -80,25 +67,6 @@ function setTheme(mode: ThemeMode): void {
         </div>
       </div>
 
-      <!-- 字体大小 -->
-      <div class="flex items-center justify-between py-3 border-b border-border-light">
-        <div>
-          <span class="text-sm font-medium text-text">字体大小</span>
-          <p class="text-xs text-text-secondary mt-0.5 mb-0">界面文字的缩放比例</p>
-        </div>
-        <div class="flex items-center gap-2 w-[200px]">
-          <span class="text-xs text-text-secondary">A</span>
-          <el-slider
-            v-model="fontSize"
-            :min="12"
-            :max="20"
-            :step="1"
-            :show-tooltip="false"
-            class="flex-1" />
-          <span class="text-lg text-text-secondary">A</span>
-        </div>
-      </div>
-
       <!-- 动画效果 -->
       <div class="flex items-center justify-between py-3">
         <div>
@@ -113,7 +81,7 @@ function setTheme(mode: ThemeMode): void {
     <el-card shadow="never">
       <div class="pb-3 border-b border-border-light">
         <span class="text-sm font-medium text-text">背景</span>
-        <p class="text-xs text-text-secondary mt-0.5 mb-0">纯色 / 预设图 / 自定义 URL / 上传本地图片</p>
+        <p class="text-xs text-text-secondary mt-0.5 mb-0">预设图 / 自定义 URL / 上传本地图片</p>
       </div>
       <div class="pt-4">
         <BackgroundSettings />

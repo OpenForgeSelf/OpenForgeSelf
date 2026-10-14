@@ -4,7 +4,6 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   useAppearanceStore,
-  BG_SOLID_PRESETS,
   BG_IMAGE_PRESETS,
   DEFAULT_BG_SOLID,
   DEFAULT_OVERLAY_OPACITY,
@@ -20,10 +19,6 @@ const fileInput = ref<HTMLInputElement | null>(null)
 // URL 输入
 const customUrl = ref('')
 const isLoadingUrl = ref(false)
-
-function selectSolid(color: string): void {
-  appearanceStore.selectSolidColor(color)
-}
 
 function selectImage(url: string): void {
   appearanceStore.selectImageBackground(url)

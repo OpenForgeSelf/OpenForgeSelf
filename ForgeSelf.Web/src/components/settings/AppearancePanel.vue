@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useThemeStore } from '@/stores/theme';
 import type { ThemeMode } from '@/stores/theme';
 import { useAppearanceStore } from '@/stores/appearance';

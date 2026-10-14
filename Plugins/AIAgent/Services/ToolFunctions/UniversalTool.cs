@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
 using NewLife.Log;
@@ -87,8 +87,15 @@ public class UniversalTool : IToolFunctionExtension
             if (registry.GetTool(toolName) == null)
             {
                 var n = registry.GetAllTools().Count();
+                // 输入2·2026-10-13：未知工具封套附 top 搜索建议（复用 search_tools 打分），避免模型退化为全量枚举
+                var hint = ToolSearchHints(registry.GetAllTools, toolName);
                 XTrace.Log.Info("[AIAgentPlugin] universal_tool 未知工具：{0}（已注册 {1} 个）", toolName, n);
-                return JsonSerializer.Serialize(new { success = false, error = $"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）" });
+                return JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = $"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）",
+                    hint
+                });
             }
 
             // 4. 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
@@ -122,6 +129,28 @@ public class UniversalTool : IToolFunctionExtension
         {
             XTrace.Log.Error("[AIAgentPlugin] universal_tool 执行失败: {0}", ex.Message);
             return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 未知工具封套的 hint：用 search_tools 同款打分给出 top≤3 建议 + 引导语（输入2·2026-10-13）。
+    /// getAll 用 Func 传入，与分发路径解耦；无建议时只给引导语（先 search_tools，再 list_tools 兜底）。
+    /// </summary>
+    internal static string ToolSearchHints(Func<IEnumerable<IToolFunctionExtension>> getAll, string toolName)
+    {
+        try
+        {
+            var top = ToolSearchScorer.Search(getAll(), toolName, 3);
+            var suggestion = top.Count > 0
+                ? $"did you mean: {string.Join(" / ", top.Select(m => m.Tool.Name))}？"
+                : string.Empty;
+            return $"先 search_tools {{\"keyword\":\"…\"}} 检索工具，检索无果再用 list_tools 全量枚举。{suggestion}";
+        }
+        catch (Exception ex)
+        {
+            // 建议生成失败不能吞掉原本的 unknown 错误封套
+            XTrace.Log.Warn("[AIAgentPlugin] universal_tool 工具建议生成失败: {0}", ex.Message);
+            return "先 search_tools 检索工具，检索无果再用 list_tools 全量枚举。";
         }
     }
 }

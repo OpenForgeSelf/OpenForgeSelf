@@ -336,12 +336,29 @@ async function onAgentDeleted(agentId: string) {
   await loadAgents()
 }
 
-/** 加载 composer 🔧 可选工具列表（与后端 RunAgentLoopAsync 的 ResolveOwnToolDefinitions 白名单同源）。 */
+/**
+ * 计划驱动运行流特殊工具：只由 PlanDriven 步骤循环经 extraTools 显式挂载，
+ * 不进 FreeLoop，也不应出现在 composer 的手动勾选列表里（与后端 ResolveToolDefinitions 同源）。
+ */
+const RUN_FLOW_TOOL_NAMES = new Set(['submit_plan', 'complete_step', 'request_help'])
+
+/** 加载 composer 🔧 可选工具列表（宿主 ToolRegistry 全量已注册工具）。 */
 async function loadAgentTools() {
   try {
     const data = await apiGet<{ tools?: AgentTool[] }>('/api/ai-agent/chat/tools')
     const all = data?.tools ?? []
-    agentTools.value = all.filter((t) => t.pluginId === 'ai-agent' || t.pluginId === 'memory-system')
+    // 不再按 pluginId 白名单过滤：万能工具（universal_tool）、执行命令（run_terminal_command）、
+    // todo 工具（todo-tracker）等其它插件工具也要能勾选。
+    // 后端语义：不勾选 = 挂默认作用域（本插件 + memory-system + design-system，防 prompt 撑爆）；
+    // 勾选 = 显式意图，候选池放开到全注册表（见 AIAgentService.ResolveSelectableToolDefinitions）。
+    agentTools.value = all
+      .filter((t) => !!t.name && !RUN_FLOW_TOOL_NAMES.has(t.name))
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.pluginId ?? '').localeCompare(b.pluginId ?? '') ||
+          (a.name ?? '').localeCompare(b.name ?? ''),
+      )
   } catch {
     agentTools.value = []
   }

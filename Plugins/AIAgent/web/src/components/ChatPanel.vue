@@ -306,11 +306,14 @@
             >
               <span class="chat__opt-box">✓</span>
               <span class="chat__opt-name">{{ t.name }}</span>
+              <span v-if="t.pluginId" class="chat__opt-plugin">{{ t.pluginId }}</span>
               <span class="chat__opt-desc">{{ t.description }}</span>
             </button>
             <p v-if="filteredTools.length === 0" class="chat__pop-hint">未找到匹配工具</p>
           </div>
-          <div class="chat__pop-foot">未勾选 = 启用默认全部（{{ tools.length }}）；勾选 = 仅启用所选</div>
+          <div class="chat__pop-foot">
+            共 {{ tools.length }} 个（全插件）· 未勾选 = 启用默认作用域；勾选 = 仅启用所选
+          </div>
         </div>
 
         <!-- ⚡ 技能 popover（多选；注入 system prompt） -->
@@ -695,7 +698,10 @@ const filteredTools = computed(() => {
   const q = toolSearch.value.trim().toLowerCase()
   if (!q) return props.tools
   return props.tools.filter(
-    (t) => (t.name ?? '').toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q),
+    (t) =>
+      (t.name ?? '').toLowerCase().includes(q) ||
+      (t.description ?? '').toLowerCase().includes(q) ||
+      (t.pluginId ?? '').toLowerCase().includes(q),
   )
 })
 
@@ -1463,6 +1469,17 @@ const showEmpty = computed(() => props.messages.length === 0 && !props.sending)
   white-space: nowrap;
   font-family: var(--el-font-family-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
+}
+
+/* 工具来源插件徽标：全插件工具混排时用于区分归属（如 todo-tracker / memory-system）。 */
+.chat__opt-plugin {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: var(--el-border-radius-round, 999px);
+  background: var(--el-fill-color-light, rgba(144, 147, 153, 0.12));
+  color: var(--el-text-color-secondary, #a3a6ad);
+  font-size: 10px;
+  line-height: 16px;
 }
 
 .chat__opt-desc {

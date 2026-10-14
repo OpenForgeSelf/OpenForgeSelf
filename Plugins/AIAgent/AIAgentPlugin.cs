@@ -146,6 +146,14 @@ public class AIAgentPlugin : IPlugin
         ToolExtensions.Add(new ListFilesToolFunction(pluginId, ctx));
         ToolExtensions.Add(new ReadFileToolFunction(pluginId, ctx));
         ToolExtensions.Add(new WriteFileToolFunction(pluginId, ctx));
+        // 031 万能工具网关 + 终端命令工具：此前两个类只有源码、从未被 new 进扩展点列表，
+        // 因此宿主 ToolRegistry 里根本没有它们 → /api/ai-agent/chat/tools 与 composer 🔧 列表都看不到
+        // （缺陷：工具列表缺「万能工具」「执行命令」）。此处补注册使其进入注册表（pluginId=ai-agent，
+        // 与默认挂载作用域一致，模型侧可见）。
+        ToolExtensions.Add(new UniversalTool(pluginId, ctx));
+        ToolExtensions.Add(new RunTerminalCommandTool(pluginId, ctx));
+        // 工具搜索（输入2·2026-10-13）：先 search_tools 按关键词检索，命中即调；list_tools 全量枚举只作兜底
+        ToolExtensions.Add(new SearchToolsToolFunction(pluginId, ctx));
         // 计划驱动运行流特殊工具（029 R4）：注册进 ToolRegistry 供引擎执行兜底，
         // 但 ResolveOwnToolDefinitions 按名排除 → 不进 FreeLoop，只经 extraTools 显式挂载。
         ToolExtensions.Add(runFlowTools.SubmitPlan);
@@ -154,6 +162,27 @@ public class AIAgentPlugin : IPlugin
 
         XTrace.Log.Debug("[AIAgentPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
+}
+
+/// <summary>
+/// 工作流服务解析助手（跨插件软依赖）。
+/// workflow-engine 插件在 <c>Apply</c> 内把 IWorkflowService 实例 <c>ctx.Register</c> 进插件上下文共享表，
+/// 兄弟插件（本插件）经 IContext（即工具持有的 IServiceProvider）解析；解析不到时返回 null，
+/// 由调用方给出可读错误，而不是抛「No service for type 'IWorkflowService' has been registered」
+/// ——后者在界面上表现为含糊的「服务没激活」，无法定位。
+/// </summary>
+internal static class WorkflowServiceResolver
+{
+    public static IWorkflowService? Resolve(IServiceProvider? provider)
+        => provider?.GetService(typeof(IWorkflowService)) as IWorkflowService;
+
+    /// <summary>解析失败时的统一错误 JSON（工具返回给模型的可见结果）。</summary>
+    public static string UnavailableJson()
+        => JsonSerializer.Serialize(new
+        {
+            success = false,
+            error = "工作流服务不可用：workflow-engine 插件未启用，或未提供 IWorkflowService 契约（请在插件管理中启用「工作流引擎」后重试）"
+        });
 }
 
 public class AIAgentMenuExtension : IMenuExtension
@@ -497,8 +526,8 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            var service = _serviceProvider.GetRequiredService<IWorkflowService>();
-            var executor = _serviceProvider.GetRequiredService<IWorkflowExecutor>();
+            var service = WorkflowServiceResolver.Resolve(_serviceProvider);
+            if (service == null) return WorkflowServiceResolver.UnavailableJson();
 
             WorkflowExecutionDto execution;
             if (workflowId.HasValue)
@@ -622,7 +651,8 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            var service = _serviceProvider.GetRequiredService<IWorkflowService>();
+            var service = WorkflowServiceResolver.Resolve(_serviceProvider);
+            if (service == null) return WorkflowServiceResolver.UnavailableJson();
 
             var execution = await service.GetExecutionDetailAsync(executionId);
             if (execution == null)
@@ -755,7 +785,8 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            var service = _serviceProvider.GetRequiredService<IWorkflowService>();
+            var service = WorkflowServiceResolver.Resolve(_serviceProvider);
+            if (service == null) return WorkflowServiceResolver.UnavailableJson();
 
             var result = await service.ListWorkflowsAsync(keyword, category, page, pageSize);
 

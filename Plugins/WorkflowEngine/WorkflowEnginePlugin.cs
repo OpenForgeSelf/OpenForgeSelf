@@ -31,6 +31,16 @@ public class WorkflowEnginePlugin : IPlugin
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);
 
+        // 关键补注册：把三个工作流契约实例同时写进 Cordis 根上下文共享表。
+        // 仅 AddScoped 进 IServiceCollection 时，兄弟插件（AIAgent）的工作流工具经
+        // IContext.GetService(typeof(IWorkflowService)) 解析恒为 null → GetRequiredService 抛
+        // 「No service for type ...」（界面表现为「服务没激活」类报错）。
+        // ctx.Register 后 AIAgent 侧的 ctx.Get<IWorkflowService>() 才能拿到同一实例。
+        if (_workflowService != null) ctx.Register<IWorkflowService>(_workflowService);
+        if (_workflowExecutor != null) ctx.Register<IWorkflowExecutor>(_workflowExecutor);
+        if (_workflowScheduler != null) ctx.Register<IWorkflowScheduler>(_workflowScheduler);
+        XTrace.Log.Info("工作流引擎插件契约已写入插件上下文（IWorkflowService/Executor/Scheduler）");
+
         XTrace.Log.Info("工作流引擎插件初始化完成");
     }
 

@@ -21,11 +21,12 @@ public class UniversalToolTests
     private const string PluginId = "AIAgent";
     private const string SelfName = "universal_tool";
 
-    private static IToolFunctionExtension FakeTool(string name)
+    private static IToolFunctionExtension FakeTool(string name, string? description = null)
     {
         var mock = new Mock<IToolFunctionExtension>();
         mock.SetupGet(t => t.Name).Returns(name);
         mock.SetupGet(t => t.Id).Returns($"{PluginId}.{name}");
+        if (description != null) mock.SetupGet(t => t.Description).Returns(description);
         return mock.Object;
     }
 
@@ -156,6 +157,40 @@ public class UniversalToolTests
         Assert.Contains("no_such_tool", result);    // 报错点名未知工具
         Assert.Contains("3", result);               // 带已注册数量提示
         VerifyNeverDispatched(reg);                 // 预检失败不进分发
+    }
+
+    [Fact]
+    public async Task Execute_UnknownTool_HintContainsSearchGuidanceAndSuggestions()
+    {
+        // 输入2·2026-10-13：unknown 封套升级——hint 附 top 建议 + 「先 search_tools、再 list_tools」引导，
+        // 避免模型搜不到就退化为全量枚举（用户明确要避免的行为）。
+        var reg = new Mock<IToolRegistry>();
+        reg.Setup(r => r.GetAllTools())
+           .Returns(new[] { FakeTool("read_file", "读取项目文件内容 read"), FakeTool("calculate"), FakeTool("readme_helper") });
+        reg.Setup(r => r.GetTool(It.IsAny<string>())).Returns((IToolFunctionExtension?)null);
+
+        var tool = CreateTool(MakeContext(reg).Object);
+
+        var result = await tool.ExecuteAsync("""{"tool":"read","parameters":{}}""");
+
+        Assert.Contains("search_tools", result);    // 引导先搜索
+        Assert.Contains("list_tools", result);      // 搜不到的兜底路径仍在
+        Assert.Contains("read_file", result);       // top 建议（read 前缀命中、score 高于 readme_helper：后者无 read 描述）
+        VerifyNeverDispatched(reg);                 // 建议路径同样零分发
+    }
+
+    [Fact]
+    public async Task Execute_UnknownTool_NoSuggestionStillGuided()
+    {
+        var reg = MakeRegistry(known: false);
+        reg.Setup(r => r.GetAllTools()).Returns(new[] { FakeTool("calculate") });
+
+        var tool = CreateTool(MakeContext(reg).Object);
+
+        var result = await tool.ExecuteAsync("""{"tool":"zzz_no_hit","parameters":{}}""");
+
+        Assert.Contains("unknown tool", result);
+        Assert.Contains("search_tools", result);    // 无建议时只给引导语，封套整体仍可用
     }
 
     [Fact]

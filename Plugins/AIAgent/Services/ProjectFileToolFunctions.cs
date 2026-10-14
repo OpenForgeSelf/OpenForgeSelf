@@ -48,11 +48,15 @@ public class ListFilesToolFunction : IToolFunctionExtension
     {
         try
         {
-            var workspace = _ctx.Get<IProjectWorkspaceService>()
-                ?? throw new InvalidOperationException("项目工作区服务不可用");
-            if (!workspace.IsProjectSet)
+            var workspace = _ctx.Get<IProjectWorkspaceService>();
+            if (workspace == null)
             {
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "项目工作区服务不可用", hint = "检查插件宿主状态", usedRoot = (string?)null }));
+            }
+
+            if (!workspace.IsProjectSet && workspace.DefaultRoot == null)
+            {
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录", hint = "set directory via POST api/project/directory 或设置 FORGESELF_DEFAULT_PROJECT_ROOT", usedRoot = (string?)null }));
             }
 
             var path = string.Empty;
@@ -68,21 +72,33 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 .Select(e => new { e.Name, e.IsDirectory, e.RelativePath, e.Size })
                 .ToList();
 
+            // usedRoot=当前生效根（ProjectRoot 优先，未选目录时=回退根）。
+            var usedRoot = workspace.ProjectRoot ?? workspace.DefaultRoot;
             var response = new
             {
                 success = true,
                 root = workspace.ProjectRoot,
+                usedRoot,
                 path = path,
                 files = entries
             };
-            XTrace.Log.Info("[AIAgentPlugin] list_files 成功：root={0}, path={1}, 数量={2}", workspace.ProjectRoot, path, entries.Count);
+            XTrace.Log.Info("[AIAgentPlugin] list_files 成功：root={0}, usedRoot={1}, path={2}, 数量={3}", workspace.ProjectRoot, usedRoot, path, entries.Count);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] list_files 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, ex.Message)));
         }
+    }
+
+    /// <summary>失败封套（三个文件工具共用）：ResolveSafePath 类错误原样透传 ex.Message，root 可得时补 hint 标注约束根。</summary>
+    internal static object FailEnvelope(IContext ctx, string message)
+    {
+        var root = ctx.Get<IProjectWorkspaceService>() is { } ws ? ws.ProjectRoot ?? ws.DefaultRoot : null;
+        return root == null
+            ? new { success = false, error = message, usedRoot = (string?)null }
+            : new { success = false, error = message, hint = $"路径受当前项目根约束：PROJECT_ROOT={root}", usedRoot = root };
     }
 }
 
@@ -117,25 +133,30 @@ public class ReadFileToolFunction : IToolFunctionExtension
     {
         try
         {
-            var workspace = _ctx.Get<IProjectWorkspaceService>()
-                ?? throw new InvalidOperationException("项目工作区服务不可用");
-            if (!workspace.IsProjectSet)
+            var workspace = _ctx.Get<IProjectWorkspaceService>();
+            if (workspace == null)
             {
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "项目工作区服务不可用", hint = "检查插件宿主状态", usedRoot = (string?)null }));
+            }
+
+            if (!workspace.IsProjectSet && workspace.DefaultRoot == null)
+            {
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录", hint = "set directory via POST api/project/directory 或设置 FORGESELF_DEFAULT_PROJECT_ROOT", usedRoot = (string?)null }));
             }
 
             using var doc = JsonDocument.Parse(parameters);
             var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
 
             var content = workspace.ReadFile(path);
-            var response = new { success = true, path, content };
-            XTrace.Log.Info("[AIAgentPlugin] read_file 成功：root={0}, path={1}, 长度={2}", workspace.ProjectRoot, path, content.Length);
+            var usedRoot = workspace.ProjectRoot ?? workspace.DefaultRoot;
+            var response = new { success = true, path, content, usedRoot };
+            XTrace.Log.Info("[AIAgentPlugin] read_file 成功：root={0}, usedRoot={1}, path={2}, 长度={3}", workspace.ProjectRoot, usedRoot, path, content.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] read_file 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message)));
         }
     }
 }
@@ -175,11 +196,15 @@ public class WriteFileToolFunction : IToolFunctionExtension
     {
         try
         {
-            var workspace = _ctx.Get<IProjectWorkspaceService>()
-                ?? throw new InvalidOperationException("项目工作区服务不可用");
-            if (!workspace.IsProjectSet)
+            var workspace = _ctx.Get<IProjectWorkspaceService>();
+            if (workspace == null)
             {
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "项目工作区服务不可用", hint = "检查插件宿主状态", usedRoot = (string?)null }));
+            }
+
+            if (!workspace.IsProjectSet && workspace.DefaultRoot == null)
+            {
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "尚未选择项目目录，请先在左侧选择工作目录", hint = "set directory via POST api/project/directory 或设置 FORGESELF_DEFAULT_PROJECT_ROOT", usedRoot = (string?)null }));
             }
 
             using var doc = JsonDocument.Parse(parameters);
@@ -191,14 +216,15 @@ public class WriteFileToolFunction : IToolFunctionExtension
             // 解析绝对路径用于观测记录（与真实写入落点一致，受路径穿越防护约束）。
             var absPath = workspace.ResolveSafePath(path);
             workspace.WriteFile(path, content);
-            var response = new { success = true, path, contentLength = content.Length };
-            XTrace.Log.Info("[AIAgentPlugin] write_file 成功：root={0}, 绝对路径={1}, 大小={2}", workspace.ProjectRoot, absPath, content.Length);
+            var usedRoot = workspace.ProjectRoot ?? workspace.DefaultRoot;
+            var response = new { success = true, path, contentLength = content.Length, usedRoot };
+            XTrace.Log.Info("[AIAgentPlugin] write_file 成功：root={0}, usedRoot={1}, 绝对路径={2}, 大小={3}", workspace.ProjectRoot, usedRoot, absPath, content.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] write_file 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message)));
         }
     }
 }

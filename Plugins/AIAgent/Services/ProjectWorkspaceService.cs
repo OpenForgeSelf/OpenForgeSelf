@@ -24,6 +24,12 @@ public interface IProjectWorkspaceService
     /// <summary>当前项目根目录绝对路径；未选中时为 null。</summary>
     string? ProjectRoot { get; }
 
+    /// <summary>
+    /// 未选项目目录时的回退根；null=无法确定，调用方应给引导错误。
+    /// 解析优先级：环境变量 FORGESELF_DEFAULT_PROJECT_ROOT（存在且为目录）→ AppContext.BaseDirectory 上溯含 ForgeSelf.slnx/.git 的祖先 → null。
+    /// </summary>
+    string? DefaultRoot { get; }
+
     /// <summary>设定项目根目录。返回 false 并给出错误（目录不存在/不是目录）。</summary>
     bool TrySetProjectRoot(string root, out string? error);
 
@@ -46,7 +52,11 @@ public interface IProjectWorkspaceService
 public class ProjectWorkspaceService : IProjectWorkspaceService
 {
     private const string RootLockKey = nameof(ProjectWorkspaceService);
+    /// <summary>默认根候选 (a)：环境变量名。</summary>
+    public const string DefaultRootEnvVariable = "FORGESELF_DEFAULT_PROJECT_ROOT";
+
     private string? _root;
+    private string? _defaultRoot;
 
     public bool IsProjectSet => ProjectRoot != null;
 
@@ -59,6 +69,48 @@ public class ProjectWorkspaceService : IProjectWorkspaceService
                 return _root;
             }
         }
+    }
+
+    public string? DefaultRoot
+    {
+        get
+        {
+            lock (RootLockKey)
+            {
+                _defaultRoot ??= ResolveDefaultRoot(
+                    Environment.GetEnvironmentVariable(DefaultRootEnvVariable),
+                    AppContext.BaseDirectory);
+                return _defaultRoot;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 默认根解析纯函数（DefaultRoot 缓存未命中时调用；internal 供测试工程直测三级候选）。
+    /// </summary>
+    internal static string? ResolveDefaultRoot(string? envVariable, string probeStart)
+    {
+        // 优先级 (a)：环境变量 FORGESELF_DEFAULT_PROJECT_ROOT 存在且为已存在目录。
+        if (!string.IsNullOrWhiteSpace(envVariable)
+            && Directory.Exists(envVariable.Trim()))
+        {
+            return Path.GetFullPath(envVariable.Trim());
+        }
+
+        // 优先级 (b)：程序基目录逐级上溯，第一个含 ForgeSelf.slnx 或 .git 的祖先目录（含自身）。
+        var dir = Path.GetFullPath(probeStart);
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir, "ForgeSelf.slnx")) || Directory.Exists(Path.Combine(dir, ".git")))
+            {
+                return dir;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        // 优先级 (c)：无法确定 → null，由调用方给引导错误。
+        return null;
     }
 
     public bool TrySetProjectRoot(string root, out string? error)
@@ -97,18 +149,37 @@ public class ProjectWorkspaceService : IProjectWorkspaceService
 
     public string ResolveSafePath(string relativePath)
     {
+        // 根优先级：GUI 选定（ProjectRoot）> 回退根（DefaultRoot）；两者皆 null → 引导错误。
         var root = ProjectRoot
-            ?? throw new InvalidOperationException("未选择项目目录，请先在左侧选择工作目录");
+            ?? DefaultRoot
+            ?? throw new InvalidOperationException(
+                "未选择项目目录且未设置 FORGESELF_DEFAULT_PROJECT_ROOT，请在左侧选择工作目录或设置环境变量");
 
         var normalized = relativePath?.Replace('/', Path.DirectorySeparatorChar) ?? string.Empty;
+
+        // 绝对路径直通：不与 root 拼接，但仍必须落在 root 前缀内（防穿越语义不放松）。
         string combined;
-        try
+        if (Path.IsPathRooted(normalized))
         {
-            combined = Path.GetFullPath(Path.Combine(root, normalized));
+            try
+            {
+                combined = Path.GetFullPath(normalized);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"路径非法：{ex.Message}");
+            }
         }
-        catch (Exception ex)
+        else
         {
-            throw new InvalidOperationException($"路径非法：{ex.Message}");
+            try
+            {
+                combined = Path.GetFullPath(Path.Combine(root, normalized));
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"路径非法：{ex.Message}");
+            }
         }
 
         var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;

@@ -104,8 +104,11 @@ public sealed class UniversalToolForwarder
             if (registry.GetTool(toolName) == null)
             {
                 var n = registry.GetAllTools().Count();
+                // 输入2·2026-10-13：未知工具封套附 top 搜索建议（与 AIAgent ToolSearchScorer 同规则的轻量复刻，
+                // 插件间无公共工程可放，两处注释互指；第三处需求出现再上移）
+                var hint = ToolSearchHints(registry.GetAllTools(), toolName);
                 XTrace.Log.Info("[McpCenter] universal_tool 未知工具：{0}（已注册 {1} 个）", toolName, n);
-                return Err($"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）");
+                return Err($"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）{hint}");
             }
 
             // 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
@@ -143,6 +146,50 @@ public sealed class UniversalToolForwarder
 
     private static ForwardResult Err(string message) =>
         new() { Text = JsonSerializer.Serialize(new { success = false, error = message }), IsError = true };
+
+    /// <summary>
+    /// 未知工具错误追加的搜索提示（输入2·2026-10-13）：名称全词=5/包含=3（前缀+1）/描述包含=1，
+    /// 与 AIAgent ToolSearchScorer 同规则（插件间无公共工程可放，此处轻量自包含；先用 search_tools，
+    /// 检索无果再 list_tools）。McpCenter 自身没有独立 search 工具时，这段提示引导外部客户端用 list_tools(keyword) 过滤枚举。
+    /// </summary>
+    private static string ToolSearchHints(IEnumerable<IToolFunctionExtension> tools, string toolName)
+    {
+        try
+        {
+            var kw = toolName.Trim();
+            var scored = tools
+                .Select(t =>
+                {
+                    var s = 0;
+                    if (!string.IsNullOrWhiteSpace(t.Name))
+                    {
+                        if (t.Name.Equals(kw, StringComparison.OrdinalIgnoreCase)) s += 5;
+                        else
+                        {
+                            var idx = t.Name.IndexOf(kw, StringComparison.OrdinalIgnoreCase);
+                            if (idx >= 0) s += idx == 0 ? 4 : 3;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(t.Description) &&
+                        t.Description.Contains(kw, StringComparison.OrdinalIgnoreCase)) s += 1;
+                    return (Tool: t, Score: s);
+                })
+                .Where(x => x.Score > 0)
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.Tool.Name, StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .ToList();
+
+            return scored.Count > 0
+                ? $"did you mean: {string.Join(" / ", scored.Select(x => x.Tool.Name))}？（先 search_tools/list_tools(keyword) 检索，避免全量枚举）"
+                : "（可 list_tools 按关键字过滤枚举全部工具）";
+        }
+        catch
+        {
+            // 建议生成失败不能吞掉原本的 unknown 错误封套
+            return string.Empty;
+        }
+    }
 
     /// <summary>
     /// 外部 MCP 工具转发：tool 形如 mcp.&lt;服务器id&gt;.&lt;工具名&gt;（命名空间内不含点，工具名按首段点拆分）。

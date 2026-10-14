@@ -301,7 +301,10 @@ public class AIAgentService : IAIAgentService
         var provider = ResolveProvider(string.IsNullOrWhiteSpace(effective.ModelId) ? null : effective.ModelId)
             ?? throw new InvalidOperationException("未找到可用的 AI 提供方（检查提供方配置与模型路由）");
 
-        var tools = ResolveOwnToolDefinitions();
+        // Agent 显式声明了工具白名单 ⇒ 候选池放开到全注册表（显式意图不再受默认作用域插件白名单限制）。
+        var tools = effective.ToolAllowlist is { Count: > 0 }
+            ? ResolveSelectableToolDefinitions()
+            : ResolveOwnToolDefinitions();
         if (effective.ToolAllowlist is { Count: > 0 })
         {
             var allowed = new HashSet<string>(effective.ToolAllowlist, StringComparer.OrdinalIgnoreCase);
@@ -385,13 +388,21 @@ public class AIAgentService : IAIAgentService
         // 工具范围：只挂本插件自己的工具（时间/计算/项目文件/工作流等 ~9 个），
         // 而不是宿主 IToolRegistry 的全部 ~77 个——全量工具会把 prompt 撑爆，
         // 本地小模型（如 gemma-4-e4b）上下文不足导致上游 400（实测 12s 后 400）。
-        var tools = enableTools ? ResolveOwnToolDefinitions() : new List<AIToolDefinition>();
+        // 工具范围：未显式勾选时只挂默认作用域（本插件 + memory-system + design-system），
+        // 而不是宿主 IToolRegistry 的全部 ~77 个——全量工具会把 prompt 撑爆，
+        // 本地小模型（如 gemma-4-e4b）上下文不足导致上游 400（实测 12s 后 400）。
+        // 显式勾选时（composer 🔧 / Agent 白名单）候选池放开到全注册表：勾选即明确意图，
+        // 不再受默认作用域的插件白名单限制（否则 todo-tracker 等插件工具永远挂载不上）。
+        var explicitPick = enableTools && enabledToolNames is { Count: > 0 };
+        var tools = enableTools
+            ? (explicitPick ? ResolveSelectableToolDefinitions() : ResolveOwnToolDefinitions())
+            : new List<AIToolDefinition>();
 
-        // 工具白名单过滤：composer 🔧 多选非空时只启用所选工具（仍限白名单插件）。
+        // 工具白名单过滤：composer 🔧 多选非空时只启用所选工具。
         // 空/未传 = 默认全挂（向后兼容）。
-        if (enableTools && enabledToolNames is { Count: > 0 })
+        if (explicitPick)
         {
-            var allowed = new HashSet<string>(enabledToolNames, StringComparer.OrdinalIgnoreCase);
+            var allowed = new HashSet<string>(enabledToolNames!, StringComparer.OrdinalIgnoreCase);
             tools = tools.Where(t => allowed.Contains(t.Function.Name)).ToList();
             XTrace.Log.Info("[AIAgentPlugin] 工具白名单过滤：请求 {0} 个，挂载 {1} 个",
                 allowed.Count, tools.Count);
@@ -574,13 +585,28 @@ public class AIAgentService : IAIAgentService
     /// 记忆工具经 L1 契约（IMemoryService）由 MemorySystem 提供，Agent 可检索注入、也可主动 add_memory。
     /// </summary>
     private List<AIToolDefinition> ResolveOwnToolDefinitions()
+        => ResolveToolDefinitions(scopePluginsOnly: true);
+
+    /// <summary>
+    /// 可显式选择的全量工具定义：宿主 <see cref="IToolRegistry"/> 全部已注册工具（剔除计划驱动运行流特殊工具）。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="ResolveOwnToolDefinitions"/> 的区别：后者是「默认挂载作用域」（不指定工具时挂什么），
+    /// 只含本插件 + memory-system + design-system，避免 ~77 个工具撑爆本地小模型 prompt → 上游 400。
+    /// 本方法是「用户/Agent 显式勾选时的候选池」——显式勾选是明确意图（例如勾 todo 工具），
+    /// 不应再被默认作用域的插件白名单拦掉（历史缺陷：composer 里看得到 todo 工具却永远挂载不上）。
+    /// </remarks>
+    private List<AIToolDefinition> ResolveSelectableToolDefinitions()
+        => ResolveToolDefinitions(scopePluginsOnly: false);
+
+    private List<AIToolDefinition> ResolveToolDefinitions(bool scopePluginsOnly)
     {
         var pluginId = _ctx.Get<PluginMetadata>()?.Id ?? string.Empty;
         var allowedPlugins = new HashSet<string>(ToolScopePluginIds(pluginId), StringComparer.OrdinalIgnoreCase);
         var result = new List<AIToolDefinition>();
         foreach (var tool in ToolRegistry.GetAllTools())
         {
-            if (!allowedPlugins.Contains(tool.PluginId)) continue;
+            if (scopePluginsOnly && !allowedPlugins.Contains(tool.PluginId)) continue;
             // 计划驱动运行流特殊工具不进 FreeLoop（R4）：仅 PlanDriven 步骤循环经 extraTools 显式挂载。
             if (tool.Name is "submit_plan" or "complete_step" or "request_help") continue;
             object? parameters;

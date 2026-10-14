@@ -120,7 +120,35 @@
         </div>
         <div class="aed__row">
           <label class="aed__label">工具（tools）</label>
-          <TagInput v-model="form.tools" placeholder="输入工具名，回车添加，如：get_current_time" />
+          <!-- 下拉多选（原为纯文本 TagInput，用户无法知道有哪些工具可填）。
+               候选来自 GET /api/ai-agent/chat/tools（宿主 ToolRegistry 全量已注册工具）。
+               留空 = 后端挂默认作用域；勾选 = 仅启用所选（可跨插件，如 todo 工具）。 -->
+          <ElSelect
+            v-model="form.tools"
+            class="aed__select-multi"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            :reserve-keyword="false"
+            placeholder="选择该 Agent 可用的工具（留空 = 默认作用域）"
+            no-match-text="未找到匹配工具"
+          >
+            <ElOption
+              v-for="t in toolOptions"
+              :key="t.name"
+              :value="t.name ?? ''"
+              :label="t.name ?? ''"
+            >
+              <span class="aed__opt-name">{{ t.name }}</span>
+              <span class="aed__opt-plugin">{{ t.pluginId }}</span>
+              <span class="aed__opt-desc" :title="t.description">{{ t.description }}</span>
+            </ElOption>
+          </ElSelect>
+          <p class="aed__hint aed__hint--block">
+            共 {{ toolOptions.length }} 个可用工具 · 留空 = 启用默认作用域（AI Agent + 记忆 + 设计）
+          </p>
         </div>
         <div class="aed__row">
           <label class="aed__label">局限性</label>
@@ -181,9 +209,9 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ElButton, ElDialog, ElMessageBox } from 'element-plus'
-import type { AgentDefinition, AgentPersonality, WorkflowItem } from '../types'
-import { createAgent, deleteAgent, fetchWorkflows, updateAgent } from '../http'
+import { ElButton, ElDialog, ElMessageBox, ElOption, ElSelect } from 'element-plus'
+import type { AgentDefinition, AgentPersonality, AgentTool, WorkflowItem } from '../types'
+import { apiGet, createAgent, deleteAgent, fetchWorkflows, updateAgent } from '../http'
 import TagInput from './TagInput.vue'
 
 const props = defineProps<{
@@ -245,6 +273,13 @@ const form = reactive({
 /** 可选的关联工作流（来自 WorkflowEngine /api/workflows；懒加载一次）。 */
 const workflowOptions = ref<WorkflowItem[]>([])
 const workflowsLoaded = ref(false)
+/**
+ * 工具下拉候选（来自 GET /api/ai-agent/chat/tools，宿主 ToolRegistry 全量）。
+ * 与 composer 🔧 同源：剔除计划驱动运行流特殊工具（不进 FreeLoop，只由 PlanDriven 显式挂载）。
+ */
+const toolOptions = ref<AgentTool[]>([])
+const toolsLoaded = ref(false)
+
 /** 已选中工作流的展示摘要（对应 workflowIds）。 */
 const associatedWorkflows = computed(() =>
   workflowOptions.value.filter((w) => form.workflowIds.includes(w.id as number)),
@@ -313,6 +348,7 @@ watch(
     if (!v) return
     error.value = ''
     loadWorkflows()
+    void loadTools()
     if (props.agent) fillForm(props.agent)
     else defaultForm()
   },
@@ -329,6 +365,29 @@ async function loadWorkflows() {
     workflowOptions.value = []
     // 记录但不阻断：工作流接口不可用时仍可编辑 Agent 其他字段。
     console.error('[AgentEditDialog] 加载工作流失败', e)
+  }
+}
+
+/** 计划驱动运行流特殊工具：不进 FreeLoop，故不出现在下拉候选里。 */
+const RUN_FLOW_TOOL_NAMES = new Set(['submit_plan', 'complete_step', 'request_help'])
+
+/** 懒加载可用工具一次（失败静默降级为空列表，不阻断编辑）。 */
+async function loadTools() {
+  if (toolsLoaded.value) return
+  toolsLoaded.value = true
+  try {
+    const data = await apiGet<{ tools?: AgentTool[] }>('/api/ai-agent/chat/tools')
+    toolOptions.value = (data?.tools ?? [])
+      .filter((t) => !!t.name && !RUN_FLOW_TOOL_NAMES.has(t.name!))
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.pluginId ?? '').localeCompare(b.pluginId ?? '') ||
+          (a.name ?? '').localeCompare(b.name ?? ''),
+      )
+  } catch (e) {
+    toolOptions.value = []
+    console.error('[AgentEditDialog] 加载工具列表失败', e)
   }
 }
 
@@ -512,6 +571,41 @@ async function onDelete() {
 
 .aed__input--avatar {
   width: 100px;
+}
+
+/* 工具多选下拉：占满整行（ElSelect 默认 inline-block，需显式撑宽与 .aed__row 对齐）。 */
+.aed__select-multi {
+  width: 100%;
+}
+
+/* 下拉选项行：工具名 + 来源插件徽标 + 说明（说明过长省略，title 兜底完整文案）。 */
+.aed__opt-name {
+  font-size: var(--el-font-size-small, 13px);
+  color: var(--el-text-color-primary, #e5eaf3);
+}
+
+.aed__opt-plugin {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: var(--el-border-radius-round, 999px);
+  background: var(--el-fill-color-light, rgba(144, 147, 153, 0.12));
+  color: var(--el-text-color-secondary, #a3a6ad);
+  font-size: 10px;
+}
+
+.aed__opt-desc {
+  float: right;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--el-text-color-placeholder, #8c959f);
+  font-size: var(--el-font-size-extra-small, 12px);
+}
+
+.aed__hint--block {
+  display: block;
+  margin: 4px 0 0;
 }
 
 .aed__select {

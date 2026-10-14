@@ -3,6 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { categories, mergeFeatureList, type FeatureItem } from '@/data/features'
 // 图标表已抽到单一源（原为本地常量，首页「常用功能」也需使用）
 import { lucideIconSvg } from '@/data/featureIcons'
+// 排序与钉住与首页「常用功能」同一套口径（rankFeatures / usageStats store 同源数据）
+import { featureUsageKey, rankFeatures, type UsageSnapshot } from '@/data/homeEntries'
+import { useUsageStatsStore } from '@/stores/usageStats'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
 import type { PluginMenuContribution } from '@/types/plugin'
 import { useOpenPage } from '@/composables/useOpenPage'
@@ -11,6 +14,7 @@ import ForgeCard from '@/components/ForgeCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const manifestStore = usePluginManifestStore()
+const usageStore = useUsageStatsStore()
 
 const activeCategory = ref('all')
 const searchQuery = ref('')
@@ -18,8 +22,17 @@ const searchQuery = ref('')
 // 优先读插件清单（mergeFeatureList 在清单为空/未就绪时回退到内置 features.ts）。
 const effectiveFeatures = computed(() => mergeFeatureList(manifestStore.menus))
 
+// 使用度快照 + 排序刻度（与 HomeView 同款防抖做法：在数据更新时刻 stamped，避免排序实时抖动）。
+const usageSnapshot = ref<UsageSnapshot>({ visits: {}, pinned: [] })
+const rankTick = ref(Date.now())
+
+// 排序口径与首页一致：钉住最前 → 频次高（带时间衰减）在前 → 冷启动回退 features.ts 原顺序。
+const rankedFeatures = computed(() =>
+  rankFeatures(effectiveFeatures.value, usageSnapshot.value, rankTick.value),
+)
+
 const filteredFeatures = computed(() => {
-  return effectiveFeatures.value.filter((f) => {
+  return rankedFeatures.value.filter((f) => {
     const matchesCategory = activeCategory.value === 'all' || f.category === activeCategory.value
     const q = searchQuery.value.trim().toLowerCase()
     const matchesSearch =
@@ -31,8 +44,23 @@ const filteredFeatures = computed(() => {
   })
 })
 
+/** 是否已钉住（键 = path，无页面功能退回 id，与统计口径一致）。 */
+function isPinned(item: FeatureItem): boolean {
+  return usageSnapshot.value.pinned.includes(featureUsageKey(item))
+}
+
+/** 切换钉住：钉住项排最前，并常驻顶部导航栏（TopNavbar 读同一份 pinned）。 */
+function togglePin(item: FeatureItem): void {
+  usageStore.togglePin(featureUsageKey(item))
+  usageSnapshot.value = usageStore.snapshot()
+  rankTick.value = Date.now()
+}
+
 onMounted(() => {
   void manifestStore.loadManifest()
+  // 使用度 store 懒加载：进页面即读一次，保证钉住/热度与首页看到的一致
+  usageStore.load()
+  usageSnapshot.value = usageStore.snapshot()
 })
 
 function setCategory(key: string): void {
@@ -132,6 +160,30 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
           >
             <!-- Accent bar -->
             <div class="accent-bar" :style="{ background: item.color }" />
+
+            <!-- 钉住按钮（卡片右上角操作）：钉住后排最前，并常驻顶部导航栏 -->
+            <button
+              class="pin-btn"
+              :class="{ 'pin-btn--on': isPinned(item) }"
+              :title="isPinned(item) ? '取消钉住' : '钉住到顶部（并固定在顶部导航栏）'"
+              :aria-label="isPinned(item) ? `取消钉住 ${item.name}` : `钉住 ${item.name}`"
+              @click.stop="togglePin(item)"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                :fill="isPinned(item) ? 'currentColor' : 'none'"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 17v5" />
+                <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z" />
+              </svg>
+            </button>
 
             <div class="card-body">
               <!-- Status dot -->
@@ -438,6 +490,44 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* 钉住按钮（卡片右上角）：悬停浮现，钉住后常显并填充 */
+.pin-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--el-text-color-placeholder);
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  transition:
+    opacity 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.feature-card:hover .pin-btn,
+.pin-btn--on {
+  opacity: 1;
+}
+
+.pin-btn:hover {
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
+}
+
+.pin-btn--on {
+  color: var(--el-color-primary);
+  background: var(--el-fill-color-light);
 }
 
 .accent-bar {

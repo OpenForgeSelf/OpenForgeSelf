@@ -121,3 +121,42 @@ export function rankEntries(
     .slice(0, limit)
     .map((r) => r.entry)
 }
+
+/**
+ * 功能项的排序键：有可跳转路由时用 path（与全局使用统计口径一致），
+ * 无页面功能（如仅后端插件）退回内置 id —— 保证「所有功能」页的每一项都能被钉住。
+ */
+export function featureUsageKey(f: FeatureItem): string {
+  return f.path || f.id
+}
+
+/**
+ * 把**完整功能列表**按「固定 → 热度 → 原始顺序」重排（不截断、不过滤）。
+ *
+ * 与 {@link rankEntries} 的区别：后者只处理首页入口（过滤掉禁用/无路径项）并截断数量；
+ * 本函数服务于「所有功能」页——那里要展示全部功能（含仅后端、无页面的），
+ * 但排序口径必须与首页完全一致（钉住最前 → 频次高在前 → 冷启动回退原顺序），
+ * 否则两处顺序打架，用户刚在首页置顶的功能到了功能列表又沉底。
+ *
+ * @returns 重排后的 FeatureItem[]（原地不改，返回新数组）
+ */
+export function rankFeatures(
+  features: FeatureItem[],
+  usage: UsageSnapshot,
+  now: number,
+): FeatureItem[] {
+  const pinnedSet = new Set(usage.pinned ?? [])
+  return features
+    .map((f, index) => ({
+      f,
+      index,
+      score: usageScore(usage.visits?.[featureUsageKey(f)], now),
+      pinned: pinnedSet.has(featureUsageKey(f)),
+    }))
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      if (b.score !== a.score) return b.score - a.score
+      return a.index - b.index
+    })
+    .map((x) => x.f)
+}

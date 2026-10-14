@@ -1,27 +1,66 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Box, Grid, Picture, Setting } from '@element-plus/icons-vue'
 import { useTabsStore } from '@/stores/tabs'
 import { useOpenPage } from '@/composables/useOpenPage'
 import BackgroundPanel from '@/components/BackgroundPanel.vue'
 import AppLogo from '@/components/AppLogo.vue'
+// 钉住常驻标签：与首页「常用功能」/「所有功能」页共用同一份使用度数据（pinned）
+import { useUsageStatsStore } from '@/stores/usageStats'
+import { usePluginManifestStore } from '@/stores/pluginManifest'
+import { mergeFeatureList } from '@/data/features'
+import { featureUsageKey } from '@/data/homeEntries'
+import type { NavTab } from '@/stores/tabs'
 
 const router = useRouter()
 const route = useRoute()
 const tabsStore = useTabsStore()
 const { openPage } = useOpenPage()
+const usageStore = useUsageStatsStore()
+const manifestStore = usePluginManifestStore()
 
 // 标签栏统一从 tabs store 读取（基础标签 + 动态打开的页）
 const navTabs = computed(() => tabsStore.tabs)
 
+/**
+ * 钉住常驻标签：来自使用度 store 的 pinned 列表（键=path，与统计口径一致）。
+ * - 数据单一来源：所有功能页卡片「钉住」/ 此处图钉取消，改的是同一份 pinned；
+ * - 只展示有可跳转路由的功能（无页面功能如仅后端插件没有标签可开）；
+ * - 插在「首页」之后、动态标签之前，不可通过 × 关闭（取消钉住走图钉按钮）。
+ */
+const pinnedTabs = computed<NavTab[]>(() => {
+  const byKey = new Map(mergeFeatureList(manifestStore.menus).map((f) => [featureUsageKey(f), f]))
+  return usageStore.pinned
+    .map((key) => {
+      const f = byKey.get(key)
+      return f?.path ? { key: `pin:${f.path}`, label: f.name, path: f.path } : null
+    })
+    .filter((t): t is NavTab => !!t && t.path !== '/')
+})
+
+/** 展示用标签序列：首页 → 钉住常驻 → 其余动态标签（钉住项若已被动态打开则去重，只保留常驻位）。 */
+const displayTabs = computed<NavTab[]>(() => {
+  const home = navTabs.value.filter((t) => t.path === '/')
+  const dynamic = navTabs.value.filter((t) => t.path !== '/')
+  const pinnedPaths = new Set(pinnedTabs.value.map((t) => t.path))
+  return [...home, ...pinnedTabs.value, ...dynamic.filter((t) => !pinnedPaths.has(t.path))]
+})
+
 const activeTab = computed(() => {
   const path = route.path
-  const match = navTabs.value.find((t) => t.path === path)
+  const match = displayTabs.value.find((t) => t.path === path)
   if (match) return match.path
   if (path.startsWith('/agents')) return '/ai-agent'
   return ''
 })
+
+/** 该标签是否为钉住常驻项（常驻项不显示 × 关闭，改显示图钉；点图钉 = 取消钉住）。 */
+const pinnedPathSet = computed(() => new Set(pinnedTabs.value.map((t) => t.path)))
+
+function isPinnedTab(tab: NavTab): boolean {
+  return pinnedPathSet.value.has(tab.path)
+}
 
 function navigateTo(path: string): void {
   router.push(path)
@@ -34,6 +73,16 @@ function closeTab(path: string): void {
     router.push('/')
   }
 }
+
+/** 取消钉住：从常驻序列移除；若该页此前未打开，标签随之消失。 */
+function unpin(path: string): void {
+  usageStore.togglePin(path)
+}
+
+onMounted(() => {
+  // 使用度 store 懒加载：进站即读一次，保证钉住标签在刷新后立即恢复
+  usageStore.load()
+})
 
 // 背景设置面板开合（DESIGN.md 壳层：右上 300px glass-strong 浮层）
 const bgPanelOpen = ref(false)
@@ -49,7 +98,7 @@ const bgPanelOpen = ref(false)
 
     <nav class="tab-nav min-w-0" aria-label="页面标签">
       <button
-        v-for="tab in navTabs"
+        v-for="tab in displayTabs"
         :key="tab.key"
         class="tab-item"
         :class="{ active: activeTab === tab.path }"
@@ -57,7 +106,13 @@ const bgPanelOpen = ref(false)
       >
         <span>{{ tab.label }}</span>
         <span
-          v-if="tab.path !== '/'"
+          v-if="isPinnedTab(tab)"
+          class="close-x"
+          :title="`取消钉住 ${tab.label}`"
+          @click.stop="unpin(tab.path)"
+        >📌</span>
+        <span
+          v-else-if="tab.path !== '/'"
           class="close-x"
           :title="`关闭 ${tab.label}`"
           @click.stop="closeTab(tab.path)"

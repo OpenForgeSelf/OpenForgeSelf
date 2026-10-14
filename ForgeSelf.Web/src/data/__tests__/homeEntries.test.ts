@@ -3,7 +3,9 @@ import {
   HOME_ENTRY_LIMIT,
   MAX_VISITS_PER_KEY,
   buildHomeEntries,
+  featureUsageKey,
   rankEntries,
+  rankFeatures,
   rankEntriesDetailed,
   usageScore,
   type UsageSnapshot,
@@ -147,5 +149,38 @@ describe('存储体积约束', () => {
   it('单入口访问上限常量存在且合理，避免 localStorage 膨胀', () => {
     expect(MAX_VISITS_PER_KEY).toBeGreaterThan(0)
     expect(MAX_VISITS_PER_KEY).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('featureUsageKey / rankFeatures（「所有功能」页排序，与首页同口径）', () => {
+  it('有路径的功能键 = path；无页面功能退回内置 id', () => {
+    expect(featureUsageKey(feature('/ai-agent'))).toBe('/ai-agent')
+    expect(featureUsageKey(feature(null, { id: 'scheduler' }))).toBe('scheduler')
+  })
+
+  it('rankFeatures：钉住最前 → 热度降序 → 冷启动回退原顺序', () => {
+    const list = [
+      feature('/a', { name: 'A' }),
+      feature('/b', { name: 'B' }),
+      feature('/c', { name: 'C' }),
+    ]
+    // B 被钉住，C 最近访问过 1 次，A 无访问
+    const snapshot = usage({ '/c': [NOW] }, ['/b'])
+    expect(rankFeatures(list, snapshot, NOW).map((f) => f.name)).toEqual(['B', 'C', 'A'])
+  })
+
+  it('rankFeatures：不过滤无页面功能（与首页 buildHomeEntries 的过滤行为不同）', () => {
+    const list = [feature('/a'), feature(null, { id: 'scheduler', name: '定时任务' })]
+    const ranked = rankFeatures(list, usage({}), NOW)
+    expect(ranked).toHaveLength(2)
+    // 钉住无页面功能（键 = id）也应生效：排到最前
+    expect(rankFeatures(list, usage({}, ['scheduler']), NOW)[0].id).toBe('scheduler')
+  })
+
+  it('rankFeatures：原地不改，返回新数组', () => {
+    const list = [feature('/a'), feature('/b')]
+    const ranked = rankFeatures(list, usage({}), NOW)
+    expect(ranked).not.toBe(list)
+    expect(list.map((f) => f.id)).toEqual(['/a', '/b'])
   })
 })

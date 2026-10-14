@@ -42,6 +42,11 @@ if (-not $Version) {
     if ($env:GITHUB_REF_NAME) { $Version = $env:GITHUB_REF_NAME } else { $Version = '0.0.0-local' }
 }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
+# 本地打包默认输出到「项目上级 updates 目录」（仓库外、不入 git，避免污染工作区与误入版本控制）；
+# CI（GITHUB_REF_NAME 有值）不传 -UpdateDir，保持 GitHub Release 通道、不向仓库外写目录。
+if (-not $UpdateDir -and -not $env:GITHUB_REF_NAME) {
+    $UpdateDir = Join-Path (Split-Path $repoRoot -Parent) 'updates'
+}
 # 发行串解析（2026-10-02 版本规则，真源 §1.1）：
 #   显式 -Version：3 段（2.3.0）自动补 yyMMddHHmm；4 段（含时间码）幂等原样；
 #   CI tag / 本地缺省串：视为发行标识原样使用，绝不改写（改写会让产物版本 ≠ tag）。

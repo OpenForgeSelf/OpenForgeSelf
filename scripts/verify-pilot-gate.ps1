@@ -181,6 +181,29 @@ foreach ($d in $pilotDirs) {
     }
 }
 
+function ConvertTo-GlobRegex {
+    param([string]$Glob)
+    $g = ($Glob.Trim() -replace '\\', '/').TrimEnd('/')
+    $sb = [System.Text.StringBuilder]::new('^')
+    $i = 0
+    while ($i -lt $g.Length) {
+        $c = $g[$i]
+        if ($c -eq '*') {
+            if ($i + 1 -lt $g.Length -and $g[$i + 1] -eq '*') {
+                if ($i + 2 -lt $g.Length -and $g[$i + 2] -eq '/') {
+                    [void]$sb.Append('(?:.*/)?'); $i += 3; continue   # **/ = 零或多层目录
+                }
+                [void]$sb.Append('.*'); $i += 2; continue            # 其余位置的 **
+            }
+            [void]$sb.Append('[^/]*'); $i++; continue                # 单个 * 不跨目录
+        }
+        if ($c -eq '?') { [void]$sb.Append('[^/]'); $i++; continue }
+        [void]$sb.Append([regex]::Escape([string]$c)); $i++
+    }
+    [void]$sb.Append('(?:/.*)?$')                                     # 保留"写目录即含其下全部"的旧行为
+    return $sb.ToString()
+}
+
 # ---- 3) 范围守卫：代码 diff 必须落在某个 pilot 的 04 expected_files 内 ----
 if (-not $SkipScope -and $codeChanged.Count -gt 0) {
     $allowed = @()
@@ -206,8 +229,7 @@ if (-not $SkipScope -and $codeChanged.Count -gt 0) {
         foreach ($f in $codeChanged) {
             $ok = $false
             foreach ($p in $allowed) {
-                $pp = ($p -replace '\*\*', '*').TrimEnd('/')
-                if ($f -eq $pp -or $f -like "$pp/*" -or $f -like $pp) { $ok = $true; break }
+                if ($f -cmatch (ConvertTo-GlobRegex $p)) { $ok = $true; break }
             }
             if (-not $ok) {
                 Write-Output ("  [FAIL] 越界 diff（未在 expected_files 中）: {0}" -f $f)

@@ -20,7 +20,8 @@ const BE = resolve(__dirname, '..', '..', 'ForgeSelf.Api')
 const featuresFile = join(FE, 'src', 'data', 'features.ts')
 const viewsDir = join(FE, 'src', 'views')
 const controllersDir = join(BE, 'Controllers')
-const pluginsDir = join(BE, 'Plugins')
+// 插件已拆到仓库根目录；保留旧路径作为兼容候选，避免迁移中的仓库误报。
+const pluginsDirs = [join(resolve(FE, '..'), 'Plugins'), join(BE, 'Plugins')]
 
 // 基础设施类产物：存在但不作为用户功能，不计入孤儿检查
 const CONTROLLER_DENY = new Set([
@@ -33,8 +34,10 @@ const CONTROLLER_DENY = new Set([
   'AgentChat', // 统一 AI 网关内部（UnifiedAI/AgentChatController.cs，Agent Framework 实验通道）
   'AgentDemoTools', // Agent Framework 实验性演示工具（非控制器）
   'AgentStreamTranslator', // Agent Framework 实验性流翻译器（非控制器）
+  'Dev', // 宿主开发/调试基础设施
+  'Update', // 宿主自更新基础设施
 ])
-const PLUGIN_DENY = new Set(['Abstractions', 'Services', 'SamplePlugin'])
+const PLUGIN_DENY = new Set(['Abstractions', 'Services', 'SamplePlugin', 'Dev'])
 const VIEW_DENY = new Set(['HomeView', 'AllFeaturesView', 'PluginPage'])
 
 const errors = []
@@ -73,6 +76,25 @@ function parseArr(inner, key) {
   return [...km[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
 }
 
+function hasNamedFile(dir, fileName) {
+  if (!existsSync(dir)) return false
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) {
+      if (hasNamedFile(full, fileName)) return true
+    } else if (entry === fileName) return true
+  }
+  return false
+}
+
+function hasPluginFile(root, area, fileName) {
+  if (!existsSync(root)) return false
+  return readdirSync(root).some((entry) => {
+    const pluginDir = join(root, entry)
+    return statSync(pluginDir).isDirectory() && hasNamedFile(join(pluginDir, area), fileName)
+  })
+}
+
 if (features.length === 0) {
   fail('未能从 features.ts 解析出任何功能，请检查文件格式（signals 需置于对象末位）。')
   finish()
@@ -92,19 +114,24 @@ for (const f of features) {
 for (const f of features) {
   for (const v of f.views) {
     // 视图文件名本身不统一（有的带 View 后缀，有的不带），signals.views 写精确 stem
-    const p = join(viewsDir, `${v}.vue`)
-    if (!existsSync(p)) fail(`功能「${f.id}」登记的视图信号 '${v}' 不存在：${p}`)
+    const fileName = `${v}.vue`
+    const inHost = existsSync(join(viewsDir, fileName))
+    const inPlugin = pluginsDirs.some((root) => hasPluginFile(root, join('web', 'src'), fileName))
+    if (!inHost && !inPlugin) fail(`功能「${f.id}」登记的视图信号 '${v}' 不存在：${join(viewsDir, fileName)} 或插件 web/src`)
   }
   for (const c of f.controllers) {
     const direct = join(controllersDir, `${c}Controller.cs`)
     const unified = join(controllersDir, 'UnifiedAI', `${c}Controller.cs`)
-    if (!existsSync(direct) && !existsSync(unified))
+    const inPlugin = pluginsDirs.some((root) => hasPluginFile(root, 'Controllers', `${c}Controller.cs`))
+    if (!existsSync(direct) && !existsSync(unified) && !inPlugin)
       fail(`功能「${f.id}」登记的控制器信号 '${c}' 不存在：${direct}`)
   }
   for (const p of f.plugins) {
-    const dir = join(pluginsDir, p)
-    if (!existsSync(dir) || !statSync(dir).isDirectory())
-      fail(`功能「${f.id}」登记的插件信号 '${p}' 不存在：${dir}`)
+    const found = pluginsDirs.some((root) => {
+      const dir = join(root, p)
+      return existsSync(dir) && statSync(dir).isDirectory()
+    })
+    if (!found) fail(`功能「${f.id}」登记的插件信号 '${p}' 不存在：${pluginsDirs.map((root) => join(root, p)).join(' 或 ')}`)
   }
 }
 
@@ -124,12 +151,13 @@ if (existsSync(controllersDir)) {
   scanControllers(controllersDir)
 }
 // 插件目录
-if (existsSync(pluginsDir)) {
+for (const pluginsDir of pluginsDirs) {
+  if (!existsSync(pluginsDir)) continue
   for (const entry of readdirSync(pluginsDir)) {
     const dir = join(pluginsDir, entry)
-    if (!statSync(dir).isDirectory()) continue // 跳过 .cs / .md 等文件
+    if (!statSync(dir).isDirectory()) continue
     if (PLUGIN_DENY.has(entry)) continue
-    if (!listedPlugins.has(entry))
+    if (!listedPlugins.has(entry) && pluginsDir === pluginsDirs.at(-1))
       fail(`插件目录 ${entry} 未在任何功能的 signals.plugins 中登记（孤儿）。`)
   }
 }

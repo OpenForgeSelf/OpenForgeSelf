@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Agents.AI;
@@ -35,6 +36,7 @@ public class AgentChatController : ControllerBase
 {
     private readonly AIProviderRegistry _registry;
     private readonly ILogService _logService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     private static readonly JsonSerializerOptions StreamSerializerOptions = new()
     {
@@ -43,10 +45,11 @@ public class AgentChatController : ControllerBase
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
     };
 
-    public AgentChatController(AIProviderRegistry registry, ILogService logService)
+    public AgentChatController(AIProviderRegistry registry, ILogService logService, IHttpClientFactory httpClientFactory)
     {
         _registry = registry;
         _logService = logService;
+        _httpClientFactory = httpClientFactory;
     }
 
     [HttpPost("chat/completions")]
@@ -71,9 +74,15 @@ public class AgentChatController : ControllerBase
                 return BadRequest(new { error = new { message = "Agent 测试接口仅支持 OpenAI 兼容提供方（OpenAI / Custom）", type = "invalid_request_error" } });
 
             var baseUrl = DeriveOpenAIBaseUrl(ocProvider.Config.Endpoint);
+            // 设置·网络设置（2026-10-16-settings-network-proxy M6）：OpenAI SDK 经 IHttpClientFactory
+            // 的 client（已由 ConfigureModelProxyHttpClient 装入实时代理）发出模型请求，与其余出口同策略。
             var openAiClient = new OpenAIClient(
                 new ApiKeyCredential(ocProvider.Config.ApiKey),
-                new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });
+                new OpenAIClientOptions
+                {
+                    Endpoint = new Uri(baseUrl),
+                    Transport = new HttpClientPipelineTransport(_httpClientFactory.CreateClient())
+                });
             var chatClient = openAiClient.GetChatClient(upstreamModelId).AsIChatClient();
 
             // 演示用服务端工具：证明 agent 能完成「模型决策 → 执行工具 → 汇总」

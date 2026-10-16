@@ -14,8 +14,10 @@ using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
 using ForgeSelf.Api.Services.AI.Providers;
 using ForgeSelf.Api.Services.Skills;
+using ForgeSelf.Api.Services.Net;
 using ForgeSelf.Api.Services.UsageStats;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using NewLife.Log;
 
@@ -28,6 +30,24 @@ namespace ForgeSelf.Api;
 /// </summary>
 public static class AppBuilder
 {
+    /// <summary>
+    /// 设置·网络设置（2026-10-16-settings-network-proxy）：给所有 IHttpClientFactory client 装上
+    /// 读 ForgeSetting 实时决策的代理 handler，覆盖全部模型请求出口（AIService 类型客户端、
+    /// OpenAICompatibleProvider、AIModelService、AIProviderService、AIProviderController）：
+    /// 开启=走 HTTP(S) 代理；关闭/未设置=显式直连（忽略系统代理）；回环永不走代理；保存即生效。
+    /// 生产与接线测试（HttpClientProxyWiringTests）同调本方法，避免复刻漂移。
+    /// </summary>
+    public static void ConfigureModelProxyHttpClient(IServiceCollection services)
+    {
+        services.AddSingleton<ModelProxy>();
+        services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(sp =>
+            new SocketsHttpHandler
+            {
+                // 回环绕过在 ModelProxy.GetProxy/IsBypassed 内自处理，不依赖 handler 的本地绕过开关
+                Proxy = sp.GetRequiredService<ModelProxy>()
+            }));
+    }
+
     /// <summary>
     /// 创建并完全配置一个 <see cref="WebApplication"/> 实例。
     /// 调用方负责启动（Run / StartAsync / RunAsync）和释放。
@@ -170,6 +190,8 @@ public static class AppBuilder
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
         builder.Services.AddSingleton<ISkillsService, SkillsService>();
         builder.Services.AddHttpClient<IAIService, AIService>();
+        // 设置·网络设置：模型请求统一走可配置代理（开=走代理，不设置=直连；见 ConfigureModelProxyHttpClient）
+        ConfigureModelProxyHttpClient(builder.Services);
         // P4 会话/LLM 接缝接线：注册真实实现（消费者经接缝调用，替换 Provider 零改动）
         // B2（040）：会话事件日志落 Sqlite/XCode（持久化真相源）；
         // InMemorySessionStore 退为测试替身，不再注册进生产 DI（接缝不变，替换零改动）。

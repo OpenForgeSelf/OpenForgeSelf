@@ -74,6 +74,7 @@ declare module 'vue' {
     MessageItem: typeof import('./src/components/MessageItem.vue')['default']
     MessageList: typeof import('./src/components/MessageList.vue')['default']
     NetworkDetail: typeof import('./src/components/systemmonitor/NetworkDetail.vue')['default']
+    NetworkPanel: typeof import('./src/components/settings/NetworkPanel.vue')['default']
     OverviewCards: typeof import('./src/components/systemmonitor/OverviewCards.vue')['default']
     PageHead: typeof import('./src/components/PageHead.vue')['default']
     ParameterEditor: typeof import('./src/components/scriptrunner/ParameterEditor.vue')['default']

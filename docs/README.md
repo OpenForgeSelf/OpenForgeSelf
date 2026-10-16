@@ -347,6 +347,7 @@
 | 032 | [`02-features/032-agent-hub.md`](02-features/032-agent-hub.md) | 已实现（Agent 中枢插件 v1.0.9；外部 agent 注册表+探测+委派总线；v1.0.9 支持附加扫描目录配置） |
 | 034 | [`02-features/034-mcp-center.md`](02-features/034-mcp-center.md) | 已实现（MCP 中心插件 v2.1.0；mcp-gateway 更名 + 整合 022 mcp-tools；单工具转发 + list_tools + 管理面鉴权；自带界面双 tab） |
 | 035 | [`02-features/035-plugin-versioned-layout.md`](02-features/035-plugin-versioned-layout.md) | 需求记录（插件版本化发布与显式升级，下期再做） |
+| 042 | [`02-features/042-network-proxy-settings.md`](02-features/042-network-proxy-settings.md) | 已实现（设置·网络设置：模型请求 HTTP/HTTPS 代理，保存即生效；关闭=显式直连忽略系统代理；SOCKS5 记 TODO） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 
 > 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。

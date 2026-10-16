@@ -75,8 +75,8 @@ describe('SettingsView', () => {
     const wrapper = mountView()
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
 
-    // 外观是第 6 个导航项（index 5）
-    await navItems[5].trigger('click')
+    //   外观是第 7 个导航项（index 6）
+    await navItems[6].trigger('click');
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
@@ -92,7 +92,7 @@ describe('SettingsView', () => {
     store.initialize()
 
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
-    await navItems[5].trigger('click')
+    await navItems[6].trigger('click');
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
@@ -111,7 +111,7 @@ describe('SettingsView', () => {
     store.initialize()
 
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
-    await navItems[5].trigger('click')
+    await navItems[6].trigger('click');
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
@@ -131,7 +131,7 @@ describe('SettingsView', () => {
     store.setMode('dark')
 
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
-    await navItems[5].trigger('click')
+    await navItems[6].trigger('click');
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
@@ -151,7 +151,7 @@ describe('SettingsView', () => {
     store.setMode('dark')
 
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
-    await navItems[5].trigger('click')
+    await navItems[6].trigger('click');
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')

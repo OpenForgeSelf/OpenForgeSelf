@@ -11,7 +11,8 @@ import {
   Coin,
   InfoFilled,
   Key,
-  Refresh
+  Refresh,
+  Rank
 } from '@element-plus/icons-vue';
 import PageHead from '@/components/PageHead.vue';
 import GeneralPanel from '@/components/settings/GeneralPanel.vue';
@@ -19,6 +20,7 @@ import AiAgentPanel from '@/components/settings/AiAgentPanel.vue';
 import PluginsPanel from '@/components/settings/PluginsPanel.vue';
 import AiProvidersPanel from '@/components/settings/AiProvidersPanel.vue';
 import ApiServerPanel from '@/components/settings/ApiServerPanel.vue';
+import NetworkPanel from '@/components/settings/NetworkPanel.vue';
 import ApiKeysPanel from '@/components/settings/ApiKeysPanel.vue';
 import AppearancePanel from '@/components/settings/AppearancePanel.vue';
 import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
@@ -31,6 +33,7 @@ type SettingsCategory =
   | 'plugins'
   | 'ai-providers'
   | 'api-server'
+  | 'network'
   | 'api-keys'
   | 'appearance'
   | 'data'
@@ -45,6 +48,7 @@ const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> 
   plugins: { eyebrow: 'Settings · 插件管理', title: '浏览与管理已安装插件' },
   'ai-providers': { eyebrow: 'Settings · AI 提供方', title: '配置大模型服务提供商' },
   'api-server': { eyebrow: 'Settings · API 服务器', title: '宿主 API 监听与端口' },
+  network: { eyebrow: 'Settings · 网络设置', title: '模型请求的代理设置' },
   'api-keys': { eyebrow: 'Settings · API 密钥', title: '管理访问令牌与权限' },
   appearance: { eyebrow: 'Settings · 外观', title: '主题、配色与视觉偏好' },
   data: { eyebrow: 'Settings · 数据与存储', title: '数据目录与缓存管理' },
@@ -64,6 +68,7 @@ const navItems: NavItem[] = [
   { key: 'plugins', label: '插件管理', icon: markRaw(Grid) },
   { key: 'ai-providers', label: 'AI 提供方', icon: markRaw(Connection) },
   { key: 'api-server', label: 'API 服务器', icon: markRaw(Link) },
+  { key: 'network', label: '网络设置', icon: markRaw(Rank) },
   { key: 'api-keys', label: 'API 密钥', icon: markRaw(Key) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
@@ -108,6 +113,7 @@ const navItems: NavItem[] = [
         <PluginsPanel v-show="activeCategory === 'plugins'" />
         <AiProvidersPanel v-show="activeCategory === 'ai-providers'" />
         <ApiServerPanel v-show="activeCategory === 'api-server'" />
+        <NetworkPanel v-show="activeCategory === 'network'" />
         <ApiKeysPanel v-show="activeCategory === 'api-keys'" />
         <AppearancePanel v-show="activeCategory === 'appearance'" />
         <DataStoragePanel v-show="activeCategory === 'data'" />

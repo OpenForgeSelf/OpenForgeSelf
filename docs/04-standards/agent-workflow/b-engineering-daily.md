@@ -174,6 +174,16 @@
   对策：只给需要宽画面的那一栏在**组件 scoped 样式**里覆写（`.ds-showroom[data-v-*]` 特异度 0-2-0 压过全局 0-1-0，不依赖注入顺序），
   其余模式保持原值；覆写值要能从"装下最宽的稿"推导出来，不许拍一个数。
 
+### 行内校验文案禁止用 v-if 改变相邻控件几何位置（2026-10-16 网络设置 e2e 实证）
+表单行内错误文案若 `v-if` 出现/消失，会在**鼠标 mousedown 与 mouseup 之间**改变下方控件的几何位置，
+把用户的点击吞成布局跳动：el-input-number 的值在 blur 才提交，点保存的 mousedown 抢走焦点 → blur → `@change` 清错 →
+错误 `<p>` 移除 → 保存按钮上移 20px → mouseup 落空 → click 派发给共同祖先（button 不在事件链上，handler 不触发）。
+症状是「物理 click 不生效而 dispatchEvent 生效」——那是**真实用户缺陷**（真人首次点击同样被吞），不是测试写法问题。
+- 修法：错误行**常驻等高占位**（如 `h-4` 的空 `<p>` 只换文本），出现/消失不改布局；并加单测锁住「无错时占位节点仍存在且文本为空」。
+- 定位法（可复用）：document 捕获阶监听 mousedown/mouseup/click 记录 target+坐标（click target=共同祖先 ⇒ down/up 落点不同）；
+  MutationObserver 记录点击瞬间被增删的 DOM 节点；前后 `boundingBox()` 对比量化位移。探针用完即删，结论沉淀为正规断言（本例：NetworkPanel.test.ts 占位用例 + e2e 注释）。
+- 推广：新表单面板一律用占位形态；存量面板（行内错误 v-if 且下方有可点控件）见 TODO 待收。
+
 ## B4 后端工程规则
 ### 分层 / 鉴权 / 配置
 - 分层：Controllers/Services/Entities；新插件走 `Plugins/` + `plugin.json` 注册；异步统一 `async/await`，不 `.Result` 阻塞。

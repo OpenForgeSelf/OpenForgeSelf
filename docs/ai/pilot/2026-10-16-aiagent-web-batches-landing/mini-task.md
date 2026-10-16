@@ -28,11 +28,11 @@ AIAgent 插件 Web 侧自 2026-10-14 起连续落地五个子批，均已实现�
 
 ## Acceptance Criteria
 
-- [ ] AC1 集成树前端门禁全绿（本会话 2026-10-16 刷新）：宿主 `pnpm run check` 0 error；宿主全量 `vitest` 全绿；`design:check` PASS；插件 `pnpm run build` 成功。
-- [ ] AC2 四个入库 pilot 目录全部通过 `verify-pilot-artifacts.ps1 -EnforceHeader -EnforceAcCoverage`（pre-commit 门禁同判）。
-- [ ] AC3 提交不含任何后端/网络/aimodel 文件（精确暂存清单入 07）。
-- [ ] AC4 局限如实登记：冒烟 e2e 与 dev-stack 现场本会话无法刷新（后端编译阻断），引用 10-14/10-15 历史 Verified 证据；S4/S5 独立 pilot 为事后补记。
-- [ ] AC5 TODO.md 相应进行中条目状态更新（提交落地，发布仍暂缓）。
+- [x] AC1 集成树前端门禁全绿（本会话 2026-10-16 刷新）：宿主 `pnpm run check` 0 error；宿主全量 `vitest` 全绿；`design:check` PASS；插件 `pnpm run build` 成功。
+- [x] AC2 四个入库 pilot 目录全部通过 `verify-pilot-artifacts.ps1 -EnforceHeader -EnforceAcCoverage`（pre-commit 门禁同判）。
+- [x] AC3 提交不含任何后端/网络/aimodel 文件（精确暂存清单入 07）。
+- [x] AC4 局限如实登记：冒烟 e2e 与 dev-stack 现场本会话无法刷新（后端编译阻断），引用 10-14/10-15 历史 Verified 证据；S4/S5 独立 pilot 为事后补记。
+- [x] AC5 TODO.md 相应进行中条目状态更新（提交落地，发布仍暂缓）。
 
 ## Plan / Task
 

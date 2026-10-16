@@ -21,7 +21,7 @@ AIAgent Web 侧五子批以一次可验证的集成提交入库；提交后工�
 
 ## 提交
 
-- 提交号：（占位，C4 批回填）`feat(aiagent): ...`，trailer `Pilot: 2026-10-16-aiagent-web-batches-landing`。
+- 提交号：`87a1150`（main，2026-10-16 落地），trailer `Pilot: 2026-10-16-aiagent-web-batches-landing`；pre-commit 设计守卫（a=209=基线）+ 四 pilot 工件校验全 PASS。同会话关联提交：`2b73c27` docs(skills) ui-ux D-1/D-2、`8dc65e7` fix(scripts) check-features（Pilot: 2026-10-16-check-features-plugins-root）。
 - 回滚点：revert 该单条提交即恢复。
 
 ## 遗留（不属于本批，已汇报用户）

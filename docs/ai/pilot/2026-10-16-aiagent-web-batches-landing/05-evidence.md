@@ -38,7 +38,7 @@ pwsh -File scripts/verify-pilot-artifacts.ps1 -TaskId 2026-10-15-chat-display-po
 | AC2 pilot 工件门禁全绿 | ✅ | §2 三目录 EXIT=0 | Verified |
 | AC3 无后端/网络/aimodel 文件 | ✅ | §5 暂存清单对表 | Verified |
 | AC4 局限如实登记 | ✅ | §3 + mini-task 表格 S4/S5 标注 | Verified |
-| AC5 TODO 状态更新 | ⏳ | 提交后回写（见 07 状态） | 待回写 |
+| AC5 TODO 状态更新 | ✅ | 提交后回写完成：迁移主条目勾账 + 后端批次挂起项入 TODO.md（C4 批） | Verified |
 
 ## 5. 精确暂存清单（AC3 对表，来源等级：Verified，git ls-files/status 实读）
 

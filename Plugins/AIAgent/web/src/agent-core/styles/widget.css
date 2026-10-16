@@ -1,0 +1,1665 @@
+/* ============================================================
+   AI 助手组件样式
+   全部选择器都以 .aiw- 前缀 + Shadow DOM 隔离，
+   因此不会影响宿主页面的任何样式，也不会被宿主页面影响。
+   ============================================================ */
+
+.aiw-root,
+.aiw-root *,
+.aiw-root *::before,
+.aiw-root *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.aiw-root {
+  --aiw-primary: #4f46e5;
+  --aiw-primary-08: rgba(79, 70, 229, 0.08);
+  --aiw-primary-16: rgba(79, 70, 229, 0.16);
+  --aiw-primary-32: rgba(79, 70, 229, 0.32);
+  --aiw-radius: 16px;
+  --aiw-text: #1f2430;
+  --aiw-text-soft: #6b7280;
+  --aiw-line: #e8eaf0;
+  --aiw-bg: #ffffff;
+  --aiw-bg-soft: #f6f7fb;
+  --aiw-shadow: 0 18px 48px -12px rgba(16, 24, 40, 0.22), 0 6px 16px -6px rgba(16, 24, 40, 0.12);
+
+  /* ---------- 字号阶梯 ----------
+     此前全篇硬编码 11 种字号，还夹着 10.5/11.5/12.5/13.5 这种半像素刻度 ——
+     那不是设计，是逐条调出来的结果，改一个地方其它地方不会跟着动。
+     这里先把**刻度**立起来（档位值取自存量里出现频次最高的那几个），
+     存量 1300 行的替换单独立项：先有刻度，才能让「改成 12px」变成「改成 --aiw-fs-sm」。 */
+  --aiw-fs-xs: 10.5px;   /* 角标、极小标注 */
+  --aiw-fs-sm: 11.5px;   /* 时间戳、次要说明 */
+  --aiw-fs-base: 12.5px; /* 面板正文 */
+  --aiw-fs-md: 13.5px;   /* 气泡正文 */
+  --aiw-fs-lg: 15px;     /* 小标题 */
+  --aiw-fs-xl: 17px;     /* 面板主标题 */
+
+  /* ---------- 间距台阶 ----------
+     4 的倍数为主（贴合既有 8/6/4/12/16 的实际用法），2px 留给极端紧凑处。 */
+  --aiw-space-1: 2px;
+  --aiw-space-2: 4px;
+  --aiw-space-3: 6px;
+  --aiw-space-4: 8px;
+  --aiw-space-5: 12px;
+  --aiw-space-6: 16px;
+
+  /* ---------- 圆角分档 ----------
+     --aiw-radius 保留为「面板级」专值，其余按控件体量分档。
+     存量里 15 种圆角值（8/6/9/7/5/10/14/4/2/12/3/18/11/999）是碎片，
+     实测同一屏上气泡 14px、发送键 11px、输入框 14px —— 邻近控件三种值。 */
+  --aiw-radius-xs: 4px;
+  --aiw-radius-sm: 6px;
+  --aiw-radius-md: 10px;
+  --aiw-radius-lg: 14px;
+  --aiw-radius-xl: 18px;
+  --aiw-radius-pill: 999px;
+
+  /* ---------- 动效时长与缓动 ----------
+     与项目 DESIGN.md Motion 表同刻度（90/160/220/360/540），只是套在 --aiw- 命名空间下
+     （组件独立发行，不能依赖宿主的 --dur-*）。
+     缓动默认 ease-out（快进慢出，稳）；ease-forge（锤落回弹）只允许 logo/重点出现时刻。 */
+  --aiw-dur-instant: 90ms;
+  --aiw-dur-fast: 160ms;
+  --aiw-dur-base: 220ms;
+  --aiw-dur-slow: 360ms;
+  --aiw-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --aiw-ease-forge: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- 语义色（文字级） ----------
+     与 --aiw-danger / --aiw-warning（边框、填充用）**分开定义**：
+     同一个色相，做边框只要 3:1 就够，做文字却要 4.5:1 ——
+     共用一个值必然有一边不达标（#dc2626 在白底上只有约 4.2:1，做小字不合格）。 */
+  --aiw-text-danger: #b91c1c;  /* 白底 ≈4.9:1 */
+  --aiw-text-warning: #92400e; /* 白底 ≈5.9:1 */
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--aiw-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------- 启动按钮 ---------------- */
+.aiw-launcher {
+  position: fixed;
+  bottom: var(--aiw-off-y, 24px);
+  z-index: 2;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(140deg, var(--aiw-primary), color-mix(in srgb, var(--aiw-primary) 70%, #101828));
+  box-shadow: 0 10px 26px -8px var(--aiw-primary-32), 0 4px 10px -4px rgba(16, 24, 40, 0.25);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.aiw-root.aiw-right .aiw-launcher { right: var(--aiw-off-x, 24px); }
+.aiw-root.aiw-left .aiw-launcher { left: var(--aiw-off-x, 24px); }
+
+.aiw-launcher:hover { transform: translateY(-2px) scale(1.05); }
+.aiw-launcher:active { transform: scale(0.96); }
+.aiw-launcher:focus-visible { outline: 3px solid var(--aiw-primary-32); outline-offset: 3px; }
+.aiw-launcher svg { width: 26px; height: 26px; display: block; }
+
+.aiw-launcher__glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--aiw-primary);
+  opacity: 0.28;
+  animation: aiw-pulse 2.6s ease-out infinite;
+  pointer-events: none;
+}
+.aiw-root.aiw-open .aiw-launcher__glow { display: none; }
+
+@keyframes aiw-pulse {
+  0% { transform: scale(0.9); opacity: 0.32; }
+  70% { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.aiw-launcher__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  border: 2px solid #fff;
+}
+
+/* ---------------- 面板 ---------------- */
+.aiw-panel {
+  position: fixed;
+  bottom: calc(var(--aiw-off-y, 24px) + 74px);
+  z-index: 1;
+  width: var(--aiw-panel-w, 384px);
+  height: var(--aiw-panel-h, 620px);
+  max-height: calc(100vh - var(--aiw-off-y, 24px) - 96px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--aiw-bg);
+  border-radius: 18px;
+  box-shadow: var(--aiw-shadow);
+  border: 1px solid var(--aiw-line);
+}
+.aiw-root.aiw-right .aiw-panel { right: var(--aiw-off-x, 24px); transform-origin: bottom right; }
+.aiw-root.aiw-left .aiw-panel { left: var(--aiw-off-x, 24px); transform-origin: bottom left; }
+
+/* 展开/收起动画 */
+.aiw-pop-enter-active { transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.aiw-pop-leave-active { transition: opacity 0.16s ease, transform 0.16s ease; }
+.aiw-pop-enter-from,
+.aiw-pop-leave-to { opacity: 0; transform: translateY(14px) scale(0.94); }
+
+/* ---------------- 头部 ---------------- */
+.aiw-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--aiw-primary), color-mix(in srgb, var(--aiw-primary) 62%, #0b1020));
+  flex: 0 0 auto;
+}
+.aiw-header::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.aiw-header__avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.aiw-header__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.aiw-header__avatar svg { width: 22px; height: 22px; }
+
+.aiw-header__meta { flex: 1 1 auto; min-width: 0; }
+.aiw-header__title {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aiw-header__subtitle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  opacity: 0.86;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aiw-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.28);
+}
+
+.aiw-header__actions { display: flex; gap: 2px; flex: 0 0 auto; }
+.aiw-header__actions button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.82;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.aiw-header__actions button:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
+.aiw-header__actions svg { width: 17px; height: 17px; }
+
+/* ---------------- 消息区 ---------------- */
+.aiw-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--aiw-bg-soft);
+  scrollbar-width: thin;
+  scrollbar-color: #c9ced9 transparent;
+}
+.aiw-body::-webkit-scrollbar { width: 6px; }
+.aiw-body::-webkit-scrollbar-thumb { background: #ccd2dd; border-radius: 3px; }
+.aiw-body::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------------- FR-218 用户消息刻度条 ----------------
+   外层包一层只为了拿到「与消息区等高的定位上下文」——
+   刻度轨若放进 .aiw-body 里会跟着内容一起滚走。 */
+.aiw-bodywrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.aiw-bodywrap > .aiw-body { min-height: 0; }
+.aiw-rail {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.aiw-rail__t {
+  position: relative;
+  width: 10px;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  background: #b9c0cd;
+  opacity: 0.7;
+  transition: width 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+.aiw-rail__t:hover { width: 15px; opacity: 1; background: var(--aiw-primary); }
+/* 当前阅读位置：更亮、更长（和参考图一致：靠「更长」而不是只靠颜色区分） */
+.aiw-rail__t.is-on { width: 17px; opacity: 1; background: var(--aiw-text); }
+/* 悬浮显示该条输入的内容 */
+.aiw-rail__tip {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: max-content;
+  max-width: 190px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--aiw-bg);
+  background: var(--aiw-text);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.aiw-rail__t:hover .aiw-rail__tip,
+.aiw-rail__t:focus-visible .aiw-rail__tip { opacity: 1; }
+
+/* ---------------- FR-218b 随滚动浮动的当前提问指示条 ----------------
+   钉在消息区顶部、不随内容滚动：放在 .aiw-bodywrap（与 .aiw-body 同级、
+   相对定位上下文），而非 .aiw-body 内部 —— 内部子节点会跟着消息一起滚走。
+   右侧留出 56px 让开刻度轨；底部时由 v-if 隐藏，所以不会去盖「回到最新」按钮。 */
+.aiw-float {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: calc(100% - 56px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--aiw-text);
+  background: color-mix(in srgb, var(--aiw-bg) 88%, transparent);
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.aiw-float__ico { flex: 0 0 auto; display: inline-flex; opacity: 0.65; }
+.aiw-float__ico svg { width: 14px; height: 14px; }
+.aiw-float__txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* ---------------- 041 上下文图标行（输入框下方） ----------------
+   入口恒显示：chips 是「有值才出现」的摘要，这里是「必须能点开去选」的入口，
+   所以没有 active 态也要画出按钮（否则又回到「功能像没做」）。 */
+.aiw-ctxbar { flex: 0 0 auto; }
+/* 内嵌进输入框的形态：图标行占满输入框内宽，上方一条淡分隔线与输入文字分开，
+   底部负 margin 抵消输入框左内边距，让分隔线贯通整个输入框宽度。 */
+.aiw-ctxbar--inline {
+  margin: 2px -6px -6px -12px;
+  border-top: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+}
+.aiw-ctxbar__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+}
+/* 内嵌态下行内距收窄，避免图标行比输入文字还宽出一截 */
+.aiw-ctxbar--inline .aiw-ctxbar__row { padding: 5px 10px; }
+.aiw-ctxitem { position: relative; display: inline-flex; }
+.aiw-ctxbtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.aiw-ctxbtn:hover { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+/* UX-012 [P0]：触控目标须 ≥44×44。视觉保持 30px 圆形（密度不塌），
+   用伪元素把**可点区**外扩到 44×44 —— 触摸设备上不必瞄准小圆点。 */
+.aiw-ctxbtn::after,
+.aiw-accessbtn::after,
+.aiw-todoentry__btn::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+}
+/* UX-015 [P1]：按压反馈（此前只有 hover，触摸端无按下态） */
+.aiw-ctxbtn:active,
+.aiw-accessbtn:active,
+.aiw-todoentry__btn:active { transform: scale(0.96); }
+.aiw-ctxbtn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
+.aiw-ctxbtn.is-active { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-ctxbtn__ico { font-size: 14px; line-height: 1; }
+.aiw-ctxbtn__n {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+  color: #fff;
+  background: var(--aiw-primary);
+}
+
+/* 权限胶囊 */
+.aiw-accessbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: transparent;
+  color: var(--aiw-text);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.aiw-accessbtn svg { width: 13px; height: 13px; }
+.aiw-accessbtn:hover { border-color: var(--aiw-primary); }
+/* 档位越宽松，色越警示（红=完全访问，琥珀=标准，绿=只读）。
+   ★ UX-002 [P0] 修正：档位色**只用于边框与图标**，文字一律用正文色 ——
+     实测琥珀色文字在浅底上只有 2.54:1（远低于正文 4.5:1），近乎看不清；
+     边框/图标属 UI 元素，阈值 3:1，用加深一档的色相满足。
+     语义不靠颜色单独承载：胶囊里始终有「只读 / 标准 / 完全访问」文字（UX-003）。 */
+.aiw-accessbtn--readonly { color: var(--aiw-text); border-color: var(--aiw-success, #10b981); }
+.aiw-accessbtn--standard { color: var(--aiw-text); border-color: var(--aiw-warning, #d97706); }
+.aiw-accessbtn--full { color: var(--aiw-text); border-color: var(--aiw-danger, #dc2626); }
+.aiw-accessbtn--readonly svg { color: var(--aiw-success, #10b981); }
+.aiw-accessbtn--standard svg { color: var(--aiw-warning, #d97706); }
+.aiw-accessbtn--full svg { color: var(--aiw-danger, #dc2626); }
+
+/* 弹出面板：挂在 .aiw-ctxitem（position:relative）下，不随 footer 滚动 */
+.aiw-ctxpop {
+  position: absolute;
+  /* 默认**向下**弹（贴着入口下沿展开，落进 footer 外的下方空间）。
+     向上会撞上 .aiw-panel（聊天容器）的 overflow:hidden 被裁平 —— 实测弹出层只剩 2px、
+     选项全看不见，那是类名撞名 + 弹向错误的双重后果，故默认向下。 */
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 340px;
+  /* 视口高度不够时**向上弹**：底部贴齐入口上沿，避免下半部分被窗口裁掉
+     （实测向下弹时 y537+302=839 > 窗口 720，底部选项点不到）。 */
+  max-height: min(300px, calc(100vh - 120px));
+  border-radius: 10px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: var(--aiw-bg);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.aiw-ctxpop--right { left: auto; right: 0; }
+/* 下方空间不足时向上弹（JS decideDirection 判定，阈值 320px） */
+.aiw-ctxpop.is-up { top: auto; bottom: calc(100% + 6px); }
+/* UX-002 [P0]：次级文字须 ≥4.5:1（11~12px 属小字）。实测 --aiw-text-2(#8b93a3)
+   只有 3.09:1，故改为与正文色混合的中间调 —— 视觉仍是次级层级，对比度达标。 */
+.aiw-ctxpop__empty {
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
+}
+
+.aiw-ctxmenu { display: flex; flex-direction: column; max-height: 300px; }
+.aiw-ctxmenu__t {
+  padding: 8px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
+  border-bottom: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+}
+.aiw-ctxmenu__q {
+  margin: 6px 8px 2px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: var(--aiw-bg-soft);
+  color: var(--aiw-text);
+}
+.aiw-ctxmenu__list { overflow-y: auto; padding: 4px; }
+.aiw-ctxmenu__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--aiw-text);
+}
+.aiw-ctxmenu__row:hover { background: var(--aiw-primary-16); }
+.aiw-ctxmenu__row:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: -1px; }
+.aiw-ctxmenu__row.is-on { color: var(--aiw-primary); }
+.aiw-ctxmenu__body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.aiw-ctxmenu__name { font-size: 12.5px; line-height: 1.4; }
+.aiw-ctxmenu__desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.aiw-ctxmenu__tick { color: var(--aiw-primary); font-size: 12px; }
+.aiw-ctxmenu__box {
+  flex: 0 0 auto;
+  width: 15px; height: 15px;
+  margin-top: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.35));
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.aiw-ctxmenu__box.is-on { background: var(--aiw-primary); border-color: var(--aiw-primary); color: #fff; }
+.aiw-ctxmenu__box svg { width: 11px; height: 11px; }
+
+/* ---------------- 041 输入框底行（待办入口 + 上下文图标行） ---------------- */
+.aiw-inputrow {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 4px;
+  /* 负 margin 抵消 .aiw-input 的内边距（6px 右 / 12px 左 / 6px 下），
+     让本行的顶部淡分隔线贯通整个输入框宽度，与输入框成一体 */
+  margin: 2px -6px -6px -12px;
+  border-top: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+}
+/* 底行内的图标行不再自带分隔线（由 .aiw-inputrow 统一提供） */
+.aiw-inputrow .aiw-ctxbar--inline {
+  margin: 0;
+  border-top: 0;
+}
+.aiw-inputrow .aiw-ctxbar__row { padding: 5px 8px; }
+
+/* 待办独立入口：底行最左的胶囊按钮（图标 + 「待办」+ 未完成数角标） */
+.aiw-todoentry { position: relative; display: inline-flex; flex: 0 0 auto; }
+.aiw-todoentry__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: transparent;
+  color: var(--aiw-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.aiw-todoentry__btn:hover, .aiw-todoentry__btn.is-on { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-todoentry__btn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
+.aiw-todoentry__btn svg { width: 12px; height: 12px; color: var(--aiw-primary); }
+.aiw-todoentry__n {
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 8px; font-size: 10px; line-height: 15px; text-align: center;
+  color: #fff; background: var(--aiw-primary);
+}
+/* 待办浮层：absolute 定位，不占内容区高度 */
+.aiw-todoentry__pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 260px;
+  max-width: 360px;
+  border-radius: 10px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: var(--aiw-bg);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.aiw-todopanel { display: flex; flex-direction: column; max-height: 300px; }
+.aiw-todopanel__head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 0; border-bottom: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  background: transparent; cursor: pointer; text-align: left;
+  color: var(--aiw-text);
+}
+.aiw-todopanel__title { flex: 1 1 auto; font-size: 12px; font-weight: 600; }
+.aiw-todopanel__pct { flex: 0 0 auto; font-size: 11px; color: color-mix(in srgb, var(--aiw-text) 72%, transparent); }
+.aiw-todopanel__chev { flex: 0 0 auto; width: 13px; height: 13px; color: var(--aiw-text-2, #8b93a3); transform: rotate(-90deg); transition: transform 0.16s ease; }
+.aiw-todopanel__chev.is-open { transform: rotate(0deg); }
+.aiw-todopanel__list { margin: 0; padding: 4px; list-style: none; overflow-y: auto; }
+.aiw-todopanel__list li {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; font-size: 12px; line-height: 1.45;
+}
+.aiw-todopanel__list li.is-done { color: var(--aiw-text-2, #8b93a3); }
+.aiw-todopanel__list li.is-done .aiw-todopanel__txt { text-decoration: line-through; }
+.aiw-todopanel__dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--aiw-primary); }
+.aiw-todopanel__list li.is-done .aiw-todopanel__dot { background: var(--aiw-text-2, #8b93a3); }
+.aiw-todopanel__txt { min-width: 0; }
+
+/* ---------------- 041 「待你动作」区（输入框上沿） ----------------
+   与 .aiw-status 同一视觉区：都是「非对话流的瞬时状态 / 待办」，都不进消息流。 */
+.aiw-ask {
+  /* 041：浮层化 —— 绝对定位于输入区上方，**不占内容区高度**、悬浮于消息之上。
+     原来走 flex 流会撑高 footer、把消息区顶短；现在内容区高度恒定，
+     待办/审批以卡片形式悬在输入区上沿（z-index 高于消息区）。 */
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.aiw-ask__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: var(--aiw-bg-soft);
+}
+.aiw-ask__badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #fff;
+  background: var(--aiw-text-2, #8b93a3);
+}
+.aiw-ask__badge--low { background: var(--aiw-success, #10b981); }
+.aiw-ask__badge--medium { background: var(--aiw-warning, #f59e0b); }
+.aiw-ask__badge--high, .aiw-ask__badge--critical { background: var(--aiw-danger, #ef4444); }
+.aiw-ask__badge--question { background: var(--aiw-primary); }
+.aiw-ask__badge--todo { background: var(--aiw-c3, #f59e0b); }
+/* 待办折叠头：整行可点（button），右侧进度 + chevron；默认收起只露这一行 */
+.aiw-ask__head {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--aiw-text);
+}
+.aiw-ask__head:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 2px; border-radius: 4px; }
+.aiw-ask__head-progress { flex: 0 0 auto; font-size: 11px; color: var(--aiw-text-2, #8b93a3); }
+.aiw-ask__chev {
+  flex: 0 0 auto;
+  width: 14px; height: 14px;
+  color: var(--aiw-text-2, #8b93a3);
+  transform: rotate(-90deg);
+  transition: transform 0.16s ease;
+}
+.aiw-ask__chev.is-open { transform: rotate(0deg); }
+.aiw-ask__body { flex: 1 1 auto; min-width: 0; }
+.aiw-ask__title { font-size: 12.5px; line-height: 1.45; color: var(--aiw-text); }
+.aiw-ask__detail {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--aiw-text-2, #8b93a3);
+}
+.aiw-ask__btns { flex: 0 0 auto; display: flex; gap: 6px; }
+.aiw-ask__btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.28));
+  background: transparent;
+  color: var(--aiw-text);
+  cursor: pointer;
+}
+.aiw-ask__btn:hover { border-color: var(--aiw-primary); }
+.aiw-ask__btn--ok { background: var(--aiw-primary); border-color: var(--aiw-primary); color: #fff; }
+.aiw-ask__opts { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.aiw-ask__opt {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--aiw-primary);
+  background: var(--aiw-primary-16);
+  color: var(--aiw-text);
+  cursor: pointer;
+}
+.aiw-ask__todos { margin: 4px 0 0; padding: 0; list-style: none; }
+.aiw-ask__todos li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--aiw-text);
+}
+.aiw-ask__todos li.is-done { color: var(--aiw-text-2, #8b93a3); text-decoration: line-through; }
+.aiw-ask__tdot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--aiw-text-2, #8b93a3);
+  flex: 0 0 auto;
+}
+.aiw-ask__track {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 84px; height: 4px;
+  border-radius: 2px;
+  background: var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  overflow: hidden;
+}
+.aiw-ask__fill { height: 100%; background: var(--aiw-primary); }
+
+/* ---------------- FR-217 回到底部 ----------------
+   零高度锚点：按钮浮在消息区底边上方，输入区高度与提示条有无都不影响它的位置
+   （用 bottom 硬算一个「输入区高度」迟早会在某个配置下错位）。 */
+.aiw-jumpwrap { position: relative; height: 0; z-index: 5; }
+.aiw-jump {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: var(--aiw-primary);
+  background: var(--aiw-bg);
+  border: 1px solid var(--aiw-primary-32);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.aiw-jump:hover { border-color: var(--aiw-primary); }
+.aiw-jump svg { width: 18px; height: 18px; }
+.aiw-jump__n {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; font-size: 10px; line-height: 16px; text-align: center;
+  color: #fff; background: var(--aiw-primary);
+}
+
+.aiw-body__inner { padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 14px; }
+
+.aiw-msg { display: flex; gap: 8px; align-items: flex-start; }
+.aiw-msg--user { flex-direction: row-reverse; }
+
+.aiw-msg__avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--aiw-primary-16);
+  color: var(--aiw-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+.aiw-msg__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.aiw-msg__avatar svg { width: 18px; height: 18px; }
+
+/* ---------------- 长回复折叠（展示精简） ----------------
+   只做视觉裁剪：高度截断 + 底部渐隐 + 「展开全文」。DOM 里仍是全文，
+   复制 / 浏览器 Ctrl+F / 读屏都不受影响 —— 单纯截断 DOM 会把这些一并废掉。 */
+.aiw-msg__fold { position: relative; min-width: 0; }
+.aiw-msg__fold.is-collapsed .aiw-msg__bubble {
+  max-height: 240px;
+  overflow: hidden;
+  /* 渐隐只在折叠态出现：给用户「下面还有」的视觉证据，而不是硬切一刀。
+     mask 只读 alpha 通道，颜色本身不可见 —— 这里用主题色 token 而不是 #000，
+     免得给 style-tokens 门禁平白添两处硬编码色值。 */
+  -webkit-mask-image: linear-gradient(to bottom, var(--aiw-text) calc(100% - 46px), transparent 100%);
+  mask-image: linear-gradient(to bottom, var(--aiw-text) calc(100% - 46px), transparent 100%);
+}
+.aiw-msg__toggle {
+  margin-top: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--aiw-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.aiw-msg__toggle:hover { text-decoration: underline; }
+
+.aiw-msg__col { display: flex; flex-direction: column; max-width: 78%; min-width: 0; }
+.aiw-msg--user .aiw-msg__col { align-items: flex-end; }
+/* 助手不带头像时那 30px 让出来给正文 —— 头像没了还留着 78% 的上限就是白浪费横向空间 */
+.aiw-msg--bot.is-noavatar .aiw-msg__col { max-width: 92%; }
+
+.aiw-msg__bubble {
+  padding: 9px 13px;
+  border-radius: 14px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  background: #fff;
+  border: 1px solid var(--aiw-line);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.aiw-msg--bot.is-noavatar .aiw-msg__bubble { border-top-left-radius: 14px; }
+/* 用户气泡 = 与助手气泡**同一样式**（浅底 + 深字 + 同边框同阴影），
+   输入/输出只靠**位置**区分（用户在右：.aiw-msg--user 的 row-reverse + 右对齐）。
+   ★ 历史坑（2026-10-15，三次返工）：早先用户气泡是「主色底 + 白字」，
+     ① 被 `.aiw-root.aiw-inline .aiw-msg__bubble`（0,3,0）覆盖成浅灰底而 color:#fff 仍生效
+        → 白字浅灰底 1.06:1，用户输入完全不可见（P0）；
+     ② 用户明确要求「输入输出统一样式、用位置区分」—— 主色底本就不该有，
+        统一成浅底深字后，连带时间戳/链接/行内代码的 user 专属分支全部删除。
+     唯一保留的差异是**朝向圆角**（右上角收 5px，与头像同侧的那角对齐）。 */
+.aiw-msg--user .aiw-msg__bubble { border-top-right-radius: 5px; }
+
+/* ---------- 消息状态矩阵（041 状态矩阵专项） ----------
+   这四类状态以前一条都没有：生成失败 / 用户中断 / 低置信度 / 权限不足。
+   它们的共同点是「平时看不见、一出事天天见」，所以最容易被设计跳过；
+   跳过的后果不是「不好看」，而是**用户以为 AI 说完了**（中断的半截回复伪装成正常消息）。 */
+.aiw-msg__status {
+  display: flex;
+  align-items: center;
+  gap: var(--aiw-space-3);
+  margin-top: var(--aiw-space-2);
+  font-size: var(--aiw-fs-sm);
+  line-height: 1.5;
+  color: var(--aiw-text-soft);
+}
+.aiw-msg__status.is-failed { color: var(--aiw-text-danger); }
+/* 中断**不是出错**（用户自己按的停止），保持中性色，别用红吓人 */
+.aiw-msg__status.is-stopped { color: var(--aiw-text-soft); }
+
+.aiw-msg__retry {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--aiw-primary);
+  font-family: inherit;
+  font-size: var(--aiw-fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: opacity var(--aiw-dur-instant) var(--aiw-ease-out);
+}
+.aiw-msg__retry:hover { opacity: 0.75; }
+
+/* 低置信度与权限不足共用一行提示位，但色相必须分开：
+   琥珀 = 「这话别全信」（内容质量），红 = 「这事没让做」（能力被拦）。 */
+.aiw-msg__warn {
+  margin-top: var(--aiw-space-2);
+  font-size: var(--aiw-fs-sm);
+  line-height: 1.5;
+}
+.aiw-msg__warn.is-low { color: var(--aiw-text-warning); }
+.aiw-msg__warn.is-denied { color: var(--aiw-text-danger); }
+
+.aiw-msg__time {
+  font-size: 11px;
+  color: #9aa1ae;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.aiw-msg:hover .aiw-msg__time { opacity: 1; }
+
+/* 富文本细节 */
+.aiw-msg__bubble a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* 链接色输入输出统一（不再分 bot/user 两套） */
+.aiw-msg__bubble a { color: var(--aiw-primary); }
+.aiw-msg__bubble strong { font-weight: 650; }
+.aiw-msg__bubble .aiw-ul { margin: 6px 0 4px; padding-left: 18px; }
+.aiw-msg__bubble .aiw-ul li { margin: 2px 0; }
+.aiw-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(16, 24, 40, 0.07);
+}
+.aiw-code {
+  margin: 7px 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  position: relative;
+}
+.aiw-code code { font-family: inherit; }
+
+/* 正在输入 / 正在加载对话 —— 两者共用同一个三点气泡：
+   都是「有东西在路上，但还没到」，用户需要的信号是一样的。
+   ★ 刻意**不新增 animation**：直接并入下面这些选择器，
+     棘轮计数（无限动画/硬编码时长）就不会因为加一个状态而 +1。 */
+.aiw-typing,
+.aiw-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border-top-left-radius: 5px;
+  background: #fff;
+  border: 1px solid var(--aiw-line);
+  width: fit-content;
+}
+.aiw-typing i,
+.aiw-loading i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--aiw-primary);
+  opacity: 0.45;
+  animation: aiw-bounce 1.2s infinite ease-in-out;
+}
+.aiw-typing i:nth-child(2),
+.aiw-loading i:nth-child(2) { animation-delay: 0.16s; }
+.aiw-typing i:nth-child(3),
+.aiw-loading i:nth-child(3) { animation-delay: 0.32s; }
+
+/* 空状态（041 状态矩阵）：0 条消息时不再是纯白一片。
+   它只在「刚打开还没说话」时出现几秒，但那是用户对产品的第一印象。 */
+.aiw-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--aiw-space-3);
+  padding: 32px 24px;
+  text-align: center;
+}
+.aiw-empty__ico {
+  width: 34px;
+  height: 34px;
+  color: var(--aiw-text-soft);
+  opacity: 0.55;
+}
+.aiw-empty__t {
+  font-size: var(--aiw-fs-md);
+  color: var(--aiw-text);
+}
+.aiw-empty__d {
+  font-size: var(--aiw-fs-sm);
+  color: var(--aiw-text-soft);
+}
+@keyframes aiw-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* 错误提示 */
+.aiw-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b42318;
+  font-size: 12.5px;
+}
+.aiw-error button {
+  border: 0;
+  background: #b42318;
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.aiw-error button:hover { background: #912018; }
+
+/* ---------------- 快捷问题 ---------------- */
+.aiw-quick {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 10px;
+  flex-wrap: wrap;
+  background: var(--aiw-bg-soft);
+}
+.aiw-chip {
+  border: 1px solid var(--aiw-primary-16);
+  background: #fff;
+  color: var(--aiw-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.aiw-chip:hover { background: var(--aiw-primary-08); border-color: var(--aiw-primary-32); transform: translateY(-1px); }
+.aiw-chip:active { transform: translateY(0); }
+
+/* ---------------- 状态提示条（贴输入框上方） ----------------
+   error / retrying / reconnecting / fellBackToMock 统一挂在这条容器里。
+   它在 .aiw-body 之外，所以不随消息滚动；贴在 .aiw-footer 之上，
+   视觉上与「我要在这里输入」连成一片操作区。 */
+.aiw-status {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 0;
+  background: var(--aiw-bg);
+  border-top: 1px solid var(--aiw-line);
+}
+/* 提示条已自带一条分隔线，footer 不再重复画一道，两条挨一起会像双线 */
+.aiw-status + .aiw-footer { border-top: 0; padding-top: 8px; }
+.aiw-status .aiw-error,
+.aiw-status .aiw-retry,
+.aiw-status .aiw-reconnect,
+.aiw-status .aiw-fallback { margin: 0; }
+
+/* ---------------- 行内触发面板（`/` 命令 / `@` 提及）+ 上下文 chips ----------------
+    面板向上弹（bottom:100%），挂在 footer 内 —— 它跟着输入区走，
+    不随消息区滚动，也不遮挡输入框（用户要能看见自己正在打的字）。 */
+.aiw-composer { position: relative; }
+.aiw-trgwrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+}
+.aiw-trg {
+  max-height: 268px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--aiw-line);
+  border-radius: 12px;
+  background: var(--aiw-bg);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.aiw-trg__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 11px 5px;
+  border-bottom: 1px solid var(--aiw-line);
+}
+.aiw-trg__title { font-size: 12px; font-weight: 600; color: var(--aiw-text); }
+.aiw-trg__hint { font-size: 10.5px; color: var(--aiw-text-soft); }
+.aiw-trg__list { overflow-y: auto; padding: 4px; }
+.aiw-trg__grp + .aiw-trg__grp { margin-top: 4px; }
+.aiw-trg__grp-t {
+  padding: 4px 7px 2px;
+  font-size: 10.5px;
+  color: var(--aiw-text-soft);
+  letter-spacing: 0.02em;
+}
+.aiw-trg__opt {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--aiw-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.aiw-trg__opt.is-on { background: var(--aiw-primary-16); }
+.aiw-trg__opt-name { font-weight: 600; white-space: nowrap; }
+.aiw-trg__opt-meta { font-size: 10.5px; color: var(--aiw-text-soft); white-space: nowrap; }
+.aiw-trg__opt-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--aiw-text-soft);
+}
+.aiw-trg__empty { padding: 12px; font-size: 12px; color: var(--aiw-text-soft); text-align: center; }
+
+/* 上下文 chips：有值才渲染（组件侧 v-if 已挡），贴输入框上沿 */
+.aiw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 7px;
+}
+.aiw-chip-ctx {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--aiw-line);
+  border-radius: 999px;
+  background: var(--aiw-bg-soft);
+  overflow: hidden;
+}
+.aiw-chip-ctx__main,
+.aiw-chip-ctx__x {
+  border: 0;
+  background: transparent;
+  color: var(--aiw-text);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.aiw-chip-ctx__main { display: inline-flex; align-items: center; gap: 4px; }
+.aiw-chip-ctx__main:disabled { cursor: default; }
+.aiw-chip-ctx__ico { font-size: 11px; }
+.aiw-chip-ctx__x { padding: 3px 7px 3px 2px; color: var(--aiw-text-soft); }
+.aiw-chip-ctx__x:hover { color: var(--aiw-primary); }
+
+/* ---------------- 底部输入 ---------------- */
+.aiw-footer {
+  flex: 0 0 auto;
+  position: relative; /* 041：给 .aiw-ask 浮层做定位上下文（浮层绝对定位于此，不占布局高度） */
+  padding: 10px 14px 12px;
+  background: var(--aiw-bg);
+  border-top: 1px solid var(--aiw-line);
+}
+.aiw-input {
+  display: flex;
+  /* 上下布局：textarea 独占第一行（flex-basis 100% 强制换行），
+     底行图标组 + 发送按钮落第二行 —— 与参考图一致，
+     而不是把按钮挤在输入框右侧同一水平带。 */
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--aiw-line);
+  border-radius: 14px;
+  background: var(--aiw-bg);
+}
+/* 041：聚焦**不再**给输入框加边框色/光环 —— 用户明确要求，且输入框是常驻交互容器，
+   每次聚焦整块换色太闹。
+   ★ UX-005 [P0] 焦点必须可见：改由**底行分隔线**（.aiw-inputrow 的 border-top）
+     变主色承担焦点指示 —— 动的不是输入框边框，而是另一个元素，
+     既满足「键盘用户看得见焦点」，又不违背「去掉输入框聚焦边框色」。 */
+.aiw-input:focus-within {
+  border-color: var(--aiw-line);
+  box-shadow: none;
+}
+/* ★ 焦点指示**不引入任何颜色变化**（用户两次要求去掉聚焦边框色：
+   先是 textarea 的蓝色 outline，再是这条分隔线变主色）。
+   改用**加粗**：分隔线 0.8px → 2px。UX-005 要求焦点可见，但「可见」不必靠换色 ——
+   形状变化同样是可见指示，且不违背「去掉聚焦边框色」。
+   键盘聚焦（:focus-within 对 Tab 进入同样生效）也能看到这条线变粗。 */
+.aiw-input:focus-within .aiw-inputrow {
+  border-top-color: var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  border-top-width: 2px;
+}
+.aiw-input textarea {
+  flex: 1 1 100%;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--aiw-text);
+  max-height: 108px;
+  padding: 5px 0;
+  scrollbar-width: thin;
+}
+/* ★ UX-002 [P0]：placeholder 是重要引导文字，原 #a6adba 在白底实测仅 **2.26:1**
+   （11~13px 小字需 ≥4.5:1），提深到 #767c88 一档；仍是明显弱于正文的次级观感。 */
+.aiw-input textarea::placeholder { color: #767c88; }
+
+.aiw-send {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--aiw-primary);
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+.aiw-send svg { width: 17px; height: 17px; }
+.aiw-send:hover:not(:disabled) { transform: scale(1.06); }
+/* ★ UX-002：禁用态图标原 #a6adba 在 #dfe2ea 底上仅约 1.9:1，几乎看不见；
+   图标属 UI 元素，阈值 3:1，提深到 #6b7280（≈3.6:1）。
+   「不可点」由 cursor:not-allowed + 无 hover 缩放共同表达，不依赖颜色单独承载。 */
+.aiw-send:disabled { background: #dfe2ea; color: #6b7280; cursor: not-allowed; }
+
+.aiw-note {
+  margin-top: 7px;
+  text-align: center;
+  font-size: 11px;
+  color: #a6adba;
+  line-height: 1.4;
+}
+
+/* ---------------- 内联模式（v1.8.0 迁移适配） ----------------
+   插件/宿主页面场景无 Shadow DOM：inline 时面板铺满宿主容器，不做悬浮定位。
+   面板铺满（圆角/边框/阴影）规则见 blocks.css 内联段。
+   颜色变量映射宿主 --el-* token，使组件明暗主题与宿主融为一体，不再用组件自带的冷灰底色。 */
+.aiw-root.aiw-inline {
+  position: relative;
+  height: 100%;
+  /* 宿主（Element Plus）必提供 --el-* 变量，不写色值 fallback，守 token 单一来源红线 */
+  --aiw-bg: var(--el-bg-color);
+  --aiw-bg-soft: var(--el-fill-color-light);
+  --aiw-text: var(--el-text-color-primary);
+  --aiw-text-soft: var(--el-text-color-secondary);
+  --aiw-line: var(--el-border-color);
+}
+.aiw-root.aiw-inline .aiw-msg__bubble,
+.aiw-root.aiw-inline .aiw-typing,
+.aiw-root.aiw-inline .aiw-chip {
+  background: var(--el-fill-color);
+}
+.aiw-root.aiw-inline.aiw-dark {
+  --aiw-bg: var(--el-bg-color);
+  --aiw-bg-soft: var(--el-fill-color-light);
+  --aiw-text: var(--el-text-color-primary);
+  --aiw-text-soft: var(--el-text-color-secondary);
+  --aiw-line: var(--el-border-color);
+}
+.aiw-root.aiw-inline.aiw-dark .aiw-msg__bubble,
+.aiw-root.aiw-inline.aiw-dark .aiw-typing,
+.aiw-root.aiw-inline.aiw-dark .aiw-chip {
+  background: var(--el-fill-color);
+}
+/* 发送键禁用态：组件源硬编码冷灰，内联时映射宿主中性 token，避免暖色主题里泛蓝 */
+.aiw-root.aiw-inline .aiw-send:disabled {
+  background: var(--el-fill-color-dark);
+  /* --el-text-color-disabled 实测在该底上仅 1.49:1，改用固定深灰保 3:1 */
+  color: #6b7280;
+}
+.aiw-root.aiw-inline.aiw-dark .aiw-send:disabled {
+  background: var(--el-fill-color-darker);
+  /* 深色底上反相：提亮到 #9aa1ae 保 3:1 */
+  color: #9aa1ae;
+}
+
+/* ---------------- 小屏适配 ---------------- */
+@media (max-width: 480px) {
+  aiw-ctxmenu {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0;
+    border: 0;
+  }
+  .aiw-root.aiw-right aiw-ctxmenu { transform-origin: bottom center; }
+  .aiw-msg__col { max-width: 84%; }
+  .aiw-launcher { width: 54px; height: 54px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aiw-root *,
+  .aiw-root *::before,
+  .aiw-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 深色模式（v1.8.0 迁移适配：组件源原用 @media (prefers-color-scheme: dark)
+   跟随系统偏好；内嵌宿主时由宿主主题决定 darkMode，class 需无条件应用，
+   不能依赖系统偏好——宿主强制 dark 但系统为浅色时，否则会渲染成亮白面板） */
+.aiw-root.aiw-dark {
+  --aiw-text: #e7e9ee;
+  --aiw-text-soft: #9aa1ae;
+  --aiw-line: #2a2f3a;
+  --aiw-bg: #161a22;
+  --aiw-bg-soft: #101319;
+  --aiw-shadow: 0 18px 48px -12px rgba(0, 0, 0, 0.6), 0 6px 16px -6px rgba(0, 0, 0, 0.4);
+  /* 深色底上反相提亮：红/琥珀的浅色档在 #161a22 上都在 7:1 以上 */
+  --aiw-text-danger: #fca5a5;
+  --aiw-text-warning: #fcd34d;
+}
+.aiw-root.aiw-dark .aiw-msg__bubble { background: #1d222c; }
+.aiw-root.aiw-dark .aiw-typing { background: #1d222c; }
+.aiw-root.aiw-dark .aiw-input textarea { color: var(--aiw-text); }
+.aiw-root.aiw-dark .aiw-chip { background: #1d222c; }
+.aiw-root.aiw-dark .aiw-send:disabled { background: #2a2f3a; color: #6b7280; }
+.aiw-root.aiw-dark .aiw-launcher__badge { border-color: #161a22; }
+
+/* 流式期间发送键变「停止」（FR-212）：用现有 token 着色，深色模式自动跟随 */
+.aiw-send.is-stop {
+  background: var(--aiw-text);
+  color: var(--aiw-bg);
+  cursor: pointer;
+}
+.aiw-send.is-stop:hover { transform: scale(1.06); }
+.aiw-send.is-stop:active { transform: scale(0.94); }
+
+/* FR-508 降级提示条：静默降级等于让用户拿模拟数据当真数据 */
+.aiw-fallback {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 2px 0;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--aiw-text-soft);
+  background: var(--aiw-bg-soft);
+  border: 1px dashed var(--aiw-line);
+}
+.aiw-fallback .aiw-retry__dot { background: #f59e0b; }
+
+/* ---------------- FR-804 字号档位：整体缩放 ---------------- */
+.aiw-panel,
+.aiw-launcher { zoom: var(--aiw-scale, 1); }
+
+/* ---------------- FR-801 只读模式（大屏） ---------------- */
+.aiw-root.aiw-readonly .aiw-body { border-bottom-left-radius: var(--aiw-radius); border-bottom-right-radius: var(--aiw-radius); }
+
+/* ---------------- FR-803 数据新鲜度 ---------------- */
+.aiw-fresh {
+  margin-left: 7px; padding: 1px 6px; border-radius: 5px;
+  font-size: 10.5px; white-space: nowrap;
+  color: var(--aiw-text-soft); background: var(--aiw-bg-soft);
+  border: 1px solid var(--aiw-line);
+}
+.aiw-fresh.is-stale { color: #b45309; background: #fffbeb; border-color: #fde68a; font-weight: 600; }
+
+/* ---------------- FR-805 防烧屏 ---------------- */
+@keyframes aiw-burnin-drift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-7px, -5px); }
+  50%  { transform: translate(5px, -8px); }
+  75%  { transform: translate(-4px, 6px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes aiw-burnin-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.86; }
+}
+/* 漂移放在内容层、呼吸放在头部：都不与面板的弹出过渡抢 transform */
+.aiw-root.aiw-burnin .aiw-body__inner { animation: aiw-burnin-drift 240s ease-in-out infinite; }
+.aiw-root.aiw-burnin .aiw-header { animation: aiw-burnin-breathe 120s ease-in-out infinite; }
+
+/* ---------------- Q-09 续传提示条 ----------------
+   形状与重试条一致（用户不需要学两套），但用主色 + 呼吸点区分：
+   「正在补上剩下的」比「等着重试」更接近成功，视觉上不该一样丧。 */
+.aiw-reconnect {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 2px 0;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--aiw-text-soft);
+  background: var(--aiw-primary-08);
+  border: 1px dashed var(--aiw-primary-32);
+}
+.aiw-reconnect .aiw-retry__dot { background: var(--aiw-primary); }
+.aiw-reconnect button {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--aiw-text-soft);
+  background: transparent;
+  border: 1px solid var(--aiw-line);
+  cursor: pointer;
+}
+.aiw-reconnect button:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+@media (prefers-reduced-motion: no-preference) {
+  .aiw-reconnect .aiw-retry__dot { animation: aiw-reconnect-pulse 1.1s ease-in-out infinite; }
+  @keyframes aiw-reconnect-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+}
+
+/* ---------------- v1.8 遥控 ---------------- */
+/* 头部状态徽标：与新鲜度徽标同族，但用圆点表达连接状态（一眼可辨，不用读字） */
+.aiw-remote {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-left: 6px; padding: 1px 7px; border-radius: 5px;
+  font-size: 10.5px; white-space: nowrap; cursor: pointer;
+  color: var(--aiw-text-soft); background: var(--aiw-bg-soft);
+  border: 1px solid var(--aiw-line);
+}
+.aiw-remote__dot { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; flex: 0 0 6px; }
+.aiw-remote.is-paired { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.aiw-remote.is-paired .aiw-remote__dot { background: #10b981; }
+.aiw-remote.is-expired { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.aiw-remote.is-expired .aiw-remote__dot { background: #f59e0b; }
+.aiw-remote.is-waiting .aiw-remote__dot { background: var(--aiw-primary); animation: aiw-remote-blink 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes aiw-remote-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+}
+
+/* 配对卡片 */
+.aiw-pair {
+  margin: 0 2px 10px; padding: 12px;
+  border-radius: 12px; text-align: center;
+  background: var(--aiw-bg-soft); border: 1px solid var(--aiw-line);
+}
+.aiw-pair__head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--aiw-text); }
+.aiw-pair__x { border: 0; background: transparent; color: var(--aiw-text-soft); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.aiw-pair__expired { margin-top: 8px; font-size: 11.5px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 8px; }
+.aiw-pair__qr { width: 148px; height: 148px; margin: 10px auto 6px; display: block; background: #fff; padding: 6px; border-radius: 8px; }
+.aiw-pair__code { font: 700 22px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 4px; color: var(--aiw-primary); margin: 6px 0 4px; }
+.aiw-pair__url { font-size: 10.5px; color: var(--aiw-text-soft); word-break: break-all; line-height: 1.45; }
+.aiw-pair__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--aiw-text-soft); }
+.aiw-pair__foot span { margin-right: auto; }
+.aiw-pair__foot button { padding: 3px 9px; border-radius: 7px; font-size: 11px; cursor: pointer; color: var(--aiw-text-soft); background: transparent; border: 1px solid var(--aiw-line); }
+.aiw-pair__foot button:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+
+/* 遥控来源标记：让屏前的人看出这条不是本机打的 */
+.aiw-msg__src {
+  display: inline-block; margin: 0 0 4px 2px; padding: 1px 7px; border-radius: 5px;
+  font-size: 10px; font-weight: 600; letter-spacing: .3px;
+  color: var(--aiw-primary); background: var(--aiw-primary-08); border: 1px solid var(--aiw-primary-16);
+}
+
+
+/* ---------------- v1.11.0 无障碍 ----------------
+   1) .aiw-sr-only：给读屏听得见、给眼睛看不见的文案（面板说明、禁用原因、
+      消息说话人）。用 clip 与 1px 尺寸，而不是 display:none —— 后者连读屏一起藏掉。
+   2) :focus-visible：只给**键盘**焦点画轮廓，鼠标点击不画，避免视觉噪音。
+      之前只有浏览器默认轮廓，宿主若写过 outline:none 就彻底没了焦点线索。 */
+.aiw-sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aiw-root :focus-visible,
+.aiw-root button:focus-visible,
+.aiw-root textarea:focus-visible,
+.aiw-root input:focus-visible {
+  outline: 2px solid var(--aiw-primary);
+  outline-offset: 2px;
+}
+/* ★ 输入框聚焦**不画 outline**（用户明确要求「输入聚焦去掉聚焦边框色」）。
+   上面那条通用焦点环是 (0,3,0)，会压过 `.aiw-input textarea{outline:none}` 的 (0,2,0)，
+   导致鼠标点一下输入框就冒出一圈蓝框（实测 2px solid #409eff）。
+   这里用 (0,4,0) 显式压回来。焦点可见性不丢：输入区由
+   `.aiw-input:focus-within .aiw-inputrow` 的分隔线变主色承担（键盘聚焦同样触发），
+   比在 textarea 上画一圈更明显，也不违背「去掉输入框聚焦边框色」。 */
+.aiw-root .aiw-input textarea:focus-visible,
+.aiw-root .aiw-input textarea:focus {
+  outline: none;
+}
+.aiw-launcher:focus-visible { outline-offset: 3px; }
+/* 面板自身只是「焦点锚点」（tabindex="-1"），打开时把焦点接进来，不该画一圈轮廓 */
+.aiw-panel:focus,
+.aiw-panel:focus-visible { outline: none; }
+
+
+/* ---------------- v1.12.0 会话历史侧栏 ----------------
+   覆盖式：面板内绝对定位铺满，不挤压对话区宽度（384px 的面板挤不起一个侧栏）。
+   ★ 教训：首版在这里写了 `aiw-ctxmenu { position: relative }`，想给侧栏一个定位上下文。
+   那条既没必要、又有害 —— `position: fixed` **本身就是**绝对定位后代的包含块，
+   而覆盖成 relative 等于把面板从视口上摘下来（fixed → relative，掉回文档流），
+   移动端「铺满视口」当场失效（390x844 只量到 390x797）。
+   定位上下文不需要额外声明：下面这条绝对定位的侧栏，直接挂在固定定位的面板上即可。 */
+.aiw-history {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  background: var(--aiw-bg);
+  border-radius: inherit;
+  overflow: hidden;
+}
+/* 侧栏自身是「焦点锚点」（tabindex="-1"）：打开时把焦点接进来。
+   与 .aiw-panel 同理，轮廓只该给可操作的控件，锚点不画。 */
+.aiw-history:focus,
+.aiw-history:focus-visible { outline: none; }
+.aiw-history__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--aiw-line);
+}
+.aiw-history__h { font-size: 13px; font-weight: 600; color: var(--aiw-text); margin-right: auto; }
+.aiw-history__new,
+.aiw-history__x,
+.aiw-history__clear {
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--aiw-text-soft);
+  background: transparent;
+  border: 1px solid var(--aiw-line);
+  cursor: pointer;
+}
+.aiw-history__new:hover,
+.aiw-history__x:hover,
+.aiw-history__clear:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+.aiw-history__x { font-size: 15px; line-height: 1; padding: 2px 7px; }
+.aiw-history__clear { color: #b91c1c; border-color: #fecaca; }
+.aiw-history__dl {
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--aiw-text-soft);
+  background: transparent;
+  border: 1px solid var(--aiw-line);
+  cursor: pointer;
+}
+.aiw-history__dl:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+.aiw-history__clear:hover { color: #991b1b; border-color: #fca5a5; }
+
+.aiw-history__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+.aiw-history__item { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
+.aiw-history__pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.aiw-history__pick:hover { background: var(--aiw-bg-soft); border-color: var(--aiw-line); }
+.aiw-history__item.is-active .aiw-history__pick {
+  background: var(--aiw-primary-08);
+  border-color: var(--aiw-primary-32);
+}
+.aiw-history__title {
+  font-size: 12.5px;
+  color: var(--aiw-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aiw-history__item.is-active .aiw-history__title { font-weight: 600; }
+.aiw-history__meta { font-size: 10.5px; color: var(--aiw-text-soft); }
+.aiw-history__del {
+  flex: 0 0 auto;
+  width: 26px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--aiw-text-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.aiw-history__del:hover { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.aiw-history__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 11px;
+  color: var(--aiw-text-soft);
+  border-top: 1px solid var(--aiw-line);
+}
+.aiw-history__foot span { margin-right: auto; }
+
+/* ============================================================
+   041 交互规格补缺：悬停反馈
+   ------------------------------------------------------------
+   这批可点元素以前**一条 hover 规则都没有** —— 鼠标移上去毫无变化，
+   用户分不清它是「能点的按钮」还是「只是长得像按钮的一块文字」。
+   键盘那条线是全的（有通用 `.aiw-root button:focus-visible` 兜底），
+   唯独鼠标这条断了：键盘用户有反馈，鼠标用户没有。
+
+   做法上刻意**不逐个调色**：给 12 个元素各配一个专属 hover 色，
+   等于又造 12 个碎片值，跟 token 化的方向反着走。
+   只分两组：容器式折叠头 → 换底色；实心操作按钮 → 轻微降不透明度。
+   ============================================================ */
+.aiw-think__head:hover,
+.aiw-todopanel__head:hover,
+.aiw-tool__head:hover,
+.aiw-grp__head:hover {
+  background: var(--aiw-bg-soft);
+}
+
+.aiw-appr__btn:hover,
+.aiw-appr__btn--ok:hover,
+.aiw-appr__btn--no:hover,
+.aiw-ask__btn--ok:hover,
+.aiw-chip-ctx__main:hover,
+.aiw-html__btn:hover,
+.aiw-pair__x:hover,
+.aiw-remote:hover {
+  opacity: 0.78;
+}
+
+/* hover 要有过渡，不然是硬切。
+   挂在这**一条**规则里，而不是 12 个元素各写一遍 ——
+   后者会让「硬编码动效时长」的棘轮计数直接 +12。 */
+.aiw-think__head,
+.aiw-todopanel__head,
+.aiw-tool__head,
+.aiw-grp__head,
+.aiw-appr__btn,
+.aiw-appr__btn--ok,
+.aiw-appr__btn--no,
+.aiw-ask__btn--ok,
+.aiw-chip-ctx__main,
+.aiw-html__btn,
+.aiw-pair__x,
+.aiw-remote {
+  transition: opacity var(--aiw-dur-instant) var(--aiw-ease-out),
+    background var(--aiw-dur-instant) var(--aiw-ease-out);
+}

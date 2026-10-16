@@ -19,7 +19,7 @@
       @new-agent="onNewAgent"
     />
 
-    <!-- 中栏：项目文件编辑（可选） + 完整聊天区；min-h-0 链（agent__main → chat）是滚动修复关键 -->
+    <!-- 中栏：项目文件编辑（可选） + 聊天区（agent-core 组件）；min-h-0 链（agent__main → chat）是滚动修复关键 -->
     <div class="agent__main flex min-h-0 min-w-0 flex-1 flex-col">
       <FileEditor
         v-if="editingFile"
@@ -30,35 +30,62 @@
         @save="saveFile"
         @close="closeFile"
       />
-      <ChatPanel
-        :messages="messages"
-        :models="models"
-        :selected-model-id="selectedModelId"
-        :sending="sending"
-        :error="error"
-        :version="version"
-        :tools="agentTools"
-        :skills="agentSkills"
-        :agents="agents"
-        :active-agent-id="activeAgentId"
-        :project-dir="projectDir"
-        :selected-tool-names="selectedToolNames"
-        :selected-skill-ids="selectedSkillIds"
-        :left-collapsed="leftCollapsed"
-        :right-collapsed="rightCollapsed"
-        :run-card="runCard"
-        @update:selected-model-id="onModelChange"
-        @update:active-agent-id="onActiveAgentChange"
-        @update:selected-tool-names="onToolNamesChange"
-        @update:selected-skill-ids="onSkillIdsChange"
-        @send="sendMessage"
-        @stop="stopSending"
-        @select-directory="onSelectDirectory"
-        @clear-directory="onClearDirectory"
-        @toggle-left="leftCollapsed = !leftCollapsed"
-        @toggle-right="rightCollapsed = !rightCollapsed"
-        @open-runs="runPanelVisible = true"
-      />
+      <div class="chat flex min-h-0 min-w-0 flex-1 flex-col">
+        <!-- 顶部条（v1.8.0 起由本页提供，组件自身标题栏已隐藏）：折叠 + 标题 + 版本徽标 + 状态 + 执行记录 -->
+        <header class="chat__bar">
+          <div class="chat__bar-left">
+            <button
+              type="button"
+              class="chat__fold"
+              :title="leftCollapsed ? '展开左栏' : '收起左栏'"
+              @click="leftCollapsed = !leftCollapsed"
+            >
+              <!-- 收起/展开随栏状态自动切换：箭头语义暧昧，改用 EP Fold/Expand，点开/收起意图一目了然 -->
+              <component :is="leftCollapsed ? Expand : Fold" class="chat__fold-ico" />
+            </button>
+            <span class="chat__title">
+              AI Agent
+              <!-- 插件版本徽标：用户要求「标题后显示插件版本」；
+                   设计原型标题旁无此元素，故作为追加元素挂在这里，既满足需求又不破坏原型布局。 -->
+              <span v-if="version" class="chat__version">v{{ version }}</span>
+            </span>
+            <span class="chat__status">
+              <span class="chat__dot" :class="{ 'chat__dot--busy': sending }"></span>
+              {{ sending ? '思考中' : '就绪' }}
+            </span>
+          </div>
+
+          <div class="chat__bar-right">
+            <!-- 执行记录（029 计划驱动）：打开 Run 列表/详情面板 -->
+            <button
+              type="button"
+              class="chat__fold"
+              title="执行记录（计划驱动 Run 列表 / 详情 / 介入）"
+              @click="runPanelVisible = true"
+            >
+              <List class="chat__fold-ico" />
+            </button>
+            <button
+              type="button"
+              class="chat__fold"
+              :title="rightCollapsed ? '展开右栏' : '收起右栏'"
+              @click="rightCollapsed = !rightCollapsed"
+            >
+              <component :is="rightCollapsed ? Expand : Fold" class="chat__fold-ico" />
+            </button>
+          </div>
+        </header>
+
+        <!-- agent-core 聊天组件（v1.8.0 替换 ChatPanel）：消息区 + 输入框由组件承载，
+             计划步骤卡/工具卡片等本批暂不渲染（记 TODO，功能迁入组件后恢复） -->
+        <ChatWidget
+          ref="chatRef"
+          class="min-h-0 min-w-0 flex-1"
+          :config="agentConfig"
+          :control="chatControl"
+          @state-changed="onChatStateChanged"
+        />
+      </div>
     </div>
 
     <!-- 右栏（对齐 Cursor 上下文面板位）：AI 上下文；可折叠 -->
@@ -111,7 +138,7 @@
  * 状态说明：消息与会话状态提升到本组件持有，是为了让左栏「会话统计」显示真实数据，
  * 避免出现两处独立状态导致统计与界面不一致。
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, unref, watch, watchEffect } from 'vue'
 // ElMessageBox：归档前的二次确认弹窗（宿主已全局引入 el-message-box.css，无需插件另引样式）。
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -120,14 +147,11 @@ import {
   fetchSessions,
   getRunDetail,
   resumeAgentRun,
-  streamAgentChat,
-  streamAgentRun,
   withQuery,
   type AgentUsage,
   type RunStreamHandlers,
 } from './http'
 import { archiveSessionWithConfirm } from './sessionArchive'
-import { settleToolEventFifo } from './toolEvents'
 import type {
   AgentDefinition,
   AgentPlan,
@@ -144,11 +168,35 @@ import type {
 } from './types'
 import { stepStatusName } from './types'
 import ContextPanel from './components/ContextPanel.vue'
-import ChatPanel from './components/ChatPanel.vue'
 import FileEditor from './components/FileEditor.vue'
 import SessionPanel from './components/SessionPanel.vue'
 import AgentEditDialog from './components/AgentEditDialog.vue'
 import RunRecordPanel from './components/RunRecordPanel.vue'
+// v1.8.0：中栏聊天区由 agent-core 组件（ai-assistant-widget 迁移）承载
+import ChatWidget from './agent-core/components/ChatWidget.vue'
+import { buildAgentChatConfig, createHostAppearance } from './agentBridge'
+import {
+  MAX_FILES,
+  buildCommandGroups,
+  collectProjectFiles,
+  joinRel,
+  pickItem,
+  shouldDescend,
+  shouldKeepFile,
+} from './composer'
+import {
+  PROJECT_CLEAR_ID,
+  buildAskConfig,
+  buildContextBarConfig,
+  todosToAskItem,
+  type TodoDtoLike,
+} from './composerPanels'
+import type { ComposerItem } from './composer'
+import type { AccessMode } from './composerContext'
+import type { AskItem } from './composerContext'
+import type { HostAppearance } from './agentBridge'
+import type { AgentChatConfig, ChatWidgetExpose } from './agent-core/types'
+import { Expand, Fold, List } from '@element-plus/icons-vue'
 
 /** 插件 id，与 plugin.json 的 Id 对齐。 */
 const PLUGIN_ID = 'ai-agent'
@@ -160,6 +208,8 @@ const LS_KEY_SESSION = 'forgeself-agent-session-id'
 const LS_KEY_AGENT = 'forgeself-agent-current-agent'
 /** 当前项目工作目录的本地持久化键。 */
 const LS_KEY_PROJECT = 'forgeself-agent-project-dir'
+/** 041 权限档位的本地持久化键（会话级设置：刷新后仍按上次的安全档发）。 */
+const LS_KEY_ACCESS = 'forgeself-agent-access-mode'
 
 /** 插件版本（展示在浏览器标签/调试信息，设计原型无此元素，故不放在标题旁）。 */
 const version = ref('')
@@ -204,13 +254,28 @@ const agentSkills = ref<ProjectSkillItem[]>([])
 const selectedToolNames = ref<string[]>([])
 /** 本会话已选技能 id（⚡ 多选，发送后清空）。 */
 const selectedSkillIds = ref<string[]>([])
+/* ---------- 041 权限档位 + 图标行 + 待你动作 ---------- */
+/** 权限档位（readonly 只读 / standard 标准 / full 完全访问），默认 standard（最安全可用档）。 */
+const accessMode = ref<AccessMode>('standard')
+/** 图标行当前展开的面板 key（null = 全关）；宿主要知道谁开着，才能算搜索过滤结果。 */
+const ctxOpenKey = ref<string | null>(null)
+/** 各面板搜索词（按 key 分开，切面板不串词）。 */
+const ctxQueries = ref<Record<string, string>>({})
+/** 待办清单（TodoTracker 插件，GET /api/todos），供输入框上方「待办」卡渲染。 */
+const todos = ref<TodoDtoLike[]>([])
+/** 已登记过的项目目录（本机 localStorage 累积），供项目面板直接点选。 */
+const knownProjects = ref<string[]>([])
+/**
+ * 041 瞬时待你动作（审批 / 询问）。
+ * 当前 AIAgent 后端**无 approval 端点**（实测 grep 全空），故恒为空数组；
+ * 契约已就绪（config.ask + AskPanel），等后端接入即可直接出卡。
+ */
+const askItems = ref<AskItem[]>([])
 /** 左栏（会话/Agent 列表）是否折叠（折叠后单栏接近主流对话体验）。 */
 const leftCollapsed = ref(false)
 /** 右栏（AI 上下文：目录/工具/技能/记忆）是否折叠。默认显示（展开），内部各分组默认折叠。 */
 const rightCollapsed = ref(false)
-/** 当前发送的 AbortController（composer 发送按钮发送中变 ■ 停止用）。 */
-const sendAbort = ref<AbortController | null>(null)
-/** 计划驱动执行（029）：中栏步骤进度卡的实时运行状态。 */
+/** 计划驱动执行（029）：中栏步骤进度卡的实时运行状态（本批组件不渲染步骤卡，数据源保留供执行记录/后续迁入）。 */
 const runCard = ref<PlanRunCard | null>(null)
 /** 执行记录面板（029）是否打开。 */
 const runPanelVisible = ref(false)
@@ -220,13 +285,45 @@ const runAbort = ref<AbortController | null>(null)
 /** 当前激活 Agent（用于判断执行模式：free 自由循环 / plan 计划驱动）。 */
 const activeAgent = computed(() => agents.value.find((a) => a.id === activeAgentId.value) ?? null)
 
-/** 消息条数（真实统计）。 */
-const messageCount = computed(() => messages.value.length)
+/* ---------- agent-core 聊天组件（v1.8.0 替换 ChatPanel） ---------- */
+/** 组件实例句柄（hydrate / isSending / messages / lastUsage）。 */
+const chatRef = ref<ChatWidgetExpose | null>(null)
+/** 组件 inline 形态的打开控制：常驻打开（inline 下 close 被组件拦截）。 */
+const chatControl = reactive({ open: true })
+/** 组件 config：transport 经 deps getter 每次发送取最新值（响应式源）。
+ *  reactive 包裹使外观字段（darkMode/primaryColor）可被宿主主题切换实时驱动。 */
+const agentConfig = reactive(
+  buildAgentChatConfig({
+    sessionId: () => sessionId.value,
+    activeAgentId: () => activeAgentId.value,
+    selectedModelId: () => selectedModelId.value,
+    selectedToolNames: () => selectedToolNames.value,
+    selectedSkillIds: () => selectedSkillIds.value,
+    activeAgent: () => activeAgent.value,
+    // 041 权限：getter 注入，transport 每次发送取最新档位
+    accessMode: () => accessMode.value,
+    allToolNames: () => agentTools.value.map((t) => t.name ?? '').filter((n) => !!n),
+  })
+) as AgentChatConfig
+
+/** 宿主外观（深色/主色）同步到组件：跟随宿主主题，不使用组件自带的紫/白底默认值。 */
+const hostAppearance = createHostAppearance()
+const applyHostAppearance = (v: HostAppearance) => {
+  agentConfig.darkMode = v.dark
+  agentConfig.primaryColor = v.primaryColor
+}
+applyHostAppearance(hostAppearance.get())
+const unsubscribeAppearance = hostAppearance.subscribe(applyHostAppearance)
+onBeforeUnmount(() => {
+  unsubscribeAppearance()
+  hostAppearance.dispose()
+})
+
+/** 消息条数（真实统计；由组件 state-changed 事件驱动刷新）。 */
+const messageCount = ref(0)
 /** 工具调用次数（真实统计：累加各条消息的工具事件数，兼容非流式的 toolCalls）。 */
-const toolCallCount = computed(() =>
-  messages.value.reduce((sum, m) => sum + (m.toolEvents?.length ?? m.toolCalls?.length ?? 0), 0)
-)
-/** 最近一次回复的 token 用量（流式 usage 事件填充；无则显示占位符）。 */
+const toolCallCount = ref(0)
+/** 最近一次回复的 token 用量（组件 lastUsage 上抛；无则显示占位符）。 */
 const lastUsage = ref<AgentUsage | null>(null)
 /** token 用量文案；后端未返回时如实显示占位符。 */
 const tokenText = computed(() => {
@@ -235,6 +332,22 @@ const tokenText = computed(() => {
   const total = u.totalTokens ?? ((u.promptTokens ?? 0) + (u.completionTokens ?? 0))
   return `${total} tok`
 })
+
+/** 组件消息状态变化（发送开始/结束、会话切换灌入历史）：同步左栏统计与状态点。 */
+function onChatStateChanged() {
+  sending.value = chatRef.value?.isSending() ?? false
+  // unref 兼容：defineExpose 暴露的 ref 在不同 Vue 版本/访问路径下可能已自动解包
+  const allMsgs = (unref(chatRef.value?.messages) as ChatMessage[] | undefined) ?? []
+  // 组件在空会话注入的欢迎消息（welcome 标记）不参与消息数统计
+  const msgs = allMsgs.filter((m) => !(m as ChatMessage & { welcome?: boolean }).welcome)
+  messageCount.value = msgs.length
+  toolCallCount.value = msgs.reduce((sum, m) => sum + (m.toolEvents?.length ?? m.toolCalls?.length ?? 0), 0)
+  lastUsage.value = (unref(chatRef.value?.lastUsage) as AgentUsage | null | undefined) ?? null
+  // 一轮回复完成 / 会话切换后，左栏会话列表按后端真实状态刷新
+  void loadSessions()
+  // 041：Agent 可能改动待办，一轮结束后同步输入框上方的「待办」卡
+  void loadTodos()
+}
 
 /** 生成一个新的会话 id（简单时间戳 + 随机串，避免引入 uuid 依赖）。 */
 function newSessionId(): string {
@@ -374,35 +487,270 @@ async function loadAgentSkills() {
   }
 }
 
-// 目录变化（成功加载/清除）时刷新 composer 技能列表（技能源随项目变化）。
-watch(projectDir, () => {
+// 目录变化（成功加载/清除）时刷新 composer 技能列表（技能源随项目变化）
+// 与 `@` 文件候选 —— 两者都随项目走。
+// ★ 必须**等文件收完再 rebuildTriggers**：组件以 def 对象为键缓存候选，
+//   遍历途中重建会把「空列表」缓存进去，之后再也刷不出来（本次现场抓到的真 bug）。
+watch(projectDir, async () => {
   void loadAgentSkills()
+  await loadProjectFiles()
+  rebuildTriggers()
 })
 
-/** 更新 composer 🔧 已选工具名集合（状态上移，发送时组装进请求）。 */
-function onToolNamesChange(v: string[]) {
-  selectedToolNames.value = v
+/* ------------------------------------------------------------------
+   composer 升级（2026-10-15）：`/` 命令面板 + `@` 文件提及 + 上下文 chips
+   数据源与动作全在本文件组装，组件只认 config 注入的形状（见 composer.ts）。
+   ------------------------------------------------------------------ */
+
+/** 脚本库（ScriptRunner 插件 GET /api/scripts），供 `/` 面板的「脚本」分组。 */
+const agentScripts = ref<Array<{ id?: string; name?: string; description?: string; runtime?: string }>>([])
+/** 项目文件相对路径清单（`@` 提及候选），上限 MAX_FILES。 */
+const projectFiles = ref<string[]>([])
+
+async function loadScripts() {
+  try {
+    const data = await apiGet<{ items?: Array<{ id?: string; name?: string; description?: string; runtime?: string }> }>('/api/scripts')
+    agentScripts.value = (data?.items ?? []).filter((s) => !!s.id)
+  } catch {
+    agentScripts.value = []
+  }
 }
 
-/** 更新 composer ⚡ 已选技能 id 集合。 */
-function onSkillIdsChange(v: string[]) {
-  selectedSkillIds.value = v
+/**
+ * 递归收集项目文件相对路径。
+ * 限深 4 层 + 跳过 node_modules/.git/dist 等噪声目录（规则在 composer.ts，与单测同源）——
+ * 大项目全量递归会直接卡死 UI。单层失败只丢那一层，不让整棵树陪葬。
+ *
+ * ★ 后端 `GET /api/project/files` 返回的字段名是 **`files`**（实测响应体
+ *   `{success, root, files:[{name,isDirectory,relativePath,size}]}`）——
+ *   不是别的列表接口常用的 `items`。写错字段名不会报错，只会让 `@` 面板永远空着。
+ */
+async function loadProjectFiles() {
+  projectFiles.value = []
+  if (!projectDir.value) return
+  /* 收集规则（BFS / 限深 / 排除噪声）都在 composer.ts 的 collectProjectFiles，
+     与单测同源；这里只负责把「取一层目录」接到 HTTP 上。 */
+  projectFiles.value = await collectProjectFiles(async (rel) => {
+    const data = await apiGet<{
+      files?: Array<{ name?: string; isDirectory?: boolean }>
+      items?: Array<{ name?: string; isDirectory?: boolean }>
+    }>(withQuery('/api/project/files', { path: rel || undefined }))
+    return (data?.files ?? data?.items ?? []).map((it) => ({
+      name: it.name ?? '',
+      isDirectory: !!it.isDirectory,
+    }))
+  })
 }
 
-/** 更新 composer 🤖 激活 Agent（与右栏切换共用持久化）。 */
-function onActiveAgentChange(agentId: string) {
-  activateAgent(agentId)
+/** `/` 面板的数据源（getter 形式，每次打开面板取最新值）。 */
+function composerSources() {
+  return {
+    tools: () => agentTools.value,
+    skills: () => agentSkills.value,
+    scripts: () => agentScripts.value,
+    agents: () => agents.value,
+    models: () => models.value,
+  }
 }
 
-/** 移除目录 chip：仅清客户端状态（后端 workspace root 维持会话级，无清空端点；下次加载目录即重置）。 */
+/** 选中候选项后的动作（闸门1 P3：工具/技能/agent/模型挂上下文，不写进输入文本）。 */
+function composerActions() {
+  return {
+    toggleTool: (name: string) => {
+      const i = selectedToolNames.value.indexOf(name)
+      if (i >= 0) selectedToolNames.value.splice(i, 1)
+      else selectedToolNames.value = [...selectedToolNames.value, name]
+    },
+    toggleSkill: (id: string) => {
+      const i = selectedSkillIds.value.indexOf(id)
+      if (i >= 0) selectedSkillIds.value.splice(i, 1)
+      else selectedSkillIds.value = [...selectedSkillIds.value, id]
+    },
+    selectAgent: (id: string) => {
+      activeAgentId.value = id
+      localStorage.setItem(LS_KEY_AGENT, id)
+    },
+    selectModel: (id: string) => {
+      selectedModelId.value = id
+      localStorage.setItem(LS_KEY_MODEL, id)
+    },
+    runBuiltin: (id: string) => {
+      if (id === 'clear') startNewSession()
+      else if (id === 'export') void exportCurrentSession()
+      else ElMessage.info('可用命令：/clear 新会话 · /export 导出会话 · 输入 / 可浏览工具、技能、脚本')
+    },
+  }
+}
+
+/** 导出当前会话为 Markdown（组件已有 exportSession，这里只负责落盘与提示）。 */
+async function exportCurrentSession() {
+  const md = chatRef.value?.exportSession?.(sessionId.value)
+  if (!md) {
+    ElMessage.warning('当前会话没有可导出的内容')
+    return
+  }
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `session-${sessionId.value}.md`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  ElMessage.success('已导出当前会话')
+}
+
+/**
+ * 重建 `/` `@` 触发定义。
+ * ★ 每次生成**新的 def 对象** —— 组件以 def 对象为 WeakMap 键缓存候选，
+ *   换对象即让旧缓存失效（切项目后若沿用旧 def，`@` 会列着上一个项目的文件）。
+ */
+function rebuildTriggers() {
+  agentConfig.triggers = [
+    {
+      char: '/',
+      groups: async () => buildCommandGroups(composerSources()),
+      onPick: (item: ComposerItem) => pickItem(item, composerActions()),
+    },
+    {
+      char: '@',
+      groups: async () => [
+        {
+          key: 'file',
+          title: '项目文件',
+          items: projectFiles.value.map((p) => ({ id: `file:${p}`, name: p, kind: 'file' as const })),
+        },
+      ],
+      onPick: (item: ComposerItem) => pickItem(item, composerActions()),
+    },
+  ]
+}
+
+/**
+ * 041 上下文图标行（输入框下方）+ 权限胶囊。
+ * 与上面的 chips watchEffect 并列：chips 讲「已选了什么」，图标行讲「从哪儿去改」。
+ */
+watchEffect(() => {
+  const cfg = buildContextBarConfig({
+    projectDir: projectDir.value,
+    agentName: activeAgent.value?.name ?? '',
+    modelName: models.value.find((m) => m.chatModelId === selectedModelId.value)?.name ?? '',
+    tools: agentTools.value,
+    skills: agentSkills.value,
+    agents: agents.value,
+    models: models.value,
+    selectedToolNames: selectedToolNames.value,
+    selectedSkillIds: selectedSkillIds.value,
+    activeAgentId: activeAgentId.value,
+    selectedModelId: selectedModelId.value,
+    accessMode: accessMode.value,
+    openKey: ctxOpenKey.value,
+    queries: ctxQueries.value,
+    projectNames: knownProjects.value,
+  })
+  agentConfig.contextBar = {
+    items: cfg.items,
+    panels: cfg.panels,
+    access: {
+      modes: cfg.access.modes,
+      value: cfg.access.value,
+      onChange: (m) => setAccessMode(m as AccessMode),
+    },
+    onOpen: (k) => (ctxOpenKey.value = k),
+    onClose: (k) => {
+      if (k) ctxQueries.value = { ...ctxQueries.value, [k]: '' }
+      else ctxOpenKey.value = null
+    },
+    onPick: (e) => onContextPick(e.key, e.id),
+  }
+})
+
+/**
+ * 041 待办**独立入口**（修订二）：数据走 config.todos，渲染在输入框下方底行最左。
+ * 待办是常驻任务面板（要独立入口、看全部），与审批/询问（瞬时动作，走 config.ask）拆开。
+ */
+watchEffect(() => {
+  const item = todosToAskItem(todos.value)
+  agentConfig.todos = item
+    ? {
+        items: item.todos,
+        openCount: (item.todos ?? []).filter((t) => !t.done).length,
+        progress: (item.todos ?? []).filter((t) => t.done).length / Math.max(1, (item.todos ?? []).length),
+      }
+    : undefined
+})
+
+/**
+ * 041 待你动作区（瞬时）：审批 / Agent 反问，紧贴输入框上沿（不进消息流）。
+ * 当前后端无 approval 端点 → 无真实生产者，本键默认空；契约就绪等后端接入。
+ */
+watchEffect(() => {
+  agentConfig.ask = buildAskConfig(askItems.value) ?? undefined
+})
+
+/** 切换权限档位：立刻生效于下一条消息（transport 每次发送取最新值），并持久化。 */
+function setAccessMode(mode: AccessMode) {
+  accessMode.value = mode
+  localStorage.setItem(LS_KEY_ACCESS, mode)
+  const meta = ACCESS_MODE_LABEL[mode] ?? mode
+  ElMessage.success(`权限已切到「${meta}」，下一条消息生效`)
+}
+
+/** 图标行点选分派：单选类直接切，多选类取反（与 `/` 面板 pickItem 同语义）。 */
+function onContextPick(key: string, id: string) {
+  if (!id) return
+  if (key === 'agent') activateAgent(id)
+  else if (key === 'model') {
+    selectedModelId.value = id
+    localStorage.setItem(LS_KEY_MODEL, id)
+  } else if (key === 'project') {
+    /* 项目面板的特殊行：清除当前目录（旧 chips 的 × 撤掉后，能力在这里接住） */
+    if (id === PROJECT_CLEAR_ID) onClearDirectory()
+    else void onSelectDirectory(id)
+  } else if (key === 'tools') {
+    const i = selectedToolNames.value.indexOf(id)
+    if (i >= 0) selectedToolNames.value.splice(i, 1)
+    else selectedToolNames.value = [...selectedToolNames.value, id]
+  } else if (key === 'skills') {
+    const i = selectedSkillIds.value.indexOf(id)
+    if (i >= 0) selectedSkillIds.value.splice(i, 1)
+    else selectedSkillIds.value = [...selectedSkillIds.value, id]
+  }
+}
+
+/** 权限档位中文名（提示用；权威定义在 composerContext.ACCESS_MODES）。 */
+const ACCESS_MODE_LABEL: Record<AccessMode, string> = {
+  readonly: '只读',
+  standard: '标准',
+  full: '完全访问',
+}
+
+/** 加载待办（输入框上方「待办」卡的数据源；失败静默 —— 待办不是主链路）。 */
+async function loadTodos() {
+  try {
+    /* apiGet 已把响应体的 data 部分剥出来（见 http.ts request），
+       所以这里是 { items, total, ... }，不能再取一层 .data —— 多取一层恒为 undefined，
+       待办卡就永远不渲染（实测踩过：后端明明返回 2 条，前端 items 却是空）。 */
+    const data = await apiGet<{ items?: TodoDtoLike[] }>('/api/todos?page=1&pageSize=20')
+    todos.value = data?.items ?? []
+  } catch {
+    todos.value = []
+  }
+}
+
+/** 记住本机用过的项目目录，供项目面板一点即选（不写后端，纯本地便利）。 */
+const LS_KEY_PROJECTS = 'forgeself-agent-known-projects'
+function rememberProject(dir: string) {
+  if (!dir) return
+  const next = [dir, ...knownProjects.value.filter((p) => p !== dir)].slice(0, 8)
+  knownProjects.value = next
+  try {
+    localStorage.setItem(LS_KEY_PROJECTS, JSON.stringify(next))
+  } catch {
+    /* 隐私模式/超配额：面板退回「无已登记项目」，不阻断 */
+  }
+}
 function onClearDirectory() {
   projectDir.value = ''
   localStorage.removeItem(LS_KEY_PROJECT)
-}
-
-/** 停止当前流式回复（composer 发送按钮发送中变 ■）。 */
-function stopSending() {
-  sendAbort.value?.abort()
 }
 
 /** 选择项目工作目录：写后端 + 更新本地状态 + 持久化。 */
@@ -410,7 +758,10 @@ async function onSelectDirectory(path: string) {
   try {
     const data = await apiPost<{ root?: string }>('/api/project/directory', { path })
     projectDir.value = data?.root ?? path
-    if (projectDir.value) localStorage.setItem(LS_KEY_PROJECT, projectDir.value)
+    if (projectDir.value) {
+      localStorage.setItem(LS_KEY_PROJECT, projectDir.value)
+      rememberProject(projectDir.value)
+    }
     editorHint.value = ''
   } catch (e) {
     editorHint.value = e instanceof Error ? e.message : String(e)
@@ -458,19 +809,51 @@ function closeFile() {
 /** 加载当前会话的历史消息（插件自己的聊天存储）。 */
 async function loadHistory() {
   if (!sessionId.value) return
+  /* 状态矩阵「加载中」（041）：切会话 / 首屏拉历史时消息区会短暂空白，
+     没有指示就会被读成「卡住了」。切换与首屏都走这一个入口，
+     所以 loading 只在它这里开关，finished 一定在 finally 里关掉。 */
+  agentConfig.loading = true
   try {
     const list = await apiGet<ChatMessage[]>(
       `/api/ai-agent/chat/history/${encodeURIComponent(sessionId.value)}?limit=50`
     )
     // 历史消息从后端 ToolCallsJson（FreeLoop 落库，031 方案A）解析工具轨迹，刷新后仍可见工具卡片
-    messages.value = (list ?? []).map((m, i) => ({
+    const raw = (list ?? []).map((m, i) => ({
       ...m,
       id: m.id ?? `h-${i}`,
       toolEvents: parseToolEvents(m.toolCallsJson),
     }))
+    // v1.8.0：组件无工具步骤卡片，后端 FreeLoop 落库的 content 为空的 assistant 工具步骤消息
+    // 若直接灌入组件会渲染成「头像+空气泡」。过滤之，并把工具轨迹并入该轮下一条有内容的
+    // assistant 回复（左栏工具调用统计不丢）；末尾残留轨迹并入最后一条可见助手消息。
+    const visible: ChatMessage[] = []
+    let pendingToolEvents: ToolEvent[] = []
+    for (const m of raw) {
+      const hasContent = (m.content ?? '').trim().length > 0
+      if (m.role === 'assistant' && !hasContent) {
+        pendingToolEvents.push(...(m.toolEvents ?? []))
+        continue
+      }
+      if (m.role === 'assistant' && pendingToolEvents.length > 0) {
+        m.toolEvents = [...pendingToolEvents, ...(m.toolEvents ?? [])]
+        pendingToolEvents = []
+      }
+      if (hasContent) visible.push(m)
+    }
+    if (pendingToolEvents.length > 0) {
+      for (let i = visible.length - 1; i >= 0; i--) {
+        if (visible[i].role === 'assistant') {
+          visible[i].toolEvents = [...(visible[i].toolEvents ?? []), ...pendingToolEvents]
+          break
+        }
+      }
+    }
+    messages.value = visible
   } catch {
     // 新会话尚无历史，视为空即可
     messages.value = []
+  } finally {
+    agentConfig.loading = false
   }
 }
 
@@ -481,18 +864,22 @@ async function loadHistory() {
 async function loadSessions() {
   try {
     // B9-3：plan:{runId} 规划 scratch 会话不进聊天会话列表（后端已过滤，前端兜底）
-    sessions.value = ((await fetchSessions('active')) ?? []).filter((s) => !s.id.startsWith('plan:'))
+    // 2026-10-14 修复：后端返回字段是 sessionId（SessionSummaryModel），原 s.id 为 undefined →
+    // undefined.startsWith 抛 TypeError → catch 置空 → 历史会话恒 0（dev 验收发现，非本批引入）。
+    sessions.value = ((await fetchSessions('active')) ?? []).filter((s) => !s.sessionId.startsWith('plan:'))
   } catch {
     // 列表拉取失败不阻断对话，留空即可
     sessions.value = []
   }
 }
 
-/** 切换历史会话：以全 id 回传（杜绝 T3 前缀 bug），加载其历史消息。 */
+/** 切换历史会话：以全 id 回传（杜绝 T3 前缀 bug），加载其历史消息并灌入组件。 */
 async function selectSession(id: string) {
   sessionId.value = id
   localStorage.setItem(LS_KEY_SESSION, id)
   await loadHistory()
+  // v1.8.0：组件 hydrate 灌入历史（内部会 emit state-changed → 左栏统计/列表刷新）
+  chatRef.value?.hydrate(messages.value)
 }
 
 /**
@@ -554,122 +941,6 @@ function parseToolEvents(json?: string): ToolEvent[] {
       }))
   } catch {
     return []
-  }
-}
-
-/** 切换模型并持久化。 */
-function onModelChange(value: string) {
-  selectedModelId.value = value
-  if (value) localStorage.setItem(LS_KEY_MODEL, value)
-}
-
-/** 发送消息：依据所选 Agent 执行模式分流（029）——plan 走计划驱动 runs SSE，free 走聊天流。 */
-async function sendMessage(text: string) {
-  if (sending.value) return
-  if (activeAgent.value?.executionMode === 'plan') {
-    await sendPlanMessage(text)
-    return
-  }
-  await sendFreeMessage(text)
-}
-
-/** 自由循环（FreeLoop）：乐观插用户气泡 + assistant 占位，调插件流式接口，逐 token 追加并实时展示工具调用。 */
-async function sendFreeMessage(text: string) {
-  if (sending.value) return
-  error.value = ''
-  sending.value = true
-
-  // 快照本次上下文选择并清空（所见即所发：工具/技能随消息发出；目录/模型/Agent 会话级保留）。
-  const toolNames = [...selectedToolNames.value]
-  const skillIds = [...selectedSkillIds.value]
-  selectedToolNames.value = []
-  selectedSkillIds.value = []
-
-  // 停止按钮的取消句柄（composer 发送按钮发送中变 ■）。
-  const controller = new AbortController()
-  sendAbort.value = controller
-
-  // 乐观追加用户消息，保证界面即时反馈
-  messages.value.push({ id: `u-${Date.now()}`, role: 'user', content: text })
-
-  // assistant 占位消息：**必须 reactive 包装**。push 进 ref 数组后若继续持有原始对象引用，
-  // 流式期间对该引用的变更（content += chunk / toolEvents.push）不经过 proxy → 不触发渲染，
-  // 界面会停在「…」直到 sending 翻转才整段出现（Stage 1 实测踩坑）；reactive 后逐 token 触发。
-  const assistantMsg = reactive<ChatMessage>({
-    id: `a-${Date.now()}`,
-    role: 'assistant',
-    content: '',
-    toolEvents: [],
-  })
-  messages.value.push(assistantMsg)
-
-  /** 移除仍是空内容的 assistant 占位（避免出错后界面永久停在「…」）。 */
-  function dropEmptyPlaceholder() {
-    if (!assistantMsg.content && (assistantMsg.toolEvents?.length ?? 0) === 0) {
-      messages.value = messages.value.filter((m) => m !== assistantMsg)
-    }
-  }
-
-  /** 标记最后一个仍在 pending 的工具事件为已完成并填结果（B9-2：FIFO 前溯，同名多次调用不互换）。 */
-  function settleToolEvent(e: { name?: string; result?: string; success?: boolean }) {
-    if (!assistantMsg.toolEvents) assistantMsg.toolEvents = []
-    settleToolEventFifo(assistantMsg.toolEvents as ToolEvent[], e)
-  }
-
-  try {
-    await streamAgentChat(
-      {
-        sessionId: sessionId.value,
-        message: text,
-        chatModelId: selectedModelId.value || undefined,
-        agentId: activeAgentId.value || undefined,
-        enabledToolNames: toolNames.length > 0 ? toolNames : undefined,
-        skillIds: skillIds.length > 0 ? skillIds : undefined,
-      },
-      {
-        onContent: (chunk) => {
-          assistantMsg.content += chunk
-        },
-        onToolCall: (e) => {
-          ;(assistantMsg.toolEvents as ToolEvent[]).push({
-            name: e.name,
-            args: e.arguments,
-            pending: true,
-          })
-        },
-        onToolResult: (e) => {
-          settleToolEvent(e)
-        },
-        onUsage: (usage) => {
-          if (usage) lastUsage.value = usage
-        },
-        onDone: (e) => {
-          if (e.usage) lastUsage.value = e.usage
-          if (e.responseId != null) assistantMsg.id = e.responseId
-          // 一轮回复完成即刷新会话列表（新会话首条落库后出现在列表、标题同步）
-          void loadSessions()
-        },
-        onError: (msg) => {
-          error.value = msg
-          // 流中出错时占位消息可能仍是空的（无内容、无工具事件），
-          // 不移除会永久停在「…」打字指示（错误已由 error 条呈现）。
-          dropEmptyPlaceholder()
-        },
-      },
-      controller.signal,
-    )
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      // 用户主动停止：保留已生成内容，不显示错误，仅移除仍为空的占位。
-      dropEmptyPlaceholder()
-    } else {
-      error.value = e instanceof Error ? e.message : String(e)
-      // 请求级失败（未建立流）：移除空的 assistant 占位，避免残留空气泡
-      dropEmptyPlaceholder()
-    }
-  } finally {
-    sending.value = false
-    sendAbort.value = null
   }
 }
 
@@ -770,42 +1041,6 @@ function buildRunHandlers(): RunStreamHandlers {
   }
 }
 
-/** 计划驱动发送（029）：调 POST /api/ai-agent/runs SSE，全程驱动步骤进度卡，完成后追加交付消息。 */
-async function sendPlanMessage(text: string) {
-  error.value = ''
-  sending.value = true
-
-  // 乐观插用户消息，并初始化步骤卡（等待规划）。
-  messages.value.push({ id: `u-${Date.now()}`, role: 'user', content: text })
-  runCard.value = { runId: 0, plan: null, status: 'pending', steps: [] }
-
-  const controller = new AbortController()
-  runAbort.value = controller
-
-  try {
-    await streamAgentRun(
-      {
-        sessionId: sessionId.value,
-        agentId: activeAgentId.value,
-        taskInput: text,
-        chatModelId: selectedModelId.value || undefined,
-      },
-      buildRunHandlers(),
-      controller.signal,
-    )
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      // 用户停止：保留现场（Run 后端仍为运行态，可从执行记录面板取消/重开）。
-    } else {
-      error.value = e instanceof Error ? e.message : String(e)
-      if (runCard.value) runCard.value.error = error.value
-    }
-  } finally {
-    sending.value = false
-    runAbort.value = null
-  }
-}
-
 /** 执行记录面板「继续」：以现有 Run 从当前步骤恢复（POST runs/{id}/resume，SSE）。 */
 async function onResumeRun(run: AgentRunDto) {
   if (sending.value) return
@@ -857,6 +1092,8 @@ function startNewSession() {
   sessionId.value = id
   messages.value = []
   error.value = ''
+  // v1.8.0：清空组件消息区（内部 emit state-changed → 左栏统计归零）
+  chatRef.value?.hydrate([])
   // 新会话尚无消息，列表刷新后旧会话仍保留；此调用主要保证后续首条消息落库后能及时出现在列表
   void loadSessions()
 }
@@ -867,6 +1104,8 @@ onMounted(async () => {
   await loadAgents()
   await loadAgentTools()
   await loadAgentSkills()
+  // composer 升级：脚本库（`/` 面板「脚本」分组）
+  await loadScripts()
   // 恢复上次选定的工作目录（若有），同步到后端供文件工具使用
   const savedDir = localStorage.getItem(LS_KEY_PROJECT)
   if (savedDir) {
@@ -875,5 +1114,118 @@ onMounted(async () => {
   }
   await loadHistory()
   await loadSessions()
+  // composer 升级：目录恢复完成后再收文件（`@` 提及）+ 建触发定义（此时工具/技能/脚本/文件都已就位）
+  await loadProjectFiles()
+  rebuildTriggers()
+  // 041：恢复权限档位（默认 standard）与已登记项目；再拉待办供输入框上方「待办」卡渲染
+  const savedAccess = localStorage.getItem(LS_KEY_ACCESS) as AccessMode | null
+  if (savedAccess === 'readonly' || savedAccess === 'standard' || savedAccess === 'full') {
+    accessMode.value = savedAccess
+  }
+  try {
+    const known = JSON.parse(localStorage.getItem(LS_KEY_PROJECTS) || '[]')
+    if (Array.isArray(known)) knownProjects.value = known.filter((p) => typeof p === 'string')
+  } catch {
+    knownProjects.value = []
+  }
+  if (projectDir.value) rememberProject(projectDir.value)
+  void loadTodos()
+  // v1.8.0：初始会话历史灌入组件（hydrate 内部 emit state-changed → 左栏统计初始化）
+  chatRef.value?.hydrate(messages.value)
 })
 </script>
+
+<style scoped>
+/* ---- 中栏顶部条（v1.8.0 起由本页承载；样式迁移自 ChatPanel.vue，设计原型 44px） ---- */
+.chat {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.chat__bar-left,
+.chat__bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat__title {
+  font-size: var(--el-font-size-base, 14px);
+  font-weight: var(--el-weight-semibold, 600);
+  color: var(--el-text-color-primary);
+}
+
+/* 版本徽标：主色淡底胶囊 */
+.chat__version {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: var(--el-font-size-extra-small, 12px);
+  font-weight: var(--el-weight-medium, 500);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.chat__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--el-font-size-extra-small, 12px);
+  color: var(--el-color-success);
+}
+
+.chat__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--el-color-success);
+}
+
+.chat__dot--busy {
+  background: var(--el-color-warning);
+}
+
+/* 左右栏折叠按钮 */
+.chat__fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--el-border-radius-small, 4px);
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+}
+
+.chat__fold:hover {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
+}
+
+/* Fold/Expand 图标尺寸钳制（EP 图标 :size 在共享桥下不转 width/height，须显式给宽高） */
+.chat__fold-ico {
+  width: 14px;
+  height: 14px;
+}
+
+/* A3：自研按钮键盘聚焦可见焦点环（ElButton 由 EP 自带聚焦样式） */
+.chat__fold:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 1px;
+}
+</style>

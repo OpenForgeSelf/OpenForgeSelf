@@ -63,6 +63,7 @@ function walk(dir, out = []) {
 const VAR_DEF_RE = /(?:^|[;{,])\s*(--[a-zA-Z][\w-]*)\s*:/g
 const ALLOWED_TOKEN_FAMILIES = [
   '--el-', '--tw-', '--webkit-', // 框架/引擎
+  '--aiw-', // 迁移组件库 ai-assistant-widget 的私有 token 命名空间（Plugins/AIAgent/web/src/agent-core，与 --el- 同性质的组件库封装变量；主题化只允许把它桥接到 --el-*，不得在其中发明新色值）
   '--ink-', '--gold-', '--paper-', '--cinnabar-', '--bronze-', // DESIGN 色板族
   '--fg-', '--border-', '--font-', '--dur-', '--ease-', // 语义族
   '--shadow-', '--radius-', '--glass-', // 组件族

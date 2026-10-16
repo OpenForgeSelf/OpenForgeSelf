@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11",
+  "generatedAt": "2026-10-14",
   "rules": {
     "a": "token族白名单",
     "b": "禁胶囊按钮",
@@ -7,17 +7,17 @@
     "d": "禁蓝紫渐变"
   },
   "total": {
-    "a": 244,
+    "a": 209,
     "b": 0,
     "c": 0,
-    "d": 1
+    "d": 0
   },
   "dirs": {
     "ForgeSelf.Web/src": {
       "a": 20,
       "b": 0,
       "c": 0,
-      "d": 1
+      "d": 0
     },
     "Plugins/AgentHub/web/src": {
       "a": 0,
@@ -38,7 +38,7 @@
       "d": 0
     },
     "Plugins/DesignSystem/web/src": {
-      "a": 124,
+      "a": 89,
       "b": 0,
       "c": 0,
       "d": 0

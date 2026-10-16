@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
-import { getRealApiKey } from '../../helpers/real-auth'
+import { getRealApiKey, injectRealApiKey } from '../../helpers/real-auth'
 
 /**
  * AIAgent 会话管理（切换 / 归档 / 收起）插件层 e2e —— 走 e2e-testing 技能统一 globalSetup 全新宿主。
@@ -88,6 +88,9 @@ test.describe('AIAgent 会话管理（收起/切换/归档）实跑宿主 e2e', 
     expect(activeIds).toContain(sessionB)
 
     // 3. 打开插件 UI：历史会话分组默认收起 → 不渲染任何会话项
+    // 2026-10-14：补页面 token 注入（与 ai-agent.spec.ts 对齐）——宿主 authInit 不保证每次自动取到 token，
+    // 缺 token 时插件视图整页空白（main 空、无 .sess__head-toggle），此前用例因此稳定超时。
+    await injectRealApiKey(page)
     await page.goto(PLUGIN_ROUTE)
     await expect(page.locator('.sess__head-toggle')).toBeVisible({ timeout: 20000 })
     await expect(page.locator('.sess__item')).toHaveCount(0)

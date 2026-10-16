@@ -2,41 +2,44 @@ import { test, expect, type Page } from '@playwright/test'
 import { injectRealApiKey } from './helpers/real-auth'
 
 /**
- * MCP 工具管理 E2E 测试 —— 对接真实后端 API（无 mock、真实认证）。
+ * MCP 中心（插件 mcp-center）工具管理 E2E 冒烟 —— 对接真实后端 API（无 mock、真实认证）。
  *
  * 设计原则：
  * - **零 mock**：不拦截任何 /api/* 请求，全部走真实后端（http://localhost:7102）
  * - **真实认证**：注入 ForgeSetting.config 解密出的真实 API 密钥
  * - **无 waitForTimeout**：全部用 auto-waiting + waitForResponse
  *
- * 覆盖范围：
+ * 覆盖范围（主链路冒烟）：
  * - MCP 服务器列表加载（真实后端播种的服务器）
  * - 选择服务器 → 工具列表加载（真实工具数据）
  * - 工具搜索过滤
  * - 测试工具（真实 POST test）
+ *
+ * 2026-10-16：视图已随 034 v2.0.0 从宿主 /mcp-tools 迁入插件 /mcp-center（McpCenterView，
+ * 页签「工具管理」沿用 .server-item/.table-row 结构），本 spec 同步改指插件路由。
  */
 
 // ============================================================
 // 辅助函数
 // ============================================================
 
-/** 打开 MCP 工具页面并等待服务器列表 */
-async function gotoMcpTools(page: Page): Promise<void> {
-  await page.goto('/mcp-tools')
-  await expect(page.getByRole('heading', { name: 'MCP 工具管理' })).toBeVisible()
+/** 打开 MCP 中心（插件）页面并等待工具管理页签渲染 */
+async function gotoMcpCenter(page: Page): Promise<void> {
+  await page.goto('/mcp-center')
+  await expect(page.getByRole('heading', { name: 'MCP 中心' })).toBeVisible()
 }
 
 // ============================================================
 // 测试用例
 // ============================================================
 
-test.describe('MCP 工具管理（/mcp-tools）', () => {
+test.describe('MCP 中心·工具管理（/mcp-center 插件）', () => {
   test.beforeEach(async ({ page }) => {
     await injectRealApiKey(page)
   })
 
   test('服务器列表加载：真实后端播种的服务器可见', async ({ page }) => {
-    await gotoMcpTools(page)
+    await gotoMcpCenter(page)
 
     // 真实后端至少有 Database/Filesystem 等服务器（server-name 唯一，tag 有重复）
     await expect(page.locator('.server-item').filter({ hasText: 'Database' }).first()).toBeVisible({ timeout: 10000 })
@@ -46,7 +49,7 @@ test.describe('MCP 工具管理（/mcp-tools）', () => {
   })
 
   test('选择服务器后工具列表加载：真实工具数据可见', async ({ page }) => {
-    await gotoMcpTools(page)
+    await gotoMcpCenter(page)
     await expect(page.getByText('Filesystem', { exact: true })).toBeVisible({ timeout: 10000 })
 
     // 点击 Filesystem 服务器 → 工具列表加载
@@ -56,7 +59,7 @@ test.describe('MCP 工具管理（/mcp-tools）', () => {
   })
 
   test('工具搜索过滤：按名称本地过滤', async ({ page }) => {
-    await gotoMcpTools(page)
+    await gotoMcpCenter(page)
     await expect(page.getByText('Filesystem', { exact: true })).toBeVisible({ timeout: 10000 })
     await page.locator('.server-item').filter({ hasText: 'Filesystem' }).click()
     await expect(page.getByText('list_directory', { exact: true })).toBeVisible({ timeout: 10000 })
@@ -67,7 +70,7 @@ test.describe('MCP 工具管理（/mcp-tools）', () => {
   })
 
   test('测试工具：真实 POST test 后显示结果', async ({ page }) => {
-    await gotoMcpTools(page)
+    await gotoMcpCenter(page)
     await expect(page.getByText('Filesystem', { exact: true })).toBeVisible({ timeout: 10000 })
     await page.locator('.server-item').filter({ hasText: 'Filesystem' }).click()
     await expect(page.getByText('list_directory', { exact: true })).toBeVisible({ timeout: 10000 })

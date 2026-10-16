@@ -7,17 +7,27 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 
 public class McpService : IMcpService
 {
-    private readonly IToolRegistry? _toolRegistry;
+    private readonly Func<IToolRegistry?> _registryProvider;
 
     private readonly ConcurrentDictionary<string, McpServerDto> _servers = new();
     private readonly ConcurrentDictionary<string, McpToolDto> _tools = new();
 
     /// <summary>软依赖：插件入口传入宿主 IToolRegistry；为 null 时退化为仅预置数据（功能降级但不崩）。</summary>
-    public McpService(IToolRegistry? toolRegistry)
+    public McpService(IToolRegistry? toolRegistry) : this(() => toolRegistry)
     {
-        _toolRegistry = toolRegistry;
+    }
+
+    /// <summary>软依赖（运行期惰性解析）：插件装配期 ctx 解析不到宿主 IToolRegistry（见 ListToolsToolFunction 注释），
+    /// 插件入口应用 <see cref="WithDeferredRegistry"/> 传运行期访问器，每次同步时现取；取到 null 才降级
+    /// （修复 2026-10-16：装配期一次性 Get 把 null 永久缓存，导致每查必刷「IToolRegistry 不可用」Warn）。</summary>
+    private McpService(Func<IToolRegistry?> registryProvider)
+    {
+        _registryProvider = registryProvider;
         InitializeData();
     }
+
+    /// <summary>惰性解析版工厂：供插件入口在装配期使用（构造重载不公开，避免与可空引用参数重载歧义）。</summary>
+    public static McpService WithDeferredRegistry(Func<IToolRegistry?> registryProvider) => new(registryProvider);
 
     private void InitializeData()
     {
@@ -102,7 +112,8 @@ public class McpService : IMcpService
     /// </summary>
     private void SyncToolsFromToolRegistry()
     {
-        if (_toolRegistry == null)
+        var registry = _registryProvider();
+        if (registry == null)
         {
             XTrace.Log.Warn("[McpService] 宿主 IToolRegistry 不可用（软依赖缺失），仅提供预置服务器/工具数据");
             return;
@@ -110,7 +121,7 @@ public class McpService : IMcpService
 
         try
         {
-            var realTools = _toolRegistry.GetAllTools().ToList();
+            var realTools = registry.GetAllTools().ToList();
             var validIds = new HashSet<string>(realTools.Select(t => t.Id));
 
             // 新增：ToolRegistry 中存在但本地尚未收录的工具

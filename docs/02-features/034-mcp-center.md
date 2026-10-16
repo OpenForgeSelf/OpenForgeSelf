@@ -358,14 +358,37 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 `profile / configPath / configExists / entryId / serverName / transport / url / entryExists / lastError`。
 
 **实现落点**：
-- `Services/DshMcpConfigWriter.cs` —— profile 白名单校验 + 路径解析 + 幂等 upsert + `.bak` 备份 + 原子写；
+- `Services/DshMcpConfigService.cs` —— 当前唯一生效实现（v2.3.x CRUD 重构后）：profile 白名单校验 + 路径解析 + 条目增/改/启停/删/去重 + `.bak` 备份 + 原子写；
+  旧类 `Services/DshMcpConfigWriter.cs` 已无消费方（2026-10-16 确认，待独立清理批删除；此前曾因插件入口 DI 漏注册新类导致「网关配置」页签 500，见 v2.3.2 节）；
 - `Models/DshMcpConfigDto.cs` —— 状态视图 / 写入 DTO；
-- `Controllers/McpCenterDshController.cs` —— GET / POST 两个端点；
+- `Controllers/McpCenterDshController.cs` —— GET / POST / PUT / DELETE / toggle / dedupe 端点（类级 `Authorize("ApiKeyPolicy")`）；
 - 前端：`web/src/api/dsh.ts`、`web/src/types/dsh.ts`，以及 `McpCenterView.vue`「网关配置」页签内的
   「写入 dsh 配置」卡片（profile 输入 + MCP 地址输入 + 写入二次确认 + 状态回显）。
 
 **已知边界**：
-- 写入只覆盖 `config.url` 一个字段（`serverName` / `transport` 保持原样）；
 - dsh profile 名做白名单校验（禁止路径分隔符与 `..`），非法即 400；
 - dsh 侧需重启 / 重载 profile 才会读取新的补丁层；
-- 本功能为新增端点，尚未补插件层 e2e（`e2e/plugins/mcp-center/`）与前端 `pnpm run check`（见插件 TODO.md）。
+- 本功能新增端点尚未补插件层专项 e2e（宿主 e2e `ForgeSelf.Web/e2e/mcp-tools.spec.ts` 已覆盖 /mcp-center 工具管理主链路冒烟）。
+
+## v2.3.2 网关配置页签 500/401 修复 + IToolRegistry 惰性解析（2026-10-16）
+
+**现场缺陷**（用户报告：点「网关配置」页签报错）：
+1. `GET api/mcp-center/dsh` → 500：v2.3.0 CRUD 重构把 `McpCenterDshController` 依赖改成了新类
+   `DshMcpConfigService`，但 `McpCenterPlugin` 的 DI 注册行仍只注册旧类 `DshMcpConfigWriter`
+   ⇒ 插件子 provider 无法解析，Kestrel 未处理异常（空响应体）。
+2. 日志刷「宿主 IToolRegistry 不可用（软依赖缺失）」：装配期 `ctx.Get<IToolRegistry>()` 必为 null
+   （插件自身注释已言明运行期才可解析）却被永久缓存 ⇒ 运行期每次查询都走降级分支。
+3. 另有一条 401（`Missing or invalid Authorization header`）非缺陷：该文案仅在请求完全未带
+   Authorization 头时出现（`ApiKeyAuthenticationHandler.cs:39-41`），即浏览器 localStorage 无
+   `forge_api_token`；鉴权行为正确，未改。
+
+**修复**（pilot `docs/ai/pilot/2026-10-16-mcpcenter-dsh-di-401/`）：
+- 插件入口 DI 改注册 `DshMcpConfigService`；
+- `McpService` 持 `Func<IToolRegistry?>`（`WithDeferredRegistry` 静态工厂，构造重载不公开避免测试歧义），
+  每次同步现取；插件入口改传 `() => ctx.Get<IToolRegistry>()`；
+- 插件版本 2.3.0/2.3.1 → **2.3.2**（csproj 与 plugin.json 同步）。
+
+**验证**：后端 build 0 错 / McpCenter 测试 108 全绿 / 冒烟 e2e（/mcp-tools→/mcp-center 迁移后）4/4 /
+现场 dsh 端点 500→200、无红条、运行期同步 116 个真实工具；无 token 仍 401（鉴权未削弱）。
+**发布**：本地目录更新源 `OpenForgeSelf-2.4.6.2610162203-win-x64.zip`（-Sign，签名校验 3/3，L1 不变量通过，
+包内 McpCenter=2.3.2），待用户在运行实例页面「检查更新→下载→重启并更新」后做只读复验。

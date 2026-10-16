@@ -46,9 +46,9 @@ public class McpCenterPlugin : IPlugin
             // 工具实例经 ToolExtensions 属性由宿主自动注册进 ToolRegistry（见属性注释）。
             ToolExtensions.Add(new ListToolsToolFunction(ctx));
 
-            // 软依赖：宿主 IToolRegistry（拿不到则 McpService 降级为仅预置数据，网关照常启动）
-            var registry = ctx.Get<IToolRegistry>();
-            var mcpService = new McpService(registry);
+            // 软依赖：宿主 IToolRegistry——装配期 ctx 解析不到（见 ListToolsToolFunction 注释），
+            // 改运行期惰性访问；拿不到则 McpService 降级为仅预置数据，网关照常启动（修复 2026-10-16 每查刷 Warn）
+            var mcpService = McpService.WithDeferredRegistry(() => ctx.Get<IToolRegistry>());
 
             // v2.1.0 外部 MCP 客户端：配置存储 + 连接管理器（转发器路由 mcp.<id>.<tool> 依赖）
             var externalStore = new ExternalServersStore(dataDir);
@@ -68,7 +68,7 @@ public class McpCenterPlugin : IPlugin
             services?.AddSingleton<IMcpService>(mcpService);
             services?.AddSingleton(runtime);
             services?.AddSingleton(externalStore);
-            services?.AddSingleton(new DshMcpConfigWriter(config));
+            services?.AddSingleton(new DshMcpConfigService(config));
             services?.AddSingleton(clientManager);
 
             // 启动（幂等；内部 catch 所有异常，失败仅降级不阻塞宿主）+ 外部服务器按 enabled 建连

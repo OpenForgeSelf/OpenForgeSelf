@@ -23,13 +23,12 @@ describe('AppearancePanel — 基础外观设置', () => {
     localStorage.clear()
   })
 
-  it('渲染主题/强调色/字体大小/动画开关', () => {
+  it('渲染主题/强调色/动画开关，字体大小设置已移除', () => {
     const wrapper = mount(AppearancePanel, { attachTo: document.body })
-    expect(wrapper.text()).toContain('外观')
     expect(wrapper.text()).toContain('主题')
     expect(wrapper.text()).toContain('强调色')
-    expect(wrapper.text()).toContain('字体大小')
     expect(wrapper.text()).toContain('动画效果')
+    expect(wrapper.text()).not.toContain('字体大小')
   })
 
   it('背景区复用 BackgroundSettings 组件（单一实现，不重复造轮子）', () => {
@@ -46,10 +45,10 @@ describe('BackgroundSettings — 背景设置内联组件', () => {
     localStorage.clear()
   })
 
-  it('渲染 12 纯色 + 6 预设图 + 上传 + URL 输入 + 遮罩 + 恢复默认', () => {
+  it('隐藏独立纯色选项，保留 6 张预设图及背景设置操作', () => {
     const wrapper = mount(BackgroundSettings)
-    // 12 纯色 swatch
-    expect(wrapper.findAll('.bg-swatch').length).toBe(12)
+    // 主题切换会自动联动背景色，纯色 swatch 区块按设计隐藏。
+    expect(wrapper.findAll('.bg-swatch')).toHaveLength(0)
     // 6 预设背景图
     expect(wrapper.findAll('.bg-preset').length).toBe(6)
     // 上传按钮

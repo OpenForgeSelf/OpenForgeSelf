@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ApiServerPanel from '@/components/settings/ApiServerPanel.vue'
@@ -88,6 +88,13 @@ describe('ApiServerPanel — 端口配置编辑与检测', () => {
     // 默认无 token：init-token 返回 null（视为无需初始化/不可用）
     localStorage.removeItem('forge_api_token')
     mockInitToken.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    if (vi.isFakeTimers()) {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
   })
 
   function mountPanel() {
@@ -205,6 +212,8 @@ describe('ApiServerPanel — 端口配置编辑与检测', () => {
   })
 
   it('端口可用且确认后，完整保存流程成功', async () => {
+    // 成功后面板安排 1.5 秒后刷新页面；fake timer 防止卸载后访问已销毁的 jsdom window。
+    vi.useFakeTimers()
     mockCheckPortAvailable.mockResolvedValue({ port: 8080, available: true })
     mockUpdatePortConfig.mockResolvedValue({ portNumber: 8080 })
 

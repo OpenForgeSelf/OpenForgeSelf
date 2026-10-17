@@ -20,7 +20,7 @@ import {
   testExternalServer,
 } from './api/external'
 import type { McpServerDto, McpTestResultDto, McpToolDto } from './types/mcp'
-import type { McpCenterConfigDto } from './types/gateway'
+import type { McpCenterConfigDto, McpCenterConfigUpdateDto } from './types/gateway'
 import type { McpExternalServerStateDto, McpExternalServerUpsertDto, McpExternalToolDto } from './types/external'
 import ToolPlayground from './playground/ToolPlayground.vue'
 
@@ -162,6 +162,8 @@ const listenHostInput = ref('127.0.0.1')
 const tokenInput = ref('')
 const clearTokenFlag = ref(false)
 const configCopyHint = ref(false)
+// 会话模式（v2.4.0）：开=无状态（推荐，重启不断会话）；关=有状态（握手签发 session id）
+const statelessInput = ref(true)
 
 /**
  * MCP 端点地址（客户端真正要填的地址）：由后端真源 `listenUrl` 去掉尾部斜杠后补 `/mcp`。
@@ -184,6 +186,7 @@ async function loadGatewayConfig(): Promise<void> {
       listenHostInput.value = cfg.listenHost
       tokenInput.value = ''
       clearTokenFlag.value = false
+      statelessInput.value = cfg.stateless
     }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '加载网关配置失败')
@@ -207,7 +210,7 @@ async function copyMcpUrl(): Promise<void> {
 async function saveGatewayConfig(): Promise<void> {
   savingConfig.value = true
   try {
-    const update: { port?: number; listenHost?: string; token?: string } = {}
+    const update: McpCenterConfigUpdateDto = {}
     if (portInput.value !== gatewayConfig.value?.port) {
       update.port = portInput.value
     }
@@ -219,7 +222,10 @@ async function saveGatewayConfig(): Promise<void> {
     } else if (clearTokenFlag.value) {
       update.token = '' // 显式清除令牌
     }
-    // 三个字段都未变化时不发请求
+    if (statelessInput.value !== gatewayConfig.value?.stateless) {
+      update.stateless = statelessInput.value
+    }
+    // 各字段都未变化时不发请求
     if (Object.keys(update).length === 0) {
       ElMessage.info('没有需要保存的修改')
       return
@@ -231,7 +237,10 @@ async function saveGatewayConfig(): Promise<void> {
       listenHostInput.value = cfg.listenHost
       tokenInput.value = ''
       clearTokenFlag.value = false
-      ElMessage.success('网关配置已保存并热重启生效')
+      statelessInput.value = cfg.stateless
+      ElMessage.success(cfg.stateless
+        ? '网关配置已保存并热重启生效（当前：无状态，宿主/网关重启后客户端无需重连）'
+        : '网关配置已保存并热重启生效（当前：有状态，宿主/网关重启后客户端需重新连接）')
     }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '保存失败')
@@ -818,6 +827,17 @@ onMounted(() => {
                   <ElCheckbox v-model="clearTokenFlag">
                     清除当前令牌（使网关恢复无鉴权）
                   </ElCheckbox>
+                </div>
+
+                <div class="form-row">
+                  <label class="form-label">会话模式</label>
+                  <ElSwitch
+                    v-model="statelessInput" data-test="stateless-switch"
+                    active-text="无状态" inactive-text="有状态"
+                  />
+                  <span class="form-hint">{{ statelessInput
+                    ? '推荐：不发会话 id，宿主/网关重启后客户端无需重连'
+                    : '握手签发 Mcp-Session-Id；重启后旧会话失效，客户端须重新连接' }}</span>
                 </div>
 
                 <div class="form-actions">

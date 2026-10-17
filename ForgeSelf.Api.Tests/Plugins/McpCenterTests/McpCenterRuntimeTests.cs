@@ -155,4 +155,25 @@ public class McpCenterRuntimeTests
         Assert.True(updated.HasToken);
         Assert.EndsWith("p-me", updated.TokenMasked);
     }
+
+    // ---------- 会话模式可配置（v2.4.0） ----------
+
+    [Fact]
+    public void 更新会话模式为有状态后视图与落盘均反映且热重启成功()
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out var config);
+        Assert.True(config.Stateless); // 新加载默认无状态
+
+        var updated = runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto { Stateless = false }).Result;
+
+        // 视图反映新值（GetInfo 与 PUT 响应同源）
+        Assert.False(updated.Stateless);
+        Assert.False(GetInfo(runtime).Stateless);
+
+        // config.json 落盘 stateless=false，重启后加载仍为有状态
+        var raw = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(dir, "config.json")));
+        Assert.False(raw.GetProperty("stateless").GetBoolean());
+        Assert.False(McpGatewayConfig.Load(dir).Stateless);
+    }
 }

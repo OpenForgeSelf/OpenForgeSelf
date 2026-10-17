@@ -117,19 +117,20 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | 端口 | `FORGESELF_MCP_GATEWAY_PORT` | `port` / `Port`（大小写不敏感） | `18890` |
 | 监听地址 | `FORGESELF_MCP_GATEWAY_HOST` | `listenHost` | `127.0.0.1` |
 | Bearer 令牌 | `FORGESELF_MCP_GATEWAY_TOKEN` | `token` | 空（不鉴权） |
+| 会话模式（v2.4.0） | `FORGESELF_MCP_GATEWAY_STATELESS`（`1/true/0/false`，大小写不敏感） | `stateless` / `Stateless` | `true`（无状态） |
 
 > **兼容决策（v2.0.0 更名时保留）**：环境变量前缀**沿用旧名** `FORGESELF_MCP_GATEWAY_*`，不改为 `MCP_CENTER_*`——兼容既有运维/e2e（`playwright.config.ts` 走 env 覆盖 e2e 端口的写法）与已写死该前缀的部署脚本；类名亦保留（`McpGatewayConfig/McpGatewayServer/...`），仅 namespace/日志前缀/`serverInfo.name` 改。config.json 数据目录随更名迁移到 `{宿主数据根}/plugins/mcp-center/`（旧 `mcp-gateway/` 目录保留未删）。
 
 - 插件数据根：`{宿主数据根}/plugins/mcp-center/`（publish 实例 = `~/.forgeself/plugins/mcp-center/`）。
 - config.json 缺失时自动生成默认值（幂等）。
 - **端口占用约定**（2026-10-04 统一）：**默认端口 = `18890`**（`McpGatewayConfig.DefaultPort`，用户机 `config.json` 未显式设定时即生效）；生产实例、DSH 侧配置全部对齐 `18890`。e2e 走 `playwright.config.ts` 按 worktree 哈希派生的 `19000–19899` 独立段（`FORGESELF_MCP_GATEWAY_PORT` 环境变量），显式避开 `18890`；3 个 spec（`mcp-center.spec.ts` / `design-system-agent.spec.ts` / `sems.spec.ts`）的 env 兜底值为 `18891`（`?? '18891'`），仅在有人绕过 `playwright.config.ts` 直跑单 spec 且未设 env 时才会用到，同样避开生产 `18890`。新机器开箱即为 `18890`，无迁移负担。
-- 配置 API `PUT /api/mcp-center/config`：校验端口 1024-65535 → 写 config.json → 停旧服务器 → 启动新服务器热重启；失败回滚旧配置。token 传**空串 = 清除鉴权**，**不传 = 保留**原令牌。
+- 配置 API `PUT /api/mcp-center/config`：校验端口 1024-65535 → 写 config.json → 停旧服务器 → 启动新服务器热重启；失败回滚旧配置。token 传**空串 = 清除鉴权**，**不传 = 保留**原令牌。`stateless`（v2.4.0）同样**不传=不变**；切换会话模式不需改代码发版，保存即经热重启生效（`McpGatewayServer.StartAsync` 每次重建 WebApplication，`WithHttpTransport(o => o.Stateless = _config.Stateless)` 读最新配置）。旧 config.json 无 `stateless` 键 ⇒ 升级即默认无状态（设计拍板 S1）。
 
 ## MCP 协议契约
 
 | 方法 | 请求 | 响应要点 |
 |---|---|---|
-| `initialize` | `{protocolVersion}` | 版本协商：`2025-11-25`（MCP 2.0）/ `2025-06-18` / `2025-03-26` / `2024-11-05`，未知回退 `2025-06-18`；返回 `serverInfo.name="ForgeSelf McpCenter"`（v2.2.0 起含可选 `description`）、`capabilities.tools.listChanged=false` |
+| `initialize` | `{protocolVersion}` | 版本协商：`2025-11-25`（MCP 2.0）/ `2025-06-18` / `2025-03-26` / `2024-11-05`，未知回退 `2025-06-18`；返回 `serverInfo {name:"ForgeSelf McpCenter", version=插件版本, description}`（v2.4.0 起在 `AddMcpServer(o => o.ServerInfo=…)` 显式配置；此前 SDK 缺省回的是宿主程序集名+构建号，属契约回归，已修）；`capabilities.tools` 存在，但 **listChanged 旗标由 SDK 自动推导**（有状态=`true`、无状态=缺键，`o.Capabilities` 显式覆写实测无效）——工具面恒静态，实际从不发 `list_changed` 通知 |
 | `ping` | — | 空结果 |
 | `tools/list` | — | 恒 1 条：`universal_tool`，`inputSchema.required=["tool"]`；description 含发现工具引导（先调 `list_tools` 枚举）、常规能力分类（读写文件/执行命令/搜索/计算/系统监控/工作流）与外部命名空间说明 |
 | `tools/call` | `{name:"universal_tool", arguments:{tool, parameters}}` | 转发目标工具；`tool="list_tools"` 枚举全部已注册工具（名称/说明/参数 schema，`parameters:{keyword?, includeSchema?}`）；`result.content[0].type="text"`，文本为宿主 `ToolExecutionResult` 原样透传（`{"success":true,...,"result":...}`）；失败时 `isError=true` 且保留 `error` 字段 |
@@ -143,6 +144,13 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | 未初始化即调用 | `-32002` |
 | 请求体超限（1MB） | `-32600` |
 | 解析失败 | `-32700` |
+| POST（含 request 与 notification 两种型态）携带服务端不认识的 `Mcp-Session-Id` | `-32001` `Session not found`（**HTTP 404**，SDK 按规范响应；2026-10-17 晚在 :51888 运行实例现场复验：tools/list 与 notifications/initialized 携假 session 均回 `HTTP/1.1 404` + `-32001` body。dsh 侧分析报告曾称我们「回 200/4xx 非 404」——实测为误报，404 信号已送达，不自愈的责任在其 TS SDK 客户端未实现「404→重新 initialize」义务） |
+
+> **有状态会话语义（2026-10-16 实测；v2.4.0 起会话模式可配置）**：v2.3.x 及之前网关硬编码 `Stateless=false`（用户 2026-10-08 指定），会话表在内存——**宿主/网关任何一次重启（含页面自动更新）都会清空全部 session**；客户端若继续携带旧 `Mcp-Session-Id` POST，即得上述 404/-32001（TS SDK 客户端此时向上抛 `Error POSTing to endpoint: {"error":{"code":-32001,...}}`，**不会自动重建会话**）。恢复方法=客户端重连该 MCP 服务器（重新 `initialize` 握手）；实测新握手后 `universal_tool {tool:"list_tools"}` 正常 200 返回全量工具。非服务端缺陷（同端口同版本 A/B 对比验证）。**v2.4.0 根治**：默认改无状态（`Stateless=true`，不发 session id，重启后客户端无需重连），页面「网关配置 → 会话模式」开关或 env 可随时切回有状态，无需发版。
+>
+> **有状态到底在处理什么（为什么存在 session）**：MCP 不是纯「一问一答」RPC，协议规定服务器可**反向发起交互**，而反向请求/推送必须知道「回哪条连接、给哪个客户端」——这就是 session 的本质用途：① `sampling/createMessage`（服务器反过来请求客户端的 LLM 生成）；② `elicitation/create`（服务器执行中回头向用户要补充输入）；③ `notifications/progress`（长任务进度推送）；④ `tools/list_changed` 等变更通知与日志通知（经 GET SSE 长连接按会话下发）；⑤ 记住 initialize 协商的 protocolVersion/capabilities 以判定该客户端支不支持上述反向能力。**本项目网关实际**：工具面只有 1 个 `universal_tool`，未声明 sampling/elicitation 能力、无 prompts 资源、listChanged=false——**没有任何真正的反向状态需求**，选有状态是 2026-10-08 用户指定（兼容性考虑）；这也是改 `Stateless=true` 几乎零代价的原因（v2.4.0 已拍板并落为配置项，见上）。
+>
+> **重启后旧 session 的行业标准处置（规范即如此，非可优化项）**：MCP spec 2025-06-18 §Transports·Session Management 第 3/4 条——服务器 **MAY 随时终止会话**（回 404），客户端收到 404 **MUST 重新 initialize 建新会话**：重建义务在客户端，session 被规范定位为一次性资产（重建成本近乎零）；所以「服务端持久化会话表接回旧 id」不是行业方案（重启杀不掉已断的 SSE 反向流，且 C# SDK 2.2.0 未提供可插拔 session store 钩子）；Last-Event-ID 断点续传只治「网络瞬断丢消息」不治「服务端重启」；多实例横向扩展才是 session 持久化/粘滞路由的真正主场（Python SDK 官方 troubleshooting 给出的两个修法也是：重连，或 `stateless=True`）。
 
 ## 宿主 HTTP 契约（MCP 中心自带界面与外部调用）
 
@@ -154,7 +162,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | `api/mcp/tools/{toolId}/toggle` | POST | 工具启用/禁用切换 |
 | `api/mcp/tools/{toolId}/test` | POST | 工具测试（模拟，50-300ms） |
 | `api/mcp-center/config` | GET | 网关配置脱敏视图（`port/listenHost/listenUrl/hasToken/tokenMasked/isRunning/version`） |
-| `api/mcp-center/config` | PUT | 修改配置并热重启（`{port?, listenHost?, token?}`；token 空串=清鉴权、不传=保留） |
+| `api/mcp-center/config` | PUT | 修改配置并热重启（`{port?, listenHost?, token?, stateless?}`；token 空串=清鉴权、不传=保留；stateless 不传=不变，v2.4.0） |
 
 > 控制器位于插件 `Controllers/`（`McpController` 路由 `api/mcp` 保留宿主契约、前端调用零改动；`McpCenterConfigController` 路由 `api/mcp-center/config`；`McpExternalController` 路由 `api/mcp-center/servers`）。
 >
@@ -323,6 +331,7 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - **宿主 shim 缓存戳必须 bump（本次实证）**：`ForgeSelf.Web/index.html` import map 的 `element-plus.js?v=2` 是浏览器缓存键；改了 `public/shared/element-plus.js` 但**不 bump v=** → 生产浏览器仍加载旧 shim → 插件报「The requested module 'element-plus' does not provide an export named 'ElSelect'」。**修法**：改 shim 内容同步 bump index.html 对应 `?v=N`（本次 2→4）+ 重建前端 + 覆盖 publish/wwwroot + **删除 publish/wwwroot 下旧 `.br`/`.gz` 预压缩文件**（StaticFiles 优先回旧压缩内容，删后回退未压缩新文件）。
 - **错误消息 JSON 转义**：转发器错误文本以 JSON 序列化（中文 `\uXXXX` 转义），e2e 断言错误提示须 `JSON.parse` 后断言，不能直接 `toContain('未连接')`。
 - **host http_get 不证明浏览器模块加载**：`http_get` 拿到的磁盘内容 ≠ 浏览器 module cache 命中的内容（带 `?v=` 的 URL 按缓存键整体缓存）。排查此类问题先看 import map 缓存键。
+- **经 universal_tool 调用插件工具报「IServiceScopeFactory 未注册」（2026-10-17 PILOT-062 已闭合）**：网关链路本身无错（`UniversalToolForwarder` 构造只存 ctx、运行期取注册表合规）；真因在被转发侧——TodoTracker 旧 `TodoToolProvider` 在插件 `Apply` **构造期** eager 解析宿主 `IServiceProvider`，而宿主 seed（`ProvideHostServices`）发生在 `builder.Build()` 之后（`AppBuilder.cs` L364→L402），构造恒 miss 回落把未就绪的插件 Context 存进字段，请求期 `CreateScope()` 抛离真因极远的 MS DI 文案。**修法（本批）**：全部插件工具改「构造只存原始上下文 + 执行期经 `ForgeSelf.Abstractions.PluginContextDiExtensions.RequireHostProvider/CreateHostScope` 即时解析」，未 seed 时报明确文案（含 ProvideHostServices/ExecuteAsync/禁构造期解析三要素）；该写法已由架构守卫 `PluginToolConstructorDiGuardTests` 变成 CI 判据（变异探针实证翻红），规则真源见 `docs/04-standards/agent-workflow/b-engineering-daily.md` §B4「插件构造期禁止解析宿主 DI」。全链证据 `docs/ai/pilot/2026-10-17-plugin-di-helper-todo-fix/`（含真实宿主进程经网关调 list_todos 成功封套原文）。
 
 ## v2.3.0 新增：写入 dsh（DeepSeek Harness）MCP 配置
 
@@ -392,3 +401,18 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 现场 dsh 端点 500→200、无红条、运行期同步 116 个真实工具；无 token 仍 401（鉴权未削弱）。
 **发布**：本地目录更新源 `OpenForgeSelf-2.4.6.2610162203-win-x64.zip`（-Sign，签名校验 3/3，L1 不变量通过，
 包内 McpCenter=2.3.2），待用户在运行实例页面「检查更新→下载→重启并更新」后做只读复验。
+
+## v2.4.0 会话模式做成配置项（2026-10-17）
+
+**背景（用户拍板）**：dsh 在宿主/网关重启后携旧 `Mcp-Session-Id` 吃 404/-32001（服务端合规，TS SDK 客户端不自动重握手），
+硬编码 `Stateless=false` 切换需改代码发版 ⇒ 用户指令「把 Stateless 做到 mcp 网关配置里，改完重启网关生效，以后不再改代码发版」。
+
+**落地**（pilot `docs/ai/pilot/2026-10-17-mcpcenter-gateway-stateless-config/`）：
+- 配置链三级优先序新键：env `FORGESELF_MCP_GATEWAY_STATELESS`（"1/true/0/false" 大小写不敏感）→ config.json `stateless` → **默认 `true`（无状态）**；老配置缺键 ⇒ 升级即自动转无状态=根治生效。
+- GET 视图加 `stateless`；PUT `stateless?: boolean`（不传=不变）；生效通道复用 `ApplyUpdateAsync` 热重启（快照→改→落盘→Stop/Start→失败回滚），**运行期双向可切换无需发版**（实测：PUT false ⇒ initialize 签发 session；PUT true ⇒ 不签发）。
+- 前端「网关配置」页签加「会话模式」开关（`data-test="stateless-switch"`）+ 两态常驻说明文案；保存提示分态。
+- 顺带修 SDK 化（2.2.0）既有漂移：①`serverInfo` 契约回归（曾回宿主程序集名+构建号）⇒ `AddMcpServer` 显式配置；②e2e 客户端 `clientInfo` 缺必填 `version` ⇒ initialize 恒 HTTP 500（与有/无状态无关，SDK 严格反序列化 JsonException）；③SDK 应答统一 SSE，客户端需按 content-type 解析。
+- `listChanged` 旗标由 SDK 自动推导（有状态=true、无状态=缺键）且 `Capabilities` 显式覆写实测无效——工具面恒静态实际从不发通知（登记 TODO P3）。
+
+**验证**：后端 build 0 错 / McpCenter 测试 **111/111**（含新增 3 条配置链用例）/ 插件前端 build+test 23/23 绿（check 3 错为 dsh 面板既有缺陷，登记 TODO P2）/ 冒烟 e2e 插件套 **4/4** + 应用层 **4/4**（默认无状态裸 POST 全绿）/ dev-stack 现场 A/B 协议面 + 页面走查 DOM 核对 7/7（截图受浏览器窗口不可见阻塞，以 e2e 截图+DOM+dist 实证替代，发布后第⑤步补视觉证据）；环境已还原 stateless:true。
+**发布**：版本 2.3.2 → **2.4.0**；2026-10-17 用户拍板「发布到本地，我自己更新验证」⇒ 已发本地目录更新源 `OpenForgeSelf-2.4.7.2610171917-win-x64.zip`（-Sign，签名校验 3/3、signtool /tw 时间戳 Successfully verified、SHA256 与 SHA256SUMS 逐字一致、L1 成立；包内 McpCenter=2.4.0、TodoTracker=1.1.3 含 DI 修复——探针坐实旧类 TodoToolProvider 不在包内 dll）；用户在 :51888 实例页面「检查更新→下载→重启并更新」自行更新后做只读复验 + dsh 重连验证根治效果。

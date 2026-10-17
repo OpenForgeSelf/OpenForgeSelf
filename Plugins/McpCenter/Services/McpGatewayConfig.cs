@@ -5,24 +5,31 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 
 /// <summary>
 /// MCP 网关配置：三级优先序（环境变量 → 插件数据根 config.json → 内置默认）。
-/// 环境变量：FORGESELF_MCP_GATEWAY_PORT / FORGESELF_MCP_GATEWAY_HOST / FORGESELF_MCP_GATEWAY_TOKEN。
+/// 环境变量：FORGESELF_MCP_GATEWAY_PORT / _HOST / _TOKEN / _STATELESS。
 /// e2e 多宿主实例并存时靠环境变量错开端口，生产靠 config.json 固化。
+/// Stateless（v2.4.0）：会话模式开关，默认无状态（根治宿主/网关重启后旧 Mcp-Session-Id 吃 404/-32001，
+/// 见 034-mcp-center.md「有状态会话语义」）；页面/配置切回有状态无需发版。
 /// </summary>
 public sealed class McpGatewayConfig
 {
     public const string DefaultHost = "127.0.0.1";
     public const int DefaultPort = 18890;
     public const string DefaultToken = "";
+    public const bool DefaultStateless = true;
 
     public const string EnvPort = "FORGESELF_MCP_GATEWAY_PORT";
     public const string EnvHost = "FORGESELF_MCP_GATEWAY_HOST";
     public const string EnvToken = "FORGESELF_MCP_GATEWAY_TOKEN";
+    public const string EnvStateless = "FORGESELF_MCP_GATEWAY_STATELESS";
 
     private const string ConfigFileName = "config.json";
 
     public int Port { get; set; } = DefaultPort;
     public string ListenHost { get; set; } = DefaultHost;
     public string Token { get; set; } = DefaultToken;
+
+    /// <summary>true=无状态（每请求独立，不发 session id）；false=有状态（initialize 签发 Mcp-Session-Id）。</summary>
+    public bool Stateless { get; set; } = DefaultStateless;
 
     public string ListenUrl => $"http://{ListenHost}:{Port}";
 
@@ -45,6 +52,8 @@ public sealed class McpGatewayConfig
                     cfg.Port = fromFile.Port;
                     cfg.ListenHost = string.IsNullOrWhiteSpace(fromFile.ListenHost) ? DefaultHost : fromFile.ListenHost;
                     cfg.Token = fromFile.Token ?? DefaultToken;
+                    // 旧版 config.json 无 stateless 键 ⇒ 反序列化保持默认 true（升级即自动转无状态，设计拍板 S1）
+                    cfg.Stateless = fromFile.Stateless;
                 }
             }
             else
@@ -76,6 +85,20 @@ public sealed class McpGatewayConfig
         if (envToken != null)
         {
             cfg.Token = envToken;
+        }
+
+        var envStateless = Environment.GetEnvironmentVariable(EnvStateless);
+        if (!string.IsNullOrWhiteSpace(envStateless))
+        {
+            // 接受 "1/0"、"true/false"（大小写不敏感）；无法识别则保持低一级优先序的值
+            if (envStateless.Equals("1", StringComparison.Ordinal) || envStateless.Equals("true", StringComparison.OrdinalIgnoreCase))
+            {
+                cfg.Stateless = true;
+            }
+            else if (envStateless.Equals("0", StringComparison.Ordinal) || envStateless.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                cfg.Stateless = false;
+            }
         }
 
         return cfg;

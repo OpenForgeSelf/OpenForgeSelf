@@ -46,7 +46,8 @@ const AUTH_HEADERS = { Authorization: `Bearer ${getRealApiKey()}` }
 /** 取证产物目录（协议日志 + 截图）。 */
 const OUT_DIR = path.resolve(fileURLToPath(new URL('../../../screenshots/e2e/mcp-center', import.meta.url)))
 
-/** 极简 MCP 客户端：发 JSON-RPC 请求（Streamable HTTP POST），返回响应 JSON。 */
+/** 极简 MCP 客户端：发 JSON-RPC 请求（Streamable HTTP POST），返回响应 JSON。
+ * 官方 SDK 应答可能是 SSE（event: message / data: {...}）或纯 JSON，两种都按协议解析。 */
 async function mcpCall(method: string, params: unknown, id: number): Promise<unknown> {
   const res = await fetch(`${MCP_BASE}/mcp`, {
     method: 'POST',
@@ -54,7 +55,16 @@ async function mcpCall(method: string, params: unknown, id: number): Promise<unk
     body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
   })
   expect(res.ok, `MCP POST /mcp 应成功（${method}，HTTP ${res.status}）`).toBeTruthy()
-  return (await res.json()) as unknown
+  return parseRpcJson(res, await res.text())
+}
+
+/** 解析 Streamable HTTP 应答体：纯 JSON 或 SSE（event: message / data: {...}）均为协议合法，统一取 JSON。 */
+function parseRpcJson(res: Response, text: string): unknown {
+  const ctype = res.headers.get('content-type') ?? ''
+  const payload = ctype.includes('text/event-stream')
+    ? text.split('\n').find((l) => l.startsWith('data:'))?.slice(5).trim()
+    : text
+  return JSON.parse(payload ?? text) as unknown
 }
 
 function resultOf(resp: unknown): Record<string, unknown> {
@@ -140,17 +150,16 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     expect(healthOk, `MCP 端口 /health 应在 60s 内就绪（${MCP_BASE}）`).toBeTruthy()
 
     // 2) initialize：协议版本 / 服务器信息（更名 ForgeSelf McpCenter）/ 能力
-    const init = await mcpCall('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e' } }, 1)
+    const init = await mcpCall('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1.0' } }, 1)
     const initResult = resultOf(init)
     expect(initResult.protocolVersion).toBe('2025-06-18')
     expect((initResult.serverInfo as { name: string }).name).toBe('ForgeSelf McpCenter')
-    expect(
-      ((initResult.capabilities as { tools: { listChanged: boolean } }).tools as { listChanged: boolean }).listChanged,
-    ).toBe(false)
+    // tools 能力必须声明；listChanged 旗标由 SDK 自动推导（有状态=true、无状态=缺键），服务端实际从不推 list_changed（工具面恒静态）——见 034 契约
+    expect((initResult.capabilities as { tools?: unknown }).tools).toBeDefined()
     evidence.push(`initialize: ${JSON.stringify(initResult)}`)
 
     // 2.1) MCP 2.0（v2.2.0）：客户端声明 2025-11-25 → 服务端回显 2025-11-25（serverInfo 含 description）
-    const init2 = await mcpCall('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'e2e' } }, 6)
+    const init2 = await mcpCall('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'e2e', version: '1.0' } }, 6)
     const init2Result = resultOf(init2)
     expect(init2Result.protocolVersion).toBe('2025-11-25')
     expect((init2Result.serverInfo as { name: string; description?: string }).description).toBeTruthy()
@@ -289,7 +298,7 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     expect(rootRes.status, '根地址（缺少 /mcp）不是 MCP 端点 —— 界面不写路径必然误导').toBe(404)
     const endpointRes = await postRpc(expectedEndpoint)
     expect(endpointRes.status, '界面给出的端点地址必须可直接调用').toBe(200)
-    const endpointBody = (await endpointRes.json()) as { result?: { tools?: { name: string }[] } }
+    const endpointBody = (parseRpcJson(endpointRes, await endpointRes.text())) as { result?: { tools?: { name: string }[] } }
     expect(endpointBody.result?.tools?.[0]?.name).toBe('universal_tool')
     console.log(
       `\n[evidence] 地址展示：config.listenUrl=${listenUrl} → 界面展示=${expectedEndpoint}；` +
@@ -489,9 +498,10 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
       expect(toolCount, '应连上 mock 且拉到 2 个工具').toBe(2)
       evidence.push(`已连接：toolCount=${toolCount}`)
 
-      // ── 2) 界面：打开工具测试台 ──
+      // ── 2) 界面：打开工具测试台（外部服务器区块在「网关配置」页签，先切 tab） ──
       await page.goto('/mcp-center')
       await page.waitForLoadState('networkidle')
+      await page.getByRole('tab', { name: '网关配置' }).click()
       await page.locator('.external-item', { hasText: 'e2e playground' })
         .getByRole('button', { name: '工具' })
         .click()

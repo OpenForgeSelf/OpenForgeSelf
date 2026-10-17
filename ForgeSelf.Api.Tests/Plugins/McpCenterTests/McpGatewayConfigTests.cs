@@ -71,4 +71,51 @@ public sealed class McpGatewayConfigTests
             Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Load_StatelessKeyAbsent_DefaultsTrue_OldFileExplicitFalseIsHonored()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"mcpcfg_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // v2.4.0 设计拍板 S1：旧 config.json 无 stateless 键 → 升级即默认无状态
+            File.WriteAllText(Path.Combine(dir, "config.json"), "{\"port\": 19010}");
+            Assert.True(McpGatewayConfig.Load(dir).Stateless);
+
+            // 旧文件显式 false → 尊重用户选择保持有状态
+            File.WriteAllText(Path.Combine(dir, "config.json"), "{\"port\": 19011, \"stateless\": false}");
+            Assert.False(McpGatewayConfig.Load(dir).Stateless);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Load_EnvStatelessOverridesConfigFile()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"mcpcfg_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var original = Environment.GetEnvironmentVariable(McpGatewayConfig.EnvStateless);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "config.json"), "{\"stateless\": true}");
+
+            // "0" → 覆盖为有状态
+            Environment.SetEnvironmentVariable(McpGatewayConfig.EnvStateless, "0");
+            Assert.False(McpGatewayConfig.Load(dir).Stateless);
+
+            // "TRUE"（大小写不敏感）→ 覆盖为无状态
+            Environment.SetEnvironmentVariable(McpGatewayConfig.EnvStateless, "TRUE");
+            Assert.True(McpGatewayConfig.Load(dir).Stateless);
+        }
+        finally
+        {
+            if (original == null) Environment.SetEnvironmentVariable(McpGatewayConfig.EnvStateless, null);
+            else Environment.SetEnvironmentVariable(McpGatewayConfig.EnvStateless, original);
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

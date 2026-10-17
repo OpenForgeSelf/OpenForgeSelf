@@ -14,7 +14,9 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// 对外工具面**仍只有 1 个** universal_tool（见 <see cref="McpUniversalTool"/>），
 /// 业务转发语义由 <see cref="UniversalToolForwarder"/> 承担，本类不复制任何一份。
 /// 端点：/mcp（SDK MapMcp：POST JSON-RPC + GET SSE）、GET /health（运维探活，不鉴权）。
-/// 会话：**有状态模式**（Stateless=false）⇒ initialize 下发 Mcp-Session-Id（用户 2026-10-08 指定）。
+/// 会话模式（v2.4.0 可配置）：<c>config.Stateless=true</c>（默认）每请求独立、不发 session id，重启/切配置不断会话；
+/// <c>false</c> 维持有状态（initialize 下发 Mcp-Session-Id，2026-10-08 旧拍板保留为可选项；宿主重启后旧 session 失效属规范行为，
+/// 客户端须按 spec 重新 initialize，见 034-mcp-center.md「有状态会话语义」）。
 /// 生命周期自管理（铁律 14）：StartAsync 幂等启动；StopAsync 停止并释放；插件 ctx.Effect 注册停止器。
 /// 令牌：配置了 token 时 /mcp 要求 Authorization: Bearer &lt;token&gt;，否则 401；/health 永不鉴权。
 /// </summary>
@@ -61,8 +63,19 @@ public sealed class McpGatewayServer : IAsyncDisposable
             builder.Services.AddSingleton(_forwarder);
             builder.Services.AddSingleton<McpUniversalTool>();
             builder.Services
-                .AddMcpServer()
-                .WithHttpTransport(o => o.Stateless = false) // 有状态：下发 Mcp-Session-Id
+                .AddMcpServer(o =>
+                {
+                    // 034 契约：serverInfo = 「ForgeSelf McpCenter」+ 插件版本 + 描述（SDK 化后默认值曾是宿主程序集名/构建号，属契约回归）
+                    o.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+                    {
+                        Name = McpCenterPlugin.ServerName,
+                        Version = _pluginVersion,
+                        Description = "OpenForgeSelf MCP Center（万能工具网关，支持 MCP 2.0）"
+                    };
+                    // 注：tools 能力的 listChanged 旗标由 SDK 自动推导（有状态=true、无状态=缺键），o.Capabilities 显式覆写实测无效；
+                    // 工具面恒 1 个 universal_tool（静态），实际从不发 list_changed——契约实况见 034-mcp-center.md
+                })
+                .WithHttpTransport(o => o.Stateless = _config.Stateless) // v2.4.0：会话模式入配置（默认无状态），热重启生效
                 .WithTools<McpUniversalTool>();
 
             var app = builder.Build();
@@ -98,7 +111,7 @@ public sealed class McpGatewayServer : IAsyncDisposable
                 _started = true;
             }
 
-            XTrace.Log.Info("[McpCenter] MCP 网关已启动: {0}（官方 SDK 2.2.0 · 有状态会话 · 工具数 1）", _config.ListenUrl);
+            XTrace.Log.Info("[McpCenter] MCP 网关已启动: {0}（官方 SDK 2.2.0 · 会话模式：{1} · 工具数 1）", _config.ListenUrl, _config.Stateless ? "无状态" : "有状态");
         }
         catch (Exception ex)
         {

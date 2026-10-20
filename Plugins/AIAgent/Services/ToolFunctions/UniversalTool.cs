@@ -24,9 +24,13 @@ public class UniversalTool : IToolFunctionExtension
 
     public string Description =>
         "万能工具网关：按名调用任意已注册工具（如 read_file / write_file / list_files / calculate / 记忆与工作流工具，" +
-        "以及宿主与其他插件注册进 ToolRegistry 的工具）。入参 {tool: 工具名, parameters: 该工具的参数}，" +
+        "以及宿主与其他插件注册进 ToolRegistry 的工具），也可直调已连接的外部 MCP 工具" +
+        "（tool 传 mcp.<服务器id>.<工具名>，如 mcp.deepwiki.ask_wiki_question）。" +
+        "入参 {tool: 工具名, parameters: 该工具的参数}，" +
         "返回目标工具结果的原样 JSON，失败返回 {success:false, error:...}。" +
-        "不可调用自身；未注册的工具名返回错误并附已注册数量。";
+        "不可调用自身；未注册的工具名返回错误并附已注册数量与 top 建议。" +
+        "找工具先搜索、后枚举：不确定工具名时先用 search_tools {\"keyword\":\"能力词或名词根\",\"limit\":可选} 检索（按名称与说明打分，返回最匹配 top-N 及参数形态），" +
+        "检索无果再用 list_tools 全量枚举兜底（含外部工具）；不要每次都直接 list_tools。";
 
     public string ParametersJsonSchema => @"
 {
@@ -34,7 +38,7 @@ public class UniversalTool : IToolFunctionExtension
     ""properties"": {
         ""tool"": {
             ""type"": ""string"",
-            ""description"": ""目标工具名（裸名，如 read_file / write_file / list_files / calculate）""
+            ""description"": ""目标工具名（裸名，如 read_file / write_file / list_files / calculate；已连接的外部 MCP 工具用全名 mcp.<服务器id>.<工具名>；不确定工具名先调 search_tools 检索，而非直接 list_tools 全量枚举）""
         },
         ""parameters"": {
             ""type"": ""object"",
@@ -80,7 +84,14 @@ public class UniversalTool : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "universal_tool cannot invoke itself" });
             }
 
-            // 3. 软依赖注册表，按名分发（预检 unknown 带已注册数量）
+            // 3. v1.9.0 外部 MCP 工具直调：mcp.<服务器id>.<工具名> 经 McpCenter 提供的跨插件契约转发
+            //    （外部工具不注册进宿主 IToolRegistry——决策 D10，故必在注册表分发之前分流）
+            if (toolName.StartsWith(McpExternalToolNames.Prefix, StringComparison.Ordinal))
+            {
+                return await ForwardExternalAsync(toolName, paramJson);
+            }
+
+            // 4. 软依赖注册表，按名分发（预检 unknown 带已注册数量）
             var registry = _ctx.Get<IToolRegistry>()
                 ?? throw new InvalidOperationException("IToolRegistry 未注册到插件上下文");
 
@@ -98,7 +109,7 @@ public class UniversalTool : IToolFunctionExtension
                 });
             }
 
-            // 4. 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
+            // 5. 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
             var result = await registry.ExecuteAsync(new ToolExecution
             {
                 CallId = string.Empty,
@@ -128,6 +139,37 @@ public class UniversalTool : IToolFunctionExtension
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] universal_tool 执行失败: {0}", ex.Message);
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// 外部 MCP 工具转发（v1.9.0）：与 McpCenter 网关侧同语义（同一 <see cref="IMcpExternalGateway"/> 契约、
+    /// 同一全名解析真源 <see cref="McpExternalToolNames"/>），区别只在错误封套形态——本工具统一用
+    /// <c>{success:false, error:...}</c>（与宿主工具失败同形）。
+    /// 契约运行期每次 Get（禁缓存为字段：提供方热重载/卸载后条目随 Fiber 摘除，缓存会悬空）。
+    /// </summary>
+    private async Task<string> ForwardExternalAsync(string toolName, string paramJson)
+    {
+        var gateway = _ctx.Get<IMcpExternalGateway>();
+        if (gateway == null)
+        {
+            XTrace.Log.Warn("[AIAgentPlugin] universal_tool 外部工具请求被拒：IMcpExternalGateway 未提供（MCP 中心未启用）");
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = "外部 MCP 能力不可用：请确认 MCP 中心插件已启用，并在「网关配置」里连接目标外部服务器"
+            });
+        }
+
+        try
+        {
+            var text = await gateway.InvokeAsync(toolName, paramJson, CancellationToken.None);
+            return text;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[AIAgentPlugin] universal_tool 外部工具 {0} 调用失败: {1}", toolName, ex.Message);
             return JsonSerializer.Serialize(new { success = false, error = ex.Message });
         }
     }

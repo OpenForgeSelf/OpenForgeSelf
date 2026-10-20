@@ -109,7 +109,7 @@ public class ReadFileToolFunction : IToolFunctionExtension
     public string Id => "aiagent.read_file";
     public string Name => "read_file";
     public string PluginId { get; }
-    public string Description => "读取项目目录中指定文件的内容（UTF-8 文本）。路径相对项目根。";
+    public string Description => "读取项目目录中指定文件（UTF-8 文本）从 start_line 到 end_line 的内容，并同时返回文件总行数 totalLines。参数：path=相对项目根的文件路径（必填）；start_line=起始行号，从 1 开始计数（必填，缺失或非正整数直接报错）；end_line=结束行号（含该行，选填，缺省读到文末；不得小于 start_line，超出总行数自动钳到文末）。示例：{\"path\":\"src/main.py\",\"start_line\":12,\"end_line\":40} 表示读第 12~40 行。";
 
     public string ParametersJsonSchema => @"
 {
@@ -118,9 +118,17 @@ public class ReadFileToolFunction : IToolFunctionExtension
         ""path"": {
             ""type"": ""string"",
             ""description"": ""相对项目根的文件路径，如 src/main.py""
+        },
+        ""start_line"": {
+            ""type"": ""integer"",
+            ""description"": ""起始行号（从 1 开始），必填；超出总行数时返回空 content""
+        },
+        ""end_line"": {
+            ""type"": ""integer"",
+            ""description"": ""结束行号（含该行，选填），缺省读到文末；不得小于 start_line""
         }
     },
-    ""required"": [""path""]
+    ""required"": [""path"", ""start_line""]
 }";
 
     public ReadFileToolFunction(string pluginId, IContext ctx)
@@ -146,11 +154,22 @@ public class ReadFileToolFunction : IToolFunctionExtension
 
             using var doc = JsonDocument.Parse(parameters);
             var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
+            if (!FileToolLineOps.TryReadStartLine(doc.RootElement, out var startLine, out var startLineError))
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!)));
+            if (!FileToolLineOps.TryReadEndLine(doc.RootElement, startLine, required: false, out var endSpecified, out var endLineError))
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!)));
 
             var content = workspace.ReadFile(path);
+            var lines = FileToolLineOps.SplitLines(content);
+            var totalLines = lines.Length;
+            // 起始行到生效结束行（未指定=文末，指定则钳到文末）；越界返回空段（仍带 totalLines，便于模型自纠）。
+            var endLine = Math.Min(endSpecified ?? totalLines, totalLines);
+            var segment = startLine > endLine
+                ? string.Empty
+                : string.Join("\n", lines, startLine - 1, endLine - startLine + 1);
             var usedRoot = workspace.ProjectRoot ?? workspace.DefaultRoot;
-            var response = new { success = true, path, content, usedRoot };
-            XTrace.Log.Info("[AIAgentPlugin] read_file 成功：root={0}, usedRoot={1}, path={2}, 长度={3}", workspace.ProjectRoot, usedRoot, path, content.Length);
+            var response = new { success = true, path, startLine, endLine, content = segment, totalLines, usedRoot };
+            XTrace.Log.Info("[AIAgentPlugin] read_file 成功：root={0}, usedRoot={1}, path={2}, startLine={3}, endLine={4}, totalLines={5}, 返回长度={6}", workspace.ProjectRoot, usedRoot, path, startLine, endLine, totalLines, segment.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
@@ -168,7 +187,7 @@ public class WriteFileToolFunction : IToolFunctionExtension
     public string Id => "aiagent.write_file";
     public string Name => "write_file";
     public string PluginId { get; }
-    public string Description => "写入（新建或覆盖）项目目录中的一个文件。路径相对项目根，父目录不存在时自动创建。";
+    public string Description => "按行区间替换项目目录中的文件（UTF-8 文本）：用 content 替换 start_line..end_line 区间的行（两端均必填、含端点；必须先用 read_file 读文件拿到行号——先读后写）；区间外原样保留（前 start_line-1 行与 end_line 之后的尾部行）。文件不存在时新建（此时 start_line 必须为 1，end_line 钳到文末）。参数：path=相对项目根的文件路径（必填）；content=新内容（必填）；start_line=起始行号（必填，从 1 开始，缺失或非正整数直接报错）；end_line=结束行号（必填，含该行，不得小于 start_line，超出已有行数自动钳到文末）；start_line 超出已有行数末尾+1 报错。示例：{\"path\":\"src/main.py\",\"start_line\":10,\"end_line\":12,\"content\":\"...\"} 表示用 content 替换第 10~12 行。父目录不存在时自动创建。";
 
     public string ParametersJsonSchema => @"
 {
@@ -181,9 +200,17 @@ public class WriteFileToolFunction : IToolFunctionExtension
         ""content"": {
             ""type"": ""string"",
             ""description"": ""文件内容（UTF-8）""
+        },
+        ""start_line"": {
+            ""type"": ""integer"",
+            ""description"": ""起始行号（从 1 开始）：必填；先 read_file 拿行号，本行起到 end_line 的区间被 content 替换""
+        },
+        ""end_line"": {
+            ""type"": ""integer"",
+            ""description"": ""结束行号（含该行）：必填；不得小于 start_line，超出已有行数自动钳到文末""
         }
     },
-    ""required"": [""path"", ""content""]
+    ""required"": [""path"", ""content"", ""start_line"", ""end_line""]
 }";
 
     public WriteFileToolFunction(string pluginId, IContext ctx)
@@ -212,13 +239,31 @@ public class WriteFileToolFunction : IToolFunctionExtension
             var content = doc.RootElement.TryGetProperty("content", out var c)
                 ? c.GetString() ?? string.Empty
                 : string.Empty;
+            if (!FileToolLineOps.TryReadStartLine(doc.RootElement, out var startLine, out var startLineError))
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!)));
+            if (!FileToolLineOps.TryReadEndLine(doc.RootElement, startLine, required: true, out var endSpecified, out var endLineError))
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!)));
 
-            // 解析绝对路径用于观测记录（与真实写入落点一致，受路径穿越防护约束）。
+            // 解析绝对路径用于观测记录与存在性判断（与真实写入落点一致，受路径穿越防护约束）。
             var absPath = workspace.ResolveSafePath(path);
-            workspace.WriteFile(path, content);
+            var exists = File.Exists(absPath);
+            var existingLines = exists
+                ? FileToolLineOps.SplitLines(File.ReadAllText(absPath))
+                : Array.Empty<string>();
+            if (!exists && startLine != 1)
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, $"文件不存在，无法从第 {startLine} 行覆盖：新建文件时 start_line 必须为 1")));
+            if (startLine > existingLines.Length + 1)
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, $"start_line={startLine} 超出文件末尾（现有 {existingLines.Length} 行，最大可写 {existingLines.Length + 1}）")));
+
+            // 保留前 startLine-1 行，用 content 替换 startLine..endLine 区间（未指定=到文末），区间后的尾部行原样保留。
+            var endLine = Math.Min(endSpecified ?? existingLines.Length, existingLines.Length);
+            var head = existingLines.Take(startLine - 1);
+            var tail = endLine < existingLines.Length ? existingLines.Skip(endLine) : Array.Empty<string>();
+            var final = string.Join("\n", head.Concat(FileToolLineOps.SplitLines(content)).Concat(tail));
+            workspace.WriteFile(path, final);
             var usedRoot = workspace.ProjectRoot ?? workspace.DefaultRoot;
-            var response = new { success = true, path, contentLength = content.Length, usedRoot };
-            XTrace.Log.Info("[AIAgentPlugin] write_file 成功：root={0}, usedRoot={1}, 绝对路径={2}, 大小={3}", workspace.ProjectRoot, usedRoot, absPath, content.Length);
+            var response = new { success = true, path, startLine, endLine, writtenLength = final.Length, totalLines = FileToolLineOps.SplitLines(final).Length, usedRoot };
+            XTrace.Log.Info("[AIAgentPlugin] write_file 成功：root={0}, usedRoot={1}, 绝对路径={2}, startLine={3}, endLine={4}, 写入大小={5}", workspace.ProjectRoot, usedRoot, absPath, startLine, endLine, final.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));
         }
         catch (Exception ex)
@@ -226,5 +271,73 @@ public class WriteFileToolFunction : IToolFunctionExtension
             XTrace.Log.Error("[AIAgentPlugin] write_file 执行失败: {0}", ex.Message);
             return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message)));
         }
+    }
+}
+
+/// <summary>read_file / write_file 共用的行处理原语（最小路径：统一按 \n 切分与回写，CRLF/CR 归一）。</summary>
+internal static class FileToolLineOps
+{
+    /// <summary>把文本按行切分（CRLF/CR 归一为 LF）。</summary>
+    public static string[] SplitLines(string text) =>
+        text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+    /// <summary>从参数 JSON 根节点读取必填的 start_line（正整数，1 基）；数字或数字字符串均可。缺失/非法时返回 false 并给出中文错误。</summary>
+    public static bool TryReadStartLine(JsonElement root, out int startLine, out string? error)
+    {
+        startLine = 0;
+        error = null;
+        if (!root.TryGetProperty("start_line", out var el))
+        {
+            error = "缺少必填参数 start_line：起始行号（整数，从 1 开始），read_file 表示从该行读到文末，write_file 表示从该行起直接覆盖";
+            return false;
+        }
+        var ok = el.ValueKind switch
+        {
+            JsonValueKind.Number => el.TryGetInt32(out startLine),
+            JsonValueKind.String => int.TryParse(el.GetString(), out startLine),
+            _ => false,
+        };
+        if (!ok || startLine < 1)
+        {
+            error = $"start_line 必须为从 1 开始的正整数，收到：{el.GetRawText()}";
+            startLine = 0;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>从参数 JSON 根节点读取 end_line（含，正整数且 ≥ startLine）。required=false（read_file）：缺省返回 null=到文末；required=true（write_file，先读后写行号必知）：缺失即报错。非法时 false + 中文错误。</summary>
+    public static bool TryReadEndLine(JsonElement root, int startLine, bool required, out int? endLine, out string? error)
+    {
+        endLine = null;
+        error = null;
+        if (!root.TryGetProperty("end_line", out var el))
+        {
+            if (required)
+            {
+                error = "缺少必填参数 end_line：结束行号（整数，含该行，从 1 开始）；write_file 必须先 read_file 读文件拿到行号，再用 start_line..end_line 指定要替换的区间";
+                return false;
+            }
+            return true;
+        }
+        var ok = el.ValueKind switch
+        {
+            JsonValueKind.Number => el.TryGetInt32(out var v) && (endLine = v) == v,
+            JsonValueKind.String => int.TryParse(el.GetString(), out var v) && (endLine = v) == v,
+            _ => false,
+        };
+        if (!ok || endLine < 1)
+        {
+            error = $"end_line 必须为从 1 开始的正整数，收到：{el.GetRawText()}";
+            endLine = null;
+            return false;
+        }
+        if (endLine < startLine)
+        {
+            error = $"end_line={endLine} 不得小于 start_line={startLine}";
+            endLine = null;
+            return false;
+        }
+        return true;
     }
 }

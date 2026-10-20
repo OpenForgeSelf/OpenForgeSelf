@@ -432,13 +432,99 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
 
         // 仓根铁定存在的文本文件（AGENTS.md），避免依赖「仓根恰好有 note.txt」这类脆断言。
         var fn = new ReadFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md" }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", start_line = 1 }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("content").GetString()));
+        Assert.True(doc.RootElement.GetProperty("totalLines").GetInt32() > 1); // 按行改造后回传总行数
+        Assert.Equal(1, doc.RootElement.GetProperty("startLine").GetInt32());
         Assert.NotNull(doc.RootElement.GetProperty("usedRoot").GetString());
         Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("usedRoot").GetString());
+    }
+
+    [Fact]
+    public async Task ReadFile_FromStartLine2_ReturnsTailAndTotalLines()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var relative = Path.Combine(".temp", $"ofs-test-readline-{Guid.NewGuid():N}.txt");
+        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        File.WriteAllText(target, "L1\nL2\nL3\n");
+        try
+        {
+            var fn = new ReadFileToolFunction("ai-agent", ctx);
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 2 }));
+
+            using var doc = JsonDocument.Parse(json);
+            Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("L2\nL3\n", doc.RootElement.GetProperty("content").GetString()); // 自第 2 行到文末（含原尾行换行产生的空段）
+            Assert.Equal(4, doc.RootElement.GetProperty("totalLines").GetInt32());      // "L1\nL2\nL3\n" 切出 4 段
+        }
+        finally { File.Delete(target); }
+    }
+
+    [Fact]
+    public async Task ReadFile_MissingStartLine_Fails()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var fn = new ReadFileToolFunction("ai-agent", ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md" }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("start_line", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task ReadFile_WithEndLine_ReturnsClosedRangeAndClamps()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var relative = Path.Combine(".temp", $"ofs-test-readrange-{Guid.NewGuid():N}.txt");
+        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        File.WriteAllText(target, "A1\nB2\nC3\nD4");
+        try
+        {
+            var fn = new ReadFileToolFunction("ai-agent", ctx);
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 2, end_line = 3 }));
+            using var doc = JsonDocument.Parse(json);
+            Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("B2\nC3", doc.RootElement.GetProperty("content").GetString());
+            Assert.Equal(2, doc.RootElement.GetProperty("startLine").GetInt32());
+            Assert.Equal(3, doc.RootElement.GetProperty("endLine").GetInt32());
+            Assert.Equal(4, doc.RootElement.GetProperty("totalLines").GetInt32());
+
+            // end_line 超出总行数 → 钳到文末
+            var json2 = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 3, end_line = 99 }));
+            using var doc2 = JsonDocument.Parse(json2);
+            Assert.True(doc2.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("C3\nD4", doc2.RootElement.GetProperty("content").GetString());
+            Assert.Equal(4, doc2.RootElement.GetProperty("endLine").GetInt32());
+        }
+        finally { File.Delete(target); }
+    }
+
+    [Fact]
+    public async Task ReadFile_EndLineBeforeStartLine_Fails()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var fn = new ReadFileToolFunction("ai-agent", ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", start_line = 5, end_line = 2 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("end_line", doc.RootElement.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -454,13 +540,92 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
         var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
 
         var fn = new WriteFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = " Written " }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = " Written ", start_line = 1, end_line = 1 }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.True(File.Exists(target));
         Assert.Equal(" Written ", File.ReadAllText(target));
         Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("usedRoot").GetString());
+    }
+
+    [Fact]
+    public async Task WriteFile_FromStartLine2_KeepsHeadAndOverwritesTail()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var relative = Path.Combine(".temp", $"ofs-test-writeline-{Guid.NewGuid():N}.txt");
+        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        File.WriteAllText(target, "H1\nH2\nOLD3\nOLD4\n");
+        try
+        {
+            var fn = new WriteFileToolFunction("ai-agent", ctx);
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = "N3\nN4", start_line = 3, end_line = 5 }));
+
+            using var doc = JsonDocument.Parse(json);
+            Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("H1\nH2\nN3\nN4", File.ReadAllText(target).Replace("\r\n", "\n")); // 前两行保留，第 3 行起直接覆盖
+            Assert.Equal(4, doc.RootElement.GetProperty("totalLines").GetInt32());
+        }
+        finally { File.Delete(target); }
+    }
+
+    [Fact]
+    public async Task WriteFile_MissingStartLine_Fails()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var fn = new WriteFileToolFunction("ai-agent", ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = ".temp/none.txt", content = "x" }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("start_line", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task WriteFile_MissingEndLine_Fails()
+    {
+        // 先读后写铁律：write_file 的 end_line 必填，缺失直接报错
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var fn = new WriteFileToolFunction("ai-agent", ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", content = "x", start_line = 1 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("end_line", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task WriteFile_WithEndLine_ReplacesRangeAndKeepsTail()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws);
+
+        var relative = Path.Combine(".temp", $"ofs-test-writerange-{Guid.NewGuid():N}.txt");
+        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        File.WriteAllText(target, "A1\nB2\nC3\nD4\nE5");
+        try
+        {
+            var fn = new WriteFileToolFunction("ai-agent", ctx);
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = "X\nY", start_line = 2, end_line = 4 }));
+
+            using var doc = JsonDocument.Parse(json);
+            Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(4, doc.RootElement.GetProperty("endLine").GetInt32());
+            // 第 2~4 行被两行 content 替换，首尾保留 → 总行数 5→4
+            Assert.Equal("A1\nX\nY\nE5", File.ReadAllText(target).Replace("\r\n", "\n"));
+            Assert.Equal(4, doc.RootElement.GetProperty("totalLines").GetInt32());
+        }
+        finally { File.Delete(target); }
     }
 
     /// <summary>DefaultRoot 恒 null 的契约替身：钉住「双根全空」引导错误分支（不触文件系统）。</summary>

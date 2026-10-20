@@ -8,6 +8,19 @@
 
 PILOT `2026-10-16-settings-proxy-mode-bypass`（设置·网络：代理三模式 + 不走代理的条目 + 手动模式测试按钮），S1→S8。
 
+## AC 覆盖索引（供门禁机械核对；编号同 02-spec）
+
+| 验收标准 | 证据小节 | 结果 |
+| --- | --- | --- |
+| AC1（manual 矩阵）/ AC2（direct/system 委托 + Unknown①）/ AC3（旁路五形态） | Unit Test·后端本域 74/74；Unknown① 钉死节 | Verified |
+| AC4（契约/400 行号/密码三语义） | Unit Test·后端本域（SettingsControllerNetworkTests） | Verified |
+| AC5（test-proxy 单元+现场） | Unit Test + 现场验收·测试按钮 | Verified |
+| AC6（旁路闭环） | 现场验收·AC6 旁路闭环节（D1/D2/D3） | Verified |
+| AC7（门禁全绿） | Build / Unit Test / Static Analysis 各节 | Verified |
+| AC8（e2e 4 例） | E2E 节（两次 4/4） | Verified |
+| AC9（UI 走查） | UI 走查与修复节 + Screenshots | Verified |
+| AC10（文档回写） | Changed Files + 042/§B3 回写（见 07） | Verified |
+
 ## Changed Files
 
 后端（S1/S2）：

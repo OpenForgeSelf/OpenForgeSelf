@@ -29,6 +29,7 @@ public sealed class PersistentSessionStore : ISessionStore
 
     /// <summary>是否已为本实例做过建表（惰性，仅在真正读写库时触发一次）。</summary>
     private int _initialized;
+    private readonly object _initializeGate = new();
 
     /// <summary>构造持久化会话存储。</summary>
     /// <param name="connName">XCode 连接名（默认宿主库 <c>ForgeSelf</c>）。</param>
@@ -50,8 +51,23 @@ public sealed class PersistentSessionStore : ISessionStore
             return;
         }
 
-        SessionEventEntity.EnsureCreated(_connName);
-        Volatile.Write(ref _initialized, 1);
+        lock (_initializeGate)
+        {
+            if (Volatile.Read(ref _initialized) == 1) return;
+
+            for (var attempt = 0; attempt < 6; attempt++)
+            {
+                if (SessionEventEntity.EnsureCreated(_connName))
+                {
+                    Volatile.Write(ref _initialized, 1);
+                    return;
+                }
+
+                if (attempt < 5) System.Threading.Thread.Sleep(100 * (attempt + 1));
+            }
+
+            throw new InvalidOperationException($"SessionEvent 表初始化失败（连接：{_connName}），已重试 6 次；未执行后续写入。");
+        }
     }
 
     /// <inheritdoc />

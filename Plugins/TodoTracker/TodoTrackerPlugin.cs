@@ -53,6 +53,9 @@ public class TodoTrackerPlugin : IPlugin
 
     /// <summary>
     /// 注册 AI 工具函数。description 里写清必填/可选与取值（铁律 18：外部调用方只读说明就该知道怎么传参）。
+    /// DI 约定（PILOT-062）：此处直传的 <paramref name="services"/> 是插件上下文（Apply 期宿主尚未 seed），
+    /// 工具构造函数只存原始上下文，宿主容器一律在 ExecuteAsync 执行期经
+    /// <see cref="ForgeSelf.Abstractions.PluginContextDiExtensions"/> 解析（构造期解析受架构守卫拦截）。
     /// </summary>
     private void RegisterToolExtensions(string pluginId, IServiceProvider services)
     {

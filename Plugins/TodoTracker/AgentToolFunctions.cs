@@ -16,8 +16,10 @@ namespace ForgeSelf.Api.Plugins.TodoTracker;
 /// 各自内联了 scope 解析与用量上报（<c>ToolExtensions.cs</c>），本次不做无关重构（规范 §1.5），
 /// 新增的一律走本文件基类 —— 同一件事不留三种写法，改动只在增量上收敛。
 ///
-/// 解析回落沿用 <see cref="TodoToolProvider"/>：插件 <c>Apply</c> 拿到的是插件上下文，
-/// 直接 <c>CreateScope()</c> 会抛「No service for type 'IServiceScopeFactory'」，须先回落宿主根容器。
+/// 解析范式（2026-10-17 PILOT-062）：构造期零解析，只存原始上下文；宿主容器在
+/// <c>RunAsync</c> 执行期经 <see cref="ForgeSelf.Abstractions.PluginContextDiExtensions"/> 即时解析——
+/// 插件 <c>Apply</c> 早于宿主 <c>ProvideHostServices</c> seed，构造期解析必拿到未就绪的插件上下文；
+/// 未就绪时报明确错误并统一转成 <c>{success:false,error}</c> 封套。
 /// </summary>
 public abstract class TodoAgentToolBase : IToolFunctionExtension
 {
@@ -29,7 +31,8 @@ public abstract class TodoAgentToolBase : IToolFunctionExtension
     public string Description { get; set; } = string.Empty;
     public string ParametersJsonSchema { get; set; } = string.Empty;
 
-    protected TodoAgentToolBase(IServiceProvider? services) => _services = TodoToolProvider.Resolve(services);
+    // 构造期零解析（PILOT-062）：只存原始上下文，执行期才建宿主作用域
+    protected TodoAgentToolBase(IServiceProvider? services) => _services = services;
 
     /// <summary>工具执行体：作用域由基类负责创建与释放（不得把 scoped 服务存成字段跨请求用）。</summary>
     public abstract Task<string> ExecuteAsync(string parameters);
@@ -37,14 +40,15 @@ public abstract class TodoAgentToolBase : IToolFunctionExtension
     /// <summary>在插件作用域内跑一段逻辑，异常统一转成 <c>{success:false,error}</c> 封套。</summary>
     protected async Task<string> RunAsync(Func<IServiceProvider, Task<string>> body, string? errorPrefix = null)
     {
-        if (_services == null) return Fail("服务提供者未初始化");
-
         var watch = Stopwatch.StartNew();
         string result;
         string? error = null;
+        IServiceProvider? host = null;
         try
         {
-            using var scope = _services.CreateScope();
+            // 执行期即时解析宿主容器（对 Apply/seed 时序免疫）；未就绪的明确报错由 catch 转错误封套
+            host = _services.RequireHostProvider();
+            using var scope = host.CreateScope();
             result = await body(scope.ServiceProvider);
         }
         catch (Exception ex)
@@ -55,16 +59,17 @@ public abstract class TodoAgentToolBase : IToolFunctionExtension
         }
 
         watch.Stop();
-        await ReportUsageAsync(watch.ElapsedMilliseconds, error);
+        await ReportUsageAsync(watch.ElapsedMilliseconds, error, host);
         return result;
     }
 
-    /// <summary>用量上报（与既有 3 个工具同一入口 <c>ToolFunctionUsageReportingExtensions</c>）。</summary>
-    protected Task ReportUsageAsync(long elapsedMs, string? error)
+    /// <summary>用量上报（与既有 3 个工具同一入口 <c>ToolFunctionUsageReportingExtensions</c>）；
+    /// 优先用执行期解析到的宿主 provider（PILOT-062 起用量上报真正可达）。</summary>
+    protected Task ReportUsageAsync(long elapsedMs, string? error, IServiceProvider? host = null)
     {
         var payload = new Dictionary<string, object>();
         if (error != null) payload["error"] = error;
-        return this.RecordUsageAsync(_services, Name, elapsedMs, payload);
+        return this.RecordUsageAsync(host ?? _services, Name, elapsedMs, payload);
     }
 
     /// <summary>解析参数 JSON（坏格式返回空字典，不抛出 —— 由各工具自己给"缺哪个参数"的人话）。</summary>

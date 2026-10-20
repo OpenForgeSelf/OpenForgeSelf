@@ -9,19 +9,13 @@ using ForgeSelf.Api.Plugins.TodoTracker.Services;
 namespace ForgeSelf.Api.Plugins.TodoTracker;
 
 /// <summary>
-/// 工具函数的服务解析回落：插件 <c>Apply(IContext)</c> 传进来的常是插件上下文（<c>ForgeSelf.Core.Context</c>），
-/// 其自有服务表没有 MS DI 的 <c>IServiceScopeFactory</c>，直接 <c>CreateScope()</c> 会抛
-/// 「No service for type 'IServiceScopeFactory'」。宿主由 PluginManager.ProvideHostServices 把根
-/// <see cref="IServiceProvider"/> seed 进 root Context，故先经它回落宿主容器。
-/// </summary>
-public static class TodoToolProvider
-{
-    public static IServiceProvider? Resolve(IServiceProvider? services)
-        => (services?.GetService(typeof(IServiceProvider)) as IServiceProvider) ?? services;
-}
-
-/// <summary>
-/// create_todo 工具函数：创建一个新的待办事项。
+/// 老三工具（create/list/complete_todo）。
+///
+/// DI 解析范式（2026-10-17 修复批 PILOT-062，取代原 <c>TodoToolProvider</c> 构造期 eager 解析）：
+/// 构造函数只存原始上下文（插件 ctx），宿主容器一律在 <c>ExecuteAsync</c> 执行期经
+/// <see cref="ForgeSelf.Abstractions.PluginContextDiExtensions.CreateHostScope"/> 即时解析——
+/// 对 Apply/seed 时序免疫；未就绪时报明确错误并被 catch 转成错误封套。
+/// 架构守卫：<c>ForgeSelf.Api.Tests/Architecture/PluginToolConstructorDiGuardTests</c>。
 /// </summary>
 public class CreateTodoToolFunction : IToolFunctionExtension
 {
@@ -35,7 +29,8 @@ public class CreateTodoToolFunction : IToolFunctionExtension
 
     public CreateTodoToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
+        // 构造期零解析：只存原始上下文，执行期才解析宿主容器（PILOT-062）
+        _serviceProvider = serviceProvider;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -75,12 +70,8 @@ public class CreateTodoToolFunction : IToolFunctionExtension
                 parsedDueDate = dt;
             }
 
-            if (_serviceProvider == null)
-            {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
-            }
-
-            using var scope = _serviceProvider.CreateScope();
+            // 执行期即时解析宿主容器（对 Apply/seed 时序免疫）；未就绪的明确报错由 catch 转错误封套
+            using var scope = _serviceProvider.CreateHostScope();
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
@@ -97,7 +88,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
             var created = await todoService.CreateTodoAsync(request);
 
             stopwatch.Stop();
-            await this.RecordUsageAsync(_serviceProvider, "create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(scope.ServiceProvider, "create_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["todoId"] = created.Id,
                 ["title"] = created.Title
@@ -134,7 +125,8 @@ public class ListTodosToolFunction : IToolFunctionExtension
 
     public ListTodosToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
+        // 构造期零解析：只存原始上下文，执行期才解析宿主容器（PILOT-062）
+        _serviceProvider = serviceProvider;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -167,12 +159,8 @@ public class ListTodosToolFunction : IToolFunctionExtension
                 }
             }
 
-            if (_serviceProvider == null)
-            {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
-            }
-
-            using var scope = _serviceProvider.CreateScope();
+            // 执行期即时解析宿主容器（对 Apply/seed 时序免疫）；未就绪的明确报错由 catch 转错误封套
+            using var scope = _serviceProvider.CreateHostScope();
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
@@ -182,7 +170,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
             var result = await todoService.GetTodosAsync(status, page, pageSize);
 
             stopwatch.Stop();
-            await this.RecordUsageAsync(_serviceProvider, "list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(scope.ServiceProvider, "list_todos", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["status"] = status ?? "all",
                 ["page"] = page,
@@ -222,7 +210,8 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
 
     public CompleteTodoToolFunction(IServiceProvider? serviceProvider)
     {
-        _serviceProvider = TodoToolProvider.Resolve(serviceProvider);
+        // 构造期零解析：只存原始上下文，执行期才解析宿主容器（PILOT-062）
+        _serviceProvider = serviceProvider;
     }
 
     public async Task<string> ExecuteAsync(string parameters)
@@ -245,12 +234,8 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "参数 id 必须为正整数" });
             }
 
-            if (_serviceProvider == null)
-            {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
-            }
-
-            using var scope = _serviceProvider.CreateScope();
+            // 执行期即时解析宿主容器（对 Apply/seed 时序免疫）；未就绪的明确报错由 catch 转错误封套
+            using var scope = _serviceProvider.CreateHostScope();
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
@@ -270,7 +255,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
             }
 
             stopwatch.Stop();
-            await this.RecordUsageAsync(_serviceProvider, "complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            await this.RecordUsageAsync(scope.ServiceProvider, "complete_todo", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["todoId"] = id,
                 ["title"] = updated.Title

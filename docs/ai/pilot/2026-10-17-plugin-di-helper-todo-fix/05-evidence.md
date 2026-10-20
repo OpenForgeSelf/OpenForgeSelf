@@ -144,6 +144,16 @@ Result: **N/A**（本批零前端改动；`pnpm run check/test` 不适用——�
 
 N/A（无 UI 改动；e2e A1 截图产物在 `ForgeSelf.Web/screenshots/e2e/todo-tracker/`，非本批新增断言依据）
 
+## AC 覆盖对照（02 §Acceptance ↔ 本文证据节；编号原文作 `AC-n`，此处按门禁 token 对齐）
+
+| AC | 判据（01-intent / 02-spec） | 证据位置与结果 |
+| --- | --- | --- |
+| AC1 | `dotnet test` 回归转绿（`success:true`，fake ITodoService 数据回读） | 本文「Unit Test」节：新回归 7/7 + 既有 TodoTracker/UniversalToolForwarder 158/158，均 Verified |
+| AC2 | 助手三态：seed 前清晰错文 + seed 后解析成功 + 未 seed 报错文案含 ProvideHostServices 指引 | 「Unit Test」节 `PluginContextDi` 助手 5 测试（含 `RequireHostProvider_Null` 纠正记录） |
+| AC3 | 守卫变异探针：临时 eager 写法 → 守卫翻红 → 还原翻绿 | 「### AC-3 变异探针」节：翻红/翻绿均 Verified，`git grep MUTATION-PROBE` 无残留 |
+| AC4 | 存量规则不回归（TodoTracker+UniversalToolForwarder 回归全绿）、`dotnet build` 0 error | 「Build」节 0 错误 + 「Unit Test」节 158 通过 |
+| AC5 | dev-stack 源码本地验收：真实实例 `list_todos` 返回成功封套 | 「现场验收」节：7103/18897 隔离实例 tools/call 原文 `{"success":true,…}`，写/读/清三步存证（偏差点已如实披露） |
+
 ## Known Limitations
 
 - 成功路径用量上报此前对 Context 建 scope 被 `RecordUsageAsync` 内部吞异常（永不生效）——本批成功分支改传 `scope.ServiceProvider` 顺带治愈；**catch 分支仍传 `_serviceProvider`**（失败时用量记录尽力而为，未 seed 场景建 scope 会再抛并被内部吞掉，属可接受静默，登记不扩改）。

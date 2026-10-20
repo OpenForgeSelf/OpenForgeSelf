@@ -41,11 +41,18 @@ public class ForgeSetting : ForgeConfig<ForgeSetting>
   [Category("AI")]
   public Int32 SpillThresholdBytes { get; set; } = 32768;
 
-  /// <summary>模型请求是否走代理（设置·网络设置）。true=经下方代理服务器发出全部模型请求；
-  /// false（默认）=显式直连，忽略系统代理（2026-10-16-settings-network-proxy BR-1）</summary>
-  [Description("模型请求是否走代理；关闭=直连（忽略系统代理）")]
+  /// <summary>模型请求代理模式（设置·网络设置，2026-10-16-settings-proxy-mode-bypass BR-1）：
+  /// system=跟随系统代理（默认，等同本功能上线前 .NET 原生行为）；manual=经下方代理服务器发出全部模型请求；
+  /// direct=显式直连，忽略系统代理</summary>
+  [Description("代理模式：system=跟随系统 / manual=手动配置 / direct=直连")]
   [Category("网络")]
-  public Boolean ProxyEnabled { get; set; } = false;
+  public String ProxyMode { get; set; } = "system";
+
+  /// <summary>不走代理的条目（一行一条，\n 分隔，manual/system 模式生效）：
+  /// 支持 *.example.com / 裸域名后缀 / IPv4 精确 / 10.* 段前缀；回环永不走代理无需写条目</summary>
+  [Description("不走代理的条目（一行一条，域名后缀/IP/通配）")]
+  [Category("网络")]
+  public String ProxyBypass { get; set; } = "";
 
   /// <summary>代理服务器地址（域名或 IPv4，不含 scheme/端口；仅支持 HTTP/HTTPS 代理）</summary>
   [Description("代理服务器地址（域名/IPv4）")]

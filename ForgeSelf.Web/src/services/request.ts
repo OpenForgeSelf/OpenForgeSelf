@@ -49,5 +49,9 @@ export async function request<T = any>(
     const reason = detail || res.statusText || '未知错误';
     throw new Error(`请求失败(${res.status}): ${reason}`);
   }
+  // 204 / 空响应体：无可解包 JSON。DELETE 类端点（如删除 AI 提供方）返回 204 No Content，
+  // 直接 return undefined 避免 res.json() 抛 "Unexpected end of JSON input"被调用方 catch 吞掉，
+  // 造成「后端已删但列表不刷新、无提示」（同插件侧 AIAgent web/http.ts 已修的同源缺陷，宿主漏网）。
+  if (res.status === 204) return undefined as T;
   return res.json();
 }

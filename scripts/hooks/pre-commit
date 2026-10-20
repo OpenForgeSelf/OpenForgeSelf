@@ -46,6 +46,20 @@ if [ -n "$STYLED" ]; then
   fi
 fi
 
+# 问题类台账扫描（G3 签名扫描，2026-10-17 problem-class-closure 机制）：
+# 提交触碰台账/知识库（docs/11-troubleshooting/）或扫描器自身时，必跑一次全量
+# signature 扫描（含 allowlist 到期日/守卫路径有效性）——台账改动不自检即腐烂。
+PCS=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '^(docs/11-troubleshooting/|scripts/check-problem-classes\.ps1)' || true)
+if [ -n "$PCS" ]; then
+  echo "[pre-commit] 校验问题类台账 (check-problem-classes)"
+  "$PS" -NoProfile -ExecutionPolicy Bypass -File "scripts/check-problem-classes.ps1"
+  if [ $? -ne 0 ]; then
+    echo "[pre-commit] 问题类台账扫描 FAIL：签名命中未豁免或台账不完整，提交已拒绝（见上方命中表）。"
+    FAIL=1
+  fi
+fi
+
 if [ -z "$DIRS" ]; then
   if [ $FAIL -ne 0 ]; then
     exit 1
@@ -56,6 +70,13 @@ for d in $DIRS; do
   echo "[pre-commit] 校验 PILOT 工件链: $d"
   "$PS" -NoProfile -ExecutionPolicy Bypass \
     -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$d" -EnforceHeader -EnforceAcCoverage
+  if [ $? -ne 0 ]; then
+    FAIL=1
+  fi
+  # 问题类闭环门禁（v1.2.0，2026-10-17）：缺陷类任务（task_kind: defect 且目录日期 ≥2026-10-17）
+  # 的 07 必含「问题类归档/重构提案/悬空教训」三节，缺任一拒绝提交；其余任务脚本内自动跳过。
+  "$PS" -NoProfile -ExecutionPolicy Bypass \
+    -File "scripts/check-problem-classes.ps1" -PilotTask "$d"
   if [ $? -ne 0 ]; then
     FAIL=1
   fi

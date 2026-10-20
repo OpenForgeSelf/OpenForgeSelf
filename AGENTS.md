@@ -16,9 +16,9 @@
 
 1. **【首动作·写日志】** 在调用任何读代码/搜索/编辑工具之前，先向当天工作日记追加一行：`.forgeself/memory/YYYY-MM-DD.md`（不存在则创建；目录跟项目走，换任何 agent 均可读写）。内容=输入原文（用户原始任务提示）+ 任务拆解清单（1-3 行）；**完成一项就把 `- [ ]` 勾为 `- [x]`**。
    ⛔ 未写此行，禁止调用任何文件读/写工具。
-2. **【建待办】** 在 `TODO.md` 新建或引用一条待办（🔄 进行中，标 P1>P2>P3，来源:输入N）。**开发过程中发现的其他问题，当场记入 `TODO.md` 待办区（标 P1>P2>P3，来源:输入N），本次会话不顺手解决**（范围控制见 §1.3）；任务完成时该待办勾选归档到工作日记并**移除出 `TODO.md`**，保持队列新鲜不爆炸。
+2. **【建待办】** 在 `TODO.md` 新建或引用一条待办（🔄 进行中，标 P1>P2>P3，来源:输入N）。**开发过程中发现的其他问题，当场记入 `TODO.md` 待办区（标 P1>P2>P3，来源:输入N），本次会话不顺手解决**（范围控制见 §1.3）；**例外（2026-10-17 用户拍板）：缺陷类任务按 `problem-class-closure` 技能做同类扫查，命中且同根因的项属本任务范围（不算扩范围/无关重构），在 03-plan 列为同类修复项，闸门1 批准；异根因才进 TODO**。任务完成时该待办勾选归档到工作日记并**移除出 `TODO.md`**，保持队列新鲜不爆炸。
    ⛔ 无对应 TODO 项，禁止修改任何业务文件。
-3. **【读规范·强制】** 开发类任务动手前必须**完整读** `docs/04-standards/ai-native-engineering-workflow.md`（v1.1.0，强制）——本项目**唯一**开发流程——并按其九阶段产出 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 工件：00-04（Repository Understanding / Intent / Spec / Plan / Task）先行，**闸门1 经用户批准后才允许 Implement**；05-07（Evidence / Review / Final Report）在验证与审查后补齐。模板 `docs/18-templates/ai-pilot/`，可参照既有 pilot 目录样例。
+3. **【读规范·强制】** 开发类任务动手前必须**完整读** `docs/04-standards/ai-native-engineering-workflow.md`（v1.2.0，强制）——本项目**唯一**开发流程——并按其九阶段产出 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 工件：00-04（Repository Understanding / Intent / Spec / Plan / Task）先行，**闸门1 经用户批准后才允许 Implement**；05-07（Evidence / Review / Final Report）在验证与审查后补齐。模板 `docs/18-templates/ai-pilot/`，可参照既有 pilot 目录样例。
    ⛔ 未读规范、或闸门1 未批就改业务代码 = 流程违规（2026-09-30 实证缺口：AGENTS.md 残留的 specs/speckit 指引曾诱导跳过 pilot，已全部封堵）。
 4. **【查技能】** 任务拆解后从技能目录（§2.4）挑一个流程执行：有对应技能则**先读再动手**；**技能清单无对应流程时，先创建一个技能流程（沉淀为 `.agents/skills/<name>/SKILL.md`，按 skill-creator 规范）→ 执行 → 持续迭代完善**；同类任务下次重复出现时，先选既有技能流程。
    宿主/插件类任务必须读 `plugin-development`（及其转派的专项技能）。
@@ -29,6 +29,7 @@
    - 确认 `TODO.md` 该待办已**从队列移除**（完成即移除，不留 ✅/[x] 堆积）；并确认相关文档（`docs/ai/pilot/` 工件 / `docs/` / README）已同步更新；
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow/README.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow/README.md 或本文。
    - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` 安装 hook（幂等；**脚本一律用 `pwsh` 跑，禁止 `powershell` 5.1**，见 §2.3）。
+   - **【问题类闭环门禁（2026-10-17 用户立）】** 缺陷/回归/返工类任务回复完成前，必须按 `problem-class-closure` 技能跑完闭环（复现红灯→同类扫查→守卫落地→case/PC 归档到 `docs/11-troubleshooting/`→07 含「问题类归档/重构提案/悬空教训」三节）；机器校验 = `pwsh scripts/check-problem-classes.ps1` 绿 + pre-commit 对缺陷类 07 三节拒缺。纯问答/非缺陷任务不受约束。
    - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部六步**（2026-10-11 用户输入3 拍板重排）：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 单测/集成测试）② **本插件 1 个冒烟 e2e**（`e2e/plugins/<id>` 内一条主链路用例；**禁止铺全流程 e2e**，避免跑全量浪费时间）③ **起源码本地前后端按验收标准验收**（`pwsh scripts/dev-stack.ps1` 起源码前后端 → 按验收标准 + ui-ux-design 走查清单逐项核对 + 截图读图 + 清测试数据；**必做，双绿不能替代**）④ 发布（**默认本地目录更新源**：`release-local.ps1 -UpdateDir` + 设置页填本地目录 + 页面自动更新；打 tag 自动发布仅用户明确要求时）⑤ **真实走查（运行实例只读复验）**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）⑥ 更新插件文档 + 记日志。**六步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-10-11 用户拍板）**：**发布方式默认本地目录更新源**；**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责本地打包与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
@@ -109,6 +110,7 @@
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么、**用户说"我看看效果/先别发布/本地跑一下"（→ §四 的 👀 本地预览）** | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；本地预览不替代任何一步；完成后复盘回写技能 |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `pilot-handoff` | **跨 AI 规划交接**：用户要求「只做规划、实现交别的 AI、完成后你验收」时；产出 00–07 交接包 + 预注册验收清单后停下 | 05 只留骨架/栏位；**06 验收清单必须在实现开始前写好**（防看实现定标准）；实现方不得改 06/07 结论栏；收尾不提交 git |
+| `problem-class-closure` | **缺陷类任务总增强层**：缺陷修复/回归/返工/「又出现了」/Review 发现 Major 以上/基建流程缺陷暴露 | 修「类」不修「例」：复现红灯→同类扫查→守卫(G1-G4)→case/PC 归档 `docs/11-troubleshooting/`→逃逸分析+机制上浮；二次复发强制 ≥G2；是 §11 工件链的增强不是旁路（铁律 10）；台账真源 = `problem-classes/README.md` |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |

@@ -31,11 +31,12 @@
 | 确认**用户更新动线**（插件更新页从哪进、不重启生效的三条口子、已知宿主缺陷） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.8** |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |
-| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
+| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[002 万能工具走 ToolRegistry 分发核](07-decisions/002-universal-tool-gateway-and-terminal-tool.md)；[003 外部 MCP 工具枚举可见+调用可达（修订 D10 枚举侧）](07-decisions/003-mcp-external-tools-enum-merge.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
 | 涉及**密钥/权限/敏感数据**的操作 | [`08-security/baseline.md`](08-security/baseline.md) |
 | **部署/发布/运维**服务器 | [`09-operations/deployment.md`](09-operations/deployment.md) |
 | 写测试前了解**测试策略与铁律** | [`10-testing/strategy.md`](10-testing/strategy.md) |
-| 遇到**报错/异常**想快速解决 | [`11-troubleshooting/index.md`](11-troubleshooting/index.md) |
+| **设计/修复前自查已知问题类**（按 tags 检索台账，命中即复发要先做逃逸分析） | [`11-troubleshooting/problem-classes/README.md`](11-troubleshooting/problem-classes/README.md) |
+| 遇到**报错/异常**想快速解决（知识库入口：现象速查 → case → 问题类） | [`11-troubleshooting/index.md`](11-troubleshooting/index.md) |
 | 有**高频疑问**想快速查答 | [`12-faq/index.md`](12-faq/index.md) |
 | 遇到**不懂的术语** | [`13-glossary/terms.md`](13-glossary/terms.md) |
 | **第一次接触项目**（环境搭建/上手路径） | [`14-onboarding/getting-started.md`](14-onboarding/getting-started.md) |

@@ -1,6 +1,6 @@
 # AI-Native Engineering 闭环开发流程规范
 
-> 版本：v1.1.0（2026-09-27）｜状态：**强制**——本项目所有开发类任务必须遵守
+> 版本：v1.2.0（2026-10-17；v1.1.0 2026-09-27，v1.2.0 增补「问题类闭环」接入：§1 第5条澄清、Stage 0/2/3/8 增补、07 报告三节；变更细则见 §7 持续改进）｜状态：**强制**——本项目所有开发类任务必须遵守
 > 来源：用户群内指令（conv_01m3gqx2bgeqbpwyqk9b3qj22z · seq10 制定方案；seq14 明确本规范**独立自洽，不与任何其他流程体系做映射**，开发任务完全按本规范执行）。
 > 配套模板：`docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review 七份）
 > 产物目录约定：`docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一个目录，**目录名前端加日期前缀**，如 `2026-09-30-e2e-shared-infra-dynamic-port`；**从 2026-09-30 起执行，已有旧目录不回溯重命名**；首切实验可直接用 `docs/ai/pilot/` 平铺）
@@ -59,7 +59,7 @@ Review
 2. 不修改数据库结构（涉及迁移即属高风险，须升级审批）。
 3. 不修改鉴权、权限、支付、安全核心逻辑（除非任务本身经闸门1 明确授权）。
 4. 不新增大规模依赖。
-5. 不进行无关重构。
+5. 不进行无关重构。**澄清（v1.2.0，2026-10-17）：「无关」的判据是与任务根因不变量的关系，不是文件距离——按 `problem-class-closure` 技能同类扫查命中且同根因的结构性修复属本任务范围（执行同一 canonical fix），不属无关重构；与本任务不变量无关的命名/格式/性能顺手改才是。**
 6. 不修改与本任务无关的文件。
 7. 不为「展示 Agent 能力」扩大任务范围。
 8. 最终必须能够运行实际测试或构建命令验证。
@@ -76,6 +76,8 @@ Review
 - ⛔ 禁止根据常识推测技术栈，必须从仓库实际内容确认。
 - OpenForgeSelf 速查基线（仍需按当次仓库现状复核）：Vue 3.5 + Vite 前端（`ForgeSelf.Web/`，pnpm，`pnpm run check`/`pnpm run test`）；.NET 10 + SQLite + NewLife.XCode 后端（`ForgeSelf.Api/`，`dotnet build` + `dotnet test`）；插件架构（`Plugins/` + `plugin.json`）；测试体系见 AGENTS.md §5.3。
 - **产物**：`00-repository-understanding.md`（含候选低风险任务及选择理由）。
+- **适用问题类（v1.2.0 增补，缺陷/回归/返工类任务必做）**：按本次触碰区域查 `docs/11-troubleshooting/problem-classes/README.md` tags 检索表，把命中的 PC id 与结论（命中即复发→先做逃逸分析 / 相邻区域→lens 进 Spec）写入工件「适用问题类」节；未命中写「无」。
+- **适用问题类**栏位也加入轻量单文件 `mini-task.md`（缺陷类轻量任务同受约束，case/PC 归档不豁免）。
 
 ### Stage 1：Intent（意图）
 - **产物**：`01-intent.md`（模板 `docs/18-templates/ai-pilot/01-intent.tpl.md`）。
@@ -86,11 +88,13 @@ Review
 - **产物**：`02-spec.md`。
 - 从真实 Repository 与 Intent 推导，至少含：Functional Requirements、Input、Output、Business Rules、Boundary Conditions、Error Handling、Compatibility、Non-functional Requirements、Acceptance Criteria。
 - ⛔ 不得发明不存在的接口、类、模块；不确定点必须显式记录为 `Unknown`，不得自行假定。
+- **【Failure Modes 节（v1.2.0，缺陷类任务必写）】** Spec 必须含「Failure Modes」节：由 Stage 0 命中的 PC.lens 问题逐条预填（每条问题→本任务如何满足或为何不适用）；未命中任何 PC 的新功能任务可写「无已知问题类 + 理由」。这是「设计时漏考虑某种情况」的根治点。
 - **【交互设计必写（2026-10-08 用户立）】凡涉及用户可见 UI/交互的功能，Spec 必须含「Interaction Design（交互设计）」节**：交互规格（「点什么出现什么」表：触发→结果/状态模型/反馈/空态/边界）、交互验收标准（并入 AC，逐条可测）、走查符合性（DoD 绑定，走查按 UI 符合性清单逐项核对）。模板见 `docs/18-templates/ai-pilot/02-spec.tpl.md`，编写与自查用 `.agents/skills/ui-ux-design` 技能（CRAP 四原则 + 配色 + 字体）。缺本节 = 闸门1 不通过。
 
 ### Stage 3：Plan（计划）
 - **产物**：`03-plan.md`。
 - 必须具体到真实文件（`file:` + `reason:`），含 Implementation Steps、Test Plan、Verification（Build/Unit/Integration/E2E/Other）。
+- **Test Plan 守卫覆盖（v1.2.0）**：缺陷类任务的 Test Plan 必须列出命中 PC 对应的守卫（既有守卫复跑 + 本次新增守卫的红灯→绿灯计划，分层见 `problem-class-closure` 技能 P1/P4）。
 - ⛔ 不允许只写「修改 Service、增加测试」这类模糊描述。
 
 ### Stage 4：Task（Agent 工作单元）
@@ -114,8 +118,8 @@ Review
 - ⛔ 不得根据代码推测测试结果。验证结果须标来源等级：**Verified**（亲自跑过，拿到真实输出）/ **Inferred**（凭代码推断）/ **Unknown**（未验证）——三者禁止混用。
 
 ### Stage 8：Review（审查）
-- **产物**：`06-review.md`。Reviewer 视角（可由测试审查岗或另一 Agent 承担）重查八问：
-  1. 实现是否真正满足 Intent？2. 是否符合 Spec？3. 是否超出 Scope？4. 是否改了不该改的文件？5. 测试是否覆盖 Acceptance Criteria？6. 是否存在明显回归风险？7. 是否存在架构不一致？8. Evidence 是否足以证明任务完成？
+- **产物**：`06-review.md`。Reviewer 视角（可由测试审查岗或另一 Agent 承担）重查九问（第 9 问为 v1.2.0 增补）：
+  1. 实现是否真正满足 Intent？2. 是否符合 Spec？3. 是否超出 Scope？4. 是否改了不该改的文件？5. 测试是否覆盖 Acceptance Criteria？6. 是否存在明显回归风险？7. 是否存在架构不一致？8. Evidence 是否足以证明任务完成？9.（缺陷类）**同类扫查与守卫是否落地**（命中表/守卫/case+PC 归档/悬空教训，按 `problem-class-closure` 出口清单逐项核）？
 - 输出：Requirement/Scope/Test/Architecture Check（PASS/FAIL）、Risk（L0~L4）、Findings（Critical/Major/Minor）、Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
 - CHANGES_REQUIRED → 回到对应阶段重跑闭环，不得带病交付。
 
@@ -141,7 +145,7 @@ Review
 
 ## 5. 汇报格式（任务结束强制）
 
-按模板 `docs/18-templates/ai-pilot/07-final-report.tpl.md` 出报告（含 Repository Understanding、Selected Task、Changed Files、Validation、Evidence、Review、Risk、Problems Found、Process Evaluation、最重要的问题、下一步建议 十一节）。载体：**markdown 正文直接发在群消息里**；仅在用户明确要求或内容超单消息上限时才用附件，且附件外必须仍有正文摘要。
+按模板 `docs/18-templates/ai-pilot/07-final-report.tpl.md` 出报告（含 Repository Understanding、Selected Task、Changed Files、Validation、Evidence、Review、Risk、Problems Found、Process Evaluation、**问题类归档、重构提案、悬空教训清单（必须为空）** 十三节；后三节为 v1.2.0 替换旧「最重要的问题/下一步建议」自由文本——散文建议不再接受，每条教训必须落成 PC id 或 TODO id，pre-commit 对缺陷类任务机械拒缺）。载体：**markdown 正文直接发在群消息里**；仅在用户明确要求或内容超单消息上限时才用附件，且附件外必须仍有正文摘要。
 
 ## 6. 禁止事项汇总
 

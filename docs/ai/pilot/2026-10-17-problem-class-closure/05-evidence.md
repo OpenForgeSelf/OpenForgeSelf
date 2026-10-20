@@ -97,4 +97,4 @@ N/A（无 UI）
 
 - 阶段四（结构性重构提案 `RegisterContract` 统一入口、大技能瘦身）按方案拍板缓行，PC-001 台账 G4（提案）行在案。
 - Scheduler 修复（TODO P1）待下批 defect 任务走 problem-class-closure 全流程 + plugin 六步闭环，届时补正式 case。
-- 闸门2 待用户：git 提交（技能目录需 `git add -f`）。
+- 闸门2 已执行（2026-10-20）：提交 `1723224` feat(process): 问题类闭环机制落地（51 文件，技能目录 `git add -f` 入库；pre-commit/commit-msg 钩子均过；提交时并行会话暂存夹带 request.ts/request.test.ts/e2e-testing SKILL 三文件属 PC-002 批，内容自洽未回退，已在 commit message 注段披露）。

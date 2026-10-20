@@ -189,7 +189,7 @@ public class OpenAICompatibleProvider : IAIProvider
     /// <param name="providerType">AI 服务提供商类型</param>
     /// <param name="endpoint">用户配置的基础终结点，可能是完整 URL、带路径的前缀，或仅域名</param>
     /// <returns>推导后的 Chat 接口完整 URL；若无法推导则返回 null</returns>
-    private string? GetChatEndpointByProviderType(AIProviderType providerType, string endpoint)
+    internal static string? GetChatEndpointByProviderType(AIProviderType providerType, string endpoint)
     {
         if (string.IsNullOrWhiteSpace(endpoint))
             return null;
@@ -242,7 +242,7 @@ public class OpenAICompatibleProvider : IAIProvider
     /// <summary>
     /// 检查当前终结点是否已经是对应提供商的完整 chat 路径。
     /// </summary>
-    private bool IsAlreadyChatEndpoint(AIProviderType providerType, string endpoint)
+    private static bool IsAlreadyChatEndpoint(AIProviderType providerType, string endpoint)
     {
         return providerType switch
         {
@@ -257,7 +257,7 @@ public class OpenAICompatibleProvider : IAIProvider
     /// 获取提供商的路径前缀和接口后缀。
     /// </summary>
     /// <returns>成功获取返回 true，无法自动拼接（如缺少必要参数）返回 false</returns>
-    private bool TryGetProviderPathParts(AIProviderType providerType, out string prefix, out string suffix)
+    private static bool TryGetProviderPathParts(AIProviderType providerType, out string prefix, out string suffix)
     {
         switch (providerType)
         {

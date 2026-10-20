@@ -61,6 +61,14 @@ aliases: ["001-ai-provider-config"]
 ## 3. 使用指南
 前端设置面板（`SettingsView` → AI 提供方）增删改查；"测试连接"调用 `POST api/ai-providers/{id}/test`（解密后发最小探测）；"拉取模型"调用 `POST api/ai-providers/{id}/fetch-models`（见 002/004）。
 
+**测试连接的 URL 归一化（2026-10-18 修复后语义，真源）**：探测地址不是裸 `Endpoint`，而是经 `OpenAICompatibleProvider.GetChatEndpointByProviderType` 推导出**完整 chat 接口**后 POST（与真实聊天链路同一套规则）：已含 chat 路径（`…/v1/chat/completions`）→ 原样；Anthropic → 补 `/messages`；裸基地址（`…/v1` 或无路径）→ 补 `/v1/chat/completions`；自定义路径（`…/gpus/v5`）→ 只加后缀。守卫单测 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionUrlTests.cs`。历史缺陷：直接 POST 裸 `/v1` 必 404，致「聊天能用、测试必失败」（pilot `2026-10-16-settings-proxy-mode-bypass` 05-evidence 补充证据节）。
+
+**选定模型 · 真实对话测试（2026-10-18 输入3 拍板，真源）**：
+- **UI 动线**：点「测试连接」先弹「选择模型」弹窗（列出该提供方**已登记**模型，预选第一个启用项）→ 确定才发请求，取消不发；**无已登记模型 → 按钮禁用**（用户拍板「没有模型禁止测试」，tooltip 提示先点「获取模型」）。
+- **契约**：`POST api/ai-providers/{id}/test` body `{modelId}`；**省略 body = 旧仅探连通行为（向后兼容）**；modelId 非空 = 用该模型 `UpstreamModelId` 发真实 chat（content 精确为「请回复且仅回复ok」，**max_tokens=128** ——思考型模型先输出 reasoning 再输出 content，给 8 会在思考阶段被 length 截断致 content 永远 null，gpustack deepseek-v4-flash 实测），**成功判据 = HTTP 200 且响应文本含 ok（忽略大小写）**；模型不属于该提供方/已删除 → 明确拒绝。
+- **响应文本提取**（`AIProviderService.ExtractContent`，internal static 可测）：优先 `choices[0].message.content`，空则回退思考字段——qwen3 系用 `reasoning_content`，**vLLM 0.31（gpustack）/deepseek 系用 `reasoning`**（字段名不同，两类都要回退；聊天链路 `AIService.cs` 同语义）；兼容数组型多模态 content、补全 `choices[0].text`、Anthropic `content[0].text`；解析不出时失败消息附原始响应前 500 字（拒绝黑盒「解析失败」）。
+- **守卫**：后端 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionOkGuardTests.cs`（ExtractContent 回退链 + SaysOk 大小写矩阵）；e2e `ForgeSelf.Web/e2e/ai-providers.spec.ts`（无模型禁用 / mock 上游全链路 / 上游不可达失败）；`e2e/helpers/mock-upstream.ts` 新增可选 `chatContent` 参数（默认 'hi' 不破存量用例）。实测铁证：dev-stack 源码宿主对 gpustack `dp-model` 返回 `{success:true, message:"连接成功 · 模型回复「ok」"}`（存证 `.forgeself/tmp-providertest-s9.json`）。
+
 ## 4. 注意事项
 1. 运行实例无权限停止时，改 `gpustack.VisionModel` 等需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。
 2. DB 位置：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`。

@@ -172,13 +172,13 @@ public class AIProviderController : ControllerBase
         }
     }
 
-    /// <summary>测试指定提供方连通性（解密 ApiKey 后发一次最小探测请求）</summary>
+    /// <summary>测试指定提供方连通性（解密 ApiKey 后发一次最小探测）。body 带 modelId=用该已登记模型发真实 chat（判据含 ok）；无 body=仅探连通</summary>
     [HttpPost("{id}/test")]
-    public async Task<IActionResult> TestConnection(long id)
+    public async Task<IActionResult> TestConnection(long id, [FromBody] AIProviderTestRequest? request = null)
     {
         try
         {
-            var result = await _service.TestConnectionAsync(id);
+            var result = await _service.TestConnectionAsync(id, request?.ModelId);
             return Ok(new { success = true, data = result });
         }
         catch (Exception ex)
@@ -299,3 +299,6 @@ public record AIProviderRequest(
     string? VisionModel,
     bool EnableMultimodal,
     string? VisionPromptTemplate);
+
+/// <summary>测试连接请求。ModelId 非空=用该已登记模型发真实 chat（响应含 ok 判成功）；省略/null=仅探连通</summary>
+public record AIProviderTestRequest(long? ModelId);

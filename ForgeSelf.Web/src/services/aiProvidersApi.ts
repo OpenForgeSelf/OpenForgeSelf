@@ -1,4 +1,4 @@
-import type { AIProvider, AIProviderRequest, AIProviderTestResult } from '@/types/aiProvider'
+import type { AIProvider, AIProviderRequest, AIProviderTestRequest, AIProviderTestResult } from '@/types/aiProvider'
 import { request } from './request'
 
 const API_BASE = '/api/ai-providers'
@@ -44,9 +44,13 @@ export const aiProvidersApi = {
     await request(`${API_BASE}/${id}`, { method: 'DELETE' })
   },
 
-  /** 测试连接：后端解密 ApiKey 后发一次最小探测请求，返回耗时与结果 */
-  async test(id: number): Promise<AIProviderTestResult> {
-    const json = await request<any>(`${API_BASE}/${id}/test`, { method: 'POST' })
+  /**
+   * 测试连接：传 modelId 时后端用该已登记模型发真实 chat（响应含 ok 判成功）；
+   * 不传（仅 id）= 兼容旧行为，后端仅探连通。
+   */
+  async test(id: number, modelId?: number | null): Promise<AIProviderTestResult> {
+    const body: AIProviderTestRequest = modelId != null ? { modelId } : {}
+    const json = await request<any>(`${API_BASE}/${id}/test`, { method: 'POST', body: JSON.stringify(body) })
     return json.data as AIProviderTestResult
   },
 }

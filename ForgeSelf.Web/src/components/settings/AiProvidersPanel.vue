@@ -76,25 +76,55 @@ watch(expandedId, async (pid) => {
   }
 });
 
-// ===== 测试连接 =====
+// ===== 测试连接（选定已登记模型 · 真实对话探活） =====
 const testingId = ref<number | null>(null);
 const testResults = ref<Record<number, AIProviderTestResult>>({});
 const fetchResults = ref<Record<number, FetchModelsResult>>({});
 
-async function testProvider(p: AIProvider) {
+// 弹窗状态
+const testDialogVisible = ref(false);
+const testTargetProvider = ref<AIProvider | null>(null);
+const testModelId = ref<number | null>(null);
+
+/** 该提供方是否有已登记模型（无模型 → 禁止测试，按钮置灰） */
+function hasRegisteredModels(pid: number): boolean {
+  return (providerModels.value[pid]?.length ?? 0) > 0;
+}
+
+/** 点「测试连接」：先弹框选模型；无登记模型则不弹（按钮已置灰） */
+function openTestDialog(p: AIProvider) {
+  const list = providerModels.value[p.id] ?? [];
+  if (list.length === 0) {
+    ElMessage.warning({ message: '该提供方尚无已登记模型，请先点「获取模型」', offset: 60 });
+    return;
+  }
+  testTargetProvider.value = p;
+  // 默认预选第一个已启用模型；全禁用则退回第一个
+  testModelId.value = list.find((m) => m.enabled)?.id ?? list[0].id;
+  testDialogVisible.value = true;
+}
+
+function cancelTestDialog() {
+  testDialogVisible.value = false;
+}
+
+/** 弹窗点「确定」：用选定模型发真实对话测试（响应含 ok 判成功） */
+async function runTestWithModel() {
+  const p = testTargetProvider.value;
+  const modelId = testModelId.value;
+  if (!p || modelId == null) return;
+  testDialogVisible.value = false;
   testingId.value = p.id;
   try {
-    const result = await aiProvidersApi.test(p.id);
+    const result = await aiProvidersApi.test(p.id, modelId);
     testResults.value = { ...testResults.value, [p.id]: result };
     if (result.success) {
-      const fr = await aiModelsApi.fetchForProvider(p.id);
-      fetchResults.value = { ...fetchResults.value, [p.id]: fr };
+      // 刷新模型列表（保证展示与实际启用态同步）
       const groups = await aiModelsApi.list({ providerId: p.id });
       providerModels.value = {
         ...providerModels.value,
         [p.id]: groups.length > 0 ? groups[0].models : []
       };
-      expandedId.value = p.id;
     }
   } catch (e) {
     testResults.value = {
@@ -394,13 +424,20 @@ onMounted(() => {
           @click.stop>
           <!-- 操作栏（单行：按钮 + 测试结果 + 拉取统计） -->
           <div class="flex items-center gap-2 mb-3 flex-wrap">
-            <el-button
-              size="small"
-              :icon="Link"
-              :loading="testingId === p.id"
-              @click="testProvider(p)">
-              测试连接
-            </el-button>
+            <el-tooltip
+              :disabled="hasRegisteredModels(p.id)"
+              content="该提供方尚无已登记模型，请先点「获取模型」后再测试"
+              placement="top">
+              <el-button
+                size="small"
+                :icon="Link"
+                :loading="testingId === p.id"
+                :disabled="!hasRegisteredModels(p.id)"
+                data-testid="provider-test-btn"
+                @click="openTestDialog(p)">
+                测试连接
+              </el-button>
+            </el-tooltip>
             <el-button
               size="small"
               :icon="Refresh"
@@ -646,5 +683,34 @@ onMounted(() => {
         <el-button type="primary" :loading="modelSaving" @click="saveModel">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- 测试连接 · 选择已登记模型弹窗（无模型时按钮已置灰，不会弹到空态） -->
+    <el-dialog
+      v-model="testDialogVisible"
+      :title="`测试连接 · 选择模型${testTargetProvider ? '（' + testTargetProvider.name + '）' : ''}`"
+      width="440px"
+      append-to-body
+      data-testid="provider-test-dialog">
+      <div class="text-xs text-[var(--el-text-color-secondary)] mb-2">
+        将用选定模型发送一条“请回复且仅回复ok”的真实请求，回复含 ok（忽略大小写）即测试成功。
+      </div>
+      <el-radio-group v-model="testModelId" class="w-full">
+        <div class="flex flex-col gap-1 max-h-[320px] overflow-y-auto">
+          <el-radio
+            v-for="m in (testTargetProvider ? providerModels[testTargetProvider.id] ?? [] : [])"
+            :key="m.id"
+            :value="m.id"
+            class="h-8 !mr-0 w-full"
+            data-testid="provider-test-model-item">
+            <span>{{ m.alias || m.upstreamModelId }}</span>
+            <span v-if="!m.enabled" class="ml-2 text-xs text-[var(--el-text-color-placeholder)]">（已禁用）</span>
+          </el-radio>
+        </div>
+      </el-radio-group>
+      <template #footer>
+        <el-button data-testid="provider-test-cancel" @click="cancelTestDialog">取消</el-button>
+        <el-button type="primary" :disabled="testModelId == null" data-testid="provider-test-confirm" @click="runTestWithModel">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>

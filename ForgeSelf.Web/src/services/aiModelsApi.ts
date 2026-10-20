@@ -35,7 +35,7 @@ export const aiModelsApi = {
     return json.data as AIModel
   },
 
-  /** 编辑模型可编辑字段（alias/capabilities）；ProviderName/UpstreamModelId/ChatModelId 锁定 */
+  /** 编辑模型显示与能力元数据；ProviderName/UpstreamModelId/ChatModelId 锁定 */
   async update(id: number, req: UpdateAIModelRequest): Promise<AIModel> {
     const json = await request<any>(`${MODEL_BASE}/${id}`, {
       method: 'PUT',

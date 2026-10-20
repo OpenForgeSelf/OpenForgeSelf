@@ -35,6 +35,11 @@ public partial interface IAIModelModel
     /// <summary>最大上下文长度（token），0=未设置</summary>
     Int32 MaxContext { get; set; }
 
+    Int32 MaxOutput { get; set; }
+    Boolean SupportVision { get; set; }
+    String ThinkingLevels { get; set; }
+    String PublicAlias { get; set; }
+
     /// <summary>是否启用（已启用/已禁用），默认启用</summary>
     Boolean Enabled { get; set; }
 

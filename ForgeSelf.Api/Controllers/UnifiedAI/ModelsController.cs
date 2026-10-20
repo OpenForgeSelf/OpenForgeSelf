@@ -36,7 +36,7 @@ public class ModelsController : ControllerBase
             @object = "list",
             data = allModels.Select(m => new
             {
-                id = m.Id,
+                id = ForgeSelf.Api.Entities.AIModel.FindByProviderNameAndUpstreamModelId(m.ProviderName, m.Id)?.PublicAlias is { Length: > 0 } alias ? alias : m.Id,
                 @object = "model",
                 created = m.Created,
                 owned_by = m.Owner

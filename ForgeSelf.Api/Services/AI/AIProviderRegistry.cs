@@ -107,6 +107,16 @@ public class AIProviderRegistry : IAIProviderRegistry
 
     public IAIProvider? GetProviderByModel(string modelName)
     {
+        if (!String.IsNullOrWhiteSpace(modelName) && !modelName.Contains(':'))
+        {
+            var aliased = AIModel.FindByPublicAlias(modelName);
+            if (aliased != null)
+            {
+                var provider = GetProviderByName(aliased.ProviderName);
+                return provider != null && aliased.Enabled ? provider : null;
+            }
+        }
+
         // 支持 "提供商:上游模型id" 前缀显式指定提供方（与 GetProviderByChatModelId 一致）：
         // 多模态视觉模型、Anthropic/Responses 等直接传模型名时也能按前缀路由。
         if (!string.IsNullOrWhiteSpace(modelName))
@@ -175,6 +185,23 @@ public class AIProviderRegistry : IAIProviderRegistry
 
     public ModelInfo? GetModelById(string modelId)
     {
+        var aliased = AIModel.FindByPublicAlias(modelId);
+        if (aliased != null)
+        {
+            var provider = GetProviderByName(aliased.ProviderName);
+            if (provider == null) return null;
+            var model = provider.SupportedModels.FirstOrDefault(m => m.Equals(aliased.UpstreamModelId, StringComparison.OrdinalIgnoreCase));
+            if (model == null) return null;
+            return new ModelInfo
+            {
+                Id = aliased.PublicAlias,
+                Name = aliased.PublicAlias,
+                Owner = provider.ProviderName,
+                Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                ProviderName = provider.ProviderName
+            };
+        }
+
         foreach (var provider in _providers)
         {
             var models = provider.SupportedModels;

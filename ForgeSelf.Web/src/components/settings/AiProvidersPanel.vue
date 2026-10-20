@@ -19,6 +19,7 @@ import {
 } from '@element-plus/icons-vue';
 import { aiProvidersApi } from '@/services/aiProvidersApi';
 import { aiModelsApi } from '@/services/aiModelsApi';
+import { buildAliasSuggestion } from '@/utils/modelAlias';
 import type {
   AIProvider,
   AIProviderRequest,
@@ -188,7 +189,11 @@ const editingModel = ref<AIModel | null>(null);
 const modelForm = reactive({
   alias: '',
   capabilities: [] as string[],
-  maxContext: 0
+  maxContext: 0,
+  maxOutput: 0,
+  supportVision: false,
+  thinkingLevels: [] as string[],
+  publicAlias: ''
 });
 
 function openModelEdit(m: AIModel) {
@@ -196,7 +201,11 @@ function openModelEdit(m: AIModel) {
   Object.assign(modelForm, {
     alias: m.alias ?? '',
     capabilities: [...m.capabilities],
-    maxContext: m.maxContext
+    maxContext: m.maxContext,
+    maxOutput: m.maxOutput ?? 0,
+    supportVision: m.supportVision ?? false,
+    thinkingLevels: [...(m.thinkingLevels ?? [])],
+    publicAlias: m.publicAlias ?? ''
   });
   modelDrawerVisible.value = true;
 }
@@ -209,7 +218,11 @@ async function saveModel() {
     const updated = await aiModelsApi.update(m.id, {
       alias: modelForm.alias.trim() || null,
       capabilities: modelForm.capabilities,
-      maxContext: modelForm.maxContext
+      maxContext: modelForm.maxContext,
+      maxOutput: modelForm.maxOutput,
+      supportVision: modelForm.supportVision,
+      thinkingLevels: modelForm.thinkingLevels,
+      publicAlias: modelForm.publicAlias.trim()
     });
     const models = (providerModels.value[m.providerId] ?? []).map((mm) =>
       mm.id === m.id ? updated : mm
@@ -677,10 +690,31 @@ onMounted(() => {
             :step="1024"
             class="w-full" />
         </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">最大输出（tokens，0 = 不限）</label>
+          <el-input-number v-model="modelForm.maxOutput" :min="0" :max="2000000" :step="256" class="w-full" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">支持图片</label>
+          <el-switch v-model="modelForm.supportVision" />
+          <p v-if="editingModel?.capabilities?.some((item) => item.toLowerCase() === 'vision')" class="mt-1 text-xs text-[var(--el-text-color-secondary)]">能力标签含 vision</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">思考档位</label>
+          <el-select v-model="modelForm.thinkingLevels" multiple filterable allow-create class="w-full" placeholder="未设置，如 low/medium/high" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">对外别名</label>
+          <el-input v-model="modelForm.publicAlias" maxlength="64" placeholder="API 客户端使用的模型 ID">
+            <template #append>
+              <el-button :disabled="!editingModel?.upstreamModelId" @click="modelForm.publicAlias = buildAliasSuggestion(editingModel?.upstreamModelId ?? '')">生成</el-button>
+            </template>
+          </el-input>
+        </div>
       </div>
       <template #footer>
         <el-button @click="modelDrawerVisible = false">取消</el-button>
-        <el-button type="primary" :loading="modelSaving" @click="saveModel">保存</el-button>
+        <el-button type="primary" :loading="modelSaving" :disabled="modelForm.maxOutput > 2000000" @click="saveModel">保存</el-button>
       </template>
     </el-drawer>
 

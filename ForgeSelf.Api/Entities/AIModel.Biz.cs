@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
@@ -58,6 +59,17 @@ public partial class AIModel : Entity<AIModel>
         if (ProviderId <= 0) throw new ArgumentNullException(nameof(ProviderId), "归属供应商Id必须大于0！");
         if (ProviderName.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ProviderName), "归属供应商名不能为空！");
         if (UpstreamModelId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(UpstreamModelId), "上游原始模型标识不能为空！");
+
+        PublicAlias = String.IsNullOrWhiteSpace(PublicAlias) ? null : PublicAlias.Trim();
+        if (PublicAlias != null)
+        {
+            if (!Regex.IsMatch(PublicAlias, "^[A-Za-z0-9._-]{1,64}$"))
+                throw new ArgumentException("对外别名只允许字母、数字、点、下划线和连字符，长度 1~64", nameof(PublicAlias));
+            var occupied = Find(_.PublicAlias == PublicAlias);
+            if (occupied?.Id == Id) occupied = null;
+            if (occupied != null)
+                throw new ArgumentException($"对外别名「{PublicAlias}」已被模型「{occupied.ProviderName}:{occupied.UpstreamModelId}」占用", nameof(PublicAlias));
+        }
 
         // 项目聊天模型id 由「提供商:原始模型id」派生，缺失时自动补齐（保证复制按钮与路由键稳定）
         if (ChatModelId.IsNullOrEmpty())
@@ -116,6 +128,13 @@ public partial class AIModel : Entity<AIModel>
     #endregion
 
     #region 高级查询
+
+    /// <summary>按对外别名直查数据库，忽略大小写。</summary>
+    public static AIModel? FindByPublicAlias(String alias)
+    {
+        if (String.IsNullOrWhiteSpace(alias)) return null;
+        return Find(_.PublicAlias == alias);
+    }
 
     /// <summary>按供应商名与上游模型标识查询单条记录（聊天路由禁用检查用）。</summary>
     /// <param name="providerName">归属供应商名（聊天 id 前缀）</param>

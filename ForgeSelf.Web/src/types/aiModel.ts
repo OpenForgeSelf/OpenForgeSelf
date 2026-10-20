@@ -14,6 +14,10 @@ export interface AIModel {
   capabilities: string[]
   /** 最大上下文长度（token），0=未设置 */
   maxContext: number
+  maxOutput: number
+  supportVision: boolean
+  thinkingLevels: string[]
+  publicAlias: string | null
   enabled: boolean
   /** 上游归属方，如 openai，可能为 null */
   owner: string | null
@@ -45,4 +49,8 @@ export interface UpdateAIModelRequest {
   alias?: string | null
   capabilities?: string[]
   maxContext?: number | null
+  maxOutput?: number | null
+  supportVision?: boolean | null
+  thinkingLevels?: string[] | null
+  publicAlias?: string | null
 }

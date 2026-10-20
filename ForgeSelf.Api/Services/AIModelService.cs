@@ -31,6 +31,7 @@ public interface IAIModelService
 
     /// <summary>更新用户可编辑字段（仅 alias/capabilities/maxContext；锁定字段忽略）</summary>
     AIModelDto? UpdateEditable(long id, string? alias, List<string>? capabilities, int? maxContext);
+    AIModelDto? UpdateEditable(long id, AIModelEditableFields fields);
 
     /// <summary>删除某供应商下的全部模型（供应商级联清理用）</summary>
     void DeleteByProvider(long providerId);
@@ -102,7 +103,7 @@ public class AIModelService : IAIModelService
             var existing = AIModel.FindByProviderIdAndUpstreamModelId(providerId, mi.Id);
             if (existing == null)
             {
-                // 新增：默认启用
+                // 新增：默认不启用，由用户手动开启后才纳入可用模型
                 var entity = new AIModel
                 {
                     ProviderId = providerId,
@@ -110,7 +111,7 @@ public class AIModelService : IAIModelService
                     UpstreamModelId = mi.Id,
                     ChatModelId = $"{provider.Name}:{mi.Id}",
                     Owner = mi.Owner,
-                    Enabled = true,
+                    Enabled = false,
                     LastSyncTime = now,
                     CreateTime = now,
                     UpdateTime = now
@@ -192,16 +193,36 @@ public class AIModelService : IAIModelService
 
     /// <inheritdoc/>
     public AIModelDto? UpdateEditable(long id, string? alias, List<string>? capabilities, int? maxContext)
+        => UpdateEditable(id, new AIModelEditableFields { Alias = alias, Capabilities = capabilities, MaxContext = maxContext });
+
+    public AIModelDto? UpdateEditable(long id, AIModelEditableFields fields)
     {
         var entity = AIModel.FindById(id);
         if (entity == null) return null;
 
         // 仅接受可编辑字段；ProviderName / UpstreamModelId / ChatModelId 锁定，忽略其修改
-        if (alias != null) entity.Alias = alias;
-        if (capabilities != null)
-            entity.Capabilities = string.Join(",", capabilities.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()));
-        if (maxContext != null && maxContext >= 0)
-            entity.MaxContext = maxContext.Value;
+        if (fields.Alias != null) entity.Alias = fields.Alias;
+        if (fields.Capabilities != null)
+            entity.Capabilities = string.Join(",", fields.Capabilities.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()));
+        if (fields.MaxContext is >= 0 and <= 1_000_000) entity.MaxContext = fields.MaxContext.Value;
+        if (fields.MaxOutput.HasValue)
+        {
+            if (fields.MaxOutput.Value is < 0 or > 2_000_000)
+                throw new ArgumentOutOfRangeException(nameof(fields.MaxOutput), "最大输出长度必须在 0~2,000,000 之间");
+            entity.MaxOutput = fields.MaxOutput.Value;
+        }
+        if (fields.SupportVision.HasValue) entity.SupportVision = fields.SupportVision.Value;
+        if (fields.ThinkingLevels != null)
+        {
+            var order = new[] { "none", "low", "medium", "high" };
+            var levels = fields.ThinkingLevels.Select(x => x?.Trim().ToLowerInvariant())
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).ToList();
+            if (levels.Count > 10) throw new ArgumentException("思考档位最多支持 10 项", nameof(fields.ThinkingLevels));
+            entity.ThinkingLevels = levels.Count == 0 ? null : string.Join(",", levels
+                .Where(order.Contains).OrderBy(x => Array.IndexOf(order, x))
+                .Concat(levels.Where(x => !order.Contains(x))));
+        }
+        if (fields.PublicAlias != null) entity.PublicAlias = fields.PublicAlias;
 
         entity.UpdateTime = DateTime.Now;
         entity.Save();
@@ -230,6 +251,10 @@ public class AIModelService : IAIModelService
             : m.Capabilities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
         Enabled = m.Enabled,
         MaxContext = m.MaxContext,
+        MaxOutput = m.MaxOutput,
+        SupportVision = m.SupportVision || m.Capabilities?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Contains("vision", StringComparer.OrdinalIgnoreCase) == true,
+        ThinkingLevels = string.IsNullOrWhiteSpace(m.ThinkingLevels) ? new List<string>() : m.ThinkingLevels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+        PublicAlias = string.IsNullOrWhiteSpace(m.PublicAlias) ? null : m.PublicAlias,
         Owner = string.IsNullOrEmpty(m.Owner) ? null : m.Owner,
         LastSyncTime = m.LastSyncTime,
         CreateTime = m.CreateTime,
@@ -288,11 +313,26 @@ public class AIModelDto
     public string? Alias { get; set; }
     public List<string> Capabilities { get; set; } = new();
     public int MaxContext { get; set; }
+    public int MaxOutput { get; set; }
+    public bool SupportVision { get; set; }
+    public List<string> ThinkingLevels { get; set; } = new();
+    public string? PublicAlias { get; set; }
     public bool Enabled { get; set; }
     public string? Owner { get; set; }
     public DateTime LastSyncTime { get; set; }
     public DateTime CreateTime { get; set; }
     public DateTime UpdateTime { get; set; }
+}
+
+public class AIModelEditableFields
+{
+    public string? Alias { get; set; }
+    public List<string>? Capabilities { get; set; }
+    public int? MaxContext { get; set; }
+    public int? MaxOutput { get; set; }
+    public bool? SupportVision { get; set; }
+    public List<string>? ThinkingLevels { get; set; }
+    public string? PublicAlias { get; set; }
 }
 
 #endregion

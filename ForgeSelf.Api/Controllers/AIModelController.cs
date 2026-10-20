@@ -55,15 +55,28 @@ public class AIModelController : ControllerBase
         }
     }
 
-    /// <summary>更新用户可编辑字段（仅 alias/capabilities/maxContext）</summary>
+    /// <summary>更新模型显示与能力元数据</summary>
     [HttpPut("{id}")]
     public IActionResult UpdateEditable(long id, [FromBody] UpdateAIModelRequest request)
     {
         try
         {
-            var dto = _service.UpdateEditable(id, request.Alias, request.Capabilities, request.MaxContext);
+            var dto = _service.UpdateEditable(id, new AIModelEditableFields
+            {
+                Alias = request.Alias,
+                Capabilities = request.Capabilities,
+                MaxContext = request.MaxContext,
+                MaxOutput = request.MaxOutput,
+                SupportVision = request.SupportVision,
+                ThinkingLevels = request.ThinkingLevels,
+                PublicAlias = request.PublicAlias
+            });
             if (dto == null) return NotFound(new { success = false, message = "模型不存在" });
             return Ok(new { success = true, data = dto });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -83,4 +96,8 @@ public class UpdateAIModelRequest
     public string? Alias { get; set; }
     public List<string>? Capabilities { get; set; }
     public int? MaxContext { get; set; }
+    public int? MaxOutput { get; set; }
+    public bool? SupportVision { get; set; }
+    public List<string>? ThinkingLevels { get; set; }
+    public string? PublicAlias { get; set; }
 }

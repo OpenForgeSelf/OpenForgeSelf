@@ -370,6 +370,15 @@ public class OpenAIChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(modelName))
             return (null, modelName);
 
+        if (!modelName.Contains(':'))
+        {
+            var alias = AIModel.FindByPublicAlias(modelName);
+            if (alias != null)
+                return alias.Enabled
+                    ? (_registry.GetProviderByName(alias.ProviderName), alias.UpstreamModelId)
+                    : (null, modelName);
+        }
+
         var idx = modelName.IndexOf(':');
         if (idx > 0)
         {

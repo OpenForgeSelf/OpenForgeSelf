@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Http;
 using ForgeSelf.Api.Controllers;
+using ForgeSelf.Api.Controllers.UnifiedAI;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services;
@@ -227,7 +228,7 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
-    public async Task FetchAfterDisable_PreservesDisabledState()
+    public async Task FetchNewModels_DefaultDisabled_AndPreservesUserChoice()
     {
         ClearAll();
         var a = InsertProvider();
@@ -235,12 +236,13 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         await svc.FetchForProviderAsync(a.Id);
 
         var m = AIModel.FindByProviderNameAndUpstreamModelId("OpenAI", "gpt-4o")!;
-        m.Enabled.Should().BeTrue();
+        // 新拉取的模型默认不启用，由用户手动开启
+        m.Enabled.Should().BeFalse();
 
-        svc.SetEnabled(m.Id, false);
-        await svc.FetchForProviderAsync(a.Id); // 重拉仅刷新元数据，保留 Enabled=false
+        svc.SetEnabled(m.Id, true);
+        await svc.FetchForProviderAsync(a.Id); // 重拉仅刷新元数据，保留用户选择的 Enabled=true
 
-        AIModel.FindByProviderNameAndUpstreamModelId("OpenAI", "gpt-4o")!.Enabled.Should().BeFalse();
+        AIModel.FindByProviderNameAndUpstreamModelId("OpenAI", "gpt-4o")!.Enabled.Should().BeTrue();
     }
 
     [Fact]
@@ -281,6 +283,96 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         m.Enabled = true;
         m.Save();
         registry.GetProviderByChatModelId("OpenAI:gpt-4o").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PublicAlias_IsNormalizedUniqueAndNullable()
+    {
+        ClearAll();
+        var first = new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "gpt-4o", Enabled = true, PublicAlias = "  GPT-4o  " };
+        first.Insert();
+        first.PublicAlias.Should().Be("GPT-4o");
+
+        new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "gpt-4o-mini", Enabled = true }.Insert();
+        new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "gpt-3.5", Enabled = true }.Insert();
+
+        var duplicate = new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "duplicate", Enabled = true, PublicAlias = "gPt-4O" };
+        var error = Assert.Throws<ArgumentException>(() => duplicate.Insert());
+        error.Message.Should().Contain("OpenAI:gpt-4o");
+    }
+
+    [Theory]
+    [InlineData("has:colon")]
+    [InlineData("has/slash")]
+    [InlineData("has space")]
+    [InlineData("模型")]
+    [InlineData("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm")]
+    public void PublicAlias_RejectsInvalidCharactersAndLength(string alias)
+    {
+        ClearAll();
+        var model = new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "gpt-4o", Enabled = true, PublicAlias = alias };
+        Assert.Throws<ArgumentException>(() => model.Insert());
+    }
+
+    [Fact]
+    public void UpdateEditable_PersistsStructuredMetadataAndThinkingOrder()
+    {
+        ClearAll();
+        var model = new AIModel { ProviderId = 1, ProviderName = "OpenAI", UpstreamModelId = "gpt-4o", Enabled = true };
+        model.Insert();
+
+        var result = MakeService().UpdateEditable(model.Id, new AIModelEditableFields
+        {
+            MaxOutput = 4096,
+            SupportVision = true,
+            ThinkingLevels = new() { "HIGH", " low ", "low" },
+            PublicAlias = "client-model"
+        });
+
+        result!.MaxOutput.Should().Be(4096);
+        result.SupportVision.Should().BeTrue();
+        result.ThinkingLevels.Should().Equal("low", "high");
+        result.PublicAlias.Should().Be("client-model");
+    }
+
+    [Fact]
+    public async Task PublicAlias_RoutesToOwningProviderAndIsExposedByModelsApi()
+    {
+        ClearAll();
+        var providerEntity = InsertProvider(name: "OpenAI", endpoint: "https://api.openai.com/v1");
+        new AIModel
+        {
+            ProviderId = providerEntity.Id,
+            ProviderName = providerEntity.Name,
+            UpstreamModelId = "gpt-4o",
+            ChatModelId = "OpenAI:gpt-4o",
+            PublicAlias = "client-model",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        var registry = new AIProviderRegistry();
+        await registry.ReloadAsync(new HandlerHttpClientFactory(OpenAiHandler(ModelsJson(("gpt-4o", "openai")))), new[]
+        {
+            new AIProviderConfig { Name = "OpenAI", ProviderType = AIProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "k", SupportedModels = new() { "gpt-4o" } }
+        });
+
+        registry.GetProviderByModel("client-model")!.ProviderName.Should().Be("OpenAI");
+        registry.GetModelById("client-model")?.Id.Should().Be("client-model");
+
+        var controller = new ModelsController(registry);
+        var listResult = await controller.ListModels(CancellationToken.None);
+        var listJson = JsonDocument.Parse(JsonSerializer.Serialize(((Microsoft.AspNetCore.Mvc.OkObjectResult)listResult).Value));
+        listJson.RootElement.GetProperty("data")[0].GetProperty("id").GetString().Should().Be("client-model");
+        var singleResult = (Microsoft.AspNetCore.Mvc.OkObjectResult)controller.GetModel("client-model");
+        JsonDocument.Parse(JsonSerializer.Serialize(singleResult.Value)).RootElement.GetProperty("id").GetString().Should().Be("client-model");
+
+        // 禁用别名模型后不可路由（取同一实例再 Save，避免 Find 返回新对象导致前一次写被覆盖）
+        var disabled = AIModel.FindByPublicAlias("client-model")!;
+        disabled.Enabled = false;
+        disabled.Save();
+        registry.GetProviderByModel("client-model").Should().BeNull();
     }
 }
 

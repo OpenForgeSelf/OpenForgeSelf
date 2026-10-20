@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Serialization;
@@ -19,6 +19,7 @@ namespace ForgeSelf.Api.Entities;
 [Description("{name}。")]
 [BindIndex("IU_AIModel_ProviderId_UpstreamModelId", true, "ProviderId,UpstreamModelId")]
 [BindIndex("IX_AIModel_ProviderId", false, "ProviderId")]
+[BindIndex("IU_AIModel_PublicAlias", true, "PublicAlias")]
 [BindTable("AIModel", Description = "供应商模型记录", ConnName = "ForgeSelf", DbType = DatabaseType.None)]
 public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
 {
@@ -87,6 +88,33 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
     [BindColumn("MaxContext", "最大上下文长度（token），0=未设置", "")]
     public Int32 MaxContext { get => _MaxContext; set { if (OnPropertyChanging("MaxContext", value)) { _MaxContext = value; OnPropertyChanged("MaxContext"); } } }
 
+    private Int32 _MaxOutput;
+    [DisplayName("最大输出长度")]
+    [Description("最大输出token数，0=未设置")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("MaxOutput", "最大输出长度", "")]
+    public Int32 MaxOutput { get => _MaxOutput; set { if (OnPropertyChanging("MaxOutput", value)) { _MaxOutput = value; OnPropertyChanged("MaxOutput"); } } }
+
+    private Boolean _SupportVision;
+    [DisplayName("支持图片")]
+    [Description("模型是否支持图片输入")]
+    [DataObjectField(false, false, false)]
+    [BindColumn("SupportVision", "支持图片", "")]
+    public Boolean SupportVision { get => _SupportVision; set { if (OnPropertyChanging("SupportVision", value)) { _SupportVision = value; OnPropertyChanged("SupportVision"); } } }
+
+    private String _ThinkingLevels;
+    [DisplayName("思考档位")]
+    [Description("逗号分隔的思考档位")]
+    [DataObjectField(false, false, true, 200)]
+    [BindColumn("ThinkingLevels", "思考档位", "")]
+    public String ThinkingLevels { get => _ThinkingLevels; set { if (OnPropertyChanging("ThinkingLevels", value)) { _ThinkingLevels = value; OnPropertyChanged("ThinkingLevels"); } } }
+
+    private String _PublicAlias;
+    [DisplayName("对外别名")]
+    [Description("全局唯一的对外模型别名")]
+    [DataObjectField(false, false, true, 64)]
+    [BindColumn("PublicAlias", "对外别名", "")]
+    public String PublicAlias { get => _PublicAlias; set { if (OnPropertyChanging("PublicAlias", value)) { _PublicAlias = value; OnPropertyChanged("PublicAlias"); } } }
     private Boolean _Enabled;
     /// <summary>是否启用（已启用/已禁用），默认启用</summary>
     [DisplayName("是否启用（已启用_已禁用）")]
@@ -141,6 +169,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
         Alias = model.Alias;
         Capabilities = model.Capabilities;
         MaxContext = model.MaxContext;
+        MaxOutput = model.MaxOutput;
+        SupportVision = model.SupportVision;
+        ThinkingLevels = model.ThinkingLevels;
+        PublicAlias = model.PublicAlias;
         Enabled = model.Enabled;
         Owner = model.Owner;
         LastSyncTime = model.LastSyncTime;
@@ -165,6 +197,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
             "Alias" => _Alias,
             "Capabilities" => _Capabilities,
             "MaxContext" => _MaxContext,
+            "MaxOutput" => _MaxOutput,
+            "SupportVision" => _SupportVision,
+            "ThinkingLevels" => _ThinkingLevels,
+            "PublicAlias" => _PublicAlias,
             "Enabled" => _Enabled,
             "Owner" => _Owner,
             "LastSyncTime" => _LastSyncTime,
@@ -184,6 +220,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
                 case "Alias": _Alias = Convert.ToString(value); break;
                 case "Capabilities": _Capabilities = Convert.ToString(value); break;
                 case "MaxContext": _MaxContext = value.ToInt(); break;
+                case "MaxOutput": _MaxOutput = value.ToInt(); break;
+                case "SupportVision": _SupportVision = value.ToBoolean(); break;
+                case "ThinkingLevels": _ThinkingLevels = Convert.ToString(value); break;
+                case "PublicAlias": _PublicAlias = Convert.ToString(value); break;
                 case "Enabled": _Enabled = value.ToBoolean(); break;
                 case "Owner": _Owner = Convert.ToString(value); break;
                 case "LastSyncTime": _LastSyncTime = value.ToDateTime(); break;
@@ -295,6 +335,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
 
         /// <summary>最大上下文长度（token），0=未设置</summary>
         public static readonly Field MaxContext = FindByName("MaxContext");
+        public static readonly Field MaxOutput = FindByName("MaxOutput");
+        public static readonly Field SupportVision = FindByName("SupportVision");
+        public static readonly Field ThinkingLevels = FindByName("ThinkingLevels");
+        public static readonly Field PublicAlias = FindByName("PublicAlias");
 
         /// <summary>是否启用（已启用/已禁用），默认启用</summary>
         public static readonly Field Enabled = FindByName("Enabled");
@@ -340,6 +384,10 @@ public partial class AIModel : IAIModelModel, IEntity<IAIModelModel>
 
         /// <summary>最大上下文长度（token），0=未设置</summary>
         public const String MaxContext = "MaxContext";
+        public const String MaxOutput = "MaxOutput";
+        public const String SupportVision = "SupportVision";
+        public const String ThinkingLevels = "ThinkingLevels";
+        public const String PublicAlias = "PublicAlias";
 
         /// <summary>是否启用（已启用/已禁用），默认启用</summary>
         public const String Enabled = "Enabled";

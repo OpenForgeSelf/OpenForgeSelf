@@ -35,6 +35,11 @@ public partial class AIModelModel
     /// <summary>最大上下文长度（token），0=未设置</summary>
     public Int32 MaxContext { get; set; }
 
+    public Int32 MaxOutput { get; set; }
+    public Boolean SupportVision { get; set; }
+    public String ThinkingLevels { get; set; }
+    public String PublicAlias { get; set; }
+
     /// <summary>是否启用（已启用/已禁用），默认启用</summary>
     public Boolean Enabled { get; set; }
 
@@ -64,6 +69,10 @@ public partial class AIModelModel
         Alias = model.Alias;
         Capabilities = model.Capabilities;
         MaxContext = model.MaxContext;
+        MaxOutput = model.MaxOutput;
+        SupportVision = model.SupportVision;
+        ThinkingLevels = model.ThinkingLevels;
+        PublicAlias = model.PublicAlias;
         Enabled = model.Enabled;
         Owner = model.Owner;
         LastSyncTime = model.LastSyncTime;

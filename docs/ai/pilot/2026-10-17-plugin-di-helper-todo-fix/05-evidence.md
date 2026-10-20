@@ -7,16 +7,6 @@
 
 PILOT-062（2026-10-17-plugin-di-helper-todo-fix · 用户指令「全部都做」批）
 
-## AC 覆盖总表（编号对应 01-intent 的 AC-1 ~ AC-5）
-
-| AC | 判据（01-intent） | 证据位置（本文） | 结论 |
-| --- | --- | --- | --- |
-| AC1 | 翻转后的网关回归测试绿（success:true，fake ITodoService 回传） | Test·定向 7/7（UniversalGatewayListTodosScopeRegressionTests） | Verified PASS |
-| AC2 | 新助手单测绿：时序无关 + 未 seed 明确文案 | Test·定向 7/7（PluginContextDiExtensionsTests 5 Fact） | Verified PASS |
-| AC3 | 守卫测试绿且变异探针翻红实证 | 「AC-3 变异探针（守卫翻红实证）」节（红绿往返实录） | Verified PASS |
-| AC4 | 相邻域不回归 + dotnet build 0 error | Build 节 + Test·相邻 158/158 | Verified PASS |
-| AC5 | 源码本地经网关真实调用 list_todos 成功封套 | 「现场验收（AC-5 · dev-stack 等效替代）」节（7103/18897 实测） | Verified PASS |
-
 ## Changed Files
 
 - 新增 `ForgeSelf.Abstractions/PluginContextDiExtensions.cs`（RequireHostProvider/CreateHostScope 公共助手）

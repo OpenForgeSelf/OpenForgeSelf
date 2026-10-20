@@ -290,6 +290,10 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
    - 顺序（硬性，不许跳过）：① 单测/集成测试全绿 → ② 本插件 1 个冒烟 e2e → ③ **起源码本地前后端**（`pwsh scripts/dev-stack.ps1`，禁手敲运行命令，铁律 20）→ 按 §3.4 验收标准 + `ui-ux-design` 走查清单逐项验收（点即保存/成败可见/防闪/空态分级/分页边界/二次确认/版本徽标/禁用态原因，含截图读图 + 清测试数据）→ ④ 通过后才**按情况**操作宿主（本地目录发布 + 页面点更新 + 真实走查，见铁律 16）。
    - 「本地前后端验收」是**前置必做**，不是「有时间就做」；双绿（单测+e2e）不能替代它（2026-10-07 todo-tracker 实证：226/226 + 8/8 双绿仍漏掉 ProjectId=0 数据层坏链）。
    - dev 预览数据根隔离（`FORGESELF_DATA_ROOT=<repo>\.temp\preview-data`）、实例标识隔离（`FORGESELF_INSTANCE_ID`）、只停自己起的进程——全部照 §四 👀 本地预览「2026-10-07 现踩现记」执行。
+26. **【插件 DI 时序铁律·2026-10-17 PILOT-062】插件工具/服务的构造函数禁止解析宿主 DI（GetService/CreateScope/Resolve 一律不得出现在构造体内）。**
+   - 根因：宿主 `ProvideHostServices` 的 seed 在 `builder.Build()` 之后，插件 `Apply` 里构造期解析**恒 miss**，还会把未就绪的插件 Context 存进字段，请求期报离真因极远的 `No service for type 'IServiceScopeFactory' has been registered.`（TodoTracker/sems/AgentHub 三次实证）。
+   - 唯一姿势：构造只存原始上下文；执行期（ExecuteAsync/请求处理）经公共助手 `ForgeSelf.Abstractions.PluginContextDiExtensions.RequireHostProvider/CreateHostScope` 即时解析（每调用重评、未 seed 报含三要素的明确文案）——**别再写私有 Resolve 助手**。
+   - 该写法由架构守卫 `ForgeSelf.Api.Tests/Architecture/PluginToolConstructorDiGuardTests.cs` 在 CI 拦截（扫 Plugins 构造体内解析 token 即红）；新工具若守卫报红，改写法而不是改守卫。真源 `docs/04-standards/agent-workflow/b-engineering-daily.md` §B4。
 
 20. **【一键起环境铁律·禁止手敲运行命令】本地起前后端**只能**用 `scripts/dev-stack.ps1`，
     **禁止**手工敲 `dotnet <宿主dll> ...` / `node .../vite ...` / `npx vite` 之类的运行命令。
@@ -449,8 +453,11 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 ## 四、维护闭环（改完插件必走 · 2026-10-11 用户输入3 拍板重排）
 
 ```
-读技能 → 改代码（实体改动走 Model.xml→xcode）→ ① 门禁（单测+集成测试）→ ② 本插件 1 个冒烟 e2e → ③ 起源码本地前后端按验收标准验收（dev 态预走查，必做）→ ④ 按情况操作宿主（本地目录发布 + 页面点「检查更新→下载→重启并更新」）→ ⑤ 真实走查（运行实例只读复验，见 plugin-publish-verify「运行实例只读复验」）→ 更新插件文档 → 记日志
+读技能 → 改代码（实体改动走 Model.xml→xcode）→ ① 门禁（单测+集成测试）→ ② 本插件 1 个冒烟 e2e → ③ 起源码本地前后端按验收标准验收（dev 态预走查，必做）→ ③.5 提交前审计（review-bugbot 派发 CodeReview 子代理审暂存变更，Critical/High 当场修后复跑门禁，CONSIDER 修复或记 TODO；精确暂存与审计同范围，工作树混批时用 natural language/staged 目标避免审到别的批）→ ④ 按情况操作宿主（本地目录发布 + 页面点「检查更新→下载→重启并更新」）→ ⑤ 真实走查（运行实例只读复验，见 plugin-publish-verify「运行实例只读复验」）→ 更新插件文档 → 记日志
 ```
+
+> ③.5 立项背景（2026-10-16 用户指出漏执行）：网络代理批提交时只跑了测试门禁未做代码审计，补审后抓到
+> `ModelProxy.GetProxy` 的 `new Uri` 未兜底（Regex 放行串可能在构造处抛异常打断每个模型请求）——这类缺陷单测不盖、肉眼难发现，提交前必须过子代理审计一道。
 
 > **核心变化（2026-10-11 用户拍板）**：发布方式默认 = **本地目录更新源**（打 tag 自动发布降为可选）；验证重心前移——
 > **先起源码本地前后端按验收标准验收（铁律 25）**，通过了才考虑宿主；**每个插件仅 1 个冒烟 e2e（铁律 24）**，

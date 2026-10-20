@@ -8,7 +8,7 @@ aliases: ["034-mcp-center"]
 
 # 034 - MCP 中心（mcp-center 插件）
 
-> 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.2.0**。
+> 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.5.0**。
 > 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
 > 前身：`mcp-gateway` v1.0.0（034-MCP 统一网关）更名 + 整合宿主内置「MCP 工具」管理（`api/mcp` + McpService）合并而成。
 
@@ -20,8 +20,8 @@ aliases: ["034-mcp-center"]
 |----|------|------|----------|------|----------|------|
 | F034-R01 | 对外经独立 MCP 端口以单工具 `universal_tool` 转发宿主全部工具 | FR | JSON-RPC `tools/list` 恒返 1 个 `universal_tool`；以 `{tool,parameters}` 调用返回宿主工具结果 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
 | F034-R02 | 网关配置查看/修改（监听地址/端口/令牌状态，脱敏） | FR | `GET/PUT api/mcp-center/config`；PUT 后热重启生效 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
-| F034-R03 | 外部 MCP 服务器与工具管理（stdio / Streamable HTTP / HTTP+SSE） | FR | `api/mcp-center/servers` CRUD + `{id}/connect|disconnect|tools|test` | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
-| F034-R04 | 外部工具以 `mcp.<serverId>.<tool>` 命名空间经 `universal_tool` 转发，不进宿主注册表 | BR | 外部工具不出现在宿主 IToolRegistry；仅经 mcp. 前缀可调 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R03 | 外部 MCP 服务器与工具管理（stdio / Streamable HTTP / HTTP+SSE） | FR | `api/mcp-center/servers` CRUD + `{id}/connect|disconnect|tools|test` | 已实现（v2.5.0 客户端侧规范合规，PC-008；v2.5.1 stdio 接入层三层修复，PC-010） | ForgeSelf.Web/e2e/plugins/mcp-center/mcp-center.spec.ts（外部 MCP UI 主链路 + stdio npx 真实世界） | docs/ai/pilot/2026-10-18-mcpcenter-stdio-npx-fix |
+| F034-R04 | 外部工具以 `mcp.<serverId>.<tool>` 命名空间经 `universal_tool` 转发，不进宿主注册表；**v2.6.0 修订（D10 枚举侧，ADR-003）**：`list_tools` 枚举出口合并已连接外部工具（`source=mcp-external`），网关与内置 AIAgent 两侧可见可调 | BR | 外部工具不出现在宿主 IToolRegistry；`list_tools` 合并枚举含全名/描述/可选 schema，`mcp.<id>.<工具>` 内外直调均通 | 已实现（v2.6.0） | ForgeSelf.Web/e2e/mcp-tools.spec.ts + mcp-center.spec.ts（v2.6.0 list_tools 合并用例） | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url · docs/ai/pilot/2026-10-19-mcp-external-tools-in-list |
 | F034-R05 | 管理面鉴权（ApiKeyPolicy） | BR | 无 token 访问管理端点返回 401 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
 
 
@@ -40,7 +40,7 @@ aliases: ["034-mcp-center"]
 | ③ 网关配置 | 查看监听地址/端口/令牌状态（脱敏）、修改并热重启 | `api/mcp-center/config`（GET/PUT）、`/mcp-center` 网关配置 tab |
 | ④ 外部 MCP 客户端（v2.1.0） | 按标准 MCP 协议连接外部 MCP 服务器（stdio / Streamable HTTP / HTTP+SSE 三传输），其工具经 `universal_tool` 的 `mcp.<服务器id>.<工具名>` 命名空间统一转发 | `api/mcp-center/servers`（GET/POST/PUT/DELETE + `{id}/connect|disconnect|tools|test`）、`/mcp-center` 网关配置 tab「外部 MCP 服务器」区块 |
 
-> 注：②的「外部服务器/工具」为预置管理数据（内存态），不改变①的对外协议面（对外恒 1 个 `universal_tool`）。④是**真实** MCP 客户端（v2.1.0 新增），外部工具**不进宿主注册表**（决策 D10），统一经 `mcp.` 前缀命名空间转发。
+> 注：②的「外部服务器/工具」为预置管理数据（内存态），不改变①的对外协议面（对外恒 1 个 `universal_tool`）。④是**真实** MCP 客户端（v2.1.0 新增），外部工具**不进宿主注册表**（决策 D10 隔离保持），统一经 `mcp.` 前缀命名空间转发。v2.6.0 起 D10 枚举侧修订（ADR-003）：`list_tools` 在**枚举出口**合并已连接外部工具，注册表仍隔离——见「转发契约」节。
 
 ## 为什么用「单工具转发」而不是逐工具注册
 
@@ -95,12 +95,25 @@ McpClientManager（单例：会话字典 + 错误字典 + TryConnect/Disconnect/
         │
         ▼
 UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.工具名 → CallExternalAsync）
-        ▲ 外部工具不进宿主注册表（决策 D10）
+        ▲ 外部工具不进宿主注册表（决策 D10 隔离保持；v2.6.0 起 list_tools 枚举出口合并可见，ADR-003）
         │
         └── tools/call universal_tool（对外仍恒 1 个工具）
 ```
 
 - **传输格式全支持（用户要求「标准 MCP 协议 2.0 所有格式转发」）**：stdio / Streamable HTTP / 旧版 HTTP+SSE 三传输；协议版本协商 `2025-11-25`（**MCP 2.0**）/ `2025-06-18` / `2025-03-26` / `2024-11-05`（客户端与服务端双向，v2.2.0 起支持 2.0）。
+
+- **客户端侧规范合规（v2.5.0，PC-008 修复批）**：
+  - initialize 载荷由 `Services/McpClient/McpClientProtocol.cs` 单点构造（`BuildInitializeParams`），必带规范必填 `clientInfo{name="OpenForgeSelf-McpCenter", version=插件装配版本}`；三传输一律引用，禁止手搓（G3 源码扫描签名 + G2 守卫测试封死）；
+  - 收到 initialize result 后必发 `notifications/initialized`（无 id 通知）；通知失败仅 Warn 不阻断（兼容宽松服务器）；
+  - Streamable HTTP 会话复用：捕获响应头 `Mcp-Session-Id` + 协商版本，后续请求（含通知与 SSE GET）回传 `Mcp-Session-Id` / `Mcp-Protocol-Version`；无状态服务器（无该头）自然不携带；
+  - `POST api/mcp-center/servers/{id}/test` 成功响应 **data 自带** `{id, ok, success:true, message, durationMs}`（前端 `apiPost` 只解包 data，信封 message 到不了页面）；失败分支 HTTP 400 + 真实 message；
+  - 密钥掩码不往返：前端编辑态 headers/env 与脱敏基线逐字相同 ⇒ 不提交该字段（后端 PUT 合并保留原值）；后端 `RejectMaskedValue` 拒收 `****` 形态展示串落盘。规则/扫描/守卫见 [PC-008](../11-troubleshooting/problem-classes/PC-008-mcp-external-client-protocol.md)。
+
+- **stdio 接入层修复（v2.5.1，PC-010）**：
+  - 启动层 `ResolveLaunch`：Windows 下 `npx` 等实体是 `.cmd/.bat` 批处理 shim，CreateProcess 不按 PATHEXT 解析 ⇒ PATH 目录逐个探测（exe>cmd>bat），命中 shim 经 ComSpec `/d /s /c "…"` 包装拉起；找不到命令给可行动报错（指名 PATH / env.PATH 覆盖）；
+  - 帧协商层：官方 TS/Python SDK 服务器只答 NDJSON、对 Content-Length 请求完全沉默 ⇒ 读侧双帧自适应（行首 `{`=NDJSON，否则 LSP 头+定长体），auto 下 NDJSON 首发、5s 无响应换 LSP 帧重发一次后跟随对方帧型；配置字段 `framing`（""=自动 / `ndjson` / `lsp` 强制）；
+  - 序列化层：`"params":null` 会让 FastMCP 系服务器沉默 ⇒ 请求序列化收敛 `McpClientProtocol.SerializeRequest` 单点（null 省略键，三传输同改，G3 源码扫描封死回退）。
+  规则/扫描/守卫见 [PC-010](../11-troubleshooting/problem-classes/PC-010-mcp-stdio-launch-and-framing.md)。
 
 - 协议：手写最小 JSON-RPC 2.0 + Streamable HTTP（默认协议版本 2025-06-18，v2.2.0 起支持协商 2025-11-25 = MCP 2.0），**零新增依赖**（无 MCP SDK）。MCP 2.0 的 OAuth / tasks / icons / elicitation 等均为**可选能力**，本网关不声明相应 capabilities 即合规，不实现。
 - 传输：`POST /mcp`（JSON 响应）、`GET /mcp`（SSE keep-alive 心跳）、`GET /health`（探活）。
@@ -173,7 +186,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 ### 配置模型与存储
 
 - 服务器清单持久化：`{插件数据根}/external-servers.json`（与 `config.json` 分离），原子写、幂等加载、校验。
-- 字段：`id`（kebab-case，命名空间路由用）/ `name` / `transport`（`stdio` | `streamable-http` | `http-sse`）/ `enabled` / `command`+`args`（stdio 用，白名单 `npx/node/python/python3/uvx/uv/dotnet`）/ `url`（http/s 用）/ `headers`（可选，值脱敏存储：整替换 `****`+尾4）。
+- 字段：`id`（kebab-case，命名空间路由用）/ `name` / `transport`（`stdio` | `streamable-http` | `http-sse`）/ `enabled` / `command`+`args`（stdio 用，白名单 `npx/node/python/python3/uvx/uv/dotnet`）/ `framing`（v2.5.1，stdio 消息帧型：空=自动协商；`ndjson`/`lsp` 强制）/ `url`（http/s 用）/ `headers`（可选，值脱敏存储：整替换 `****`+尾4）。
 - 连接测试（`{id}/test`）为**真实** initialize+ping（非 v2.0.0 的模拟 sleep）。
 
 ### 管理 API（`api/mcp-center/servers`）
@@ -222,12 +235,18 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 - `tool` 以 `mcp.` 前缀 → 走外部转发：格式 `mcp.<服务器id>.<工具名>`（id 为 kebab-case），按首段点拆分。
 - 坏格式（缺工具名段）提示：「外部工具名格式应为 mcp.<服务器id>.<工具名>（当前: ...；例如 mcp.deepwiki.search）」。
 - 未连接：「外部服务器 '...' 未连接（请先在 MCP 中心连接并拉取工具清单）」。
-- 外部工具**不进宿主注册表**（决策 D10），不影响 Agent 的 `/api/ai-agent/chat/tools` 清单。
+- 外部工具**不进宿主注册表**（决策 D10 隔离保持；v2.6.0 修订只动枚举出口与调用路由，见 ADR-003），不影响 Agent 的 `/api/ai-agent/chat/tools` 清单。
+- **`list_tools` 枚举含外部 MCP 工具（v2.6.0，D10 修订枚举侧，见 ADR-003；2026-10-18 记录的「不枚举」已被本条反转）**：`universal_tool {tool:"list_tools"}` 输出 = 宿主 `IToolRegistry.GetAllTools()` 实时快照（条目 `source:"registry"`）**＋**已连接服务器的外部工具（经 `IMcpExternalGateway.ListConnectedTools()` 会话内存快照，条目 `name` 即全名 `mcp.<id>.<工具名>`、`source:"mcp-external"`、`pluginId`=服务器 id）；`keyword` 过滤对两侧同时生效，`includeSchema:true` 时外部条目带目标工具输入 schema（非法 JSON→null）。合并只发生在**枚举出口**（`ListToolsToolFunction.cs`）——外部工具仍不进注册表；McpCenter 停用或未连接任何外部服务器时结果与 v2.5.x 逐字段等价。`{id}` 必须用服务器清单里那条的 **id（kebab-case）**，不是显示名；界面「工具管理」区块与 `GET api/mcp-center/servers/{id}/tools` 仍是可用的管理面入口。
+- **`mcp.<id>.<工具>` 直调的三条可用通道（2026-10-19 现场实测坐实，dev-stack 真连 deepwiki）**：
+  1. **MCP 网关 JSON-RPC**（通用外部 MCP 客户端：Cline/Cursor/自建脚本）：POST `http://127.0.0.1:<网关端口>/mcp`（Streamable HTTP；SSE 长连接另走 `/sse`），头 `Authorization: Bearer <mcpGateway.token>` + `Accept: application/json, text/event-stream`（缺 Accept 被 406 拒），体 `{jsonrpc:"2.0", method:"tools/call", params:{name:"universal_tool", arguments:{tool:"mcp.deepwiki.ask_wiki_question", parameters:{question:"…", repoName:"microsoft/vscode"}}}}`；响应为 SSE 帧包裹的 JSON-RPC，外层 `result.content[0].text` 即目标工具结果**原文**（实测返回 vscode 真实百科式回答）；实测 `parameters` 字段名以目标工具 schema 为准（deepwiki 是 `repoName` 不是 `repo`，传错时远端 pydantic 校验错误原文透回——转发链通断可由错误来源判别）。
+  2. **管理面单工具直测 REST**（不走网关）：`POST api/mcp-center/servers/{id}/tools/invoke`，体 `{tool:"<原生名>", argumentsJson:"<参数JSON字符串>"}`（见上文「手动测试与直测」）。
+  3. **宿主内置数字助手（AIAgent v1.9.0 起，本批闭环）**：`universal_tool`（`Plugins/AIAgent/Services/ToolFunctions/UniversalTool.cs`）已带 `mcp.` 前缀路由分支——经 McpCenter 提供的 `IMcpExternalGateway` 契约转发（与网关同名解析真源 `McpExternalToolNames`、同语义），错误封套统一 `{success:false, error}`；典型动线＝内置 agent 先 `list_tools` 发现全名再按全名直调。McpCenter 未启用时报中文引导错误（**不**落「未知工具」）。2026-10-19 上午核码时本通道尚无路由，v1.9.0 已补并 dev-stack 实测真实回答。
 - 协议版本双向协商：客户端 initialize 带 `2025-11-25`（MCP 2.0，v2.2.0 起），服务器回退 `2025-06-18`/`2025-03-26`/`2024-11-05` 时客户端以服务器为准。
 
 ## 与 Agent（AIAgent）的关系
 
 - Agent 消费宿主工具走**宿主契约** `IToolRegistry` + `/api/ai-agent/chat/tools`，不经 MCP 端口；MCP 中心任何改动不影响 Agent 工具清单。
+- **v2.6.0 / Agent v1.9.0 起**：内置 Agent 的 `universal_tool` 经 `IMcpExternalGateway` 软依赖契约直调外部工具、`list_tools` 合并枚举外部条目（提供方缺席时中文引导降级）；`/api/ai-agent/chat/tools` 仍不含外部工具（注册表隔离保持）。
 - MCP 中心对外是「服务端（暴露宿主工具）+ 客户端（接入外部服务器）」双半身，Agent 只依赖服务端半身的宿主工具部分。
 - 实测（v2.0.0→v2.1.0 均验证）：`/api/mcp/servers`、`/api/ai-agent/chat/tools`、`/api/health` 全部 200；18890 `/health` 返回 `{"status":"ok","version":"2.1.0","tools":1}`。
 
@@ -268,6 +287,15 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 - 网关配置 tab：3 状态卡（**MCP 服务地址 = `listenUrl + /mcp`**（v2.2.1：带 `data-mcp-url` 挂点 + 一行「客户端须使用 /mcp 路径（根路径 404）」说明）+ 复制地址 / 运行状态（仍展示真实绑定 `监听 host:port`）/ 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
   - ⚠ **地址口径（v2.2.1 起）**：界面展示/复制的地址一律是**端点** `http://<host>:<port>/mcp`（客户端唯一可用地址）；后端 `McpGatewayConfig.ListenUrl` 仍是 **Kestrel 绑定串**（`http://<host>:<port>`，被 `McpGatewayServer` 的 `UseUrls` 使用），**禁止**在后端给它加路径 —— 端点由前端 `mcpEndpointUrl`（去尾斜杠 + `/mcp`，与设计系统插件 `delivery/snippets.ts` 的 `mcpEndpoint()` 同构）派生。
 - 插件前端契约：`export { McpCenterView }`（= plugin.json `frontend.views[0]`）；`vue/vue-router/pinia/element-plus` external；`<ElTabs/ElTabPane/ElSwitch/ElInputNumber/ElInput/ElCheckbox/ElButton/ElSelect/ElOption>` 需宿主 `exposeSharedDeps` 暴露（已在 `ForgeSelf.Web/src/shared/exposeSharedDeps.ts` + `public/shared/element-plus.js` 补齐）。
+
+## 验证记录（v2.6.0 · 外部 MCP 工具进 list_tools 枚举 + 内外均可直调；并入未发布的 v2.5.2 超时批发版）
+
+- 变更：Abstractions 新增跨插件契约 `IMcpExternalGateway` + 全名命名单一真源 `McpExternalToolNames`（`mcp.<服务器id>.<工具名>`）；McpCenter 适配器 eager `ctx.Register`（置于停止器 Effect 之后，消卸载窗口「会话已停、契约尚在」）；`ListToolsToolFunction` 枚举出口合并已连接外部工具；AIAgent `universal_tool` 增 `mcp.` 路由分支（v1.9.0）。决策 D10 修订（枚举可见 + 调用可达，注册表隔离保持）见 ADR-003。
+- 版本：McpCenter 2.5.2→**2.6.0**（v2.5.2 执行超时批未发布，并入本串发版；其 034 执行超时补记仍属该批悬空项⑥），AIAgent 1.8.0→**1.9.0**。
+- 单测：`ForgeSelf.Abstractions.Tests` **46/46**；`dotnet test --filter "~McpCenter|~UniversalTool"` **200/200**（契约守卫 / Adapter 真连 node mock / ListTools 合并 6 例 / AIAgent 路由 5 例）。
+- E2E：`mcp-center.spec.ts` v2.6.0 用例 **1 passed (1.3m)**（mock http 建连→枚举出 `mcp.e2e-listmerge.add/echo`（source=mcp-external 含 schema）→全名直调 sum=7→disconnect 归零），证据 `screenshots/e2e/mcp-center/list-tools-external.log`。
+- 现场走查（dev-stack 真连 deepwiki）：`list_tools` total=4 含 3 条 `mcp.deepwiki.*`（带 schema）；`ask_wiki_question` 真实回答原文；UI 徽标 v2.6.0（截图 `gateway-tab.png` 读图）；探针数据清理归零。
+- 工件链 `docs/ai/pilot/2026-10-19-mcp-external-tools-in-list/`（00–07；06=APPROVED，CodeReview 1 Major + 2 Minor 当场闭环：枚举零 IO 违背→`ConnectedSessions()`、注册顺序消序、契约文档订正）。
 
 ## 验证记录（v2.2.1 · 界面地址补 /mcp 路径）
 
@@ -416,3 +444,16 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 
 **验证**：后端 build 0 错 / McpCenter 测试 **111/111**（含新增 3 条配置链用例）/ 插件前端 build+test 23/23 绿（check 3 错为 dsh 面板既有缺陷，登记 TODO P2）/ 冒烟 e2e 插件套 **4/4** + 应用层 **4/4**（默认无状态裸 POST 全绿）/ dev-stack 现场 A/B 协议面 + 页面走查 DOM 核对 7/7（截图受浏览器窗口不可见阻塞，以 e2e 截图+DOM+dist 实证替代，发布后第⑤步补视觉证据）；环境已还原 stateless:true。
 **发布**：版本 2.3.2 → **2.4.0**；2026-10-17 用户拍板「发布到本地，我自己更新验证」⇒ 已发本地目录更新源 `OpenForgeSelf-2.4.7.2610171917-win-x64.zip`（-Sign，签名校验 3/3、signtool /tw 时间戳 Successfully verified、SHA256 与 SHA256SUMS 逐字一致、L1 成立；包内 McpCenter=2.4.0、TodoTracker=1.1.3 含 DI 修复——探针坐实旧类 TodoToolProvider 不在包内 dll）；用户在 :51888 实例页面「检查更新→下载→重启并更新」自行更新后做只读复验 + dsh 重连验证根治效果。
+
+## v2.5.1 stdio 外部 MCP 接入三层修复（2026-10-18，PC-010）
+
+**背景（用户报障）**：:51888 实例（宿主 2.4.9）网关配置新增外部 MCP `npx @playwright/mcp@latest` 点「测试」报 `400 无法启动外部 MCP 进程 'npx': … 系统找不到指定的文件`。红灯复现（报错与用户原文逐字同款）后呈**三层剥洋葱**：① Windows 批处理 shim（npx.cmd）不被 CreateProcess 解析；② 官方 TS SDK 服务器只答 NDJSON、对 LSP 帧沉默（修复①后 tools/list 30s 超时暴露）；③ `"params":null` 让 FastMCP 系沉默（A/B 探针坐实，修复②后仍超时暴露）。旧应用层 e2e 的「stdio npx 优雅降级」分支让三层全灭时套件照样绿（宽松断言掩盖教训第三次命中）。
+
+**落地**（pilot `docs/ai/pilot/2026-10-18-mcpcenter-stdio-npx-fix/`，规则/修法/守卫唯一真源 = [PC-010](../11-troubleshooting/problem-classes/PC-010-mcp-stdio-launch-and-framing.md)）：
+- `StdioMcpTransport.ResolveLaunch`：PATH 探测 exe>cmd>bat + ComSpec `/d /s /c` 包装 + 可行动报错（支持 env.PATH 覆盖注入，跨平台确定性单测）；
+- 双帧自适应读侧 + auto 协商（NDJSON 首发、5s 探测无响应换 LSP 重发一次、写帧跟随响应帧型）+ 配置字段 `framing` 贯穿 config→Dto→controller merge→store（store 逐字段拷贝会吞新字段，已补透传）；
+- `McpClientProtocol.SerializeRequest` canonical 单点（null 省略 params 键），三传输同改；`arguments` 空给 `{}` 同族封堵；
+- mock-mcp-server.js 增 `--mode stdio-ndjson`（靶子不再与客户端同构）；既有 LSP mock 集成测锁 `framing=lsp` 快路径。
+
+**验证**：定向 dotnet test 32/32（新文件 McpStdioWindowsShimTests 7 + McpStdioFramingTests 4 组 + 守卫段）；插件 e2e 6/6（新「stdio npx 真实世界」零容忍用例：npx server-everything toolCount=13、握手 3689ms、UI 截图两张 `ForgeSelf.Web/screenshots/e2e/mcp-center/npx-shim-{list,test-toast}.png`）；门禁③ dev-stack API 按用户原文配置（npx @playwright/mcp@latest 无 -y）connected=True toolCount=25、/test success 3851ms；check-problem-classes 10 PC 绿 + ProblemClassRegistryTests 5/5。
+**发布**：插件 2.5.0 → **2.5.1**；本地目录更新源发布见 05-evidence（-Sign）；用户在 :51888 更新后做运行实例只读复验（门禁⑤）。

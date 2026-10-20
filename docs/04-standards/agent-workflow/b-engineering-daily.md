@@ -100,6 +100,10 @@
 - **Playwright webServer 恒 120s 超时 → 先查 `HTTP_PROXY`**：本机环境注入 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而**不设 `NO_PROXY`** 时，Playwright 对 `http://localhost:<port>` 的可用性探测走代理 → **恒返回 502** → 永远等不到"可用"，报 `Error: Timed out waiting 120000ms from config.webServer.`。此时 vite 其实早已 ready（`[WebServer] VITE v6.4.3 ready ... ➜ Local: http://localhost:7002/`），默认 reporter 只显示"超时"，极易被误判成前端构建/依赖问题（本轮为此白跑两轮回合）。定位手法：`$env:DEBUG='pw:webserver'` 再跑一次，日志里 `pw:webserver HTTP Status: 502` 与 `[WebServer] ... ready` 同框即命中。处置：跑 e2e 前 `$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）；**不要**为此改仓库配置/代码。
 - **后端测试整片 `UnauthorizedAccessException` → 先查 `%TEMP%` 能否建目录**：本机不允许在用户 `%TEMP%` 下新建目录，凡用 `Path.GetTempPath()` 建隔离目录的用例会集体报 `Access to the path 'C:\Users\...\Temp\<前缀>_<guid>' is denied`（PILOT-052 实测 `--filter McpCenter` **22/96 红**，形似大面积回归）。处置：把 `TEMP`/`TMP` 重定向到仓库内目录（如 `.temp/api-tests-tmp`）再跑 → 同一命令 **96/96 绿**。**这类红不会出现在仓库全量基线里**，故 §5.6「基线红先对表」查不出来，须按本条先排环境再判责。**同因的另外两面（2026-10-05 当天各命中一次，别当成三个问题）**：① 宿主前端 `vite build` 的 esbuild 临时文件清理同样被拒 —— `[vite:esbuild-transpile] remove C:\Users\...\Temp\esbuild-<hash>: Access is denied`，会让 `release-local.ps1` 在 `build-frontend` 段整体失败（本地发布链首跑即红，改成仓库内 TEMP 后 EXIT=0）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 → dev server 退不出启动 ⇒ `ERR_CONNECTION_REFUSED`（并行 worktree 实测）。**统一处置（一条命令覆盖三面）**：跑「后端测试 / 插件 e2e / 本地发布链」前先 `$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。
 
+### 多实例并存现场验收：先核监听端口的 PID 归属（2026-10-17 PILOT-062 实证）
+- **打到谁的端口不可想当然**：用户常驻 dev 宿主会占住默认段端口（含 MCP 网关 18890/18895 这类插件自管口）；本批首次现场验收的 initialize/tools/call 实际落在用户实例的**旧代码有状态网关**上（-32001 Session not found），若未识破就会把用户实例的报错当成修复批的验证结论。**规则**：自起验收实例后、发判据请求前，必做 `Get-NetTCPConnection -LocalPort <口> -State Listen | Select OwningProcess` 核对监听者 PID == 自己拉起的进程 PID（命令行可用 `Get-CimInstance Win32_Process -Filter "ProcessId=N"` 验认）；不符则换空闲端口重拉（宿主侧用 `FORGESELF_PORT` / `FORGESELF_MCP_GATEWAY_PORT` 等环境变量错开），不属本批证据的响应一律弃用不入库。
+- **同源子坑**：`dev-stack.ps1` 内部固定 `dotnet build -c Debug`，用户 dev 宿主在跑时必撞 DLL 锁（MSB3027）且 `-SkipBuild` 只会用陈旧产物——锁下现场验收的等效姿势：用 e2e globalSetup 刚编译的全新 publish 产物（`.temp/e2e/wt-<hash>/publish`）按同款环境变量（`--console` 首参 + `FORGESELF_DATA_ROOT` 隔离 + 独立 `FORGESelf_INSTANCE_ID`）自起实例，验收完只停**自己拉的** PID（证据写法见 2026-10-17-plugin-di-helper-todo-fix 05-evidence）。
+
 ## B3 前端工程规则
 
 ### Element Plus 组件导入
@@ -184,6 +188,12 @@
   MutationObserver 记录点击瞬间被增删的 DOM 节点；前后 `boundingBox()` 对比量化位移。探针用完即删，结论沉淀为正规断言（本例：NetworkPanel.test.ts 占位用例 + e2e 注释）。
 - 推广：新表单面板一律用占位形态；存量面板（行内错误 v-if 且下方有可点控件）见 TODO 待收。
 
+### Element Plus 组件定宽只能用内联 `style`，Tailwind 宽度 class 无效（ 2026-10-18 NetworkPanel 走查实证）
+- **现象**：`<el-input class="w-[240px]">` 不生效，同列五个控件实测宽度 180 / 撑满 / 105px 各自失控，密码 placeholder 尾部被裁成「…认证时填」。
+- **根因**：EP 自带 `.el-input{width:100%}` / `.el-input-number{width:130px}` 与 Tailwind 任意值 class **同特异性**且 EP 样式后加载 → EP 胜；与 `ElXxx` 自动导入无关，不是 Tailwind 配置问题。
+- **规则**：凡给 EP 组件（el-input / el-input-number / el-select / el-date-picker …）定尺寸，一律内联 `style="width: 240px"`（项目惯例参照 `UpdatePanel.vue`）；Tailwind class 只用于布局原语（flex/gap/间距/max-w 包容器）。`class="flex-1 max-w-[360px]"` 这类用在**外层容器**上仍可用，用在 EP 组件根元素上无效。
+- **验收姿势**：走查时必须 `getBoundingClientRect()` 读实际 width/left 而非目测；placeholder 可读性要拿 canvas 量文字宽 vs 输入区宽（本例量出 228.5/243.9px > 文本区 218px 才发现裁切）。
+
 ## B4 后端工程规则
 ### 分层 / 鉴权 / 配置
 - 分层：Controllers/Services/Entities；新插件走 `Plugins/` + `plugin.json` 注册；异步统一 `async/await`，不 `.Result` 阻塞。
@@ -237,7 +247,8 @@
   并且照样打印 `已通过! 失败: 0`（实测同一命令：quiet 报 85/154 且"崩溃"，`--logger "console;verbosity=normal"` 跑完 **164/164 无崩溃**）。
   规则：本仓跑 dotnet test **一律带 verbose console logger**，或先 `--list-tests` 拿发现数、再与执行数比对；
   两者不等就是事故，不能当通过。
-- **全量 `dotnet test` 的环境前置（2026-10-01 plugin-dev-experience 实证）**：① 跑测前必须停掉本会话自起的 dev/调试宿主实例——运行中实例占住 `ConfigUnifier` 的 `.tmp` 文件名导致重建被拒，全量跑测会冒 496/535 假失败（TODO.md:86 已录此坑）；② 本机系统 `TEMP`/`TMP` 已对测试主机拒访，须在命令前 `TMP=<工作区>\temp\test-tmp TEMP=<同>` 重定向到工作区临时目录绕过（否则大量测试抛 `UnauthorizedAccessException`）。两项缺一都会把"环境劣化"误判为"代码回归"。
+- **全量 `dotnet test` 的环境前置（2026-10-01 plugin-dev-experience 实证）**：① 跑测前必须停掉本会话自起的 dev/调试宿主实例——运行中实例占住 `ConfigUnifier` 的 `.tmp` 文件名导致重建被拒，全量跑测会冒 496/535 假失败（TODO.md:86 已录此坑）；② 本机系统 `TEMP`/`TMP` 已对测试主机拒访，须在命令前 `TMP=<工作区>\temp\test-tmp TEMP=<同>` 重定向到工作区临时目录绕过（否则大量测试抛 `UnauthorizedAccessException`）。两项缺一都会把“环境劣化”误判为“代码回归”。
+- **插件构造期禁止解析宿主 DI（2026-10-17 PILOT-062 定性，三次实证：TodoTracker/sems/AgentHub）**：宿主 `ProvideHostServices` 的 seed 在 `builder.Build()` 之后（`AppBuilder.cs` L364→L402），插件 `Apply` 里任何「构造函数/装配期 `GetService/CreateScope/Resolve` 宿主服务」的写法**恒 miss**，且把未就绪的插件 Context 存进字段后，请求期报的是离真因极远的 `No service for type 'IServiceScopeFactory' has been registered.`。**唯一合法姿势**：构造只存原始上下文；执行期（ExecuteAsync/请求处理）经 `ForgeSelf.Abstractions.PluginContextDiExtensions.RequireHostProvider/CreateHostScope` 即时解析（对 seed 时序免疫、未就绪报含三要素的明确文案，每调用重评不缓存）。该写法已由架构守卫 `ForgeSelf.Api.Tests/Architecture/PluginToolConstructorDiGuardTests.cs` 变成 CI 判据（扫 `Plugins/**/*.cs` 含 IServiceProvider/IContext 参数的构造体内出现解析 token 即红）；新插件工具别再写私有 Resolve 助手，直接用公共扩展。证据链 `docs/ai/pilot/2026-10-17-plugin-di-helper-todo-fix/`。
 
 ## B5 插件体系与发布
 

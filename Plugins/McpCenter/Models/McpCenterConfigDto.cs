@@ -20,6 +20,9 @@ public class McpCenterConfigDto
     /// <summary>会话模式（v2.4.0）：true=无状态（每请求独立，重启不断会话）；false=有状态（initialize 签发 Mcp-Session-Id）。</summary>
     public bool Stateless { get; set; }
 
+    /// <summary>外部 MCP 执行请求超时（毫秒，v2.5.2）：默认 300000（5 分钟）；对保存后新建/重连的连接生效。UI 展示为秒。</summary>
+    public int ExecutionTimeoutMs { get; set; }
+
     public string Version { get; set; } = string.Empty;
 }
 
@@ -34,4 +37,7 @@ public class McpCenterConfigUpdateDto
 
     /// <summary>会话模式（v2.4.0）：不传=不变；保存后热重启立即生效。</summary>
     public bool? Stateless { get; set; }
+
+    /// <summary>外部 MCP 执行超时（毫秒，v2.5.2）：不传=不变；合法 1000~3600000，越界拒绝 400；对保存后新建/重连的连接生效。</summary>
+    public int? ExecutionTimeoutMs { get; set; }
 }

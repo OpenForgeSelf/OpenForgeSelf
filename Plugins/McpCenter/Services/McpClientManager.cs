@@ -12,19 +12,25 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// </summary>
 public sealed class McpClientManager
 {
-    /// <summary>外部工具命名空间前缀（tool 参数：mcp.&lt;服务器id&gt;.&lt;工具名&gt;）。</summary>
-    public const string ExternalPrefix = "mcp.";
+    /// <summary>外部工具命名空间前缀（真源已上移契约层 <see cref="ForgeSelf.Abstractions.McpExternalToolNames"/>，本处保留别名供本插件引用）。</summary>
+    public const string ExternalPrefix = ForgeSelf.Abstractions.McpExternalToolNames.Prefix;
 
     private readonly ExternalServersStore _store;
+    private readonly McpGatewayConfig _gatewayConfig;
     private readonly ConcurrentDictionary<string, McpClientSession> _sessions = new();
     private readonly ConcurrentDictionary<string, string> _errors = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly CancellationTokenSource _cts = new();
     private volatile bool _started;
 
-    public McpClientManager(ExternalServersStore store)
+    /// <summary>
+    /// v2.5.2：可选注入网关配置（与 Runtime 共享同一实例）——建连时读 ExecutionTimeoutMs 注入传输，
+    /// 页面改超时后下次新建/重连自然生效（lazy）。不传则用内置默认（测试/直接构造场景）。
+    /// </summary>
+    public McpClientManager(ExternalServersStore store, McpGatewayConfig? config = null)
     {
         _store = store;
+        _gatewayConfig = config ?? new McpGatewayConfig();
     }
 
     /// <summary>启动：加载配置并对 enabled 服务器后台建连（失败只记错误，不阻塞）。幂等。</summary>
@@ -147,8 +153,15 @@ public sealed class McpClientManager
     public IReadOnlyList<McpExternalToolDto> GetTools(string id) =>
         _sessions.TryGetValue(id, out var session) ? session.GetTools() : Array.Empty<McpExternalToolDto>();
 
-    /// <summary>真实握手测试（initialize + ping；不建会话、不保存）。</summary>
-    public async Task<(bool Ok, string Message)> TestAsync(string id, CancellationToken ct)
+    /// <summary>
+    /// 已连接会话快照（v2.6.0 枚举出口专用）：<c>_sessions</c> 字典本身只含已建连会话，
+    /// 不经 <see cref="GetStates"/> 的读盘 + 全量脱敏（契约 IMcpExternalGateway.ListConnectedTools 承诺零 IO，
+    /// CodeReview PILOT-072 Issue 1）。
+    /// </summary>
+    internal IReadOnlyList<McpClientSession> ConnectedSessions() => _sessions.Values.ToList();
+
+    /// <summary>真实握手测试（initialize + ping；不建会话、不保存）。DurationMs 供 /test 端点回填前端契约。</summary>
+    public async Task<(bool Ok, string Message, long DurationMs)> TestAsync(string id, CancellationToken ct)
     {
         var cfg = _store.Load().FirstOrDefault(c => c.Id == id)
             ?? throw new McpClientException($"外部服务器 '{id}' 不存在");
@@ -159,11 +172,11 @@ public sealed class McpClientManager
             await session.ConnectAsync(ct);
             await session.PingAsync(ct);
             sw.Stop();
-            return (true, $"连接正常（{session.ServerInfoName}，协议 {session.ProtocolVersion}，{session.ToolCount} 个工具，{sw.ElapsedMilliseconds}ms）");
+            return (true, $"连接正常（{session.ServerInfoName}，协议 {session.ProtocolVersion}，{session.ToolCount} 个工具，{sw.ElapsedMilliseconds}ms）", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            return (false, ex.Message);
+            return (false, ex.Message, 0);
         }
         finally
         {
@@ -185,13 +198,13 @@ public sealed class McpClientManager
         _errors.Clear();
     }
 
-    /// <summary>按配置构造传输（stdio / streamable-http / http-sse）。</summary>
-    public static IMcpClientTransport CreateTransport(McpExternalServerConfig cfg) =>
+    /// <summary>按配置构造传输（stdio / streamable-http / http-sse），执行超时取网关配置当前值（v2.5.2；internal 供单测断言贯穿）。</summary>
+    internal IMcpClientTransport CreateTransport(McpExternalServerConfig cfg) =>
         cfg.Transport.ToLowerInvariant() switch
         {
-            "stdio" => new StdioMcpTransport(cfg),
-            "http-sse" => new LegacySseMcpTransport(cfg.Url, cfg.Headers),
-            _ => new StreamableHttpMcpTransport(cfg.Url, cfg.Headers)
+            "stdio" => new StdioMcpTransport(cfg, _gatewayConfig.ExecutionTimeoutMs),
+            "http-sse" => new LegacySseMcpTransport(cfg.Url, cfg.Headers, null, _gatewayConfig.ExecutionTimeoutMs),
+            _ => new StreamableHttpMcpTransport(cfg.Url, cfg.Headers, null, _gatewayConfig.ExecutionTimeoutMs)
         };
 
     private static Dictionary<string, string> Mask(Dictionary<string, string> map) =>

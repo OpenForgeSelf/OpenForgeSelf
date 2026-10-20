@@ -11,12 +11,18 @@ export interface McpExternalServerConfigDto {
   env?: Record<string, string>
 }
 
-/** 外部 MCP 服务器状态视图（密钥字段已脱敏）。 */
+/** 外部 MCP 服务器状态视图（Headers/Env 密钥已脱敏；url/command/args 为非密钥真值，后端明文下发供编辑回显）。 */
 export interface McpExternalServerStateDto {
   id: string
   name: string
   enabled: boolean
   transport: string
+  /** streamable-http / http-sse 端点地址（编辑回显用） */
+  url?: string
+  /** stdio 可执行文件（编辑回显用） */
+  command?: string
+  /** stdio 参数列表（编辑回显用） */
+  args?: string[]
   headersMasked: Record<string, string>
   envMasked: Record<string, string>
   connected: boolean

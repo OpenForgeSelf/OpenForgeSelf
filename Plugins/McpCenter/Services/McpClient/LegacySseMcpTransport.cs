@@ -13,13 +13,17 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
 /// </summary>
 public sealed class LegacySseMcpTransport : IMcpClientTransport
 {
+    /// <summary>endpoint 发现超时：连接建立阶段固定预算（PC-010 lens），不随执行超时配置变动。</summary>
     public const int EndpointDiscoverTimeoutMs = 15000;
-    public const int RequestTimeoutMs = 30000;
+
+    /// <summary>无参构造兜底超时（v2.5.2）：真源是 McpGatewayConfig.DefaultExecutionTimeoutMs；生产链路由 McpClientManager 注入网关配置值。</summary>
+    public const int DefaultRequestTimeoutMs = McpGatewayConfig.DefaultExecutionTimeoutMs;
 
     private static readonly string[] AllowedSchemes = { "http", "https" };
 
     private readonly HttpClient _http;
     private readonly string _sseUrl;
+    private readonly int _requestTimeoutMs;
     private readonly Dictionary<string, string> _headers;
     private readonly CancellationTokenSource _runCts = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pending = new();
@@ -29,14 +33,21 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
     private bool _closed;
     private int _nextId;
 
-    public LegacySseMcpTransport(string sseUrl, Dictionary<string, string>? headers, HttpMessageHandler? handler = null)
+    public LegacySseMcpTransport(string sseUrl, Dictionary<string, string>? headers, HttpMessageHandler? handler = null, int requestTimeoutMs = DefaultRequestTimeoutMs)
     {
         var uri = ValidateUrl(sseUrl);
         _sseUrl = uri.AbsoluteUri;
         _headers = headers ?? new();
+        _requestTimeoutMs = requestTimeoutMs > 0 ? requestTimeoutMs : DefaultRequestTimeoutMs;
         _http = handler != null ? new HttpClient(handler) : new HttpClient();
-        _http.Timeout = TimeSpan.FromSeconds(RequestTimeoutMs);
+        // v2.5.2 修单位 bug：同 StreamableHttp 传输，原 FromSeconds(毫秒值) 把毫秒当秒；改 FromMilliseconds。
+        // GET SSE 长流用 ResponseHeadersRead，HttpClient 超时只约束到响应头，不伤后台长连接。
+        _http.Timeout = TimeSpan.FromMilliseconds(_requestTimeoutMs);
     }
+
+    /// <summary>实际生效的执行超时与 HttpClient 超时（internal 供单测：断言配置贯穿与 FromMilliseconds 单位）。</summary>
+    internal int EffectiveRequestTimeoutMs => _requestTimeoutMs;
+    internal TimeSpan HttpTimeout => _http.Timeout;
 
     private static Uri ValidateUrl(string url)
     {
@@ -52,8 +63,17 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
     public async Task<JsonElement> InitializeAsync(IReadOnlyList<string> protocolVersions, CancellationToken ct)
     {
         StartStream(ct);
-        var result = await RequestAsync("initialize",
-            new { protocolVersion = protocolVersions[0], capabilities = new { } }, ct);
+        // clientInfo 为规范必填（缺失即 -32602，DeepWiki 实测）：载荷经 McpClientProtocol 单点构造
+        var result = await RequestAsync("initialize", McpClientProtocol.BuildInitializeParams(protocolVersions[0]), ct);
+        // 规范要求收到 initialize result 后客户端 MUST 发 notifications/initialized；尽力而为不阻断
+        try
+        {
+            await NotifyAsync(McpClientProtocol.InitializedNotificationMethod, ct);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[McpClient] SSE notifications/initialized 发送失败（不阻断连接）: {0}", ex.Message);
+        }
         return result;
     }
 
@@ -68,7 +88,7 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
             try { args = JsonDocument.Parse(argumentsJson).RootElement.Clone(); }
             catch (JsonException) { args = new { }; }
         }
-        return RequestAsync("tools/call", new { name, arguments = args }, ct);
+        return RequestAsync("tools/call", new { name, arguments = args ?? new { } }, ct); // 空参数给 {} 而非 null（PC-010 同族）
     }
 
     public Task<JsonElement> PingAsync(CancellationToken ct) => RequestAsync("ping", null, ct);
@@ -158,13 +178,29 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
         catch (JsonException) { }
     }
 
+    /// <summary>JSON-RPC 通知（无 id、经 message endpoint POST，不等响应体，只看 HTTP 状态）。v2.5.0：initialized 通知用。</summary>
+    private async Task NotifyAsync(string method, CancellationToken ct)
+    {
+        var endpoint = await ResolveEndpointAsync(ct);
+        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        foreach (var kv in _headers) req.Headers.TryAddWithoutValidation(kv.Key, kv.Value);
+        req.Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", method }), Encoding.UTF8, "application/json");
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _runCts.Token);
+        linked.CancelAfter(_requestTimeoutMs);
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
+        if (!resp.IsSuccessStatusCode)
+            throw new McpClientException($"外部 MCP 通知 {method} HTTP {(int)resp.StatusCode}");
+    }
+
     private async Task<JsonElement> RequestAsync(string method, object? prms, CancellationToken ct)
     {
         // 等待 endpoint 发现
         var endpoint = await ResolveEndpointAsync(ct);
         var id = Interlocked.Increment(ref _nextId);
         var idKey = id.ToString();
-        var payload = JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = prms });
+        var payload = McpClientProtocol.SerializeRequest(id, method, prms); // null params 省略键（PC-010 canonical 单点）
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[idKey] = tcs;
 
@@ -176,7 +212,7 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
             req.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _runCts.Token);
-            linked.CancelAfter(RequestTimeoutMs);
+            linked.CancelAfter(_requestTimeoutMs);
             using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
             if (!resp.IsSuccessStatusCode)
             {
@@ -209,7 +245,7 @@ public sealed class LegacySseMcpTransport : IMcpClientTransport
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new McpClientException($"外部 MCP 请求超时（{RequestTimeoutMs / 1000}s）：{method}");
+            throw new McpClientException($"外部 MCP 请求超时（{_requestTimeoutMs / 1000}s）：{method}");
         }
         finally
         {

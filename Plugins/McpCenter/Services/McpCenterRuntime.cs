@@ -9,7 +9,8 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// 供网关配置 API（api/mcp-center/config）查询与更新。
 /// 更新 = 改配置单例 → 写回 config.json → 热重启内置服务器（Stop→Start，新配置生效）；失败回滚旧配置。
 /// 配置键与 v1.0.0 一致（config.json 的 port/listenHost/token；环境变量 FORGESELF_MCP_GATEWAY_* 兼容）；
-/// v2.4.0 增 stateless（会话模式，默认无状态；切换热重启即生效，不再需要改代码发版）。
+/// v2.4.0 增 stateless（会话模式，默认无状态；切换热重启即生效，不再需要改代码发版）；
+/// v2.5.2 增 executionTimeoutMs（外部 MCP 执行超时，默认 5 分钟；对保存后新建/重连的连接生效，无需重连已挂起请求）。
 /// </summary>
 public sealed class McpCenterRuntime
 {
@@ -41,13 +42,14 @@ public sealed class McpCenterRuntime
             TokenMasked = MaskToken(token),
             IsRunning = _server.IsRunning,
             Stateless = _config.Stateless,
+            ExecutionTimeoutMs = _config.ExecutionTimeoutMs,
             Version = _version
         };
     }
 
     /// <summary>
     /// 应用配置更新：校验 → 更新单例 → 写 config.json → 热重启服务器；失败回滚旧配置并抛出异常。
-    /// 端口/监听地址/令牌/会话模式任一可省略（不传=不变）；token 传空串=清除鉴权。
+    /// 端口/监听地址/令牌/会话模式/执行超时任一可省略（不传=不变）；token 传空串=清除鉴权。
     /// </summary>
     public async Task<McpCenterConfigDto> ApplyUpdateAsync(McpCenterConfigUpdateDto update)
     {
@@ -60,6 +62,7 @@ public sealed class McpCenterRuntime
         var oldHost = _config.ListenHost;
         var oldToken = _config.Token;
         var oldStateless = _config.Stateless;
+        var oldExecutionTimeoutMs = _config.ExecutionTimeoutMs;
 
         try
         {
@@ -87,11 +90,20 @@ public sealed class McpCenterRuntime
                 _config.Stateless = stateless;
             }
 
+            if (update.ExecutionTimeoutMs is { } timeoutMs)
+            {
+                if (!McpGatewayConfig.IsValidExecutionTimeout(timeoutMs))
+                {
+                    throw new ArgumentException($"执行超时须在 {McpGatewayConfig.MinExecutionTimeoutMs / 1000} 秒~{McpGatewayConfig.MaxExecutionTimeoutMs / 1000} 秒之间（当前 {timeoutMs} 毫秒）");
+                }
+                _config.ExecutionTimeoutMs = timeoutMs;
+            }
+
             await PersistAsync();
             await _server.StopAsync();
             await _server.StartAsync();
 
-            XTrace.Log.Info("[McpCenter] 网关配置已更新并热重启: {0}（会话模式：{1}）", _config.ListenUrl, _config.Stateless ? "无状态" : "有状态");
+            XTrace.Log.Info("[McpCenter] 网关配置已更新并热重启: {0}（会话模式：{1}，执行超时：{2}ms，对新建/重连连接生效）", _config.ListenUrl, _config.Stateless ? "无状态" : "有状态", _config.ExecutionTimeoutMs);
             return GetInfo();
         }
         catch (Exception ex)
@@ -100,6 +112,7 @@ public sealed class McpCenterRuntime
             _config.ListenHost = oldHost;
             _config.Token = oldToken;
             _config.Stateless = oldStateless;
+            _config.ExecutionTimeoutMs = oldExecutionTimeoutMs;
             try
             {
                 await _server.StopAsync();
@@ -126,7 +139,8 @@ public sealed class McpCenterRuntime
                 port = _config.Port,
                 listenHost = _config.ListenHost,
                 token = _config.Token,
-                stateless = _config.Stateless
+                stateless = _config.Stateless,
+                executionTimeoutMs = _config.ExecutionTimeoutMs
             }, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(path, json);
         }

@@ -176,4 +176,56 @@ public class McpCenterRuntimeTests
         Assert.False(raw.GetProperty("stateless").GetBoolean());
         Assert.False(McpGatewayConfig.Load(dir).Stateless);
     }
+
+    // ---------- 外部 MCP 执行超时可配置（v2.5.2） ----------
+
+    [Fact]
+    public void 更新执行超时后视图与落盘均反映新值()
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out var config);
+        Assert.Equal(300000, config.ExecutionTimeoutMs); // 默认 5 分钟
+        Assert.Equal(300000, GetInfo(runtime).ExecutionTimeoutMs);
+
+        var updated = runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto { ExecutionTimeoutMs = 600000 }).Result;
+
+        Assert.Equal(600000, updated.ExecutionTimeoutMs);
+        Assert.Equal(600000, GetInfo(runtime).ExecutionTimeoutMs);
+
+        // config.json 落盘新键，重启后加载仍为该值（AC-2 保存即落盘）
+        var raw = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(dir, "config.json")));
+        Assert.Equal(600000, raw.GetProperty("executionTimeoutMs").GetInt32());
+        Assert.Equal(600000, McpGatewayConfig.Load(dir).ExecutionTimeoutMs);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(999)]
+    [InlineData(3600001)]
+    public void 执行超时越界拒绝且原值不变(int bad)
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out var config);
+
+        var ex = Assert.ThrowsAsync<ArgumentException>(
+            () => runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto { ExecutionTimeoutMs = bad })).Result;
+        Assert.Contains("执行超时须在", ex.Message);
+
+        // 拒绝后配置与落盘均保持默认（控制器层把 ArgumentException 映射 400）
+        Assert.Equal(300000, config.ExecutionTimeoutMs);
+        Assert.Equal(300000, GetInfo(runtime).ExecutionTimeoutMs);
+    }
+
+    [Fact]
+    public void 执行超时不传时保持原值()
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out var config);
+        config.ExecutionTimeoutMs = 120000;
+
+        var updated = runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto { Port = 19193 }).Result;
+
+        Assert.Equal(120000, updated.ExecutionTimeoutMs);
+    }
 }

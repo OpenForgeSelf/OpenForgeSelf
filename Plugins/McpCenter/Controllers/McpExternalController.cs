@@ -224,9 +224,11 @@ public class McpExternalController : ControllerBase
     {
         try
         {
-            var (ok, message) = await _manager.TestAsync(id, default);
+            var (ok, message, durationMs) = await _manager.TestAsync(id, default);
+            // data 必须同时携带 success/message/durationMs：前端 apiPost 只解包 data，信封 message 会被丢弃
+            //（2026-10-17 修复批门禁② e2e 暴露：握手成功但前端读不到 success，误报「测试失败」）
             return ok
-                ? Ok(ApiResponse<object>.Ok(new { id, ok }, message))
+                ? Ok(ApiResponse<object>.Ok(new { id, ok, success = true, message, durationMs }, message))
                 : StatusCode(400, ApiResponse<object>.Error(message, 400));
         }
         catch (Exception ex)
@@ -249,7 +251,8 @@ public class McpExternalController : ControllerBase
             Headers = dto.Headers ?? baseConfig.Headers,
             Command = dto.Command ?? baseConfig.Command,
             Args = dto.Args ?? baseConfig.Args,
-            Env = dto.Env ?? baseConfig.Env
+            Env = dto.Env ?? baseConfig.Env,
+            Framing = dto.Framing ?? baseConfig.Framing
         };
         return ExternalServersStore.ValidateAndNormalize(merged);
     }

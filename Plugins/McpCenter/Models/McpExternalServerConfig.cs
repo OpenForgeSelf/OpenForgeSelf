@@ -34,6 +34,12 @@ public sealed class McpExternalServerConfig
 
     /// <summary>附加环境变量（仅 stdio 使用）。</summary>
     public Dictionary<string, string> Env { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// stdio 消息帧型（v2.5.1，PC-010）：""=自动（首帧 NDJSON 探测，无响应则换 LSP 帧重发一次，之后跟随对方响应帧型）；
+    /// "ndjson"=强制换行分隔（官方 TS/Python SDK 实况）；"lsp"=强制 Content-Length 帧（规范 SHOULD 形态）。
+    /// </summary>
+    public string Framing { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -120,4 +126,7 @@ public sealed class McpExternalServerUpsertDto
     public List<string>? Args { get; set; }
 
     public Dictionary<string, string>? Env { get; set; }
+
+    /// <summary>stdio 消息帧型（v2.5.1，PC-010）：空=自动；"ndjson"/"lsp" 强制。仅 stdio 有意义。</summary>
+    public string? Framing { get; set; }
 }

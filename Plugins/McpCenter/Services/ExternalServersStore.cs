@@ -81,7 +81,9 @@ public sealed class ExternalServersStore
             Command = cfg.Command?.Trim() ?? string.Empty,
             Args = cfg.Args?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList() ?? new(),
             Headers = cfg.Headers?.Where(kv => !string.IsNullOrWhiteSpace(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase) ?? new(),
-            Env = cfg.Env?.Where(kv => !string.IsNullOrWhiteSpace(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value ?? string.Empty, StringComparer.Ordinal) ?? new()
+            Env = cfg.Env?.Where(kv => !string.IsNullOrWhiteSpace(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value ?? string.Empty, StringComparer.Ordinal) ?? new(),
+            // stdio 消息帧型透传（v2.5.1，PC-010）：非法值不在此处炸，传输层 ParseFraming 回落 auto
+            Framing = cfg.Framing?.Trim() ?? string.Empty
         };
 
         if (transport is "streamable-http" or "http-sse")
@@ -92,6 +94,11 @@ public sealed class ExternalServersStore
                 throw new McpClientException("外部 MCP 地址仅支持 http/https");
         }
 
+        // 掩码形态防护（v2.5.0，PC-008 M2）：状态视图的脱敏值是 `****` 或 `****尾4`（恰 8 字符以内），
+        // 旧客户端把掩码当编辑真值往返会把真实密钥覆盖成掩码串（数据破坏型）；一律拒绝落盘。
+        RejectMaskedValue(normalized.Headers, "请求头");
+        RejectMaskedValue(normalized.Env, "环境变量");
+
         if (transport == "stdio")
         {
             if (string.IsNullOrWhiteSpace(normalized.Command))
@@ -101,5 +108,16 @@ public sealed class ExternalServersStore
         }
 
         return normalized;
+    }
+
+    /// <summary>拒绝掩码形态值（`****` 前缀且总长 ≤8，即状态视图脱敏串的形状）。</summary>
+    private static void RejectMaskedValue(Dictionary<string, string> map, string fieldLabel)
+    {
+        foreach (var kv in map)
+        {
+            if (kv.Value.StartsWith("****", StringComparison.Ordinal) && kv.Value.Length <= 8)
+                throw new McpClientException(
+                    $"{fieldLabel}「{kv.Key}」的值是脱敏展示串（{kv.Value}），不是真实密钥：不改动请保持原样，需修改请填入完整新值");
+        }
     }
 }

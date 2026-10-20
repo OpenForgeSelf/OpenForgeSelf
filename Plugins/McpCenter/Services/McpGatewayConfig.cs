@@ -5,10 +5,12 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 
 /// <summary>
 /// MCP 网关配置：三级优先序（环境变量 → 插件数据根 config.json → 内置默认）。
-/// 环境变量：FORGESELF_MCP_GATEWAY_PORT / _HOST / _TOKEN / _STATELESS。
+/// 环境变量：FORGESELF_MCP_GATEWAY_PORT / _HOST / _TOKEN / _STATELESS / _TIMEOUT_MS。
 /// e2e 多宿主实例并存时靠环境变量错开端口，生产靠 config.json 固化。
 /// Stateless（v2.4.0）：会话模式开关，默认无状态（根治宿主/网关重启后旧 Mcp-Session-Id 吃 404/-32001，
 /// 见 034-mcp-center.md「有状态会话语义」）；页面/配置切回有状态无需发版。
+/// ExecutionTimeoutMs（v2.5.2）：外部 MCP 执行请求超时（毫秒），默认 5 分钟；对保存后新建/重连的连接生效，
+/// 合法域 1s~1h（防「永不超时」挂死）；连接建立阶段子超时（帧协商/endpoint 发现）不受其约束。
 /// </summary>
 public sealed class McpGatewayConfig
 {
@@ -17,10 +19,20 @@ public sealed class McpGatewayConfig
     public const string DefaultToken = "";
     public const bool DefaultStateless = true;
 
+    /// <summary>外部 MCP 执行请求超时默认值（v2.5.2）：5 分钟——30s 对 DeepWiki/Playwright/npx 冷启动类慢工具偏短（用户 2026-10-18 拍板）。</summary>
+    public const int DefaultExecutionTimeoutMs = 300000;
+
+    /// <summary>合法域下限 1 秒：拒绝 0/负值造成「请求即死」。</summary>
+    public const int MinExecutionTimeoutMs = 1000;
+
+    /// <summary>合法域上限 1 小时：拒绝「永不超时」挂死线程/连接。</summary>
+    public const int MaxExecutionTimeoutMs = 3600000;
+
     public const string EnvPort = "FORGESELF_MCP_GATEWAY_PORT";
     public const string EnvHost = "FORGESELF_MCP_GATEWAY_HOST";
     public const string EnvToken = "FORGESELF_MCP_GATEWAY_TOKEN";
     public const string EnvStateless = "FORGESELF_MCP_GATEWAY_STATELESS";
+    public const string EnvExecutionTimeoutMs = "FORGESELF_MCP_GATEWAY_TIMEOUT_MS";
 
     private const string ConfigFileName = "config.json";
 
@@ -30,6 +42,9 @@ public sealed class McpGatewayConfig
 
     /// <summary>true=无状态（每请求独立，不发 session id）；false=有状态（initialize 签发 Mcp-Session-Id）。</summary>
     public bool Stateless { get; set; } = DefaultStateless;
+
+    /// <summary>外部 MCP 执行请求超时（毫秒，v2.5.2）：驱动三传输 tools/call、tools/list 等请求的取消预算与 HttpClient 超时。</summary>
+    public int ExecutionTimeoutMs { get; set; } = DefaultExecutionTimeoutMs;
 
     public string ListenUrl => $"http://{ListenHost}:{Port}";
 
@@ -54,6 +69,17 @@ public sealed class McpGatewayConfig
                     cfg.Token = fromFile.Token ?? DefaultToken;
                     // 旧版 config.json 无 stateless 键 ⇒ 反序列化保持默认 true（升级即自动转无状态，设计拍板 S1）
                     cfg.Stateless = fromFile.Stateless;
+                    // 旧版 config.json 无 executionTimeoutMs 键 ⇒ 反序列化为 0，隐式保持默认 300000（升级兼容不记警）；
+                    // 显式写了越界值（非 0）⇒ 回落默认并记警（不抛，与 Load 容错风格一致）
+                    if (IsValidExecutionTimeout(fromFile.ExecutionTimeoutMs))
+                    {
+                        cfg.ExecutionTimeoutMs = fromFile.ExecutionTimeoutMs;
+                    }
+                    else if (fromFile.ExecutionTimeoutMs != 0)
+                    {
+                        XTrace.Log.Warn("[McpCenter] config.json 的 executionTimeoutMs={0} 越界（合法 {1}~{2}ms），回落默认 {3}ms",
+                            fromFile.ExecutionTimeoutMs, MinExecutionTimeoutMs, MaxExecutionTimeoutMs, DefaultExecutionTimeoutMs);
+                    }
                 }
             }
             else
@@ -101,6 +127,23 @@ public sealed class McpGatewayConfig
             }
         }
 
+        var envTimeout = Environment.GetEnvironmentVariable(EnvExecutionTimeoutMs);
+        if (!string.IsNullOrWhiteSpace(envTimeout))
+        {
+            if (int.TryParse(envTimeout, out var timeoutMs) && IsValidExecutionTimeout(timeoutMs))
+            {
+                cfg.ExecutionTimeoutMs = timeoutMs;
+            }
+            else
+            {
+                XTrace.Log.Warn("[McpCenter] 环境变量 {0}={1} 非法（须为 {2}~{3} 的整数毫秒），保持 {4}ms",
+                    EnvExecutionTimeoutMs, envTimeout, MinExecutionTimeoutMs, MaxExecutionTimeoutMs, cfg.ExecutionTimeoutMs);
+            }
+        }
+
         return cfg;
     }
+
+    /// <summary>执行超时合法域判据（PUT 校验与 Load 回落共用单点）：1 秒 ~ 1 小时。</summary>
+    public static bool IsValidExecutionTimeout(int ms) => ms is >= MinExecutionTimeoutMs and <= MaxExecutionTimeoutMs;
 }

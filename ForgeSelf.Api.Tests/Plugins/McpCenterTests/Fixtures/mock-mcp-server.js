@@ -2,9 +2,12 @@
 // mock-mcp-server.js — 测试用最小 MCP 服务器（三传输：stdio / streamable-http / http-sse）
 // 用法：
 //   node mock-mcp-server.js --mode stdio
+//   node mock-mcp-server.js --mode stdio-ndjson       # 换行分隔 JSON 帧（官方 TS/Python SDK 实况，PC-009 仿真）
 //   node mock-mcp-server.js --mode http --port 0        # 随机端口，打印 "LISTENING <port>"
 //   node mock-mcp-server.js --mode sse --port 0         # 旧版双端点（GET /sse 发现 endpoint → POST /mcp）
 // 支持工具：echo(text) / add(a,b)；initialize/ping/tools/list/tools/call。
+// --with-slow 额外暴露 slow(ms) 工具（延时后才应答，v2.5.2 执行超时可配置 e2e 专用）；
+// 默认不开启，保持既有工具数断言（toolCount=2）不变。
 
 const http = require('http');
 
@@ -22,6 +25,22 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: { a: { type: 'number' }, b: { type: 'number' } }, required: ['a', 'b'] }
   }
 ];
+
+// --with-slow：v2.5.2 执行超时 e2e 的慢工具（按参数 ms 延时后才回响应）
+const WITH_SLOW = process.argv.includes('--with-slow');
+if (WITH_SLOW) {
+  TOOLS.push({
+    name: 'slow',
+    description: '延时 ms 毫秒后返回（测试执行超时用）',
+    inputSchema: { type: 'object', properties: { ms: { type: 'number' } }, required: ['ms'] }
+  });
+}
+
+/** 本次请求需延迟应答的毫秒数（仅 slow 工具；上限 120s 防挂死）。 */
+function callDelayMs(req) {
+  return req.method === 'tools/call' && req.params && req.params.name === 'slow'
+    ? Math.min(Number(req.params.arguments && req.params.arguments.ms) || 0, 120000) : 0;
+}
 
 function handleRequest(req, json) {
   const id = req.id !== undefined ? req.id : null;
@@ -48,6 +67,9 @@ function handleRequest(req, json) {
         if (name === 'add') {
           const sum = Number(args.a) + Number(args.b);
           return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify({ sum }) }], isError: false } };
+        }
+        if (name === 'slow') {
+          return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify({ slept: Number(args.ms) || 0, ok: true }) }], isError: false } };
         }
         return { jsonrpc: '2.0', id, error: { code: -32602, message: `unknown tool: ${name}` } };
       }
@@ -78,7 +100,10 @@ function runStdio() {
       let req;
       try { req = JSON.parse(body); } catch { continue; }
       const resp = handleRequest(req, body);
-      if (req.id !== undefined) writeFrame(resp);
+      if (req.id !== undefined) {
+        const d = callDelayMs(req);
+        if (d) setTimeout(() => writeFrame(resp), d); else writeFrame(resp);
+      }
     }
   });
   function writeFrame(obj) {
@@ -86,6 +111,29 @@ function runStdio() {
     const bytes = Buffer.byteLength(json, 'utf8');
     process.stdout.write(`Content-Length: ${bytes}\r\n\r\n${json}`);
   }
+}
+
+// ---------- stdio（NDJSON：换行分隔，仿官方 TS/Python SDK） ----------
+function runStdioNdjson() {
+  let buf = '';
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => {
+    buf += chunk;
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line) continue;
+      let req;
+      try { req = JSON.parse(line); } catch { continue; }
+      const resp = handleRequest(req, line);
+      if (req.id !== undefined) {
+        const d = callDelayMs(req);
+        const w = () => process.stdout.write(JSON.stringify(resp) + '\n');
+        if (d) setTimeout(w, d); else w();
+      }
+    }
+  });
 }
 
 // ---------- HTTP helpers ----------
@@ -129,6 +177,7 @@ function runHttp(mode) {
           res.writeHead(400); res.end('bad json'); return;
         }
         const resp = handleRequest(reqObj);
+        const deliver = () => {
         if (mode === 'sse') {
           // 旧版：POST 202 空体；响应经已建立的 SSE 流按 id 回传
           res.writeHead(202, { 'Content-Type': 'text/plain' });
@@ -149,6 +198,9 @@ function runHttp(mode) {
             res.end(JSON.stringify(resp));
           }
         }
+        };
+        const d = callDelayMs(reqObj);
+        if (d) setTimeout(deliver, d); else deliver();
       });
       return;
     }
@@ -163,4 +215,5 @@ function runHttp(mode) {
 const args = process.argv.slice(2);
 const mode = args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'stdio';
 if (mode === 'stdio') runStdio();
+else if (mode === 'stdio-ndjson') runStdioNdjson();
 else runHttp(mode);

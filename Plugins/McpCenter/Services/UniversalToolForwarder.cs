@@ -38,7 +38,7 @@ public sealed class UniversalToolForwarder
     public static string ToolDefinitionJson => """
         {
           "name": "universal_tool",
-          "description": "万能工具网关：对外唯一入口，按名转发调用本项目已注册的全部工具与已接入的外部 MCP 服务器工具。入参 {tool: 工具名, parameters: 该工具的参数对象}，返回目标工具结果的原样 JSON，失败返回 {success:false, error:...}。不可调用自身。发现工具：先调 {tool: 'list_tools'} 可列出全部已注册工具（名称/说明/参数格式，可按关键字过滤），再按名调用。常规能力举例：读写文件（list_files / read_file / write_file / file_stats / file_rename 等）、执行命令与脚本（run_terminal_command / run_script / execute_code）、计算与文本（calculate / format_json / encode_base64 / text_stats）、搜索（search_memories / search_links）、系统监控（get_cpu_usage / get_memory_usage / get_process_list）、工作流（plan_workflow / execute_workflow）等。外部 MCP 服务器工具：tool 传 mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search），需先在 MCP 中心界面连接该服务器。",
+          "description": "万能工具网关：对外唯一入口，按名转发调用本项目已注册的全部工具与已接入的外部 MCP 服务器工具。入参 {tool: 工具名, parameters: 该工具的参数对象}，返回目标工具结果的原样 JSON，失败返回 {success:false, error:...}。不可调用自身。发现工具：先调 {tool: 'list_tools'} 可列出全部可用工具（含已连接的外部 MCP 工具，名称/说明/参数格式，可按关键字过滤），再按名调用。常规能力举例：读写文件（list_files / read_file / write_file / file_stats / file_rename 等）、执行命令与脚本（run_terminal_command / run_script / execute_code）、计算与文本（calculate / format_json / encode_base64 / text_stats）、搜索（search_memories / search_links）、系统监控（get_cpu_usage / get_memory_usage / get_process_list）、工作流（plan_workflow / execute_workflow）等。外部 MCP 服务器工具：tool 传 mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search），需先在 MCP 中心界面连接该服务器——连接后其工具会以 mcp. 前缀全名出现在 list_tools 结果里（source=mcp-external）。",
           "inputSchema": {
             "type": "object",
             "properties": {
@@ -192,19 +192,16 @@ public sealed class UniversalToolForwarder
     }
 
     /// <summary>
-    /// 外部 MCP 工具转发：tool 形如 mcp.&lt;服务器id&gt;.&lt;工具名&gt;（命名空间内不含点，工具名按首段点拆分）。
+    /// 外部 MCP 工具转发：tool 形如 mcp.&lt;服务器id&gt;.&lt;工具名&gt;（命名空间内不含点，拆分与跨插件契约
+    /// <see cref="McpExternalGatewayAdapter"/> 同源：<see cref="McpExternalToolNames.TrySplit"/>）。
     /// 未连接/目标工具不存在/传输失败 → isError + 明确中文错误。
     /// </summary>
     private async Task<ForwardResult> ForwardExternalAsync(string toolName, string paramJson)
     {
-        var rest = toolName[McpClientManager.ExternalPrefix.Length..];
-        var dotIdx = rest.IndexOf('.');
-        if (dotIdx <= 0 || dotIdx == rest.Length - 1)
+        if (!McpExternalToolNames.TrySplit(toolName, out var serverId, out var externalTool))
         {
             return Err($"外部工具名格式应为 mcp.<服务器id>.<工具名>（当前: {toolName}；例如 mcp.deepwiki.search）");
         }
-        var serverId = rest[..dotIdx];
-        var externalTool = rest[(dotIdx + 1)..];
 
         try
         {

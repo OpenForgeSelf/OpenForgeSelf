@@ -31,6 +31,10 @@ export interface DshMcpConfigDto {
   configExists: boolean
   /** 默认写入地址（当前网关地址 + /mcp）。 */
   defaultUrl: string
+  /** 写入目标条目 id（后端 DshMcpConfigDto.EntryId，QuickWrite 兼容路径用；默认 mcp-forgeself）。 */
+  entryId: string
+  /** 目标条目当前已配置的 url（未配置时后端回落 DefaultUrl；QuickWrite 兼容路径用）。 */
+  url: string
   servers: DshMcpServerDto[]
   /** 重复的条目 id（需要去重）。 */
   duplicateIds: string[]

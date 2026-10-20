@@ -6,9 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>McpCenter</AssemblyName>
     <RootNamespace>ForgeSelf.Api.Plugins.McpCenter</RootNamespace>
-    <Version>2.4.0</Version>
-    <AssemblyVersion>2.4.0.0</AssemblyVersion>
-    <FileVersion>2.4.0.0</FileVersion>
+    <Version>2.6.0</Version>
+    <AssemblyVersion>2.6.0.0</AssemblyVersion>
+    <FileVersion>2.6.0.0</FileVersion>
     <!-- 2026-10-09（2.3.8 崩溃事故）：插件首个第三方 NuGet 依赖（ModelContextProtocol.AspNetCore 2.2.0）
          未随插件进版本目录 → 宿主 MVC 扫描插件程序集时 ReflectionTypeLoadException → 宿主异常退出。
          普通类库 bin 默认不含 PackageReference 的 dll（CopyLocalLockFileAssemblies=false）；

@@ -14,6 +14,8 @@ export interface McpCenterConfigDto {
   isRunning: boolean
   /** 会话模式（v2.4.0）：true=无状态（重启不断会话）；false=有状态（握手签发 Mcp-Session-Id）。 */
   stateless: boolean
+  /** 外部 MCP 执行请求超时（毫秒，v2.5.2）：默认 300000（5 分钟）；UI 展示/输入为秒。 */
+  executionTimeoutMs: number
   /** 插件版本。 */
   version: string
 }
@@ -25,4 +27,6 @@ export interface McpCenterConfigUpdateDto {
   token?: string
   /** 会话模式（v2.4.0）：不传=不变；保存后热重启立即生效。 */
   stateless?: boolean
+  /** 外部 MCP 执行超时（毫秒，v2.5.2）：不传=不变；合法 1000~3600000；对保存后新建/重连连接生效。 */
+  executionTimeoutMs?: number
 }

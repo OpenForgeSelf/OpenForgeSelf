@@ -40,8 +40,11 @@ export interface MockUpstream {
 /**
  * 启动 mock 上游 server。
  * @param port 监听端口，默认 18080（与后端预配置 endpoint 约定一致）
+ * @param opts.chatContent 非流式 chat 响应的 message.content 文本，默认 'hi'
+ *   （2026-10-18 输入3：AI 提供方「选定模型测试连接」用例需要上游回复含 ok，不影响存量用例）
  */
-export function startMockUpstream(port = 18080): Promise<MockUpstream> {
+export function startMockUpstream(port = 18080, opts?: { chatContent?: string }): Promise<MockUpstream> {
+  const chatContent = opts?.chatContent ?? 'hi'
   let lastReq: MockUpstreamRequest | null = null
 
   const server = http.createServer((req, res) => {
@@ -116,7 +119,7 @@ export function startMockUpstream(port = 18080): Promise<MockUpstream> {
               choices: [
                 {
                   index: 0,
-                  message: { role: 'assistant', content: 'hi' },
+                  message: { role: 'assistant', content: chatContent },
                   finish_reason: 'stop',
                 },
               ],

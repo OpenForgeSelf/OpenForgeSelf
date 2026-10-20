@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.McpCenter.Models;
 
 namespace ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
@@ -57,7 +58,7 @@ public sealed class McpClientSession : IAsyncDisposable
                 {
                     Name = name,
                     ServerId = _config.Id,
-                    FullName = $"mcp.{_config.Id}.{name}",
+                    FullName = McpExternalToolNames.BuildFullName(_config.Id, name),
                     Description = t.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString()! : string.Empty,
                     InputSchemaJson = t.TryGetProperty("inputSchema", out var s) ? s.GetRawText() : string.Empty
                 });

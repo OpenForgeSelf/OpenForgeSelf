@@ -1,9 +1,12 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.McpCenter.Controllers;
 using ForgeSelf.Api.Plugins.McpCenter.Models;
 using ForgeSelf.Api.Plugins.McpCenter.Services;
 using ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
+using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Plugins.McpCenterTests;
@@ -88,6 +91,7 @@ public class McpClientIntegrationTests
         {
             var cfg = Config();
             cfg.Transport = "stdio";
+            cfg.Framing = "lsp"; // mock 说 LSP 帧；显式指定避开 auto 探测的 5s 回退等待（auto 路径由 McpStdioFramingTests 专门覆盖）
             cfg.Command = "node";
             // 裸路径参数（ArgumentList 自动引号转义；手工带引号会作为字面量传给 node）
             cfg.Args = new() { MockScript, "--mode", "stdio" };
@@ -155,6 +159,7 @@ public class McpClientIntegrationTests
             var cfg = Config();
             cfg.Id = "mock";
             cfg.Transport = "stdio";
+            cfg.Framing = "lsp"; // 同上：mock 固定 LSP 帧，快速路径
             cfg.Command = "node";
             cfg.Args = new() { MockScript, "--mode", "stdio" };
             var store = new ExternalServersStore(TempDataDir());
@@ -206,6 +211,58 @@ public class McpClientIntegrationTests
         Assert.True(result.IsError);
         using var doc = JsonDocument.Parse(result.Text);
         Assert.Contains("mcp.<服务器id>.<工具名>", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    /// <summary>
+    /// POST {id}/test 端点契约守卫（2026-10-17 修复批门禁② e2e 暴露）：
+    /// 前端 apiPost 只解包 data，handleTestExternal 读 data.success/data.message/data.durationMs；
+    /// 旧实现 data 只有 { id, ok } ⇒ 握手成功也误报「测试失败」。成功/失败两分支都锁形状。
+    /// </summary>
+    [Fact]
+    public async Task TestEndpoint_Success_DataCarriesSuccessMessageDurationMs()
+    {
+        var p = StartNode("--mode http --port 0");
+        try
+        {
+            var port = WaitListeningPort(p);
+            var store = new ExternalServersStore(TempDataDir());
+            store.Save(new List<McpExternalServerConfig>
+            {
+                new() { Id = "mock", Name = "Mock", Transport = "streamable-http", Url = $"http://127.0.0.1:{port}/mcp", Enabled = true }
+            });
+            var manager = new McpClientManager(store);
+            var controller = new McpExternalController(store, manager);
+
+            var action = await controller.Test("mock");
+            var ok = Assert.IsType<OkObjectResult>(action.Result);
+            var env = Assert.IsType<ApiResponse<object>>(ok.Value);
+            Assert.True(env.Success);
+
+            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(env.Data));
+            Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(doc.RootElement.GetProperty("message").GetString()));
+            Assert.True(doc.RootElement.GetProperty("durationMs").GetInt64() >= 0);
+        }
+        finally { StopNode(p); }
+    }
+
+    [Fact]
+    public async Task TestEndpoint_Failure_Returns400WithRealMessage()
+    {
+        var store = new ExternalServersStore(TempDataDir());
+        store.Save(new List<McpExternalServerConfig>
+        {
+            new() { Id = "down", Name = "Down", Transport = "streamable-http", Url = "http://127.0.0.1:9/mcp", Enabled = true }
+        });
+        var manager = new McpClientManager(store);
+        var controller = new McpExternalController(store, manager);
+
+        var action = await controller.Test("down");
+        var status = Assert.IsType<ObjectResult>(action.Result);
+        Assert.Equal(400, status.StatusCode);
+        var env = Assert.IsType<ApiResponse<object>>(status.Value);
+        Assert.False(env.Success);
+        Assert.False(string.IsNullOrWhiteSpace(env.Message));
     }
 
     /// <summary>转发器测试用最小 IContext（不触碰宿主注册表——mcp. 前缀路由不依赖）。</summary>

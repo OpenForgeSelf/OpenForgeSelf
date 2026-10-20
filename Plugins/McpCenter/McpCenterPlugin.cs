@@ -51,8 +51,9 @@ public class McpCenterPlugin : IPlugin
             var mcpService = McpService.WithDeferredRegistry(() => ctx.Get<IToolRegistry>());
 
             // v2.1.0 外部 MCP 客户端：配置存储 + 连接管理器（转发器路由 mcp.<id>.<tool> 依赖）
+            // v2.5.2：传入与 Runtime 共享的同一 config 实例——页面改执行超时后，下次建连/重连 lazy 读到新值
             var externalStore = new ExternalServersStore(dataDir);
-            var clientManager = new McpClientManager(externalStore);
+            var clientManager = new McpClientManager(externalStore, config);
 
             var forwarder = new UniversalToolForwarder(ctx, clientManager);
             // 传输层与协议协商已交由官方 MCP SDK 托管（见 McpGatewayServer：AddMcpServer + MapMcp，有状态会话）。
@@ -77,6 +78,13 @@ public class McpCenterPlugin : IPlugin
 
             // 停止器：插件 Fiber 逆序回滚（热重载/卸载）时先停服务器、断外部连接，再卸载 ALC
             ctx.Effect(() => new McpCenterStopDisposable(server, clientManager));
+
+            // v2.6.0 跨插件能力供给：外部工具「可发现 + 可调用」契约 eager 提供进 root 共享表
+            // （调研 §5.6 裁决 A/F：提供即 effect，插件热重载/卸载随 Fiber 逆序自动摘除，消费侧下次 Get 得 null 走降级）。
+            // 消费方：本插件 list_tools 枚举出口 + 兄弟插件 AIAgent 的 universal_tool（均运行期 ctx.Get，不缓存）。
+            // 顺序说明（CodeReview PILOT-072 Issue 2）：必须放在停止器 Effect 之后——Fiber 逆序回滚
+            // 则网关先被摘、后会话才停，消灭「会话已停、契约尚在」的脏窗口（消费方 Get 到 null 即降级）。
+            ctx.Register<IMcpExternalGateway>(new McpExternalGatewayAdapter(clientManager));
 
             XTrace.Log.Info("[McpCenter] MCP 中心插件初始化完成（{0}，协议协商由官方 MCP SDK 托管 · 有状态会话，对外工具数 1，外部服务器 {1} 台，服务器/工具管理已就绪）",
                 server.ListenUrl, externalStore.Load().Count);

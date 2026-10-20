@@ -164,6 +164,10 @@ const clearTokenFlag = ref(false)
 const configCopyHint = ref(false)
 // 会话模式（v2.4.0）：开=无状态（推荐，重启不断会话）；关=有状态（握手签发 session id）
 const statelessInput = ref(true)
+// 外部 MCP 执行超时（v2.5.2）：UI 以秒输入/展示，存储与传输单位为毫秒（换算集中在本层）
+const timeoutInputSec = ref(300)
+// 加载/保存成功后的基准值（脏比较用）：env/config 可能落非整千毫秒，反算比较会把没动过的值静默回写（2026-10-19 评审 Minor）
+const timeoutLoadedSec = ref(300)
 
 /**
  * MCP 端点地址（客户端真正要填的地址）：由后端真源 `listenUrl` 去掉尾部斜杠后补 `/mcp`。
@@ -187,6 +191,8 @@ async function loadGatewayConfig(): Promise<void> {
       tokenInput.value = ''
       clearTokenFlag.value = false
       statelessInput.value = cfg.stateless
+      timeoutInputSec.value = Math.round(cfg.executionTimeoutMs / 1000)
+      timeoutLoadedSec.value = timeoutInputSec.value
     }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '加载网关配置失败')
@@ -225,6 +231,11 @@ async function saveGatewayConfig(): Promise<void> {
     if (statelessInput.value !== gatewayConfig.value?.stateless) {
       update.stateless = statelessInput.value
     }
+    // 仅相对加载值确有改动才提交；isFinite 守卫防清空输入框（v-model 变 undefined→NaN）被误发（2026-10-19 评审 Minor）
+    const timeoutSec = Number(timeoutInputSec.value)
+    if (Number.isFinite(timeoutSec) && timeoutSec !== timeoutLoadedSec.value) {
+      update.executionTimeoutMs = Math.round(timeoutSec * 1000)
+    }
     // 各字段都未变化时不发请求
     if (Object.keys(update).length === 0) {
       ElMessage.info('没有需要保存的修改')
@@ -238,9 +249,9 @@ async function saveGatewayConfig(): Promise<void> {
       tokenInput.value = ''
       clearTokenFlag.value = false
       statelessInput.value = cfg.stateless
-      ElMessage.success(cfg.stateless
-        ? '网关配置已保存并热重启生效（当前：无状态，宿主/网关重启后客户端无需重连）'
-        : '网关配置已保存并热重启生效（当前：有状态，宿主/网关重启后客户端需重新连接）')
+      timeoutInputSec.value = Math.round(cfg.executionTimeoutMs / 1000)
+      timeoutLoadedSec.value = timeoutInputSec.value
+      ElMessage.success(`网关配置已保存并热重启生效（执行超时 ${Math.round(cfg.executionTimeoutMs / 1000)} 秒，对新建/重连连接生效；当前：${cfg.stateless ? '无状态，宿主/网关重启后客户端无需重连' : '有状态，宿主/网关重启后客户端需重新连接'}）`)
     }
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '保存失败')
@@ -353,6 +364,11 @@ const externalForm = ref<ExternalFormModel>({
 })
 const externalFormSaving = ref(false)
 const externalEditingId = ref<string | null>(null)
+/**
+ * 编辑态密钥基线（v2.5.0，PC-008 M2）：打开对话框时请求头/环境变量的脱敏展示文本。
+ * 保存时若与基线逐字相同 ⇒ 该字段不提交（后端省略字段保留原密钥），防止掩码串往返覆盖真实密钥。
+ */
+const externalSecretBaseline = ref<{ headersText: string; envText: string }>({ headersText: '', envText: '' })
 
 async function loadExternalServers(): Promise<void> {
   externalLoading.value = true
@@ -390,6 +406,7 @@ const externalStatusType = (s: McpExternalServerStateDto): 'success' | 'info' | 
 
 function openCreateExternal(): void {
   externalEditingId.value = null
+  externalSecretBaseline.value = { headersText: '', envText: '' }
   externalFormTitle.value = '新增外部服务器'
   externalForm.value = {
     id: '',
@@ -408,16 +425,20 @@ function openCreateExternal(): void {
 function openEditExternal(s: McpExternalServerStateDto): void {
   externalEditingId.value = s.id
   externalFormTitle.value = `编辑 ${s.name}`
+  // 非密钥字段回显真值（后端状态视图明文下发 url/command/args）；密钥字段仍走脱敏展示并记录基线
+  const headersText = kvToText(s.headersMasked)
+  const envText = kvToText(s.envMasked)
+  externalSecretBaseline.value = { headersText, envText }
   externalForm.value = {
     id: s.id,
     name: s.name,
     enabled: s.enabled,
     transport: s.transport as 'stdio' | 'streamable-http' | 'http-sse',
-    url: '',
-    headersText: kvToText(s.headersMasked),
-    command: '',
-    argsText: '',
-    envText: kvToText(s.envMasked),
+    url: s.url ?? '',
+    headersText,
+    command: s.command ?? '',
+    argsText: (s.args ?? []).join(' '),
+    envText,
   }
   externalFormVisible.value = true
 }
@@ -482,16 +503,20 @@ async function saveExternal(): Promise<void> {
   }
   externalFormSaving.value = true
   try {
+    // 编辑态：密钥文本与脱敏基线逐字相同 ⇒ 不提交该字段（后端省略即保留原值）；改动过才提交解析结果
+    const editing = externalEditingId.value !== null
+    const headers = parseKv(f.headersText)
+    const env = parseKv(f.envText)
     const body: McpExternalServerUpsertDto = {
       id: f.id.trim(),
       name: f.name.trim(),
       enabled: f.enabled,
       transport: f.transport,
       url: f.transport === 'stdio' ? undefined : f.url?.trim(),
-      headers: parseKv(f.headersText),
+      headers: editing && f.headersText === externalSecretBaseline.value.headersText ? undefined : headers,
       command: f.transport === 'stdio' ? f.command?.trim() || 'npx' : undefined,
       args: f.transport === 'stdio' ? parseArgs(f.argsText) : undefined,
-      env: parseKv(f.envText),
+      env: editing && f.envText === externalSecretBaseline.value.envText ? undefined : env,
     }
     if (externalEditingId.value) {
       await updateExternalServer(externalEditingId.value, body)
@@ -840,6 +865,15 @@ onMounted(() => {
                     : '握手签发 Mcp-Session-Id；重启后旧会话失效，客户端须重新连接' }}</span>
                 </div>
 
+                <div class="form-row">
+                  <label class="form-label">执行超时</label>
+                  <ElInputNumber
+                    v-model="timeoutInputSec" :min="1" :max="3600" :step="10"
+                    class="port-input" data-test="execution-timeout-input"
+                  />
+                  <span class="form-hint">外部 MCP 工具调用等待上限（秒），默认 300；改动后对新建/重连的连接生效</span>
+                </div>
+
                 <div class="form-actions">
                   <ElButton type="primary" :loading="savingConfig" @click="saveGatewayConfig">
                     保存并重启生效
@@ -1038,6 +1072,7 @@ onMounted(() => {
                 class="external-form-control"
               />
             </div>
+            <div v-if="externalEditingId" class="external-form-hint external-form-secret-hint">编辑模式下显示的是脱敏值（****尾4）：不改动则保留原密钥；如需修改请整行重写为完整新值</div>
           </template>
 
           <template v-else>
@@ -1068,6 +1103,7 @@ onMounted(() => {
                 class="external-form-control"
               />
             </div>
+            <div v-if="externalEditingId" class="external-form-hint external-form-secret-hint">编辑模式下显示的是脱敏值（****尾4）：不改动则保留原密钥；如需修改请整行重写为完整新值</div>
           </template>
 
           <div class="external-form-row">
@@ -1620,6 +1656,10 @@ export default { name: 'McpCenterView' }
 .form-hint {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
+  /* 窄视口守卫（2026-10-19 走查实证：长英文 token 撑出 min-content 致输入框被挤、尾句被 overflow:hidden 裁切）：
+     允许收缩 + 任意断行，保证 hint 换行在行内完整可见 */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .row-clear-token {
@@ -1777,6 +1817,11 @@ export default { name: 'McpCenterView' }
 .external-form-hint {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
+}
+
+/* 密钥脱敏说明：与表单控件列对齐（label 76px + gap 12px） */
+.external-form-secret-hint {
+  margin: 2px 0 8px 88px;
 }
 
 .external-form-help {

@@ -2,13 +2,13 @@
 feature_key: F034
 feature_no: 034
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-10-23
 aliases: ["034-mcp-center"]
 ---
 
 # 034 - MCP 中心（mcp-center 插件）
 
-> 插件形态：`ForgeSelf.Api/Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.5.0**。
+> 插件形态：`Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.7.0**。
 > 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
 > 前身：`mcp-gateway` v1.0.0（034-MCP 统一网关）更名 + 整合宿主内置「MCP 工具」管理（`api/mcp` + McpService）合并而成。
 
@@ -23,6 +23,7 @@ aliases: ["034-mcp-center"]
 | F034-R03 | 外部 MCP 服务器与工具管理（stdio / Streamable HTTP / HTTP+SSE） | FR | `api/mcp-center/servers` CRUD + `{id}/connect|disconnect|tools|test` | 已实现（v2.5.0 客户端侧规范合规，PC-008；v2.5.1 stdio 接入层三层修复，PC-010） | ForgeSelf.Web/e2e/plugins/mcp-center/mcp-center.spec.ts（外部 MCP UI 主链路 + stdio npx 真实世界） | docs/ai/pilot/2026-10-18-mcpcenter-stdio-npx-fix |
 | F034-R04 | 外部工具以 `mcp.<serverId>.<tool>` 命名空间经 `universal_tool` 转发，不进宿主注册表；**v2.6.0 修订（D10 枚举侧，ADR-003）**：`list_tools` 枚举出口合并已连接外部工具（`source=mcp-external`），网关与内置 AIAgent 两侧可见可调 | BR | 外部工具不出现在宿主 IToolRegistry；`list_tools` 合并枚举含全名/描述/可选 schema，`mcp.<id>.<工具>` 内外直调均通 | 已实现（v2.6.0） | ForgeSelf.Web/e2e/mcp-tools.spec.ts + mcp-center.spec.ts（v2.6.0 list_tools 合并用例） | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url · docs/ai/pilot/2026-10-19-mcp-external-tools-in-list |
 | F034-R05 | 管理面鉴权（ApiKeyPolicy） | BR | 无 token 访问管理端点返回 401 | 已实现 | ForgeSelf.Web/e2e/mcp-tools.spec.ts | docs/ai/pilot/2026-10-05-mcp-center-endpoint-url |
+| F034-R06 | MCP 网关跨域访问按 Origin 配置 | FR/BR | 网关配置页维护 Origin 白名单；仅 `/mcp` 对白名单来源返回 CORS；OPTIONS 不要求 token，实际 MCP 请求沿用原 Bearer 守卫 | 已实现（v2.7.0） | McpGatewayCorsTests + mcp-center.spec.ts | docs/ai/pilot/2026-10-23-mcp-gateway-cors |
 
 
 ## 功能定位
@@ -131,6 +132,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 | 监听地址 | `FORGESELF_MCP_GATEWAY_HOST` | `listenHost` | `127.0.0.1` |
 | Bearer 令牌 | `FORGESELF_MCP_GATEWAY_TOKEN` | `token` | 空（不鉴权） |
 | 会话模式（v2.4.0） | `FORGESELF_MCP_GATEWAY_STATELESS`（`1/true/0/false`，大小写不敏感） | `stateless` / `Stateless` | `true`（无状态） |
+| 跨域来源（v2.7.0） | —（在网关配置页设置） | `allowedOrigins` | `[]`（不允许跨域来源） |
 
 > **兼容决策（v2.0.0 更名时保留）**：环境变量前缀**沿用旧名** `FORGESELF_MCP_GATEWAY_*`，不改为 `MCP_CENTER_*`——兼容既有运维/e2e（`playwright.config.ts` 走 env 覆盖 e2e 端口的写法）与已写死该前缀的部署脚本；类名亦保留（`McpGatewayConfig/McpGatewayServer/...`），仅 namespace/日志前缀/`serverInfo.name` 改。config.json 数据目录随更名迁移到 `{宿主数据根}/plugins/mcp-center/`（旧 `mcp-gateway/` 目录保留未删）。
 
@@ -138,6 +140,7 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 - config.json 缺失时自动生成默认值（幂等）。
 - **端口占用约定**（2026-10-04 统一）：**默认端口 = `18890`**（`McpGatewayConfig.DefaultPort`，用户机 `config.json` 未显式设定时即生效）；生产实例、DSH 侧配置全部对齐 `18890`。e2e 走 `playwright.config.ts` 按 worktree 哈希派生的 `19000–19899` 独立段（`FORGESELF_MCP_GATEWAY_PORT` 环境变量），显式避开 `18890`；3 个 spec（`mcp-center.spec.ts` / `design-system-agent.spec.ts` / `sems.spec.ts`）的 env 兜底值为 `18891`（`?? '18891'`），仅在有人绕过 `playwright.config.ts` 直跑单 spec 且未设 env 时才会用到，同样避开生产 `18890`。新机器开箱即为 `18890`，无迁移负担。
 - 配置 API `PUT /api/mcp-center/config`：校验端口 1024-65535 → 写 config.json → 停旧服务器 → 启动新服务器热重启；失败回滚旧配置。token 传**空串 = 清除鉴权**，**不传 = 保留**原令牌。`stateless`（v2.4.0）同样**不传=不变**；切换会话模式不需改代码发版，保存即经热重启生效（`McpGatewayServer.StartAsync` 每次重建 WebApplication，`WithHttpTransport(o => o.Stateless = _config.Stateless)` 读最新配置）。旧 config.json 无 `stateless` 键 ⇒ 升级即默认无状态（设计拍板 S1）。
+- `allowedOrigins`（v2.7.0）是 `/mcp` 专用 CORS 白名单：每项是完整 `http://` 或 `https://` Origin（scheme/host/port），不含路径、不支持通配符；默认空。配置页每行一个 Origin，保存走现有 PUT + 网关热重启。允许来源的 OPTIONS 预检不经过 Bearer 校验且不进入 MCP handler；实际 MCP 请求仍经过既有 Bearer 校验。CORS 响应暴露 `Mcp-Session-Id`、`Mcp-Protocol-Version`、`WWW-Authenticate`，不启用 Cookie credentials。`/health` 不加 CORS。
 
 ## MCP 协议契约
 

@@ -94,6 +94,39 @@ public sealed class McpGatewayConfigTests
     }
 
     [Fact]
+    public void Load_AllowedOrigins_DefaultsEmpty_NormalizesAndIgnoresInvalidLegacyValues()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"mcpcfg_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "config.json"), "{\"port\": 19012}");
+            Assert.Empty(McpGatewayConfig.Load(dir).AllowedOrigins);
+
+            File.WriteAllText(Path.Combine(dir, "config.json"),
+                """{"allowedOrigins":[" https://APP.example.com/ ","https://app.example.com","https://bad.example/path","file://local"]}""");
+            Assert.Equal(new[] { "https://app.example.com" }, McpGatewayConfig.Load(dir).AllowedOrigins);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("https://app.example.com")]
+    [InlineData("http://localhost:3000/")]
+    [InlineData("file://local")]
+    [InlineData("https://app.example.com/path")]
+    [InlineData("https://user@app.example.com")]
+    [InlineData("*")]
+    public void TryNormalizeOrigin_OnlyAcceptsHttpOriginSyntax(string origin)
+    {
+        var accepted = McpGatewayConfig.TryNormalizeOrigin(origin, out _);
+        Assert.Equal(origin is "https://app.example.com" or "http://localhost:3000/", accepted);
+    }
+
+    [Fact]
     public void Load_EnvStatelessOverridesConfigFile()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mcpcfg_{Guid.NewGuid():N}");

@@ -83,15 +83,56 @@ public sealed class McpGatewayServer : IAsyncDisposable
             // /mcp 的前置守卫：MapMcp 之后无法在 handler 内联，改由中间件覆盖全部 MCP 方法
             app.Use(async (context, next) =>
             {
-                var isMcp = context.Request.Path.StartsWithSegments("/mcp");
-                if (isMcp && !IsAuthorized(context.Request))
+                var isMcpCorsEndpoint = context.Request.Path.Equals("/mcp", StringComparison.OrdinalIgnoreCase);
+                var isMcpRoute = context.Request.Path.StartsWithSegments("/mcp");
+                var origin = context.Request.Headers["Origin"].ToString();
+                var hasOrigin = !string.IsNullOrWhiteSpace(origin);
+                var isPreflight = isMcpCorsEndpoint && hasOrigin &&
+                    HttpMethods.IsOptions(context.Request.Method) &&
+                    !string.IsNullOrWhiteSpace(context.Request.Headers["Access-Control-Request-Method"]);
+
+                if (isMcpCorsEndpoint && hasOrigin)
+                {
+                    AppendVaryOrigin(context.Response);
+                    if (_config.IsOriginAllowed(origin))
+                    {
+                        context.Response.Headers["Access-Control-Allow-Origin"] =
+                            McpGatewayConfig.TryNormalizeOrigin(origin, out var normalized) ? normalized : origin;
+                        context.Response.Headers["Access-Control-Expose-Headers"] =
+                            "Mcp-Session-Id, Mcp-Protocol-Version, WWW-Authenticate";
+                    }
+                }
+
+                // 允许来源的预检必须先于 token 守卫处理；不允许来源明确拒绝，且不进入 MCP SDK/工具执行链。
+                if (isPreflight)
+                {
+                    var allowedOrigin = _config.IsOriginAllowed(origin);
+                    var requestedMethod = context.Request.Headers["Access-Control-Request-Method"].ToString();
+                    var methodAllowed = requestedMethod.Equals("POST", StringComparison.OrdinalIgnoreCase) ||
+                        requestedMethod.Equals("GET", StringComparison.OrdinalIgnoreCase) ||
+                        requestedMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
+                    if (!allowedOrigin || !methodAllowed)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return;
+                    }
+
+                    context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS";
+                    context.Response.Headers["Access-Control-Allow-Headers"] =
+                        "Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id";
+                    context.Response.Headers["Access-Control-Max-Age"] = "600";
+                    context.Response.StatusCode = StatusCodes.Status204NoContent;
+                    return;
+                }
+
+                if (isMcpRoute && !IsAuthorized(context.Request))
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return;
                 }
 
                 // 保留 1 MB 请求体上限（原 HandlePostAsync 行为；改用 SDK 后经此中间件维持）
-                if (isMcp && context.Request.ContentLength > MaxRequestBodyBytes)
+                if (isMcpRoute && context.Request.ContentLength > MaxRequestBodyBytes)
                 {
                     context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
                     return;
@@ -116,6 +157,19 @@ public sealed class McpGatewayServer : IAsyncDisposable
         catch (Exception ex)
         {
             XTrace.Log.Error("[McpCenter] MCP 网关启动失败（{0}），网关降级为不可用，宿主其余功能不受影响: {1}", _config.ListenUrl, ex.Message);
+        }
+    }
+
+    private static void AppendVaryOrigin(HttpResponse response)
+    {
+        var current = response.Headers["Vary"].ToString();
+        if (string.IsNullOrWhiteSpace(current))
+        {
+            response.Headers["Vary"] = "Origin";
+        }
+        else if (!current.Split(',').Any(value => value.Trim().Equals("Origin", StringComparison.OrdinalIgnoreCase)))
+        {
+            response.Headers["Vary"] = $"{current}, Origin";
         }
     }
 

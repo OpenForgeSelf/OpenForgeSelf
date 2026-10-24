@@ -156,6 +156,39 @@ public class McpCenterRuntimeTests
         Assert.EndsWith("p-me", updated.TokenMasked);
     }
 
+    [Fact]
+    public void 更新允许跨域来源后视图与configJson反映规范化结果()
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out _);
+
+        var updated = runtime.ApplyUpdateAsync(new McpCenterConfigUpdateDto
+        {
+            AllowedOrigins = [" https://APP.example.com/ ", "https://app.example.com", "http://localhost:3000"]
+        }).Result;
+
+        Assert.Equal(new[] { "https://app.example.com", "http://localhost:3000" }, updated.AllowedOrigins);
+        var raw = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(dir, "config.json")));
+        Assert.Equal(2, raw.GetProperty("allowedOrigins").GetArrayLength());
+
+        var reloaded = McpGatewayConfig.Load(dir);
+        Assert.Equal(updated.AllowedOrigins, reloaded.AllowedOrigins);
+    }
+
+    [Fact]
+    public void 更新无效跨域来源时拒绝且不改变现有配置()
+    {
+        var dir = MakeTempDir();
+        var runtime = CreateRuntime(dir, out var config);
+        config.AllowedOrigins = ["https://keep.example"];
+
+        var ex = Assert.ThrowsAsync<ArgumentException>(() => runtime.ApplyUpdateAsync(
+            new McpCenterConfigUpdateDto { AllowedOrigins = ["https://bad.example/path"] })).Result;
+
+        Assert.Contains("无效的跨域来源", ex.Message);
+        Assert.Equal(new[] { "https://keep.example" }, config.AllowedOrigins);
+    }
+
     // ---------- 会话模式可配置（v2.4.0） ----------
 
     [Fact]

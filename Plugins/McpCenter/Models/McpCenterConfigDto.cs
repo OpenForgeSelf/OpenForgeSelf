@@ -15,6 +15,9 @@ public class McpCenterConfigDto
     /// <summary>令牌掩码（如 ••••abcd）；未设置则为空串。</summary>
     public string TokenMasked { get; set; } = string.Empty;
 
+    /// <summary>允许跨域访问 MCP /mcp 端点的 Origin 白名单。</summary>
+    public List<string> AllowedOrigins { get; set; } = [];
+
     public bool IsRunning { get; set; }
 
     /// <summary>会话模式（v2.4.0）：true=无状态（每请求独立，重启不断会话）；false=有状态（initialize 签发 Mcp-Session-Id）。</summary>
@@ -34,6 +37,9 @@ public class McpCenterConfigUpdateDto
     public string? ListenHost { get; set; }
 
     public string? Token { get; set; }
+
+    /// <summary>允许跨域访问 MCP /mcp 端点的 Origin 白名单；空数组清空列表，不传保持不变。</summary>
+    public List<string>? AllowedOrigins { get; set; }
 
     /// <summary>会话模式（v2.4.0）：不传=不变；保存后热重启立即生效。</summary>
     public bool? Stateless { get; set; }

@@ -10,6 +10,8 @@ export interface McpCenterConfigDto {
   hasToken: boolean
   /** 令牌掩码（••••尾4）；未设置为空串。 */
   tokenMasked: string
+  /** 允许浏览器跨域访问 /mcp 的 Origin 白名单，空数组表示不开放跨域。 */
+  allowedOrigins: string[]
   /** 内置 MCP 服务器是否正在监听。 */
   isRunning: boolean
   /** 会话模式（v2.4.0）：true=无状态（重启不断会话）；false=有状态（握手签发 Mcp-Session-Id）。 */
@@ -25,6 +27,8 @@ export interface McpCenterConfigUpdateDto {
   port?: number
   listenHost?: string
   token?: string
+  /** 跨域来源白名单；空数组清空，不传保持不变。 */
+  allowedOrigins?: string[]
   /** 会话模式（v2.4.0）：不传=不变；保存后热重启立即生效。 */
   stateless?: boolean
   /** 外部 MCP 执行超时（毫秒，v2.5.2）：不传=不变；合法 1000~3600000；对保存后新建/重连连接生效。 */

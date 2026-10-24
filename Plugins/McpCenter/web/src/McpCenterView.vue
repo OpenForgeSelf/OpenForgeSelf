@@ -160,6 +160,7 @@ const savingConfig = ref(false)
 const portInput = ref<number>(18890)
 const listenHostInput = ref('127.0.0.1')
 const tokenInput = ref('')
+const allowedOriginsText = ref('')
 const clearTokenFlag = ref(false)
 const configCopyHint = ref(false)
 // 会话模式（v2.4.0）：开=无状态（推荐，重启不断会话）；关=有状态（握手签发 session id）
@@ -189,6 +190,7 @@ async function loadGatewayConfig(): Promise<void> {
       portInput.value = cfg.port
       listenHostInput.value = cfg.listenHost
       tokenInput.value = ''
+      allowedOriginsText.value = cfg.allowedOrigins.join('\n')
       clearTokenFlag.value = false
       statelessInput.value = cfg.stateless
       timeoutInputSec.value = Math.round(cfg.executionTimeoutMs / 1000)
@@ -228,6 +230,13 @@ async function saveGatewayConfig(): Promise<void> {
     } else if (clearTokenFlag.value) {
       update.token = '' // 显式清除令牌
     }
+    const allowedOrigins = allowedOriginsText.value
+      .split(/\r?\n/)
+      .map(origin => origin.trim())
+      .filter(Boolean)
+    if (JSON.stringify(allowedOrigins) !== JSON.stringify(gatewayConfig.value?.allowedOrigins ?? [])) {
+      update.allowedOrigins = allowedOrigins
+    }
     if (statelessInput.value !== gatewayConfig.value?.stateless) {
       update.stateless = statelessInput.value
     }
@@ -247,6 +256,7 @@ async function saveGatewayConfig(): Promise<void> {
       portInput.value = cfg.port
       listenHostInput.value = cfg.listenHost
       tokenInput.value = ''
+      allowedOriginsText.value = cfg.allowedOrigins.join('\n')
       clearTokenFlag.value = false
       statelessInput.value = cfg.stateless
       timeoutInputSec.value = Math.round(cfg.executionTimeoutMs / 1000)
@@ -822,7 +832,7 @@ onMounted(() => {
 
               <div class="gateway-form">
                 <h2 class="form-title">修改网关配置</h2>
-                <p class="form-desc">保存后自动重启内置 MCP 服务，新配置立即生效；失败自动回滚。</p>
+                <p class="form-desc">保存后自动重启内置 MCP 服务，新配置立即生效；失败自动回滚。跨域规则仅作用于 /mcp。</p>
 
                 <div class="form-row">
                   <label class="form-label">监听端口</label>
@@ -846,6 +856,16 @@ onMounted(() => {
                     :placeholder="gatewayConfig?.hasToken ? '留空保持不变（输入新值覆盖）' : '输入令牌启用鉴权'"
                     class="token-input"
                   />
+                </div>
+
+                <div class="form-row form-row-origins">
+                  <label class="form-label" for="mcp-allowed-origins">允许跨域来源</label>
+                  <ElInput
+                    id="mcp-allowed-origins" v-model="allowedOriginsText" type="textarea" :rows="3"
+                    placeholder="https://app.example.com&#10;http://localhost:3000"
+                    data-test="allowed-origins-input"
+                  />
+                  <span class="form-hint">每行一个完整 Origin（http/https + 主机 + 可选端口），留空则不允许跨域；不含路径。实际请求仍受访问令牌规则控制。</span>
                 </div>
 
                 <div v-if="gatewayConfig?.hasToken" class="form-row row-clear-token">

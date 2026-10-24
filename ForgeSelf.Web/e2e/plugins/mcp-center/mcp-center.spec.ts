@@ -18,7 +18,7 @@ import { getRealApiKey } from '../../helpers/real-auth'
  *     - tools/list → 恒 1 个工具 universal_tool（整体对外只有一个工具）
  *     - tools/call universal_tool → 转发真实目标工具 calculate，结果原样透传
  *     - tools/call 未知目标工具 → isError=true；未知 name → -32602
- *  3. 网关配置 API：GET /api/mcp-center/config（脱敏视图）→ PUT 改端口后热重启（改回原值）
+ *  3. 网关配置 API：GET /api/mcp-center/config → PUT 改端口与 CORS 来源白名单热重启，预检验证后恢复配置
  *  4. 外部 MCP 服务器接入（v2.1.0）：stdio / Streamable HTTP / HTTP+SSE 三传输配置→连接→工具→
  *     universal_tool 的 mcp.<服务器id>.<工具名> 转发（真连 node mock 服务器，零 mock 断言）
  *  5. 插件自带界面 /mcp-center：标题 + 版本徽标 + 服务器列表 + 工具表格 + 网关配置 tab（截图读图）
@@ -202,7 +202,7 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     // 7) 网关配置 API：GET 脱敏视图
     const cfgRes = await fetch(`${BACKEND_URL}/api/mcp-center/config`, { headers: AUTH_HEADERS })
     expect(cfgRes.ok).toBeTruthy()
-    const cfgBody = (await cfgRes.json()) as { data?: { listenUrl?: string; hasToken?: boolean; tokenMasked?: string; isRunning?: boolean } }
+    const cfgBody = (await cfgRes.json()) as { data?: { listenUrl?: string; hasToken?: boolean; tokenMasked?: string; isRunning?: boolean; allowedOrigins?: string[] } }
     expect(cfgBody.data?.listenUrl).toContain(`127.0.0.1:${MCP_PORT}`)
     expect(cfgBody.data?.hasToken).toBe(false)
     expect(cfgBody.data?.tokenMasked).toBe('')
@@ -214,7 +214,7 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     const putRes = await fetch(`${BACKEND_URL}/api/mcp-center/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
-      body: JSON.stringify({ port: altPort }),
+      body: JSON.stringify({ port: altPort, allowedOrigins: ['https://cors-e2e.example'] }),
     })
     expect(putRes.ok, `PUT 网关配置应成功（HTTP ${putRes.status}）`).toBeTruthy()
     const putBody = (await putRes.json()) as { data?: { port?: number; isRunning?: boolean } }
@@ -234,11 +234,29 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     expect(altHealth, `热重启后新端口 ${altPort} /health 应就绪`).toBeTruthy()
     evidence.push(`config PUT: port -> ${altPort}, new port health ok`)
 
+    const corsPreflight = await fetch(`http://127.0.0.1:${altPort}/mcp`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://cors-e2e.example',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization,content-type,accept',
+      },
+    })
+    expect(corsPreflight.status).toBe(204)
+    expect(corsPreflight.headers.get('access-control-allow-origin')).toBe('https://cors-e2e.example')
+    const deniedCors = await fetch(`http://127.0.0.1:${altPort}/mcp`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://not-allowed.example', 'Access-Control-Request-Method': 'POST' },
+    })
+    expect(deniedCors.status).toBe(403)
+    expect(deniedCors.headers.get('access-control-allow-origin')).toBeNull()
+    evidence.push('CORS: configured Origin preflight=204; unlisted Origin=403 without allow-origin')
+
     // 改回原值（e2e 环境干净退出），并等待原端口 /health 重新就绪（供后续串行用例使用）
     const revert = await fetch(`${BACKEND_URL}/api/mcp-center/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
-      body: JSON.stringify({ port: MCP_PORT }),
+      body: JSON.stringify({ port: MCP_PORT, allowedOrigins: cfgBody.data?.allowedOrigins ?? [] }),
     })
     expect(revert.ok).toBeTruthy()
     let revertedHealth = false
@@ -324,6 +342,8 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
       `监听 ${cfgData?.listenHost}:${cfgData?.port}`,
     )
     await expect(page.getByRole('heading', { name: '修改网关配置' })).toBeVisible()
+    await expect(page.getByLabel('允许跨域来源')).toBeVisible()
+    await expect(page.locator('[data-test="allowed-origins-input"]')).toBeVisible()
     // v2.5.2 起「执行超时」输入复用 .port-input 样式类 → 同页两个，strict 模式取首个（网关端口行在前）
     await expect(page.locator('.port-input').first()).toBeVisible()
 
@@ -331,6 +351,26 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     await expect(page.getByRole('heading', { name: '外部 MCP 服务器' })).toBeVisible()
     await expect(page.getByRole('button', { name: '新增服务器' })).toBeVisible()
     await expect(page.locator('.external-empty')).toContainText('尚未配置外部服务器')
+
+    // 配置页保存跨域来源后从真实 API 读回，随后恢复原值避免污染后续用例。
+    const corsConfigRes = await fetch(`${BACKEND_URL}/api/mcp-center/config`, { headers: AUTH_HEADERS })
+    const corsConfigBody = (await corsConfigRes.json()) as { data?: { allowedOrigins?: string[] } }
+    const originalOrigins = corsConfigBody.data?.allowedOrigins ?? []
+    try {
+      await page.locator('[data-test="allowed-origins-input"]').fill('https://ui-cors.example')
+      await page.getByRole('button', { name: '保存并重启生效' }).click()
+      await expect(page.getByText(/网关配置已保存并热重启生效/)).toBeVisible()
+      const savedConfigRes = await fetch(`${BACKEND_URL}/api/mcp-center/config`, { headers: AUTH_HEADERS })
+      const savedConfigBody = (await savedConfigRes.json()) as { data?: { allowedOrigins?: string[] } }
+      expect(savedConfigBody.data?.allowedOrigins).toEqual(['https://ui-cors.example'])
+    } finally {
+      const restoreCors = await fetch(`${BACKEND_URL}/api/mcp-center/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
+        body: JSON.stringify({ allowedOrigins: originalOrigins }),
+      })
+      expect(restoreCors.ok).toBeTruthy()
+    }
 
     // 截图（视觉检查：图标/间距/对齐/溢出，Level 3）
     await page.screenshot({ path: path.join(OUT_DIR, 'gateway-tab.png') })

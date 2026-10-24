@@ -40,6 +40,7 @@ public sealed class McpCenterRuntime
             ListenUrl = _config.ListenUrl,
             HasToken = !string.IsNullOrEmpty(token),
             TokenMasked = MaskToken(token),
+            AllowedOrigins = [.. _config.AllowedOrigins],
             IsRunning = _server.IsRunning,
             Stateless = _config.Stateless,
             ExecutionTimeoutMs = _config.ExecutionTimeoutMs,
@@ -61,6 +62,7 @@ public sealed class McpCenterRuntime
         var oldPort = _config.Port;
         var oldHost = _config.ListenHost;
         var oldToken = _config.Token;
+        var oldAllowedOrigins = _config.AllowedOrigins.ToList();
         var oldStateless = _config.Stateless;
         var oldExecutionTimeoutMs = _config.ExecutionTimeoutMs;
 
@@ -83,6 +85,11 @@ public sealed class McpCenterRuntime
             if (update.Token != null)
             {
                 _config.Token = update.Token.Trim();
+            }
+
+            if (update.AllowedOrigins != null)
+            {
+                _config.AllowedOrigins = McpGatewayConfig.NormalizeAllowedOrigins(update.AllowedOrigins);
             }
 
             if (update.Stateless is { } stateless)
@@ -111,6 +118,7 @@ public sealed class McpCenterRuntime
             _config.Port = oldPort;
             _config.ListenHost = oldHost;
             _config.Token = oldToken;
+            _config.AllowedOrigins = oldAllowedOrigins;
             _config.Stateless = oldStateless;
             _config.ExecutionTimeoutMs = oldExecutionTimeoutMs;
             try
@@ -139,6 +147,7 @@ public sealed class McpCenterRuntime
                 port = _config.Port,
                 listenHost = _config.ListenHost,
                 token = _config.Token,
+                allowedOrigins = _config.AllowedOrigins,
                 stateless = _config.Stateless,
                 executionTimeoutMs = _config.ExecutionTimeoutMs
             }, new JsonSerializerOptions { WriteIndented = true });

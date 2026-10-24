@@ -40,6 +40,9 @@ public sealed class McpGatewayConfig
     public string ListenHost { get; set; } = DefaultHost;
     public string Token { get; set; } = DefaultToken;
 
+    /// <summary>允许浏览器跨域访问 /mcp 的来源；空列表默认拒绝所有跨域来源。</summary>
+    public List<string> AllowedOrigins { get; set; } = [];
+
     /// <summary>true=无状态（每请求独立，不发 session id）；false=有状态（initialize 签发 Mcp-Session-Id）。</summary>
     public bool Stateless { get; set; } = DefaultStateless;
 
@@ -67,6 +70,7 @@ public sealed class McpGatewayConfig
                     cfg.Port = fromFile.Port;
                     cfg.ListenHost = string.IsNullOrWhiteSpace(fromFile.ListenHost) ? DefaultHost : fromFile.ListenHost;
                     cfg.Token = fromFile.Token ?? DefaultToken;
+                    cfg.AllowedOrigins = NormalizeAllowedOrigins(fromFile.AllowedOrigins, rejectInvalid: false);
                     // 旧版 config.json 无 stateless 键 ⇒ 反序列化保持默认 true（升级即自动转无状态，设计拍板 S1）
                     cfg.Stateless = fromFile.Stateless;
                     // 旧版 config.json 无 executionTimeoutMs 键 ⇒ 反序列化为 0，隐式保持默认 300000（升级兼容不记警）；
@@ -146,4 +150,61 @@ public sealed class McpGatewayConfig
 
     /// <summary>执行超时合法域判据（PUT 校验与 Load 回落共用单点）：1 秒 ~ 1 小时。</summary>
     public static bool IsValidExecutionTimeout(int ms) => ms is >= MinExecutionTimeoutMs and <= MaxExecutionTimeoutMs;
+
+    /// <summary>规范化并验证 HTTP(S) Origin；仅接受 scheme + authority，不含路径、查询或片段。</summary>
+    public static bool TryNormalizeOrigin(string? value, out string normalized)
+    {
+        normalized = string.Empty;
+        var candidate = value?.Trim();
+        if (string.IsNullOrEmpty(candidate) || !Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if ((uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(uri.UserInfo) || uri.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return false;
+        }
+
+        normalized = uri.GetLeftPart(UriPartial.Authority);
+        return true;
+    }
+
+    /// <summary>配置更新严格拒绝无效 Origin；旧/手改配置加载时丢弃无效项并记日志。</summary>
+    public static List<string> NormalizeAllowedOrigins(IEnumerable<string>? origins, bool rejectInvalid = true)
+    {
+        var result = new List<string>();
+        foreach (var item in origins ?? [])
+        {
+            if (!TryNormalizeOrigin(item, out var origin))
+            {
+                if (rejectInvalid)
+                {
+                    throw new ArgumentException($"无效的跨域来源：{item}。请输入完整的 http:// 或 https:// Origin，不含路径。");
+                }
+
+                XTrace.Log.Warn("[McpCenter] 忽略无效的 MCP 网关允许来源配置: {0}", item);
+                continue;
+            }
+
+            if (!result.Contains(origin, StringComparer.OrdinalIgnoreCase))
+            {
+                result.Add(origin);
+            }
+        }
+
+        return result;
+    }
+
+    public bool IsOriginAllowed(string origin)
+    {
+        if (!TryNormalizeOrigin(origin, out var normalized))
+        {
+            return false;
+        }
+
+        return AllowedOrigins.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+    }
 }

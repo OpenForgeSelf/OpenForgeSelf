@@ -21,7 +21,8 @@ import type {
   TaskExecution,
   TodoItem,
   TodoProject,
-  TodoSaveRequest
+  TodoSaveRequest,
+  TodoStage
 } from './types'
 
 export const state = reactive({
@@ -34,7 +35,16 @@ export const state = reactive({
   stageFilter: '' as string,
   statusFilter: '' as string,
   projectFilter: 0,
+  priorityFilter: 0,
   keyword: '',
+  view: 'list' as 'list' | 'board',
+  stageCounts: {} as Record<string, number>,
+  attentionItems: [] as TodoItem[],
+  missingCount: 0,
+  missingFilter: false,
+  missingItems: [] as TodoItem[],
+  summaryLoading: false,
+  boardBuckets: {} as Record<string, { items: TodoItem[]; page: number; total: number; loading: boolean; error: string }>,
 
   projects: [] as TodoProject[],
   selectedId: 0,
@@ -47,6 +57,28 @@ export const state = reactive({
   agentStatuses: {} as Record<number, AgentStatus>,
   operating: false
 })
+
+const STAGES: TodoStage[] = ['Draft', 'Ready', 'Dispatched', 'Running', 'Blocked', 'Review', 'Done', 'Cancelled']
+const BOARD_PAGE_SIZE = 20
+const SUMMARY_PAGE_SIZE = 100
+let summaryRequestId = 0
+
+function currentFilters(): api.TodoQuery {
+  return {
+    status: state.statusFilter || undefined,
+    projectId: state.projectFilter || undefined,
+    priority: state.priorityFilter || undefined,
+    q: state.keyword.trim() || undefined
+  }
+}
+
+function resetBoard(): void {
+  state.boardBuckets = Object.fromEntries(STAGES.map(stage => [stage, {
+    items: [], page: 0, total: 0, loading: false, error: ''
+  }]))
+}
+
+resetBoard()
 
 export const selectedProject = computed<TodoProject | null>(() =>
   state.projects.find(p => p.id === (state.selected?.projectId ?? -1)) ?? null)
@@ -62,24 +94,131 @@ function same(a: unknown, b: unknown): boolean {
 export async function loadTodos(): Promise<void> {
   state.loading = true
   try {
-    const page = await api.listTodos({
-      status: state.statusFilter || undefined,
-      stage: state.stageFilter || undefined,
-      projectId: state.projectFilter || undefined,
-      q: state.keyword.trim() || undefined,
-      page: state.page,
-      pageSize: state.pageSize
-    })
-    const items = page?.items ?? []
+    let items: TodoItem[]
+    let total: number
+    if (state.missingFilter) {
+      const matching = state.missingItems.filter(task => !state.stageFilter || task.stage === state.stageFilter)
+      total = matching.length
+      const offset = (state.page - 1) * state.pageSize
+      items = matching.slice(offset, offset + state.pageSize)
+    } else {
+      const page = await api.listTodos({
+        ...currentFilters(),
+        stage: state.stageFilter || undefined,
+        page: state.page,
+        pageSize: state.pageSize
+      })
+      items = page?.items ?? []
+      total = page?.total ?? 0
+    }
     // 只换引用不换语义：内容一致时不重新赋值，轮询就不闪
     if (!same(items, state.items)) state.items = items
-    state.total = page?.total ?? 0
+    state.total = total
     syncSelected()
   } catch (e) {
     showFailure('读取任务列表', e)
   } finally {
     state.loading = false
   }
+}
+
+/** 汇总数量来自服务器分页总数；缺项数逐页扫描真实 DTO 的 missing，不从当前页猜测。 */
+export async function loadPipeline(): Promise<void> {
+  const requestId = ++summaryRequestId
+  const filters = currentFilters()
+  state.summaryLoading = true
+  try {
+    const counts = await Promise.all(STAGES.map(async stage => {
+      const result = await api.listTodos({ ...filters, stage, page: 1, pageSize: 1 })
+      return [stage, result.total] as const
+    }))
+    if (requestId !== summaryRequestId) return
+    state.stageCounts = Object.fromEntries(counts)
+
+    const focus = await Promise.all((['Review', 'Blocked'] as TodoStage[]).map(async stage =>
+      (await api.listTodos({ ...filters, stage, page: 1, pageSize: 5 })).items))
+    if (requestId !== summaryRequestId) return
+    state.attentionItems = focus.flat().sort((a, b) => {
+      const byStage = (a.stage === 'Review' ? 0 : 1) - (b.stage === 'Review' ? 0 : 1)
+      if (byStage !== 0) return byStage
+      return (a.priority || 3) - (b.priority || 3)
+    })
+
+    let missingItems: TodoItem[] = []
+    const first = await api.listTodos({ ...filters, page: 1, pageSize: SUMMARY_PAGE_SIZE })
+    if (requestId !== summaryRequestId) return
+    missingItems = first.items.filter(task => task.missing?.length)
+    const pageCount = Math.ceil(first.total / SUMMARY_PAGE_SIZE)
+    for (let page = 2; page <= pageCount; page += 1) {
+      const result = await api.listTodos({ ...filters, page, pageSize: SUMMARY_PAGE_SIZE })
+      if (requestId !== summaryRequestId) return
+      missingItems.push(...result.items.filter(task => task.missing?.length))
+    }
+    if (requestId === summaryRequestId) {
+      state.missingItems = missingItems
+      state.missingCount = missingItems.length
+    }
+  } catch (e) {
+    if (requestId === summaryRequestId) showFailure('读取待办统计', e)
+  } finally {
+    if (requestId === summaryRequestId) state.summaryLoading = false
+  }
+}
+
+/** 按列懒加载看板任务，继续使用列表 API 的分页与全部筛选条件。 */
+export async function loadBoardStage(stage: TodoStage, reset = false): Promise<void> {
+  const bucket = state.boardBuckets[stage]
+  if (!bucket || bucket.loading) return
+  if (reset) {
+    bucket.items = []
+    bucket.page = 0
+    bucket.total = 0
+    bucket.error = ''
+  }
+  if (!reset && bucket.page > 0 && bucket.items.length >= bucket.total) return
+  const page = reset ? 1 : bucket.page + 1
+  bucket.loading = true
+  bucket.error = ''
+  try {
+    if (state.missingFilter) {
+      const matching = state.missingItems.filter(task => task.stage === stage)
+      const offset = (page - 1) * BOARD_PAGE_SIZE
+      bucket.items = page === 1 ? matching.slice(0, BOARD_PAGE_SIZE) : [...bucket.items, ...matching.slice(offset, offset + BOARD_PAGE_SIZE)]
+      bucket.page = page
+      bucket.total = matching.length
+      return
+    }
+    const result = await api.listTodos({
+      ...currentFilters(), stage, page, pageSize: BOARD_PAGE_SIZE
+    })
+    bucket.items = page === 1 ? result.items : [...bucket.items, ...result.items]
+    bucket.page = page
+    bucket.total = result.total
+  } catch (e) {
+    bucket.error = e instanceof Error ? e.message : String(e)
+    showFailure(`读取「${stageLabel(stage)}」看板`, e)
+  } finally {
+    bucket.loading = false
+  }
+}
+
+export async function loadBoard(reset = false): Promise<void> {
+  if (reset) resetBoard()
+  if (state.stageFilter) {
+    await loadBoardStage(state.stageFilter as TodoStage, reset)
+    return
+  }
+  await Promise.all(STAGES.map(stage => loadBoardStage(stage, reset)))
+}
+
+export async function refreshViews(): Promise<void> {
+  if (state.missingFilter) {
+    await loadPipeline()
+    await loadTodos()
+  } else {
+    await Promise.all([loadTodos(), loadPipeline()])
+  }
+  if (state.view === 'board') await loadBoard(true)
 }
 
 export async function loadProjects(): Promise<void> {
@@ -152,7 +291,7 @@ export async function createTodo(title: string, projectId?: number): Promise<Tod
   try {
     const created = await api.createTodo({ title, projectId })
     showToast(projectId ? '已创建任务（草稿），已关联所选项目' : '已创建任务（草稿），补齐四栏后可下发', 'success')
-    await loadTodos()
+    await refreshViews()
     if (created) await selectTodo(created.id)
     return created ?? null
   } catch (e) {
@@ -214,6 +353,7 @@ export async function changeStage(task: TodoItem, target: string, blockReason?: 
   } finally {
     state.operating = false
     await loadRecords()
+    await refreshViews()
   }
 }
 

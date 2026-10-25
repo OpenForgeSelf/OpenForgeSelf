@@ -43,6 +43,24 @@ public class ReactLoopAgentTests
         Assert.Equal(new[] { "user", "assistant" }, fixture.DerivedRoles());
         Assert.Contains(frames, f => f is TurnCompleted);
         Assert.Equal(AgentStatus.Idle, agent.Status);
+        Assert.Null(fixture.Provider.Requests.Single().ToolChoice);
+    }
+
+    // ---- 1a. 计划驱动出口工具必须被提供方调用，不能以纯文本结束 ----
+    [Fact]
+    public async Task ExitToolTurn_RequiresToolChoice()
+    {
+        var fixture = new Fixture();
+        fixture.Provider.Enqueue(Script.ToolCall("exit-1", "complete_step", "{\"output\":\"已完成\"}"));
+
+        var agent = fixture.CreateAgent(options: new AgentOptions
+        {
+            ExitToolNames = new[] { "complete_step", "request_help" }
+        });
+        fixture.Inbox.Followup(fixture.SessionId, "执行一个计划步骤");
+        await fixture.RunAsync(agent);
+
+        Assert.Equal("required", Assert.Single(fixture.Provider.Requests).ToolChoice);
     }
 
     // ---- 2. 含工具调用：跑 2 个 step，tool/call + tool/result 成对且顺序与模型返回一致 ----
@@ -231,6 +249,25 @@ public class ReactLoopAgentTests
             + string.Join(" | ", hits));
     }
 
+    // ---- 9. 上游空响应（无正文、无工具、无补全 token）→ 判失败，不得当成功收束 ----
+    [Fact]
+    public async Task EmptyUpstreamResponse_FailsInsteadOfCompleting()
+    {
+        var fixture = new Fixture();
+        fixture.Provider.Enqueue(Script.Text(string.Empty, finish: "stop"));
+
+        var agent = fixture.CreateAgent();
+        agent.Inbox.Followup(fixture.SessionId, "随便说点什么");
+        var frames = await fixture.RunAsync(agent);
+
+        // 不再落 assistant/message（此前空正文被当最终答复）
+        Assert.DoesNotContain(fixture.Store.Replay(fixture.SessionId), e => e.Type == "assistant/message");
+        Assert.Equal(StepEndReason.Failed, fixture.Store.Replay(fixture.SessionId).OfType<StepEndEvent>().Single().Reason);
+
+        var failed = Assert.Single(frames.OfType<TurnFailed>());
+        Assert.Contains("空响应", failed.Error);
+    }
+
     // ---- 附加：turn-stopping 裁决语义（无监听即收束；监听器返回 false → 再跑一步） ----
     [Fact]
     public async Task TurnStopping_NoListener_Converges_ListenerFalse_TakesAnotherStep()
@@ -280,8 +317,8 @@ internal sealed class Fixture
         _maxStepsPerTurn = maxStepsPerTurn;
     }
 
-    public IAgent CreateAgent(string? sessionId = null)
-        => new ReactLoopAgent(sessionId ?? SessionId, new AgentOptions { MaxStepsPerTurn = _maxStepsPerTurn },
+    public IAgent CreateAgent(string? sessionId = null, AgentOptions? options = null)
+        => new ReactLoopAgent(sessionId ?? SessionId, options ?? new AgentOptions { MaxStepsPerTurn = _maxStepsPerTurn },
             new AgentTurnRuntime
             {
                 Store = Store,

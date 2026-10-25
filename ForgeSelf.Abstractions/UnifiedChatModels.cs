@@ -75,6 +75,9 @@ public class UnifiedChatRequest
     public int? MaxTokens { get; set; }
     public bool Stream { get; set; }
 
+    /// <summary>工具选择策略；计划驱动回合可要求模型必须调用一个工具。</summary>
+    public string? ToolChoice { get; set; }
+
     /// <summary>
     /// 流式选项（如 include_usage），由客户端透传到上游
     /// </summary>

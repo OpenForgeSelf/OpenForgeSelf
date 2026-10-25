@@ -151,6 +151,7 @@ export interface TodoQuery {
   status?: string
   stage?: string
   projectId?: number
+  priority?: number
   q?: string
   page?: number
   pageSize?: number

@@ -323,6 +323,9 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
                         Tools = _runtime.ToolDefinitions,
                         SystemPrompt = renderedSystemPrompt,
                         Stream = true,
+                        // 计划驱动回合（挂载出口工具）必须要求模型调用工具（AC14）：
+                        // 纯文本结束会让出口永远走不到，只会把「模型没按契约回」误判成步骤完成/卡住。
+                        ToolChoice = _options.ExitToolNames is { Count: > 0 } ? "required" : null,
                         StreamOptions = new UnifiedStreamOptions { IncludeUsage = true }
                     };
 
@@ -465,6 +468,23 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
                 if (isMaxTokens)
                 {
                     maxTokensSticky = true;
+                }
+
+                // ---- 上游空响应：无正文、无工具调用、无补全 token ----
+                // 不得当作「本步最终答复」成功收束。历史缺陷（2026-10-24/25 实证）：模型不存在/未启用时
+                // 上游回空流，此处当成功 → 029 判 Stuck（「未调用 complete_step」），
+                // 把「模型不可用」误报成「Agent 不会规划/执行」。判失败才能给出可行动的错误。
+                if (calls.Count == 0 && content.Length == 0 && !isMaxTokens && (usage?.CompletionTokens ?? 0) == 0)
+                {
+                    var emptyError = $"上游返回空响应（无正文、无工具调用、无补全 token）：模型 {_runtime.ModelId} 可能不存在、未启用或上游不可用";
+                    XTrace.Log.Warn("[ReactLoopAgent] {0}（SessionId={1}, StepId={2}, finishReason={3}）",
+                        emptyError, SessionId, stepId, finishReason ?? "(none)");
+                    Append(new AssistantAttemptEvent(0, SessionId, DateTimeOffset.Now, string.Empty, emptyError, _runtime.ModelId));
+                    Append(new StepEndEvent(0, SessionId, DateTimeOffset.Now, turnId, stepId, StepEndReason.Failed));
+                    yield return new StepCompleted(stepId, StepEndReason.Failed);
+                    yield return new TurnFailed(stepId, emptyError);
+                    turnEndReason = TurnEndReason.Aborted;
+                    break;
                 }
 
                 // ---- 无工具调用：本步即最终答复 ----

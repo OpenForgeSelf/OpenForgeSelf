@@ -502,6 +502,12 @@ public class OpenAICompatibleProvider : IAIProvider
                     Parameters = t.Parameters
                 }
             }).ToList();
+
+            // 工具选择策略透传（AC14）：计划驱动回合要求 required，否则模型可能纯文本收束。
+            if (!string.IsNullOrWhiteSpace(request.ToolChoice))
+            {
+                openaiRequest.ToolChoice = request.ToolChoice;
+            }
         }
 
         return openaiRequest;

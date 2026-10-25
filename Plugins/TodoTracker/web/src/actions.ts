@@ -38,9 +38,14 @@ export function missingLabels(missing: string[] | undefined): string {
   return missing.map(k => RequiredFieldLabels[k] ?? k).join('、')
 }
 
-/** 未关联项目的任务排在后面（同一项目内再按 P1>P2>P3、创建时间新→旧）。 */
+/** 人工介入优先：待验收、阻塞先处理；完成与取消沉底。 */
 export function sortTasks(items: TodoItem[]): TodoItem[] {
+  const urgency: Record<string, number> = {
+    Review: 0, Blocked: 1, Running: 2, Dispatched: 3, Ready: 4, Draft: 5, Done: 6, Cancelled: 7
+  }
   return [...items].sort((a, b) => {
+    const byUrgency = (urgency[a.stage] ?? 8) - (urgency[b.stage] ?? 8)
+    if (byUrgency !== 0) return byUrgency
     const byProject = Number(!a.projectId) - Number(!b.projectId)
     if (byProject !== 0) return byProject
     const byPriority = (a.priority || 3) - (b.priority || 3)

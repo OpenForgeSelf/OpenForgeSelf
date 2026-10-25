@@ -6,9 +6,9 @@
  * - 表单字段与后端 `CreateTaskExecutionRequest` 一一对应，agent 用 REST/工具函数写进来的记录同形状；
  * - 「做了什么」是必填，其余可空：空栏就显示空，不做"看起来完整"的包装。
  */
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import * as store from '../store'
-import { formatElapsed, relativeTime, shortPath } from '../actions'
+import { formatElapsed, relativeTime, shortPath, stageLabel } from '../actions'
 import { showToast } from '../notify'
 import type { ExecutionDraft, TodoItem } from '../types'
 
@@ -21,7 +21,7 @@ const draft = reactive<ExecutionDraft>({
   risks: '', residuals: '', evidence: '', nextStep: '', stageTo: ''
 })
 
-const stageTargets = ref<string[]>(['Running', 'Review', 'Done', 'Blocked', 'Cancelled'])
+const stageTargets = computed(() => props.task.allowedTargets)
 
 function reset(): void {
   draft.action = ''
@@ -72,7 +72,7 @@ async function submit(): Promise<void> {
         <label class="tl-label">同时流转阶段
           <select v-model="draft.stageTo" class="tl-input">
             <option value="">不改状态</option>
-            <option v-for="t in stageTargets" :key="t" :value="t">{{ t }}</option>
+            <option v-for="t in stageTargets" :key="t" :value="t">{{ stageLabel(t) }}</option>
           </select>
         </label>
         <label class="tl-label">耗时（毫秒）
@@ -132,7 +132,7 @@ async function submit(): Promise<void> {
           <span class="tl-seq">#{{ r.seq }}</span>
           <b class="tl-action" :title="r.action">{{ r.action }}</b>
           <span v-if="r.actor" class="tl-actor">{{ r.actor }}</span>
-          <span v-if="r.stageTo" class="tl-stage">{{ r.stageFrom || '—' }} → {{ r.stageTo }}</span>
+          <span v-if="r.stageTo" class="tl-stage">{{ r.stageFrom ? stageLabel(r.stageFrom) : '—' }} → {{ stageLabel(r.stageTo) }}</span>
           <span class="tl-dim tl-time">{{ relativeTime(r.createdAt) }}</span>
         </div>
         <p v-if="r.result" class="tl-line"><span class="tl-k">结果</span>{{ r.result }}</p>

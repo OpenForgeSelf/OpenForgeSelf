@@ -73,7 +73,7 @@ public class TaskExecutionsController : ControllerBase
     {
         try
         {
-            var preview = await _dispatch.PreviewByKeyAsync(taskKey, $"{Request.Scheme}://{Request.Host}");
+            var preview = await _dispatch.PreviewByKeyAsync(taskKey, BaseUrl());
             return preview == null
                 ? NotFound(ApiResponse<DispatchPreviewDto>.Error($"任务不存在：{taskKey}", 404))
                 : Ok(ApiResponse<DispatchPreviewDto>.Ok(preview, "下发内容已读取"));
@@ -156,7 +156,15 @@ public class TaskExecutionsController : ControllerBase
     /// <summary>调用方标识：优先取请求头 <c>X-Actor</c>（agent 回报时写自己的名字），缺省记 <c>rest</c>。</summary>
     private string ActorHint()
     {
-        var header = Request.Headers["X-Actor"].ToString();
+        // 单元直构控制器时 ControllerContext 为 null（无 HttpContext），必须空安全（2026-10-25 R2）。
+        var header = ControllerContext?.HttpContext?.Request?.Headers["X-Actor"].ToString();
         return string.IsNullOrWhiteSpace(header) ? "rest" : header.Trim();
+    }
+
+    /// <summary>当前请求的基址；无 HttpContext 时返回 null。</summary>
+    private string? BaseUrl()
+    {
+        var request = ControllerContext?.HttpContext?.Request;
+        return request == null ? null : $"{request.Scheme}://{request.Host}";
     }
 }

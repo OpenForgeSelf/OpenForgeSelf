@@ -79,8 +79,8 @@ public class TodoService : ITodoService
             _ => query.PageSize
         };
 
-        XTrace.Log.Debug("获取待办列表，status={0}, stage={1}, projectId={2}, q={3}, page={4}, pageSize={5}",
-            query.Status, query.Stage, query.ProjectId, query.Keyword, page, pageSize);
+        XTrace.Log.Debug("获取待办列表，status={0}, stage={1}, projectId={2}, priority={3}, q={4}, page={5}, pageSize={6}",
+            query.Status, query.Stage, query.ProjectId, query.Priority, query.Keyword, page, pageSize);
 
         var exp = new WhereExpression();
 
@@ -89,6 +89,7 @@ public class TodoService : ITodoService
         if (query.Stage.HasValue) exp &= _.Stage == query.Stage.Value;
         if (query.ProjectId > 0) exp &= _.ProjectId == query.ProjectId;
         if (query.UnlinkedOnly) exp &= _.ProjectId == 0;
+        if (query.Priority.HasValue) exp &= _.Priority == query.Priority.Value;
 
         var keyword = (query.Keyword ?? string.Empty).Trim();
         if (keyword.Length > 0)

@@ -22,6 +22,7 @@ import type { TagType } from '../actions'
 
 const props = defineProps<{ task: TodoItem }>()
 const s = store.state
+const activeTab = ref<'work' | 'dispatch' | 'history'>('work')
 
 const form = reactive({
   title: '', remark: '', objective: '', content: '', acceptance: '', verification: '',
@@ -208,6 +209,15 @@ async function chooseStage(target: string): Promise<void> {
     showToast('进入「阻塞」必须写明阻塞原因（缺什么、要谁处理）', 'warning')
     return
   }
+  if (target === 'Done' || target === 'Cancelled') {
+    const accepted = await confirmAction({
+      title: target === 'Done' ? '确认完成任务' : '确认取消任务',
+      message: `将「${props.task.title}」流转到「${stageLabel(target)}」？`,
+      confirmText: target === 'Done' ? '确认完成' : '确认取消',
+      danger: target === 'Cancelled'
+    })
+    if (!accepted) return
+  }
   await store.changeStage(props.task, target, blockReason.value.trim() || undefined)
   blockReason.value = ''
 }
@@ -327,12 +337,29 @@ onMounted(() => {
 <template>
   <div class="td" :class="{ 'is-busy': s.operating }">
     <header class="td-head">
-      <span class="td-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
-      <h2 class="td-key" :title="`外部键：供 agent 按 taskKey 回报`">{{ task.taskKey }}</h2>
+      <div class="td-head-title">
+        <h2 class="td-head-task-title" :title="form.title || task.title">{{ form.title || task.title }}</h2>
+        <span class="td-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
+        <span class="td-key" :title="`任务编号：${task.taskKey}`">{{ task.taskKey }}</span>
+      </div>
+      <div class="td-head-actions">
+        <input v-if="task.allowedTargets.includes('Blocked')" v-model="blockReason" class="td-input td-block-reason"
+          aria-label="阻塞原因" placeholder="流转为阻塞时填写原因">
+        <button v-for="target in task.allowedTargets" :key="target" type="button" class="td-btn td-btn-sm"
+          :class="{ 'is-primary': target === 'Done', 'is-danger': target === 'Cancelled' }"
+          :data-test="`stage-${target}`" @click="chooseStage(target)">{{ stageLabel(target) }}</button>
+      </div>
       <button type="button" class="td-close" aria-label="关闭详情" @click="store.closeDetail()">×</button>
     </header>
 
+    <nav class="td-tabs" role="tablist" aria-label="任务详情页签">
+      <button type="button" role="tab" :aria-selected="activeTab === 'work'" :class="{ 'is-on': activeTab === 'work' }" @click="activeTab = 'work'">工作单元</button>
+      <button type="button" role="tab" :aria-selected="activeTab === 'dispatch'" :class="{ 'is-on': activeTab === 'dispatch' }" @click="activeTab = 'dispatch'">下发与委派</button>
+      <button type="button" role="tab" :aria-selected="activeTab === 'history'" :class="{ 'is-on': activeTab === 'history' }" @click="activeTab = 'history'">执行记录</button>
+    </nav>
+
     <div class="td-scroll">
+      <div v-if="activeTab === 'work'" class="td-tab-panel" role="tabpanel">
       <section class="td-card">
         <header class="td-card-head"><span class="td-card-title">任务信息</span></header>
         <div class="td-block">
@@ -437,7 +464,9 @@ onMounted(() => {
           placeholder="dotnet test --filter ~TodoTracker" @blur="commit"></textarea>
       </section>
       </section>
+      </div>
 
+      <div v-else-if="activeTab === 'dispatch'" class="td-tab-panel" role="tabpanel">
       <section class="td-card">
         <header class="td-card-head"><span class="td-card-title">下发与执行</span></header>
         <div class="td-block">
@@ -565,30 +594,18 @@ onMounted(() => {
       </section>
       </div>
       </section>
+      </div>
 
+      <div v-else class="td-tab-panel" role="tabpanel">
       <section class="td-card">
-        <header class="td-card-head"><span class="td-card-title">阶段与执行记录</span></header>
-        <div class="td-block">
-        <span class="td-label td-strong">阶段</span>
-        <div class="td-chips">
-          <button v-for="t in task.allowedTargets" :key="t" type="button" class="td-chip"
-            :data-test="`stage-${t}`" :title="t" @click="chooseStage(t)">{{ stageLabel(t) }}</button>
-          <span v-if="!task.allowedTargets.length" class="td-dim">当前阶段没有可达目标</span>
-        </div>
-        <input v-if="task.allowedTargets.includes('Blocked')" v-model="blockReason" class="td-input"
-          placeholder="阻塞原因（进 Blocked 必填）">
-        <div class="td-row td-row-top">
-          <button type="button" class="td-btn td-btn-sm" @click="store.completeOrReopen(task)">
-            {{ task.status === 'Pending' ? '标记完成' : '重新打开' }}
-          </button>
+        <header class="td-card-head"><span class="td-card-title">执行记录</span>
           <button type="button" class="td-btn td-btn-sm is-danger" @click="store.removeTodo(task)">删除任务</button>
-        </div>
-
-        <div class="td-block-sub">
+        </header>
+        <div class="td-block">
           <ExecutionTimeline :task="task" />
         </div>
-        </div>
       </section>
+      </div>
     </div>
   </div>
 </template>
@@ -600,6 +617,17 @@ onMounted(() => {
   border-radius: var(--el-border-radius-base, 4px);
   display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
 }
+.td-head { position: relative; padding-right: 40px; flex-wrap: wrap; align-items: flex-start; }
+.td-head-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 100%; flex-wrap: wrap; }
+.td-head-task-title { flex: 1 1 100%; min-width: 0; margin: 0; font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+.td-head-title .td-key { max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-head-actions { display: flex; flex: 1 1 100%; align-items: center; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+.td-head .td-close { position: absolute; top: 8px; right: 10px; }
+.td-block-reason { width: 180px; }
+.td-tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--el-border-color-lighter); flex-shrink: 0; }
+.td-tabs button { padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; }
+.td-tabs button.is-on { border-bottom-color: var(--el-color-primary); color: var(--el-color-primary); font-weight: 600; }
+.td-tab-panel { display: flex; flex-direction: column; gap: 14px; }
 .td.is-busy { opacity: .82; }
 .td-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--el-border-color-lighter); flex-shrink: 0; }
 .td-stage { font-size: 11px; padding: 1px 7px; border-radius: 3px; }

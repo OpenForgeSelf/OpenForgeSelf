@@ -53,6 +53,43 @@ public class TodosControllerTests : IClassFixture<XCodeTestFixture>
         result.Result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    public async Task GetTodos_WithInvalidPriority_ShouldReturnBadRequest(int priority)
+    {
+        var result = await _controller.GetTodos(priority: priority);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetTodos_WithPriority_ShouldFilterAcrossMatchingTasks()
+    {
+        var title = $"优先级筛选-{Guid.NewGuid():N}";
+        var p1Result = await _controller.CreateTodo(new CreateTodoRequest { Title = $"{title}-P1", Priority = 1 });
+        var p2Result = await _controller.CreateTodo(new CreateTodoRequest { Title = $"{title}-P2", Priority = 2 });
+        var p1 = ((ApiResponse<TodoDto>)((ObjectResult)p1Result.Result!).Value!).Data!;
+        var p2 = ((ApiResponse<TodoDto>)((ObjectResult)p2Result.Result!).Value!).Data!;
+
+        try
+        {
+            var result = await _controller.GetTodos(priority: 2, q: title, pageSize: 100);
+
+            result.Result.Should().BeOfType<OkObjectResult>();
+            var response = (ApiResponse<ForgeSelf.Api.Plugins.TodoTracker.Models.PagedResult<TodoDto>>)
+                ((OkObjectResult)result.Result!).Value!;
+            response.Data!.Items.Should().ContainSingle(task => task.Id == p2.Id && task.Priority == 2);
+            response.Data.Items.Should().NotContain(task => task.Id == p1.Id);
+            response.Data.Total.Should().Be(1);
+        }
+        finally
+        {
+            await _controller.DeleteTodo(p1.Id);
+            await _controller.DeleteTodo(p2.Id);
+        }
+    }
+
     [Fact]
     public async Task GetTodoById_WithExistingId_ShouldReturnOk()
     {
@@ -178,6 +215,8 @@ public class TodosControllerTests : IClassFixture<XCodeTestFixture>
         var id = await CreateTodoAndGetIdAsync("完成重开流");
 
         var completed = await _controller.CompleteTodo(id);
+        completed.Result.Should().BeOfType<OkObjectResult>(
+            $"旧完成接口应保持兼容；HTTP {((ObjectResult)completed.Result!).StatusCode}，响应 {System.Text.Json.JsonSerializer.Serialize(((ObjectResult)completed.Result!).Value)}");
         var completedResp = (ApiResponse<TodoDto>)((OkObjectResult)completed.Result!).Value!;
         completedResp.Data!.Status.Should().Be("Completed");
 

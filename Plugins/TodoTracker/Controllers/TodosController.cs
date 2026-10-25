@@ -38,7 +38,7 @@ public class TodosController : ControllerBase
         _dispatch = dispatch;
     }
 
-    /// <summary>列表（旧三参形状继续可用，新增 stage/projectId/q 过滤）。</summary>
+    /// <summary>列表（旧参数继续可用；新增阶段/项目/关键词/优先级筛选）。</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<TodoModels.PagedResult<TodoDto>>>> GetTodos(
         [FromQuery] string? status = null,
@@ -46,7 +46,8 @@ public class TodosController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? stage = null,
         [FromQuery] int projectId = 0,
-        [FromQuery] string? q = null)
+        [FromQuery] string? q = null,
+        [FromQuery] int? priority = null)
     {
         try
         {
@@ -68,12 +69,16 @@ public class TodosController : ControllerBase
             if (projectId < 0)
                 return BadRequest(ApiResponse<TodoModels.PagedResult<TodoDto>>.Error("projectId 不能为负数", 400));
 
+            if (priority.HasValue && priority is < 1 or > 3)
+                return BadRequest(ApiResponse<TodoModels.PagedResult<TodoDto>>.Error("priority 参数无效：仅支持 1、2 或 3", 400));
+
             var result = await _todoService.GetTodosAsync(new TaskQuery
             {
                 Status = status,
                 Stage = stageValue,
                 ProjectId = projectId,
                 Keyword = q,
+                Priority = priority,
                 Page = page,
                 PageSize = pageSize
             });
@@ -317,10 +322,16 @@ public class TodosController : ControllerBase
     /// 先取请求头 <c>X-Actor</c>，缺省记 <c>rest</c>；工具函数面会显式传 <c>agent:&lt;name&gt;</c>。</summary>
     private string ActorHint()
     {
-        var header = Request.Headers["X-Actor"].ToString();
+        // 单元直构控制器时 ControllerContext 为 null（无 HttpContext），必须空安全，
+        // 否则 Request 访问抛 NRE 被下面 catch 吞成 500（2026-10-25 R2）。
+        var header = ControllerContext?.HttpContext?.Request?.Headers["X-Actor"].ToString();
         return string.IsNullOrWhiteSpace(header) ? "rest" : header.Trim();
     }
 
-    /// <summary>当前请求的基址，供提示词里的回报契约拼出真实可访问地址。</summary>
-    private string? BaseUrl() => $"{Request.Scheme}://{Request.Host}";
+    /// <summary>当前请求的基址，供提示词里的回报契约拼出真实可访问地址；无 HttpContext 时返回 null。</summary>
+    private string? BaseUrl()
+    {
+        var request = ControllerContext?.HttpContext?.Request;
+        return request == null ? null : $"{request.Scheme}://{request.Host}";
+    }
 }

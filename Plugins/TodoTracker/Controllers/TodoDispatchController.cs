@@ -61,7 +61,7 @@ public class TodoDispatchController : ControllerBase
         {
             if (id <= 0) return BadRequest(ApiResponse<DelegateToAgentResultDto>.Error("id 必须为正整数", 400));
 
-            var result = await _dispatch.DelegateAsync(id, request, ActorHint(), $"{Request.Scheme}://{Request.Host}");
+            var result = await _dispatch.DelegateAsync(id, request, ActorHint(), BaseUrl());
             if (result.Ok)
             {
                 var note = result.BackfillWarning ?? $"任务 {result.TaskKey} 已交给 {result.AgentName}（{result.Status}）";
@@ -200,7 +200,15 @@ public class TodoDispatchController : ControllerBase
 
     private string ActorHint()
     {
-        var header = Request.Headers["X-Actor"].ToString();
+        // 单元直构控制器时 ControllerContext 为 null（无 HttpContext），必须空安全（2026-10-25 R2）。
+        var header = ControllerContext?.HttpContext?.Request?.Headers["X-Actor"].ToString();
         return string.IsNullOrWhiteSpace(header) ? "rest" : header.Trim();
+    }
+
+    /// <summary>当前请求的基址；无 HttpContext 时返回 null。</summary>
+    private string? BaseUrl()
+    {
+        var request = ControllerContext?.HttpContext?.Request;
+        return request == null ? null : $"{request.Scheme}://{request.Host}";
     }
 }

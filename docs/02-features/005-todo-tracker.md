@@ -1,8 +1,8 @@
-﻿---
+---
 feature_key: F005
 feature_no: 005
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-10-24
 aliases: ["005-todo-tracker"]
 ---
 
@@ -66,7 +66,7 @@ v1.0.0 的待办是「给人看的便签」（标题 + 备注 + 待处理/已完
 
 | 方法 · 路径 | 用途 |
 |------|------|
-| `GET /` | 列表：`status/stage/projectId/q/page/pageSize`（旧三参形状继续可用） |
+| `GET /` | 列表：`status/stage/projectId/priority/q/page/pageSize`（优先级筛选可选，旧参数形状继续可用） |
 | `POST /` · `PUT /{id}` · `DELETE /{id}` | 建（部分更新：null=不改，空串=清空）/删 |
 | `GET /{id}` · `GET /by-key/{taskKey}` | 详情（agent 面用 taskKey） |
 | `POST /{id}/complete` · `POST /{id}/reopen` | 旧端点，内部同步 Stage |
@@ -91,7 +91,9 @@ AI 工具函数（宿主 `universal_tool` / MCP 可调）：`create_todo`、`lis
 ## 3. 使用指南
 
 侧栏「待办事项」→ `/todo`（界面由插件自带 `web/dist/index.js` 远程加载）。
-典型链路：新建 → 补四栏 → 填项目路径（任意写法）→「列目录 → 勾工件 → 导入为正文」→「生成提示词」（可复制给任意 agent，或直接「交给 AgentHub 执行」）→「下发」→ agent 用 `by-key/{taskKey}/records` 回报 → 时间线查看 → 阶段推到「待验收」→「标记完成」。
+典型链路：新建 → 补四栏 → 填项目路径（任意写法）→「列目录 → 勾工件 → 导入为正文」→「生成提示词」（可复制给任意 agent，或直接「交给 AgentHub 执行」）→「下发」→ agent 用 `by-key/{taskKey}/records` 回报 → 执行记录页签查看 → 按服务端允许的阶段流转到「待验收」→ 人工检查后按同一阶段流转入口进入「完成」。TodoTracker 界面不再显示独立的「标记完成/重新打开」按钮；Home 继续使用兼容 API。
+
+2026-10-24 起，`/todo` 提供阶段计数流水线、待验收/阻塞/缺项关注项、优先级筛选、列表/看板切换与分列分页。看板拖动只接受详情 DTO 中 `allowedTargets` 指定的目标；进入阻塞须填写原因，完成或取消须二次确认。任务详情固定显示可编辑标题、当前阶段和合法操作，并将工作单元、下发与委派、执行记录拆成三个页签。快捷键 `/` 聚焦搜索、`N` 聚焦新建、`Escape` 关闭详情。
 
 界面口径两条（都是实测出来的）：
 
@@ -110,7 +112,7 @@ AI 工具函数（宿主 `universal_tool` / MCP 可调）：`create_todo`、`lis
 | `…/TodoTrackerAuthTests.cs` | 程序集内全部控制器带 `[Authorize("ApiKeyPolicy")]`（新增控制器漏登记即红） |
 | `…/TodoTrackerWebAssetTests.cs` | `entry`/导出名/vite 产物名/lockfile/宿主别名禁令 |
 | `…/Unit/TodoServiceTests.cs`、`…/Integration/TodosControllerTests.cs` | 旧 CRUD/分页 total/完成重开语义不回归 |
-| `ForgeSelf.Web/e2e/plugins/todo-tracker/todo-tracker.spec.ts` | 远程加载 + 徽标、下发主链路（Git-Bash 路径→归一）、执行记录补记与流转、删除双路径、401、Home 兼容形状建单 |
+| `ForgeSelf.Web/e2e/plugins/todo-tracker/todo-tracker.spec.ts` | 唯一一条插件主链路冒烟：远程加载、阶段筛选、看板流转、详情页签；后端 API 回归由 .NET 测试覆盖 |
 | `ForgeSelf.Web/e2e/todo.spec.ts` | 仅剩首页待办面板（应用层跨插件视角） |
 
 ## 5. 已知约束
@@ -118,3 +120,5 @@ AI 工具函数（宿主 `universal_tool` / MCP 可调）：`create_todo`、`lis
 - 其他插件（QuickLinks/Scheduler/WorkflowEngine/ScriptRunner 等）分页 `total=0` 仍未修（与本功能独立）。
 - 路径同一性只在**本插件入口**成立：宿主 `Project.Root` 仍按 `Path.GetFullPath` + 精确匹配登记，AIAgent/sems 若写入怪异写法（如 `\\?\` 前缀、8.3 短名）仍可能形成另一条档案；插件比对时会对双方都归一，故**读取侧**不会误判，登记侧新行仍可能重复（决策见 `not-taken-decisions.md` 2026-10-07 第 1 条）。
 - 委派执行需 `agent-hub` 在场且其 `agent` 已注册并启用、`cwd` 在其白名单内，否则一键执行按 400/503 如实失败（不影响手工下发）。
+- 内置引擎（`engine=builtin`）的对话模型按「调用方显式指定 → 宿主默认（须在启用模型目录内）→ 目录首个启用模型」逐级解析；目录没有任何启用模型时下发直接 400 并给出明确文案（不再静默降级到不存在的模型，见 PC-013）。
+- 真实 Agent 完整下发到 Done 的验收必须使用隔离数据根和真实服务端状态，确认 Agent 成功执行、自动进入「待验收」、结果与执行记录持久化，再人工验收并刷新复核「完成」；仅收到排队回执不能判定通过。完整验收证据记录在对应 `docs/ai/pilot/` 工件中。

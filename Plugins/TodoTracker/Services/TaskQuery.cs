@@ -21,6 +21,9 @@ public sealed class TaskQuery
     /// <summary>关键字（标题/备注/目标模糊匹配）。</summary>
     public string? Keyword { get; init; }
 
+    /// <summary>任务优先级（1=P1、2=P2、3=P3）；null=不筛选。</summary>
+    public int? Priority { get; init; }
+
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 20;
 }

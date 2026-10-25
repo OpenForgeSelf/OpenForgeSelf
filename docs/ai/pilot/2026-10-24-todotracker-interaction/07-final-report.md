@@ -31,7 +31,7 @@
 
 ## 7. 风险
 
-L2。无遗留阻断项；发布动作（本地目录更新源 + 运行实例只读复验）按 §8.5 需用户批准，未执行。
+L2。无遗留阻断项。发布已按 §8.5 批准后执行（2026-10-25）：本地目录更新源出包 `2.4.14.2610250925`（签名 3/3 有效、SHA256 一致、L1/L2 布局通过），运行实例 `:51888` 经宿主 update-agent 自更新至该版本；只读复验通过（token 200、`todo-tracker`=1.2.0 / `ai-agent`=1.9.5、徽标 v1.2.0、流水线与看板/详情三页签/优先级筛选实走，截图存 `ForgeSelf.Web/screenshots/live-51888/`）。
 
 ## 8. 发现的问题
 
@@ -65,9 +65,9 @@ R0：本次无跨模块重构提案；AC14 只是把既有 `ToolChoice` 字段�
 
 ## 13. 后续收口（2026-10-25）
 
-延续任务 `docs/ai/pilot/2026-10-25-todo-builtin-agent-done/` 已闭环本报告遗留项，本报告 BLOCKED 结论据此更新为「代码与验收完成，仅剩发布待批」：
+延续任务 `docs/ai/pilot/2026-10-25-todo-builtin-agent-done/` 已闭环本报告遗留项，本报告 BLOCKED 结论据此更新为「代码与验收完成，发布已完成并复验通过」：
 
 - **R3 真实下发到 Done**：根因为内置引擎硬编码不存在的模型 + `ResolveProvider` 静默回退 + 空响应当成功（PC-013）。修复后隔离实例待办 10 真实下发 → Run 1 `status=3 Completed` → `stage=Done`（详见该工件 `05-evidence.md`）。
 - **R2 旧完成端点 500**：根因为 `ActorHint()`/基址拼接在单元直构控制器下 NRE（同类扫查 `TodosController` / `TaskExecutionsController` / `TodoDispatchController` 三处），已修；`CompleteThenReopen_Flow_ShouldFlipStatus` 转绿，TodoTracker 域 165/165。
 - **R1 构建 / e2e / UI 走查**：插件前端 `pnpm run build` PASS；冒烟 e2e 1 passed / 59.8s（修正过期选择器 `.td-head-title input` → `#td-title`）；截图 `ForgeSelf.Web/screenshots/e2e/todo-tracker/todo-tracker-main-flow.png` 已读图。
-- **仍未做**：本地目录发布与用户运行实例只读复验（§8.5 需用户批准），已在 `TODO.md` 登记。
+- **发布与复验（2026-10-25 已完成）**：本地目录更新源出包 `2.4.14.2610250925`（`-Sign` 校验 3/3 Valid、SHA256 一致、L1/L2 通过），`:51888` 由 update-agent 自更新；只读复验通过（版本徽标 v1.2.0、流水线合计闭合、看板 8 列、详情三页签、Draft 仅「就绪」、优先级筛选 P2 → 共 1 条），截图 6 张存 `ForgeSelf.Web/screenshots/live-51888/`。

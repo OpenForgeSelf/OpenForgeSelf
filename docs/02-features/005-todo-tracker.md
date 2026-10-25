@@ -8,8 +8,8 @@ aliases: ["005-todo-tracker"]
 
 # 005 Todo Tracker（待办追踪插件）— 功能需求与设计
 
-> 功能编号：005 ｜ 插件：`Plugins/TodoTracker`（id `todo-tracker`）｜ 当前版本 **1.1.0**
-> 状态：已实现（v1.0.0 便签形态 → v1.1.0 「可下发给 agent 的任务台账」，PILOT-054，2026-10-07）
+> 功能编号：005 ｜ 插件：`Plugins/TodoTracker`（id `todo-tracker`）｜ 当前版本 **1.2.0**
+> 状态：已实现（v1.0.0 便签形态 → v1.1.0 「可下发给 agent 的任务台账」，PILOT-054，2026-10-07；v1.2.0 交互按原型重构，2026-10-24）
 > 关联：插件体系（01-architecture §3.3）、能力接缝 [`host-capability-seams.md` §7](../01-architecture/host-capability-seams.md)（`IAgentDelegation`）、工件 [`docs/ai/pilot/2026-10-07-todo-agent-dispatch/`](../ai/pilot/2026-10-07-todo-agent-dispatch/)
 
 ## 1. 功能需求

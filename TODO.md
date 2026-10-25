@@ -24,7 +24,10 @@
 > - **约定**：以后我俩就用本小节交接——我做终端步骤后在此登记结果+下一步指令，你读取后继续；你因实现限制停下时，我在输入框发「继续」推你。你做完后把结果写回这里。
 
 ## 🔄 进行中
+- [ ] **TodoTracker 插件待发布（P2，来源:输入1·2026-10-24）**：交互与后端修复已完成并验收（探索：`docs/ai/pilot/2026-10-24-todotracker-interaction/`，AC1~AC14 逐条核对 PASS；本轮收口：`docs/ai/pilot/2026-10-25-todo-builtin-agent-done/`，含构建、181/181 定向集、冒烟 e2e 1/1 + 截图读图）。**剩余 = plugin-development §四 第④步本地目录发布 + 第⑤步用户运行实例只读复验**；发布动作需用户批准后再执行。
 - [ ] **MCP 网关支持跨域访问（P1，来源:输入1/2·2026-10-23）**：已实现仅 `/mcp` 的可配置 Origin 白名单 CORS，后端构建与相关测试通过；插件前端/e2e、源码走查与发布复验待完成，当前受本机 Node realpath 拒绝访问阻断。证据：`docs/ai/pilot/2026-10-23-mcp-gateway-cors/`。
+- [ ] **new-problem-case.ps1 脚手架漏写 cases/README 索引行（P3，来源:PILOT-073 归档时发现·2026-10-22）**：`scripts/new-problem-case.ps1` 建 case 后不往 `docs/11-troubleshooting/cases/README.md` 追加索引行（本次手工补），后续新建问题类会静默丢索引；修法=脚本内置追加 + 可入 check-problem-classes 类校验。
+- [ ] **ScriptRunner ScriptExecutor 事件流输出迁移到字节流裁决（P2，来源:PC-011 同类扫查·2026-10-22，expires 2026-12-31）**：`Plugins/ScriptRunner/Services/ScriptExecutor.cs:287-288` 用 BeginOutputReadLine 事件流，回调入参已是宿主码页解码后的行，无法内联修；需整体换 BaseStream + ProcessOutputLineBuffer（PC-011 §3 流式姿势），收口后移出 PC-011 allowlist 与 G2 签名 S2 豁免。
 - [ ] **🔄 外部 MCP 工具进 list_tools 枚举 + 内外均可用（P1，来源:输入3·2026-10-19 用户拍板推翻 D10 枚举侧）**：✅ 全部完成含 git 提交（AIAgent 侧 `91987f3`、McpCenter/契约/文档侧 `2eac444` 并行会话合批提交，链已核干净）；发布④已随本地包 2.4.12/2.4.13（McpCenter 2.6.0 + AIAgent 1.9.x，含下条超时批）落更新源。**残留**：⑤运行实例只读复验（用户页面升级到 2.4.13 后，验 v2.6.0 生效 + list_tools 实走一遍）。工件 `docs/ai/pilot/2026-10-19-mcp-external-tools-in-list/`。
 - [ ] **McpCenter 外部 MCP 执行超时改可配置·默认 5 分钟（P1，来源:输入·2026-10-18）**：✅ 全部完成含 git 提交（`2eac444` 合批；全局单值 ExecutionTimeoutMs 默认 300000ms 域 1s~1h，含 HTTP 传输 FromSeconds 单位 bug 修复）；版本并入 2.6.0 随 2.4.12/2.4.13 发版，残留同上一条⑤运行实例复验 + 034 执行超时配置表补记（并入枚举批验证记录 v2.6.0 行，未单独成节）。工件 `docs/ai/pilot/2026-10-18-mcpcenter-execution-timeout-config/`。
 - [ ] **PC-009 G2 类级守卫：枚举宿主与插件全部 fetch 封装，成功路径 JSON 解析者必含 204/空体分支（P2，来源:PC-009 建档·2026-10-18，expires 2026-12-31）**：形态参考 ProblemClassEnumerationTests（源码扫描）；当前只有 G1（request.test.ts）+ G3 实例（e2e T020）；插件侧 9 处已逐个核实有守卫（case §4 表），但新增封装无门禁拦住。
@@ -136,8 +139,11 @@
 - [ ] **AIAgent 插件参考业内主流重新设计完善（P1，来源:输入1·2026-09-04）**：Stage 1（接通自带后端流式+工具可见）/ Stage 2（记忆接入）/ Stage 3（工作台面板重构）/ Stage 4（可配置 Agent + 增删改闭环）均已实施并端到端验证）**Stage 5 工作区代码执行（脚本运行端点 + UI）未做**。
 
 ## ⬜ 待办（按优先级）
+- [ ] **TodoTracker 详情面板窄宽度页签换行（P3，来源:输入1·2026-10-25 e2e 截图读图）**：右侧详情面板约 220px 时「工作单元」「下发与委派」页签文字折行；加 `white-space:nowrap` 或缩窄字号/间距，随下次插件 UI 批次顺带。
 - [ ] **修复：Scheduler 卸载不停止调度器（P1，来源:problem-class-closure 守卫首跑 2026-10-17，归属 PC-001）**：`SchedulerPlugin.StopScheduler` 经 `ctx.Get<ISchedulerHost>()` 停调度器，但该契约无任何 ctx.Register/seed 路径（宿主 `HostProvidedServiceContracts` 不含它，插件只 `AddSingleton` 进自身 DI，而 `Context.Get` 不回落 DI）→ 恒 null，插件卸载/宿主关停时调度器静默不停。修法：仿 AIAgent 模式 Apply 期 eager `ctx.Register<ISchedulerHost>(实例)`，或 StopScheduler 改持自有实例；须走 plugin-development 六步闭环。存量已由 PC-001 allowlist 豁免（expires 2026-11-15），修复时补正式 case 归档。
 - [ ] **backfill-feature-ids.ps1 缺 UTF-8 BOM（P2，来源:输入3·2026-10-16 全量 dotnet test 对表）**：`scripts/backfill-feature-ids.ps1`（提交 30b076f 遗留）无 BOM，`RepositoryScriptTests` 仓库级守卫 2 红；修法：补 UTF-8 BOM（一行编码改动）。
+- [ ] **AIModel 表未建导致 unit 测试顺序 flake（P2，来源:2026-10-25 全量对表）**：`AIServiceTests` ×3 与 `MultimodalProcessorTests` 偶发 `XSqlException: no such table: AIModel`（同一工作区两轮全量，红项互相替换）；修法：相关单测夹具首步 `Meta.CreateTable`/隔离连接，禁止依赖其他用例顺带建表。
+- [ ] **ScriptRunnerDiIntegrationTests 插件控制器 404（P2，来源:2026-10-25 全量对表）**：`GetRuntimes_ShouldResolvePluginControllerThroughCordisContext` 恒 404（测试宿主未装配插件控制器路由），与 WorkflowPlanning 6 红同族；修法同「测试宿主装配插件控制器或改直调服务层」。
 - [ ] **网络设置衍生项（P3，来源:输入3·2026-10-16 闸门1 拍板本批不做）**：① SOCKS5 代理支持（BCL IWebProxy 仅 HTTP/HTTPS，需第三方或 SocketsHttpHandler 自定义 ConnectCallback）；② 「测试连接」连通性检测端点（保存前验代理可达，避免不可达时模型请求直接失败）；③ 非模型出口（版本更新下载/插件市场/IM 网关等外部请求）是否纳入代理范围待拍板；④ AIAgentService 自建 HttpClient 实测休眠无调用未接代理，若激活需接线；⑤ UnifiedAIGateway/AIService 域并发 flaky 观察（隔离复跑全绿，触发 ≥2 次再投入）；⑥ 代理旁路列表（ProxyOverride/bypass）缺口（来源:输入6）：当前无旁路概念仅回环绕过，旧系统代理行为是带旁路的——内/外混合场景要么全走代理要么全直连；若要支持需 ModelProxy.GetProxy 加 bypass 匹配 + 设置页加「不走代理的地址」字段；⑦ GET /api/settings 无 [Authorize]（Bugbot 审计 2026-10-16）：本批新增 proxyHost/Port/Username 后匿名可读面扩大，改鉴权语义需先评估前端/更新链匿名读取路径，待拍板。
 - [ ] **设置页表单「错误占位防跳动」存量推广（P3，来源:输入3·2026-10-16 07-final-report §11）**：新面板（NetworkPanel）已用常驻等高占位锁住回归；存量面板 grep「行内错误 v-if 且下方有可点控件」模式（ApiServerPanel 等），命中则统一改占位形态（规律已入 agent-workflow Part B B3）。
 - [ ] **NetworkPanel 密码 placeholder 尾部截断（P3，来源:输入3·2026-10-16 截图走查）**：240px 宽度下「可选：代理需要认证时填写」显示不全；改短文案或加宽输入框，随下次 UI 批次顺带。

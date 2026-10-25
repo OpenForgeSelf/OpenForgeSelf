@@ -17,6 +17,9 @@
 | 对外协议客户端（MCP 传输/第三方 API 封装）/ 端点响应 data 与前端契约 | PC-008 |
 | fetch 封装/DELETE 类 204 端点/前端 JSON 解包 | PC-002, PC-009 |
 | stdio 拉起外部进程（npx/uvx 等 shim）/消息帧型/服务器沉默不回 | PC-010 |
+| 起子进程消费 stdout/stderr（终端命令/CLI 集成/服务探活）/中文乱码 U+FFFD | PC-011 |
+| 设置页 AI 提供方编辑表单受容器裁切 / 编辑未以视口级弹窗显示 | PC-012 |
+| AIAgent 执行入口 / 模型解析 / Run 恢复 / 上游空响应 | PC-013 |
 
 ## 台账总表
 
@@ -32,6 +35,9 @@
 | PC-008 | 外部 MCP 协议客户端侧合规缺失（clientInfo/initialized/会话头/端点 data 契约） | guarded | G1+G2×3+G3 active（修复批 2026-10-17） | 0 | [PC-008](PC-008-mcp-external-client-protocol.md) |
 | PC-009 | HTTP 封装成功路径无条件 res.json()，204/空体解析崩溃被 catch 吞成无操作 | guarded-partial | G1+G3 active，G2 planned（TODO，expires 2026-12-31） | 1 | [PC-009](PC-009-http-204-empty-body-json-parse.md) |
 | PC-010 | stdio 外部进程启动与消息帧协商脱节（Windows shim/双帧协商/null params 沉默） | guarded | G1+G2×3+G3 active + e2e 零容忍用例（修复批 2026-10-18） | 0 | [PC-010](PC-010-mcp-stdio-launch-and-framing.md) |
+| PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073） | 0 | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
+| PC-012 | 设置容器内的提供方编辑未使用视口级弹窗 | guarded | G1 active | 0 | [PC-012](PC-012-settings-provider-edit-container-clipping.md) |
+| PC-013 | 模型选择静默降级 + 上游空响应当成功 | guarded | G1+G2 active | 0（逃逸：041 门禁未覆盖空流） | [PC-013](PC-013-silent-model-fallback-empty-response.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

@@ -1,9 +1,9 @@
 {
   "Id": "ai-agent",
   "Name": "AI代理插件",
-  "Version": "1.9.4",
+  "Version": "1.9.5",
   "Author": "ForgeSelf Team",
-  "Description": "AI Agent 工作助手：前端接通插件自带聊天后端，流式逐字输出 + 工具调用可见 + Agent 人格/模型按请求路由，自带界面（web/dist）。v1.8.0：中栏聊天区迁入 ai-assistant-widget 组件（agent-core）。v1.9.0：universal_tool 支持直调已连接的外部 MCP 工具（tool 传 mcp.<服务器id>.<工具名>，经 MCP 中心跨插件契约转发；可用工具名含外部工具由 list_tools 枚举，MCP 中心未启用时返回中文引导错误）。v1.9.1：read_file/write_file 按行改造——两工具 start_line（1 基）必填，缺失报错；read_file 返回起始行至文末 content + 文件总行数 totalLines；write_file 保留前 start_line-1 行、自该行起直接覆盖到文末。v1.9.2：按需求收拢——read_file 新增选填 end_line（缺省读到文末，返回体带生效 endLine/totalLines）；write_file 改 end_line 必填（先读后写），只替换 start_line..end_line 区间、区间外行全保留。v1.9.3：universal_tool 描述内置「先 search_tools 检索、后 list_tools 枚举」找工具动线，避免每次全量枚举忽略搜索。v1.9.4：run_terminal_command 输出改读原始字节并经 ProcessOutputText 裁决解码（PC-011：修子进程按系统 ANSI/GBK 写出的中文乱码；安全守卫/CWD/超时/截断语义不变）。",
+  "Description": "AI Agent 工作助手：前端接通插件自带聊天后端，流式逐字输出 + 工具调用可见 + Agent 人格/模型按请求路由，自带界面（web/dist）。v1.8.0：中栏聊天区迁入 ai-assistant-widget 组件（agent-core）。v1.9.0：universal_tool 支持直调已连接的外部 MCP 工具（tool 传 mcp.<服务器id>.<工具名>，经 MCP 中心跨插件契约转发；可用工具名含外部工具由 list_tools 枚举，MCP 中心未启用时返回中文引导错误）。v1.9.1：read_file/write_file 按行改造——两工具 start_line（1 基）必填，缺失报错；read_file 返回起始行至文末 content + 文件总行数 totalLines；write_file 保留前 start_line-1 行、自该行起直接覆盖到文末。v1.9.2：按需求收拢——read_file 新增选填 end_line（缺省读到文末，返回体带生效 endLine/totalLines）；write_file 改 end_line 必填（先读后写），只替换 start_line..end_line 区间、区间外行全保留。v1.9.3：universal_tool 描述内置「先 search_tools 检索、后 list_tools 枚举」找工具动线，避免每次全量枚举忽略搜索。v1.9.4：run_terminal_command 输出改读原始字节并经 ProcessOutputText 裁决解码（PC-011：修子进程按系统 ANSI/GBK 写出的中文乱码；安全守卫/CWD/超时/截断语义不变）。v1.9.5：内置引擎模型解析改四级显式链（新增 ChatModelResolver），解析失败/上游空响应不再静默回退为成功（PC-013）；计划驱动回合挂载出口工具时请求带 tool_choice=required，纯文本结束不判完成。",
   "IconUrl": "https://example.com/ai-agent-icon.png",
   "EntryAssembly": "AIAgent.dll",
   "EntryType": "ForgeSelf.Api.Plugins.AIAgent.AIAgentPlugin",

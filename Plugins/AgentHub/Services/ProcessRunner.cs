@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using ForgeSelf.Core;
 using NewLife;
 using NewLife.Log;
 
@@ -79,9 +80,8 @@ public static class ProcessRunner
             RedirectStandardError = true,
             RedirectStandardInput = stdin != null,
             UseShellExecute = false,   // 关键：不经过 shell，杜绝命令注入
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            CreateNoWindow = true
+            // 不设固定码页（PC-011，PILOT-073）：下面取原始字节交 ProcessOutputText 裁决。
         };
 
         // 逐个添加参数项：ArgumentList 会自行做正确转义，不会把 prompt 里的 ; & | 当命令
@@ -119,8 +119,8 @@ public static class ProcessRunner
 
             result.Started = true;
 
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-            var stderrTask = process.StandardError.ReadToEndAsync(ct);
+            var stdoutTask = ProcessOutputText.CaptureAsync(process.StandardOutput.BaseStream, ct);
+            var stderrTask = ProcessOutputText.CaptureAsync(process.StandardError.BaseStream, ct);
 
             if (stdin != null)
             {
@@ -154,8 +154,15 @@ public static class ProcessRunner
             }
 
             // 进程结束后再取输出（避免读未完成）；若被强杀也尽力取已有内容
-            result.StdOut = await SafeAwait(stdoutTask);
-            result.StdErr = await SafeAwait(stderrTask);
+            var outDecoded = ProcessOutputText.Decode(await SafeAwaitBytes(stdoutTask));
+            var errDecoded = ProcessOutputText.Decode(await SafeAwaitBytes(stderrTask));
+            if (!outDecoded.EncodingUsed.StartsWith("utf8") || !errDecoded.EncodingUsed.StartsWith("utf8"))
+            {
+                XTrace.Log.Info("[AgentHub] 子进程输出按非 UTF-8 还原：stdout={0} stderr={1}",
+                    outDecoded.EncodingUsed, errDecoded.EncodingUsed);
+            }
+            result.StdOut = outDecoded.Text;
+            result.StdErr = errDecoded.Text;
 
             if (result.TimedOut)
             {
@@ -197,8 +204,8 @@ public static class ProcessRunner
         }
     }
 
-    /// <summary>等待读取任务完成（读取本身失败不抛出，返回已读到的部分）。</summary>
-    private static async Task<String> SafeAwait(Task<String> task)
+    /// <summary>等待读取任务完成（读取本身失败不抛出，失败时返回空字节——进程被强杀属正常分支）。</summary>
+    private static async Task<Byte[]> SafeAwaitBytes(Task<Byte[]> task)
     {
         try
         {
@@ -206,7 +213,7 @@ public static class ProcessRunner
         }
         catch
         {
-            return String.Empty;
+            return Array.Empty<Byte>();
         }
     }
 }

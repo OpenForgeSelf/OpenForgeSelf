@@ -185,11 +185,11 @@ Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/
 | 工具 | 形态 | 说明 |
 |------|------|------|
 | `universal_tool` | 分发透传壳 | 入参 `{tool, parameters}` → 经宿主 `IToolRegistry.ExecuteAsync(new ToolExecution{...})` 六闸门执行面分发到真实工具，结果原样透传；防自引用（拒绝转发自身）、unknown 带已注册数量提示。FreeLoop 白名单外的宿主全量工具可经它触达，事件链（pre-execute 三态/守卫/execute/post-execute）/使用统计全部照走，不扩权 |
-| `run_terminal_command` | 独立命令工具 | 三道安全门：可执行名白名单（仅放行 `dotnet/pnpm/node/git/ssh/pwsh`）；管道/链式拒绝（`\|` `;` `&&` 换行混淆）；CWD 限登记项目根内。破坏性命令红线（删除/格式化/联网类）拒绝路径零子进程。stdout/stderr/exitCode 回传 50KB 截断，默认 30s 超时 |
+| `run_terminal_command` | 独立命令工具 | 三道安全门：可执行名白名单（仅放行 `dotnet/pnpm/node/git/ssh/pwsh`）；管道/链式拒绝（`\|` `;` `&&` 换行混淆）；CWD 限登记项目根内。破坏性命令红线（删除/格式化/联网类）拒绝路径零子进程。stdout/stderr/exitCode 回传 50KB 截断，默认 30s 超时。输出解码（PILOT-073/PC-011）：读 BaseStream 原始字节交 `ForgeSelf.Core/ProcessOutputText` 裁决（严格 UTF-8→系统 ANSI 回退+往返校验），不再固定码页解码；真源 `docs/11-troubleshooting/problem-classes/PC-011-process-output-fixed-codepage-decode.md` |
 
 - 设计依据：`specs/031-universal-tool-gateway/`（design §2：复用 ToolRegistry 分发核，宿主零修改）+ 决策台账 ADR-002（`docs/07-decisions/002-universal-tool-gateway.md`）。
 - 模型侧可见性：两工具随插件注册自动进入 FreeLoop（历史教训：77 工具全挂上游 400，故只挂 13+2 个定义，其余经 `universal_tool` 转发）。
-- 单测：`ForgeSelf.Api.Tests/Plugins/` 下 `UniversalToolTests`（12 用例：双形态解析/透传/自引用/unknown 计数/软依赖兜底）+ `TerminalCommandGuardTests`（21 用例：白名单/链式注入/越界/红线）。
+- 单测：`ForgeSelf.Api.Tests/Plugins/` 下 `UniversalToolTests`（12 用例：双形态解析/透传/自引用/unknown 计数/软依赖兜底）+ `TerminalCommandGuardTests`（21 用例：白名单/链式注入/越界/红线）+ `RunTerminalCommandEncodingTests`（2 用例：GBK/UTF-8 子进程输出中文完好，PC-011 红灯锚）。
 
 ## 后续演进
 

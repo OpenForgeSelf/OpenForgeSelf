@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Collections.Concurrent;
 using ForgeSelf.Api.Plugins.ImGateway.Core;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.ImGateway.Services;
@@ -121,8 +122,8 @@ public class WeComScanAuthService
                 RedirectStandardError = true,
                 CreateNoWindow = true,
                 WorkingDirectory = dir,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
+                // 不设 StandardOutputEncoding/StandardErrorEncoding（PC-011）：固定 UTF-8 会把 CLI 按系统
+                // ANSI(GBK) 写出的中文烧成 U+FFFD；下面取原始字节逐行交 ProcessOutputLineBuffer 裁决。
             };
             psi.Environment[EnvConfigDir] = dir;
             psi.Environment["WECOM_CLI_LOG_DIR"] = Path.Combine(dir, "logs");
@@ -131,25 +132,32 @@ public class WeComScanAuthService
             using var proc = Process.Start(psi);
             if (proc == null) throw new InvalidOperationException("无法启动企微 CLI 进程");
 
-            // 流式读输出（UTF-8 解码；链接/二维码均为 ASCII，不受 CLI 其它中文乱码影响）
+            // 流式读输出（取原始字节逐行裁决；扫码链接/二维码均为 ASCII，但 CLI 其它中文输出不能再乱）
             _ = Task.Run(async () =>
             {
                 var sb = new StringBuilder();
-                string? line;
+                var lineBuffer = new ProcessOutputLineBuffer();
+                var chunk = new byte[8192];
                 try
                 {
-                    while ((line = await proc.StandardOutput.ReadLineAsync().ConfigureAwait(false)) != null)
-                    {
-                        AppendOutputLine(s, sb, line);
-                    }
-                    while ((line = await proc.StandardError.ReadLineAsync().ConfigureAwait(false)) != null)
-                    {
-                        AppendOutputLine(s, sb, line);
-                    }
+                    await PumpAsync(proc.StandardOutput.BaseStream);
+                    await PumpAsync(proc.StandardError.BaseStream);
+                    foreach (var line in lineBuffer.Flush()) AppendOutputLine(s, sb, line);
+                    if (lineBuffer.UsedNonUtf8)
+                        XTrace.Log.Info("[企微扫码] CLI 输出按非 UTF-8 还原：{0}", lineBuffer.NonUtf8EncodingUsed);
                 }
                 catch (Exception ex)
                 {
                     XTrace.Log.Debug("[企微扫码] 读取 CLI 输出结束: {0}", ex.Message);
+                }
+
+                async Task PumpAsync(Stream stream)
+                {
+                    int read;
+                    while ((read = await stream.ReadAsync(chunk).ConfigureAwait(false)) > 0)
+                    {
+                        foreach (var line in lineBuffer.Append(chunk.AsSpan(0, read))) AppendOutputLine(s, sb, line);
+                    }
                 }
             });
 

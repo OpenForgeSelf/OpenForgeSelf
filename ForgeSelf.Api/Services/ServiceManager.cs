@@ -6,6 +6,7 @@ using System.ServiceProcess;
 using Microsoft.Extensions.Options;
 using NewLife.Log;
 using ForgeSelf.Api.Models;
+using ForgeSelf.Core;
 
 namespace ForgeSelf.Api.Services;
 
@@ -265,6 +266,8 @@ public class ServiceManager : IServiceManager
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    // 不设 StandardOutputEncoding（PC-011）：sc.exe 在中文 Windows 上按 ANSI(GBK) 写本地化
+                    // 错误文本，固定跟随宿主码页或固定 UTF-8 都会乱；下面取原始字节裁决。
                 }
             };
 
@@ -281,8 +284,10 @@ public class ServiceManager : IServiceManager
 
             if (process.ExitCode != 0)
             {
-                var error = process.StandardError.ReadToEnd();
-                XTrace.Log.Error("sc.exe 执行失败 (exit={0}): {1}", process.ExitCode, error);
+                // 只取 stderr 供日志（stdout 未消费）；同样走 PC-011 裁决助手。
+                var decoded = ProcessOutputText.Decode(ProcessOutputText.Capture(process.StandardError.BaseStream));
+                XTrace.Log.Error("sc.exe 执行失败 (exit={0}): {1}［输出解码 {2}］",
+                    process.ExitCode, decoded.Text, decoded.EncodingUsed);
                 return false;
             }
 

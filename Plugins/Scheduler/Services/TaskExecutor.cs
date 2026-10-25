@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using ForgeSelf.Core;
 using NewLife.Log;
 using XCode;
 using ScheduledTaskEntity = ForgeSelf.Api.Plugins.Scheduler.Entities.ScheduledTask;
@@ -137,6 +138,8 @@ public class TaskExecutor : ITaskExecutor
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
+                // 不设 StandardOutputEncoding（PC-011）：不设置时 .NET 默认跟随宿主码页，
+                // 会把 dotnet/pnpm/node 等协议性 UTF-8 输出里的中文毁掉；下面取原始字节裁决。
             };
 
             using var process = Process.Start(processInfo);
@@ -145,13 +148,19 @@ public class TaskExecutor : ITaskExecutor
 
             process.WaitForExit(300000);
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+            var output = ProcessOutputText.Decode(ProcessOutputText.Capture(process.StandardOutput.BaseStream));
+            var error = ProcessOutputText.Decode(ProcessOutputText.Capture(process.StandardError.BaseStream));
+            if (!output.EncodingUsed.StartsWith("utf8") || !error.EncodingUsed.StartsWith("utf8"))
+            {
+                // PC-011：固定码页解码必坏一侧，这里取原始字节裁决；非 UTF-8 生效时留日志。
+                XTrace.Log.Info("[TaskExecutor] 命令输出按非 UTF-8 还原：stdout={0} stderr={1}",
+                    output.EncodingUsed, error.EncodingUsed);
+            }
 
             if (process.ExitCode != 0)
-                throw new Exception($"命令执行失败，退出码: {process.ExitCode}\n{error}");
+                throw new Exception($"命令执行失败，退出码: {process.ExitCode}\n{error.Text}");
 
-            return string.IsNullOrEmpty(output) ? "命令执行成功" : output;
+            return string.IsNullOrEmpty(output.Text) ? "命令执行成功" : output.Text;
         }
         catch (Exception ex)
         {

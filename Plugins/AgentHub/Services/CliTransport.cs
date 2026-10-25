@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using ForgeSelf.Api.Plugins.AgentHub.Profiles;
+using ForgeSelf.Core;
 using NewLife;
 using NewLife.Log;
 
@@ -77,9 +78,8 @@ public class CliTransport : IAgentTransport
             RedirectStandardError = true,
             RedirectStandardInput = promptViaStdin,
             UseShellExecute = false,          // 关键：不经 shell，杜绝命令注入
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            CreateNoWindow = true
+            // 不设固定码页（PC-011，PILOT-073）：下面取原始字节交 ProcessOutputText/行缓冲裁决。
         };
 
         foreach (var a in args) psi.ArgumentList.Add(a);
@@ -94,7 +94,6 @@ public class CliTransport : IAgentTransport
             if (!value.IsNullOrEmpty()) psi.Environment[key] = value;
         }
 
-        var stderr = new StringBuilder();
         Process? process = null;
         var pipeline = new EventPipeline(profile);
 
@@ -126,15 +125,14 @@ public class CliTransport : IAgentTransport
                 }
             }
 
-            // stderr 后台收集（不阻塞 stdout 流，避免管道写满互锁）
+            // stderr 后台收集（不阻塞 stdout 流，避免管道写满互锁）；取原始字节，退出后统一裁决。
             var stderrTask = Task.Run(async () =>
             {
                 try
                 {
-                    var text = await process.StandardError.ReadToEndAsync(CancellationToken.None);
-                    lock (stderr) stderr.Append(text);
+                    return await ProcessOutputText.CaptureAsync(process.StandardError.BaseStream, CancellationToken.None);
                 }
-                catch { /* 进程被强杀时正常 */ }
+                catch { return Array.Empty<Byte>(); /* 进程被强杀时正常 */ }
             });
 
             // ⚠ PILOT-055 实测修复：超时计时必须**先于** stdout 读取循环。
@@ -144,24 +142,44 @@ public class CliTransport : IAgentTransport
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(req.TimeoutMs);
 
-            // 逐行读 stdout，边读边归一化输出（流式）
-            var lineNo = 0;
+            // 逐行读 stdout，边读边归一化输出（流式）。读的是**原始字节**，按行交
+            // ProcessOutputLineBuffer 裁决（PC-011：固定 UTF-8 解码会把按系统 ANSI 写的中文烧成 U+FFFD）。
+            var lineBuffer = new ProcessOutputLineBuffer();
+            var chunk = new Byte[8192];
             while (true)
             {
-                String? line;
+                Int32 read;
                 try
                 {
-                    line = await process.StandardOutput.ReadLineAsync(timeoutCts.Token);
+                    read = await process.StandardOutput.BaseStream.ReadAsync(chunk, timeoutCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
 
-                if (line == null) break;
+                if (read == 0) break; // EOF（进程退出）
 
-                lineNo++;
-                foreach (var evt in pipeline.ParseLines([line]))
+                foreach (var evt in Emit(lineBuffer.Append(chunk.AsSpan(0, read))))
+                {
+                    yield return evt;
+                }
+            }
+
+            // 收尾：最后一行无换行时仍在缓冲里
+            foreach (var evt in Emit(lineBuffer.Flush()))
+            {
+                yield return evt;
+            }
+
+            if (lineBuffer.UsedNonUtf8)
+            {
+                XTrace.Log.Info("[AgentHub] 子进程 stdout 按非 UTF-8 还原：{0}", lineBuffer.NonUtf8EncodingUsed);
+            }
+
+            IEnumerable<AgentEvent> Emit(IReadOnlyList<String> lines)
+            {
+                foreach (var evt in pipeline.ParseLines(lines))
                 {
                     // 从 Meta 事件里尽力捞会话 id（供续接）
                     if (evt.Type == AgentEventTypes.Meta && session.SessionRef.IsNullOrEmpty())
@@ -185,10 +203,13 @@ public class CliTransport : IAgentTransport
                 ProcessRunner.KillProcessTree(process);
             }
 
-            await stderrTask;
-
             // stderr 有内容则作为 Error 事件回流（很多 CLI 把警告/错误写 stderr）
-            var errText = LockedText(stderr);
+            var errDecoded = ProcessOutputText.Decode(await stderrTask);
+            if (!errDecoded.EncodingUsed.StartsWith("utf8", StringComparison.Ordinal))
+            {
+                XTrace.Log.Info("[AgentHub] 子进程 stderr 按非 UTF-8 还原：{0}", errDecoded.EncodingUsed);
+            }
+            var errText = errDecoded.Text;
             if (!errText.IsNullOrWhiteSpace())
             {
                 yield return AgentEvent.FromError(errText.TrimEnd());
@@ -325,11 +346,5 @@ public class CliTransport : IAgentTransport
         }
 
         return null;
-    }
-
-    /// <summary>线程安全取 StringBuilder 文本</summary>
-    private static String LockedText(StringBuilder sb)
-    {
-        lock (sb) return sb.ToString();
     }
 }

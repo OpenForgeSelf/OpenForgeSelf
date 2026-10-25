@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.ToolBridge.Services;
@@ -6,7 +7,8 @@ namespace ForgeSelf.Api.Plugins.ToolBridge.Services;
 /// <summary>
 /// 命令执行（PILOT-053 02-spec FR-3.4/3.6/3.7）。
 /// 进程姿势沿用内置 agent 已实证的形态（<c>RunTerminalCommandTool.cs:127-189</c>）：
-/// UseShellExecute=false（不经 shell 解释）、CreateNoWindow、stdout/stderr 显式 UTF-8、
+/// UseShellExecute=false（不经 shell 解释）、CreateNoWindow、stdout/stderr 取原始字节后交
+/// <see cref="ProcessOutputText"/> 裁决（PC-011：不固定码页解码）。
 /// **并发抽干双管道再等退出**（防 stdout 缓冲满把子进程卡在 stderr 写不上）、超时不 Kill。
 /// 守卫先于进程：被拒路径绝不 <c>Process.Start</c>（BR-3、AC7）。
 /// </summary>
@@ -45,9 +47,9 @@ public static class CommandExecutor
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = System.Text.Encoding.UTF8,
-            StandardErrorEncoding = System.Text.Encoding.UTF8
+            RedirectStandardError = true
+            // 不设固定码页（PC-011，PILOT-073）：下面捕原始字节交 ProcessOutputText 裁决，
+            // 否则按系统 ANSI（GBK）写出的中文输出会被 UTF-8 严格解码毁成 U+FFFD。
         };
 
         Process? proc;
@@ -72,13 +74,13 @@ public static class CommandExecutor
 
         using (proc)
         {
-            string stdout;
-            string stderr;
+            byte[] stdoutBytes;
+            byte[] stderrBytes;
             var timedOut = false;
             try
             {
-                var outTask = proc.StandardOutput.ReadToEndAsync();
-                var errTask = proc.StandardError.ReadToEndAsync();
+                var outTask = ProcessOutputText.CaptureAsync(proc.StandardOutput.BaseStream);
+                var errTask = ProcessOutputText.CaptureAsync(proc.StandardError.BaseStream);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
                 try
                 {
@@ -94,18 +96,26 @@ public static class CommandExecutor
                     await Task.WhenAll(outTask, errTask);
                 }
 
-                stdout = timedOut ? string.Empty : outTask.Result;
-                stderr = timedOut ? string.Empty : errTask.Result;
+                stdoutBytes = timedOut ? Array.Empty<byte>() : outTask.Result;
+                stderrBytes = timedOut ? Array.Empty<byte>() : errTask.Result;
             }
             catch (ObjectDisposedException)
             {
                 timedOut = true;
-                stdout = string.Empty;
-                stderr = string.Empty;
+                stdoutBytes = Array.Empty<byte>();
+                stderrBytes = Array.Empty<byte>();
             }
 
-            var (stdoutText, stdoutTruncated) = CommandGuard.Truncate(stdout);
-            var (stderrText, stderrTruncated) = CommandGuard.Truncate(stderr);
+            var decodedOut = ProcessOutputText.Decode(stdoutBytes);
+            var decodedErr = ProcessOutputText.Decode(stderrBytes);
+            if (!decodedOut.EncodingUsed.StartsWith("utf8") || !decodedErr.EncodingUsed.StartsWith("utf8"))
+            {
+                XTrace.Log.Info("[tool-bridge] run_command 输出按非 UTF-8 还原：stdout={0} stderr={1}",
+                    decodedOut.EncodingUsed, decodedErr.EncodingUsed);
+            }
+
+            var (stdoutText, stdoutTruncated) = CommandGuard.Truncate(decodedOut.Text);
+            var (stderrText, stderrTruncated) = CommandGuard.Truncate(decodedErr.Text);
 
             if (timedOut)
             {

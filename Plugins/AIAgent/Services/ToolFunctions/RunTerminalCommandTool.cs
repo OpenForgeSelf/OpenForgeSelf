@@ -135,9 +135,10 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8
+                RedirectStandardError = true
+                // 不设 StandardOutputEncoding/StandardErrorEncoding（PC-011，PILOT-073）：任何固定码页解码
+                // 都会毁掉另一侧——固定 UTF-8 毁掉按系统 ANSI（GBK）写出的中文输出，固定跟随码页毁掉
+                // dotnet/pnpm/node 的协议性 UTF-8 输出。改为下面捕获原始字节，交 ProcessOutputText 裁决。
             };
             if (dto.Env != null)
             {
@@ -153,14 +154,14 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                 return Fail($"Error: failed to start process '{exe}'");
             }
 
-            string stdout;
-            string stderr;
+            byte[] stdoutBytes;
+            byte[] stderrBytes;
             var timedOut = false;
             try
             {
-                // 并发读双管道防死锁（stdout 缓冲满会阻塞子进程写 stderr）。
-                var outTask = proc.StandardOutput.ReadToEndAsync();
-                var errTask = proc.StandardError.ReadToEndAsync();
+                // 并发读双管道防死锁（stdout 缓冲满会阻塞子进程写 stderr）；读原始字节不做解码。
+                var outTask = ProcessOutputText.CaptureAsync(proc.StandardOutput.BaseStream);
+                var errTask = ProcessOutputText.CaptureAsync(proc.StandardError.BaseStream);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
                 try
                 {
@@ -174,19 +175,28 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                 {
                     await Task.WhenAll(outTask, errTask);
                 }
-                stdout = timedOut ? string.Empty : outTask.Result;
-                stderr = timedOut ? string.Empty : errTask.Result;
+                stdoutBytes = timedOut ? Array.Empty<byte>() : outTask.Result;
+                stderrBytes = timedOut ? Array.Empty<byte>() : errTask.Result;
             }
             catch (ObjectDisposedException)
             {
                 // 进程句柄已随超时释放，按超时语义处理。
                 timedOut = true;
-                stdout = string.Empty;
-                stderr = string.Empty;
+                stdoutBytes = Array.Empty<byte>();
+                stderrBytes = Array.Empty<byte>();
             }
 
-            var (stdoutText, stdoutTruncated) = TerminalCommandGuard.Truncate(stdout);
-            var (stderrText, stderrTruncated) = TerminalCommandGuard.Truncate(stderr);
+            // 解码（UTF-8 严格优先 → 系统 ANSI 往返校验回退 → 兜底宽容 UTF-8）；非 UTF-8 生效时留日志（FR-3）。
+            var decodedOut = ProcessOutputText.Decode(stdoutBytes);
+            var decodedErr = ProcessOutputText.Decode(stderrBytes);
+            if (!decodedOut.EncodingUsed.StartsWith("utf8") || !decodedErr.EncodingUsed.StartsWith("utf8"))
+            {
+                XTrace.Log.Info("[AIAgentPlugin] run_terminal_command 输出按非 UTF-8 还原：stdout={0} stderr={1}",
+                    decodedOut.EncodingUsed, decodedErr.EncodingUsed);
+            }
+
+            var (stdoutText, stdoutTruncated) = TerminalCommandGuard.Truncate(decodedOut.Text);
+            var (stderrText, stderrTruncated) = TerminalCommandGuard.Truncate(decodedErr.Text);
             var exitCode = timedOut ? -1 : SafeExitCode(proc);
 
             XTrace.Log.Info("[AIAgentPlugin] run_terminal_command {0}（{1}ms，timedOut={2}，exit={3}）",

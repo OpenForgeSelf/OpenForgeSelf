@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services;
@@ -171,11 +172,13 @@ public class RuntimeDetector : IRuntimeDetector
             using var process = Process.Start(startInfo);
             if (process == null) return string.Empty;
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+            // 取原始字节交 ProcessOutputText 裁决（PC-011）：不设置编码时 .NET 默认跟随宿主码页，
+            // 在 UTF-8 码页机器上读 sc.exe/node 等 ANSI 输出（或反之）就会乱码。
+            var output = ProcessOutputText.Decode(ProcessOutputText.Capture(process.StandardOutput.BaseStream));
+            var error = ProcessOutputText.Decode(ProcessOutputText.Capture(process.StandardError.BaseStream));
             process.WaitForExit(5000);
 
-            var version = !string.IsNullOrEmpty(output) ? output.Trim() : error.Trim();
+            var version = !string.IsNullOrEmpty(output.Text) ? output.Text.Trim() : error.Text.Trim();
             if (version.Length > 100)
             {
                 version = version[..100];

@@ -261,6 +261,9 @@ public class PluginManager
         typeof(IDataLocationService),
         typeof(IProjectRegistry),
         typeof(IAIProviderRegistry),
+        // 模型目录（只读，仅启用模型）：AIAgent 插件解析「本次用哪个对话模型」的可用性依据
+        // （2026-10-25：内置执行/Run 恢复的模型解析链需要它，禁止插件硬编码模型名）
+        typeof(ITurnTelemetryQuery),
         // 配置密钥加密（AES-256）：ImGateway 等插件把 Secret 加密入库所需（第 1 步接口上移 Abstractions 后，
         // 宿主 DI 已注册，但插件经 ctx.Get 需要此接缝 seed 进根 Context）
         typeof(ISecretEncryptionService),

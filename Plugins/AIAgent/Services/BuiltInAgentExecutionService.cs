@@ -22,21 +22,20 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 /// </summary>
 public class BuiltInAgentExecutionService : IBuiltInAgentExecution
 {
-    /// <summary>
-    /// 内部默认聊天模型：ornith-1.0-9b（9B，实测唯一走通工具循环的本地模型）。
-    /// qwen3.5-4b（4B）工具调用不可靠（不调工具直接收束 → run_stuck），不在此处兜底；
-    /// 默认模型引导记 TODO（AIAgent 设置页）。
-    /// </summary>
-    public const string DefaultChatModelId = "default:ornith-1.0-9b";
-
     private readonly IRunOrchestratorService _orchestrator;
     private readonly IAgentRegistryService _agentRegistry;
+    private readonly IChatModelResolver _modelResolver;
     private readonly IContext? _ctx;
 
-    public BuiltInAgentExecutionService(IRunOrchestratorService orchestrator, IAgentRegistryService agentRegistry, IContext? ctx = null)
+    public BuiltInAgentExecutionService(
+        IRunOrchestratorService orchestrator,
+        IAgentRegistryService agentRegistry,
+        IChatModelResolver modelResolver,
+        IContext? ctx = null)
     {
         _orchestrator = orchestrator;
         _agentRegistry = agentRegistry;
+        _modelResolver = modelResolver;
         _ctx = ctx;
     }
 
@@ -66,11 +65,21 @@ public class BuiltInAgentExecutionService : IBuiltInAgentExecution
 
         // 角色缺省：todo 下发 = 干活场景，默认程序员；非法角色 id 由 AIAgent 侧裁决
         var roleId = string.IsNullOrWhiteSpace(request.AgentRoleId) ? "agent.programmer" : request.AgentRoleId!;
+
+        // 模型解析（有序链，禁止硬编码）：显式指定 → 宿主默认模型（命中启用目录）→ 目录首个启用 → 明确失败。
+        // 历史缺陷：曾硬编码不存在的 ornith-1.0-9b，上游回空流被误判成「Agent 不会执行」。
+        var chatModelId = await _modelResolver.ResolveAsync(request.ChatModelId, ct);
+        if (string.IsNullOrWhiteSpace(chatModelId))
+        {
+            XTrace.Log.Warn("[BuiltInAgentExecution] 未解析到可用对话模型，拒绝下发（Prompt 长度 {0}）", request.Prompt.Length);
+            return BuiltInAgentOutcome.Fail("未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再下发。");
+        }
+
         var runRequest = new RunRequest
         {
             AgentId = roleId,
             TaskInput = request.Prompt,
-            ChatModelId = string.IsNullOrWhiteSpace(request.ChatModelId) ? DefaultChatModelId : request.ChatModelId
+            ChatModelId = chatModelId
         };
 
         // 后台消费迭代器（事件丢弃，仅让 Run 落库跑完）；step_started 携带 runId

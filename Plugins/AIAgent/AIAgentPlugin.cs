@@ -35,6 +35,9 @@ public class AIAgentPlugin : IPlugin
         services?.AddSingleton<IProjectSkillScannerService, ProjectSkillScannerService>();
         services?.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
         services?.AddScoped<IAIAgentService, AIAgentService>();
+        // 对话模型解析（有序链：显式指定 → 宿主默认模型 → 启用目录首个 → 明确失败）：
+        // 内置执行与 Run 恢复共用，替代原先硬编码的 ornith-1.0-9b（该模型不在模型表中）。
+        services?.AddScoped<IChatModelResolver, ChatModelResolver>();
         services?.AddScoped<IPluginMessageService, PluginMessageService>();
         // B4（040）：会话日志 → AIChatMessage 只读视图的投影同步器（调用方返回前 await，勿改 Singleton）
         services?.AddScoped<AIAgentProjectionService>();

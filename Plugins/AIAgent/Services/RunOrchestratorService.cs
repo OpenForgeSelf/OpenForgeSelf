@@ -109,6 +109,7 @@ public class RunOrchestratorService : IRunOrchestratorService
     private readonly RunFlowToolSet? _runFlowTools;
     private readonly IInbox? _inboxOverride;
     private readonly TimeSpan? _stepTimeout;
+    private readonly IChatModelResolver? _modelResolver;
 
     /// <summary>宿主收件箱（B7 软依赖）：优先显式注入（测试），否则经 Cordis 上下文运行期懒解析。</summary>
     private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();
@@ -124,6 +125,7 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// <param name="runFlowTools">029 特殊工具集（complete_step/request_help schema 经 AgentOptions.ExtraTools 挂载）。</param>
     /// <param name="inbox">宿主收件箱显式注入（测试用；生产走 ctx 懒解析）。</param>
     /// <param name="stepTimeout">单步骤超时覆盖（默认 45s；测试可缩短）。</param>
+    /// <param name="modelResolver">对话模型解析（可选；缺失时保持旧行为——空模型交给 AIAgent 侧回退）。</param>
     public RunOrchestratorService(
         IPlanGeneratorService planGenerator,
         IAIAgentService aiAgentService,
@@ -131,7 +133,8 @@ public class RunOrchestratorService : IRunOrchestratorService
         IContext? ctx = null,
         RunFlowToolSet? runFlowTools = null,
         IInbox? inbox = null,
-        TimeSpan? stepTimeout = null)
+        TimeSpan? stepTimeout = null,
+        IChatModelResolver? modelResolver = null)
     {
         _planGenerator = planGenerator;
         _aiAgentService = aiAgentService;
@@ -140,7 +143,15 @@ public class RunOrchestratorService : IRunOrchestratorService
         _runFlowTools = runFlowTools;
         _inboxOverride = inbox;
         _stepTimeout = stepTimeout;
+        _modelResolver = modelResolver;
     }
+
+    /// <summary>
+    /// 解析本次执行使用的模型（有序链；<see cref="_modelResolver"/> 缺席时原样返回，保持旧语义）。
+    /// 返回 null = 无可用模型，调用方必须明确报错而不是继续跑（禁止静默降级）。
+    /// </summary>
+    private async Task<string?> ResolveChatModelAsync(string? requested, CancellationToken ct)
+        => _modelResolver == null ? requested : await _modelResolver.ResolveAsync(requested, ct);
 
     /// <inheritdoc />
     public async IAsyncEnumerable<AgentLoopEvent> RunAsync(RunRequest request, [EnumeratorCancellation] CancellationToken ct)
@@ -148,6 +159,20 @@ public class RunOrchestratorService : IRunOrchestratorService
         if (string.IsNullOrWhiteSpace(request.TaskInput))
         {
             yield return new AgentLoopEvent { Type = "error", Content = "任务原文（taskInput）不能为空" };
+            yield break;
+        }
+
+        // 0. 模型解析（有序链）：无可用模型直接明确报错，不建 Run、不进入规划（避免「空模型 → 上游空流 → 误判 Stuck」）。
+        // 解析器缺席（仅测试装配）时保持旧语义：空模型交给 AIAgent 侧回退。
+        var chatModelId = await ResolveChatModelAsync(request.ChatModelId, ct);
+        if (_modelResolver != null && string.IsNullOrWhiteSpace(chatModelId))
+        {
+            XTrace.Log.Warn("[RunOrchestrator] 无可用对话模型，拒绝创建执行（Agent={0}）", request.AgentId);
+            yield return new AgentLoopEvent
+            {
+                Type = "error",
+                Content = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。"
+            };
             yield break;
         }
 
@@ -162,7 +187,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         var planningStopwatch = System.Diagnostics.Stopwatch.StartNew();   // B9-3：规划耗时元数据
         try
         {
-            plan = await _planGenerator.GeneratePlanAsync(run, request.WorkflowId, request.ChatModelId, ct);
+            plan = await _planGenerator.GeneratePlanAsync(run, request.WorkflowId, chatModelId, ct);
         }
         catch (Exception ex)
         {
@@ -190,13 +215,13 @@ public class RunOrchestratorService : IRunOrchestratorService
             {
                 plan = plan,
                 planJson = run.PlanJson,
-                planningModel = request.ChatModelId,
+                planningModel = chatModelId,
                 planningDurationMs = planningStopwatch.ElapsedMilliseconds
             }, SsePayloadOptions)
         };
 
         // 4. 逐步执行（SSE 事件透传）。
-        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, request.ChatModelId, 0, ct))
+        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, chatModelId, 0, ct))
             yield return ev;
     }
 
@@ -244,12 +269,25 @@ public class RunOrchestratorService : IRunOrchestratorService
         }
 
         // 保留现场：从 CurrentStepIndex 重跑；前序 Completed 步骤产出由步骤系统提示注入上下文（T011）。
-        // 注：V1 不持久化 ChatModelId，resume 回退默认 provider（可后续加列）。
+        // ChatModelId 未落列（V1），恢复时按同一解析链重新解析——不再传 null 静默退化成宿主默认模型
+        // （2026-10-25 实证：null → AiConfig.ModelName 指向不可用模型 → 空流 → Run 卡住）。
+        var resumeModelId = await ResolveChatModelAsync(null, ct);
+        if (_modelResolver != null && string.IsNullOrWhiteSpace(resumeModelId))
+        {
+            yield return new AgentLoopEvent
+            {
+                Type = "error",
+                Content = "未找到可用对话模型：无法恢复执行，请到「AI 模型」设置启用至少一个对话模型后再试。"
+            };
+            yield break;
+        }
+
         run.Status = (int)AgentRunStatus.Running;
         run.Update();
-        XTrace.Log.Info("[RunOrchestrator] 恢复 Run {0}（原状态 {1}），从步骤 {2} 继续", run.Id, from, run.CurrentStepIndex);
+        XTrace.Log.Info("[RunOrchestrator] 恢复 Run {0}（原状态 {1}），从步骤 {2} 继续（模型 {3}）",
+            run.Id, from, run.CurrentStepIndex, resumeModelId);
 
-        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, null, Math.Max(0, run.CurrentStepIndex), ct))
+        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, resumeModelId, Math.Max(0, run.CurrentStepIndex), ct))
             yield return ev;
     }
 

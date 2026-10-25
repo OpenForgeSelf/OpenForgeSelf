@@ -59,7 +59,7 @@ aliases: ["001-ai-provider-config"]
 | `AppBuilder.cs` | 启动 `InitializeXCodeDatabase` → `EnsureSeeded` → `ReloadAsync` 从 DB 重载 |
 
 ## 3. 使用指南
-前端设置面板（`SettingsView` → AI 提供方）增删改查；"测试连接"调用 `POST api/ai-providers/{id}/test`（解密后发最小探测）；"拉取模型"调用 `POST api/ai-providers/{id}/fetch-models`（见 002/004）。
+前端设置面板（`SettingsView` → AI 提供方）增删改查；提供方新增/编辑使用 Element Plus `el-dialog append-to-body`，在设置容器外以视口弹窗展示，长表单在弹窗内容区滚动；背景图模式沿用 `bg-image-mode.css` 的弹窗透明度主题规则。"测试连接"调用 `POST api/ai-providers/{id}/test`（解密后发最小探测）；"拉取模型"调用 `POST api/ai-providers/{id}/fetch-models`（见 002/004）。
 
 **测试连接的 URL 归一化（2026-10-18 修复后语义，真源）**：探测地址不是裸 `Endpoint`，而是经 `OpenAICompatibleProvider.GetChatEndpointByProviderType` 推导出**完整 chat 接口**后 POST（与真实聊天链路同一套规则）：已含 chat 路径（`…/v1/chat/completions`）→ 原样；Anthropic → 补 `/messages`；裸基地址（`…/v1` 或无路径）→ 补 `/v1/chat/completions`；自定义路径（`…/gpus/v5`）→ 只加后缀。守卫单测 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionUrlTests.cs`。历史缺陷：直接 POST 裸 `/v1` 必 404，致「聊天能用、测试必失败」（pilot `2026-10-16-settings-proxy-mode-bypass` 05-evidence 补充证据节）。
 

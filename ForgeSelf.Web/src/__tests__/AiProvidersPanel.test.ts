@@ -193,3 +193,79 @@ describe('AiProvidersPanel - 测试连接选定模型（输入3）', () => {
     expect(JSON.parse(capturedTestBody as string)).toEqual({ modelId: 101 })
   })
 })
+
+describe('AiProvidersPanel - 提供方编辑弹窗', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+  let updateBody: Record<string, unknown> | undefined
+  let host: HTMLDivElement
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchMock = vi.fn()
+    updateBody = undefined
+    host = document.createElement('div')
+    host.className = 'app-layout has-bg-image'
+    document.body.appendChild(host)
+    fetchMock.mockImplementation(async (url: string, opts?: RequestInit) => {
+      const method = opts?.method ?? 'GET'
+      if (url.includes('/api/ai-providers') && method === 'GET') {
+        return jsonResponse([makeProvider({ id: 1, name: '本地模型', endpoint: 'http://localhost:1234/v1', supportedModels: ['gpt-4o', 'gpt-4o-mini'] })])
+      }
+      if (url.endsWith('/api/ai-providers/1') && method === 'PUT') {
+        updateBody = JSON.parse(String(opts?.body)) as Record<string, unknown>
+        return jsonResponse(makeProvider({ id: 1, ...updateBody }))
+      }
+      if (url.includes('/api/ai-models') && method === 'GET') return jsonResponse({ groups: [] })
+      return jsonResponse({}, false, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    host.remove()
+    document.body.innerHTML = ''
+  })
+
+  async function openEditDialog() {
+    const wrapper = mount(AiProvidersPanel, { attachTo: host })
+    await flushPromises()
+    await wrapper.find('.el-card .el-button').trigger('click')
+    await flushPromises()
+    const title = [...document.querySelectorAll('.el-dialog__title')]
+      .find((item) => item.textContent?.trim() === '编辑提供方')
+    expect(title).toBeDefined()
+    const dialog = title?.closest('.el-dialog')
+    expect(dialog).not.toBeNull()
+    return { wrapper, dialog: dialog as HTMLElement }
+  }
+
+  it('在设置容器之外打开弹窗并回填字段，API Key 留空提示保留原密钥', async () => {
+    const { dialog } = await openEditDialog()
+    expect(host.contains(dialog)).toBe(false)
+    expect((dialog.querySelector('input') as HTMLInputElement | null)?.value).toBe('本地模型')
+    expect(dialog.textContent).toContain('留空 = 保留原密钥')
+    expect((dialog.querySelector('input[type="password"]') as HTMLInputElement | null)?.value).toBe('')
+  })
+
+  it('取消不更新；保存使用原有更新接口且 API Key 留空', async () => {
+    const { dialog } = await openEditDialog()
+    const cancel = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent?.includes('取消'))
+    expect(cancel).toBeDefined()
+    cancel?.click()
+    await flushPromises()
+    expect(updateBody).toBeUndefined()
+
+    const editButton = document.querySelector('.el-card .el-button') as HTMLButtonElement | null
+    expect(editButton).not.toBeNull()
+    editButton?.click()
+    await flushPromises()
+    const save = [...document.querySelectorAll<HTMLButtonElement>('.el-dialog button')].find((button) => button.textContent?.includes('保存'))
+    expect(save).toBeDefined()
+    save?.click()
+    await flushPromises()
+    expect(updateBody).toMatchObject({ name: '本地模型', endpoint: 'http://localhost:1234/v1' })
+    expect(updateBody?.apiKey).toBeUndefined()
+  })
+})

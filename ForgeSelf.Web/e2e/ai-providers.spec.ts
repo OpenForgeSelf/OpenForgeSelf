@@ -90,9 +90,9 @@ function iconButtonInCard(card: ReturnType<Page['locator']>, page: Page, index: 
   return card.locator('button').filter({ has: page.locator('.el-icon') }).nth(index)
 }
 
-/** 抽屉内按 placeholder 定位输入框（label 无 for 关联，getByLabel 不可用） */
-function drawerInput(drawer: ReturnType<Page['locator']>, placeholder: string) {
-  return drawer.getByPlaceholder(placeholder)
+/** 弹窗内按 placeholder 定位输入框（label 无 for 关联，getByLabel 不可用） */
+function dialogInput(dialog: ReturnType<Page['locator']>, placeholder: string) {
+  return dialog.getByPlaceholder(placeholder)
 }
 
 // ============================================================
@@ -141,17 +141,29 @@ test.describe('AI 提供方管理（真实后端）', () => {
     // 第一个 text button 是 Edit
     await iconButtonInCard(firstCard, page, 0).click()
 
-    const drawer = page.locator('.el-drawer').filter({ hasText: '编辑提供方' })
-    await expect(drawer).toBeVisible()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '编辑提供方' })
+    await expect(dialog).toBeVisible()
+
+    // 触发既有背景图弹窗主题规则，确认编辑弹窗保持透明且仍可读。
+    await page.evaluate(() => document.body.classList.add('app-bg-image-mode'))
+    const dialogAlpha = await dialog.evaluate((element) => {
+      const color = getComputedStyle(element).backgroundColor
+      const match = color.match(/(?:,|\/)\s*([\d.]+)\s*\)$/)
+      return match ? Number(match[1]) : 1
+    })
+    expect(dialogAlpha).toBeGreaterThan(0)
+    expect(dialogAlpha).toBeLessThan(1)
+    await page.screenshot({ path: 'screenshots/e2e/ai-provider-edit-dialog.png', fullPage: true })
+    await page.evaluate(() => document.body.classList.remove('app-bg-image-mode'))
 
     // 回填真实名称（default）与真实 endpoint
-    await expect(drawerInput(drawer, '如 Ollama (本地)')).toHaveValue('default')
-    await expect(drawerInput(drawer, 'http://localhost:11434/v1')).toHaveValue(
+    await expect(dialogInput(dialog, '如 Ollama (本地)')).toHaveValue('default')
+    await expect(dialogInput(dialog, 'http://localhost:11434/v1')).toHaveValue(
       'http://localhost:1234/v1/chat/completions'
     )
 
-    await drawer.getByRole('button', { name: '取消' }).click()
-    await expect(drawer).toBeHidden()
+    await dialog.getByRole('button', { name: '取消' }).click()
+    await expect(dialog).toBeHidden()
   })
 
   test('T020: 删除 Provider（自包含：锚点 + 创建 → 删除）', async ({ page }) => {
@@ -202,24 +214,24 @@ test.describe('AI 提供方管理（真实后端）', () => {
 
       // 点击「新建提供方」
       await page.getByRole('button', { name: '新建提供方' }).click()
-      const drawer = page.locator('.el-drawer').filter({ hasText: '新增提供方' })
-      await expect(drawer).toBeVisible()
+      const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+      await expect(dialog).toBeVisible()
 
       // 填写表单：endpoint 指向未监听端口 18081，测试连接必然真实失败
-      await drawerInput(drawer, '如 Ollama (本地)').fill(testName)
-      await drawerInput(drawer, 'http://localhost:11434/v1').fill(
+      await dialogInput(dialog, '如 Ollama (本地)').fill(testName)
+      await dialogInput(dialog, 'http://localhost:11434/v1').fill(
         'http://localhost:18081/v1/chat/completions'
       )
-      await drawerInput(drawer, 'sk-...').fill('sk-e2e-real-key')
+      await dialogInput(dialog, 'sk-...').fill('sk-e2e-real-key')
 
       const createResponsePromise = page.waitForResponse(
         (resp) => resp.request().method() === 'POST' && /\/api\/ai-providers\/?$/.test(resp.url())
       )
-      await drawer.getByRole('button', { name: '保存' }).click()
+      await dialog.getByRole('button', { name: '保存' }).click()
       await createResponsePromise
 
-      // 抽屉关闭，新 provider 出现在列表
-      await expect(drawer).toBeHidden()
+      // 弹窗关闭，新 provider 出现在列表
+      await expect(dialog).toBeHidden()
       const newCard = page.locator('.el-card').filter({ hasText: testName })
       await expect(newCard).toBeVisible()
 
@@ -249,15 +261,15 @@ test.describe('AI 提供方管理（真实后端）', () => {
 
       // UI 新建 provider 指向 mock 上游（endpoint 只配 /v1，验证 URL 归一化链路）
       await page.getByRole('button', { name: '新建提供方' }).click()
-      const drawer = page.locator('.el-drawer').filter({ hasText: '新增提供方' })
-      await expect(drawer).toBeVisible()
-      await drawerInput(drawer, '如 Ollama (本地)').fill(testName)
-      await drawerInput(drawer, 'http://localhost:11434/v1').fill('http://localhost:18083/v1')
-      await drawerInput(drawer, 'sk-...').fill('sk-e2e-real-key')
+      const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+      await expect(dialog).toBeVisible()
+      await dialogInput(dialog, '如 Ollama (本地)').fill(testName)
+      await dialogInput(dialog, 'http://localhost:11434/v1').fill('http://localhost:18083/v1')
+      await dialogInput(dialog, 'sk-...').fill('sk-e2e-real-key')
       const createResponsePromise = page.waitForResponse(
         (resp) => resp.request().method() === 'POST' && /\/api\/ai-providers\/?$/.test(resp.url())
       )
-      await drawer.getByRole('button', { name: '保存' }).click()
+      await dialog.getByRole('button', { name: '保存' }).click()
       await createResponsePromise
 
       const newCard = page.locator('.el-card').filter({ hasText: testName })
@@ -280,9 +292,9 @@ test.describe('AI 提供方管理（真实后端）', () => {
       await expect(testBtn).toBeEnabled()
       await page.screenshot({ path: 'screenshots/e2e/provider-test-btn-enabled.png', fullPage: true })
       await testBtn.click()
-      const dialog = page.getByTestId('provider-test-dialog')
-      await expect(dialog).toBeVisible()
-      await expect(dialog.getByTestId('provider-test-model-item').first()).toBeVisible()
+      const providerTestDialog = page.getByTestId('provider-test-dialog')
+      await expect(providerTestDialog).toBeVisible()
+      await expect(providerTestDialog.getByTestId('provider-test-model-item').first()).toBeVisible()
       await page.screenshot({ path: 'screenshots/e2e/provider-test-dialog.png', fullPage: true })
 
       // 取消：不发任何 /test 请求
@@ -291,11 +303,11 @@ test.describe('AI 提供方管理（真实后端）', () => {
         if (req.method() === 'POST' && /\/api\/ai-providers\/\d+\/test/.test(req.url())) testPosts++
       })
       await page.getByTestId('provider-test-cancel').click()
-      await expect(dialog).toBeHidden()
+      await expect(providerTestDialog).toBeHidden()
 
       // 确定：后端用选定模型真实发 chat 到上游
       await testBtn.click()
-      await expect(dialog).toBeVisible()
+      await expect(providerTestDialog).toBeVisible()
       const testResponsePromise = page.waitForResponse(
         (resp) => resp.request().method() === 'POST' && /\/api\/ai-providers\/\d+\/test/.test(resp.url())
       )
@@ -330,16 +342,16 @@ test.describe('AI 提供方管理（真实后端）', () => {
     })
 
     await page.getByRole('button', { name: '新建提供方' }).click()
-    const drawer = page.locator('.el-drawer').filter({ hasText: '新增提供方' })
-    await expect(drawer).toBeVisible()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+    await expect(dialog).toBeVisible()
 
-    await drawerInput(drawer, 'http://localhost:11434/v1').fill('http://localhost:18081/v1')
-    await drawerInput(drawer, 'sk-...').fill('sk-e2e-real-key')
+    await dialogInput(dialog, 'http://localhost:11434/v1').fill('http://localhost:18081/v1')
+    await dialogInput(dialog, 'sk-...').fill('sk-e2e-real-key')
 
-    await drawer.getByRole('button', { name: '保存' }).click()
+    await dialog.getByRole('button', { name: '保存' }).click()
 
-    await expect(drawer.locator('.el-alert').filter({ hasText: '名称不能为空' })).toBeVisible()
-    await expect(drawer).toBeVisible()
+    await expect(dialog.locator('.el-alert').filter({ hasText: '名称不能为空' })).toBeVisible()
+    await expect(dialog).toBeVisible()
     expect(postCreateCalled).toBe(false)
   })
 
@@ -347,32 +359,32 @@ test.describe('AI 提供方管理（真实后端）', () => {
     await navigateToAiProviders(page)
 
     await page.getByRole('button', { name: '新建提供方' }).click()
-    const drawer = page.locator('.el-drawer').filter({ hasText: '新增提供方' })
-    await expect(drawer).toBeVisible()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+    await expect(dialog).toBeVisible()
 
-    await drawerInput(drawer, '如 Ollama (本地)').fill('Test')
-    await drawerInput(drawer, 'sk-...').fill('sk-e2e-real-key')
+    await dialogInput(dialog, '如 Ollama (本地)').fill('Test')
+    await dialogInput(dialog, 'sk-...').fill('sk-e2e-real-key')
 
-    await drawer.getByRole('button', { name: '保存' }).click()
+    await dialog.getByRole('button', { name: '保存' }).click()
 
-    await expect(drawer.locator('.el-alert').filter({ hasText: '接入地址不能为空' })).toBeVisible()
-    await expect(drawer).toBeVisible()
+    await expect(dialog.locator('.el-alert').filter({ hasText: '接入地址不能为空' })).toBeVisible()
+    await expect(dialog).toBeVisible()
   })
 
   test('表单校验：新增时 API Key 为空时显示错误', async ({ page }) => {
     await navigateToAiProviders(page)
 
     await page.getByRole('button', { name: '新建提供方' }).click()
-    const drawer = page.locator('.el-drawer').filter({ hasText: '新增提供方' })
-    await expect(drawer).toBeVisible()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+    await expect(dialog).toBeVisible()
 
-    await drawerInput(drawer, '如 Ollama (本地)').fill('Test')
-    await drawerInput(drawer, 'http://localhost:11434/v1').fill('http://localhost:18081/v1')
+    await dialogInput(dialog, '如 Ollama (本地)').fill('Test')
+    await dialogInput(dialog, 'http://localhost:11434/v1').fill('http://localhost:18081/v1')
 
-    await drawer.getByRole('button', { name: '保存' }).click()
+    await dialog.getByRole('button', { name: '保存' }).click()
 
-    await expect(drawer.locator('.el-alert').filter({ hasText: '新增时 API Key 不能为空' })).toBeVisible()
-    await expect(drawer).toBeVisible()
+    await expect(dialog.locator('.el-alert').filter({ hasText: '新增时 API Key 不能为空' })).toBeVisible()
+    await expect(dialog).toBeVisible()
   })
 
   test('选定模型后测试：上游不可达 → 真实失败提示（弹窗确定后发请求）', async ({ page }) => {

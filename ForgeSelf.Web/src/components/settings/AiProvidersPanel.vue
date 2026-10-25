@@ -254,8 +254,8 @@ async function deleteProvider(p: AIProvider) {
   }
 }
 
-// ===== 新增/编辑抽屉 =====
-const drawerVisible = ref(false);
+// ===== 新增/编辑提供方弹窗 =====
+const providerDialogVisible = ref(false);
 const editingId = ref<number | null>(null);
 const formError = ref('');
 const form = reactive({
@@ -284,7 +284,7 @@ function openCreate() {
     supportedModels: ''
   });
   formError.value = '';
-  drawerVisible.value = true;
+  providerDialogVisible.value = true;
 }
 
 function openEdit(p: AIProvider) {
@@ -301,7 +301,7 @@ function openEdit(p: AIProvider) {
     supportedModels: p.supportedModels.join(', ')
   });
   formError.value = '';
-  drawerVisible.value = true;
+  providerDialogVisible.value = true;
 }
 
 async function saveProvider() {
@@ -340,7 +340,7 @@ async function saveProvider() {
     } else {
       await aiProvidersApi.update(editingId.value, payload);
     }
-    drawerVisible.value = false;
+    providerDialogVisible.value = false;
     await loadProviders();
     ElMessage.success('已保存');
   } catch (e) {
@@ -415,7 +415,13 @@ onMounted(() => {
             <el-tag v-if="providerModels[p.id]" size="small" type="info" effect="plain">
               {{ providerModels[p.id].length }} 模型
             </el-tag>
-            <el-button size="small" text :icon="Edit" @click="openEdit(p)" />
+            <el-button
+              size="small"
+              text
+              :icon="Edit"
+              data-testid="provider-edit-btn"
+              @click="openEdit(p)"
+            />
             <el-button
               size="small"
               text
@@ -561,13 +567,16 @@ onMounted(() => {
       </p>
     </template>
 
-    <!-- 新增/编辑抽屉 -->
-    <el-drawer
-      v-model="drawerVisible"
+    <!-- 新增/编辑提供方弹窗 -->
+    <el-dialog
+      v-model="providerDialogVisible"
       :title="editingId == null ? '新增提供方' : '编辑提供方'"
-      size="420px"
-      destroy-on-close>
-      <div class="space-y-4">
+      width="min(560px, calc(100vw - 32px))"
+      append-to-body
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <div class="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
         <el-alert
           v-if="formError"
           :title="formError"
@@ -640,10 +649,10 @@ onMounted(() => {
         </div>
       </div>
       <template #footer>
-        <el-button @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveProvider">保存</el-button>
+        <el-button data-testid="provider-edit-cancel" @click="providerDialogVisible = false">取消</el-button>
+        <el-button type="primary" data-testid="provider-edit-save" @click="saveProvider">保存</el-button>
       </template>
-    </el-drawer>
+    </el-dialog>
 
     <!-- 编辑模型抽屉 -->
     <el-drawer v-model="modelDrawerVisible" title="编辑模型" size="380px" destroy-on-close>

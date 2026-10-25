@@ -24,7 +24,6 @@
 > - **约定**：以后我俩就用本小节交接——我做终端步骤后在此登记结果+下一步指令，你读取后继续；你因实现限制停下时，我在输入框发「继续」推你。你做完后把结果写回这里。
 
 ## 🔄 进行中
-- [ ] **TodoTracker 插件待发布（P2，来源:输入1·2026-10-24）**：交互与后端修复已完成并验收（探索：`docs/ai/pilot/2026-10-24-todotracker-interaction/`，AC1~AC14 逐条核对 PASS；本轮收口：`docs/ai/pilot/2026-10-25-todo-builtin-agent-done/`，含构建、181/181 定向集、冒烟 e2e 1/1 + 截图读图）。**剩余 = plugin-development §四 第④步本地目录发布 + 第⑤步用户运行实例只读复验**；发布动作需用户批准后再执行。
 - [ ] **MCP 网关支持跨域访问（P1，来源:输入1/2·2026-10-23）**：已实现仅 `/mcp` 的可配置 Origin 白名单 CORS，后端构建与相关测试通过；插件前端/e2e、源码走查与发布复验待完成，当前受本机 Node realpath 拒绝访问阻断。证据：`docs/ai/pilot/2026-10-23-mcp-gateway-cors/`。
 - [ ] **new-problem-case.ps1 脚手架漏写 cases/README 索引行（P3，来源:PILOT-073 归档时发现·2026-10-22）**：`scripts/new-problem-case.ps1` 建 case 后不往 `docs/11-troubleshooting/cases/README.md` 追加索引行（本次手工补），后续新建问题类会静默丢索引；修法=脚本内置追加 + 可入 check-problem-classes 类校验。
 - [ ] **ScriptRunner ScriptExecutor 事件流输出迁移到字节流裁决（P2，来源:PC-011 同类扫查·2026-10-22，expires 2026-12-31）**：`Plugins/ScriptRunner/Services/ScriptExecutor.cs:287-288` 用 BeginOutputReadLine 事件流，回调入参已是宿主码页解码后的行，无法内联修；需整体换 BaseStream + ProcessOutputLineBuffer（PC-011 §3 流式姿势），收口后移出 PC-011 allowlist 与 G2 签名 S2 豁免。
@@ -140,6 +139,7 @@
 
 ## ⬜ 待办（按优先级）
 - [ ] **TodoTracker 详情面板窄宽度页签换行（P3，来源:输入1·2026-10-25 e2e 截图读图）**：右侧详情面板约 220px 时「工作单元」「下发与委派」页签文字折行；加 `white-space:nowrap` 或缩窄字号/间距，随下次插件 UI 批次顺带。
+- [ ] **执行记录 filesChanged 结构化字段未持久化（P3，来源:输入5·2026-10-25 真实下发复验）**：todo id=56 的 5 条记录经 `GET /api/todos/56/records` 回读，`filesChanged` 全为 `[]`；内置 agent 第 4 条回报已写明「新建 browser-dispatch-check-20261025.txt」，第 5 条还专门补记了文本清单 ⇒ 结构化字段在工具入参或落库环节丢失。待定性：① 调用方（agent 工具 args）传了但后端未解析（数组/字符串形态不符）；② 后端 `TodoRecord` 落库漏赋值。触发条件：下次改 TodoTracker 记录写入链路时一并复现补测，并判断是否按问题类建档。
 - [ ] **修复：Scheduler 卸载不停止调度器（P1，来源:problem-class-closure 守卫首跑 2026-10-17，归属 PC-001）**：`SchedulerPlugin.StopScheduler` 经 `ctx.Get<ISchedulerHost>()` 停调度器，但该契约无任何 ctx.Register/seed 路径（宿主 `HostProvidedServiceContracts` 不含它，插件只 `AddSingleton` 进自身 DI，而 `Context.Get` 不回落 DI）→ 恒 null，插件卸载/宿主关停时调度器静默不停。修法：仿 AIAgent 模式 Apply 期 eager `ctx.Register<ISchedulerHost>(实例)`，或 StopScheduler 改持自有实例；须走 plugin-development 六步闭环。存量已由 PC-001 allowlist 豁免（expires 2026-11-15），修复时补正式 case 归档。
 - [ ] **backfill-feature-ids.ps1 缺 UTF-8 BOM（P2，来源:输入3·2026-10-16 全量 dotnet test 对表）**：`scripts/backfill-feature-ids.ps1`（提交 30b076f 遗留）无 BOM，`RepositoryScriptTests` 仓库级守卫 2 红；修法：补 UTF-8 BOM（一行编码改动）。
 - [ ] **AIModel 表未建导致 unit 测试顺序 flake（P2，来源:2026-10-25 全量对表）**：`AIServiceTests` ×3 与 `MultimodalProcessorTests` 偶发 `XSqlException: no such table: AIModel`（同一工作区两轮全量，红项互相替换）；修法：相关单测夹具首步 `Meta.CreateTable`/隔离连接，禁止依赖其他用例顺带建表。

@@ -151,7 +151,7 @@ Sems 现状：未核实
 - B1-AC3 修改规格后，旧版本仍可查看，已有关联变更仍指向其生成时的规格版本。
 
 **依赖**：B7。
-Sems 现状：部分（v1.2.0 未发布；规格创建、版本只追加、关联记录写入与查询已实现，共 20 个 sems_* 工具；Sems 过滤集 84/84 通过（.temp/results-sems4 的 .trx，Verified），名字含 Corrupt、FindByRef、ListLinks 的用例均 Passed；B1-FR2 查询侧由 Services/SpecService.cs 的 ListLinks、FindByRef 与 Services/SpecFileStore.cs 的 ReadLinks 提供；未核实：由变更反查时是否带出规格版本、Controllers/SpecsController.cs 新增两个 HTTP 端点的状态码与封套；B1-FR3 与 B1-AC2 未实现；证据见 docs/ai/pilot/2026-10-26-sems-b1-intent-spec/05-evidence.md）
+Sems 现状：部分（v1.2.0 源码已有、未发布；22 个 sems_* 工具，含规格版本、双向关联与验收标准覆盖。2026-10-30 `.temp/results-sems-b1b/sems-b1b.trx` 为 passed=103 failed=0，Verified。B1-AC1 反查带出版本、B1-AC2、B1-AC3 有对应用例。未核实：匿名 HTTP 是否返回未授权；未做冒烟 e2e、源码走查与 :51888 复验。证据见 docs/ai/pilot/2026-10-26-sems-b1-intent-spec/05-evidence.md 的 2026-10-30 节）
 
 #### B2 上下文工程管理（P1）
 
@@ -427,7 +427,7 @@ Sems 现状：未核实
 
 | 要素 | 优先级 | 依赖 | Sems 现状 |
 | --- | --- | --- | --- |
-| B1 意图与规格层 | 未定级（建议 P1） | B7 | 未核实 |
+| B1 意图与规格层 | 未定级（建议 P1） | B7 | 部分 |
 | B2 上下文工程管理 | P1 | B10 | 未核实 |
 | B3 运行时与沙箱 | P0 | B4、B6 | 未实现 |
 | B4 身份、权限与安全 | P0 | B3、B7 | 未核实 |

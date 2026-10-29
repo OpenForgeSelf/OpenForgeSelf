@@ -1,4 +1,4 @@
-using ForgeSelf.Abstractions;
+﻿using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
 using ForgeSelf.Api.Plugins.Sems.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +20,8 @@ public class SemsPlugin : IPlugin
         services?.AddScoped<IProjectService, ProjectService>();
         // 运行管理（进程启停/检测）为内存会话单例（宿主重启清空，NFR-3）
         services?.AddSingleton<IRunnerService, RunnerService>();
+        // 规格服务（B1）：规格文件落插件数据目录，只追加，不改数据库结构
+        services?.AddScoped<ISpecService, SpecService>();
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);
@@ -28,7 +30,7 @@ public class SemsPlugin : IPlugin
     }
 
     /// <summary>
-    /// 注册 sems 对外能力工具（13 个 <c>sems_*</c>）：宿主 ExtensionPointManager 反射收集本列表 →
+    /// 注册 sems 对外能力工具（22 个 <c>sems_*</c>）：宿主 ExtensionPointManager 反射收集本列表 →
     /// 写入宿主 IToolRegistry → 经 mcp-center 的 list_tools 枚举、universal_tool 转发调用。
     /// 工具一律委托插件服务层（IProjectService / IRunnerService），与自带界面的 HTTP 端点共用同一实现。
     /// </summary>
@@ -47,6 +49,15 @@ public class SemsPlugin : IPlugin
         ToolExtensions.Add(new SemsRunCommandToolFunction(pluginId, services));
         ToolExtensions.Add(new SemsStopCommandToolFunction(pluginId, services));
         ToolExtensions.Add(new SemsStopRunToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsCreateSpecToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsAddSpecVersionToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsGetSpecToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsListSpecsToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsLinkSpecToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsListSpecLinksToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsFindSpecByRefToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsLinkSpecCaseToolFunction(pluginId, services));
+        ToolExtensions.Add(new SemsGetSpecCoverageToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[SemsPlugin] 已注册 {0} 个对外工具（sems_*）", ToolExtensions.Count);
     }

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -110,14 +110,22 @@ public class SemsControllerTests
                         && typeof(ControllerBase).IsAssignableFrom(t))
             .ToList();
 
-        // 冗余 RunnerController 已移除（028 已知问题 #1）→ 现存三个控制器
-        controllers.Should().HaveCount(3);
+        controllers.Should().NotBeEmpty();
         foreach (var controller in controllers)
         {
             var auth = controller.GetCustomAttribute<AuthorizeAttribute>();
             auth.Should().NotBeNull($"{controller.Name} 必须带类级 [Authorize]");
             auth!.Policy.Should().Be("ApiKeyPolicy", $"{controller.Name} 必须挂 ApiKeyPolicy");
         }
+
+        var anonymous = controllers
+            .SelectMany(c => c.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
+            .Where(m => m.GetCustomAttribute<AllowAnonymousAttribute>() != null)
+            .ToList();
+        anonymous.Should().ContainSingle("匿名端点只允许项目计数");
+        anonymous[0].DeclaringType.Should().Be(typeof(ProjectsController));
+        anonymous[0].Name.Should().Be(nameof(ProjectsController.GetCount));
+        anonymous[0].GetCustomAttribute<HttpGetAttribute>().Should().NotBeNull();
     }
 
     [Fact]

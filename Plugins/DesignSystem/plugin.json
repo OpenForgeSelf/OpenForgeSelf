@@ -1,5 +1,6 @@
 {
   "Id": "design-system",
+  "toolPrefix": "design",
   "Name": "设计系统插件",
   "Version": "3.1.0",
   "Author": "ForgeSelf Team",

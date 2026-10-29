@@ -23,15 +23,15 @@ public class PluginEventBusBubblingTests
     [Fact]
     public async Task PluginFiber_Emit_ReachesHostSingletonBus()
     {
-        // Arrange：真实独立程序集插件（TextTools），其 DLL 已由 StagePluginDllsToTestOutput 同步到测试输出
+        // Arrange：真实独立程序集插件（SamplePlugin），其 DLL 已由 StagePluginDllsToTestOutput 同步到测试输出
         _tempDir.CreatePluginManifest("test.bus", m =>
         {
-            m.EntryAssembly = "TextTools.dll";
-            m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
+            m.EntryAssembly = "SamplePlugin.dll";
+            m.EntryType = "ForgeSelf.Api.Plugins.SamplePlugin.SamplePlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
-            Path.Combine(_tempDir.RootPath, "test.bus", "TextTools.dll"));
+            Path.Combine(AppContext.BaseDirectory, "plugins", "SamplePlugin", "SamplePlugin.dll"),
+            Path.Combine(_tempDir.RootPath, "test.bus", "SamplePlugin.dll"));
 
         // 宿主 DI 单例总线（对应 AppBuilder 的 AddSingleton<IEventBus>(new EventBus())）
         var hostBus = new EventBus();
@@ -76,12 +76,12 @@ public class PluginEventBusBubblingTests
         // 未注入平台总线时保持既有行为：不发事件、不抛异常（单元测试与独立构造场景兼容）
         _tempDir.CreatePluginManifest("test.bus.null", m =>
         {
-            m.EntryAssembly = "TextTools.dll";
-            m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
+            m.EntryAssembly = "SamplePlugin.dll";
+            m.EntryType = "ForgeSelf.Api.Plugins.SamplePlugin.SamplePlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
-            Path.Combine(_tempDir.RootPath, "test.bus.null", "TextTools.dll"));
+            Path.Combine(AppContext.BaseDirectory, "plugins", "SamplePlugin", "SamplePlugin.dll"),
+            Path.Combine(_tempDir.RootPath, "test.bus.null", "SamplePlugin.dll"));
 
         var registry = new PluginServiceRegistry();
         var manager = new PluginManager(

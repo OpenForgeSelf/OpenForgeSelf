@@ -18,7 +18,7 @@ public sealed class ForwardResult
 ///   tool 以 "mcp." 开头（mcp.&lt;服务器id&gt;.&lt;工具名&gt;）→ 转发外部 MCP 服务器会话（v2.1.0 外部 MCP 客户端接入）；
 ///   其余 → 经宿主 IToolRegistry 分发（v2.0.0 行为不变）。
 /// 结果原样透传。语义对齐 031 UniversalTool（防自引用 / 未知工具预检带已注册数量 / 失败负载原样透传 / 软依赖 ctx.Get&lt;IToolRegistry&gt;），
-/// 但**不注册**进宿主注册表（避免与 AIAgent 的 universal_tool 同名冲突；本类只被 MCP tools/call 处理器消费）。
+/// 但**不注册**进宿主注册表（避免与本插件 PublicTools 的 universal_tool 同名冲突——2026-10-28 归属迁移前是避免与 AIAgent 的同名工具冲突；本类只被 MCP tools/call 处理器消费）。
 /// </summary>
 public sealed class UniversalToolForwarder
 {
@@ -38,13 +38,13 @@ public sealed class UniversalToolForwarder
     public static string ToolDefinitionJson => """
         {
           "name": "universal_tool",
-          "description": "万能工具网关：对外唯一入口，按名转发调用本项目已注册的全部工具与已接入的外部 MCP 服务器工具。入参 {tool: 工具名, parameters: 该工具的参数对象}，返回目标工具结果的原样 JSON，失败返回 {success:false, error:...}。不可调用自身。发现工具：先调 {tool: 'list_tools'} 可列出全部可用工具（含已连接的外部 MCP 工具，名称/说明/参数格式，可按关键字过滤），再按名调用。常规能力举例：读写文件（list_files / read_file / write_file / file_stats / file_rename 等）、执行命令与脚本（run_terminal_command / run_script / execute_code）、计算与文本（calculate / format_json / encode_base64 / text_stats）、搜索（search_memories / search_links）、系统监控（get_cpu_usage / get_memory_usage / get_process_list）、工作流（plan_workflow / execute_workflow）等。外部 MCP 服务器工具：tool 传 mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search），需先在 MCP 中心界面连接该服务器——连接后其工具会以 mcp. 前缀全名出现在 list_tools 结果里（source=mcp-external）。",
+          "description": "万能工具网关：对外唯一入口，按名转发调用本项目已注册的全部工具与已接入的外部 MCP 服务器工具。入参 {tool: 工具名, parameters: 该工具的参数对象}，返回目标工具结果的原样 JSON，失败返回 {success:false, error:...}。不可调用自身。找工具先搜索、搜不到再枚举：不确定工具名时先调 {tool: 'search_tools', parameters: {keyword: '能力词或名词根', limit: 可选，默认 8}} 按工具名与说明打分检索，返回最匹配的 top-N 及参数形态（可用工具含已连接的外部 MCP 工具），命中即可按名调用；检索无果（或提示无此工具、search_tools 不可用）时再用 {tool: 'list_tools'} 全量枚举兜底（名称/说明/参数格式，可按关键字过滤），然后按名调用；不要一上来就全量枚举。外部 MCP 服务器工具：tool 传 mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search），需先在 MCP 中心界面连接该服务器——连接后其工具会以 mcp. 前缀全名出现在 search_tools / list_tools 结果里（source=mcp-external）。",
           "inputSchema": {
             "type": "object",
             "properties": {
               "tool": {
                 "type": "string",
-                "description": "目标工具名：裸名（如 read_file / write_file / run_terminal_command / list_tools）走本项目工具注册表；mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search）走外部 MCP 服务器。不确定有哪些工具时，先传 list_tools 枚举。"
+                "description": "目标工具名：裸名（如 read_file / write_file / run_terminal_command）走本项目工具注册表；mcp.<服务器id>.<工具名>（如 mcp.deepwiki.search）走外部 MCP 服务器。不确定工具名时先调 search_tools 检索，检索无果再调 list_tools 枚举。"
               },
               "parameters": {
                 "type": "object",

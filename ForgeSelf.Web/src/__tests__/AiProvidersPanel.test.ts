@@ -95,6 +95,49 @@ describe('AiProvidersPanel - 多模态能力标注', () => {
   })
 })
 
+describe('AiProvidersPanel - 提供方类型标签（PILOT-074 AC-8）', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    document.body.innerHTML = ''
+  })
+
+  it('四种类型（含新 OpenAIResponses）的提供方卡片均正确渲染类型标签', async () => {
+    fetchMock.mockImplementation(async (url: string, opts?: RequestInit) => {
+      const method = opts?.method ?? 'GET'
+      if (url.includes('/api/ai-providers') && method === 'GET') {
+        return jsonResponse([
+          makeProvider({ id: 1, name: 'A', providerType: 'OpenAI' }),
+          makeProvider({ id: 2, name: 'B', providerType: 'OpenAIResponses' }),
+          makeProvider({ id: 3, name: 'C', providerType: 'Anthropic' }),
+          makeProvider({ id: 4, name: 'D', providerType: 'Custom' }),
+        ])
+      }
+      if (url.includes('/api/ai-models') && method === 'GET') {
+        return jsonResponse({ groups: [] })
+      }
+      return jsonResponse({}, false, 404)
+    })
+    const wrapper = mount(AiProvidersPanel, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.text()).toContain('OpenAIResponses')
+    expect(wrapper.text()).toContain('Anthropic')
+    expect(wrapper.text()).toContain('Custom')
+  })
+})
+
 describe('AiProvidersPanel - 测试连接选定模型（输入3）', () => {
   let fetchMock: ReturnType<typeof vi.fn>
   let capturedTestBody: string | undefined

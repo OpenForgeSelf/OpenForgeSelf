@@ -14,7 +14,7 @@ public class ListAgentsTool : AgentHubToolBase
     public override String Id => "agent-hub.list_agents";
 
     /// <inheritdoc />
-    public override String Name => "list_agents";
+    public override String Name => "hub_list_agents";
 
     /// <inheritdoc />
     public override String Description =>
@@ -113,7 +113,7 @@ public class DelegateTaskTool : AgentHubToolBase
     public override String Id => "agent-hub.delegate_task";
 
     /// <inheritdoc />
-    public override String Name => "delegate_task";
+    public override String Name => "hub_delegate_task";
 
     /// <inheritdoc />
     public override String Description =>
@@ -226,7 +226,7 @@ public class GetTaskResultTool : AgentHubToolBase
     public override String Id => "agent-hub.get_task_result";
 
     /// <inheritdoc />
-    public override String Name => "get_task_result";
+    public override String Name => "hub_task_result";
 
     /// <inheritdoc />
     public override String Description =>
@@ -289,7 +289,7 @@ public class CancelTaskTool : AgentHubToolBase
     public override String Id => "agent-hub.cancel_task";
 
     /// <inheritdoc />
-    public override String Name => "cancel_task";
+    public override String Name => "hub_cancel_task";
 
     /// <inheritdoc />
     public override String Description =>
@@ -342,7 +342,7 @@ public class AskAgentTool : AgentHubToolBase
     public override String Id => "agent-hub.ask_agent";
 
     /// <inheritdoc />
-    public override String Name => "ask_agent";
+    public override String Name => "hub_ask_agent";
 
     /// <inheritdoc />
     public override String Description =>

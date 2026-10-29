@@ -123,6 +123,17 @@ export default tseslint.config(
     },
   },
 
+  // 组件画廊（ct/）：主代码跑在浏览器（window/document/URL），配置侧用 process
+  {
+    files: ['ct/**/*.{ts,vue}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+
   // Config files
   {
     files: ['*.config.*'],

@@ -169,7 +169,7 @@ export interface AgentDefinition {
   personality?: AgentPersonality
   capabilities?: string[]
   tools?: string[]
-  /** 关联的工作流（执行时注入 system prompt，由 LLM 按需 execute_workflow）。 */
+  /** 关联的工作流（执行时注入 system prompt，由 LLM 按需 workflow_execute）。 */
   workflows?: AgentWorkflowRef[]
   /** 系统提示词（可编辑，Stage 4）。 */
   systemPrompt?: string
@@ -327,6 +327,37 @@ export interface RunRequest {
   workflowId?: number
   /** 聊天模型 id。 */
   chatModelId?: string
+  /** 目标模式成功判据；非空时进入目标驱动执行（计划完成 → 评估 → 未达成追加纠正步骤续跑，直至达成或预算耗尽）。 */
+  successCriteria?: string[]
+  /** 目标模式最大评估轮次（1–10，默认 3）；耗尽后 run_stuck。 */
+  maxGoalRounds?: number
+}
+
+/** goal_round_started SSE 载荷：目标模式每轮评估前广播。 */
+export interface GoalRoundStartedPayload {
+  runId: number
+  /** 当前轮次（1 起）。 */
+  round: number
+  /** 最大评估轮次。 */
+  maxRounds: number
+  /** 本轮评估判据。 */
+  criteria: string[]
+}
+
+/** goal_evaluated SSE 载荷：评估器对当前计划达成度的判定。 */
+export interface GoalEvaluatedPayload {
+  runId: number
+  round: number
+  /** 是否达成；false 时将追加纠正步骤续跑（或预算耗尽转 stuck）。 */
+  achieved: boolean
+  /** 置信度 0–1（评估器自评，仅展示用）。 */
+  confidence?: number
+  /** 未达成项清单。 */
+  missing?: string[]
+  /** 评估器点评。 */
+  critique?: string
+  /** 达成时的总结。 */
+  summary?: string
 }
 
 /** 人工介入请求体（PATCH /api/ai-agent/runs/{id}/steps/{index}）。 */

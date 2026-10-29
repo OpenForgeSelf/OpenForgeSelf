@@ -81,7 +81,7 @@ v1.0.0 的待办是「给人看的便签」（标题 + 备注 + 待处理/已完
 | `GET /agent/next?assignee=&projectId=` | agent 领取（原子置 Running；无可领 ⇒ **204**） |
 | `GET /{id}/records` · `POST /{id}/records` · `POST /by-key/{taskKey}/records` | 执行记录读 / 写（三面同形状） |
 
-AI 工具函数（宿主 `universal_tool` / MCP 可调）：`create_todo`、`list_todos`、`complete_todo`、`get_agent_task`、`claim_agent_task`、`append_task_execution`、`update_task_stage`、`dispatch_task`。
+AI 工具函数（宿主 `universal_tool` / MCP 可调；2026-10-28 命名空间统一，旧裸名退役见 ADR-004）：`todo_create`、`todo_list`、`todo_complete`、`todo_task_get`、`todo_task_claim`、`todo_execution_append`、`todo_stage_update`、`todo_dispatch`。
 
 ### 2.5 路径归一口径（插件内，不改宿主）
 

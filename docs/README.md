@@ -20,7 +20,9 @@
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 查 **UI/UX 设计规范与品牌一致性的唯一真源**（色板/token/字体/组件规格/动效/Plugin-First 约定/**新建页面·新建查询执行规范**） | 仓库根 [`DESIGN.md`](../DESIGN.md)（2026-10-10 起以高保真设计稿 `design_files/` 为唯一真源；色值守卫 `ForgeSelf.Web/scripts/check-style-tokens.mjs`；涉 UI 改动 Spec 必含 Interaction Design 节） |
 | 写代码前**必须符合什么规范**（命名/契约/错误码/提交） | [`04-standards/engineering.md`](04-standards/engineering.md)（另有 [`04-standards/doc-reverse-sync-sop.md`](04-standards/doc-reverse-sync-sop.md) 文档反向同步 SOP） |
+| 写**前端组件**该怎么分层、怎么单独预览、怎么防视觉回归（页面与逻辑分离） | [`04-standards/frontend-component-development.md`](04-standards/frontend-component-development.md)（组件四层职责 + `*.logic.ts` 纯逻辑 + story/CT 三约定 + 新建组件准入清单；画廊 `ForgeSelf.Web/ct/`，命令 `pnpm run ct:server` / `test:ct` / `test:ct:update`；技能 `component-visual-loop`） |
 | 查 **Agent 工作流完整规范**（AGENTS.md 详细版：技能体系/验证决策表/迭代流程/文档工作流/汇报模板）**与项目工程规则、踩坑规律** | [`04-standards/agent-workflow/README.md`](04-standards/agent-workflow/README.md)（Part A = 工作流细节，Part B = 原 `.forgeself/memory/MEMORY.md` 项目不变规则归档，随 git 入库） |
+| 判定**一个插件该设计什么功能、不多不少**（插件分类学 T0-T4 / 域判定三问 / 消费≠实现铁律 / 公共能力唯一归属 / 新功能准入流程） | [`04-standards/plugin-design-boundary.md`](04-standards/plugin-design-boundary.md)（新建插件立项、既有插件越界/缺位审计、插件合并退役的标准依据） |
 | 开发任务**必须走的 AI-Native 闭环工件链**（Repository Understanding→Intent→Spec→Plan→Task→Implement→Test→Evidence→Review） | [`04-standards/ai-native-engineering-workflow.md`](04-standards/ai-native-engineering-workflow.md)（**开发流程唯一依据，独立自含不与其他体系映射**，用户指令 seq14；模板在 [`18-templates/ai-pilot/`](18-templates/ai-pilot/)；产物落 `docs/ai/pilot/<task-id>/`；群 SOP `ai-native-engineering-loop` 已发布绑定） |
 | 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
@@ -44,6 +46,7 @@
 | 查**接口契约/字段**（快速速查） | [`16-reference/api.md`](16-reference/api.md)（API 端点）、[`16-reference/data-model.md`](16-reference/data-model.md)（数据模型/实体字段）、[`16-reference/configuration.md`](16-reference/configuration.md)（配置项）、[`16-reference/backend-services.md`](16-reference/backend-services.md)（后端服务职责）、[`16-reference/frontend-architecture.md`](16-reference/frontend-architecture.md)（前端结构） |
 | 看**版本演进/变更摘要** | [`17-changelog/index.md`](17-changelog/index.md) |
 | **要写新文档**（格式模板） | `18-templates/feature.md` |
+| 查 **Sems 插件的需求依据**（AI 原生开发管理平台方案；含给新会话的接续说明，防长会话遗忘目标） | [`Plugins/Sems/docs/requirements.md`](../Plugins/Sems/docs/requirements.md)（草案，提案非已实现；方案 A 落地顺序后半段待补） |
 | 找**已废弃的历史文档** | `19-archive/`（暂无） |
 
 ---

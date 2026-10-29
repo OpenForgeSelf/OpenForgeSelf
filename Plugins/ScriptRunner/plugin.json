@@ -1,5 +1,6 @@
 {
   "Id": "script-runner",
+  "toolPrefix": "script",
   "Name": "脚本运行器插件",
   "Version": "1.0.1",
   "Author": "ForgeSelf Team",

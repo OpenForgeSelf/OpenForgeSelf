@@ -2,6 +2,7 @@ using System.Net;
 using ForgeSelf.Abstractions;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
@@ -76,7 +77,13 @@ public class AIServiceTests
                 }
             }
         };
-        return JsonSerializer.Serialize(response);
+        // PILOT-074：回退路径出站已切 openai-dotnet SDK，SDK 严格要求 camelCase wire（手写解析器的
+        // 大小写不敏感宽松不再适用）——假响应按真实上游 wire 形状构造
+        return JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
     }
 
     [Fact]
@@ -113,9 +120,16 @@ public class AIServiceTests
         var response = new AIChatResponse
         {
             Id = "test-id",
+            Object = "chat.completion",
+            Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Model = _testConfig.ModelName,
             Choices = new List<AIChatChoice>()
         };
-        var responseJson = JsonSerializer.Serialize(response);
+        var responseJson = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
         var httpResponse = new HttpResponseMessage
         {
             StatusCode = HttpStatusCode.OK,
@@ -135,7 +149,9 @@ public class AIServiceTests
         // Assert
         result.Should().NotBeEmpty();
         result.Should().Contain("降级响应");
-        _mockLogService.Verify(x => x.Warn(It.IsAny<string>(), It.IsAny<object[]>()), Times.Once());
+        // PILOT-074：空 choices 形状不再被 SDK 接受（严格校验）→ 走异常分支（Error 日志）而非 Warn；
+        // 降级结果语义不变
+        _mockLogService.Verify(x => x.Error(It.IsAny<string>(), It.IsAny<object[]>()), Times.AtLeastOnce());
     }
 
     [Fact]
@@ -358,7 +374,9 @@ public class AIServiceTests
 
         // Assert
         results.Should().Contain("有效内容");
-        _mockLogService.Verify(x => x.Warn(It.IsAny<string>(), It.IsAny<object[]>()), Times.Once());
+        // PILOT-074：出站切 SDK 后，无效行的跳过由 SDK 内部 SSE 解析完成（韧性保留），
+        // 手写解析器的逐行 Warn 回调不再存在——断言降级为「韧性存在」而非「日志次数」
+        results.Should().NotContain(i => i == null);
     }
 
     [Fact]

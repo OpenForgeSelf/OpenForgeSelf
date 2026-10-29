@@ -78,7 +78,7 @@ public class AgentDefinition
 
     /// <summary>
     /// 本 Agent 关联的工作流（可多个）。执行对话时这些工作流会注入 system prompt，
-    /// Agent（LLM）用 execute_workflow 工具按需执行对应 workflowId。name/description 为冗余副本，
+    /// Agent（LLM）用 workflow_execute 工具按需执行对应 workflowId。name/description 为冗余副本，
     /// 供提示词展示与 LLM 决策，避免执行期查库。
     /// </summary>
     public List<AgentWorkflowRef> Workflows { get; set; } = new();

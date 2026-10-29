@@ -189,3 +189,58 @@ describe('交互规格：每个按钮都要有 hover 与键盘焦点环', () => 
     expect(illegal, `这些元素把焦点环抹了却没替代手段：${illegal.join(', ')}`).toEqual([])
   })
 })
+
+/* ============================================================
+   边框归属：只工具调用有框（2026-10-26 用户拍板）
+   ------------------------------------------------------------
+   为什么要有这条：边框是「谁都可以随手加一条 border」的东西，加回去不会让
+   任何其它测试变红 —— 上一版正文气泡、思考块、步骤分组都带框，就是在
+   真实会话里被用户重新指出来才发现的。把「过程/正文不许带框」写成断言，
+   下次谁再把框加回来，这里当场红。
+   保留边框的（有意为之，不在此断言里）：工具调用展开体 .aiw-tool__body
+   （唯一给工具用的框）、危险审批（风险色语义）、数据卡片类
+   （.aiw-chart / .aiw-kpi__item / .aiw-tablewrap / .aiw-cite /
+   .aiw-html / .aiw-codeblk / .aiw-img / .aiw-plan）。
+   ============================================================ */
+const blocksCssPath = join(here, 'styles/blocks.css')
+const blocksCss = readFileSync(blocksCssPath, 'utf8')
+
+/** 取某个选择器的第一条规则正文（没找到返回空串，断言会跟着红） */
+function ruleBody(src: string, selector: string): string {
+  const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = new RegExp(`(?:^|\\n)\\s*${esc}\\s*\\{([^}]*)\\}`).exec(src)
+  return m ? m[1] : ''
+}
+
+/** border-radius 属圆角，不算「框」；其余 border* 都算 */
+const hasBorder = (body: string) => /border(?!-radius)\s*:/.test(body)
+const hasShadow = (body: string) => /box-shadow\s*:/.test(body)
+
+describe('边框归属：仅工具调用有边框，过程与正文无边框', () => {
+  it('正文气泡无边框无阴影（去框后靠底色区分，不再切盒子）', () => {
+    const body = ruleBody(css, '.aiw-msg__bubble')
+    expect(body, '.aiw-msg__bubble 规则没找到').not.toBe('')
+    expect(hasBorder(body), '.aiw-msg__bubble 又把 border 加回来了').toBe(false)
+    expect(hasShadow(body), '.aiw-msg__bubble 又把 box-shadow 加回来了').toBe(false)
+  })
+
+  it('思考块与步骤分组无边框（过程行不再套框）', () => {
+    for (const sel of ['.aiw-think', '.aiw-grp']) {
+      const body = ruleBody(blocksCss, sel)
+      expect(body, `${sel} 规则没找到`).not.toBe('')
+      expect(hasBorder(body), `${sel} 又把 border 加回来了`).toBe(false)
+    }
+  })
+
+  it('工具调用展开体必须保留边框（它是唯一允许的框）', () => {
+    const body = ruleBody(blocksCss, '.aiw-tool__body')
+    expect(body, '.aiw-tool__body 规则没找到').not.toBe('')
+    expect(hasBorder(body), '.aiw-tool__body 的框被误删了').toBe(true)
+  })
+
+  it('行首图标槽固定宽度（槽内切 opacity，不得用 display 切换撑动布局）', () => {
+    const body = ruleBody(blocksCss, '.aiw-ico')
+    expect(body).toContain('22px')
+    expect(body, '.aiw-ico 必须 fixed 宽度（flex: 0 0 …），否则悬浮时会位移').toMatch(/flex:\s*0 0 22px/)
+  })
+})

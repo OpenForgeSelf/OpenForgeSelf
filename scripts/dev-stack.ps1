@@ -37,6 +37,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# 终端 + 管道统一 UTF-8（2026-10-26 立：防中文落入 GBK 码页致乱码）
+$OutputEncoding           = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
 $repo     = Split-Path -Parent $PSScriptRoot
 $web      = Join-Path $repo 'ForgeSelf.Web'
 $binDir   = Join-Path $repo 'ForgeSelf.Api/bin/Debug/net10.0-windows'

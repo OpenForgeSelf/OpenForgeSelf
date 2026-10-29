@@ -179,10 +179,6 @@ public class AIProviderService : IAIProviderService
 
         try
         {
-            // 与真实聊天链路同一套 URL 归一化：Endpoint 配成基础地址（如 …/v1）时探测 /v1 必 404，
-            // 必须推导到完整 chat 接口（…/v1/chat/completions 或 Anthropic …/v1/messages）才能代表真实连通性
-            var testUrl = OpenAICompatibleProvider.GetChatEndpointByProviderType(type, config.Endpoint) ?? config.Endpoint;
-
             // 选定已登记模型时的「真实对话」探测：发一条要求仅回复 ok 的最小消息，判据为响应含 ok（忽略大小写）
             if (modelId.HasValue)
             {
@@ -193,101 +189,90 @@ public class AIProviderService : IAIProviderService
                     return new AIProviderTestResult(false, 0, "选定的模型不属于该提供方", null);
 
                 var probeModel = model.UpstreamModelId;
-                var probeMsg = new[] { new { role = "user", content = "请回复且仅回复ok" } };
                 // max_tokens 预算留足：思考型模型（qwen3/deepseek 等）先输出 reasoning 再输出 content，
                 // 给太小（如 8）会在思考阶段就被 length 截断 → content 永远 null（2026-10-18 gpustack deepseek-v4-flash 实测）
-                object payload = type == AIProviderType.Anthropic
-                    ? new { model = probeModel, max_tokens = 128, messages = probeMsg }
-                    : new { model = probeModel, messages = probeMsg, max_tokens = 128 };
-
-                var probeReq = new HttpRequestMessage(HttpMethod.Post, testUrl);
-                probeReq.Content = new StringContent(
-                    System.Text.Json.JsonSerializer.Serialize(payload),
-                    System.Text.Encoding.UTF8, "application/json");
-                if (type == AIProviderType.Anthropic)
+                var probeRequest = new UnifiedChatRequest
                 {
-                    probeReq.Headers.Add("x-api-key", config.ApiKey);
-                    probeReq.Headers.Add("anthropic-version", "2023-06-01");
-                }
-                else
-                {
-                    probeReq.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
-                }
-
-                using var probeCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(testTimeout));
-                var probeResp = await client.SendAsync(probeReq, probeCts.Token);
-                stopwatch.Stop();
-                var probeLatency = (int)stopwatch.ElapsedMilliseconds;
-                var probeBody = await probeResp.Content.ReadAsStringAsync(probeCts.Token);
-
-                if (!probeResp.IsSuccessStatusCode)
-                {
-                    var ps = (int)probeResp.StatusCode;
-                    var pm = ps switch
+                    Model = probeModel,
+                    MaxTokens = 128,
+                    Messages = new List<UnifiedChatMessage>
                     {
-                        401 or 403 => "鉴权失败：API Key 无效或权限不足",
-                        _ => $"连接失败（HTTP {ps}）"
-                    };
-                    return new AIProviderTestResult(false, probeLatency, pm, ps);
-                }
+                        new() { Role = "user", Content = "请回复且仅回复ok" }
+                    }
+                };
 
-                var reply = ExtractContent(probeBody);
-                // 成功判据：模型回复含 ok（忽略大小写）
-                if (SaysOk(reply))
-                    return new AIProviderTestResult(true, probeLatency, $"连接成功 · 模型回复「{reply}」",
-                        (int)probeResp.StatusCode);
-                // 解析失败时附原始响应片段（截 500 字）：便于用户/排障看清真实结构，而非黑盒「解析失败」
-                var snippet = probeBody is { Length: > 500 } ? probeBody[..500] : probeBody;
-                return new AIProviderTestResult(false, probeLatency,
-                    reply == null ? $"响应解析失败（未取到模型回复）· 原始响应：{snippet}" : $"模型未回复 ok（实际回复：{reply}）", (int)probeResp.StatusCode);
+                // —— PILOT-074 FR-7 + 输入6（2026-10-28 撤销 BR-5）：全类型探针统一切 SDK ——
+                // Anthropic 亦走 SDK（官方 OpenAI 兼容层，Bearer 鉴权受支持）；探针与真实聊天链路同 wire
+                string reply;
+                int probeLatency;
+                int statusCode;
+                {
+                    using var sdkCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(testTimeout));
+                    try
+                    {
+                        var unified = type == AIProviderType.OpenAIResponses
+                            ? await OpenAISdkAdapter.ResponsesChatAsync(config, probeRequest, client, config.Name, sdkCts.Token)
+                            : await OpenAISdkAdapter.ChatAsync(config, probeRequest, client, config.Name, sdkCts.Token);
+                        stopwatch.Stop();
+                        probeLatency = (int)stopwatch.ElapsedMilliseconds;
+                        statusCode = 200;
+                        reply = unified.Choices.FirstOrDefault()?.Content ?? string.Empty;
+                        // 成功判据与 Anthropic 分支一致：回复含 ok（忽略大小写）；空回复判失败（PC-013）
+                        if (SaysOk(reply))
+                            return new AIProviderTestResult(true, probeLatency, $"连接成功 · 模型回复「{reply}」", statusCode);
+                        return new AIProviderTestResult(false, probeLatency,
+                            string.IsNullOrEmpty(reply)
+                                ? "响应解析失败（未取到模型回复）"
+                                : $"模型未回复 ok（实际回复：{reply}）", statusCode);
+                    }
+                    catch (System.ClientModel.ClientResultException cre)
+                    {
+                        stopwatch.Stop();
+                        probeLatency = (int)stopwatch.ElapsedMilliseconds;
+                        statusCode = (int)cre.Status;
+                        // PILOT-074：status 0 = 网络层不可达（SDK 语义），保留旧「无法连接」文案（e2e 契约）
+                        var pm1 = statusCode switch
+                        {
+                            401 or 403 => "鉴权失败：API Key 无效或权限不足",
+                            0 => $"无法连接：{cre.Message}",
+                            _ => $"连接失败（HTTP {statusCode}）"
+                        };
+                        return new AIProviderTestResult(false, probeLatency, pm1, statusCode);
+                    }
+                }
             }
 
-            HttpRequestMessage req;
-            if (type == AIProviderType.Anthropic)
+            // PILOT-074 FR-7 + 输入6（2026-10-28 撤销 BR-5）：ping 探针全类型切 SDK（与真实聊天链路同 wire；URL 归一化在适配器内）
+            var pingRequest = new UnifiedChatRequest
             {
-                var model = config.SupportedModels.FirstOrDefault() ?? "claude-3-5-sonnet-20241022";
-                req = new HttpRequestMessage(HttpMethod.Post, testUrl);
-                req.Content = new StringContent(
-                    System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        model,
-                        max_tokens = 1,
-                        messages = new[] { new { role = "user", content = "ping" } }
-                    }),
-                    System.Text.Encoding.UTF8, "application/json");
-                req.Headers.Add("x-api-key", config.ApiKey);
-                req.Headers.Add("anthropic-version", "2023-06-01");
-            }
-            else // OpenAI / Custom（OpenAI 兼容）
-            {
-                var model = config.SupportedModels.FirstOrDefault() ?? "gpt-3.5-turbo";
-                req = new HttpRequestMessage(HttpMethod.Post, testUrl);
-                req.Content = new StringContent(
-                    System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        model,
-                        messages = new[] { new { role = "user", content = "ping" } },
-                        max_tokens = 1
-                    }),
-                    System.Text.Encoding.UTF8, "application/json");
-                req.Headers.Add("Authorization", $"Bearer {config.ApiKey}");
-            }
-
-            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(testTimeout));
-            var resp = await client.SendAsync(req, cts.Token);
-            stopwatch.Stop();
-            var latency = (int)stopwatch.ElapsedMilliseconds;
-
-            if (resp.IsSuccessStatusCode)
-                return new AIProviderTestResult(true, latency, "连接成功", (int)resp.StatusCode);
-
-            var status = (int)resp.StatusCode;
-            var msg = status switch
-            {
-                401 or 403 => "鉴权失败：API Key 无效或权限不足",
-                _ => $"连接失败（HTTP {status}）"
+                Model = config.SupportedModels.FirstOrDefault() ?? "gpt-3.5-turbo",
+                MaxTokens = 1,
+                Messages = new List<UnifiedChatMessage>
+                {
+                    new() { Role = "user", Content = "ping" }
+                }
             };
-            return new AIProviderTestResult(false, latency, msg, status);
+            using var pingCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(testTimeout));
+            try
+            {
+                if (type == AIProviderType.OpenAIResponses)
+                    await OpenAISdkAdapter.ResponsesChatAsync(config, pingRequest, client, config.Name, pingCts.Token);
+                else
+                    await OpenAISdkAdapter.ChatAsync(config, pingRequest, client, config.Name, pingCts.Token);
+                stopwatch.Stop();
+                return new AIProviderTestResult(true, (int)stopwatch.ElapsedMilliseconds, "连接成功", 200);
+            }
+            catch (System.ClientModel.ClientResultException cre)
+            {
+                stopwatch.Stop();
+                var pingStatus = (int)cre.Status;
+                var pingMsg = pingStatus switch
+                {
+                    401 or 403 => "鉴权失败：API Key 无效或权限不足",
+                    _ => $"连接失败（HTTP {pingStatus}）"
+                };
+                return new AIProviderTestResult(false, (int)stopwatch.ElapsedMilliseconds, pingMsg, pingStatus);
+            }
         }
         catch (TaskCanceledException)
         {
@@ -304,69 +289,6 @@ public class AIProviderService : IAIProviderService
             stopwatch.Stop();
             return new AIProviderTestResult(false, (int)stopwatch.ElapsedMilliseconds, $"测试失败：{ex.Message}", null);
         }
-    }
-
-    /// <summary>
-    /// 从 chat 响应体提取模型回复文本（与聊天链路 AIService 同一语义：优先 message.content，
-    /// 空则回退思考字段——qwen3 用 reasoning_content，vLLM 0.31/deepseek 用 reasoning）；
-    /// 兼容 OpenAI choices[0].message / choices[0].text（补全）/ Anthropic content[0].text。解析不出返回 null。
-    /// </summary>
-    internal static string? ExtractContent(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("choices", out var choices) &&
-                choices.ValueKind == System.Text.Json.JsonValueKind.Array &&
-                choices.GetArrayLength() > 0)
-            {
-                var first = choices[0];
-                if (first.TryGetProperty("message", out var msg))
-                {
-                    var content = ReadMessageText(msg, "content");
-                    if (!string.IsNullOrEmpty(content)) return content;
-                    var reasoning = ReadMessageText(msg, "reasoning_content");
-                    if (!string.IsNullOrEmpty(reasoning)) return reasoning;
-                    // vLLM 0.31（gpustack）/deepseek 系用 reasoning 而非 reasoning_content
-                    var reasoning2 = ReadMessageText(msg, "reasoning");
-                    if (!string.IsNullOrEmpty(reasoning2)) return reasoning2;
-                }
-                if (first.TryGetProperty("text", out var text) &&
-                    text.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return text.GetString();
-            }
-            if (root.TryGetProperty("content", out var arr) &&
-                arr.ValueKind == System.Text.Json.JsonValueKind.Array &&
-                arr.GetArrayLength() > 0)
-            {
-                var c0 = arr[0];
-                if (c0.TryGetProperty("text", out var ct) &&
-                    ct.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return ct.GetString();
-            }
-            return null;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>读取 message 中指定字段为文本：兼容字符串型与多模态数组型（拼接 text 项）。</summary>
-    private static string? ReadMessageText(System.Text.Json.JsonElement msg, string prop)
-    {
-        if (!msg.TryGetProperty(prop, out var el)) return null;
-        return el.ValueKind switch
-        {
-            System.Text.Json.JsonValueKind.String => el.GetString(),
-            System.Text.Json.JsonValueKind.Array => string.Concat(
-                el.EnumerateArray().Select(x =>
-                    x.TryGetProperty("text", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.String
-                        ? t.GetString() : null)),
-            _ => null
-        };
     }
 
     /// <summary>回复是否包含 ok（忽略大小写）——测试连接成功判据。</summary>

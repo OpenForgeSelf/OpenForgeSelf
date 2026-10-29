@@ -36,7 +36,7 @@ public class FileToolsFoldersAuthAndToolTests
         var tool = new FolderStatsToolFunction("file-tools", null);
 
         tool.Id.Should().Be("filetools.folder_stats");
-        tool.Name.Should().Be("folder_stats");
+        tool.Name.Should().Be("file_dir_stats");
         tool.PluginId.Should().Be("file-tools");
     }
 

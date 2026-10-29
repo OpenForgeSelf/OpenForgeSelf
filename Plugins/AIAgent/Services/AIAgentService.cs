@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Core;
 using NewLife.Log;
 
@@ -282,7 +283,10 @@ public class AIAgentService : IAIAgentService
         {
             ModelId = chatModelId ?? string.Empty,
             SystemPrompt = systemPrompt,
-            ToolAllowlist = enabledToolNames
+            ToolAllowlist = enabledToolNames,
+            // PILOT-051（R1）：聊天路径默认启用任务循环语义 + MAF 运行时（回滚点：关掉 UseMafRuntime 即回 ReactLoopAgent）。
+            TaskLoopMode = true,
+            UseMafRuntime = true
         };
     }
 
@@ -361,7 +365,11 @@ public class AIAgentService : IAIAgentService
             Inbox = Inbox
         };
 
-        return new ReactLoopAgent(sessionId, effective, runtime);
+        // PILOT-051（R1）：运行时工厂开关——MAF 驱动（任务循环语义）或 ReactLoop 状态机（既有路径）。
+        // 两引擎共享同一 AgentTurnRuntime 与会话日志契约，行为由各自实现保证。
+        return effective.UseMafRuntime
+            ? new MafTaskLoopAgent(sessionId, effective, runtime)
+            : new ReactLoopAgent(sessionId, effective, runtime);
     }
 
     /// <summary>
@@ -445,7 +453,7 @@ public class AIAgentService : IAIAgentService
             }).ToList()
             : null;
 
-        // 记忆注入（get_relevant_memories 工具注册前为 no-op，见 Stage 2）。
+        // 记忆注入（memory_relevant 工具注册前为 no-op，见 Stage 2）。
         if (enableTools && tools.Count > 0)
             await InjectRelevantMemoriesAsync(messages, tools, cancellationToken);
 
@@ -454,7 +462,7 @@ public class AIAgentService : IAIAgentService
         if (skillIds is { Count: > 0 })
             systemPrompt = AppendSelectedSkills(systemPrompt, skillIds);
         // 关联工作流注入：把选中 Agent 关联的工作流（名称+id+描述）追加到 system prompt，
-        // 供 LLM 用 execute_workflow 工具按需执行（多工作流由 LLM 决策）。
+        // 供 LLM 用 workflow_execute 工具按需执行（多工作流由 LLM 决策）。
         systemPrompt = AppendAssociatedWorkflows(systemPrompt, agentId);
 
         var model = ResolveModelId(chatModelId);
@@ -607,8 +615,10 @@ public class AIAgentService : IAIAgentService
         foreach (var tool in ToolRegistry.GetAllTools())
         {
             if (scopePluginsOnly && !allowedPlugins.Contains(tool.PluginId)) continue;
-            // 计划驱动运行流特殊工具不进 FreeLoop（R4）：仅 PlanDriven 步骤循环经 extraTools 显式挂载。
-            if (tool.Name is "submit_plan" or "complete_step" or "request_help") continue;
+        // 计划驱动运行流特殊工具不进 FreeLoop（R4）：仅 PlanDriven 步骤循环经 extraTools 显式挂载。
+        // task_complete 同理（PILOT-051）：任务循环出口工具「声明即出口」，永不作为普通工具挂载。
+        if (tool.Name is "submit_plan" or "complete_step" or "request_help"
+            || string.Equals(tool.Name, AgentOptions.TaskCompleteToolName, StringComparison.OrdinalIgnoreCase)) continue;
             object? parameters;
             try
             {
@@ -712,7 +722,7 @@ public class AIAgentService : IAIAgentService
 
     /// <summary>
     /// 关联工作流注入：把选中 Agent 关联的工作流（id+名称+描述）追加到 system prompt（V1，仅元信息不全文）。
-    /// 提示 LLM：任务匹配其中某个工作流时用 execute_workflow 工具执行；无关则不强行调用。
+    /// 提示 LLM：任务匹配其中某个工作流时用 workflow_execute 工具执行；无关则不强行调用。
     /// 失败不阻断对话（返回原 system prompt）。
     /// </summary>
     private string? AppendAssociatedWorkflows(string? systemPrompt, string? agentId)
@@ -728,7 +738,7 @@ public class AIAgentService : IAIAgentService
             var sb = new StringBuilder();
             sb.AppendLine("## 本 Agent 关联的工作流");
             sb.AppendLine("本 Agent 已关联以下工作流（其定义已在项目 WorkflowEngine 中维护）。当用户任务匹配其中某个工作流时，");
-            sb.AppendLine("用 execute_workflow 工具传入对应 workflowId 与所需 inputVariables 执行；任务不匹配时不要强行调用。");
+            sb.AppendLine("用 workflow_execute 工具传入对应 workflowId 与所需 inputVariables 执行；任务不匹配时不要强行调用。");
             sb.AppendLine();
             foreach (var w in workflows)
             {
@@ -1260,7 +1270,7 @@ public class AIAgentService : IAIAgentService
     {
         try
         {
-            if (tools == null || !tools.Any(t => t.Name == "get_relevant_memories"))
+            if (tools == null || !tools.Any(t => t.Name == "memory_relevant"))
             {
                 XTrace.Log.Debug("[AIAgentPlugin] 未检测到记忆检索工具，跳过记忆注入");
                 return null;
@@ -1284,7 +1294,7 @@ public class AIAgentService : IAIAgentService
                 toolResult = await ToolRegistry.ExecuteAsync(new ToolExecution
                 {
                     CallId = string.Empty,
-                    ToolName = "get_relevant_memories",
+                    ToolName = "memory_relevant",
                     ArgsJson = toolParams,
                     SessionId = string.Empty
                 }, toolTimeoutCts.Token);

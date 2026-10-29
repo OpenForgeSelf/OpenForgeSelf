@@ -19,16 +19,14 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// 列表/详情/restart/cancel/intervene 走真实 XCode 双表（[Collection("XCode")] 独立临时库）。
 /// </summary>
 [Collection("XCode")]
-public class AgentRunsControllerTests
+public class AgentRunsControllerTests : IClassFixture<XCodeTestFixture>
 {
-    private readonly string _dbDir;
-
-    public AgentRunsControllerTests()
+    public AgentRunsControllerTests(XCodeTestFixture fixture)
     {
-        _dbDir = Path.Combine(Path.GetTempPath(), $"ForgeSelfRunsCtl_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_dbDir);
-
-        DAL.AddConnStr("AIAgent", $"Data Source={Path.Combine(_dbDir, "AIAgent.db")}", null, "SQLite");
+        _ = fixture;
+        // 2026-10-29（PILOT-051 同类修复）：不得在此自建临时目录并 AddConnStr 换库
+        //（触发 DAL.Reset 换 Database + 旧线程会话残留，全量联跑时写入走别处/吞行）。
+        // 连接串由夹具统一注册；ctor 补建本连接缺失表（不换串 → 无 Reset 无竞态）。
         EntityFactory.InitConnection("AIAgent");
 
         AgentRun.Meta.Cache.Clear("test reset");
@@ -70,12 +68,13 @@ public class AgentRunsControllerTests
         return mock;
     }
 
-    private static AgentRun NewRun(AgentRunStatus status = AgentRunStatus.Running, string? planJson = null)
+    private static AgentRun NewRun(AgentRunStatus status = AgentRunStatus.Running, string? planJson = null, string? sessionId = null)
     {
         var run = new AgentRun
         {
             AgentId = "agent.generalist",
             AgentName = "通用",
+            SessionId = sessionId,
             TaskInput = "统计项目文件行数",
             Status = (int)status,
             StepCount = 1,
@@ -153,10 +152,12 @@ public class AgentRunsControllerTests
     public async Task ListRuns_ReturnsPagedResultWithCorrectTotal()
     {
         var controller = new AgentRunsController(NewRealOrchestrator());
-        NewRun(AgentRunStatus.Running);
-        NewRun(AgentRunStatus.Completed);
+        // 2026-10-29：共享库下按唯一 sessionId 限定计数（原全表计数会吃到同类残留行）
+        var sid = "s-list-" + Guid.NewGuid().ToString("N")[..8];
+        NewRun(AgentRunStatus.Running, sessionId: sid);
+        NewRun(AgentRunStatus.Completed, sessionId: sid);
 
-        var result = await controller.ListRuns(page: 1, pageSize: 1);
+        var result = await controller.ListRuns(sessionId: sid, page: 1, pageSize: 1);
 
         result.Result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result.Result!;
@@ -170,10 +171,11 @@ public class AgentRunsControllerTests
     public async Task ListRuns_WithStatusFilter_ReturnsOnlyMatching()
     {
         var controller = new AgentRunsController(NewRealOrchestrator());
-        NewRun(AgentRunStatus.Running);
-        NewRun(AgentRunStatus.Completed);
+        var sid = "s-filter-" + Guid.NewGuid().ToString("N")[..8];
+        NewRun(AgentRunStatus.Running, sessionId: sid);
+        NewRun(AgentRunStatus.Completed, sessionId: sid);
 
-        var result = await controller.ListRuns(status: "completed");
+        var result = await controller.ListRuns(sessionId: sid, status: "completed");
 
         var ok = (OkObjectResult)result.Result!;
         var resp = (AgentRunListResponse)ok.Value!;

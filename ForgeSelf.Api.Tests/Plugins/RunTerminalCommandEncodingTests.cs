@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using ForgeSelf.Api.Plugins.AIAgent;
-using ForgeSelf.Api.Plugins.AIAgent.Services;
+using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.McpCenter.Services;
 using ForgeSelf.Core;
 using Moq;
 using Xunit;
@@ -66,7 +66,7 @@ public class RunTerminalCommandEncodingTests
             var parameters = JsonSerializer.Serialize(new
             {
                 command = $"pwsh -NoProfile -NonInteractive -EncodedCommand \"{encoded}\"",
-                cwd = "",
+                cwd = root, // 2026-10-29 起 cwd 必填（工作目录绝对路径）
                 timeoutSeconds = 30,
             });
 
@@ -98,6 +98,6 @@ public class RunTerminalCommandEncodingTests
         var ctx = new Mock<IContext>();
         ctx.Setup(c => c.Get<IProjectWorkspaceService>()).Returns(workspace.Object);
 
-        return new RunTerminalCommandTool("aiagent", ctx.Object);
+        return new RunTerminalCommandTool(ctx.Object);
     }
 }

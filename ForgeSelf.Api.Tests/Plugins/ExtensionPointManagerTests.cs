@@ -238,7 +238,7 @@ public class ExtensionPointManagerTests
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
-            Name = "Test Tool 1",
+            Name = "list_files",
             PluginId = "test.tool.plugin"
         });
 
@@ -262,7 +262,7 @@ public class ExtensionPointManagerTests
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
-            Name = "Test Tool 1",
+            Name = "list_files",
             PluginId = "test.tool.plugin"
         });
 
@@ -286,7 +286,7 @@ public class ExtensionPointManagerTests
         plugin.AddToolExtension(new FakeToolFunctionExtension
         {
             Id = "tool.test1",
-            Name = "Test Tool 1",
+            Name = "list_files",
             PluginId = "test.tool.plugin"
         });
 

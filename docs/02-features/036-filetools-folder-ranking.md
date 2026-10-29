@@ -1,4 +1,4 @@
-﻿---
+---
 feature_key: F036b
 feature_no: 036
 status: draft
@@ -56,7 +56,7 @@ aliases: ["036-filetools-folder-ranking"]
 
 ## 5. 已知边界（不藏着）
 
-1. **`filetools.folder_stats` 工具在 AI 聊天里看不到**：`AIAgentService.ResolveOwnToolDefinitions()` 的白名单只含 `ai-agent` + `memory-system`，FileTools 全部 6 个工具（含本批新增）只能经 `aiagent.universal_tool` 按名调用。扩白名单会撑大本地小模型 prompt，属独立决策（已登记 `TODO.md`）。
+1. **`filetools.file_dir_stats` 工具（2026-10-28 命名空间统一前名 `folder_stats`）在 AI 聊天里看不到**：`AIAgentService.ResolveOwnToolDefinitions()` 的白名单只含 `ai-agent` + `memory-system`，FileTools 全部 6 个工具（含本批新增）只能经 `mcp-center.universal_tool`（迁移前 `aiagent.universal_tool`）按名调用。扩白名单会撑大本地小模型 prompt，属独立决策（已登记 `TODO.md`）。
 2. 内存任务表随宿主进程重启清空 → 要复看必须落快照；界面空态里明写了这一点。
 3. FileTools 其余 4 个 tab 的数据仍是 mock（`services/fileToolsApi.ts`），**只有本 tab 走真接口**；mock 债单独登记，不在本批顺手还。
 4. FileTools 的 4 个子菜单 Path（`/file-tools/stats` 等）历史上就悬空（宿主只注册 `/file-tools`），本批未动菜单面，故未修（`TODO.md`）。

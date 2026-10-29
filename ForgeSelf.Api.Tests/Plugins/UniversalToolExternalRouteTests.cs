@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
-using ForgeSelf.Api.Plugins.AIAgent;
+using ForgeSelf.Api.Plugins.McpCenter.Services;
 using Moq;
 using Xunit;
 
@@ -16,7 +16,7 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// </summary>
 public class UniversalToolExternalRouteTests
 {
-    private const string PluginId = "AIAgent";
+    private const string PluginId = "mcp-center";
 
     private static Mock<IToolRegistry> MakeRegistry()
     {
@@ -31,7 +31,7 @@ public class UniversalToolExternalRouteTests
         var ctx = new Mock<IContext>();
         ctx.Setup(c => c.Get<IToolRegistry>()).Returns(registry.Object);
         if (gateway != null) ctx.Setup(c => c.Get<IMcpExternalGateway>()).Returns(gateway);
-        return new UniversalTool(PluginId, ctx.Object);
+        return new UniversalTool(ctx.Object);
     }
 
     private static Mock<IMcpExternalGateway> MakeGateway()

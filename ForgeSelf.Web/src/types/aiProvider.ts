@@ -1,4 +1,4 @@
-export type AIProviderType = 'OpenAI' | 'Anthropic' | 'Custom'
+export type AIProviderType = 'OpenAI' | 'OpenAIResponses' | 'Anthropic' | 'Custom'
 
 /** AI 提供方（列表/详情），ApiKey 仅返回掩码 */
 export interface AIProvider {

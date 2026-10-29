@@ -1,5 +1,6 @@
 {
   "Id": "system-monitor",
+  "toolPrefix": "sys",
   "Name": "系统监控插件",
   "Version": "1.0.0",
   "Author": "ForgeSelf Team",

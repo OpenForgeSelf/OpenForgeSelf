@@ -1,5 +1,6 @@
 {
   "Id": "workflow-engine",
+  "toolPrefix": "workflow",
   "Name": "工作流引擎插件",
   "Version": "1.0.1",
   "Author": "ForgeSelf Team",

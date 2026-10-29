@@ -1,6 +1,6 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
-using ForgeSelf.Api.Plugins.AIAgent;
+using ForgeSelf.Api.Plugins.McpCenter.Services;
 using Moq;
 using System.Text.Json;
 using Xunit;
@@ -8,7 +8,7 @@ using Xunit;
 namespace ForgeSelf.Api.Tests.Plugins.AIAgentTests;
 
 /// <summary>
-/// SearchToolsToolFunction 单元测试（输入2 · 2026-10-13 万能工具搜索功能）。
+/// SearchToolsToolFunction 单元测试（输入2 · 2026-10-13 万能工具搜索功能；2026-10-28 归属迁至 mcp-center）。
 /// 锁六类合约：① 定义契约（名称/描述/schema 含「先搜索、搜不到再列举」引导）；
 /// ② 打分排序（名称命中 &gt; 描述命中，同分按名称稳定序）；③ 空/缺 keyword 友好错误，
 /// 不静默全量列举（全量是 list_tools 的职责）；④ limit 截断（默认 8、上限 20）；
@@ -17,7 +17,7 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgentTests;
 /// </summary>
 public class SearchToolsToolFunctionTests
 {
-    private const string PluginId = "AIAgent";
+    private const string PluginId = "mcp-center";
 
     private static IToolFunctionExtension FakeTool(string name, string description = "", string pluginId = "ai-agent")
     {
@@ -50,7 +50,7 @@ public class SearchToolsToolFunctionTests
         return reg;
     }
 
-    private static SearchToolsToolFunction CreateTool(Mock<IContext> ctx) => new(PluginId, ctx.Object);
+    private static SearchToolsToolFunction CreateTool(Mock<IContext> ctx) => new(ctx.Object);
 
     private static JsonElement Parse(string json)
     {
@@ -73,7 +73,7 @@ public class SearchToolsToolFunctionTests
         var tool = CreateTool(MakeContext(MakeRegistry().Object));
 
         Assert.Equal("search_tools", tool.Name);
-        Assert.Equal("aiagent.search_tools", tool.Id);
+        Assert.Equal("mcp-center.search_tools", tool.Id);
         Assert.Contains("关键词", tool.Description);   // 语义：能力词检索入口
         Assert.Contains("list_tools", tool.Description, StringComparison.OrdinalIgnoreCase);  // 分工引导：无果再枚举
         var schema = Parse(tool.ParametersJsonSchema);
@@ -202,7 +202,7 @@ public class SearchToolsToolFunctionTests
         var ctx = new Mock<IContext>();
         ctx.Setup(c => c.Get<IToolRegistry>()).Returns((IToolRegistry?)null!);
 
-        var tool = new SearchToolsToolFunction(PluginId, ctx.Object);
+        var tool = new SearchToolsToolFunction(ctx.Object);
         var result = await tool.ExecuteAsync("""{"keyword":"file"}""");
 
         Assert.False(Parse(result).GetProperty("success").GetBoolean());

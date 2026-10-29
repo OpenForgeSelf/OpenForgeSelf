@@ -1,10 +1,11 @@
 using ForgeSelf.Api.Plugins.ToolBridge.Services;
-using AiagentGuard = ForgeSelf.Api.Plugins.AIAgent.Services.TerminalCommandGuard;
+using AiagentGuard = ForgeSelf.Api.Plugins.McpCenter.Services.TerminalCommandGuard;
 
 namespace ForgeSelf.Api.Tests.Plugins.ToolBridgeTests;
 
 /// <summary>
-/// D1 的反漂移常驻判据（03-plan 决策 D1）：本插件自带的 <see cref="CommandGuard"/> 与内置 agent 的
+/// D1 的反漂移常驻判据（03-plan 决策 D1）：本插件自带的 <see cref="CommandGuard"/> 与
+/// mcp-center 公共工具的（原 AIAgent，2026-10-28 归属迁移）
 /// <c>TerminalCommandGuard</c> 是两份实现，**同一张命令金样表逐条对账**——判定或拒绝原因不同即红。
 ///
 /// 为什么不合并成一份：守卫带 <c>XTrace.Log</c>，而 <c>ForgeSelf.Core</c> /
@@ -39,14 +40,23 @@ public class ToolBridgeGuardParityTests
         "",
         "   ",
 
-        // ---- 第 2 道门：换行 / 管道 / 链式 / 重定向 ----
-        "git status\ngit log",
-        "git status && rm -rf x",
-        "git status | select-string foo",
-        "echo a > out.txt",
+        // ---- 第 2 道门（PILOT-075）：分隔符放行 + 逐段同一校验；重定向/反引号/裸 &/空段/引号不配对整串拒 ----
+        "git status\ngit log",                            // 换行分段：两段均白名单 → 放行
+        "dotnet build && pwsh -c x",                      // && 链 → 放行
+        "dotnet build; dotnet test",                      // 分号链 → 放行
+        "git log | node count.js",                        // 管道 → 放行
+        "git log --format=\"%h | %s\"",                   // 引号内 | 不是分隔符 → 单段放行
+        "git status && rm -rf x",                         // 第 2 段 rm 不在白名单 → 拒（segment 2/2）
+        "git status | select-string foo",                 // 第 2 段不在白名单 → 拒
+        "git status | head",                              // 同上
+        "git status; del *",                              // 段内门序=白名单先于红线：del 非白名单先拒（segment 2/2）
+        "echo a > out.txt",                               // 重定向未放开 → 整串拒
         "cat < in.txt",
-        "node -e `code`",
-        "dotnet build; dotnet test",
+        "node -e `code`",                                 // 反引号 → 整串拒
+        "git status &",                                   // 后台单 & → 整串拒
+        "git status &&",                                  // 空段 → 整串拒
+        "git status; ; git log",                          // 空段 → 整串拒
+        "git \"status",                                   // 引号不配对 → 整串拒
 
         // ---- 第 3 道门：可执行名必须裸名 + 白名单 ----
         "/usr/bin/git status",
@@ -94,6 +104,11 @@ public class ToolBridgeGuardParityTests
         CommandGuard.Check("git status --short").Allowed.Should().BeTrue();
         AiagentGuard.Check("git status --short").Allowed.Should().BeTrue();
         CommandGuard.Check("dotnet build").Allowed.Should().BeTrue();
+        // PILOT-075 阳性对照：管道/链式在两份实现里都必须真放行（逐段过门后允许）。
+        CommandGuard.Check("git status && git diff").Allowed.Should().BeTrue();
+        AiagentGuard.Check("git status && git diff").Allowed.Should().BeTrue();
+        CommandGuard.Check("dotnet build; dotnet test").Allowed.Should().BeTrue();
+        AiagentGuard.Check("dotnet build; dotnet test").Allowed.Should().BeTrue();
     }
 
     [Fact]

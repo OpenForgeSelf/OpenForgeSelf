@@ -45,12 +45,12 @@
 
 ## 安全边界（设计如此，不是缺陷）
 
-- **命令守卫**：与内置 agent 同规则——换行/管道/分号/重定向即拒；可执行名必须是裸名且命中白名单
+- **命令守卫**：与内置 agent 同规则——**管道/链式已放开（PILOT-075，2026-10-29）**：`|` `;` `&&` `||` 换行是分隔符而非拒绝理由，**每一段独立过同一套白名单+破坏性红线**，任一段被拒则整条拒绝；多段命令经 `pwsh -NoProfile -NonInteractive -Command` 执行完整命令串（退出码取最后一段）；重定向（`>` `<`）、反引号、后台单 `&`、空段、引号不配对仍整串拒。可执行名必须是裸名且命中白名单
   `dotnet / pnpm / node / git / ssh / pwsh`；**58 条**破坏性词红线（逐条数自 `CommandGuard.DestructiveTokens`，与
   `TerminalCommandGuard` 同值）；`-EncodedCommand` 载荷 base64→UTF-16LE 解码后扫描，不可验证即拒。
   **被拒路径不启动任何子进程**，并把守卫拒绝原因原文回给 AI。
-  两份实现（`Plugins/AIAgent/Services/TerminalCommandGuard.cs` 与本插件 `Services/CommandGuard.cs`）由常驻判据
-  `ForgeSelf.Api.Tests/Plugins/ToolBridgeTests/ToolBridgeGuardParityTests.cs` 用同一张 40+ 命令金样表逐条对账钉死漂移。
+  两份实现（`Plugins/McpCenter/Services/PublicTools/TerminalCommandGuard.cs` 与本插件 `Services/CommandGuard.cs`）由常驻判据
+  `ForgeSelf.Api.Tests/Plugins/ToolBridgeTests/ToolBridgeGuardParityTests.cs` 用同一张 50+ 命令金样表（PILOT-075 起含管道/链式正反对照）逐条对账钉死漂移。
   为什么不做成一份：`ForgeSelf.Core` / `ForgeSelf.Abstractions` 均未引用 NewLife.Core，上移即需给内核层加依赖（依赖结构变更，须另立批次出 ADR）。
 - **沙箱工作根**：默认 `{数据根}/plugins/tool-bridge/workspace`，可改成任意**绝对路径**（相对路径一律拒——`Path.GetFullPath` 会把它悄悄补成当前目录下的路径）。
   越界（含 `..`、绝对路径）拒绝；工作根若落在盘符根 / 用户目录根 / **Git 仓库树内**，默认拒绝，需界面显式勾选"确认使用危险根"。

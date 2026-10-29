@@ -1,5 +1,6 @@
 {
   "Id": "memory-system",
+  "toolPrefix": "memory",
   "Name": "记忆系统插件",
   "Version": "1.0.0",
   "Author": "ForgeSelf Team",

@@ -3,6 +3,8 @@ using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using Xunit;
+using XCode;
+using XCode.DataAccessLayer;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
@@ -25,6 +27,9 @@ public class SessionManagementTests : IClassFixture<XCodeTestFixture>
     public SessionManagementTests(XCodeTestFixture fixture)
     {
         _fixture = fixture;
+        // 2026-10-29（PILOT-051）：ctor 主动补建本连接缺失表——全量首绑可能早于本程序集加载，
+        // 夹具首绑建表会漏；此处实体类型已 JIT 加载，InitConnection 必能扫到（不换串无竞态）。
+        EntityFactory.InitConnection("AIAgent");
         XCodeTestFixture.ClearAllData();
         // 显式清空本插件消息表：XCode 集合内多测试类共享 "AIAgent" 临时库时，
         // AddConnStr 不会覆盖已初始化的连接，ClearAllData 可能清错目录导致串库残留。

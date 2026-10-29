@@ -1,5 +1,6 @@
 {
   "Id": "scheduler",
+  "toolPrefix": "schedule",
   "Name": "定时任务插件",
   "Version": "1.0.1",
   "Author": "ForgeSelf Team",

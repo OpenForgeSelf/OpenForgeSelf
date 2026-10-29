@@ -31,6 +31,8 @@ public class DevToolsPlugin : IPlugin
         services?.AddScoped<IJwtService, JwtService>();
         services?.AddScoped<IUuidService, UuidService>();
         services?.AddScoped<IQrCodeService, QrCodeService>();
+        // 2026-10-28 text-tools 并入（用户拍板 D-V1，pilot 2026-10-28-plugin-design-boundary）：文本统计域随迁
+        services?.AddScoped<ITextStatsService, TextStatsService>();
 
         RegisterMenuExtensions(pluginId);
         RegisterToolFunctionExtensions(pluginId, ctx);
@@ -182,6 +184,17 @@ public class DevToolsPlugin : IPlugin
                     Path = "/dev-tools/qrcode",
                     Order = 13,
                     ParentId = "devtools.menu.main"
+                },
+                // 2026-10-28 text-tools 并入：文本统计入口指向宿主既有页面（原 text-tools 页面，前端不动）
+                new DevToolsMenuExtension
+                {
+                    Id = "devtools.menu.textstats",
+                    Name = "文本统计",
+                    PluginId = pluginId,
+                    Icon = "fa-solid fa-chart-bar",
+                    Path = "/text-tools",
+                    Order = 14,
+                    ParentId = "devtools.menu.main"
                 }
             }
         };
@@ -220,6 +233,8 @@ public class DevToolsPlugin : IPlugin
         ToolExtensions.Add(new GenerateUuidToolFunction(pluginId, services));
         ToolExtensions.Add(new GenerateSnowflakeIdToolFunction(pluginId, services));
         ToolExtensions.Add(new GenerateQrCodeToolFunction(pluginId, services));
+        // 2026-10-28 text-tools 并入：text_stats → dev_text_stats（base64/hash/format_json 由 dev 同功能工具承接，text 版退役）
+        ToolExtensions.Add(new TextStatsToolFunction(pluginId, services));
 
         XTrace.Log.Debug("[DevToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
@@ -283,7 +298,7 @@ public abstract class DevToolsToolFunctionBase : IToolFunctionExtension
 public class FormatJsonToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.format_json";
-    public override string Name => "format_json";
+    public override string Name => "dev_format_json";
     public override string Description => "格式化JSON字符串，使其更易读。也可以压缩JSON。";
 
     public override string ParametersJsonSchema => @"
@@ -386,7 +401,7 @@ public class FormatJsonToolFunction : DevToolsToolFunctionBase
 public class ValidateJsonToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.validate_json";
-    public override string Name => "validate_json";
+    public override string Name => "dev_validate_json";
     public override string Description => "校验JSON字符串是否合法，返回错误位置和信息。";
 
     public override string ParametersJsonSchema => @"
@@ -460,7 +475,7 @@ public class ValidateJsonToolFunction : DevToolsToolFunctionBase
 public class ConvertJsonYamlToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.convert_json_yaml";
-    public override string Name => "convert_json_yaml";
+    public override string Name => "dev_convert_json_yaml";
     public override string Description => "JSON和YAML格式互相转换。";
 
     public override string ParametersJsonSchema => @"
@@ -553,7 +568,7 @@ public class ConvertJsonYamlToolFunction : DevToolsToolFunctionBase
 public class JsonPathQueryToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.jsonpath_query";
-    public override string Name => "jsonpath_query";
+    public override string Name => "dev_jsonpath_query";
     public override string Description => "使用JSONPath表达式查询JSON数据。";
 
     public override string ParametersJsonSchema => @"
@@ -630,7 +645,7 @@ public class JsonPathQueryToolFunction : DevToolsToolFunctionBase
 public class FormatXmlToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.format_xml";
-    public override string Name => "format_xml";
+    public override string Name => "dev_format_xml";
     public override string Description => "格式化或压缩XML字符串。";
 
     public override string ParametersJsonSchema => @"
@@ -733,7 +748,7 @@ public class FormatXmlToolFunction : DevToolsToolFunctionBase
 public class Base64EncodeToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.base64_encode";
-    public override string Name => "base64_encode";
+    public override string Name => "dev_base64_encode";
     public override string Description => "对文本进行Base64编码。";
 
     public override string ParametersJsonSchema => @"
@@ -806,7 +821,7 @@ public class Base64EncodeToolFunction : DevToolsToolFunctionBase
 public class Base64DecodeToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.base64_decode";
-    public override string Name => "base64_decode";
+    public override string Name => "dev_base64_decode";
     public override string Description => "对Base64编码的文本进行解码。";
 
     public override string ParametersJsonSchema => @"
@@ -879,7 +894,7 @@ public class Base64DecodeToolFunction : DevToolsToolFunctionBase
 public class UrlEncodeToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.url_encode";
-    public override string Name => "url_encode";
+    public override string Name => "dev_url_encode";
     public override string Description => "对文本进行URL编码。";
 
     public override string ParametersJsonSchema => @"
@@ -949,7 +964,7 @@ public class UrlEncodeToolFunction : DevToolsToolFunctionBase
 public class UrlDecodeToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.url_decode";
-    public override string Name => "url_decode";
+    public override string Name => "dev_url_decode";
     public override string Description => "对URL编码的文本进行解码。";
 
     public override string ParametersJsonSchema => @"
@@ -1019,7 +1034,7 @@ public class UrlDecodeToolFunction : DevToolsToolFunctionBase
 public class ComputeHashToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.compute_hash";
-    public override string Name => "compute_hash";
+    public override string Name => "dev_hash";
     public override string Description => "计算文本的哈希值，支持MD5、SHA1、SHA256、SHA512算法。";
 
     public override string ParametersJsonSchema => @"
@@ -1119,7 +1134,7 @@ public class ComputeHashToolFunction : DevToolsToolFunctionBase
 public class ComputeHmacToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.compute_hmac";
-    public override string Name => "compute_hmac";
+    public override string Name => "dev_hmac";
     public override string Description => "计算HMAC哈希消息认证码，支持MD5、SHA1、SHA256、SHA512算法。";
 
     public override string ParametersJsonSchema => @"
@@ -1207,7 +1222,7 @@ public class ComputeHmacToolFunction : DevToolsToolFunctionBase
 public class AesEncryptToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.aes_encrypt";
-    public override string Name => "aes_encrypt";
+    public override string Name => "dev_aes_encrypt";
     public override string Description => "使用AES算法加密文本。";
 
     public override string ParametersJsonSchema => @"
@@ -1292,7 +1307,7 @@ public class AesEncryptToolFunction : DevToolsToolFunctionBase
 public class AesDecryptToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.aes_decrypt";
-    public override string Name => "aes_decrypt";
+    public override string Name => "dev_aes_decrypt";
     public override string Description => "使用AES算法解密密文。";
 
     public override string ParametersJsonSchema => @"
@@ -1377,7 +1392,7 @@ public class AesDecryptToolFunction : DevToolsToolFunctionBase
 public class TestRegexToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.test_regex";
-    public override string Name => "test_regex";
+    public override string Name => "dev_regex_test";
     public override string Description => "测试正则表达式匹配，返回所有匹配结果和捕获组详情。";
 
     public override string ParametersJsonSchema => @"
@@ -1477,7 +1492,7 @@ public class TestRegexToolFunction : DevToolsToolFunctionBase
 public class GenerateRegexToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_regex";
-    public override string Name => "generate_regex";
+    public override string Name => "dev_regex_generate";
     public override string Description => "根据描述生成正则表达式（支持常用场景：邮箱、手机、URL、IP、日期、中文、数字等）。";
 
     public override string ParametersJsonSchema => @"
@@ -1556,7 +1571,7 @@ public class GenerateRegexToolFunction : DevToolsToolFunctionBase
 public class RegexReplaceToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.regex_replace";
-    public override string Name => "regex_replace";
+    public override string Name => "dev_regex_replace";
     public override string Description => "使用正则表达式进行文本替换。";
 
     public override string ParametersJsonSchema => @"
@@ -1646,7 +1661,7 @@ public class RegexReplaceToolFunction : DevToolsToolFunctionBase
 public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.convert_timestamp";
-    public override string Name => "convert_timestamp";
+    public override string Name => "dev_timestamp";
     public override string Description => "时间戳与日期时间互相转换，支持秒/毫秒、多时区。";
 
     public override string ParametersJsonSchema => @"
@@ -1784,7 +1799,7 @@ public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
 public class ConvertColorToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.convert_color";
-    public override string Name => "convert_color";
+    public override string Name => "dev_color_convert";
     public override string Description => "颜色格式互相转换，支持HEX、RGB、HSL格式。";
 
     public override string ParametersJsonSchema => @"
@@ -1867,7 +1882,7 @@ public class ConvertColorToolFunction : DevToolsToolFunctionBase
 public class GenerateColorPaletteToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_color_palette";
-    public override string Name => "generate_color_palette";
+    public override string Name => "dev_color_palette";
     public override string Description => "根据基色生成配色方案，支持类似色、互补色、三角色、分裂互补、单色等方案。";
 
     public override string ParametersJsonSchema => @"
@@ -1957,7 +1972,7 @@ public class GenerateColorPaletteToolFunction : DevToolsToolFunctionBase
 public class CheckColorContrastToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.check_color_contrast";
-    public override string Name => "check_color_contrast";
+    public override string Name => "dev_color_contrast";
     public override string Description => "检查前景色和背景色的对比度是否符合WCAG标准（AA/AAA）。";
 
     public override string ParametersJsonSchema => @"
@@ -2037,7 +2052,7 @@ public class CheckColorContrastToolFunction : DevToolsToolFunctionBase
 public class DecodeJwtToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.decode_jwt";
-    public override string Name => "decode_jwt";
+    public override string Name => "dev_jwt_decode";
     public override string Description => "解析JWT Token，返回Header、Payload、签名、过期时间等信息。";
 
     public override string ParametersJsonSchema => @"
@@ -2114,7 +2129,7 @@ public class DecodeJwtToolFunction : DevToolsToolFunctionBase
 public class ValidateJwtToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.validate_jwt";
-    public override string Name => "validate_jwt";
+    public override string Name => "dev_jwt_validate";
     public override string Description => "验证JWT Token的签名是否有效。";
 
     public override string ParametersJsonSchema => @"
@@ -2200,7 +2215,7 @@ public class ValidateJwtToolFunction : DevToolsToolFunctionBase
 public class GenerateJwtToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_jwt";
-    public override string Name => "generate_jwt";
+    public override string Name => "dev_jwt_generate";
     public override string Description => "生成测试用的JWT Token。";
 
     public override string ParametersJsonSchema => @"
@@ -2296,7 +2311,7 @@ public class GenerateJwtToolFunction : DevToolsToolFunctionBase
 public class GenerateUuidToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_uuid";
-    public override string Name => "generate_uuid";
+    public override string Name => "dev_uuid";
     public override string Description => "生成UUID，支持v1（时间戳）和v4（随机）版本，支持批量生成。";
 
     public override string ParametersJsonSchema => @"
@@ -2399,7 +2414,7 @@ public class GenerateUuidToolFunction : DevToolsToolFunctionBase
 public class GenerateSnowflakeIdToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_snowflake_id";
-    public override string Name => "generate_snowflake_id";
+    public override string Name => "dev_snowflake_id";
     public override string Description => "生成雪花ID（Snowflake），支持批量生成，可解析时间戳、工作ID等信息。";
 
     public override string ParametersJsonSchema => @"
@@ -2502,7 +2517,7 @@ public class GenerateSnowflakeIdToolFunction : DevToolsToolFunctionBase
 public class GenerateQrCodeToolFunction : DevToolsToolFunctionBase
 {
     public override string Id => "devtools.generate_qrcode";
-    public override string Name => "generate_qrcode";
+    public override string Name => "dev_qrcode";
     public override string Description => "生成二维码图片，返回Base64编码的PNG图片。支持自定义大小、容错级别、颜色等。";
 
     public override string ParametersJsonSchema => @"

@@ -148,8 +148,8 @@ UniversalToolForwarder（tool 以 "mcp." 前缀 → 按首段点拆 服务器id.
 |---|---|---|
 | `initialize` | `{protocolVersion}` | 版本协商：`2025-11-25`（MCP 2.0）/ `2025-06-18` / `2025-03-26` / `2024-11-05`，未知回退 `2025-06-18`；返回 `serverInfo {name:"ForgeSelf McpCenter", version=插件版本, description}`（v2.4.0 起在 `AddMcpServer(o => o.ServerInfo=…)` 显式配置；此前 SDK 缺省回的是宿主程序集名+构建号，属契约回归，已修）；`capabilities.tools` 存在，但 **listChanged 旗标由 SDK 自动推导**（有状态=`true`、无状态=缺键，`o.Capabilities` 显式覆写实测无效）——工具面恒静态，实际从不发 `list_changed` 通知 |
 | `ping` | — | 空结果 |
-| `tools/list` | — | 恒 1 条：`universal_tool`，`inputSchema.required=["tool"]`；description 含发现工具引导（先调 `list_tools` 枚举）、常规能力分类（读写文件/执行命令/搜索/计算/系统监控/工作流）与外部命名空间说明 |
-| `tools/call` | `{name:"universal_tool", arguments:{tool, parameters}}` | 转发目标工具；`tool="list_tools"` 枚举全部已注册工具（名称/说明/参数 schema，`parameters:{keyword?, includeSchema?}`）；`result.content[0].type="text"`，文本为宿主 `ToolExecutionResult` 原样透传（`{"success":true,...,"result":...}`）；失败时 `isError=true` 且保留 `error` 字段 |
+| `tools/list` | — | 恒 1 条：`universal_tool`，`inputSchema.required=["tool"]`；description 含**先搜索后枚举**的发现引导（不确定工具名先调 `search_tools {keyword, limit?}` 打分检索，检索无果或无此工具才用 `list_tools` 全量枚举）、与外部命名空间说明（`tool` 参数 schema 同步该口径） |
+| `tools/call` | `{name:"universal_tool", arguments:{tool, parameters}}` | 转发目标工具；`tool="search_tools"` 按关键词检索工具（`parameters:{keyword 必填, limit?}`，命中带名称/说明/插件来源/参数形态）；`tool="list_tools"` 全量枚举（`parameters:{keyword?, includeSchema?}`，含已连接外部工具）；`result.content[0].type="text"`，文本为宿主 `ToolExecutionResult` 原样透传（`{"success":true,...,"result":...}`）；失败时 `isError=true` 且保留 `error` 字段 |
 | 通知/批处理 | — | 支持通知（无响应）、批量数组 |
 
 错误码（JSON-RPC 标准）：
@@ -263,13 +263,18 @@ curl http://127.0.0.1:18890/health
 curl -X POST http://127.0.0.1:18890/mcp -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 
-# 调用宿主工具 calculate（6*7=42）
+# 调用宿主工具 calculate（6*7=42；mcp-center 整插件豁免前缀——用户拍板 2026-10-28 17:29，工具名即公共 API 面）
 curl -X POST http://127.0.0.1:18890/mcp -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"universal_tool","arguments":{"tool":"calculate","parameters":{"expression":"6*7"}}}}'
 
-# 发现工具：枚举全部已注册工具（可按关键字过滤、带 schema）
+# 发现工具（第一步）：按关键词搜索，返回最匹配 top-N（名称/说明/插件来源/参数形态）
+# 注：search_tools 与 universal_tool 同属 mcp-center 公共工具（2026-10-28 归属迁移前在 AIAgent），该插件停用时此步会报 unknown，直接走下面的 list_tools
 curl -X POST http://127.0.0.1:18890/mcp -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"universal_tool","arguments":{"tool":"list_tools","parameters":{"keyword":"read","includeSchema":true}}}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"universal_tool","arguments":{"tool":"search_tools","parameters":{"keyword":"read","limit":5}}}}'
+
+# 发现工具（兜底）：检索无果再全量枚举（可按关键字过滤、带 schema，含已连接外部工具）
+curl -X POST http://127.0.0.1:18890/mcp -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"universal_tool","arguments":{"tool":"list_tools","parameters":{"keyword":"read","includeSchema":true}}}}'
 
 # 管理端点一律需要宿主令牌（无 token → 401）
 curl -H "Authorization: Bearer <宿主令牌>" http://localhost:51888/api/mcp-center/servers

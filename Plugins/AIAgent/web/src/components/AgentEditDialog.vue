@@ -160,7 +160,7 @@
       <div class="aed__sec">
         <div class="aed__sec-title">
           关联工作流
-          <span class="aed__hint">（可多选。执行时注入提示词，由 Agent 按需用 execute_workflow 执行）</span>
+          <span class="aed__hint">（可多选。执行时注入提示词，由 Agent 按需用 workflow_execute 执行）</span>
         </div>
         <div class="aed__row">
           <label class="aed__label">已关联（{{ associatedWorkflows.length }} 个）</label>

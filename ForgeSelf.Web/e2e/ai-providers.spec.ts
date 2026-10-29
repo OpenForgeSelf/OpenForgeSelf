@@ -252,6 +252,23 @@ test.describe('AI 提供方管理（真实后端）', () => {
     }
   })
 
+  test('AC-UI-1 (PILOT-074): 类型下拉含 OpenAI Responses 共四项', async ({ page }) => {
+    await navigateToAiProviders(page)
+    await page.getByRole('button', { name: '新建提供方' }).click()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '新增提供方' })
+    await expect(dialog).toBeVisible()
+
+    // 打开类型下拉（Element Plus 选项 teleport 到 body）
+    await dialog.locator('.el-select').click()
+    await expect(page.getByRole('option', { name: 'OpenAI', exact: true })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'OpenAI Responses', exact: true })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Anthropic', exact: true })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Custom', exact: true })).toBeVisible()
+
+    await dialog.getByRole('button', { name: '取消' }).click()
+    await expect(dialog).toBeHidden()
+  })
+
   test('弹窗选模型全链路：新建→获取模型→弹窗取消不发请求→确定→回复含 ok 判成功（mock 上游）', async ({ page }) => {
     const testName = `E2E-Real-TestDlg-${Date.now()}`
     const upstream = await startMockUpstream(18083, { chatContent: 'ok' })
@@ -324,7 +341,8 @@ test.describe('AI 提供方管理（真实后端）', () => {
       expect(last?.url).toContain('/v1/chat/completions')
       expect(last?.body?.messages?.[0]?.content).toBe('请回复且仅回复ok')
       expect(last?.body?.model).toBe('mock-model')
-      expect(last?.body?.max_tokens).toBe(128)
+      // PILOT-074 U-1 实证：openai-dotnet 对 MaxTokens 发送 max_completion_tokens（BC-3 落地）
+      expect(last?.body?.max_completion_tokens).toBe(128)
     } finally {
       if (createdId != null) await deleteTestProvider(createdId)
       await upstream.close().catch(() => {})

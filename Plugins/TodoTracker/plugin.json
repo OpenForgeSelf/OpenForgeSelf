@@ -1,5 +1,6 @@
 {
   "Id": "todo-tracker",
+  "toolPrefix": "todo",
   "Name": "待办追踪插件",
   "Version": "1.2.0",
   "Author": "ForgeSelf Team",

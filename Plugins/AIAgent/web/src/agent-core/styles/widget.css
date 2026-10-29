@@ -825,19 +825,21 @@
 /* 助手不带头像时那 30px 让出来给正文 —— 头像没了还留着 78% 的上限就是白浪费横向空间 */
 .aiw-msg--bot.is-noavatar .aiw-msg__col { max-width: 92%; }
 
+/* 2026-10-26 用户拍板：仅工具调用有边框，其他内容无边框 —— 正文气泡去边框 + 去阴影。
+   底色仍是 #fff（消息区底色是 --aiw-bg-soft），靠「白块压在浅灰底上」区分正文区，
+   不再用边框/阴影切盒子：一屏里只有工具调用展开体带框，读起来才不像表单。
+   左右内边距与折叠行首同取 --aiw-space-5（12px），使正文左缘与图标左缘落在同一条竖线。 */
 .aiw-msg__bubble {
-  padding: 9px 13px;
+  padding: 9px var(--aiw-space-5);
   border-radius: 14px;
   word-break: break-word;
   overflow-wrap: anywhere;
   background: #fff;
-  border: 1px solid var(--aiw-line);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   font-size: 13.5px;
   line-height: 1.65;
 }
 .aiw-msg--bot.is-noavatar .aiw-msg__bubble { border-top-left-radius: 14px; }
-/* 用户气泡 = 与助手气泡**同一样式**（浅底 + 深字 + 同边框同阴影），
+/* 用户气泡 = 与助手气泡**同一样式**（浅底 + 深字 + 无边无影），
    输入/输出只靠**位置**区分（用户在右：.aiw-msg--user 的 row-reverse + 右对齐）。
    ★ 历史坑（2026-10-15，三次返工）：早先用户气泡是「主色底 + 白字」，
      ① 被 `.aiw-root.aiw-inline .aiw-msg__bubble`（0,3,0）覆盖成浅灰底而 color:#fff 仍生效
@@ -902,8 +904,77 @@
 /* 链接色输入输出统一（不再分 bot/user 两套） */
 .aiw-msg__bubble a { color: var(--aiw-primary); }
 .aiw-msg__bubble strong { font-weight: 650; }
-.aiw-msg__bubble .aiw-ul { margin: 6px 0 4px; padding-left: 18px; }
-.aiw-msg__bubble .aiw-ul li { margin: 2px 0; }
+/* ---------- Markdown 块级排版（2026-10-26 重写渲染器后配套） ----------
+   为什么每个块都显式写 margin：气泡内容要在「Shadow DOM 隔离」与「SFC 全局 CSS」
+   两种宿主形态下都成立，而宿主常有 Tailwind preflight / reset 把 p、h* 的默认边距
+   清零 —— 靠 UA 默认样式排版，两种宿主会长得不一样。一律显式给值，间距才是同一份。
+   间距全部走 --aiw-space-* 令牌，不新增魔法数字。 */
+.aiw-msg__bubble .aiw-p { margin: 0 0 var(--aiw-space-4); }
+.aiw-msg__bubble .aiw-p:last-child { margin-bottom: 0; }
+
+.aiw-msg__bubble .aiw-h {
+  margin: var(--aiw-space-5) 0 var(--aiw-space-3);
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--aiw-text);
+}
+.aiw-msg__bubble .aiw-h:first-child { margin-top: 0; }
+.aiw-msg__bubble .aiw-h1 { font-size: 1.3em; }
+.aiw-msg__bubble .aiw-h2 { font-size: 1.2em; }
+.aiw-msg__bubble .aiw-h3 { font-size: 1.1em; }
+.aiw-msg__bubble .aiw-h4 { font-size: 1.04em; }
+.aiw-msg__bubble .aiw-h5,
+.aiw-msg__bubble .aiw-h6 { font-size: 1em; color: var(--aiw-text-soft); }
+
+.aiw-msg__bubble .aiw-ul,
+.aiw-msg__bubble .aiw-ol {
+  margin: 0 0 var(--aiw-space-4);
+  padding-left: 20px;
+}
+.aiw-msg__bubble .aiw-ul { list-style: disc; }
+.aiw-msg__bubble .aiw-ol { list-style: decimal; }
+.aiw-msg__bubble .aiw-ul li,
+.aiw-msg__bubble .aiw-ol li { margin: 2px 0; }
+
+.aiw-msg__bubble .aiw-quote {
+  margin: 0 0 var(--aiw-space-4);
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--aiw-line);
+  color: var(--aiw-text-soft);
+}
+
+.aiw-msg__bubble .aiw-hr {
+  margin: var(--aiw-space-5) 0;
+  border: 0;
+  border-top: 1px solid var(--aiw-line);
+}
+
+/* 表格：横向可滚。390px 手机宽度下 4 列表格必然溢出，
+   不套滚动容器会把整条气泡连同左侧时间戳一起撑破。 */
+.aiw-msg__bubble .aiw-table-wrap {
+  margin: 0 0 var(--aiw-space-4);
+  max-width: 100%;
+  overflow-x: auto;
+}
+.aiw-msg__bubble .aiw-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.98em;
+}
+.aiw-msg__bubble .aiw-table th,
+.aiw-msg__bubble .aiw-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--aiw-line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.aiw-msg__bubble .aiw-table th {
+  font-weight: 600;
+  color: var(--aiw-text-soft);
+  white-space: nowrap;
+}
+.aiw-msg__bubble .aiw-table tbody tr:last-child td { border-bottom: 0; }
 .aiw-inline-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.92em;

@@ -12,7 +12,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
     private readonly IScriptTemplateService _scriptTemplateService;
 
     public string Id => "scriptrunner.generate_script";
-    public string Name => "generate_script";
+    public string Name => "script_generate";
     public string PluginId { get; }
     public string Description => "根据用户需求描述，使用AI智能生成指定语言的脚本代码，支持参数化和错误处理。";
 
@@ -132,7 +132,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.analyze_script_error";
-    public string Name => "analyze_script_error";
+    public string Name => "script_analyze_error";
     public string PluginId { get; }
     public string Description => "分析脚本错误原因，提供可能的原因分析和修复建议。";
 
@@ -241,7 +241,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.suggest_script_fix";
-    public string Name => "suggest_script_fix";
+    public string Name => "script_suggest_fix";
     public string PluginId { get; }
     public string Description => "针对脚本错误提供修复建议，生成修复后的完整代码并解释修改原因。";
 
@@ -352,7 +352,7 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
     private readonly IScriptTemplateService _scriptTemplateService;
 
     public string Id => "scriptrunner.list_script_templates";
-    public string Name => "list_script_templates";
+    public string Name => "script_templates";
     public string PluginId { get; }
     public string Description => "列出可用的脚本模板，支持按分类、语言、关键词筛选，可查看模板详情。";
 

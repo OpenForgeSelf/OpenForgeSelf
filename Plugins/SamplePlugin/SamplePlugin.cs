@@ -134,7 +134,7 @@ public class SampleToolFunction : IToolFunctionExtension
     /// <summary>扩展点 Id：加插件前缀避免跨插件重名（历史教训：全局工具注册表按 Id 唯一）。</summary>
     public string Id => $"{_pluginId}.greet";
 
-    public string Name => "示例问候";
+    public string Name => "sample_greet";
 
     public string Description => "向指定对象问好，用于演示 AI 工具函数的注册与调用。";
 

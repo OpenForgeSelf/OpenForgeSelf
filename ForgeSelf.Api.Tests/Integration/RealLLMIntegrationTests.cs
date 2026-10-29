@@ -3,6 +3,7 @@ using ForgeSelf.Abstractions;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Configuration;
@@ -64,6 +65,31 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     {
         // Arrange - 使用自定义 HttpMessageHandler 捕获请求
         var capturedRequest = new HttpRequestMessage();
+        string capturedBody = string.Empty;
+        var responseJson = JsonSerializer.Serialize(new AIChatResponse
+        {
+            Id = "test-id",
+            Object = "chat.completion",
+            Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Model = "test-model",
+            Choices = new List<AIChatChoice>
+            {
+                new()
+                {
+                    Index = 0,
+                    Message = new AIChatMessageDelta
+                    {
+                        Role = "assistant",
+                        Content = "测试响应"
+                    }
+                }
+            }
+        }, new JsonSerializerOptions
+        {
+            // PILOT-074：回退出站切 SDK 后要求 camelCase wire（PascalCase 会被 SDK 严格校验拒收）
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock
             .Protected()
@@ -72,29 +98,20 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()
             )
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(new HttpResponseMessage
+            // PILOT-074：SDK 传输层在响应完成后释放请求体（MessageBodyAdapter disposed），
+            // 事后读 capturedRequest.Content 会 ObjectDisposedException——必须在发送现场读体
+            .Returns<HttpRequestMessage, CancellationToken>(async (req, _) =>
             {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(
-                    JsonSerializer.Serialize(new AIChatResponse
-                    {
-                        Id = "test-id",
-                        Choices = new List<AIChatChoice>
-                        {
-                            new()
-                            {
-                                Index = 0,
-                                Message = new AIChatMessageDelta
-                                {
-                                    Role = "assistant",
-                                    Content = "测试响应"
-                                }
-                            }
-                        }
-                    }),
-                    Encoding.UTF8,
-                    "application/json")
+                capturedRequest = req;
+                if (req.Content != null)
+                {
+                    capturedBody = await req.Content.ReadAsStringAsync();
+                }
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+                };
             });
 
         using var scope = _factory.Services.CreateScope();
@@ -117,11 +134,14 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         capturedRequest.RequestUri.Should().NotBeNull();
         capturedRequest.RequestUri!.ToString().Should().Be(configService.GetAIConfig().ApiEndpoint);
 
-        // 验证 Authorization header（批次D：appsettings 明文密钥已置空。空 key 时不发有效 Bearer 密钥——头省略或仅裸 Bearer 无 token；key 非空时 Bearer+key）
+        // 验证 Authorization header（批次D：appsettings 明文密钥已置空。PILOT-074 出站切 SDK 后：
+        // SDK 要求非空 ApiKeyCredential，空 key 由适配器以无害占位符 "EMPTY" 发送（U-6f 偏差）；
+        // key 非空时 Bearer+key 语义不变）
         var expectedApiKey = configService.GetAIConfig().ApiKey;
         if (string.IsNullOrEmpty(expectedApiKey))
         {
-            capturedRequest.Headers.Authorization?.Parameter.Should().BeNullOrEmpty();
+            capturedRequest.Headers.Authorization.Should().NotBeNull();
+            capturedRequest.Headers.Authorization!.Parameter.Should().Be("EMPTY");
         }
         else
         {
@@ -130,10 +150,9 @@ public class RealLLMIntegrationTests : IClassFixture<WebApplicationFactory<Progr
             capturedRequest.Headers.Authorization!.Parameter.Should().Be(expectedApiKey);
         }
 
-        // 验证请求体
-        capturedRequest.Content.Should().NotBeNull();
-        var content = await capturedRequest.Content!.ReadAsStringAsync();
-        var requestBody = JsonSerializer.Deserialize<AIChatRequest>(content, new JsonSerializerOptions
+        // 验证请求体（发送现场已读入 capturedBody——SDK 传输层事后释放请求体，不能再读 Content）
+        capturedBody.Should().NotBeEmpty();
+        var requestBody = JsonSerializer.Deserialize<AIChatRequest>(capturedBody, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });

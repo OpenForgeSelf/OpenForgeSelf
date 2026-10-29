@@ -61,6 +61,17 @@ public class AgentPlan
 
     /// <summary>步骤列表（顺序执行）。</summary>
     public List<AgentPlanStep> Steps { get; set; } = new();
+
+    /// <summary>
+    /// 目标模式（PILOT-051）验收标准清单；空/缺省 = 非目标模式（做完计划步骤即 Completed）。
+    /// 随 PlanJson 持久化（不改 DB 结构）。
+    /// </summary>
+    public List<string>? SuccessCriteria { get; set; }
+
+    /// <summary>
+    /// 目标模式最大评估轮数（1–10）；null = 默认 3。与 <see cref="SuccessCriteria"/> 同存于 PlanJson。
+    /// </summary>
+    public int? MaxGoalRounds { get; set; }
 }
 
 /// <summary>
@@ -110,6 +121,16 @@ public class RunRequest
 
     /// <summary>聊天模型 id（形如 provider:upstreamModelId）；空则回退默认 provider。</summary>
     public string? ChatModelId { get; set; }
+
+    /// <summary>
+    /// 目标模式（PILOT-051）验收标准，每条一句；null/空 = 非目标模式（现状行为）。
+    /// 提供后：计划步骤全部完成 → 评估 Agent 对照标准判定 → 未达标自动追加补救步骤续跑，
+    /// 轮次预算（<see cref="MaxGoalRounds"/>）用尽仍未达标 → Run 置 Stuck 带未达成报告。
+    /// </summary>
+    public List<string>? SuccessCriteria { get; set; }
+
+    /// <summary>目标模式最大评估轮数（默认 3，钳制 1–10）。</summary>
+    public int? MaxGoalRounds { get; set; }
 }
 
 /// <summary>
@@ -199,6 +220,42 @@ public class AgentRunDetailResponse
 /// <summary>
 /// 步骤进度 SSE 事件载荷（step_started）。
 /// </summary>
+/// <summary>goal_round_started SSE payload（目标模式，PILOT-051）。</summary>
+public class GoalRoundStartedPayload
+{
+    public long RunId { get; set; }
+
+    /// <summary>当前评估轮次（1 起）。</summary>
+    public int Round { get; set; }
+
+    /// <summary>轮次预算（钳制后的 MaxGoalRounds）。</summary>
+    public int MaxRounds { get; set; }
+
+    /// <summary>成功判据清单。</summary>
+    public List<string> Criteria { get; set; } = new();
+}
+
+/// <summary>goal_evaluated SSE payload（目标模式，PILOT-051）。</summary>
+public class GoalEvaluatedPayload
+{
+    public long RunId { get; set; }
+
+    public int Round { get; set; }
+
+    /// <summary>评估判定：全部判据已达成。</summary>
+    public bool Achieved { get; set; }
+
+    public double? Confidence { get; set; }
+
+    /// <summary>未达成项清单。</summary>
+    public List<string> Missing { get; set; } = new();
+
+    public string? Critique { get; set; }
+
+    public string? Summary { get; set; }
+}
+
+/// <summary>step_started SSE payload。</summary>
 public class StepStartedPayload
 {
     public long RunId { get; set; }

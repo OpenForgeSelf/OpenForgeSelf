@@ -114,6 +114,7 @@
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；本地目录更新源；插件侧载（须用户同意） | **禁止 agent 停/启/杀宿主**；宿主升级由 update-agent 自更新；活动插件目录只放插件自身 DLL |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 | 零 mock；禁止用一次性临时脚本代替 |
+| `component-visual-loop` | **前端组件可视化闭环**：调试单个组件/看效果、加 story 与 CT 像素回归、组件分层与页面逻辑分离 | 规范真源 `docs/04-standards/frontend-component-development.md`；画廊 `ForgeSelf.Web/ct/`（`pnpm run ct:server`）；CT `pnpm run test:ct[/:update]`；改组件必跑 `pnpm run check`（含组件规范守卫）+ `design:check` |
 | `design-system-verify` | **设计系统插件（design-system）专用收口**：四层门禁 + 「假能力」自查表（条目按编号递增，去技能里读最新全表，别在此记条数） | 改过 `Plugins/DesignSystem` 任何一层必用；计数/主题/导出/门禁/图标都要逐条问"现在有证据吗" |
 | `design-system-consume` | **设计系统插件消费侧**：外部/内置 agent 如何发现与调用 8 个 design_* 工具（封套、写开关、REST 对等、常见坑） | 写集成/测试时用；维护工具本身走 design-system-verify；出参键 camelCase；`list_tools` 无封套 |
 | `ui-ux-design` | **通用 UI/UX 设计审查与生成**（《写给大家看的设计书》CRAP 四原则 + 配色 + 字体）：审查既有界面/设计稿/截图、生成布局与视觉方案、Spec「交互设计」节编写与自查、走查前设计符合性核对 | 涉及用户可见 UI 改动的 Spec/走查必用；交互规格写「点什么出现什么」+ 空态/反馈/边界；走查按 UI 符合性清单逐项核对，不只"能显示" |

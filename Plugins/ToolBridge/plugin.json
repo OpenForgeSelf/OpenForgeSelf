@@ -1,9 +1,9 @@
 {
   "Id": "tool-bridge",
   "Name": "工具桥插件",
-  "Version": "1.0.4",
+  "Version": "1.1.0",
   "Author": "ForgeSelf Team",
-  "Description": "测试 AI 工具调用能力的「人工 agent 回合台」：一键复制含工具 schema 的初始指令给网页 AI，把 AI 回复的调用文本粘回来，插件解析（多格式容错、认不出必带原因）并在沙箱工作根内真实执行读文件/写文件/列目录/执行命令（命令过白名单与破坏性红线守卫），再把结果原样拼成可复制的回粘文本；每轮落一条可回看记录。自带界面（web/dist）。",
+  "Description": "测试 AI 工具调用能力的「人工 agent 回合台」：一键复制含工具 schema 的初始指令给网页 AI，把 AI 回复的调用文本粘回来，插件解析（多格式容错、认不出必带原因）并在沙箱工作根内真实执行读文件/写文件/列目录/执行命令（命令过白名单与破坏性红线守卫），再把结果原样拼成可复制的回粘文本；每轮落一条可回看记录。自带界面（web/dist）；v1.1.0 run_command 与 mcp-center 同步放开管道/链式（逐段过同一拦截校验，多段经 pwsh 执行）。",
   "EntryAssembly": "ToolBridge.dll",
   "EntryType": "ForgeSelf.Api.Plugins.ToolBridge.ToolBridgePlugin",
   "Dependencies": [],

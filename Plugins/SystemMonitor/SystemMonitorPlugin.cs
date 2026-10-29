@@ -177,7 +177,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "systemmonitor.get_cpu_usage";
-    public string Name => "get_cpu_usage";
+    public string Name => "sys_cpu";
     public string PluginId { get; }
     public string Description => "获取当前系统CPU使用率，包括总使用率和各核心使用率。";
 
@@ -259,7 +259,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "systemmonitor.get_memory_usage";
-    public string Name => "get_memory_usage";
+    public string Name => "sys_memory";
     public string PluginId { get; }
     public string Description => "获取当前系统内存使用情况，包括总内存、可用内存、已用内存和使用率。";
 
@@ -343,7 +343,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "systemmonitor.get_disk_info";
-    public string Name => "get_disk_info";
+    public string Name => "sys_disk";
     public string PluginId { get; }
     public string Description => "获取系统所有磁盘分区信息，包括盘符、总大小、可用空间、使用率和空间预警状态。";
 
@@ -435,7 +435,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "systemmonitor.get_process_list";
-    public string Name => "get_process_list";
+    public string Name => "sys_processes";
     public string PluginId { get; }
     public string Description => "获取系统进程列表，支持按名称/CPU/内存排序，支持搜索过滤。";
 
@@ -584,7 +584,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "systemmonitor.kill_process";
-    public string Name => "kill_process";
+    public string Name => "sys_kill_process";
     public string PluginId { get; }
     public string Description => "结束指定的系统进程，支持强制结束。";
 

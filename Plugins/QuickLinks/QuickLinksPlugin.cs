@@ -52,7 +52,7 @@ public class QuickLinksPlugin : IPlugin
         ToolExtensions.Add(new SearchLinksToolFunction(services)
         {
             Id = "quicklinks.tool.search",
-            Name = "search_links",
+            Name = "link_search",
             PluginId = pluginId,
             Description = "搜索快捷链接，根据关键词查找相关的链接，支持按分类筛选和限制返回数量",
             ParametersJsonSchema = @"
@@ -80,7 +80,7 @@ public class QuickLinksPlugin : IPlugin
         ToolExtensions.Add(new OpenLinkToolFunction(services)
         {
             Id = "quicklinks.tool.open",
-            Name = "open_link",
+            Name = "link_open",
             PluginId = pluginId,
             Description = "打开指定的快捷链接，并记录点击次数",
             ParametersJsonSchema = @"
@@ -99,7 +99,7 @@ public class QuickLinksPlugin : IPlugin
         ToolExtensions.Add(new GetCategoriesToolFunction(services)
         {
             Id = "quicklinks.tool.get_categories",
-            Name = "get_categories",
+            Name = "link_categories",
             PluginId = pluginId,
             Description = "获取所有快捷链接分类列表",
             ParametersJsonSchema = @"
@@ -113,7 +113,7 @@ public class QuickLinksPlugin : IPlugin
         ToolExtensions.Add(new CreateLinkToolFunction(services)
         {
             Id = "quicklinks.tool.create",
-            Name = "create_link",
+            Name = "link_create",
             PluginId = pluginId,
             Description = "创建一个新的快捷链接",
             ParametersJsonSchema = @"

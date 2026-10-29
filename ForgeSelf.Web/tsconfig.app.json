@@ -20,6 +20,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+
+    /* 组件画廊的跨包 story 壳会 import 插件前端的 JS 风格 SFC（Plugins/<X>/web/src）：
+       只允许解析、不检查 JS 内部（checkJs 默认 false） */
+    "allowJs": true,
+
     "types": ["vitest/globals"],
 
     "baseUrl": ".",

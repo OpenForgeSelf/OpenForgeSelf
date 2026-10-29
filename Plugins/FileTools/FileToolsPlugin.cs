@@ -48,12 +48,12 @@ public class FileToolsPlugin : IPlugin
             }
         }));
 
-        RegisterToolFunctionExtensions(pluginId, ctx);
+        RegisterToolFunctionExtensions(pluginId, ctx, (IServiceProvider)ctx);
 
         XTrace.Log.Info("[FileToolsPlugin] 文件工具插件初始化完成");
     }
 
-    private void RegisterToolFunctionExtensions(string pluginId, IServiceProvider services)
+    private void RegisterToolFunctionExtensions(string pluginId, IContext ctx, IServiceProvider services)
     {
         XTrace.Log.Debug("[FileToolsPlugin] 注册AI工具函数扩展点");
 
@@ -64,6 +64,11 @@ public class FileToolsPlugin : IPlugin
         ToolExtensions.Add(new FileStatsToolFunction(pluginId, services));
         ToolExtensions.Add(new FolderStatsToolFunction(pluginId, services));
 
+        // 文件三件套（2026-10-28 归属修订轮自 mcp-center 迁入，用户拍板文件域归一；名字维持平台保留名不变）：
+        // read_file / write_file / list_files，IContext 构造（契约 IProjectWorkspaceService 在 Abstractions）。
+        ToolExtensions.Add(new ListFilesToolFunction(ctx));
+        ToolExtensions.Add(new ReadFileToolFunction(ctx));
+        ToolExtensions.Add(new WriteFileToolFunction(ctx));
         XTrace.Log.Debug("[FileToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
 }

@@ -17,31 +17,34 @@ import {
  */
 
 const ALL = [
-  'read_file', 'list_todos', 'search_memories', 'get_current_time',
-  'write_file', 'create_todo', 'add_memory',
-  'run_terminal_command', 'universal_tool', 'kill_process',
-  'calculate', 'encode_base64',
+  'read_file', 'todo_list', 'memory_search', 'get_current_time',
+  'write_file', 'todo_create', 'memory_add',
+  'run_terminal_command', 'universal_tool', 'sys_kill_process',
+  'calculate', 'dev_base64_encode',
 ]
 
 describe('权限三档语义', () => {
   it('只读档：放行读类与纯计算，拦截写文件/命令执行/进程控制', () => {
     expect(toolAllowedInMode('read_file', 'readonly')).toBe(true)
-    expect(toolAllowedInMode('list_todos', 'readonly')).toBe(true)
-    expect(toolAllowedInMode('search_memories', 'readonly')).toBe(true)
+    expect(toolAllowedInMode('todo_list', 'readonly')).toBe(true)
+    expect(toolAllowedInMode('memory_search', 'readonly')).toBe(true)
     expect(toolAllowedInMode('calculate', 'readonly')).toBe(true)
-    // 写能力必须被挡住 —— 这三条是本档位的核心承诺
+    expect(toolAllowedInMode('get_current_time', 'readonly')).toBe(true)
+    expect(toolAllowedInMode('dev_base64_encode', 'readonly')).toBe(true)
+    // 写能力必须被挡住 —— 这几条是本档位的核心承诺
     expect(toolAllowedInMode('write_file', 'readonly')).toBe(false)
-    expect(toolAllowedInMode('create_todo', 'readonly')).toBe(false)
+    expect(toolAllowedInMode('todo_create', 'readonly')).toBe(false)
+    expect(toolAllowedInMode('memory_add', 'readonly')).toBe(false)
     expect(toolAllowedInMode('run_terminal_command', 'readonly')).toBe(false)
-    expect(toolAllowedInMode('kill_process', 'readonly')).toBe(false)
+    expect(toolAllowedInMode('sys_kill_process', 'readonly')).toBe(false)
   })
 
   it('标准档：可写文件与待办，但命令执行/任意代码/进程控制仍被扣下', () => {
     expect(toolAllowedInMode('write_file', 'standard')).toBe(true)
-    expect(toolAllowedInMode('create_todo', 'standard')).toBe(true)
+    expect(toolAllowedInMode('todo_create', 'standard')).toBe(true)
     expect(toolAllowedInMode('run_terminal_command', 'standard')).toBe(false)
     expect(toolAllowedInMode('universal_tool', 'standard')).toBe(false)
-    expect(toolAllowedInMode('kill_process', 'standard')).toBe(false)
+    expect(toolAllowedInMode('sys_kill_process', 'standard')).toBe(false)
   })
 
   it('完全访问档：工具全开', () => {
@@ -103,7 +106,7 @@ describe('deriveToolAllowlist：档位是上限、勾选是收窄', () => {
   })
 
   it('完全访问档 + 已勾选 → 原样下发', () => {
-    expect(deriveToolAllowlist('full', ['kill_process'], ALL)).toEqual(['kill_process'])
+    expect(deriveToolAllowlist('full', ['sys_kill_process'], ALL)).toEqual(['sys_kill_process'])
   })
 
   it('勾选了不存在的工具也不会被凭空放行（只读档下未知名按可写处理 → 剔除）', () => {

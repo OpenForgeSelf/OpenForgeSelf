@@ -62,7 +62,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new CreateTodoToolFunction(services)
         {
             Id = "todotracker.tool.create_todo",
-            Name = "create_todo",
+            Name = "todo_create",
             PluginId = pluginId,
             Description = "创建一个新的待办/任务。必填：title（标题，最长 200 字符）。可选：remark（备注，最长 1000）、dueDate（ISO 8601）、" +
                           "objective（可验证目标）、content（正文 markdown）、acceptance（验收判据，每行一条）、verification（验证命令，每行一条）、" +
@@ -74,7 +74,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new ListTodosToolFunction(services)
         {
             Id = "todotracker.tool.list_todos",
-            Name = "list_todos",
+            Name = "todo_list",
             PluginId = pluginId,
             Description = "列出待办/任务，支持过滤与分页。可选：status（Pending/Completed）、stage（Draft/Ready/Dispatched/Running/Blocked/Review/Done/Cancelled）、" +
                           "projectId（0=全部）、q（关键字）、page（默认 1）、pageSize（默认 20，最大 100）。",
@@ -84,7 +84,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new CompleteTodoToolFunction(services)
         {
             Id = "todotracker.tool.complete_todo",
-            Name = "complete_todo",
+            Name = "todo_complete",
             PluginId = pluginId,
             Description = "标记指定待办为已完成（同步下发阶段到 Done）。必填：id（待办 ID）。",
             ParametersJsonSchema = TodoToolSchemas.ById
@@ -94,7 +94,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new GetAgentTaskToolFunction(services)
         {
             Id = "todotracker.tool.get_agent_task",
-            Name = "get_agent_task",
+            Name = "todo_task_get",
             PluginId = pluginId,
             Description = "按 taskKey 读取一条任务的完整下发内容：目标、正文、允许/禁止范围、验收判据、验证命令、" +
                           "项目根（agent 的工作目录）、已有执行记录条数。必填：taskKey。",
@@ -104,7 +104,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new ClaimAgentTaskToolFunction(services)
         {
             Id = "todotracker.tool.claim_agent_task",
-            Name = "claim_agent_task",
+            Name = "todo_task_claim",
             PluginId = pluginId,
             Description = "领取下一条处于 Dispatched（已下发）的任务并原子置为 Running（执行中），同时留一条执行记录。" +
                           "可选：assignee（按下发对象过滤）、projectId（0=全部）。无可领任务时返回 data:null 且 next=null。",
@@ -114,7 +114,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new AppendTaskExecutionToolFunction(services)
         {
             Id = "todotracker.tool.append_task_execution",
-            Name = "append_task_execution",
+            Name = "todo_execution_append",
             PluginId = pluginId,
             Description = "给任务追加一条执行记录（append-only 台账）。必填：taskKey、action（做了什么操作，一句话）。" +
                           "可选：result（什么结果）、detail（操作明细）、filesChanged（改了哪些文件，数组 [{path,change}] 或一行一个路径的文本）、" +
@@ -126,7 +126,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new UpdateTaskStageToolFunction(services)
         {
             Id = "todotracker.tool.update_task_stage",
-            Name = "update_task_stage",
+            Name = "todo_stage_update",
             PluginId = pluginId,
             Description = "流转任务阶段（合法边：Draft→Ready→Dispatched→Running→Review→Done，中途可 Blocked，终态可重开）。" +
                           "必填：taskKey、stage。可选：reason（说明，进执行记录留痕）、blockReason（进 Blocked 时必填）。" +
@@ -137,7 +137,7 @@ public class TodoTrackerPlugin : IPlugin
         ToolExtensions.Add(new DispatchTaskToolFunction(services)
         {
             Id = "todotracker.tool.dispatch_task",
-            Name = "dispatch_task",
+            Name = "todo_dispatch",
             PluginId = pluginId,
             Description = "下发一条任务（校验必填齐备 → 阶段置 Dispatched → 留痕），并返回可直接交给 agent 的提示词。" +
                           "必填：taskKey。可选：assignee（下发对象）。缺 objective/content/acceptance/verification 任一项即拒绝并点名。",

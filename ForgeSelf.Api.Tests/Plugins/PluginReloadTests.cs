@@ -20,17 +20,17 @@ public class PluginReloadTests
     [Fact]
     public void ReloadPlugin_RunningEmbeddedPlugin_StopsAndReloadsNewInstance()
     {
-        // 使用真实独立程序集插件入口类型（Plugins/<id>/TextTools.dll）验证「停用→重载」序列；
+        // 使用真实独立程序集插件入口类型（Plugins/<id>/SamplePlugin.dll）验证「停用→重载」序列；
         // 不依赖真实 DLL / ALC 回收（测试环境受限，端到端 ALC 回收留待运行时验证）。
-        // 注：全部 11 插件已拆独立程序集（ADR D2），主程序集无内嵌插件，改用 TextToolsPlugin 独立 DLL。
+        // 注：全部 11 插件已拆独立程序集（ADR D2），主程序集无内嵌插件，改用 SamplePlugin 独立 DLL。
         _tempDir.CreatePluginManifest("test.reload", m =>
         {
-            m.EntryAssembly = "TextTools.dll"; // 独立程序集插件，位于 Plugins/<id>/TextTools.dll
-            m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
+            m.EntryAssembly = "SamplePlugin.dll"; // 独立程序集插件，位于 Plugins/<id>/SamplePlugin.dll
+            m.EntryType = "ForgeSelf.Api.Plugins.SamplePlugin.SamplePlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
-            Path.Combine(_tempDir.RootPath, "test.reload", "TextTools.dll"));
+            Path.Combine(AppContext.BaseDirectory, "plugins", "SamplePlugin", "SamplePlugin.dll"),
+            Path.Combine(_tempDir.RootPath, "test.reload", "SamplePlugin.dll"));
 
         var services = new ServiceCollection();
         _manager.RegisterAllServices(services); // 挂载 + Apply（状态 Running）

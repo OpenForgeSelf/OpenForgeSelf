@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -106,7 +106,6 @@
     <ProjectReference Include="..\Plugins\MemorySystem\MemorySystem.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Plugins\TodoTracker\TodoTracker.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Plugins\QuickLinks\QuickLinks.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\Plugins\TextTools\TextTools.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Plugins\FileTools\FileTools.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Plugins\DevTools\DevTools.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Plugins\SystemMonitor\SystemMonitor.csproj" ReferenceOutputAssembly="false" />

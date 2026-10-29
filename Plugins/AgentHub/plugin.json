@@ -1,5 +1,6 @@
 {
   "Id": "agent-hub",
+  "toolPrefix": "hub",
   "Name": "Agent 中枢插件",
   "Version": "1.0.11",
   "Author": "ForgeSelf Team",

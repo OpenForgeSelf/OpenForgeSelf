@@ -39,6 +39,8 @@ export function useChat(config) {
   const messages = ref([])
   const sending = ref(false)
   const streamingText = ref('')
+  // 流式期间的富内容块（工具调用/运行进度）。与 streamingText 一起在收尾时合成一条 assistant 消息。
+  const streamingBlocks = ref([])
   const error = ref('')
   const retrying = ref(null) // { attempt, total, delay } | null
   // Q-09：断流续传中。与 retrying 分开——「重连试试」和「补上剩下的」是两件事
@@ -596,6 +598,7 @@ export function useChat(config) {
     save()
     sending.value = true
     streamingText.value = ''
+    streamingBlocks.value = []
     try {
       config.onSend?.(text, messages.value)
     } catch (e) {
@@ -603,6 +606,8 @@ export function useChat(config) {
     }
 
     const payload = buildPayload()
+    // 失败对象要留一手：只有它身上带得动 runId（能不能续跑）
+    let failure = null
 
     try {
       if (config.transport) {
@@ -617,6 +622,16 @@ export function useChat(config) {
             model: config.model,
             systemPrompt: config.systemPrompt,
             onDelta: (c) => { streamingText.value += c },
+            /* ★ 宿主通过 onBlock 推工具卡片。不接这个回调的话，Agent 跑一批工具时
+               界面就是一直空白 —— 用户只能猜它在干什么。 */
+            onBlock: (b) => {
+              if (!b) return
+              /* 带 id 的块是「会变的同一个块」（计划卡每步推进），原地替换而不是再推一条 ——
+                 否则七步计划会变成七张卡，越跑越长。 */
+              const idx = b.id ? streamingBlocks.value.findIndex((x) => x && x.id === b.id) : -1
+              if (idx >= 0) streamingBlocks.value.splice(idx, 1, b)
+              else streamingBlocks.value.push(b)
+            },
             onUsage: (u) => { lastUsage.value = u; audit.emit('usage', u) },
             onError: (e) => { throw e },
             signal,
@@ -625,6 +640,7 @@ export function useChat(config) {
           if (userAborted || e?.name === 'AbortError') {
             /* 用户中止：保留已生成内容，不报错 */
           } else {
+            failure = e
             error.value = e?.message || '请求失败，请稍后重试'
             audit.emit('error', { message: error.value, name: e?.name || null })
             try {
@@ -740,7 +756,9 @@ export function useChat(config) {
     } finally {
       retrying.value = null
       const content = streamingText.value
+      const blocks = streamingBlocks.value.slice()
       streamingText.value = ''
+      streamingBlocks.value = []
       sending.value = false
       clearTimer()
       controller = null
@@ -764,11 +782,19 @@ export function useChat(config) {
           id: uid(),
           role: 'assistant',
           content,
+          blocks: blocks.length ? blocks : undefined,
           time: Date.now(),
           status: finalStatus,
         }
         // 失败原因挂在消息自己身上：全局 error 条会被顶掉，消息自己的不会
-        if (finalStatus === 'failed') msg.error = error.value
+        if (finalStatus === 'failed') {
+          msg.error = error.value
+          /* 只有宿主给了 resume 才亮「继续执行」—— 没有续跑能力还亮按钮，
+             点了没反应比不亮更糟。 */
+          if (failure && failure.resumable && failure.runId && config.resume) {
+            msg.resumable = { runId: failure.runId }
+          }
+        }
         messages.value.push(msg)
         lastDataAt.value = Date.now()
         save()
@@ -779,6 +805,81 @@ export function useChat(config) {
         }
       }
     }
+  }
+
+  /**
+   * 「继续执行」：接着被中断的那一轮跑，而不是把问题重发一遍。
+   *
+   * 为什么必须与 retry 分开：retry 会切掉从用户那条消息往下的全部内容再重发——
+   * 对于已经产出半截内容的 plan run，那等于把已完成的三步全丢了重来。
+   * resume 走服务端 `runs/{id}/resume`，已完成的步骤不重跑。
+   *
+   * 关键细节：新段落追加到**同一条**消息上，不新起一条 —— 用户看到的应是
+   * 「这条回答后来补齐了」，而不是同一件事被回答了两遍。
+   */
+  async function resume(msgId) {
+    if (!config.resume) return false
+    const msg = messages.value.find((m) => m.id === msgId)
+    if (!msg || !msg.resumable || sending.value) return false
+    const runId = msg.resumable.runId
+    const before = msg.content || ''
+    const beforeBlocks = Array.isArray(msg.blocks) ? msg.blocks.map((b) => ({ ...b })) : []
+
+    error.value = ''
+    sending.value = true
+    streamingText.value = ''
+    /* 用旧块打底：计划块靠 id 原地替换，不先铺一层就会变成两张计划卡 */
+    streamingBlocks.value = beforeBlocks
+    delete msg.resumable
+    msg.status = 'streaming'
+    audit.emit('resume:start', { runId })
+
+    controller = new AbortController()
+    let completed = false
+    try {
+      await config.resume({
+        runId,
+        onDelta: (c) => {
+          streamingText.value += c
+        },
+        onBlock: (b) => {
+          if (!b) return
+          const idx = b.id ? streamingBlocks.value.findIndex((x) => x && x.id === b.id) : -1
+          if (idx >= 0) streamingBlocks.value.splice(idx, 1, b)
+          else streamingBlocks.value.push(b)
+        },
+        onUsage: (u) => {
+          lastUsage.value = u
+          audit.emit('usage', u)
+        },
+        signal: controller.signal,
+      })
+      completed = true
+    } catch (e) {
+      if (!(userAborted || e?.name === 'AbortError')) {
+        error.value = e?.message || '继续执行失败'
+        msg.error = error.value
+        if (e && e.resumable && e.runId && config.resume) msg.resumable = { runId: e.runId }
+        audit.emit('error', { message: error.value, name: e?.name || null })
+      }
+    } finally {
+      const added = streamingText.value
+      streamingText.value = ''
+      const blocks = streamingBlocks.value.slice()
+      streamingBlocks.value = []
+      sending.value = false
+      controller = null
+      msg.content = before + added
+      msg.blocks = blocks.length ? blocks : undefined
+      msg.status = userAborted ? 'stopped' : completed ? 'done' : 'failed'
+      if (completed) {
+        delete msg.error
+        lastDataAt.value = Date.now()
+      }
+      audit.emit('resume:end', { runId, completed, added: added.length })
+      save()
+    }
+    return completed
   }
 
   /* ---------------- 危险操作审批 ---------------- */
@@ -955,8 +1056,8 @@ export function useChat(config) {
   }
 
   return {
-    messages, sending, streamingText, error, retrying, reconnecting, canRetry, fellBackToMock, lastDataAt, lastUsage,
-    load, save, seed, reset, send, push, abort, retry, touch, hydrate,
+    messages, sending, streamingText, streamingBlocks, error, retrying, reconnecting, canRetry, fellBackToMock, lastDataAt, lastUsage,
+    load, save, seed, reset, send, push, abort, retry, resume, touch, hydrate,
     resolveApproval, startExpiryWatch, audit,
     // v1.12.0 会话历史
     sessions, currentId, historyOn, newSession, switchSession, removeSession, renameSession, clearSessions,

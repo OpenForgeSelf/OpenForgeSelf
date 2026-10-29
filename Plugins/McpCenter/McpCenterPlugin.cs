@@ -46,6 +46,18 @@ public class McpCenterPlugin : IPlugin
             // 工具实例经 ToolExtensions 属性由宿主自动注册进 ToolRegistry（见属性注释）。
             ToolExtensions.Add(new ListToolsToolFunction(ctx));
 
+            // 2026-10-28 工具命名空间统一（ADR-004 / pilot 2026-10-28-tool-namespace-ownership）：
+            // 平台公共工具自 AIAgent 迁入本插件（与插件主功能无直接关系的基础工具归 MCP 中心，02-spec FR-3）。
+            // mcp-center 整插件豁免前缀（用户拍板 2026-10-28 17:29「mcp中心的工具不用前缀，是特殊例外」）：
+            // universal_tool / search_tools / run_terminal_command = 平台保留名；
+            // get_current_time / calculate 用原名（ToolNamespace.ExemptPluginId）。见 Services/PublicTools/。
+            // 文件三件套已迁 file-tools（2026-10-28 归属修订轮，用户拍板文件域归一；名字仍为平台保留名）。
+            ToolExtensions.Add(new UniversalTool(ctx));
+            ToolExtensions.Add(new SearchToolsToolFunction(ctx));
+            ToolExtensions.Add(new RunTerminalCommandTool(ctx));
+            ToolExtensions.Add(new GetCurrentTimeToolFunction());
+            ToolExtensions.Add(new CalculateToolFunction());
+
             // 软依赖：宿主 IToolRegistry——装配期 ctx 解析不到（见 ListToolsToolFunction 注释），
             // 改运行期惰性访问；拿不到则 McpService 降级为仅预置数据，网关照常启动（修复 2026-10-16 每查刷 Warn）
             var mcpService = McpService.WithDeferredRegistry(() => ctx.Get<IToolRegistry>());
@@ -81,7 +93,7 @@ public class McpCenterPlugin : IPlugin
 
             // v2.6.0 跨插件能力供给：外部工具「可发现 + 可调用」契约 eager 提供进 root 共享表
             // （调研 §5.6 裁决 A/F：提供即 effect，插件热重载/卸载随 Fiber 逆序自动摘除，消费侧下次 Get 得 null 走降级）。
-            // 消费方：本插件 list_tools 枚举出口 + 兄弟插件 AIAgent 的 universal_tool（均运行期 ctx.Get，不缓存）。
+            // 消费方：本插件 list_tools 枚举出口 + 本插件 universal_tool（含内置 AIAgent 等消费侧经万能工具间接触达；均运行期 ctx.Get，不缓存）。
             // 顺序说明（CodeReview PILOT-072 Issue 2）：必须放在停止器 Effect 之后——Fiber 逆序回滚
             // 则网关先被摘、后会话才停，消灭「会话已停、契约尚在」的脏窗口（消费方 Get 到 null 即降级）。
             ctx.Register<IMcpExternalGateway>(new McpExternalGatewayAdapter(clientManager));

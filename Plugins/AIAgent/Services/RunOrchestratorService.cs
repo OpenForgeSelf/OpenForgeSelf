@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 using NewLife.Data;
 using NewLife.Log;
@@ -90,16 +92,24 @@ public interface IRunOrchestratorService
 /// </summary>
 public class RunOrchestratorService : IRunOrchestratorService
 {
-    private static readonly JsonSerializerOptions PlanJsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions PlanJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     /// <summary>
     /// SSE 结构化 payload 序列化选项（camelCase，对齐前端 http.ts 解析约定）：
     /// plan_created/step_started/step_completed/run_stuck 的内层 JSON 必须 camelCase，
     /// 否则前端拿到的 stepIndex/plan.steps 为 undefined（实测 NaN 步骤/目标不显示，029 联调踩坑）。
+    /// PILOT-051：补 UnsafeRelaxedJsonEscaping——默认转义会把中文写成 \uXXXX（SSE/PlanJson 不可读，
+    /// 目标模式判据/未达成报告在日志与事件里全是转义串）；payload 以 UTF-8 text/event-stream 直出，
+    /// 前端 JSON.parse 行为不变。
     /// </summary>
     private static readonly JsonSerializerOptions SsePayloadOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     private readonly IPlanGeneratorService _planGenerator;
@@ -110,6 +120,11 @@ public class RunOrchestratorService : IRunOrchestratorService
     private readonly IInbox? _inboxOverride;
     private readonly TimeSpan? _stepTimeout;
     private readonly IChatModelResolver? _modelResolver;
+    private readonly GoalPursuitService? _goalPursuitOverride;
+
+    /// <summary>目标评估器（PILOT-051 FR-3）：显式注入（测试）优先，否则经 Cordis 懒解析 provider 注册表构造。</summary>
+    private GoalPursuitService GoalPursuit => _goalPursuitOverride
+        ?? new GoalPursuitService(_ctx?.Get<IAIProviderRegistry>());
 
     /// <summary>宿主收件箱（B7 软依赖）：优先显式注入（测试），否则经 Cordis 上下文运行期懒解析。</summary>
     private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();
@@ -134,7 +149,8 @@ public class RunOrchestratorService : IRunOrchestratorService
         RunFlowToolSet? runFlowTools = null,
         IInbox? inbox = null,
         TimeSpan? stepTimeout = null,
-        IChatModelResolver? modelResolver = null)
+        IChatModelResolver? modelResolver = null,
+        GoalPursuitService? goalPursuit = null)
     {
         _planGenerator = planGenerator;
         _aiAgentService = aiAgentService;
@@ -144,6 +160,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         _inboxOverride = inbox;
         _stepTimeout = stepTimeout;
         _modelResolver = modelResolver;
+        _goalPursuitOverride = goalPursuit;
     }
 
     /// <summary>
@@ -204,7 +221,10 @@ public class RunOrchestratorService : IRunOrchestratorService
         }
 
         // 3. Plan 落库 + 事件（plan_created，B9-3 附规划模型/耗时元数据）。
-        run.PlanJson = JsonSerializer.Serialize(plan);
+        // PILOT-051（FR-3）：目标模式判据随 PlanJson 持久化（不改 DB 结构）。
+        plan.SuccessCriteria = request.SuccessCriteria;
+        plan.MaxGoalRounds = request.MaxGoalRounds is { } rounds ? Math.Clamp(rounds, 1, 10) : null;
+        run.PlanJson = JsonSerializer.Serialize(plan, PlanJsonOptions);
         run.StepCount = plan.Steps.Count;
         run.Status = (int)AgentRunStatus.Running;
         run.Update();
@@ -220,8 +240,8 @@ public class RunOrchestratorService : IRunOrchestratorService
             }, SsePayloadOptions)
         };
 
-        // 4. 逐步执行（SSE 事件透传）。
-        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, chatModelId, 0, ct))
+        // 4. 逐步执行（SSE 事件透传）；目标模式（SuccessCriteria 非空）经目标外循环（评估/续跑/预算）。
+        await foreach (var ev in ExecuteWithGoalLoopAsync(run, plan, chatModelId, 0, ct))
             yield return ev;
     }
 
@@ -287,7 +307,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         XTrace.Log.Info("[RunOrchestrator] 恢复 Run {0}（原状态 {1}），从步骤 {2} 继续（模型 {3}）",
             run.Id, from, run.CurrentStepIndex, resumeModelId);
 
-        await foreach (var ev in ExecuteStepsCoreAsync(run, plan, resumeModelId, Math.Max(0, run.CurrentStepIndex), ct))
+        await foreach (var ev in ExecuteWithGoalLoopAsync(run, plan, resumeModelId, Math.Max(0, run.CurrentStepIndex), ct))
             yield return ev;
     }
 
@@ -470,13 +490,132 @@ public class RunOrchestratorService : IRunOrchestratorService
     #region 核心步骤循环（RunAsync / ResumeAsync 共享）
 
     /// <summary>
+    /// 目标外循环（PILOT-051 FR-3，plan-and-extend 行业模式）：
+    /// 非目标模式（无 SuccessCriteria）直接透传 <see cref="ExecuteStepsCoreAsync"/>（现状行为）；
+    /// 目标模式下：跑完当前计划全部步骤 → 评估 Agent 对照判据判定（goal_round_started/goal_evaluated 事件）
+    /// → 达成走终局合成 done；未达成且还有轮次预算 → 追加纠正步骤（索引续排，不撞既有 AgentStepRun）续跑；
+    /// 预算用尽仍未达成 → Run 置 Stuck 带未达成报告。评估期间 Run 保持 Running（不假 Completed）。
+    /// </summary>
+    private async IAsyncEnumerable<AgentLoopEvent> ExecuteWithGoalLoopAsync(
+        AgentRun run, AgentPlan plan, string? chatModelId, int startIndex,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        var criteria = plan.SuccessCriteria;
+        if (criteria is not { Count: > 0 })
+        {
+            await foreach (var ev in ExecuteStepsCoreAsync(run, plan, chatModelId, startIndex, ct))
+                yield return ev;
+            yield break;
+        }
+
+        var maxRounds = Math.Clamp(plan.MaxGoalRounds ?? 3, 1, 10);
+        var nextStart = Math.Max(0, startIndex);
+
+        for (var round = 1; round <= maxRounds; round++)
+        {
+            yield return new AgentLoopEvent
+            {
+                Type = "goal_round_started",
+                Content = JsonSerializer.Serialize(new GoalRoundStartedPayload
+                {
+                    RunId = run.Id, Round = round, MaxRounds = maxRounds, Criteria = criteria.ToList()
+                }, SsePayloadOptions)
+            };
+
+            // 本轮执行计划中尚未执行的步骤（从 nextStart 到计划尾部）；评估期间状态保持 Running。
+            if (nextStart < plan.Steps.Count)
+            {
+                var interrupted = false;
+                await foreach (var ev in ExecuteStepsCoreAsync(run, plan, chatModelId, nextStart, ct,
+                    stopAtStepsComplete: true))
+                {
+                    if (ev.Type is "run_stuck" or "error")
+                    {
+                        interrupted = true; // 现场已由核心循环落库（Stuck/Failed），外层不再裁决
+                    }
+                    yield return ev;
+                }
+                if (interrupted)
+                {
+                    yield break;
+                }
+            }
+            nextStart = plan.Steps.Count;
+
+            // ---- 目标评估（fail-safe：失败按未达成，不假绿） ----
+            var evaluation = await GoalPursuit.EvaluateAsync(run.TaskInput, plan, criteria, chatModelId, ct);
+            XTrace.Log.Info("[RunOrchestrator] Run {0} 目标评估（第 {1}/{2} 轮）: achieved={3}, missing={4}",
+                run.Id, round, maxRounds, evaluation.Achieved, string.Join("；", evaluation.Missing));
+            yield return new AgentLoopEvent
+            {
+                Type = "goal_evaluated",
+                Content = JsonSerializer.Serialize(new GoalEvaluatedPayload
+                {
+                    RunId = run.Id,
+                    Round = round,
+                    Achieved = evaluation.Achieved,
+                    Confidence = evaluation.Confidence,
+                    Missing = evaluation.Missing,
+                    Critique = evaluation.Critique,
+                    Summary = evaluation.Summary
+                }, SsePayloadOptions)
+            };
+
+            if (evaluation.Achieved)
+            {
+                // 达成 → 终局合成 + Completed 收束（与既有 done 面一致）。
+                var final = SynthesisAsync(run, plan);
+                run.Status = (int)AgentRunStatus.Completed;
+                run.Update();
+                XTrace.Log.Info("[RunOrchestrator] Run {0} 目标达成（第 {1} 轮），token 汇总 {2}", run.Id, round, run.TotalTokens);
+                yield return new AgentLoopEvent { Type = "done", Content = final, Usage = null };
+                yield break;
+            }
+
+            if (round >= maxRounds)
+            {
+                var reason = $"目标未达成（已用完 {maxRounds} 轮评估）：{evaluation.Summary ?? evaluation.Critique ?? string.Join("；", evaluation.Missing)}";
+                run.Status = (int)AgentRunStatus.Stuck;
+                run.StuckReason = reason;
+                run.Update();
+                XTrace.Log.Warn("[RunOrchestrator] Run {0} 目标预算耗尽，置 Stuck: {1}", run.Id, reason);
+                yield return new AgentLoopEvent
+                {
+                    Type = "run_stuck",
+                    Content = JsonSerializer.Serialize(new RunStuckPayload
+                    {
+                        RunId = run.Id, StepIndex = Math.Max(0, run.CurrentStepIndex), Reason = reason
+                    }, SsePayloadOptions)
+                };
+                yield break;
+            }
+
+            // ---- 未达成 → 追加纠正步骤（plan-and-extend），索引续排不撞既有步骤记录 ----
+            var corrective = await GoalPursuit.GenerateCorrectiveStepsAsync(run.TaskInput, plan, criteria, evaluation, chatModelId, ct);
+            var insertAt = plan.Steps.Count;
+            foreach (var step in corrective)
+            {
+                plan.Steps.Add(step);
+            }
+            run.PlanJson = JsonSerializer.Serialize(plan, PlanJsonOptions);
+            run.StepCount = plan.Steps.Count;
+            run.Update();
+            nextStart = insertAt;
+            XTrace.Log.Info("[RunOrchestrator] Run {0} 追加 {1} 条纠正步骤（索引 {2} 起），进入第 {3} 轮执行",
+                run.Id, corrective.Count, insertAt, round + 1);
+        }
+    }
+
+    /// <summary>
     /// 逐步执行核心：从 <paramref name="startIndex"/> 依次驱动每一步（design.md §5 伪码）：
     /// step_started →（透传 content/tool_call/tool_result/usage）→ complete_step（step_completed）/ request_help（run_stuck）。
     /// 卡住/失败即 yield break 保留现场；全部完成走终局合成 done。
+    /// PILOT-051：<paramref name="stopAtStepsComplete"/>=true 时跑完所有步骤即返回（不做终局合成、不置
+    /// Completed）——目标模式由 <see cref="ExecuteWithGoalLoopAsync"/> 在评估后裁决收束。
     /// </summary>
     private async IAsyncEnumerable<AgentLoopEvent> ExecuteStepsCoreAsync(
         AgentRun run, AgentPlan plan, string? chatModelId, int startIndex,
-        [EnumeratorCancellation] CancellationToken ct)
+        [EnumeratorCancellation] CancellationToken ct, bool stopAtStepsComplete = false)
     {
         long totalTokens = run.TotalTokens; // resume 续接已累积 token
         for (var i = startIndex; i < plan.Steps.Count; i++)
@@ -635,6 +774,13 @@ public class RunOrchestratorService : IRunOrchestratorService
             totalTokens += result.TokensUsed;
             run.TotalTokens = totalTokens;
             run.Update();
+        }
+
+        // PILOT-051：目标模式在「全部步骤完成」处停下——终局合成与 Completed 收束由
+        // ExecuteWithGoalLoopAsync 在目标评估达成后执行（评估期间 Run 保持 Running，不假 Completed）。
+        if (stopAtStepsComplete)
+        {
+            yield break;
         }
 
         // 终局合成：汇总各步 Completed 产出（V1 确定性聚合，不额外 LLM 调用）。

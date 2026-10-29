@@ -20,15 +20,15 @@ public class PluginLifecycleEventTests
     [Fact]
     public void LoadAndDestroyPlugin_EmitsLifecycleEvents()
     {
-        // 准备一个独立程序集插件（TextTools），其 DLL 已由 StagePluginDllsToTestOutput 同步到测试输出。
+        // 准备一个独立程序集插件（SamplePlugin），其 DLL 已由 StagePluginDllsToTestOutput 同步到测试输出。
         _tempDir.CreatePluginManifest("test.lifecycle", m =>
         {
-            m.EntryAssembly = "TextTools.dll";
-            m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
+            m.EntryAssembly = "SamplePlugin.dll";
+            m.EntryType = "ForgeSelf.Api.Plugins.SamplePlugin.SamplePlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
-            Path.Combine(_tempDir.RootPath, "test.lifecycle", "TextTools.dll"));
+            Path.Combine(AppContext.BaseDirectory, "plugins", "SamplePlugin", "SamplePlugin.dll"),
+            Path.Combine(_tempDir.RootPath, "test.lifecycle", "SamplePlugin.dll"));
 
         var eventBus = new EventBus();
         var received = new List<PluginLifecycleEvent>();

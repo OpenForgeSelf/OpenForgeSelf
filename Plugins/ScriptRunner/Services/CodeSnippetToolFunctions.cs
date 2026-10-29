@@ -13,7 +13,7 @@ public class ListCodeSnippetsToolFunction : IToolFunctionExtension
     private readonly ICodeSnippetService _codeSnippetService;
 
     public string Id => "scriptrunner.list_code_snippets";
-    public string Name => "list_code_snippets";
+    public string Name => "script_snippet_list";
     public string PluginId { get; }
     public string Description => "列出代码片段库中的代码片段，支持按关键词、语言、分类、收藏状态筛选，可查看片段详情和使用次数。";
 
@@ -154,7 +154,7 @@ public class CreateCodeSnippetToolFunction : IToolFunctionExtension
     private readonly ICodeSnippetService _codeSnippetService;
 
     public string Id => "scriptrunner.create_code_snippet";
-    public string Name => "create_code_snippet";
+    public string Name => "script_snippet_create";
     public string PluginId { get; }
     public string Description => "创建新的代码片段，保存到代码片段库中，支持标题、描述、代码、语言、分类、标签等属性。";
 
@@ -313,7 +313,7 @@ public class GetPersonalStatsToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.get_personal_stats";
-    public string Name => "get_personal_stats";
+    public string Name => "script_personal_stats";
     public string PluginId { get; }
     public string Description => "获取个人工具库统计数据，包括脚本数量、代码片段数量、工作流数量、使用次数、常用工具排行等。";
 
@@ -430,7 +430,7 @@ public class GetRecommendationsToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.get_recommendations";
-    public string Name => "get_recommendations";
+    public string Name => "script_recommend";
     public string PluginId { get; }
     public string Description => "获取基于上下文的智能推荐，包括推荐的工具、脚本、代码片段和工作流。可传入当前页面和操作来获取更精准的推荐。";
 

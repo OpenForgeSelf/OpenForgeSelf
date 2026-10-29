@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* 插件前端（Plugins/<X>/web/src）为 JS 风格 SFC/工具函数，随 story 一起进本 program：
+       只做类型检查、不检查 JS 内部（checkJs: false） */
+    "allowJs": true,
+    "checkJs": false,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    /* 画廊主代码跑在浏览器（window/document）+ 配置脚本跑在 Node（process/URL） */
+    "types": ["node", "vite/client"],
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  /* 只收画廊自身与 CT 配置：src/** 的 story / ct.spec 由 tsconfig.app.json 负责（避免重复进两个 program） */
+  "include": ["ct/**/*.ts", "ct/**/*.vue", "playwright-ct.config.ts"]
+}

@@ -45,6 +45,16 @@ const thinkMeta = computed(() => {
   return ms >= 1000 ? `思考 ${(ms / 1000).toFixed(1)} 秒` : `思考 ${ms} 毫秒`
 })
 
+/* ---------- 思考块的单行摘要（对齐 2026-10-26 参考形态） ----------
+   折叠态只占一行：`思考 · 首行摘要…`。原来这里右边挂「思考中… / 思考 N 秒」，
+   两个信息抢同一行的宽度，长摘要直接被挤成省略号 —— 时长改到展开后的正文顶部。 */
+const THINK_PEEK_MAX = 88
+const thinkPreview = computed(() => {
+  const raw = String(props.block.text || '').replace(/\s+/g, ' ').trim()
+  if (!raw) return props.block.done ? '' : '正在推理…'
+  return raw.length > THINK_PEEK_MAX ? raw.slice(0, THINK_PEEK_MAX) + '…' : raw
+})
+
 /* ================= 工具调用 ================= */
 const TOOL_ICONS = {
   sql: 'M4 5c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2Zm0 4c1.8.9 4.7 1.4 8 1.4S18.2 9.9 20 9v3c0 1.1-3.6 2-8 2s-8-.9-8-2V9Zm0 7c1.8.9 4.7 1.4 8 1.4s6.2-.5 8-1.4v3c0 1.1-3.6 2-8 2s-8-.9-8-2v-3Z',
@@ -68,6 +78,38 @@ const durationText = computed(() => {
   if (!ms) return ''
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
 })
+/**
+ * 工具「行为」：折叠行要显示 `工具调用 · 工具名 · 行为`。
+ *
+ * 后端没有统一的行为字段（各工具各写各的），所以既认显式字段，也从入参里
+ * 按常见命名逐个试。取不到就留空 —— 宁可少一段，也不要瞎猜一个词上去。
+ */
+const ACTION_KEYS = ['action', 'op', 'operation', 'command', 'cmd', 'method', 'tool', 'type', 'name']
+const toolAction = computed(() => {
+  const b = props.block
+  if (typeof b.action === 'string' && b.action.trim()) return b.action.trim()
+  if (typeof b.actionName === 'string' && b.actionName.trim()) return b.actionName.trim()
+  if (b.action && typeof b.action === 'object' && typeof b.action.name === 'string') {
+    const n = b.action.name.trim()
+    if (n) return n
+  }
+  let a = b.args
+  if (typeof a === 'string') {
+    try {
+      a = JSON.parse(a)
+    } catch (e) {
+      return ''
+    }
+  }
+  if (a && typeof a === 'object') {
+    for (const k of ACTION_KEYS) {
+      const v = a[k]
+      if (typeof v === 'string' && v.trim() && v.trim() !== b.name) return v.trim()
+    }
+  }
+  return ''
+})
+
 const argsText = computed(() => {
   const a = props.block.args
   if (a == null) return ''
@@ -251,38 +293,59 @@ const inputId = 'aiw-blk-cf-' + uid
   <div v-else-if="gateHidden" class="aiw-locked-slot" aria-hidden="true"></div>
 
   <div v-else-if="block.type === 'thinking'" class="aiw-think" :class="{ 'aiw-think--done': block.done }">
+    <!-- 行首是一个图标槽：默认显块类型图标，悬浮/聚焦/展开时**同一格**换成折叠箭头。
+         箭头不再作为独立元素参与排版 —— 那会让图标整体右移一格，一列消息的左缘就对不齐。 -->
     <button class="aiw-think__head" type="button" :aria-expanded="open ? 'true' : 'false'" :aria-controls="bodyId" @click="open = !open">
-      <span class="aiw-think__spark" :class="{ 'is-live': !block.done }"></span>
-      <span class="aiw-think__label">{{ block.label || '思考过程' }}</span>
-      <span class="aiw-think__meta">{{ thinkMeta }}</span>
-      <svg class="aiw-chev" :class="{ 'is-open': open }" viewBox="0 0 24 24"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
+      <span class="aiw-ico" :class="{ 'is-open': open }">
+        <span class="aiw-ico__glyph aiw-think__spark" :class="{ 'is-live': !block.done }"></span>
+        <svg class="aiw-ico__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
+      </span>
+      <span class="aiw-think__label">{{ block.label || '思考' }}</span>
+      <span v-if="thinkPreview" class="aiw-row__sep">·</span>
+      <span v-if="thinkPreview" class="aiw-think__peek">{{ thinkPreview }}</span>
     </button>
-    <div v-show="open" :id="bodyId" class="aiw-think__body">{{ block.text }}</div>
+    <div v-show="open" :id="bodyId" class="aiw-think__body">
+      <div v-if="thinkMeta" class="aiw-think__meta">{{ thinkMeta }}</div>
+      <div class="aiw-think__text">{{ block.text }}</div>
+    </div>
   </div>
 
   <!-- ============ 工具调用 ============ -->
   <div
     v-else-if="block.type === 'tool'"
     class="aiw-tool"
-    :class="[`aiw-tool--${block.status || 'ok'}`, { 'aiw-tool--danger': block.dangerous }]"
+    :class="[`aiw-tool--${block.status || 'ok'}`, { 'aiw-tool--danger': block.dangerous, 'is-open': open }]"
   >
+    <!-- 折叠态：无边框单行 `图标 · 行为 · 工具名`（对齐参考形态）；
+         展开后才在下方生出卡片，装着「输入 / 输出」。
+         成功态不显示状态词 —— 一次调用成功了就没有可读信息，写出来只是噪声；
+         执行中 / 失败保留，那是唯一需要不展开就能看见的状态。 -->
     <button class="aiw-tool__head" type="button" :aria-expanded="open ? 'true' : 'false'" :aria-controls="bodyId" @click="open = !open">
-      <span class="aiw-tool__icon"><svg viewBox="0 0 24 24"><path :d="toolIcon" fill="currentColor"/></svg></span>
+      <span class="aiw-ico" :class="{ 'is-open': open }">
+        <span class="aiw-ico__glyph aiw-tool__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="toolIcon" fill="currentColor"/></svg></span>
+        <svg class="aiw-ico__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
+      </span>
+      <span class="aiw-tool__label">工具调用</span>
+      <span class="aiw-row__sep">·</span>
       <span class="aiw-tool__name">{{ block.name }}</span>
+      <template v-if="toolAction">
+        <span class="aiw-row__sep">·</span>
+        <span class="aiw-tool__action">{{ toolAction }}</span>
+      </template>
       <span v-if="block.dangerous" class="aiw-tool__danger">写操作</span>
-      <span class="aiw-tool__status">{{ statusText }}</span>
+      <span v-if="block.status && block.status !== 'ok'" class="aiw-tool__status">{{ statusText }}</span>
       <span v-if="durationText" class="aiw-tool__dur">{{ durationText }}</span>
-      <svg class="aiw-chev" :class="{ 'is-open': open }" viewBox="0 0 24 24"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
     </button>
     <div v-show="open" :id="bodyId" class="aiw-tool__body">
       <div v-if="argsText" class="aiw-tool__section">
-        <div class="aiw-tool__k">入参</div>
+        <div class="aiw-tool__k">输入</div>
         <pre class="aiw-tool__pre">{{ argsText }}</pre>
       </div>
       <div v-if="resultText" class="aiw-tool__section">
-        <div class="aiw-tool__k">{{ block.status === 'error' ? '错误' : '返回' }}</div>
+        <div class="aiw-tool__k">{{ block.status === 'error' ? '错误' : '输出' }}</div>
         <pre class="aiw-tool__pre">{{ resultText }}</pre>
       </div>
+      <div v-if="!argsText && !resultText" class="aiw-tool__empty">这次调用没有留下可展开的输入或输出</div>
     </div>
   </div>
 
@@ -345,10 +408,12 @@ const inputId = 'aiw-blk-cf-' + uid
   <!-- ============ 步骤分组（可折叠，内部递归渲染） ============ -->
   <div v-else-if="block.type === 'group'" class="aiw-grp" :class="[`aiw-grp--${block.status || 'done'}`, `aiw-grp--d${depth}`]">
     <button class="aiw-grp__head" type="button" :aria-expanded="open ? 'true' : 'false'" :aria-controls="bodyId" @click="open = !open">
-      <span class="aiw-grp__badge">{{ (block.blocks || []).length }}</span>
+      <span class="aiw-ico" :class="{ 'is-open': open }">
+        <span class="aiw-ico__glyph aiw-grp__badge">{{ (block.blocks || []).length }}</span>
+        <svg class="aiw-ico__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
+      </span>
       <span class="aiw-grp__title">{{ block.title || '执行过程' }}</span>
       <span class="aiw-grp__summary">{{ groupSummary }}</span>
-      <svg class="aiw-chev" :class="{ 'is-open': open }" viewBox="0 0 24 24"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z" fill="currentColor"/></svg>
     </button>
     <div v-show="open" :id="bodyId" class="aiw-grp__body">
       <BlockRenderer

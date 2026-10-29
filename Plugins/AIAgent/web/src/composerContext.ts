@@ -33,7 +33,7 @@ export function accessModeMeta(mode: AccessMode | string | undefined): AccessMod
 /**
  * 「仅完全访问档放开」的工具名（小写比对）—— 第一档风险：能执行任意代码或产生外部副作用。
  *
- * 依据 2026-10-15 实测的 116 个已注册工具（GET /api/ai-agent/chat/tools）逐个判定，非猜测。
+ * 依据 2026-10-28 命名空间统一后的注册表名册（ADR-004；mcp-center 整插件豁免前缀）逐个判定，非猜测。
  * 判定标准：**执行任意代码 / 控制系统状态 / 跳到外部 / 破坏性删除**。
  *
  * 注意与 `WRITE_TOOLS`（第二档风险，标准档即可）的区别：写文件、改待办属常规操作，
@@ -44,31 +44,41 @@ export function accessModeMeta(mode: AccessMode | string | undefined): AccessMod
  */
 const FULL_ONLY_TOOLS = new Set([
   // 执行任意代码 / 命令
-  'run_terminal_command', 'execute_code', 'universal_tool',
-  'run_script', 'analyze_script_error', 'suggest_script_fix', 'generate_script',
-  'delegate_task', 'execute_workflow', 'sems_run_command',
+  'run_terminal_command', 'script_exec_code', 'universal_tool',
+  'script_run', 'script_analyze_error', 'script_suggest_fix', 'script_generate',
+  'hub_delegate_task', 'workflow_execute', 'sems_run_command',
   // 控制系统状态
-  'kill_process',
+  'sys_kill_process',
   // 破坏性删除
   'file_cleanup', 'sems_remove_project', 'sems_delete_command',
   // 跳到外部
-  'open_link',
+  'link_open',
 ])
 
 /**
  * 「只读档也放开」的工具名：纯计算 / 纯编解码 / 纯格式转换，不碰磁盘与外部状态。
  * 读类工具（read_file / list_* / search_* / get_*）不在此表 —— 它们由默认分支处理。
+ * 2026-10-28：全部换 ADR-004 新名（带插件前缀）；mcp-center 的 calculate/get_current_time 按整插件豁免用裸名。
  */
 const READONLY_EXTRA_TOOLS = new Set([
-  'calculate', 'text_stats', 'get_current_time', 'convert_timestamp',
-  'encode_base64', 'decode_base64', 'base64_encode', 'base64_decode',
-  'url_encode', 'url_decode', 'compute_hash', 'compute_hmac',
-  'aes_encrypt', 'aes_decrypt', 'format_json', 'format_xml', 'convert_json_yaml',
-  'validate_json', 'validate_jwt', 'generate_jwt', 'decode_jwt', 'generate_uuid',
-  'generate_snowflake_id', 'generate_qrcode', 'generate_regex', 'test_regex',
-  'regex_replace', 'jsonpath_query', 'get_cpu_usage', 'get_memory_usage',
-  'get_disk_info', 'get_process_list', 'get_personal_stats', 'get_memory_stats',
-  'file_stats', 'folder_stats', 'get_recommendations', 'get_categories',
+  // 计算 / 时间（mcp-center，豁免前缀）
+  'calculate', 'get_current_time',
+  // dev-tools（2026-10-28 text-tools 并入：text_stats → dev_text_stats；text_base64/hash/format_json 退役由 dev 同功能承接）
+  'dev_text_stats', 'dev_timestamp', 'dev_base64_encode', 'dev_base64_decode', 'dev_url_encode', 'dev_url_decode',
+  'dev_hash', 'dev_hmac', 'dev_aes_encrypt', 'dev_aes_decrypt',
+  'dev_format_json', 'dev_format_xml', 'dev_convert_json_yaml', 'dev_validate_json',
+  'dev_jwt_decode', 'dev_jwt_validate', 'dev_jwt_generate', 'dev_uuid', 'dev_snowflake_id',
+  'dev_qrcode', 'dev_regex_test', 'dev_regex_generate', 'dev_regex_replace', 'dev_jsonpath_query',
+  // system-monitor 读数
+  'sys_cpu', 'sys_memory', 'sys_disk', 'sys_processes',
+  // 各插件读类（无只读前缀形态的补名）
+  'script_personal_stats', 'memory_stats', 'file_stats', 'file_dir_stats',
+  'script_recommend', 'link_categories',
+  'workflow_get', 'workflow_get_status', 'workflow_list',
+  'memory_relevant', 'memory_search',
+  'script_templates', 'script_snippet_list',
+  'todo_list', 'todo_task_get',
+  'schedule_list', 'hub_list_agents', 'hub_task_result', 'link_search',
 ])
 
 /** 只读档允许的前缀：读 / 查 / 列 / 搜索 / 预览 类命名。 */

@@ -76,13 +76,14 @@ public static class ToolSpec
 
         new(RunCommand,
             $"在工作目录内执行一条命令。首 token 必须在白名单（{string.Join("/", CommandGuard.DefaultAllowlist)}），" +
-            "管道/分号/换行与删除格式化下载类命令一律被拒绝（拒绝时不启动任何子进程，原因原样回给你）。" +
+            "支持管道与链式（| && || ; 换行）但每一段都独立过同一套白名单+破坏性红线，任一段被拒则整条拒绝；" +
+            "重定向（> <）、反引号、后台单 & 与删除格式化下载类命令一律被拒绝（拒绝时不启动任何子进程，原因原样回给你）。" +
             "非 0 退出码属正常回传，失败输出同样是有效观察数据。",
             """
             {
               "type": "object",
               "properties": {
-                "command": { "type": "string", "description": "完整命令行，如 git status --short；不得含管道与链式分隔符" },
+                "command": { "type": "string", "description": "完整命令行，如 git status --short / git log | node count.js / dotnet build && dotnet test；支持 | && || ; 换行（每段同样过白名单与破坏性红线），不得含重定向（> <）、反引号或后台单 &" },
                 "cwd": { "type": "string", "description": "工作目录内的相对子目录；省略=工作根" },
                 "timeoutSeconds": { "type": "integer", "description": "超时秒数 1-30，默认 30；超时后进程在后台继续" }
               },

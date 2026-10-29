@@ -11,6 +11,8 @@ export interface TransportCtx {
   systemPrompt: string
   /** 追加一个流式文本块（最终由组件收尾合并为一条 assistant 消息） */
   onDelta: (chunk: string) => void
+  /** 流式期间追加一个富内容块（工具卡片等）。不传 = 该主机不支持。 */
+  onBlock?: (block: unknown) => void
   onDone?: (info?: unknown) => void
   onUsage?: (usage: unknown) => void
   /** 抛错即中止本轮；组件转 error 条展示 */
@@ -20,12 +22,31 @@ export interface TransportCtx {
 
 export type AgentTransport = (ctx: TransportCtx) => Promise<void>
 
+/** 「继续执行」上下文：中断后接着跑同一个 run，而不是重发一遍问题。 */
+export interface ResumeCtx {
+  /** 被中断的 run id（宿主在 transport 里通过 err.runId 带出来）。 */
+  runId: number
+  onDelta: (chunk: string) => void
+  onBlock?: (block: unknown) => void
+  onUsage?: (usage: unknown) => void
+  signal?: AbortSignal | null
+}
+
+/**
+ * 中断后续跑。不传 = 界面不显示「继续执行」按钮。
+ * 与 transport 分开：transport 是「新起一轮」，resume 是「接着上一轮」，
+ * 语义不同，混成一个函数会让宿主在两种情况下判错参数。
+ */
+export type AgentResume = (ctx: ResumeCtx) => Promise<void>
+
 /** 组件配置（完整默认值见 agent-core/config.js；此处只列宿主常覆盖的键） */
 export interface AgentChatConfig {
   [key: string]: unknown
   showHeader?: boolean
   inline?: boolean
   transport?: AgentTransport | null
+  /** 中断后续跑（plan 模式），缺省则不显示「继续执行」。 */
+  resume?: AgentResume | null
   sessionId?: string
   persist?: boolean
   storageKey?: string

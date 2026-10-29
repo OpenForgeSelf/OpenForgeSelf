@@ -287,6 +287,68 @@ public class ExecutorTests
     }
 
     [Fact]
+    public async Task 链式第二段白名单外_拒绝且零子进程_PILOT075()
+    {
+        var sandbox = Scratch.NewSandbox(nameof(ExecutorTests), out _);
+        var root = sandbox.Current().Root;
+        var probe = Path.Combine(root, "probe-must-survive.txt");
+        File.WriteAllText(probe, "still here");
+
+        // 若守卫漏放，多段路径会起 pwsh 执行整串，rm 会删掉探针文件。
+        var r = await CommandExecutor.RunAsync(sandbox, "git --version && rm -f probe-must-survive.txt", null, null);
+
+        r.Ok.Should().BeFalse();
+        r.Error.Should().Be("command_rejected");
+        r.Reason.Should().Contain("segment 2/2");
+        r.Reason.Should().Contain("allowlist");
+        File.Exists(probe).Should().BeTrue("被拒链必须零子进程——探针文件还在即为证据");
+    }
+
+    [Fact]
+    public async Task 链式第二段破坏性内嵌_拒绝且零子进程_PILOT075()
+    {
+        var sandbox = Scratch.NewSandbox(nameof(ExecutorTests), out _);
+        var root = sandbox.Current().Root;
+        var probe = Path.Combine(root, "probe-must-survive.txt");
+        File.WriteAllText(probe, "still here");
+
+        var r = await CommandExecutor.RunAsync(
+            sandbox, "git --version && pwsh -Command Remove-Item probe-must-survive.txt", null, null);
+
+        r.Ok.Should().BeFalse();
+        r.Error.Should().Be("command_rejected");
+        r.Reason.Should().Contain("segment 2/2");
+        r.Reason.Should().Contain("destructive");
+        File.Exists(probe).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task 管道与链式命令_多段经pwsh真执行_PILOT075()
+    {
+        var sandbox = Scratch.NewSandbox(nameof(ExecutorTests), out _);
+
+        // 真管道：node 段 1 输出 → 段 2 从 stdin 读回。证明多段路径真实执行且管道通。
+        var piped = await CommandExecutor.RunAsync(
+            sandbox,
+            "node -e \"console.log('p075pipe')\" | node -e \"let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log('got:'+d.trim()))\"",
+            null, 20);
+
+        piped.Ok.Should().BeTrue(because: $"两段 node 均白名单内应执行，实际 reason: {piped.Reason}");
+        piped.Result!.AsObject()["stdout"]!.GetValue<string>().Should().Contain("got:p075pipe");
+
+        // 真链式：段 1 写文件、段 2 读回 —— 证明同 cwd 顺序执行、退出码取最后一段。
+        var chained = await CommandExecutor.RunAsync(
+            sandbox,
+            "pwsh -NoProfile -Command Set-Content chain-probe.txt 'p075'\npwsh -NoProfile -Command Get-Content chain-probe.txt",
+            null, 20);
+
+        chained.Ok.Should().BeTrue(because: $"两段 pwsh 均白名单内应执行，实际 reason: {chained.Reason}");
+        chained.Result!.AsObject()["exitCode"]!.GetValue<int>().Should().Be(0);
+        chained.Result!.AsObject()["stdout"]!.GetValue<string>().Should().Contain("p075");
+        File.Exists(Path.Combine(sandbox.Current().Root, "chain-probe.txt")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task 内联破坏命令被拒_原因原文回给AI_AC7()
     {
         var sandbox = Scratch.NewSandbox(nameof(ExecutorTests), out _);

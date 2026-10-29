@@ -19,23 +19,24 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// 裁决口径：孤立 / 乱序 CallId 不得静默丢弃（显式告警或落补偿事件），未闭合 call 标 Pending/Failed。
 /// </remarks>
 [Collection("XCode")]
-public class AIAgentProjectionQaIndependentTests
+public class AIAgentProjectionQaIndependentTests : IClassFixture<XCodeTestFixture>
 {
     private static readonly DateTimeOffset T0 = new(2026, 9, 28, 18, 0, 0, TimeSpan.Zero);
 
     private readonly InMemorySessionStore _store = new();
     private readonly AIAgentProjectionService _projection;
 
-    public AIAgentProjectionQaIndependentTests()
+    public AIAgentProjectionQaIndependentTests(XCodeTestFixture fixture)
     {
+        _ = fixture;
         // 与生产同款接线：IContext 共享表 → 懒解析（构造注入会 500）
         var ctx = new Context();
         ctx.Register<ISessionStore>(_store);
         _projection = new AIAgentProjectionService(ctx);
 
-        var dir = Path.Combine(Path.GetTempPath(), $"ForgeSelfQAI_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        DAL.AddConnStr("AIAgent", $"Data Source={Path.Combine(dir, "AIAgent.db")}", null, "SQLite");
+        // 2026-10-29（PILOT-051 同类修复）：不得在此 AddConnStr 换库
+        //（触发 DAL.Reset 换 Database + 写走别处），连接串由夹具统一注册；
+        // ctor 补建本连接缺失表（不换串 → 无 Reset 无竞态）。
         EntityFactory.InitConnection("AIAgent");
         AIChatMessageEntity.Meta.Cache.Clear("qa reset");
         AIChatMessageEntity.Meta.Cache.Expire = 0;

@@ -16,16 +16,14 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// RunOrchestratorService 的介入/恢复/重开/取消走真实 XCode 双表（[Collection("XCode")] 独立临时库）。
 /// </summary>
 [Collection("XCode")]
-public class RunOrchestratorTests
+public class RunOrchestratorTests : IClassFixture<XCodeTestFixture>
 {
-    private readonly string _dbDir;
-
-    public RunOrchestratorTests()
+    public RunOrchestratorTests(XCodeTestFixture fixture)
     {
-        _dbDir = Path.Combine(Path.GetTempPath(), $"ForgeSelfRunOrch_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_dbDir);
-
-        DAL.AddConnStr("AIAgent", $"Data Source={Path.Combine(_dbDir, "AIAgent.db")}", null, "SQLite");
+        _ = fixture;
+        // 2026-10-29（PILOT-051 同类修复）：不得在此自建临时目录并 AddConnStr 换库
+        //（触发 DAL.Reset 换 Database + 旧线程会话残留，全量联跑时写入走别处/吞行）。
+        // 连接串由夹具统一注册；ctor 补建本连接缺失表（不换串 → 无 Reset 无竞态）。
         EntityFactory.InitConnection("AIAgent");
 
         AgentRun.Meta.Cache.Clear("test reset");

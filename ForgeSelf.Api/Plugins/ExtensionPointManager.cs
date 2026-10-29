@@ -173,7 +173,19 @@ public class ExtensionPointManager
                         // T032 修复：发现的工具函数扩展点同步注册到全局 ToolRegistry，使 AI Agent / MCP 可见
                         if (_toolRegistry != null && extension is IToolFunctionExtension toolFunction)
                         {
-                            _toolRegistry.RegisterTool(toolFunction);
+                            // 工具命名空间校验（2026-10-28，ADR-004）：Name 必须以插件 toolPrefix 开头或属平台保留名。
+                            // 不合规拒绝注册（不阻断其他扩展点/插件加载），Error 日志含修复指引。
+                            var nsError = ToolNamespace.Validate(pluginId, toolFunction.Name);
+                            if (nsError != null)
+                            {
+                                XTrace.Log.Error(
+                                    "[ToolNamespace] 拒绝注册工具: 插件={0}, 工具={1}, 原因: {2}（前缀规则见 ForgeSelf.Abstractions/ToolNamespace.cs）",
+                                    pluginId, toolFunction.Name, nsError);
+                            }
+                            else
+                            {
+                                _toolRegistry.RegisterTool(toolFunction);
+                            }
                         }
                         }
                     }

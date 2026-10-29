@@ -12,6 +12,46 @@
     <div class="rrp">
       <!-- 左：Run 列表（当前会话，按时间倒序） -->
       <aside class="rrp__list">
+        <!-- FR-3 目标模式：新建执行（普通 / 目标两态；事件行即时追加） -->
+        <div class="rrp__new">
+          <ElInput
+            v-model="newTask"
+            type="textarea"
+            :rows="2"
+            placeholder="输入任务，点「开始执行」…"
+            :disabled="launching"
+          />
+          <ElCheckbox v-model="goalMode" :disabled="launching" class="rrp__new-check">
+            按目标执行（直到验收达标）
+          </ElCheckbox>
+          <template v-if="goalMode">
+            <ElInput
+              v-model="criteriaText"
+              type="textarea"
+              :rows="3"
+              placeholder="验收标准，每行一条（达标后才收束）…"
+              :disabled="launching"
+            />
+            <div class="rrp__new-row">
+              <span class="rrp__new-label">最大评估轮数</span>
+              <ElInputNumber v-model="maxRounds" :min="1" :max="10" :disabled="launching" />
+            </div>
+            <p v-if="parsedCriteria.length === 0" class="rrp__new-hint">未填验收标准，将按普通执行</p>
+          </template>
+          <div class="rrp__new-actions">
+            <ElButton
+              type="primary"
+              size="small"
+              :loading="launching"
+              :disabled="!newTask.trim() || !activeAgentId"
+              @click="onLaunch"
+            >开始执行</ElButton>
+          </div>
+          <!-- 运行事件行（goal_round_started / goal_evaluated / step / done / stuck） -->
+          <div v-if="liveEvents.length" class="rrp__live">
+            <p v-for="(l, i) in liveEvents" :key="i" class="rrp__live-line">{{ l }}</p>
+          </div>
+        </div>
         <div class="rrp__list-head">
           <span class="rrp__list-title">运行记录</span>
           <button type="button" class="rrp__reload" title="刷新" @click="reloadList()">
@@ -179,7 +219,7 @@
  * 记录查询与人工介入；补位用 ElMessageBox.prompt 输入产出文本。
  */
 import { computed, ref, watch } from 'vue'
-import { ElButton, ElDialog, ElMessage, ElMessageBox, ElScrollbar } from 'element-plus'
+import { ElButton, ElCheckbox, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElScrollbar } from 'element-plus'
 import {
   CircleCheck,
   CircleClose,
@@ -198,6 +238,7 @@ import {
   interveneRun,
   listRuns,
   restartRun,
+  streamAgentRun,
   type AgentRunDto,
   type AgentStepRunDto,
   type ChatHistoryItem,
@@ -209,6 +250,8 @@ const props = defineProps<{
   visible: boolean
   /** 当前聊天会话 id（Run 列表按会话过滤）。 */
   sessionId: string
+  /** 当前激活 Agent id（新建执行用；空则禁用开始按钮）。 */
+  activeAgentId?: string
 }>()
 
 const emit = defineEmits<{
@@ -226,6 +269,71 @@ const steps = ref<AgentStepRunDto[]>([])
 /** 正在执行的操作（用于按钮 loading 与互斥）。 */
 const acting = ref<'resume' | 'restart' | 'skip' | 'override' | 'cancel' | ''>('')
 const loadingList = ref(false)
+
+/* ---- FR-3 目标模式：新建执行（普通 / 目标两态） ---- */
+const newTask = ref('')
+const goalMode = ref(false)
+const criteriaText = ref('')
+const maxRounds = ref(3)
+const launching = ref(false)
+/** 运行事件行（含 goal_round_started / goal_evaluated，即时追加）。 */
+const liveEvents = ref<string[]>([])
+
+/** 验收标准：非空行去空格；0 条 = 目标模式退化为普通执行（02-spec FR-3 UI）。 */
+const parsedCriteria = computed(() =>
+  criteriaText.value
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean),
+)
+
+/** 新建执行：SSE 直连（面板内起流），事件行追加；结束刷新列表并选中新 Run。 */
+async function onLaunch() {
+  const task = newTask.value.trim()
+  const agentId = props.activeAgentId
+  if (!task || !agentId || launching.value) return
+  launching.value = true
+  liveEvents.value = []
+  let runId = 0
+  try {
+    await streamAgentRun(
+      {
+        sessionId: props.sessionId || undefined,
+        agentId,
+        taskInput: task,
+        ...(goalMode.value && parsedCriteria.value.length > 0
+          ? { successCriteria: parsedCriteria.value, maxGoalRounds: maxRounds.value }
+          : {}),
+      },
+      {
+        onPlanCreated: (p) => {
+          runId = Number((p?.plan as { runId?: number } | undefined)?.runId) || runId
+          liveEvents.value.push('已生成执行计划')
+        },
+        onStepStarted: (p) => liveEvents.value.push(`步骤 ${p.stepIndex + 1} 开始`),
+        onStepCompleted: (p) => liveEvents.value.push(`步骤 ${p.stepIndex + 1} 完成`),
+        onGoalRoundStarted: (p) =>
+          liveEvents.value.push(`目标评估 第 ${p.round}/${p.maxRounds} 轮`), 
+        onGoalEvaluated: (p) =>
+          liveEvents.value.push(
+            p.achieved
+              ? `第 ${p.round} 轮评估：达标${p.summary ? ` — ${p.summary}` : ''}`
+              : `第 ${p.round} 轮评估：未达成${p.missing?.length ? ` — ${p.missing.join('；')}` : ''}`,
+          ),
+        onRunStuck: (p) =>
+          liveEvents.value.push(`已暂停等待人工处理${p.reason ? `：${p.reason}` : ''}`),
+        onDone: () => liveEvents.value.push('执行完成'),
+        onError: (msg) => liveEvents.value.push(`出错：${msg}`),
+      },
+    )
+  } catch (e) {
+    liveEvents.value.push(`连接失败：${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    launching.value = false
+    await reloadList()
+    if (runId > 0) void openRun(runId)
+  }
+}
 
 /* ---- 打开/关闭时刷新 ---- */
 watch(
@@ -552,6 +660,64 @@ function fmtTime(t?: string): string {
   justify-content: space-between;
   margin-bottom: 8px;
   flex-shrink: 0;
+}
+
+/* FR-3 目标模式：新建执行表单（普通 / 目标两态） */
+.rrp__new {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base, 6px);
+  flex-shrink: 0;
+}
+
+.rrp__new-check {
+  height: auto;
+}
+
+.rrp__new-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rrp__new-label {
+  font-size: var(--el-font-size-small, 13px);
+  color: var(--el-text-color-secondary);
+}
+
+.rrp__new-hint {
+  margin: 0;
+  font-size: var(--el-font-size-extra-small, 12px);
+  color: var(--el-text-color-secondary);
+}
+
+.rrp__new-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rrp__live {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 140px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-fill-color-light);
+}
+
+.rrp__live-line {
+  margin: 0;
+  font-size: var(--el-font-size-extra-small, 12px);
+  line-height: 1.5;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
 }
 
 .rrp__list-title {

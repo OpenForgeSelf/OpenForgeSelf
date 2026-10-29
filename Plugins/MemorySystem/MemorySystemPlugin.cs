@@ -82,7 +82,7 @@ public class MemorySystemPlugin : IPlugin
         ToolExtensions.Add(new GetRelevantMemoriesToolFunction(services)
         {
             Id = "memorysystem.tool.get_relevant_memories",
-            Name = "get_relevant_memories",
+            Name = "memory_relevant",
             PluginId = pluginId,
             Description = "从长期记忆中检索与当前问题相关的记忆，支持语义相似度搜索",
             ParametersJsonSchema = @"
@@ -111,7 +111,7 @@ public class MemorySystemPlugin : IPlugin
         ToolExtensions.Add(new AddMemoryToolFunction(services)
         {
             Id = "memorysystem.tool.add_memory",
-            Name = "add_memory",
+            Name = "memory_add",
             PluginId = pluginId,
             Description = "添加一条新的长期记忆，保存重要信息供以后使用",
             ParametersJsonSchema = @"
@@ -153,7 +153,7 @@ public class MemorySystemPlugin : IPlugin
         ToolExtensions.Add(new SearchMemoriesToolFunction(services)
         {
             Id = "memorysystem.tool.search_memories",
-            Name = "search_memories",
+            Name = "memory_search",
             PluginId = pluginId,
             Description = "搜索记忆，支持按关键词、类型、分类、标签等条件筛选",
             ParametersJsonSchema = @"
@@ -190,7 +190,7 @@ public class MemorySystemPlugin : IPlugin
         ToolExtensions.Add(new UpdateMemoryToolFunction(services)
         {
             Id = "memorysystem.tool.update_memory",
-            Name = "update_memory",
+            Name = "memory_update",
             PluginId = pluginId,
             Description = "更新已有的记忆条目",
             ParametersJsonSchema = @"
@@ -226,7 +226,7 @@ public class MemorySystemPlugin : IPlugin
         ToolExtensions.Add(new GetMemoryStatsToolFunction(services)
         {
             Id = "memorysystem.tool.get_memory_stats",
-            Name = "get_memory_stats",
+            Name = "memory_stats",
             PluginId = pluginId,
             Description = "获取记忆系统的统计信息，包括记忆总数、分类统计、最近记忆等",
             ParametersJsonSchema = @"

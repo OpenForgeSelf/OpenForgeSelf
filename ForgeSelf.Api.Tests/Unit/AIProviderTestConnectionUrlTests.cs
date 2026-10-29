@@ -29,4 +29,16 @@ public class AIProviderTestConnectionUrlTests
         OpenAICompatibleProvider.GetChatEndpointByProviderType(type, endpoint)
             .Should().Be(expected);
     }
+
+    [Theory]
+    // 输入6/9：Anthropic 兼容层 base 归一——…/v1/messages 或 …/messages 剥后缀；…/v1 原样；其余补 /v1（SDK 再追加 /chat/completions）
+    [InlineData("https://api.anthropic.com/v1/messages", "https://api.anthropic.com/v1")]
+    [InlineData("https://api.anthropic.com/messages", "https://api.anthropic.com/v1")]
+    [InlineData("https://api.anthropic.com/v1", "https://api.anthropic.com/v1")]
+    [InlineData("https://gw.example.com/anthropic", "https://gw.example.com/anthropic/v1")]
+    [InlineData("https://gw.example.com/anthropic/", "https://gw.example.com/anthropic/v1")]
+    public void DeriveAnthropicCompatBaseUrl_NormalizesToCompatBase(string endpoint, string expected)
+    {
+        OpenAISdkAdapter.DeriveAnthropicCompatBaseUrl(endpoint).Should().Be(expected);
+    }
 }

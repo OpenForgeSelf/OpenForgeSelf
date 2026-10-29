@@ -1,5 +1,6 @@
 {
   "Id": "sems",
+  "toolPrefix": "sems",
   "Name": "软件工程管理系统",
   "Version": "1.1.1",
   "Author": "ForgeSelf Team",

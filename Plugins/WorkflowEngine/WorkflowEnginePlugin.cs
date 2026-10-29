@@ -74,7 +74,7 @@ public class WorkflowEnginePlugin : IPlugin
         ToolExtensions.Add(new CreateWorkflowToolFunction(services)
         {
             Id = "workflow.tool.create",
-            Name = "create_workflow",
+            Name = "workflow_create",
             PluginId = pluginId,
             Description = "创建一个新的工作流定义",
             ParametersJsonSchema = @"
@@ -101,7 +101,7 @@ public class WorkflowEnginePlugin : IPlugin
         ToolExtensions.Add(new GetWorkflowToolFunction(services)
         {
             Id = "workflow.tool.get",
-            Name = "get_workflow",
+            Name = "workflow_get",
             PluginId = pluginId,
             Description = "获取指定工作流的详细信息，包括步骤定义、变量配置等",
             ParametersJsonSchema = @"
@@ -120,7 +120,7 @@ public class WorkflowEnginePlugin : IPlugin
         ToolExtensions.Add(new ExecuteWorkflowToolFunction(services)
         {
             Id = "workflow.tool.execute",
-            Name = "execute_workflow",
+            Name = "workflow_execute",
             PluginId = pluginId,
             Description = "执行指定的工作流",
             ParametersJsonSchema = @"
@@ -143,7 +143,7 @@ public class WorkflowEnginePlugin : IPlugin
         ToolExtensions.Add(new GetWorkflowStatusToolFunction(services)
         {
             Id = "workflow.tool.get_status",
-            Name = "get_workflow_status",
+            Name = "workflow_get_status",
             PluginId = pluginId,
             Description = "获取工作流执行状态",
             ParametersJsonSchema = @"
@@ -162,7 +162,7 @@ public class WorkflowEnginePlugin : IPlugin
         ToolExtensions.Add(new ListWorkflowsToolFunction(services)
         {
             Id = "workflow.tool.list",
-            Name = "list_workflows",
+            Name = "workflow_list",
             PluginId = pluginId,
             Description = "获取工作流列表",
             ParametersJsonSchema = @"

@@ -1,5 +1,6 @@
 {
   "Id": "sample",
+  "toolPrefix": "sample",
   "Name": "示例插件",
   "Version": "1.0.0",
   "Author": "ForgeSelf Team",

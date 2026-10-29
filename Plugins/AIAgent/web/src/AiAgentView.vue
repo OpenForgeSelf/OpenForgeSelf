@@ -109,6 +109,7 @@
     <RunRecordPanel
       :visible="runPanelVisible"
       :session-id="sessionId"
+      :active-agent-id="activeAgentId"
       @update:visible="runPanelVisible = $event"
       @resume="onResumeRun"
     />
@@ -460,8 +461,8 @@ async function loadAgentTools() {
   try {
     const data = await apiGet<{ tools?: AgentTool[] }>('/api/ai-agent/chat/tools')
     const all = data?.tools ?? []
-    // 不再按 pluginId 白名单过滤：万能工具（universal_tool）、执行命令（run_terminal_command）、
-    // todo 工具（todo-tracker）等其它插件工具也要能勾选。
+    // 不再按 pluginId 白名单过滤：万能工具（universal_tool）、执行命令（run_terminal_command）等
+    // mcp-center 公共工具与 todo-tracker 等其它插件工具也要能勾选（2026-10-28 命名空间统一后公共工具归 mcp-center）。
     // 后端语义：不勾选 = 挂默认作用域（本插件 + memory-system + design-system，防 prompt 撑爆）；
     // 勾选 = 显式意图，候选池放开到全注册表（见 AIAgentService.ResolveSelectableToolDefinitions）。
     agentTools.value = all
@@ -806,6 +807,8 @@ function closeFile() {
   editorHintError.value = false
 }
 
+import { toolEventsToBlocks } from './toolEvents'
+
 /** 加载当前会话的历史消息（插件自己的聊天存储）。 */
 async function loadHistory() {
   if (!sessionId.value) return
@@ -847,6 +850,15 @@ async function loadHistory() {
           break
         }
       }
+    }
+    /* 历史里的工具轨迹要变成组件的 tool 块，否则刷新后工具卡全没了 ——
+       组件侧 rendertool 块的组件与流式期间是同一个，形状由 toolEventsToBlocks 统一。 */
+    for (const m of visible) {
+      const toolBlocks = toolEventsToBlocks(m.toolEvents)
+      if (toolBlocks.length) {
+        m.blocks = toolBlocks as never
+      }
+      delete (m as { toolEvents?: unknown }).toolEvents
     }
     messages.value = visible
   } catch {

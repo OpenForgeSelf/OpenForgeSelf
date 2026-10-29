@@ -1,7 +1,7 @@
 # 16-reference — 接口参考（速查）
 
 > 状态：已实现（从 Controllers 反推，人工精简子集；全量见 openwiki/，2026-08-20）
-> 最后更新：2026-08-20
+> 最后更新：2026-10-28（ai-providers 增 providerType=`OpenAIResponses`，PILOT-074）
 
 > 本文件是常用 API 的**人工提炼速查**，非全量。全量契约以 `openwiki/`（CI 自动生成）为准。
 
@@ -11,8 +11,8 @@
 |------|------|------|------|
 | GET | `api/ai-providers` | 提供方列表（ApiKey 掩码） | ApiKeyPolicy |
 | GET | `api/ai-providers/{id}` | 详情 | ApiKeyPolicy |
-| POST | `api/ai-providers` | 新建（ApiKey 加密落库） | ApiKeyPolicy |
-| POST | `api/ai-providers/{id}/test` | 测试连接 | ApiKeyPolicy |
+| POST | `api/ai-providers` | 新建（ApiKey 加密落库；`providerType` ∈ OpenAI/OpenAIResponses/Anthropic/Custom） | ApiKeyPolicy |
+| POST | `api/ai-providers/{id}/test` | 测试连接（全类型统一 SDK 探针，与真实聊天链路同 wire；Anthropic 走官方 OpenAI 兼容层） | ApiKeyPolicy |
 | POST | `api/ai-providers/{id}/fetch-models` | 拉取上游模型 | ApiKeyPolicy |
 | GET | `api/ai-models` | 模型列表 | — |
 | GET | `api/api-server/status` | 服务状态 | — |

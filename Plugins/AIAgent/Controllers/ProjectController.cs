@@ -1,3 +1,4 @@
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using Microsoft.AspNetCore.Mvc;

@@ -1,4 +1,4 @@
-﻿---
+---
 feature_key: F001
 feature_no: 001
 status: implemented
@@ -34,7 +34,7 @@ aliases: ["001-ai-provider-config"]
 | 字段 | 含义 |
 |------|------|
 | `Name` | 提供方显示名（唯一，Master） |
-| `ProviderType` | OpenAI / Anthropic / Custom |
+| `ProviderType` | OpenAI / OpenAIResponses / Anthropic / Custom（PILOT-074 增 `OpenAIResponses`；输入9 后全类型聊天出站统一 openai-dotnet SDK，Anthropic 走官方 OpenAI 兼容层——出站分派见 004 §2.4） |
 | `Endpoint` | 接入地址 base URL |
 | `ApiKey` | 访问密钥（**加密存储**，返回的密文原样不解密） |
 | `SupportedModels` | 支持模型列表（逗号分隔） |

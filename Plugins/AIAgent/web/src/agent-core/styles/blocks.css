@@ -11,19 +11,66 @@
 .aiw-md strong { font-weight: 650; }
 .aiw-md .aiw-ul { margin: 6px 0 4px; padding-left: 18px; }
 .aiw-md .aiw-ul li { margin: 2px 0; }
-.aiw-chev { width: 15px; height: 15px; flex: 0 0 15px; opacity: 0.5; transition: transform 0.18s ease; }
-.aiw-chev.is-open { transform: rotate(180deg); }
+/* ---------- 行首图标槽（2026-10-26 左列对齐） ----------
+   一个固定 22×22 的槽，槽内两层**同位叠放**：块类型图标（glyph）+ 折叠箭头（chev）。
+   默认显图标；鼠标移入、键盘聚焦可见、或已展开时，同一格换成箭头（展开态箭头常驻并旋转 180°）。
+   ★ 为什么不是「悬浮时多出一个箭头」：那会让后面的图标整体右移一格，
+     一列消息的左边缘就对不齐（用户 2026-10-26 亲指），鼠标还可能滑出命中区。
+   触摸屏没有 hover ⇒ 箭头常驻（图标让位），否则永远没有「这里可展开」的线索。
+   槽宽固定、只切 opacity ⇒ 任何状态都不产生横向位移。 */
+.aiw-ico {
+  position: relative;
+  width: 22px; height: 22px; flex: 0 0 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.aiw-ico__glyph,
+.aiw-ico__chev {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity var(--aiw-dur-fast) var(--aiw-ease-out);
+}
+.aiw-ico__chev { opacity: 0; color: var(--aiw-text-soft); }
+.aiw-ico__chev svg {
+  width: 15px; height: 15px;
+  transition: transform var(--aiw-dur-fast) var(--aiw-ease-out);
+}
+/* 展开态：箭头常驻（提示可收回），图标让位 —— 两者共用同一格，不抢位置 */
+.aiw-ico.is-open .aiw-ico__glyph { opacity: 0; }
+.aiw-ico.is-open .aiw-ico__chev { opacity: 0.6; }
+.aiw-ico.is-open .aiw-ico__chev svg { transform: rotate(180deg); }
+.aiw-think__head:hover .aiw-ico__glyph,
+.aiw-tool__head:hover .aiw-ico__glyph,
+.aiw-grp__head:hover .aiw-ico__glyph,
+.aiw-think__head:focus-visible .aiw-ico__glyph,
+.aiw-tool__head:focus-visible .aiw-ico__glyph,
+.aiw-grp__head:focus-visible .aiw-ico__glyph { opacity: 0; }
+.aiw-think__head:hover .aiw-ico__chev,
+.aiw-tool__head:hover .aiw-ico__chev,
+.aiw-grp__head:hover .aiw-ico__chev,
+.aiw-think__head:focus-visible .aiw-ico__chev,
+.aiw-tool__head:focus-visible .aiw-ico__chev,
+.aiw-grp__head:focus-visible .aiw-ico__chev { opacity: 0.7; }
+@media (hover: none) {
+  /* 比 .aiw-think__spark.is-live 多一层类，确保无 hover 时图标真的让位给箭头 */
+  .aiw-ico .aiw-ico__glyph,
+  .aiw-ico .aiw-ico__glyph.is-live { opacity: 0; }
+  .aiw-ico .aiw-ico__chev { opacity: 0.45; }
+}
+/* 折叠行内的分隔点 */
+.aiw-row__sep { flex: 0 0 auto; opacity: 0.4; font-size: 11px; }
+/* 分组计数徽标占满图标槽：两位数时也不溢出槽宽 */
+.aiw-ico .aiw-grp__badge { min-width: 22px; height: 22px; line-height: 22px; padding: 0 2px; }
 
 /* ---------------- 思考过程 ---------------- */
+/* 2026-10-26 用户拍板：仅工具调用有边框 —— 过程/正文一律去框（底色仍保留，便于分辨过程行） */
 .aiw-think {
-  border: 1px dashed var(--aiw-line);
   border-radius: 11px;
   background: color-mix(in srgb, var(--aiw-bg-soft) 70%, transparent);
   overflow: hidden;
 }
 .aiw-think__head {
   width: 100%; display: flex; align-items: center; gap: 7px;
-  padding: 8px 11px; border: 0; background: transparent; cursor: pointer;
+  padding: 8px var(--aiw-space-5); border: 0; background: transparent; cursor: pointer;
   font-family: inherit; font-size: 12.5px; color: var(--aiw-text-soft); text-align: left;
 }
 .aiw-think__spark {
@@ -35,20 +82,33 @@
   0%, 100% { transform: scale(0.75); opacity: 0.45; }
   50% { transform: scale(1.15); opacity: 1; }
 }
-.aiw-think__label { font-weight: 600; color: var(--aiw-text); }
-.aiw-think__meta { margin-left: auto; font-size: 11.5px; opacity: 0.8; white-space: nowrap; }
+.aiw-think__label { font-weight: 600; color: var(--aiw-text); flex: 0 0 auto; }
+/* 摘要单行截断：思考内容往往很长，折叠态只该给一句「在想什么」 */
+.aiw-think__peek {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aiw-text-soft);
+  font-size: 12px;
+}
+/* 时长移到展开后的正文顶部：折叠行不再和摘要争宽度 */
+.aiw-think__meta { font-size: 11px; opacity: 0.75; margin-bottom: 4px; color: var(--aiw-text-soft); }
+.aiw-think__text { white-space: pre-wrap; }
 .aiw-think__body {
-  padding: 0 11px 10px 25px;
+  padding: 0 var(--aiw-space-5) 10px 42px;
   font-size: 12.5px; line-height: 1.7; color: var(--aiw-text-soft);
   white-space: pre-wrap; word-break: break-word;
   max-height: 190px; overflow-y: auto;
 }
 
 /* ---------------- 工具调用 ---------------- */
-.aiw-tool { border: 1px solid var(--aiw-line); border-radius: 11px; background: var(--aiw-bg); overflow: hidden; }
+/* 折叠态是一行文字，不是卡片 —— 一屏十几条工具调用时，卡片边框会把
+   消息区撑成「一堆盒子」，反而看不出哪些是同一轮的过程。 */
+.aiw-tool { background: transparent; }
 .aiw-tool__head {
   width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 8px 11px; border: 0; background: transparent; cursor: pointer;
+  padding: 8px var(--aiw-space-5); border: 0; background: transparent; cursor: pointer;
   font-family: inherit; font-size: 12.5px; color: var(--aiw-text); text-align: left;
 }
 .aiw-tool__icon {
@@ -57,15 +117,41 @@
   background: var(--aiw-primary-08); color: var(--aiw-primary);
 }
 .aiw-tool__icon svg { width: 13px; height: 13px; }
-.aiw-tool__name { font-weight: 600; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.aiw-tool__label { flex: 0 0 auto; color: var(--aiw-text-soft); }
+.aiw-tool__name { font-weight: 600; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; flex: 0 0 auto; }
+.aiw-tool__action {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--aiw-text-soft);
+}
 .aiw-tool__status { font-size: 11.5px; color: var(--aiw-text-soft); }
 .aiw-tool__dur { margin-left: auto; font-size: 11px; color: #9aa1ae; }
 .aiw-tool--running .aiw-tool__status { color: var(--aiw-primary); }
 .aiw-tool--running .aiw-tool__icon { animation: aiw-think-pulse 1.3s ease-in-out infinite; }
-.aiw-tool--error { border-color: #fecaca; background: #fff7f7; }
+.aiw-tool--error .aiw-tool__name { color: #b42318; }
 .aiw-tool--error .aiw-tool__status { color: #b42318; font-weight: 600; }
 .aiw-tool--error .aiw-tool__icon { background: #fee2e2; color: #b42318; }
-.aiw-tool__body { padding: 0 11px 10px; display: flex; flex-direction: column; gap: 8px; }
+/* 展开后才出现的卡片：参考形态里「输入 / 输出」是包在一个圆角框里的。
+   全组件**唯一**保留边框的内容块（2026-10-26 用户拍板：只工具调用有框）。 */
+.aiw-tool__body {
+  margin: 2px var(--aiw-space-5) 2px var(--aiw-space-5);
+  padding: 8px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--aiw-line);
+  border-radius: 9px;
+  background: var(--aiw-bg);
+}
+.aiw-tool__section + .aiw-tool__section {
+  padding-top: 8px;
+  border-top: 1px solid var(--aiw-line);
+}
+.aiw-tool__empty { font-size: 11.5px; color: var(--aiw-text-soft); }
 .aiw-tool__k { font-size: 11px; color: #9aa1ae; margin-bottom: 3px; letter-spacing: 0.02em; }
 .aiw-tool__pre {
   margin: 0; padding: 8px 10px; border-radius: 8px;
@@ -410,11 +496,10 @@
 /* ============================================================
    步骤分组（可折叠，支持嵌套）
    ============================================================ */
-.aiw-grp { border: 1px solid var(--aiw-line); border-radius: 11px; background: var(--aiw-bg); overflow: hidden; }
-.aiw-grp--running { border-color: var(--aiw-primary-32); }
+.aiw-grp { border-radius: 11px; background: var(--aiw-bg); overflow: hidden; }
 .aiw-grp__head {
   width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 8px 11px; border: 0; background: transparent; cursor: pointer;
+  padding: 8px var(--aiw-space-5); border: 0; background: transparent; cursor: pointer;
   font-family: inherit; font-size: 12.5px; color: var(--aiw-text); text-align: left;
 }
 .aiw-grp__badge {
@@ -423,12 +508,14 @@
   font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
   font-variant-numeric: tabular-nums;
 }
+/* 进行中的分组：去边框后靠计数徽标脉冲 + 标题色表达（不再用 border-color） */
+.aiw-grp--running .aiw-grp__title { color: var(--aiw-primary); }
 .aiw-grp__title { font-weight: 650; white-space: nowrap; }
 .aiw-grp__summary {
   font-size: 11.5px; color: var(--aiw-text-soft);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.aiw-grp__head .aiw-chev { margin-left: auto; }
+/* 箭头已在最左，无需 auto 边距 */
 .aiw-grp__body {
   display: flex; flex-direction: column; gap: 8px;
   padding: 2px 10px 10px 12px; margin-left: 10px;
@@ -443,8 +530,8 @@
   font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
   background: #fee2e2; color: #b42318; white-space: nowrap;
 }
-.aiw-tool--danger { border-color: #fecaca; }
-.aiw-tool--awaiting { border-color: #fde68a; background: #fffdf5; }
+.aiw-tool--danger .aiw-tool__head { color: #b42318; }
+.aiw-tool--awaiting .aiw-tool__head { color: #b45309; }
 .aiw-tool--awaiting .aiw-tool__status { color: #b45309; font-weight: 600; }
 .aiw-tool--denied { opacity: 0.65; }
 

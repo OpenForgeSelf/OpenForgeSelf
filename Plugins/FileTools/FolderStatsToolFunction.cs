@@ -23,7 +23,7 @@ public class FolderStatsToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "filetools.folder_stats";
-    public string Name => "folder_stats";
+    public string Name => "file_dir_stats";
     public string PluginId { get; }
 
     public string Description =>

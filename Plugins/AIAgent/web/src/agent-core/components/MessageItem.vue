@@ -9,7 +9,7 @@ const props = defineProps({
   avatar: { type: String, default: '' },
   config: { type: Object, required: true },
 })
-const emit = defineEmits(['retry', 'resolve'])
+const emit = defineEmits(['retry', 'resume', 'resolve'])
 
 const isUser = computed(() => props.message.role === 'user')
 const html = computed(() => renderMarkdown(props.message.content || ''))
@@ -124,7 +124,14 @@ watch(
           <BlockRenderer :block="b" :config="config" @retry="emit('retry')" @resolve="emit('resolve', $event)" />
         </BlockBoundary>
       </div>
-      <div v-else class="aiw-msg__fold" :class="{ 'is-collapsed': collapsed }">
+      <!-- ★ 有块也要渲染正文：工具卡与答案文本是同一轮的回答的两部分。
+           原来这里是 v-else —— 只要出现一张工具卡，整段正文就被藏掉，
+           用户只看到「调用了 3 个工具」却看不到结论。 -->
+      <div
+        v-if="!hasBlocks || String(message.content || '').trim()"
+        class="aiw-msg__fold"
+        :class="{ 'is-collapsed': collapsed }"
+      >
         <div ref="bubbleEl" class="aiw-msg__bubble" v-html="html"></div>
         <button
           v-if="overflowing && !streaming"
@@ -146,6 +153,15 @@ watch(
         :role="isFailed ? 'alert' : 'status'"
       >
         <span>{{ statusText }}</span>
+        <!-- 能续跑就优先给「继续执行」：重试会把半截成果全丢，续跑不会 -->
+        <button
+          v-if="isFailed && message.resumable"
+          type="button"
+          class="aiw-msg__retry"
+          @click="emit('resume', message.id)"
+        >
+          继续执行
+        </button>
         <button
           v-if="isFailed"
           type="button"

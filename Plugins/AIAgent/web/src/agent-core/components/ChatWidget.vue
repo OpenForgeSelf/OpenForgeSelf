@@ -26,7 +26,7 @@ const props = defineProps({
 // v1.8.0 集成扩展：宿主页面监听「消息状态已变化」（发送完成 / 会话切换灌入历史）
 const emit = defineEmits(['state-changed'])
 
-const { messages, sending, streamingText, error, retrying, reconnecting, canRetry, fellBackToMock, lastDataAt, lastUsage, load, seed, reset, send, push, abort, retry, touch, resolveApproval, audit, hydrate: hydrateMessages,
+const { messages, sending, streamingText, streamingBlocks, error, retrying, reconnecting, canRetry, fellBackToMock, lastDataAt, lastUsage, load, seed, reset, send, push, abort, retry, resume, touch, resolveApproval, audit, hydrate: hydrateMessages,
   sessions, currentId, historyOn, newSession, switchSession, removeSession, renameSession, clearSessions,
   exportSession, exportAllSessions } =
   useChat(props.config)
@@ -1035,13 +1035,15 @@ defineExpose({
               :avatar="config.avatar"
               :config="config"
               @retry="retry"
+              @resume="resume"
               @resolve="handleResolve"
             />
             <MessageItem
               v-if="streamingText"
-              :message="{ role: 'assistant', content: streamingText, time: Date.now(), streaming: true }"
+              :message="{ role: 'assistant', content: streamingText, blocks: streamingBlocks, time: Date.now(), streaming: true }"
               :avatar="config.avatar"
               :config="config"
+              @resume="resume"
               @retry="retry"
               @resolve="handleResolve"
             />

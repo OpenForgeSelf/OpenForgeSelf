@@ -63,13 +63,15 @@ public class PromptBuilderTests
 
         // 白名单句必须由守卫常量派生（FR-1.2 同源）。反向探针实测过：手抄的第二份清单会漂——
         // 把守卫的 ssh 删掉，硬写的提示词照样对外承诺能跑 ssh，说明与实现自相矛盾。
-        text.Should().Contain($"首 token 只能是 {joined}");
+        // PILOT-075：口径从「首 token」改为「每段首 token」（管道/链式逐段过同一套门）。
+        text.Should().Contain($"每段首 token 只能是 {joined}");
         foreach (var exe in CommandGuard.DefaultAllowlist)
         {
             text.Should().Contain(exe);
         }
         text.Should().NotContain("dotnet / pnpm / node / git / pwsh", "少列一项即等于提示词与守卫不同判");
-        text.Should().Contain("管道");
+        text.Should().Contain("管道与链式");
+        text.Should().Contain("每一段都同样过白名单与破坏性红线");
     }
 
     [Fact]

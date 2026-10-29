@@ -149,7 +149,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.run_script";
-    public string Name => "run_script";
+    public string Name => "script_run";
     public string PluginId { get; }
     public string Description => "执行指定的脚本，支持传入参数。脚本执行是异步的，返回执行ID用于查询状态和输出。";
 
@@ -258,7 +258,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.list_scripts";
-    public string Name => "list_scripts";
+    public string Name => "script_list";
     public string PluginId { get; }
     public string Description => "列出可用的脚本，支持按关键词、分类、语言筛选，可查看脚本详情和使用次数。";
 
@@ -413,7 +413,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
     private readonly IServiceProvider? _serviceProvider;
 
     public string Id => "scriptrunner.execute_code";
-    public string Name => "execute_code";
+    public string Name => "script_exec_code";
     public string PluginId { get; }
     public string Description => "直接执行代码片段，支持 PowerShell、Python、Node.js、Shell、Cmd 等语言。执行是异步的，返回执行ID用于查询状态。";
 

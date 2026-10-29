@@ -17,18 +17,18 @@ public class PluginServiceLifecycleIntegrationTests
     [Fact]
     public void DestroyPlugin_ThenHostResolvePluginService_Throws()
     {
-        // 用真实独立程序集插件（TextTools）验证：RegisterAllServices 挂载 DI 子容器后，
+        // 用真实独立程序集插件（SamplePlugin）验证：RegisterAllServices 挂载 DI 子容器后，
         // 宿主经转发描述符可解析插件服务；DestroyPlugin 卸载后宿主解析应失败（不再返回旧实例）。
-        // 注：全部 11 插件已拆独立程序集（ADR D2），主程序集无内嵌插件；TextToolsPlugin
-        // 从测试输出同步的独立 DLL 加载（其 ITextStatsService → TextStatsService 无构造依赖，裸测试容器可解析）。
+        // 注：全部插件已拆独立程序集（ADR D2），主程序集无内嵌插件；SamplePlugin
+        // 从测试输出同步的独立 DLL 加载（其设置页服务无构造依赖，裸测试容器可解析）。2026-10-28 text-tools 并入 dev-tools 后载具换 SamplePlugin。
         _tempDir.CreatePluginManifest("test.di", m =>
         {
-            m.EntryAssembly = "TextTools.dll";
-            m.EntryType = "ForgeSelf.Api.Plugins.TextTools.TextToolsPlugin";
+            m.EntryAssembly = "SamplePlugin.dll";
+            m.EntryType = "ForgeSelf.Api.Plugins.SamplePlugin.SamplePlugin";
         });
         File.Copy(
-            Path.Combine(AppContext.BaseDirectory, "plugins", "TextTools", "TextTools.dll"),
-            Path.Combine(_tempDir.RootPath, "test.di", "TextTools.dll"));
+            Path.Combine(AppContext.BaseDirectory, "plugins", "SamplePlugin", "SamplePlugin.dll"),
+            Path.Combine(_tempDir.RootPath, "test.di", "SamplePlugin.dll"));
 
         var registry = new PluginServiceRegistry();
         var manager = new PluginManager(
@@ -50,10 +50,11 @@ public class PluginServiceLifecycleIntegrationTests
         registry.BuildAll();
 
         // 插件经 PluginLoadContext 独立加载，其服务类型与测试程序集（默认 ALC）非同一 Type，
-        // 从已加载插件程序集反射取 ITextStatsService 类型（与注册进 registry 的 ServiceType 身份一致）。
+        // 从已加载插件程序集反射取 ISampleGreetingService 类型（SamplePlugin 在 Apply 里 AddScoped 的服务，
+        // 与注册进 registry 的 ServiceType 身份一致；SamplePlugin 类本身不进 DI）。
         var serviceType = manager.GetLoadedPluginAssemblies()
-            .Single(a => a.GetName().Name == "TextTools")
-            .GetType("ForgeSelf.Api.Plugins.TextTools.Services.ITextStatsService")!;
+            .Single(a => a.GetName().Name == "SamplePlugin")
+            .GetType("ForgeSelf.Api.Plugins.SamplePlugin.ISampleGreetingService")!;
 
         provider.GetRequiredService(serviceType).Should().NotBeNull();
 

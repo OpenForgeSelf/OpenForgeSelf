@@ -57,6 +57,25 @@ public sealed class AgentOptions
     /// （出口工具是声明不是执行，无注册需求）。
     /// </summary>
     public IReadOnlyList<IToolFunctionExtension>? ExtraTools { get; init; }
+
+    /// <summary>
+    /// 任务循环模式（PILOT-051，行业标准「做完才停」语义）：
+    /// true 时挂载 <see cref="TaskCompleteToolName"/> 出口工具（进 <see cref="ExitToolNames"/>），
+    /// 「模型不再调用工具」不再隐含回合完成——回合已发生过工具调用且模型只产出纯文本时，
+    /// 注入续跑指令并强制工具调用继续执行，直到模型显式调用 task_complete 或触达
+    /// <see cref="MaxStepsPerTurn"/>。整个回合零工具调用（纯问答）不受影响。
+    /// </summary>
+    public bool TaskLoopMode { get; init; }
+
+    /// <summary>任务循环模式的完成出口工具名（行业标准 finish/complete 工具模式）。</summary>
+    public const string TaskCompleteToolName = "task_complete";
+
+    /// <summary>
+    /// 是否用 MAF（Microsoft Agent Framework）运行时驱动本回合（PILOT-051 用户指定实现路径）：
+    /// true 时 <c>AIAgentService.CreateAgent</c> 选 <c>MafTaskLoopAgent</c>（MAF ChatClientAgent
+    /// 自动 function-invocation 管线），false 时用既有 <c>ReactLoopAgent</c>（后备引擎，语义一致）。
+    /// </summary>
+    public bool UseMafRuntime { get; init; }
 }
 
 /// <summary>

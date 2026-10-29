@@ -13,10 +13,56 @@
 /** 宿主写入 token 的 localStorage 键名（与 ForgeSelf.Web/src/services/request.ts 保持一致）。 */
 const TOKEN_KEY = 'forge_api_token'
 
+/**
+ * SSE 帧间空闲超时。
+ *
+ * 为什么需要：`reader.read()` 本身不会因为服务端不再发数据而失败 —— 反代保活、
+ * 模型服务挂死、进程被 SIGSTOP，都表现为「一直 pending」。没有这一层，
+ * 界面会永远停在发送中，用户只能手动点停止。
+ */
+export const SSE_IDLE_TIMEOUT_MS = 45000
+
+/** 带空闲超时地读一块流数据。超时即取消读取，抛 TimeoutError。 */
+async function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleMs = SSE_IDLE_TIMEOUT_MS,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error(`响应超时（${Math.round(idleMs / 1000)} 秒没有收到数据）`)
+        err.name = 'TimeoutError'
+        try {
+          void reader.cancel()
+        } catch {
+          /* 取消失败不影响报错 */
+        }
+        reject(err)
+      }, idleMs)
+      reader.read().then(resolve, reject)
+    })
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/** 鉴权失败要说人话：面板里出现「请求失败(401)」时用户不知道该做什么。 */
+function httpError(status: number, detail: string): Error {
+  if (status === 401 || status === 403) {
+    const err = new Error('登录状态已失效，请刷新页面重新登录')
+    err.name = 'UnauthorizedError'
+    return err
+  }
+  return new Error(`请求失败(${status}): ${detail || '未知错误'}`)
+}
+
 import type {
   AgentDefinition,
   AgentRunDetailResponse,
   AgentRunListResponse,
+  GoalEvaluatedPayload,
+  GoalRoundStartedPayload,
   InterveneRequest,
   PlanCreatedPayload,
   RunRequest,
@@ -138,7 +184,7 @@ export async function streamAgentChat(
   payload: AgentChatPayload,
   handlers: AgentStreamHandlers,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ completed: boolean; errored: boolean }> {
   const token = localStorage.getItem(TOKEN_KEY)
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
@@ -157,7 +203,7 @@ export async function streamAgentChat(
     } catch {
       // 非 JSON 响应，仅用状态码兜底
     }
-    throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
+    throw httpError(res.status, detail || res.statusText || '')
   }
   if (!res.body) throw new Error('响应无内容流')
 
@@ -183,9 +229,11 @@ export async function streamAgentChat(
         handlers.onUsage?.(obj.usage as AgentUsage | undefined)
         break
       case 'done':
+        completed = true
         handlers.onDone?.({ sessionId: obj.sessionId as string, responseId: obj.responseId as number, usage: obj.usage as AgentUsage })
         break
       case 'error':
+        errored = true
         handlers.onError?.((obj.content as string) ?? '未知错误')
         break
     }
@@ -194,24 +242,30 @@ export async function streamAgentChat(
   const reader = res.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
+  /* done 事件是唯一「这轮真的说完了」的信号。没收到就算流结束也只能当中断。 */
+  let completed = false
+  let errored = false
 
   for (;;) {
-    const { done, value } = await reader.read()
+    const { done, value } = await readChunk(reader)
     if (done) break
-    buffer += decoder.decode(value, { stream: true })
+    /* 代理/网关可能把换行改成 CRLF：不归一化，\n\n 分帧会一直等不到，整轮回答全丢。 */
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
     // SSE 事件以空行（\n\n）分隔；逐行取 data: 前缀。
     let idx: number
     while ((idx = buffer.indexOf('\n\n')) >= 0) {
       const rawEvent = buffer.slice(0, idx)
       buffer = buffer.slice(idx + 2)
       for (const line of rawEvent.split('\n')) {
-        if (line.startsWith('data: ')) dispatch(line.slice(6))
+        /* SSE 规范里 data: 后的空格是可选的，只认 'data: ' 会漏掉严格写法 */
+        if (line.startsWith('data:')) dispatch(line.slice(5).replace(/^\s/, ''))
       }
     }
   }
   // 尾部残余（最后一个无空行结尾的事件）。
   const tail = buffer.trim()
-  if (tail.startsWith('data: ')) dispatch(tail.slice(6))
+  if (tail.startsWith('data:')) dispatch(tail.slice(5).replace(/^\s/, ''))
+  return { completed, errored }
 }
 
 /**
@@ -260,7 +314,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T | undefine
     } catch {
       // 响应体非 JSON 时忽略，只用状态码兜底
     }
-    throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
+    throw httpError(res.status, detail || res.statusText || '')
   }
   // 204 / 空响应体：无可解包 JSON。DELETE 等端点常返回 204 No Content，
   // 直接 return undefined 避免 res.json() 抛 "Unexpected end of JSON input"。
@@ -389,6 +443,10 @@ export interface RunStreamHandlers {
   onStepCompleted?: (payload: StepCompletedPayload) => void
   /** Run 卡住等待人工介入（run_stuck）。 */
   onRunStuck?: (payload: RunStuckPayload) => void
+  /** 目标模式：某轮评估开始（goal_round_started）。 */
+  onGoalRoundStarted?: (payload: GoalRoundStartedPayload) => void
+  /** 目标模式：某轮评估判定（goal_evaluated；achieved=false 时将纠正续跑或转 stuck）。 */
+  onGoalEvaluated?: (payload: GoalEvaluatedPayload) => void
   /** 步骤循环内增量 token（content）。 */
   onContent?: (content: string) => void
   /** 步骤循环内一次工具调用开始（tool_call）。 */
@@ -414,7 +472,7 @@ async function streamRunRequest(
   payload: RunRequest | undefined,
   handlers: RunStreamHandlers,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ completed: boolean; errored: boolean }> {
   const token = localStorage.getItem(TOKEN_KEY)
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
@@ -433,7 +491,7 @@ async function streamRunRequest(
     } catch {
       // 非 JSON 响应，仅用状态码兜底
     }
-    throw new Error(`请求失败(${res.status}): ${detail || res.statusText || '未知错误'}`)
+    throw httpError(res.status, detail || res.statusText || '')
   }
   if (!res.body) throw new Error('响应无内容流')
 
@@ -465,6 +523,12 @@ async function streamRunRequest(
       case 'run_stuck':
         handlers.onRunStuck?.(payloadRaw as RunStuckPayload)
         break
+      case 'goal_round_started':
+        handlers.onGoalRoundStarted?.(payloadRaw as GoalRoundStartedPayload)
+        break
+      case 'goal_evaluated':
+        handlers.onGoalEvaluated?.(payloadRaw as GoalEvaluatedPayload)
+        break
       case 'content':
         handlers.onContent?.((obj.content as string) ?? '')
         break
@@ -478,9 +542,11 @@ async function streamRunRequest(
         handlers.onUsage?.(obj.usage as AgentUsage | undefined)
         break
       case 'done':
+        completed = true
         handlers.onDone?.((payloadRaw as string) ?? '')
         break
       case 'error':
+        errored = true
         handlers.onError?.((obj.content as string) ?? '未知错误')
         break
     }
@@ -489,22 +555,28 @@ async function streamRunRequest(
   const reader = res.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
+  /* done 事件是唯一「这轮真的说完了」的信号。没收到就算流结束也只能当中断。 */
+  let completed = false
+  let errored = false
 
   for (;;) {
-    const { done, value } = await reader.read()
+    const { done, value } = await readChunk(reader)
     if (done) break
-    buffer += decoder.decode(value, { stream: true })
+    /* 代理/网关可能把换行改成 CRLF：不归一化，\n\n 分帧会一直等不到，整轮回答全丢。 */
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
     let idx: number
     while ((idx = buffer.indexOf('\n\n')) >= 0) {
       const rawEvent = buffer.slice(0, idx)
       buffer = buffer.slice(idx + 2)
       for (const line of rawEvent.split('\n')) {
-        if (line.startsWith('data: ')) dispatch(line.slice(6))
+        /* SSE 规范里 data: 后的空格是可选的，只认 'data: ' 会漏掉严格写法 */
+        if (line.startsWith('data:')) dispatch(line.slice(5).replace(/^\s/, ''))
       }
     }
   }
   const tail = buffer.trim()
-  if (tail.startsWith('data: ')) dispatch(tail.slice(6))
+  if (tail.startsWith('data:')) dispatch(tail.slice(5).replace(/^\s/, ''))
+  return { completed, errored }
 }
 
 /** 创建计划驱动执行（POST /api/ai-agent/runs，SSE 流）。 */
@@ -512,7 +584,7 @@ export function streamAgentRun(
   payload: RunRequest,
   handlers: RunStreamHandlers,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ completed: boolean; errored: boolean }> {
   return streamRunRequest('/api/ai-agent/runs', payload, handlers, signal)
 }
 
@@ -521,7 +593,7 @@ export function resumeAgentRun(
   id: number,
   handlers: RunStreamHandlers,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ completed: boolean; errored: boolean }> {
   return streamRunRequest(`/api/ai-agent/runs/${id}/resume`, undefined, handlers, signal)
 }
 

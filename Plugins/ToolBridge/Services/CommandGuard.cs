@@ -18,12 +18,14 @@ public sealed class GuardDecision
 /// <summary>
 /// 命令执行安全门（PILOT-053 03-plan 决策 D1）。
 ///
-/// 规则与内置 agent 的 <c>Plugins/AIAgent/Services/TerminalCommandGuard.cs</c> **逐条同值**：
-/// 换行即拒 → 管道/链式/重定向字符（| ; &amp; &lt; &gt; 反引号）即拒 → 可执行名必须裸名 →
+/// 规则与 mcp-center 公共工具的（2026-10-28 归属迁移前在 AIAgent）
+/// <c>Plugins/McpCenter/Services/PublicTools/TerminalCommandGuard.cs</c> **逐条同值**：
+/// 引号感知分段（PILOT-075，2026-10-29 用户拍板，与 mcp-center 同步）：引号外 | ; &amp;&amp; || 换行 = 分隔符，
+/// 逐段过同一套门；重定向（&lt; &gt; 反引号）与单独 &amp;、空段、引号不配对整串拒 → 可执行名必须裸名 →
 /// 白名单（dotnet/pnpm/node/git/ssh/pwsh，拒绝模式）→ 破坏性 token 精确匹配 + 内联代码词边界扫描 +
 /// -EncodedCommand base64（UTF-16LE）解码后扫描，不可验证即拒。
 ///
-/// 为什么不直接复用那份：它带 <c>XTrace.Log</c> 且命名空间在 AIAgent 插件内，而
+/// 为什么不直接复用那份：它带 <c>XTrace.Log</c> 且命名空间在 mcp-center 插件内（迁移前在 AIAgent），而
 /// <c>ForgeSelf.Core</c> / <c>ForgeSelf.Abstractions</c> 两个共享层**均未引用 NewLife.Core**
 /// （实读两份 csproj），上移即等于给内核层加依赖 = 依赖结构变更（规范 §1.3 高风险，须另立批次出 ADR）。
 /// 漂移风险由常驻判据 <c>ForgeSelf.Api.Tests/Plugins/ToolBridgeTests/ToolBridgeGuardParityTests.cs</c>
@@ -93,22 +95,169 @@ public static class CommandGuard
             return GuardDecision.Reject("Error: command is empty");
         }
 
-        // 换行即拒：多行 = 隐式链式。
-        if (command.Contains('\n') || command.Contains('\r'))
+        // PILOT-075（2026-10-29 用户拍板，与 mcp-center 逐行同构）：换行/管道/链式是分隔符而非拒绝理由；
+        // 整串级检查收敛进分段器，重定向、反引号、单独 &、空段、引号不配对仍整串拒绝。
+        if (!TrySplitSegments(command, out var segments, out var splitError))
         {
-            return GuardDecision.Reject("Error: chained/piped commands are not allowed (newline)");
+            return GuardDecision.Reject(splitError!);
         }
 
-        // 管道/链式/重定向拒绝。
-        foreach (var ch in command)
+        // 逐段同一校验：每段独立过与单命令完全相同的门；段数 > 1 加 segment 前缀，= 1 原因逐字节不变。
+        for (var i = 0; i < segments.Count; i++)
         {
-            if (ch is '|' or ';' or '&' or '<' or '>' or '`')
+            var single = CheckSingleCommand(segments[i]);
+            if (!single.Allowed)
             {
                 return GuardDecision.Reject(
-                    $"Error: chained/piped commands are not allowed (contains '{ch}')");
+                    segments.Count == 1 ? single.Reason! : $"Error: segment {i + 1}/{segments.Count}: {single.Reason}");
             }
         }
 
+        return GuardDecision.Allow();
+    }
+
+    /// <summary>
+    /// 引号感知分段（PILOT-075 FR-1，与 mcp-center <c>TerminalCommandGuard.TrySplitSegments</c> 逐行同构）：
+    /// 仅在引号外把 <c>&amp;&amp;</c> <c>||</c> <c>|</c> <c>;</c> 换行当分隔符；段内原文保留（含引号）。
+    /// 返回 false 时 <paramref name="error"/> 为整串级拒绝原因，<paramref name="segments"/> 为空。
+    /// </summary>
+    public static bool TrySplitSegments(string? command, out IReadOnlyList<string> segments, out string? error)
+    {
+        segments = Array.Empty<string>();
+        error = null;
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            error = "Error: command is empty";
+            return false;
+        }
+
+        var result = new List<string>();
+        var sb = new System.Text.StringBuilder();
+        var inDouble = false;
+        var inSingle = false;
+
+        string? FlushSegment()
+        {
+            var seg = sb.ToString().Trim();
+            sb.Clear();
+            if (seg.Length == 0)
+            {
+                return "Error: chained/piped commands are not allowed (empty segment)";
+            }
+            result.Add(seg);
+            return null;
+        }
+
+        var text = command!;
+        var i = 0;
+        string? flushError;
+        while (i < text.Length)
+        {
+            var ch = text[i];
+            if (inDouble || inSingle)
+            {
+                // 引号内：只有配对的关闭引号才退出引号态。
+                if ((inDouble && ch == '"') || (inSingle && ch == '\''))
+                {
+                    inDouble = false;
+                    inSingle = false;
+                }
+                sb.Append(ch);
+                i++;
+                continue;
+            }
+
+            switch (ch)
+            {
+                case '"':
+                    inDouble = true;
+                    sb.Append(ch);
+                    i++;
+                    break;
+                case '\'':
+                    inSingle = true;
+                    sb.Append(ch);
+                    i++;
+                    break;
+                case '<' or '>' or '`':
+                    error = $"Error: chained/piped commands are not allowed (contains '{ch}')";
+                    return false;
+                case '&':
+                    if (i + 1 < text.Length && text[i + 1] == '&')
+                    {
+                        if ((flushError = FlushSegment()) != null)
+                        {
+                            error = flushError;
+                            return false;
+                        }
+                        i += 2;
+                    }
+                    else
+                    {
+                        error = "Error: chained/piped commands are not allowed (contains '&')";
+                        return false;
+                    }
+                    break;
+                case '|':
+                    if ((flushError = FlushSegment()) != null)
+                    {
+                        error = flushError;
+                        return false;
+                    }
+                    i += i + 1 < text.Length && text[i + 1] == '|' ? 2 : 1;
+                    break;
+                case ';':
+                    if ((flushError = FlushSegment()) != null)
+                    {
+                        error = flushError;
+                        return false;
+                    }
+                    i++;
+                    break;
+                case '\n':
+                    if ((flushError = FlushSegment()) != null)
+                    {
+                        error = flushError;
+                        return false;
+                    }
+                    i++;
+                    break;
+                case '\r':
+                    if ((flushError = FlushSegment()) != null)
+                    {
+                        error = flushError;
+                        return false;
+                    }
+                    i += i + 1 < text.Length && text[i + 1] == '\n' ? 2 : 1;
+                    break;
+                default:
+                    sb.Append(ch);
+                    i++;
+                    break;
+            }
+        }
+
+        if (inDouble || inSingle)
+        {
+            error = "Error: unbalanced quotes in command";
+            return false;
+        }
+
+        if ((flushError = FlushSegment()) != null)
+        {
+            error = flushError;
+            return false;
+        }
+
+        segments = result;
+        return true;
+    }
+
+    /// <summary>
+    /// 单段命令校验（= 2026-10-29 之前 CheckCore 去掉换行/分隔符整串检查后的原样逻辑，判定逐条不变）。
+    /// </summary>
+    private static GuardDecision CheckSingleCommand(string command)
+    {
         var (exe, _) = SplitExecutable(command);
         if (string.IsNullOrEmpty(exe))
         {

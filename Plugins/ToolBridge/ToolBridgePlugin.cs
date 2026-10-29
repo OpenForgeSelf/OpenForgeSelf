@@ -9,7 +9,8 @@ namespace ForgeSelf.Api.Plugins.ToolBridge;
 /// 工具桥插件（PILOT-053）：把外部网页 AI 的工具调用文本接到本机原子能力上，跑一轮人工 agent 回合。
 ///
 /// 决策 D3（03-plan）：本插件**不向宿主 ToolRegistry 注册工具扩展点**——
-/// <c>read_file</c> / <c>write_file</c> / <c>list_files</c> 已由 AIAgent 注册，重名并存会让内置 agent
+/// <c>read_file</c> / <c>write_file</c> / <c>list_files</c> 已由 mcp-center 注册（2026-10-28 归属迁移前在 AIAgent），
+/// 重名并存会让内置 agent
 /// 出现两份同名工具；且进内置 agent 视野需改 <c>AIAgentService.ToolScopePluginIds</c> 白名单，
 /// 该处注释实证「~77 个工具会撑爆本地小模型 prompt → 400」。要接进内置 agent 须另立批次出 ADR。
 /// </summary>

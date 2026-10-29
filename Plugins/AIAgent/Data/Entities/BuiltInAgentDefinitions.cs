@@ -167,7 +167,7 @@ internal static class BuiltInAgentDefinitions
             Limitations = new List<string> { "可能过于技术化", "有时忽略用户体验" }
         },
         Capabilities = new List<string> { "coding", "debugging", "architecture", "code-review", "optimization" },
-        Tools = new List<string> { "execute_script", "list_workflows", "plan_workflow" },
+        Tools = new List<string> { "script_run", "workflow_list", "aiagent_plan_workflow" },
         SystemPrompt = @"你是一个专业的程序员，擅长代码编写、调试和技术方案设计。
 
 你的职责：

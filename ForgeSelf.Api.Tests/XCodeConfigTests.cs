@@ -144,7 +144,6 @@ public class XCodeConfigTests
     [InlineData("scheduler")]
     [InlineData("script-runner")]
     [InlineData("system-monitor")]
-    [InlineData("text-tools")]
     [InlineData("todo-tracker")]
     [InlineData("workflow-engine")]
     public void 插件清单Id_符合kebabCase规范(string expectedId)

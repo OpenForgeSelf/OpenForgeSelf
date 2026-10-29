@@ -21,7 +21,7 @@ namespace ForgeSelf.Api.Tests.Plugins.TodoTracker;
 /// 成功回归（PILOT-062 修复批 · 2026-10-17，由复现批特征化测试翻转而来，
 /// 前情见 <c>docs/ai/pilot/2026-10-17-gateway-list-todos-scope-repro/</c>）：
 /// 经 McpCenter 通用网关（MCP tools/call → <see cref="UniversalToolForwarder"/>）调用
-/// <c>list_todos</c>，入参 {parameters:"{}", tool:"list_todos"}，必须返回 <c>success:true</c> 成功封套。
+/// <c>todo_list</c>，入参 {parameters:"{}", tool:"todo_list"}，必须返回 <c>success:true</c> 成功封套。
 ///
 /// 时序仍按宿主 AppBuilder 真实顺序复刻，且<b>工具在 seed 之前构造</b>（与缺陷时序相同）——
 /// 修复后工具构造期零解析、执行期经 <see cref="PluginContextDiExtensions.CreateHostScope"/>
@@ -43,8 +43,8 @@ public class UniversalGatewayListTodosScopeRegressionTests
         //    工具构造只存原始上下文（修复后不再 eager 解析，缺陷不复存在）。
         var tool = new ListTodosToolFunction(pluginCtx)
         {
-            Id = "todotracker.tool.list_todos",
-            Name = "list_todos",
+            Id = "todotracker.tool.todo_list",
+            Name = "todo_list",
             PluginId = "TodoTracker",
             Description = "列出待办/任务（成功回归用例最小定义）。",
             ParametersJsonSchema = TodoToolSchemas.ListTodos
@@ -75,7 +75,7 @@ public class UniversalGatewayListTodosScopeRegressionTests
         var store = new ExternalServersStore(Path.Combine(Path.GetTempPath(), "mcpcenter-repro", Guid.NewGuid().ToString("N")));
         var forwarder = new UniversalToolForwarder(pluginCtx, new McpClientManager(store));
 
-        var result = await forwarder.ForwardAsync("""{"parameters":"{}","tool":"list_todos"}""");
+        var result = await forwarder.ForwardAsync("""{"parameters":"{}","tool":"todo_list"}""");
 
         // ── 断言：成功封套 + fake 数据回传（错误串不再出现） ──────────────────
         using var doc = JsonDocument.Parse(result.Text);

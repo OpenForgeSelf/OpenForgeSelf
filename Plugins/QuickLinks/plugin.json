@@ -1,5 +1,6 @@
 {
   "Id": "quick-links",
+  "toolPrefix": "link",
   "Name": "快捷链接插件",
   "Version": "1.0.1",
   "Author": "ForgeSelf Team",

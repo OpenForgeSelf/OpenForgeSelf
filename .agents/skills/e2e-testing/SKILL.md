@@ -120,6 +120,21 @@ node scripts/get-forge-token.cjs
 - DLL 字符串验证（发布产物是否含/不含某实现）用 `node scripts/probe-dll-string.cjs <dll> <str> [--expect-absent]`。
 - 发现缺正规入口的场景 → 先补工具/用例再走（AGENTS §5.0：不写一次性 temp 脚本当验证手段）。
 
+### 对运行实例写 `*.live.spec.ts`：四个时序铁律（2026-10-26 AIAgent 工具卡验收实证）
+
+对 `:51888` 这类运行实例做「开页即断言」的验收（`playwright.live.config.ts` 只 `testMatch '**/*.live.spec.ts'`，
+默认配置 `testIgnore` 掉它，否则会拿 7102 隔离实例跑错靶子），四条都踩过、都表现为**假红**（看着像产品缺陷，其实是时序）：
+
+1. **定向不要用文本**：历史会话可能同名（实例上有两条「查看当前项目结构」），`.sess__item` 的 `title` 就是 sessionId →
+   用 `.sess__item[title="<sessionId>"]`；更稳的是把 id 注入 `localStorage['forgeself-agent-session-id']` 后直接打开，少一次点选。
+2. **会改消息区的请求一律 `waitForResponse`，不要 `waitForTimeout`**：首屏与 reload 都走 `loadHistory → hydrate`；
+   点会话后立刻统计会读到空态欢迎语（`bots=1 toolCards=0` 的经典假红）。先注册 `waitForResponse` 再 `reload()/click()`。
+3. **boot 要等 onMounted 的 hydrate 落定**：history 响应回来 ≠ mounted 结束，末尾还有一次 `hydrate(messages)` 会**覆盖**消息区；
+   抢在它之前发送，用户消息与流式内容会被一起清掉（表现为「断流后半截正文丢失」「流中只剩欢迎语」）。做法：响应 + 固定 settle（2s）。
+4. **不可现场自证的项用端点级故障注入，并标注**：实例若 `/api/ai-agent/**` 不校验 token（实测无 token 也 200），真实 401/断流/挂死
+   只能靠 `page.addInitScript` 包一层 `window.fetch` 拦单一 SSE 端点；证据与汇报必须写「故障注入」而非「通过」。
+   注入「断流」用 `controller.close()`（不发 done），**不要 `controller.error()`** —— 后者会让浏览器清空未读队列，连已发的那帧都丢。
+
 ## 交互确认类用例（危险操作 / 可见状态突变，Level 2 必做）
 
 凡「点一下立即生效、且用户看得见状态变化」的按钮（归档 / 删除 / 发布 / 批量改 / 取消运行…），

@@ -20,6 +20,8 @@
 | 起子进程消费 stdout/stderr（终端命令/CLI 集成/服务探活）/中文乱码 U+FFFD | PC-011 |
 | 设置页 AI 提供方编辑表单受容器裁切 / 编辑未以视口级弹窗显示 | PC-012 |
 | AIAgent 执行入口 / 模型解析 / Run 恢复 / 上游空响应 | PC-013 |
+| XCode 测试夹具 / 测试 ctor 连接串 / 全量联跑缺表吞行 | PC-014 |
+| 流式工具调用分片消费 / UnifiedStreamChunk.DeltaToolCall / 会话历史空名调用 | PC-015 |
 
 ## 台账总表
 
@@ -38,6 +40,8 @@
 | PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073） | 0 | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
 | PC-012 | 设置容器内的提供方编辑未使用视口级弹窗 | guarded | G1 active | 0 | [PC-012](PC-012-settings-provider-edit-container-clipping.md) |
 | PC-013 | 模型选择静默降级 + 上游空响应当成功 | guarded | G1+G2 active | 0（逃逸：041 门禁未覆盖空流） | [PC-013](PC-013-silent-model-fallback-empty-response.md) |
+| PC-014 | 测试 ctor 手搓 DAL.AddConnStr 换库（Reset 换 Database + 会话残留 → 吞行/吞表） | guarded | G2 active（XCodeTestFixtureIronRuleTests） | 0 | [PC-014](PC-014-test-ctor-rebind-connstr.md) |
+| PC-015 | 流式工具调用分片被逐片当完整调用（空名调用毒化会话） | guarded | G1+G3 active（修复批 2026-10-29） | 0 | [PC-015](PC-015-maf-stream-toolcall-fragment.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

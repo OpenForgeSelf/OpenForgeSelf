@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services.AI;
+using ForgeSelf.Api.Services.AI.Providers;
 // 宿主旧版 AI 消息模型与 Abstractions.AIChatMessage 同名，用别名消除 CS0104 歧义。
 using LegacyAIChatMessage = ForgeSelf.Api.Models.AIChatMessage;
 
@@ -147,56 +148,46 @@ public class AIService : IAIService
     {
         try
         {
-            var request = new AIChatRequest
+            // PILOT-074 FR-8（U-2 放行）：回退路径出站切 openai-dotnet SDK（与主链路同一映射层）；
+            // reasoning_content 经 ModelReaderWriter 往返提取（探针实证往返保留未知字段）
+            var config = new AIProviderConfig
+            {
+                Name = "AIService回退",
+                ProviderType = AIProviderType.OpenAI,
+                Endpoint = _aiConfig.ApiEndpoint,
+                ApiKey = _aiConfig.ApiKey ?? string.Empty,
+                TimeoutSeconds = 10,
+            };
+            var request = new UnifiedChatRequest
             {
                 Model = _aiConfig.ModelName,
-                Messages = messages,
-                Stream = false
+                Messages = messages.Select(m => new UnifiedChatMessage
+                {
+                    Role = m.Role,
+                    Content = m.Content
+                }).ToList()
             };
-
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var jsonContent = JsonSerializer.Serialize(request, jsonOptions);
-            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, _aiConfig.ApiEndpoint);
-            httpRequest.Content = content;
-            httpRequest.Headers.Add("Authorization", $"Bearer {_aiConfig.ApiKey}");
 
             _logService.Info("发送AI请求: {0}", _aiConfig.ApiEndpoint);
-            _logService.Debug("请求体: {0}", jsonContent);
 
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var response = await _httpClient.SendAsync(httpRequest, cts.Token);
-            if (!response.IsSuccessStatusCode)
+            var unified = await OpenAISdkAdapter.ChatAsync(
+                config, request, _httpClient, config.Name, cts.Token, reasoningAsContentFallback: true);
+
+            var choice = unified.Choices.FirstOrDefault();
+            if (choice == null)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logService.Error("AI请求失败，状态码: {0}, 响应内容: {1}", (int)response.StatusCode, errorContent);
+                _logService.Warn("AI响应为空");
                 return GetFallbackResponse(messages);
             }
 
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var aiResponse = JsonSerializer.Deserialize<AIChatResponse>(responseContent, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            if (aiResponse?.Choices?.Count > 0)
-            {
-                var message = aiResponse.Choices[0].Message;
-                var result = !string.IsNullOrEmpty(message?.Content)
-                    ? message.Content
-                    : !string.IsNullOrEmpty(message?.ReasoningContent)
-                        ? message.ReasoningContent
-                        : string.Empty;
-                _logService.Info("AI响应成功，长度: {0}", result.Length);
-                return result;
-            }
-
-            _logService.Warn("AI响应为空");
-            return GetFallbackResponse(messages);
+            var result = !string.IsNullOrEmpty(choice.Content)
+                ? choice.Content
+                : !string.IsNullOrEmpty(choice.ReasoningContent)
+                    ? choice.ReasoningContent
+                    : string.Empty;
+            _logService.Info("AI响应成功，长度: {0}", result.Length);
+            return result;
         }
         catch (Exception ex)
         {
@@ -216,87 +207,66 @@ public class AIService : IAIService
     /// </summary>
     public async IAsyncEnumerable<string> ChatStreamAsync(List<LegacyAIChatMessage> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var request = new AIChatRequest
+        // PILOT-074 FR-8（U-2 放行）：流式回退出站切 SDK；reasoning_content 增量经往返提取并以正文回放（对齐旧回退语义）
+        var config = new AIProviderConfig
+        {
+            Name = "AIService回退",
+            ProviderType = AIProviderType.OpenAI,
+            Endpoint = _aiConfig.ApiEndpoint,
+            ApiKey = _aiConfig.ApiKey ?? string.Empty,
+            TimeoutSeconds = 10,
+        };
+        var request = new UnifiedChatRequest
         {
             Model = _aiConfig.ModelName,
-            Messages = messages,
-            Stream = true
+            Stream = true,
+            Messages = messages.Select(m => new UnifiedChatMessage
+            {
+                Role = m.Role,
+                Content = m.Content
+            }).ToList()
         };
-
-        var jsonContent = JsonSerializer.Serialize(request);
-        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, _aiConfig.ApiEndpoint);
-        httpRequest.Content = content;
-        httpRequest.Headers.Add("Authorization", $"Bearer {_aiConfig.ApiKey}");
 
         _logService.Info("发送AI流式请求: {0}", _aiConfig.ApiEndpoint);
 
-        HttpResponseMessage response;
+        var source = OpenAISdkAdapter.ChatStreamAsync(
+            config, request, _httpClient, config.Name, cancellationToken, reasoningAsContentFallback: true);
+        var enumerator = source.GetAsyncEnumerator(cancellationToken);
         try
         {
-            response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
-            _logService.Error("AI流式请求失败: {0}", ex.Message);
-            yield break;
-        }
-
-        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream);
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var line = await reader.ReadLineAsync(cancellationToken);
-
-            if (line == null)
-                break;
-
-            if (string.IsNullOrEmpty(line))
-                continue;
-
-            if (line.StartsWith("data: "))
+            while (true)
             {
-                var data = line[6..];
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync();
+                }
+                catch (Exception ex)
+                {
+                    // 旧语义：流式失败仅记录并静默结束（SSE 已出流，不能中断为 500）
+                    _logService.Error("AI流式请求失败: {0}", ex.Message);
+                    yield break;
+                }
 
-                if (data == "[DONE]")
+                if (!hasNext)
+                    yield break;
+
+                var chunk = enumerator.Current;
+                if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                {
+                    yield return chunk.DeltaContent;
+                }
+
+                if (chunk.IsDone)
                 {
                     _logService.Info("AI流式响应完成");
                     yield break;
                 }
-
-                AIChatResponse? chunk;
-                try
-                {
-                    chunk = JsonSerializer.Deserialize<AIChatResponse>(data, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-                }
-                catch (JsonException ex)
-                {
-                    _logService.Warn("解析流式响应失败: {0}", ex.Message);
-                    continue;
-                }
-
-                if (chunk?.Choices?.Count > 0)
-                {
-                    var delta = chunk.Choices[0].Delta;
-                    if (delta != null)
-                    {
-                        if (!string.IsNullOrEmpty(delta.Content))
-                        {
-                            yield return delta.Content;
-                        }
-                        else if (!string.IsNullOrEmpty(delta.ReasoningContent))
-                        {
-                            yield return delta.ReasoningContent;
-                        }
-                    }
-                }
             }
+        }
+        finally
+        {
+            await enumerator.DisposeAsync();
         }
     }
 }

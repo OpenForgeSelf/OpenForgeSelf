@@ -17,6 +17,8 @@ process.env.PLAYWRIGHT_BROWSERS_PATH ??= resolve(__dirname, '..', '.playwright-b
  */
 export default defineConfig({
   testDir: './e2e',
+  // 只跑「运行实例验收」用例：默认配置已 testIgnore 掉 *.live.spec.ts，两边互不重叠。
+  testMatch: '**/*.live.spec.ts',
   fullyParallel: false,
   reporter: 'list',
   use: {

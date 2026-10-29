@@ -36,13 +36,15 @@ public static class CommandExecutor
             return Fail(command, "outside_workspace", cwdError, start);
         }
 
-        var (exe, rest) = CommandGuard.SplitExecutable(command);
+        // PILOT-075：多段命令（| && || ; 换行）经 pwsh -NoProfile -NonInteractive -Command 执行完整命令串
+        //（ArgumentList 负责转义）；单段命令维持直接 Process 首 token 的既有姿势（行为零变化）。
+        CommandGuard.TrySplitSegments(command, out var segments, out _);
+        var isChain = segments.Count > 1;
+        var exeLabel = isChain ? "pwsh(chain)" : CommandGuard.SplitExecutable(command).exe;
         var timeout = Math.Clamp(timeoutSeconds ?? CommandGuard.MaxTimeoutSeconds, 1, CommandGuard.MaxTimeoutSeconds);
 
         var psi = new ProcessStartInfo
         {
-            FileName = exe,
-            Arguments = rest,
             WorkingDirectory = workDir,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -51,6 +53,20 @@ public static class CommandExecutor
             // 不设固定码页（PC-011，PILOT-073）：下面捕原始字节交 ProcessOutputText 裁决，
             // 否则按系统 ANSI（GBK）写出的中文输出会被 UTF-8 严格解码毁成 U+FFFD。
         };
+        if (isChain)
+        {
+            psi.FileName = "pwsh";
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-NonInteractive");
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add(command);
+        }
+        else
+        {
+            var (exe, rest) = CommandGuard.SplitExecutable(command);
+            psi.FileName = exe;
+            psi.Arguments = rest;
+        }
 
         Process? proc;
         try
@@ -60,7 +76,7 @@ public static class CommandExecutor
         catch (Win32Exception ex)
         {
             // BC-6：白名单过了但可执行文件不在 PATH。
-            return Fail(command, "executable_not_found", $"{exe}（{ex.Message}）", start);
+            return Fail(command, "executable_not_found", $"{exeLabel}（{ex.Message}）", start);
         }
         catch (Exception ex)
         {
@@ -69,7 +85,7 @@ public static class CommandExecutor
 
         if (proc == null)
         {
-            return Fail(command, "start_failed", $"failed to start process '{exe}'", start);
+            return Fail(command, "start_failed", $"failed to start process '{exeLabel}'", start);
         }
 
         using (proc)
@@ -153,7 +169,7 @@ public static class CommandExecutor
                 ["stderrTruncated"] = stderrTruncated
             };
 
-            XTrace.Log.Info("[tool-bridge] run_command {0}（{1}ms，exit={2}）", exe, Environment.TickCount64 - start, exitCode);
+            XTrace.Log.Info("[tool-bridge] run_command {0}（{1}ms，exit={2}）", exeLabel, Environment.TickCount64 - start, exitCode);
 
             return new ToolResult
             {

@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AboutPanel: typeof import('./src/components/settings/AboutPanel.vue')['default']
+    AIAgentMessageStoryHost: typeof import('./src/components/AIAgentMessageStoryHost.vue')['default']
     AiAgentPanel: typeof import('./src/components/settings/AiAgentPanel.vue')['default']
     AiProvidersPanel: typeof import('./src/components/settings/AiProvidersPanel.vue')['default']
     AIScriptDebugger: typeof import('./src/components/scriptrunner/AIScriptDebugger.vue')['default']

@@ -33,9 +33,10 @@ const providers = ref<AIProvider[]>([]);
 const loading = ref(false);
 const error = ref('');
 
-/** 提供方类型 → el-tag type 映射（对齐设计稿） */
+/** 提供方类型 → el-tag type 映射（对齐设计稿；OpenAIResponses=新协议，info 蓝灰区别于 OpenAI 的绿） */
 const typeTagMap: Record<AIProviderType, 'success' | 'warning' | 'info'> = {
   OpenAI: 'success',
+  OpenAIResponses: 'info',
   Anthropic: 'warning',
   Custom: 'info'
 };
@@ -596,6 +597,7 @@ onMounted(() => {
           </label>
           <el-select v-model="form.providerType" class="w-full">
             <el-option label="OpenAI" value="OpenAI" />
+            <el-option label="OpenAI Responses" value="OpenAIResponses" />
             <el-option label="Anthropic" value="Anthropic" />
             <el-option label="Custom" value="Custom" />
           </el-select>

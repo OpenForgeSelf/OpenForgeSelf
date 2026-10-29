@@ -118,6 +118,12 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
     private readonly object _sync = new();
     private readonly List<(string CallId, string ToolName)> _openCalls = new();
 
+    /// <summary>
+    /// 本回合生效出口工具名集合（PILOT-051）：TaskLoopMode 时并入 task_complete；
+    /// 每次 RunAsync 开头重建（ApplyOptions 换选项后即生效）。null = 尚未开跑（按 _options 退化）。
+    /// </summary>
+    private IReadOnlyList<string>? _effectiveExitToolNames;
+
     private AgentOptions _options;
     private AgentStatus _status = AgentStatus.Idle;
     private CancellationTokenSource? _turnCts;
@@ -204,6 +210,24 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
             var turnEndReason = TurnEndReason.Completed;
             var maxTokensSticky = false;
 
+            // PILOT-051（R1）任务循环：task_complete 出口并入生效出口集合（声明即出口），
+            // 出口工具定义并入请求工具（经 TaskLoopPrompts 单一词汇源，与 MafTaskLoopAgent 同文案）。
+            var effectiveExitToolNames = _options.ExitToolNames is { Count: > 0 }
+                ? new List<string>(_options.ExitToolNames)
+                : new List<string>();
+            if (_options.TaskLoopMode
+                && !effectiveExitToolNames.Contains(AgentOptions.TaskCompleteToolName, StringComparer.OrdinalIgnoreCase))
+            {
+                effectiveExitToolNames.Add(AgentOptions.TaskCompleteToolName);
+            }
+            _effectiveExitToolNames = effectiveExitToolNames;
+            var taskLoopTools = _options.TaskLoopMode
+                ? new List<UnifiedToolDefinition>(_runtime.ToolDefinitions ?? new List<UnifiedToolDefinition>())
+                    { MafLoop.TaskLoopPrompts.TaskCompleteDefinition() }
+                : null;
+            var taskLoopActive = _options.TaskLoopMode && effectiveExitToolNames.Count > 0;
+            var forceToolCallThisStep = false;
+
             Append(new TurnStartEvent(0, SessionId, DateTimeOffset.Now, turnId));
             yield return new TurnStarted(turnId);
 
@@ -281,7 +305,20 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
 
                 // request/header：请求信封先落日志（不变量 2：请求是日志的纯函数）
                 var toolRefs = _runtime.ToolDefinitions?.Select(t => t.Name).ToList() ?? new List<string>();
+                if (_options.TaskLoopMode && !toolRefs.Contains(AgentOptions.TaskCompleteToolName, StringComparer.OrdinalIgnoreCase))
+                {
+                    toolRefs.Add(AgentOptions.TaskCompleteToolName);
+                }
                 var renderedSystemPrompt = await RenderSystemPromptAsync(messages, toolRefs, turnCts.Token);
+                if (taskLoopActive)
+                {
+                    renderedSystemPrompt = (string.IsNullOrWhiteSpace(renderedSystemPrompt) ? string.Empty : renderedSystemPrompt + "\n\n")
+                        + MafLoop.TaskLoopPrompts.Protocol(effectiveExitToolNames);
+                }
+                if (taskLoopActive && forceToolCallThisStep)
+                {
+                    renderedSystemPrompt += "\n\n" + MafLoop.TaskLoopPrompts.Continuation(effectiveExitToolNames);
+                }
                 Append(new RequestHeaderEvent(0, SessionId, DateTimeOffset.Now, _runtime.ModelId,
                     renderedSystemPrompt, toolRefs));
 
@@ -320,12 +357,15 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
                     {
                         Model = _runtime.ModelId,
                         Messages = messages.Select(ToUnifiedMessage).ToList(),
-                        Tools = _runtime.ToolDefinitions,
+                        Tools = taskLoopTools ?? _runtime.ToolDefinitions,
                         SystemPrompt = renderedSystemPrompt,
                         Stream = true,
                         // 计划驱动回合（挂载出口工具）必须要求模型调用工具（AC14）：
                         // 纯文本结束会让出口永远走不到，只会把「模型没按契约回」误判成步骤完成/卡住。
-                        ToolChoice = _options.ExitToolNames is { Count: > 0 } ? "required" : null,
+                        // PILOT-051 任务循环：聊天路径的续跑步（上步纯文本未出口）同样强制工具调用。
+                        ToolChoice = _options.ExitToolNames is { Count: > 0 } ? "required"
+                            : taskLoopActive && forceToolCallThisStep ? "required"
+                            : null,
                         StreamOptions = new UnifiedStreamOptions { IncludeUsage = true }
                     };
 
@@ -500,10 +540,23 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
                     // R2：本步已成功提交 → 确认消费本步收下的收件箱输入（失败/中止路径不确认）
                     ConfirmIfCommitted(consumed);
 
+                    // PILOT-051（R1）任务循环：本回合已发生过工具调用且模型只产出纯文本（未出口）
+                    // → 不收束回合，注入续跑指令并在下一步强制工具调用（「做完才停」语义）。
+                    // 纯问答（整回合零工具调用）不受影响；max-tokens 粘滞回合不续跑。
+                    if (taskLoopActive && !isMaxTokens && HadToolCallThisTurn())
+                    {
+                        XTrace.Log.Info("[ReactLoopAgent] 任务循环续跑（模型纯文本未出口）SessionId={0}, TurnId={1}, Step={2}",
+                            SessionId, turnId, stepIndex);
+                        forceToolCallThisStep = true;
+                        stepIndex++;
+                        continue;
+                    }
+
                     // 收敛检查点：无监听即收束；监听器明确不收束（返回 false）→ 再跑一步
                     var bail = await ShouldTakeAnotherStepAsync(turnId, stepIndex, toolCallsPending: false, ct: turnCts.Token);
                     if (bail)
                     {
+                        forceToolCallThisStep = false;
                         stepIndex++;
                         continue;
                     }
@@ -625,6 +678,7 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
                 ConfirmIfCommitted(consumed);
 
                 // 还欠请求（工具结果要喂回模型）→ 下一 step；步数上限由循环头部兜底
+                forceToolCallThisStep = false;
                 stepIndex++;
             }
 
@@ -718,7 +772,7 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
     {
         var systemPrompt = _runtime.SystemPrompt ?? string.Empty;
 
-        if (_runtime.MemoryPromptProvider == null || !toolRefs.Contains("get_relevant_memories"))
+        if (_runtime.MemoryPromptProvider == null || !toolRefs.Contains("memory_relevant"))
         {
             return systemPrompt;
         }
@@ -794,10 +848,28 @@ public sealed class ReactLoopAgent : IAgent, IAsyncDisposable
         return !stop; // bail：监听器明确要求不收束 → 再跑一步
     }
 
-    /// <summary>是否出口工具（B7 统一循环）：命中 <see cref="AgentOptions.ExitToolNames"/> 即声明出口。</summary>
+    /// <summary>
+    /// 是否出口工具（B7 统一循环 + PILOT-051 任务循环）：命中生效出口集合即声明出口。
+    /// 生效集合 = AgentOptions.ExitToolNames +（TaskLoopMode 时的 task_complete），每次 RunAsync 开头重建。
+    /// </summary>
     private bool IsExitTool(string toolName)
-        => _options.ExitToolNames is { Count: > 0 } exits
+    {
+        var exits = _effectiveExitToolNames ?? _options.ExitToolNames;
+        return exits is { Count: > 0 }
            && exits.Contains(toolName, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>本回合到当前为止是否发生过工具调用（PILOT-051：从队尾扫回最近的 turn/start）。</summary>
+    private bool HadToolCallThisTurn()
+    {
+        var events = _runtime.Store.Replay(SessionId);
+        for (var i = events.Count - 1; i >= 0; i--)
+        {
+            if (events[i] is ToolCallEvent) return true;
+            if (events[i] is TurnStartEvent) return false;
+        }
+        return false;
+    }
 
     /// <summary>
     /// 未闭合工具调用收口（B4 遗留收口②）：补一条 Skipped 的 tool/result 并显式告警，

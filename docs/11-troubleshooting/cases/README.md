@@ -14,5 +14,7 @@
 | 2026-10-22-process-output-fixed-codepage-decode | 2026-10-22 | run_terminal_command 执行 pwsh 读中文文件返回全 U+FFFD 乱码（同类扫查 8 站点） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md) | Verified | [链接](2026-10-22-process-output-fixed-codepage-decode.md) |
 | 2026-10-24-settings-provider-edit-container-clipping | 2026-10-24 | AI 提供方编辑表单受设置容器约束而看不全 | [PC-012](../problem-classes/PC-012-settings-provider-edit-container-clipping.md) | Verified | [链接](2026-10-24-settings-provider-edit-container-clipping.md) |
 | 2026-10-25-builtin-agent-silent-model-fallback | 2026-10-25 | 待办一键交给内置 Agent 后 Run 立即 Stuck（硬编码模型不存在 + 空响应当成功） | [PC-013](../problem-classes/PC-013-silent-model-fallback-empty-response.md) | Verified | [链接](2026-10-25-builtin-agent-silent-model-fallback.md) |
+| 2026-10-29-test-ctor-rebind-connstr | 2026-10-29 | 测试 ctor 手搓 AddConnStr 换库 → 全量联跑吞行/吞表/写走别处（PILOT-051 74 红归因，净修复 22 红） | [PC-014](../problem-classes/PC-014-test-ctor-rebind-connstr.md) | Verified | [链接](2026-10-29-test-ctor-rebind-connstr.md) |
+| 2026-10-29-aiagent-maf-empty-function-name | 2026-10-29 | 2.4.18 MAF 聊天路径流式工具调用分片逐片成调用，空名空壳毒化会话（同会话每条消息 1~2ms 必败） | [PC-015](../problem-classes/PC-015-maf-stream-toolcall-fragment.md) | Verified | [链接](2026-10-29-aiagent-maf-empty-function-name.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

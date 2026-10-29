@@ -140,7 +140,11 @@ describe('BlockRenderer 富内容块（FR-301~317）', () => {
   })
 
   /* ---------- FR-302 工具调用：状态与写操作标记 ---------- */
-  it('tool 渲染名称、状态文案；dangerous 显示写操作标签', () => {
+  /* FR-302 规约已变更（2026-10-26 展示形态对齐）：
+     折叠行 = 「图标 · 行为 · 工具名」，成功态**不再写「完成」** ——
+     一次调用成功了就没有可读信息，写出来只是噪声；
+     执行中 / 失败仍必须不展开就看得见（下两条用例守住这一点）。 */
+  it('tool 折叠行渲染名称与写操作标签；成功态不写状态词', () => {
     const w = mountBlock({
       type: 'tool',
       name: 'delete_file',
@@ -151,10 +155,79 @@ describe('BlockRenderer 富内容块（FR-301~317）', () => {
       result: 'done',
     })
     expect(w.find('.aiw-tool__name').text()).toBe('delete_file')
-    expect(w.find('.aiw-tool__status').text()).toBe('完成')
+    expect(w.find('.aiw-tool__label').text()).toBe('工具调用')
+    expect(w.find('.aiw-tool__status').exists()).toBe(false)
     expect(w.find('.aiw-tool__dur').text()).toBe('320ms')
     expect(w.find('.aiw-tool__danger').text()).toBe('写操作')
     expect(w.find('.aiw-tool__pre').text()).toContain('/tmp/a')
+    // 展开后的分区标题对齐参考形态：输入 / 输出
+    const keys = w.findAll('.aiw-tool__k')
+    expect(keys[0].text()).toBe('输入')
+    expect(keys[keys.length - 1].text()).toBe('输出')
+  })
+
+  it('tool 执行中与失败必须在折叠态就可见', () => {
+    expect(mountBlock({ type: 'tool', name: 'x', status: 'running' }).find('.aiw-tool__status').text()).toBe('执行中')
+    expect(mountBlock({ type: 'tool', name: 'x', status: 'error' }).find('.aiw-tool__status').text()).toBe('失败')
+  })
+
+  it('tool 行为从显式字段或入参推导；推不出就留空', () => {
+    expect(
+      mountBlock({ type: 'tool', name: 'plugin_manager', action: 'install_bundle' })
+        .find('.aiw-tool__action')
+        .text()
+    ).toBe('install_bundle')
+    // 入参是 JSON 字符串也要能认
+    expect(
+      mountBlock({ type: 'tool', name: 'fs', args: '{"op":"write_file","path":"a"}' })
+        .find('.aiw-tool__action')
+        .text()
+    ).toBe('write_file')
+    // 推不出就不生成空段，不瞎猜一个词
+    expect(mountBlock({ type: 'tool', name: 'fs', args: { path: 'a' } }).find('.aiw-tool__action').exists()).toBe(false)
+  })
+
+  it('思考折叠行给出单行摘要，超长截断', () => {
+    const short = mountBlock({ type: 'thinking', text: '先看结构', done: true })
+    expect(short.find('.aiw-think__peek').text()).toBe('先看结构')
+    const long = mountBlock({ type: 'thinking', text: 'x'.repeat(200), done: true })
+    const peek = long.find('.aiw-think__peek').text()
+    expect(peek.endsWith('…')).toBe(true)
+    expect(peek.length).toBeLessThan(100)
+  })
+
+  /* ---------- 左列对齐：图标槽（2026-10-26 用户指「悬浮多出箭头让左边不齐」） ----------
+     结构契约：三种可折叠行的 button 首个元素都是 .aiw-ico，槽内**同时**有类型图标（glyph）
+     与折叠箭头（chev），二者同位叠放、只切 opacity ⇒ 悬浮不产生任何横向位移。
+     jsdom 不跑布局，所以「x 相等 / 不漂移」只能由宿主 CT 的几何断言守（AC2）。 */
+  it('三种可折叠行的行首都以图标槽开头，槽内同时有类型图标与折叠箭头', () => {
+    const rows: Array<[Record<string, unknown>, string]> = [
+      [{ type: 'tool', name: 'x' }, '.aiw-tool__head'],
+      [{ type: 'thinking', text: '想', done: true }, '.aiw-think__head'],
+      [{ type: 'group', title: '执行过程', blocks: [] }, '.aiw-grp__head'],
+    ]
+    for (const [block, headSel] of rows) {
+      const head = mountBlock(block).find(headSel)
+      const slot = head.find('.aiw-ico')
+      expect(slot.exists(), `${headSel} 缺少图标槽 .aiw-ico`).toBe(true)
+      // 槽必须是行首第一个元素：排在后面就等于箭头还在抢位置
+      expect(head.element.firstElementChild).toBe(slot.element)
+      expect(slot.find('.aiw-ico__glyph').exists()).toBe(true)
+      // 箭头只能有一个，且在槽内 —— 整行有第二个就是「悬浮多出来的那一个」
+      expect(head.findAll('.aiw-ico__chev').length).toBe(1)
+      expect(slot.find('.aiw-ico__chev').exists()).toBe(true)
+    }
+  })
+
+  it('展开态由图标槽上的 is-open 表达（箭头常驻并旋转，图标让位）', async () => {
+    // 块默认展开（open !== false），这里显式从折叠态起手，才能断言两个方向的切换
+    const w = mountBlock({ type: 'tool', name: 'x', args: { a: 1 }, collapsed: true })
+    const slot = () => w.get('.aiw-ico')
+    expect(slot().classes()).not.toContain('is-open')
+    await w.get('.aiw-tool__head').trigger('click')
+    expect(slot().classes()).toContain('is-open')
+    await w.get('.aiw-tool__head').trigger('click')
+    expect(slot().classes()).not.toContain('is-open')
   })
 
   /* ---------- FR-402~406 审批：风险分级 + 确认词门禁 ---------- */

@@ -48,7 +48,11 @@ public class AIProviderRegistry : IAIProviderRegistry
         {
             if (string.IsNullOrWhiteSpace(cfg.Endpoint)) continue;
             var httpClient = httpClientFactory.CreateClient();
-            next.Add(new OpenAICompatibleProvider(cfg, httpClient));
+            // FR-6：按 ProviderType 分派——OpenAIResponses 走新协议提供方，其余沿用兼容提供方（Anthropic 遗留路径在兼容方内部）
+            if (cfg.ProviderType == AIProviderType.OpenAIResponses)
+                next.Add(new OpenAIResponsesProvider(cfg, httpClient));
+            else
+                next.Add(new OpenAICompatibleProvider(cfg, httpClient));
         }
 
         lock (_reloadLock)

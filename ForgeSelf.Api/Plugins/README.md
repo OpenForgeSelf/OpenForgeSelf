@@ -1,4 +1,4 @@
-﻿# 插件体系（Plugins）
+# 插件体系（Plugins）
 
 > 本文件是插件开发的权威规范。涵盖一个插件从「诞生 → 发布 → 发现 → 加载 → 应用 → 数据落盘 → 停用」的完整生命周期（前世今生）、命名规范（两层身份模型）、数据落盘约定，以及如何新建插件。
 > 代码层（目录/程序集/EntryType）刻意使用 C# 原生 PascalCase；运行时层（Id/数据目录/路由）统一 kebab-case；**库文件名**则刻意取 XCode **连接名**（PascalCase，连接名即数据库名，与 XCode 模型一致）—— 这是**刻意设计而非不一致**，详见第四节。
@@ -76,7 +76,6 @@
 | `Scheduler` | `scheduler` | `Scheduler.db` | XCode（`PluginDbs`，连接名 `Scheduler`） |
 | `ScriptRunner` | `script-runner` | `ScriptRunner.db` | XCode（`PluginDbs`，连接名 `ScriptRunner`） |
 | `SystemMonitor` | `system-monitor` | （无持久库） | — |
-| `TextTools` | `text-tools` | （无持久库） | — |
 | `TodoTracker` | `todo-tracker` | `TodoTracker.db` | XCode（`PluginDbs`，连接名 `TodoTracker`） |
 | `WorkflowEngine` | `workflow-engine` | `WorkflowEngine.db` | XCode（`PluginDbs`，连接名 `WorkflowEngine`） |
 

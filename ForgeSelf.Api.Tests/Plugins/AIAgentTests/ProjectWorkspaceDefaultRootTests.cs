@@ -1,13 +1,14 @@
 using System.Text.Json;
-using ForgeSelf.Api.Plugins.AIAgent;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
+using ForgeSelf.Api.Plugins.FileTools;
 using ForgeSelf.Core;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Plugins.AIAgentTests;
 
 /// <summary>
-/// mini-task（2026-10-12 输入4）文件三件套默认根 · Phase3 六断言组：
+/// mini-task（2026-10-12 输入4）文件三件套默认根 · Phase3 六断言组；2026-10-28 归属迁移至 mcp-center + FR-5 绝对路径语义（read/write 不再隐式接项目根）：
 /// <list type="bullet">
 /// <item><b>A 阳性对照</b>：TrySetProjectRoot(temp) 后 ResolveSafePath("hello/x.txt") 返回 temp 下全路径；</item>
 /// <item><b>B 引导错误</b>：未选目录 + 未设 env ⇒ DefaultRoot 为 null 或回退仓库根均可，
@@ -15,7 +16,7 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgentTests;
 /// <item><b>C env 指向临时目录</b>：DefaultRoot==该 temp；相对/绝对路径(Temp 内)均成功；</item>
 /// <item><b>D 越界拒绝</b>：env 指向 temp，ResolveSafePath(C:\Windows\...\hosts) 抛「拒绝访问」；</item>
 /// <item><b>E 绝对路径越界</b>：已选目录后，temp 外绝对路径仍抛「拒绝访问」；</item>
-/// <item><b>F 工具函数信封</b>：直接实例化 ListFiles/ReadFile/WriteFileToolFunction("ai-agent", ctx=Context stub)，
+/// <item><b>F 工具函数信封</b>：直接实例化 ListFiles/ReadFile/WriteFileToolFunction(ctx=Context stub)（2026-10-28 归属迁 mcp-center；read/write 改绝对路径 FR-5），
 /// 断言 { success, error, hint?, usedRoot } 三态封套与 usedRoot 语义。
 /// <b>信封字段在 Phase 4 e2e/dev 走查落实证据</b>（与本测试注释约定一致）。</item>
 /// </list>
@@ -335,6 +336,9 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     }
 
     // ---- F. 工具函数信封：三态封套 { success, error, hint?, usedRoot }（直接实例化 + Context stub）----
+    // 2026-10-28 工具归属迁移：文件三件套现属 mcp-center（裸名 = 平台保留名，用户拍板豁免前缀）；
+    // read/write 语义改为 FR-5 绝对路径参数化——path 必须绝对、不再隐式接项目根；
+    // list_files 保留「path 缺省 → 回退项目根/DefaultRoot」的兜底动线。
     // 信封字段在 Phase 4 e2e/dev 走查落实证据（用户授权的注释级约定）。
 
     [Fact]
@@ -371,17 +375,91 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     }
 
     [Fact]
-    public async Task ListFiles_WorkspaceUnavailable_ReturnsServiceUnavailableEnvelope()
+    public async Task ListFiles_NoWorkspace_NoPath_ReturnsServiceUnavailableEnvelope()
     {
-        var fn = new ListFilesToolFunction("ai-agent", new Context());
+        var fn = new ListFilesToolFunction(new Context());
 
         var json = await fn.ExecuteAsync("{}");
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("项目工作区服务不可用", doc.RootElement.GetProperty("error").GetString());
-        Assert.Equal("检查插件宿主状态", doc.RootElement.GetProperty("hint").GetString());
+        Assert.Equal("项目工作区服务不可用，且未传 path 绝对路径", doc.RootElement.GetProperty("error").GetString());
         Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("usedRoot").ValueKind);
+    }
+
+    // FR-5 核心翻转：read/write 不再依赖项目根——无工作区服务 + 绝对路径 = 照常工作（AC-3）。
+
+    [Fact]
+    public async Task ListFiles_NoWorkspace_AbsolutePath_ListsDirectory()
+    {
+        var fn = new ListFilesToolFunction(new Context()); // 无 IProjectWorkspaceService
+
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _tmpRoot }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains(doc.RootElement.GetProperty("files").EnumerateArray(),
+            f => f.GetProperty("name").GetString() == "note.txt");
+        Assert.Equal(Path.GetFullPath(_tmpRoot), doc.RootElement.GetProperty("root").GetString());
+    }
+
+    [Fact]
+    public async Task ReadFile_NoWorkspace_AbsolutePath_Works()
+    {
+        var fn = new ReadFileToolFunction(new Context()); // 无 IProjectWorkspaceService
+
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _workspaceFile, start_line = 1 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("hello-default-root", doc.RootElement.GetProperty("content").GetString());
+        Assert.Equal(Path.GetFullPath(_workspaceFile), doc.RootElement.GetProperty("path").GetString());
+        Assert.Equal(1, doc.RootElement.GetProperty("totalLines").GetInt32());
+    }
+
+    [Fact]
+    public async Task WriteFile_NoWorkspace_AbsolutePath_CreatesFileAndParentDirs()
+    {
+        var fn = new WriteFileToolFunction(new Context()); // 无 IProjectWorkspaceService
+
+        var target = Path.Combine(NewTempDir(), "sub", $"ofs-test-write-absolute-{Guid.NewGuid():N}.txt");
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, content = "abs", start_line = 1, end_line = 1 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(File.Exists(target));
+        Assert.Equal("abs", File.ReadAllText(target));
+    }
+
+    // FR-5 拒绝路径：read/write 收到相对路径必须报错引导（不再隐式接项目根）。
+
+    [Fact]
+    public async Task ReadFile_RelativePath_RejectedWithGuidance()
+    {
+        var ctx = new Context();
+        var ws = NewWorkspace();
+        ctx.Register<IProjectWorkspaceService>(ws); // 项目根可得也不行：语义是参数化，不是兜底
+
+        var fn = new ReadFileToolFunction(ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AG.md", start_line = 1 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("绝对路径", doc.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task WriteFile_RelativePath_RejectedWithGuidance()
+    {
+        var ctx = new Context();
+        ctx.Register<IProjectWorkspaceService>(NewWorkspace());
+
+        var fn = new WriteFileToolFunction(ctx);
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = ".temp/none.txt", content = "x", start_line = 1, end_line = 1 }));
+
+        using var doc = JsonDocument.Parse(json);
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("绝对路径", doc.RootElement.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -393,14 +471,12 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
         var ctx = new Context();
         ctx.Register<IProjectWorkspaceService>(new NullDefaultRootWorkspace());
 
-        var fn = new ListFilesToolFunction("ai-agent", ctx);
+        var fn = new ListFilesToolFunction(ctx);
         var json = await fn.ExecuteAsync("{}");
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("尚未选择项目目录，请先在左侧选择工作目录", doc.RootElement.GetProperty("error").GetString());
-        Assert.True(doc.RootElement.TryGetProperty("hint", out var hint));
-        Assert.Contains("FORGESELF_DEFAULT_PROJECT_ROOT", hint.GetString());
+        Assert.Equal("尚未选择项目目录且未传 path：请先在左侧选择工作目录，或直接传目录绝对路径（如 D:\\src\\my-proj\\src）", doc.RootElement.GetProperty("error").GetString());
         Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("usedRoot").ValueKind);
     }
 
@@ -411,35 +487,15 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
         var ws = NewWorkspace();
         ctx.Register<IProjectWorkspaceService>(ws); // DefaultRoot 恒可兜（测试进程在仓内）
 
-        var fn = new ListFilesToolFunction("ai-agent", ctx);
+        var fn = new ListFilesToolFunction(ctx);
         var json = await fn.ExecuteAsync("{}");
 
         using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         var files = doc.RootElement.GetProperty("files");
         // 仓根铁定存在的文件，验证列表真实来自 DefaultRoot（不用写盘物资）。
-        Assert.Contains(files.EnumerateArray(), f => f.GetProperty("Name").GetString() == "ForgeSelf.slnx");
-        Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("root").ValueKind); // GUI 未选
-        Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("usedRoot").GetString());
-    }
-
-    [Fact]
-    public async Task ReadFile_ProjectNotSet_ButDefaultRootAvailable_ReadsThroughDefaultRoot()
-    {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
-
-        // 仓根铁定存在的文本文件（AGENTS.md），避免依赖「仓根恰好有 note.txt」这类脆断言。
-        var fn = new ReadFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", start_line = 1 }));
-
-        using var doc = JsonDocument.Parse(json);
-        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
-        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("content").GetString()));
-        Assert.True(doc.RootElement.GetProperty("totalLines").GetInt32() > 1); // 按行改造后回传总行数
-        Assert.Equal(1, doc.RootElement.GetProperty("startLine").GetInt32());
-        Assert.NotNull(doc.RootElement.GetProperty("usedRoot").GetString());
+        Assert.Contains(files.EnumerateArray(), f => f.GetProperty("name").GetString() == "ForgeSelf.slnx");
+        Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("root").GetString()); // 缺省回退根
         Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("usedRoot").GetString());
     }
 
@@ -447,16 +503,13 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     public async Task ReadFile_FromStartLine2_ReturnsTailAndTotalLines()
     {
         var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
 
-        var relative = Path.Combine(".temp", $"ofs-test-readline-{Guid.NewGuid():N}.txt");
-        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        var target = Path.Combine(NewTempDir(), $"ofs-test-readline-{Guid.NewGuid():N}.txt");
         File.WriteAllText(target, "L1\nL2\nL3\n");
         try
         {
-            var fn = new ReadFileToolFunction("ai-agent", ctx);
-            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 2 }));
+            var fn = new ReadFileToolFunction(ctx);
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, start_line = 2 }));
 
             using var doc = JsonDocument.Parse(json);
             Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
@@ -469,12 +522,9 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     [Fact]
     public async Task ReadFile_MissingStartLine_Fails()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
+        var fn = new ReadFileToolFunction(new Context());
 
-        var fn = new ReadFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md" }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _workspaceFile }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
@@ -484,17 +534,12 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     [Fact]
     public async Task ReadFile_WithEndLine_ReturnsClosedRangeAndClamps()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
-
-        var relative = Path.Combine(".temp", $"ofs-test-readrange-{Guid.NewGuid():N}.txt");
-        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        var target = Path.Combine(NewTempDir(), $"ofs-test-readrange-{Guid.NewGuid():N}.txt");
         File.WriteAllText(target, "A1\nB2\nC3\nD4");
         try
         {
-            var fn = new ReadFileToolFunction("ai-agent", ctx);
-            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 2, end_line = 3 }));
+            var fn = new ReadFileToolFunction(new Context());
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, start_line = 2, end_line = 3 }));
             using var doc = JsonDocument.Parse(json);
             Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal("B2\nC3", doc.RootElement.GetProperty("content").GetString());
@@ -503,7 +548,7 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
             Assert.Equal(4, doc.RootElement.GetProperty("totalLines").GetInt32());
 
             // end_line 超出总行数 → 钳到文末
-            var json2 = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, start_line = 3, end_line = 99 }));
+            var json2 = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, start_line = 3, end_line = 99 }));
             using var doc2 = JsonDocument.Parse(json2);
             Assert.True(doc2.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal("C3\nD4", doc2.RootElement.GetProperty("content").GetString());
@@ -515,12 +560,9 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     [Fact]
     public async Task ReadFile_EndLineBeforeStartLine_Fails()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
+        var fn = new ReadFileToolFunction(new Context());
 
-        var fn = new ReadFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", start_line = 5, end_line = 2 }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _workspaceFile, start_line = 5, end_line = 2 }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
@@ -528,41 +570,29 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     }
 
     [Fact]
-    public async Task WriteFile_ProjectNotSet_ButDefaultRootAvailable_WritesThroughDefaultRoot()
+    public async Task WriteFile_AbsolutePath_NewFile_WritesContent()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
+        var target = Path.Combine(NewTempDir(), $"ofs-test-write-{Guid.NewGuid():N}.txt");
 
-        // 写到 DefaultRoot（=仓库根）下的 .temp/（仓内 gitignore 区），只创建不删除（铁律 10）；
-        // 相对路径带子目录，同时覆盖「父目录不存在自动创建」语义。
-        var relative = Path.Combine(".temp", $"ofs-test-write-{Guid.NewGuid():N}.txt");
-        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
-
-        var fn = new WriteFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = " Written ", start_line = 1, end_line = 1 }));
+        var fn = new WriteFileToolFunction(new Context());
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, content = " Written ", start_line = 1, end_line = 1 }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.True(File.Exists(target));
         Assert.Equal(" Written ", File.ReadAllText(target));
-        Assert.Equal(ws.DefaultRoot, doc.RootElement.GetProperty("usedRoot").GetString());
+        Assert.Equal(Path.GetFullPath(target), doc.RootElement.GetProperty("path").GetString());
     }
 
     [Fact]
     public async Task WriteFile_FromStartLine2_KeepsHeadAndOverwritesTail()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
-
-        var relative = Path.Combine(".temp", $"ofs-test-writeline-{Guid.NewGuid():N}.txt");
-        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        var target = Path.Combine(NewTempDir(), $"ofs-test-writeline-{Guid.NewGuid():N}.txt");
         File.WriteAllText(target, "H1\nH2\nOLD3\nOLD4\n");
         try
         {
-            var fn = new WriteFileToolFunction("ai-agent", ctx);
-            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = "N3\nN4", start_line = 3, end_line = 5 }));
+            var fn = new WriteFileToolFunction(new Context());
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, content = "N3\nN4", start_line = 3, end_line = 5 }));
 
             using var doc = JsonDocument.Parse(json);
             Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
@@ -575,12 +605,9 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     [Fact]
     public async Task WriteFile_MissingStartLine_Fails()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
+        var fn = new WriteFileToolFunction(new Context());
 
-        var fn = new WriteFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = ".temp/none.txt", content = "x" }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _workspaceFile, content = "x" }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
@@ -591,12 +618,9 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     public async Task WriteFile_MissingEndLine_Fails()
     {
         // 先读后写铁律：write_file 的 end_line 必填，缺失直接报错
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
+        var fn = new WriteFileToolFunction(new Context());
 
-        var fn = new WriteFileToolFunction("ai-agent", ctx);
-        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = "AGENTS.md", content = "x", start_line = 1 }));
+        var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = _workspaceFile, content = "x", start_line = 1 }));
 
         using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
@@ -606,17 +630,12 @@ public class ProjectWorkspaceDefaultRootTests : IDisposable
     [Fact]
     public async Task WriteFile_WithEndLine_ReplacesRangeAndKeepsTail()
     {
-        var ctx = new Context();
-        var ws = NewWorkspace();
-        ctx.Register<IProjectWorkspaceService>(ws);
-
-        var relative = Path.Combine(".temp", $"ofs-test-writerange-{Guid.NewGuid():N}.txt");
-        var target = Path.Combine(ws.DefaultRoot!, ".temp", Path.GetFileName(relative));
+        var target = Path.Combine(NewTempDir(), $"ofs-test-writerange-{Guid.NewGuid():N}.txt");
         File.WriteAllText(target, "A1\nB2\nC3\nD4\nE5");
         try
         {
-            var fn = new WriteFileToolFunction("ai-agent", ctx);
-            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = relative, content = "X\nY", start_line = 2, end_line = 4 }));
+            var fn = new WriteFileToolFunction(new Context());
+            var json = await fn.ExecuteAsync(JsonSerializer.Serialize(new { path = target, content = "X\nY", start_line = 2, end_line = 4 }));
 
             using var doc = JsonDocument.Parse(json);
             Assert.True(doc.RootElement.GetProperty("success").GetBoolean());

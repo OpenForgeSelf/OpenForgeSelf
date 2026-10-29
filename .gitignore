@@ -19,6 +19,9 @@ TestResults/
 .serena/
 ForgeSelf.Web/playwright-report/
 ForgeSelf.Web/test-results/
+# 组件视觉回归（CT）像素基线：本机 Chrome 渲染生成，机器相关，不入库
+# 本地重建：cd ForgeSelf.Web && pnpm run test:ct:update
+ForgeSelf.Web/**/*-snapshots/
 # vitest 覆盖率报告
 ForgeSelf.Web/coverage/
 .claude/

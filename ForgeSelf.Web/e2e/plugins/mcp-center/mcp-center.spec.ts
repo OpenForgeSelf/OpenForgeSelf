@@ -278,6 +278,55 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     console.log(`\n[evidence] MCP 中心 e2e 全链路通过，证据 ${evidence.length} 行\n${evidence.join('\n')}\n`)
   })
 
+  test('PILOT-075：universal_tool 转发 run_terminal_command 管道/链式（逐段过门 + 真执行 + 段级拒绝）', async () => {
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence: string[] = []
+    // 仓库根（真实存在，满足 cwd 门）；git/node 均为只读版本查询，无副作用
+    const repoRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
+
+    // 1) 链式放行：两段均白名单 → 多段经 pwsh -NoProfile -NonInteractive -Command 真执行，stdout 含两者输出
+    const chain = await mcpCall(
+      'tools/call',
+      {
+        name: 'universal_tool',
+        arguments: {
+          tool: 'run_terminal_command',
+          parameters: { command: 'git --version && node --version', cwd: repoRoot, timeoutSeconds: 30 },
+        },
+      },
+      71,
+    )
+    const chainResult = resultOf(chain) as { content: { text: string }[]; isError: boolean }
+    expect(chainResult.isError, `链式应放行执行：${chainResult.content[0]?.text}`).toBe(false)
+    expect(chainResult.content[0].text).toContain('"success":true')
+    expect(chainResult.content[0].text).toContain('git version')
+    expect(chainResult.content[0].text).toMatch(/v\d+/)
+    evidence.push(`chain allow: ${chainResult.content[0].text.slice(0, 200)}`)
+
+    // 2) 段级拒绝：第 2 段 python 不在白名单 → 整条拒，原因带 segment 2/2 前缀（守卫拒绝原样透传）
+    const reject = await mcpCall(
+      'tools/call',
+      {
+        name: 'universal_tool',
+        arguments: {
+          tool: 'run_terminal_command',
+          parameters: { command: 'git --version && python train.py', cwd: repoRoot, timeoutSeconds: 30 },
+        },
+      },
+      72,
+    )
+    const rejectResult = resultOf(reject) as { content: { text: string }[]; isError: boolean }
+    expect(
+      rejectResult.content[0].text,
+      `段级拒绝应带 segment 前缀与 allowlist 原因：${rejectResult.content[0].text}`,
+    ).toContain('segment 2/2')
+    expect(rejectResult.content[0].text).toContain('allowlist')
+    evidence.push(`chain segment-reject: ${rejectResult.content[0].text.slice(0, 200)}`)
+
+    writeFileSync(path.join(OUT_DIR, 'p075-chain-smoke.log'), evidence.join('\n'), 'utf8')
+    console.log(`\n[p075-smoke] ✅ 管道/链式冒烟通过\n${evidence.join('\n')}\n`)
+  })
+
   test('插件自带界面 /mcp-center 渲染（双 tab + 版本徽标 + 工具表格 + 网关配置）', async ({ page }) => {
     await page.goto('/mcp-center')
     await page.waitForLoadState('networkidle')

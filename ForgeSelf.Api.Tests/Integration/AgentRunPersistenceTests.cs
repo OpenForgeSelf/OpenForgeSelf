@@ -10,19 +10,20 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// 表经 EntityFactory.InitConnection 自动创建、可插入可查询、RunId+StepIndex 判重查询可用。
 /// </summary>
 [Collection("XCode")]
-public class AgentRunPersistenceTests
+public class AgentRunPersistenceTests : IClassFixture<XCodeTestFixture>
 {
-    private readonly string _dbDir;
-
-    public AgentRunPersistenceTests()
+    public AgentRunPersistenceTests(XCodeTestFixture fixture)
     {
-        _dbDir = Path.Combine(Path.GetTempPath(), $"ForgeSelfAgentRun_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_dbDir);
-
-        DAL.AddConnStr("AIAgent", $"Data Source={Path.Combine(_dbDir, "AIAgent.db")}", null, "SQLite");
+        _ = fixture;
+        // 2026-10-29（PILOT-051 同类修复）：不得在此自建临时目录并 AddConnStr 换库——
+        //  connStr 变更会触发 DAL.Reset 换 Database（Migration 回 On）+ 旧线程会话残留，
+        //  全量联跑时把后续类的写入引去别处/吞行。连接串由夹具进程级一次性注册。
+        // 本类 ctor 主动补建本连接缺失表（全量首绑可能早于本程序集加载，夹具首绑建表会漏；
+        // 此处实体类型已 JIT 加载，InitConnection 必能扫到；Migration=On 下缺表建表、
+        // 同构表空操作，且不动连接串 → 无 Reset 无重建竞态）。
         EntityFactory.InitConnection("AIAgent");
 
-        // XCode 实体级缓存为进程级全局单例，跨测试共享；重置连接后清缓存保证隔离。
+        // XCode 实体级缓存为进程级全局单例，跨测试共享；清缓存保证隔离。
         AgentRun.Meta.Cache.Clear("test reset");
         AgentStepRun.Meta.Cache.Clear("test reset");
         AgentRun.Meta.Cache.Expire = 0;

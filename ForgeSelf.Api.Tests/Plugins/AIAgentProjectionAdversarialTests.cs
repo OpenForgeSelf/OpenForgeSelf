@@ -17,24 +17,24 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// 供 B5 决策「是否升级为显式告警/补偿事件」。全部经公开面 SyncAsync / BuildLastToolCallsJson 观察。
 /// </summary>
 [Collection("XCode")]
-public class AIAgentProjectionAdversarialTests
+public class AIAgentProjectionAdversarialTests : IClassFixture<XCodeTestFixture>
 {
     private static readonly DateTimeOffset T0 = new(2026, 9, 28, 12, 0, 0, TimeSpan.Zero);
 
     private readonly InMemorySessionStore _store = new();
     private readonly AIAgentProjectionService _projection;
 
-    public AIAgentProjectionAdversarialTests()
+    public AIAgentProjectionAdversarialTests(XCodeTestFixture fixture)
     {
+        _ = fixture;
         // 插件投影走 IContext 懒解析（与生产接线同款：宿主 seed 进共享表后插件 ctx.Get 可见）
         var ctx = new Context();
         ctx.Register<ISessionStore>(_store);
         _projection = new AIAgentProjectionService(ctx);
 
-        // SyncAsync 会写 AIChatMessage 表（AIAgent 连接），按套件惯例隔离
-        var dir = Path.Combine(Path.GetTempPath(), $"ForgeSelfAIProj_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        DAL.AddConnStr("AIAgent", $"Data Source={Path.Combine(dir, "AIAgent.db")}", null, "SQLite");
+        // SyncAsync 会写 AIChatMessage 表（AIAgent 连接）。2026-10-29（PILOT-051 同类修复）：
+        // 不得在此 AddConnStr 换库（触发 DAL.Reset 换 Database + 写走别处），连接串由夹具统一注册；
+        // ctor 补建本连接缺失表（不换串 → 无 Reset 无竞态）。
         EntityFactory.InitConnection("AIAgent");
         AIChatMessageEntity.Meta.Cache.Clear("qa reset");
         AIChatMessageEntity.Meta.Cache.Expire = 0;

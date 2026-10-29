@@ -1,15 +1,15 @@
 using System.Threading;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
-using ForgeSelf.Api.Plugins.AIAgent;
+using ForgeSelf.Api.Plugins.McpCenter.Services;
 using Moq;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
 /// <summary>
-/// UniversalTool 单元测试（031，适配重构后 UniversalTool：namespace ForgeSelf.Api.Plugins.AIAgent、
-/// 构造 (pluginId, IContext)、ExecuteAsync 返回 ToolExecutionResult）。
+/// UniversalTool 单元测试（031；2026-10-28 归属迁移至 mcp-center：namespace ForgeSelf.Api.Plugins.McpCenter.Services、
+/// 构造 (IContext)、ExecuteAsync 返回 ToolExecutionResult）。
 /// 万能工具 = ToolRegistry 分发核之上的透传壳，本套测试锁四类合约：
 /// ① 定义契约；② 解析与透传（对象/字符串参数/无参形态，结果原样回传）；
 /// ③ 安全语义（防自引用、unknown 预检带已注册数量、拒绝路径零分发）；
@@ -18,7 +18,7 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// </summary>
 public class UniversalToolTests
 {
-    private const string PluginId = "AIAgent";
+    private const string PluginId = "mcp-center";
     private const string SelfName = "universal_tool";
 
     private static IToolFunctionExtension FakeTool(string name, string? description = null)
@@ -47,7 +47,7 @@ public class UniversalToolTests
         return reg;
     }
 
-    private static UniversalTool CreateTool(IContext ctx) => new(PluginId, ctx);
+    private static UniversalTool CreateTool(IContext ctx) => new(ctx);
 
     private static void VerifyNeverDispatched(Mock<IToolRegistry> registry) =>
         registry.Verify(
@@ -67,8 +67,8 @@ public class UniversalToolTests
         var tool = CreateTool(MakeContext().Object);
 
         Assert.Equal(SelfName, tool.Name);
-        // Id = "插件名.工具名" 全小写（全库惯例：aiagent.read_file / filetools.file_rename）
-        Assert.Equal("aiagent.universal_tool", tool.Id);
+        // Id = "插件名.工具名" 全小写（全库惯例；2026-10-28 迁 mcp-center 后 Id 同步）
+        Assert.Equal("mcp-center.universal_tool", tool.Id);
         Assert.False(string.IsNullOrWhiteSpace(tool.Description));
     }
 

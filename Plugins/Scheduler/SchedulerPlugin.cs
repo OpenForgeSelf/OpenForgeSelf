@@ -46,7 +46,7 @@ public class SchedulerPlugin : IPlugin
         ToolExtensions.Add(new ScheduleTaskToolFunction(services)
         {
             Id = "scheduler.tool.create_scheduled_task",
-            Name = "create_scheduled_task",
+            Name = "schedule_create",
             PluginId = pluginId,
             Description = "创建一个定时任务，支持工作流、系统命令和HTTP Webhook的定时执行",
             ParametersJsonSchema = @"
@@ -104,7 +104,7 @@ public class SchedulerPlugin : IPlugin
         ToolExtensions.Add(new ListScheduledTasksToolFunction(services)
         {
             Id = "scheduler.tool.list_scheduled_tasks",
-            Name = "list_scheduled_tasks",
+            Name = "schedule_list",
             PluginId = pluginId,
             Description = "列出所有定时任务，支持按关键词和状态筛选",
             ParametersJsonSchema = @"
@@ -138,7 +138,7 @@ public class SchedulerPlugin : IPlugin
         ToolExtensions.Add(new PauseScheduledTaskToolFunction(services)
         {
             Id = "scheduler.tool.pause_scheduled_task",
-            Name = "pause_scheduled_task",
+            Name = "schedule_pause",
             PluginId = pluginId,
             Description = "暂停指定的定时任务",
             ParametersJsonSchema = @"

@@ -27,6 +27,12 @@ public class AIConfig
 public enum AIProviderType
 {
     OpenAI,
+
+    /// <summary>
+    /// OpenAI 新格式（Responses API，POST {base}/v1/responses）。
+    /// 出站经 OpenAIResponsesProvider（openai-dotnet SDK 适配），协议按供应商显式声明（BR-1）。
+    /// </summary>
+    OpenAIResponses,
     Anthropic,
     Custom
 }

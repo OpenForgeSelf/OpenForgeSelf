@@ -1,0 +1,68 @@
+<!doctype html>
+<!--
+  组件画廊（Component Gallery）——开发期单组件预览入口，不进生产构建。
+
+  用法：
+    pnpm run ct:server            打开根路径 → 左侧故事侧栏，点击即预览（支持 HMR）
+    /?story=<id>                  深链单故事（CT 用例使用，不渲染侧栏，基线不受侧栏干扰）
+
+  说明：本文件只服务「开发者看组件」，样式全部为画廊自身 UI（不属于产品界面，不进 src/ 设计门禁扫描范围）。
+  组件本身的颜色/token 由 src/styles/themes/workshop-forge.css 提供，必须与主应用一致。
+-->
+<html lang="zh-CN" class="dark" data-theme="dark" data-theme-mode="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ForgeSelf · 组件画廊</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; height: 100%;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        /* 用品牌 token，缺省值兜底（等价于 DESIGN.md 的 ink-950） */
+        background: var(--ink-950, #0b0908);
+        color: var(--fg-primary, #f4f0e7);
+      }
+
+      /* ── 侧栏（仅「无 ?story 参数」的人类浏览模式存在） ── */
+      #gallery-nav {
+        position: fixed; left: 0; top: 0; bottom: 0; width: 250px;
+        background: var(--ink-900, #14110f);
+        border-right: 1px solid var(--border-subtle, rgba(245, 240, 231, 0.1));
+        overflow: auto; padding: 12px; z-index: 9999;
+      }
+      #gallery-nav h3 {
+        margin: 0 0 10px; font-size: 13px; font-weight: 600;
+        color: var(--fg-secondary, #b5ab9f); letter-spacing: 0.04em;
+      }
+      #gallery-nav ul { list-style: none; margin: 0; padding: 0; }
+      #gallery-nav li {
+        padding: 7px 9px; border-radius: 6px; font-size: 13px;
+        color: var(--fg-secondary, #b5ab9f);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+      }
+      #gallery-nav li:hover { background: var(--el-fill-color-light, #2a2622); }
+      #gallery-nav li.active { background: var(--gold-400, #f59e0b); color: var(--ink-950, #0b0908); }
+
+      #gallery-nav .nav-group { margin-bottom: 4px; }
+      #gallery-nav .nav-group-header {
+        display: flex; align-items: center; gap: 6px; padding: 6px 9px;
+        font-size: 12px; font-weight: 600; color: var(--fg-primary, #f4f0e7);
+        cursor: pointer; border-radius: 6px;
+      }
+      #gallery-nav .nav-group-header:hover { background: var(--el-fill-color, #2a2622); }
+      #gallery-nav .nav-toggle { width: 12px; flex: none; color: var(--fg-tertiary, #8f8478); font-size: 11px; }
+      #gallery-nav .nav-group-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #gallery-nav .nav-group-list { list-style: none; margin: 0; padding: 0 0 0 16px; }
+
+      /* ── 挂载区 ── */
+      .gal-preview { padding: 24px; }
+      /* 侧栏模式下让出 250px，避免组件被侧栏盖住（侧栏 z-index 高于挂载区） */
+      body.has-nav .gal-preview { margin-left: 250px; }
+    </style>
+  </head>
+  <body>
+    <div id="gallery-nav"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

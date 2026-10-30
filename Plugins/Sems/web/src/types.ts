@@ -151,3 +151,58 @@ export interface PluginRow {
   id: string
   version: string
 }
+
+/** 验收标准（规格版本 criteria[]）。 */
+export interface SpecCriterion {
+  id: string
+  text: string
+}
+
+/** 规格的一个版本（GET/POST /api/projects/{id}/specs）。 */
+export interface SpecVersion {
+  specId: string
+  version: number
+  projectId: number
+  projectRoot: string
+  title: string
+  content: string
+  author?: string | null
+  changeNote?: string | null
+  createdAt: string
+  criteria?: SpecCriterion[] | null
+}
+
+/** 规格与 commit / PR / Issue 的手工关联。 */
+export interface SpecLink {
+  specId: string
+  version: number
+  kind: string
+  ref: string
+  at: string
+}
+
+/** 验收标准上登记的用例标识。字段名 case 与后端 JSON 一致。 */
+export interface SpecCase {
+  specId: string
+  version: number
+  criterionId: string
+  case: string
+  at: string
+}
+
+/** 单条验收标准的登记情况。linked 只表示登记过标识。 */
+export interface CriterionCoverage {
+  id: string
+  text: string
+  cases: string[]
+  linked: boolean
+}
+
+/** GET …/coverage。 */
+export interface SpecCoverage {
+  specId: string
+  version: number
+  total: number
+  linked: number
+  items: CriterionCoverage[]
+}

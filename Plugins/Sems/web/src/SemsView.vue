@@ -8,7 +8,7 @@
         <span v-if="version" class="sems__version">v{{ version }}</span>
       </div>
       <p class="sems__sub">
-        在本页即可管理项目档案：添加项目（选择一个已存在的目录）、编辑、维护运行命令、启停进程。
+        在本页即可管理项目档案：添加项目（选择一个已存在的目录）、编辑、维护运行命令、启停进程，并在项目卡片里维护规格。
         同一目录被 AI Agent 选为工作目录时也会自动登记，两者互不覆盖。
       </p>
       <div class="sems__toolbar">

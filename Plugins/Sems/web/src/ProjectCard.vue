@@ -10,6 +10,9 @@
         <button class="pcard__icon-btn" :title="expanded ? '收起命令' : '管理命令'" @click="expanded = !expanded">
           {{ expanded ? '▴' : '▾' }}
         </button>
+        <button type="button" class="pcard__text-btn" :title="specsOpen ? '收起规格' : '规格'" @click="specsOpen = !specsOpen">
+          规格
+        </button>
         <button class="pcard__icon-btn pcard__icon-btn--danger" title="移除项目档案" @click="$emit('remove', project)">
           ✕
         </button>
@@ -39,6 +42,10 @@
         @run="$emit('run-command', $event)"
       />
     </div>
+
+    <div v-if="specsOpen" class="pcard__cmds">
+      <SpecPanel :project-id="project.id" />
+    </div>
   </div>
 </template>
 
@@ -54,10 +61,12 @@
 import { computed, ref } from 'vue'
 import type { ProjectInfo } from './types'
 import CommandList from './CommandList.vue'
+import SpecPanel from './SpecPanel.vue'
 
 const props = defineProps<{ project: ProjectInfo }>()
 
 const expanded = ref(false)
+const specsOpen = ref(false)
 
 const emit = defineEmits<{
   (e: 'edit', project: ProjectInfo): void
@@ -170,6 +179,22 @@ function fmt(v?: string): string {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.pcard__text-btn {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.pcard__text-btn:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .pcard__icon-btn {

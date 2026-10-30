@@ -151,7 +151,7 @@ Sems 现状：未核实
 - B1-AC3 修改规格后，旧版本仍可查看，已有关联变更仍指向其生成时的规格版本。
 
 **依赖**：B7。
-Sems 现状：部分（v1.2.0 源码已有、未发布；22 个 sems_* 工具，含规格版本、双向关联与验收标准覆盖。2026-10-30 `.temp/results-sems-b1b/sems-b1b.trx` 为 passed=103 failed=0，Verified。B1-AC1 反查带出版本、B1-AC2、B1-AC3 有对应用例。未核实：匿名 HTTP 是否返回未授权；未做冒烟 e2e、源码走查与 :51888 复验。证据见 docs/ai/pilot/2026-10-26-sems-b1-intent-spec/05-evidence.md 的 2026-10-30 节）
+Sems 现状：部分（v1.2.0 源码已有、未发布。22 个 sems_* 工具，含规格版本、双向关联与验收标准覆盖。项目卡片内有规格区：`Plugins/Sems/web/src/SpecPanel.vue`，从「规格」进入，不另开菜单。2026-10-30 插件前端 vitest 21 通过，`pnpm build` 成功；`e2e/plugins/sems/sems.spec.ts` 的「规格主链路」1 passed，截图 `ForgeSelf.Web/screenshots/e2e/sems/sems-specs.png`。后端 `.temp/results-sems-b1b/sems-b1b.trx` 为 passed=103 failed=0。dev-stack `http://localhost:7399/sems` 已走查：空标题拦截、创建、追加 v2 仍保留 AC1、回读 v1。同一后端 `:7301` 无令牌访问规格路径为 401，带令牌列表为 200。未纳入本轮：本地发布、`:51888` 复验。证据见 `docs/ai/pilot/2026-10-30-sems-b1-ui/`。）
 
 #### B2 上下文工程管理（P1）
 

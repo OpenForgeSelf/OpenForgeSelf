@@ -545,6 +545,9 @@ test.describe('统一 e2e（插件层）：sems 工具经 McpCenter 对外可达
       ['GET', '/api/projects/1/commands'],
       ['GET', '/api/runs'],
       ['POST', '/api/runs/check'],
+      ['GET', '/api/projects/1/specs'],
+      ['POST', '/api/projects/1/specs'],
+      ['GET', '/api/projects/1/specs/by-ref?kind=commit&ref=none'],
     ]
     for (const [method, p] of targets) {
       const res = await fetch(`${BACKEND_URL}${p}`, {
@@ -559,3 +562,76 @@ test.describe('统一 e2e（插件层）：sems 工具经 McpCenter 对外可达
     expect(count.status).toBe(200)
   })
 })
+
+test.describe('统一 e2e（插件层）：sems 规格主链路', () => {
+  test('项目卡片里创建规格、关联变更、登记用例并反查', async ({ page }) => {
+    test.setTimeout(120000)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const dir = makeProjectDir('specs')
+    const projectName = path.basename(dir)
+
+    await injectRealApiKey(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.sems')).toBeVisible({ timeout: 30000 })
+
+    await page.getByRole('button', { name: '添加项目' }).first().click()
+    const picker = page.locator('.dpick__box')
+    await expect(picker).toBeVisible()
+    await picker.locator('.dpick__bar input').fill(dir)
+    await picker.locator('.dpick__bar input').press('Enter')
+    await expect(picker.locator('.dpick__current')).toContainText(dir, { timeout: 15000 })
+    await picker.getByRole('button', { name: '选择此目录' }).click()
+
+    const card = page.locator('.pcard', { hasText: projectName })
+    await expect(card.locator('.pcard__name', { hasText: projectName })).toBeVisible({ timeout: 20000 })
+    await card.getByRole('button', { name: '规格' }).click()
+    await expect(card.getByText('还没有规格。')).toBeVisible({ timeout: 15000 })
+
+    await card.getByRole('button', { name: '新建规格' }).click()
+    const dlg = page.locator('.specdlg__box')
+    await expect(dlg).toBeVisible()
+    await dlg.locator('.specdlg__field', { hasText: '标题' }).locator('input').fill('e2e 规格')
+    await dlg.locator('.specdlg__field', { hasText: '正文' }).locator('textarea').fill('规格正文')
+    await dlg.locator('textarea[placeholder*="AC1"]').fill('AC1 能看到标题')
+    await dlg.getByRole('button', { name: '保存' }).click()
+    await expect(dlg).toHaveCount(0)
+    await expect(card.getByRole('button', { name: /e2e 规格/ })).toBeVisible({ timeout: 15000 })
+
+    const listed = await api<{ specs: { specId: string; title: string; version: number }[] }>(
+      `/api/projects/${(await projectId(dir))}/specs`,
+    )
+    const created = listed.specs.find((s) => s.title === 'e2e 规格')
+    expect(created, '后端应返回刚创建的规格').toBeTruthy()
+    expect(created!.version).toBe(1)
+
+    await expect(card.locator('.specs__content')).toContainText('规格正文')
+    await card.getByRole('button', { name: '关联变更' }).click()
+    await expect(dlg).toBeVisible()
+    await dlg.locator('.specdlg__field', { hasText: '标识' }).locator('input').fill('e2e-ref-1')
+    await dlg.getByRole('button', { name: '保存' }).click()
+    await expect(card.getByText('commit · e2e-ref-1')).toBeVisible({ timeout: 15000 })
+
+    await card.getByRole('button', { name: '登记用例' }).click()
+    await dlg.locator('.specdlg__field', { hasText: '用例标识' }).locator('input').fill('sems.spec.ts::specs')
+    await dlg.getByRole('button', { name: '保存' }).click()
+    await expect(card.locator('.specs__cstate').first()).toHaveText('已登记 1 条', { timeout: 15000 })
+    await expect(card.locator('.specs__note')).toContainText('不表示用例已通过')
+
+    await card.getByLabel('反查标识').fill('e2e-ref-1')
+    await card.getByRole('button', { name: '反查' }).click()
+    await expect(card.getByRole('button', { name: new RegExp(created!.specId) })).toBeVisible({ timeout: 15000 })
+
+    const coverage = await api<{ coverage: { items: { id: string; linked: boolean }[] } }>(
+      `/api/projects/${await projectId(dir)}/specs/${created!.specId}/coverage`,
+    )
+    expect(coverage.coverage.items.find((item) => item.id === 'AC1')?.linked).toBe(true)
+    await page.screenshot({ path: path.join(OUT_DIR, 'sems-specs.png'), fullPage: true })
+  })
+})
+
+async function projectId(root: string): Promise<number> {
+  const body = await api<ProjectsBody>('/api/projects')
+  const mine = body.projects.find((p) => p.root === root)
+  expect(mine, `应能按目录找到项目：${root}`).toBeTruthy()
+  return mine!.id
+}

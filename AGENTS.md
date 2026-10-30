@@ -423,7 +423,7 @@ Verify 失败
 九阶段：`Repository Understanding → Intent → Spec → Plan → Task → Implement → Test → Evidence → Review`。要点：
 
 1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
-2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`；**凡涉及用户可见 UI/交互，Spec 必含「Interaction Design（交互设计）」节**——交互规格「点什么出现什么」+ 验收标准 + 走查符合性，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能，缺节闸门1 不通过）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
+2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`；**凡涉及用户可见 UI/交互，Spec 必含「Interaction Design（交互设计）」节**——交互规格「点什么出现什么」+ 验收标准 + 走查符合性，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能，缺节闸门1 不通过；**所有插件任务一律必写该节（2026-10-30 用户立）**：有前端页面的插件按功能点逐条写「点什么出现什么」+ 五态（加载/空/出错/无权限/正常）+ 验收标准，并在 `Plugins/<X>/docs/ui-design-brief.md` 维护面向设计师的交互说明（设计师不读代码，只写功能、旅程、界面交互行为）；确无界面的插件也必须写「无界面交互」，说明经哪些工具/HTTP 端点操作、入参示例与错误提示，不得整节省略）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
 3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
 4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
 5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。

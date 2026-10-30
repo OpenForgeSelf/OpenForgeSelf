@@ -16,5 +16,7 @@
 | 2026-10-25-builtin-agent-silent-model-fallback | 2026-10-25 | 待办一键交给内置 Agent 后 Run 立即 Stuck（硬编码模型不存在 + 空响应当成功） | [PC-013](../problem-classes/PC-013-silent-model-fallback-empty-response.md) | Verified | [链接](2026-10-25-builtin-agent-silent-model-fallback.md) |
 | 2026-10-29-test-ctor-rebind-connstr | 2026-10-29 | 测试 ctor 手搓 AddConnStr 换库 → 全量联跑吞行/吞表/写走别处（PILOT-051 74 红归因，净修复 22 红） | [PC-014](../problem-classes/PC-014-test-ctor-rebind-connstr.md) | Verified | [链接](2026-10-29-test-ctor-rebind-connstr.md) |
 | 2026-10-29-aiagent-maf-empty-function-name | 2026-10-29 | 2.4.18 MAF 聊天路径流式工具调用分片逐片成调用，空名空壳毒化会话（同会话每条消息 1~2ms 必败） | [PC-015](../problem-classes/PC-015-maf-stream-toolcall-fragment.md) | Verified | [链接](2026-10-29-aiagent-maf-empty-function-name.md) |
+| 2026-10-30-tool-schema-json-duplicate-key | 2026-10-30 | 万能工具 write_file 三连挂（schema 重复键少闭合括号，`Expected depth to be zero…Line 26`），任何参数都一样 | [PC-017](../problem-classes/PC-017-tool-schema-json-duplicate-key.md) | Verified | [链接](2026-10-30-tool-schema-json-duplicate-key.md) |
+| 2026-10-30-tool-success-without-side-effect | 2026-10-30 | write_file 报 success 但磁盘无文件（坏合并修复批弄丢 WriteAllText，被 PC-017 网关错误遮蔽） | [PC-018](../problem-classes/PC-018-tool-success-without-side-effect.md) | Verified | [链接](2026-10-30-tool-success-without-side-effect.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

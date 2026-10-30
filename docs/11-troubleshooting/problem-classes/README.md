@@ -22,6 +22,8 @@
 | AIAgent 执行入口 / 模型解析 / Run 恢复 / 上游空响应 | PC-013 |
 | XCode 测试夹具 / 测试 ctor 连接串 / 全量联跑缺表吞行 | PC-014 |
 | 流式工具调用分片消费 / UnifiedStreamChunk.DeltaToolCall / 会话历史空名调用 | PC-015 |
+| 工具 ParametersJsonSchema / 工具注册契约 / 万能工具网关按名调用 | PC-017 |
+| 工具/端点报 success 但副作用未落定（写盘/终态/写库） | PC-018 |
 
 ## 台账总表
 
@@ -42,6 +44,8 @@
 | PC-013 | 模型选择静默降级 + 上游空响应当成功 | guarded | G1+G2 active | 0（逃逸：041 门禁未覆盖空流） | [PC-013](PC-013-silent-model-fallback-empty-response.md) |
 | PC-014 | 测试 ctor 手搓 DAL.AddConnStr 换库（Reset 换 Database + 会话残留 → 吞行/吞表） | guarded | G2 active（XCodeTestFixtureIronRuleTests） | 0 | [PC-014](PC-014-test-ctor-rebind-connstr.md) |
 | PC-015 | 流式工具调用分片被逐片当完整调用（空名调用毒化会话） | guarded | G1+G3 active（修复批 2026-10-29） | 0 | [PC-015](PC-015-maf-stream-toolcall-fragment.md) |
+| PC-017 | 工具 ParametersJsonSchema 重复键少闭合括号，该工具经网关任何调用全挂 | guarded | G2 active（ToolSchemaJsonGuardTests） | 0 | [PC-017](PC-017-tool-schema-json-duplicate-key.md) |
+| PC-018 | 执行体报 success 但真实副作用未落定（write_file 零落盘） | guarded | G2 active（FileToolsWritePersistTests） | 0 | [PC-018](PC-018-tool-success-without-side-effect.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

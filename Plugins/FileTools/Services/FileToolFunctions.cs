@@ -240,7 +240,6 @@ public class WriteFileToolFunction : IToolFunctionExtension
             ""description"": ""工作目录绝对路径（必填），如 D:\\src\\my-proj\\src；不再回退当前项目根/FORGESELF_DEFAULT_PROJECT_ROOT""
         },
         ""path"": {
-        ""path"": {
             ""type"": ""string"",
             ""description"": ""文件绝对路径（必填），如 D:\\src\\my-proj\\src\\main.py；不再隐式接项目根""
         },
@@ -323,6 +322,8 @@ public class WriteFileToolFunction : IToolFunctionExtension
             {
                 Directory.CreateDirectory(parentDir);
             }
+            // PC-017 复测发现（2026-10-30）：坏合并修复批曾把落盘调用弄丢，导致 write_file 报成功但零写入（静默数据丢失）。
+            File.WriteAllText(absPath, final);
             var response = new { success = true, path = absPath, cwd = absCwd, startLine, endLine, writtenLength = final.Length, totalLines = FileToolLineOps.SplitLines(final).Length, usedRoot = absPath };
             XTrace.Log.Info("[FileTools] write_file 成功：绝对路径={0}, startLine={1}, endLine={2}, 写入大小={3}", absPath, startLine, endLine, final.Length);
             return Task.FromResult(JsonSerializer.Serialize(response));

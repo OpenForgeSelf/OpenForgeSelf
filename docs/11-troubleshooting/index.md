@@ -24,6 +24,8 @@
 | 子进程命令输出中文乱码（全 `?`/U+FFFD）、`run_terminal_command` 返回坏文本而 `read_file` 正常 | case [2026-10-22 固定码页解码](cases/2026-10-22-process-output-fixed-codepage-decode.md) → [PC-011](problem-classes/PC-011-process-output-fixed-codepage-decode.md) |
 | 设置页 AI 提供方编辑内容在容器内显示、表单看不全 | case [2026-10-24 提供方编辑容器裁切](cases/2026-10-24-settings-provider-edit-container-clipping.md) → [PC-012](problem-classes/PC-012-settings-provider-edit-container-clipping.md) |
 | agent 跑完工具调用后报 `Value cannot be an empty string. (Parameter 'functionName')`、之后同会话每条消息秒败响应长度 0 | case [2026-10-29 MAF 空名调用毒化会话](cases/2026-10-29-aiagent-maf-empty-function-name.md) → [PC-015](problem-classes/PC-015-maf-stream-toolcall-fragment.md) |
+| 工具调用报 `Expected depth to be zero at the end of the JSON payload` / `INVALID_PARAMETERS 参数JSON解析失败`（单个工具全挂、同批其他工具正常、构建却全绿） | case [2026-10-30 工具 schema 重复键](cases/2026-10-30-tool-schema-json-duplicate-key.md) → [PC-017](problem-classes/PC-017-tool-schema-json-duplicate-key.md) |
+| 工具报 `success:true` 但实际没生效（文件没写出来/进程没退/库没提交），回读验证才现形 | case [2026-10-30 write_file 零落盘](cases/2026-10-30-tool-success-without-side-effect.md) → [PC-018](problem-classes/PC-018-tool-success-without-side-effect.md) |
 | `SocketException (10013)`（`HttpRequestException …以一种访问权限不允许的方式…(host:80)`，直连偶发失败重试即好） | 散例：本机**动态端口段与保留端口段重叠**——`netsh int ipv4 show dynamicport tcp` 实测 10000–64999，而 `show excludedportrange protocol=tcp` 有 38755–39773、50000–50059（Hyper-V/WinNAT）；OS 随机选中保留端口发起 connect 即本地拒绝，**不是服务器/代理/防火墙返回**。处置：管理员 `net stop winnat && net start winnat` 或重启；反复发则 `netsh int ipv4 set dynamicport tcp start=40000 num=9900` 挪开重叠段（2026-10-18 实测 gpustack:80 场景定位） |
 | `dotnet build` CS2012（文件被占用） | 散例：运行实例占用 DLL → 构建到独立输出目录（无守卫需求） |
 | 前端 build 预存类型错误（T032） | 散例：非本轮回归，独立修复 |

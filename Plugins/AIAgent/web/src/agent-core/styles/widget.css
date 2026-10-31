@@ -647,6 +647,8 @@
   scrollbar-width: thin;
 }
 .aiw-ask__item {
+  /* PILOT-077 FR-4 同类修：容器 .aiw-ask 是 flex 列滚动容器，子项缺 flex-shrink:0 会被压扁裁切。 */
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   gap: 8px;

@@ -542,8 +542,8 @@ public class RunOrchestratorService : IRunOrchestratorService
             }
             nextStart = plan.Steps.Count;
 
-            // ---- 目标评估（fail-safe：失败按未达成，不假绿） ----
-            var evaluation = await GoalPursuit.EvaluateAsync(run.TaskInput, plan, criteria, chatModelId, ct);
+            // ---- 目标评估（fail-safe：失败按未达成，不假绿）；证据随行（产出+工具轨迹），评估有据可依 ----
+            var evaluation = await GoalPursuit.EvaluateAsync(run.TaskInput, plan, criteria, CollectStepEvidence(plan, run.Id), chatModelId, ct);
             XTrace.Log.Info("[RunOrchestrator] Run {0} 目标评估（第 {1}/{2} 轮）: achieved={3}, missing={4}",
                 run.Id, round, maxRounds, evaluation.Achieved, string.Join("；", evaluation.Missing));
             yield return new AgentLoopEvent
@@ -660,6 +660,7 @@ public class RunOrchestratorService : IRunOrchestratorService
             string? turnError = null;
             var turnReason = TurnEndReason.Completed;
             var callNames = new Dictionary<string, string>();
+            var traceIndex = new Dictionary<string, int>();
 
             var agent = _aiAgentService.CreateAgent(sessionId, BuildStepAgentOptions(run, plan, step, chatModelId));
             Inbox?.Followup(sessionId,
@@ -677,6 +678,13 @@ public class RunOrchestratorService : IRunOrchestratorService
                     case ToolStarted started:
                         callNames[started.CallId] = started.ToolName;
                         if (IsStepExitTool(started.ToolName)) break; // 出口工具不进 SSE（编排器统一转译）
+                        // PILOT-077 FR-2：真实工具轨迹随步聚合（落库 ToolCallsJson + 评估证据），出口工具不入轨迹。
+                        traceIndex[started.CallId] = result.ToolCalls.Count;
+                        result.ToolCalls.Add(new StepToolCallTrace
+                        {
+                            Name = started.ToolName,
+                            ArgumentsSummary = TruncateForTrace(started.ArgsJson)
+                        });
                         yield return new AgentLoopEvent { Type = "tool_call", Name = started.ToolName, Arguments = started.ArgsJson };
                         break;
 
@@ -684,6 +692,13 @@ public class RunOrchestratorService : IRunOrchestratorService
                     {
                         if (!callNames.TryGetValue(completed.CallId, out var doneName)
                             || IsStepExitTool(doneName)) break;
+                        if (traceIndex.TryGetValue(completed.CallId, out var ti))
+                        {
+                            result.ToolCalls[ti].Success = completed.Outcome == ToolOutcome.Ok;
+                            result.ToolCalls[ti].ResultSummary = completed.Outcome == ToolOutcome.Ok
+                                ? $"成功 · {completed.DurationMs}ms"
+                                : $"失败 · {completed.DurationMs}ms";
+                        }
                         yield return new AgentLoopEvent
                         {
                             Type = "tool_result",
@@ -819,6 +834,42 @@ public class RunOrchestratorService : IRunOrchestratorService
         };
         stepRun.Insert();
         return stepRun;
+    }
+
+    /// <summary>轨迹/评估摘要截断（防长参数与长产出撑爆落库与评估提示词）。</summary>
+    private static string TruncateForTrace(string? text, int max = 200)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= max ? text : text[..max] + "…";
+    }
+
+    /// <summary>
+    /// 评估输入证据（PILOT-077 FR-2）：从步骤实体收集每步产出与工具轨迹，
+    /// 防「副作用已落定、证据未随行」——评估器只能看到喂给它的东西。
+    /// </summary>
+    private static List<StepRunEvidence> CollectStepEvidence(AgentPlan plan, long runId)
+    {
+        var evidence = new List<StepRunEvidence>();
+        for (var i = 0; i < plan.Steps.Count; i++)
+        {
+            var step = plan.Steps[i];
+            var stepRun = AgentStepRun.FindAllByRunIdAndStepIndex(runId, i).FirstOrDefault();
+            var traces = new List<StepToolCallTrace>();
+            if (!string.IsNullOrWhiteSpace(stepRun?.ToolCallsJson))
+            {
+                try
+                {
+                    traces = JsonSerializer.Deserialize<List<StepToolCallTrace>>(stepRun.ToolCallsJson) ?? [];
+                }
+                catch (JsonException ex)
+                {
+                    XTrace.Log.Warn("[RunOrchestrator] Run {0} 步骤 {1} 轨迹反序列化失败，按无轨迹处理: {2}", runId, i, ex.Message);
+                }
+            }
+            evidence.Add(new StepRunEvidence(
+                i, step.Name, step.Objective, TruncateForTrace(stepRun?.OutputJson, 400), traces));
+        }
+        return evidence;
     }
 
     private static void MarkStepCompleted(AgentStepRun stepRun, StepRunResult result, AgentPlanStep step)

@@ -956,6 +956,8 @@ function fmtTime(t?: string): string {
 
 .rrp__plan-body {
   max-height: 200px;
+  /* PILOT-077 FR-4 同类修：有 max-height 必须配 overflow，否则溢出内容叠画到后续区块。 */
+  overflow-y: auto;
   border-top: 1px solid var(--el-border-color-dark);
   padding: 6px 8px;
 }
@@ -997,6 +999,9 @@ function fmtTime(t?: string): string {
 }
 
 .rrp__step {
+  /* PILOT-077 FR-4（铁律 8 同类复发修复）：flex 列滚动容器的子项必须 flex-shrink:0，
+     否则步骤总高超出容器时被压缩、详情被自身 overflow:hidden 裁出残行（步骤 3/4 间杂内容的根因）。 */
+  flex-shrink: 0;
   border: 1px solid var(--el-border-color-dark);
   border-left: 2px solid var(--el-border-color);
   border-radius: var(--el-border-radius-small, 4px);

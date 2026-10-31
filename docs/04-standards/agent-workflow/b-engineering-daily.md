@@ -102,6 +102,7 @@
 - **Playwright webServer 恒 120s 超时 → 先查 `HTTP_PROXY`**：本机环境注入 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而**不设 `NO_PROXY`** 时，Playwright 对 `http://localhost:<port>` 的可用性探测走代理 → **恒返回 502** → 永远等不到"可用"，报 `Error: Timed out waiting 120000ms from config.webServer.`。此时 vite 其实早已 ready（`[WebServer] VITE v6.4.3 ready ... ➜ Local: http://localhost:7002/`），默认 reporter 只显示"超时"，极易被误判成前端构建/依赖问题（本轮为此白跑两轮回合）。定位手法：`$env:DEBUG='pw:webserver'` 再跑一次，日志里 `pw:webserver HTTP Status: 502` 与 `[WebServer] ... ready` 同框即命中。处置：跑 e2e 前 `$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）；**不要**为此改仓库配置/代码。
 - **后端测试整片 `UnauthorizedAccessException` → 先查 `%TEMP%` 能否建目录**：本机不允许在用户 `%TEMP%` 下新建目录，凡用 `Path.GetTempPath()` 建隔离目录的用例会集体报 `Access to the path 'C:\Users\...\Temp\<前缀>_<guid>' is denied`（PILOT-052 实测 `--filter McpCenter` **22/96 红**，形似大面积回归）。处置：把 `TEMP`/`TMP` 重定向到仓库内目录（如 `.temp/api-tests-tmp`）再跑 → 同一命令 **96/96 绿**。**这类红不会出现在仓库全量基线里**，故 §5.6「基线红先对表」查不出来，须按本条先排环境再判责。**同因的另外两面（2026-10-05 当天各命中一次，别当成三个问题）**：① 宿主前端 `vite build` 的 esbuild 临时文件清理同样被拒 —— `[vite:esbuild-transpile] remove C:\Users\...\Temp\esbuild-<hash>: Access is denied`，会让 `release-local.ps1` 在 `build-frontend` 段整体失败（本地发布链首跑即红，改成仓库内 TEMP 后 EXIT=0）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 → dev server 退不出启动 ⇒ `ERR_CONNECTION_REFUSED`（并行 worktree 实测）。**统一处置（一条命令覆盖三面）**：跑「后端测试 / 插件 e2e / 本地发布链」前先 `$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。
 - **插件前端构建报 `Host version "0.25.0" does not match binary version "0.25.12"` → 先查 `ESBUILD_BINARY_PATH`**（2026-10-28 本地发布前实证，**12 个插件前端全挂、宿主前端却正常**）：本机用户级环境变量 `ESBUILD_BINARY_PATH=C:\Users\12504\esbuild-bin\esbuild.exe`（0.25.12）。esbuild 的 `install.js` 会尊重该变量并做两件事：① 把 `lib/main.js` 首行改写成 `var ESBUILD_BINARY_PATH = "<该路径>"`；② 把 `bin/esbuild` 换成 150 字节 shim 指向同一路径。而 `lib/main.js` 里 `process.env.ESBUILD_BINARY_PATH || ESBUILD_BINARY_PATH` ⇒ **机器级变量优先级高于包内值**，于是所有 pin esbuild **0.25.0** 的 `Plugins/*/web` 全被拉到 0.25.12，原生二进制在 `--service=0.25.0` 时自检失败即退出 ⇒ `vite build` 报 `failed to load config from .../vite.config.ts`。**宿主 `ForgeSelf.Web` pin 0.25.12 属侥幸同版 ⇒ 症状是"只有插件坏了"，极易误判为插件自身依赖问题。** 定位三步：① `& $env:ESBUILD_BINARY_PATH --version` 看版本；② `Get-Content node_modules/.pnpm/esbuild@*/node_modules/esbuild/lib/main.js -TotalCount 1` 看首行是否被写死；③ 跑 `node scripts/release/patch-esbuild.mjs <webDir>`。**修法在 `scripts/release/patch-esbuild.mjs`（发布链对 host + 每个插件 web 目录都跑，既有的环境补丁钩子）**：本地平台包存在时（版本必与 JS 包一致）⇒ 清掉写死路径 + 去掉 `process.env` 优先级 + 重生成 `bin/esbuild` shim 运行时解析本地二进制；本地平台包缺失时**保留** env 覆盖（不破坏无 optional deps 的安装）。**副作用知悉**：该改动写的是 pnpm store 里的硬链接文件，store 内容哈希与文件名不再一致 ⇒ 未来 `pnpm install --force` 可能还原原始文件，但发布链每次都会重跑 patch ⇒ 自愈。**用户级 env 指向机器全局二进制时，不要直接降级那个二进制**（宿主与插件版本可能不同，会把另一批改坏）。
+- **e2e/globalSetup 的 `dotnet publish` 恒崩于 `StaticWebAssets.Compression.targets` MSB6006（0x1000000A）→ BrotliCompress 外部派生 dotnet 子进程撞沙箱管道边界**（2026-10-31 PILOT-077 实证，两次同点复现非瞬态）：publish 在 DLL 编译成功后崩在 brotli 预压缩任务（该任务以 `ToolPath=<dotnet host>` 外部派生子进程且被 MSBuild 管道接管 stdio，沙箱下子进程退出码 0x1000000A）；GZipCompress 为进程内任务不受影响。**处置（环境变量级，零仓库改动）**：跑 e2e 前设 `$env:EnableDefaultCompressionFormats='false'`——MSBuild 环境变量即属性，targets 里的 `Condition="'$(EnableDefaultCompressionFormats)' == ''"` 不再补默认 gzip/brotli ⇒ 压缩任务整段跳过 ⇒ publish 过绿。副作用仅是发布产物失去 .gz/.br 预压缩（运行时协商按需，服务不受影响）。判据：`backend-build.log` 尾部只有 MSB6006 且指向 Compression.targets = 命中本条，别去改 SDK targets 或 global-setup。
 
 ### 多实例并存现场验收：先核监听端口的 PID 归属（2026-10-17 PILOT-062 实证）
 - **打到谁的端口不可想当然**：用户常驻 dev 宿主会占住默认段端口（含 MCP 网关 18890/18895 这类插件自管口）；本批首次现场验收的 initialize/tools/call 实际落在用户实例的**旧代码有状态网关**上（-32001 Session not found），若未识破就会把用户实例的报错当成修复批的验证结论。**规则**：自起验收实例后、发判据请求前，必做 `Get-NetTCPConnection -LocalPort <口> -State Listen | Select OwningProcess` 核对监听者 PID == 自己拉起的进程 PID（命令行可用 `Get-CimInstance Win32_Process -Filter "ProcessId=N"` 验认）；不符则换空闲端口重拉（宿主侧用 `FORGESELF_PORT` / `FORGESELF_MCP_GATEWAY_PORT` 等环境变量错开），不属本批证据的响应一律弃用不入库。
@@ -196,6 +197,27 @@
 - **根因**：EP 自带 `.el-input{width:100%}` / `.el-input-number{width:130px}` 与 Tailwind 任意值 class **同特异性**且 EP 样式后加载 → EP 胜；与 `ElXxx` 自动导入无关，不是 Tailwind 配置问题。
 - **规则**：凡给 EP 组件（el-input / el-input-number / el-select / el-date-picker …）定尺寸，一律内联 `style="width: 240px"`（项目惯例参照 `UpdatePanel.vue`）；Tailwind class 只用于布局原语（flex/gap/间距/max-w 包容器）。`class="flex-1 max-w-[360px]"` 这类用在**外层容器**上仍可用，用在 EP 组件根元素上无效。
 - **验收姿势**：走查时必须 `getBoundingClientRect()` 读实际 width/left 而非目测；placeholder 可读性要拿 canvas 量文字宽 vs 输入区宽（本例量出 228.5/243.9px > 文本区 218px 才发现裁切）。
+
+### UI 批（含纯缺陷修复）必须「目标态设计先行 + 全项走查留痕」（2026-10-31 PILOT-077 复判，用户点名「UI 没按规范做、没有详细 UI 设计和审查」）
+- **两处逃逸同根因**：① 上游——AIAgent 工具块四缺陷（亮色黑底/步骤压缩残行/默认收起/不对齐）是外部 widget 样式原样迁移 + 对齐教义只落气泡未落工具块的**存量合法化**（design:check 棘轮只拦新增硬编码色，#0f172a 躺在基线里不拦）；② 下游——修复批 Spec 有交互节与 CRAP 自查，但**视觉目标态（对齐线目标值/主题矩阵/逐表面 token）没有成文**，走查=只复测用户指认点，完整 ui-ux-design 符合性清单没留痕。
+- **规则**：凡触用户可见 UI 的批次（**缺陷修复批不豁免**）：① Spec 交互设计节内必写「视觉规格（目标态）」子节——对齐线/几何值/逐表面×light-dark token 矩阵/五态×主题，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`（2026-10-31 已增）；先定目标态再改样式，禁止点状补丁。② 走查按 `ui-ux-design` 符合性清单**全项逐条 + 对比度实测（亮/暗）**，数值进 05-evidence；「只复测指认点」不算走查。③ UI 活跃插件必须维护 `Plugins/<X>/docs/ui-design-brief.md`（2026-10-30 已立；AIAgent 至今缺位=本规则实证反面教材，回填见 TODO）。④ 几何断言落 e2e（flexShrink/对齐线/裁切量），样式类缺陷修完必须带守卫（PC-019 模式），不留「下次目测」。
+- **判责口径**：后续 UI 批若再出现「亮色没验」「对齐线临场推断」「走查只对指认点」，按流程违规处理（缺视觉规格节 = 闸门1 不通过），不再是「经验不足」。
+
+### 外部/存量组件迁移必须先做 UI 债清点，禁止存量问题合法化躺基线（2026-10-31 PILOT-077 复判补，D3 黑底逃逸根因）
+- **现象**：AIAgent 10-14 迁移外部 widget（ai-assistant-widget 1.13.0）时样式原样搬入——硬编码 `#0f172a/#cbd5e1`、横向 padding 不齐、flex 子项无 shrink、默认收起，四项全躺进 design:check 棘轮基线与「走查通过」，直到用户截图才暴露。
+- **规则**：凡迁入外部 UI 组件（含 demo/竞品源码/CDN 模板），迁入批必须：① 清点硬编码色/字体并**当场 token 化或列清单进 Spec**（「带病入库需列明」），不许靠棘轮基线合法化；② 对照 DESIGN.md 组件规格逐面核对（对齐线/间距/默认态），偏差写进 Spec 视觉规格节；③ 迁入批的走查必须覆盖**新组件全部视觉面**（不只主链路），主题两态各一遍；④ 清点结果进 05-evidence（「迁入 UI 债 = 0」或清单）。
+
+### 行为变更批必须同批对表既有 e2e 断言面（2026-10-31 PILOT-077 复判，029 断言陈旧挂三轮实证）
+- **现象**：v1.9.5 PC-013 批改了「无模型拒绝创建 Run」语义，`ai-agent.spec.ts` 029 用例仍断言「发任务必现 Run 行」→ 此后每轮冒烟 e2e 必挂一条，登记为基线红移交后无人认领，直到下一批修 UI 时才连带处理。
+- **规则**：① 凡改行为/契约的批次，Verify 必须含「grep 本插件/本域 spec 内相关断言」并对表——受影响断言**同批更新**，不许留给基线红；② 基线红条目必须带**归属批 + 认领人 + 期限**，超期自动升级；③ e2e 红先分「断言陈旧 vs 真回归」再动代码（对表 PC/近期行为变更日志）。
+
+### 结构性大段编辑后必须先过解析快检再进慢验证（2026-10-31 PILOT-077 复判，spec.ts 悬空 else 实证）
+- **现象**：两段编辑重排 if/else 结构（缩进整块 + 补闭合）中途断开，第三次 1.2m 的 e2e 才暴露语法结构错误。
+- **规则**：凡结构性编辑（整块缩进/移动/补闭合括号），完成即跑最快解析检查（`vue-tsc --noEmit` / `eslint --no-fix` / `tsc --noEmit`），**先过解析再进 e2e/测试**；慢验证失败时先排查解析层再怀疑业务回归。
+
+### 走查/取证依赖外部服务时，先甄别环境再排证据计划（2026-10-31 PILOT-077 复盘，gpustack 8B 45-70s 撞 45s 步骤超时实证）
+- **现象**：goal 模式 happy-path 现场取证连续两轮卡在模型延迟上，耗 ~40 分钟后定性为环境约束。
+- **规则**：证据计划依赖外部服务（模型/网关/上游 API）速度或状态时，动手前先探**延迟基线**（一次最小请求计时）；基线不满足证据需求（如 45s 步骤超时 < 模型 45-70s）就**先改证据设计**（确定性单测覆盖该路径 + 真机只验机制面），并显式标注「真机未取得 + 原因」；同一环境阻塞的取证尝试**最多两轮**，之后转文档化，不无限重试。
 
 ## B4 后端工程规则
 ### 分层 / 鉴权 / 配置

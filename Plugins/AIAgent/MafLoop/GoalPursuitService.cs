@@ -1,10 +1,19 @@
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
+using ForgeSelf.Api.Plugins.AIAgent.Services;
 using Microsoft.Extensions.AI;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.MafLoop;
+
+/// <summary>评估输入的单步证据（PILOT-077 FR-2）：产出 + 工具轨迹随行，评估有据可依。</summary>
+public sealed record StepRunEvidence(
+    int Index,
+    string Name,
+    string? Objective,
+    string? Output,
+    IReadOnlyList<StepToolCallTrace> ToolCalls);
 
 /// <summary>目标评估结果（PILOT-051 FR-3）。</summary>
 public sealed class GoalEvaluation
@@ -38,8 +47,8 @@ public sealed class GoalPursuitService
 {
     private const string EvaluatorSystemPrompt =
         """
-你是目标达成评估器。给你：任务原文、执行计划（步骤与产出摘要）、成功判据清单。
-你的唯一职责：逐条对照成功判据，判定任务是否已经真正达成（以计划产出与步骤声明为证据，不做乐观假设）。
+你是目标达成评估器。给你：任务原文、执行计划（步骤产出与工具执行轨迹）、成功判据清单。
+你的唯一职责：逐条对照成功判据，判定任务是否已经真正达成（以产出、声明与工具执行轨迹为证据，不做乐观假设）。
 只输出一个 JSON 对象，不要输出任何其他文字、不要用 Markdown 代码块包裹：
 {"achieved": true|false, "confidence": 0.0-1.0, "missing": ["未达成的判据或差距", ...], "critique": "差距分析", "summary": "一句话结论"}
 """;
@@ -59,17 +68,17 @@ public sealed class GoalPursuitService
         _providerRegistry = providerRegistry;
     }
 
-    /// <summary>评估目标达成情况（失败重试 1 次，仍失败按未达成处理）。</summary>
+    /// <summary>评估目标达成情况（失败重试 1 次，仍失败按未达成处理）。证据（产出+工具轨迹）随行，缺省按无证据评估。</summary>
     public async Task<GoalEvaluation> EvaluateAsync(
         string taskInput, AgentPlan plan, IReadOnlyList<string> criteria,
-        string? chatModelId, CancellationToken ct)
+        IReadOnlyList<StepRunEvidence>? stepEvidence, string? chatModelId, CancellationToken ct)
     {
         string? lastError = null;
         for (var attempt = 1; attempt <= 2; attempt++)
         {
             try
             {
-                var text = await CallModelAsync(BuildEvaluatorUserPrompt(taskInput, plan, criteria), chatModelId, ct)
+                var text = await CallModelAsync(BuildEvaluatorUserPrompt(taskInput, plan, criteria, stepEvidence), chatModelId, ct)
                     .ConfigureAwait(false);
                 var parsed = ParseEvaluation(text);
                 if (parsed != null)
@@ -193,12 +202,13 @@ public sealed class GoalPursuitService
         return provider;
     }
 
-    private static string BuildEvaluatorUserPrompt(string taskInput, AgentPlan plan, IReadOnlyList<string> criteria)
+    private static string BuildEvaluatorUserPrompt(
+        string taskInput, AgentPlan plan, IReadOnlyList<string> criteria, IReadOnlyList<StepRunEvidence>? evidence)
         => $"""
 任务原文：{taskInput}
 
-执行计划与产出摘要：
-{RenderPlanSummary(plan)}
+执行计划与产出摘要（含各步工具执行轨迹，作为判据核验证据）：
+{RenderPlanSummary(plan, evidence)}
 
 成功判据（逐条判定）：
 - {string.Join("\n- ", criteria)}
@@ -206,7 +216,7 @@ public sealed class GoalPursuitService
 请输出评估 JSON。
 """;
 
-    private static string RenderPlanSummary(AgentPlan plan)
+    private static string RenderPlanSummary(AgentPlan plan, IReadOnlyList<StepRunEvidence>? evidence = null)
     {
         var sb = new System.Text.StringBuilder();
         sb.Append("目标：").AppendLine(plan.Goal);
@@ -215,6 +225,33 @@ public sealed class GoalPursuitService
             var step = plan.Steps[i];
             sb.Append(i + 1).Append(". ").Append(step.Name)
               .Append(" —— ").AppendLine(step.Objective);
+            var ev = evidence?.FirstOrDefault(e => e.Index == i);
+            if (ev == null) continue;
+            if (!string.IsNullOrWhiteSpace(ev.Output))
+            {
+                sb.Append("   产出：").AppendLine(ev.Output);
+            }
+            if (ev.ToolCalls.Count > 0)
+            {
+                sb.Append("   工具轨迹：");
+                for (var t = 0; t < ev.ToolCalls.Count; t++)
+                {
+                    var call = ev.ToolCalls[t];
+                    if (t > 0) sb.Append("；");
+                    sb.Append(call.Name).Append('(')
+                      .Append(call.ArgumentsSummary).Append(')')
+                      .Append(call.Success ? " → 成功" : " → 失败");
+                    if (!string.IsNullOrWhiteSpace(call.ResultSummary))
+                    {
+                        sb.Append("（").Append(call.ResultSummary).Append('）');
+                    }
+                }
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine("   工具轨迹：（本步无工具调用）");
+            }
         }
         return sb.ToString();
     }

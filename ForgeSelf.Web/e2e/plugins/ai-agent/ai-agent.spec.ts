@@ -514,24 +514,78 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
       timeout: 75_000,
     })
 
-    // ---- 4. 执行记录面板：Run 列表非空 + 详情步骤加载 ----
+    // ---- 4. 执行记录面板 + PC-013 契约分叉（v1.9.5 起：无可用对话模型 → 明确报错且**不建 Run**）----
+    // e2e 全新数据目录通常未配置模型 → 锁「报错可见 + Run 列表空态」即 fail-fast 契约本身；
+    // 有模型环境（dev-stack 走查）才进入 Run 明细断言与 PILOT-077 AC-7/AC-9 几何锁。
     await page.locator('.chat__bar-right button[title*="执行记录"]').click()
     const rrp = page.locator('.rrp')
     await expect(rrp, '执行记录面板未打开').toBeVisible({ timeout: 10_000 })
-    const firstRun = page.locator('.rrp__run').first()
-    await expect(firstRun, '执行记录列表应为空？发送后应至少生成一条 Run').toBeVisible({ timeout: 15_000 })
-    await firstRun.click()
-    // 详情：步骤行或空态其一（真实后端数据；无 provider 时步骤为卡住态，仍有明细）
-    await expect(
-      page.locator('.rrp__steps .rrp__step').first().or(page.locator('.rrp__empty').first()),
-      'Run 详情应渲染步骤明细或空态',
-    ).toBeVisible({ timeout: 15_000 })
+    const noModel = await page
+      .getByText('未找到可用对话模型')
+      .first()
+      .isVisible()
+      .catch(() => false)
+    if (noModel) {
+      // fail-fast 契约：报错已见（步骤 3），Run 列表必须是空态而非残留假 Run
+      await expect(
+        page.locator('.rrp__empty', { hasText: '暂无执行记录' }),
+        '无模型环境不应创建 Run（PC-013 fail-fast）',
+      ).toBeVisible({ timeout: 10_000 })
+      console.log('[029] e2e 环境无对话模型：锁 fail-fast 契约（报错可见 + 不建 Run），跳过 Run 明细与 AC-7/AC-9 断言')
+    } else {
+      const firstRun = page.locator('.rrp__run').first()
+      await expect(firstRun, '有模型环境发送后应至少生成一条 Run').toBeVisible({ timeout: 15_000 })
+      await firstRun.click()
+      // 详情：步骤行或空态其一（真实后端数据；无 provider 时步骤为卡住态，仍有明细）
+      await expect(
+        page.locator('.rrp__steps .rrp__step').first().or(page.locator('.rrp__empty').first()),
+        'Run 详情应渲染步骤明细或空态',
+      ).toBeVisible({ timeout: 15_000 })
 
-    // ---- 5. 截图取证 ----
+      // ---- 5. PILOT-077 AC-9：步骤时间线几何锁 —— 步骤行不被 flex 压缩成残行 ----
+      // 修复前：.rrp__steps 是 flex 列滚动容器、.rrp__step 缺 flex-shrink:0，步骤被压到 ~43px、
+      // 详情被自身 overflow:hidden 裁切（scrollHeight ≫ clientHeight，步骤 3/4 间露出残行杂内容）。
+      const stepShrink = await page
+        .locator('.rrp__steps .rrp__step')
+        .first()
+        .evaluate((el) => {
+          const cs = getComputedStyle(el)
+          return { flexShrink: cs.flexShrink, clipped: el.scrollHeight - el.clientHeight }
+        })
+      expect(stepShrink.flexShrink, '步骤行必须 flex-shrink:0（PILOT-077 FR-4，铁律 8 同类）').toBe('0')
+      expect(
+        stepShrink.clipped,
+        `步骤行内容被裁切 ${stepShrink.clipped}px —— 压缩残行回归（scrollHeight 应≈clientHeight）`,
+      ).toBeLessThanOrEqual(4)
+      // 同类修：计划体有 max-height 必须配 overflow-y，溢出内容不得叠画到后续区块
+      const planOverflow = await page.locator('.rrp').evaluate((root) => {
+        const body = root.querySelector<HTMLElement>('.rrp__plan-body')
+        return body ? getComputedStyle(body).overflowY : '(none)'
+      })
+      expect(['auto', 'scroll']).toContain(planOverflow)
+
+      // ---- 6. PILOT-077 AC-7：聊天区工具块若出现，默认必须展开（aria-expanded=true）----
+      // 真实链路是否产出工具块取决于 e2e 环境模型可用性（零 mock，不造数据）；
+      // 有则逐个锁「默认展开」，无则跳过（组件级无条件守卫在 BlockRenderer vitest）。
+      const toolCount = await page.locator('.aiw-tool__head').count()
+      if (toolCount > 0) {
+        for (let i = 0; i < toolCount; i++) {
+          await expect(page.locator('.aiw-tool__head').nth(i), `第 ${i + 1} 个工具块应默认展开`).toHaveAttribute(
+            'aria-expanded',
+            'true',
+            { timeout: 2_000 },
+          )
+        }
+      } else {
+        console.log('[PILOT-077] 本轮聊天无工具块（模型未产生工具调用），默认展开由组件级测试锁定')
+      }
+    }
+
+    // ---- 7. 截图取证 ----
     await page.keyboard.press('Escape')
     await page.screenshot({ path: path.join(OUT_DIR, 'ai-agent-plan-run.png'), fullPage: true })
 
-    // ---- 6. 清理：删除测试 Agent ----
+    // ---- 8. 清理：删除测试 Agent ----
     await page.locator('.sess__agent', { hasText: name }).locator('.sess__agent-edit').click()
     await expect(dialog).toBeVisible()
     await page.locator('.el-dialog__footer button', { hasText: '删除' }).click()
@@ -540,7 +594,7 @@ test.describe('统一 e2e（插件层）：ai-agent 界面远程加载（真实�
     await mb.locator('button', { hasText: '删除' }).click()
     await expect(page.locator('.sess__agent', { hasText: name })).not.toBeVisible({ timeout: 10_000 })
 
-    // ---- 7. 无致命报错 + 无服务端 5xx ----
+    // ---- 9. 无致命报错 + 无服务端 5xx ----
     const fatalPatterns = [
       /Failed to resolve component/i,
       /does not provide an export named/i,

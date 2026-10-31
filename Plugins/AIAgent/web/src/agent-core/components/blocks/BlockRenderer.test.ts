@@ -230,6 +230,17 @@ describe('BlockRenderer 富内容块（FR-301~317）', () => {
     expect(slot().classes()).not.toContain('is-open')
   })
 
+  it('tool 块默认展开：缺省挂载时 I/O 卡片可见且头按钮 aria-expanded=true（PILOT-077 FR-5 守卫）', () => {
+    // 背景：用户反馈「工具展示默认收起」，dev 四时点实测均默认展开 —— 本用例把该行为锁死防回归。
+    const w = mountBlock({ type: 'tool', name: 'write_file', args: { path: '/tmp/a' }, result: 'ok' })
+    expect(w.get('.aiw-tool__head').attributes('aria-expanded')).toBe('true')
+    expect(w.find('.aiw-tool__body').exists()).toBe(true)
+    // 用户显式收起仍受尊重（collapsed: true → 收起，v-show 切 display）
+    const folded = mountBlock({ type: 'tool', name: 'x', args: { a: 1 }, collapsed: true })
+    expect(folded.get('.aiw-tool__head').attributes('aria-expanded')).toBe('false')
+    expect((folded.get('.aiw-tool__body').element as HTMLElement).style.display).toBe('none')
+  })
+
   /* ---------- FR-402~406 审批：风险分级 + 确认词门禁 ---------- */
   it('approval 未输确认词时批准按钮禁用；严格全等才放行（US-12-AC5）', async () => {
     const w = mountBlock({

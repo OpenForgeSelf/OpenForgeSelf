@@ -112,6 +112,16 @@ description: 基于《写给大家看的设计书》（Robin Williams）的 UI/U
 - [ ] 破坏性操作有二次确认
 - [ ] 长文本溢出有 title/省略处理，窄屏不破版
 
+## 几何取证 SOP（UI 投诉/走查判据的统一量测法 · 2026-10-31 PILOT-077 立并回写）
+
+> UI 主观投诉（「不对齐」「太靠左」「有杂行」「被压扁」「太宽/太窄」）**禁止目测判定**，一律量成数值再修；修复前后同法复测，数值进 05-evidence。
+
+1. **对齐类**：`el.getBoundingClientRect().left` 逐元素取 x，比对目标线（教义线/相邻元素）；正文线=元素盒左缘+padding。
+2. **压缩/裁切类**：flex 子项 `getComputedStyle(el).flexShrink`（应 '0'）+ `el.scrollHeight - el.clientHeight`（应 ≤4px，>0 即内容被裁）；行高异常读 `height` 对比内容自然高。
+3. **主题/对比类**：`getComputedStyle(el).backgroundColor/color/borderColor` 三值实测（亮/暗两态各测），WCAG 对比度算数值，不写「看起来可以」。
+4. **留证**：量测数值 + 同视口截图（前后各一张，存 `ForgeSelf.Web/screenshots/dev|e2e/ai-agent/`）+ 断言进 e2e（几何断言 `flexShrink==='0'`/`clipped≤4`/对齐线相等，参考 PC-019 G2 形态）。
+5. **判责**：修完必须有几何守卫（e2e 或 vitest），不留「下次目测」；复测数值与目标态不符 = 未完成。
+
 ## 走查 UI 符合性清单 · 第二轮增补（2026-10-11 用户实测抓出）
 
 > 每发现一个新问题类型，追加到这里成为下次验收标准。走查时**全部**逐项勾。

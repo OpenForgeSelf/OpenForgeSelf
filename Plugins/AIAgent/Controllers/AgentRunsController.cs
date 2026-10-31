@@ -305,14 +305,16 @@ public class AgentRunsController : ControllerBase
         }
     }
 
-    /// <summary>统一 SSE 事件透传：完整载荷（type/content）+ runId 便于前端关联。</summary>
-    private static async Task WriteSseEventAsync(AgentLoopEvent ev, Func<object, Task> writeEventAsync)
+    /// <summary>统一 SSE 事件透传：完整载荷（type/content）+ runId 便于前端关联（internal 供守卫测试直调）。</summary>
+    internal static async Task WriteSseEventAsync(AgentLoopEvent ev, Func<object, Task> writeEventAsync)
     {
         switch (ev.Type)
         {
             case "plan_created":
             case "step_started":
             case "step_completed":
+            case "goal_round_started":
+            case "goal_evaluated":
             case "run_stuck":
             case "done":
                 await writeEventAsync(new { type = ev.Type, payload = ev.Content });

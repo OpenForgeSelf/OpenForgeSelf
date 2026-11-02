@@ -4,6 +4,12 @@ using System.Text.Json;
 namespace ForgeSelf.Api.Plugins.BrowserUse;
 
 /// <summary>插件数据目录 config.json。缺文件时按默认白名单（仅本机）生成。</summary>
+/// <remarks>
+/// B4（2026-11-02）：域名白名单语义已上收宿主 ToolRegistry pre-execute 闸门（PermissionProfileService，
+/// 按 Agent/全局 PermissionProfile 配置；白名单外跳转在注册表层直接 Deny，提示走「权限策略」配置）。
+/// 本插件 BrowserGuard 本地校验保留作纵深防御（铁律 2：禁止平行 PermissionBroker/重复策略面），
+/// 本 config 的 allowedDomains 仍是插件侧兜底口径，与宿主策略可并存不冲突。
+/// </remarks>
 public sealed class BrowserUseConfig
 {
     public string Comment { get; set; } =

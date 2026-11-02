@@ -206,8 +206,12 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 AIFunction registryFn = new RegistryToolFunction(
                     definition.Name, definition.Description, ToJsonElement(definition.Parameters),
                     _runtime.ToolExecutor, SessionId, bridge, turnId);
-                // P0：高风险工具包 ApprovalRequiredAIFunction（后端硬名单，不信前端）
-                toolFunctions.Add(!unwrapForApprovedResume && HighRiskToolPolicy.RequiresApproval(definition.Name)
+                // P0：高风险工具包 ApprovalRequiredAIFunction（后端硬名单，不信前端）。
+                // B4 防双问：该工具已配置权限策略规则时让位给 ToolRegistry pre-execute 单点决策。
+                var wrapForApproval = !unwrapForApprovedResume
+                    && HighRiskToolPolicy.RequiresApproval(definition.Name)
+                    && !await HasConfiguredRuleAsync(definition.Name, turnCts.Token).ConfigureAwait(false);
+                toolFunctions.Add(wrapForApproval
                     ? new ApprovalRequiredAIFunction(registryFn)
                     : registryFn);
             }
@@ -758,6 +762,25 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
         catch
         {
             return "{}";
+        }
+    }
+
+    /// <summary>
+    /// B4 防双问：该工具是否已配置权限策略显式规则（会话记忆的 Agent + 全局兜底）。
+    /// 服务缺席/查询失败一律按未配置处理（保持既有 MAF 包装，零配置红线不回退）。
+    /// </summary>
+    private async Task<bool> HasConfiguredRuleAsync(string toolName, CancellationToken ct)
+    {
+        var profiles = _runtime.PermissionProfiles;
+        if (profiles == null) return false;
+        try
+        {
+            return await profiles.HasRuleForToolAsync(SessionId, toolName, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[MafTaskLoopAgent] 权限规则查询失败按未配置处理: tool={0} err={1}", toolName, ex.Message);
+            return false;
         }
     }
 

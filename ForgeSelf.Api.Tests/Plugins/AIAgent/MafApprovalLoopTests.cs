@@ -110,6 +110,50 @@ public class MafApprovalLoopTests
 
         Assert.DoesNotContain(fx.Tools.Executions, e => e.Name == "run_terminal_command");
     }
+
+    /// <summary>
+    /// B4 AC8 防双问（MAF 层实证）：write_file 已配置全局 Allow 规则 → MAF 包装让位，
+    /// 工具直接走 registry 执行（无 tool/approval-request、回合正常收束不挂起）。
+    /// </summary>
+    [Fact]
+    public async Task ConfiguredRule_YieldsMafWrapper_ToolExecutesWithoutApprovalRequest()
+    {
+        ForgeSelf.Api.Entities.PermissionProfile.EnsureCreated();
+        ForgeSelf.Api.Entities.PermissionDecisionLog.EnsureCreated();
+        var svc = new PermissionProfileService();
+        await svc.SaveAsync(new PermissionProfileDto
+        {
+            AgentId = string.Empty,
+            Enabled = true,
+            Rules = [new ToolPermissionRule { ToolName = "write_file", Effect = PermissionEffect.Allow }],
+        });
+
+        var fx = new MafApprovalFixture { PermissionProfiles = svc };
+        fx.Provider.Enqueue(Script.ToolCall("c1", "write_file", """{"path":"a.txt","content":"x"}"""));
+        var agent = fx.CreateAgent();
+        agent.Inbox.Followup(fx.SessionId, "写文件");
+        var frames = await fx.RunAsync(agent);
+
+        Assert.DoesNotContain(fx.EventTypes(), t => t == "tool/approval-request");
+        Assert.Contains(fx.Tools.Executions, e => e.Name == "write_file");
+        Assert.Contains(frames, f => f is TurnCompleted { Reason: TurnEndReason.Completed });
+    }
+
+    /// <summary>B4 AC8 反向面：未配置规则的 write_file 保持 MAF 包装（零配置红线，行为不变）。</summary>
+    [Fact]
+    public async Task UnconfiguredRule_KeepsMafWrapper_SuspendsAsBefore()
+    {
+        var svc = new PermissionProfileService(); // 无任何规则
+
+        var fx = new MafApprovalFixture { PermissionProfiles = svc };
+        fx.Provider.Enqueue(Script.ToolCall("c1", "write_file", """{"path":"a.txt","content":"y"}"""));
+        var agent = fx.CreateAgent();
+        agent.Inbox.Followup(fx.SessionId, "写文件");
+        await fx.RunAsync(agent);
+
+        Assert.Contains(fx.EventTypes(), t => t == "tool/approval-request");
+        Assert.Empty(fx.Tools.Executions);
+    }
 }
 
 /// <summary>带 PersistentApprovalService 的 MAF 夹具（高风险工具定义）。</summary>
@@ -127,6 +171,9 @@ internal sealed class MafApprovalFixture
     {
         _ = new XCodeTestFixture();
     }
+
+    /// <summary>B4：权限策略服务注入面（null = 既有零配置路径）。</summary>
+    public IPermissionProfileService? PermissionProfiles { get; set; }
 
     public MafTaskLoopAgent CreateAgent()
         => new(SessionId,
@@ -161,7 +208,8 @@ internal sealed class MafApprovalFixture
                 },
                 Events = Events,
                 Inbox = Inbox,
-                ApprovalService = Approvals
+                ApprovalService = Approvals,
+                PermissionProfiles = PermissionProfiles
             });
 
     public async Task<List<TurnFrame>> RunAsync(IAgent agent, CancellationToken ct = default)

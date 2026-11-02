@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Net.WebSockets;
 using Microsoft.AspNetCore.Authentication;
 using ForgeSelf.Abstractions;
@@ -185,6 +185,8 @@ public static class AppBuilder
         builder.Services.AddSingleton<IToolGuardRegistry, ToolGuardRegistry>();
         builder.Services.AddSingleton<IApprovalService, PersistentApprovalService>();
         builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
+        // B4 权限可配置化：策略服务（pre-execute 闸门消费源）+ 审计日志。
+        builder.Services.AddSingleton<IPermissionProfileService, PermissionProfileService>();
         // IMcpService 已随宿主 mcp-tools 迁入 McpCenter 插件（034 v2.0.0），由插件 Apply 注册进插件子 provider
         builder.Services.AddSingleton<ICronParser, CronParser>();
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
@@ -395,9 +397,40 @@ public static class AppBuilder
 
         var app = builder.Build();
 
+        // B4：pre-execute 策略决策映射（Decision → 三态 PreToolDecision；Allow 显式返回供观察者审计）。
+        static async Task<PreToolDecision?> DecidePreToolAsync(IPermissionProfileService profiles, ToolExecution exec)
+        {
+            if (exec == null) return null;
+            try
+            {
+                var d = await profiles.DecideAsync(exec.SessionId, exec.ToolName, exec.ArgsJson, exec.Signal).ConfigureAwait(false);
+                return d.Effect switch
+                {
+                    PermissionEffect.Deny => new PreToolDecision.Deny(d.Reason),
+                    PermissionEffect.Ask => new PreToolDecision.Ask(d.Reason),
+                    _ => new PreToolDecision.Allow(),
+                };
+            }
+            catch (Exception ex)
+            {
+                NewLife.Log.XTrace.Log.Warn("[AppBuilder] pre-execute 策略决策异常 fail-open: {0}", ex.Message);
+                return null;
+            }
+        }
+
         // 宿主 Build 完成后，为所有已挂载插件构建子 provider（仅插件自身注册的服务，含 IContext）。
         // 插件服务的宿主依赖经 Cordis Context 运行期 ctx.Get<T>() 获取，无需宿主转发。必须在第一次请求前完成。
         pluginServiceRegistry.BuildAll();
+
+        // B4 权限可配置化：pre-execute 闸门消费策略（查配置→决策，查不到回落内置默认）。
+        // 监听器异常 fail-open（返回 null=Allow，不阻断工具管线）；服务缺席（测试装配）同样沉默。
+        var permissionProfiles = app.Services.GetService<IPermissionProfileService>();
+        if (permissionProfiles != null)
+        {
+            app.Services.GetRequiredService<IEventBus>().OnSerial<ToolExecution, PreToolDecision?>(
+                "tools/pre-execute",
+                exec => DecidePreToolAsync(permissionProfiles, exec));
+        }
 
         // 初始化阶段：把宿主应提供的服务（能力接缝契约）seed 进插件根上下文，
         // 子插件经父级链继承消费（彻底 Cordis 模式，对标 app.service）。

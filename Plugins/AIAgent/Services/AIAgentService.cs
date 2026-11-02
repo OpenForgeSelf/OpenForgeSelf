@@ -216,6 +216,9 @@ public class AIAgentService : IAIAgentService
             }
         }
 
+        // B4：记忆会话→Agent（权限策略按 Agent 匹配用；agentId 可空 = 默认助手）
+        ResolvePermissionProfiles()?.RememberSessionAgent(sessionId, agentId);
+
         var agent = CreateAgent(sessionId, BuildAgentOptions(chatModelId, agentId, enabledToolNames, skillIds));
 
         var content = new StringBuilder();
@@ -407,7 +410,9 @@ public class AIAgentService : IAIAgentService
             Inbox = Inbox,
             ApprovalService = ApprovalService,
             // B2②：Run 级 Verify 校验器（ExitCriteria 配置时由引擎调用做确定性验收）
-            RunVerify = ResolveVerifyService()
+            RunVerify = ResolveVerifyService(),
+            // B4：权限策略服务（配置了显式规则的工具让位给 ToolRegistry pre-execute，防双问）
+            PermissionProfiles = ResolvePermissionProfiles()
         };
 
         // PILOT-051（R1）：运行时工厂开关——MAF 驱动（任务循环语义）或 ReactLoop 状态机（既有路径）。
@@ -424,6 +429,21 @@ public class AIAgentService : IAIAgentService
     {
         _workspace ??= _ctx.Get<IProjectWorkspaceService>();
         return new RunVerifyService(_workspace);
+    }
+
+    /// <summary>
+    /// 权限策略服务（B4）：宿主契约懒解析；缺席 = null（高风险包装维持硬名单，零配置红线）。
+    /// </summary>
+    private IPermissionProfileService? ResolvePermissionProfiles()
+    {
+        try
+        {
+            return _ctx.Get<IPermissionProfileService>();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>

@@ -124,6 +124,10 @@ public class RunOrchestratorService : IRunOrchestratorService
     private readonly IRunVerifyService? _runVerifyOverride;
     private ISessionStore? _runEventStore;
 
+    /// <summary>权限策略服务（B4 软依赖）：Run 会话→Agent 记忆用；缺席跳过（不影响 Run 流程）。</summary>
+    private IPermissionProfileService? _permissionProfiles => _permissionProfilesOverride ?? _ctx?.Get<IPermissionProfileService>();
+    private readonly IPermissionProfileService? _permissionProfilesOverride;
+
     /// <summary>目标评估器（PILOT-051 FR-3）：显式注入（测试）优先，否则经 Cordis 懒解析 provider 注册表构造。</summary>
     private GoalPursuitService GoalPursuit => _goalPursuitOverride
         ?? new GoalPursuitService(_ctx?.Get<IAIProviderRegistry>());
@@ -144,6 +148,8 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// <param name="stepTimeout">单步骤超时覆盖（默认 45s；测试可缩短）。</param>
     /// <param name="modelResolver">对话模型解析（可选；缺失时保持旧行为——空模型交给 AIAgent 侧回退）。</param>
     /// <param name="runVerify">Run 级 Verify 校验器（B2② 测试注入面；缺省经 ctx 懒解析工作区构造）。</param>
+    /// <param name="sessionStore">Run 级事件会话日志（B2② 测试注入面；缺省经 ctx 懒解析）。</param>
+    /// <param name="permissionProfiles">权限策略服务（B4 测试注入面；缺省经 ctx 懒解析，缺席跳过记忆）。</param>
     public RunOrchestratorService(
         IPlanGeneratorService planGenerator,
         IAIAgentService aiAgentService,
@@ -155,7 +161,8 @@ public class RunOrchestratorService : IRunOrchestratorService
         IChatModelResolver? modelResolver = null,
         GoalPursuitService? goalPursuit = null,
         IRunVerifyService? runVerify = null,
-        ISessionStore? sessionStore = null)
+        ISessionStore? sessionStore = null,
+        IPermissionProfileService? permissionProfiles = null)
     {
         _planGenerator = planGenerator;
         _aiAgentService = aiAgentService;
@@ -168,6 +175,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         _goalPursuitOverride = goalPursuit;
         _runVerifyOverride = runVerify;
         _runEventStore = sessionStore;
+        _permissionProfilesOverride = permissionProfiles;
     }
 
     /// <summary>
@@ -214,6 +222,9 @@ public class RunOrchestratorService : IRunOrchestratorService
         // 1. 建 Run（Pending → Planning）。
         var run = CreateRun(request);
         run.Insert();
+        // B4：记忆 Run 会话→Agent（权限策略按 Agent 匹配用；键与步骤执行的 sessionId 约定一致）
+        try { _permissionProfiles?.RememberSessionAgent(RunSessionId(run), run.AgentId); }
+        catch { /* 记忆失败不影响 Run 流程 */ }
         XTrace.Log.Info("[RunOrchestrator] 新建执行 Run {0}（Agent={1}），进入规划", run.Id, run.AgentId);
 
         // 2. 规划：有/无工作流 → submit_plan 提交 Plan。

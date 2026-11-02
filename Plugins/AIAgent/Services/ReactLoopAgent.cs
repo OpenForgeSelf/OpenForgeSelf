@@ -60,6 +60,12 @@ public sealed class AgentTurnRuntime
     /// （校验器缺席不得假绿，BR-2）。
     /// </summary>
     public IRunVerifyService? RunVerify { get; init; }
+
+    /// <summary>
+    /// 权限策略服务（B4，可选）：配置了显式规则的工具让位给 ToolRegistry pre-execute 决策（防双问）。
+    /// 为 null 时高风险包装判断维持 HighRiskToolPolicy 硬名单（零配置红线）。
+    /// </summary>
+    public IPermissionProfileService? PermissionProfiles { get; init; }
 }
 
 // ---- agent/* 拦截点契约（payload/decision 类型；总线签名固定：fallback 必填、无 ct） ----

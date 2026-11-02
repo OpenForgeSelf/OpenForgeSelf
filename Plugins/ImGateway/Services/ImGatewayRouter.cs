@@ -19,13 +19,16 @@ public class ImGatewayRouter
     private readonly IContext _ctx;
     private readonly IConfigStore _configStore;
     private readonly DbSessionStore _sessionStore;
+    private readonly ImGatewayMessageStore _messageStore;
     private readonly Dictionary<string, IImChannel> _channels;
 
-    public ImGatewayRouter(IContext ctx, IConfigStore configStore, DbSessionStore sessionStore, IEnumerable<IImChannel> channels)
+    public ImGatewayRouter(IContext ctx, IConfigStore configStore, DbSessionStore sessionStore,
+        ImGatewayMessageStore messageStore, IEnumerable<IImChannel> channels)
     {
         _ctx = ctx;
         _configStore = configStore;
         _sessionStore = sessionStore;
+        _messageStore = messageStore;
         _channels = channels.ToDictionary(c => c.ChannelType, c => c);
     }
 
@@ -64,6 +67,10 @@ public class ImGatewayRouter
             var (sessionId, agentId, modelId) = _sessionStore.GetOrCreateSession(
                 inbound.ChannelType, inbound.ConversationId, inbound.PlatformUserId, boundAgent, boundModel);
 
+            // 4.5) 消息落库（PILOT-078 ①）：会话映射后记入站 in（事件消息/空内容已在上面提前返回，天然不入表）
+            var channelKey = ImChannelKeys.Build(inbound.ChannelType, inbound.ConversationId, inbound.PlatformUserId);
+            _messageStore.RecordInbound(channelKey, inbound.ChannelType, inbound.Content, inbound.MsgId, sessionId);
+
             // 5) 调 AI（跨插件契约，AIAgent 提供实现）
             var chat = _ctx.Get<IChatCompletion>();
             if (chat == null)
@@ -82,6 +89,8 @@ public class ImGatewayRouter
             if (!result.Success || string.IsNullOrWhiteSpace(result.Content))
             {
                 XTrace.Log.Error("[IM网关] AI 补全失败 Channel={0} Session={1} Err={2}", inbound.ChannelType, sessionId, result.Error);
+                // 消息落库（PILOT-078 ②）：AI 失败记 out/error，ErrorText 截断 1000，气泡侧可见
+                _messageStore.RecordError(channelKey, inbound.ChannelType, sessionId, result.Error);
                 return;
             }
 
@@ -99,6 +108,8 @@ public class ImGatewayRouter
                     ReplyReqId = inbound.ReplyReqId,
                     ChatType = inbound.ChatType,
                 }, cancellationToken);
+                // 消息落库（PILOT-078 ③）：回发成功记 out/ok
+                _messageStore.RecordReply(channelKey, inbound.ChannelType, result.Content, sessionId);
                 XTrace.Log.Info("[IM网关] 已回发 Channel={0} 会话={1}", inbound.ChannelType, inbound.ConversationId);
             }
         }

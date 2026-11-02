@@ -2,16 +2,21 @@ using System.Text;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.ImGateway.Core;
 using ForgeSelf.Api.Plugins.ImGateway.Services;
+using ForgeSelf.Api.Plugins.ImGateway.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ForgeSelf.Api.Plugins.ImGateway.Controllers;
 
 /// <summary>
-/// IM 网关控制器：配置读写 + 长连接状态查询 + 扫码授权 + 重连控制。
+/// IM 网关控制器：配置读写 + 长连接状态查询 + 扫码授权 + 重连控制 + 会话/消息查询（v2.1.0）。
 /// v2.0.0 起仅企微「智能机器人」长连接形态，回调形态已整体移除，不再有 /{channel}/callback 路由。
+/// v2.1.0（PILOT-078）：类级补 [Authorize("ApiKeyPolicy")]（铁律 17，宿主无全局鉴权中间件，
+/// 插件控制器经子 provider 注册进 Kestrel 不会自动被保护）；新增会话列表与消息线程只读查询端点。
 /// </summary>
 [ApiController]
+[Authorize("ApiKeyPolicy")]
 [Route("api/im-gateway")]
 public class ImGatewayController : ControllerBase
 {
@@ -130,5 +135,86 @@ public class ImGatewayController : ControllerBase
             botId = session.BotId,
             error = session.Error,
         }, JsonOpts);
+    }
+
+    /// <summary>
+    /// 联系人列表（PILOT-078 FR-2，只读）：ImGatewaySession 每行 = 1 个联系人。
+    /// displayName = ChannelKey 末段（PlatformUserId）；lastMessage 为最新一条（Content 截 60 字符预览），
+    /// 零消息时为 null（历史库升级后「映射存在但零消息」形态，前端显示「暂无消息记录」）；
+    /// lastActiveAt = 最后消息时间，无消息用会话 UpdatedAt。排序：有消息按最后消息时间倒序在前，无消息按 UpdatedAt 倒序排后。
+    /// </summary>
+    [HttpGet("conversations")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult Conversations()
+    {
+        // 唯一性/列表判断直查数据库，不复用实体缓存（plugin-development 铁律 11）
+        var sessions = ImGatewaySession.FindAll();
+        var rows = new List<(ImGatewaySession Session, ImGatewayMessage? Latest, long Count)>(sessions.Count);
+        foreach (var s in sessions)
+        {
+            var latest = ImGatewayMessage.FindLatestByChannelKey(s.ChannelKey);
+            var count = ImGatewayMessage.FindCount(ImGatewayMessage._.ChannelKey == s.ChannelKey);
+            rows.Add((s, latest, count));
+        }
+
+        var payload = rows
+            .OrderByDescending(r => r.Latest != null)
+            .ThenByDescending(r => r.Latest?.CreatedAt ?? r.Session.UpdatedAt)
+            .Select(r => new
+            {
+                channelKey = r.Session.ChannelKey,
+                channelType = ImChannelKeys.ChannelTypeOf(r.Session.ChannelKey),
+                displayName = ImChannelKeys.DisplayNameOf(r.Session.ChannelKey),
+                sessionId = r.Session.SessionId,
+                lastMessage = r.Latest == null
+                    ? null
+                    : new
+                    {
+                        direction = r.Latest.Direction,
+                        status = r.Latest.Status,
+                        preview = Truncate(r.Latest.Content, 60),
+                        createdAt = r.Latest.CreatedAt,
+                    },
+                lastActiveAt = r.Latest?.CreatedAt ?? r.Session.UpdatedAt,
+                messageCount = r.Count,
+            });
+        return new JsonResult(payload, JsonOpts);
+    }
+
+    /// <summary>
+    /// 消息线程（PILOT-078 FR-3，只读）：指定联系人的消息，取 beforeId（不含）之前的最新 limit 条，
+    /// 按 Id 升序输出（便于直接渲染）+ hasMore（是否还有更早）。limit 钳制 1..200，缺省 50；
+    /// channelKey 走 query 参数（避开路由编码），缺省 400；beforeId 不存在/越界 → 空数组 + hasMore=false（不报错）。
+    /// </summary>
+    [HttpGet("messages")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult Messages([FromQuery] string channelKey, [FromQuery] int limit = 50, [FromQuery] long beforeId = 0)
+    {
+        if (string.IsNullOrWhiteSpace(channelKey)) return BadRequest(new { error = "channelKey 不能为空" });
+        if (limit < 1) limit = 1;
+        if (limit > ImGatewayMessage.MaxPageSize) limit = ImGatewayMessage.MaxPageSize;
+
+        var (rows, hasMore) = ImGatewayMessage.FindPageByChannelKey(channelKey, limit, beforeId);
+        var items = rows.Select(m => new
+        {
+            id = m.Id,
+            channelKey = m.ChannelKey,
+            channelType = m.ChannelType,
+            direction = m.Direction,
+            content = m.Content,
+            sessionId = m.SessionId,
+            platformMsgId = m.PlatformMsgId,
+            status = m.Status,
+            errorText = m.ErrorText,
+            createdAt = m.CreatedAt,
+        }).ToList();
+        return new JsonResult(new { messages = items, hasMore }, JsonOpts);
+    }
+
+    /// <summary>文本截断（null 安全）：preview 截 60 字符等场景。</summary>
+    private static string Truncate(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= maxLength ? text : text[..maxLength];
     }
 }

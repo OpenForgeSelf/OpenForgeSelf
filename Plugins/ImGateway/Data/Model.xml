@@ -77,5 +77,22 @@
         <Index Columns="ChannelType,MsgId" Unique="True" />
       </Indexes>
     </Table>
+    <Table Name="ImGatewayMessage" Description="IM 网关消息记录（收/发双向，含失败态）">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="消息ID" />
+        <Column Name="ChannelKey" DataType="String" Master="True" Length="200" Nullable="False" Description="通道会话用户复合键" />
+        <Column Name="ChannelType" DataType="String" Nullable="False" Description="通道类型" />
+        <Column Name="Direction" DataType="String" Length="10" Nullable="False" Description="方向 in=收到 / out=回复" />
+        <Column Name="Content" DataType="String" Length="-1" Nullable="False" Description="消息内容（回复失败时为空串）" />
+        <Column Name="SessionId" DataType="String" Length="64" Description="AI Agent 会话ID" />
+        <Column Name="PlatformMsgId" DataType="String" Length="100" Description="平台消息ID" />
+        <Column Name="Status" DataType="String" Length="10" Nullable="False" DefaultValue="ok" Description="状态 ok / error" />
+        <Column Name="ErrorText" DataType="String" Length="1000" Description="失败原因摘要（error 态）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ChannelKey,Id" />
+      </Indexes>
+    </Table>
   </Tables>
 </EntityModel>

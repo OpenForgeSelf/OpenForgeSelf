@@ -113,3 +113,25 @@ public static class ImChannelTypes
 {
     public const string WeCom = "wecom";
 }
+
+/// <summary>
+/// ChannelKey（通道会话用户复合键）构造/解析的唯一出处。
+/// 格式 <c>{channelType}:{conversationId}:{platformUserId}</c>；会话映射与消息落库共用，防两处格式漂移。
+/// </summary>
+public static class ImChannelKeys
+{
+    public static string Build(string channelType, string conversationId, string platformUserId)
+        => $"{channelType}:{conversationId}:{platformUserId}";
+
+    /// <summary>通道类型 = 第一段；解析失败返回空串。</summary>
+    public static string ChannelTypeOf(string channelKey)
+        => string.IsNullOrEmpty(channelKey) ? string.Empty : (channelKey.Split(':')[0] ?? string.Empty);
+
+    /// <summary>显示名 = 末段（platformUserId）；解析失败返回原串。</summary>
+    public static string DisplayNameOf(string channelKey)
+    {
+        if (string.IsNullOrEmpty(channelKey)) return string.Empty;
+        var parts = channelKey.Split(':');
+        return parts.Length == 0 ? channelKey : parts[^1];
+    }
+}

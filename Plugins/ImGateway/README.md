@@ -104,6 +104,15 @@ im-gateway 调 AI 时：
 - **提示词**：去 AIAgent 工作台改 `AgentDefinition.SystemPrompt`
 - **工作目录/审批模式**：Agent 级无配置，作用于宿主级（当前登记项目 / agent-hub 委派审批）
 
+## 会话消息面板（v2.1.0，PILOT-078）
+
+页面从「纯配置页」升级为**会话视图（默认）+ 配置视图（切换）**：
+
+- **消息落库**：`ImGatewayMessage` 表（Model.xml → xcode），Router 三落库点——①会话映射后记 `in` ②AI 失败记 `out/error`（ErrorText 截 1000）③回发成功记 `out/ok`；事件/空内容消息不入表；**落库全吞异常**（记录失败绝不影响网关主链）。消息只增不改不删，无破坏性端点。
+- **查询端点**（`ImGatewayController`，类级 `[Authorize("ApiKeyPolicy")]`——v2.1.0 补齐，此前管理面无鉴权，铁律 17 同类修复）：`GET conversations`（联系人=ImGatewaySession 每行，displayName=ChannelKey 末段，最新消息预览截 60，零消息 `lastMessage=null`；有消息按最后消息时间倒序，无消息按 UpdatedAt 排后）+ `GET messages?channelKey=&limit=&beforeId=`（游标分页升序 + `hasMore`，limit 钳 1..200，响应 `{messages, hasMore}`）。
+- **前端**：左栏联系人列表（12s 轮询**先比对再赋值**防闪动）+ 右栏气泡线程（**回=左/收=右**，方向语义=需求拍板项 2026-10-31；失败气泡显示 ErrorText 摘要，「加载更多」走 beforeId 前插保持视口）；配置功能整体迁入配置视图（切换按钮在 header）。稳定选择器 `.ig-*` 前缀（e2e 与走查都锚它们）。
+- **踩坑**：①走查种子数据经 sqlite3 CLI 命令行参数插中文会按控制台码页（GBK）入库变乱码——必须写成 UTF-8 SQL 文件再 `.read`；②conversations 端点对空库不触达 ImGatewayMessage（零会话循环不执行），XCode 惰性建表导致消息表晚于会话表出现——属正常时序，勿当缺陷。
+
 ## 真机验证结论（v2.0.0，2026-09-22）
 
 - ✅ 长连接订阅（`wss://openws.work.weixin.qq.com` → `aibot_subscribe` errcode=0）

@@ -40,6 +40,9 @@ public class ImGatewayPlugin : IPlugin
         services?.AddSingleton<IConfigStore>(configStore);
         services?.AddSingleton(sessionStore);
 
+        // v2.1.0 消息记录存储（PILOT-078）：收/发双向落库（尽力而为，绝不抛），供会话列表/消息线程查询
+        services?.AddSingleton<ImGatewayMessageStore>();
+
         // 通道适配器：v2.0.0 起仅企微「智能机器人」长连接形态（wss 主动外连），回调形态已整体移除
         services?.AddSingleton<IImChannel>(new WeComChannel(configStore));
 

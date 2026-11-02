@@ -11,6 +11,8 @@
  * - POST  /api/im-gateway/wecom/reconnect → { ok: true }（手动重连长连接，D2）
  * - POST  /api/im-gateway/wecom/scan-auth   → { id, state, qrLink, qrText }（发起扫码授权）
  * - GET   /api/im-gateway/wecom/scan-auth/{id} → { id, state, qrLink, qrText, botId, error }（轮询扫码状态）
+ * - GET   /api/im-gateway/conversations    → [{ channelKey, channelType, displayName, sessionId, lastMessage, lastActiveAt, messageCount }]（会话列表，PILOT-078）
+ * - GET   /api/im-gateway/messages?channelKey=&limit=&beforeId= → { messages: [...], hasMore }（消息线程游标分页，PILOT-078）
  */
 const TOKEN_KEY = 'forge_api_token'
 
@@ -75,6 +77,64 @@ export function startScanAuth(): Promise<ScanAuthDto | undefined> {
 /** 轮询扫码授权状态。 */
 export function fetchScanAuth(id: string): Promise<ScanAuthDto | undefined> {
   return request<ScanAuthDto>(`/api/im-gateway/wecom/scan-auth/${id}`, { method: 'GET' })
+}
+
+/** 会话列表条目的「最后一条消息」摘要（PILOT-078 FR-2；零消息时为 null）。 */
+export interface ConversationLastMessageDto {
+  direction: 'in' | 'out'
+  status: 'ok' | 'error'
+  /** 后端已截 60 字符的预览文本。 */
+  preview: string
+  createdAt: string
+}
+
+/** 会话列表条目（ImGatewaySession 每行 = 1 个联系人）。 */
+export interface ConversationDto {
+  channelKey: string
+  channelType: string
+  /** ChannelKey 末段（PlatformUserId）。 */
+  displayName: string
+  sessionId?: string | null
+  lastMessage?: ConversationLastMessageDto | null
+  lastActiveAt: string
+  messageCount: number
+}
+
+/** 消息线程条目（PILOT-078 FR-3）。 */
+export interface ChatMessageDto {
+  id: number
+  channelKey: string
+  channelType: string
+  /** in=收到（左气泡）/ out=回复（右气泡）。 */
+  direction: 'in' | 'out'
+  content: string
+  sessionId?: string | null
+  platformMsgId?: string | null
+  /** ok / error（error 气泡带失败标记 + errorText 摘要）。 */
+  status: 'ok' | 'error'
+  errorText?: string | null
+  createdAt: string
+}
+
+/** 消息线程分页结果（升序输出）。 */
+export interface MessagesPageDto {
+  messages: ChatMessageDto[]
+  hasMore: boolean
+}
+
+/** 读取会话列表（已绑定 IM 联系人，按最近消息倒序，无消息排后）。 */
+export function fetchConversations(): Promise<ConversationDto[] | undefined> {
+  return request<ConversationDto[]>('/api/im-gateway/conversations', { method: 'GET' })
+}
+
+/**
+ * 读取消息线程：beforeId 之前（不含）的最新 limit 条，按 Id 升序输出 + hasMore。
+ * channelKey 走 query 参数（避开路由编码）。
+ */
+export function fetchMessages(channelKey: string, limit = 50, beforeId?: number): Promise<MessagesPageDto | undefined> {
+  const qs = new URLSearchParams({ channelKey, limit: String(limit) })
+  if (beforeId && beforeId > 0) qs.set('beforeId', String(beforeId))
+  return request<MessagesPageDto>(`/api/im-gateway/messages?${qs.toString()}`, { method: 'GET' })
 }
 
 /** 读取本插件当前运行版本（宿主 /api/plugin 清单），用于界面展示「自身版本」。 */

@@ -283,3 +283,130 @@
     </tbody>
 </table>
 <br></br>
+<h3>IM网关消息记录（收_发双向（ImGatewayMessage）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>消息ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ChannelKey</td>
+            <td>通道会话用户复合键</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ChannelType</td>
+            <td>通道类型</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Direction</td>
+            <td>方向in=收到_out=回复</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>方向 in=收到 / out=回复</td>
+        </tr>
+
+        <tr>
+            <td>Content</td>
+            <td>消息内容（回复失败时为空串）</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SessionId</td>
+            <td>AIAgent会话ID</td>
+            <td>String</td>
+            <td>64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>AI Agent 会话ID</td>
+        </tr>
+
+        <tr>
+            <td>PlatformMsgId</td>
+            <td>平台消息ID</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态ok_error</td>
+            <td>String</td>
+            <td>10</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>状态 ok / error</td>
+        </tr>
+
+        <tr>
+            <td>ErrorText</td>
+            <td>失败原因摘要（error态）</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>失败原因摘要（error 态）</td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>

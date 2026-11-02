@@ -43,6 +43,8 @@ public class MemoryServiceXCode : IMemoryService
             exp &= Memory._.Tags.Contains(request.Tag.Trim());
         }
 
+        exp = ApplyDimensionFilter(exp, request.BotId, request.ProjectId, request.WorkspacePath);
+
         // 排除已删除
         exp &= Memory._.IsDeleted == false;
 
@@ -74,6 +76,9 @@ public class MemoryServiceXCode : IMemoryService
 
     public Task<MemoryDto> CreateAsync(CreateMemoryRequest request)
     {
+        LongTermMemoryGuard.RejectRawTranscript(request.Title);
+        LongTermMemoryGuard.RejectRawTranscript(request.Content);
+
         var entity = new Memory
         {
             Title = request.Title,
@@ -85,7 +90,12 @@ public class MemoryServiceXCode : IMemoryService
             CategoryId = request.CategoryId ?? 0,
             AccessCount = 0,
             DecayScore = 1.0,
-            IsDeleted = false
+            IsDeleted = false,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now,
+            BotId = NormalizeScopeId(request.BotId),
+            ProjectId = NormalizeScopeId(request.ProjectId),
+            WorkspacePath = NormalizeWorkspace(request.WorkspacePath)
         };
 
         entity.Insert();
@@ -101,6 +111,9 @@ public class MemoryServiceXCode : IMemoryService
 
     public Task<MemoryDto?> UpdateAsync(long id, UpdateMemoryRequest request)
     {
+        if (request.Content != null) LongTermMemoryGuard.RejectRawTranscript(request.Content);
+        if (request.Title != null) LongTermMemoryGuard.RejectRawTranscript(request.Title);
+
         var entity = Memory.FindByKey(id);
         if (entity == null) return Task.FromResult<MemoryDto?>(null);
 
@@ -113,7 +126,11 @@ public class MemoryServiceXCode : IMemoryService
         if (request.Tags != null) entity.Tags = string.Join(",", request.Tags);
         if (request.Source != null) entity.Source = request.Source;
         if (request.CategoryId.HasValue) entity.CategoryId = request.CategoryId.Value;
+        if (request.BotId != null) entity.BotId = NormalizeScopeId(request.BotId);
+        if (request.ProjectId != null) entity.ProjectId = NormalizeScopeId(request.ProjectId);
+        if (request.WorkspacePath != null) entity.WorkspacePath = NormalizeWorkspace(request.WorkspacePath);
 
+        entity.UpdatedAt = DateTime.Now;
         entity.Update();
 
         // 更新分类计数
@@ -126,12 +143,39 @@ public class MemoryServiceXCode : IMemoryService
         return Task.FromResult<MemoryDto?>(ToDto(entity));
     }
 
+    public Task<MemoryDto?> CorrectAsync(long id, CorrectMemoryRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Content))
+            throw new ArgumentException("纠正内容不能为空");
+
+        LongTermMemoryGuard.RejectRawTranscript(request.Content);
+        if (request.Title != null)
+            LongTermMemoryGuard.RejectRawTranscript(request.Title);
+
+        var entity = Memory.Find(Memory._.Id == id & Memory._.IsDeleted == false);
+        if (entity == null) return Task.FromResult<MemoryDto?>(null);
+
+        if (!string.IsNullOrWhiteSpace(request.Title))
+            entity.Title = request.Title.Trim();
+        entity.Content = request.Content.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Reason))
+        {
+            var note = "纠正:" + request.Reason.Trim();
+            var merged = string.IsNullOrWhiteSpace(entity.Source) ? note : entity.Source + " | " + note;
+            entity.Source = merged.Length <= 500 ? merged : merged[^500..];
+        }
+        entity.UpdatedAt = DateTime.Now;
+        entity.Update();
+        return Task.FromResult<MemoryDto?>(ToDto(entity));
+    }
+
     public Task<bool> DeleteAsync(long id)
     {
         var entity = Memory.FindByKey(id);
         if (entity == null) return Task.FromResult(false);
 
         entity.IsDeleted = true;
+        entity.UpdatedAt = DateTime.Now;
         entity.Update();
 
         // 更新分类计数
@@ -302,7 +346,7 @@ public class MemoryServiceXCode : IMemoryService
 
     #region 智能检索
 
-    public Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 10, double minScore = 0.1)
+    public Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 10, double minScore = 0.1, string? botId = null, string? projectId = null, string? workspacePath = null)
     {
         if (string.IsNullOrWhiteSpace(query))
             return Task.FromResult(new List<MemoryDto>());
@@ -311,8 +355,11 @@ public class MemoryServiceXCode : IMemoryService
         if (queryWords.Count == 0)
             return Task.FromResult(new List<MemoryDto>());
 
-        // 获取所有非删除的记忆
-        var allMemories = Memory.FindAll(Memory._.IsDeleted == false)
+        // 关键词打分前先按 Bot / 项目维度过滤，不引入向量库
+        var scope = new WhereExpression();
+        scope &= Memory._.IsDeleted == false;
+        scope = ApplyDimensionFilter(scope, botId, projectId, workspacePath);
+        var allMemories = Memory.FindAll(scope)
             .OrderByDescending(m => m.Importance)
             .OrderByDescending(m => m.AccessCount)
             .Take(200)
@@ -353,6 +400,9 @@ public class MemoryServiceXCode : IMemoryService
 
         foreach (var item in request.Items)
         {
+            if (LongTermMemoryGuard.IsRawChatDump(item.Title) || LongTermMemoryGuard.IsRawChatDump(item.Content))
+                continue;
+
             long? categoryId = null;
             if (!string.IsNullOrWhiteSpace(item.CategoryName))
             {
@@ -370,7 +420,12 @@ public class MemoryServiceXCode : IMemoryService
                 CategoryId = categoryId ?? 0,
                 AccessCount = 0,
                 DecayScore = 1.0,
-                IsDeleted = false
+                IsDeleted = false,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+                BotId = NormalizeScopeId(item.BotId ?? request.BotId),
+                ProjectId = NormalizeScopeId(item.ProjectId ?? request.ProjectId),
+                WorkspacePath = NormalizeWorkspace(item.WorkspacePath ?? request.WorkspacePath)
             };
 
             entity.Insert();
@@ -385,9 +440,11 @@ public class MemoryServiceXCode : IMemoryService
         return Task.FromResult(imported);
     }
 
-    public Task<List<MemoryDto>> ExportMemoriesAsync(long? categoryId = null, MemoryType? type = null)
+    public Task<List<MemoryDto>> ExportMemoriesAsync(long? categoryId = null, MemoryType? type = null, string? botId = null, string? projectId = null, string? workspacePath = null)
     {
-        var exp = Memory._.IsDeleted == false;
+        var exp = new WhereExpression();
+        exp &= Memory._.IsDeleted == false;
+        exp = ApplyDimensionFilter(exp, botId, projectId, workspacePath);
 
         if (categoryId.HasValue)
             exp &= Memory._.CategoryId == categoryId.Value;
@@ -498,8 +555,58 @@ public class MemoryServiceXCode : IMemoryService
             AccessCount = entity.AccessCount,
             LastAccessedAt = entity.LastAccessedAt == DateTime.MinValue ? null : entity.LastAccessedAt,
             CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
+            UpdatedAt = entity.UpdatedAt,
+            BotId = string.IsNullOrWhiteSpace(entity.BotId) ? null : entity.BotId,
+            ProjectId = string.IsNullOrWhiteSpace(entity.ProjectId) ? null : entity.ProjectId,
+            WorkspacePath = string.IsNullOrWhiteSpace(entity.WorkspacePath) ? null : entity.WorkspacePath
         };
+    }
+
+    /// <summary>
+    /// 传入维度时只保留该 Bot / 该项目，以及对应字段为空的共享记忆。不传则不过滤。
+    /// </summary>
+    private static WhereExpression ApplyDimensionFilter(WhereExpression exp, string? botId, string? projectId, string? workspacePath)
+    {
+        if (!string.IsNullOrWhiteSpace(botId))
+        {
+            var bot = botId.Trim();
+            exp &= Memory._.BotId == bot | Memory._.BotId == null | Memory._.BotId == "";
+        }
+
+        var project = NormalizeScopeId(projectId);
+        var workspace = NormalizeWorkspace(workspacePath);
+        if (project != null || workspace != null)
+        {
+            var shared = (Memory._.ProjectId == null | Memory._.ProjectId == "")
+                & (Memory._.WorkspacePath == null | Memory._.WorkspacePath == "");
+            WhereExpression scope = shared;
+            if (project != null)
+                scope |= Memory._.ProjectId == project;
+            if (workspace != null)
+                scope |= (Memory._.WorkspacePath == workspace | Memory._.ProjectId == workspace);
+            exp &= scope;
+        }
+
+        return exp;
+    }
+
+    private static string? NormalizeScopeId(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    internal static string? NormalizeWorkspace(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var text = path.Trim().Replace('/', Path.DirectorySeparatorChar);
+        try
+        {
+            if (Path.IsPathRooted(text))
+                text = Path.GetFullPath(text);
+        }
+        catch
+        {
+            // 非法路径按整理后的原文保存，检索使用同一规则
+        }
+        return text.TrimEnd(Path.DirectorySeparatorChar);
     }
 
     private static HashSet<string> ExtractKeywords(string text)

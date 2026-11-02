@@ -75,7 +75,7 @@ const quickAskText = ref('')
 
 function submitQuickAsk() {
   if (!quickAskText.value.trim()) return
-  openPage({ path: '/ai-agent', query: { q: quickAskText.value.trim() } }, 'AI Agent')
+  openPage({ path: '/ai-agent', query: { q: quickAskText.value.trim() } }, '智能体')
   quickAskText.value = ''
 }
 
@@ -144,7 +144,7 @@ const boardCards = computed(() => {
   const sys = homeStore.systemMetrics
   return [
     {
-      title: 'AI Agent',
+      title: '智能体',
       dot: agent.connected ? 'on' : 'off',
       status: agent.connected ? '就绪' : '离线',
       body: `今日 ${agent.todayConversations} 次调用`,

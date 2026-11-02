@@ -80,6 +80,56 @@ public class ChatCompletionWritePathTests
         Assert.Contains(fixture.Provider.Requests[0].Messages, m => m.Content == "INJECTED-BAD-DATA");
     }
 
+    // ---- PC-013 复发守卫（2026-10-30）：IM 网关不带模型时禁止把陈旧 AiConfig.ModelName 直发上游 ----
+    // 实证（:51888 实例 2026-10-30 21:16/21:17）：企微通道 BoundChatModelId=null → ResolveModelId(null)
+    // 回退 appsettings 残留 "qwythos-9b-v2"（不在启用模型目录）→ 上游 gpustack 404 Not Found。
+    // 守卫语义 = PC-013 有序解析链在本入口的类级断言：目录内解析 / 目录空明确失败（零上游请求）。
+    [Fact]
+    public async Task CompleteAsync_NoModelBound_UsesEnabledCatalogModel_NotStaleConfiguredName()
+    {
+        var fixture = new CompletionFixture(
+            configuredModelName: "qwythos-9b-v2",
+            catalog: new[]
+            {
+                new ModelIdentityDto
+                {
+                    ChatModelId = "fake:qwen3_8_vision",
+                    ProviderName = "fake",
+                    UpstreamModelId = "qwen3_8_vision"
+                },
+            });
+
+        var result = await fixture.Completion.CompleteAsync(new ChatCompletionRequest
+        {
+            SessionId = fixture.SessionId,
+            Message = "你好"
+            // ChatModelId 不传 = 企微通道未绑定模型的现网形态
+        });
+
+        Assert.True(result.Success, result.Error);
+        Assert.NotEmpty(fixture.Provider.Requests);
+        Assert.Equal("qwen3_8_vision", fixture.Provider.Requests[0].Model);
+        Assert.DoesNotContain(fixture.Provider.Requests, r => r.Model == "qwythos-9b-v2");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_NoModelBound_EmptyCatalog_FailsExplicitlyWithoutUpstreamCall()
+    {
+        var fixture = new CompletionFixture(
+            configuredModelName: "qwythos-9b-v2",
+            catalog: Array.Empty<ModelIdentityDto>());
+
+        var result = await fixture.Completion.CompleteAsync(new ChatCompletionRequest
+        {
+            SessionId = fixture.SessionId,
+            Message = "你好"
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains("模型", result.Error);
+        Assert.Empty(fixture.Provider.Requests);
+    }
+
     // ---- 旁路门禁：所有 IChatCompletion 实现都不得直写投影表 / 读表构造输入 ----
     [Fact]
     public void Source_NoDirectTableWrites_InChatCompletionImplementations()
@@ -156,7 +206,7 @@ internal sealed class CompletionFixture
 
     public IChatCompletion Completion { get; }
 
-    public CompletionFixture()
+    public CompletionFixture(string? configuredModelName = null, IReadOnlyList<ModelIdentityDto>? catalog = null)
     {
         Provider.Enqueue(Script.Text("IM 网关回复", finish: "stop"), repeatLast: true);
 
@@ -166,10 +216,22 @@ internal sealed class CompletionFixture
         ctx.Setup(c => c.Get<IToolRegistry>()).Returns(new FakeToolRegistry());
         ctx.Setup(c => c.Events).Returns(new EventBus());
 
+        // PC-013 复现/守卫依赖：宿主 AI 配置（陈旧默认模型名）+ 启用模型目录（ChatModelResolver 数据源）
+        var config = new Mock<IConfigurationService>();
+        config.Setup(c => c.GetAIConfig()).Returns(new AIConfig { ModelName = configuredModelName ?? string.Empty });
+        ctx.Setup(c => c.Get<IConfigurationService>()).Returns(config.Object);
+
+        var telemetry = new Mock<ITurnTelemetryQuery>();
+        telemetry.Setup(t => t.GetModelCatalogAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((catalog ?? Array.Empty<ModelIdentityDto>()).ToList());
+        ctx.Setup(c => c.Get<ITurnTelemetryQuery>()).Returns(telemetry.Object);
+
         var services = new ServiceCollection();
         services.AddSingleton<IContext>(ctx.Object);
         services.AddScoped<IAIAgentService, AIAgentService>();
         services.AddScoped<AIAgentProjectionService>();
+        // 与生产装配一致（AIAgentPlugin.AddServices）：解析器经 DI 注入 AIAgentService
+        services.AddScoped<IChatModelResolver, ChatModelResolver>();
 
         Completion = new AIAgentChatCompletion(services.BuildServiceProvider());
     }

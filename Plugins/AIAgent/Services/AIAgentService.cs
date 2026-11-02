@@ -26,6 +26,7 @@ public class AIAgentService : IAIAgentService
     private ISessionStore? _sessionStore;
     private IInbox? _inbox;
     private AIConfig? _aiConfig;
+    private IChatModelResolver? _modelResolver;
 
     public AIAgentService(
         IContext ctx,
@@ -33,7 +34,8 @@ public class AIAgentService : IAIAgentService
         IScriptTemplateService? scriptTemplateService = null,
         IAgentRegistryService? agentRegistry = null,
         IProjectSkillScannerService? skillScanner = null,
-        IProjectWorkspaceService? workspace = null)
+        IProjectWorkspaceService? workspace = null,
+        IChatModelResolver? modelResolver = null)
     {
         // 宿主契约（配置/日志/工具注册表/provider 注册表）经 Cordis 上下文在运行期以 ctx.Get<T>() 获取（软依赖探测）：
         // 不在构造时解析——宿主契约在 ProvideHostServices 阶段才 seed 进根上下文，晚于插件 Apply
@@ -41,6 +43,7 @@ public class AIAgentService : IAIAgentService
         // 延迟到首次使用时解析（此时宿主契约已就绪）。
         // HttpClient 为无状态 HTTP 客户端由本服务自建；推荐服务与脚本模板服务为可选扩展（未注册时置空、运行期降级）。
         _ctx = ctx;
+        _modelResolver = modelResolver;
         _httpClient = new HttpClient();
         _workflowRecommendationService = workflowRecommendationService;
         _scriptTemplateService = scriptTemplateService;
@@ -73,6 +76,24 @@ public class AIAgentService : IAIAgentService
     /// 注册实现为 <c>PersistentInbox</c>（日志投影）。未注册时为 null，Agent 回合按空收件箱处理。
     /// </summary>
     private IInbox? Inbox => _inbox ??= _ctx.Get<IInbox>();
+
+    /// <summary>
+    /// 对话模型解析链（PC-013）：DI 注入优先（生产装配 AIAgentPlugin 注册 <c>IChatModelResolver</c>）；
+    /// 直接构造/测试装配未注入时兜底新建（解析器对宿主契约惰性解析、无状态，开销可忽略）。
+    /// </summary>
+    private IChatModelResolver ModelResolver => _modelResolver ??= _ctx.Get<IChatModelResolver>() ?? new ChatModelResolver(_ctx);
+
+    /// <summary>
+    /// 「调用方不给模型」的统一解析入口（PC-013，2026-10-30 复发修复）：
+    /// 实证 IM 网关未绑定模型时 <see cref="ResolveModelId"/> 会回退陈旧的 <c>AiConfig.ModelName</c>
+    /// （:51888 实例 appsettings 残留 qwythos-9b-v2 → 上游 404）。此助手把 null/空请求交
+    /// <see cref="IChatModelResolver"/> 有序链（目录内匹配 → 首个启用 → 无则返回 null）；
+    /// 返回 null = 无可用模型，调用方必须明确失败（禁止静默降级）。
+    /// </summary>
+    private async Task<string?> ResolveChatModelOrFallbackAsync(string? chatModelId, CancellationToken cancellationToken)
+        => string.IsNullOrWhiteSpace(chatModelId)
+            ? await ModelResolver.ResolveAsync(null, cancellationToken)
+            : chatModelId;
 
     private AIConfig AiConfig
     {
@@ -174,6 +195,25 @@ public class AIAgentService : IAIAgentService
     {
         // B5（041）：循环逻辑已外迁到 ReactLoopAgent；本方法退化为编排层
         // （构建运行期依赖 → 跑一个回合 → 把 live 帧适配成既有的 AgentLoopEvent 事件流）。
+
+        // PC-013 复发修复（2026-10-30 实证：IM 网关未绑定模型 → ResolveModelId 回退陈旧
+        // AiConfig.ModelName（qwythos-9b-v2）→ 上游 404）：调用方不给模型时必须走统一有序解析链，
+        // 解析不到明确失败，禁止静默降级到默认 provider + 陈旧模型名。
+        if (string.IsNullOrWhiteSpace(chatModelId))
+        {
+            chatModelId = await ResolveChatModelOrFallbackAsync(chatModelId, cancellationToken);
+            if (string.IsNullOrWhiteSpace(chatModelId))
+            {
+                XTrace.Log.Warn("[AIAgentPlugin] 无可用对话模型（模型目录为空或模型目录契约不可用），拒绝执行会话回合 SessionId={0}", sessionId);
+                yield return new AgentLoopEvent
+                {
+                    Type = "error",
+                    Content = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型，或为该通道绑定模型后再试。"
+                };
+                yield break;
+            }
+        }
+
         var agent = CreateAgent(sessionId, BuildAgentOptions(chatModelId, agentId, enabledToolNames, skillIds));
 
         var content = new StringBuilder();
@@ -386,6 +426,23 @@ public class AIAgentService : IAIAgentService
         [EnumeratorCancellation] CancellationToken cancellationToken,
         List<IToolFunctionExtension>? extraTools)
     {
+        // PC-013 复发修复（2026-10-30）：与会话版同一条不变量——ad-hoc 入口不给模型时走统一解析链，
+        // 解析不到明确失败（ChatAsync/ChatWithToolsAsync 消费方按既有 error 事件语义收到失败），禁止静默降级。
+        if (string.IsNullOrWhiteSpace(chatModelId))
+        {
+            chatModelId = await ResolveChatModelOrFallbackAsync(chatModelId, cancellationToken);
+            if (string.IsNullOrWhiteSpace(chatModelId))
+            {
+                XTrace.Log.Warn("[AIAgentPlugin] 无可用对话模型（模型目录为空或模型目录契约不可用），拒绝 ad-hoc 工具循环");
+                yield return new AgentLoopEvent
+                {
+                    Type = "error",
+                    Content = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。"
+                };
+                yield break;
+            }
+        }
+
         var provider = ResolveProvider(chatModelId);
         if (provider == null)
         {

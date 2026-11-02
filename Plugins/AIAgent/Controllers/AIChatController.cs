@@ -30,6 +30,7 @@ public class AIChatController : ControllerBase
     private readonly IPluginMessageService _messageService;
     private readonly AIAgentProjectionService _projection;
     private readonly IContext _ctx;
+    private readonly IChatModelResolver? _modelResolver;
     private ISessionStore? _sessionStore;
     private IAgentRegistry? _agentRegistry;
 
@@ -43,13 +44,24 @@ public class AIChatController : ControllerBase
     // 构造注入宿主契约会导致控制器激活 500（e2e 实测）。故注入 IContext，
     // 在 /tools 端点内运行期经 ctx.Get<IToolRegistry>() 获取。
     // ISessionStore / AIAgentProjectionService 同理走运行期解析。
-    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, AIAgentProjectionService projection, IContext ctx)
+    public AIChatController(IAIAgentService aiAgentService, IPluginMessageService messageService, AIAgentProjectionService projection, IContext ctx, IChatModelResolver? modelResolver = null)
     {
         _aiAgentService = aiAgentService;
         _messageService = messageService;
         _projection = projection;
         _ctx = ctx;
+        // PC-013（2026-10-30 复发修复）：IChatModelResolver 属插件自有服务（与 IAIAgentService 同容器），
+        // 可安全构造注入；可选参数保证既有测试装配不受影响。
+        _modelResolver = modelResolver;
     }
+
+    /// <summary>
+    /// PC-013 复发修复：聊天端点收到未带模型的请求时先走统一解析链（目录内匹配 → 首个启用），
+    /// 解析不到返回 null（端点给出明确错误，禁止把陈旧 AiConfig.ModelName 交给底层静默降级）。
+    /// 解析器缺席（仅测试装配）时原样返回，保持旧语义。
+    /// </summary>
+    private async Task<string?> ResolveChatModelAsync(string? requested, CancellationToken ct)
+        => _modelResolver == null ? requested : await _modelResolver.ResolveAsync(requested, ct);
 
     /// <summary>宿主会话事件日志（运行期经 IContext 解析，见构造函数说明）。</summary>
     private ISessionStore? SessionStore => _sessionStore ??= _ctx.Get<ISessionStore>();
@@ -111,10 +123,18 @@ public class AIChatController : ControllerBase
                 return StatusCode(500, new { error = "宿主未提供 IAgentRegistry 契约（Agent 运行时注册表）" });
             }
 
+            // PC-013（2026-10-30 复发修复）：未指定模型时先走统一解析链；无可用模型明确失败，
+            // 不建 Agent、不投喂收件箱，禁止把陈旧 AiConfig.ModelName 交给底层静默降级。
+            var resolvedModelId = await ResolveChatModelAsync(request.ChatModelId, cancellationToken);
+            if (_modelResolver != null && string.IsNullOrWhiteSpace(resolvedModelId))
+            {
+                return StatusCode(503, new { error = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。" });
+            }
+
             // B5（041）：会话主路径经 Agent 运行时注册表跑 turn/step 状态机；
             // 用户消息经收件箱投喂（由状态机落 user/message），助手产出由状态机落 assistant/message。
             var options = _aiAgentService.BuildAgentOptions(
-                request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
+                resolvedModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
             var agent = await registry.GetOrCreateAsync(sessionId, options, cancellationToken);
             if (agent.Status == AgentStatus.Running)
             {
@@ -237,9 +257,22 @@ public class AIChatController : ControllerBase
                 return;
             }
 
+            // PC-013（2026-10-30 复发修复）：与同步端点同款——未指定模型先走解析链，无可用模型明确失败。
+            var resolvedModelId = await ResolveChatModelAsync(request.ChatModelId, cancellationToken);
+            if (_modelResolver != null && string.IsNullOrWhiteSpace(resolvedModelId))
+            {
+                await WriteEventAsync(new
+                {
+                    type = "error",
+                    content = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。",
+                    sessionId
+                });
+                return;
+            }
+
             // B5（041）：与同步端点同款——经注册表取会话状态机，投喂收件箱后消费 TurnFrame
             var options = _aiAgentService.BuildAgentOptions(
-                request.ChatModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
+                resolvedModelId, request.AgentId, request.EnabledToolNames, request.SkillIds);
             var agent = await registry.GetOrCreateAsync(sessionId, options, cancellationToken);
             if (agent.Status == AgentStatus.Running)
             {

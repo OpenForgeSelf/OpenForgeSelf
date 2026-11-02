@@ -5,17 +5,21 @@ tags: [ai-agent, model-resolution, silent-fallback, empty-response, run-status]
 invariant: 任何「调用方不给模型」的执行入口必须走统一的有序解析链，解析不到时明确失败（Fail / error 事件），禁止回退到硬编码模型或静默换 provider；上游返回空响应（无正文 + 无工具调用 + 0 补全 token + 非 max-tokens）必须判步骤失败，不得当作成功收束。
 status: guarded
 first_seen: 2026-10-25
-recurrences: []
-cases: [2026-10-25-builtin-agent-silent-model-fallback]
+recurrences:
+  - 2026-10-30-im-gateway-unbound-model-404
+cases: [2026-10-25-builtin-agent-silent-model-fallback, 2026-10-30-im-gateway-unbound-model-404]
 signature:
   - {id: S1, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatModelResolverTests.cs}
   - {id: S2, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs}
+  - {id: S3, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatCompletionWritePathTests.cs}
 allowlist: []
 guards:
   - {level: G1, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatModelResolverTests.cs, status: active}
   - {level: G2, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs, status: active}
+  - {level: G2, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatCompletionWritePathTests.cs, status: active}
 lens:
   - 执行入口里有没有硬编码模型串 / `DefaultChatModelId` 这类常量（应走 `IChatModelResolver`）？
+  - 执行入口把 `null` 模型透传给底层时，底层会不会回退到陈旧 `AiConfig.ModelName`？（入口必须自己先接 `IChatModelResolver`——`RunAgentLoopAsync`/`RunAdHocCoreAsync`/控制器端点都曾在此逃逸）
   - 解析不到模型时是明确失败，还是回退到宿主默认 provider / 目录首个 / 什么都不说？
   - `ResumeAsync` 及一切「恢复/重放」路径是否也显式解析模型（不能传 null 退化）？
   - 上游 200 但空正文、无工具调用、0 completion token 的分支，落到 Completed 还是 Failed？
@@ -44,7 +48,7 @@ G2 覆盖：空响应 ⇒ 无 `assistant/message`、`StepEndReason.Failed`、单
 ## 3 Canonical fix
 
 - `IChatModelResolver.ResolveAsync(requested, ct)`：四级有序链；`ITurnTelemetryQuery.GetModelCatalogAsync()` 只返回 `AIModel.Enabled == true`；日志逐级说明「命中来源」或「为何未命中」。
-- 消费方：`BuiltInAgentExecutionService.StartAsync`、`RunOrchestratorService.RunAsync/ResumeAsync`。解析不到 ⇒ `BuiltInAgentOutcome.Fail` / `error` 事件，**不进入规划或步骤执行**。
+- 消费方（复发后增补，2026-10-30）：`BuiltInAgentExecutionService.StartAsync`、`RunOrchestratorService.RunAsync/ResumeAsync`、**`AIAgentService.RunAgentLoopAsync`（IChatCompletion/IM 路径）、`AIAgentService.RunAdHocCoreAsync`（ad-hoc）、`AIChatController` 同步+流式两端点**。解析不到 ⇒ `BuiltInAgentOutcome.Fail` / `error` 事件 / 503，**不进入规划或步骤执行、不发上游请求**。
 - `ReactLoopAgent`：在「无工具调用」分支前先判空响应，命中走 `StepEndReason.Failed` + `TurnFailed`。
 - 契约可见性：新增依赖的宿主契约必须登记 `PluginManager.HostProvidedServiceContracts`（本次补 `ITurnTelemetryQuery`）。
 
@@ -56,9 +60,11 @@ G2 覆盖：空响应 ⇒ 无 `assistant/message`、`StepEndReason.Failed`、单
 |------|------|----------|----------|
 | G1 | `ChatModelResolverTests.cs` | dotnet test 全量 / CI | 只覆盖解析链四条；目录读取异常（DB 故障）未覆盖 |
 | G2 | `ReactLoopAgentTests.cs::EmptyUpstreamResponse_FailsInsteadOfCompleting` | dotnet test 全量 / CI | 「有极短正文但语义为空」不在守卫内（仍按成功收束） |
+| G2（复发批 2026-10-30） | `ChatCompletionWritePathTests.cs::CompleteAsync_NoModelBound_*` 两条 | dotnet test 全量 / CI | 只断言 IChatCompletion 入口；控制器/ad-hoc 入口的接链仍靠人工走查（R1 提案：CreateAgent 空模型不可表达） |
 
 ## 5 案例列表
 
 | case | 日期 | 现象一句话 | 是否逃逸 |
 |------|------|------------|----------|
 | 2026-10-25-builtin-agent-silent-model-fallback | 2026-10-25 | 待办一键交给内置 Agent 后 Run 立即 Stuck，实为硬编码模型不存在 + 空响应当成功 | 是（041 B5 门禁只覆盖有内容路径，未覆盖空流；2026-10-24 被误判为「Agent 不会执行」） |
+| 2026-10-30-im-gateway-unbound-model-404 | 2026-10-30 | IM 网关未绑定模型 → 陈旧 `AiConfig.ModelName`（qwythos-9b-v2）直发上游 404，企微回复全失败 | 是（2026-10-25 修复只接了 Run/内置执行两入口，「入口接链」无类级断言；本批补 G2 入口级守卫 + lens 增补 null 透传问） |

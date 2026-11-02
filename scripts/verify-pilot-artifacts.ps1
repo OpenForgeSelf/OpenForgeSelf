@@ -15,6 +15,8 @@
   机械校验开关（供 CI / pre-commit 打开；历史全量扫描默认关闭以免对旧目录假红）：
     -EnforceHeader        04-task.md 头部 front-matter 必须存在且含 risk/expected_files/feature/rollback
     -EnforceAcCoverage    02 中每个 ACn 必须在 05 出现
+    -EnforceInteraction   Spec（轻量=mini-task.md）必须含「Interaction Design」节或显式「无界面交互」声明
+                          （AGENTS §11.2 / 2026-10-30 规则；2026-10-31 用户授权增设，TODO 输入7 项兑现）
 
   配套：.github/workflows/ci.yml → scripts/verify-pilot-gate.ps1；本地 pre-commit / commit-msg。
   本脚本属 L4 宪法层，Agent 不得自行修改。
@@ -29,7 +31,8 @@ param(
     [string]$TaskId = '',      # docs/ai/pilot/<TaskId> 目录名；空 = 扫描全部
     [string]$RepoRoot = '',    # 仓库根；缺省取脚本上级目录
     [switch]$EnforceHeader,
-    [switch]$EnforceAcCoverage
+    [switch]$EnforceAcCoverage,
+    [switch]$EnforceInteraction
 )
 
 $ErrorActionPreference = 'Stop'
@@ -188,6 +191,23 @@ foreach ($t in $tasks) {
                     Write-Output ('  [FAIL] 02 的验收标准在 05 无对应证据: ' + ($missing -join ', '))
                     $globalFail++
                 }
+            }
+        }
+    }
+
+    # ⑤ Interaction Design 节（2026-10-30 用户立：插件任务一律必写；无界面须显式声明。2026-10-31 用户授权增设）
+    if ($EnforceInteraction) {
+        $specPath = $null
+        if ($isLite) { $specPath = $mini }
+        else {
+            $f02i = Get-Artifact $t 2
+            if ($f02i.Count -eq 1) { $specPath = $f02i[0].FullName }
+        }
+        if ($specPath) {
+            $specText = Read-Utf8 $specPath
+            if ($specText -notmatch 'Interaction Design' -and $specText -notmatch '无界面交互') {
+                Write-Output '  [FAIL] Spec 缺「Interaction Design」节且无「无界面交互」显式声明（AGENTS §11.2 / 2026-10-30 规则）'
+                $globalFail++
             }
         }
     }

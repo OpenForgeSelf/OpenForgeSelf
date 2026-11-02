@@ -390,6 +390,7 @@ components:
 - 列表/面板提供空态、加载态、错误态；空态 = 图标 + 一句 serif 引言（+ 主操作）。
 - 破坏性操作（删除、覆盖、停用）前必须二次确认，失败要留痕可见。
 - 滚动区域内固定高度卡片设 `flex-shrink-0`；日志区限高滚动。
+- flex/grid 子项含长文本（nowrap 预览/长 URL/长标题）必须显式 `min-width: 0`（或 overflow hidden），防 automatic minimum 撑破分栏（2026-10-31 实证：IM 网关 300px 侧栏被 60 字预览的 min-content 撑到 ~788px）。
 - 主操作按钮每屏仅一个；破坏性用朱砂 `--cinnabar-400`。
 - hover 用 `translateY(-1px)` / opacity .85；active 用 `translateY(1px)` + 阴影收紧。
 
@@ -415,6 +416,8 @@ components:
 4. 品牌语汇：主操作每屏仅一个（金底/金描边），破坏性用朱砂 `--cinnabar-400`；无 emoji 装饰、无胶囊按钮（极小 tag/chip 例外）、无蓝紫渐变、无可爱风插画。
 5. 响应式以 1440 桌面为基准；固定高度卡片 `flex-shrink-0`，日志/列表限高滚动。
 6. 交互反馈：hover = `translateY(-1px)` / opacity .85；active = `translateY(1px)` + 阴影收紧；动效取 `--dur-*`/`--ease-*`；焦点态金描边。
+7. **双栏/列表-主内容布局**（2026-10-31 立）：侧栏固定宽（260–360px）+ 子项 `min-width:0` 铁律 + 主内容 `1fr` 占主导；长文本条目省略链必须完整（容器 `min-width:0` + 文本 `overflow:hidden` + `text-overflow:ellipsis` + `white-space:nowrap`），走查必含长文本压力数据（60+ 字符预览）实测侧栏宽度不爆。
+8. **会话/时间线类视图的方向语义**（2026-10-31 立）：谁在左谁在右（气泡方向、主次栏位）= **需求拍板项**——Spec 必须显式写明并经闸门1 用户确认，禁止按通用聊天惯例默认假定（实证：IM 网关「收左回右」按惯例写入 spec，方向反了直到用户指出）。
 
 **新建查询**（宿主/插件列表、看板、统计等取数 UI）：
 1. 统一走既有 API 层与 loading/error/empty 三态，禁止页面内裸 `fetch` + 手写状态拼装。

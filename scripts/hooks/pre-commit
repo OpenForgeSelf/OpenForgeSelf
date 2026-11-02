@@ -69,7 +69,7 @@ fi
 for d in $DIRS; do
   echo "[pre-commit] 校验 PILOT 工件链: $d"
   "$PS" -NoProfile -ExecutionPolicy Bypass \
-    -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$d" -EnforceHeader -EnforceAcCoverage
+    -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$d" -EnforceHeader -EnforceAcCoverage -EnforceInteraction
   if [ $? -ne 0 ]; then
     FAIL=1
   fi

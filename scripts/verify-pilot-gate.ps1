@@ -129,7 +129,7 @@ if ($pilotDirs.Count -gt 0) {
     }
     else {
         foreach ($d in $pilotDirs) {
-            $out = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verify -RepoRoot $RepoRoot -TaskId $d -EnforceHeader -EnforceAcCoverage 2>&1
+            $out = & pwsh -NoProfile -ExecutionPolicy Bypass -File $verify -RepoRoot $RepoRoot -TaskId $d -EnforceHeader -EnforceAcCoverage -EnforceInteraction 2>&1
             $rc = $LASTEXITCODE
             $out | ForEach-Object { Write-Output "  $_" }
             if ($rc -ne 0) {

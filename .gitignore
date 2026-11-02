@@ -90,6 +90,12 @@ specs/
 .userprofile/
 .tmp/
 .*/
+# 2026-11-02 修正：`.*/` 兜底曾把必须入库的 .agents/（技能目录，2026-09-27 立）与 .github/（CI workflow）
+# 误标忽略——新增技能/工作流文件会静默不入库；以下负向豁免放行，.github/agents、.github/prompts 仍按下行忽略。
+!.agents/
+!.github/
 CONTEXT.md
 .github/agents/
 .github/prompts/
+# 本机活队列的手工备份件（如 TODO.md.bak）不入库
+/TODO.md.bak

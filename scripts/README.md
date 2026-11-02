@@ -37,7 +37,7 @@
 
 | 脚本 | 功能 | 用法 |
 |---|---|---|
-| `release-local.ps1` | 一键发布编排：`build-frontend → publish-host → publish-bootstrapper → package-release → make-release-notes`；`-UpdateDir` 同时产出本地目录更新源（离线/内网更新） | `pwsh scripts/release/release-local.ps1 [-Version 2.3.0] [-SkipFrontend] [-UpdateDir <dir>] [-Sign]` |
+| `release-local.ps1` | 一键发布编排：`build-frontend → publish-host → publish-bootstrapper → package-release → make-release-notes`；`-UpdateDir` 同时产出本地目录更新源（离线/内网更新） | `pwsh scripts/release/release-local.ps1 [-Version 2.3.0] [-SkipFrontend] [-UpdateDir <dir>] [-Sign]`；不传 `-Version`（本地）= 读 ForgeSelf.Api.csproj 版本行（三段）自动补时间码（2026-10-30 起；bump 版本行须经用户允许） |
 | `build-frontend.ps1` | 构建宿主 SPA（ForgeSelf.Web → wwwroot）+ 全部插件前端（web → dist）；本机与 CI 同一入口 | `pwsh scripts/release/build-frontend.ps1 [-HostOnly] [-PluginsOnly -Plugin AIAgent]` |
 | `publish-host.ps1` | dotnet publish 宿主业务层：FDD 单文件 `ForgeSelf.exe`（托管程序集内嵌、原生/内容外置）+ 外置 `System.Data.SQLite.dll`；发行串经 `FORGESELF_RELEASE_VERSION` 注入 exe 文件版本 | `pwsh scripts/release/publish-host.ps1 [-Version 2.3.0.2609161125] [-SelfContained]` |
 | `publish-bootstrapper.ps1` | 产出安装根公共层：薄壳启动器 exe（~170KB）+ .NET 运行时 DOTNET_ROOT 结构（host/fxr + shared 三框架），跨版本共享、每版本只存一份 | `pwsh scripts/release/publish-bootstrapper.ps1 [-OutputDir artifacts/layout-root]` |

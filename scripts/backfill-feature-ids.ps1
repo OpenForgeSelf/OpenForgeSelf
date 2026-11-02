@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
   半自动回填：为 docs/02-features/*.md 补 front-matter（可选补「需求清单」章节）。只增不改、幂等、默认 dry-run。

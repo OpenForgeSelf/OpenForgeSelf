@@ -7,7 +7,7 @@
 # (launcher + runtime + framework + plugins/), business layer per version under versions/<ver>/, current pointer.
 #
 # Examples:
-#   ./release-local.ps1                                  # local dry run, Version=0.0.0-local（不补时间码）
+#   ./release-local.ps1                                  # 本地缺省（2026-10-30 起）：读 ForgeSelf.Api.csproj 版本行（三段）自动补时间码
 #   ./release-local.ps1 -Version 2.3.0 -SkipFrontend     # 三段号自动补时间码 → 2.3.0.<yyMMddHHmm>
 #   ./release-local.ps1 -Version 2.3.0.2609161125        # 四段完整发行串，幂等原样使用
 #   ./release-local.ps1 -Version v2.3.0.2609161125 -Sign
@@ -36,10 +36,23 @@ $env:TEMP   = $buildTemp
 $env:TMP    = $buildTemp
 $env:TMPDIR = $buildTemp
 
-# In CI the tag name arrives via GITHUB_REF_NAME (e.g. v2.3.0.2609161125); locally default to a dev version.
-$versionGiven = [bool]$Version
+# 版本来源三分支（2026-10-30 输入3 用户拍板，真源 docs/04-standards/packaging-upgrade-backup.md §1.1/§4-R10）：
+#   ① 显式 -Version：3 段补时间码 / 4 段幂等（行为不变）；
+#   ② CI：GITHUB_REF_NAME 有值 → tag 原样使用、绝不改写（产物版本必须 = tag）；
+#   ③ 本地缺省：读 ForgeSelf.Api.csproj 的版本行（三段固定部分）再补时间码 → 发布 zip 不需指定版本；
+#      csproj 版本行 bump 必须经用户允许，agent 不得擅自改。
+$versionFromCsproj = $false
+$versionFromCi = $false
 if (-not $Version) {
-    if ($env:GITHUB_REF_NAME) { $Version = $env:GITHUB_REF_NAME } else { $Version = '0.0.0-local' }
+    if ($env:GITHUB_REF_NAME) {
+        $Version = $env:GITHUB_REF_NAME
+        $versionFromCi = $true
+    }
+    else {
+        $Version = Get-CsprojReleaseVersion -RepoRoot $repoRoot
+        $versionFromCsproj = $true
+        Write-Host ("release-local: version line from ForgeSelf.Api.csproj (VersionPrefix) = {0} (bump requires user approval)" -f $Version)
+    }
 }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
 # 本地打包默认输出到「项目上级 updates 目录」（仓库外、不入 git，避免污染工作区与误入版本控制）；
@@ -47,10 +60,10 @@ if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
 if (-not $UpdateDir -and -not $env:GITHUB_REF_NAME) {
     $UpdateDir = Join-Path (Split-Path $repoRoot -Parent) 'updates'
 }
-# 发行串解析（2026-10-02 版本规则，真源 §1.1）：
-#   显式 -Version：3 段（2.3.0）自动补 yyMMddHHmm；4 段（含时间码）幂等原样；
-#   CI tag / 本地缺省串：视为发行标识原样使用，绝不改写（改写会让产物版本 ≠ tag）。
-$ver = if ($versionGiven) { Get-FullReleaseVersion $Version } else { Get-NormalizedVersion $Version }
+# 发行串解析（2026-10-02 版本规则，真源 §1.1；2026-10-30 起本地缺省改读 csproj 版本行）：
+#   显式 -Version / csproj 缺省：3 段（2.4.22）自动补 yyMMddHHmm；4 段（含时间码）幂等原样；
+#   CI tag：视为发行标识原样使用，绝不改写（改写会让产物版本 ≠ tag）。
+$ver = if ($versionFromCi) { Get-NormalizedVersion $Version } else { Get-FullReleaseVersion $Version }
 $publishDir = Join-Path $OutputRoot 'publish'
 $bootDir = Join-Path $OutputRoot 'layout-root'
 $layoutDir = Join-Path $OutputRoot 'layout'

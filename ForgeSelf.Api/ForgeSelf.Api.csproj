@@ -9,8 +9,11 @@
     <ApplicationIcon>Assets\ForgeSelf.ico</ApplicationIcon>
     <!-- 版本号规则 = <major>.<minor>.<patch>.<yyMMddHHmm>（2026-10-02 修订，示例 2.3.0.2609161125）：
          正式发行的完整串由 release-local.ps1（本地）/ CI tag（GITHUB_REF_NAME）生成，经环境变量
-         FORGESELF_RELEASE_VERSION 传给发布脚本注入本项目；未传时（开发者本地直接 build）兜底生成
-         2.3.0.<yyMMddHHmm>（与发行形态同构，避免开发串与发行串混淆）。
+         FORGESELF_RELEASE_VERSION 传给发布脚本注入本项目。
+         版本行真源（2026-10-30 输入3 用户拍板）：下方 VersionPrefix 属性承载三段发行线（当前 2.4.22），
+         release-local.ps1 本地不传 -Version 时读它解析固定三段再补时间码——发布 zip 不需指定版本；
+         版本行 bump 必须经用户允许，agent 不得擅自改（真源 packaging-upgrade-backup.md §1.1/§4-R10）。
+         未注入时（开发者本地直接 build）兜底生成 2.4.22.<yyMMddHHmm>（与发行形态同构，避免开发串与发行串混淆）。
          ⚠️ 为什么用环境变量而不是命令行 -p:Version：-p: 是**全局属性**，会传播到项目图里所有被引用项目
             （ForgeSelf.Core / ForgeSelf.Abstractions / Plugins/*），它们没有显式 AssemblyVersion/PackageVersion，
             10 位时间码会同时触发 NuGet 项目版本校验（NU1105「不是有效的版本字符串」，错误只写进 obj 日志、
@@ -24,8 +27,8 @@
             10 位时间码（如 2610021627 ≈ 2.61e9）超过 int.MaxValue（2.147e9）→ NU1105「不是有效的版本字符串」，
             且该错误只写进 obj/project.assets.json 的 logs、不冒泡为可见报错（restore 静默失败）。
             故发行串完整形态只走 FileVersion/$(Version) 的信息层，NuGet 身份层用三段 PackageVersion 兜底。 -->
-    <VersionPrefix>2.3</VersionPrefix>
-    <VersionSuffix>0.$([System.DateTime]::Now.ToString('yyMMddHHmm'))</VersionSuffix>
+    <VersionPrefix>2.4.22</VersionPrefix>
+    <VersionSuffix>$([System.DateTime]::Now.ToString('yyMMddHHmm'))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <!-- 发行串覆盖：发布脚本注入的环境变量优先（须排在 <Version> 之后才能胜出；未设置时为 no-op） -->
     <Version Condition="'$(FORGESELF_RELEASE_VERSION)' != ''">$(FORGESELF_RELEASE_VERSION)</Version>

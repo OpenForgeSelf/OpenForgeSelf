@@ -1,4 +1,4 @@
-﻿---
+---
 name: plugin-development
 description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + 自带界面 + 维护闭环）。用于「新建插件」「插件从宿主迁移成独立插件」「改完插件要怎么走完流程」。当用户要新建一个插件、或要改动/修复已有插件（尤其是带 web/ 界面的插件）时使用。
 ---
@@ -201,7 +201,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 15. **【宿主前端 API 层铁律】宿主 service 的 `parseResponse` 已解包 `json.data`**：新增 fetch 函数直接按目标类型 T 收（`parseResponse<T>(resp)` 返回 T 本身），**禁止再取 `.data`/`.stats`**——会得到 undefined、页面无错但功能静默失效（fetchPluginVersion / fetchTraffic 各踩一次）。宿主内嵌组件型插件（无独立 web/）的 service 层同样适用。
 16. **【发布铁律·2026-10-11 用户拍板】发布方式默认 = 本地目录更新源；禁止手工 Copy-Item 发布产物；禁止 agent 停/启/杀用户宿主进程。**
    - 改完插件/宿主 = 代码 + 单测/集成 + **每插件 1 个冒烟 e2e** + **起源码本地前后端按验收标准验收（必做，见铁律 25）** + 发布（本地 `release-local.ps1 -UpdateDir` + 页面本地目录更新源） + **真实走查（用户点更新后运行实例只读复验）**，缺一不算完成。
-   - **本地目录发布**：`pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -Sign -UpdateDir <目录>`（给人装必须 `-Sign`）→ 设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」（宿主 update-agent 自更新，全程无人停宿主）。打 tag 自动发布降为可选路径（用户明确要求时）。
+   - **本地目录发布**：`pwsh scripts/release/release-local.ps1 -Sign -UpdateDir <目录>`（不传 `-Version` = 读 ForgeSelf.Api.csproj 版本行补时间码，2026-10-30 起；bump 版本行须经用户允许；给人装必须 `-Sign`）→ 设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」（宿主 update-agent 自更新，全程无人停宿主）。打 tag 自动发布降为可选路径（用户明确要求时）。
    - **宿主由 update-agent 自更新（spec 036）**：用户/页面点「检查更新 → 下载 → 重启并更新」，全程无人停宿主。
      任何情况下 **agent 不得 Stop-Process 用户运行中的 ForgeSelf**（旧规范 run-plugin-publish-verify.ps1 会杀掉非 publish 实例，2026-09-27 已废除该行为，见 plugin-publish-verify）。
    - 宿主后端 Controller 改完**必须先 `dotnet build` 门禁**（直接复制旧 Release DLL → 新端点 404，流量统计接口实测）；发布产物由打包脚本全量重建，**不要手工复制 DLL**。
@@ -552,7 +552,7 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
    （点即保存/成败可见/防闪/空态分级/分页边界/二次确认/版本徽标/禁用态原因）逐项核对 + `ui-ux-design` 走查清单 +
    截图读图（存 `ForgeSelf.Web/screenshots/dev/<id>/`）+ 清测试数据。**这一遍通过前，不许进入 ④。**
 4. **按情况操作宿主（发布）**（2026-10-11 用户拍板：默认本地目录更新源）
-   - **主路径**：`pwsh scripts/release/release-local.ps1 -Version v<X.Y.Z> -Sign -UpdateDir <目录>`（给人装必带 `-Sign`）→
+   - **主路径**：`pwsh scripts/release/release-local.ps1 -Sign -UpdateDir <目录>`（不传 `-Version` = 读 csproj 版本行自动补时间码，2026-10-30 起；给人装必带 `-Sign`）→
      设置页「更新源 = 本地目录」填该目录 → 页面点「检查更新 → 下载 → 重启并更新」完成升级
      （宿主 update-agent 自更新，**全程无人停宿主**）。
    - **可选**（用户明确要求时才用）：向用户请示 git 提交（审批后才 commit）→ 打 tag `v<X.Y.Z>` → `git push github v<X.Y.Z>` →
@@ -648,7 +648,7 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
   ⇒ **交付/发布前必须按同参数跑一次 `cd ForgeSelf.Web && npx vue-tsc -b`**；插件 e2e 用例里给断言写"说明文字"时，
   一律用注释而不是第二个参数。
 - **本地发布给人装的包必须带 `-Sign`**（AGENTS.md §2.3 定稿）：
-  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Version <三段号> -Sign -UpdateDir <上级目录>\updates`；
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\release\release-local.ps1 -Sign -UpdateDir <上级目录>\updates`（不传 `-Version` = 读 csproj 版本行自动补时间码；bump 版本行须经用户允许）；
   脚本自己把 `TEMP/TMP` 指进仓库 `.temp`（勿再手工改）。跑完**必须验包内容**而不是看退出码：
   zip 存在 + `SHA256SUMS.txt` 逐字对 + L1/L2/L3 布局不变量 + 新插件真进 `versions/<ver>/plugins/<id>/`（DLL + plugin.json + web/dist）
   + 两个 exe 的 FileVersion 与包名同串 + `signtool verify` 为 Valid（时间戳间歇失败 ⇒ 半签不得交付）。

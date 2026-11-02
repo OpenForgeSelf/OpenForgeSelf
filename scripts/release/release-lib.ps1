@@ -89,3 +89,39 @@ function Get-ReleaseVersionInjectible {
     if ($Version -match '^(?<base>\d+\.\d+\.\d+(?:\.\d+)?)-[0-9A-Za-z][0-9A-Za-z.\-]*$') { return $Matches['base'] }
     return $null
 }
+
+function Get-CsprojReleaseVersion {
+    param(
+        [string]$RepoRoot = '',
+        [string]$CsprojPath = ''
+    )
+    # 版本行真源读取器（PILOT-076，2026-10-30 输入3 用户拍板）：
+    #   ForgeSelf.Api.csproj 的 VersionPrefix 属性承载三段发行线（如 2.4.22）；release-local.ps1 本地缺省
+    #   （不传 -Version 且无 GITHUB_REF_NAME）读这里再补时间码 → 发布 zip 不需指定版本。
+    #   版本行 bump 必须经用户允许（agent 不得擅自改），真源 docs/04-standards/packaging-upgrade-backup.md §1.1/§4-R10。
+    # 入参：-RepoRoot（真实仓库用）或 -CsprojPath（测试夹具/单文件用）至少给一，CsprojPath 优先。
+    # 解析「固定的部分」= 面值的前三个数字段（2.4.22.9 → 2.4.22；两段/缺标签/缺文件 → 显式抛错不静默兜底）。
+    # 约定：csproj 注释里不得出现字面的 VersionPrefix 标签对（本函数取首个标签对，注释会被误配）；
+    # 报错文案保持 ASCII——子进程 stderr 捕获不做码页假设（PC-011 lens）。
+    if (-not $CsprojPath) {
+        if (-not $RepoRoot) {
+            throw "Get-CsprojReleaseVersion: either -RepoRoot or -CsprojPath is required"
+        }
+        $CsprojPath = Join-Path $RepoRoot 'ForgeSelf.Api/ForgeSelf.Api.csproj'
+    }
+    if (-not (Test-Path -LiteralPath $CsprojPath)) {
+        throw "Get-CsprojReleaseVersion: csproj not found: $CsprojPath"
+    }
+    $text = Get-Content -LiteralPath $CsprojPath -Raw
+    if ($text -match '(?s)<VersionPrefix>\s*(?<v>[^<]*?)\s*</VersionPrefix>') {
+        $raw = $Matches['v'].Trim()
+        $segments = $raw -split '\.'
+        $numeric = 0
+        foreach ($s in $segments) { if ($s -match '^\d+$') { $numeric++ } else { break } }
+        if ($numeric -ge 3) {
+            return ('{0}.{1}.{2}' -f $segments[0], $segments[1], $segments[2])
+        }
+        throw ("Get-CsprojReleaseVersion: VersionPrefix value '{0}' in {1} must carry the full 3-segment release line (e.g. 2.4.22); bump requires user approval" -f $raw, $CsprojPath)
+    }
+    throw ("Get-CsprojReleaseVersion: VersionPrefix tag not found in {0}" -f $CsprojPath)
+}

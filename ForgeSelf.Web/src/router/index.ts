@@ -20,6 +20,7 @@ import SettingsView from '@/views/SettingsView.vue'
 import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
+import TaskCenterView from '@/views/TaskCenterView.vue'
 import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 import { registerManifestRoutes } from './dynamicPlugins'
@@ -83,6 +84,11 @@ const router = createRouter({
       path: '/system-monitor',
       name: 'system-monitor',
       component: SystemMonitorView
+    },
+    {
+      path: '/task-center',
+      name: 'task-center',
+      component: TaskCenterView
     },
     {
       path: '/code-snippets',

@@ -8,12 +8,15 @@ describe('tabs store', () => {
     setActivePinia(createPinia())
   })
 
-  it('初始种子为基础标签（含首页）', () => {
+  it('初始种子为基础标签（含首页与任务中心）', () => {
     const store = useTabsStore()
-    expect(store.tabs.length).toBe(4)
+    // 2026-11-02 B3 任务中心：DEFAULT_TABS 新增 /task-center（4 → 5）
+    expect(store.tabs.length).toBe(5)
     expect(store.tabs.some((t) => t.path === '/')).toBe(true)
     expect(store.hasTab('/ai-agent')).toBe(true)
     expect(store.tabs.find((t) => t.path === '/ai-agent')?.label).toBe('智能体')
+    expect(store.hasTab('/task-center')).toBe(true)
+    expect(store.tabs.find((t) => t.path === '/task-center')?.label).toBe('任务中心')
     expect(store.hasTab('/mcp-tools')).toBe(false) // MCP 中心已迁入插件（034 v2.0.0），宿主不再内置标签
   })
 

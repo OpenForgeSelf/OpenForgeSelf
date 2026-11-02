@@ -384,6 +384,21 @@ export const features: FeatureItem[] = [
     // 故不登记 views 信号（登记了会触发 check-features 幻影失败）。
     signals: { plugins: ['ImGateway'] },
   },
+  {
+    id: 'task-center',
+    name: '任务中心',
+    icon: 'check-square',
+    category: 'orchestration',
+    categoryLabel: '编排',
+    // 色值用 token 引用（design:check 棘轮禁止新增裸色值字符串）
+    color: 'var(--gold-400)',
+    bgColor: 'var(--gold-tint)',
+    description: '跨入口任务总览：开放任务/计划任务/定时任务状态与失败重试',
+    stats: '三源聚合',
+    enabled: true,
+    path: '/task-center',
+    signals: { views: ['TaskCenterView'], controllers: ['TasksOverview'], plugins: ['AIAgent'] },
+  },
 ]
 
 /**

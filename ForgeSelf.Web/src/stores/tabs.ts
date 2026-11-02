@@ -13,6 +13,7 @@ const DEFAULT_TABS: NavTab[] = [
   { key: 'ai-agent', label: '智能体', path: '/ai-agent' },
   { key: 'skills', label: '技能管理', path: '/skills' },
   { key: 'system-monitor', label: '系统监控', path: '/system-monitor' },
+  { key: 'task-center', label: '任务中心', path: '/task-center' },
 ]
 
 // 标签栏状态：打开页面时通过 openTab 追加，关闭时移除

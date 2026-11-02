@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, markRaw } from 'vue';
+import { ref, markRaw, onMounted } from 'vue';
 import type { Component } from 'vue';
+import { useRoute } from 'vue-router';
 import {
   Setting,
   Monitor,
@@ -12,7 +13,8 @@ import {
   InfoFilled,
   Key,
   Refresh,
-  Rank
+  Rank,
+  Lock
 } from '@element-plus/icons-vue';
 import PageHead from '@/components/PageHead.vue';
 import GeneralPanel from '@/components/settings/GeneralPanel.vue';
@@ -22,6 +24,7 @@ import AiProvidersPanel from '@/components/settings/AiProvidersPanel.vue';
 import ApiServerPanel from '@/components/settings/ApiServerPanel.vue';
 import NetworkPanel from '@/components/settings/NetworkPanel.vue';
 import ApiKeysPanel from '@/components/settings/ApiKeysPanel.vue';
+import PermissionPolicyPanel from '@/components/settings/PermissionPolicyPanel.vue';
 import AppearancePanel from '@/components/settings/AppearancePanel.vue';
 import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
 import UpdatePanel from '@/components/settings/UpdatePanel.vue';
@@ -35,12 +38,23 @@ type SettingsCategory =
   | 'api-server'
   | 'network'
   | 'api-keys'
+  | 'permission-policy'
   | 'appearance'
   | 'data'
   | 'update'
   | 'about';
 
 const activeCategory = ref<SettingsCategory>('general');
+
+// 深链支持：/settings?cat=permission-policy 直达指定分类（B4 权限策略入口；非法值回落 general）
+// 防御：测试环境无 router 时 useRoute() 返回 undefined，静默跳过深链（生产环境恒有 router）
+const route = useRoute();
+onMounted(() => {
+  const cat = route?.query?.cat;
+  if (typeof cat === 'string' && cat in pageHeadMap) {
+    activeCategory.value = cat as SettingsCategory;
+  }
+});
 
 const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> = {
   general: { eyebrow: 'Settings · 通用设置', title: '配置应用的基本行为与偏好' },
@@ -50,6 +64,7 @@ const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> 
   'api-server': { eyebrow: 'Settings · API 服务器', title: '宿主 API 监听与端口' },
   network: { eyebrow: 'Settings · 网络设置', title: '模型请求的代理设置' },
   'api-keys': { eyebrow: 'Settings · API 密钥', title: '管理访问令牌与权限' },
+  'permission-policy': { eyebrow: 'Settings · 权限策略', title: 'Agent 工具执行策略与审计' },
   appearance: { eyebrow: 'Settings · 外观', title: '主题、配色与视觉偏好' },
   data: { eyebrow: 'Settings · 数据与存储', title: '数据目录与缓存管理' },
   update: { eyebrow: 'Settings · 版本更新', title: '检查更新与发布通道' },
@@ -70,6 +85,7 @@ const navItems: NavItem[] = [
   { key: 'api-server', label: 'API 服务器', icon: markRaw(Link) },
   { key: 'network', label: '网络设置', icon: markRaw(Rank) },
   { key: 'api-keys', label: 'API 密钥', icon: markRaw(Key) },
+  { key: 'permission-policy', label: '权限策略', icon: markRaw(Lock) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
   { key: 'update', label: '版本更新', icon: markRaw(Refresh) },
@@ -115,6 +131,7 @@ const navItems: NavItem[] = [
         <ApiServerPanel v-show="activeCategory === 'api-server'" />
         <NetworkPanel v-show="activeCategory === 'network'" />
         <ApiKeysPanel v-show="activeCategory === 'api-keys'" />
+        <PermissionPolicyPanel v-show="activeCategory === 'permission-policy'" />
         <AppearancePanel v-show="activeCategory === 'appearance'" />
         <DataStoragePanel v-show="activeCategory === 'data'" />
         <UpdatePanel v-show="activeCategory === 'update'" />

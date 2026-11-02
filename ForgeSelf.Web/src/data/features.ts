@@ -399,6 +399,20 @@ export const features: FeatureItem[] = [
     path: '/task-center',
     signals: { views: ['TaskCenterView'], controllers: ['TasksOverview'], plugins: ['AIAgent'] },
   },
+  {
+    id: 'permission-policy',
+    name: '权限策略',
+    icon: 'lock',
+    category: 'system',
+    categoryLabel: '系统',
+    color: 'var(--gold-400)',
+    bgColor: 'var(--gold-tint)',
+    description: 'Agent 工具执行策略：allow/ask/deny 矩阵、白名单与审计',
+    stats: '策略+审计',
+    enabled: true,
+    path: '/settings?cat=permission-policy',
+    signals: { views: ['SettingsView'], controllers: ['Permissions'] },
+  },
 ]
 
 /**

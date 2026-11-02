@@ -1,0 +1,43 @@
+name: Frontend Check (lint + typecheck)
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'ForgeSelf.Web/**'
+      - '.github/workflows/frontend-check.yml'
+  pull_request:
+    paths:
+      - 'ForgeSelf.Web/**'
+      - '.github/workflows/frontend-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ForgeSelf.Web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: ForgeSelf.Web/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint + typecheck (pnpm run check)
+        # check = vue-tsc -b && eslint . --ext .vue,.ts,.tsx
+        # 任何 error 都会使构建失败，阻止合并
+        run: pnpm run check

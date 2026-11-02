@@ -32,6 +32,8 @@
 
 分 7 批提交（A 卫生 / B ImGateway / C AIAgent 404 / D Responses / E PILOT-076 / F 规范+门禁 / G 工件补录+台账索引），每批经 pre-commit（工件门禁 + design:check + 台账扫描）与 commit-msg（Pilot trailer）双钩子。逐批结果见 07。
 
+> **补记（第 8 批）**：负向豁免生效后 `git status` 立即暴露 4 个一直被 `.*/` 静默吞掉的**应入库文件**——`.github/workflows/ci.yml`、`frontend-check.yml`、`openwiki-update.yml`（CI 门禁与 OpenWiki 定时刷新从未进过远程仓库）与 `.agents/skills/component-visual-loop/SKILL.md`（§2.4 已登记技能）；另有 `Plugins/McpCenter/docs/ui-design-brief.md`。五件随第 8 批入库（trailer 仍为本目录）——兜底规则误伤由推测变实锤。
+
 ## Unknown
 
 - 各代码批次的构建/测试结果沿用其批次记录（见各自 05），本任务未复跑后端测试（本任务零代码改动，快档不触发）。

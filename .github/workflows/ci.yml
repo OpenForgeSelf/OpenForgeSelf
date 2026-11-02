@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 手动指定 diff 基线（强推后使用）
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: 门禁（pilot / risk / style）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run gates (scripts/ci/run-gates.ps1)
+        shell: pwsh
+        env:
+          INPUT_BASE: ${{ inputs.base }}
+        run: ./scripts/ci/run-gates.ps1

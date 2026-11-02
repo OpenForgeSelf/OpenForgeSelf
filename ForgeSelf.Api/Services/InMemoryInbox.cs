@@ -11,10 +11,11 @@ namespace ForgeSelf.Api.Services;
 /// <c>target</c>（NextTurn/NextStep）与 <c>wakeup</c>，但 <see cref="InboxItem"/> 是 B1 定的三字段记录、
 /// 不含这两项，故此处用内部 <c>Entry</c> 包装承载，对外仍只暴露 <see cref="InboxItem"/>。
 /// <para>
-/// <b>Claim 是提案、不删除（R2 协议与 PersistentInbox 同构）</b>：B6 切片 2b 起 ReactLoopAgent 的
+/// <b>Claim 是提案、不删除（R2 协议与 PersistentInbox 同构）</b>：B6 切片 2b 起统一循环引擎
+/// （B5 起唯一运行时 MafTaskLoopAgent）的
 /// 唤醒闸门（A3）会在「收件箱只有不唤醒的注入」时拒绝消费——若 Claim 取走即删，被拒绝的输入就丢了。
 /// 因此本实现同样采用「Claim 返回提案 + <see cref="ConfirmClaimed"/> 按 MessageId 移除」，
-/// 确认动作由 ReactLoopAgent 在 step 成功提交后经 <see cref="IInboxConfirmation"/> 调用
+/// 确认动作由循环引擎在 step 成功提交后经 <see cref="IInboxConfirmation"/> 调用
 /// （持久化版把确认落日志，本替身无日志、直接改内存）。
 /// </para>
 /// </remarks>

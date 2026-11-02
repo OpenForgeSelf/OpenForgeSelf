@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using ForgeSelf.Api.Services;
 using Xunit;
@@ -10,12 +12,12 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgent;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 工程师的 <see cref="ReactLoopInboxGateTests"/> 只覆盖<b>成功路径</b>（step 成功提交 → 确认消费）；
+/// 工程师的 <see cref="MafInboxGateTests"/> 只覆盖<b>成功路径</b>（step 成功提交 → 确认消费）；
 /// 本文件用新眼睛补齐 R2 协议的<b>失败/取消/中止路径</b>——「失败不确认 → 输入留 inbox，下一回合重新认领（A5 不丢输入）」
 /// 是工程师的声明但当时未见测试，本文件把它钉死为行为冻结：
 /// </para>
 /// <list type="bullet">
-/// <item>请求失败（重试耗尽）→ 输入必须仍在收件箱，且下一回合重新认领（端到端不丢输入）；</item>
+/// <item>请求失败（B5 起 MAF fail-fast，无同步骤重试）→ 输入必须仍在收件箱，且下一回合重新认领（端到端不丢输入）；</item>
 /// <item>回合中途取消 → 输入必须仍在收件箱（取消路径同样不得确认）；</item>
 /// <item>agent/pre-step 中止 → 输入必须仍在收件箱（user/message 已落日志属设计接受的冗余，见 A5 权衡）；</item>
 /// <item>DisposeAsync（keepInbox:true）不清收件箱 vs 显式 Cancel（keepInbox:false）清空——语义分叉实测；</item>
@@ -38,7 +40,7 @@ public class InboxR2QaAdversarialTests
     {
         var fixture = new Fixture();
 
-        // 第一个回合：请求连续失败（脚本抛异常，同步骤重试 MaxAttemptsPerStep=2 次均失败）
+        // 第一个回合：请求失败（脚本抛异常；B5 起 MAF fail-fast，无同步骤重试）
         fixture.Provider.Enqueue(Script.Fail(new InvalidOperationException("模拟上游请求失败")));
         var agent = fixture.CreateAgent();
         fixture.Inbox.Followup(fixture.SessionId, "不能丢的输入");
@@ -78,22 +80,35 @@ public class InboxR2QaAdversarialTests
     [Fact]
     public async Task Qa_CancelMidTurn_InputStaysInInbox()
     {
+        // B5 引擎适配（机械换装，断言语义不变）：MAF 无 agent/request 拦截点，取消改走
+        // CancelAsync；取景点用 HangThenTextProvider（首增量后永久挂起）保证确定性——
+        // 有限快速脚本流会在取消前被消费完，存在「取消时回合已 Completed」的竞态（实测）。
         var fixture = new Fixture();
-        fixture.Provider.Enqueue(Script.Text("被取消前的一段输出", finish: "stop"));
+        var provider = new HangThenTextProvider();
 
-        // 在 agent/request 拦截点同步触发取消（令牌经 RunAsync(ct) 链入回合 CTS）
-        using var cts = new CancellationTokenSource();
-        using var _cancel = fixture.Events.OnWaterfall<AgentRequestContext, AgentRequestDecision>(
-            "agent/request",
-            (_, next) =>
-            {
-                cts.Cancel();
-                return next();
-            });
-
-        var agent = fixture.CreateAgent();
+        var agent = fixture.CreateAgent(provider: provider);
         fixture.Inbox.Followup(fixture.SessionId, "取消时正在处理");
-        await fixture.RunAsync(agent, cts.Token);
+
+        var frames = new List<TurnFrame>();
+        var runTask = Task.Run(async () =>
+        {
+            await foreach (var frame in agent.RunAsync())
+            {
+                frames.Add(frame);
+            }
+        });
+
+        var sw = Stopwatch.StartNew();
+        while (!frames.OfType<AssistantDelta>().Any() && sw.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            await Task.Delay(10);
+        }
+        Assert.True(frames.OfType<AssistantDelta>().Any(), "取消前应已收到流式增量");
+        // B5 引擎适配（机械换装，R2 不变量原样保留）：MAF CancelAsync 默认 keepInbox=false（显式取消=丢弃，
+        // 见本文件 remarks「语义分叉」条）；本用例钉的是「取消路径不得确认消费 → 输入留在收件箱」，
+        // 故显式 keepInbox:true 表达同一语义。
+        await agent.CancelAsync(new AgentCancelCause.User(), keepInbox: true);
+        await runTask;
 
         // 取消路径：回合 Aborted，请求层没有任何 assistant/message 提交
         var turnEnd = Assert.Single(fixture.Store.Replay(fixture.SessionId).OfType<TurnEndEvent>());
@@ -199,7 +214,7 @@ public class InboxR2QaAdversarialTests
 
         // 不带确认能力的极简收件箱（模拟第三方实现）——Claim 返回提案、永不自行移除
         var plainInbox = new NoConfirmInbox();
-        var agent = new ReactLoopAgent(fixture.SessionId, new AgentOptions { MaxStepsPerTurn = 10 },
+        var agent = new MafTaskLoopAgent(fixture.SessionId, new AgentOptions { MaxStepsPerTurn = 10 },
             new AgentTurnRuntime
             {
                 Store = fixture.Store,
@@ -226,7 +241,7 @@ public class InboxR2QaAdversarialTests
         Assert.Single(plainInbox.Items);                                 // 替身自身不变（它不认识 claimed）
     }
 
-    /// <summary>不带确认能力的收件箱替身：只实现 IInbox 四方法（验证 ReactLoopAgent 的能力探测回退）。</summary>
+    /// <summary>不带确认能力的收件箱替身：只实现 IInbox 四方法（验证引擎的能力探测回退）。</summary>
     private sealed class NoConfirmInbox : IInbox
     {
         public readonly List<InboxItem> Items = new();

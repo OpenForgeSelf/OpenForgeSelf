@@ -95,10 +95,12 @@ public sealed class MafLoopBridge
 /// 不引入 MAF 持久历史（Spec Compatibility）。
 /// </para>
 /// <para>
-/// 任务循环语义（TaskLoopMode）：MAF 内层循环在模型持续请求工具时自动推进；
+/// 任务循环语义（B5 起默认常开，<c>AgentOptions.TaskLoopMode</c> 开关已删除）：MAF 内层循环在模型持续请求工具时自动推进；
 /// 模型只产出纯文本且本回合已用过工具时，**不结束回合**——追加续跑指令 + <c>ToolMode=RequireAny</c>
 /// 再跑一次 MAF Run，直到模型调用 <c>task_complete</c> 出口或触达 MaxStepsPerTurn。
-/// 纯问答（整个回合零工具调用）照旧收束。
+/// 纯问答（整个回合零工具调用）照旧收束。计划驱动路径（RunOrchestrator/PlanGenerator）
+/// 经 <see cref="AgentOptions.ExitToolNames"/> 声明出口（complete_step/request_help/submit_plan），
+/// 不挂 task_complete、纯文本中间步直接收束——与原 TaskLoopMode=false 逐字节等价。
 /// </para>
 /// </remarks>
 public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
@@ -188,6 +190,10 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
             }
 
             // 任务循环：task_complete 出口工具进出口集合（挂载经 ExtraTools/内置声明）。
+            // B5：任务循环开关收敛为默认常开（AgentOptions.TaskLoopMode 已删除）。
+            // 语义等价映射：ExitToolNames 非空 = 计划驱动路径（不挂 task_complete、文本中间步直接收束）；
+            // 空 = 开放任务（恒任务循环，与原 TaskLoopMode=true 逐字节等价）。
+            var taskLoop = _options.ExitToolNames is not { Count: > 0 };
             var exitToolNames = new List<string>(_options.ExitToolNames ?? Array.Empty<string>());
             var toolFunctions = new List<AITool>();
             var extraToolDeclarations = new List<IToolFunctionExtension>();
@@ -226,7 +232,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 }
             }
 
-            if (_options.TaskLoopMode && !exitToolNames.Contains(AgentOptions.TaskCompleteToolName, StringComparer.OrdinalIgnoreCase))
+            if (taskLoop && !exitToolNames.Contains(AgentOptions.TaskCompleteToolName, StringComparer.OrdinalIgnoreCase))
             {
                 var taskComplete = new TaskCompleteToolFunction("ai-agent");
                 extraToolDeclarations.Add(taskComplete);
@@ -235,7 +241,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
             }
 
             var exitSet = new HashSet<string>(exitToolNames, StringComparer.OrdinalIgnoreCase);
-            var protocolPrompt = _options.TaskLoopMode ? TaskLoopPrompts.Protocol(exitToolNames) : string.Empty;
+            var protocolPrompt = taskLoop ? TaskLoopPrompts.Protocol(exitToolNames) : string.Empty;
 
             var stepIndex = 0;
             var firstStep = true;
@@ -259,7 +265,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 }
 
                 var stepId = $"{turnId}-{stepIndex}";
-                var isContinuation = _options.TaskLoopMode && forceToolCallThisStep;
+                var isContinuation = taskLoop && forceToolCallThisStep;
                 var messages = _runtime.Store.DeriveMessages(SessionId);
 
                 var stepClaimed = stepIndex > 0
@@ -453,7 +459,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 }
 
                 // ---- 纯文本且未出口 ----
-                if (_options.TaskLoopMode && exitSet.Count > 0 && HadToolCallInTurn())
+                if (taskLoop && exitSet.Count > 0 && HadToolCallInTurn())
                 {
                     // 本回合已用过工具且模型只回了文本：落中间汇报（已由 logger 落 assistant/message），
                     // 不结束回合 → 续跑（下一步强制工具调用）。

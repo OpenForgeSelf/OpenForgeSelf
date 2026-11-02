@@ -57,7 +57,7 @@ R0：不重构。三个缺陷都在同一入口链路上，用「统一解析链
 ## 7 守卫落地
 
 - G1 `ForgeSelf.Api.Tests/Plugins/AIAgent/ChatModelResolverTests.cs`（4 条：显式原样 / 宿主默认命中 / 目录首个 / 目录空返回 null）。
-- G2 `ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs::EmptyUpstreamResponse_FailsInsteadOfCompleting`（空响应必须 Failed）。
+- G2 `ForgeSelf.Api.Tests/Plugins/AIAgent/MafTaskLoopAgentTests.cs::EmptyUpstreamResponse_FailsInsteadOfCompleting`（空响应必须 Failed；B5 起承接，原载体 ReactLoopAgentTests.cs 已随 B5 旁路收敛删除）。
 
 ## 8 逃逸分析
 

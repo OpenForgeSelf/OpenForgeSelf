@@ -94,7 +94,6 @@ public class RunReceiptTests : IClassFixture<XCodeTestFixture>
 
         var agent = fx.CreateAgent(options: new AgentOptions
         {
-            TaskLoopMode = true,
             ExitCriteria =
             [
                 new RunExitCriterion("本次必须有文件改动", "files_changed_not_empty"),
@@ -125,7 +124,6 @@ public class RunReceiptTests : IClassFixture<XCodeTestFixture>
 
         var agent = fx.CreateAgent(options: new AgentOptions
         {
-            TaskLoopMode = true,
             ExitCriteria =
             [
                 new RunExitCriterion("必须出现『验收通过』字样", "output_contains")
@@ -151,7 +149,6 @@ public class RunReceiptTests : IClassFixture<XCodeTestFixture>
 
         var agent = fx.CreateAgent(options: new AgentOptions
         {
-            TaskLoopMode = true,
             ExitCriteria = [new RunExitCriterion("本次必须有文件改动", "files_changed_not_empty")]
         });
         agent.Inbox.Followup(fx.SessionId, "写文件并完成任务");

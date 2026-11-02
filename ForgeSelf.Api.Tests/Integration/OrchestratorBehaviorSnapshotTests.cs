@@ -34,7 +34,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// <para>
 /// 隔离方式：复用官方 <see cref="XCodeTestFixture"/>（每类一份独立临时库、全部连接名统一注册），
 /// 遵守团队规范——新增 XCode 测试类禁止手搓 <c>DAL.AddConnStr</c>（实测会扰动全量，
-/// 详见 <c>AIAgentProjectionLateResultsTests</c> remarks）。ReactLoopAgent 驱动类用例不触库，
+/// 详见 <c>AIAgentProjectionLateResultsTests</c> remarks）。统一循环引擎驱动类用例（B5 起唯一运行时 MafTaskLoopAgent）不触库，
 /// 但与编排器用例同类共存以便快照集中维护。
 /// </para>
 /// <para>
@@ -282,7 +282,7 @@ public class OrchestratorBehaviorSnapshotTests : IClassFixture<XCodeTestFixture>
         Assert.Contains("模型不给力", error.Content);
     }
 
-    // ==================== 2. A3 闸门零事件语义（ReactLoopAgent 真实驱动；B7 统一后必须原样保留） ====================
+    // ==================== 2. A3 闸门零事件语义（统一循环引擎真实驱动，B5 起唯一运行时 MafTaskLoopAgent；B7 统一后必须原样保留） ====================
 
     [Fact]
     public async Task Gate_EmptyInbox_NoTurn_ZeroLogWrites()

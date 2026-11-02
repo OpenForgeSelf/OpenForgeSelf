@@ -7,7 +7,7 @@ namespace ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 /// <summary>
 /// 宿主工具注册表工具 → M.E.AI <see cref="AIFunction"/> 包装（PILOT-051 FR-2.4）。
 /// MAF 的 function-invocation 管线经 <see cref="InvokeCoreAsync"/> 落到宿主六闸门管线
-/// <see cref="IToolRegistry.ExecuteAsync"/>，并同步产出与 <see cref="ReactLoopAgent"/> 一致的
+/// <see cref="IToolRegistry.ExecuteAsync"/>，并同步产出与原 ReactLoopAgent（B5 已删除）一致的
 /// <c>tool/call</c>/<c>tool/result</c> 日志事件与 ToolStarted/ToolCompleted live 帧。
 /// </summary>
 public sealed class RegistryToolFunction : AIFunction

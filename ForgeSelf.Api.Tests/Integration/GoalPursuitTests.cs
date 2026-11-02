@@ -90,7 +90,7 @@ public class GoalPursuitTests : IClassFixture<XCodeTestFixture>
 
         var ai = new Mock<IAIAgentService>();
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store,
                 Provider = provider,
@@ -108,7 +108,9 @@ public class GoalPursuitTests : IClassFixture<XCodeTestFixture>
             .ReturnsAsync(TwoStepPlan());
 
         var orchestrator = new RunOrchestratorService(
-            planner.Object, ai.Object, inbox: inbox,
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox,
             stepTimeout: TimeSpan.FromSeconds(10), goalPursuit: goalPursuit);
         return new Harness
         {

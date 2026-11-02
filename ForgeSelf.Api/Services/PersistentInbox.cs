@@ -13,7 +13,7 @@ namespace ForgeSelf.Api.Services;
 /// </para>
 /// <para>
 /// <b>R2 防丢输入</b>：<see cref="Claim"/> 只返回「提案批次」——不 Append、不从日志删除任何东西。
-/// 真正的消费确认由调用方（ReactLoopAgent）在 step 成功提交后经 <see cref="IInboxConfirmation"/>
+/// 真正的消费确认由调用方（统一循环引擎，B5 起唯一运行时 MafTaskLoopAgent）在 step 成功提交后经 <see cref="IInboxConfirmation"/>
 /// 调用 <see cref="ConfirmClaimed"/> 落 <c>spliced(op="claimed")</c> 事件完成。claim 后、确认前崩溃 →
 /// 日志无 claimed → 重启重放后消息仍在 inbox（门禁 A5）。
 /// </para>
@@ -85,7 +85,7 @@ public sealed class PersistentInbox : IInbox, IInboxConfirmation
 
     /// <summary>
     /// 消费确认：把一批已成功提交进会话循环的提案落 <c>spliced(op="claimed")</c>，
-    /// 重放时按 MessageId 从待处理集移除。由 ReactLoopAgent 在 step 成功提交后调用。
+    /// 重放时按 MessageId 从待处理集移除。由统一循环引擎（B5 起唯一运行时 MafTaskLoopAgent）在 step 成功提交后调用。
     /// </summary>
     public void ConfirmClaimed(string sessionId, IReadOnlyList<InboxItem> claimed)
     {

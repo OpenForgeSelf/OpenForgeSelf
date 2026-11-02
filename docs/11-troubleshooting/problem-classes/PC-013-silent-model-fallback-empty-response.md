@@ -10,12 +10,12 @@ recurrences:
 cases: [2026-10-25-builtin-agent-silent-model-fallback, 2026-10-30-im-gateway-unbound-model-404]
 signature:
   - {id: S1, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatModelResolverTests.cs}
-  - {id: S2, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs}
+  - {id: S2, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/MafTaskLoopAgentTests.cs}
   - {id: S3, kind: test, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatCompletionWritePathTests.cs}
 allowlist: []
 guards:
   - {level: G1, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatModelResolverTests.cs, status: active}
-  - {level: G2, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs, status: active}
+  - {level: G2, path: ForgeSelf.Api.Tests/Plugins/AIAgent/MafTaskLoopAgentTests.cs, status: active}
   - {level: G2, path: ForgeSelf.Api.Tests/Plugins/AIAgent/ChatCompletionWritePathTests.cs, status: active}
 lens:
   - 执行入口里有没有硬编码模型串 / `DefaultChatModelId` 这类常量（应走 `IChatModelResolver`）？
@@ -59,7 +59,7 @@ G2 覆盖：空响应 ⇒ 无 `assistant/message`、`StepEndReason.Failed`、单
 | 等级 | 载体 | 何时触发 | 覆盖盲区 |
 |------|------|----------|----------|
 | G1 | `ChatModelResolverTests.cs` | dotnet test 全量 / CI | 只覆盖解析链四条；目录读取异常（DB 故障）未覆盖 |
-| G2 | `ReactLoopAgentTests.cs::EmptyUpstreamResponse_FailsInsteadOfCompleting` | dotnet test 全量 / CI | 「有极短正文但语义为空」不在守卫内（仍按成功收束） |
+| G2 | `MafTaskLoopAgentTests.cs::EmptyUpstreamResponse_FailsInsteadOfCompleting`（B5 起承接；原载体 ReactLoopAgentTests.cs 已随 B5 旁路收敛删除） | dotnet test 全量 / CI | 「有极短正文但语义为空」不在守卫内（仍按成功收束） |
 | G2（复发批 2026-10-30） | `ChatCompletionWritePathTests.cs::CompleteAsync_NoModelBound_*` 两条 | dotnet test 全量 / CI | 只断言 IChatCompletion 入口；控制器/ad-hoc 入口的接链仍靠人工走查（R1 提案：CreateAgent 空模型不可表达） |
 
 ## 5 案例列表

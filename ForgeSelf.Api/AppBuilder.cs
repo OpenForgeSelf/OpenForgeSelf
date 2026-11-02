@@ -208,7 +208,7 @@ public static class AppBuilder
         builder.Services.AddScoped<SessionProjectionService>();
         builder.Services.AddScoped<ILlmRuntime, AIServiceLlmRuntime>();
         // B5（041）：IAgentLoop/InMemoryAgentLoop 已删除（旧 P4 接缝，生产消费方 0），
-        // Agent 循环改由插件侧 IAgentRegistry + ReactLoopAgent 承载（架构师 §2-B5）。
+        // Agent 循环改由插件侧 IAgentRegistry + 统一循环引擎承载（架构师 §2-B5；B5 起唯一运行时 MafTaskLoopAgent）。
         // B6（040 §2.5）：收件箱升级为持久投影——followup/steer/inject 一律落 agent/inbox/spliced 事件，
         // 从日志重放派生待处理集（无活 Agent 时 UI 也能 Peek 出待办）；
         // InMemoryInbox 退为测试替身，不再注册进生产 DI。依赖的 ISessionStore 是 Singleton，Singleton 安全。

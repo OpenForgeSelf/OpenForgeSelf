@@ -7,9 +7,9 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 /// <summary>
 /// 任务循环（PILOT-051）完成出口工具：<c>task_complete</c>。
 /// 行业标准「finish/complete 工具」模式——模型必须显式调用它宣告任务全部完成（附终局摘要）；
-/// 未调用之前，回合不会因「模型只回文本」而结束（ReactLoopAgent 续跑 / MafTaskLoopAgent 续跑）。
+/// 未调用之前，回合不会因「模型只回文本」而结束（原 ReactLoopAgent（B5 已删除）/ MafTaskLoopAgent 续跑）。
 /// 与 RunFlowToolSet 出口工具同型：声明即出口、不真实执行，仅经 <see cref="AgentOptions.ExtraTools"/>
-/// 挂载并进 <see cref="AgentOptions.ExitToolNames"/>（<see cref="ReactLoopAgent"/> / <see cref="MafTaskLoopAgent"/>
+/// 挂载并进 <see cref="AgentOptions.ExitToolNames"/>（原 ReactLoopAgent（B5 已删除）/ <see cref="MafTaskLoopAgent"/>
 /// 依出口语义收束回合）。**不注册进 ToolRegistry、不进 FreeLoop 工具列表**（由解析层按名排除）。
 /// </summary>
 public class TaskCompleteToolFunction : IToolFunctionExtension

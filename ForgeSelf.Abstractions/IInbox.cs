@@ -79,7 +79,7 @@ public static class InboxExtensions
 /// <remarks>
 /// 投递类 op 用通道名（<see cref="Followup"/>/<see cref="Steer"/>/<see cref="Inject"/>），
 /// 消费确认 <see cref="Claimed"/> 与清空 <see cref="Cleared"/> 由 <c>PersistentInbox</c> 与
-/// <c>ReactLoopAgent</c> 两边共用——单一词汇源，防止字符串漂移后重放语义悄悄走样
+/// 统一循环引擎（B5 起唯一运行时 <c>MafTaskLoopAgent</c>）两边共用——单一词汇源，防止字符串漂移后重放语义悄悄走样
 /// （PersistentInbox 对未知 op 会直接炸出，见其 Derive 实现）。
 /// </remarks>
 public static class InboxOps
@@ -113,7 +113,7 @@ public static class InboxOps
 /// <para>
 /// 为什么是独立能力接口而非并入 <see cref="IInbox"/>：确认是「实现方式」而非「接缝职责」
 /// （日志派生实现与纯内存实现的确认动作完全不同），并入主契约会迫使所有实现（含测试替身）
-/// 都背上确认语义；ReactLoopAgent 对不支持本能力的收件箱回退为自行落
+/// 都背上确认语义；循环引擎（B5 起唯一运行时 MafTaskLoopAgent）对不支持本能力的收件箱回退为自行落
 /// <c>spliced(op=<see cref="InboxOps.Claimed"/>)</c>，两种路径共用同一 op 词汇源。
 /// </para>
 /// </remarks>

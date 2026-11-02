@@ -1,6 +1,7 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions;
 using ForgeSelf.Api.Services;
@@ -19,7 +20,7 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgent;
 /// <b>补的是既有门禁的盲区</b>：<see cref="Integration.PlannedRunUnifiedLoopGates"/> 用 mock
 /// IPlanGeneratorService 绕过了规划循环——「plan:{runId} scratch-session 会话日志里规划 turn 是否完整」
 /// （B7 lead 终验重点 4：followup 唤醒 + submit_plan tool/call + 合成 result + ExitTool 出口）
-/// 在既有测试面无任何覆盖。本文件用<b>真 PlanGeneratorService + 真实 ReactLoopAgent</b>
+/// 在既有测试面无任何覆盖。本文件用<b>真 PlanGeneratorService + 真实统一循环引擎</b>（B5 起唯一运行时 MafTaskLoopAgent）
 /// （脚本化 provider）钉死。原 ad-hoc 无日志旁路已消除（B7 lead 已批偏离②：规划事实落日志，可审计可回放），
 /// 本探针把「落日志」从声明变成断言。
 /// </para>
@@ -38,7 +39,7 @@ public class PlanGeneratorScratchSessionQaTests
             {"id":"s2","name":"汇总报告","objective":"汇总成报告","expectedOutput":"报告"}]}}
         """;
 
-    /// <summary>真 PlanGeneratorService + 真实 ReactLoopAgent（脚本化 provider、内存日志/收件箱）。</summary>
+    /// <summary>真 PlanGeneratorService + 真实 MafTaskLoopAgent（脚本化 provider、内存日志/收件箱）。</summary>
     private static (PlanGeneratorService Planner, InMemorySessionStore Store, string SessionId) NewPlanner(
         ScriptedProvider provider, AgentRun run, IWorkflowService? workflowService = null)
     {
@@ -49,7 +50,7 @@ public class PlanGeneratorScratchSessionQaTests
 
         var ai = new Mock<IAIAgentService>();
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store,
                 Provider = provider,
@@ -79,7 +80,7 @@ public class PlanGeneratorScratchSessionQaTests
     /// <summary>
     /// 【B7 缺陷立案，红轮证据探针，修复后移除 Skip】
     /// 现状（终验实测）：PlanGeneratorService.TryPlanByLLMAsync 在收到 ExitToolInvoked 帧时提前 return，
-    /// await foreach 的 finally 释放枚举器——ReactLoopAgent 迭代器停在 yield 点，其后的
+    /// await foreach 的 finally 释放枚举器——统一循环引擎（当时 ReactLoopAgent，B5 起 MafTaskLoopAgent）迭代器停在 yield 点，其后的
     /// Append(StepEndEvent)、ConfirmIfCommitted（R2 确认消费）、Append(TurnEndEvent) 均不执行，
     /// 规划 turn 日志止于 tool/result（无 step/end、无 turn/end），收件箱输入永不确认。
     /// 违反「统一循环一切回合必须收束收口」不变量（编排器路径消费全部帧无此问题）。
@@ -101,14 +102,16 @@ public class PlanGeneratorScratchSessionQaTests
         Assert.Equal("s1", plan.Steps[0].Id);
 
         // 核心断言：规划事实落 plan:{runId} 会话日志——followup 唤醒 + submit_plan tool/call
-        // + 合成 tool/result(Ok) + step/end(ExitTool) + turn/end(Completed)，一个不缺
+        // + 合成 tool/result(Ok) + step/end(ExitTool) + turn/end(Completed)，一个不缺。
+        // B5 引擎适配（机械换装，收束不变量原样保留）：MAF 按 B2②③ 对含工具调用的 Completed 回合
+        // 追加 run/receipt（冻结收据，位于 turn/end 之前），其余事件序与 ReactLoop 一致。
         var types = store.Replay(sessionId).Select(e => e.Type).ToList();
         Assert.Equal(
             new[]
             {
                 "turn/start", "step/start", "user/message", "request/header",
                 "assistant/message", "tool/call", "tool/result",
-                "step/end", "turn/end"
+                "step/end", "run/receipt", "turn/end"
             },
             types);
 
@@ -116,10 +119,12 @@ public class PlanGeneratorScratchSessionQaTests
         var user = Assert.Single(store.Replay(sessionId).OfType<UserMessageEvent>());
         Assert.Equal("统计项目文件行数", user.Content);
 
-        // submit_plan tool/call 带完整 Plan 参数；合成 result Ok 闭合轨迹（N call 必有 N result）
+        // submit_plan tool/call 带完整 Plan 参数；合成 result Ok 闭合轨迹（N call 必有 N result）。
+        // 注：MEAI FunctionCallContent 重序列化 args 时非 ASCII 转 \uXXXX（键名/id 不转义），故断言键名与步骤 id。
         var call = Assert.Single(store.Replay(sessionId).OfType<ToolCallEvent>());
         Assert.Equal("submit_plan", call.ToolName);
-        Assert.Contains("统计项目文件行数", call.ArgsJson);
+        Assert.Contains("\"plan\"", call.ArgsJson);
+        Assert.Contains("\"s1\"", call.ArgsJson);
         var result = Assert.Single(store.Replay(sessionId).OfType<ToolResultEvent>());
         Assert.Equal(ToolOutcome.Ok, result.Outcome);
 

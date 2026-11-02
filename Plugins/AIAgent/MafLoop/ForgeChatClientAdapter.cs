@@ -11,7 +11,7 @@ namespace ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 /// <c>IAIProvider</c>（OpenAI 兼容/自定义 provider，含代理、模型路由、vLLM 推理内容处理）之上。
 /// </summary>
 /// <remarks>
-/// 翻译约定（与 <see cref="ReactLoopAgent"/> 语义对齐）：
+/// 翻译约定（与原 ReactLoopAgent（B5 已删除）语义对齐）：
 /// - System 指令（ChatOptions.Instructions + System 角色消息）→ <see cref="UnifiedChatRequest.SystemPrompt"/>；
 /// - Assistant 消息中的 <see cref="FunctionCallContent"/> → <see cref="UnifiedChatMessage.ToolCalls"/>；
 /// - Tool 角色 <see cref="FunctionResultContent"/> → <see cref="UnifiedChatMessage.ToolCallId"/> + Content；

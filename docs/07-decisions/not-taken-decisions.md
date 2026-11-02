@@ -525,3 +525,12 @@
 
 ---
 
+## 055 · 多智能体启发式编排不做，能力归计划任务主路径（2026-11-03）
+
+- **决策**：不做。B5 ③（lead seq8 拍板 A=删除，原文归档 `docs/ai/pilot/2026-11-02-b5-legacy-cleanup/agenthub-adjudication.md`）：删除 AgentHub 侧启发式旁路（ReactLoopAgent + AgentCoordinatorService/AgentExecutorService + AgentsController 的 coordinate/execute/handle/instances/execute-task 端点 + 前端 agentApi 对应六方法与死类型）。Agent 编排/规划能力统一由 029 计划任务主路径（RunOrchestratorService + PlanGeneratorService，029 统一循环引擎）承担。
+- **为何不做（代价/收益）**：启发式编排（关键词路由 + 多 Agent 实例池）从未通过验收且与统一循环引擎双轨并存，维护双份回合语义成本高、行为漂移风险大；删除后运行时唯一 = MafTaskLoopAgent，AC2/AC5/AC8 由 MafEngineGateTests 禁用名单机器守卫。保留它的收益（演示用多角色协作）远低于长期双轨维护成本。
+- **重新审视的触发条件**：出现「需要多角色协作」的真实产品需求时，按计划任务主路径扩展（多步骤计划 + 角色 Agent 定义），而不是复活独立编排旁路。
+- **状态**：有效（记录自 `docs/ai/pilot/2026-11-02-b5-legacy-cleanup/04-task.md` ③ + agenthub-adjudication.md，2026-11-03）。
+
+---
+

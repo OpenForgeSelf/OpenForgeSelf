@@ -86,7 +86,7 @@ public interface IRunOrchestratorService
 /// <summary>
 /// 计划驱动执行引擎主控（tasks.md T015，design.md §5；B7 薄壳化）：
 /// RunAsync/ResumeAsync 共享 <see cref="ExecuteStepsCoreAsync"/> 步骤循环——每步骤经统一
-/// ReactLoopAgent 状态机跑一个 turn（出口工具 complete_step/request_help 声明出口）；
+/// 循环引擎（B5 起唯一运行时 MafTaskLoopAgent）状态机跑一个 turn（出口工具 complete_step/request_help 声明出口）；
 /// InterveneAsync 映射 skip/override/steer（design.md D6 + B7 语义统一）；
 /// 状态迁移统一走 <see cref="RunStateMachine"/>。
 /// </summary>
@@ -136,11 +136,11 @@ public class RunOrchestratorService : IRunOrchestratorService
     private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();
 
     /// <summary>
-    /// B7 切片 2 起的装配面：编排器薄壳化——步骤执行改由统一 ReactLoopAgent 状态机承担
+    /// B7 切片 2 起的装配面：编排器薄壳化——步骤执行改由统一循环引擎状态机承担
     /// （每 029 步骤 = 一个 turn），本类只做「建 Run → 规划 → 逐步派发 → 出口判定 → 落库 → 终局合成」。
     /// </summary>
     /// <param name="planGenerator">规划阶段（scratch-session submit_plan 出口，B7 统一循环）。</param>
-    /// <param name="aiAgentService">统一循环入口：CreateAgent 产出 ReactLoopAgent 状态机实例。</param>
+    /// <param name="aiAgentService">统一循环入口：CreateAgent 产出循环引擎状态机实例（B5 起唯一运行时 MafTaskLoopAgent）。</param>
     /// <param name="agentRegistry">Agent 人设注册表（可选，人格注入用）。</param>
     /// <param name="ctx">Cordis 上下文（可选；用于运行期懒解析宿主 <see cref="IInbox"/>——插件子容器不含宿主契约）。</param>
     /// <param name="runFlowTools">029 特殊工具集（complete_step/request_help schema 经 AgentOptions.ExtraTools 挂载）。</param>
@@ -701,7 +701,7 @@ public class RunOrchestratorService : IRunOrchestratorService
                 continue;
             }
 
-            // ---- B7 薄壳化：步骤执行 = 统一 ReactLoopAgent 状态机的一个回合 ----
+            // ---- B7 薄壳化：步骤执行 = 统一循环引擎（B5 起唯一运行时 MafTaskLoopAgent）状态机的一个回合 ----
             // 步骤指令经收件箱 followup 唤醒新 turn（模型可见 = 已记录）；complete_step/request_help
             // 为出口工具（声明即出口，不真实执行）；turn 收束即步骤出口判定，双表照旧落库、SSE 面不变。
             var result = new StepRunResult();

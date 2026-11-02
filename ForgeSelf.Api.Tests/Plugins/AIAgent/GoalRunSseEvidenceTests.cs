@@ -115,25 +115,39 @@ public class GoalRunSseEvidenceTests : IClassFixture<XCodeTestFixture>
         var inbox = new InMemoryInbox();
         var tools = new FakeToolRegistry();
         var provider = new ScriptedProvider();
-        // 请求序：[0] s1 调真工具 write_file → [1] s1 续跑出口 complete_step → [2] 评估（达成收束）
-        provider.Enqueue(Script.ToolCall("c1", "write_file", """{"path":"D:\\tmp\\x.txt","content":"hi"}"""));
+        // 请求序：[0] s1 调真工具 create_file（write_file 为高风险名单工具，MAF 会包审批挂起回合，见 MafTaskLoopAgentTests 注）
+        // → [1] s1 续跑出口 complete_step → [2] 评估（达成收束）
+        provider.Enqueue(Script.ToolCall("c1", "create_file", """{"path":"D:\\tmp\\x.txt","content":"hi"}"""));
         provider.Enqueue(Script.ToolCall("c2", "complete_step", """{"output":"文件已写入并读回：hi"}"""));
         provider.Enqueue(Script.Text("""{"achieved": true, "confidence": 0.9, "missing": [], "summary": "证据充分，任务达成"}"""));
 
         var goalPursuit = new GoalPursuitService(new FakeProviderRegistry(provider));
         var ai = new Mock<IAIAgentService>();
+        // B5（MAF 语义适配）：ToolDefinitions 显式声明 create_file（MAF 声明通道）。
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store, Provider = provider, ModelId = "fake-model", ToolExecutor = tools,
-                SystemPrompt = null, ToolDefinitions = null, Events = null, Inbox = inbox
+                SystemPrompt = null,
+                ToolDefinitions = new List<UnifiedToolDefinition>
+                {
+                    new()
+                    {
+                        Name = "create_file",
+                        Description = "创建文件",
+                        Parameters = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>("{\"type\":\"object\"}")
+                    }
+                },
+                Events = null, Inbox = inbox
             }));
         var planner = new Mock<IPlanGeneratorService>();
         planner.Setup(m => m.GeneratePlanAsync(
                 It.IsAny<AgentRun>(), It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SingleStepPlan());
         var orchestrator = new RunOrchestratorService(
-            planner.Object, ai.Object, inbox: inbox,
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox,
             stepTimeout: TimeSpan.FromSeconds(10), goalPursuit: goalPursuit);
 
         var events = new List<AgentLoopEvent>();
@@ -160,7 +174,7 @@ public class GoalRunSseEvidenceTests : IClassFixture<XCodeTestFixture>
         var arr = traces.RootElement;
         Assert.Equal(JsonValueKind.Array, arr.ValueKind);
         var trace0 = arr[0];
-        Assert.Equal("write_file", trace0.GetProperty("Name").GetString());
+        Assert.Equal("create_file", trace0.GetProperty("Name").GetString());
         Assert.True(trace0.GetProperty("Success").GetBoolean());
         Assert.Contains("x.txt", trace0.GetProperty("ArgumentsSummary").GetString());
         Assert.DoesNotContain("complete_step", stepRun.ToolCallsJson);
@@ -169,7 +183,7 @@ public class GoalRunSseEvidenceTests : IClassFixture<XCodeTestFixture>
         var evalPrompt = provider.Requests[2].Messages.Last().Content ?? string.Empty;
         Assert.Contains("文件已写入并读回", evalPrompt);   // 步骤产出
         Assert.Contains("工具轨迹", evalPrompt);            // 轨迹节标签
-        Assert.Contains("write_file", evalPrompt);          // 轨迹工具名
+        Assert.Contains("create_file", evalPrompt);          // 轨迹工具名
         Assert.Contains("x.txt", evalPrompt);               // 轨迹参数摘要
     }
 }

@@ -195,7 +195,7 @@ public class AIAgentService : IAIAgentService
         [EnumeratorCancellation] CancellationToken cancellationToken = default,
         List<IToolFunctionExtension>? extraTools = null)
     {
-        // B5（041）：循环逻辑已外迁到 ReactLoopAgent；本方法退化为编排层
+        // B5（041）：循环逻辑已外迁到统一循环引擎（B5 起唯一运行时 MafTaskLoopAgent）；本方法退化为编排层
         // （构建运行期依赖 → 跑一个回合 → 把 live 帧适配成既有的 AgentLoopEvent 事件流）。
 
         // PC-013 复发修复（2026-10-30 实证：IM 网关未绑定模型 → ResolveModelId 回退陈旧
@@ -328,10 +328,9 @@ public class AIAgentService : IAIAgentService
         {
             ModelId = chatModelId ?? string.Empty,
             SystemPrompt = systemPrompt,
-            ToolAllowlist = enabledToolNames,
-            // PILOT-051（R1）：聊天路径默认启用任务循环语义 + MAF 运行时（回滚点：关掉 UseMafRuntime 即回 ReactLoopAgent）。
-            TaskLoopMode = true,
-            UseMafRuntime = true
+            ToolAllowlist = enabledToolNames
+            // PILOT-051（R1）→ B5 收敛：任务循环语义默认常开（AgentOptions.TaskLoopMode/UseMafRuntime 已删除，
+            // MafTaskLoopAgent 恒任务循环；回滚点随 ReactLoopAgent 一并移除，git 历史可溯）。
         };
     }
 
@@ -415,11 +414,8 @@ public class AIAgentService : IAIAgentService
             PermissionProfiles = ResolvePermissionProfiles()
         };
 
-        // PILOT-051（R1）：运行时工厂开关——MAF 驱动（任务循环语义）或 ReactLoop 状态机（既有路径）。
-        // 两引擎共享同一 AgentTurnRuntime 与会话日志契约，行为由各自实现保证。
-        return effective.UseMafRuntime
-            ? new MafTaskLoopAgent(sessionId, effective, runtime)
-            : new ReactLoopAgent(sessionId, effective, runtime);
+        // B5 收敛：运行时唯一 = MafTaskLoopAgent（ReactLoopAgent 与 UseMafRuntime 开关已删除，架构 §3.2）。
+        return new MafTaskLoopAgent(sessionId, effective, runtime);
     }
 
     /// <summary>
@@ -448,7 +444,7 @@ public class AIAgentService : IAIAgentService
 
     /// <summary>
     /// 一次性工具循环核心（ad-hoc，无会话日志）：驱动到「无工具调用」或达到迭代上限。
-    /// 与会话版（<see cref="ReactLoopAgent"/>）的差别：不落任何事件、不认领收件箱、不走 turn/step 结构。
+    /// 与会话版（统一循环引擎，B5 起唯一运行时 MafTaskLoopAgent）的差别：不落任何事件、不认领收件箱、不走 turn/step 结构。
     /// </summary>
     private async IAsyncEnumerable<AgentLoopEvent> RunAdHocCoreAsync(
         List<AIChatMessage> messages,
@@ -617,7 +613,7 @@ public class AIAgentService : IAIAgentService
             {
                 yield return new AgentLoopEvent { Type = "tool_call", Name = toolCall.Name, Arguments = toolCall.Arguments };
 
-                // ad-hoc 循环不落日志（无 sessionId 归属）；会话场景由 ReactLoopAgent 落 tool/call + tool/result。
+                // ad-hoc 循环不落日志（无 sessionId 归属）；会话场景由统一循环引擎（B5 起 MafTaskLoopAgent）落 tool/call + tool/result。
                 // B9 迁六闸门执行面：30s 超时以 linked CTS 注入（管线以 exec.Signal 竞速工具体，语义等价旧 WithTimeout）。
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 ToolExecutionResult toolResult;
@@ -1370,7 +1366,7 @@ public class AIAgentService : IAIAgentService
     }
 
     /// <summary>
-    /// 检索长期记忆并渲染成「记忆上下文块」（供 ReactLoopAgent 经 <see cref="AgentTurnRuntime.MemoryPromptProvider"/>
+    /// 检索长期记忆并渲染成「记忆上下文块」（供统一循环引擎（B5 起唯一运行时 MafTaskLoopAgent）经 <see cref="AgentTurnRuntime.MemoryPromptProvider"/>
     /// 拼到系统提示前；ad-hoc 循环经 <see cref="InjectRelevantMemoriesAsync"/> 直接注入消息列表）。
     /// </summary>
     /// <param name="query">检索 query（取最后一条用户消息，内部截断到 500 字）。</param>

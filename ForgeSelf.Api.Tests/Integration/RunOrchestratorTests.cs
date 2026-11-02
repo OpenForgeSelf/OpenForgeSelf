@@ -77,7 +77,7 @@ public class RunOrchestratorTests : IClassFixture<XCodeTestFixture>
     // 备注（B7）：原「StepRunLoopService 出口逻辑（mock 驱动）」3 条直测
     // （CompleteStepToolCall_MarksCompletedAndYieldsExitEvent / RequestHelpToolCall_MarksStuckAndYieldsExitEvent /
     // LoopEndWithoutExit_MarksStuck）随 StepRunLoopService 删除而退役——其语义已有状态机等价归属：
-    // 出口工具「声明即出口」→ ReactLoopExitAndSuspendTests.ExitTool_DeclaredNotExecuted_StepEndsExitTool；
+    // 出口工具「声明即出口」→ MafExitAndSuspendTests.ExitTool_DeclaredNotExecuted_StepEndsExitTool；
     // 出口判定→落库/SSE → PlannedRunUnifiedLoopGates + OrchestratorBehaviorSnapshotTests。
     // 遵守最小改写纪律：仅删除契约已不存在的用例，不新增断言。
 

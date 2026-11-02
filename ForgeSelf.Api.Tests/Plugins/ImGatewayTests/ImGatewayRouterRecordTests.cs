@@ -15,7 +15,7 @@ namespace ForgeSelf.Api.Tests.Plugins.ImGatewayTests;
 /// - 成功链路：scripted IChatCompletion 成功 → in + out(ok) 各 1 条，Content/SessionId/PlatformMsgId 正确，回发照常；
 /// - 失败链路：AI 失败 → in + out(error, ErrorText=错误摘要)，不回发，不抛；
 /// - 主链不受落库影响：消息表整表不可用时（DB 层失败），ProcessInboundAsync 照常完成、回发照常（网关可用性优先）。
-/// AI 用 ScriptedProvider 模式桩接（参考 ReactLoopAgentTests）；通道用内存 Fake，零真实网络。
+/// AI 用 ScriptedProvider 模式桩接（脚手架见 TestAgentFixtures）；通道用内存 Fake，零真实网络。
 /// 库管理：XCodeTestFixture（PC-014 唯一入口）+ [Collection("XCode")] 全进程串行。
 /// </summary>
 [Collection("XCode")]

@@ -1,23 +1,18 @@
-using System.Runtime.CompilerServices;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
-using ForgeSelf.Api.Services;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Plugins.AIAgent;
 
 /// <summary>
-/// B7 切片 1（两套循环统一）：ReactLoopAgent 状态机新增的「出口工具 + 请求级挂起」能力归属测试。
+/// B7 统一循环「出口工具 + 请求级挂起」判据（B5 起由 MafTaskLoopAgent 承载）。
 /// </summary>
 /// <remarks>
-/// <para>
-/// 029 计划驱动的步骤语义（complete_step/request_help 出口、45s 超时卡住）自此进入统一状态机，
-/// <c>StepRunLoopService</c> 的 while(true)+超时迁入本类。三组判据：
-/// </para>
 /// <list type="number">
-/// <item><description><b>出口工具即声明</b>：命中 <see cref="AgentOptions.ExitToolNames"/> 的调用不执行
-/// <see cref="IToolRegistry"/>（声明不是执行），落 <c>tool/call + 合成 tool/result(Ok) + step/end(ExitTool)</c>，
-/// 出口信息经 <see cref="ExitToolInvoked"/> 帧交给驱动方；本步成功提交 → 确认消费收件箱输入（R2）。</description></item>
+/// <item><description><b>出口工具即声明</b>：命中出口集合的调用不执行 <c>IToolRegistry</c>（声明不是执行），
+/// 落 <c>tool/call + 合成 tool/result(Ok) + step/end(ExitTool)</c>，出口信息经 <see cref="ExitToolInvoked"/>
+/// 帧交给驱动方；本步成功提交 → 确认消费收件箱输入（R2）。MAF 侧出口声明经 ExtraTools 通道
+/// （ExitToolAIFunction 包装）成为模型可见 schema。</description></item>
 /// <item><description><b>请求级无进展超时 → 挂起而非失败</b>：<see cref="AgentOptions.StepTimeout"/>
 /// 作为相邻产出间的看门狗（逐块重置），上游长时间无产出 → <c>step/end(Suspended) + turn/end(Suspended)</c>，
 /// 半截产出只落 attempt、不落 assistant/message；收件箱输入不确认（挂起保留现场）。</description></item>
@@ -26,8 +21,11 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgent;
 /// </list>
 /// </remarks>
 [Collection("XCode")]
-public class ReactLoopExitAndSuspendTests
+public class MafExitAndSuspendTests
 {
+    private const string CompleteStepSchema =
+        """{"type":"object","properties":{"output":{"type":"string"}},"required":["output"]}""";
+
     // ---- 1. 出口工具：声明即出口，不执行、step/end(ExitTool)、确认消费 ----
     [Fact]
     public async Task ExitTool_DeclaredNotExecuted_StepEndsExitTool()
@@ -35,9 +33,10 @@ public class ReactLoopExitAndSuspendTests
         var fixture = new Fixture();
         fixture.Provider.Enqueue(Script.ToolCall("c1", "complete_step", """{"output":"本步产出"}"""));
 
-        var agent = NewAgent(fixture, new AgentOptions
+        var agent = fixture.CreateAgent(options: new AgentOptions
         {
-            ExitToolNames = new[] { "complete_step", "request_help" }
+            ExitToolNames = new[] { "complete_step", "request_help" },
+            ExtraTools = new IToolFunctionExtension[] { new FakeExitTool("complete_step", CompleteStepSchema) }
         });
         agent.Inbox.Followup(fixture.SessionId, "执行步骤一");
         var frames = await fixture.RunAsync(agent);
@@ -45,14 +44,14 @@ public class ReactLoopExitAndSuspendTests
         // 出口工具不真实执行（声明不是执行）
         Assert.Empty(fixture.Tools.Executions);
 
-        // 日志事件序：出口工具三件套 + step/end(ExitTool) + turn/end(Completed)
+        // 日志事件序：出口工具三件套 + step/end(ExitTool) + run/receipt（B2②③：含工具调用的回合冻结收据）+ turn/end(Completed)
         var types = fixture.EventTypes();
         Assert.Equal(
             new[]
             {
                 "turn/start", "step/start", "user/message", "request/header",
                 "assistant/message", "tool/call", "tool/result",
-                "step/end", "turn/end"
+                "step/end", "run/receipt", "turn/end"
             },
             types);
         var stepEnd = fixture.Store.Replay(fixture.SessionId).OfType<StepEndEvent>().Single();
@@ -64,10 +63,11 @@ public class ReactLoopExitAndSuspendTests
         var toolResult = fixture.Store.Replay(fixture.SessionId).OfType<ToolResultEvent>().Single();
         Assert.Equal(ToolOutcome.Ok, toolResult.Outcome);
 
-        // 出口信息经帧交给驱动方（029 判 complete_step → 完成 / request_help → 卡住）
+        // 出口信息经帧交给驱动方（029 判 complete_step → 完成 / request_help → 卡住）。
+        // 注：MEAI FunctionCallContent 重序列化 args 时非 ASCII 转 \uXXXX（键名 output 不转义），故断言键名。
         var exit = Assert.Single(frames.OfType<ExitToolInvoked>());
         Assert.Equal("complete_step", exit.ToolName);
-        Assert.Contains("本步产出", exit.ArgsJson);
+        Assert.Contains("output", exit.ArgsJson);
         Assert.Contains(frames, f => f is StepCompleted { Reason: StepEndReason.ExitTool });
 
         // 本步成功提交 → 确认消费收件箱输入（R2：内存替身按 MessageId 移除）
@@ -82,10 +82,10 @@ public class ReactLoopExitAndSuspendTests
         var fixture = new Fixture();
         var provider = new HangThenTextProvider();
 
-        var agent = NewAgent(fixture, new AgentOptions
+        var agent = fixture.CreateAgent(options: new AgentOptions
         {
             StepTimeout = TimeSpan.FromMilliseconds(400)
-        }, provider);
+        }, provider: provider);
         agent.Inbox.Followup(fixture.SessionId, "会挂起的请求");
         // 外层兜底令牌：绿轮 400ms 看门狗先触发（Suspended）；
         // 红轮（旧实现无看门狗）由 2s 兜底取消 → 快速红，避免对无限挂起死等。
@@ -117,10 +117,10 @@ public class ReactLoopExitAndSuspendTests
         var fixture = new Fixture();
         var provider = new HangThenTextProvider();
 
-        var agent = NewAgent(fixture, new AgentOptions
+        var agent = fixture.CreateAgent(options: new AgentOptions
         {
             StepTimeout = TimeSpan.FromMilliseconds(400)
-        }, provider);
+        }, provider: provider);
         agent.Inbox.Followup(fixture.SessionId, "会挂起的请求");
 
         // 第一回合：挂起（2s 兜底取消防红轮死等，见上）
@@ -153,60 +153,4 @@ public class ReactLoopExitAndSuspendTests
         Assert.Empty(fixture.Inbox.Peek(fixture.SessionId));
         Assert.Contains(frames2, f => f is TurnCompleted { Reason: TurnEndReason.Completed });
     }
-
-    /// <summary>用 Fixture 的脚手架装配自定义 AgentOptions / Provider 的 Agent（出口与挂起语义测试需要）。</summary>
-    private static ReactLoopAgent NewAgent(Fixture fixture, AgentOptions options, IAIProvider? provider = null)
-        => new(fixture.SessionId, options, new AgentTurnRuntime
-        {
-            Store = fixture.Store,
-            Provider = provider ?? fixture.Provider,
-            ModelId = "fake-model",
-            ToolExecutor = fixture.Tools,
-            SystemPrompt = null,
-            ToolDefinitions = null,
-            Events = fixture.Events,
-            Inbox = fixture.Inbox
-        });
-}
-
-/// <summary>
-/// 挂起测试替身：首次请求先吐一个增量（制造「有进展」）后<b>永久挂起</b>（无 finishReason、无后续产出），
-/// 触发请求级无进展看门狗；恢复后的请求返回正常文本收束。
-/// </summary>
-internal sealed class HangThenTextProvider : IAIProvider
-{
-    private bool _hung;
-
-    /// <summary>每次请求收到的统一请求（调试观察用）。</summary>
-    public List<UnifiedChatRequest> Requests { get; } = new();
-
-    public string ProviderName => "fake-hang";
-    public AIProviderType ProviderType => AIProviderType.Custom;
-    public List<string> SupportedModels => new() { "fake-model" };
-    public bool IsDefault => true;
-
-    public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("本测试替身只支持流式");
-
-    public async IAsyncEnumerable<UnifiedStreamChunk> ChatStreamAsync(
-        UnifiedChatRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        Requests.Add(request);
-
-        if (!_hung)
-        {
-            _hung = true;
-            yield return new UnifiedStreamChunk { DeltaContent = "开始…" };
-            // 永久挂起直到取消（看门狗触发 OCE；非用户取消 → Suspended）
-            await Task.Delay(Timeout.Infinite, cancellationToken);
-            yield break;
-        }
-
-        yield return new UnifiedStreamChunk { DeltaContent = "已恢复" };
-        yield return new UnifiedStreamChunk { FinishReason = "stop" };
-    }
-
-    public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(new List<ModelInfo>());
 }

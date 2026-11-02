@@ -4,8 +4,8 @@ using ForgeSelf.Abstractions;
 namespace ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 
 /// <summary>
-/// 任务循环协议文案与出口工具 schema（PILOT-051 FR-1）：两引擎（MafTaskLoopAgent / ReactLoopAgent）
-/// 共用单一词汇源，防止双实现提示词漂移。
+/// 任务循环协议文案与出口工具 schema（PILOT-051 FR-1）：原两引擎（MafTaskLoopAgent / ReactLoopAgent（B5 已删除））
+/// 共用单一词汇源，防止双实现提示词漂移；B5 起唯一运行时 MafTaskLoopAgent。
 /// </summary>
 public static class TaskLoopPrompts
 {

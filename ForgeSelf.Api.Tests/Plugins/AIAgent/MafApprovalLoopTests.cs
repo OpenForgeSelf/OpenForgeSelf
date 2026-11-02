@@ -177,7 +177,7 @@ internal sealed class MafApprovalFixture
 
     public MafTaskLoopAgent CreateAgent()
         => new(SessionId,
-            new AgentOptions { MaxStepsPerTurn = 10, TaskLoopMode = true },
+            new AgentOptions { MaxStepsPerTurn = 10 },
             new AgentTurnRuntime
             {
                 Store = Store,

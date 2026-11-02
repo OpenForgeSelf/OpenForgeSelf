@@ -8,8 +8,8 @@ namespace ForgeSelf.Api.Tests.Services;
 /// </summary>
 /// <remarks>
 /// B5（041）：原「IAgentLoop / InMemoryAgentLoop」用例随旧契约一并删除
-/// （旧契约生产消费方 0，循环由 <c>IAgentRegistry</c> + <c>ReactLoopAgent</c> 承载，
-/// 见 <c>ForgeSelf.Api.Tests/Plugins/AIAgent/ReactLoopAgentTests.cs</c>）。
+/// （旧契约生产消费方 0，循环由 <c>IAgentRegistry</c> + 统一循环引擎承载（B5 起唯一运行时 MafTaskLoopAgent），
+/// 见 <c>ForgeSelf.Api.Tests/Plugins/AIAgent/MafEngineGateTests.cs</c>）。
 /// <para>
 /// B6：<c>InMemoryInbox</c> 适配 <c>Send/Claim/Peek/Clear</c> 后，用例重写为验证
 /// <b>Claim 在回合边界与 step 边界的差别</b>（A2/A3 的内存态对应物）：
@@ -17,7 +17,7 @@ namespace ForgeSelf.Api.Tests.Services;
 /// </para>
 /// <para>
 /// B6 切片 2b：<b>Claim 是提案、不删除</b>（R2 协议与 PersistentInbox 同构）——
-/// ReactLoopAgent 的 A3 唤醒闸门会在「只有不唤醒的注入」时拒绝消费，
+/// ReactLoopAgent（B5 已删除，由 MafTaskLoopAgent 承载）的 A3 唤醒闸门会在「只有不唤醒的注入」时拒绝消费，
 /// 取走即删会把被拒绝的输入丢掉。移除由 <see cref="IInboxConfirmation.ConfirmClaimed"/>
 /// 在消费方成功提交后执行；原「claim 后 Peek 即空」的断言相应改为
 /// 「claim 后仍在（提案不变异）→ 确认后才空」。

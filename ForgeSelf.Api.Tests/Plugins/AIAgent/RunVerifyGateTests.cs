@@ -221,18 +221,32 @@ public class RunVerifyGateTests : IClassFixture<XCodeTestFixture>
         var store = new InMemorySessionStore();
         var inbox = new InMemoryInbox();
         var ai = new Mock<IAIAgentService>();
+        // B5（MAF 语义适配）：① runFlowTools 挂载 complete_step/request_help（出口声明通道，生产同款）；
+        // ② 脚本注册工具改 create_file（write_file 是高风险名单工具，MAF 会包审批挂起回合，见 MafTaskLoopAgentTests 注）。
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store, Provider = provider, ModelId = "fake-model", ToolExecutor = new FakeToolRegistry(),
-                SystemPrompt = null, ToolDefinitions = null, Events = null, Inbox = inbox
+                SystemPrompt = null,
+                ToolDefinitions = new List<UnifiedToolDefinition>
+                {
+                    new()
+                    {
+                        Name = "create_file",
+                        Description = "创建文件",
+                        Parameters = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>("{\"type\":\"object\"}")
+                    }
+                },
+                Events = null, Inbox = inbox
             }));
         var planner = new Mock<IPlanGeneratorService>();
         planner.Setup(m => m.GeneratePlanAsync(
                 It.IsAny<AgentRun>(), It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SingleStepPlan());
         var orch = new RunOrchestratorService(
-            planner.Object, ai.Object, inbox: inbox,
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox,
             stepTimeout: TimeSpan.FromSeconds(10), runVerify: runVerify, sessionStore: store);
         return (orch, store);
     }
@@ -240,7 +254,7 @@ public class RunVerifyGateTests : IClassFixture<XCodeTestFixture>
     private static ScriptedProvider WriteFileScript()
     {
         var provider = new ScriptedProvider();
-        provider.Enqueue(Script.ToolCall("c1", "write_file", """{"path":"D:\\tmp\\x.txt","content":"hi"}"""));
+        provider.Enqueue(Script.ToolCall("c1", "create_file", """{"path":"D:\\tmp\\x.txt","content":"hi"}"""));
         provider.Enqueue(Script.ToolCall("c2", "complete_step", """{"output":"文件已写入并读回：hi"}"""));
         return provider;
     }

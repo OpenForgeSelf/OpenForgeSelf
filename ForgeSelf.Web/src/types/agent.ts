@@ -24,14 +24,6 @@ export enum TaskPriority {
   Critical = 3
 }
 
-export enum AgentTaskStatus {
-  Pending = 0,
-  InProgress = 1,
-  Completed = 2,
-  Failed = 3,
-  Cancelled = 4
-}
-
 export interface AgentPersonality {
   name: string
   creativity: number
@@ -64,63 +56,6 @@ export interface AgentDefinition {
   updatedAt: string
 }
 
-export interface AgentInstance {
-  instanceId: string
-  agentId: string
-  agentName: string
-  agentType: AgentType
-  status: AgentStatus
-  sessionId: string
-  currentTaskId: string
-  createdAt: string
-  lastActiveAt: string
-  context: AIChatMessage[]
-}
-
-export interface AIChatMessage {
-  role: string
-  content: string
-}
-
-export interface AgentTask {
-  taskId: string
-  description: string
-  assignedAgentType: AgentType
-  assignedAgentId: string | null
-  assignedAgentInstanceId: string | null
-  priority: TaskPriority
-  status: AgentTaskStatus
-  input: string
-  output: string | null
-  errorMessage: string | null
-  parentTaskId: string | null
-  subTaskIds: string[]
-  createdAt: string
-  startedAt: string | null
-  completedAt: string | null
-}
-
-export interface CoordinatorPlan {
-  planId: string
-  originalRequest: string
-  strategy: string
-  requiredCapabilities: string[]
-  tasks: AgentTask[]
-  coordinatorReasoning: string
-}
-
-export interface AgentExecutionResult {
-  success: boolean
-  agentId: string
-  agentName: string
-  taskId: string
-  output: string | null
-  errorMessage: string | null
-  iterations: number
-  toolsUsed: string[]
-  duration: string
-}
-
 export interface FindAgentRequest {
   capability: string
 }
@@ -130,6 +65,7 @@ export interface BestMatchRequest {
   requiredCapabilities: string[]
 }
 
-export interface CoordinateRequest {
-  userRequest: string
-}
+// B5（2026-11-02-b5-legacy-cleanup ③，agenthub-adjudication.md）：
+// 多智能体启发式编排死代码已删——AgentInstance/AgentTask/AgentTaskStatus/CoordinatorPlan/
+// AgentExecutionResult/CoordinateRequest 随后端 coordinate/execute/handle/instances/execute-task
+// 端点与 agentApi 对应方法一并移除；能力归计划任务主路径（029 统一循环）。

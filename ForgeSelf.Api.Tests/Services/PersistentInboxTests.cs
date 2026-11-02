@@ -13,11 +13,11 @@ namespace ForgeSelf.Api.Tests.Services;
 /// 隔离手法与 <see cref="PersistentSessionStoreTests"/> 同款：每用例独立临时库目录 +
 /// <c>DAL.AddConnStr</c> + <c>EntityFactory.InitConnection</c>，类上挂 <c>[Collection("XCode")]</c> 串行。
 /// <para>
-/// 覆盖门禁（§2.5 门禁清单中可脱离 ReactLoopAgent 接线的持久化部分）：
+/// 覆盖门禁（§2.5 门禁清单中可脱离统一循环引擎接线的持久化部分；B5 起唯一运行时 MafTaskLoopAgent）：
 /// 门禁 4 <c>Inbox_SurvivesRestart</c>（换实例 Peek 一致）、
 /// 门禁 5 <c>Claim_AtomicOnCrash</c>（claim 后未落 claimed → 重启消息仍在）。
 /// 门禁 1/2/3（Followup 唤醒空闲 / steer 下个 step 边界 / inject 不唤醒）是行为级判据，
-/// 待 ReactLoopAgent 接线后补（切片 2b）。
+/// 由 <c>MafInboxGateTests</c> 承载（切片 2b 起接线）。
 /// </para>
 /// </remarks>
 [Collection("XCode")]

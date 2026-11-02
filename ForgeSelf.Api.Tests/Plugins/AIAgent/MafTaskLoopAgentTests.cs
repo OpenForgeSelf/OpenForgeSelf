@@ -15,7 +15,7 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgent;
 /// PILOT-051 门禁测试：MafTaskLoopAgent（MAF 驱动的任务循环）。
 /// </summary>
 /// <remarks>
-/// 判据与 <see cref="ReactLoopAgentTests"/> 同一纪律：一切持久事实打在<b>会话日志事件序</b>上；
+/// 判据与引擎门禁（MafEngineGateTests）同一纪律：一切持久事实打在<b>会话日志事件序</b>上；
 /// live 帧只断言存在性。脚本化模型（<see cref="ScriptedProvider"/>）与假工具注册表复用 B5 夹具。
 /// </remarks>
 [Collection("XCode")]
@@ -218,7 +218,7 @@ internal sealed class MafFixture
 
     public MafTaskLoopAgent CreateAgent(string? sessionId = null, AgentOptions? options = null, IAIProvider? provider = null)
         => new(sessionId ?? SessionId,
-            options ?? new AgentOptions { MaxStepsPerTurn = _maxStepsPerTurn, TaskLoopMode = true },
+            options ?? new AgentOptions { MaxStepsPerTurn = _maxStepsPerTurn },
             new AgentTurnRuntime
             {
                 Store = Store,

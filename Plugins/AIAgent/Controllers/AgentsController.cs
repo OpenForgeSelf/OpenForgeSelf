@@ -10,17 +10,10 @@ namespace ForgeSelf.Api.Plugins.AIAgent.Controllers;
 public class AgentsController : ControllerBase
 {
     private readonly IAgentRegistryService _agentRegistry;
-    private readonly IAgentCoordinatorService _coordinatorService;
-    private readonly IAgentExecutorService _executorService;
 
-    public AgentsController(
-        IAgentRegistryService agentRegistry,
-        IAgentCoordinatorService coordinatorService,
-        IAgentExecutorService executorService)
+    public AgentsController(IAgentRegistryService agentRegistry)
     {
         _agentRegistry = agentRegistry;
-        _coordinatorService = coordinatorService;
-        _executorService = executorService;
     }
 
     [HttpGet]
@@ -62,48 +55,9 @@ public class AgentsController : ControllerBase
         return Ok(agent);
     }
 
-    [HttpPost("coordinate")]
-    public async Task<ActionResult<CoordinatorPlan>> CreatePlan([FromBody] CoordinateRequest request)
-    {
-        var plan = await _coordinatorService.CreatePlanAsync(request.UserRequest);
-        return Ok(plan);
-    }
-
-    [HttpPost("execute")]
-    public async Task<ActionResult<AgentExecutionResult>> ExecutePlan([FromBody] CoordinatorPlan plan)
-    {
-        var result = await _coordinatorService.ExecutePlanAsync(plan);
-        return Ok(result);
-    }
-
-    [HttpPost("handle")]
-    public async Task<ActionResult<string>> HandleRequest([FromBody] CoordinateRequest request)
-    {
-        var result = await _coordinatorService.HandleRequestAsync(request.UserRequest);
-        return Ok(result);
-    }
-
-    [HttpGet("instances")]
-    public ActionResult<List<AgentInstance>> GetActiveInstances()
-    {
-        var instances = _executorService.GetActiveInstances();
-        return Ok(instances);
-    }
-
-    [HttpGet("instances/{instanceId}")]
-    public ActionResult<AgentInstance> GetInstance(string instanceId)
-    {
-        var instance = _executorService.GetAgentInstance(instanceId);
-        if (instance == null) return NotFound();
-        return Ok(instance);
-    }
-
-    [HttpPost("execute-task")]
-    public async Task<ActionResult<AgentExecutionResult>> ExecuteTask([FromBody] AgentTask task)
-    {
-        var result = await _executorService.ExecuteTaskAsync(task);
-        return Ok(result);
-    }
+    // B5（2026-11-02-b5-legacy-cleanup，lead 拍板=删除）：AgentCoordinator 启发式旁路的
+    // coordinate/execute/handle/instances/execute-task 端点已删除——零 UI/插件/IM 消费者，
+    // 且 ad-hoc 工具循环无审批泵（安全缺口）。裁决留痕：docs/ai/pilot/2026-11-02-b5-legacy-cleanup/agenthub-adjudication.md。
 
     #region Stage 4：Agent CRUD（可编辑提示词）
 
@@ -156,9 +110,4 @@ public class BestMatchRequest
 {
     public string TaskDescription { get; set; } = string.Empty;
     public List<string> RequiredCapabilities { get; set; } = new();
-}
-
-public class CoordinateRequest
-{
-    public string UserRequest { get; set; } = string.Empty;
 }

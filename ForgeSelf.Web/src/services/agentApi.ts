@@ -1,9 +1,5 @@
 import type {
   AgentDefinition,
-  AgentInstance,
-  CoordinatorPlan,
-  AgentExecutionResult,
-  AgentTask,
   AgentType
 } from '../types/agent'
 
@@ -55,51 +51,10 @@ export const agentApi = {
       body: JSON.stringify({ taskDescription, requiredCapabilities })
     })
     return unwrap<AgentDefinition>(response)
-  },
-
-  createPlan: async (userRequest: string): Promise<CoordinatorPlan> => {
-    const response = await fetch(`${API_BASE_URL}/agents/coordinate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userRequest })
-    })
-    return unwrap<CoordinatorPlan>(response)
-  },
-
-  executePlan: async (plan: CoordinatorPlan): Promise<AgentExecutionResult> => {
-    const response = await fetch(`${API_BASE_URL}/agents/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(plan)
-    })
-    return unwrap<AgentExecutionResult>(response)
-  },
-
-  handleRequest: async (userRequest: string): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/agents/handle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userRequest })
-    })
-    return unwrap<string>(response)
-  },
-
-  getActiveInstances: async (): Promise<AgentInstance[]> => {
-    const response = await fetch(`${API_BASE_URL}/agents/instances`)
-    return unwrap<AgentInstance[]>(response)
-  },
-
-  getInstance: async (instanceId: string): Promise<AgentInstance> => {
-    const response = await fetch(`${API_BASE_URL}/agents/instances/${instanceId}`)
-    return unwrap<AgentInstance>(response)
-  },
-
-  executeTask: async (task: AgentTask): Promise<AgentExecutionResult> => {
-    const response = await fetch(`${API_BASE_URL}/agents/execute-task`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(task)
-    })
-    return unwrap<AgentExecutionResult>(response)
   }
 }
+
+// B5（2026-11-02-b5-legacy-cleanup ③，agenthub-adjudication.md）：
+// 多智能体启发式编排死代码已删——createPlan/executePlan/handleRequest/getActiveInstances/
+// getInstance/executeTask 六个方法连同后端 AgentsController 的 coordinate/execute/handle/
+// instances/instances/{id}/execute-task 端点一并移除；能力归计划任务主路径（029 统一循环）。

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 
 namespace ForgeSelf.Api.Plugins.AIAgent.Services;
 
@@ -77,12 +78,12 @@ public sealed class AgentRuntimeRegistry : IAgentRegistry
         return true;
     }
 
-    /// <summary>从可能带 scope 包装的 Agent 里取出状态机本体。</summary>
-    private static ReactLoopAgent? ResolveLoopAgent(IAgent agent)
+    /// <summary>从可能带 scope 包装的 Agent 里取出状态机本体（B5：唯一运行时 = MafTaskLoopAgent）。</summary>
+    private static MafTaskLoopAgent? ResolveLoopAgent(IAgent agent)
         => agent switch
         {
-            ReactLoopAgent loop => loop,
-            ScopedAgent scoped => scoped.Inner as ReactLoopAgent,
+            MafTaskLoopAgent loop => loop,
+            ScopedAgent scoped => scoped.Inner as MafTaskLoopAgent,
             _ => null
         };
 

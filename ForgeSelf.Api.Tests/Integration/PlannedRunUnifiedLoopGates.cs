@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using ForgeSelf.Api.Tests.Plugins.AIAgent;
@@ -12,13 +13,13 @@ using Script = ForgeSelf.Api.Tests.Plugins.AIAgent.Script;
 namespace ForgeSelf.Api.Tests.Integration;
 
 /// <summary>
-/// B7 切片 2 门禁（两套循环统一 · 编排器薄壳化）：029 计划驱动执行改走统一 ReactLoopAgent 状态机。
+/// B7 切片 2 门禁（两套循环统一 · 编排器薄壳化）：029 计划驱动执行走统一状态机（B5 起唯一运行时 MafTaskLoopAgent）。
 /// </summary>
 /// <remarks>
 /// <para>
 /// 四条门禁（B7 派工书命名，先红后绿）：
 /// <list type="number">
-/// <item><description><b>PlannedRun_UsesSameLoop</b>：计划驱动步骤经真实 <see cref="ReactLoopAgent"/>
+/// <item><description><b>PlannedRun_UsesSameLoop</b>：计划驱动步骤经真实 <see cref="MafTaskLoopAgent"/>
 /// 状态机执行——会话日志出现 turn/start、user/message（收件箱 followup 唤醒）、step/start、assistant/message，
 /// 而非旧的 ad-hoc 无日志循环。</description></item>
 /// <item><description><b>Intervene_AsSteer</b>：steer 介入语义分叉——运行中（Running）→ steer
@@ -32,7 +33,7 @@ namespace ForgeSelf.Api.Tests.Integration;
 /// </list>
 /// </para>
 /// <para>
-/// 装配：真实 <see cref="ReactLoopAgent"/> + <see cref="ScriptedProvider"/>（脚本化模型响应）+
+/// 装配：真实 <see cref="MafTaskLoopAgent"/> + <see cref="ScriptedProvider"/>（脚本化模型响应）+
 /// <see cref="InMemorySessionStore"/>/<see cref="InMemoryInbox"/>，经 mock
 /// <see cref="IAIAgentService.CreateAgent"/> 注入编排器——即「编排器薄壳 + 状态机真身」的组合。
 /// </para>
@@ -85,7 +86,7 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
     }
 
     /// <summary>
-    /// 真身装配：mock CreateAgent → 真实 ReactLoopAgent（脚本化 provider + 内存日志 + 内存收件箱）。
+    /// 真身装配：mock CreateAgent → 真实 MafTaskLoopAgent（脚本化 provider + 内存日志 + 内存收件箱）。
     /// </summary>
     private static Harness NewHarness(IReadOnlyList<Script> stepScripts, TimeSpan? stepTimeout = null)
     {
@@ -98,7 +99,7 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
 
         var ai = new Mock<IAIAgentService>();
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store,
                 Provider = provider,
@@ -116,7 +117,9 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
             .ReturnsAsync(TwoStepPlan());
 
         var orchestrator = new RunOrchestratorService(
-            planner.Object, ai.Object, inbox: inbox, stepTimeout: stepTimeout);
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox, stepTimeout: stepTimeout);
         return new Harness
         {
             Orchestrator = orchestrator, Store = store, Inbox = inbox, Tools = tools, SessionId = sessionId
@@ -233,7 +236,7 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
         var provider = hangThenRecover;
         var ai = new Mock<IAIAgentService>();
         ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
-            .Returns((string sid, AgentOptions options) => new ReactLoopAgent(sid, options, new AgentTurnRuntime
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
             {
                 Store = store, Provider = provider, ModelId = "fake-model",
                 ToolExecutor = new FakeToolRegistry(), Events = null, Inbox = inbox
@@ -247,7 +250,9 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
                 Steps = { new AgentPlanStep { Id = "s1", Name = "统计行数", Objective = "统计行数" } }
             });
         var orchestrator = new RunOrchestratorService(
-            planner.Object, ai.Object, inbox: inbox, stepTimeout: TimeSpan.FromMilliseconds(400));
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox, stepTimeout: TimeSpan.FromMilliseconds(400));
 
         // 第一遍：挂起 → run_stuck（派生），Run.Status=Stuck 保留现场，无 done
         // （挂起前模型先吐过一段增量 → content 事件合法存在）

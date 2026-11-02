@@ -42,8 +42,8 @@ public class AIAgentPlugin : IPlugin
         // B4（040）：会话日志 → AIChatMessage 只读视图的投影同步器（调用方返回前 await，勿改 Singleton）
         services?.AddScoped<AIAgentProjectionService>();
         services?.AddScoped<IAgentRegistryService, AgentRegistryService>();
-        services?.AddScoped<IAgentCoordinatorService, AgentCoordinatorService>();
-        services?.AddScoped<IAgentExecutorService, AgentExecutorService>();
+        // B5（2026-11-02-b5-legacy-cleanup，lead 拍板=删除）：AgentCoordinator/AgentExecutor 启发式旁路
+        // 已删除（零 UI/插件/IM 消费者 + ad-hoc 循环无审批泵；裁决留痕 agenthub-adjudication.md）。
         services?.AddScoped<IProactivePlanningService, ProactivePlanningService>();
         services?.AddScoped<IWorkflowPlannerService, WorkflowPlannerService>();
         services?.AddScoped<IToolSelectorService, ToolSelectorService>();
@@ -53,7 +53,7 @@ public class AIAgentPlugin : IPlugin
 
         // 计划驱动执行引擎（029，T016）：RunFlowToolSet 承载 submit_plan/complete_step/request_help
         // 三特殊工具，供 PlanGeneratorService（规划）/ RunOrchestratorService（步骤 turn）经
-        // AgentOptions.ExtraTools 显式挂载（R4；B7 统一循环后步骤循环本体=ReactLoopAgent，StepRunLoopService 已删）。
+        // AgentOptions.ExtraTools 显式挂载（R4；B7 统一循环后步骤循环本体=统一状态机（B5 起唯一运行时 MafTaskLoopAgent），StepRunLoopService 已删）。
         var runFlowTools = new RunFlowToolSet(pluginId);
         services?.AddSingleton(runFlowTools);
         services?.AddScoped<IPlanGeneratorService, PlanGeneratorService>();

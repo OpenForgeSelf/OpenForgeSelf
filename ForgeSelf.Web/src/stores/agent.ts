@@ -4,18 +4,12 @@ import {
   AgentType,
   AgentStatus,
   TaskPriority,
-  type AgentDefinition,
-  type AgentInstance,
-  type CoordinatorPlan,
-  type AgentExecutionResult
+  type AgentDefinition
 } from '@/types/agent'
 import { agentApi } from '@/services/agentApi'
 
 export const useAgentStore = defineStore('agent', () => {
   const agents = ref<AgentDefinition[]>([])
-  const instances = ref<AgentInstance[]>([])
-  const currentPlan = ref<CoordinatorPlan | null>(null)
-  const executionResult = ref<AgentExecutionResult | null>(null)
   const loading = ref(false)
   const executing = ref(false)
   const error = ref<string | null>(null)
@@ -48,14 +42,6 @@ export const useAgentStore = defineStore('agent', () => {
     return map
   })
 
-  const activeInstances = computed(() => {
-    return instances.value.filter(i =>
-      i.status === AgentStatus.Working ||
-      i.status === AgentStatus.Thinking ||
-      i.status === AgentStatus.Waiting
-    )
-  })
-
   async function loadAgents(): Promise<void> {
     try {
       loading.value = true
@@ -66,63 +52,6 @@ export const useAgentStore = defineStore('agent', () => {
       error.value = e instanceof Error ? e.message : '加载 Agent 列表失败'
     } finally {
       loading.value = false
-    }
-  }
-
-  async function loadInstances(): Promise<void> {
-    try {
-      error.value = null
-      instances.value = await agentApi.getActiveInstances()
-    } catch (e) {
-      console.error('加载运行实例失败:', e)
-      error.value = e instanceof Error ? e.message : '加载运行实例失败'
-    }
-  }
-
-  async function createPlan(userRequest: string): Promise<CoordinatorPlan> {
-    try {
-      loading.value = true
-      error.value = null
-      const plan = await agentApi.createPlan(userRequest)
-      currentPlan.value = plan
-      return plan
-    } catch (e) {
-      console.error('创建执行计划失败:', e)
-      error.value = e instanceof Error ? e.message : '创建执行计划失败'
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function executePlan(plan: CoordinatorPlan): Promise<AgentExecutionResult> {
-    try {
-      executing.value = true
-      error.value = null
-      const result = await agentApi.executePlan(plan)
-      executionResult.value = result
-      return result
-    } catch (e) {
-      console.error('执行计划失败:', e)
-      error.value = e instanceof Error ? e.message : '执行计划失败'
-      throw e
-    } finally {
-      executing.value = false
-    }
-  }
-
-  async function handleRequest(userRequest: string): Promise<string> {
-    try {
-      executing.value = true
-      error.value = null
-      const result = await agentApi.handleRequest(userRequest)
-      return result
-    } catch (e) {
-      console.error('处理请求失败:', e)
-      error.value = e instanceof Error ? e.message : '处理请求失败'
-      throw e
-    } finally {
-      executing.value = false
     }
   }
 
@@ -201,16 +130,8 @@ export const useAgentStore = defineStore('agent', () => {
     error.value = null
   }
 
-  function clearResult() {
-    currentPlan.value = null
-    executionResult.value = null
-  }
-
   return {
     agents,
-    instances,
-    currentPlan,
-    executionResult,
     loading,
     executing,
     error,
@@ -218,19 +139,13 @@ export const useAgentStore = defineStore('agent', () => {
     searchKeyword,
     filteredAgents,
     agentsByType,
-    activeInstances,
     loadAgents,
-    loadInstances,
-    createPlan,
-    executePlan,
-    handleRequest,
     getAgentTypeLabel,
     getAgentTypeIcon,
     getTaskPriorityLabel,
     getTaskStatusLabel,
     getAgentStatusLabel,
     getStatusColor,
-    clearError,
-    clearResult
+    clearError
   }
 })

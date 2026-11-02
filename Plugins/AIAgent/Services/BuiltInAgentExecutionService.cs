@@ -198,28 +198,23 @@ public class BuiltInAgentExecutionService : IBuiltInAgentExecution
         }
     }
 
-    private static readonly Regex FilePathPattern = new(
-        @"path[\""']?\s*[:=]\s*[\""']([^\"",'}\s]+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    /// <summary>从步骤工具轨迹 JSON 文本里提取写类工具的目标路径（尽力而为，解析不到返回空）。</summary>
+    /// <summary>
+    /// 从步骤工具轨迹提取写类工具目标路径（B2① 修复）：
+    /// 走 <see cref="ToolCallFileExtractor"/> 的结构化解析——ToolCallsJson 是「轨迹列表再套一层
+    /// JSON 字符串」的双编码形态，旧正则（对 <c>\"path\\\":</c> 永不命中）已废弃；
+    /// 提取器内部先反序列化轨迹再逐条解析 ArgumentsSummary，正则仅作残缺形态兜底。
+    /// </summary>
     private static List<string> ExtractFilePaths(List<AgentStepRunDto> steps)
     {
         var found = new List<string>();
         foreach (var step in steps)
         {
             if (string.IsNullOrWhiteSpace(step.ToolCallsJson)) continue;
-            if (!step.ToolCallsJson.Contains("write_file", StringComparison.OrdinalIgnoreCase)
-                && !step.ToolCallsJson.Contains("patch", StringComparison.OrdinalIgnoreCase)
-                && !step.ToolCallsJson.Contains("create_file", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            foreach (Match m in FilePathPattern.Matches(step.ToolCallsJson))
-            {
-                var p = m.Groups[1].Value.Trim();
-                if (p.Length > 0 && !found.Contains(p)) found.Add(p);
-            }
+            found.AddRange(ToolCallFileExtractor.ExtractFilePaths(step.ToolCallsJson));
         }
-        return found;
+
+        return found
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 }

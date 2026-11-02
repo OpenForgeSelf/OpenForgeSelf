@@ -381,6 +381,17 @@
         </tr>
 
         <tr>
+            <td>ExitCriteria</td>
+            <td>出口验收标准（JSON数组</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）</td>
+        </tr>
+
+        <tr>
             <td>Status</td>
             <td>执行状态（AgentRunStatus枚举）</td>
             <td>Int32</td>
@@ -433,6 +444,39 @@
             <td></td>
             <td></td>
             <td></td>
+        </tr>
+
+        <tr>
+            <td>VerifyStatus</td>
+            <td>Verify阶段状态（RunVerifyStatus枚举</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>：0=未配置 1=待验证 2=通过 3=未通过）</td>
+        </tr>
+
+        <tr>
+            <td>VerifyReport</td>
+            <td>Verify阶段报告（JSON</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：逐条判据结论+证据摘要）</td>
+        </tr>
+
+        <tr>
+            <td>ResultReceipt</td>
+            <td>Run结果收据（JSON</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）</td>
         </tr>
 
         <tr>
@@ -582,6 +626,17 @@
             <td></td>
             <td></td>
             <td></td>
+        </tr>
+
+        <tr>
+            <td>EvidenceJson</td>
+            <td>本步执行证据（JSON</td>
+            <td>String</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>：涉及文件/工具成败计数；Verify 与结果收据的取证来源）</td>
         </tr>
 
         <tr>

@@ -517,7 +517,10 @@ public class TodoDispatchService : ITodoDispatchService
                 detail: $"taskKey={status.TaskKey} 耗时={status.ElapsedMs}ms 工作目录={OrNone(status.Cwd, "未记录")}",
                 result: status.ResultSummary,
                 evidence: $"taskKey:{status.TaskKey}",
-                stageFrom: from, stageTo: to);
+                stageFrom: from, stageTo: to,
+                // B2①（TODO 233）：状态快照已带结构化文件清单，回写留痕必须透传落库，
+                // 否则执行记录回读 filesChanged 恒空（「改了什么」从台账上消失）。
+                filesChanged: status.FilesChanged);
         }
         catch (Exception ex)
         {

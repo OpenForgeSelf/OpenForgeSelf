@@ -23,6 +23,8 @@ public static class SessionEventMap
         ["request/header"] = typeof(RequestHeaderEvent),
         ["request/context"] = typeof(RequestContextEvent),
         ["agent/inbox/spliced"] = typeof(InboxSplicedEvent),
+        ["run/verify"] = typeof(RunVerifyEvent),
+        ["run/receipt"] = typeof(RunReceiptEvent),
     };
 
     /// <summary>按类型名解析 record 类型；未注册则抛 <see cref="UnknownSessionEventException"/>。</summary>

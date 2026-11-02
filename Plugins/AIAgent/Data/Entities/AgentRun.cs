@@ -88,6 +88,14 @@ public partial class AgentRun
     [BindColumn("PlanJson", "生成的执行计划（Plan DSL）", "")]
     public String PlanJson { get => _PlanJson; set { if (OnPropertyChanging("PlanJson", value)) { _PlanJson = value; OnPropertyChanged("PlanJson"); } } }
 
+    private String _ExitCriteria;
+    /// <summary>出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）</summary>
+    [DisplayName("出口验收标准（JSON数组")]
+    [Description("出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("ExitCriteria", "出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）", "")]
+    public String ExitCriteria { get => _ExitCriteria; set { if (OnPropertyChanging("ExitCriteria", value)) { _ExitCriteria = value; OnPropertyChanged("ExitCriteria"); } } }
+
     private Int32 _Status;
     /// <summary>执行状态（AgentRunStatus枚举）</summary>
     [DisplayName("执行状态（AgentRunStatus枚举）")]
@@ -128,6 +136,30 @@ public partial class AgentRun
     [BindColumn("TotalTokens", "全流程Token汇总", "")]
     public Int64 TotalTokens { get => _TotalTokens; set { if (OnPropertyChanging("TotalTokens", value)) { _TotalTokens = value; OnPropertyChanged("TotalTokens"); } } }
 
+    private Int32 _VerifyStatus;
+    /// <summary>Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）</summary>
+    [DisplayName("Verify阶段状态（RunVerifyStatus枚举")]
+    [Description("Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("VerifyStatus", "Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）", "")]
+    public Int32 VerifyStatus { get => _VerifyStatus; set { if (OnPropertyChanging("VerifyStatus", value)) { _VerifyStatus = value; OnPropertyChanged("VerifyStatus"); } } }
+
+    private String _VerifyReport;
+    /// <summary>Verify阶段报告（JSON：逐条判据结论+证据摘要）</summary>
+    [DisplayName("Verify阶段报告（JSON")]
+    [Description("Verify阶段报告（JSON：逐条判据结论+证据摘要）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("VerifyReport", "Verify阶段报告（JSON：逐条判据结论+证据摘要）", "")]
+    public String VerifyReport { get => _VerifyReport; set { if (OnPropertyChanging("VerifyReport", value)) { _VerifyReport = value; OnPropertyChanged("VerifyReport"); } } }
+
+    private String _ResultReceipt;
+    /// <summary>Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）</summary>
+    [DisplayName("Run结果收据（JSON")]
+    [Description("Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("ResultReceipt", "Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）", "")]
+    public String ResultReceipt { get => _ResultReceipt; set { if (OnPropertyChanging("ResultReceipt", value)) { _ResultReceipt = value; OnPropertyChanged("ResultReceipt"); } } }
+
     private DateTime _CreateTime;
     /// <summary>创建时间</summary>
     [DisplayName("创建时间")]
@@ -161,11 +193,15 @@ public partial class AgentRun
             "WorkflowName" => _WorkflowName,
             "TaskInput" => _TaskInput,
             "PlanJson" => _PlanJson,
+            "ExitCriteria" => _ExitCriteria,
             "Status" => _Status,
             "CurrentStepIndex" => _CurrentStepIndex,
             "StuckReason" => _StuckReason,
             "StepCount" => _StepCount,
             "TotalTokens" => _TotalTokens,
+            "VerifyStatus" => _VerifyStatus,
+            "VerifyReport" => _VerifyReport,
+            "ResultReceipt" => _ResultReceipt,
             "CreateTime" => _CreateTime,
             "UpdateTime" => _UpdateTime,
             _ => base[name]
@@ -182,11 +218,15 @@ public partial class AgentRun
                 case "WorkflowName": _WorkflowName = Convert.ToString(value); break;
                 case "TaskInput": _TaskInput = Convert.ToString(value); break;
                 case "PlanJson": _PlanJson = Convert.ToString(value); break;
+                case "ExitCriteria": _ExitCriteria = Convert.ToString(value); break;
                 case "Status": _Status = value.ToInt(); break;
                 case "CurrentStepIndex": _CurrentStepIndex = value.ToInt(); break;
                 case "StuckReason": _StuckReason = Convert.ToString(value); break;
                 case "StepCount": _StepCount = value.ToInt(); break;
                 case "TotalTokens": _TotalTokens = value.ToLong(); break;
+                case "VerifyStatus": _VerifyStatus = value.ToInt(); break;
+                case "VerifyReport": _VerifyReport = Convert.ToString(value); break;
+                case "ResultReceipt": _ResultReceipt = Convert.ToString(value); break;
                 case "CreateTime": _CreateTime = value.ToDateTime(); break;
                 case "UpdateTime": _UpdateTime = value.ToDateTime(); break;
                 default: base[name] = value; break;
@@ -294,6 +334,9 @@ public partial class AgentRun
         /// <summary>生成的执行计划（Plan DSL）</summary>
         public static readonly Field PlanJson = FindByName("PlanJson");
 
+        /// <summary>出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）</summary>
+        public static readonly Field ExitCriteria = FindByName("ExitCriteria");
+
         /// <summary>执行状态（AgentRunStatus枚举）</summary>
         public static readonly Field Status = FindByName("Status");
 
@@ -308,6 +351,15 @@ public partial class AgentRun
 
         /// <summary>全流程Token汇总</summary>
         public static readonly Field TotalTokens = FindByName("TotalTokens");
+
+        /// <summary>Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）</summary>
+        public static readonly Field VerifyStatus = FindByName("VerifyStatus");
+
+        /// <summary>Verify阶段报告（JSON：逐条判据结论+证据摘要）</summary>
+        public static readonly Field VerifyReport = FindByName("VerifyReport");
+
+        /// <summary>Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）</summary>
+        public static readonly Field ResultReceipt = FindByName("ResultReceipt");
 
         /// <summary>创建时间</summary>
         public static readonly Field CreateTime = FindByName("CreateTime");
@@ -345,6 +397,9 @@ public partial class AgentRun
         /// <summary>生成的执行计划（Plan DSL）</summary>
         public const String PlanJson = "PlanJson";
 
+        /// <summary>出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）</summary>
+        public const String ExitCriteria = "ExitCriteria";
+
         /// <summary>执行状态（AgentRunStatus枚举）</summary>
         public const String Status = "Status";
 
@@ -359,6 +414,15 @@ public partial class AgentRun
 
         /// <summary>全流程Token汇总</summary>
         public const String TotalTokens = "TotalTokens";
+
+        /// <summary>Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）</summary>
+        public const String VerifyStatus = "VerifyStatus";
+
+        /// <summary>Verify阶段报告（JSON：逐条判据结论+证据摘要）</summary>
+        public const String VerifyReport = "VerifyReport";
+
+        /// <summary>Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）</summary>
+        public const String ResultReceipt = "ResultReceipt";
 
         /// <summary>创建时间</summary>
         public const String CreateTime = "CreateTime";

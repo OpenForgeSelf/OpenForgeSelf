@@ -253,6 +253,14 @@ export function runStatusName(code: number): AgentRunStatus {
   return RUN_STATUS_NAMES[code] ?? 'pending'
 }
 
+/** Verify 阶段状态名（对应后端 RunVerifyStatus：0=none 1=pending 2=passed 3=failed）。 */
+export const VERIFY_STATUS_NAMES: readonly ('none' | 'pending' | 'passed' | 'failed')[] = [
+  'none',
+  'pending',
+  'passed',
+  'failed',
+]
+
 /** int → AgentStepStatus 名字。 */
 export function stepStatusName(code: number): AgentStepStatus {
   return STEP_STATUS_NAMES[code] ?? 'pending'
@@ -275,6 +283,33 @@ export interface AgentRunDto {
   totalTokens?: number
   createTime?: string
   updateTime?: string
+  /** 出口验收标准（JSON 数组 [{text,type}]；空 = 未配置，无 Verify 阶段）。 */
+  exitCriteria?: string
+  /** Verify 阶段状态：0=none 1=pending 2=passed 3=failed。 */
+  verifyStatus?: number
+  /** Verify 阶段报告（JSON：{status, items:[{text,type,passed,detail}]}；空 = 无 Verify 阶段）。 */
+  verifyReport?: string
+  /** Run 结果收据（JSON RunResultReceipt；空 = 未冻结，前端不渲染收据块）。 */
+  resultReceipt?: string
+}
+
+/** Run 结果收据（后端 RunResultReceipt，camelCase JSON）。 */
+export interface RunResultReceipt {
+  runId: number
+  status: string
+  summary?: string
+  filesChanged: { path: string; change: string }[]
+  verifications: { text: string; type: string; passed: boolean; detail: string }[]
+  evidence: string[]
+  toolCallCount: number
+  toolOkCount: number
+  frozenAt: string
+}
+
+/** Verify 阶段报告（后端 RunVerifyOutcome，camelCase JSON）。 */
+export interface RunVerifyReport {
+  status: string
+  items: { text: string; type: string; passed: boolean; detail: string }[]
 }
 
 /** 执行步骤 DTO（Run 详情返回）。status 为后端枚举 int。 */
@@ -298,6 +333,8 @@ export interface AgentStepRunDto {
   durationMs?: number
   startedAt?: string
   completedAt?: string
+  /** 本步执行证据（JSON：{files:[], toolCalls, toolOk}；空 = 旧数据）。 */
+  evidenceJson?: string
 }
 
 /** Run 列表分页响应。 */

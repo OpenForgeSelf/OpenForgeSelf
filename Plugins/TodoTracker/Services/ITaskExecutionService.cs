@@ -14,9 +14,11 @@ public interface ITaskExecutionService
     /// <summary>按 Seq 升序分页读取某任务的记录。</summary>
     Task<PagedResult<TaskExecutionDto>> ListAsync(int todoId, int page = 1, int pageSize = 50);
 
-    /// <summary>内部用：无请求体的自动留痕（领取/下发/委派等系统动作）。失败不抛，返回 null 供调用方降级提示。</summary>
+    /// <summary>内部用：无请求体的自动留痕（领取/下发/委派等系统动作）。失败不抛，返回 null 供调用方降级提示。
+    /// B2①（TODO 233）：自动路径同样携带结构化文件清单（与手动 AppendAsync 同一不变量），缺省 null = 无文件改动。</summary>
     Task<TaskExecutionDto?> AppendSystemAsync(int todoId, string actor, string action, string? detail = null,
         string? result = null, string? verification = null, string? risks = null, string? residuals = null,
         string? evidence = null, string? nextStep = null, string? blockReason = null,
-        int stageFrom = -1, int stageTo = -1, long elapsedMs = 0);
+        int stageFrom = -1, int stageTo = -1, long elapsedMs = 0,
+        System.Collections.Generic.IReadOnlyList<ChangedFileDto>? filesChanged = null);
 }

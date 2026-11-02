@@ -206,6 +206,9 @@ internal sealed class MafFixture
 
     public InMemoryInbox Inbox { get; } = new();
 
+    /// <summary>Run 级 Verify 校验器（B2② 测试注入口；CreateAgent 未显式传参时挂载）。</summary>
+    public IRunVerifyService? RunVerify { get; set; }
+
     private readonly int _maxStepsPerTurn;
 
     public MafFixture(int maxStepsPerTurn = 10)
@@ -230,10 +233,19 @@ internal sealed class MafFixture
                         Name = "get_current_time",
                         Description = "获取当前时间",
                         Parameters = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\"}")
+                    },
+                    new()
+                    {
+                        // B2②③ 收据/验收测试的写类工具样本：create_file 不在 HighRiskToolPolicy 硬名单
+                        //（write_file 会被包 ApprovalRequiredAIFunction 挂起回合，收据只等正常收束）
+                        Name = "create_file",
+                        Description = "创建文件",
+                        Parameters = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\"}")
                     }
                 },
                 Events = Events,
-                Inbox = Inbox
+                Inbox = Inbox,
+                RunVerify = RunVerify
             });
 
     public async Task<List<TurnFrame>> RunAsync(IAgent agent, CancellationToken ct = default)

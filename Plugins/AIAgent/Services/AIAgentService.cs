@@ -405,7 +405,9 @@ public class AIAgentService : IAIAgentService
             Events = _ctx.Events,
             MemoryPromptProvider = BuildMemoryPromptAsync,
             Inbox = Inbox,
-            ApprovalService = ApprovalService
+            ApprovalService = ApprovalService,
+            // B2②：Run 级 Verify 校验器（ExitCriteria 配置时由引擎调用做确定性验收）
+            RunVerify = ResolveVerifyService()
         };
 
         // PILOT-051（R1）：运行时工厂开关——MAF 驱动（任务循环语义）或 ReactLoop 状态机（既有路径）。
@@ -413,6 +415,15 @@ public class AIAgentService : IAIAgentService
         return effective.UseMafRuntime
             ? new MafTaskLoopAgent(sessionId, effective, runtime)
             : new ReactLoopAgent(sessionId, effective, runtime);
+    }
+
+    /// <summary>
+    /// Run 级 Verify 校验器（B2②）：懒解析工作区后构造（构造期宿主契约可能未就绪，与 ToolRegistry 同模式）。
+    /// </summary>
+    private RunVerifyService ResolveVerifyService()
+    {
+        _workspace ??= _ctx.Get<IProjectWorkspaceService>();
+        return new RunVerifyService(_workspace);
     }
 
     /// <summary>

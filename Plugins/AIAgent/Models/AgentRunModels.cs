@@ -1,3 +1,5 @@
+using ForgeSelf.Abstractions;
+
 namespace ForgeSelf.Api.Plugins.AIAgent.Models;
 
 /// <summary>
@@ -131,6 +133,13 @@ public class RunRequest
 
     /// <summary>目标模式最大评估轮数（默认 3，钳制 1–10）。</summary>
     public int? MaxGoalRounds { get; set; }
+
+    /// <summary>
+    /// Run 级出口验收标准（B2②）：每条 = 验收文本 + 断言类型（file_exists / output_contains /
+    /// files_changed_not_empty）。全部步骤完成（且目标模式评估达成，如启用）后进入 Verify 阶段——
+    /// 确定性校验，未通过则 Run 置 Stuck 保留现场，不得 Completed。null/空 = 无 Verify 阶段（现状行为）。
+    /// </summary>
+    public List<RunExitCriterion>? ExitCriteria { get; set; }
 }
 
 /// <summary>
@@ -168,6 +177,20 @@ public class AgentRunDto
     public long? TotalTokens { get; set; }
     public DateTime CreateTime { get; set; }
     public DateTime UpdateTime { get; set; }
+
+    // ---- B2②③：出口验收与结果收据（未配置/未冻结时为空，前端不渲染对应块） ----
+
+    /// <summary>出口验收标准（JSON 数组 [{text,type}]；空 = 未配置）。</summary>
+    public string? ExitCriteria { get; set; }
+
+    /// <summary>Verify 阶段状态（0=未配置 1=待验证 2=通过 3=未通过）。</summary>
+    public RunVerifyStatus VerifyStatus { get; set; }
+
+    /// <summary>Verify 阶段报告（JSON：逐条判据结论+证据摘要；空 = 无 Verify 阶段）。</summary>
+    public string? VerifyReport { get; set; }
+
+    /// <summary>Run 结果收据（JSON <see cref="RunResultReceipt"/>；空 = 未冻结，前端不渲染收据块）。</summary>
+    public string? ResultReceipt { get; set; }
 }
 
 /// <summary>
@@ -194,6 +217,9 @@ public class AgentStepRunDto
     public long? DurationMs { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>本步执行证据（B2② JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）。</summary>
+    public string? EvidenceJson { get; set; }
 }
 
 /// <summary>

@@ -169,6 +169,9 @@ public class SessionStoreContractTests : SessionStoreContractTestsBase
                     case RequestContextEvent:
                     case AssistantAttemptEvent:
                     case InboxSplicedEvent:
+                    case ToolApprovalRequestEvent:
+                    case RunVerifyEvent:
+                    case RunReceiptEvent:
                         break;
                     default:
                         throw new UnknownSessionEventException(evt.Type);

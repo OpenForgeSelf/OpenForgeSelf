@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 using ForgeSelf.Core;
 using NewLife.Log;
 
@@ -52,6 +53,13 @@ public sealed class AgentTurnRuntime
     /// 为 null 时高风险工具仍包 <c>ApprovalRequiredAIFunction</c>，但无法持久化/续跑（挂起后需外置审批）。
     /// </summary>
     public IApprovalService? ApprovalService { get; init; }
+
+    /// <summary>
+    /// Run 级 Verify 校验器（B2②，可选）：回合正常收束且 <see cref="AgentOptions.ExitCriteria"/> 已配置时
+    /// 由引擎调用做确定性验收并落 <c>run/verify</c> 事件。为 null 且判据已配置 = fail-safe 不通过
+    /// （校验器缺席不得假绿，BR-2）。
+    /// </summary>
+    public IRunVerifyService? RunVerify { get; init; }
 }
 
 // ---- agent/* 拦截点契约（payload/decision 类型；总线签名固定：fallback 必填、无 ct） ----

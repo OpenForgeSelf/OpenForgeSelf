@@ -103,6 +103,14 @@ public partial class AgentStepRun
     [BindColumn("ToolCallsJson", "本步工具调用轨迹", "")]
     public String ToolCallsJson { get => _ToolCallsJson; set { if (OnPropertyChanging("ToolCallsJson", value)) { _ToolCallsJson = value; OnPropertyChanged("ToolCallsJson"); } } }
 
+    private String _EvidenceJson;
+    /// <summary>本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）</summary>
+    [DisplayName("本步执行证据（JSON")]
+    [Description("本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）")]
+    [DataObjectField(false, false, true, -1)]
+    [BindColumn("EvidenceJson", "本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）", "")]
+    public String EvidenceJson { get => _EvidenceJson; set { if (OnPropertyChanging("EvidenceJson", value)) { _EvidenceJson = value; OnPropertyChanged("EvidenceJson"); } } }
+
     private String _ErrorMessage;
     /// <summary>失败错误</summary>
     [DisplayName("失败错误")]
@@ -194,6 +202,7 @@ public partial class AgentStepRun
             "InputJson" => _InputJson,
             "OutputJson" => _OutputJson,
             "ToolCallsJson" => _ToolCallsJson,
+            "EvidenceJson" => _EvidenceJson,
             "ErrorMessage" => _ErrorMessage,
             "StuckReason" => _StuckReason,
             "HumanNote" => _HumanNote,
@@ -219,6 +228,7 @@ public partial class AgentStepRun
                 case "InputJson": _InputJson = Convert.ToString(value); break;
                 case "OutputJson": _OutputJson = Convert.ToString(value); break;
                 case "ToolCallsJson": _ToolCallsJson = Convert.ToString(value); break;
+                case "EvidenceJson": _EvidenceJson = Convert.ToString(value); break;
                 case "ErrorMessage": _ErrorMessage = Convert.ToString(value); break;
                 case "StuckReason": _StuckReason = Convert.ToString(value); break;
                 case "HumanNote": _HumanNote = Convert.ToString(value); break;
@@ -317,6 +327,9 @@ public partial class AgentStepRun
         /// <summary>本步工具调用轨迹</summary>
         public static readonly Field ToolCallsJson = FindByName("ToolCallsJson");
 
+        /// <summary>本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）</summary>
+        public static readonly Field EvidenceJson = FindByName("EvidenceJson");
+
         /// <summary>失败错误</summary>
         public static readonly Field ErrorMessage = FindByName("ErrorMessage");
 
@@ -379,6 +392,9 @@ public partial class AgentStepRun
 
         /// <summary>本步工具调用轨迹</summary>
         public const String ToolCallsJson = "ToolCallsJson";
+
+        /// <summary>本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）</summary>
+        public const String EvidenceJson = "EvidenceJson";
 
         /// <summary>失败错误</summary>
         public const String ErrorMessage = "ErrorMessage";

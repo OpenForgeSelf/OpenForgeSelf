@@ -37,6 +37,12 @@ public sealed class AgentOptions
     /// <summary>单回合最大步骤数（兜底强制收束，杜绝 turn-stopping 语义反转导致的死循环）。</summary>
     public int MaxStepsPerTurn { get; init; } = 10;
 
+    /// <summary>
+    /// Run 级出口验收标准（B2②，可选）：回合收束（Completed）且本回合发生过工具调用时，
+    /// 由引擎对每条判据做确定性校验并落 <c>run/verify</c> 事件；null/空 = 无 Verify 阶段（现状行为）。
+    /// </summary>
+    public IReadOnlyList<RunExitCriterion>? ExitCriteria { get; init; }
+
     /// <summary>单个步骤（含工具执行）的超时时间。B7 起同时作为<b>请求级无进展看门狗</b>：
     /// 相邻模型产出之间超过该时长即判挂起（<see cref="TurnEndReason.Suspended"/>），
     /// 而非按请求总时长硬切——长流式回复不应被总时长误杀。</summary>

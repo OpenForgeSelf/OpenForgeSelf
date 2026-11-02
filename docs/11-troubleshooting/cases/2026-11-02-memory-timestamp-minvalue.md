@@ -1,3 +1,11 @@
+---
+id: 2026-11-02-memory-timestamp-minvalue
+title: 记忆新建/导入时间戳为 0001-01-01，更新/软删不推进 UpdatedAt
+pc: PC-022
+severity: P2
+evidence: Verified
+---
+
 # Case：记忆时间戳缺省 0001-01-01（新建/导入不写 CreatedAt/UpdatedAt）
 
 - **日期**：2026-11-02

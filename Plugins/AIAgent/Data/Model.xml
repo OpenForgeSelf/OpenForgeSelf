@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
     <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
@@ -86,11 +86,15 @@
         <Column Name="WorkflowName" DataType="String" Length="100" Description="工作流名称（冗余）" />
         <Column Name="TaskInput" DataType="String" Length="-1" Description="任务原文" />
         <Column Name="PlanJson" DataType="String" Length="-1" Description="生成的执行计划（Plan DSL）" />
+        <Column Name="ExitCriteria" DataType="String" Length="-1" Description="出口验收标准（JSON 数组：[{text,type}]；空=未配置，跑完步骤即 Completed）" />
         <Column Name="Status" DataType="Int32" Description="执行状态（AgentRunStatus枚举）" />
         <Column Name="CurrentStepIndex" DataType="Int32" Nullable="True" Description="当前/中断步骤下标" />
         <Column Name="StuckReason" DataType="String" Length="1000" Description="卡住原因" />
         <Column Name="StepCount" DataType="Int32" Nullable="True" Description="步骤总数" />
         <Column Name="TotalTokens" DataType="Int64" Nullable="True" Description="全流程Token汇总" />
+        <Column Name="VerifyStatus" DataType="Int32" Description="Verify阶段状态（RunVerifyStatus枚举：0=未配置 1=待验证 2=通过 3=未通过）" />
+        <Column Name="VerifyReport" DataType="String" Length="-1" Description="Verify阶段报告（JSON：逐条判据结论+证据摘要）" />
+        <Column Name="ResultReceipt" DataType="String" Length="-1" Description="Run结果收据（JSON：改了哪些文件/跑了什么验证/证据；终态冻结一次写入）" />
         <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
         <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
       </Columns>
@@ -112,6 +116,7 @@
         <Column Name="InputJson" DataType="String" Length="-1" Description="组装给LLM的上下文摘要（入参）" />
         <Column Name="OutputJson" DataType="String" Length="-1" Description="complete_step声明的产出（出参）" />
         <Column Name="ToolCallsJson" DataType="String" Length="-1" Description="本步工具调用轨迹" />
+        <Column Name="EvidenceJson" DataType="String" Length="-1" Description="本步执行证据（JSON：涉及文件/工具成败计数；Verify 与结果收据的取证来源）" />
         <Column Name="ErrorMessage" DataType="String" Length="1000" Description="失败错误" />
         <Column Name="StuckReason" DataType="String" Length="1000" Description="卡住原因" />
         <Column Name="HumanNote" DataType="String" Length="-1" Description="人工批注" />

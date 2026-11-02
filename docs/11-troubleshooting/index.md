@@ -31,6 +31,8 @@
 | 工具报 `success:true` 但实际没生效（文件没写出来/进程没退/库没提交），回读验证才现形 | case [2026-10-30 write_file 零落盘](cases/2026-10-30-tool-success-without-side-effect.md) → [PC-018](problem-classes/PC-018-tool-success-without-side-effect.md) |
 | 宿主映射控制器 `FileNotFoundException` / `Could not load` 某个 NuGet 程序集；或插件接口 500 `Unable to resolve service for type` | case [2026-11-02 浏览器与审批 DI](cases/2026-11-02-browseruse-and-approval-di.md) → [PC-020](problem-classes/PC-020-plugin-dependency-unresolved.md) |
 | `/ai-agent` 主区域空白或顶栏仍写 AI Agent | case [2026-11-02 智能体页空白与旧名](cases/2026-11-02-agent-page-blank-old-name.md) → [PC-021](problem-classes/PC-021-agent-entry-blank-or-old-name.md) |
+| 执行记录里 agent 改了文件但 filesChanged 全空（「改了什么」从台账消失） | case [2026-11-02 filesChanged 断链](cases/2026-11-02-fileschanged-persistence-loss.md) → [PC-023](problem-classes/PC-023-todo-fileschanged-persistence-loss.md) |
+| 实体落库时间戳 0001-01-01 / 记忆卡片「创建时间 1/01/01」 | case [2026-11-02 记忆时间戳](cases/2026-11-02-memory-timestamp-minvalue.md) → [PC-022](problem-classes/PC-022-xcode-entity-timestamp-default.md) |
 | `SocketException (10013)`（`HttpRequestException …以一种访问权限不允许的方式…(host:80)`，直连偶发失败重试即好） | 散例：本机**动态端口段与保留端口段重叠**——`netsh int ipv4 show dynamicport tcp` 实测 10000–64999，而 `show excludedportrange protocol=tcp` 有 38755–39773、50000–50059（Hyper-V/WinNAT）；OS 随机选中保留端口发起 connect 即本地拒绝，**不是服务器/代理/防火墙返回**。处置：管理员 `net stop winnat && net start winnat` 或重启；反复发则 `netsh int ipv4 set dynamicport tcp start=40000 num=9900` 挪开重叠段（2026-10-18 实测 gpustack:80 场景定位） |
 | `dotnet build` CS2012（文件被占用） | 散例：运行实例占用 DLL → 构建到独立输出目录（无守卫需求） |
 | 前端 build 预存类型错误（T032） | 散例：非本轮回归，独立修复 |

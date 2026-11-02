@@ -96,6 +96,44 @@
             <span>{{ selected.stuckReason }}</span>
           </div>
 
+          <!-- B2③：Run 结果收据（终态冻结：改了哪些文件 / 跑了什么验证 / 证据计数；缺席则整块不渲染） -->
+          <div v-if="receipt" class="rrp__receipt">
+            <div class="rrp__receipt-head">
+              <span class="rrp__receipt-title">结果收据</span>
+              <span
+                class="rrp__receipt-status"
+                :class="`rrp__receipt-status--${receipt.status.toLowerCase()}`"
+              >{{ receiptStatusText(receipt.status) }}</span>
+              <span
+                v-if="verifyBadge"
+                class="rrp__receipt-verify"
+                :class="`rrp__receipt-verify--${verifyBadge.label}`"
+              >{{ verifyBadge.text }}</span>
+            </div>
+            <p v-if="receipt.summary" class="rrp__receipt-summary">{{ receipt.summary }}</p>
+            <div v-if="verifyItems.length" class="rrp__receipt-verifies">
+              <div v-for="(v, vi) in verifyItems" :key="vi" class="rrp__receipt-verify-item">
+                <span class="rrp__receipt-tick" :class="v.passed ? 'rrp__receipt-tick--ok' : 'rrp__receipt-tick--fail'">{{ v.passed ? '✓' : '✗' }}</span>
+                <span class="rrp__receipt-verify-text">{{ v.text }}</span>
+                <span class="rrp__receipt-verify-detail">{{ v.detail }}</span>
+              </div>
+            </div>
+            <div v-if="receipt.filesChanged.length" class="rrp__receipt-files">
+              <span class="rrp__label">改动文件</span>
+              <span
+                v-for="(f, fi) in receipt.filesChanged"
+                :key="fi"
+                class="rrp__receipt-file"
+                :title="f.path"
+              >
+                <span class="rrp__receipt-file-change">{{ f.change }}</span>{{ shortPath(f.path) }}
+              </span>
+            </div>
+            <p class="rrp__receipt-meta">
+              工具 {{ receipt.toolOkCount }}/{{ receipt.toolCallCount }} 成功<template v-if="receipt.frozenAt"> · 冻结于 {{ fmtTime(receipt.frozenAt) }}</template>
+            </p>
+          </div>
+
           <!-- B9-3：规划过程（plan:{runId} scratch 会话只读投影；自动生成徽标 / 规则回退徽标 / 原始日志切换） -->
           <div class="rrp__plan">
             <div class="rrp__plan-head">
@@ -243,7 +281,7 @@ import {
   type AgentStepRunDto,
   type ChatHistoryItem,
 } from '../http'
-import { runStatusName, stepStatusName } from '../types'
+import { runStatusName, stepStatusName, VERIFY_STATUS_NAMES, type RunResultReceipt, type RunVerifyReport } from '../types'
 
 const props = defineProps<{
   /** 面板是否打开。 */
@@ -269,6 +307,54 @@ const steps = ref<AgentStepRunDto[]>([])
 /** 正在执行的操作（用于按钮 loading 与互斥）。 */
 const acting = ref<'resume' | 'restart' | 'skip' | 'override' | 'cancel' | ''>('')
 const loadingList = ref(false)
+
+/* ---- B2③：Run 结果收据 + Verify 阶段（resultReceipt / verifyReport JSON 宽松解析，坏数据 = 不渲染） ---- */
+
+/** 宽松 JSON 解析：缺席/坏数据一律 null（收据块整体不渲染，绝不因半截 JSON 白屏）。 */
+function parseLoose<T>(raw?: string | null): T | null {
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+/** 冻结收据（终态一次写入）。 */
+const receipt = computed<RunResultReceipt | null>(() => parseLoose<RunResultReceipt>(selected.value?.resultReceipt))
+
+/** Verify 阶段报告（逐条判据结论）。 */
+const verifyReport = computed<RunVerifyReport | null>(() => parseLoose<RunVerifyReport>(selected.value?.verifyReport))
+
+/** 验收明细优先取报告；报告缺席时回退收据随行的 verifications（同一来源两份快照）。 */
+const verifyItems = computed(() => verifyReport.value?.items ?? receipt.value?.verifications ?? [])
+
+/** Verify 徽标：passed/failed/pending；未配置（none/缺字段）→ null 不渲染。 */
+const verifyBadge = computed<{ label: string; text: string } | null>(() => {
+  const name =
+    verifyReport.value?.status?.toLowerCase() ??
+    (selected.value?.verifyStatus != null ? VERIFY_STATUS_NAMES[selected.value.verifyStatus] : null)
+  if (!name || name === 'none') return null
+  const text = name === 'passed' ? '验收通过' : name === 'failed' ? '验收未通过' : '待验收'
+  return { label: name, text }
+})
+
+/** 收据状态词 → 中文（Completed/Stuck/Failed/Cancelled 如实展示）。 */
+function receiptStatusText(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'completed': return '已完成'
+    case 'stuck': return '已卡住'
+    case 'failed': return '已失败'
+    case 'cancelled': return '已取消'
+    default: return status
+  }
+}
+
+/** 文件 chip 短路径：保留最后两级目录 + 文件名，完整路径进 title。 */
+function shortPath(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean)
+  return parts.length <= 3 ? parts.join('/') : '…/' + parts.slice(-2).join('/')
+}
 
 /* ---- FR-3 目标模式：新建执行（普通 / 目标两态） ---- */
 const newTask = ref('')
@@ -884,6 +970,154 @@ function fmtTime(t?: string): string {
   color: var(--el-color-danger);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.5;
+}
+
+/* B2③：Run 结果收据（终态冻结块：验收徽标 + 判据清单 + 文件 chips + 证据计数） */
+.rrp__receipt {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-fill-color-extra-light);
+}
+
+.rrp__receipt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rrp__receipt-title {
+  font-size: var(--el-font-size-extra-small, 12px);
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.rrp__receipt-status,
+.rrp__receipt-verify {
+  padding: 0 6px;
+  border-radius: var(--el-border-radius-small, 4px);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.rrp__receipt-status--completed {
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
+}
+
+.rrp__receipt-status--stuck,
+.rrp__receipt-status--failed {
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+  color: var(--el-color-danger);
+}
+
+.rrp__receipt-status--cancelled {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+.rrp__receipt-verify--passed {
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
+}
+
+.rrp__receipt-verify--failed {
+  background: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+  color: var(--el-color-danger);
+}
+
+.rrp__receipt-verify--pending {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+.rrp__receipt-summary {
+  margin: 6px 0 0;
+  font-size: var(--el-font-size-extra-small, 12px);
+  color: var(--el-text-color-regular);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rrp__receipt-verifies {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rrp__receipt-verify-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.rrp__receipt-tick {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.rrp__receipt-tick--ok {
+  color: var(--el-color-success);
+}
+
+.rrp__receipt-tick--fail {
+  color: var(--el-color-danger);
+}
+
+.rrp__receipt-verify-text {
+  flex: none;
+  color: var(--el-text-color-primary);
+}
+
+.rrp__receipt-verify-detail {
+  color: var(--el-text-color-placeholder);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rrp__receipt-files {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.rrp__receipt-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: var(--el-border-radius-small, 4px);
+  background: var(--el-fill-color);
+  font-size: 11px;
+  color: var(--el-text-color-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rrp__receipt-file-change {
+  flex: none;
+  font-weight: 700;
+  color: var(--el-color-primary);
+}
+
+.rrp__receipt-meta {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: var(--el-text-color-placeholder);
 }
 
 /* B9-3：规划过程折叠区 */

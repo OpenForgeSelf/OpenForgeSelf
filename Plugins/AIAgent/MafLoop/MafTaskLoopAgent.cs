@@ -488,6 +488,12 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 break;
             }
 
+            // B2②③：回合收束前冻结结果收据（run/receipt）+ 执行出口验收（run/verify）。
+            // 仅正常收束生效；纯问答回合（零工具调用）不产收据、不跑验收（现状行为不变）。
+            if (turnEndReason == TurnEndReason.Completed)
+            {
+                await FreezeTurnReceiptAndVerifyAsync(bridge, turnId, ct);
+            }
             Append(bridge, new TurnEndEvent(0, SessionId, DateTimeOffset.Now, turnId, turnEndReason));
             yield return new TurnCompleted(turnId, turnEndReason);
         }
@@ -833,6 +839,121 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
             if (events[i] is TurnStartEvent) return false; // 只看本回合
         }
         return false;
+    }
+
+    // ---- B2②③：Run 结果收据 + 出口验收（战役批 B2） ----
+
+    private static readonly JsonSerializerOptions ReceiptJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
+    /// <summary>
+    /// 回合正常收束（Completed）时：
+    /// ① 有工具调用的任务回合冻结结果收据（<c>run/receipt</c>，append-only 天然不可变）；
+    /// ② 配置了 <see cref="AgentOptions.ExitCriteria"/> 时执行确定性验收并落 <c>run/verify</c>。
+    /// 收据事实来源 = 本回合日志（最后一个 turn/start 之后的 tool/call + tool/result）。
+    /// 校验器缺席且判据已配置 = fail-safe 不通过（绝不假绿，BR-2）。
+    /// </summary>
+    private async Task FreezeTurnReceiptAndVerifyAsync(MafLoopBridge bridge, string turnId, CancellationToken ct)
+    {
+        var events = _runtime.Store.Replay(SessionId);
+
+        // 定位本回合边界：turn/start 之后到当前全部归属本回合
+        var startIdx = 0;
+        for (var i = events.Count - 1; i >= 0; i--)
+        {
+            if (events[i] is TurnStartEvent ts && string.Equals(ts.TurnId, turnId, StringComparison.Ordinal))
+            {
+                startIdx = i;
+                break;
+            }
+        }
+
+        var files = new List<RunReceiptFile>();
+        var toolCallCount = 0;
+        var toolOkCount = 0;
+        string? exitSummary = null;
+        string? lastAssistant = null;
+
+        for (var i = startIdx; i < events.Count; i++)
+        {
+            switch (events[i])
+            {
+                case ToolCallEvent call:
+                {
+                    toolCallCount++;
+                    var change = ToolCallFileExtractor.ChangeOf(call.ToolName);
+                    if (change != null)
+                    {
+                        foreach (var path in ToolCallFileExtractor.ExtractFromCall(call.ToolName, call.ArgsJson))
+                        {
+                            files.Add(new RunReceiptFile(path, change));
+                        }
+                    }
+
+                    if (string.Equals(call.ToolName, AgentOptions.TaskCompleteToolName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        exitSummary ??= ExtractTaskCompleteSummary(call.ArgsJson);
+                    }
+
+                    break;
+                }
+
+                case ToolResultEvent done:
+                    if (done.Outcome == ToolOutcome.Ok) toolOkCount++;
+                    break;
+
+                case AssistantMessageEvent msg when !string.IsNullOrWhiteSpace(msg.Content):
+                    lastAssistant = msg.Content;
+                    break;
+            }
+        }
+
+        if (toolCallCount == 0)
+        {
+            return; // 纯问答回合：不产收据、不跑验收
+        }
+
+        var summary = TruncateReceiptText(exitSummary ?? lastAssistant ?? string.Empty, 300);
+        var receipt = new RunResultReceipt
+        {
+            RunId = 0, // 开放任务回合无 AgentRun，以 sessionId 定位日志
+            Status = "Completed",
+            Summary = summary,
+            FilesChanged = files
+                .GroupBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList(),
+            ToolCallCount = toolCallCount,
+            ToolOkCount = toolOkCount,
+            FrozenAt = DateTimeOffset.Now
+        };
+        Append(bridge, new RunReceiptEvent(0, SessionId, DateTimeOffset.Now, 0,
+            JsonSerializer.Serialize(receipt, ReceiptJsonOptions)));
+        XTrace.Log.Info("[MafTaskLoopAgent] 结果收据已冻结（run/receipt）SessionId={0}, TurnId={1}, 文件 {2} 个, 工具 {3}/{4}",
+            SessionId, turnId, receipt.FilesChanged.Count, toolOkCount, toolCallCount);
+
+        // 出口验收（ExitCriteria 配置时才进 Verify 阶段）
+        var criteria = _options.ExitCriteria;
+        if (criteria is not { Count: > 0 }) return;
+
+        var inputs = new RunVerifyInputs(summary, receipt.FilesChanged.Select(f => f.Path).ToList());
+        var outcome = _runtime.RunVerify != null
+            ? await _runtime.RunVerify.VerifyAsync(criteria, inputs, ct).ConfigureAwait(false)
+            : RunVerifyService.VerifierAbsent(criteria.Count);
+        Append(bridge, new RunVerifyEvent(0, SessionId, DateTimeOffset.Now, 0, outcome.Status.ToString(), outcome.Items));
+        XTrace.Log.Info("[MafTaskLoopAgent] 出口验收完成（run/verify）SessionId={0}, Status={1}, 未过 {2} 条",
+            SessionId, outcome.Status, outcome.Items.Count(it => !it.Passed));
+    }
+
+    /// <summary>收据摘要截断（防超长产出撑爆日志行）。</summary>
+    private static string TruncateReceiptText(string text, int max)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= max ? text : text[..max] + "…";
     }
 
     /// <summary>日志尾是否为 user/message（与 ReactLoopAgent 同语义）。</summary>

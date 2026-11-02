@@ -121,6 +121,8 @@ public class RunOrchestratorService : IRunOrchestratorService
     private readonly TimeSpan? _stepTimeout;
     private readonly IChatModelResolver? _modelResolver;
     private readonly GoalPursuitService? _goalPursuitOverride;
+    private readonly IRunVerifyService? _runVerifyOverride;
+    private ISessionStore? _runEventStore;
 
     /// <summary>目标评估器（PILOT-051 FR-3）：显式注入（测试）优先，否则经 Cordis 懒解析 provider 注册表构造。</summary>
     private GoalPursuitService GoalPursuit => _goalPursuitOverride
@@ -141,6 +143,7 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// <param name="inbox">宿主收件箱显式注入（测试用；生产走 ctx 懒解析）。</param>
     /// <param name="stepTimeout">单步骤超时覆盖（默认 45s；测试可缩短）。</param>
     /// <param name="modelResolver">对话模型解析（可选；缺失时保持旧行为——空模型交给 AIAgent 侧回退）。</param>
+    /// <param name="runVerify">Run 级 Verify 校验器（B2② 测试注入面；缺省经 ctx 懒解析工作区构造）。</param>
     public RunOrchestratorService(
         IPlanGeneratorService planGenerator,
         IAIAgentService aiAgentService,
@@ -150,7 +153,9 @@ public class RunOrchestratorService : IRunOrchestratorService
         IInbox? inbox = null,
         TimeSpan? stepTimeout = null,
         IChatModelResolver? modelResolver = null,
-        GoalPursuitService? goalPursuit = null)
+        GoalPursuitService? goalPursuit = null,
+        IRunVerifyService? runVerify = null,
+        ISessionStore? sessionStore = null)
     {
         _planGenerator = planGenerator;
         _aiAgentService = aiAgentService;
@@ -161,8 +166,21 @@ public class RunOrchestratorService : IRunOrchestratorService
         _stepTimeout = stepTimeout;
         _modelResolver = modelResolver;
         _goalPursuitOverride = goalPursuit;
+        _runVerifyOverride = runVerify;
+        _runEventStore = sessionStore;
     }
 
+    /// <summary>
+    /// Run 级 Verify 校验器（B2②）：显式注入（测试）优先，否则经 Cordis 上下文懒解析工作区构造。
+    /// </summary>
+    private IRunVerifyService RunVerify => _runVerifyOverride
+        ?? new RunVerifyService(_ctx?.Get<IProjectWorkspaceService>());
+
+    /// <summary>
+    /// 宿主会话事件日志（B2② 软依赖）：ExitCriteria / 收据事件落 <c>run:{runId}</c> 会话，
+    /// 与步骤 Agent 的 sessionId 约定一致；缺席（部分测试装配）时只写 XTrace，不落事件。
+    /// </summary>
+    private ISessionStore? RunEventStore => _runEventStore ??= _ctx?.Get<ISessionStore>();
     /// <summary>
     /// 解析本次执行使用的模型（有序链；<see cref="_modelResolver"/> 缺席时原样返回，保持旧语义）。
     /// 返回 null = 无可用模型，调用方必须明确报错而不是继续跑（禁止静默降级）。
@@ -227,6 +245,12 @@ public class RunOrchestratorService : IRunOrchestratorService
         run.PlanJson = JsonSerializer.Serialize(plan, PlanJsonOptions);
         run.StepCount = plan.Steps.Count;
         run.Status = (int)AgentRunStatus.Running;
+        // B2②：出口验收标准快照落 AgentRun.ExitCriteria（JSON；空 = 未配置，无 Verify 阶段）。
+        if (request.ExitCriteria is { Count: > 0 })
+        {
+            run.ExitCriteria = JsonSerializer.Serialize(request.ExitCriteria, PlanJsonOptions);
+            run.VerifyStatus = (int)RunVerifyStatus.Pending;
+        }
         run.Update();
         yield return new AgentLoopEvent
         {
@@ -353,6 +377,8 @@ public class RunOrchestratorService : IRunOrchestratorService
             throw new InvalidOperationException($"状态 {from} 不允许取消（终态不可取消）");
 
         run.Status = (int)AgentRunStatus.Cancelled;
+        // B2③：取消也是终态——收据按实际状态冻结（已冻结则保持 write-once 不覆盖）。
+        FreezeReceipt(run, string.Empty, null, "Cancelled");
         run.Update();
         XTrace.Log.Info("[RunOrchestrator] 取消 Run {0}", run.Id);
         return Task.FromResult<AgentRunDto?>(ToDto(run));
@@ -563,12 +589,26 @@ public class RunOrchestratorService : IRunOrchestratorService
 
             if (evaluation.Achieved)
             {
-                // 达成 → 终局合成 + Completed 收束（与既有 done 面一致）。
+                // 达成 → Verify 闸门（B2②）+ 终局合成 + Completed 收束（与既有 done 面一致）。
                 var final = SynthesisAsync(run, plan);
-                run.Status = (int)AgentRunStatus.Completed;
-                run.Update();
+                var finalize = await FinalizeRunAsync(run, plan, final, ct);
+                if (finalize == null)
+                {
+                    yield return new AgentLoopEvent
+                    {
+                        Type = "run_stuck",
+                        Content = JsonSerializer.Serialize(new RunStuckPayload
+                        {
+                            RunId = run.Id,
+                            StepIndex = Math.Max(0, run.CurrentStepIndex),
+                            Reason = run.StuckReason ?? "出口验收未通过"
+                        }, SsePayloadOptions)
+                    };
+                    yield break;
+                }
+
                 XTrace.Log.Info("[RunOrchestrator] Run {0} 目标达成（第 {1} 轮），token 汇总 {2}", run.Id, round, run.TotalTokens);
-                yield return new AgentLoopEvent { Type = "done", Content = final, Usage = null };
+                yield return new AgentLoopEvent { Type = "done", Content = finalize, Usage = null };
                 yield break;
             }
 
@@ -798,12 +838,27 @@ public class RunOrchestratorService : IRunOrchestratorService
             yield break;
         }
 
-        // 终局合成：汇总各步 Completed 产出（V1 确定性聚合，不额外 LLM 调用）。
+        // 终局合成：汇总各步 Completed 产出（V1 确定性聚合，不额外 LLM 调用），
+        // 随后走收束共用闸门（B2②③）：Verify → Completed/Stuck + 收据冻结。
         var final = SynthesisAsync(run, plan);
-        run.Status = (int)AgentRunStatus.Completed;
-        run.Update();
+        var finalize = await FinalizeRunAsync(run, plan, final, ct);
+        if (finalize == null)
+        {
+            yield return new AgentLoopEvent
+            {
+                Type = "run_stuck",
+                Content = JsonSerializer.Serialize(new RunStuckPayload
+                {
+                    RunId = run.Id,
+                    StepIndex = Math.Max(0, run.CurrentStepIndex),
+                    Reason = run.StuckReason ?? "出口验收未通过"
+                }, SsePayloadOptions)
+            };
+            yield break;
+        }
+
         XTrace.Log.Info("[RunOrchestrator] Run {0} 完成，token 汇总 {1}", run.Id, run.TotalTokens);
-        yield return new AgentLoopEvent { Type = "done", Content = final, Usage = null };
+        yield return new AgentLoopEvent { Type = "done", Content = finalize, Usage = null };
     }
 
     private static AgentStepRun FindOrCreateStepRun(AgentRun run, AgentPlanStep step, int index)
@@ -878,6 +933,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         stepRun.OutputJson = result.Output;
         stepRun.InputJson = result.InputJson ?? stepRun.InputJson;
         stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls);
+        stepRun.EvidenceJson = BuildStepEvidenceJson(result.ToolCalls); // B2②：证据随行（Verify/收据取证来源）
         stepRun.TokensUsed = result.TokensUsed;
         stepRun.DurationMs = Math.Max(0, (long)(DateTime.Now - stepRun.StartedAt).TotalMilliseconds);
         stepRun.CompletedAt = DateTime.Now;
@@ -890,8 +946,30 @@ public class RunOrchestratorService : IRunOrchestratorService
         stepRun.StuckReason = result.StuckReason;
         stepRun.InputJson = result.InputJson ?? stepRun.InputJson;
         stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls);
+        stepRun.EvidenceJson = BuildStepEvidenceJson(result.ToolCalls); // B2②：卡住步的已发生证据照常取证
         stepRun.TokensUsed = result.TokensUsed;
         stepRun.Update();
+    }
+
+    /// <summary>步骤证据（B2②）：从工具轨迹提取结构化文件清单 + 成败计数，落 EvidenceJson。</summary>
+    private static string BuildStepEvidenceJson(List<StepToolCallTrace> traces)
+    {
+        var traceJson = JsonSerializer.Serialize(traces);
+        var evidence = new StepRunEvidenceBag
+        {
+            Files = [.. ToolCallFileExtractor.ExtractFilePaths(traceJson)],
+            ToolCalls = traces.Count,
+            ToolOk = traces.Count(t => t.Success)
+        };
+        return JsonSerializer.Serialize(evidence, ReceiptJsonOptions);
+    }
+
+    /// <summary>AgentStepRun.EvidenceJson 载荷（B2②）。</summary>
+    private sealed class StepRunEvidenceBag
+    {
+        public List<string> Files { get; set; } = [];
+        public int ToolCalls { get; set; }
+        public int ToolOk { get; set; }
     }
 
     /// <summary>终局合成：汇总各步 Completed 产出（V1 确定性拼接；LLM 润色留 V2）。</summary>
@@ -911,6 +989,182 @@ public class RunOrchestratorService : IRunOrchestratorService
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Run 收束共用闸门（B2②③，非目标模式完成 / 目标模式达成 / ResumeAsync 三路共用）：
+    /// 配置了 ExitCriteria 时先跑确定性 Verify（结论落 VerifyStatus/VerifyReport + run/verify 事件），
+    /// 全过才置 Completed 并冻结收据；任一未过 → Stuck 保留现场（收据照常冻结，Status 如实 Stuck）。
+    /// 返回 done 事件内容；未过返回 null（调用方转译 run_stuck）。
+    /// </summary>
+    private async Task<string?> FinalizeRunAsync(AgentRun run, AgentPlan plan, string finalText, CancellationToken ct)
+    {
+        var criteria = ParseExitCriteria(run.ExitCriteria);
+        var files = CollectRunFiles(run.Id);
+        RunVerifyOutcome? verify = null;
+
+        if (criteria.Count > 0)
+        {
+            verify = await RunVerify.VerifyAsync(criteria, new RunVerifyInputs(finalText, files), ct).ConfigureAwait(false);
+            run.VerifyStatus = (int)verify.Status;
+            run.VerifyReport = JsonSerializer.Serialize(verify, ReceiptJsonOptions);
+            AppendRunEvent(run, new RunVerifyEvent(0, RunSessionId(run), DateTimeOffset.Now, run.Id,
+                verify.Status.ToString(), verify.Items));
+            XTrace.Log.Info("[RunOrchestrator] Run {0} Verify 闸门：{1}（{2}/{3} 过）",
+                run.Id, verify.Status, verify.Items.Count(i => i.Passed), verify.Items.Count);
+        }
+
+        if (verify is { Status: not RunVerifyStatus.Passed })
+        {
+            var failed = verify.Items.Where(i => !i.Passed).Select(i => $"{i.Text}：{i.Detail}").ToList();
+            run.Status = (int)AgentRunStatus.Stuck;
+            run.StuckReason = TruncateForTrace("出口验收未通过：" + string.Join("；", failed), 1000);
+            FreezeReceipt(run, finalText, verify, "Stuck");
+            run.Update();
+            return null;
+        }
+
+        run.Status = (int)AgentRunStatus.Completed;
+        FreezeReceipt(run, finalText, verify, "Completed");
+        run.Update();
+        return finalText;
+    }
+
+    /// <summary>
+    /// 结果收据冻结（B2③，write-once）：聚合步骤证据（文件清单/工具成败计数）+ Verify 结论，
+    /// 序列化进 AgentRun.ResultReceipt。仅当该列为空时写入——终态后 restart/重放绝不覆盖。
+    /// </summary>
+    private static void FreezeReceipt(AgentRun run, string finalText, RunVerifyOutcome? verify, string status)
+    {
+        if (!string.IsNullOrWhiteSpace(run.ResultReceipt))
+        {
+            return; // 已冻结：write-once，不覆盖
+        }
+
+        var steps = AgentStepRun.FindAllByRunId(run.Id).OrderBy(s => s.StepIndex).ToList();
+        var files = new List<RunReceiptFile>();
+        var toolCallCount = 0;
+        var toolOkCount = 0;
+        foreach (var step in steps)
+        {
+            var traces = new List<StepToolCallTrace>();
+            if (!string.IsNullOrWhiteSpace(step.ToolCallsJson))
+            {
+                try
+                {
+                    traces = JsonSerializer.Deserialize<List<StepToolCallTrace>>(step.ToolCallsJson) ?? [];
+                }
+                catch (JsonException ex)
+                {
+                    XTrace.Log.Warn("[RunOrchestrator] Run {0} 步骤 {1} 收据轨迹解析失败: {2}", run.Id, step.StepIndex, ex.Message);
+                }
+            }
+
+            toolCallCount += traces.Count;
+            toolOkCount += traces.Count(t => t.Success);
+            foreach (var path in ToolCallFileExtractor.ExtractFilePaths(step.ToolCallsJson))
+            {
+                files.Add(new RunReceiptFile(path, "M")); // 步骤级轨迹不区分增改，统一记改动
+            }
+        }
+
+        var receipt = new RunResultReceipt
+        {
+            RunId = run.Id,
+            Status = status,
+            Summary = TruncateForTrace(finalText, 500),
+            FilesChanged = files
+                .GroupBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList(),
+            Verifications = verify?.Items.ToList() ?? [],
+            ToolCallCount = toolCallCount,
+            ToolOkCount = toolOkCount,
+            FrozenAt = DateTimeOffset.Now
+        };
+        run.ResultReceipt = JsonSerializer.Serialize(receipt, ReceiptJsonOptions);
+        XTrace.Log.Info("[RunOrchestrator] Run {0} 结果收据已冻结（Status={1}, 文件 {2} 个, 工具 {3}/{4}）",
+            run.Id, status, receipt.FilesChanged.Count, toolOkCount, toolCallCount);
+    }
+
+    /// <summary>收据/VerifyReport 序列化选项：camelCase（对齐前端解析约定）+ 枚举出字符串（VerifyStatus 可读）+ 中文不转义。</summary>
+    private static readonly JsonSerializerOptions ReceiptJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
+
+    /// <summary>ExitCriteria JSON → 判据列表（空/坏数据 = 未配置，不抛异常）。</summary>
+    private static List<RunExitCriterion> ParseExitCriteria(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<RunExitCriterion>>(json, PlanJsonOptions) ?? [];
+        }
+        catch (JsonException ex)
+        {
+            XTrace.Log.Warn("[RunOrchestrator] ExitCriteria 解析失败，按未配置处理: {0}", ex.Message);
+            return [];
+        }
+    }
+
+    /// <summary>汇总 Run 全部步骤的证据文件清单（优先 EvidenceJson，旧步骤回退轨迹解析）。</summary>
+    private static List<string> CollectRunFiles(long runId)
+    {
+        var files = new List<string>();
+        foreach (var step in AgentStepRun.FindAllByRunId(runId).OrderBy(s => s.StepIndex))
+        {
+            var evidence = ParseEvidenceFiles(step.EvidenceJson);
+            if (evidence.Count > 0)
+            {
+                files.AddRange(evidence);
+            }
+            else
+            {
+                files.AddRange(ToolCallFileExtractor.ExtractFilePaths(step.ToolCallsJson));
+            }
+        }
+
+        return files.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static List<string> ParseEvidenceFiles(string? evidenceJson)
+    {
+        if (string.IsNullOrWhiteSpace(evidenceJson)) return [];
+        try
+        {
+            return JsonSerializer.Deserialize<StepRunEvidenceBag>(evidenceJson, ReceiptJsonOptions)?.Files ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Run 级事件（run/verify、run/receipt）落关联会话 / run:{id}；store 缺席时降级 XTrace。</summary>
+    private void AppendRunEvent(AgentRun run, SessionEvent evt)
+    {
+        var store = RunEventStore;
+        if (store == null)
+        {
+            XTrace.Log.Info("[RunOrchestrator] Run {0} 事件 {1}（会话日志缺席，仅留运行日志）", run.Id, evt.Type);
+            return;
+        }
+
+        try
+        {
+            store.Append(RunSessionId(run), evt);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[RunOrchestrator] Run {0} 事件 {1} 落盘失败: {2}", run.Id, evt.Type, ex.Message);
+        }
+    }
+
+    /// <summary>Run 级事件的归属会话：优先关联会话，否则 run:{id}（与步骤 Agent sessionId 约定一致）。</summary>
+    private static string RunSessionId(AgentRun run)
+        => string.IsNullOrWhiteSpace(run.SessionId) ? $"run:{run.Id}" : run.SessionId!;
 
     #endregion
 
@@ -1096,6 +1350,11 @@ public class RunOrchestratorService : IRunOrchestratorService
         TotalTokens = run.TotalTokens,
         CreateTime = run.CreateTime,
         UpdateTime = run.UpdateTime,
+        // B2②③：出口验收与结果收据（空值语义：未配置/未冻结，前端不渲染对应块）
+        ExitCriteria = string.IsNullOrWhiteSpace(run.ExitCriteria) ? null : run.ExitCriteria,
+        VerifyStatus = (RunVerifyStatus)run.VerifyStatus,
+        VerifyReport = string.IsNullOrWhiteSpace(run.VerifyReport) ? null : run.VerifyReport,
+        ResultReceipt = string.IsNullOrWhiteSpace(run.ResultReceipt) ? null : run.ResultReceipt,
     };
 
     private static AgentStepRunDto ToStepDto(AgentStepRun s) => new()
@@ -1119,6 +1378,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         DurationMs = s.DurationMs,
         StartedAt = s.StartedAt,
         CompletedAt = s.CompletedAt,
+        EvidenceJson = string.IsNullOrWhiteSpace(s.EvidenceJson) ? null : s.EvidenceJson, // B2②：步骤证据
     };
 
     #endregion

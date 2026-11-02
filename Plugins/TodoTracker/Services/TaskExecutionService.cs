@@ -120,7 +120,8 @@ public class TaskExecutionService : ITaskExecutionService
     public async Task<TaskExecutionDto?> AppendSystemAsync(int todoId, string actor, string action, string? detail = null,
         string? result = null, string? verification = null, string? risks = null, string? residuals = null,
         string? evidence = null, string? nextStep = null, string? blockReason = null,
-        int stageFrom = -1, int stageTo = -1, long elapsedMs = 0)
+        int stageFrom = -1, int stageTo = -1, long elapsedMs = 0,
+        IReadOnlyList<ChangedFileDto>? filesChanged = null)
     {
         try
         {
@@ -132,6 +133,9 @@ public class TaskExecutionService : ITaskExecutionService
                 Action = action,
                 Detail = detail ?? string.Empty,
                 Result = result ?? string.Empty,
+                // B2①（TODO 233）：系统留痕与手动留痕同一条不变量——结构化文件清单必须落库，
+                // 不能在自动回写路径上丢（手动路径 AppendAsync 一直有，自动路径漏传参数 = 恒空）。
+                FilesChanged = FileChangeList.ToStorage(filesChanged, null),
                 Verification = verification ?? string.Empty,
                 Risks = risks ?? string.Empty,
                 Residuals = residuals ?? string.Empty,

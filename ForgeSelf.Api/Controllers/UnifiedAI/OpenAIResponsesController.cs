@@ -164,30 +164,16 @@ public class OpenAIResponsesController : ControllerBase
             await WriteSseAsync(createdEvent);
             responseBody.Append(JsonSerializer.Serialize(createdEvent));
 
-            var startEvent = new
-            {
-                type = "response.output_text.delta",
-                output_index = 0,
-                content_index = 0,
-                delta = string.Empty
-            };
-            await WriteSseAsync(startEvent);
-            responseBody.Append(JsonSerializer.Serialize(startEvent));
+            var streamEvents = new OpenAIResponsesStreamEvents.Accumulator();
 
             await foreach (var chunk in provider.ChatStreamAsync(request, cancellationToken))
             {
                 if (cancellationToken.IsCancellationRequested)
                     break;
 
-                if (!string.IsNullOrEmpty(chunk.DeltaContent))
+                streamEvents.Observe(chunk);
+                foreach (var deltaEvent in OpenAIResponsesStreamEvents.TextDeltaEvents(streamEvents, chunk.DeltaContent))
                 {
-                    var deltaEvent = new
-                    {
-                        type = "response.output_text.delta",
-                        output_index = 0,
-                        content_index = 0,
-                        delta = chunk.DeltaContent
-                    };
                     await WriteSseAsync(deltaEvent);
                     responseBody.Append(JsonSerializer.Serialize(deltaEvent));
                 }
@@ -199,35 +185,11 @@ public class OpenAIResponsesController : ControllerBase
                     turn.FirstTokenMs = stopwatch.ElapsedMilliseconds;
             }
 
-            var completedEvent = new
+            foreach (var finishEvent in OpenAIResponsesStreamEvents.FinishEvents(streamEvents, responseId, created, modelName))
             {
-                type = "response.completed",
-                response = new
-                {
-                    id = responseId,
-                    @object = "response",
-                    created_at = created,
-                    model = modelName,
-                    status = "completed",
-                    output = new object[]
-                    {
-                        new
-                        {
-                            type = "message",
-                            id = $"msg_{Guid.NewGuid():N}",
-                            status = "completed",
-                            role = "assistant",
-                            content = new object[]
-                            {
-                                new { type = "output_text", text = string.Empty }
-                            }
-                        }
-                    },
-                    usage = new { input_tokens = 0, output_tokens = 0, total_tokens = 0 }
-                }
-            };
-            await WriteSseAsync(completedEvent);
-            responseBody.Append(JsonSerializer.Serialize(completedEvent));
+                await WriteSseAsync(finishEvent);
+                responseBody.Append(JsonSerializer.Serialize(finishEvent));
+            }
             await WriteSseRawAsync("[DONE]");
             responseBody.Append("[DONE]");
 
@@ -274,11 +236,7 @@ public class OpenAIResponsesController : ControllerBase
 
     private async Task WriteSseAsync<T>(T data)
     {
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        });
+        var json = JsonSerializer.Serialize(data, OpenAIResponsesStreamEvents.SerializerOptions);
         await Response.WriteAsync($"data: {json}\n\n");
         await Response.Body.FlushAsync();
     }

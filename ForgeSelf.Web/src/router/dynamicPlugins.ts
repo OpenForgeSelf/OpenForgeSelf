@@ -110,6 +110,8 @@ function isPathTaken(router: Router, path: string): boolean {
 
   return router.getRoutes().some((r) => {
     const existing = r.path.replace(/\/+$/, '')
+    // 未匹配兜底（/:pathMatch(.*)*）不是某个具体页面，不能把全部单段路径判成冲突。
+    if (r.name === 'route-missing' || existing.includes('(.*)') ) return false
     if (existing === target) return true
     if (!existing.includes(':')) return false
     // 参数化路由：段数相同且非参数段逐段一致 → 视为占用

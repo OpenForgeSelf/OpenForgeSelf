@@ -112,10 +112,11 @@
           :title="s.description"
         >
           <span class="ctx__item-name">{{ s.name }}</span>
-          <span v-if="s.source" class="ctx__item-tag" :class="s.source === 'agents' ? '--agents' : '--commands'">{{ s.source }}</span>
+          <span v-if="s.source" class="ctx__item-tag" :class="s.source === 'agents' ? '--agents' : s.source === 'personal' ? '--personal' : '--commands'">{{ s.source }}</span>
         </div>
         <EmptyHint
-          :text="hasProject ? '未识别到技能（无 .agents/skills 或 .codebuddy/commands）' : '选择工作目录后自动识别项目技能'"
+          v-if="skills.length === 0"
+          :text="hasProject ? '未识别到项目技能，个人技能库也没有已启用项' : '个人技能库没有已启用的技能'"
         />
       </template>
     </ContextGroup>
@@ -313,7 +314,7 @@ async function loadSkills() {
   loadingSkills.value = true
   errorSkills.value = ''
   try {
-    const src = hasProject.value ? '/api/project/skills' : '/api/skills'
+    const src = hasProject.value ? '/api/project/skills' : '/api/skills?isEnabled=true'
     skills.value = (await apiGet<ProjectSkillItem[]>(src)) ?? []
   } catch (e) {
     errorSkills.value = e instanceof Error ? e.message : String(e)
@@ -445,6 +446,11 @@ watch(
 .ctx__item-tag.--commands {
   color: var(--el-color-info);
   background: var(--el-fill-color);
+}
+
+.ctx__item-tag.--personal {
+  color: var(--el-color-success);
+  background: var(--el-color-success-light-9);
 }
 
 /* MCP 工具只读描述（去伪交互后：名称 + 描述） */

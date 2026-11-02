@@ -23,5 +23,8 @@
 | 2026-10-30-tool-success-without-side-effect | 2026-10-30 | write_file 报 success 但磁盘无文件（坏合并修复批弄丢 WriteAllText，被 PC-017 网关错误遮蔽） | [PC-018](../problem-classes/PC-018-tool-success-without-side-effect.md) | Verified | [链接](2026-10-30-tool-success-without-side-effect.md) |
 | 2026-10-31-aiagent-flex-shrink-compression | 2026-10-31 | AIAgent 执行记录步骤时间线被 flex 压缩裁切成 43px 残行（shrink 面） | [PC-019](../problem-classes/PC-019-flex-shrink-column-compression.md) | Verified | [链接](2026-10-31-aiagent-flex-shrink-compression.md) |
 | 2026-10-31-imgateway-minwidth-overflow | 2026-10-31 | IM 网关 300px 侧栏被 60 字预览 min-content 撑到 ~788px，主栏挤到 ~460px（min-width 面复发，PC-019 扩面） | [PC-019](../problem-classes/PC-019-flex-shrink-column-compression.md) | Verified | [链接](2026-10-31-imgateway-minwidth-overflow.md) |
+| 2026-10-09-mcpcenter-nuget-missing | 2026-10-09 | 升级包缺 ModelContextProtocol DLL，宿主启动即崩 | [PC-020](../problem-classes/PC-020-plugin-dependency-unresolved.md) | Verified | [链接](2026-10-09-mcpcenter-nuget-missing.md) |
+| 2026-11-02-browseruse-and-approval-di | 2026-11-02 | 浏览器插件缺 Playwright；审批/项目/成本控制器构造注入宿主契约 | [PC-020](../problem-classes/PC-020-plugin-dependency-unresolved.md) | Verified | [链接](2026-11-02-browseruse-and-approval-di.md) |
+| 2026-11-02-agent-page-blank-old-name | 2026-11-02 | 智能体页顶栏仍是旧名，主区域空注释；兜底路由曾把声明路径判成冲突 | [PC-021](../problem-classes/PC-021-agent-entry-blank-or-old-name.md) | Verified | [链接](2026-11-02-agent-page-blank-old-name.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

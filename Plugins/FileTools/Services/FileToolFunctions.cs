@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
@@ -15,6 +16,8 @@ namespace ForgeSelf.Api.Plugins.FileTools;
 /// 行区间语义不变：read_file start_line 必填 + end_line 选填；write_file 先读后写、区间外原样保留、父目录自动创建。
 /// 行处理与路径校验原语见 <see cref="FileToolLineOps"/> / <see cref="FileToolPathOps"/>。
 /// </summary>
+internal sealed record ListedFileEntry(string name, bool isDirectory, string relativePath, long size, DateTime updatedAt);
+
 public class ListFilesToolFunction : IToolFunctionExtension
 {
     private readonly IContext _ctx;
@@ -22,7 +25,7 @@ public class ListFilesToolFunction : IToolFunctionExtension
     public string Id => "file-tools.list_files";
     public string Name => "list_files";
     public string PluginId => "file-tools";
-    public string Description => "列出目录中的文件与子目录（顶层）。参数：cwd=工作目录绝对路径（必填，如 D:\\src\\my-proj\\src）；path=要列出的目录绝对路径（可选，缺省=cwd；传相对路径会被拒）。不再回退当前项目根，cwd 必传。";
+    public string Description => "列出目录中的文件与子目录（顶层，不跟随符号链接/目录联接）。参数：cwd=工作目录绝对路径（必填）；path=要列出的目录绝对路径（可选，缺省=cwd，必须落在 cwd 内；相对路径与路径穿越会被拒）。超过边界或联接直接拒绝。";
 
     public string ParametersJsonSchema => @"
 {
@@ -71,20 +74,9 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, cwdError!)));
             }
 
-            // path 可选：传了必须是绝对路径；缺省=cwd（工作区锚点完全来自显式参数）。
-            string baseDir;
-            if (pathRaw != null)
+            if (!FileToolPathOps.TryBind(cwd!, pathRaw, required: false, out var baseDir, out var bindError))
             {
-                if (!Path.IsPathRooted(pathRaw))
-                {
-                    return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx,
-                        "path 必须为绝对路径（收到相对路径：" + pathRaw + "）。绝对路径如 D:\\src\\my-proj\\src")));
-                }
-                baseDir = pathRaw;
-            }
-            else
-            {
-                baseDir = cwd!;
+                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, bindError!)));
             }
 
             if (!Directory.Exists(baseDir))
@@ -92,17 +84,24 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, "目录不存在：" + baseDir)));
             }
 
-            var di = new DirectoryInfo(baseDir);
-            var files = di.EnumerateFileSystemInfos()
-                .Select(e => new
+            var di = new DirectoryInfo(baseDir!);
+            var skippedReparse = 0;
+            var files = new List<ListedFileEntry>();
+            foreach (var entry in di.EnumerateFileSystemInfos())
+            {
+                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
                 {
-                    name = e.Name,
-                    isDirectory = e is DirectoryInfo,
-                    relativePath = e.Name,
-                    size = e is FileInfo fi ? fi.Length : 0L,
-                    updatedAt = e.LastWriteTime
-                })
-                .ToList();
+                    skippedReparse++;
+                    continue;
+                }
+
+                files.Add(new ListedFileEntry(
+                    entry.Name,
+                    entry is DirectoryInfo,
+                    entry.Name,
+                    entry is FileInfo fi ? fi.Length : 0L,
+                    entry.LastWriteTime));
+            }
             var response = new
             {
                 success = true,
@@ -110,6 +109,7 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 usedRoot = baseDir,
                 path = baseDir,
                 cwd = cwd,
+                skippedReparse,
                 files
             };
             XTrace.Log.Info("[FileTools] list_files 成功：root={0}, 数量={1}", baseDir, files.Count);
@@ -139,7 +139,7 @@ public class ReadFileToolFunction : IToolFunctionExtension
     public string Id => "file-tools.read_file";
     public string Name => "read_file";
     public string PluginId => "file-tools";
-    public string Description => "读取指定文件（UTF-8 文本）从 start_line 到 end_line 的内容，并返回文件总行数 totalLines。参数：cwd=工作目录绝对路径（必填）；path=文件绝对路径（必填，如 D:\\src\\proj\\main.py）；start_line=起始行号，从 1 开始（必填）；end_line=结束行号（含该行，选填，缺省读到文末，不得小于 start_line，超出总行数自动钳到文末）。不再回退当前项目根，cwd 必传。";
+    public string Description => "读取 cwd 内的 UTF-8 文本文件，从 start_line 到 end_line，并返回 totalLines。path 必须是 cwd 内绝对路径。单文件上限 1 MiB，超出直接拒绝、不截断。拒绝符号链接/目录联接与路径穿越。end_line 选填，缺省读到文末。";
 
     public string ParametersJsonSchema => @"
 {
@@ -185,13 +185,18 @@ public class ReadFileToolFunction : IToolFunctionExtension
             }
 
             var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
-            if (!FileToolPathOps.EnsureAbsolute(path, out var absPath, out var pathError))
+            if (!FileToolPathOps.TryBind(absCwd!, path, required: true, out var absPath, out var pathError))
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!)));
             }
             if (!FileToolPathOps.EnsureFileExists(absPath!, out var existsError))
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existsError!)));
+            }
+            var fileLength = new FileInfo(absPath!).Length;
+            if (!FilePathGuard.TryLimitBytes(fileLength, "文件", out var sizeError))
+            {
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, sizeError!)));
             }
 
             if (!FileToolLineOps.TryReadStartLine(doc.RootElement, out var startLine, out var startLineError))
@@ -230,7 +235,7 @@ public class WriteFileToolFunction : IToolFunctionExtension
     public string Id => "file-tools.write_file";
     public string Name => "write_file";
     public string PluginId => "file-tools";
-    public string Description => "按行区间替换指定文件（UTF-8 文本）：用 content 替换 start_line..end_line 区间的行（两端均必填、含端点；必须先用 read_file 读文件拿到行号——先读后写）；区间外原样保留。文件不存在时新建（此时 start_line 必须为 1，end_line 钳到文末）。参数：cwd=工作目录绝对路径（必填）；path=文件绝对路径（必填）；content=新内容（必填）；start_line=起始行号（必填）；end_line=结束行号（必填，≥start_line，超出已有行数自动钳到文末）。父目录不存在时自动创建。不再回退当前项目根，cwd 必传。";
+    public string Description => "按行区间替换指定文件（UTF-8 文本）：用 content 替换 start_line..end_line 区间的行（两端均必填、含端点；必须先用 read_file 读文件拿到行号——先读后写）；区间外原样保留。文件不存在时新建（此时 start_line 与 end_line 都必须为 1）。参数：cwd=工作目录绝对路径（必填，path 必须落在 cwd 内）；path=文件绝对路径（必填）；content=新内容（必填，与结果均不得超过 1 MiB）；start_line=起始行号（必填）；end_line=结束行号（必填，≥start_line，不得超出已有行数，越界直接拒绝、不静默钳制）。父目录不存在时自动创建。拒绝符号链接/目录联接与路径穿越。高风险，须审批。";
 
     public string ParametersJsonSchema => @"
 {
@@ -253,7 +258,7 @@ public class WriteFileToolFunction : IToolFunctionExtension
         },
         ""end_line"": {
             ""type"": ""integer"",
-            ""description"": ""结束行号（含该行）：必填；不得小于 start_line，超出已有行数自动钳到文末""
+            ""description"": ""结束行号（含该行）：必填；不得小于 start_line，不得超出已有行数；越界直接拒绝，不静默钳到文末。新建文件时必须为 1""
         }
     },
     ""required"": [""cwd"", ""path"", ""content"", ""start_line"", ""end_line""]
@@ -282,7 +287,11 @@ public class WriteFileToolFunction : IToolFunctionExtension
             var content = doc.RootElement.TryGetProperty("content", out var c)
                 ? c.GetString() ?? string.Empty
                 : string.Empty;
-            if (!FileToolPathOps.EnsureAbsolute(path, out var absPath, out var pathError))
+            if (!FilePathGuard.TryLimitBytes(Encoding.UTF8.GetByteCount(content), "写入内容", out var contentSizeError))
+            {
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, contentSizeError! + "，未写入")));
+            }
+            if (!FileToolPathOps.TryBind(absCwd!, path, required: true, out var absPath, out var pathError))
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!)));
             }
@@ -296,27 +305,41 @@ public class WriteFileToolFunction : IToolFunctionExtension
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!)));
             }
 
-            // 存在性判断与行区间拼装（绝对路径直读直写；父目录自动创建）。
+            // 存在性、大小与行区间全部在落盘前判定；越界直接拒绝，不钳制、不写入。
             var exists = File.Exists(absPath);
+            if (exists && !FilePathGuard.TryLimitBytes(new FileInfo(absPath!).Length, "现有文件", out var existingSizeError))
+            {
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existingSizeError! + "，未写入")));
+            }
             var existingLines = exists
                 ? FileToolLineOps.SplitLines(File.ReadAllText(absPath!))
                 : Array.Empty<string>();
-            if (!exists && startLine != 1)
+            if (!exists && (startLine != 1 || endSpecified != 1))
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
-                    "文件不存在，无法从第 " + startLine + " 行覆盖：新建文件时 start_line 必须为 1")));
+                    "文件不存在，新建时 start_line 与 end_line 都必须为 1（收到 start_line=" + startLine + ", end_line=" + endSpecified + "），未写入")));
             }
-            if (startLine > existingLines.Length + 1)
+            if (exists && startLine > existingLines.Length + 1)
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
-                    "start_line=" + startLine + " 超出文件末尾（现有 " + existingLines.Length + " 行，最大可写 " + (existingLines.Length + 1) + "）")));
+                    "start_line=" + startLine + " 超出文件末尾（现有 " + existingLines.Length + " 行，最大可写 " + (existingLines.Length + 1) + "），未写入")));
+            }
+            // 文末下一行且 end 与 start 相同 = 追加。中间替换的 end 超出末尾仍拒绝，避免静默钳到文末。
+            var appending = startLine == existingLines.Length + 1 && endSpecified == startLine;
+            if (exists && endSpecified > existingLines.Length && !appending)
+            {
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
+                    "end_line=" + endSpecified + " 超出文件末尾（现有 " + existingLines.Length + " 行）。写入前拒绝越界，不会静默钳到文末，未写入")));
             }
 
-            // 保留前 startLine-1 行，用 content 替换 startLine..endLine 区间（未指定=到文末），区间后的尾部行原样保留。
-            var endLine = Math.Min(endSpecified ?? existingLines.Length, existingLines.Length);
+            var endLine = endSpecified ?? existingLines.Length;
             var head = existingLines.Take(startLine - 1);
             var tail = endLine < existingLines.Length ? existingLines.Skip(endLine) : Array.Empty<string>();
             var final = string.Join("\n", head.Concat(FileToolLineOps.SplitLines(content)).Concat(tail));
+            if (!FilePathGuard.TryLimitBytes(Encoding.UTF8.GetByteCount(final), "写入结果", out var finalSizeError))
+            {
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, finalSizeError! + "，未写入")));
+            }
             var parentDir = Path.GetDirectoryName(absPath);
             if (!string.IsNullOrEmpty(parentDir))
             {

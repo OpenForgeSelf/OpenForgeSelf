@@ -14,6 +14,8 @@ public class SkillEntity
     public List<string> ToolIds { get; set; } = new();
     public int UsageCount { get; set; }
     public Dictionary<string, string>? Settings { get; set; }
+    /// <summary>完整 SKILL.md。不进入 CRUD DTO，只供个人技能目录注入上下文。</summary>
+    public string SkillMarkdown { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

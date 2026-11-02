@@ -84,7 +84,7 @@ public class MemorySystemPlugin : IPlugin
             Id = "memorysystem.tool.get_relevant_memories",
             Name = "memory_relevant",
             PluginId = pluginId,
-            Description = "从长期记忆中检索与当前问题相关的记忆，支持语义相似度搜索",
+            Description = "从长期记忆中按关键词检索与当前问题相关的记忆。传入 botId 后只返回该 Bot 的记忆和未标记 Bot 的共享记忆，不返回其他 Bot 的记忆。不使用向量库。",
             ParametersJsonSchema = @"
 {
     ""type"": ""object"",
@@ -102,6 +102,18 @@ public class MemorySystemPlugin : IPlugin
             ""type"": ""number"",
             ""description"": ""最低相关度阈值，0-1之间，默认0.1"",
             ""default"": 0.1
+        },
+        ""botId"": {
+            ""type"": ""string"",
+            ""description"": ""按 Bot 隔离。传入后不返回其他 Bot 的记忆""
+        },
+        ""projectId"": {
+            ""type"": ""string"",
+            ""description"": ""按项目 ID 隔离""
+        },
+        ""workspacePath"": {
+            ""type"": ""string"",
+            ""description"": ""按工作区路径隔离，与 projectId 同属项目维度""
         }
     },
     ""required"": [""query""]
@@ -113,7 +125,7 @@ public class MemorySystemPlugin : IPlugin
             Id = "memorysystem.tool.add_memory",
             Name = "memory_add",
             PluginId = pluginId,
-            Description = "添加一条新的长期记忆，保存重要信息供以后使用",
+            Description = "添加一条提炼后的长期记忆。禁止把整段聊天记录写入。可带 botId 与 projectId 或 workspacePath。",
             ParametersJsonSchema = @"
 {
     ""type"": ""object"",
@@ -143,7 +155,19 @@ public class MemorySystemPlugin : IPlugin
         },
         ""source"": {
             ""type"": ""string"",
-            ""description"": ""记忆来源，如对话ID、用户输入等""
+            ""description"": ""记忆来源，如对话ID。不要把整段聊天贴进 content""
+        },
+        ""botId"": {
+            ""type"": ""string"",
+            ""description"": ""所属 Bot""
+        },
+        ""projectId"": {
+            ""type"": ""string"",
+            ""description"": ""所属项目 ID""
+        },
+        ""workspacePath"": {
+            ""type"": ""string"",
+            ""description"": ""工作区路径。未提供 projectId 时作为项目维度""
         }
     },
     ""required"": [""title"", ""content""]
@@ -155,7 +179,7 @@ public class MemorySystemPlugin : IPlugin
             Id = "memorysystem.tool.search_memories",
             Name = "memory_search",
             PluginId = pluginId,
-            Description = "搜索记忆，支持按关键词、类型、分类、标签等条件筛选",
+            Description = "按关键词搜索长期记忆，可按 Bot、项目或工作区过滤。传入 botId 后不返回其他 Bot 的记忆。",
             ParametersJsonSchema = @"
 {
     ""type"": ""object"",
@@ -181,6 +205,18 @@ public class MemorySystemPlugin : IPlugin
             ""type"": ""integer"",
             ""description"": ""每页数量，默认20"",
             ""default"": 20
+        },
+        ""botId"": {
+            ""type"": ""string"",
+            ""description"": ""按 Bot 隔离""
+        },
+        ""projectId"": {
+            ""type"": ""string"",
+            ""description"": ""按项目 ID 隔离""
+        },
+        ""workspacePath"": {
+            ""type"": ""string"",
+            ""description"": ""按工作区路径隔离""
         }
     },
     ""required"": []
@@ -234,6 +270,56 @@ public class MemorySystemPlugin : IPlugin
     ""type"": ""object"",
     ""properties"": {},
     ""required"": []
+}"
+        });
+
+        ToolExtensions.Add(new CorrectMemoryToolFunction(services)
+        {
+            Id = "memorysystem.tool.correct_memory",
+            Name = "memory_correct",
+            PluginId = pluginId,
+            Description = "纠正一条已有长期记忆的结论。只写入修正后的事实，不要把聊天记录贴进去。",
+            ParametersJsonSchema = @"
+{
+    ""type"": ""object"",
+    ""properties"": {
+        ""memoryId"": {
+            ""type"": ""integer"",
+            ""description"": ""要纠正的记忆 ID""
+        },
+        ""content"": {
+            ""type"": ""string"",
+            ""description"": ""纠正后的内容，一条可复用结论""
+        },
+        ""title"": {
+            ""type"": ""string"",
+            ""description"": ""纠正后的标题，可选""
+        },
+        ""reason"": {
+            ""type"": ""string"",
+            ""description"": ""纠正原因，可选""
+        }
+    },
+    ""required"": [""memoryId"", ""content""]
+}"
+        });
+
+        ToolExtensions.Add(new DeleteMemoryToolFunction(services)
+        {
+            Id = "memorysystem.tool.delete_memory",
+            Name = "memory_delete",
+            PluginId = pluginId,
+            Description = "删除一条长期记忆（软删除，检索不再返回）。",
+            ParametersJsonSchema = @"
+{
+    ""type"": ""object"",
+    ""properties"": {
+        ""memoryId"": {
+            ""type"": ""integer"",
+            ""description"": ""要删除的记忆 ID""
+        }
+    },
+    ""required"": [""memoryId""]
 }"
         });
 
@@ -403,6 +489,14 @@ public abstract class MemoryToolFunctionBase : IToolFunctionExtension
             _ => MemoryImportance.Medium
         };
     }
+
+    protected static string? ReadOptionalString(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var prop) || prop.ValueKind == JsonValueKind.Null)
+            return null;
+        var text = prop.ValueKind == JsonValueKind.String ? prop.GetString() : prop.ToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
 }
 
 public class GetRelevantMemoriesToolFunction : MemoryToolFunctionBase
@@ -429,7 +523,11 @@ public class GetRelevantMemoriesToolFunction : MemoryToolFunctionBase
                 minScore = minScoreProp.GetDouble();
 
             var service = CreateMemoryService();
-            var memories = await service.GetRelevantMemoriesAsync(query, limit, minScore);
+            var memories = await service.GetRelevantMemoriesAsync(
+                query, limit, minScore,
+                ReadOptionalString(root, "botId"),
+                ReadOptionalString(root, "projectId"),
+                ReadOptionalString(root, "workspacePath"));
 
             var response = new
             {
@@ -520,7 +618,10 @@ public class AddMemoryToolFunction : MemoryToolFunctionBase
                 Type = ParseMemoryType(typeStr),
                 Importance = ParseImportance(impStr),
                 Tags = tags,
-                Source = source
+                Source = source,
+                BotId = ReadOptionalString(root, "botId"),
+                ProjectId = ReadOptionalString(root, "projectId"),
+                WorkspacePath = ReadOptionalString(root, "workspacePath")
             };
 
             var memory = await service.CreateAsync(request);
@@ -611,7 +712,10 @@ public class SearchMemoriesToolFunction : MemoryToolFunctionBase
                 Type = type,
                 Tag = tag,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                BotId = ReadOptionalString(root, "botId"),
+                ProjectId = ReadOptionalString(root, "projectId"),
+                WorkspacePath = ReadOptionalString(root, "workspacePath")
             };
 
             var result = await service.SearchAsync(request);
@@ -794,6 +898,92 @@ public class GetMemoryStatsToolFunction : MemoryToolFunctionBase
             XTrace.Log.Error("[MemorySystem] get_memory_stats 执行失败: {0}", ex.Message);
             stopwatch.Stop();
             await RecordUsageAsync("get_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["error"] = ex.Message
+            });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
+    }
+}
+
+public class CorrectMemoryToolFunction : MemoryToolFunctionBase
+{
+    public CorrectMemoryToolFunction(IServiceProvider? serviceProvider) : base(serviceProvider) { }
+
+    public override async Task<string> ExecuteAsync(string parameters)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            using var doc = JsonDocument.Parse(parameters);
+            var root = doc.RootElement;
+            var memoryId = root.GetProperty("memoryId").GetInt64();
+            var content = root.TryGetProperty("content", out var contentProp) ? contentProp.GetString() : null;
+            if (string.IsNullOrWhiteSpace(content))
+                return JsonSerializer.Serialize(new { success = false, error = "纠正内容不能为空" });
+
+            var service = CreateMemoryService();
+            var memory = await service.CorrectAsync(memoryId, new CorrectMemoryRequest
+            {
+                Content = content,
+                Title = ReadOptionalString(root, "title"),
+                Reason = ReadOptionalString(root, "reason")
+            });
+            if (memory == null)
+                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" });
+
+            stopwatch.Stop();
+            await RecordUsageAsync("correct_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["memoryId"] = memoryId
+            });
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "记忆已纠正",
+                memory = new { id = memory.Id, title = memory.Title, content = memory.Content }
+            });
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            await RecordUsageAsync("correct_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["error"] = ex.Message
+            });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+        }
+    }
+}
+
+public class DeleteMemoryToolFunction : MemoryToolFunctionBase
+{
+    public DeleteMemoryToolFunction(IServiceProvider? serviceProvider) : base(serviceProvider) { }
+
+    public override async Task<string> ExecuteAsync(string parameters)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            using var doc = JsonDocument.Parse(parameters);
+            var root = doc.RootElement;
+            var memoryId = root.GetProperty("memoryId").GetInt64();
+            var service = CreateMemoryService();
+            var deleted = await service.DeleteAsync(memoryId);
+            stopwatch.Stop();
+            await RecordUsageAsync("delete_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["memoryId"] = memoryId,
+                ["deleted"] = deleted
+            });
+            if (!deleted)
+                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" });
+            return JsonSerializer.Serialize(new { success = true, message = "记忆已删除", memoryId });
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            await RecordUsageAsync("delete_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
             {
                 ["error"] = ex.Message
             });

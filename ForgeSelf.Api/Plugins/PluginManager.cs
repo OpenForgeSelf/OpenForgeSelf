@@ -252,9 +252,13 @@ public class PluginManager
         typeof(ICronParser),
         typeof(IRuntimeDetector),
         typeof(ISessionStore),
+        // 个人技能库（XCode/SQLite）：AIAgent 注入时与项目 .agents/skills 并列发现
+        typeof(IPersonalSkillCatalog),
         // B5（041）：IAgentLoop 已删除（旧 P4 接缝，生产消费方 0）；
         // Agent 运行时注册表（IAgentRegistry）由 AIAgent 插件在 Apply 内 ctx.Register，不在此宿主清单内。
         typeof(IInbox),
+        // P0 审批：MAF ApprovalRequiredAIFunction 持久化 + HTTP decide（智能体插件经 ctx.Get 取）
+        typeof(IApprovalService),
         typeof(ILlmRuntime),
         typeof(ILogService),
         typeof(IWebSocketBroadcaster),

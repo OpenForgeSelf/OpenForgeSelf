@@ -521,10 +521,10 @@ public class ToolRegistry : IToolRegistry
             CallId = execution.CallId
         };
 
-        // IToolFunctionExtension.ExecuteAsync(string) 无 CancellationToken 参数（旧接口），取消无法真传进工具体；
-        // 以 WhenAny 对 execution.Signal 竞速（execute 中间件替换后的超时 Signal 同样生效——门禁 5）：
-        // Signal 先触发 → 抛 OCE 由 ExecuteAsync 收口为取消结果；工具体转后台继续并由观察器兜住异常。
-        var toolTask = tool.ExecuteAsync(execution.ArgsJson);
+        // 优先把 Signal 传入带 CancellationToken 的重载（接口默认实现仍委托无令牌版，既有工具零改动）；
+        // 真正覆写的工具（如 run_terminal_command）可在超时/取消时杀进程树。
+        // WhenAny 竞速保留作兜底：未吃 token 的工具在 Signal 先触发时仍 orphan + OCE 收口。
+        var toolTask = tool.ExecuteAsync(execution.ArgsJson, execution.Signal);
         var completed = await Task.WhenAny(toolTask, Task.Delay(Timeout.InfiniteTimeSpan, execution.Signal));
         if (completed != toolTask)
         {

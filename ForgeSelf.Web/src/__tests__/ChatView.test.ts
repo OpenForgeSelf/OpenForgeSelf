@@ -78,7 +78,7 @@ describe('ChatView', () => {
         },
       },
     })
-    expect(wrapper.find('.chat-agent-name').text()).toBe('AI Agent')
+    expect(wrapper.find('.chat-agent-name').text()).toBe('智能体')
   })
 
   it('displays connection status as disconnected initially', () => {

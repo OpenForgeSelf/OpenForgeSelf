@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>BrowserUse</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.BrowserUse</RootNamespace>
+    <!-- NuGet 没有 Microsoft.Playwright 1.61.1（前端 @playwright/test 仍是 1.61.1，不改锁文件）。
+         钉最近可还原版本 1.62.0，只在本插件引用。win：只拷本机驱动。构建不下载浏览器本体。 -->
+    <PlaywrightPlatform>win</PlaywrightPlatform>
+    <!-- 类库默认不把 NuGet 依赖拷到输出。插件由独立 ALC 加载，Playwright 必须落在入口 DLL 旁。 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.62.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -49,11 +49,15 @@ function answer(id, option) {
     <div v-for="it in items" :key="it.id" class="aiw-ask__item" :class="`is-${it.kind}`">
       <template v-if="it.kind === 'approval'">
         <span class="aiw-ask__badge" :class="`aiw-ask__badge--${it.risk || 'medium'}`">
-          {{ RISK_TEXT[it.risk || 'medium'] }}
+          {{ it.riskLabel || RISK_TEXT[it.risk || 'medium'] }}
         </span>
         <div class="aiw-ask__body">
           <div class="aiw-ask__title">{{ it.title }}</div>
           <div v-if="it.detail" class="aiw-ask__detail">{{ it.detail }}</div>
+          <template v-if="it.argsText">
+            <div class="aiw-ask__args-label">完整参数</div>
+            <pre class="aiw-ask__args">{{ it.argsText }}</pre>
+          </template>
         </div>
         <div class="aiw-ask__btns">
           <button type="button" class="aiw-ask__btn aiw-ask__btn--ok" @click="decide(it.id, 'approve')">

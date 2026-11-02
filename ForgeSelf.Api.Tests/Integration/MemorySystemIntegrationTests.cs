@@ -472,7 +472,7 @@ public class MemorySystemIntegrationTests
             .ReturnsAsync(memories);
 
         // Act
-        var result = await _controller.ExportMemories(null, null);
+        var result = await _controller.ExportMemories(null, null, null, null, null);
 
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();
@@ -493,7 +493,7 @@ public class MemorySystemIntegrationTests
             .ReturnsAsync(memories);
 
         // Act
-        var result = await _controller.ExportMemories(1, null);
+        var result = await _controller.ExportMemories(1, null, null, null, null);
 
         // Assert
         result.Result.Should().BeOfType<OkObjectResult>();

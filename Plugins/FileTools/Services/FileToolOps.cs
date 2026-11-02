@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.FileTools;
 
@@ -54,6 +55,67 @@ internal static class FileToolPathOps
             absCwd = null;
             return false;
         }
+        if (!FilePathGuard.TryRejectReparseChain(absCwd, absCwd, out error))
+        {
+            absCwd = null;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 把 path 解析为 cwd 内的绝对路径：必填绝对路径、禁止穿越出 cwd、禁止符号链接/目录联接。
+    /// path 为空且 required=false 时使用 cwd 自身。
+    /// </summary>
+    public static bool TryBind(string absCwd, string? path, bool required, out string? full, out string? error)
+    {
+        full = null;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            if (required)
+            {
+                error = "缺少必填参数 path：必须为工作目录内的绝对路径";
+                return false;
+            }
+
+            full = absCwd;
+        }
+        else if (!EnsureAbsolute(path, out full, out error))
+        {
+            return false;
+        }
+
+        if (!FilePathGuard.TryContain(absCwd, full!, out var contained, out error))
+        {
+            full = null;
+            return false;
+        }
+
+        full = contained;
+        if (!FilePathGuard.TryRejectReparseChain(absCwd, full, out error))
+        {
+            full = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>单个文件名：不含路径分隔符、盘符或 .. 。</summary>
+    public static bool TrySingleSegment(string? name, out string? segment, out string? error)
+    {
+        segment = null;
+        if (string.IsNullOrWhiteSpace(name)
+            || name.IndexOfAny(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) >= 0
+            || name.Contains("..", StringComparison.Ordinal)
+            || name is "." or "..")
+        {
+            error = "new_name 必须是单个文件名，不能包含路径、盘符或 ..";
+            return false;
+        }
+
+        segment = name.Trim();
+        error = null;
         return true;
     }
 

@@ -1,0 +1,6 @@
+{
+  "comment": "复制为插件数据目录 config.json 后生效：{数据根}/Plugins/browser-use/config.json。本机个人使用，不做团队共享。allowedDomains 为空则除 about:blank 外一律拒绝 http(s)。",
+  "allowedDomains": ["localhost", "127.0.0.1", "::1"],
+  "headless": false,
+  "navigationTimeoutMs": 30000
+}

@@ -67,8 +67,13 @@ public class FileToolsPlugin : IPlugin
         // 文件三件套（2026-10-28 归属修订轮自 mcp-center 迁入，用户拍板文件域归一；名字维持平台保留名不变）：
         // read_file / write_file / list_files，IContext 构造（契约 IProjectWorkspaceService 在 Abstractions）。
         ToolExtensions.Add(new ListFilesToolFunction(ctx));
+        ToolExtensions.Add(new SearchFilesToolFunction(ctx));
         ToolExtensions.Add(new ReadFileToolFunction(ctx));
         ToolExtensions.Add(new WriteFileToolFunction(ctx));
+        ToolExtensions.Add(new MoveFileToolFunction(ctx));
+        ToolExtensions.Add(new RenameFileToolFunction(ctx));
+        ToolExtensions.Add(new DeleteFileToolFunction(ctx));
+        ToolExtensions.Add(new SearchContentToolFunction(ctx));
         XTrace.Log.Debug("[FileToolsPlugin] AI工具函数扩展点注册完成，共 {0} 个工具函数", ToolExtensions.Count);
     }
 }

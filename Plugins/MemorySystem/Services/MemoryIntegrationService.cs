@@ -8,9 +8,9 @@ namespace ForgeSelf.Api.Plugins.MemorySystem.Services;
 
 public interface IMemoryIntegrationService
 {
-    Task<string> GetRelevantMemoriesAsSystemPromptAsync(string userMessage, int limit = 5);
-    Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 5, double minScore = 0.1);
-    Task AutoExtractAndSaveMemoriesAsync(string conversationSummary, string source);
+    Task<string> GetRelevantMemoriesAsSystemPromptAsync(string userMessage, int limit = 5, string? botId = null, string? projectId = null, string? workspacePath = null);
+    Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 5, double minScore = 0.1, string? botId = null, string? projectId = null, string? workspacePath = null);
+    Task AutoExtractAndSaveMemoriesAsync(string conversationSummary, string source, string? botId = null, string? projectId = null, string? workspacePath = null);
     Task<bool> IsMemoryServiceAvailableAsync();
 }
 
@@ -25,11 +25,11 @@ public class MemoryIntegrationService : IMemoryIntegrationService
         _memoryDbDirectory = memoryDbDirectory;
     }
 
-    public async Task<string> GetRelevantMemoriesAsSystemPromptAsync(string userMessage, int limit = 5)
+    public async Task<string> GetRelevantMemoriesAsSystemPromptAsync(string userMessage, int limit = 5, string? botId = null, string? projectId = null, string? workspacePath = null)
     {
         try
         {
-            var memories = await _memoryService.GetRelevantMemoriesAsync(userMessage, limit, 0.15);
+            var memories = await _memoryService.GetRelevantMemoriesAsync(userMessage, limit, 0.15, botId, projectId, workspacePath);
 
             if (memories.Count == 0)
                 return string.Empty;
@@ -64,11 +64,11 @@ public class MemoryIntegrationService : IMemoryIntegrationService
         }
     }
 
-    public async Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 5, double minScore = 0.1)
+    public async Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 5, double minScore = 0.1, string? botId = null, string? projectId = null, string? workspacePath = null)
     {
         try
         {
-            return await _memoryService.GetRelevantMemoriesAsync(query, limit, minScore);
+            return await _memoryService.GetRelevantMemoriesAsync(query, limit, minScore, botId, projectId, workspacePath);
         }
         catch (Exception ex)
         {
@@ -77,10 +77,17 @@ public class MemoryIntegrationService : IMemoryIntegrationService
         }
     }
 
-    public async Task AutoExtractAndSaveMemoriesAsync(string conversationSummary, string source)
+    public async Task AutoExtractAndSaveMemoriesAsync(string conversationSummary, string source, string? botId = null, string? projectId = null, string? workspacePath = null)
     {
         try
         {
+            // 整段聊天留在会话里，不写入长期记忆。这里只尝试保存提炼后的单条事实。
+            if (LongTermMemoryGuard.IsRawChatDump(conversationSummary))
+            {
+                XTrace.Log.Info("[MemoryIntegration] 拒绝把整段聊天记录写入长期记忆，来源: {0}", source);
+                return;
+            }
+
             XTrace.Log.Info("[MemoryIntegration] 开始自动提取记忆，来源: {0}", source);
 
             var prompt = BuildExtractionPrompt(conversationSummary);
@@ -98,6 +105,9 @@ public class MemoryIntegrationService : IMemoryIntegrationService
             {
                 try
                 {
+                    if (LongTermMemoryGuard.IsRawChatDump(mem.Title) || LongTermMemoryGuard.IsRawChatDump(mem.Content))
+                        continue;
+
                     var request = new CreateMemoryRequest
                     {
                         Title = mem.Title,
@@ -105,7 +115,10 @@ public class MemoryIntegrationService : IMemoryIntegrationService
                         Type = mem.Type,
                         Importance = mem.Importance,
                         Tags = mem.Tags,
-                        Source = source
+                        Source = source,
+                        BotId = botId,
+                        ProjectId = projectId,
+                        WorkspacePath = workspacePath
                     };
 
                     await _memoryService.CreateAsync(request);

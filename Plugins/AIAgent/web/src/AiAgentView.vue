@@ -44,7 +44,7 @@
               <component :is="leftCollapsed ? Expand : Fold" class="chat__fold-ico" />
             </button>
             <span class="chat__title">
-              AI Agent
+              智能体
               <!-- 插件版本徽标：用户要求「标题后显示插件版本」；
                    设计原型标题旁无此元素，故作为追加元素挂在这里，既满足需求又不破坏原型布局。 -->
               <span v-if="version" class="chat__version">v{{ version }}</span>
@@ -192,6 +192,16 @@ import {
   todosToAskItem,
   type TodoDtoLike,
 } from './composerPanels'
+import {
+  APPROVAL_POLL_MS,
+  approvalFeedback,
+  approvalsQueryPath,
+  isPendingStatus,
+  mapPendingApprovals,
+  shouldPollApprovals,
+  submitApprovalDecision,
+  unwrapApprovalList,
+} from './approvalAsk'
 import type { ComposerItem } from './composer'
 import type { AccessMode } from './composerContext'
 import type { AskItem } from './composerContext'
@@ -268,10 +278,14 @@ const todos = ref<TodoDtoLike[]>([])
 const knownProjects = ref<string[]>([])
 /**
  * 041 瞬时待你动作（审批 / 询问）。
- * 当前 AIAgent 后端**无 approval 端点**（实测 grep 全空），故恒为空数组；
- * 契约已就绪（config.ask + AskPanel），等后端接入即可直接出卡。
+ * 审批来自 GET /api/ai-agent/approvals?sessionId= 的 Pending 项，贴在既有 .aiw-ask。
  */
 const askItems = ref<AskItem[]>([])
+/** 正在提交的审批 id，挡住连点。 */
+const approvalDeciding = new Set<string>()
+/** decide 已成功、列表尚未翻状态时先别把卡画回来。 */
+const approvalMuted = new Set<string>()
+let approvalTimer: ReturnType<typeof setInterval> | undefined
 /** 左栏（会话/Agent 列表）是否折叠（折叠后单栏接近主流对话体验）。 */
 const leftCollapsed = ref(false)
 /** 右栏（AI 上下文：目录/工具/技能/记忆）是否折叠。默认显示（展开），内部各分组默认折叠。 */
@@ -318,6 +332,7 @@ const unsubscribeAppearance = hostAppearance.subscribe(applyHostAppearance)
 onBeforeUnmount(() => {
   unsubscribeAppearance()
   hostAppearance.dispose()
+  stopApprovalPoll()
 })
 
 /** 消息条数（真实统计；由组件 state-changed 事件驱动刷新）。 */
@@ -348,6 +363,8 @@ function onChatStateChanged() {
   void loadSessions()
   // 041：Agent 可能改动待办，一轮结束后同步输入框上方的「待办」卡
   void loadTodos()
+  // 一轮结束时立刻对一下审批：挂起的 Pending 不能等下一拍轮询
+  void loadApprovals()
 }
 
 /** 生成一个新的会话 id（简单时间戳 + 随机串，避免引入 uuid 依赖）。 */
@@ -481,7 +498,7 @@ async function loadAgentTools() {
 /** 加载 composer ⚡ 可选技能列表（已选项目目录取项目技能，否则全局技能）。 */
 async function loadAgentSkills() {
   try {
-    const src = projectDir.value ? '/api/project/skills' : '/api/skills'
+    const src = projectDir.value ? '/api/project/skills' : '/api/skills?isEnabled=true'
     agentSkills.value = (await apiGet<ProjectSkillItem[]>(src)) ?? []
   } catch {
     agentSkills.value = []
@@ -681,10 +698,76 @@ watchEffect(() => {
 
 /**
  * 041 待你动作区（瞬时）：审批 / Agent 反问，紧贴输入框上沿（不进消息流）。
- * 当前后端无 approval 端点 → 无真实生产者，本键默认空；契约就绪等后端接入。
+ * Pending 审批由 loadApprovals 填进 askItems，批准/拒绝走 decide。
  */
 watchEffect(() => {
-  agentConfig.ask = buildAskConfig(askItems.value) ?? undefined
+  const cfg = buildAskConfig(askItems.value)
+  agentConfig.ask = cfg
+    ? { ...cfg, onResolve: (e) => { void onApprovalResolve(e) } }
+    : undefined
+})
+
+/** 拉当前会话的 Pending 审批。失败保留已显示的卡，避免轮询抖动把待批项藏起来。 */
+async function loadApprovals() {
+  const sid = sessionId.value
+  if (!sid) {
+    askItems.value = askItems.value.filter((i) => i.kind !== 'approval')
+    return
+  }
+  try {
+    const data = await apiGet<unknown>(approvalsQueryPath(sid))
+    const all = unwrapApprovalList(data)
+    for (const id of approvalMuted) {
+      const stillPending = all.some((row) => row.id === id && isPendingStatus(row.status))
+      if (!stillPending) approvalMuted.delete(id)
+    }
+    const next = mapPendingApprovals(all, sid).filter((item) => !approvalMuted.has(item.id))
+    const others = askItems.value.filter((i) => i.kind !== 'approval')
+    askItems.value = [...next, ...others]
+  } catch {
+    /* 列表失败不清空，用户仍能对已看到的卡做决定 */
+  }
+}
+
+/** 批准 / 拒绝。成功后卡消失并提示；失败把错误留在提示里，卡继续留着。 */
+async function onApprovalResolve(e: { id: string; decision: string }) {
+  if (!e?.id || approvalDeciding.has(e.id)) return
+  approvalDeciding.add(e.id)
+  try {
+    await submitApprovalDecision(e.id, e.decision, apiPost)
+    approvalMuted.add(e.id)
+    askItems.value = askItems.value.filter((item) => item.id !== e.id)
+    ElMessage.success(approvalFeedback(e.decision))
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : String(err))
+  } finally {
+    approvalDeciding.delete(e.id)
+  }
+}
+
+function tickApprovals() {
+  const liveSending = chatRef.value?.isSending() ?? sending.value
+  const pending = askItems.value.filter((item) => item.kind === 'approval').length
+  if (!shouldPollApprovals(liveSending, pending)) return
+  void loadApprovals()
+}
+
+function startApprovalPoll() {
+  if (approvalTimer) return
+  approvalTimer = setInterval(tickApprovals, APPROVAL_POLL_MS)
+}
+
+function stopApprovalPoll() {
+  if (!approvalTimer) return
+  clearInterval(approvalTimer)
+  approvalTimer = undefined
+}
+
+watch(sessionId, (id, prev) => {
+  if (!prev || id === prev) return
+  approvalMuted.clear()
+  askItems.value = askItems.value.filter((item) => item.kind !== 'approval')
+  void loadApprovals()
 })
 
 /** 切换权限档位：立刻生效于下一条消息（transport 每次发送取最新值），并持久化。 */
@@ -1142,6 +1225,8 @@ onMounted(async () => {
   }
   if (projectDir.value) rememberProject(projectDir.value)
   void loadTodos()
+  void loadApprovals()
+  startApprovalPoll()
   // v1.8.0：初始会话历史灌入组件（hydrate 内部 emit state-changed → 左栏统计初始化）
   chatRef.value?.hydrate(messages.value)
 })

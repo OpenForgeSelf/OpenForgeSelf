@@ -2,18 +2,30 @@
 feature_key: F021
 feature_no: 021
 status: implemented
-last_updated: 2026-10-06
-aliases: ["021-ai-agent"]
+last_updated: 2026-11-02
+aliases: ["021-ai-agent", "智能体", "maf"]
 ---
 
-# 021 · AI 智能体（AI Agent）
+# 021 · 智能体（执行中枢 MAF；原 AI Agent）
 
-> 状态：已实现（代码中已落地）
-> 最后更新：2026-09-21
+> 状态：已实现（代码中已落地）· **2026-11-02：对外插件名「智能体」；执行中枢技术名 MAF（一等）。路由不改**
+> 最后更新：2026-11-02
+> 愿景/架构真源：[`00-vision/01-vision.md`](../00-vision/01-vision.md) · [`01-architecture/maf-centric-architecture.md`](../01-architecture/maf-centric-architecture.md) · [ADR-006](../07-decisions/006-maf-first-class-greenfield.md)
 
 ## 概述
 
-AI 智能体编排框架：多 Agent 协调与执行（`AgentsController`）、智能规划建议（`PlanningController`）、AI 辅助工作流（`AIWorkflowController`，见 013）、脚本生成与错误分析（`AIScriptController`）、AI 聊天（`AIChatController`）。是连接「统一 AI 网关」与「上层工具」的协调层。
+**智能体**是铸己匣的用户可见插件名（菜单、页面标题、功能清单、`plugin.json` 的 Name/menu）。对内执行中枢技术名是 **MAF**（架构层 **MAF Runtime**，默认引擎 `MafTaskLoopAgent`）。插件 Id 仍为 `ai-agent`，路由仍 `/ai-agent`（2026-11-02 用户拍板：不改成 `/maf`）。实现上包含：多 Agent 协调（`AgentsController`）、规划建议（`PlanningController`）、AI 辅助工作流（`AIWorkflowController`，见 013）、脚本生成与错误分析（`AIScriptController`）、任务聊天（`AIChatController`）、计划任务 Runs（`AgentRunsController`）。工具经宿主 `ToolRegistry` 六闸门。
+
+### 产品命名对照（绿场）
+
+| 旧对外名 | 新对外名 | 存储/API（本回合未改） |
+|----------|----------|------------------------|
+| AI Agent / 上一批展示名 MAF | **智能体** | 插件 Id `ai-agent`；路由 `/ai-agent` |
+| FreeLoop / 自由循环 / MAF 开放任务 | **开放任务** | `executionMode=free`；`POST /api/ai-agent/chat` |
+| PlanDriven / 计划驱动 / MAF 计划任务 | **计划任务** | `executionMode=plan`；`POST /api/ai-agent/runs` |
+| ReactLoopAgent | **Legacy Loop（废弃）** | `UseMafRuntime=false` 回退 |
+
+**废弃旁路（勿扩）**：ad-hoc 无日志循环；`AgentCoordinator` 启发式旁路（未接 MAF 主路径）；平行 LocalBot Runtime（禁止，ADR-005/006）。
 
 ## 代码落点
 
@@ -214,7 +226,7 @@ Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/
 | DesignSystem | 8 | `design_guide` `design_context` `design_lookup` `design_review` `design_audit` `design_presets` `design_create` `design_edit` |
 | DevTools | 27 | `dev_format_json` `dev_validate_json` `dev_convert_json_yaml` `dev_jsonpath_query` `dev_format_xml` `dev_base64_encode` `dev_base64_decode` `dev_url_encode` `dev_url_decode` `dev_hash` `dev_hmac` `dev_aes_encrypt` `dev_aes_decrypt` `dev_regex_test` `dev_regex_generate` `dev_regex_replace` `dev_timestamp` `dev_color_convert` `dev_color_palette` `dev_color_contrast` `dev_jwt_decode` `dev_jwt_validate` `dev_jwt_generate` `dev_uuid` `dev_snowflake_id` `dev_qrcode` + `dev_text_stats`（2026-10-28 text-tools 整插件并入，用户拍板；text_base64_encode/decode、text_hash、text_format_json 由 dev 同功能承接退役，`text_stats` 改名 `dev_text_stats`） |
 | ~~TextTools~~ | — | **已并入 DevTools**（2026-10-28 用户拍板 D-V1；宿主「文本工具」页面保留，后端归 DevTools） |
-| FileTools | 9 | `file_rename` `file_cleanup` `file_compress` `file_stats` `file_extract` `file_dir_stats` + `read_file` `write_file` `list_files`（2026-10-28 归属修订轮自 McpCenter 迁入，名字维持平台保留名不变） |
+| FileTools | 14 | `file_rename` `file_cleanup` `file_compress` `file_stats` `file_extract` `file_dir_stats` + `list_files` `search_files` `read_file` `write_file` `move_file` `rename_file` `delete_file` `search_content`（2026-10-28 三件套自 McpCenter 迁入；2026-11-02 补齐八件套，写/移动/重命名/删除为高风险） |
 | SystemMonitor | 5 | `sys_cpu` `sys_memory` `sys_disk` `sys_processes` `sys_kill_process` |
 | ScriptRunner | 11 | `script_run` `script_list` `script_exec_code` `script_generate` `script_analyze_error` `script_suggest_fix` `script_templates` `script_snippet_list` `script_snippet_create` `script_personal_stats` `script_recommend` |
 | QuickLinks | 4 | `link_search` `link_open` `link_categories` `link_create` |
@@ -228,8 +240,30 @@ Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/
 
 **重名冲突：已清零**。2026-10-27 盘点发现的 5 组裸名冲突（AIAgent vs WorkflowEngine 三组、DevTools vs TextTools 两组）随命名空间统一全部消除——每个名字唯一归属一个插件，且守卫 `ToolNamespaceGuardTests.S4_全注册表零重名` 常驻防复发。新增工具违反 `<toolPrefix>_` 规则会在注册口被拒（`ExtensionPointManager`）并在 CI 守卫即红。
 
+## 执行链路现状快照（2026-11-02 只读核查回写）
+
+> 触发：事实问答「FreeLoop/PlanDriven/InMemoryAgentLoop/统一执行上下文/AgentCoordinator」；真源原有结论精度不足（默认引擎、ToolExecution 字段、Coordinator 深度未写清）。
+> 产品命名：下表「FreeLoop/PlanDriven」= 现称 **开放任务 / 计划任务**（插件名「智能体」；执行中枢 MAF。见上文对照；ADR-006）。
+
+| 主题 | 结论 | 代码证据 |
+|------|------|----------|
+| 开放任务（原 FreeLoop）入口 | `POST /api/ai-agent/chat`（及 `/stream`）→ `IAgentRegistry.GetOrCreateAsync` → `IAgent.RunAsync` | `AIChatController.cs:134-150` |
+| 开放任务默认引擎 | **`MafTaskLoopAgent`**（`BuildAgentOptions`：`TaskLoopMode=true` + `UseMafRuntime=true`）；`UseMafRuntime=false` 回退 `ReactLoopAgent`（Legacy，废弃扩面） | `AIAgentService.cs:327-412` |
+| 开放任务持久化 | **不写** `AgentRun`/`AgentStepRun`；会话日志 `SessionEvent` + 投影 `AIChatMessage.ToolCallsJson` | `031-ai-agent-execution-records.md` §2.1；`AIChatController.cs:166-193` |
+| 计划任务（原 PlanDriven）入口 | `POST /api/ai-agent/runs` → `RunOrchestratorService.RunAsync`；逐步经统一循环（出口工具 `complete_step`/`request_help`） | `AgentRunsController.cs:42-68`；`RunOrchestratorService.cs:86-91` |
+| 计划任务状态机 | Run：`RunStateMachine.CanTransitionRun`；Step：`CanTransitionStep`；枚举见 `AgentRunModels` | `RunStateMachine.cs:11-32`；`AgentRunModels.cs:6-48` |
+| 计划任务持久化 | **独立** `AgentRun` + `AgentStepRun`（含 `ToolCallsJson`）；架构称 MAF Run | `AgentRun.Biz.cs`；`AgentStepRun.Biz.cs`；`031` §2.2 |
+| `InMemoryAgentLoop` | **已删除**（旧骨架接缝）；守卫 `IAgentLoop_Removed` 断言生产代码 0 命中 | `ReactLoopAgentTests.cs:201-249`；`027-cordis-kernel.md` |
+| 统一执行上下文 | **部分**：`ToolExecution` 仅 `CallId`/`ToolName`/`ArgsJson`/`SessionId`/`Signal(CancellationToken)`；**无** `RunId`/`AgentId`/`Workspace` 字段贯穿工具调用 | `ToolPipeline.cs:53-71`；`ToolRegistry.cs:482-488` |
+| `AgentCoordinator` | **部分/旁路**：`coordinate`→启发式拆任务→`AgentExecutorService.ChatAsync` 顺序执行；**未接入** FreeLoop/PlanDriven 主路径，无 AgentRun 持久化 | `AgentsController.cs:65-84`；`AgentCoordinatorService.cs:34-148`；`AgentExecutorService.cs:267-278` |
+| 审批协议 | **未接线**：包侧已有 `ApprovalRequiredAIFunction` → `ToolApprovalRequestContent` / 用户回 `ToolApprovalResponseContent`（`Microsoft.Extensions.AI` 10.5.1）；本仓高风险工具未包成审批函数；`MafTaskLoopAgent` 自定义 FunctionInvoker 直接 `InvokeAsync`（约 595–607 行），`PumpRunAsync` 未识别审批请求；`IApprovalService` 默认 `NoopApprovalService` 恒拒绝；Composer 审批卡无后端生产者。裁决见 [ADR-005](../07-decisions/005-maf-local-agent-reuse.md) / [ADR-006](../07-decisions/006-maf-first-class-greenfield.md)（P0） | `MafTaskLoopAgent.cs`；ADR-005/006 |
+| 终端超时 | **超时不杀进程**：`RunTerminalCommandTool` 超时后 process continues in background；自建 CTS，不吃调用方 `CancellationToken`（MAF 取消传不到子进程的宿主缺口）。裁决见 ADR-005/006（P0） | `RunTerminalCommandTool.cs` |
+
+关联文档：`031-ai-agent-execution-records.md`（双模式轨迹）、`032-agent-hub.md`（外部 agent 委派，非本 Coordinator）、[`01-architecture/maf-centric-architecture.md`](../01-architecture/maf-centric-architecture.md)、`01-architecture/dsh-runtime-architecture.md`（史料）、`027-cordis-kernel.md`、`041-ai-agent-composer-context-bar.md`、[ADR-005](../07-decisions/005-maf-local-agent-reuse.md)、[ADR-006](../07-decisions/006-maf-first-class-greenfield.md)。
+
 ## 后续演进
 
+- **P0 MAF 审批接线 + 取消杀进程**（见 `00-vision/02-goals.md` / pilot `2026-11-02-maf-first-class` 后续批）。
 - **步骤完成度强校验**（V2，`mandatory` 出口校验）：触发条件 = V1 实测出现「谎报完成」案例（not-to-do 台账 006.1）。
 - **`workflow_execute` 同步等终态**：异步启动即返回、无走完保证，已记 not-to-do 006.2，可独立小修先行。
 - **Run 记录供给其他插件**（sems 看板等）：触发条件 = 第二消费方出现（not-to-do 006.5）。

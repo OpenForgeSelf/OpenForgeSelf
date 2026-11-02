@@ -479,3 +479,49 @@
 - **状态**：有效（2026-10-30 输入3 实测批汇报同步披露）。
 
 ---
+
+## 050 · 不新建平行 Local Agent Runtime / LocalBot（2026-11-02）
+
+- **决策**：不做。不另起 LocalBot、不新建平行 Agent Runtime（Orchestrator / Planner / Run Manager / 平行状态机）；本机 Agent 执行内核复用既有 MAF（`MafTaskLoopAgent` + `ToolRegistry`）。产品与架构以 MAF 为中心组织（见 [ADR-006](006-maf-first-class-greenfield.md)），仍禁止平行内核。
+- **为何不做（代价/收益）**：默认引擎已是 `UseMafRuntime=true` 的 `MafTaskLoopAgent`，工具经 `RegistryToolFunction` 进六闸门；再造一套 Runtime 与开放任务/计划任务、会话事件日志分叉，维护与回归成本高于收益。正数决策见 [ADR-005](005-maf-local-agent-reuse.md)、[ADR-006](006-maf-first-class-greenfield.md)。
+- **重新审视的触发条件**：出现「MAF 包能力无法覆盖且无法通过宿主缺口修补」的硬性产品需求（例如必须脱离 `Microsoft.Agents.AI` / `Microsoft.Extensions.AI` 自建循环），且能安排独立架构窗口时再评估。
+- **状态**：有效（记录自 ADR-005，2026-11-02；口径随 ADR-006 加固）。
+
+---
+
+## 051 · 不新建 `specs/NNN-local-agent-runtime/` 规格目录（2026-11-02）
+
+- **决策**：不做。不为「本机 Agent Runtime」新建 `specs/` 下规格目录（含任何 `specs/NNN-local-agent-runtime/` 形态）。
+- **为何不做（代价/收益）**：`specs/` / speckit 已弃用（`AGENTS.md` §9、`docs/README.md` §四、`.gitignore`）；开发唯一流程是 §11 AI-Native 闭环，产物落 `docs/ai/pilot/`。新建 specs 目录会诱导跳过 pilot 闸门，且与本仓文档真源冲突。后续若开工接审批，单独开 `docs/ai/pilot/YYYY-MM-DD-maf-tool-approval/`。
+- **重新审视的触发条件**：无——除非项目整体撤销「specs 弃用」裁决并恢复 specs 入库流程（届时须先推翻本条并改 `AGENTS.md` / `.gitignore`）。
+- **状态**：有效（记录自 ADR-005，2026-11-02）。
+
+---
+
+## 052 · 不做云端计算机 / 团队企业管理产品化（2026-11-02）
+
+- **决策**：不做。不把铸己匣做成云端计算机、远程常驻沙箱 SaaS，或团队共享/企业管理套件（组织、席位、共享工作区、企业审计中台）。
+- **为何不做（代价/收益）**：与愿景「本机个人可扩展 Agent 平台」冲突；会引入账号体系与多租户复杂度，稀释 MAF 本机执行中枢投入。正数见 [`00-vision/01-vision.md`](../00-vision/01-vision.md)、[ADR-006](006-maf-first-class-greenfield.md)。
+- **重新审视的触发条件**：用户明确改愿景并另立 ADR 推翻本条。
+- **状态**：有效（记录自 ADR-006，2026-11-02）。
+
+---
+
+## 053 · 不做旧 FreeLoop/ReactLoop 品牌与契约的长期兼容迁移层（2026-11-02）
+
+- **决策**：不做。不为旧对外名（FreeLoop/PlanDriven）或旧引擎（ReactLoop 默认路径）维护长期双写/别名兼容层；绿场直接切产品叙事，契约重命名批次删除旧旁路而非垫片迁移。
+- **为何不做（代价/收益）**：用户明确无历史包袱、不需迁移；兼容层会永久固化双路径（正是 ADR-005/006 要消灭的分叉）。插件 Id / 路由可暂留（成本高），但不为此建「旧名永远可用」的兼容承诺。
+- **重新审视的触发条件**：出现必须支持旧版客户端长期共存的外部分发约束，且用户授权兼容窗口。
+- **状态**：有效（记录自 ADR-006，2026-11-02）。
+
+---
+
+## 054 · 本回合不大规模重写 MafLoop / 新建 Browser / Scheduler→Run / DB 大迁移（2026-11-02）
+
+- **决策**：缓做。P0–P4 能力进路线图与后续 pilot；本回合只定产品/架构真源 + 对外命名骨架。
+- **为何不做（代价/收益）**：一次做完全谱无法验证、违背「单任务可验证」；闸门1 未批禁止大规模业务代码。
+- **重新审视的触发条件**：`2026-11-02-maf-first-class` 闸门1 通过后，按 03-plan 开 P0（审批+杀进程）等独立 pilot。
+- **状态**：有效（记录自 ADR-006 / pilot 范围，2026-11-02）。
+
+---
+

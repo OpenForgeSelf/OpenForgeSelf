@@ -37,6 +37,15 @@ public class MemoryDto
     public double RelevanceScore { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>所属 Bot。空表示未按 Bot 划分的共享记忆。</summary>
+    public string? BotId { get; set; }
+
+    /// <summary>所属项目。与 <see cref="WorkspacePath"/> 同属项目维度。</summary>
+    public string? ProjectId { get; set; }
+
+    /// <summary>工作区路径。未填 ProjectId 时可用它标识项目维度。</summary>
+    public string? WorkspacePath { get; set; }
 }
 
 public class MemoryCategoryDto
@@ -59,6 +68,15 @@ public class CreateMemoryRequest
     public List<string>? Tags { get; set; }
     public string? Source { get; set; }
     public long? CategoryId { get; set; }
+
+    /// <summary>所属 Bot。长期记忆按 Bot 隔离时填写。</summary>
+    public string? BotId { get; set; }
+
+    /// <summary>所属项目 ID。与工作区路径二选一或同时填写。</summary>
+    public string? ProjectId { get; set; }
+
+    /// <summary>工作区路径。</summary>
+    public string? WorkspacePath { get; set; }
 }
 
 public class UpdateMemoryRequest
@@ -70,6 +88,17 @@ public class UpdateMemoryRequest
     public List<string>? Tags { get; set; }
     public string? Source { get; set; }
     public long? CategoryId { get; set; }
+    public string? BotId { get; set; }
+    public string? ProjectId { get; set; }
+    public string? WorkspacePath { get; set; }
+}
+
+/// <summary>纠正一条已有长期记忆。只接受提炼后的结论，不接受整段聊天记录。</summary>
+public class CorrectMemoryRequest
+{
+    public string? Title { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public string? Reason { get; set; }
 }
 
 public class SearchMemoryRequest
@@ -81,6 +110,15 @@ public class SearchMemoryRequest
     public string? Tag { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
+
+    /// <summary>按 Bot 隔离。有值时只命中该 Bot，以及未标记 Bot 的共享记忆。</summary>
+    public string? BotId { get; set; }
+
+    /// <summary>按项目隔离。</summary>
+    public string? ProjectId { get; set; }
+
+    /// <summary>按工作区路径隔离。与 ProjectId 同属项目维度。</summary>
+    public string? WorkspacePath { get; set; }
 }
 
 public class MemorySearchResult
@@ -144,6 +182,9 @@ public class ImportMemoryRequest
 {
     public List<ImportMemoryItem> Items { get; set; } = new();
     public bool OverwriteExisting { get; set; }
+    public string? BotId { get; set; }
+    public string? ProjectId { get; set; }
+    public string? WorkspacePath { get; set; }
 }
 
 public class ImportMemoryItem
@@ -155,4 +196,7 @@ public class ImportMemoryItem
     public List<string>? Tags { get; set; }
     public string? CategoryName { get; set; }
     public string? Source { get; set; }
+    public string? BotId { get; set; }
+    public string? ProjectId { get; set; }
+    public string? WorkspacePath { get; set; }
 }

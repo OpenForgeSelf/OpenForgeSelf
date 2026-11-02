@@ -13,6 +13,7 @@ describe('tabs store', () => {
     expect(store.tabs.length).toBe(4)
     expect(store.tabs.some((t) => t.path === '/')).toBe(true)
     expect(store.hasTab('/ai-agent')).toBe(true)
+    expect(store.tabs.find((t) => t.path === '/ai-agent')?.label).toBe('智能体')
     expect(store.hasTab('/mcp-tools')).toBe(false) // MCP 中心已迁入插件（034 v2.0.0），宿主不再内置标签
   })
 

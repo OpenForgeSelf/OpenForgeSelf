@@ -12,6 +12,10 @@ public interface IMemoryService
     Task<MemoryDto?> GetByIdAsync(long id);
     Task<MemoryDto> CreateAsync(CreateMemoryRequest request);
     Task<MemoryDto?> UpdateAsync(long id, UpdateMemoryRequest request);
+
+    /// <summary>纠正一条长期记忆的标题或内容。不接收整段聊天记录。</summary>
+    Task<MemoryDto?> CorrectAsync(long id, CorrectMemoryRequest request);
+
     Task<bool> DeleteAsync(long id);
     Task<bool> IncrementAccessAsync(long id);
     Task<List<MemoryCategoryDto>> GetCategoriesAsync();
@@ -19,9 +23,9 @@ public interface IMemoryService
     Task<MemoryCategoryDto?> UpdateCategoryAsync(long id, UpdateMemoryCategoryRequest request);
     Task<bool> DeleteCategoryAsync(long id);
     Task<MemoryStatsDto> GetStatsAsync();
-    Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 10, double minScore = 0.1);
+    Task<List<MemoryDto>> GetRelevantMemoriesAsync(string query, int limit = 10, double minScore = 0.1, string? botId = null, string? projectId = null, string? workspacePath = null);
     Task<int> ImportMemoriesAsync(ImportMemoryRequest request);
-    Task<List<MemoryDto>> ExportMemoriesAsync(long? categoryId = null, MemoryType? type = null);
+    Task<List<MemoryDto>> ExportMemoriesAsync(long? categoryId = null, MemoryType? type = null, string? botId = null, string? projectId = null, string? workspacePath = null);
 
     void SetShortTermMemory(string sessionId, string key, string value, TimeSpan? ttl = null);
     string? GetShortTermMemory(string sessionId, string key);

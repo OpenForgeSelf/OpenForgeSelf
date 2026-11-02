@@ -4,7 +4,7 @@
 
 **以器铸己，日积寸进**
 
-一个可无限扩展的个人全能工具箱：插件化架构 × AI Agent 融合 × 能力沉淀
+本机个人可扩展 Agent 平台：插件化架构 × **智能体**（执行中枢 MAF） × 能力沉淀
 
 ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4) ![Vue](https://img.shields.io/badge/Vue-3.5-42B883) ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -14,15 +14,17 @@
 
 ## 简介
 
-**铸己匣**（OpenForgeSelf）是一个运行在 Windows 桌面的个人全能工具箱（托盘常驻 + 自动更新）。寓意「用工具锻造自己」：所有功能以**插件**形式接入，AI Agent 作为"特殊插件"可以调用其他所有插件——用自然语言操控工具、自动规划执行复杂任务链，随使用不断沉淀属于自己的能力资产。
+**铸己匣**（OpenForgeSelf）是运行在 Windows 桌面的**本机个人可扩展 Agent 平台**（托盘常驻 + 自动更新）。寓意「用工具锻造自己」：所有能力以**插件**形式接入。用户看到的入口叫 **智能体**；**MAF** 是一等执行中枢（MAF Runtime）——Chat 只是任务入口之一，真正驱动单元是 Task/Run；工具统一经权限与审批管线执行，随使用在本地沉淀属于自己的能力资产。
+
+产品愿景与路线图真源：[`docs/00-vision/01-vision.md`](docs/00-vision/01-vision.md) · [`docs/00-vision/02-goals.md`](docs/00-vision/02-goals.md) · 架构 [`docs/01-architecture/maf-centric-architecture.md`](docs/01-architecture/maf-centric-architecture.md)。
 
 ## 核心特性
 
-- **插件化架构** — 统一插件接口 + 热插拔：新增功能不用改核心代码，把插件放进 `Plugins/` 目录即可。
-- **AI Agent 融合** — AI 代理核心可调用 50+ 工具函数，自动规划、执行复杂任务链，支持多模型接入。
+- **插件化架构** — 统一插件接口 + 热插拔：新增功能不用改核心代码，把插件放进 `Plugins/` 目录即可；内核 / MAF 只做编排与安全接缝。
+- **智能体（执行中枢 MAF）** — 默认任务循环基于 Microsoft Agent Framework 落地（`MafTaskLoopAgent` / MAF Runtime）；开放任务 / 计划任务双入口；工具经 ToolRegistry 六闸门（Permission → Approval → Execute → Result）。插件 Id 仍 `ai-agent`，路由仍 `/ai-agent`。
 - **能力沉淀** — 长期记忆、个人能力画像与成长曲线，使用数据全部本地记录。
 - **对外扩展** — MCP 中心对外暴露宿主全部工具、可接入外部 MCP 服务器（支持 MCP 2.0 协议协商）；IM 网关统一接入企业微信 / 公众号 / 飞书 / 钉钉。
-- **本地优先** — SQLite 本地存储，敏感凭据（AI 提供方 ApiKey 等）AES-256 加密落库，接口仅返回掩码。
+- **本地优先** — SQLite 本地存储，敏感凭据（AI 提供方 ApiKey 等）AES-256 加密落库，接口仅返回掩码；不做云端计算机 / 团队企业管理。
 - **工程化纪律** — AI-Native 开发闭环（`AGENTS.md` + `docs/`），打 tag 自动发布（CI 打包 GitHub Release）。
 
 ## 功能模块
@@ -31,7 +33,7 @@
 
 | 模块 | 分类 | 说明 |
 |---|---|---|
-| AI Agent | AI | AI代理核心，自然语言操控工具，自动规划执行复杂任务链 |
+| 智能体 | AI | 执行中枢 MAF：自然语言任务入口 + 工具调用 + 开放/计划任务循环（插件 Id 仍为 ai-agent，路由 `/ai-agent`） |
 | 快捷链接 | 工具 | 一键打开常用网址，支持分组管理 |
 | 文本工具 | 工具 | 格式化、编码转换、哈希计算等文本处理工具集 |
 | 文件工具 | 工具 | 批量重命名、清理、压缩解压等文件管理工具 |

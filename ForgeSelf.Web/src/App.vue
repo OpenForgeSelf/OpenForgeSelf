@@ -86,7 +86,7 @@ watch(
     class="assistant-bubble"
     title="召唤助手"
     aria-label="召唤助手"
-    @click="openPage('/ai-agent', 'AI Agent')"
+    @click="openPage('/ai-agent', '智能体')"
   >
     <el-icon :size="18"><MagicStick /></el-icon>
   </button>

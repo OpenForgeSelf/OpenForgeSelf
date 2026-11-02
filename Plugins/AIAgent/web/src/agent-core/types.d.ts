@@ -87,6 +87,9 @@ export interface AgentChatConfig {
       title: string
       detail?: string
       risk?: 'low' | 'medium' | 'high' | 'critical'
+      riskLabel?: string
+      /** 完整命令/参数原文，审批前必须能看全 */
+      argsText?: string
       options?: string[]
     }>
     progress?: number

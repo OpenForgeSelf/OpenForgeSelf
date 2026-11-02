@@ -10,6 +10,7 @@ import ChatView from '@/views/ChatView.vue'
 import TextToolsView from '@/views/TextToolsView.vue'
 import DevToolsView from '@/views/DevToolsView.vue'
 import ScriptLibrary from '@/views/ScriptLibrary.vue'
+import RouteMissingView from '@/views/RouteMissingView.vue'
 import AgentsManageView from '@/views/AgentsManageView.vue'
 import AllFeaturesView from '@/views/AllFeaturesView.vue'
 import ProfileView from '@/views/ProfileView.vue'
@@ -147,6 +148,11 @@ const router = createRouter({
       path: '/script-runner',
       name: 'script-runner',
       component: ScriptLibrary
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'route-missing',
+      component: RouteMissingView
     }
   ]
 })

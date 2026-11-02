@@ -26,6 +26,8 @@
 | 工具 ParametersJsonSchema / 工具注册契约 / 万能工具网关按名调用 | PC-017 |
 | 工具/端点报 success 但副作用未落定（写盘/终态/写库） | PC-018 |
 | flex/grid 子项尺寸约束双面：shrink 面压缩裁切/残行 + min-width 面长文本撑破挤压分栏 | PC-019 |
+| 插件新增第三方 NuGet / 插件控制器构造函数 | PC-020 |
+| 智能体顶栏旧名 / 主区域空注释 / 兜底路由把插件路径判成冲突 | PC-021 |
 
 ## 台账总表
 
@@ -50,6 +52,8 @@
 | PC-017 | 工具 ParametersJsonSchema 重复键少闭合括号，该工具经网关任何调用全挂 | guarded | G2 active（ToolSchemaJsonGuardTests） | 0 | [PC-017](PC-017-tool-schema-json-duplicate-key.md) |
 | PC-018 | 执行体报 success 但真实副作用未落定（write_file 零落盘） | guarded | G2 active（FileToolsWritePersistTests） | 0 | [PC-018](PC-018-tool-success-without-side-effect.md) |
 | PC-019 | flex/grid 子项尺寸约束双面：shrink 面（缺 flex-shrink:0 压扁/残行；max-height 无 overflow 叠画）+ min-width 面（超宽内容缺 min-width:0 撑破分栏，短种子走查不可见） | guarded | G2 active ×2（ai-agent AC-9 几何锁 + im-gateway 压力几何锁） | 1（10-31 IM 网关 min-width 面复发；先发例 10-26 Home 建档前） | [PC-019](PC-019-flex-shrink-column-compression.md) |
+| PC-020 | 插件依赖在宿主加载期解析不到（NuGet 未进 bin，或控制器构造注入宿主契约） | guarded | G2 active（PluginLoadDependencyGuardTests） | 2 | [PC-020](PC-020-plugin-dependency-unresolved.md) |
+| PC-021 | 智能体入口顶栏仍用旧名，或主区域因兜底路由被判冲突而空白 | guarded | G1×2 active | 1 | [PC-021](PC-021-agent-entry-blank-or-old-name.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

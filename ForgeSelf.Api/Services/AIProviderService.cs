@@ -379,12 +379,13 @@ public class AIProviderService : IAIProviderService
     /// <summary>实体 → 运行期配置（显式解密 ApiKey 为明文，由本服务按需调用）</summary>
     private AIProviderConfig ToConfig(AIProvider entity)
     {
+        var providerType = System.Enum.TryParse<AIProviderType>(entity.ProviderType, true, out var t)
+            ? t
+            : AIProviderType.OpenAI;
         return new AIProviderConfig
         {
             Name = entity.Name,
-            ProviderType = System.Enum.TryParse<AIProviderType>(entity.ProviderType, true, out var t)
-                ? t
-                : AIProviderType.OpenAI,
+            ProviderType = providerType,
             Endpoint = entity.Endpoint,
             ApiKey = _encryption.Decrypt(entity.ApiKey),
             SupportedModels = string.IsNullOrEmpty(entity.SupportedModels)
@@ -394,6 +395,7 @@ public class AIProviderService : IAIProviderService
                     .ToList(),
             IsDefault = entity.IsDefault,
             TimeoutSeconds = entity.TimeoutSeconds > 0 ? entity.TimeoutSeconds : 120,
+            Deployment = LocalModelGate.ResolveDeployment(providerType, entity.Endpoint),
             VisionModel = string.IsNullOrEmpty(entity.VisionModel) ? null : entity.VisionModel,
             EnableMultimodal = entity.EnableMultimodal,
             VisionPromptTemplate = string.IsNullOrEmpty(entity.VisionPromptTemplate) ? null : entity.VisionPromptTemplate

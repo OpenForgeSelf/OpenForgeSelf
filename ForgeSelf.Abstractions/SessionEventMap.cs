@@ -15,6 +15,7 @@ public static class SessionEventMap
         ["assistant/attempt"] = typeof(AssistantAttemptEvent),
         ["tool/call"] = typeof(ToolCallEvent),
         ["tool/result"] = typeof(ToolResultEvent),
+        ["tool/approval-request"] = typeof(ToolApprovalRequestEvent),
         ["turn/start"] = typeof(TurnStartEvent),
         ["turn/end"] = typeof(TurnEndEvent),
         ["step/start"] = typeof(StepStartEvent),

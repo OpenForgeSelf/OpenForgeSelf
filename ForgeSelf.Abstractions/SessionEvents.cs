@@ -50,6 +50,15 @@ public sealed record ToolResultEvent(long Id, string SessionId, DateTimeOffset T
     string CallId, string ToolName, string ResultJson, ToolOutcome Outcome, long DurationMs) : SessionEvent(Id, SessionId, Timestamp)
 { public override string Type => "tool/result"; }
 
+/// <summary>
+/// 工具审批请求（P0 / MAF）：<c>ToolApprovalRequestContent</c> 落盘事实。
+/// 对模型不可见；挂起回合等待人工决策后以 <c>ToolApprovalResponseContent</c> 续跑。
+/// </summary>
+public sealed record ToolApprovalRequestEvent(long Id, string SessionId, DateTimeOffset Timestamp,
+    long ApprovalId, string MeaiRequestId, string CallId, string ToolName, string ArgsJson, string RiskLevel)
+    : SessionEvent(Id, SessionId, Timestamp)
+{ public override string Type => "tool/approval-request"; }
+
 // ---- 结构类（turn/step 由 041 正式启用；040 先注册占位，避免二次破坏性变更） ----
 
 /// <summary>回合开始。</summary>

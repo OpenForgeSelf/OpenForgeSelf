@@ -1,4 +1,7 @@
-export type AIProviderType = 'OpenAI' | 'OpenAIResponses' | 'Anthropic' | 'Custom'
+export type AIProviderType = 'OpenAI' | 'OpenAIResponses' | 'Anthropic' | 'Custom' | 'Ollama' | 'LMStudio'
+
+/** 按端点主机标记：回环地址为本地，其余为远程 */
+export type AIProviderDeployment = 'Local' | 'Remote'
 
 /** AI 提供方（列表/详情），ApiKey 仅返回掩码 */
 export interface AIProvider {
@@ -15,6 +18,8 @@ export interface AIProvider {
   visionPromptTemplate: string | null
   createTime: string
   updateTime: string
+  /** 本地 / 远程。缺省时由端点主机推断 */
+  deployment?: AIProviderDeployment
 }
 
 /**

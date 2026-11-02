@@ -4,7 +4,7 @@ namespace ForgeSelf.Abstractions;
 /// 工具命名空间规则（2026-10-28 工具命名空间统一，ADR-004）：
 /// 1) 工具正式名 = <c>&lt;toolPrefix&gt;_&lt;语义名&gt;</c>，前缀按插件声明（<see cref="PrefixByPluginId"/> 唯一真源，
 ///    plugin.json 的 toolPrefix 字段与之同源，由 ToolNamespaceGuardTests 校验一致）；
-/// 2) 平台保留名（<see cref="ReservedNames"/>，11 个）豁免前缀——运行时协议面：网关/发现/循环控制/计划流协议/命令执行/文件三件套；
+/// 2) 平台保留名（<see cref="ReservedNames"/>）豁免前缀——运行时协议面：网关/发现/循环控制/计划流协议/命令执行/文件工具；
 /// 3) **mcp-center 整插件豁免**（用户拍板 2026-10-28 17:29「mcp中心的工具不用前缀，是特殊例外」）：
 ///    mcp-center 是平台公共工具宿主，其工具名即公共 API 面，不加插件前缀（get_current_time/calculate 因此不加 mcp_ 前缀）；
 /// 4) 不做存量兼容（用户拍板 2026-10-28）：旧名直接退役，无别名层、无数据迁移，模型调旧名走 unknown 提示。
@@ -20,8 +20,9 @@ public static class ToolNamespace
     {
         // 发现与网关（mcp-center）
         "universal_tool", "search_tools", "list_tools",
-        // 公共执行与文件三件套（mcp-center，用户拍板 2026-10-28 裸名豁免）
+        // 公共执行与文件工具（裸名豁免；2026-11-02 补齐八件套）
         "run_terminal_command", "read_file", "write_file", "list_files",
+        "search_files", "search_content", "move_file", "rename_file", "delete_file",
         // Agent 循环控制与计划流协议（ai-agent）
         "finish", "submit_plan", "complete_step", "request_help",
     };
@@ -57,6 +58,7 @@ public static class ToolNamespace
         {
             ["ai-agent"] = "aiagent",
             ["agent-hub"] = "hub",
+            ["browser-use"] = "browser",
             ["dev-tools"] = "dev",
             ["file-tools"] = "file",
             ["memory-system"] = "memory",

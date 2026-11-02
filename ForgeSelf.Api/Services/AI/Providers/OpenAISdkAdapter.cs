@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Services.AI;
 using NewLife.Log;
 using OpenAI;
 using OpenAI.Chat;
@@ -78,8 +79,9 @@ internal static class OpenAISdkAdapter
     public static OpenAIClient CreateResponsesClient(AIProviderConfig config, HttpClient httpClient)
         => CreateClient(config, httpClient, DeriveResponsesBaseUrl(config.Endpoint));
 
- private static OpenAIClient CreateClient(AIProviderConfig config, HttpClient httpClient, string baseUrl)
+    private static OpenAIClient CreateClient(AIProviderConfig config, HttpClient httpClient, string baseUrl)
     {
+        LocalModelGate.EnsureAllowed(baseUrl);
         var options = new OpenAIClientOptions
         {
             Endpoint = new Uri(baseUrl),
@@ -95,7 +97,9 @@ internal static class OpenAISdkAdapter
 
     /// <summary>OpenAI/Custom 共用 OpenAI 兼容推导规则（Custom 在既有 TryGetProviderPathParts 会抛异常，适配器视为 OpenAI 兼容，BC-4）。</summary>
     private static AIProviderType NormalizeType(AIProviderType type)
-        => type == AIProviderType.Custom ? AIProviderType.OpenAI : type;
+        => type is AIProviderType.Custom or AIProviderType.Ollama or AIProviderType.LMStudio
+            ? AIProviderType.OpenAI
+            : type;
 
     /// <summary>Responses base 推导（与 001 文档测试连接四形态规则同构）：…/responses 剥后缀；…/v1 原样；其余补 /v1。</summary>
     public static string DeriveResponsesBaseUrl(string endpoint)

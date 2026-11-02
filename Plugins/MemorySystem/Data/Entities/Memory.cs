@@ -21,6 +21,8 @@ namespace ForgeSelf.Api.Plugins.MemorySystem.Entities;
 [BindIndex("IX_Memory_CategoryId", false, "CategoryId")]
 [BindIndex("IX_Memory_Importance", false, "Importance")]
 [BindIndex("IX_Memory_CreatedAt", false, "CreatedAt")]
+[BindIndex("IX_Memory_BotId", false, "BotId")]
+[BindIndex("IX_Memory_ProjectId", false, "ProjectId")]
 [BindTable("Memory", Description = "记忆", ConnName = "MemorySystem", DbType = DatabaseType.None)]
 public partial class Memory
 {
@@ -136,6 +138,30 @@ public partial class Memory
     [DataObjectField(false, false, false, 0)]
     [BindColumn("IsDeleted", "是否删除", "")]
     public Boolean IsDeleted { get => _IsDeleted; set { if (OnPropertyChanging("IsDeleted", value)) { _IsDeleted = value; OnPropertyChanged("IsDeleted"); } } }
+
+    private String _BotId;
+    /// <summary>所属 Bot。空表示共享记忆。</summary>
+    [DisplayName("所属Bot")]
+    [Description("所属 Bot。空表示共享记忆")]
+    [DataObjectField(false, false, true, 128)]
+    [BindColumn("BotId", "所属 Bot。空表示共享记忆", "")]
+    public String BotId { get => _BotId; set { if (OnPropertyChanging("BotId", value)) { _BotId = value; OnPropertyChanged("BotId"); } } }
+
+    private String _ProjectId;
+    /// <summary>所属项目。</summary>
+    [DisplayName("所属项目")]
+    [Description("所属项目")]
+    [DataObjectField(false, false, true, 128)]
+    [BindColumn("ProjectId", "所属项目", "")]
+    public String ProjectId { get => _ProjectId; set { if (OnPropertyChanging("ProjectId", value)) { _ProjectId = value; OnPropertyChanged("ProjectId"); } } }
+
+    private String _WorkspacePath;
+    /// <summary>工作区路径。与 ProjectId 同属项目维度。</summary>
+    [DisplayName("工作区路径")]
+    [Description("工作区路径")]
+    [DataObjectField(false, false, true, 500)]
+    [BindColumn("WorkspacePath", "工作区路径", "")]
+    public String WorkspacePath { get => _WorkspacePath; set { if (OnPropertyChanging("WorkspacePath", value)) { _WorkspacePath = value; OnPropertyChanged("WorkspacePath"); } } }
     #endregion
 
     #region 获取/设置 字段值
@@ -160,6 +186,9 @@ public partial class Memory
             "CreatedAt" => _CreatedAt,
             "UpdatedAt" => _UpdatedAt,
             "IsDeleted" => _IsDeleted,
+            "BotId" => _BotId,
+            "ProjectId" => _ProjectId,
+            "WorkspacePath" => _WorkspacePath,
             _ => base[name]
         };
         set
@@ -180,6 +209,9 @@ public partial class Memory
                 case "CreatedAt": _CreatedAt = value.ToDateTime(); break;
                 case "UpdatedAt": _UpdatedAt = value.ToDateTime(); break;
                 case "IsDeleted": _IsDeleted = value.ToBoolean(); break;
+                case "BotId": _BotId = Convert.ToString(value); break;
+                case "ProjectId": _ProjectId = Convert.ToString(value); break;
+                case "WorkspacePath": _WorkspacePath = Convert.ToString(value); break;
                 default: base[name] = value; break;
             }
         }
@@ -318,6 +350,15 @@ public partial class Memory
         /// <summary>是否删除</summary>
         public static readonly Field IsDeleted = FindByName("IsDeleted");
 
+        /// <summary>所属 Bot</summary>
+        public static readonly Field BotId = FindByName("BotId");
+
+        /// <summary>所属项目</summary>
+        public static readonly Field ProjectId = FindByName("ProjectId");
+
+        /// <summary>工作区路径</summary>
+        public static readonly Field WorkspacePath = FindByName("WorkspacePath");
+
         static Field FindByName(String name) => Meta.Table.FindByName(name);
     }
 
@@ -365,6 +406,15 @@ public partial class Memory
 
         /// <summary>是否删除</summary>
         public const String IsDeleted = "IsDeleted";
+
+        /// <summary>所属 Bot</summary>
+        public const String BotId = "BotId";
+
+        /// <summary>所属项目</summary>
+        public const String ProjectId = "ProjectId";
+
+        /// <summary>工作区路径</summary>
+        public const String WorkspacePath = "WorkspacePath";
     }
     #endregion
 }

@@ -1,0 +1,16 @@
+{
+  "Id": "browser-use",
+  "toolPrefix": "browser",
+  "Name": "浏览器",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf",
+  "Description": "本机个人浏览器（Playwright Chromium）。工具：browser_open、browser_navigate、browser_snapshot、browser_click、browser_fill、browser_extract、browser_screenshot、browser_download。域名白名单写在插件数据目录 config.json 的 allowedDomains（可用环境变量 FORGESELF_BROWSER_ALLOWED_DOMAINS 追加）；未在白名单的导航与其它跳转默认拒绝，并在结果里标记 needsApproval。browser_click 与 browser_download 在高风险名单中。遇到 CAPTCHA 或 SSO 返回需要人工接管，不代填、不绕过。只把文件下载到插件数据目录，不执行。不做团队共享，无界面。",
+  "IconUrl": "",
+  "EntryAssembly": "BrowserUse.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.BrowserUse.BrowserUsePlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "write_config"
+  ]
+}

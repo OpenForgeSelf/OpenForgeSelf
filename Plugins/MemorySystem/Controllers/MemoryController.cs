@@ -65,6 +65,10 @@ public class MemoryController : ControllerBase
             var memory = await _memoryService.CreateAsync(request);
             return Ok(memory);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, error = ex.Message });
+        }
         catch (Exception ex)
         {
             XTrace.Log.Error("[MemorySystem] 创建记忆失败: {0}", ex.Message);
@@ -83,9 +87,36 @@ public class MemoryController : ControllerBase
 
             return Ok(memory);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, error = ex.Message });
+        }
         catch (Exception ex)
         {
             XTrace.Log.Error("[MemorySystem] 更新记忆失败: {0}", ex.Message);
+            return StatusCode(500, new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>纠正一条长期记忆。只接受提炼后的结论。</summary>
+    [HttpPost("{id}/correct")]
+    public async Task<ActionResult<MemoryDto>> Correct(long id, [FromBody] CorrectMemoryRequest request)
+    {
+        try
+        {
+            var memory = await _memoryService.CorrectAsync(id, request);
+            if (memory == null)
+                return NotFound(new { success = false, error = "记忆不存在" });
+
+            return Ok(memory);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { success = false, error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[MemorySystem] 纠正记忆失败: {0}", ex.Message);
             return StatusCode(500, new { success = false, error = ex.Message });
         }
     }
@@ -198,7 +229,8 @@ public class MemoryController : ControllerBase
         try
         {
             var query = request.Keyword ?? string.Empty;
-            var memories = await _memoryService.GetRelevantMemoriesAsync(query, request.PageSize);
+            var memories = await _memoryService.GetRelevantMemoriesAsync(
+                query, request.PageSize, 0.1, request.BotId, request.ProjectId, request.WorkspacePath);
             return Ok(memories);
         }
         catch (Exception ex)
@@ -224,12 +256,12 @@ public class MemoryController : ControllerBase
     }
 
     [HttpGet("export")]
-    public async Task<ActionResult<List<MemoryDto>>> ExportMemories([FromQuery] long? categoryId, [FromQuery] int? type)
+    public async Task<ActionResult<List<MemoryDto>>> ExportMemories([FromQuery] long? categoryId, [FromQuery] int? type, [FromQuery] string? botId, [FromQuery] string? projectId, [FromQuery] string? workspacePath)
     {
         try
         {
             MemoryType? typeEnum = type.HasValue ? (MemoryType)type.Value : null;
-            var memories = await _memoryService.ExportMemoriesAsync(categoryId, typeEnum);
+            var memories = await _memoryService.ExportMemoriesAsync(categoryId, typeEnum, botId, projectId, workspacePath);
             return Ok(memories);
         }
         catch (Exception ex)

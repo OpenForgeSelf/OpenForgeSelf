@@ -1,23 +1,54 @@
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services;
 
 /// <summary>
-/// 默认审批服务：无审批 UI/人工通道时的占位实现——<b>恒拒绝</b>（fail-closed，A1）。
+/// 占位审批服务：无持久化通道时的 fail-closed 实现——Ask 恒拒绝。
+/// 生产默认已改为 <see cref="PersistentApprovalService"/>；本类保留给测试/降级。
 /// </summary>
-/// <remarks>
-/// 宿主默认注册本实现：任何 <c>PreToolDecision.Ask</c> 在没有真实审批服务替换它之前一律拒绝，
-/// 保证「需要审批」语义在无审批能力时不会静默放行。真实审批服务就绪后经 DI 替换本注册即可。
-/// </remarks>
 public sealed class NoopApprovalService : IApprovalService
 {
     /// <inheritdoc />
     public Task<bool> AskAsync(string sessionId, string toolName, string argsJson, string? reason, CancellationToken ct)
     {
-        // fail-closed：占位实现永不放行。ct 仅为契约完整性保留（本实现同步返回，无需等待）。
         _ = ct;
         XTrace.Log.Info("[NoopApprovalService] Ask 审批被占位实现拒绝（fail-closed）: tool={0}, session={1}, reason={2}",
             toolName, sessionId, reason ?? "(无)");
         return Task.FromResult(false);
     }
+
+    /// <inheritdoc />
+    public Task<ApprovalDto> CreatePendingAsync(ApprovalCreateRequest request, CancellationToken ct = default)
+    {
+        _ = ct;
+        var now = DateTimeOffset.UtcNow;
+        return Task.FromResult(new ApprovalDto
+        {
+            Id = 0,
+            SessionId = request.SessionId,
+            ToolName = request.ToolName,
+            ArgsJson = request.ArgsJson,
+            ArgsHash = string.Empty,
+            RiskLevel = request.RiskLevel,
+            Description = request.Description ?? string.Empty,
+            Status = nameof(ApprovalStatus.Denied),
+            CreatedAt = now,
+            ExpiresAt = now,
+            MeaiRequestId = request.MeaiRequestId,
+            CallId = request.CallId,
+        });
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ApprovalDto>> ListBySessionAsync(string sessionId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ApprovalDto>>(Array.Empty<ApprovalDto>());
+
+    /// <inheritdoc />
+    public Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default)
+        => Task.FromResult<ApprovalDto?>(null);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ApprovalContinuation>> ConsumeContinuationsAsync(string sessionId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ApprovalContinuation>>(Array.Empty<ApprovalContinuation>());
 }

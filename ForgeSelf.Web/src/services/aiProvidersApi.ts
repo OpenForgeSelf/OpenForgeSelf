@@ -48,6 +48,20 @@ export const aiProvidersApi = {
    * 测试连接：传 modelId 时后端用该已登记模型发真实 chat（响应含 ok 判成功）；
    * 不传（仅 id）= 兼容旧行为，后端仅探连通。
    */
+  /** 本地模式：开启后后端拒绝向非本机地址发模型请求 */
+  async getLocalMode(): Promise<boolean> {
+    const json = await request<any>(`${API_BASE}/local-mode`)
+    return Boolean(json.data?.enabled)
+  },
+
+  async setLocalMode(enabled: boolean): Promise<boolean> {
+    const json = await request<any>(`${API_BASE}/local-mode`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    })
+    return Boolean(json.data?.enabled)
+  },
+
   async test(id: number, modelId?: number | null): Promise<AIProviderTestResult> {
     const body: AIProviderTestRequest = modelId != null ? { modelId } : {}
     const json = await request<any>(`${API_BASE}/${id}/test`, { method: 'POST', body: JSON.stringify(body) })

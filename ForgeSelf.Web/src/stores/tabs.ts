@@ -10,7 +10,7 @@ export interface NavTab {
 // 基础标签：默认常驻标签栏（首页不可关闭，其余可关闭隐藏）
 const DEFAULT_TABS: NavTab[] = [
   { key: 'home', label: '首页', path: '/' },
-  { key: 'ai-agent', label: 'AI Agent', path: '/ai-agent' },
+  { key: 'ai-agent', label: '智能体', path: '/ai-agent' },
   { key: 'skills', label: '技能管理', path: '/skills' },
   { key: 'system-monitor', label: '系统监控', path: '/system-monitor' },
 ]

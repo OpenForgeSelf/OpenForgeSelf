@@ -55,6 +55,10 @@ public class TaskExecutor : ITaskExecutor
                     resultMessage = ExecuteSystemCommand(task);
                     break;
 
+                case ScheduledTaskType.AgentRun:
+                    resultMessage = await AgentRunTaskHandler.ExecuteAsync(task, _serviceProvider);
+                    break;
+
                 default:
                     throw new NotSupportedException($"不支持的任务类型: {task.TaskType}");
             }

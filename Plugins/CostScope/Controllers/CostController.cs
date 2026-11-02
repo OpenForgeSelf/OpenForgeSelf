@@ -1,6 +1,7 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.CostScope.Entities;
 using ForgeSelf.Api.Plugins.CostScope.Services;
+using ForgeSelf.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
@@ -50,22 +51,29 @@ public class CostController : ControllerBase
     /// <summary>分页每页上限（防止大时间窗一次性全表扫，NFR-4）。</summary>
     public const int MaxSize = 500;
 
-    private readonly ITurnTelemetryQuery _telemetry;
+    private readonly IContext _ctx;
     private readonly PriceCatalogService _prices;
     private readonly BudgetService _budgets;
     private readonly TraceProjectionService _trace;
 
+    /// <summary>
+    /// 轮次遥测是宿主契约。插件子容器解析不到它，构造注入会让本控制器激活 500。
+    /// </summary>
     public CostController(
-        ITurnTelemetryQuery telemetry,
+        IContext ctx,
         PriceCatalogService prices,
         BudgetService budgets,
         TraceProjectionService trace)
     {
-        _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
         _prices = prices ?? throw new ArgumentNullException(nameof(prices));
         _budgets = budgets ?? throw new ArgumentNullException(nameof(budgets));
         _trace = trace ?? throw new ArgumentNullException(nameof(trace));
     }
+
+    private ITurnTelemetryQuery Telemetry()
+        => _ctx.Get<ITurnTelemetryQuery>()
+           ?? throw new InvalidOperationException("宿主未提供 ITurnTelemetryQuery");
 
     // ---------- 读取类 ----------
 
@@ -392,9 +400,9 @@ public class CostController : ControllerBase
             Style = string.IsNullOrWhiteSpace(style) ? null : style,
         };
 
-        var turns = await _telemetry.QueryTurnsAsync(filter, ct);
+        var turns = await Telemetry().QueryTurnsAsync(filter, ct);
 
-        var catalog = await _telemetry.GetModelCatalogAsync(ct);
+        var catalog = await Telemetry().GetModelCatalogAsync(ct);
 
         // 目录快照在本次请求内固定：同一份目录喂给所有模型，避免请求中途目录变化导致归属不一致。
         // 解析结果按模型**记忆化**：聚合器对每条记录都会问一次「这个模型归谁」，
@@ -426,7 +434,7 @@ public class CostController : ControllerBase
         var runs = new List<AgentRunTelemetry>(runIds.Count);
         foreach (var id in runIds)
         {
-            var run = await _telemetry.GetAgentRunTelemetryAsync(id, ct);
+            var run = await Telemetry().GetAgentRunTelemetryAsync(id, ct);
             if (run is not null) runs.Add(run);
         }
 

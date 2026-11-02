@@ -14,8 +14,9 @@
 | 你想…… | 去这里 |
 |--------|--------|
 | 判断一个新功能**该不该做**（裁判依据） | [`00-vision/03-principles.md`](00-vision/03-principles.md) |
-| 了解项目**为什么存在、要去哪** | [`00-vision/01-vision.md`](00-vision/01-vision.md) |
-| 看项目**现在处于哪个阶段、目标是什么** | [`00-vision/02-goals.md`](00-vision/02-goals.md) |
+| 了解项目**为什么存在、要去哪**（铸己匣=本机个人 Agent 平台；对外插件「智能体」，执行中枢 MAF 一等） | [`00-vision/01-vision.md`](00-vision/01-vision.md) |
+| 看项目**现在处于哪个阶段、目标是什么**（含 MAF P0–P4 路线图） | [`00-vision/02-goals.md`](00-vision/02-goals.md) |
+| 查 **MAF 中心架构与命名体系**（四层：工作台→MAF Runtime→执行安全内核→本机能力插件；旧名 FreeLoop/PlanDriven 对照） | [`01-architecture/maf-centric-architecture.md`](01-architecture/maf-centric-architecture.md)（2026-11-02；超集 dsh 运行时叙事） |
 | 了解**系统整体怎么搭的**（技术架构） | [`01-architecture/overview.md`](01-architecture/overview.md)；可交互架构图 [`01-architecture/architecture-diagram.html`](01-architecture/architecture-diagram.html)（四层总览+启动装配链）；宿主→插件能力供给（三层模型 L1 契约/L2 事件/L3 拦截）见 [`01-architecture/host-capability-seams.md`](01-architecture/host-capability-seams.md)；**对标 DeepSeek Harness 的改造总纲与施工计划** [`01-architecture/dsh-alignment-plan.md`](01-architecture/dsh-alignment-plan.md) + [`01-architecture/dsh-alignment-施工总览.md`](01-architecture/dsh-alignment-施工总览.md)（三阶段 × 八批次） |
 | 新功能**设计该遵循什么通用模式** | [`03-design/patterns.md`](03-design/patterns.md)（核心模式已下沉到具体功能文档） |
 | 查 **UI/UX 设计规范与品牌一致性的唯一真源**（色板/token/字体/组件规格/动效/Plugin-First 约定/**新建页面·新建查询执行规范**） | 仓库根 [`DESIGN.md`](../DESIGN.md)（2026-10-10 起以高保真设计稿 `design_files/` 为唯一真源；色值守卫 `ForgeSelf.Web/scripts/check-style-tokens.mjs`；涉 UI 改动 Spec 必含 Interaction Design 节） |
@@ -33,7 +34,9 @@
 | 确认**用户更新动线**（插件更新页从哪进、不重启生效的三条口子、已知宿主缺陷） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.8** |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
 | 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |
-| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[002 万能工具走 ToolRegistry 分发核](07-decisions/002-universal-tool-gateway-and-terminal-tool.md)；[003 外部 MCP 工具枚举可见+调用可达（修订 D10 枚举侧）](07-decisions/003-mcp-external-tools-enum-merge.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
+| 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[002 万能工具走 ToolRegistry 分发核](07-decisions/002-universal-tool-gateway-and-terminal-tool.md)；[003 外部 MCP 工具枚举可见+调用可达（修订 D10 枚举侧）](07-decisions/003-mcp-external-tools-enum-merge.md)；[005 本机 Agent 复用 MAF、不另起平行 Runtime](07-decisions/005-maf-local-agent-reuse.md)；[006 MAF 一等公民 + 绿场重设计](07-decisions/006-maf-first-class-greenfield.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
+| 确认 **执行中枢 MAF 是否一等 / 插件名是否为智能体 / 绿场是否做迁移** | [`07-decisions/006-maf-first-class-greenfield.md`](07-decisions/006-maf-first-class-greenfield.md)；愿景 [`00-vision/01-vision.md`](00-vision/01-vision.md)；pilot [`ai/pilot/2026-11-02-maf-first-class/`](ai/pilot/2026-11-02-maf-first-class/) |
+| 确认**本机 Agent / LocalBot 该不该另起 Runtime**（主路径是否已是 MAF、审批协议缺口、终端超时不杀进程） | [`07-decisions/005-maf-local-agent-reuse.md`](07-decisions/005-maf-local-agent-reuse.md)（Accepted；品牌口径见 006）；事实快照见 [`02-features/021-ai-agent.md`](02-features/021-ai-agent.md)「执行链路现状快照」 |
 | 涉及**密钥/权限/敏感数据**的操作 | [`08-security/baseline.md`](08-security/baseline.md) |
 | **部署/发布/运维**服务器 | [`09-operations/deployment.md`](09-operations/deployment.md) |
 | 写测试前了解**测试策略与铁律** | [`10-testing/strategy.md`](10-testing/strategy.md) |

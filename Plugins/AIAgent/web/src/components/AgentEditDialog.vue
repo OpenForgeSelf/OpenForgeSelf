@@ -58,13 +58,13 @@
           <div class="aed__mode">
             <label class="aed__mode-opt" :class="{ 'aed__mode-opt--on': form.executionMode === 'free' }">
               <input v-model="form.executionMode" type="radio" value="free" />
-              <span class="aed__mode-name">自由循环 FreeLoop</span>
-              <span class="aed__mode-desc">现状默认：一次对话内自由思考与工具调用</span>
+              <span class="aed__mode-name">开放任务</span>
+              <span class="aed__mode-desc">默认：对话入口驱动任务循环与工具调用（执行中枢 MAF Runtime）</span>
             </label>
             <label class="aed__mode-opt" :class="{ 'aed__mode-opt--on': form.executionMode === 'plan' }">
               <input v-model="form.executionMode" type="radio" value="plan" />
-              <span class="aed__mode-name">计划驱动 PlanDriven</span>
-              <span class="aed__mode-desc">先规划后逐步执行，步骤可复盘/卡住可人工介入（029）</span>
+              <span class="aed__mode-name">计划任务</span>
+              <span class="aed__mode-desc">先规划后逐步执行（MAF Run），步骤可复盘/卡住可人工介入</span>
             </label>
           </div>
         </div>

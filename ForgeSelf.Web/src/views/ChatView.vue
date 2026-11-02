@@ -201,7 +201,7 @@ function handleClearError() {
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        <span class="chat-agent-name">AI Agent</span>
+        <span class="chat-agent-name">智能体</span>
       </div>
 
       <!-- Message List -->

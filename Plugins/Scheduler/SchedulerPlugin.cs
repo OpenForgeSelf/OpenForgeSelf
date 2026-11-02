@@ -48,7 +48,7 @@ public class SchedulerPlugin : IPlugin
             Id = "scheduler.tool.create_scheduled_task",
             Name = "schedule_create",
             PluginId = pluginId,
-            Description = "创建一个定时任务，支持工作流、系统命令和HTTP Webhook的定时执行",
+            Description = "创建一个定时任务，支持工作流、系统命令、HTTP Webhook，以及本机智能体 Run（AgentRun）的定时执行",
             ParametersJsonSchema = @"
 {
     ""type"": ""object"",
@@ -63,12 +63,12 @@ public class SchedulerPlugin : IPlugin
         },
         ""taskType"": {
             ""type"": ""string"",
-            ""description"": ""任务类型：Workflow(工作流)、SystemCommand(系统命令)、HttpWebhook(HTTP请求)"",
-            ""enum"": [""Workflow"", ""SystemCommand"", ""HttpWebhook""]
+            ""description"": ""任务类型：Workflow(工作流)、SystemCommand(系统命令)、HttpWebhook(HTTP请求)、AgentRun(本机智能体 Run，不代跑系统命令)"",
+            ""enum"": [""Workflow"", ""SystemCommand"", ""HttpWebhook"", ""AgentRun""]
         },
         ""targetId"": {
             ""type"": ""string"",
-            ""description"": ""目标ID：工作流ID、命令或URL""
+            ""description"": ""目标ID：工作流ID、命令、URL；AgentRun 时为 Bot/AgentId（也可写在 inputParameters.agentId）""
         },
         ""scheduleType"": {
             ""type"": ""string"",
@@ -94,7 +94,7 @@ public class SchedulerPlugin : IPlugin
         },
         ""inputParameters"": {
             ""type"": ""string"",
-            ""description"": ""输入参数JSON字符串""
+            ""description"": ""输入参数 JSON 字符串。AgentRun 至少含 workspace、prompt，可选 agentId/botId（缺省用 targetId）、approvalPolicy（写操作仍走现有审批，不无人值守执行系统命令）""
         }
     },
     ""required"": [""name"", ""taskType"", ""targetId"", ""scheduleType""]

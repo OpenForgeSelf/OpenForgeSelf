@@ -1,5 +1,7 @@
 using System.Reflection;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
+using Moq;
 using ForgeSelf.Api.Plugins.CostScope;
 using ForgeSelf.Api.Plugins.CostScope.Controllers;
 using ForgeSelf.Api.Plugins.CostScope.Entities;
@@ -80,7 +82,9 @@ public class CostControllerEndpointTests
         ClearAll();
         _prices = new PriceCatalogService();
         _budgets = new BudgetService();
-        _sut = new CostController(_telemetry, _prices, _budgets, new TraceProjectionService());
+        var ctx = new Mock<IContext>();
+        ctx.Setup(c => c.Get<ITurnTelemetryQuery>()).Returns(_telemetry);
+        _sut = new CostController(ctx.Object, _prices, _budgets, new TraceProjectionService());
     }
 
     private static string NewModel(string tag) => $"{tag}-{Guid.NewGuid():N}";

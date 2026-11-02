@@ -46,6 +46,12 @@ public sealed class AgentTurnRuntime
     /// 为 null 时回合认领按空批次处理，<see cref="ReactLoopAgent.Inbox"/> 被访问则抛出。
     /// </summary>
     public IInbox? Inbox { get; init; }
+
+    /// <summary>
+    /// 工具审批服务（P0，可选）。MAF 泵落 <c>ToolApprovalRequestContent</c>、续跑消费决策。
+    /// 为 null 时高风险工具仍包 <c>ApprovalRequiredAIFunction</c>，但无法持久化/续跑（挂起后需外置审批）。
+    /// </summary>
+    public IApprovalService? ApprovalService { get; init; }
 }
 
 // ---- agent/* 拦截点契约（payload/decision 类型；总线签名固定：fallback 必填、无 ct） ----

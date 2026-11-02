@@ -44,7 +44,7 @@ const activeCategory = ref<SettingsCategory>('general');
 
 const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> = {
   general: { eyebrow: 'Settings · 通用设置', title: '配置应用的基本行为与偏好' },
-  'ai-agent': { eyebrow: 'Settings · AI Agent', title: 'Agent 工作台行为与偏好' },
+  'ai-agent': { eyebrow: 'Settings · 智能体', title: '智能体工作台行为与偏好' },
   plugins: { eyebrow: 'Settings · 插件管理', title: '浏览与管理已安装插件' },
   'ai-providers': { eyebrow: 'Settings · AI 提供方', title: '配置大模型服务提供商' },
   'api-server': { eyebrow: 'Settings · API 服务器', title: '宿主 API 监听与端口' },
@@ -64,7 +64,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { key: 'general', label: '通用', icon: markRaw(Setting) },
-  { key: 'ai-agent', label: 'AI Agent', icon: markRaw(Monitor) },
+  { key: 'ai-agent', label: '智能体', icon: markRaw(Monitor) },
   { key: 'plugins', label: '插件管理', icon: markRaw(Grid) },
   { key: 'ai-providers', label: 'AI 提供方', icon: markRaw(Connection) },
   { key: 'api-server', label: 'API 服务器', icon: markRaw(Link) },

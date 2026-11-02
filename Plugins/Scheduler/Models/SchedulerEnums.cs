@@ -4,7 +4,9 @@ public enum ScheduledTaskType
 {
     Workflow = 0,
     SystemCommand = 1,
-    HttpWebhook = 2
+    HttpWebhook = 2,
+    /// <summary>到点在本机宿主进程内创建一次智能体 MAF Run。不代跑系统命令。</summary>
+    AgentRun = 3
 }
 
 public enum ScheduledTaskStatus

@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Services.AI;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -110,7 +111,8 @@ public class OpenAICompatibleProvider : IAIProvider
             AIProviderType.Anthropic => endpoint.Contains("/messages", StringComparison.OrdinalIgnoreCase),
             // BC-4（PILOT-074）：Custom 视同 OpenAI 兼容（既有实现对 Custom 恒返回 false，导致流式推导必抛）
             AIProviderType.Custom => endpoint.Contains("/chat/completions", StringComparison.OrdinalIgnoreCase),
-            // 可扩展其他提供商（如 Ollama、Google 等）
+            AIProviderType.Ollama => endpoint.Contains("/chat/completions", StringComparison.OrdinalIgnoreCase),
+            AIProviderType.LMStudio => endpoint.Contains("/chat/completions", StringComparison.OrdinalIgnoreCase),
             _ => false
         };
     }
@@ -138,11 +140,11 @@ public class OpenAICompatibleProvider : IAIProvider
                 suffix = "/chat/completions";
                 return true;
 
-            // 其他提供商可继续添加：
-            // case AIProviderType.Ollama:
-            //     prefix = "/api";
-            //     suffix = "/chat";
-            //     return true;
+            case AIProviderType.Ollama: // OpenAI 兼容端点，不用原生 /api/chat
+            case AIProviderType.LMStudio:
+                prefix = "/v1";
+                suffix = "/chat/completions";
+                return true;
 
             // case AIProviderType.AzureOpenAI:
             //     // Azure OpenAI 需要部署名和 API 版本，无法仅靠 endpoint 自动拼接，需由调用方提供完整 URL
@@ -186,6 +188,7 @@ public class OpenAICompatibleProvider : IAIProvider
         // - 已经是 .../models                          → 原样使用
         var baseUrl = _config.Endpoint.TrimEnd('/');
         var modelsUrl = DeriveModelsUrl(baseUrl);
+        LocalModelGate.EnsureAllowed(modelsUrl);
 
         XTrace.Log.Info($"[{ProviderName}] 拉取模型列表: Endpoint={_config.Endpoint}, ModelsUrl={modelsUrl}");
 
@@ -251,7 +254,9 @@ public class OpenAICompatibleProvider : IAIProvider
 
     private async Task<List<ModelInfo>> FetchAnthropicModelsAsync(CancellationToken cancellationToken)
     {
-        var req = new HttpRequestMessage(HttpMethod.Get, "https://api.anthropic.com/v1/models");
+        const string anthropicModelsUrl = "https://api.anthropic.com/v1/models";
+        LocalModelGate.EnsureAllowed(anthropicModelsUrl);
+        var req = new HttpRequestMessage(HttpMethod.Get, anthropicModelsUrl);
         req.Headers.Add("x-api-key", _config.ApiKey);
         req.Headers.Add("anthropic-version", "2023-06-01");
 

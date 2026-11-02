@@ -75,8 +75,10 @@ public static class SessionEventProjection
                 case RequestContextEvent:
                 case AssistantAttemptEvent:
                 case InboxSplicedEvent:
-                    // 结构/轨迹类：对模型不可见，但已落日志
+                case ToolApprovalRequestEvent:
+                    // 结构/轨迹/审批类：对模型不可见，但已落日志
                     // （不变量 1 要求「可见则已记录」，不要求「记录即可见」）
+                    // 审批续跑经 IApprovalService.ConsumeContinuationsAsync 注入 ToolApprovalResponseContent，不走本投影。
                     break;
 
                 default:

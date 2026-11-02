@@ -184,6 +184,10 @@ export interface AskItem {
   detail?: string
   /** kind=approval：风险档 */
   risk?: 'low' | 'medium' | 'high' | 'critical'
+  /** kind=approval：风险原文（档位无法映射成四档时原样展示，避免把未知风险说成「中风险」） */
+  riskLabel?: string
+  /** kind=approval：完整参数原文（不截断、不改写成摘要） */
+  argsText?: string
   /** kind=question：候选项 */
   options?: string[]
   /** kind=todo：任务清单 */

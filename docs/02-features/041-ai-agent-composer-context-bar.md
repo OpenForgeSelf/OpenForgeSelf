@@ -106,7 +106,7 @@
 
 | 类型 | 渲染 | 数据来源 |
 | --- | --- | --- |
-| 权限审批 | 复用组件 `approval` 块的紧凑形态（风险徽标 + 标题 + 批准/拒绝） | `config.ask.items`（宿主注入，本批后端无生产者 → 由工具轨迹的 `dangerous` 标记驱动） |
+| 权限审批 | 复用组件 `approval` 块的紧凑形态（风险徽标 + 工具名 + 完整参数 + 批准/拒绝） | `GET /api/ai-agent/approvals?sessionId=` 的 Pending 项，经 `config.ask.items` 注入 |
 | 询问用户 | 选项按钮组（单选/多选） | 同上 |
 | 待办列表 | 紧凑清单（状态点 + 标题 + 进度） | `GET /api/todos`（TodoTracker 插件） |
 
@@ -129,7 +129,7 @@ AIAgent 页状态（projectDir / agents / models / tools / skills / accessMode /
 
 | 缺口 | 影响 | 归属 |
 | --- | --- | --- |
-| 后端无 approval 端点、无工具运行时门禁 | 权限三档是「不挂载」而非「运行时拒绝」；审批卡暂无真实生产者 | 后端另立项 |
+| 后端 approval 端点与运行时门禁 | 权限三档仍是「不挂载」而非「运行时拒绝」。2026-11-02 起前端在既有 `.aiw-ask` 消费 `GET /api/ai-agent/approvals?sessionId=` 与 `POST /api/ai-agent/approvals/{id}/decide`（只展示 Pending，参数全文进卡）。端点实现在后端批次，本文件不改 C# | 后端另立项 |
 | `AIToolDefinition` 无风险元数据 | 工具「只读/可写」只能靠本仓名册判定，不是工具自述 | Abstractions 契约变更，另立项 |
 | 语音输入 | 参考图右侧麦克风未实现 | 本批非目标 |
 | 工具「只读名册」 | `readonly` 档的只读集合需人工维护名册，漏收会误挂写工具 | 随 Abstractions 风险元数据一并根治 |

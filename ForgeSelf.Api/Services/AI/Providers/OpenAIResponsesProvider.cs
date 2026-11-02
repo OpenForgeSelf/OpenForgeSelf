@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Services.AI;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services.AI.Providers;
@@ -60,6 +61,7 @@ public class OpenAIResponsesProvider : IAIProvider
             var url = endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
                 ? endpoint + "/models"
                 : endpoint + "/v1/models";
+            LocalModelGate.EnsureAllowed(url);
 
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");

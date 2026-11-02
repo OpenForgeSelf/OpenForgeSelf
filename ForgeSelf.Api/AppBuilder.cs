@@ -181,14 +181,16 @@ public static class AppBuilder
         builder.Services.AddSingleton<IConfigurationService, ConfigurationService>();
         // 平台级共享事件总线（027-cordis-kernel）：工具执行管道 tools/* 拦截点（pre-execute / execute / post-execute）
         builder.Services.AddSingleton<IEventBus>(new EventBus());
-        // B8（042 工具管线）：单调守卫注册表 + 审批服务（默认占位实现 fail-closed，真实审批服务就绪后替换）
+        // B8（042 工具管线）+ P0 审批：单调守卫注册表 + 可持久化审批（替换 Noop 恒拒绝）
         builder.Services.AddSingleton<IToolGuardRegistry, ToolGuardRegistry>();
-        builder.Services.AddSingleton<IApprovalService, NoopApprovalService>();
+        builder.Services.AddSingleton<IApprovalService, PersistentApprovalService>();
         builder.Services.AddSingleton<IToolRegistry, ToolRegistry>();
         // IMcpService 已随宿主 mcp-tools 迁入 McpCenter 插件（034 v2.0.0），由插件 Apply 注册进插件子 provider
         builder.Services.AddSingleton<ICronParser, CronParser>();
         builder.Services.AddSingleton<IRuntimeDetector, RuntimeDetector>();
-        builder.Services.AddSingleton<ISkillsService, SkillsService>();
+        builder.Services.AddSingleton<SkillsService>();
+        builder.Services.AddSingleton<ISkillsService>(sp => sp.GetRequiredService<SkillsService>());
+        builder.Services.AddSingleton<IPersonalSkillCatalog>(sp => sp.GetRequiredService<SkillsService>());
         builder.Services.AddHttpClient<IAIService, AIService>();
         // 设置·网络设置：模型请求统一走可配置代理（开=走代理，不设置=直连；见 ConfigureModelProxyHttpClient）
         ConfigureModelProxyHttpClient(builder.Services);

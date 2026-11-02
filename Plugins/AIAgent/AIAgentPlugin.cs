@@ -60,6 +60,8 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IRunOrchestratorService, RunOrchestratorService>();
         // 内置执行接缝（供 todo-tracker 等消费方经 ctx.Get<IBuiltInAgentExecution>() 把任务交给本工具内置 AI Agent）
         services?.AddScoped<IBuiltInAgentExecution, BuiltInAgentExecutionService>();
+        // 调度器到点触发本机 MAF Run（同进程，不走 HTTP）。实现保持薄，不改审批挂起。
+        services?.AddScoped<IScheduledAgentRunTrigger, ScheduledAgentRunTrigger>();
 
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
         // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
@@ -108,6 +110,17 @@ public class AIAgentPlugin : IPlugin
             var builtinExecutor = builtinScope.ServiceProvider.GetRequiredService<IBuiltInAgentExecution>();
             ctx.Register<IBuiltInAgentExecution>(builtinExecutor);
             XTrace.Log.Info("[AIAgentPlugin] 已注册 IBuiltInAgentExecution（内置 AI Agent 执行接缝）");
+        }
+
+        // eager 提供 IScheduledAgentRunTrigger：调度器经 ctx.Get 到点创建 Run。
+        // 与内置执行同一 lifetime（插件存活的 scope），卸载时 effect 先摘共享表再释放 scope。
+        if (services != null)
+        {
+            var scheduleScope = services.BuildServiceProvider().CreateScope();
+            ctx.Effect(() => scheduleScope);
+            var scheduleTrigger = scheduleScope.ServiceProvider.GetRequiredService<IScheduledAgentRunTrigger>();
+            ctx.Register<IScheduledAgentRunTrigger>(scheduleTrigger);
+            XTrace.Log.Info("[AIAgentPlugin] 已注册 IScheduledAgentRunTrigger（本机计划任务触发 MAF Run）");
         }
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");

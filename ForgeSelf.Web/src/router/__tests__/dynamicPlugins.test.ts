@@ -84,6 +84,23 @@ describe('dynamicPlugins 动态视图挂载', () => {
     expect(router.getRoutes().find((r) => r.name === 'todo')?.path).toBe('/todo')
   })
 
+  it('未匹配兜底路由不把插件声明路径判成冲突', () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', name: 'route-missing', component: { template: '<div/>' } }],
+    })
+    registerManifestRoutes(router, [
+      makeManifestItem({
+        id: 'agent-with-fallback',
+        name: '智能体',
+        isEnabled: true,
+        frontend: { views: ['DemoRemoteView'], menu: '智能体', route: '/ai-agent', entry: 'web/dist/index.js' },
+      }),
+    ])
+    const route = router.getRoutes().find((r) => r.name === 'manifest-agent-with-fallback')
+    expect(route?.path).toBe('/ai-agent')
+  })
+
   it('无冲突时插件接管声明路径（宿主已让位）', () => {
     const router = makeRouter()
     registerManifestRoutes(router, [

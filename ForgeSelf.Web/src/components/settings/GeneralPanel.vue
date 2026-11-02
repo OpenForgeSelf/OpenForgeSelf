@@ -89,7 +89,7 @@ onMounted(() => {
       <div class="flex items-center justify-between py-3 border-b border-border-light">
         <div>
           <span class="text-sm font-medium text-text">默认 AI 模型</span>
-          <p class="text-xs text-text-secondary mt-0.5 mb-0">AI Agent 使用的默认推理模型</p>
+          <p class="text-xs text-text-secondary mt-0.5 mb-0">智能体使用的默认推理模型</p>
         </div>
         <el-select
           v-model="defaultModel"

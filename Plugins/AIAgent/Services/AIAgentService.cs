@@ -25,6 +25,7 @@ public class AIAgentService : IAIAgentService
     private IProjectWorkspaceService? _workspace;
     private ISessionStore? _sessionStore;
     private IInbox? _inbox;
+    private IApprovalService? _approvalService;
     private AIConfig? _aiConfig;
     private IChatModelResolver? _modelResolver;
 
@@ -76,6 +77,7 @@ public class AIAgentService : IAIAgentService
     /// 注册实现为 <c>PersistentInbox</c>（日志投影）。未注册时为 null，Agent 回合按空收件箱处理。
     /// </summary>
     private IInbox? Inbox => _inbox ??= _ctx.Get<IInbox>();
+    private IApprovalService? ApprovalService => _approvalService ??= _ctx.Get<IApprovalService>();
 
     /// <summary>
     /// 对话模型解析链（PC-013）：DI 注入优先（生产装配 AIAgentPlugin 注册 <c>IChatModelResolver</c>）；
@@ -402,7 +404,8 @@ public class AIAgentService : IAIAgentService
             ToolDefinitions = unifiedTools,
             Events = _ctx.Events,
             MemoryPromptProvider = BuildMemoryPromptAsync,
-            Inbox = Inbox
+            Inbox = Inbox,
+            ApprovalService = ApprovalService
         };
 
         // PILOT-051（R1）：运行时工厂开关——MAF 驱动（任务循环语义）或 ReactLoop 状态机（既有路径）。
@@ -719,9 +722,10 @@ public class AIAgentService : IAIAgentService
     }
 
     /// <summary>
-    /// 技能注入（V1）：把选中技能的 名称 + 描述 + 相对路径 追加到 system prompt，注明「如需按技能工作请读取其内容」。
-    /// 不全文注入——本地小模型 prompt 预算有限（14 工具即 400 过），全文注入留 V2。
-    /// 解析依赖项目技能扫描（IProjectSkillScannerService，未注册/未选目录时静默跳过）。
+    /// 技能注入：选中 id 同时对上两个来源。
+    /// 项目 <c>.agents/skills</c> / <c>.codebuddy/commands</c> 仍只给名称、描述和相对路径（让模型自己读 SKILL.md）。
+    /// 个人技能库没有项目内文件，把库存的 SKILL.md 附在提示词里。
+    /// 未选项目目录时仍可注入个人技能。扫描服务或目录缺失不挡住个人技能。
     /// </summary>
     private string? AppendSelectedSkills(string? systemPrompt, List<string> skillIds)
     {
@@ -730,41 +734,63 @@ public class AIAgentService : IAIAgentService
             // 懒解析（构造期宿主/插件子容器可能未就绪；与 ToolRegistry 同模式）。
             _skillScanner ??= _ctx.Get<IProjectSkillScannerService>();
             _workspace ??= _ctx.Get<IProjectWorkspaceService>();
+            var catalog = _ctx.Get<IPersonalSkillCatalog>();
 
-            if (_skillScanner == null || _workspace?.ProjectRoot == null)
+            var wanted = new HashSet<string>(
+                skillIds.Where(id => !string.IsNullOrWhiteSpace(id)),
+                StringComparer.OrdinalIgnoreCase);
+
+            var projectSelected = new List<ProjectSkillItem>();
+            if (_skillScanner != null && !string.IsNullOrWhiteSpace(_workspace?.ProjectRoot))
             {
-                XTrace.Log.Debug("[AIAgentPlugin] 技能注入跳过：扫描服务未注册或未选项目目录");
-                return systemPrompt;
+                projectSelected = _skillScanner.Scan(_workspace.ProjectRoot)
+                    .Where(s => wanted.Contains(s.Id))
+                    .ToList();
             }
 
-            var all = _skillScanner.Scan(_workspace.ProjectRoot);
-            if (all.Count == 0)
+            var personalSelected = new List<PersonalSkillSnapshot>();
+            if (catalog != null)
             {
-                XTrace.Log.Debug("[AIAgentPlugin] 技能注入跳过：项目目录未识别到技能");
-                return systemPrompt;
+                foreach (var skill in catalog.ListEnabled())
+                {
+                    if (wanted.Contains(skill.Id))
+                        personalSelected.Add(skill);
+                }
             }
 
-            var wanted = new HashSet<string>(skillIds, StringComparer.OrdinalIgnoreCase);
-            var selected = all.Where(s => wanted.Contains(s.Id)).ToList();
-            if (selected.Count == 0)
+            if (projectSelected.Count == 0 && personalSelected.Count == 0)
             {
-                XTrace.Log.Warn("[AIAgentPlugin] 技能注入：请求 {0} 个技能 id，全部未命中已识别技能列表", skillIds.Count);
+                XTrace.Log.Warn("[AIAgentPlugin] 技能注入：请求 {0} 个技能 id，项目扫描与个人技能库均未命中", skillIds.Count);
                 return systemPrompt;
             }
 
             var sb = new StringBuilder();
             sb.AppendLine("## 本会话启用的技能");
-            sb.AppendLine("用户为本会话勾选了以下技能。如需按某个技能工作，请先用文件工具读取其内容（SKILL.md）再按其要求执行；不读取则按通用能力回答。");
-            sb.AppendLine();
-            foreach (var s in selected)
+            if (projectSelected.Count > 0)
             {
-                sb.AppendLine($"- 技能「{s.Name}」（来源: {s.Source}，路径: {s.Path}）：{s.Description}");
+                sb.AppendLine("用户为本会话勾选了以下技能。如需按某个技能工作，请先用文件工具读取其内容（SKILL.md）再按其要求执行；不读取则按通用能力回答。");
+                sb.AppendLine();
+                foreach (var s in projectSelected)
+                {
+                    sb.AppendLine($"- 技能「{s.Name}」（来源: {s.Source}，路径: {s.Path}）：{s.Description}");
+                }
+                sb.AppendLine();
             }
-            sb.AppendLine();
+            if (personalSelected.Count > 0)
+            {
+                sb.AppendLine("个人技能库中的技能以 SKILL.md 附在下面，没有项目内文件，直接按其内容执行。");
+                sb.AppendLine();
+                foreach (var s in personalSelected)
+                {
+                    sb.AppendLine($"### 技能「{s.Name}」（来源: personal）");
+                    sb.AppendLine(string.IsNullOrWhiteSpace(s.SkillMarkdown) ? s.Description : s.SkillMarkdown.TrimEnd());
+                    sb.AppendLine();
+                }
+            }
             sb.AppendLine("---");
 
             var skillText = sb.ToString();
-            XTrace.Log.Info("[AIAgentPlugin] 技能注入完成：{0} 个技能加入 system prompt", selected.Count);
+            XTrace.Log.Info("[AIAgentPlugin] 技能注入完成：项目 {0} 个，个人 {1} 个", projectSelected.Count, personalSelected.Count);
             return systemPrompt == null
                 ? skillText.TrimEnd()
                 : skillText + systemPrompt;

@@ -703,6 +703,26 @@
   line-height: 1.45;
   color: var(--aiw-text-2, #8b93a3);
 }
+.aiw-ask__args-label {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--aiw-text-2);
+}
+/* 完整参数：可滚动看全文，禁止 line-clamp / 摘要截断，避免用户批错命令。 */
+.aiw-ask__args {
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 28vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--aiw-text);
+  background: transparent;
+}
 .aiw-ask__btns { flex: 0 0 auto; display: flex; gap: 6px; }
 .aiw-ask__btn {
   padding: 4px 10px;

@@ -4,7 +4,7 @@
  * 对齐设计稿 forgeself-design/pages/ai-provider.html
  * 纯 Element Plus 组件 + Tailwind 布局
  */
-import { ref, reactive, watch, onMounted } from 'vue';
+import { ref, reactive, watch, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus,
@@ -38,8 +38,31 @@ const typeTagMap: Record<AIProviderType, 'success' | 'warning' | 'info'> = {
   OpenAI: 'success',
   OpenAIResponses: 'info',
   Anthropic: 'warning',
-  Custom: 'info'
+  Custom: 'info',
+  Ollama: 'success',
+  LMStudio: 'success'
 };
+
+const LOCAL_ENDPOINT: Partial<Record<AIProviderType, string>> = {
+  Ollama: 'http://localhost:11434/v1',
+  LMStudio: 'http://localhost:1234/v1'
+};
+
+const localMode = ref(false);
+const localModeSaving = ref(false);
+
+function deploymentLabel(p: AIProvider): '本地' | '远程' {
+  if (p.deployment === 'Local') return '本地';
+  if (p.deployment === 'Remote') return '远程';
+  try {
+    const raw = p.endpoint.includes('://') ? p.endpoint : `http://${p.endpoint}`;
+    const host = new URL(raw).hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return '本地';
+  } catch {
+    /* 地址无法解析时按远程显示 */
+  }
+  return '远程';
+}
 
 async function loadProviders() {
   loading.value = true;
@@ -315,7 +338,8 @@ async function saveProvider() {
     formError.value = '接入地址不能为空';
     return;
   }
-  if (editingId.value == null && !form.apiKey) {
+  const localRuntime = form.providerType === 'Ollama' || form.providerType === 'LMStudio';
+  if (editingId.value == null && !form.apiKey && !localRuntime) {
     formError.value = '新增时 API Key 不能为空';
     return;
   }
@@ -349,15 +373,56 @@ async function saveProvider() {
   }
 }
 
+const apiKeyHint = computed(() => {
+  if (form.providerType === 'Ollama' || form.providerType === 'LMStudio') return '本地运行时可留空';
+  return editingId.value == null ? '必填' : '留空 = 保留原密钥';
+});
+
+function onProviderTypeChange(type: AIProviderType | string) {
+  const preset = LOCAL_ENDPOINT[type as AIProviderType];
+  if (!preset) return;
+  const current = form.endpoint.trim();
+  const known = Object.values(LOCAL_ENDPOINT);
+  if (current === '' || known.includes(current)) form.endpoint = preset;
+}
+
+async function loadLocalMode() {
+  try {
+    localMode.value = await aiProvidersApi.getLocalMode();
+  } catch {
+    localMode.value = false;
+  }
+}
+
+async function onLocalModeChange(enabled: boolean | string | number) {
+  const on = enabled === true;
+  localModeSaving.value = true;
+  try {
+    localMode.value = await aiProvidersApi.setLocalMode(on);
+    ElMessage.success(on ? '已开启本地模式：非本机地址的模型请求会被拒绝' : '已关闭本地模式');
+  } catch (e) {
+    localMode.value = !on;
+    ElMessage.error(e instanceof Error ? e.message : '切换本地模式失败');
+  } finally {
+    localModeSaving.value = false;
+  }
+}
+
 onMounted(() => {
   loadProviders();
+  loadLocalMode();
 });
 </script>
 
 <template>
   <div class="space-y-4">
     <!-- 操作栏 -->
-    <div class="flex justify-end pb-2">
+    <div class="flex items-center justify-between gap-3 pb-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-sm text-[var(--el-text-color-primary)]">本地模式</span>
+        <el-switch v-model="localMode" :loading="localModeSaving" @change="onLocalModeChange" />
+        <span class="text-xs text-[var(--el-text-color-secondary)] truncate">开启后只允许向本机地址发模型请求</span>
+      </div>
       <el-button type="primary" size="small" :icon="Plus" @click="openCreate">新建提供方</el-button>
     </div>
 
@@ -396,6 +461,9 @@ onMounted(() => {
                 </span>
                 <el-tag size="small" :type="typeTagMap[p.providerType] ?? 'info'" effect="plain">
                   {{ p.providerType }}
+                </el-tag>
+                <el-tag size="small" :type="deploymentLabel(p) === '本地' ? 'success' : 'info'" effect="plain">
+                  {{ deploymentLabel(p) }}
                 </el-tag>
                 <el-tag v-if="p.isDefault" size="small" type="warning" effect="dark">默认</el-tag>
                 <el-tag
@@ -595,11 +663,13 @@ onMounted(() => {
           <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">
             类型
           </label>
-          <el-select v-model="form.providerType" class="w-full">
+          <el-select v-model="form.providerType" class="w-full" @change="onProviderTypeChange">
             <el-option label="OpenAI" value="OpenAI" />
             <el-option label="OpenAI Responses" value="OpenAIResponses" />
             <el-option label="Anthropic" value="Anthropic" />
             <el-option label="Custom" value="Custom" />
+            <el-option label="Ollama（本地）" value="Ollama" />
+            <el-option label="LM Studio（本地）" value="LMStudio" />
           </el-select>
         </div>
         <div>
@@ -615,7 +685,7 @@ onMounted(() => {
           <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">
             API Key
             <span class="text-xs text-[var(--el-text-color-secondary)] font-normal ml-1">
-              {{ editingId == null ? '必填' : '留空 = 保留原密钥' }}
+              {{ apiKeyHint }}
             </span>
           </label>
           <el-input v-model="form.apiKey" type="password" show-password placeholder="sk-..." />

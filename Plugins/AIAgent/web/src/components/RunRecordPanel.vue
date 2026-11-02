@@ -74,7 +74,7 @@
             </span>
           </button>
           <p v-if="runs.length === 0" class="rrp__empty">
-            当前会话暂无执行记录。使用「计划驱动」Agent 发送任务后会自动生成。
+            当前会话暂无执行记录。使用「计划任务」模式的 Agent 发送任务后会自动生成。
           </p>
         </ElScrollbar>
       </aside>

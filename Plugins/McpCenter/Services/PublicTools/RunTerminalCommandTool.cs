@@ -13,6 +13,7 @@ namespace ForgeSelf.Api.Plugins.McpCenter.Services;
 /// 安全设计详见 docs/ai/pilot/031-universal-tool-gateway 与 ADR-002 决策 3（独立工具的原因）。
 /// 2026-10-29 用户拍板：cwd 必填（绝对路径、目录须存在），彻底移除「未选择项目目录/FORGESELF_DEFAULT_PROJECT_ROOT」
 /// 隐式回退与 IProjectWorkspaceService 越界依赖——cwd 即本次调用的工作区锚点（原 CWD 越界门随之退役）。
+/// 2026-11-02：超时/调用方取消必须终止本次启动的进程树；不再「process continues in background」。
 /// </summary>
 /// <remarks>
 /// 构造签名保留 IContext 以兼容宿主实例化与既有测试；当前实现不再消费工作区状态。
@@ -42,8 +43,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
         "支持管道与链式（| && || ; 换行）——每一段都独立过同一套白名单+破坏性红线校验，任一段被拒则整条拒绝；重定向（> <）、反引号、后台单 & 仍拒绝。" +
         "多段命令经 pwsh -NoProfile -NonInteractive -Command 执行，退出码取最后一段。" +
         "入参 {command, cwd（必填，工作目录绝对路径，目录须存在）, timeoutSeconds?, env?}；不再回退当前项目根，未传 cwd 直接报必传错误。" +
-        "返回 {exitCode, stdout, stderr}；非 0 退出码是正常回传（失败输出同样是有效观察数据）；超时返回错误（进程后台继续）。" +
-        "删除/格式化/下载/提权类命令（rm/Remove-Item/del/format/curl 等）被安全策略拒绝。";
+        "返回 {exitCode, stdout, stderr}；非 0 退出码是正常回传（失败输出同样是有效观察数据）；超时或取消时终止进程树并返回错误。";
 
     public string ParametersJsonSchema => @"
 {
@@ -59,7 +59,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
         },
         ""timeoutSeconds"": {
             ""type"": ""integer"",
-            ""description"": ""超时秒数（1-30，默认30；超时后进程在后台继续，结果标记 timedOut）""
+            ""description"": ""超时秒数（1-30，默认30；超时后终止进程树，结果标记 timedOut）""
         },
         ""env"": {
             ""type"": ""object"",
@@ -75,7 +75,10 @@ public class RunTerminalCommandTool : IToolFunctionExtension
         // 构造签名保留 IContext 以兼容宿主实例化与既有测试（参数当前不使用）。
     }
 
-    public async Task<string> ExecuteAsync(string parameters)
+    public Task<string> ExecuteAsync(string parameters)
+        => ExecuteAsync(parameters, CancellationToken.None);
+
+    public async Task<string> ExecuteAsync(string parameters, CancellationToken cancellationToken)
     {
         var start = Environment.TickCount64;
         try
@@ -171,32 +174,46 @@ public class RunTerminalCommandTool : IToolFunctionExtension
 
             byte[] stdoutBytes;
             byte[] stderrBytes;
-            var timedOut = false;
+            var aborted = false;
+            var callerCancelled = false;
             try
             {
                 // 并发读双管道防死锁（stdout 缓冲满会阻塞子进程写 stderr）；读原始字节不做解码。
                 var outTask = ProcessOutputText.CaptureAsync(proc.StandardOutput.BaseStream);
                 var errTask = ProcessOutputText.CaptureAsync(proc.StandardError.BaseStream);
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                // 链接调用方 Signal + 工具自身超时——任一触发都终止进程树（不再后台继续）。
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                linkedCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
                 try
                 {
-                    await proc.WaitForExitAsync(cts.Token);
+                    await proc.WaitForExitAsync(linkedCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
-                    timedOut = true;
+                    aborted = true;
+                    callerCancelled = cancellationToken.IsCancellationRequested;
+                    KillProcessTree(proc);
                 }
-                if (!timedOut)
+                if (!aborted)
                 {
                     await Task.WhenAll(outTask, errTask);
+                    stdoutBytes = outTask.Result;
+                    stderrBytes = errTask.Result;
                 }
-                stdoutBytes = timedOut ? Array.Empty<byte>() : outTask.Result;
-                stderrBytes = timedOut ? Array.Empty<byte>() : errTask.Result;
+                else
+                {
+                    // 进程已杀：捕获任务可能因管道关闭而故障，吞掉避免未观察异常。
+                    _ = outTask.ContinueWith(static _ => { }, TaskScheduler.Default);
+                    _ = errTask.ContinueWith(static _ => { }, TaskScheduler.Default);
+                    stdoutBytes = Array.Empty<byte>();
+                    stderrBytes = Array.Empty<byte>();
+                }
             }
             catch (ObjectDisposedException)
             {
-                // 进程句柄已随超时释放，按超时语义处理。
-                timedOut = true;
+                // 进程句柄已随超时/取消释放，按中止语义处理。
+                aborted = true;
+                callerCancelled = cancellationToken.IsCancellationRequested;
                 stdoutBytes = Array.Empty<byte>();
                 stderrBytes = Array.Empty<byte>();
             }
@@ -212,20 +229,23 @@ public class RunTerminalCommandTool : IToolFunctionExtension
 
             var (stdoutText, stdoutTruncated) = TerminalCommandGuard.Truncate(decodedOut.Text);
             var (stderrText, stderrTruncated) = TerminalCommandGuard.Truncate(decodedErr.Text);
-            var exitCode = timedOut ? -1 : SafeExitCode(proc);
+            var exitCode = aborted ? -1 : SafeExitCode(proc);
 
-            XTrace.Log.Info("[McpCenter] run_terminal_command {0}（{1}ms，timedOut={2}，exit={3}）",
-                exeLabel, Environment.TickCount64 - start, timedOut, exitCode);
+            XTrace.Log.Info("[McpCenter] run_terminal_command {0}（{1}ms，aborted={2}，callerCancel={3}，exit={4}）",
+                exeLabel, Environment.TickCount64 - start, aborted, callerCancelled, exitCode);
 
-            if (timedOut)
+            if (aborted)
             {
-                // 语义同宿主 ExecuteToolWithTimeoutAsync（提前返回 + 后台继续），stderr 提示沿用 031 design.md §4.3。
+                var error = callerCancelled
+                    ? "cancelled (process terminated)"
+                    : $"timeout {timeoutSeconds}s (process terminated)";
                 return JsonSerializer.Serialize(new
                 {
                     success = false,
                     command = dto.Command,
-                    error = $"timeout {timeoutSeconds}s (process continues in background)",
-                    timedOut = true,
+                    error,
+                    timedOut = !callerCancelled,
+                    cancelled = callerCancelled,
                     durationMs = Environment.TickCount64 - start
                 });
             }
@@ -248,6 +268,67 @@ public class RunTerminalCommandTool : IToolFunctionExtension
         {
             XTrace.Log.Error("[McpCenter] run_terminal_command 执行失败: {0}", ex.Message);
             return Fail(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 终止本次启动的进程及其子进程。优先 <see cref="Process.Kill(bool)"/> entireProcessTree；
+    /// 失败时回退 Windows <c>taskkill /T /F</c>（与 Sems/e2e 同姿势）。
+    /// </summary>
+    internal static void KillProcessTree(Process proc)
+    {
+        if (proc == null) return;
+
+        var pid = 0;
+        try { pid = proc.Id; } catch { /* 进程已退 */ }
+
+        try
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[McpCenter] Kill(entireProcessTree) 失败 pid={0}: {1}；回退 taskkill", pid, ex.Message);
+            if (pid > 0)
+            {
+                TryTaskKillTree(pid);
+            }
+        }
+
+        // 等进程真正退出，便于调用方/单测断言「进程不在」。
+        try
+        {
+            if (!proc.HasExited)
+            {
+                proc.WaitForExit(TimeSpan.FromSeconds(5));
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static void TryTaskKillTree(int pid)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("taskkill", $"/T /F /PID {pid}")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            using var killer = Process.Start(psi);
+            killer?.WaitForExit(5000);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[McpCenter] taskkill /T /F 失败 pid={0}: {1}", pid, ex.Message);
         }
     }
 

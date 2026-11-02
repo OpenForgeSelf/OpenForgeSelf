@@ -192,11 +192,24 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
             var toolFunctions = new List<AITool>();
             var extraToolDeclarations = new List<IToolFunctionExtension>();
 
+            // P0：回合开始时取已决策、未消费的审批续跑（批准后须按原参数执行 / 拒绝喂回模型）。
+            // 若本回合有续跑，工具表不再包 ApprovalRequiredAIFunction——否则 MEAI 会再次发出审批请求而永不 Invoke。
+            var pendingContinuations = _runtime.ApprovalService == null
+                ? (IReadOnlyList<ApprovalContinuation>)Array.Empty<ApprovalContinuation>()
+                : await _runtime.ApprovalService.ConsumeContinuationsAsync(SessionId, turnCts.Token).ConfigureAwait(false);
+            // 仅当存在「已批准」续跑时解包 ApprovalRequired——否则 MEAI 无法 Invoke；
+            // 纯拒绝续跑保持包装，配合 ToolApprovalResponseContent(Approved=false) 生成失败结果、零执行。
+            var unwrapForApprovedResume = pendingContinuations.Any(c => c.Approved);
+
             foreach (var definition in _runtime.ToolDefinitions ?? new List<UnifiedToolDefinition>())
             {
-                toolFunctions.Add(new RegistryToolFunction(
+                AIFunction registryFn = new RegistryToolFunction(
                     definition.Name, definition.Description, ToJsonElement(definition.Parameters),
-                    _runtime.ToolExecutor, SessionId, bridge, turnId));
+                    _runtime.ToolExecutor, SessionId, bridge, turnId);
+                // P0：高风险工具包 ApprovalRequiredAIFunction（后端硬名单，不信前端）
+                toolFunctions.Add(!unwrapForApprovedResume && HighRiskToolPolicy.RequiresApproval(definition.Name)
+                    ? new ApprovalRequiredAIFunction(registryFn)
+                    : registryFn);
             }
 
             foreach (var extra in _options.ExtraTools ?? Array.Empty<IToolFunctionExtension>())
@@ -292,8 +305,13 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 }
 
                 // request/header：请求信封先落日志（不变量 2）
-                var toolRefs = toolFunctions.OfType<RegistryToolFunction>().Select(t => t.Name)
-                    .Concat(extraToolDeclarations.Select(t => t.Name)).ToList();
+                var toolRefs = toolFunctions
+                    .Select(UnwrapToolName)
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Cast<string>()
+                    .Concat(extraToolDeclarations.Select(t => t.Name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 var renderedSystemPrompt = await RenderSystemPromptAsync(messages, toolRefs, turnCts.Token);
                 if (!string.IsNullOrEmpty(protocolPrompt))
                 {
@@ -334,6 +352,12 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                 });
 
                 var runMessages = messages.Select(ToChatMessage).ToList();
+                // P0：已决策的审批以 ToolApprovalRequest+Response 对注入（仅首步消费一次）
+                if (pendingContinuations.Count > 0 && stepIndex == 0)
+                {
+                    InjectApprovalContinuations(runMessages, pendingContinuations);
+                    pendingContinuations = Array.Empty<ApprovalContinuation>();
+                }
 
                 // B7 请求级无进展看门狗：每收到一个 MAF 更新即重置（长流式回复不误杀）。
                 using var stepCts = CancellationTokenSource.CreateLinkedTokenSource(turnCts.Token);
@@ -367,6 +391,15 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                     Append(bridge, new StepEndEvent(0, SessionId, DateTimeOffset.Now, turnId, stepId, StepEndReason.Aborted));
                     yield return new StepCompleted(stepId, StepEndReason.Aborted);
                     turnEndReason = TurnEndReason.Aborted;
+                    break;
+                }
+
+                // P0：高风险工具审批请求 → 挂起回合，等用户 Decide 后以 ToolApprovalResponseContent 续跑
+                if (runState.AwaitingApproval)
+                {
+                    Append(bridge, new StepEndEvent(0, SessionId, DateTimeOffset.Now, turnId, stepId, StepEndReason.Suspended));
+                    yield return new StepCompleted(stepId, StepEndReason.Suspended);
+                    turnEndReason = TurnEndReason.Suspended;
                     break;
                 }
 
@@ -513,6 +546,9 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
 
         /// <summary>本步是否发生过工具执行（含出口工具）。</summary>
         public bool HasToolCall;
+
+        /// <summary>本步收到 ToolApprovalRequestContent，须挂起等人工审批。</summary>
+        public bool AwaitingApproval;
     }
 
     /// <summary>
@@ -546,6 +582,12 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                         {
                             state.HasText = true;
                             await writer.WriteAsync(new AssistantDelta(text)).ConfigureAwait(false);
+                        }
+                        else if (content is ToolApprovalRequestContent approvalReq)
+                        {
+                            // P0：落审批记录 + 会话事件，挂起回合（不得 Invoke）
+                            await HandleApprovalRequestAsync(approvalReq, bridge, state, stepCts.Token)
+                                .ConfigureAwait(false);
                         }
                         // FunctionCallContent/FunctionResultContent 的日志与帧由
                         // RegistryToolFunction（执行层）落；此处不再重复（避免双写）。
@@ -603,12 +645,102 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                     {
                         return ExitToolInvokeAsync(bridge, context, toolName);
                     }
+
+                    // P0：不得绕过审批——ApprovalRequiredAIFunction 应由 MEAI 换成 ToolApprovalRequestContent；
+                    // 若仍落到此处，fail-closed 拒绝 Invoke（不执行原参数工具）。
+                    if (context.Function is ApprovalRequiredAIFunction)
+                    {
+                        XTrace.Log.Warn(
+                            "[MafTaskLoopAgent] FunctionInvoker 拦截未批准的 ApprovalRequiredAIFunction: {0}",
+                            toolName);
+                        return ValueTask.FromResult<object?>(JsonSerializer.Serialize(new
+                        {
+                            success = false,
+                            error = "该工具需要审批，尚未批准，已拒绝执行（fail-closed）"
+                        }));
+                    }
+
                     return context.Function?.InvokeAsync(context.Arguments, invokeCt)
                         ?? ValueTask.FromResult<object?>(null);
                 };
             })
             .Build();
     }
+
+    /// <summary>处理 MEAI 审批请求：持久化 + 会话事件 + 标记挂起。</summary>
+    private async Task HandleApprovalRequestAsync(
+        ToolApprovalRequestContent approvalReq,
+        MafLoopBridge bridge,
+        MafRunState state,
+        CancellationToken ct)
+    {
+        state.AwaitingApproval = true;
+        var toolCall = approvalReq.ToolCall as FunctionCallContent;
+        var toolName = toolCall?.Name ?? "(unknown)";
+        var callId = toolCall?.CallId ?? approvalReq.RequestId;
+        var argsJson = ForgeChatMessageMapperSerialize(toolCall?.Arguments);
+
+        long approvalId = 0;
+        if (_runtime.ApprovalService != null)
+        {
+            var dto = await _runtime.ApprovalService.CreatePendingAsync(new ApprovalCreateRequest
+            {
+                SessionId = SessionId,
+                ToolName = toolName,
+                ArgsJson = argsJson,
+                Description = $"高风险工具 {toolName} 需要审批后执行",
+                RiskLevel = HighRiskToolPolicy.RiskHigh,
+                MeaiRequestId = approvalReq.RequestId,
+                CallId = callId,
+                Timeout = HighRiskToolPolicy.DefaultTimeout,
+            }, ct).ConfigureAwait(false);
+            approvalId = dto.Id;
+        }
+        else
+        {
+            XTrace.Log.Warn("[MafTaskLoopAgent] 收到审批请求但未注入 IApprovalService，仅挂起: tool={0}", toolName);
+        }
+
+        Append(bridge, new ToolApprovalRequestEvent(
+            0, SessionId, DateTimeOffset.Now,
+            approvalId, approvalReq.RequestId, callId, toolName, argsJson, HighRiskToolPolicy.RiskHigh));
+
+        XTrace.Log.Info(
+            "[MafTaskLoopAgent] 审批挂起 SessionId={0} ApprovalId={1} Tool={2} MeaiRequestId={3}",
+            SessionId, approvalId, toolName, approvalReq.RequestId);
+    }
+
+    /// <summary>
+    /// 把已决策审批以 MEAI 协议续跑：assistant 侧补 <see cref="ToolApprovalRequestContent"/>，
+    /// user 侧跟 <see cref="ToolApprovalResponseContent"/>（ToolCall 携带原始参数）。
+    /// FunctionInvokingChatClient 按批准执行 / 按拒绝生成失败结果喂回模型。
+    /// </summary>
+    private void InjectApprovalContinuations(List<ChatMessage> runMessages, IReadOnlyList<ApprovalContinuation> continuations)
+    {
+        if (continuations.Count == 0) return;
+
+        var responseContents = new List<AIContent>();
+        foreach (var c in continuations)
+        {
+            var fcc = new FunctionCallContent(c.CallId, c.ToolName, ParseCallArguments(c.ArgsJson));
+            // 用 CreateResponse 保证与 RequestId/ToolCall 关联一致（Approved=false 时 MEAI 生成失败结果、不 Invoke）
+            var request = new ToolApprovalRequestContent(c.MeaiRequestId, fcc);
+            responseContents.Add(request.CreateResponse(c.Approved, c.Note));
+            XTrace.Log.Info(
+                "[MafTaskLoopAgent] 注入审批续跑 ApprovalId={0} approved={1} tool={2}",
+                c.Id, c.Approved, c.ToolName);
+        }
+
+        runMessages.Add(new ChatMessage(ChatRole.User, responseContents));
+    }
+
+    private static string? UnwrapToolName(AITool tool) => tool switch
+    {
+        ApprovalRequiredAIFunction a => a.Name,
+        RegistryToolFunction r => r.Name,
+        AIFunction f => f.Name,
+        _ => null
+    };
 
     private static string ForgeChatMessageMapperSerialize(IDictionary<string, object?>? arguments)
     {

@@ -34,7 +34,24 @@ public enum AIProviderType
     /// </summary>
     OpenAIResponses,
     Anthropic,
-    Custom
+    Custom,
+
+    /// <summary>
+    /// Ollama。出站走 OpenAI 兼容端点（默认 http://localhost:11434/v1/chat/completions），不使用原生 /api/chat。
+    /// </summary>
+    Ollama,
+
+    /// <summary>
+    /// LM Studio。出站走 OpenAI 兼容端点（默认 http://localhost:1234/v1/chat/completions）。
+    /// </summary>
+    LMStudio
+}
+
+/// <summary>模型服务部署位置。按实际请求主机判断：本机回环为 Local，其余为 Remote。</summary>
+public enum AIProviderDeployment
+{
+    Remote,
+    Local
 }
 
 /// <summary>
@@ -49,6 +66,12 @@ public class AIProviderConfig
     public List<string> SupportedModels { get; set; } = new();
     public bool IsDefault { get; set; }
     public int TimeoutSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// 部署位置标记。Ollama / LM Studio 或回环地址为 Local，公网地址为 Remote。
+    /// 不单独落库，由端点与类型推导。
+    /// </summary>
+    public AIProviderDeployment Deployment { get; set; } = AIProviderDeployment.Remote;
 
     /// <summary>
     /// 视觉模型名称，用于多模态图片识别

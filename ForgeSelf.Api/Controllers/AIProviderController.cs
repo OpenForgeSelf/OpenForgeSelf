@@ -60,6 +60,21 @@ public class AIProviderController : ControllerBase
         }
     }
 
+    /// <summary>读取本地模式。开启后模型请求不得发往非本机地址。</summary>
+    [HttpGet("local-mode")]
+    public IActionResult GetLocalMode()
+    {
+        return Ok(new { success = true, data = new { enabled = LocalModelGate.Enabled } });
+    }
+
+    /// <summary>设置本地模式开关，立即生效并落盘。</summary>
+    [HttpPut("local-mode")]
+    public IActionResult SetLocalMode([FromBody] LocalModeRequest request)
+    {
+        LocalModelGate.SetEnabled(request?.Enabled == true);
+        return Ok(new { success = true, data = new { enabled = LocalModelGate.Enabled } });
+    }
+
     /// <summary>获取指定提供方详情（ApiKey 仅返回掩码）</summary>
     [HttpGet("{id}")]
     public IActionResult GetById(long id)
@@ -85,7 +100,7 @@ public class AIProviderController : ControllerBase
         try
         {
             if (request == null) return BadRequest(new { success = false, message = "请求体不能为空" });
-            if (string.IsNullOrWhiteSpace(request.ApiKey))
+            if (string.IsNullOrWhiteSpace(request.ApiKey) && !IsLocalRuntime(request.ProviderType))
                 return BadRequest(new { success = false, message = "ApiKey 不能为空" });
 
             var config = ToConfig(request);
@@ -246,8 +261,17 @@ public class AIProviderController : ControllerBase
             EnableMultimodal: e.EnableMultimodal,
             VisionPromptTemplate: string.IsNullOrEmpty(e.VisionPromptTemplate) ? null : e.VisionPromptTemplate,
             CreateTime: e.CreateTime,
-            UpdateTime: e.UpdateTime);
+            UpdateTime: e.UpdateTime,
+            Deployment: LocalModelGate.ResolveDeployment(
+                Enum.TryParse<AIProviderType>(e.ProviderType, true, out var deploymentType)
+                    ? deploymentType
+                    : AIProviderType.OpenAI,
+                e.Endpoint).ToString());
     }
+
+    private static bool IsLocalRuntime(string? providerType)
+        => Enum.TryParse<AIProviderType>(providerType, true, out var t)
+           && t is AIProviderType.Ollama or AIProviderType.LMStudio;
 
     private static AIProviderConfig ToConfig(AIProviderRequest request)
     {
@@ -285,7 +309,8 @@ public record AIProviderResponse(
     bool EnableMultimodal,
     string? VisionPromptTemplate,
     DateTime CreateTime,
-    DateTime UpdateTime);
+    DateTime UpdateTime,
+    string Deployment);
 
 /// <summary>AI 提供方请求。apiKey 为明文入参；编辑时留空或省略 = 保留原密钥</summary>
 public record AIProviderRequest(
@@ -302,3 +327,6 @@ public record AIProviderRequest(
 
 /// <summary>测试连接请求。ModelId 非空=用该已登记模型发真实 chat（响应含 ok 判成功）；省略/null=仅探连通</summary>
 public record AIProviderTestRequest(long? ModelId);
+
+/// <summary>本地模式开关。开启后拒绝向非本机地址发送模型请求。</summary>
+public record LocalModeRequest(bool Enabled);

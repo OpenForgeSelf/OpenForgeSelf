@@ -40,6 +40,12 @@ public class PluginLoadContext : AssemblyLoadContext
     protected override Assembly? Load(AssemblyName assemblyName)
     {
         var assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+        if (assemblyPath == null && !string.IsNullOrEmpty(assemblyName.Name))
+        {
+            var beside = Path.Combine(Path.GetDirectoryName(_pluginPath) ?? string.Empty, assemblyName.Name + ".dll");
+            if (File.Exists(beside))
+                assemblyPath = beside;
+        }
         if (assemblyPath != null)
         {
             XTrace.Log.Debug("插件[{0}] 加载程序集: {1}", PluginName, assemblyName.Name);

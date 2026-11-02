@@ -330,10 +330,31 @@ public class ToolPipelineQaAdversarialTests
         }
     }
 
-    /// <summary>可编程审批服务替身。</summary>
+    /// <summary>可编程审批服务替身（仅覆盖 Ask 路径；其余接口 fail-closed 空实现）。</summary>
     private sealed class FakeApprovalService(Func<string?, bool> onAsk) : IApprovalService
     {
         public Task<bool> AskAsync(string sessionId, string toolName, string argsJson, string? reason, CancellationToken ct)
             => onAsk(reason) ? Task.FromResult(true) : Task.FromResult(false);
+
+        public Task<ApprovalDto> CreatePendingAsync(ApprovalCreateRequest request, CancellationToken ct = default)
+            => Task.FromResult(new ApprovalDto
+            {
+                Id = 0,
+                SessionId = request.SessionId,
+                ToolName = request.ToolName,
+                ArgsJson = request.ArgsJson,
+                Status = nameof(ApprovalStatus.Denied),
+                CreatedAt = DateTimeOffset.UtcNow,
+                ExpiresAt = DateTimeOffset.UtcNow,
+            });
+
+        public Task<IReadOnlyList<ApprovalDto>> ListBySessionAsync(string sessionId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ApprovalDto>>(Array.Empty<ApprovalDto>());
+
+        public Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default)
+            => Task.FromResult<ApprovalDto?>(null);
+
+        public Task<IReadOnlyList<ApprovalContinuation>> ConsumeContinuationsAsync(string sessionId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ApprovalContinuation>>(Array.Empty<ApprovalContinuation>());
     }
 }

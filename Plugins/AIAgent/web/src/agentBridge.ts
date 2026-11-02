@@ -269,10 +269,10 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
     storageKey: 'forgeself-agent-msg',
     sessionId: '',
     // —— 文案与外观：保持与宿主 --el-* 主题协调 ——
-    title: 'AI Agent',
+    title: '智能体',
     subtitle: '就绪',
     welcome:
-      '你好，我是铸己匣 AI Agent 👋\n告诉我你想做什么，比如「查看项目结构」「帮我实现一个功能」或「排查这个报错」。',
+      '你好，我是铸己匣智能体 👋\n告诉我你想做什么，比如「查看项目结构」「帮我实现一个功能」或「排查这个报错」。',
     quickReplies: ['查看当前项目结构', '帮我实现一个功能', '排查一个报错'],
     /* 041 状态矩阵：宿主在拉历史 / 切会话时把它置 true（见 AiAgentView.loadHistory）。
        值由 reactive 的 agentConfig 承载，所以改它组件立刻跟着变。 */

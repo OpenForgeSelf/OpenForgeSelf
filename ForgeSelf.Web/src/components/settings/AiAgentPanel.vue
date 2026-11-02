@@ -128,7 +128,7 @@ onMounted(() => {
       <div class="flex flex-col gap-3 py-3 last:border-b-0">
         <div>
           <span class="text-sm font-medium text-text">系统提示词</span>
-          <p class="text-xs text-text-secondary mt-0.5 mb-0">AI Agent 的系统级指令</p>
+          <p class="text-xs text-text-secondary mt-0.5 mb-0">智能体的系统级指令</p>
         </div>
         <el-input
           v-model="systemPrompt"

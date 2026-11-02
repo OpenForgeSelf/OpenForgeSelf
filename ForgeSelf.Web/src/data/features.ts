@@ -51,13 +51,13 @@ export const categories = [
 export const features: FeatureItem[] = [
   {
     id: 'ai-agent',
-    name: 'AI Agent',
+    name: '智能体',
     icon: 'bot',
     category: 'ai',
     categoryLabel: 'AI',
     color: '#F59E0B',
     bgColor: 'rgba(245, 158, 11, 0.12)',
-    description: 'AI代理核心，自然语言操控工具，自动规划执行复杂任务链',
+    description: '智能体（执行中枢 MAF）：任务/Run 驱动，自然语言操控工具，开放任务与计划任务循环',
     stats: '50+ 工具函数',
     extraInfo: '支持多模型',
     enabled: true,

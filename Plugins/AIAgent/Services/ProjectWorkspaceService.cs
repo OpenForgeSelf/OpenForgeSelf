@@ -147,6 +147,11 @@ public class ProjectWorkspaceService : IProjectWorkspaceService
             throw new InvalidOperationException("拒绝访问项目目录之外的路径");
         }
 
+        if (!FilePathGuard.TryRejectReparseChain(root, combined, out var reparseError))
+        {
+            throw new InvalidOperationException(reparseError);
+        }
+
         return combined;
     }
 
@@ -206,14 +211,23 @@ public class ProjectWorkspaceService : IProjectWorkspaceService
             throw new InvalidOperationException($"文件不存在：{fullPath}");
         }
 
-        // 二进制/超大文件按文本截断处理，避免前端/日志爆炸。
-        return File.Exists(fullPath)
-            ? File.ReadAllText(fullPath, Encoding.UTF8)
-            : string.Empty;
+        var length = new FileInfo(fullPath).Length;
+        if (!FilePathGuard.TryLimitBytes(length, "文件", out var sizeError))
+        {
+            throw new InvalidOperationException(sizeError);
+        }
+
+        return File.ReadAllText(fullPath, Encoding.UTF8);
     }
 
     public void WriteFile(string relativePath, string content)
     {
+        var payload = content ?? string.Empty;
+        if (!FilePathGuard.TryLimitBytes(Encoding.UTF8.GetByteCount(payload), "写入内容", out var sizeError))
+        {
+            throw new InvalidOperationException(sizeError + "，未写入");
+        }
+
         var fullPath = ResolveSafePath(relativePath);
         var dir = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrEmpty(dir))
@@ -221,7 +235,7 @@ public class ProjectWorkspaceService : IProjectWorkspaceService
             Directory.CreateDirectory(dir);
         }
 
-        File.WriteAllText(fullPath, content ?? string.Empty, Encoding.UTF8);
+        File.WriteAllText(fullPath, payload, Encoding.UTF8);
     }
 
     public void DeleteFile(string relativePath)

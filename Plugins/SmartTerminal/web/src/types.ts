@@ -77,3 +77,28 @@ export interface CommandRecord {
   createdAt: string
   approvalId?: string
 }
+
+
+/** CT 画廊 / 演示用固定态（跳过网络） */
+export interface SmartTerminalFixture {
+  version?: string
+  shells?: ShellProfile[]
+  sessions?: TerminalSession[]
+  activeId?: string
+  chunks?: OutputChunk[]
+  commands?: CommandRecord[]
+  globalMode?: PermissionMode
+  approvals?: PendingApproval[]
+  showApproval?: boolean
+  activeApproval?: PendingApproval | null
+  showAudit?: boolean
+  auditItems?: AuditEvent[]
+  auditKindFilter?: string
+  auditQuery?: string
+  errorText?: string
+  unauthorized?: boolean
+  draftTitle?: string
+  draftShell?: string
+  draftCwd?: string
+  commandInput?: string
+}

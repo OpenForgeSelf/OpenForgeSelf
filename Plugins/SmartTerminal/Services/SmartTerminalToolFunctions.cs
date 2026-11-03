@@ -26,7 +26,7 @@ public sealed class StListShellsToolFunction : IToolFunctionExtension
     public string Id => "smart-terminal.list_shells";
     public string Name => "st_list_shells";
     public string PluginId { get; }
-    public string Description => "列出智能终端可用的外壳配置（Windows: cmd/powershell/pwsh + Windows Terminal profiles；非 Windows 降级为 bash/sh/pwsh）。";
+    public string Description => "列出智能终端可用的外壳配置。Windows：cmd/powershell/pwsh + Windows Terminal profiles；Linux/macOS：bash/zsh/sh（及 fish/dash）为一等公民，不可用项仍列出并标记 available=false。";
     public string ParametersJsonSchema => """{"type":"object","properties":{}}""";
     public Task<string> ExecuteAsync(string parameters)
     {
@@ -43,13 +43,13 @@ public sealed class StCreateSessionToolFunction : IToolFunctionExtension
     public string Id => "smart-terminal.create_session";
     public string Name => "st_create_session";
     public string PluginId { get; }
-    public string Description => "创建智能终端会话。可指定 shellId（cmd/powershell/pwsh/…）、cwd、permissionMode（Auto|AskWrite|AskHighRisk，默认 AskWrite）、title、agentId。";
+    public string Description => "创建智能终端会话。可指定 shellId（bash/zsh/sh/pwsh/powershell/cmd/…）、cwd、permissionMode（Auto|AskWrite|AskHighRisk，默认 AskWrite）、title、agentId。Linux 默认按 $SHELL → bash → zsh → sh。";
     public string ParametersJsonSchema => """
     {
       "type": "object",
       "properties": {
         "title": { "type": "string" },
-        "shellId": { "type": "string", "description": "外壳 Id，如 pwsh / powershell / cmd" },
+        "shellId": { "type": "string", "description": "外壳 Id，如 bash / zsh / sh / pwsh / powershell / cmd" },
         "cwd": { "type": "string", "description": "工作目录绝对路径" },
         "permissionMode": { "type": "string", "enum": ["Auto", "AskWrite", "AskHighRisk"] },
         "agentId": { "type": "string" }

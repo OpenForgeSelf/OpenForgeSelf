@@ -38,3 +38,19 @@
 4. 插件管理页启用 **智能终端**，打开 `/smart-terminal`
 
 Windows 多壳（cmd / Windows PowerShell / pwsh + WT profiles）在 Windows 宿主上可用；Linux/macOS 构建与加载不炸，降级为 bash/sh/pwsh。
+
+## 外壳支持（v1.1）
+
+- **Linux/macOS 一等**：`bash` / `zsh` / `sh`（及探测到的 `fish` / `dash`），默认按 `$SHELL` → bash → zsh → sh。
+- **Windows 一等**：`cmd` / Windows PowerShell / `pwsh` + Windows Terminal profiles；Git Bash 若在 PATH 也会出现。
+- 跨平台列表会保留对方平台壳并标记 `available=false`，便于 UI 多壳选择器对照。
+
+## CT 画廊
+
+```bash
+cd ForgeSelf.Web
+pnpm run ct:server   # http://127.0.0.1:5190/ 侧栏 SmartTerminal
+```
+
+深链示例：`/?story=SmartTerminal/PendingApproval`
+

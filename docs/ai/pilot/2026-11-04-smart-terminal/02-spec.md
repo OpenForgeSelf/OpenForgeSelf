@@ -18,3 +18,10 @@
 ## Interaction Design
 
 见 `Plugins/SmartTerminal/docs/ui-design-brief.md`。
+
+## Linux 一等公民（反馈修订）
+
+- 外壳探测：`bash` / `zsh` / `sh`（及 `fish` / `dash`）与 Windows 壳并列注册；不可用项 `available=false`。
+- 默认壳：`$SHELL` → bash → zsh → sh（Linux/macOS）；Windows 仍优先 pwsh/powershell/cmd。
+- 权限 / 审批 / 审计路径与 Windows 共用同一套会话服务。
+- CT 画廊：`ForgeSelf.Web` → `pnpm run ct:server` → 侧栏 **SmartTerminal**，覆盖空会话、直播输出、三级徽章、审批弹窗、拒绝/批准、审计过滤、脱敏、错误、Linux 多壳选择器。

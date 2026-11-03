@@ -37,7 +37,7 @@ public sealed class ShellProfileDto
     public string DisplayName { get; init; } = string.Empty;
     public string Executable { get; init; } = string.Empty;
     public string ArgumentsTemplate { get; init; } = "{command}";
-    public string Kind { get; init; } = "unknown"; // cmd | powershell | pwsh | bash | wt-profile | other
+    public string Kind { get; init; } = "unknown"; // cmd | powershell | pwsh | bash | zsh | sh | fish | wt-profile | other
     public bool Available { get; init; }
     public string? Source { get; init; }
     public string? Note { get; init; }

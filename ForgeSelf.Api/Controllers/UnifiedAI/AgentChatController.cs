@@ -129,9 +129,26 @@ public class AgentChatController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logService.Error("Agent 测试接口异常: {0}", ex.Message);
-            Response.Headers.Append("Content-Type", "application/json");
-            return StatusCode(500, new { error = new { message = ex.Message, type = "internal_error" } });
+            var err = UnifiedUpstreamErrors.Resolve(ex);
+            if (err.IsUpstream)
+                _logService.Error("Agent 测试接口上游返回错误 {0}: {1}", err.StatusCode, err.Message);
+            else
+                _logService.Error("Agent 测试接口异常: {0}", err.Message);
+
+            if (Response.HasStarted)
+            {
+                try
+                {
+                    await UnifiedUpstreamErrors.WriteOpenAiChatStreamErrorAsync(Response, StreamSerializerOptions, err, cancellationToken);
+                }
+                catch (Exception writeEx)
+                {
+                    _logService.Error("Agent 流式错误 SSE 回写失败: {0}", writeEx.Message);
+                }
+                return new EmptyResult();
+            }
+
+            return StatusCode(err.StatusCode, UnifiedUpstreamErrors.ToErrorBody(err));
         }
     }
 

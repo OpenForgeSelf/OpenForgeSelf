@@ -143,42 +143,27 @@ public class OpenAIChatController : ControllerBase
                 return Ok(openaiResponse);
             }
         }
-        catch (HttpRequestException httpEx)
-        {
-            stopwatch.Stop();
-            var upstreamStatus = httpEx.StatusCode ?? System.Net.HttpStatusCode.BadGateway;
-
-            // 上游客户端错误（400/401/403...）应原样透传给调用方，而非统一包装成 500
-            if (turn != null)
-            {
-                turn.ResponseStatus = (int)upstreamStatus;
-                turn.ResponseBody = JsonSerializer.Serialize(new { error = httpEx.Message });
-                turn.DurationMs = stopwatch.ElapsedMilliseconds;
-                turn.ErrorMessage = ChatSessionResolver.Truncate(httpEx.Message, 1000);
-                await _chatTurnService.SaveTurnAsync(turn);
-                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, (int)upstreamStatus, 0, 0);
-            }
-
-            _logService.Error("OpenAI Chat Completions 上游返回错误 {0}: {1}", (int)upstreamStatus, httpEx.Message);
-            return StatusCode((int)upstreamStatus, new { error = new { message = httpEx.Message, type = "upstream_error" } });
-        }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            var err = UnifiedUpstreamErrors.Resolve(ex);
 
-            // 更新错误轮次
             if (turn != null)
             {
-                turn.ResponseStatus = 500;
-                turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+                turn.ResponseStatus = err.StatusCode;
+                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
-                turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+                turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
                 await _chatTurnService.SaveTurnAsync(turn);
-                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, 500, 0, 0);
+                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, err.StatusCode, 0, 0);
             }
 
-            _logService.Error("OpenAI Chat Completions 处理失败: {0}", ex.Message);
-            return StatusCode(500, new { error = new { message = ex.Message, type = "internal_error" } });
+            if (err.IsUpstream)
+                _logService.Error("OpenAI Chat Completions 上游返回错误 {0}: {1}", err.StatusCode, err.Message);
+            else
+                _logService.Error("OpenAI Chat Completions 处理失败: {0}", err.Message);
+
+            return StatusCode(err.StatusCode, UnifiedUpstreamErrors.ToErrorBody(err));
         }
     }
 
@@ -307,23 +292,34 @@ public class OpenAIChatController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logService.Error("流式响应异常: {0}", ex.Message);
+            var err = UnifiedUpstreamErrors.Resolve(ex);
+            _logService.Error("流式响应异常: {0}", err.Message);
 
-            // 更新错误轮次
             stopwatch.Stop();
-            turn.ResponseStatus = 500;
-            turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message }, StreamSerializerOptions);
+            try
+            {
+                await UnifiedUpstreamErrors.WriteOpenAiChatStreamErrorAsync(Response, StreamSerializerOptions, err, cancellationToken);
+                responseBody.Append(JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), StreamSerializerOptions));
+                responseBody.Append("[DONE]");
+            }
+            catch (Exception writeEx)
+            {
+                _logService.Error("流式错误 SSE 回写失败: {0}", writeEx.Message);
+            }
+
+            turn.ResponseStatus = err.StatusCode;
+            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), StreamSerializerOptions);
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
-            turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+            turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
             if (streamSession != null)
             {
-                await streamSession.FailAsync(500, stopwatch.ElapsedMilliseconds);
-                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+                await streamSession.FailAsync(err.StatusCode, stopwatch.ElapsedMilliseconds);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, err.StatusCode, 0, 0);
             }
             else
             {
                 await _chatTurnService.SaveTurnAsync(turn);
-                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, err.StatusCode, 0, 0);
             }
         }
     }

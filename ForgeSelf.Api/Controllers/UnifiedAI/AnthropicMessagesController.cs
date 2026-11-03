@@ -115,20 +115,27 @@ public class AnthropicMessagesController : ControllerBase
         catch (Exception ex)
         {
             stopwatch.Stop();
+            var err = UnifiedUpstreamErrors.Resolve(ex);
 
-            // 更新错误轮次
             if (turn != null)
             {
-                turn.ResponseStatus = 500;
-                turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+                turn.ResponseStatus = err.StatusCode;
+                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
-                turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+                turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
                 await _chatTurnService.SaveTurnAsync(turn);
-                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, 500, 0, 0);
+                await _chatSessionService.RecordTurnStatsAsync(chatSession?.Id ?? 0, err.StatusCode, 0, 0);
             }
 
-            _logService.Error("Anthropic Messages 处理失败: {0}", ex.Message);
-            return StatusCode(500, new { error = new { type = "api_error", message = ex.Message } });
+            if (err.IsUpstream)
+                _logService.Error("Anthropic Messages 上游返回错误 {0}: {1}", err.StatusCode, err.Message);
+            else
+                _logService.Error("Anthropic Messages 处理失败: {0}", err.Message);
+
+            object body = err.IsUpstream
+                ? new { type = "error", error = new { type = err.ErrorType, message = err.Message } }
+                : new { error = new { type = "api_error", message = err.Message } };
+            return StatusCode(err.StatusCode, body);
         }
     }
 
@@ -241,23 +248,33 @@ public class AnthropicMessagesController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logService.Error("Anthropic 流式响应异常: {0}", ex.Message);
+            var err = UnifiedUpstreamErrors.Resolve(ex);
+            _logService.Error("Anthropic 流式响应异常: {0}", err.Message);
 
-            // 更新错误轮次
             stopwatch.Stop();
-            turn.ResponseStatus = 500;
-            turn.ResponseBody = JsonSerializer.Serialize(new { error = ex.Message });
+            try
+            {
+                await UnifiedUpstreamErrors.WriteAnthropicStreamErrorAsync(Response, err, cancellationToken);
+                responseBody.Append("{\"type\":\"error\"}");
+            }
+            catch (Exception writeEx)
+            {
+                _logService.Error("Anthropic 流式错误 SSE 回写失败: {0}", writeEx.Message);
+            }
+
+            turn.ResponseStatus = err.StatusCode;
+            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
-            turn.ErrorMessage = ChatSessionResolver.Truncate(ex.Message, 1000);
+            turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
             if (streamSession != null)
             {
-                await streamSession.FailAsync(500, stopwatch.ElapsedMilliseconds);
-                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+                await streamSession.FailAsync(err.StatusCode, stopwatch.ElapsedMilliseconds);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, err.StatusCode, 0, 0);
             }
             else
             {
                 await _chatTurnService.SaveTurnAsync(turn);
-                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, 500, 0, 0);
+                await _chatSessionService.RecordTurnStatsAsync(turn.ChatSessionId, err.StatusCode, 0, 0);
             }
         }
     }

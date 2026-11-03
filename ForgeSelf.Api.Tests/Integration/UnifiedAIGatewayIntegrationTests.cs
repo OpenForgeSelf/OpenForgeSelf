@@ -1,3 +1,4 @@
+using System.Net;
 using ForgeSelf.Api.Controllers.UnifiedAI;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Entities;
@@ -339,6 +340,51 @@ public class UnifiedAIGatewayIntegrationTests
         body.Should().Contain("total_tokens", "usage 必须包含 total_tokens");
     }
 
+    [Fact]
+    public async Task ChatCompletions_NonStream_Upstream429_Returns429Body()
+    {
+        var (controller, provider) = CreateControllerWithProvider();
+        provider.ChatFailure = new HttpRequestException(
+            "HTTP 429 (rate_limit_error: 429) inference exceeds tpm/rpm limit", null, HttpStatusCode.TooManyRequests);
+
+        var request = new OpenAIChatCompletionRequest
+        {
+            Model = "gpt-4",
+            Messages = new List<OpenAIChatMessage> { new() { Role = "user", Content = "hi" } },
+            Stream = false
+        };
+
+        var result = await controller.ChatCompletions(request, CancellationToken.None);
+
+        var obj = result.Should().BeAssignableTo<ObjectResult>().Which;
+        obj.StatusCode.Should().Be(429);
+        obj.Value.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ChatCompletions_Streaming_Upstream429_WritesErrorSseAndDone()
+    {
+        var (controller, provider) = CreateControllerWithProvider();
+        provider.StreamFailure = new HttpRequestException(
+            "HTTP 429 (rate_limit_error: 429) inference exceeds tpm/rpm limit", null, HttpStatusCode.TooManyRequests);
+        controller.Response.Body = new MemoryStream();
+
+        var request = new OpenAIChatCompletionRequest
+        {
+            Model = "gpt-4",
+            Messages = new List<OpenAIChatMessage> { new() { Role = "user", Content = "hi" } },
+            Stream = true
+        };
+
+        await controller.ChatCompletions(request, CancellationToken.None);
+
+        controller.Response.Body.Position = 0;
+        var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
+        body.Should().Contain("rate_limit_error");
+        body.Should().Contain("429");
+        body.Should().Contain("data: [DONE]");
+    }
+
     }
 
 /// <summary>
@@ -364,9 +410,15 @@ public class TestAIProvider : IAIProvider
     /// </summary>
     public bool EmitUsage { get; set; }
 
+    public Exception? ChatFailure { get; set; }
+
+    public Exception? StreamFailure { get; set; }
+
     public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
     {
         LastRequest = request;
+        if (ChatFailure != null)
+            throw ChatFailure;
         return Task.FromResult(new UnifiedChatResponse
         {
             Id = "test-" + Guid.NewGuid().ToString("N")[..8],
@@ -389,6 +441,8 @@ public class TestAIProvider : IAIProvider
     public async IAsyncEnumerable<UnifiedStreamChunk> ChatStreamAsync(UnifiedChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         LastRequest = request;
+        if (StreamFailure != null)
+            throw StreamFailure;
         await Task.CompletedTask;
         yield return new UnifiedStreamChunk
         {

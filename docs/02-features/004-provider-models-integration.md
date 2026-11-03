@@ -65,6 +65,22 @@ LLM 客户端（GitHub Copilot 等）按 OpenAI / Anthropic / OpenAI Responses �
 
 注册表未命中 ChatModelId 时，`AIService` 走 `ForgeSetting.config` 旧配置直连——出站已切 `OpenAISdkAdapter`（10s 超时、空回复→`reasoning_content` 往返提取回放（deepseek 系，仅回退路径付 roundtrip 成本）、失败/空→`GetFallbackResponse` 降级、流式失败 log+静默停语义保留）。
 
+### 2.6 上游 HTTP 错误全量透传（2026-11-03 落地）
+
+共用 `ForgeSelf.Api/Services/AI/UnifiedUpstreamErrors.cs`：**凡上游 HTTP 4xx/5xx**（`ClientResultException.Status` / `HttpRequestException.StatusCode`，含 **InnerException 解包**）均原样 `StatusCode`，不再压成 500。
+
+| 模式 | 行为 |
+|------|------|
+| **非流式**（Chat / Responses / Anthropic / Agent 实验路由） | `StatusCode(upstream)`；body 优先回传上游 JSON `error` 对象（SDK `Error` 或 Message 内嵌 JSON），否则 `{ error: { message, type, code } }` |
+| **流式 Chat / Responses / Agent** | `data: {"error":…}` + `data: [DONE]` |
+| **流式 Anthropic** | `event: error` + snake_case |
+
+**type 映射**：Message 内 JSON 的 `error.type` 优先；否则 429→`rate_limit_error`、401/403→`authentication_error`、其余 4xx→`invalid_request_error`、5xx→`upstream_error`。
+
+**限制**：流式在首个 SSE 分片已发出后 HTTP 常为 200；客户端读 SSE 内 `error`。`!Response.HasStarted` 时设 HTTP 状态码。
+
+工件：`docs/ai/pilot/2026-11-03-gateway-stream-upstream-passthrough/mini-task.md`。
+
 ## 3. 使用指南
 LLM 客户端 base URL 指向 `http://localhost:<端口>`，model 填 `ChatModelId`（见 002）。代理录制会自动归并到 `ChatSession`（见 chat 会话化）。
 

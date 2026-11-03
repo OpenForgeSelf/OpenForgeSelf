@@ -282,6 +282,7 @@ import {
   type ChatHistoryItem,
 } from '../http'
 import { runStatusName, stepStatusName, VERIFY_STATUS_NAMES, type RunResultReceipt, type RunVerifyReport } from '../types'
+import { runStatusText } from '../runStatusLabels'
 
 const props = defineProps<{
   /** 面板是否打开。 */
@@ -634,27 +635,6 @@ async function onCancel() {
 }
 
 /* ---- 展示辅助 ---- */
-function runStatusText(code: number): string {
-  switch (runStatusName(code)) {
-    case 'pending':
-      return '等待'
-    case 'planning':
-      return '规划中'
-    case 'running':
-      return '运行中'
-    case 'completed':
-      return '完成'
-    case 'stuck':
-      return '卡住'
-    case 'failed':
-      return '失败'
-    case 'cancelled':
-      return '已取消'
-    default:
-      return runStatusName(code)
-  }
-}
-
 function stepStatusText(code: number): string {
   switch (stepStatusName(code)) {
     case 'pending':
@@ -719,6 +699,8 @@ function fmtTime(t?: string): string {
   if (Number.isNaN(d.getTime())) return t
   return d.toLocaleString()
 }
+
+defineExpose({ selectRun: openRun })
 </script>
 
 <style scoped>

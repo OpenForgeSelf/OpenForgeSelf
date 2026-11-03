@@ -239,7 +239,21 @@ function markFresh() {
   touch()
   nowTick.value = Date.now()
 }
-const typing = computed(() => sending.value && !streamingText.value)
+const typing = computed(
+  () =>
+    sending.value &&
+    !streamingText.value &&
+    !streamingBlocks.value.some((b) => b && (b.type === 'text' ? String(b.text || '').trim() : true)),
+)
+
+/** Run 状态条展开（卡住原因等），默认单行。 */
+const runStripExpanded = ref(false)
+watch(
+  () => props.config.runStrip?.visible,
+  (v) => {
+    if (!v) runStripExpanded.value = false
+  },
+)
 /** 触屏设备：打开面板时不主动聚焦，否则软键盘立刻弹出把面板顶出视口（FR-203） */
 const isTouchDevice = () =>
   typeof window !== 'undefined' &&
@@ -1039,7 +1053,7 @@ defineExpose({
               @resolve="handleResolve"
             />
             <MessageItem
-              v-if="streamingText"
+              v-if="streamingText || streamingBlocks.length"
               :message="{ role: 'assistant', content: streamingText, blocks: streamingBlocks, time: Date.now(), streaming: true }"
               :avatar="config.avatar"
               :config="config"
@@ -1100,6 +1114,34 @@ defineExpose({
           >
             {{ q }}
           </button>
+        </div>
+
+        <!-- 计划 Run 贴流状态条：当前步骤 / 卡住 / 继续（不进 messages，与 aiw-status 同区）。 -->
+        <div v-if="config.runStrip?.visible" class="aiw-runstrip" role="status" aria-live="polite">
+          <div class="aiw-runstrip__row">
+            <button
+              type="button"
+              class="aiw-runstrip__main"
+              :aria-expanded="runStripExpanded ? 'true' : 'false'"
+              @click="runStripExpanded = !runStripExpanded"
+            >
+              <span class="aiw-runstrip__badge">{{ config.runStrip.statusLabel || '执行中' }}</span>
+              <span v-if="config.runStrip.stepLabel" class="aiw-runstrip__step">{{ config.runStrip.stepLabel }}</span>
+              <span v-if="config.runStrip.taskPreview" class="aiw-runstrip__task">{{ config.runStrip.taskPreview }}</span>
+            </button>
+            <div class="aiw-runstrip__actions">
+              <button
+                v-if="config.runStrip.canResume"
+                type="button"
+                class="aiw-runstrip__btn aiw-runstrip__btn--primary"
+                @click="config.runStrip.onResume?.()"
+              >
+                继续
+              </button>
+              <button type="button" class="aiw-runstrip__btn" @click="config.runStrip.onOpenDetail?.()">详情</button>
+            </div>
+          </div>
+          <p v-if="runStripExpanded && config.runStrip.hint" class="aiw-runstrip__hint">{{ config.runStrip.hint }}</p>
         </div>
 
         <!-- 状态提示条：retrying / reconnecting / fellBackToMock / error 四条统一贴输入框上方，

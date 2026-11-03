@@ -5,6 +5,7 @@
 
 /* ---------------- 富内容容器 ---------------- */
 .aiw-blocks { display: flex; flex-direction: column; gap: 9px; width: 100%; }
+.aiw-seg-text { width: 100%; margin: 0; }
 .aiw-msg__col.is-rich { max-width: 92%; width: 92%; }
 .aiw-md { font-size: 13.5px; line-height: 1.68; word-break: break-word; overflow-wrap: anywhere; }
 .aiw-md a { color: var(--aiw-primary); text-decoration: underline; text-underline-offset: 2px; }

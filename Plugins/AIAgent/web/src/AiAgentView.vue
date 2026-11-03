@@ -107,6 +107,7 @@
 
     <!-- 执行记录面板（029 计划驱动：Run 列表 / 详情 / 继续 / 介入） -->
     <RunRecordPanel
+      ref="runPanelRef"
       :visible="runPanelVisible"
       :session-id="sessionId"
       :active-agent-id="activeAgentId"
@@ -147,6 +148,7 @@ import {
   apiPost,
   fetchSessions,
   getRunDetail,
+  listRuns,
   resumeAgentRun,
   withQuery,
   type AgentUsage,
@@ -167,7 +169,13 @@ import type {
   SessionSummary,
   ToolEvent,
 } from './types'
-import { stepStatusName } from './types'
+import { runStatusName, stepStatusName } from './types'
+import {
+  isActiveRunStatus,
+  isActiveRunStatusName,
+  runStatusText,
+  runStatusTextByName,
+} from './runStatusLabels'
 import ContextPanel from './components/ContextPanel.vue'
 import FileEditor from './components/FileEditor.vue'
 import SessionPanel from './components/SessionPanel.vue'
@@ -294,6 +302,9 @@ const rightCollapsed = ref(false)
 const runCard = ref<PlanRunCard | null>(null)
 /** 执行记录面板（029）是否打开。 */
 const runPanelVisible = ref(false)
+const runPanelRef = ref<{ selectRun: (id: number) => Promise<void> } | null>(null)
+/** 当前会话下 API 返回的活跃 Run（轮询）；与 runCard（SSE 现场）合并展示 Run 条。 */
+const activeRunDto = ref<AgentRunDto | null>(null)
 /** 计划驱动执行的 AbortController（停止 = 中断 SSE 流）。 */
 const runAbort = ref<AbortController | null>(null)
 
@@ -333,6 +344,7 @@ onBeforeUnmount(() => {
   unsubscribeAppearance()
   hostAppearance.dispose()
   stopApprovalPoll()
+  stopRunPoll()
 })
 
 /** 消息条数（真实统计；由组件 state-changed 事件驱动刷新）。 */
@@ -365,7 +377,103 @@ function onChatStateChanged() {
   void loadTodos()
   // 一轮结束时立刻对一下审批：挂起的 Pending 不能等下一拍轮询
   void loadApprovals()
+  void refreshActiveRun()
 }
+
+function truncateTaskPreview(text?: string, max = 52): string {
+  const t = String(text ?? '').trim().replace(/\s+/g, ' ')
+  if (!t) return ''
+  return t.length <= max ? t : `${t.slice(0, max)}…`
+}
+
+function stepLabelFromRun(run: AgentRunDto): string {
+  const total = run.stepCount ?? 0
+  if (!total) return ''
+  const cur = Math.min((run.currentStepIndex ?? 0) + 1, total)
+  return `步骤 ${cur}/${total}`
+}
+
+function stepLabelFromCard(card: PlanRunCard): string {
+  if (!card.steps.length) return ''
+  const done = card.steps.filter((s) => s.status === 'completed' || s.status === 'skipped').length
+  const running = card.steps.some((s) => s.status === 'running') ? 1 : 0
+  const cur = Math.min(done + running, card.steps.length)
+  return `步骤 ${cur}/${card.steps.length}`
+}
+
+function openRunDetail(runId?: number) {
+  runPanelVisible.value = true
+  if (runId != null && runPanelRef.value) void runPanelRef.value.selectRun(runId)
+}
+
+async function refreshActiveRun() {
+  const sid = sessionId.value
+  if (!sid) {
+    activeRunDto.value = null
+    return
+  }
+  try {
+    const data = await listRuns(sid, undefined, 1, 30)
+    const items = data?.items ?? []
+    activeRunDto.value = items.find((r) => isActiveRunStatus(r.status)) ?? null
+  } catch {
+    /* 轮询失败保留上一帧，避免条闪灭 */
+  }
+}
+
+let runPollTimer: ReturnType<typeof setInterval> | undefined
+function startRunPoll() {
+  stopRunPoll()
+  void refreshActiveRun()
+  runPollTimer = setInterval(() => void refreshActiveRun(), 5000)
+}
+function stopRunPoll() {
+  if (runPollTimer) {
+    clearInterval(runPollTimer)
+    runPollTimer = undefined
+  }
+}
+
+watchEffect(() => {
+  const card = runCard.value
+  if (card && isActiveRunStatusName(card.status)) {
+    const run = activeRunDto.value
+    const rid = run?.id ?? card.runId
+    agentConfig.runStrip = {
+      visible: true,
+      statusLabel: runStatusTextByName(card.status),
+      stepLabel: stepLabelFromCard(card),
+      taskPreview: truncateTaskPreview(run?.taskInput ?? card.plan?.goal),
+      hint: card.stuckReason || run?.stuckReason,
+      canResume: card.status === 'stuck' || card.status === 'failed',
+      onResume: () => {
+        if (run && (runStatusName(run.status) === 'stuck' || runStatusName(run.status) === 'failed')) {
+          void onResumeRun(run)
+        } else if (run) {
+          openRunDetail(run.id)
+        }
+      },
+      onOpenDetail: () => openRunDetail(rid),
+    }
+    return
+  }
+  const run = activeRunDto.value
+  if (run && isActiveRunStatus(run.status)) {
+    const st = runStatusName(run.status)
+    agentConfig.runStrip = {
+      visible: true,
+      statusLabel: runStatusText(run.status),
+      stepLabel: stepLabelFromRun(run),
+      taskPreview: truncateTaskPreview(run.taskInput),
+      hint: run.stuckReason,
+      canResume: st === 'stuck' || st === 'failed',
+      onResume: () => void onResumeRun(run),
+      onOpenDetail: () => openRunDetail(run.id),
+    }
+    return
+  }
+  agentConfig.runStrip = { visible: false }
+})
 
 /** 生成一个新的会话 id（简单时间戳 + 随机串，避免引入 uuid 依赖）。 */
 function newSessionId(): string {
@@ -768,6 +876,7 @@ watch(sessionId, (id, prev) => {
   approvalMuted.clear()
   askItems.value = askItems.value.filter((item) => item.kind !== 'approval')
   void loadApprovals()
+  void refreshActiveRun()
 })
 
 /** 切换权限档位：立刻生效于下一条消息（transport 每次发送取最新值），并持久化。 */
@@ -1227,6 +1336,7 @@ onMounted(async () => {
   void loadTodos()
   void loadApprovals()
   startApprovalPoll()
+  startRunPoll()
   // v1.8.0：初始会话历史灌入组件（hydrate 内部 emit state-changed → 左栏统计初始化）
   chatRef.value?.hydrate(messages.value)
 })

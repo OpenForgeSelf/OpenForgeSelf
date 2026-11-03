@@ -18,7 +18,26 @@ const props = defineProps({
 })
 const emit = defineEmits(['retry', 'resolve'])
 
-const open = ref(props.block.open !== false && !props.block.collapsed)
+/** 折叠默认：tool 默认收起；执行中/失败默认展开便于扫状态。显式 open/collapsed 优先。 */
+function initialFoldOpen(block) {
+  if (block.collapsed === true || block.open === false) return false
+  if (block.open === true) return true
+  if (block.type === 'tool') {
+    const st = block.status || 'ok'
+    return st === 'running' || st === 'error'
+  }
+  return block.open !== false && !block.collapsed
+}
+
+const open = ref(initialFoldOpen(props.block))
+
+watch(
+  () => props.block.status,
+  (st) => {
+    if (props.block.type !== 'tool') return
+    if (st === 'running' || st === 'error') open.value = true
+  },
+)
 
 /* ================= 权限门禁 =================
    必须放在模板分支最前面：Vue 计算属性只在被求值时执行，
@@ -291,6 +310,12 @@ const inputId = 'aiw-blk-cf-' + uid
     <span class="aiw-locked__text">{{ gateLabel }}需要 <code>{{ gateRole || '更高' }}</code> 权限，已隐藏</span>
   </div>
   <div v-else-if="gateHidden" class="aiw-locked-slot" aria-hidden="true"></div>
+
+  <div
+    v-else-if="block.type === 'text'"
+    class="aiw-seg-text aiw-msg__bubble aiw-md"
+    v-html="renderMarkdown(block.text || '')"
+  ></div>
 
   <div v-else-if="block.type === 'thinking'" class="aiw-think" :class="{ 'aiw-think--done': block.done }">
     <!-- 行首是一个图标槽：默认显块类型图标，悬浮/聚焦/展开时**同一格**换成折叠箭头。

@@ -626,6 +626,11 @@ export function useChat(config) {
                界面就是一直空白 —— 用户只能猜它在干什么。 */
             onBlock: (b) => {
               if (!b) return
+              if (b.type === 'text' && !String(b.text || '').trim() && b.id === 'seg-text-live') {
+                const liveIdx = streamingBlocks.value.findIndex((x) => x && x.id === 'seg-text-live')
+                if (liveIdx >= 0) streamingBlocks.value.splice(liveIdx, 1)
+                return
+              }
               /* 带 id 的块是「会变的同一个块」（计划卡每步推进），原地替换而不是再推一条 ——
                  否则七步计划会变成七张卡，越跑越长。 */
               const idx = b.id ? streamingBlocks.value.findIndex((x) => x && x.id === b.id) : -1
@@ -755,10 +760,19 @@ export function useChat(config) {
       }
     } finally {
       retrying.value = null
-      const content = streamingText.value
-      const blocks = streamingBlocks.value.slice()
+      let content = streamingText.value
+      const blocks = streamingBlocks.value
+        .slice()
+        .filter((b) => !(b && b.type === 'text' && b.id === 'seg-text-live'))
       streamingText.value = ''
       streamingBlocks.value = []
+      if (blocks.some((b) => b && b.type === 'text')) {
+        const merged = blocks
+          .filter((b) => b && b.type === 'text')
+          .map((b) => String(b.text || ''))
+          .join('')
+        if (merged && (!content || content === merged)) content = ''
+      }
       sending.value = false
       clearTimer()
       controller = null

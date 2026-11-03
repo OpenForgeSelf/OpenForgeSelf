@@ -79,6 +79,17 @@ export interface AgentChatConfig {
     onClose?: (key: string) => void
     onPick?: (e: { key: string; id: string }) => void
   } | null
+  /** composer 上方的计划 Run 状态条（贴流反馈，不进消息流）。 */
+  runStrip?: {
+    visible?: boolean
+    statusLabel?: string
+    stepLabel?: string
+    taskPreview?: string
+    hint?: string
+    canResume?: boolean
+    onResume?: () => void
+    onOpenDetail?: () => void
+  } | null
   /** 紧贴输入框上沿的「待你动作」区（041）：审批 / 询问。 */
   ask?: {
     items?: Array<{

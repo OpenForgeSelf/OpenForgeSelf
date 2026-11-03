@@ -412,7 +412,28 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
         return
       }
 
-      // 自由循环：流式增量逐块展示
+      // 自由循环：正文段与工具块按事件顺序交错（text 块 + tool 块）
+      const TEXT_LIVE_ID = 'seg-text-live'
+      let textSegSeq = 0
+      let textBuf = ''
+      const emitTextLive = () => {
+        if (!textBuf) {
+          ctx.onBlock?.({ type: 'text', text: '', id: TEXT_LIVE_ID })
+          return
+        }
+        ctx.onBlock?.({ type: 'text', text: textBuf, id: TEXT_LIVE_ID })
+      }
+      const finalizeTextSegment = () => {
+        if (!textBuf.trim()) {
+          textBuf = ''
+          ctx.onBlock?.({ type: 'text', text: '', id: TEXT_LIVE_ID })
+          return
+        }
+        ctx.onBlock?.({ type: 'text', text: textBuf, id: `seg-text-${textSegSeq++}` })
+        textBuf = ''
+        ctx.onBlock?.({ type: 'text', text: '', id: TEXT_LIVE_ID })
+      }
+
       const { completed, errored } = await streamAgentChat(
         {
           sessionId,
@@ -423,8 +444,12 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
           skillIds: skillIds.length > 0 ? skillIds : undefined,
         },
         {
-          onContent: (chunk: string) => ctx.onDelta(chunk),
+          onContent: (chunk: string) => {
+            textBuf += chunk
+            emitTextLive()
+          },
           onToolCall: (e: { name?: string; arguments?: string }) => {
+            finalizeTextSegment()
             const name = e?.name || 'tool'
             emitTool({
               type: 'tool',
@@ -442,6 +467,11 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
               hit.status = e?.success === false ? 'error' : 'ok'
               hit.result = e?.result
               hit.durationMs = hit.startedAt ? Date.now() - hit.startedAt : undefined
+              try {
+                ctx.onBlock?.({ ...hit })
+              } catch {
+                /* noop */
+              }
             } else {
               emitTool({ type: 'tool', name, status: e?.success === false ? 'error' : 'ok', result: e?.result })
             }
@@ -456,6 +486,7 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
         },
         ctx.signal ?? undefined,
       )
+      finalizeTextSegment()
       /* ★ 断流必须可见。反代 60s 超时、进程被杀、Wi-Fi 掉一下，SSE 都是
          「正常结束」而不发 done 事件。不提前报错，半截回答会被当成完整回答存下来，
          下一轮还会被当上下文回喂。 */

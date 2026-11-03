@@ -51,6 +51,16 @@ const statusText = computed(() => {
 const hasStatus = computed(() => isSending.value || isFailed.value || isStopped.value)
 /** 有 blocks 就渲染富内容块，否则退回纯 Markdown 文本 */
 const hasBlocks = computed(() => Array.isArray(props.message.blocks) && props.message.blocks.length > 0)
+const hasInterleavedText = computed(
+  () => hasBlocks.value && props.message.blocks.some((b) => b && b.type === 'text'),
+)
+/** 交错模式下正文已在 text 块里；legacy 仍为 blocks=工具 + content=全文。 */
+const showContentBubble = computed(() => {
+  const c = String(props.message.content || '').trim()
+  if (!c) return false
+  if (!hasInterleavedText.value) return true
+  return false
+})
 /** 无障碍（v1.11.0）：读屏在 role="log" 里逐条播报时，得先知道「这是谁说的」 */
 const whoLabel = computed(() => (isUser.value ? '你发送的消息' : '助手回复'))
 const timeText = computed(() => {
@@ -128,7 +138,7 @@ watch(
            原来这里是 v-else —— 只要出现一张工具卡，整段正文就被藏掉，
            用户只看到「调用了 3 个工具」却看不到结论。 -->
       <div
-        v-if="!hasBlocks || String(message.content || '').trim()"
+        v-if="showContentBubble"
         class="aiw-msg__fold"
         :class="{ 'is-collapsed': collapsed }"
       >

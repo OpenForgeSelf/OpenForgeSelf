@@ -1125,6 +1125,89 @@
 .aiw-chip:hover { background: var(--aiw-primary-08); border-color: var(--aiw-primary-32); transform: translateY(-1px); }
 .aiw-chip:active { transform: translateY(0); }
 
+/* ---------------- Run 贴流状态条（composer 上方） ---------------- */
+.aiw-runstrip {
+  flex: 0 0 auto;
+  padding: 8px 14px 0;
+  background: var(--aiw-bg);
+  border-top: 1px solid var(--aiw-line);
+  animation: aiw-runstrip-in 0.15s var(--aiw-ease-out);
+}
+@keyframes aiw-runstrip-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.aiw-runstrip + .aiw-status { border-top: 0; padding-top: 6px; }
+.aiw-runstrip + .aiw-footer { border-top: 0; padding-top: 8px; }
+.aiw-runstrip__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.aiw-runstrip__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--aiw-bg-soft) 85%, transparent);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--aiw-text);
+  text-align: left;
+  cursor: pointer;
+}
+.aiw-runstrip__main:hover { background: var(--aiw-primary-08); }
+.aiw-runstrip__badge {
+  flex: 0 0 auto;
+  font-weight: 650;
+  color: var(--aiw-primary);
+}
+.aiw-runstrip__step {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--aiw-text-soft);
+}
+.aiw-runstrip__task {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aiw-text-soft);
+}
+.aiw-runstrip__actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+.aiw-runstrip__btn {
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--aiw-line);
+  background: var(--aiw-bg);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--aiw-text);
+}
+.aiw-runstrip__btn--primary {
+  border-color: var(--aiw-primary-32);
+  background: var(--aiw-primary-08);
+  color: var(--aiw-primary);
+  font-weight: 600;
+}
+.aiw-runstrip__hint {
+  margin: 6px 8px 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--aiw-text-soft);
+}
+
 /* ---------------- 状态提示条（贴输入框上方） ----------------
    error / retrying / reconnecting / fellBackToMock 统一挂在这条容器里。
    它在 .aiw-body 之外，所以不随消息滚动；贴在 .aiw-footer 之上，

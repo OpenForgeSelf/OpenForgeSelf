@@ -53,3 +53,13 @@ qa-gate 全程：先建基线（当前树全量 dotnet test + pnpm check/test �
 
 - B2–B5 四批 05/06/07 齐、对应门禁绿、走查截图入库、TODO 相应条目移除。
 - 用户验收（闸门2）后按闸门3 归档；发布另行请示。
+
+---
+
+## 收口记录（2026-11-03 01:4x · lead）
+
+五批全部完成入库：B1 `603a915`（前置）→ B2 `cf01aa5` → B3 `2c6b30c` → B4 `3c4d7ce`+`943bb0c` → B5 `28a5d78`。
+门禁总账：中档全量 3427/3339/88 零引入红（89 基线闭合 ✓）；深档 e2e B5 归属 0；台账 23 PC 绿；残差双向闭合。
+工件：各批 pilot 目录（docs/ai/pilot/2026-11-02-*）+ qa 审计 b4/b5 报告（本目录）。
+目标链九环全通：Agent → Run → Plan → Tool → Permission → Approval → Execute → Verify → Result（MAF 主干唯一路径）。
+遗留：P2 e2e 陈旧断言清理批；P3 枚举序列化候选 / 死代码第二批 / cancel 专测；3 环境特例复发监视（见 TODO.md）。

@@ -138,6 +138,8 @@
     <ProjectReference Include="..\Plugins\ToolBridge\ToolBridge.csproj" ReferenceOutputAssembly="false" />
     <!-- BrowserUse 插件（本机浏览器）：仅建立构建顺序，不编译引用、不复制到输出根目录 -->
     <ProjectReference Include="..\Plugins\BrowserUse\BrowserUse.csproj" ReferenceOutputAssembly="false" />
+    <!-- SmartTerminal 智能终端：仅建立构建顺序 -->
+    <ProjectReference Include="..\Plugins\SmartTerminal\SmartTerminal.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 将仓库根 Plugins/<Name>/bin/<Config>/net10.0 下各插件的完整输出（DLL + deps.json + 非宿主共享

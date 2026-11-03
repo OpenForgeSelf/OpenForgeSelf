@@ -13,6 +13,7 @@
     <Project Path="Plugins/McpCenter/McpCenter.csproj" />
     <Project Path="Plugins/SamplePlugin/SamplePlugin.csproj" />
     <Project Path="Plugins/Sems/Sems.csproj" />
+    <Project Path="Plugins/SmartTerminal/SmartTerminal.csproj" />
   </Folder>
   <Folder Name="/ForgeSelf.Api/" />
   <Folder Name="/ForgeSelf.Api/Plugins/">
@@ -22,6 +23,7 @@
   <Project Path="ForgeSelf.Abstractions/ForgeSelf.Abstractions.csproj" />
   <Project Path="ForgeSelf.Abstractions.Tests/ForgeSelf.Abstractions.Tests.csproj" />
   <Project Path="ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj" />
+  <Project Path="Plugins/SmartTerminal.Tests/SmartTerminal.Tests.csproj" />
   <Project Path="ForgeSelf.Api/ForgeSelf.Api.csproj" />
   <Project Path="Plugins/DevTools/DevTools.csproj" />
   <Project Path="Plugins/FileTools/FileTools.csproj" />

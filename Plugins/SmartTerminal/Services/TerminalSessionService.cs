@@ -71,14 +71,23 @@ public sealed class TerminalSessionService : ITerminalSessionService
     {
         var shells = _shells.ListProfiles();
         var preferred = request.ShellId;
-        var shell = !string.IsNullOrWhiteSpace(preferred)
-            ? _shells.Find(preferred!)
-            : shells.FirstOrDefault(s => s.Available && s.Id is "pwsh" or "powershell" or "cmd" or "bash")
-              ?? shells.FirstOrDefault(s => s.Available);
+        ShellProfileDto? shell;
+        if (!string.IsNullOrWhiteSpace(preferred))
+        {
+            shell = _shells.Find(preferred!);
+        }
+        else
+        {
+            var defaultId = _shells.PreferDefaultShellId();
+            shell = !string.IsNullOrWhiteSpace(defaultId)
+                ? _shells.Find(defaultId!)
+                : shells.FirstOrDefault(s => s.Available);
+        }
 
         if (shell == null || !shell.Available)
         {
-            throw new InvalidOperationException("没有可用的终端外壳。Windows 请确认 cmd/powershell/pwsh 在 PATH；非 Windows 请安装 bash/pwsh。");
+            throw new InvalidOperationException(
+                "没有可用的终端外壳。Windows 请确认 cmd/powershell/pwsh 在 PATH；Linux/macOS 请确认 bash/zsh/sh 可用。");
         }
 
         var cwd = string.IsNullOrWhiteSpace(request.Cwd)
@@ -504,7 +513,14 @@ public sealed class TerminalSessionService : ITerminalSessionService
             // cmd /c 需要整体引住含空格与特殊符的命令
             return "\"" + command.Replace("\"", "\\\"") + "\"";
         }
-        // pwsh / powershell / bash：用单引号包一层并转义内部单引号
+
+        if (kind is "bash" or "zsh" or "sh" or "fish" or "other")
+        {
+            // POSIX：单引号包裹；内部单引号用 '\'' 跳出
+            return "'" + command.Replace("'", "'\\''") + "'";
+        }
+
+        // pwsh / powershell / wt-profile：PowerShell 单引号转义为 ''
         return "'" + command.Replace("'", "''") + "'";
     }
 

@@ -116,6 +116,23 @@ export interface RunsResp {
   runs: RunSession[]
 }
 
+/** 单条捕获输出（GET /api/commands/{id}/logs）。 */
+export interface RunLogLine {
+  index: number
+  stream: string
+  text: string
+  at: string
+}
+
+/** GET /api/commands/{id}/logs 响应。 */
+export interface RunLogsResp {
+  commandId: number
+  running: boolean
+  nextIndex: number
+  truncated: boolean
+  lines: RunLogLine[]
+}
+
 /** 目录浏览条目（GET /api/projects/browse，后端 DirectoryEntry）。 */
 export interface DirectoryEntry {
   /** 目录名；列举驱动器根时为盘符（如 "C:\\"）。 */

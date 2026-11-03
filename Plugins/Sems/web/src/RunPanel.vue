@@ -25,38 +25,63 @@
     </div>
 
     <ul v-else class="run__list">
-      <li v-for="r in runs" :key="runKey(r)" class="run__item">
-        <div class="run__info">
-          <div class="run__line1">
-            <span class="run__proj">{{ r.projectName }}</span>
-            <span class="run__cmd">/ {{ r.commandName }}</span>
-            <span class="run__origin" :class="originClass(r.origin)">{{ originLabel(r.origin) }}</span>
+      <li
+        v-for="r in runs"
+        :key="runKey(r)"
+        class="run__item"
+        :class="{ 'run__item--open': isLogOpen(r), 'run__item--focus': focusCommandId === r.commandId && r.origin === 'Launched' }"
+      >
+        <div class="run__row">
+          <div class="run__info">
+            <div class="run__line1">
+              <span class="run__proj">{{ r.projectName }}</span>
+              <span class="run__cmd">/ {{ r.commandName }}</span>
+              <span class="run__origin" :class="originClass(r.origin)">{{ originLabel(r.origin) }}</span>
+            </div>
+            <div class="run__line2">
+              <span class="run__pid">PID {{ r.pid }}</span>
+              <span class="run__dur">已运行 {{ formatRunDuration(r.startedAt, clock) }}</span>
+            </div>
           </div>
-          <div class="run__line2">
-            <span class="run__pid">PID {{ r.pid }}</span>
-            <span class="run__dur">已运行 {{ duration(r) }}</span>
+
+          <div class="run__acts">
+            <button
+              v-if="r.origin === 'Launched' && r.commandId"
+              type="button"
+              class="run__btn run__btn--log"
+              :class="{ 'run__btn--log-on': isLogOpen(r) }"
+              @click="toggleLog(r)"
+            >
+              {{ isLogOpen(r) ? '收起日志' : '输出日志' }}
+            </button>
+            <a v-if="hasUrl(r)" class="run__icon" :href="commandUrl(r)" target="_blank" rel="noopener" title="打开访问地址">↗</a>
+            <button
+              v-if="r.origin === 'Launched'"
+              class="run__btn run__btn--stop"
+              :disabled="busyPid === r.pid"
+              @click="stopLaunched(r)"
+            >
+              停止
+            </button>
+            <button
+              v-else
+              class="run__btn run__btn--stop"
+              :disabled="busyPid === r.pid"
+              @click="stopExternal(r)"
+            >
+              停止
+            </button>
           </div>
         </div>
 
-        <div class="run__acts">
-          <a v-if="hasUrl(r)" class="run__icon" :href="commandUrl(r)" target="_blank" rel="noopener" title="打开访问地址">↗</a>
-          <button
-            v-if="r.origin === 'Launched'"
-            class="run__btn run__btn--stop"
-            :disabled="busyPid === r.pid"
-            @click="stopLaunched(r)"
-          >
-            停止
-          </button>
-          <button
-            v-else
-            class="run__btn run__btn--stop"
-            :disabled="busyPid === r.pid"
-            @click="stopExternal(r)"
-          >
-            停止
-          </button>
+        <div v-if="isLogOpen(r) && r.origin === 'Launched' && r.commandId" class="run__log-wrap">
+          <div v-if="logState(r.commandId)?.truncated" class="run__log-warn">输出过多，较早的行已丢弃（最多保留 4000 行）</div>
+          <pre ref="logViewport" class="run__log" :data-cmd="r.commandId">{{ logText(r.commandId) }}</pre>
+          <p v-if="!logText(r.commandId)" class="run__log-empty">暂无输出，长任务请稍候；若脚本不往 stdout/stderr 写内容则此处为空。</p>
         </div>
+        <p v-else-if="isLogOpen(r) && r.origin !== 'Launched'" class="run__log-hint">
+          外部捕获的进程无法读取输出，仅可停止。
+        </p>
       </li>
     </ul>
 
@@ -75,13 +100,14 @@
  *   两者一律走 confirmOps 的「先确认后请求」编排（取消时不发任何请求），文案见 confirmOps.ts
  * - 快捷访问图标：r 关联命令有 url 时显示（由父级传入命令 url 对照）
  * - 检查：POST /api/runs/check（loading 态）
- * 不常驻轮询，依赖手动「检查」+ 启动后即时刷新。
+ * - 有运行中 Launched 会话时：1s 刷新耗时、2s 刷新列表与日志；启动后可 focusLog 自动展开输出。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiGet, apiPost } from './http'
 import { errorMessage, runWithConfirm, stopExternalMessage, stopSessionMessage } from './confirmOps'
-import type { RunSession, RunsResp } from './types'
+import { formatRunDuration } from './runDuration'
+import type { RunLogLine, RunLogsResp, RunSession, RunsResp } from './types'
 
 const props = defineProps<{
   /** 命令 id → 访问 url 映射（由上层从项目列表装配，供快捷访问图标使用）。 */
@@ -93,8 +119,57 @@ const props = defineProps<{
 const runs = ref<RunSession[]>([])
 const checking = ref(false)
 const busyPid = ref<number | null>(null)
+const clock = ref(Date.now())
+const focusCommandId = ref<number | null>(null)
+const openLogIds = ref<Set<number>>(new Set())
 
-onMounted(refresh)
+interface LogBucket {
+  lines: RunLogLine[]
+  nextIndex: number
+  truncated: boolean
+  running: boolean
+}
+
+const logBuckets = ref<Record<number, LogBucket>>({})
+
+let clockTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function syncTimers() {
+  const hasLaunched = runs.value.some((r) => r.origin === 'Launched')
+  if (hasLaunched && !clockTimer) {
+    clockTimer = setInterval(() => {
+      clock.value = Date.now()
+    }, 1000)
+  }
+  if (!hasLaunched && clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
+
+  if (hasLaunched && !pollTimer) {
+    pollTimer = setInterval(() => {
+      void refresh()
+      void pullAllOpenLogs()
+    }, 2000)
+  }
+  if (!hasLaunched && pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+onMounted(async () => {
+  await refresh()
+  syncTimers()
+})
+
+onUnmounted(() => {
+  if (clockTimer) clearInterval(clockTimer)
+  if (pollTimer) clearInterval(pollTimer)
+})
+
+watch(runs, () => syncTimers(), { deep: true })
 
 /** 刷新运行列表，返回当前条数并上报（面板内停止/启动后统计卡必须同源，否则停在旧值）。 */
 async function refresh(): Promise<number> {
@@ -201,22 +276,76 @@ function originClass(o: string): string {
   return o === 'Launched' ? 'run__origin--launched' : 'run__origin--detected'
 }
 
-function duration(r: RunSession): string {
-  const start = new Date(r.startedAt)
-  if (Number.isNaN(start.getTime()) || start.getTime() <= 0) return '未知'
-  const ms = Date.now() - start.getTime()
-  if (ms < 0) return '0s'
-  const s = Math.floor(ms / 1000)
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  if (h > 0) return `${h}h${m}m`
-  if (m > 0) return `${m}m${sec}s`
-  return `${sec}s`
+function logState(commandId: number): LogBucket | undefined {
+  return logBuckets.value[commandId]
+}
+
+function logText(commandId: number): string {
+  const bucket = logBuckets.value[commandId]
+  if (!bucket?.lines.length) return ''
+  return bucket.lines.map((l) => (l.stream === 'stderr' ? `[stderr] ${l.text}` : l.text)).join('\n')
+}
+
+function isLogOpen(r: RunSession): boolean {
+  return r.origin === 'Launched' && r.commandId > 0 && openLogIds.value.has(r.commandId)
+}
+
+function toggleLog(r: RunSession) {
+  if (r.origin !== 'Launched' || !r.commandId) return
+  const id = r.commandId
+  const next = new Set(openLogIds.value)
+  if (next.has(id)) next.delete(id)
+  else {
+    next.add(id)
+    void pullLogs(id, true)
+  }
+  openLogIds.value = next
+}
+
+async function pullLogs(commandId: number, scrollBottom = false) {
+  const after = logBuckets.value[commandId]?.nextIndex ?? 0
+  try {
+    const r = await apiGet<RunLogsResp>(`/api/commands/${commandId}/logs?after=${after}`)
+    const prev = logBuckets.value[commandId]
+    const merged = [...(prev?.lines ?? []), ...(r?.lines ?? [])]
+    logBuckets.value = {
+      ...logBuckets.value,
+      [commandId]: {
+        lines: merged,
+        nextIndex: r?.nextIndex ?? after,
+        truncated: r?.truncated ?? prev?.truncated ?? false,
+        running: r?.running ?? false,
+      },
+    }
+    if (scrollBottom && merged.length) {
+      await nextTick()
+      const el = document.querySelector(`pre.run__log[data-cmd="${commandId}"]`)
+      if (el) el.scrollTop = el.scrollHeight
+    }
+  } catch {
+    // 404 = 非本面板启动或无缓冲，静默
+  }
+}
+
+async function pullAllOpenLogs() {
+  for (const id of openLogIds.value) {
+    await pullLogs(id, true)
+  }
+}
+
+/** 父级在命令启动成功后调用：展开并拉取该命令日志。 */
+async function focusLog(commandId: number) {
+  focusCommandId.value = commandId
+  openLogIds.value = new Set(openLogIds.value).add(commandId)
+  await refresh()
+  await pullLogs(commandId, true)
+  setTimeout(() => {
+    focusCommandId.value = null
+  }, 4000)
 }
 
 // 暴露给父级：启动/停止/刷新后要重新拉运行数
-defineExpose({ refresh, check })
+defineExpose({ refresh, check, focusLog })
 </script>
 
 <style scoped>
@@ -315,13 +444,28 @@ defineExpose({ refresh, check })
 
 .run__item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 10px 12px;
   background: var(--el-fill-color);
   border: 1px solid var(--el-border-color);
   border-radius: 8px;
+}
+
+.run__item--focus {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light);
+}
+
+.run__item--open {
+  padding-bottom: 12px;
+}
+
+.run__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .run__info {
@@ -398,6 +542,50 @@ defineExpose({ refresh, check })
 .run__note {
   margin: 12px 0 0;
   font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.run__btn--log {
+  color: var(--el-color-primary);
+  border-color: var(--el-border-color);
+}
+
+.run__btn--log-on {
+  background: var(--el-color-primary-light);
+  border-color: var(--el-color-primary);
+}
+
+.run__log-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.run__log {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  font-family: var(--el-font-family-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--el-text-color-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.run__log-warn {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--el-color-warning);
+}
+
+.run__log-empty,
+.run__log-hint {
+  margin: 0;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
 }
 </style>

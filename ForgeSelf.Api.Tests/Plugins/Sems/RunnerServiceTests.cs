@@ -166,4 +166,20 @@ public class RunnerServiceTests : IDisposable
         var ok = _runner.StopExternal(int.MaxValue);
         Assert.False(ok);
     }
+
+    [Fact]
+    public async Task GetLogs_Captures_Stdout_From_Short_Command()
+    {
+        var cmdId = AddCommand("echo", "echo sems-log-marker");
+
+        var session = _runner.Launch(cmdId);
+        Assert.NotNull(session);
+
+        await Task.Delay(2000);
+
+        var snap = _runner.GetLogs(cmdId, 0);
+        Assert.NotNull(snap);
+        Assert.True(snap!.Lines.Count > 0);
+        Assert.Contains(snap.Lines, l => l.Text.Contains("sems-log-marker", StringComparison.OrdinalIgnoreCase));
+    }
 }

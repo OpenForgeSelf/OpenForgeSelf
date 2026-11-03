@@ -230,8 +230,9 @@ async function removeProject(p: ProjectInfo) {
 
 /** 命令启动的 POST 由 CommandList 层发出（含 busy 守卫）；此处只刷新运行面板与统计。
  *  曾在此重复 POST 导致每次启动必 409、且成功刷新路径永不执行（运行列表恒空，e2e 实抓）。 */
-async function runOne(_commandId: number) {
+async function runOne(commandId: number) {
   await reloadProjects()
+  await runPanelRef.value?.focusLog(commandId)
 }
 
 /** 启动全部：遍历所有项目命令逐个调起（重复启动由后端拒绝 409，吞掉继续）。 */

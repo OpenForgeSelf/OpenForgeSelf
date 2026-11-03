@@ -90,4 +90,23 @@ public class ProjectCommandsController : ControllerBase
         if (!ok) return NotFound(new { success = false, message = $"未找到存活的会话：{id}" });
         return Ok(new { success = true });
     }
+
+    /// <summary>Launched 会话输出日志（增量）。路由：GET api/commands/{id}/logs?after=0</summary>
+    [HttpGet("{id:int}/logs")]
+    public ActionResult<object> GetLogs(int id, [FromQuery] int after = 0)
+    {
+        var snap = _runner.GetLogs(id, after);
+        if (snap == null)
+            return NotFound(new { success = false, message = "暂无该命令的输出日志（须由本页启动且宿主未重启）" });
+
+        return Ok(new
+        {
+            success = true,
+            commandId = snap.CommandId,
+            running = snap.Running,
+            nextIndex = snap.NextIndex,
+            truncated = snap.Truncated,
+            lines = snap.Lines
+        });
+    }
 }

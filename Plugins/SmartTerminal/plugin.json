@@ -1,0 +1,24 @@
+{
+  "Id": "smart-terminal",
+  "toolPrefix": "st",
+  "Name": "智能终端",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "智能终端：复用现有 Agent / 记忆 / 技能能力，打开可审计的本机终端会话，自主跑命令。支持 Windows 多壳（cmd / Windows PowerShell / pwsh，并探测 Windows Terminal profiles）；权限三级 Auto / AskWrite / AskHighRisk（默认 AskWrite）；命令行 JSONL 留痕、历史回看与重跑；自带审批弹窗界面。",
+  "IconUrl": "https://example.com/smart-terminal-icon.png",
+  "EntryAssembly": "SmartTerminal.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.SmartTerminal.SmartTerminalPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "write_config",
+    "execute_command"
+  ],
+  "frontend": {
+    "views": ["SmartTerminalView"],
+    "menu": "智能终端",
+    "route": "/smart-terminal",
+    "icon": "fa-terminal",
+    "entry": "web/dist/index.js"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "SmartTerminal command risk classifier. Aligns with VS Code Agent Approvals autoApprove ideas + Open Interpreter approval policies + mcp-center TerminalCommandGuard destructive tokens.",
+  "hardDeny": [
+    "format", "format-volume", "diskpart", "fdisk", "mkfs", "dd",
+    "bcdedit", "cipher", "vssadmin", "regedit",
+    "shutdown", "restart-computer", "stop-computer"
+  ],
+  "highRisk": [
+    "rm", "rmdir", "rd", "del", "erase", "deltree", "remove-item", "remove-itemproperty",
+    "clear-content", "shred", "unlink",
+    "curl", "wget", "iwr", "irm", "invoke-webrequest", "invoke-restmethod", "certutil", "bitsadmin",
+    "invoke-expression", "iex", "invoke-command", "start-process", "start-job",
+    "mshta", "rundll32", "wscript", "cscript",
+    "taskkill", "stop-process", "kill", "stop-service", "set-service",
+    "netsh", "reg", "regsvr32", "sc",
+    "set-executionpolicy", "set-acl", "icacls", "takeown", "cacls",
+    "schtasks", "wevtutil",
+    "chmod", "chown", "sudo", "su", "doas"
+  ],
+  "writeMutating": [
+    "set-content", "add-content", "out-file", "new-item", "copy-item", "move-item", "rename-item",
+    "mkdir", "md", "ni", "cp", "copy", "mv", "move", "ren", "rename",
+    "git", "npm", "pnpm", "yarn", "dotnet", "pip", "cargo", "go",
+    "tee", "echo", "printf", "cat", "set"
+  ],
+  "readAllow": [
+    "dir", "ls", "Get-ChildItem", "gci", "Get-Content", "gc", "type", "cat",
+    "pwd", "Get-Location", "cd", "Set-Location", "pushd", "popd",
+    "where", "where.exe", "which", "Get-Command", "gcm",
+    "echo", "Write-Output", "Write-Host",
+    "git", "dotnet", "node", "python", "pwsh", "powershell", "cmd",
+    "hostname", "whoami", "date", "Get-Date", "uname", "ver", "systeminfo",
+    "Test-Path", "Resolve-Path", "Get-Item", "gi", "Get-Process", "gps",
+    "Select-String", "findstr", "find", "head", "tail", "wc"
+  ],
+  "highRiskPatterns": [
+    "(?i)\\b(rm|del|erase)\\s+([-/]\\w+\\s+)*(/s|/q|-rf|-fr|-r\\s+-f)",
+    "(?i)(curl|wget|iwr|irm).*(\\|\\s*(sh|bash|pwsh|powershell|cmd)|iex|invoke-expression)",
+    "(?i)\\beval\\b",
+    "(?i)-EncodedCommand\\b",
+    "(?i)\\bsudo\\b|\\brunas\\b"
+  ],
+  "writePatterns": [
+    "(?i)>\\s*[^|]\\S+",
+    "(?i)\\bOut-File\\b|\\bSet-Content\\b|\\bAdd-Content\\b|\\bNew-Item\\b",
+    "(?i)\\b(git)\\s+(commit|push|reset|checkout|clean|rebase|merge)\\b",
+    "(?i)\\b(npm|pnpm|yarn)\\s+(install|add|remove|publish)\\b",
+    "(?i)\\bdotnet\\s+(add|remove|publish|pack)\\b"
+  ]
+}

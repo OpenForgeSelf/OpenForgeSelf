@@ -31,7 +31,7 @@ LLM 客户端（GitHub Copilot 等）按 OpenAI / Anthropic / OpenAI Responses �
 | `OpenAIChatController` | `v1/chat/completions` | OpenAI Chat |
 | `OpenAIResponsesController` | `v1/responses` | OpenAI Responses |
 | `AnthropicMessagesController` | `v1/anthropic/messages` | Anthropic Messages |
-| `ModelsController` | `v1/models` | 模型列表透传 |
+| `ModelsController` | `v1/models` | 模型列表（见 §2.6） |
 | `AgentChatController` | `v1/agent/chat/completions` | Agent Framework 实验接口（服务端工具样本） |
 
 ### 2.2 路由铁律（`AIProviderRegistry.GetProviderByModel`）
@@ -48,6 +48,18 @@ LLM 客户端（GitHub Copilot 等）按 OpenAI / Anthropic / OpenAI Responses �
 - **出站（配置侧）三协议、单一 SDK 接缝（PILOT-074 落地 + 输入6→9 定标全量统一）**：`AIProviderType` = `OpenAI/OpenAIResponses/Anthropic/Custom`（`ForgeSelf.Abstractions/AIConfigModels.cs`）；`AIProviderRegistry.ReloadAsync` 按 ProviderType 分派——`OpenAIResponses` → `OpenAIResponsesProvider`（Responses 协议：`POST {base}/v1/responses`，`store:false`、不转发 `previous_response_id`、Responses-only 内建工具不转发），其余 → `OpenAICompatibleProvider`。**全部四类型的聊天/流式出站与 AIService 回退路径统一经 openai-dotnet SDK**（`OpenAISdkAdapter`，`OpenAI/2.10.0` 传递依赖零新增包；wire 细节归 SDK，适配器只做类型映射）；**BC-3：SDK 对 MaxTokens 固发 `max_completion_tokens`**（OpenAI 兼容上游与 Anthropic 兼容层均支持）。
 - **Anthropic = 官方 OpenAI 兼容层（输入6→9 终态）**：Anthropic 型聊天/流式经 `DeriveAnthropicCompatBaseUrl` 归一（…/v1/messages 剥后缀 → …/v1；SDK 追加 /chat/completions），鉴权 Bearer、`max_completion_tokens`/`stream`/`tools`/system-hoist 均被兼容层支持（官方文档实证 2026-10-28）；手写 x-api-key 出站已删。**已知限制**：① Claude 4.7+ 仅接受默认 temperature/top_p（其它值 400，测试连接先暴露——上游模型约束，与实现路线无关）；② 非 workspace 域 key 需 `anthropic-workspace-id` 头（加头=手写 policy，未做）；③ thinking/缓存等原生特性不暴露。模型列表保留手写原生 `GET /v1/models`（x-api-key + anthropic-version；兼容层不含该端点）。
 - **推论（已解决）**：~~仅暴露 `/v1/responses` 的上游（Azure `/openai/v1/`、vLLM 等）当前接不进来~~ → 配置 ProviderType=`OpenAIResponses` 即接入；~~Anthropic 出站语义不通~~（旧手写路径以 OpenAI 格式直发原生 /v1/messages）→ 兼容层路线真通 api.anthropic.com。测试连接探针与真实链路同 wire（全类型）。工件：`docs/ai/pilot/2026-10-27-openai-responses-upstream/`（00-07 齐，06=APPROVED）。
+
+### 2.6 `GET /v1/models` 的 `data[].id` 语义（2026-11-03 实测对照源码）
+
+实现：`ForgeSelf.Api/Controllers/UnifiedAI/ModelsController.cs`（`ListModels` / `GetModel`）。
+
+| 场景 | 返回的 `id` | 是否含 `提供商:` 前缀 |
+|------|-------------|----------------------|
+| 未配置 `PublicAlias` | `AIModel.GetGatewayModelListId` → `提供商:上游模型id`（与 `ChatModelId` 一致） | **是**（例：`OpenAI:gpt-4o`；2026-11-03 PILOT 落地） |
+| 已配置 `PublicAlias`（且启用） | 清洗后的别名 | **否**（例：`client-model`；聊天侧靠 `AIModel.FindByPublicAlias` 反查提供方，见 PILOT-068 FR-07） |
+| 同名字段 | `owned_by` = 提供方显示名 | 前缀在 **owned_by**，不在 **id** |
+
+与聊天路由的关系：`POST v1/chat/completions` 等接口的 `model` **推荐**使用 `ChatModelId`（`提供商:上游模型id`，见 002 §2.1）；`ResolveProviderAndModel` / `GetProviderByChatModelId` 支持带前缀显式路由。客户端从 `/v1/models` 原样取 `id` 再发起对话时，无别名模型已可直接用于 `provider:` 前缀路由；有别名时仍以别名为准。`GET /v1/models/{model}` 支持按 `提供商:上游id` 或别名查询。
 
 ### 2.5 AIService 回退路径（PILOT-074 FR-8）
 

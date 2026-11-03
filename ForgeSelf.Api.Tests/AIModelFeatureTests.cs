@@ -336,6 +336,37 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
+    public async Task ModelsApi_WithoutPublicAlias_ExposesPrefixedChatModelId()
+    {
+        ClearAll();
+        var providerEntity = InsertProvider(name: "OpenAI", endpoint: "https://api.openai.com/v1");
+        new AIModel
+        {
+            ProviderId = providerEntity.Id,
+            ProviderName = providerEntity.Name,
+            UpstreamModelId = "gpt-4o",
+            ChatModelId = "OpenAI:gpt-4o",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        var registry = new AIProviderRegistry();
+        await registry.ReloadAsync(new HandlerHttpClientFactory(OpenAiHandler(ModelsJson(("gpt-4o", "openai")))), new[]
+        {
+            new AIProviderConfig { Name = "OpenAI", ProviderType = AIProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "k", SupportedModels = new() { "gpt-4o" } }
+        });
+
+        var controller = new ModelsController(registry);
+        var listResult = await controller.ListModels(CancellationToken.None);
+        var listJson = JsonDocument.Parse(JsonSerializer.Serialize(((Microsoft.AspNetCore.Mvc.OkObjectResult)listResult).Value));
+        listJson.RootElement.GetProperty("data")[0].GetProperty("id").GetString().Should().Be("OpenAI:gpt-4o");
+
+        var singleResult = (Microsoft.AspNetCore.Mvc.OkObjectResult)controller.GetModel("OpenAI:gpt-4o");
+        JsonDocument.Parse(JsonSerializer.Serialize(singleResult.Value)).RootElement.GetProperty("id").GetString().Should().Be("OpenAI:gpt-4o");
+    }
+
+    [Fact]
     public async Task PublicAlias_RoutesToOwningProviderAndIsExposedByModelsApi()
     {
         ClearAll();
@@ -359,7 +390,7 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         });
 
         registry.GetProviderByModel("client-model")!.ProviderName.Should().Be("OpenAI");
-        registry.GetModelById("client-model")?.Id.Should().Be("client-model");
+        registry.GetModelById("client-model")?.Id.Should().Be("gpt-4o");
 
         var controller = new ModelsController(registry);
         var listResult = await controller.ListModels(CancellationToken.None);

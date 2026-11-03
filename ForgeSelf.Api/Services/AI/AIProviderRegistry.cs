@@ -198,12 +198,33 @@ public class AIProviderRegistry : IAIProviderRegistry
             if (model == null) return null;
             return new ModelInfo
             {
-                Id = aliased.PublicAlias,
-                Name = aliased.PublicAlias,
+                Id = aliased.UpstreamModelId,
+                Name = aliased.PublicAlias ?? aliased.UpstreamModelId,
                 Owner = provider.ProviderName,
                 Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 ProviderName = provider.ProviderName
             };
+        }
+
+        var chatIdx = modelId.IndexOf(':');
+        if (chatIdx > 0)
+        {
+            var providerName = modelId[..chatIdx];
+            var upstreamModelId = modelId[(chatIdx + 1)..];
+            var byChatId = GetProviderByName(providerName);
+            if (byChatId != null &&
+                byChatId.SupportedModels.Any(m => m.Equals(upstreamModelId, StringComparison.OrdinalIgnoreCase)) &&
+                IsModelEnabled(providerName, upstreamModelId))
+            {
+                return new ModelInfo
+                {
+                    Id = upstreamModelId,
+                    Name = upstreamModelId,
+                    Owner = byChatId.ProviderName,
+                    Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    ProviderName = byChatId.ProviderName
+                };
+            }
         }
 
         foreach (var provider in _providers)

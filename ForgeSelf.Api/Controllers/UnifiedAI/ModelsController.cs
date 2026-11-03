@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Services.AI;
 
 namespace ForgeSelf.Api.Controllers.UnifiedAI;
@@ -36,7 +37,7 @@ public class ModelsController : ControllerBase
             @object = "list",
             data = allModels.Select(m => new
             {
-                id = ForgeSelf.Api.Entities.AIModel.FindByProviderNameAndUpstreamModelId(m.ProviderName, m.Id)?.PublicAlias is { Length: > 0 } alias ? alias : m.Id,
+                id = AIModel.GetGatewayModelListId(m.ProviderName, m.Id),
                 @object = "model",
                 created = m.Created,
                 owned_by = m.Owner
@@ -57,7 +58,7 @@ public class ModelsController : ControllerBase
 
         return Ok(new
         {
-            id = modelInfo.Id,
+            id = AIModel.GetGatewayModelListId(modelInfo.ProviderName, modelInfo.Id),
             @object = "model",
             created = modelInfo.Created,
             owned_by = modelInfo.Owner

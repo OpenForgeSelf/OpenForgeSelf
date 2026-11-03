@@ -129,6 +129,23 @@ public partial class AIModel : Entity<AIModel>
 
     #region 高级查询
 
+    /// <summary>
+    /// OpenAI 兼容 <c>GET /v1/models</c> 对外 <c>id</c>：有别名输出别名，否则输出 <c>提供商:上游模型id</c>（与 <see cref="ChatModelId"/> 一致）。
+    /// </summary>
+    public static string GetGatewayModelListId(string providerName, string upstreamModelId)
+    {
+        if (string.IsNullOrWhiteSpace(upstreamModelId))
+            return upstreamModelId ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(providerName))
+            return upstreamModelId;
+
+        var row = FindByProviderNameAndUpstreamModelId(providerName, upstreamModelId);
+        if (row?.PublicAlias is { Length: > 0 } alias)
+            return alias;
+
+        return $"{providerName}:{upstreamModelId}";
+    }
+
     /// <summary>按对外别名直查数据库，忽略大小写。</summary>
     public static AIModel? FindByPublicAlias(String alias)
     {

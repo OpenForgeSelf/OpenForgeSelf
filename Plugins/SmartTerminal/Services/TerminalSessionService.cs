@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.SmartTerminal.Services;
@@ -761,8 +762,6 @@ public sealed class TerminalSessionService : ITerminalSessionService
                 RedirectStandardError = true,
                 RedirectStandardInput = true,
                 CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
             };
             // 会话级 env（local/后续命令）；禁止用调用方覆盖已有 SSHPASS（仅 ephemeral 可设）
             foreach (var kv in s.SessionEnv)
@@ -779,24 +778,10 @@ public sealed class TerminalSessionService : ITerminalSessionService
             process = new Process { StartInfo = psi, EnableRaisingEvents = true };
             s.ActiveProcess = process;
 
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (e.Data == null) return;
-                AppendChunk(s, "stdout", SecretRedactor.Redact(e.Data));
-            };
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data == null) return;
-                AppendChunk(s, "stderr", SecretRedactor.Redact(e.Data));
-            };
-
-            if (!process.Start())
-            {
-                throw new InvalidOperationException("进程启动失败");
-            }
-
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            // PC-011：读 BaseStream 原始字节，交 ProcessOutputLineBuffer 裁决
+            //（禁固定码页赋值 / 禁 BeginOutputReadLine 事件流默认解码——GBK 中文烧 U+FFFD 或协议 UTF-8 被毁）
+            var stdoutPump = PumpStreamAsync(s, process.StandardOutput.BaseStream, "stdout");
+            var stderrPump = PumpStreamAsync(s, process.StandardError.BaseStream, "stderr");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
             try
@@ -810,6 +795,8 @@ public sealed class TerminalSessionService : ITerminalSessionService
                 cmd.ExitCode = -1;
                 AppendSystem(s, "执行超时（10 分钟），已终止进程树");
             }
+
+            await Task.WhenAll(stdoutPump, stderrPump);
 
             if (cmd.Status != "failed")
             {
@@ -881,6 +868,61 @@ public sealed class TerminalSessionService : ITerminalSessionService
     }
 
     private void AppendSystem(SessionState s, string text) => AppendChunk(s, "system", text);
+
+        /// <summary>PC-011：按原始字节读子进程输出流，行切分后交 ProcessOutputLineBuffer 解码裁决。</summary>
+
+        private static async Task PumpStreamAsync(SessionState s, Stream stream, string kind)
+
+        {
+
+            var buffer = new ProcessOutputLineBuffer();
+
+            var chunk = new byte[8192];
+
+            try
+
+            {
+
+        
+        while (true)
+
+        
+        {
+
+        
+            var read = await stream.ReadAsync(chunk.AsMemory(0, chunk.Length));
+
+        
+            if (read <= 0) break;
+
+        
+            foreach (var line in buffer.Append(chunk.AsSpan(0, read)))
+
+        
+        
+        AppendChunk(s, kind, SecretRedactor.Redact(line));
+
+        
+        }
+
+        
+        foreach (var line in buffer.Flush())
+
+        
+            AppendChunk(s, kind, SecretRedactor.Redact(line));
+
+            }
+
+            catch
+
+            {
+
+        
+        // 进程被终止/强杀时读流抛异常属正常路径，静默收尾
+
+            }
+
+        }
 
     private static void AppendChunk(SessionState s, string stream, string text)
     {

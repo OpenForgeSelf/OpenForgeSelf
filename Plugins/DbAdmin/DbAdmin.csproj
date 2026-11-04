@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DbAdmin</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.DbAdmin</RootNamespace>
+    <!-- 铁律12c：若后续引入非宿主 NuGet（如外置驱动），必须随插件 bin 输出 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- 宿主已带同版本 XCode + XCode.SQLite（StageAllPlugins 排除 NewLife.* 出插件目录，类型身份单份）。
+         驱动打包决策见 docs/05 §2：MVP 不随插件打包 MySQL/PG/SQLServer 驱动，缺失统一映射 driver_missing。 -->
+    <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

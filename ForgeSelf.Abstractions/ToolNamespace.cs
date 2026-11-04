@@ -59,6 +59,7 @@ public static class ToolNamespace
             ["ai-agent"] = "aiagent",
             ["agent-hub"] = "hub",
             ["browser-use"] = "browser",
+            ["db-admin"] = "db",
             ["dev-tools"] = "dev",
             ["file-tools"] = "file",
             ["memory-system"] = "memory",

@@ -17,6 +17,7 @@ expected_files:
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/RedactionAndCryptoTests.cs
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/SqlGuardScopeTests.cs
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/SqlGuardTests.cs
+  - ForgeSelf.Api.Tests/XCodeTestFixtureIronRuleTests.cs
   - ForgeSelf.Api/Data/XCodeConfig.cs
   - ForgeSelf.Api/ForgeSelf.Api.csproj
   - ForgeSelf.Web/ct/stories.ts

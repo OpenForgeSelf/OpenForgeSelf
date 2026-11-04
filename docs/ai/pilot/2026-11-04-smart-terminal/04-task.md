@@ -6,7 +6,7 @@ requirements: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8]
 rollback: git revert 合并提交即可整体回滚（插件目录自包含）；或宿主侧禁用插件；无数据迁移、无共享 DLL 变更
 expected_files:
   - Plugins/SmartTerminal/**
-  - Plugins/SmartTerminal/**
+  - Plugins/SmartTerminal.Tests/**
   - ForgeSelf.Api.Tests/Plugins/SmartTerminalTests/**
   - ForgeSelf.Web/e2e/plugins/smart-terminal/**
   - ForgeSelf.Web/src/components/SmartTerminal*

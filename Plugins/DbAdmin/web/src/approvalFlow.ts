@@ -25,12 +25,18 @@ export function rejectRequest(): ResolveApprovalRequest {
   return { decision: 'reject' }
 }
 
+/** 审批类型标签：kind 只有 read/write，破坏性看 destructive（§3.1） */
+export function kindLabel(kind: string | undefined, destructive?: boolean): string {
+  if (destructive) return '写 · 破坏性'
+  return kind === 'read' ? '读' : '写'
+}
+
 /** query 响应 → UI 动作 */
 export type QueryUiAction = 'show_result' | 'open_approval' | 'red_bar'
 
 export function classifyQueryResponse(r: QueryResponse): QueryUiAction {
   if (r.status === 'awaiting_approval') return 'open_approval'
-  if (r.status === 'rejected') return 'red_bar'
+  if (r.status === 'rejected' || r.status === 'error') return 'red_bar'
   return 'show_result'
 }
 
@@ -41,8 +47,11 @@ export function errorReason(code: string | undefined, message?: string): string 
     readonly_connection: '只读连接：拒绝写入',
     driver_missing: '驱动缺失',
     sql_error: 'SQL 错误',
-    not_found: '未找到',
+    not_found: '未找到 / 已过期',
     unauthorized: '未授权（401）',
+    confirmation_required: '需二次确认：破坏性语句须在界面批准并确认',
+    invalid_request: '请求不合法',
+    approval_rejected: '审批已拒绝',
   }
   const head = (code && base[code]) || '执行失败'
   return message ? `${head} · ${message}` : head

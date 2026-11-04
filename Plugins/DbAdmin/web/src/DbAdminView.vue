@@ -8,14 +8,21 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ApiError } from './http'
 import { dbAdminApi, fetchPluginVersion } from './api'
-import { classifyQueryResponse, errorReason, orchestrateApprove, rejectRequest } from './approvalFlow'
-import { buildConnStr, emptyForm, formFromConnection, isSqlite, isTested, toSubmitBody, validateForm, DEFAULT_PORTS } from './connForm'
-import { PAGE_SIZES, canNext, canPrev, clampPage, pageCount, rangeLabel } from './pager'
+import { classifyQueryResponse, errorReason, kindLabel, orchestrateApprove, rejectRequest } from './approvalFlow'
+import {
+  buildConnStr, defaultPort, emptyForm, formFromConnection, isSqlite, isTested, providerLabel as labelOf, toSubmitBody, validateForm,
+} from './connForm'
+import {
+  agentEchoesOf, listOf, normApproval, normAudit, normConnection, normHistory, normProvider, normTable, normTableDetail, normTest,
+  replyToState,
+} from './normalize'
+import { PAGE_SIZES, canNext, canPrev, clampPage, clampPageSize, pageCount, rangeLabel } from './pager'
 import { MASK, maskConnStr, redactText } from './redact'
 import { buildSnapshot, loadSnapshot, restoredToConnection, saveSnapshot } from './restore'
 import type {
   AgentToolEcho, DbAdminFixture, DbApproval, DbAuditLog, DbConnection, DbConnectionInput, DbProvider,
-  DbQueryHistory, DbTable, DbTableDetail, OverlayKind, PermissionMode, QueryResponse, ResolveApprovalRequest, TestConnectionResult,
+  DbQueryHistory, DbTable, DbTableDetail, OverlayKind, PermissionMode, QueryResponse, ResolveApprovalRequest, ResultErrorState,
+  TestConnectionResult,
 } from './types'
 
 const props = defineProps<{ fixture?: DbAdminFixture }>()
@@ -37,7 +44,7 @@ const expanded = ref<Set<string>>(new Set())
 
 const drafts = ref<Record<string, string>>({})
 const result = ref<QueryResponse | null>(null)
-const resultError = ref<{ code: string; message: string } | null>(null)
+const resultError = ref<ResultErrorState | null>(null)
 const running = ref(false)
 const page = ref(1)
 const pageSize = ref<number>(50)
@@ -78,11 +85,13 @@ const currentApproval = computed(() => approvals.value.find(a => a.id === active
 const formProvider = computed(() => providerOf(connForm.provider))
 const rows = computed(() => result.value?.rows ?? [])
 const totalPages = computed(() => pageCount(result.value?.total, pageSize.value))
-const AUDIT_KINDS = ['query', 'approval', 'rejected', 'write_result', 'conn', 'permission_mode']
+/** 后端真实审计 kind：query / classify / rejected / approval_pending|approved|rejected / write_result /
+ *  conn_create|update|delete|test / permission_mode / agent；approval、conn 为前缀分组 */
+const AUDIT_KINDS = ['query', 'classify', 'rejected', 'approval', 'write_result', 'conn', 'permission_mode', 'agent']
 const filteredAudit = computed(() => {
   const f = auditFilter.value
   if (!f) return audit.value
-  return audit.value.filter(a => (f === 'approval' || f === 'conn' ? a.kind.startsWith(f) : a.kind === f))
+  return audit.value.filter(a => (f === 'approval' || f === 'conn' ? a.kind.startsWith(`${f}_`) : a.kind === f))
 })
 const runDisabledReason = computed(() => {
   if (unauthorized.value) return '未授权'
@@ -97,10 +106,21 @@ function isSystem(c: DbConnection): boolean {
 }
 function providerOf(id: string | undefined): DbProvider | undefined {
   if (!id) return undefined
-  return providers.value.find(p => p.id === id) ?? { id, displayName: id, driverAvailable: true }
+  const k = id.toLowerCase()
+  return providers.value.find(p => p.id === k) ?? { id: k, displayName: labelOf(k), driverAvailable: true }
 }
 function providerLabel(id: string | undefined): string {
-  return providerOf(id)?.displayName ?? id ?? ''
+  return labelOf(id, providers.value)
+}
+/** 应用一次 /query 或 /resolve 的 HTTP 应答（真实请求与 fixture 同路径） */
+function applyReply(httpStatus: number, body: unknown) {
+  const st = replyToState(httpStatus, body)
+  if (st.kind === 'error') {
+    result.value = null
+    resultError.value = { ...st.error, message: redactText(st.error.message) }
+    return
+  }
+  handleQueryResponse(st.result)
 }
 function connName(id: string | undefined): string {
   return connections.value.find(c => c.id === id)?.name ?? id ?? ''
@@ -144,28 +164,37 @@ function applyFixture(f: DbAdminFixture) {
   unauthorized.value = !!f.unauthorized
   banner.value = f.banner ?? null
   permissionMode.value = f.permissionMode ?? 'AskWrite'
-  providers.value = f.providers ?? []
-  connections.value = f.connections ?? []
+  // 所有数据字段都是后端原始 JSON，经与真实请求相同的 normalize 进入 UI
+  providers.value = listOf(f.providers ?? [], normProvider)
+  connections.value = listOf(f.connections ?? [], normConnection)
   activeId.value = f.activeConnectionId ?? null
-  tables.value = f.tables ?? {}
-  details.value = f.tableDetails ?? {}
+  tables.value = Object.fromEntries(Object.entries(f.tables ?? {}).map(([k, v]) => [k, listOf(v, normTable)]))
+  details.value = Object.fromEntries(Object.entries(f.tableDetails ?? {}).map(([k, v]) => [k, normTableDetail(v)]))
   expanded.value = new Set(f.expanded ?? [])
   drafts.value = activeId.value && f.sql !== undefined ? { [activeId.value]: f.sql } : {}
-  result.value = f.result ?? null
-  resultError.value = f.resultError ?? null
-  if (f.result?.page) page.value = f.result.page
-  if (f.result?.pageSize) pageSize.value = f.result.pageSize
-  approvals.value = f.approvals ?? []
-  history.value = f.history ?? []
-  audit.value = f.audit ?? []
+  approvals.value = listOf(f.approvals ?? [], normApproval)
+  result.value = null
+  resultError.value = null
+  if (f.reply) {
+    const st = replyToState(f.reply.httpStatus, f.reply.body)
+    if (st.kind === 'error') resultError.value = { ...st.error, message: redactText(st.error.message) }
+    else if (classifyQueryResponse(st.result) === 'red_bar') resultError.value = { code: st.result.code ?? 'rejected_hard', message: redactText(st.result.message ?? ''), httpStatus: st.result.httpStatus }
+    else if (st.result.status === 'ok') {
+      result.value = st.result
+      if (st.result.page) page.value = st.result.page
+      if (st.result.pageSize) pageSize.value = clampPageSize(st.result.pageSize)
+    }
+  }
+  history.value = listOf(f.history ?? [], normHistory)
+  audit.value = listOf(f.audit ?? [], normAudit)
   auditFilter.value = f.auditFilter ?? ''
-  agentEchoes.value = f.agentEchoes ?? []
+  agentEchoes.value = agentEchoesOf(f.audit ?? [])
   sideTab.value = f.sideTab ?? 'history'
   const { editingId: fixtureEditingId, ...fixtureForm } = f.connForm ?? {}
-  Object.assign(connForm, emptyForm(fixtureForm.provider ?? 'SQLite'), fixtureForm)
+  Object.assign(connForm, emptyForm(fixtureForm.provider ?? 'sqlite'), fixtureForm)
   editingId.value = fixtureEditingId ?? null
   connFormError.value = f.connFormError ?? ''
-  testResult.value = f.testResult ?? null
+  testResult.value = f.testResult ? normTest(f.testResult) : null
   activeApprovalId.value = f.activeApprovalId ?? null
   overlay.value = f.overlay ?? null
   if (f.seedRestore || (!f.connections && !f.loading)) applyRestore()
@@ -218,7 +247,7 @@ async function loadAll() {
       expanded.value = new Set([...expanded.value, `c:${activeId.value}`])
       void loadTables(activeId.value)
     }
-    await Promise.all([refreshApprovals(true), refreshHistory()])
+    await Promise.all([refreshApprovals(true), refreshHistory(), refreshAgentEchoes()])
   } catch (e) {
     loading.value = false
     handleError(e, '加载')
@@ -262,6 +291,19 @@ async function refreshHistory() {
   } catch {
     /* 历史失败不打断主流程 */
   }
+}
+/** S8：§3.1 ④ GET /audit?kind=agent（失败不打断主流程） */
+async function refreshAgentEchoes() {
+  if (isDemo.value) return
+  try {
+    agentEchoes.value = await dbAdminApi.agentEchoes()
+  } catch {
+    /* 回显失败不打断主流程 */
+  }
+}
+function openAgentTab() {
+  sideTab.value = 'agent'
+  void refreshAgentEchoes()
 }
 async function openAudit() {
   openOverlay('audit')
@@ -310,13 +352,14 @@ async function execute(targetPage = 1) {
   lastSql.value = text
   try {
     const r = await dbAdminApi.query({
-      connectionId: active.value.id, sql: text, page: targetPage, pageSize: pageSize.value,
+      connectionId: active.value.id, sql: text, page: targetPage, pageSize: clampPageSize(pageSize.value),
     })
     handleQueryResponse(r)
     page.value = r.page ?? targetPage
   } catch (e) {
     if (e instanceof ApiError && e.status !== 401) {
-      resultError.value = { code: e.code ?? 'sql_error', message: redactText(e.message) }
+      // 4xx/424：body 是 QueryOutcome 或 {code,message}
+      applyReply(e.status, e.body ?? { code: e.code, message: e.message })
     } else {
       handleError(e, '执行')
     }
@@ -332,7 +375,9 @@ function handleQueryResponse(r: QueryResponse) {
     return
   }
   if (action === 'red_bar') {
-    resultError.value = { code: r.code ?? 'rejected_hard', message: redactText(r.message ?? '') }
+    // 200 + status=rejected（rejected_hard / readonly_connection / approval_rejected）
+    result.value = null
+    resultError.value = { code: r.code ?? 'rejected_hard', message: redactText(r.message ?? ''), httpStatus: r.httpStatus }
     return
   }
   void refreshApprovals().then(() => {
@@ -355,7 +400,7 @@ function goPage(p: number) {
   void execute(next)
 }
 function changePageSize(e: Event) {
-  pageSize.value = Number((e.target as HTMLSelectElement).value) || 50
+  pageSize.value = clampPageSize(Number((e.target as HTMLSelectElement).value))
   if (!isDemo.value && result.value) void execute(1)
 }
 function rerun(h: DbQueryHistory) {
@@ -395,6 +440,11 @@ async function resolveApproval(a: DbApproval, approveIt: boolean, confirmDestruc
   overlay.value = null
   if (isDemo.value) {
     approvals.value = approvals.value.map(x => (x.id === a.id ? { ...x, status: approveIt ? 'approved' : 'rejected' } : x))
+    if (approveIt && a.destructive && !confirmDestructiveFlag) {
+      // 与后端一致：破坏性未二次确认 → 409 confirmation_required
+      applyReply(409, { code: 'confirmation_required', message: '破坏性语句需在界面批准并二次确认（confirmDestructive=true）' })
+      return
+    }
     audit.value = [
       { id: `demo-${a.id}`, kind: approveIt ? 'approval_approved' : 'approval_rejected', connectionId: a.connectionId, sqlRedacted: a.sqlRedacted, decision: approveIt ? 'approved' : 'rejected', createTime: a.createTime },
       ...audit.value,
@@ -410,11 +460,12 @@ async function resolveApproval(a: DbApproval, approveIt: boolean, confirmDestruc
     if (approveIt) handleQueryResponse({ ...r, status: r.status === 'awaiting_approval' ? 'ok' : r.status })
     banner.value = approveIt ? null : { kind: 'warn', text: '已拒绝：语句未执行' }
   } catch (e) {
-    if (e instanceof ApiError) resultError.value = { code: e.code ?? 'sql_error', message: redactText(e.message) }
+    // 409 confirmation_required / 404 not_found（已过期）/ 400 invalid_request（已处理）→ 红条
+    if (e instanceof ApiError && e.status !== 401) applyReply(e.status, e.body ?? { code: e.code, message: e.message })
     else handleError(e, '审批')
   } finally {
     activeApprovalId.value = null
-    await Promise.all([refreshApprovals(), refreshHistory()])
+    await Promise.all([refreshApprovals(), refreshHistory(), refreshAgentEchoes()])
   }
 }
 function openPending() {
@@ -441,7 +492,7 @@ async function togglePermission() {
 
 /* ---------------- 连接表单 ---------------- */
 function openNewConnection() {
-  Object.assign(connForm, emptyForm(providers.value[0]?.id ?? 'SQLite'))
+  Object.assign(connForm, emptyForm(providers.value[0]?.id ?? 'sqlite'))
   editingId.value = null
   connFormError.value = ''
   testResult.value = null
@@ -455,7 +506,7 @@ function openEditConnection(c: DbConnection) {
   openOverlay('connForm')
 }
 function onProviderChange() {
-  connForm.port = DEFAULT_PORTS[connForm.provider]
+  connForm.port = defaultPort(connForm.provider, providers.value)
   testResult.value = null
 }
 function switchMode(mode: 'form' | 'connstr') {
@@ -474,17 +525,16 @@ async function testConnection() {
   if (isDemo.value) return
   testing.value = true
   try {
-    const body = { ...toSubmitBody(connForm, !!editingId.value), ...(editingId.value ? { id: editingId.value } : {}) }
-    const r = await dbAdminApi.testConnection(body)
-    testResult.value = { ...r, message: redactText(r.message) }
+    // 恒 200：{ok, code, message, serverVersion}；id 仅用户连接（数字）才带
+    const r = await dbAdminApi.testConnection(toSubmitBody(connForm, !!editingId.value), editingId.value)
+    testResult.value = { ...r, message: redactText(r.message), driverPackage: r.driverPackage ?? formProvider.value?.driverPackage }
   } catch (e) {
-    if (e instanceof ApiError) {
-      testResult.value = e.code === 'driver_missing'
-        ? { status: 'driver_missing', message: redactText(e.message), driverPackage: formProvider.value?.driverPackage }
-        : { status: 'error', message: redactText(e.message) }
-    } else {
-      testResult.value = { status: 'error', message: String(e) }
-    }
+    // 兼容：非 200 时按旧行为降级
+    const code = e instanceof ApiError ? e.code : undefined
+    const msg = redactText(e instanceof Error ? e.message : String(e))
+    testResult.value = code === 'driver_missing'
+      ? { status: 'driver_missing', ok: false, code, message: msg, driverPackage: formProvider.value?.driverPackage }
+      : { status: 'error', ok: false, code, message: msg }
   } finally {
     testing.value = false
   }
@@ -541,7 +591,9 @@ onMounted(() => {
   }
   void loadAll()
   pollTimer = setInterval(() => {
-    if (!unauthorized.value) void refreshApprovals(true)
+    if (unauthorized.value) return
+    void refreshApprovals(true)
+    if (sideTab.value === 'agent') void refreshAgentEchoes()
   }, 5000)
 })
 onBeforeUnmount(() => {
@@ -720,9 +772,9 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
 
         <div v-if="resultError" class="result-error" data-testid="result-error">
           <strong>{{ errorReason(resultError.code) }}</strong>
-          <span class="code">[{{ resultError.code }}]</span>
+          <span class="code" data-testid="result-error-code">[{{ resultError.code }}<template v-if="resultError.httpStatus"> · HTTP {{ resultError.httpStatus }}</template>]</span>
           <div v-if="resultError.message" class="err-msg">{{ resultError.message }}</div>
-          <div class="muted">未弹出审批：该语句没有被执行。</div>
+          <div class="muted">{{ resultError.code === 'confirmation_required' ? '审批仍待处理：语句未执行，请在审批里二次确认。' : '未弹出审批：该语句没有被执行。' }}</div>
         </div>
 
         <div class="grid-wrap" data-testid="result-grid">
@@ -759,7 +811,7 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
         <section class="bottom">
           <div class="tabs">
             <button class="tab" :class="{ on: sideTab === 'history' }" data-testid="tab-history" @click="sideTab = 'history'">历史</button>
-            <button class="tab" :class="{ on: sideTab === 'agent' }" data-testid="tab-agent" @click="sideTab = 'agent'">Agent 工具回显</button>
+            <button class="tab" :class="{ on: sideTab === 'agent' }" data-testid="tab-agent" @click="openAgentTab">Agent 工具回显</button>
           </div>
           <div v-if="sideTab === 'history'" class="list" data-testid="history-list">
             <div v-if="history.length === 0" class="muted pad">暂无执行历史</div>
@@ -774,11 +826,13 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
           </div>
           <div v-else class="list" data-testid="agent-echo-list">
             <div v-if="agentEchoes.length === 0" class="muted pad">本会话暂无 Agent db_* 调用</div>
-            <div v-for="(a, i) in agentEchoes" :key="i" class="row echo">
+            <div class="muted pad src-note">来源：审计 kind=agent（GET /audit?kind=agent）</div>
+            <div v-for="a in agentEchoes" :key="a.id" class="row echo" :data-status="a.status">
               <span class="time">{{ fmtTime(a.at) }}</span>
               <code class="tool">{{ a.tool }}</code>
-              <code class="sqltext" :title="redactText(JSON.stringify(a.args))">{{ redactText(JSON.stringify(a.args)) }}</code>
+              <code class="sqltext" :title="redactText(a.sql ?? '')">{{ redactText(a.sql ?? '') }}</code>
               <span class="pill" :class="`st-${a.status}`">{{ a.status }}</span>
+              <span v-if="a.code" class="code">[{{ a.code }}]</span>
               <span v-if="a.rowCount !== undefined" class="muted">{{ a.rowCount }} 行</span>
               <span v-if="a.truncated" class="pill st-truncated">truncated=true</span>
               <span v-if="a.approvalId" class="muted">审批 {{ a.approvalId }}</span>
@@ -839,7 +893,7 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
 
         <div v-if="testResult" class="test-result" :class="`tr-${testResult.status}`" data-testid="test-result">
           <template v-if="testResult.status === 'ok'">✔ 连接成功{{ testResult.serverVersion ? ` · 服务器 ${testResult.serverVersion}` : '' }}</template>
-          <template v-else-if="testResult.status === 'driver_missing'">⚠ 驱动缺失：需安装 <code>{{ testResult.driverPackage ?? formProvider?.driverPackage ?? 'XCode.*' }}</code>{{ testResult.message ? ` · ${redactText(testResult.message)}` : '' }}</template>
+          <template v-else-if="testResult.status === 'driver_missing'">⚠ 驱动缺失：需安装 <code>{{ testResult.driverPackage ?? formProvider?.driverPackage ?? 'NuGet 驱动包' }}</code>{{ testResult.message ? ` · ${redactText(testResult.message)}` : '' }}</template>
           <template v-else>✖ 连接失败：{{ redactText(testResult.message) || '未知原因' }}</template>
         </div>
         <div v-if="connFormError" class="form-error" data-testid="cf-error">{{ connFormError }}</div>
@@ -859,7 +913,7 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
         <h3>写操作审批 <span v-if="currentApproval.source === 'agent'" class="tag tag-agent" data-testid="approval-from-agent">来自 Agent</span></h3>
         <dl class="kv">
           <dt>目标连接</dt><dd>{{ currentApproval.connectionName ?? connName(currentApproval.connectionId) }}</dd>
-          <dt>类型</dt><dd>{{ currentApproval.kind }}<span v-if="currentApproval.destructive" class="tag tag-danger" data-testid="approval-destructive">破坏性</span></dd>
+          <dt>类型</dt><dd>{{ kindLabel(currentApproval.kind, currentApproval.destructive) }}<span v-if="currentApproval.destructive" class="tag tag-danger" data-testid="approval-destructive">破坏性</span></dd>
           <dt>来源</dt><dd>{{ currentApproval.source === 'agent' ? 'Agent（db_execute_write）' : 'UI 编辑器' }}</dd>
           <dt>预估风险</dt><dd>{{ currentApproval.risk ?? (currentApproval.destructive ? '高：结构或数据不可恢复' : '中：修改数据') }}</dd>
         </dl>

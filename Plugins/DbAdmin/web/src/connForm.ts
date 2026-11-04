@@ -1,7 +1,23 @@
 /** 连接表单：校验、表单↔连接串、未实测判定（S1 / S9） */
 import type { DbConnection, DbConnectionInput, DbProvider } from './types'
 
-export const DEFAULT_PORTS: Record<string, number> = { MySql: 3306, PostgreSQL: 5432, SqlServer: 1433 }
+/** provider id 以后端小写为准（§3.1）；后端 providers[].defaultPort 优先 */
+export const DEFAULT_PORTS: Record<string, number> = { mysql: 3306, postgresql: 5432, sqlserver: 1433 }
+
+/** 前端自带展示名（providers 列表未加载 / 连接上只有 id 时用） */
+export const PROVIDER_LABELS: Record<string, string> = {
+  sqlite: 'SQLite', mysql: 'MySQL / MariaDB', postgresql: 'PostgreSQL', sqlserver: 'SQL Server',
+}
+
+export function providerLabel(id: string | undefined, providers: Pick<DbProvider, 'id' | 'displayName'>[] = []): string {
+  const k = (id ?? '').toLowerCase()
+  return providers.find(p => p.id === k)?.displayName ?? PROVIDER_LABELS[k] ?? id ?? ''
+}
+
+export function defaultPort(provider: string | undefined, providers: Pick<DbProvider, 'id' | 'defaultPort'>[] = []): number | undefined {
+  const k = (provider ?? '').toLowerCase()
+  return providers.find(p => p.id === k)?.defaultPort ?? DEFAULT_PORTS[k]
+}
 
 export function isSqlite(provider: string | undefined): boolean {
   return (provider ?? '').toLowerCase() === 'sqlite'
@@ -13,8 +29,9 @@ export function isTested(p: Pick<DbProvider, 'id' | 'tested'> | undefined): bool
   return p.tested ?? isSqlite(p.id)
 }
 
-export function emptyForm(provider = 'SQLite'): DbConnectionInput {
-  return { name: '', provider, mode: 'form', host: '', port: DEFAULT_PORTS[provider], database: '', userName: '', password: '', connStr: '' }
+export function emptyForm(provider = 'sqlite'): DbConnectionInput {
+  const p = provider.toLowerCase()
+  return { name: '', provider: p, mode: 'form', host: '', port: DEFAULT_PORTS[p], database: '', userName: '', password: '', connStr: '' }
 }
 
 /** 编辑已有连接：密码置空（留空 = 不改，UI 占位显示 ****），连接串不回填掩码值 */

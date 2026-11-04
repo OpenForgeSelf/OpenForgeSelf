@@ -162,7 +162,7 @@ export function loadSnapshot(storage: Storage | undefined = safeStorage()): Rest
 }
 
 export function restoredToConnection(r: RestoredConnection): DbConnection {
-  return { ...r, provider: r.provider, password: '', connStr: '' }
+  return { ...r, provider: String(r.provider ?? '').toLowerCase(), password: '', connStr: '' }
 }
 
 function safeStorage(): Storage | undefined {

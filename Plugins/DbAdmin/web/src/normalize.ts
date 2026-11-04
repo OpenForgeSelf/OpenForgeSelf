@@ -1,24 +1,39 @@
 /**
- * 响应归一：03 只定了路径与实体字段，未定 JSON 细节。这里把后端可能的形态
- * （如 columns:string[] + columnTypes、数字 id、isView、ok:boolean、kind:'system'）
- * 统一成前端类型，联调时差异集中在此一处。
+ * 响应归一 —— docs/03 §3.1「已定契约」规定此文件是前端唯一适配点。
+ * 后端真实形态（camelCase）：数字 approval/history/audit id 与 approvalId → String()；
+ * provider 小写；连接 kind user|system（mode=system）；query columns:string[] + columnTypes；
+ * kind 只有 read/write + destructive；测连 {ok, code}；history/audit 分页 {items,total,page,pageSize}。
+ * 旧形态（kind=destructive、status 三态测连、columns 对象数组）仍兼容。
+ * 样本：src/__fixtures__/backend-samples.json（由真实 DbAdminController 产出，见 contract.test.ts）。
  */
 import type {
-  DbApproval, DbAuditLog, DbColumn, DbConnection, DbProvider, DbQueryHistory, DbTable, DbTableDetail,
-  QueryResponse, ResultColumn, TestConnectionResult,
+  AgentToolEcho, DbApproval, DbAuditLog, DbColumn, DbConnection, DbProvider, DbQueryHistory, DbTable,
+  DbTableDetail, QueryResponse, ResultColumn, ResultErrorState, SqlKind, TestConnectionResult,
 } from './types'
 
 type Raw = Record<string, unknown>
 const str = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v))
 const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : v == null || v === '' ? undefined : Number(v))
+const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
+
+/** kind 归一：对外 read / write；旧形态 destructive / insert / drop_table … 一律视为 write */
+export function normKind(v: unknown): SqlKind | undefined {
+  if (v === null || v === undefined || v === '') return undefined
+  return v === 'read' ? 'read' : 'write'
+}
+/** 破坏性：契约用 destructive:true；兼容旧 kind=destructive */
+function isDestructive(r: Raw): boolean {
+  return r.destructive === true || r.kind === 'destructive'
+}
 
 export function normProvider(r: Raw): DbProvider {
   return {
-    id: String(r.id ?? ''),
+    id: String(r.id ?? '').toLowerCase(),
     displayName: String(r.displayName ?? r.id ?? ''),
     driverAvailable: r.driverAvailable !== false,
     driverPackage: str(r.driverPackage),
-    tested: typeof r.tested === 'boolean' ? r.tested : undefined,
+    tested: bool(r.tested),
+    defaultPort: num(r.defaultPort),
   }
 }
 
@@ -27,7 +42,7 @@ export function normConnection(r: Raw): DbConnection {
   return {
     id: String(r.id ?? ''),
     name: String(r.name ?? ''),
-    provider: String(r.provider ?? ''),
+    provider: String(r.provider ?? '').toLowerCase(),
     mode: r.mode === 'connstr' ? 'connstr' : 'form',
     host: str(r.host),
     port: num(r.port),
@@ -36,7 +51,8 @@ export function normConnection(r: Raw): DbConnection {
     password: r.password ? '****' : '',
     connStr: str(r.connStr),
     readonly: !!r.readonly,
-    system: typeof r.system === 'boolean' ? r.system : kind ? kind === 'system' : undefined,
+    system: typeof r.system === 'boolean' ? r.system : kind ? kind === 'system' : String(r.id ?? '').startsWith('sys:') || undefined,
+    tested: bool(r.tested),
     createTime: str(r.createTime),
     updateTime: str(r.updateTime),
   }
@@ -63,16 +79,22 @@ export function normTableDetail(r: Raw): DbTableDetail {
   }
 }
 
-export function normQuery(r: Raw): QueryResponse {
+/** QueryOutcome → 前端；httpStatus 202 且缺 status 时视为 awaiting_approval */
+export function normQuery(r: Raw, httpStatus?: number): QueryResponse {
   const types = Array.isArray(r.columnTypes) ? (r.columnTypes as unknown[]) : []
   const columns: ResultColumn[] | undefined = Array.isArray(r.columns)
     ? (r.columns as unknown[]).map((c, i) =>
         typeof c === 'string' ? { name: c, type: str(types[i]) } : { name: String((c as Raw).name ?? ''), type: str((c as Raw).type) })
     : undefined
-  const status = r.status === 'awaiting_approval' || r.status === 'rejected' ? r.status : 'ok'
+  const status: QueryResponse['status'] =
+    r.status === 'awaiting_approval' || r.status === 'rejected' || r.status === 'error' ? r.status
+      : r.status === undefined && httpStatus === 202 ? 'awaiting_approval'
+        : 'ok'
   return {
     status,
-    kind: r.kind === 'write' ? 'write' : r.kind === 'read' ? 'read' : undefined,
+    kind: normKind(r.kind),
+    destructive: isDestructive(r),
+    httpStatus,
     columns,
     rows: Array.isArray(r.rows) ? (r.rows as unknown[][]) : undefined,
     total: num(r.total),
@@ -87,12 +109,22 @@ export function normQuery(r: Raw): QueryResponse {
   }
 }
 
+/** 测连：契约 `{ok, code(ok|sql_error|driver_missing), message, serverVersion}`；实测成功时 code 为 null */
 export function normTest(r: Raw): TestConnectionResult {
   let status: TestConnectionResult['status']
-  if (r.status === 'ok' || r.status === 'error' || r.status === 'driver_missing') status = r.status
-  else if (r.code === 'driver_missing') status = 'driver_missing'
-  else status = r.ok === true ? 'ok' : 'error'
-  return { status, message: str(r.message), serverVersion: str(r.serverVersion), driverPackage: str(r.driverPackage) }
+  if (r.code === 'driver_missing' || r.status === 'driver_missing') status = 'driver_missing'
+  else if (typeof r.ok === 'boolean') status = r.ok ? 'ok' : 'error'
+  else if (r.status === 'ok' || r.status === 'error') status = r.status
+  else status = r.code === 'ok' ? 'ok' : 'error'
+  return {
+    status,
+    ok: status === 'ok',
+    code: str(r.code) ?? (status === 'ok' ? 'ok' : undefined),
+    message: str(r.message),
+    serverVersion: str(r.serverVersion),
+    elapsedMs: num(r.elapsedMs),
+    driverPackage: str(r.driverPackage),
+  }
 }
 
 export function normApproval(r: Raw): DbApproval {
@@ -102,8 +134,8 @@ export function normApproval(r: Raw): DbApproval {
     connectionId: String(r.connectionId ?? ''),
     connectionName: str(r.connectionName),
     sqlRedacted: String(r.sqlRedacted ?? ''),
-    kind: String(r.kind ?? 'write'),
-    destructive: !!r.destructive,
+    kind: normKind(r.kind) ?? 'write',
+    destructive: isDestructive(r),
     status: st === 'approved' || st === 'rejected' || st === 'expired' ? st : 'pending',
     source: r.source === 'agent' ? 'agent' : 'ui',
     createTime: String(r.createTime ?? ''),
@@ -117,11 +149,11 @@ export function normHistory(r: Raw): DbQueryHistory {
     id: String(r.id ?? ''),
     connectionId: String(r.connectionId ?? ''),
     sqlRedacted: String(r.sqlRedacted ?? ''),
-    kind: r.kind === 'write' ? 'write' : 'read',
+    kind: normKind(r.kind) ?? 'read',
     rowCount: num(r.rowCount),
     elapsedMs: num(r.elapsedMs),
     success: r.success !== false,
-    error: str(r.error),
+    error: str(r.error) || undefined,
     source: r.source === 'agent' ? 'agent' : 'ui',
     createTime: String(r.createTime ?? ''),
   }
@@ -136,7 +168,66 @@ export function normAudit(r: Raw): DbAuditLog {
     decision: str(r.decision),
     detail: str(r.detail),
     createTime: String(r.createTime ?? ''),
+    source: r.source === 'agent' ? 'agent' : r.source === 'ui' ? 'ui' : undefined,
+    sessionId: str(r.sessionId),
+    status: str(r.status),
+    code: str(r.code),
+    sqlKind: normKind(r.sqlKind),
+    rowCount: num(r.rowCount),
+    truncated: bool(r.truncated),
+    approvalId: str(r.approvalId),
+    tool: str(r.tool),
   }
+}
+
+/** §3.1 ④：审计 kind=agent 条目 → S8 回显；非 agent 条目返回 null */
+export function auditToAgentEcho(a: DbAuditLog): AgentToolEcho | null {
+  if (a.kind !== 'agent') return null
+  const st = a.status
+  return {
+    id: a.id,
+    tool: a.tool ?? a.decision ?? 'db_*',
+    sql: a.sqlRedacted,
+    status: st === 'awaiting_approval' || st === 'rejected' || st === 'error' ? st : 'ok',
+    code: a.code,
+    sqlKind: a.sqlKind,
+    rowCount: a.rowCount,
+    truncated: a.truncated,
+    approvalId: a.approvalId,
+    sessionId: a.sessionId,
+    connectionId: a.connectionId,
+    message: a.detail,
+    at: a.createTime,
+  }
+}
+
+/** /audit 原始应答 → S8 回显列表（只取 kind=agent） */
+export function agentEchoesOf(data: unknown): AgentToolEcho[] {
+  return listOf(data, normAudit).map(auditToAgentEcho).filter((x): x is AgentToolEcho => x !== null)
+}
+
+/**
+ * /query、/resolve 的一次 HTTP 应答 → 结果区状态（真实请求与 fixture 共用）：
+ * - 2xx：status ok → 结果格；awaiting_approval(202) → 审批；rejected(200) → 红条
+ * - ≥400：body {code,message}（或带 code 的 QueryOutcome）→ 红条（409 confirmation_required、424 driver_missing…）
+ */
+export type ReplyState =
+  | { kind: 'result'; result: QueryResponse }
+  | { kind: 'error'; error: ResultErrorState }
+
+const CODE_BY_STATUS: Record<number, string> = {
+  400: 'sql_error', 401: 'unauthorized', 403: 'rejected_hard', 404: 'not_found', 409: 'confirmation_required', 424: 'driver_missing',
+}
+
+export function replyToState(httpStatus: number, body: unknown): ReplyState {
+  const r: Raw = body && typeof body === 'object' ? (body as Raw) : {}
+  if (httpStatus >= 400) {
+    return {
+      kind: 'error',
+      error: { code: str(r.code) ?? CODE_BY_STATUS[httpStatus] ?? 'sql_error', message: str(r.message) ?? '', httpStatus },
+    }
+  }
+  return { kind: 'result', result: normQuery(r, httpStatus) }
 }
 
 /** 数组或 {items} → 数组，并逐项归一 */

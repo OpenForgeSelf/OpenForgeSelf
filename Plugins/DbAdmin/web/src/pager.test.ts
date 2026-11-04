@@ -27,3 +27,13 @@ describe('结果格分页边界', () => {
     expect(rangeLabel(1, 50, 0, 0)).toBe('0 行')
   })
 })
+
+describe('pageSize clamp（后端上限 500）', () => {
+  it('clampPageSize', async () => {
+    const { clampPageSize } = await import('./pager')
+    expect(clampPageSize(100000)).toBe(500)
+    expect(clampPageSize(100)).toBe(100)
+    expect(clampPageSize(0)).toBe(50)
+    expect(clampPageSize(Number.NaN)).toBe(50)
+  })
+})

@@ -8,7 +8,7 @@ describe('响应归一（03 未定的 JSON 细节）', () => {
     expect(normQuery({ status: 'awaiting_approval', approvalId: 42 }).approvalId).toBe('42')
   })
   it('连接：kind=system → system；密码只留掩码', () => {
-    const c = normConnection({ id: 'sys:ForgeSelf', name: 'ForgeSelf', provider: 'SQLite', kind: 'system', readonly: true, password: 'anything' })
+    const c = normConnection({ id: 'sys:ForgeSelf', name: 'ForgeSelf', provider: 'sqlite', kind: 'system', readonly: true, password: 'anything' })
     expect(c.system).toBe(true)
     expect(c.password).toBe('****')
   })
@@ -16,6 +16,17 @@ describe('响应归一（03 未定的 JSON 细节）', () => {
     expect(normTest({ ok: true, serverVersion: '3.45' }).status).toBe('ok')
     expect(normTest({ ok: false, code: 'driver_missing', message: 'x' }).status).toBe('driver_missing')
     expect(normTest({ ok: false, message: 'refused' }).status).toBe('error')
+    expect(normTest({ ok: true, code: null }).code).toBe('ok')
+  })
+  it('kind：旧形态 destructive/drop_table → write + destructive；新形态保持', () => {
+    expect(normApproval({ id: 1, kind: 'destructive' })).toMatchObject({ kind: 'write', destructive: true })
+    expect(normApproval({ id: 1, kind: 'drop_table', destructive: true })).toMatchObject({ kind: 'write', destructive: true })
+    expect(normApproval({ id: 1, kind: 'read' }).kind).toBe('read')
+    expect(normQuery({ status: 'ok', kind: 'destructive' })).toMatchObject({ kind: 'write', destructive: true })
+  })
+  it('202 无 status → awaiting_approval；provider 统一小写', () => {
+    expect(normQuery({ approvalId: 3 }, 202).status).toBe('awaiting_approval')
+    expect(normConnection({ id: 'sys:X', provider: 'SQLite' })).toMatchObject({ provider: 'sqlite', system: true })
   })
   it('表/列：isView、primaryKeys、rawType', () => {
     expect(normTable({ name: 'v', isView: true }).type).toBe('view')

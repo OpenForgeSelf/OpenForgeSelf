@@ -13,17 +13,23 @@ namespace ForgeSelf.Api.Tests.Plugins.DbAdminTests;
 /// <c>Data Source=Data\&lt;ConnName&gt;.db</c>（<b>相对进程 CWD</b>）。51888 实例上该兜底把库写进了
 /// versions/&lt;ver&gt;/Data/（版本层），宿主升级换版本目录即丢用户数据——
 /// 违反 packaging-upgrade-backup §1.7（用户数据必须外置）。
-/// 守卫点（纯连接串字面量断言，不依赖进程 CWD，避免并行测试互踩）：
+/// 守卫点（纯连接串字面量断言）：
 /// ① 未登记连接名 → 兜底串为<b>相对路径</b> Data\&lt;conn&gt;.db（版本层形态实锤）；
-/// ② 已登记连接名 → 使用登记的绝对路径（宿主登记先行的正确姿势）。
+/// ② 已登记连接名 → 使用登记的绝对路径（宿主登记先行的正确姿势，经 fixture 合规入口）。
 /// DbAdminPlugin.Apply 不抢跑建表由 dev-stack 重启链实测 + 宿主日志断言覆盖（05-evidence F1 节）。
 /// </summary>
+[Collection(DbAdminCollection.Name)]
 public class DbAdminFallbackGuardTests
 {
+    private readonly DbAdminTestFixture _fx;
+
+    public DbAdminFallbackGuardTests(DbAdminTestFixture fx) => _fx = fx;
+
     [Fact]
     public void 未登记连接名_InitConnection_兜底为相对Data路径()
     {
-        const String conn = "DbAdminFallbackProbe";
+        // 探针连接名不在 fixture 登记集内（fixture 只绑 DbAdmin/DbAdminTestHost/DbAdminTestSeed_*）
+        var conn = DbAdminTestFixture.UniqueName("DbAdminFallbackProbe");
         // 前提自查：该连接名确实未登记（阳性对照，防同源自洽）
         Assert.False(DAL.ConnStrs!.ContainsKey(conn));
 
@@ -38,10 +44,13 @@ public class DbAdminFallbackGuardTests
     [Fact]
     public void 已登记连接名_InitConnection_使用登记的绝对路径()
     {
-        const String conn = "DbAdminRegisteredProbe";
-        var registered = Path.Combine(Path.GetTempPath(), "dbadmin_fallback_reg", conn + ".db");
-        Directory.CreateDirectory(Path.GetDirectoryName(registered)!);
-        DAL.AddConnStr(conn, $"Data Source={registered}", null, "SQLite");
+        // 经 fixture 合规入口登记（PC-014：禁手搓连接串；CreateTargetDb 封装首绑）
+        var registered = _fx.CreateTargetDb("fallback_guard");
+
+        // 从 DAL 找到该文件的登记连接名（CreateTargetDb 返回文件，登记名由 fixture 生成）
+        var seedEntry = DAL.ConnStrs!.First(kv =>
+            kv.Value.Contains(Path.GetFileName(registered), StringComparison.OrdinalIgnoreCase));
+        var conn = seedEntry.Key;
 
         EntityFactory.InitConnection(conn);
 

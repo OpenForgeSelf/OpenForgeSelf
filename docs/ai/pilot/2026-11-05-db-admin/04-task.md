@@ -9,6 +9,7 @@ expected_files:
   - ForgeSelf.Abstractions/ToolNamespace.cs
   - ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/DbAdminContractTests.cs
+  - ForgeSelf.Api.Tests/Plugins/DbAdminTests/DbAdminFallbackGuardTests.cs（F1 修复批守卫，2026-11-05 回写）
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/DbAdminTestFixture.cs
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/DbAdminToolEvalReplayTests.cs
   - ForgeSelf.Api.Tests/Plugins/DbAdminTests/DbAdminToolFunctionTests.cs

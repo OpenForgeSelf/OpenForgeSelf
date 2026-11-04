@@ -778,6 +778,11 @@ public sealed class TerminalSessionService : ITerminalSessionService
             process = new Process { StartInfo = psi, EnableRaisingEvents = true };
             s.ActiveProcess = process;
 
+            if (!process.Start())
+            {
+                throw new InvalidOperationException("进程启动失败");
+            }
+
             // PC-011：读 BaseStream 原始字节，交 ProcessOutputLineBuffer 裁决
             //（禁固定码页赋值 / 禁 BeginOutputReadLine 事件流默认解码——GBK 中文烧 U+FFFD 或协议 UTF-8 被毁）
             var stdoutPump = PumpStreamAsync(s, process.StandardOutput.BaseStream, "stdout");
@@ -853,8 +858,9 @@ public sealed class TerminalSessionService : ITerminalSessionService
     {
         if (kind is "cmd")
         {
-            // cmd /c 需要整体引住含空格与特殊符的命令
-            return "\"" + command.Replace("\"", "\\\"") + "\"";
+            // cmd /c 需要整体引住含空格与特殊符的命令；
+            // cmd 的内部引号转义是双写（""）而非 C 风格 \"（后者会被 cmd 当成命令名一部分，2026-11-05 51888 实测）
+            return "\"" + command.Replace("\"", "\"\"") + "\"";
         }
 
         if (kind is "bash" or "zsh" or "sh" or "fish" or "other")

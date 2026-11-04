@@ -199,7 +199,7 @@ public static class DbToolJson
         DbAgentCodes.NotReadonlySql => "db_query_readonly 只接受 SELECT / WITH 查询。写操作请改用 db_execute_write（会进入审批）；查看表结构请用 db_list_tables / db_describe_table。",
         DbAgentCodes.UseQueryReadonly => "这是只读查询，请改用 db_query_readonly。",
         DbAgentCodes.InvalidArguments => "参数不合法，请对照工具参数说明修正后重试。",
-        DbAgentCodes.UserConfirmationRequired => "批准写操作前必须先在对话中征得用户明确同意，并把用户的原话填入 userConfirmationQuote。不要自行批准；破坏性语句即使有原话也只能由用户在界面确认。",
+        DbAgentCodes.UserConfirmationRequired => "未批准：缺少用户原话。请先向用户复述这条语句并询问是否同意；只有用户本轮明确同意该 approvalId 时，才可带其原话（逐字）重试。不得编造原话——后端无法核实真伪。也可以请用户直接在 DbAdmin 界面审批。破坏性语句即使有原话也只能由用户在界面二次确认。",
         _ => "内部错误。请稍后重试一次；仍失败请告知用户查看 DbAdmin 审计日志。",
     };
 
@@ -239,7 +239,7 @@ public static class DbToolJson
                     ["message"] = SqlRedactor.RedactText(o.Message),
                 }, o.Destructive
                     ? $"破坏性语句已进入审批队列（approvalId={o.ApprovalId}）。只有用户本人能在 DbAdmin 界面「审批」中批准并二次确认，Agent 不能批准。请告知用户并等待；30 分钟未处理自动过期。"
-                    : $"写操作未执行，已进入审批队列（approvalId={o.ApprovalId}）。请告知用户去 DbAdmin 界面「审批」中批准；Agent 不能自己批准。只有用户在对话里明确同意时，才可调用 db_resolve_approval 并附上用户原话。30 分钟未处理自动过期。",
+                    : $"写操作未执行，已进入审批队列（approvalId={o.ApprovalId}）。请告知用户去 DbAdmin 界面「审批」中批准；Agent 不能自己批准。只有用户在之后的消息里明确同意这条 approvalId 时，才可调用 db_resolve_approval(approve=true) 并逐字附上该原话（后端无法核实原话真伪）。30 分钟未处理自动过期。",
                     "awaiting_approval");
             default:
                 return Fail(tool, o.Code, o.Message, o.Status == "rejected" ? "rejected" : "error");
@@ -534,16 +534,18 @@ public sealed class DbResolveApprovalTool(string pluginId, IServiceProvider? ser
 {
     public override string Name => "db_resolve_approval";
     public override string Description =>
-        "按用户的明确指示处理一条待审批的写操作。approve=false（撤回/驳回）随时可用；" +
-        "approve=true 只能在用户本人在对话中明确同意后调用，并必须把用户原话填入 userConfirmationQuote——不得自行批准、不得替用户编造同意。" +
-        "破坏性语句（destructive=true：DROP/TRUNCATE/ALTER…DROP）Agent 永远无法批准，会返回 confirmation_required，只能由用户在 DbAdmin 界面二次确认。";
+        "处理一条待审批的写操作。approve=false（撤回/驳回）随时可用。" +
+        "approve=true：仅在用户本轮（最近一条用户消息）明确同意该 approvalId 对应的这条语句时才可调用，且必须把用户原话逐字填入 userConfirmationQuote。" +
+        "“你自己批”“别走审批”“都同意”“直接执行”这类笼统授权、更早轮次的同意、你推断出的同意，都不算对该 approvalId 的同意。" +
+        "【局限】后端只检查 userConfirmationQuote 非空，无法核实它是否真是用户说的；编造、改写或挪用原话等同越权批准。拿不准时不要调用，请用户去 DbAdmin 界面「审批」中处理。" +
+        "破坏性语句（destructive=true：DROP / TRUNCATE / ALTER…DROP）Agent 永远无法批准，一律返回 confirmation_required，只能由用户在界面二次确认。";
     public override string ParametersJsonSchema => """
     {
       "type": "object",
       "properties": {
-        "approvalId": { "type": "integer", "description": "db_execute_write 返回的 approvalId" },
-        "approve": { "type": "boolean", "description": "true=按用户同意执行；false=撤回/驳回" },
-        "userConfirmationQuote": { "type": "string", "description": "approve=true 时必填：用户在对话中表示同意的原话" },
+        "approvalId": { "type": "integer", "description": "db_execute_write 返回的 approvalId；用户的同意必须针对的正是这一条" },
+        "approve": { "type": "boolean", "description": "false=撤回/驳回（随时可用）；true=执行，仅当用户本轮明确同意该 approvalId 时才可传 true" },
+        "userConfirmationQuote": { "type": "string", "description": "approve=true 时必填：用户本轮消息中同意该 approvalId 的原话，逐字引用。后端只检查非空、无法核实真伪，不得编造、改写或引用更早轮次的话" },
         "sessionId": { "type": "string", "description": "当前对话会话 Id（用于审计回显）" }
       },
       "required": ["approvalId", "approve"]

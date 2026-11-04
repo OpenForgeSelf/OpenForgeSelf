@@ -78,6 +78,22 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
             tools.Select(t => t.Name));
     }
 
+    /// <summary>db_resolve_approval 给 LLM 的描述必须写明：仅本轮明确同意该 approvalId 才可批准；后端无法核实原话真伪</summary>
+    [Fact]
+    public void ResolveApproval_Description_StatesConsentRuleAndQuoteLimitation()
+    {
+        var t = DbAdminTools.Create("db-admin", null).Single(x => x.Name == "db_resolve_approval");
+        Assert.Contains("仅在用户本轮", t.Description);
+        Assert.Contains("明确同意该 approvalId", t.Description);
+        Assert.Contains("无法核实", t.Description);
+        Assert.Contains("confirmation_required", t.Description);
+        using var schema = JsonDocument.Parse(t.ParametersJsonSchema);
+        var props = schema.RootElement.GetProperty("properties");
+        Assert.Contains("本轮明确同意该 approvalId", props.GetProperty("approve").GetProperty("description").GetString());
+        Assert.Contains("无法核实真伪", props.GetProperty("userConfirmationQuote").GetProperty("description").GetString());
+        Assert.Equal(new[] { "approvalId", "approve" }, schema.RootElement.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+    }
+
     [Fact]
     public async Task NoServiceProvider_ReturnsStructuredError_NotThrow()
     {

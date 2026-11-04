@@ -31,6 +31,12 @@ export interface TerminalSession {
   launchType?: LaunchType | string
   remoteHost?: string
   remoteUser?: string
+  /** 活动进程是否仍在（GET session） */
+  processAlive?: boolean
+  /** 未 close 时可继续拉 output */
+  reconnectable?: boolean
+  /** 重连提示；缺密 SSH 需再走 S5 后 launch */
+  reconnectHint?: string
 }
 
 export interface OutputChunk {

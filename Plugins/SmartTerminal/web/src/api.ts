@@ -2,6 +2,8 @@ import { apiGet, apiPost, apiPut } from './http'
 import type {
   AuditEvent,
   CommandRecord,
+  LaunchTerminalRequest,
+  LaunchTerminalResponse,
   OutputChunk,
   PendingApproval,
   PermissionMode,
@@ -19,6 +21,9 @@ export const smartTerminalApi = {
   listSessions: () => apiGet<TerminalSession[]>(`${BASE}/sessions`),
   createSession: (body: { title?: string; shellId?: string; cwd?: string; permissionMode?: PermissionMode }) =>
     apiPost<TerminalSession>(`${BASE}/sessions`, body),
+  launch: (body: LaunchTerminalRequest) => apiPost<LaunchTerminalResponse>(`${BASE}/launch`, body),
+  renameSession: (sessionId: string, title: string) =>
+    apiPut<TerminalSession>(`${BASE}/sessions/${encodeURIComponent(sessionId)}/title`, { title }),
   getSession: (sessionId: string) => apiGet<TerminalSession>(`${BASE}/sessions/${encodeURIComponent(sessionId)}`),
   setSessionMode: (sessionId: string, mode: PermissionMode) =>
     apiPut(`${BASE}/sessions/${encodeURIComponent(sessionId)}/permission-mode`, { mode }),

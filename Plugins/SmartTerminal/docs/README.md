@@ -1,3 +1,5 @@
+> 产品经理请先读 [**00-目录.md**](./00-目录.md)（需求 / 交互 / URL / 权限 / 密码风险）。
+
 # 智能终端（SmartTerminal）
 
 会话化、可审批、可审计的本机终端插件。默认权限模式 **AskWrite**。
@@ -37,7 +39,7 @@
 3. 宿主全量构建会经 `StageAllPlugins` 暂存到输出 `Plugins/SmartTerminal/`
 4. 插件管理页启用 **智能终端**，打开 `/smart-terminal`
 
-Windows 多壳（cmd / Windows PowerShell / pwsh + WT profiles）在 Windows 宿主上可用；Linux/macOS 构建与加载不炸，降级为 bash/sh/pwsh。
+Windows / Linux 均为一等公民。v1.2 起支持多标签与 URL 深链（local / ssh / wsl-ssh）。
 
 ## 外壳支持（v1.1）
 
@@ -54,3 +56,14 @@ pnpm run ct:server   # http://127.0.0.1:5190/ 侧栏 SmartTerminal
 
 深链示例：`/?story=SmartTerminal/PendingApproval`
 
+
+## URL 深链（摘要）
+
+详见 [03-URL协议.md](./03-URL协议.md)。示例：
+
+```text
+/smart-terminal?st=1&type=local&shell=bash&cmd=echo%20hi
+/smart-terminal?st=1&type=ssh&host=10.0.0.1&user=root&auth=sshpass&password=...
+```
+
+`POST /api/smart-terminal/launch` 与上表字段对等。密码风险见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。

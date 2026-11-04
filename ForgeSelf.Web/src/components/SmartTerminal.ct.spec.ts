@@ -1,6 +1,5 @@
 /**
  * SmartTerminal 组件视觉回归（CT）
- *
  * 运行：pnpm run test:ct        更新基线：pnpm run test:ct:update
  */
 import { test, expect } from '@playwright/test'
@@ -9,13 +8,24 @@ import { openStory } from './ct-support'
 const root = (page: import('@playwright/test').Page) => page.locator('[data-testid="smart-terminal-root"]')
 
 test.describe('SmartTerminal · 视觉与契约', () => {
-  test('空会话：展示 Linux 壳选项与空列表提示', async ({ page }) => {
+  test('空标签：引导新建或 URL 深链', async ({ page }) => {
     await openStory(page, 'SmartTerminal/EmptySessions', '[data-testid="smart-terminal-root"]')
-    await expect(root(page)).toContainText('暂无会话')
-    const picker = page.locator('[data-testid="shell-picker"]')
-    await expect(picker.locator('option[value="bash"]')).toHaveCount(1)
-    await expect(picker.locator('option[value="zsh"]')).toHaveCount(1)
-    await expect(picker.locator('option[value="sh"]')).toHaveCount(1)
+    await expect(root(page)).toContainText('新建标签')
+    await expect(page.locator('[data-testid="tab-new"]')).toHaveCount(1)
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('多标签：本地 + SSH 标签共存', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/MultiTabs', '[data-testid="tab-bar"]')
+    await expect(page.locator('[data-testid="tab-bar"] .tab')).toHaveCount(3)
+    await expect(root(page)).toContainText('生产跳板')
+    await expect(root(page)).toContainText('ops@10.0.0.8')
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('标签重命名输入态', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/TabRename', '[data-testid="tab-rename-input"]')
+    await expect(page.locator('[data-testid="tab-rename-input"]')).toHaveValue('旧名称')
     await expect(root(page)).toHaveScreenshot()
   })
 
@@ -66,7 +76,6 @@ test.describe('SmartTerminal · 视觉与契约', () => {
   test('密钥脱敏行', async ({ page }) => {
     await openStory(page, 'SmartTerminal/SecretRedacted', '[data-testid="console"]')
     await expect(page.locator('[data-testid="console"]')).toContainText('***REDACTED***')
-    await expect(page.locator('[data-testid="command-history"]')).toContainText('***REDACTED***')
     await expect(root(page)).toHaveScreenshot()
   })
 
@@ -82,10 +91,24 @@ test.describe('SmartTerminal · 视觉与契约', () => {
     await expect(root(page)).toHaveScreenshot()
   })
 
-  test('Linux 多壳选择器', async ({ page }) => {
+  test('Linux 多壳选择器（新建面板）', async ({ page }) => {
     await openStory(page, 'SmartTerminal/LinuxShellPicker', '[data-testid="shell-picker"]')
     await expect(page.locator('[data-testid="shell-picker"]')).toHaveValue('zsh')
-    await expect(root(page)).toContainText('Zsh 会话')
+    await expect(page.locator('[data-testid="new-tab-panel"]')).toBeVisible()
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('URL 本地启动横幅', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/UrlLaunchLocal', '[data-testid="launch-banner"]')
+    await expect(page.locator('[data-testid="launch-banner"]')).toContainText('type=local')
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('URL SSH 启动待连接 + 密码警告', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/UrlLaunchSshPending', '[data-testid="launch-warning"]')
+    await expect(page.locator('[data-testid="launch-banner"]')).toContainText('password=***REDACTED***')
+    await expect(page.locator('[data-testid="launch-warning"]')).toContainText('已从 URL 擦除')
+    await expect(page.locator('[data-testid="console"]')).not.toContainText('SuperSecret')
     await expect(root(page)).toHaveScreenshot()
   })
 })

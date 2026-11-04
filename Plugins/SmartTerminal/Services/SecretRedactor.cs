@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace ForgeSelf.Api.Plugins.SmartTerminal.Services;
 
 /// <summary>
-/// 命令/输出脱敏（审计与 UI 共用）。对标常见 CLI 审计实践：token/password/key 不落原文。
+/// 命令/输出/URL 脱敏（审计与 UI 共用）。密码、SSHPASS、私钥、Bearer 等不落原文。
 /// </summary>
 public static partial class SecretRedactor
 {
@@ -17,7 +17,40 @@ public static partial class SecretRedactor
         result = ApiKeyAssignRegex().Replace(result, "$1=***REDACTED***");
         result = AuthorizationHeaderRegex().Replace(result, "$1***REDACTED***");
         result = PrivateKeyBlockRegex().Replace(result, "***REDACTED-PRIVATE-KEY***");
+        result = SshPassEnvRegex().Replace(result, "SSHPASS=***REDACTED***");
+        result = SshPassFlagRegex().Replace(result, "$1***REDACTED***");
+        result = UrlPasswordQueryRegex().Replace(result, "$1=***REDACTED***");
+        result = BasicAuthInUrlRegex().Replace(result, "$1***REDACTED***@$3");
         return result;
+    }
+
+    /// <summary>从查询串中移除 password/pwd 等敏感键（返回新 query，不含明文）。</summary>
+    public static string ScrubQueryString(string? query)
+    {
+        if (string.IsNullOrEmpty(query)) return string.Empty;
+        var q = query.TrimStart('?');
+        var parts = q.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        var kept = new List<string>();
+        foreach (var part in parts)
+        {
+            var eq = part.IndexOf('=');
+            var key = eq >= 0 ? part[..eq] : part;
+            if (IsSensitiveQueryKey(key))
+            {
+                kept.Add($"{key}=***REDACTED***");
+                continue;
+            }
+            kept.Add(part);
+        }
+        return string.Join('&', kept);
+    }
+
+    public static bool IsSensitiveQueryKey(string? key)
+    {
+        if (string.IsNullOrEmpty(key)) return false;
+        var k = Uri.UnescapeDataString(key).Trim().ToLowerInvariant();
+        return k is "password" or "pwd" or "passwd" or "st_password" or "st_pwd"
+            or "ssh_password" or "pass";
     }
 
     [GeneratedRegex(@"(?i)\bBearer\s+[A-Za-z0-9\-._~+/]+=*", RegexOptions.Compiled)]
@@ -37,4 +70,16 @@ public static partial class SecretRedactor
 
     [GeneratedRegex(@"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----", RegexOptions.Compiled)]
     private static partial Regex PrivateKeyBlockRegex();
+
+    [GeneratedRegex(@"(?i)\bSSHPASS\s*=\s*\S+", RegexOptions.Compiled)]
+    private static partial Regex SshPassEnvRegex();
+
+    [GeneratedRegex(@"(?i)(sshpass\s+-(?:p|f)\s*)(\S+)", RegexOptions.Compiled)]
+    private static partial Regex SshPassFlagRegex();
+
+    [GeneratedRegex(@"(?i)([?&](?:password|pwd|passwd|st_password|st_pwd|pass))=([^&\s#]+)", RegexOptions.Compiled)]
+    private static partial Regex UrlPasswordQueryRegex();
+
+    [GeneratedRegex(@"(?i)(://[^:/\s]+:)([^@/\s]+)(@)", RegexOptions.Compiled)]
+    private static partial Regex BasicAuthInUrlRegex();
 }

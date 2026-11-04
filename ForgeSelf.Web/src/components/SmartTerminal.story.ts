@@ -1,10 +1,8 @@
 /**
  * SmartTerminal 智能终端 · CT 画廊故事
  *
- * 覆盖产品关键 UI 态：空会话、实时输出、三级权限徽章、待审批弹窗、
- * 拒绝/批准历史、审计抽屉过滤、密钥脱敏行、错误态、含 Linux 壳的多壳选择器。
- *
- * 跨包：story / CT 放宿主 src/components（与 AIAgentMessage 同约定）。
+ * 覆盖：空标签、多标签、直播输出、三级权限、审批、拒绝/批准、审计过滤、
+ * 脱敏、错误、Linux 多壳、URL 本地/SSH 启动横幅、标签重命名。
  */
 import SmartTerminalStoryHost from './SmartTerminalStoryHost.vue'
 import type { ComponentStory } from '../../ct/types'
@@ -34,11 +32,12 @@ const session = (patch: Record<string, unknown> = {}) => ({
   createdAt: AT,
   updatedAt: AT,
   commandCount: 1,
+  launchType: 'local',
   ...patch,
 })
 
 const baseLive = (): SmartTerminalFixture => ({
-  version: '1.1.0-ct',
+  version: '1.2.0-ct',
   shells: linuxShells,
   draftShell: 'bash',
   sessions: [session()],
@@ -64,17 +63,83 @@ const baseLive = (): SmartTerminalFixture => ({
 })
 
 export const stories: ComponentStory[] = [
-  // 测试状态：空会话列表 + Linux 多壳选择器（bash/zsh/sh 可用，Windows 壳不可用）
+  // 测试状态：空标签栏 + 引导文案
   {
     id: 'SmartTerminal/EmptySessions',
     component: SmartTerminalStoryHost,
     props: {
       fixture: {
-        version: '1.1.0-ct',
+        version: '1.2.0-ct',
         shells: linuxShells,
         draftShell: 'bash',
         sessions: [],
         globalMode: 'AskWrite',
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：多标签（本地 bash + SSH 标签），激活第二个
+  {
+    id: 'SmartTerminal/MultiTabs',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.0-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        globalMode: 'AskWrite',
+        sessions: [
+          session({ sessionId: 'sess-1', title: '本地构建', shellDisplayName: 'Bash' }),
+          session({
+            sessionId: 'sess-2',
+            title: '生产跳板',
+            shellId: 'bash',
+            shellDisplayName: 'Bash',
+            launchType: 'ssh',
+            remoteHost: '10.0.0.8',
+            remoteUser: 'ops',
+            status: 'running',
+          }),
+          session({ sessionId: 'sess-3', title: 'Zsh 调试', shellId: 'zsh', shellDisplayName: 'Zsh' }),
+        ],
+        activeId: 'sess-2',
+        chunksBySession: {
+          'sess-1': [{ index: 0, stream: 'stdout', text: 'build ok', at: AT }],
+          'sess-2': [
+            { index: 0, stream: 'system', text: 'URL 启动 SSH · ops@10.0.0.8', at: AT },
+            { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu', at: AT },
+          ],
+        },
+        chunks: [
+          { index: 0, stream: 'system', text: 'URL 启动 SSH · ops@10.0.0.8', at: AT },
+          { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu', at: AT },
+        ],
+        commands: [
+          {
+            commandId: 'cmd-ssh',
+            sessionId: 'sess-2',
+            commandRedacted: 'sshpass -e ssh -p 22 ops@***HOST***',
+            risk: 'HighRisk',
+            decision: 'Allow',
+            matchedRule: 'launch:bootstrap',
+            status: 'running',
+            createdAt: AT,
+          },
+        ],
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：标签重命名输入态
+  {
+    id: 'SmartTerminal/TabRename',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        ...baseLive(),
+        sessions: [session({ title: '旧名称' }), session({ sessionId: 'sess-2', title: '另一个' })],
+        activeId: 'sess-1',
+        renamingId: 'sess-1',
       } satisfies SmartTerminalFixture,
     },
   },
@@ -240,7 +305,7 @@ export const stories: ComponentStory[] = [
         chunks: [
           { index: 0, stream: 'stdout', text: 'export TOKEN=***REDACTED***', at: AT },
           { index: 1, stream: 'stderr', text: 'Authorization: Bearer ***REDACTED***', at: AT },
-          { index: 2, stream: 'system', text: '已脱敏写入审计日志', at: AT },
+          { index: 2, stream: 'system', text: 'SSHPASS=***REDACTED***', at: AT },
         ],
         commands: [
           {
@@ -265,7 +330,7 @@ export const stories: ComponentStory[] = [
     component: SmartTerminalStoryHost,
     props: {
       fixture: {
-        version: '1.1.0-ct',
+        version: '1.2.0-ct',
         shells: linuxShells,
         draftShell: 'bash',
         sessions: [],
@@ -287,20 +352,81 @@ export const stories: ComponentStory[] = [
     },
   },
 
-  // 测试状态：多壳选择器（强调 bash/zsh/sh 可用）
+  // 测试状态：多壳选择器（打开新建面板）
   {
     id: 'SmartTerminal/LinuxShellPicker',
     component: SmartTerminalStoryHost,
     props: {
       fixture: {
-        version: '1.1.0-ct',
+        version: '1.2.0-ct',
         shells: linuxShells,
         draftShell: 'zsh',
         sessions: [session({ shellId: 'zsh', shellDisplayName: 'Zsh', title: 'Zsh 会话' })],
         activeId: 'sess-1',
         globalMode: 'AskWrite',
+        showNewTabMenu: true,
         chunks: [{ index: 0, stream: 'stdout', text: 'zsh 5.9', at: AT }],
         commands: [],
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：URL 启动本地壳 + 命令列表横幅
+  {
+    id: 'SmartTerminal/UrlLaunchLocal',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        ...baseLive(),
+        sessions: [session({ title: 'URL · local/bash' })],
+        launchBanner: 'URL 启动：type=local · shell=bash · cwd=/workspace · cmds=2',
+        chunks: [
+          { index: 0, stream: 'system', text: 'URL 启动本地会话', at: AT },
+          { index: 1, stream: 'stdout', text: 'hi', at: AT },
+          { index: 2, stream: 'stdout', text: 'file1', at: AT },
+        ],
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：URL SSH + 密码已脱敏警告（待连接）
+  {
+    id: 'SmartTerminal/UrlLaunchSshPending',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.0-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        globalMode: 'AskWrite',
+        sessions: [
+          session({
+            title: 'SSH · root@10.0.0.1',
+            launchType: 'ssh',
+            remoteHost: '10.0.0.1',
+            remoteUser: 'root',
+            status: 'running',
+          }),
+        ],
+        activeId: 'sess-1',
+        launchBanner: 'URL 启动：type=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
+        launchWarning: '地址栏曾含密码，已从 URL 擦除；密码仅短暂注入进程环境，不写审计原文。建议改用密钥。',
+        chunks: [
+          { index: 0, stream: 'system', text: '⚠ 启动凭证含密码：已做脱敏处理，密码不落审计原文。建议改用 SSH 密钥。', at: AT },
+          { index: 1, stream: 'system', text: '$ sshpass -e ssh -p 22 root@***HOST***', at: AT },
+        ],
+        commands: [
+          {
+            commandId: 'cmd-boot',
+            sessionId: 'sess-1',
+            commandRedacted: 'sshpass -e ssh -p 22 root@***HOST***',
+            risk: 'HighRisk',
+            decision: 'Allow',
+            matchedRule: 'launch:bootstrap',
+            status: 'running',
+            createdAt: AT,
+          },
+        ],
       } satisfies SmartTerminalFixture,
     },
   },

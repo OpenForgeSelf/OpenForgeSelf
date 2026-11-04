@@ -60,10 +60,14 @@ const showNewTabMenu = ref(false)
 const showPasswordAck = ref(false)
 const passwordAckChecked = ref(false)
 const passwordAckMode = ref<UrlPasswordMode>('always-ack')
+const showInteractivePassword = ref(false)
+const interactivePassword = ref('')
+const interactivePasswordReveal = ref(false)
 const pendingLaunch = ref<{
   request: LaunchTerminalRequest
   summary: string
   passwordInUrl: boolean
+  needsInteractivePassword?: boolean
 } | null>(null)
 
 const consoleEl = ref<HTMLElement | null>(null)
@@ -158,14 +162,35 @@ function applyFixture(f: SmartTerminalFixture) {
   showPasswordAck.value = !!f.showPasswordAck
   passwordAckChecked.value = !!f.passwordAckChecked
   passwordAckMode.value = f.passwordAckMode ?? 'always-ack'
+  showInteractivePassword.value = !!f.showInteractivePassword
+  interactivePassword.value = ''
+  interactivePasswordReveal.value = false
   if (f.showPasswordAck) {
     pendingLaunch.value = {
-      request: { type: 'ssh', host: '10.0.0.1', user: 'root', auth: 'sshpass' },
-      summary: f.pendingLaunchSummary ?? 'type=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
+      request: { profile: 'ssh', type: 'ssh', host: '10.0.0.1', user: 'root', auth: 'sshpass' },
+      summary: f.pendingLaunchSummary ?? 'profile=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
       passwordInUrl: true,
     }
     launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
     launchWarning.value = f.launchWarning ?? '地址栏曾含密码，已从 URL 擦除。继续前请确认风险。'
+  }
+  if (f.showInteractivePassword) {
+    pendingLaunch.value = {
+      request: {
+        profile: f.interactivePasswordProfile ?? 'ssh',
+        type: (f.interactivePasswordProfile as any) === 'wsl-ssh' ? 'wsl-ssh' : 'ssh',
+        host: f.interactivePasswordHost ?? '10.0.0.1',
+        user: f.interactivePasswordUser ?? 'root',
+        port: f.interactivePasswordPort ?? 22,
+        auth: 'interactive',
+      },
+      summary: f.pendingLaunchSummary
+        ?? `profile=${f.interactivePasswordProfile ?? 'ssh'} · host=${f.interactivePasswordHost ?? '10.0.0.1'} · user=${f.interactivePasswordUser ?? 'root'} · auth=interactive`,
+      passwordInUrl: false,
+      needsInteractivePassword: true,
+    }
+    launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
+    launchWarning.value = f.launchWarning ?? '未提供密码：请在遮罩输入框中交互输入（仅内存，不写 URL / 审计原文）。推荐改用 auth=key。'
   }
 }
 
@@ -474,7 +499,7 @@ function cancelPasswordAck() {
   pendingLaunch.value = null
   showPasswordAck.value = false
   passwordAckChecked.value = false
-  launchWarning.value = '已取消带密码的 URL 启动。请改用 auth=key，或在标签内后续使用交互输入/vault（排期中）。'
+  launchWarning.value = '已取消带密码的 URL 启动。请改用 auth=key，或重新打开深链走交互式密码输入。'
 }
 
 async function confirmPasswordAck() {
@@ -487,6 +512,38 @@ async function confirmPasswordAck() {
     persistUrlPasswordRiskAck()
   }
   await applyLaunch(pending.request, pending.summary, pending.passwordInUrl)
+}
+
+function cancelInteractivePassword() {
+  if (pendingLaunch.value?.request) {
+    pendingLaunch.value.request.password = undefined
+  }
+  interactivePassword.value = ''
+  interactivePasswordReveal.value = false
+  showInteractivePassword.value = false
+  pendingLaunch.value = null
+  launchWarning.value = '已取消交互式密码输入。可改用 auth=key，或重新发起深链。'
+}
+
+async function confirmInteractivePassword() {
+  if (!pendingLaunch.value) return
+  const pwd = interactivePassword.value
+  if (!pwd) {
+    errorText.value = '请输入密码，或取消后改用 auth=key。'
+    return
+  }
+  const pending = pendingLaunch.value
+  pending.request.password = pwd
+  pending.request.auth = pending.request.auth === 'key' ? 'key' : 'sshpass'
+  interactivePassword.value = ''
+  interactivePasswordReveal.value = false
+  showInteractivePassword.value = false
+  pendingLaunch.value = null
+  try {
+    await applyLaunch(pending.request, pending.summary, false)
+  } finally {
+    pending.request.password = undefined
+  }
 }
 
 async function consumeUrlLaunch() {
@@ -515,9 +572,24 @@ async function consumeUrlLaunch() {
       passwordInUrl: true,
     }
     launchBanner.value = `URL 启动：${parsed.summary}`
-    launchWarning.value = '检测到 URL 密码（内网过渡能力）。请确认风险后再继续；推荐改用 auth=key。'
+    launchWarning.value = '检测到 URL 密码（内网过渡能力）。请确认风险后再继续；推荐改用 auth=key 或交互式输入。'
     showPasswordAck.value = true
     passwordAckChecked.value = false
+    return
+  }
+
+  if (parsed.needsInteractivePassword) {
+    pendingLaunch.value = {
+      request: parsed.request,
+      summary: parsed.summary,
+      passwordInUrl: false,
+      needsInteractivePassword: true,
+    }
+    launchBanner.value = `URL 启动：${parsed.summary}`
+    launchWarning.value = '未提供密码：请交互输入（遮罩，仅内存）。推荐改用 auth=key。'
+    interactivePassword.value = ''
+    interactivePasswordReveal.value = false
+    showInteractivePassword.value = true
     return
   }
 
@@ -709,6 +781,56 @@ watch(activeId, () => {
       </div>
     </div>
 
+    <div
+      v-if="showInteractivePassword"
+      class="modal-mask"
+      data-testid="interactive-password-modal"
+      @click.self="cancelInteractivePassword"
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="st-interactive-pwd-title">
+        <h2 id="st-interactive-pwd-title">输入连接密码</h2>
+        <p class="muted">
+          <code data-testid="interactive-password-target">
+            {{ pendingLaunch?.request?.user || '?' }}@{{ pendingLaunch?.request?.host || '?' }}:{{ pendingLaunch?.request?.port || 22 }}
+          </code>
+          · profile=<code>{{ pendingLaunch?.request?.profile || pendingLaunch?.request?.type || 'ssh' }}</code>
+        </p>
+        <p class="muted">密码仅保存在内存，确认后用于本次启动；<strong>不会</strong>写回 URL、JSONL 或命令历史原文。更推荐 <code>auth=key</code>。</p>
+        <label class="field-label">
+          密码
+          <div class="pwd-row">
+            <input
+              v-model="interactivePassword"
+              :type="interactivePasswordReveal ? 'text' : 'password'"
+              autocomplete="current-password"
+              data-testid="interactive-password-input"
+              @keydown.enter.prevent="confirmInteractivePassword"
+            />
+            <button
+              class="btn tiny ghost"
+              type="button"
+              data-testid="interactive-password-reveal"
+              @click="interactivePasswordReveal = !interactivePasswordReveal"
+            >
+              {{ interactivePasswordReveal ? '隐藏' : '显示' }}
+            </button>
+          </div>
+        </label>
+        <div class="modal-actions">
+          <button class="btn ghost" type="button" data-testid="interactive-password-cancel" @click="cancelInteractivePassword">取消</button>
+          <button
+            class="btn primary"
+            type="button"
+            data-testid="interactive-password-confirm"
+            :disabled="!interactivePassword || !!busy"
+            @click="confirmInteractivePassword"
+          >
+            连接并启动
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showApproval && activeApproval" class="modal-mask" data-testid="approval-modal" @click.self="showApproval = false">
       <div class="modal" role="dialog" aria-modal="true">
         <h2>需要审批</h2>
@@ -884,4 +1006,8 @@ watch(activeId, () => {
 .audit-drawer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .a-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .a-cmd { margin: 4px 0; word-break: break-all; }
+
+.field-label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 13px; }
+.pwd-row { display: flex; gap: 8px; align-items: center; }
+.pwd-row input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border, #3a3a3a); background: var(--bg-input, #1a1a1a); color: inherit; }
 </style>

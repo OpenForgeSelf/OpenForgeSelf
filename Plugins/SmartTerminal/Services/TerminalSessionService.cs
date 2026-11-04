@@ -412,7 +412,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
         request.Password = null;
         var passwordProvided = !string.IsNullOrEmpty(password);
 
-        var type = NormalizeLaunchType(request.Type);
+        var type = NormalizeLaunchType(string.IsNullOrWhiteSpace(request.Profile) ? request.Type : request.Profile);
         if (type is "ssh" or "wsl-ssh")
         {
             if (string.IsNullOrWhiteSpace(request.Host))
@@ -465,7 +465,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
             AgentId = s.AgentId,
             ShellId = s.Shell.Id,
             Cwd = s.Cwd,
-            Detail = $"type={type}; auth={auth}; host={request.Host}; user={request.User}; passwordProvided={passwordProvided}"
+            Detail = $"profile={(string.IsNullOrWhiteSpace(request.Profile) ? type : request.Profile)}; type={type}; auth={auth}; host={request.Host}; user={request.User}; passwordProvided={passwordProvided}"
         });
 
         var results = new List<RunCommandResponse>();
@@ -481,6 +481,16 @@ public sealed class TerminalSessionService : ITerminalSessionService
             var (bootCmd, env) = BuildSshBootstrap(type, auth, request, password);
             password = null; // 不再持有明文
             env ??= new Dictionary<string, string>(StringComparer.Ordinal);
+            if (request.Env != null)
+            {
+                foreach (var kv in request.Env)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    // 不允许调用方覆盖 SSHPASS
+                    if (string.Equals(kv.Key, "SSHPASS", StringComparison.OrdinalIgnoreCase)) continue;
+                    env[kv.Key] = kv.Value ?? "";
+                }
+            }
             results.Add(RunBootstrap(s, bootCmd, env, redactedLabel: BuildSshRedactedLabel(type, auth, request)));
         }
         else
@@ -502,9 +512,11 @@ public sealed class TerminalSessionService : ITerminalSessionService
             Session = ToDto(s),
             CommandResults = results,
             LaunchType = type,
+            Profile = string.IsNullOrWhiteSpace(request.Profile) ? type : request.Profile,
             Message = $"已启动 {type} 会话",
             PasswordProvided = passwordProvided,
-            Warning = warning
+            Warning = warning,
+            NeedsInteractivePassword = !passwordProvided && auth == "interactive" && (type == "ssh" || type == "wsl-ssh")
         };
     }
 
@@ -551,6 +563,8 @@ public sealed class TerminalSessionService : ITerminalSessionService
     private static string NormalizeLaunchType(string? type)
     {
         var t = (type ?? "local").Trim().ToLowerInvariant();
+        if (t.StartsWith("custom:", StringComparison.Ordinal))
+            return "local"; // custom 配置表合并前先落本地壳；完整 custom 解析排期
         return t switch
         {
             "local" or "shell" or "bash" => "local",

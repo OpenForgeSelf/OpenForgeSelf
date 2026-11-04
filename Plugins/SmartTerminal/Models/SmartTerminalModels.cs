@@ -80,19 +80,23 @@ public sealed class RenameSessionRequest
 /// </summary>
 public sealed class LaunchTerminalRequest
 {
-    /// <summary>local | ssh | wsl-ssh（Windows 上 ssh+密码默认走 WSL sshpass）</summary>
+    /// <summary>通用启动器主键：local | ssh | wsl-ssh | custom:…；优先于 Type。</summary>
+    public string? Profile { get; set; }
+    /// <summary>遗留字段，等价 profile；无 Profile 时使用。</summary>
     public string Type { get; set; } = "local";
     public string? ShellId { get; set; }
     public string? Cwd { get; set; }
     public string? Title { get; set; }
     public PermissionMode? PermissionMode { get; set; }
     public string? AgentId { get; set; }
-    /// <summary>会话就绪后顺序执行的命令（local）或 SSH 登录后远程命令提示（写入会话系统行；实际远程交互视实现）。</summary>
+    /// <summary>会话就绪后顺序执行的命令（由前端 step/run 展开）。</summary>
     public List<string>? Commands { get; set; }
+    /// <summary>仅注入本会话进程环境（敏感键仍脱敏审计）。</summary>
+    public Dictionary<string, string>? Env { get; set; }
     public string? Host { get; set; }
     public int? Port { get; set; } = 22;
     public string? User { get; set; }
-    /// <summary>短暂凭证：只进进程环境 SSHPASS，不落盘、不进审计原文。</summary>
+    /// <summary>短暂凭证：只进进程环境 SSHPASS，不落盘、不进审计原文；交互输入亦仅内存。</summary>
     public string? Password { get; set; }
     /// <summary>sshpass | key | interactive</summary>
     public string? Auth { get; set; }
@@ -105,9 +109,11 @@ public sealed class LaunchTerminalResponse
     public TerminalSessionDto Session { get; init; } = new();
     public IReadOnlyList<RunCommandResponse> CommandResults { get; init; } = Array.Empty<RunCommandResponse>();
     public string LaunchType { get; init; } = "local";
+    public string? Profile { get; init; }
     public string Message { get; init; } = string.Empty;
     public bool PasswordProvided { get; init; }
     public string? Warning { get; init; }
+    public bool NeedsInteractivePassword { get; init; }
 }
 
 

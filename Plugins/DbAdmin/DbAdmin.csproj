@@ -6,8 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DbAdmin</AssemblyName>
     <RootNamespace>ForgeSelf.Api.Plugins.DbAdmin</RootNamespace>
-    <!-- 铁律12c：若后续引入非宿主 NuGet（如外置驱动），必须随插件 bin 输出 -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- F1 真凶（2026-11-05）：禁止 CopyLocalLockFileAssemblies——私带 XCode.dll 会被隔离 ALC 优先加载，
+         插件侧 EntityFactory/DAL 成独立静态态，宿主 DAL.AddConnStr 登记不可见 → 兜底落版本层（跨升级丢数据）。
+         宿主已带同版本 XCode/NewLife.Core（StageAllPlugins 排除 NewLife.* 出插件目录，类型身份单份）。
+         铁律12c 的「非宿主 NuGet 随插件 bin 输出」仅指宿主没有的库（如外置驱动），且引入前须过 problem-class-closure。 -->
   </PropertyGroup>
 
   <ItemGroup>

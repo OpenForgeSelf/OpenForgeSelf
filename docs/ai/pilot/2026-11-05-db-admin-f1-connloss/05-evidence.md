@@ -1,3 +1,19 @@
+## 根因终版（三段合并 · 2026-11-05 04:3x 定稿，取代先前分段叙述）
+
+> 诊断三段演进：**WAL 假设（qa，已撤回：磁盘取证漏扫实例目录）→ 宿主产物陈旧（0417 干净重建证伪）→ 双 XCode 双 DAL（终版，物证贯通）**。
+
+**终版机制（全实锤）**：
+1. `Plugins/DbAdmin/DbAdmin.csproj` 曾带 `CopyLocalLockFileAssemblies=true`（为外置驱动预留）→ NewLife.XCode 产物 **XCode.dll 被拷进插件 bin**；
+2. 宿主 `ForgeSelf.Api.csproj` StageAllPlugins 的 Exclude 通配仅 `ForgeSelf.*;NewLife.*`——**XCode.* 两不匹配** → 私带 DLL 漏进发布载荷（旁路 package-plugin.ps1/publish-plugin.ps1 早补了 XCode.dll 排除，主路漏改——教科书同类缺口）；
+3. 部署面仅 DbAdmin 一家私带（22 插件扫查）；宿主隔离 ALC 加载插件 → **插件侧 EntityFactory/DAL 为独立静态态** → 宿主 `DAL.AddConnStr("DbAdmin")` 登记对插件实体不可见 → ExpireStale（Apply 阶段实体访问）触发插件侧 XCode 自动兜底 `Data Source=Data\DbAdmin.db`（相对 CWD=版本目录，Migration=On 特征串即插件侧默认格式）→ **双 XCode 双 DAL 双库**。
+4. 贯通解释：双库（L104 版本内 vs L445-446 宿主位）、跨版本丢失（升级换版本目录）、时序矛盾（干净重建后登记先于插件首用兜底照样触发——因为登记写的是宿主 DAL，兜底读的是插件 DAL，两个静态态）。
+
+**0.1.2 修复（插件侧 + 宿主 Exclude 类级封口，lead APPROVED）**：
+- `DbAdmin.csproj` 删 `CopyLocalLockFileAssemblies`（真凶注记：铁律12c 仅指宿主没有的库）
+- 宿主 StageAllPlugins Exclude 追加 `XCode.*;MX.*`（类级封口，主路对齐旁路）
+- `DbAdminPlugin.Apply` 删 ExpireStale 预热（Apply 零实体访问，对齐 AgentHub 先例；惰性语义由 DbQueryService.ResolveCore/ListApprovals 首行保证）
+- 版本 0.1.2
+
 # Evidence — F1（P1）用户连接跨宿主重启丢失：修复批
 
 > 任务：`2026-11-05-db-admin-f1-connloss`（mini-task 裁剪形态）｜状态：**终稿**。

@@ -34,9 +34,28 @@ public sealed class DbQueryService
 
     public PermissionModeStore Modes => _modes;
 
+    internal DbAuditWriter AuditWriter => _audit;
+
     #region 执行
     /// <summary>UI / Agent 通用执行入口。不抛业务异常：错误以 Status=rejected/error + Code 返回。</summary>
-    public QueryOutcome Execute(QueryRequest req, QueryContext ctx)
+    public QueryOutcome Execute(QueryRequest req, QueryContext ctx, String tool = "db_query")
+    {
+        var o = Normalize(ExecuteCore(req, ctx));
+        if (ctx.Source == QuerySources.Agent) _audit.WriteAgent(tool, req.ConnectionId, req.Sql, ctx.SessionId, o);
+        return o;
+    }
+
+    /// <summary>对外 kind 只有 read / write；破坏性由 Destructive=true 表达（契约见 docs/03 已定契约）。</summary>
+    internal static QueryOutcome Normalize(QueryOutcome o)
+    {
+        if (o.Kind == "destructive") { o.Kind = "write"; o.Destructive = true; }
+        else if (o.Kind != null && o.Kind != "read") o.Kind = "write";
+        return o;
+    }
+
+    internal static String? PublicKind(String? k) => k == null ? null : k == "read" ? "read" : "write";
+
+    private QueryOutcome ExecuteCore(QueryRequest req, QueryContext ctx)
     {
         var sql = req.Sql ?? "";
         var cid = req.ConnectionId;
@@ -217,6 +236,21 @@ public sealed class DbQueryService
     /// </summary>
     public QueryOutcome Resolve(Int64 approvalId, Boolean approve, Boolean confirmDestructive, QueryContext ctx)
     {
+        try
+        {
+            var o = Normalize(ResolveCore(approvalId, approve, confirmDestructive, ctx));
+            if (ctx.Source == QuerySources.Agent) _audit.WriteAgent("db_resolve_approval", DbApproval.Find(DbApproval._.Id == approvalId)?.ConnectionId, null, ctx.SessionId, o);
+            return o;
+        }
+        catch (DbAdminException ex) when (ctx.Source == QuerySources.Agent)
+        {
+            _audit.WriteAgent("db_resolve_approval", DbApproval.Find(DbApproval._.Id == approvalId)?.ConnectionId, null, ctx.SessionId, new QueryOutcome { Status = "rejected", Code = ex.Code, Message = ex.Message, ApprovalId = approvalId });
+            throw;
+        }
+    }
+
+    private QueryOutcome ResolveCore(Int64 approvalId, Boolean approve, Boolean confirmDestructive, QueryContext ctx)
+    {
         ExpireStale();
         var a = DbApproval.Find(DbApproval._.Id == approvalId) ?? throw new DbAdminException(DbErrorCodes.NotFound, $"审批不存在：{approvalId}");
         if (a.Status != "pending") throw new DbAdminException(DbErrorCodes.InvalidRequest, $"审批已处理（{a.Status}）");
@@ -286,7 +320,7 @@ public sealed class DbQueryService
         ExpireStale();
         var exp = String.IsNullOrEmpty(status) ? null : DbApproval._.Status == status;
         return DbApproval.FindAll(exp, DbApproval._.Id.Desc(), null, 0, 200)
-            .Select(a => new ApprovalView(a.Id, a.ConnectionId, a.SqlRedacted, a.Kind, a.Destructive, a.Status, a.Source, a.CreateTime, a.ResolveTime == DateTime.MinValue ? null : a.ResolveTime))
+            .Select(a => new ApprovalView(a.Id, a.ConnectionId, a.SqlRedacted, PublicKind(a.Kind), a.Destructive || a.Kind == "destructive", a.Status, a.Source, a.CreateTime, a.ResolveTime == DateTime.MinValue ? null : a.ResolveTime))
             .ToList();
     }
     #endregion
@@ -303,7 +337,7 @@ public sealed class DbQueryService
         if (f.To != null) exp &= DbQueryHistory._.CreateTime < f.To.Value;
         var total = DbQueryHistory.FindCount(exp, null, null, 0, 0);
         var items = DbQueryHistory.FindAll(exp, DbQueryHistory._.Id.Desc(), null, (page - 1) * size, size)
-            .Select(h => new HistoryView(h.Id, h.ConnectionId, h.SqlRedacted, h.Kind, h.RowCount, h.ElapsedMs, h.Success, h.Error, h.Source, h.CreateTime)).ToList();
+            .Select(h => new HistoryView(h.Id, h.ConnectionId, h.SqlRedacted, PublicKind(h.Kind), h.RowCount, h.ElapsedMs, h.Success, h.Error, h.Source, h.CreateTime)).ToList();
         return new PagedResult<HistoryView>(items, total, page, size);
     }
 
@@ -313,13 +347,19 @@ public sealed class DbQueryService
         var exp = new WhereExpression();
         if (!String.IsNullOrEmpty(f.ConnectionId)) exp &= DbAuditLog._.ConnectionId == f.ConnectionId;
         if (!String.IsNullOrEmpty(f.Kind)) exp &= DbAuditLog._.Kind == f.Kind;
+        if (!String.IsNullOrEmpty(f.Source)) exp &= DbAuditLog._.Source == f.Source;
+        if (!String.IsNullOrEmpty(f.SessionId)) exp &= DbAuditLog._.SessionId == f.SessionId;
+        if (!String.IsNullOrEmpty(f.Status)) exp &= DbAuditLog._.Status == f.Status;
         if (f.From != null) exp &= DbAuditLog._.CreateTime >= f.From.Value;
         if (f.To != null) exp &= DbAuditLog._.CreateTime < f.To.Value;
         var total = DbAuditLog.FindCount(exp, null, null, 0, 0);
         var items = DbAuditLog.FindAll(exp, DbAuditLog._.Id.Desc(), null, (page - 1) * size, size)
-            .Select(a => new AuditView(a.Id, a.Kind, a.ConnectionId, a.SqlRedacted, a.Decision, a.Detail, a.CreateTime)).ToList();
+            .Select(a => new AuditView(a.Id, a.Kind, a.ConnectionId, a.SqlRedacted, a.Decision, a.Detail, a.CreateTime,
+                Nz(a.Source), Nz(a.SessionId), Nz(a.Status), Nz(a.Code), PublicKind(Nz(a.SqlKind)), a.Kind == "agent" ? a.RowCount : null, a.Kind == "agent" ? a.Truncated : null, a.ApprovalId > 0 ? a.ApprovalId : null, a.Kind == "agent" ? a.Decision : null)).ToList();
         return new PagedResult<AuditView>(items, total, page, size);
     }
+
+    private static String? Nz(String? s) => String.IsNullOrEmpty(s) ? null : s;
 
     private static (Int32, Int32) Norm(LogFilter f) => (Math.Max(1, f.Page), f.PageSize <= 0 ? 50 : Math.Min(f.PageSize, 500));
 

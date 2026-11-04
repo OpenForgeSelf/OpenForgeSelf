@@ -171,7 +171,10 @@ public record PagedResult<T>(IReadOnlyList<T> Items, Int64 Total, Int32 Page, In
 
 public record HistoryView(Int64 Id, String? ConnectionId, String? SqlRedacted, String? Kind, Int64 RowCount, Int64 ElapsedMs, Boolean Success, String? Error, String? Source, DateTime CreateTime);
 
-public record AuditView(Int64 Id, String? Kind, String? ConnectionId, String? SqlRedacted, String? Decision, String? Detail, DateTime CreateTime);
+/// <summary>审计视图。kind=agent 时额外给出 Agent 回显摘要字段（tool/status/code/sqlKind/rowCount/truncated/approvalId/sessionId）。</summary>
+public record AuditView(Int64 Id, String? Kind, String? ConnectionId, String? SqlRedacted, String? Decision, String? Detail, DateTime CreateTime,
+    String? Source = null, String? SessionId = null, String? Status = null, String? Code = null, String? SqlKind = null,
+    Int64? RowCount = null, Boolean? Truncated = null, Int64? ApprovalId = null, String? Tool = null);
 
 /// <summary>历史/审计查询过滤</summary>
 public class LogFilter
@@ -179,6 +182,8 @@ public class LogFilter
     public String? ConnectionId { get; set; }
     public String? Kind { get; set; }
     public String? Source { get; set; }
+    public String? SessionId { get; set; }
+    public String? Status { get; set; }
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
     public Int32 Page { get; set; } = 1;

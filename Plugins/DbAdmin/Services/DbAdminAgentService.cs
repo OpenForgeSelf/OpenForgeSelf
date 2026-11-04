@@ -29,15 +29,17 @@ public sealed class DbAdminAgentService(DbConnectionService connections, DbQuery
         if (!cls.IsRead)
         {
             // 非只读不进执行链；硬拒语句仍走 Execute 以留审计
-            if (cls.IsRejected) return queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId));
-            return new QueryOutcome { Status = "rejected", Code = DbErrorCodes.RejectedHard, Kind = cls.Kind, Message = "db_query_readonly 只接受 SELECT / WITH 等只读语句，写操作请用 db_execute_write" };
+            if (cls.IsRejected) return queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId), "db_query_readonly");
+            var o = DbQueryService.Normalize(new QueryOutcome { Status = "rejected", Code = DbErrorCodes.RejectedHard, Kind = cls.Kind, Message = "db_query_readonly 只接受 SELECT / WITH 等只读语句，写操作请用 db_execute_write" });
+            queries.AuditWriter.WriteAgent("db_query_readonly", connectionId, sql, sessionId, o);
+            return o;
         }
-        return queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId));
+        return queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId), "db_query_readonly");
     }
 
     /// <summary>db_execute_write：AskWrite → awaiting_approval + approvalId；硬拒 → rejected</summary>
     public QueryOutcome ExecuteWrite(String connectionId, String sql, Dictionary<String, Object?>? ps, String? sessionId) =>
-        queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId));
+        queries.Execute(new QueryRequest { ConnectionId = connectionId, Sql = sql, Params = ps }, QueryContext.Agent(sessionId), "db_execute_write");
 
     /// <summary>db_set_permission_mode：只改会话级</summary>
     public PermissionModeView SetPermissionMode(String mode, String sessionId) => queries.SetMode(mode, QueryContext.Agent(sessionId));

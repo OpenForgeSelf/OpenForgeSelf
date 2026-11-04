@@ -1,0 +1,26 @@
+{
+  "Id": "smart-terminal",
+  "toolPrefix": "st",
+  "Name": "智能终端",
+  "Version": "1.2.1",
+  "Author": "ForgeSelf Team",
+  "Description": "智能终端：多标签会话（Windows Terminal 风格）+ URL 深链启动（local/ssh/wsl-ssh）。Linux/macOS（bash/zsh/sh）与 Windows（cmd/pwsh/WT + WSL sshpass）一等公民；三级权限、JSONL 审计；URL 密码仅短暂注入 SSHPASS 并脱敏。",
+  "IconUrl": "https://example.com/smart-terminal-icon.png",
+  "EntryAssembly": "SmartTerminal.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.SmartTerminal.SmartTerminalPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "write_config",
+    "execute_command"
+  ],
+  "frontend": {
+    "views": [
+      "SmartTerminalView"
+    ],
+    "menu": "智能终端",
+    "route": "/smart-terminal",
+    "icon": "fa-terminal",
+    "entry": "web/dist/index.js"
+  }
+}

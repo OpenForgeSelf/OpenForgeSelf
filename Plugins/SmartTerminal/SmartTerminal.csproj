@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SmartTerminal</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.SmartTerminal</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="System.Text.Json" />
+  </ItemGroup>
+
+  <!-- 无 XCode 实体：会话内存 + JSONL 审计（对齐 ToolBridge 台账决策，便于跨机拷贝/回放） -->
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\permission-rules.default.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

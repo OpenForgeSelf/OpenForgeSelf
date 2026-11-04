@@ -64,7 +64,52 @@ public sealed class TerminalSessionDto
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; init; }
     public int CommandCount { get; init; }
+    /// <summary>local | ssh | wsl-ssh</summary>
+    public string LaunchType { get; init; } = "local";
+    public string? RemoteHost { get; init; }
+    public string? RemoteUser { get; init; }
 }
+
+public sealed class RenameSessionRequest
+{
+    public string Title { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// URL / API 一键启动请求。Password 仅内存使用，禁止写入 JSONL / 命令原文审计。
+/// </summary>
+public sealed class LaunchTerminalRequest
+{
+    /// <summary>local | ssh | wsl-ssh（Windows 上 ssh+密码默认走 WSL sshpass）</summary>
+    public string Type { get; set; } = "local";
+    public string? ShellId { get; set; }
+    public string? Cwd { get; set; }
+    public string? Title { get; set; }
+    public PermissionMode? PermissionMode { get; set; }
+    public string? AgentId { get; set; }
+    /// <summary>会话就绪后顺序执行的命令（local）或 SSH 登录后远程命令提示（写入会话系统行；实际远程交互视实现）。</summary>
+    public List<string>? Commands { get; set; }
+    public string? Host { get; set; }
+    public int? Port { get; set; } = 22;
+    public string? User { get; set; }
+    /// <summary>短暂凭证：只进进程环境 SSHPASS，不落盘、不进审计原文。</summary>
+    public string? Password { get; set; }
+    /// <summary>sshpass | key | interactive</summary>
+    public string? Auth { get; set; }
+    public string? IdentityFile { get; set; }
+    public bool AcceptNewHostKey { get; set; } = true;
+}
+
+public sealed class LaunchTerminalResponse
+{
+    public TerminalSessionDto Session { get; init; } = new();
+    public IReadOnlyList<RunCommandResponse> CommandResults { get; init; } = Array.Empty<RunCommandResponse>();
+    public string LaunchType { get; init; } = "local";
+    public string Message { get; init; } = string.Empty;
+    public bool PasswordProvided { get; init; }
+    public string? Warning { get; init; }
+}
+
 
 public sealed class TerminalCommandRecordDto
 {

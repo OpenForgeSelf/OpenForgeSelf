@@ -71,6 +71,40 @@ public class SmartTerminalController : ControllerBase
         }
     }
 
+
+    [HttpPost("launch")]
+    public ActionResult<ApiResponse<LaunchTerminalResponse>> Launch([FromBody] LaunchTerminalRequest? request)
+    {
+        try
+        {
+            var result = _sessions.Launch(request ?? new LaunchTerminalRequest());
+            return Ok(ApiResponse<LaunchTerminalResponse>.Ok(result, result.Message));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[SmartTerminal] launch 失败: {0}", SecretRedactor.Redact(ex.Message));
+            return BadRequest(ApiResponse<LaunchTerminalResponse>.Error(SecretRedactor.Redact(ex.Message), 400));
+        }
+    }
+
+    [HttpPut("sessions/{sessionId}/title")]
+    public ActionResult<ApiResponse<TerminalSessionDto>> Rename(string sessionId, [FromBody] RenameSessionRequest request)
+    {
+        try
+        {
+            var dto = _sessions.RenameSession(sessionId, request?.Title ?? string.Empty);
+            return Ok(ApiResponse<TerminalSessionDto>.Ok(dto, "已重命名"));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponse<TerminalSessionDto>.Error("会话不存在", 404));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<TerminalSessionDto>.Error(ex.Message, 400));
+        }
+    }
+
     [HttpGet("sessions/{sessionId}")]
     public ActionResult<ApiResponse<TerminalSessionDto>> GetSession(string sessionId)
     {

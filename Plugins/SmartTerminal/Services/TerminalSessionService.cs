@@ -22,7 +22,9 @@ public interface ITerminalSessionService
     OutputSnapshotDto GetOutput(string sessionId, int afterIndex = 0);
     IReadOnlyList<TerminalCommandRecordDto> ListCommands(string sessionId);
     bool CloseSession(string sessionId);
+    TerminalSessionDto RenameSession(string sessionId, string title);
     RunCommandResponse Rerun(string sessionId, string commandId);
+    LaunchTerminalResponse Launch(LaunchTerminalRequest request);
     IReadOnlyList<AuditEventDto> QueryAudit(string? sessionId, string? kind, string? agentId, int take, int skip);
 }
 
@@ -380,11 +382,258 @@ public sealed class TerminalSessionService : ITerminalSessionService
         return true;
     }
 
+    public TerminalSessionDto RenameSession(string sessionId, string title)
+    {
+        var s = Require(sessionId);
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("标题不能为空");
+        var next = title.Trim();
+        if (next.Length > 80) next = next[..80];
+        var prev = s.Title;
+        s.Title = next;
+        s.UpdatedAt = DateTimeOffset.UtcNow;
+        _audit.Append(new AuditEventDto
+        {
+            EventId = NewId("evt"),
+            Time = DateTimeOffset.UtcNow,
+            Kind = "session_rename",
+            SessionId = sessionId,
+            AgentId = s.AgentId,
+            Detail = $"'{SecretRedactor.Redact(prev)}' → '{SecretRedactor.Redact(next)}'"
+        });
+        return ToDto(s);
+    }
+
+    public LaunchTerminalResponse Launch(LaunchTerminalRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // 密码只留在局部变量，尽快从 request 剥离，避免后续日志/序列化带出
+        var password = request.Password;
+        request.Password = null;
+        var passwordProvided = !string.IsNullOrEmpty(password);
+
+        var type = NormalizeLaunchType(request.Type);
+        if (type is "ssh" or "wsl-ssh")
+        {
+            if (string.IsNullOrWhiteSpace(request.Host))
+                throw new ArgumentException("SSH 启动需要 host");
+            if (string.IsNullOrWhiteSpace(request.User))
+                throw new ArgumentException("SSH 启动需要 user");
+        }
+
+        var auth = (request.Auth ?? (passwordProvided ? "sshpass" : "interactive")).Trim().ToLowerInvariant();
+        if (auth is "password") auth = "sshpass";
+
+        // Windows + 密码 SSH：默认走 WSL sshpass（可用 type=wsl-ssh 强制）
+        var isWindows = OperatingSystem.IsWindows();
+        if (type == "ssh" && passwordProvided && auth == "sshpass" && isWindows)
+            type = "wsl-ssh";
+
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? type switch
+            {
+                "ssh" or "wsl-ssh" => $"SSH · {request.User}@{request.Host}",
+                _ => null
+            }
+            : request.Title;
+
+        // SSH 启动优先 bash（Linux）或 wsl 场景下仍建一个 bash/本地壳用于后续本地命令；
+        // 真正的 ssh 连接用 bootstrap 直启进程。
+        var shellId = request.ShellId;
+        if (type is "ssh" or "wsl-ssh")
+            shellId ??= isWindows ? null : "bash";
+
+        var sessionDto = CreateSession(new CreateSessionRequest
+        {
+            Title = title,
+            ShellId = shellId,
+            Cwd = request.Cwd,
+            PermissionMode = request.PermissionMode,
+            AgentId = request.AgentId
+        });
+        var s = Require(sessionDto.SessionId);
+        s.LaunchType = type;
+        s.RemoteHost = request.Host;
+        s.RemoteUser = request.User;
+
+        _audit.Append(new AuditEventDto
+        {
+            EventId = NewId("evt"),
+            Time = DateTimeOffset.UtcNow,
+            Kind = "launch",
+            SessionId = s.SessionId,
+            AgentId = s.AgentId,
+            ShellId = s.Shell.Id,
+            Cwd = s.Cwd,
+            Detail = $"type={type}; auth={auth}; host={request.Host}; user={request.User}; passwordProvided={passwordProvided}"
+        });
+
+        var results = new List<RunCommandResponse>();
+        string? warning = null;
+        if (passwordProvided)
+        {
+            warning = "请求携带了密码（可能来自 URL）。密码仅注入进程环境 SSHPASS，不写 JSONL；地址栏应已脱敏。产品上更推荐密钥登录或一次性口令。";
+            AppendSystem(s, "⚠ 启动凭证含密码：已做脱敏处理，密码不落审计原文。建议改用 SSH 密钥。");
+        }
+
+        if (type is "ssh" or "wsl-ssh")
+        {
+            var (bootCmd, env) = BuildSshBootstrap(type, auth, request, password);
+            password = null; // 不再持有明文
+            env ??= new Dictionary<string, string>(StringComparer.Ordinal);
+            results.Add(RunBootstrap(s, bootCmd, env, redactedLabel: BuildSshRedactedLabel(type, auth, request)));
+        }
+        else
+        {
+            password = null;
+        }
+
+        if (request.Commands != null)
+        {
+            foreach (var c in request.Commands)
+            {
+                if (string.IsNullOrWhiteSpace(c)) continue;
+                results.Add(ProposeOrRun(s.SessionId, c, autoApproveIfAllowed: true));
+            }
+        }
+
+        return new LaunchTerminalResponse
+        {
+            Session = ToDto(s),
+            CommandResults = results,
+            LaunchType = type,
+            Message = $"已启动 {type} 会话",
+            PasswordProvided = passwordProvided,
+            Warning = warning
+        };
+    }
+
+    private RunCommandResponse RunBootstrap(SessionState s, string command, Dictionary<string, string> ephemeralEnv, string redactedLabel)
+    {
+        var cmd = new CommandState
+        {
+            CommandId = NewId("cmd"),
+            SessionId = s.SessionId,
+            RawCommand = command,
+            CommandRedacted = SecretRedactor.Redact(redactedLabel),
+            Risk = CommandRiskClass.HighRisk,
+            Decision = ApprovalDecision.Allow,
+            MatchedRule = "launch:bootstrap",
+            Status = "pending",
+            CreatedAt = DateTimeOffset.UtcNow,
+            EphemeralEnv = ephemeralEnv
+        };
+        s.Commands.Add(cmd);
+        _audit.Append(new AuditEventDto
+        {
+            EventId = NewId("evt"),
+            Time = DateTimeOffset.UtcNow,
+            Kind = "launch_connect",
+            SessionId = s.SessionId,
+            AgentId = s.AgentId,
+            ShellId = s.Shell.Id,
+            Cwd = s.Cwd,
+            CommandRedacted = cmd.CommandRedacted,
+            Decision = "Allow",
+            MatchedRule = "launch:bootstrap",
+            Detail = "URL/API 启动引导（密码仅环境变量）"
+        });
+        StartExecution(s, cmd);
+        return new RunCommandResponse
+        {
+            SessionId = s.SessionId,
+            CommandId = cmd.CommandId,
+            Status = cmd.Status,
+            Message = "SSH 引导已开始"
+        };
+    }
+
+    private static string NormalizeLaunchType(string? type)
+    {
+        var t = (type ?? "local").Trim().ToLowerInvariant();
+        return t switch
+        {
+            "local" or "shell" or "bash" => "local",
+            "ssh" => "ssh",
+            "wsl-ssh" or "wslssh" or "wsl_ssh" => "wsl-ssh",
+            _ => t
+        };
+    }
+
+    private static string BuildSshRedactedLabel(string type, string auth, LaunchTerminalRequest request)
+    {
+        var port = request.Port is > 0 and not 22 ? $" -p {request.Port}" : "";
+        var key = auth == "key" && !string.IsNullOrWhiteSpace(request.IdentityFile)
+            ? $" -i {request.IdentityFile}"
+            : "";
+        var prefix = type == "wsl-ssh" ? "wsl sshpass -e ssh" : auth == "sshpass" ? "sshpass -e ssh" : "ssh";
+        if (auth == "key") prefix = type == "wsl-ssh" ? "wsl ssh" : "ssh";
+        return $"{prefix}{port}{key} {request.User}@***HOST***";
+    }
+
+    private static (string command, Dictionary<string, string>? env) BuildSshBootstrap(
+        string type, string auth, LaunchTerminalRequest request, string? password)
+    {
+        var port = request.Port is > 0 ? request.Port.Value : 22;
+        var host = request.Host!.Trim();
+        var user = request.User!.Trim();
+        var accept = request.AcceptNewHostKey ? "accept-new" : "ask";
+        var sshOpts = $"-o StrictHostKeyChecking={accept} -o NumberOfPasswordPrompts=1 -p {port}";
+        if (auth == "key" && !string.IsNullOrWhiteSpace(request.IdentityFile))
+            sshOpts += $" -i {EscapePosix(request.IdentityFile!)}";
+
+        var remote = $"{EscapePosix(user)}@{EscapePosix(host)}";
+        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        if (type == "wsl-ssh")
+        {
+            // Windows：wsl.exe + sshpass -e；通过 WSLENV 传入 SSHPASS
+            if (auth == "sshpass")
+            {
+                if (string.IsNullOrEmpty(password))
+                    throw new InvalidOperationException("auth=sshpass 需要 password");
+                env["SSHPASS"] = password;
+                env["WSLENV"] = AppendWslEnv(Environment.GetEnvironmentVariable("WSLENV"), "SSHPASS/w");
+                // 整段交给本机默认壳执行（cmd/pwsh/bash）；命令本身不含密码
+                return ($"wsl.exe -e sshpass -e ssh {sshOpts} {remote}", env);
+            }
+            return ($"wsl.exe -e ssh {sshOpts} {remote}", null);
+        }
+
+        // Linux/macOS 原生
+        if (auth == "sshpass")
+        {
+            if (string.IsNullOrEmpty(password))
+                throw new InvalidOperationException("auth=sshpass 需要 password");
+            env["SSHPASS"] = password;
+            return ($"sshpass -e ssh {sshOpts} {remote}", env);
+        }
+
+        return ($"ssh {sshOpts} {remote}", null);
+    }
+
+    private static string AppendWslEnv(string? existing, string flag)
+    {
+        if (string.IsNullOrWhiteSpace(existing)) return flag;
+        if (existing.Split(':').Any(p => p.StartsWith("SSHPASS", StringComparison.OrdinalIgnoreCase)))
+            return existing!;
+        return existing!.TrimEnd(':') + ":" + flag;
+    }
+
+    private static string EscapePosix(string value)
+    {
+        // 仅用于拼进已由壳二次引用的引导命令；去掉危险元字符
+        if (value.Any(c => char.IsWhiteSpace(c) || ";&|$`\\\"'<>".Contains(c)))
+            throw new ArgumentException($"SSH 参数含非法字符: {SecretRedactor.Redact(value)}");
+        return value;
+    }
+
     public RunCommandResponse Rerun(string sessionId, string commandId)
     {
         var s = Require(sessionId);
         var prev = s.Commands.FirstOrDefault(c => c.CommandId == commandId)
                    ?? throw new KeyNotFoundException("命令记录不存在");
+        // 重跑不携带历史短暂环境（密码不二次落盘）
         return ProposeOrRun(sessionId, prev.RawCommand);
     }
 
@@ -422,6 +671,11 @@ public sealed class TerminalSessionService : ITerminalSessionService
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
+            if (cmd.EphemeralEnv != null)
+            {
+                foreach (var kv in cmd.EphemeralEnv)
+                    psi.Environment[kv.Key] = kv.Value;
+            }
 
             process = new Process { StartInfo = psi, EnableRaisingEvents = true };
             s.ActiveProcess = process;
@@ -473,6 +727,9 @@ public sealed class TerminalSessionService : ITerminalSessionService
         }
         finally
         {
+            // 短暂凭证用后即焚：不在会话状态中保留密码
+            cmd.EphemeralEnv?.Clear();
+            cmd.EphemeralEnv = null;
             sw.Stop();
             cmd.FinishedAt = DateTimeOffset.UtcNow;
             s.ActiveCommandId = null;
@@ -558,7 +815,10 @@ public sealed class TerminalSessionService : ITerminalSessionService
         AgentId = s.AgentId,
         CreatedAt = s.CreatedAt,
         UpdatedAt = s.UpdatedAt,
-        CommandCount = s.Commands.Count
+        CommandCount = s.Commands.Count,
+        LaunchType = s.LaunchType,
+        RemoteHost = s.RemoteHost,
+        RemoteUser = s.RemoteUser
     };
 
     private static AuditEventDto DeniedEvent(SessionState s, CommandState cmd, string detail) => new()
@@ -596,6 +856,9 @@ public sealed class TerminalSessionService : ITerminalSessionService
         public List<CommandState> Commands { get; } = new();
         public List<TerminalOutputChunkDto> Chunks { get; } = new();
         public object ChunkLock { get; } = new();
+        public string LaunchType { get; set; } = "local";
+        public string? RemoteHost { get; set; }
+        public string? RemoteUser { get; set; }
     }
 
     private sealed class CommandState
@@ -612,6 +875,8 @@ public sealed class TerminalSessionService : ITerminalSessionService
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset? FinishedAt { get; set; }
         public string? ApprovalId { get; set; }
+        /// <summary>仅执行期注入的环境变量（如 SSHPASS）；结束后清空，不进审计。</summary>
+        public Dictionary<string, string>? EphemeralEnv { get; set; }
     }
 
     private sealed class PendingState

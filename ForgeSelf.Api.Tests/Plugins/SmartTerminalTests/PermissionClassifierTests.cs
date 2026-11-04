@@ -97,4 +97,16 @@ public class SecretRedactorTests
         outp.Should().NotContain("SUPERSECRET");
         outp.Should().NotContain("hunter2");
     }
+
+    [Fact]
+    public void Redacts_SshPass_Env_And_Url_Password()
+    {
+        SecretRedactor.Redact("SSHPASS=SuperSecret sshpass -e ssh u@h")
+            .Should().NotContain("SuperSecret")
+            .And.Contain("SSHPASS=***REDACTED***");
+
+        SecretRedactor.ScrubQueryString("st=1&password=Secret&host=1")
+            .Should().Contain("password=***REDACTED***")
+            .And.NotContain("Secret");
+    }
 }

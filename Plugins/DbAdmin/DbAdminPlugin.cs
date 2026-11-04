@@ -39,7 +39,8 @@ public class DbAdminPlugin : IPlugin
         var protector = new FileKeySecretProtector(dataDir);
         var connections = new DbConnectionService(protector, new DefaultDriverProbe(dataDir), audit);
         var queries = new DbQueryService(connections, new PermissionModeStore(dataDir), audit);
-        try { queries.ExpireStale(); } catch (Exception ex) { XTrace.Log.Warn("[DbAdminPlugin] 过期审批清理失败: {0}", ex.Message); }
+        // F1 收尾（0.1.2）：Apply 阶段零实体访问（对齐 AgentHub 先例）——过期清理已由
+        // DbQueryService.ResolveCore/ListApprovals 首行惰性触发，此处预热在宿主登记缺失时会触发 XCode 兜底。
 
         services?.AddSingleton<ISecretProtector>(protector);
         services?.AddSingleton(audit);

@@ -45,6 +45,57 @@ public static partial class SecretRedactor
         return string.Join('&', kept);
     }
 
+    /// <summary>
+    /// 审计用 env 脱敏：敏感键名或疑似密钥值 → ***；返回稳定排序的 "K=V;..." 摘要。
+    /// </summary>
+    public static string RedactEnvForAudit(IDictionary<string, string>? env)
+    {
+        if (env == null || env.Count == 0) return string.Empty;
+        var parts = new List<string>();
+        foreach (var kv in env.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(kv.Key)) continue;
+            var value = kv.Value ?? string.Empty;
+            if (IsSensitiveEnvKey(kv.Key) || LooksLikeSecretValue(value))
+                parts.Add($"{kv.Key}=***");
+            else
+                parts.Add($"{kv.Key}={Redact(value)}");
+        }
+        return string.Join("; ", parts);
+    }
+
+    public static bool IsSensitiveEnvKey(string? key)
+    {
+        if (string.IsNullOrEmpty(key)) return false;
+        var k = key.Trim().ToLowerInvariant().Replace('-', '_');
+        if (k is "password" or "passwd" or "pwd" or "secret" or "token" or "key"
+            or "credential" or "credentials" or "api_key" or "apikey" or "access_token"
+            or "refresh_token" or "auth_token" or "client_secret" or "sshpass"
+            or "private_key" or "privatekey")
+            return true;
+        return k.Contains("password", StringComparison.Ordinal)
+            || k.Contains("passwd", StringComparison.Ordinal)
+            || k.Contains("secret", StringComparison.Ordinal)
+            || k.Contains("token", StringComparison.Ordinal)
+            || k.EndsWith("_key", StringComparison.Ordinal)
+            || k.EndsWith("key", StringComparison.Ordinal) && k.Length <= 12
+            || k.Contains("credential", StringComparison.Ordinal)
+            || k.Contains("api_key", StringComparison.Ordinal);
+    }
+
+    private static bool LooksLikeSecretValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var v = value.Trim();
+        if (v.StartsWith("-----BEGIN ", StringComparison.Ordinal)) return true;
+        if (v.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return true;
+        // 长随机串：无空格、偏高熵形态
+        if (v.Length >= 24 && !v.Any(char.IsWhiteSpace)
+            && v.Count(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '+' or '/' or '=') == v.Length)
+            return true;
+        return false;
+    }
+
     public static bool IsSensitiveQueryKey(string? key)
     {
         if (string.IsNullOrEmpty(key)) return false;

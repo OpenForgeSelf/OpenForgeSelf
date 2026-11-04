@@ -57,16 +57,17 @@ pnpm run ct:server   # http://127.0.0.1:5190/ 侧栏 SmartTerminal
 深链示例：`/?story=SmartTerminal/PendingApproval`
 
 
-## URL 深链（摘要）
+## URL 深链（通用启动器 · 摘要）
 
-详见 [03-URL协议.md](./03-URL协议.md)。示例：
+详见 [03-URL协议.md](./03-URL协议.md)。UI 状态评审见 [06-UI交互评审稿.md](./06-UI交互评审稿.md)。
 
 ```text
-/smart-terminal?st=1&type=local&shell=bash&cmd=echo%20hi
-/smart-terminal?st=1&type=ssh&host=10.0.0.1&user=root&auth=sshpass&password=...
+/smart-terminal?st=1&profile=local&shell=bash&step=echo%20hi&step=ls
+/smart-terminal?st=1&profile=ssh&host=10.0.0.1&user=root&step=uname%20-a
+  # 无 password → 交互式输入；勿把密码放进 URL（除非内网过渡 + ack）
 ```
 
-`POST /api/smart-terminal/launch` 与上表字段对等。密码风险见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。
+`POST /api/smart-terminal/launch` 使用同一 LaunchSpec（`profile` / `steps` / `env` / auth 字段）。
 
 ## 密码深链策略（前端）
 

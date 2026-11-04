@@ -116,7 +116,7 @@ test.describe('SmartTerminal · 视觉与契约', () => {
 
   test('URL 本地启动横幅', async ({ page }) => {
     await openStory(page, 'SmartTerminal/UrlLaunchLocal', '[data-testid="launch-banner"]')
-    await expect(page.locator('[data-testid="launch-banner"]')).toContainText('type=local')
+    await expect(page.locator('[data-testid="launch-banner"]')).toContainText('profile=local')
     await expect(root(page)).toHaveScreenshot()
   })
 
@@ -127,4 +127,12 @@ test.describe('SmartTerminal · 视觉与契约', () => {
     await expect(page.locator('[data-testid="console"]')).not.toContainText('SuperSecret')
     await expect(root(page)).toHaveScreenshot()
   })
+
+  test('交互式密码遮罩输入', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/InteractivePassword', '[data-testid="interactive-password-modal"]')
+    await expect(page.getByTestId('interactive-password-input')).toHaveAttribute('type', 'password')
+    await expect(page.getByTestId('interactive-password-confirm')).toBeDisabled()
+    await expect(page.getByTestId('interactive-password-target')).toContainText('root@10.0.0.1')
+  })
+
 })

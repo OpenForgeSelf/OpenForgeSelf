@@ -1,6 +1,12 @@
 export type PermissionMode = 'Auto' | 'AskWrite' | 'AskHighRisk'
 export type LaunchType = 'local' | 'ssh' | 'wsl-ssh'
 
+/** 通用启动器单步：command + 可选 args；亦可整行写入 command */
+export interface LaunchStep {
+  command: string
+  args?: string[]
+}
+
 export interface ShellProfile {
   id: string
   displayName: string
@@ -83,17 +89,24 @@ export interface CommandRecord {
 }
 
 export interface LaunchTerminalRequest {
+  /** 通用启动器主键；遗留 type 仍兼容 */
+  profile?: string
   type?: LaunchType | string
   shellId?: string
   cwd?: string
   title?: string
   permissionMode?: PermissionMode
   agentId?: string
+  /** 扁平命令行列表（兼容）；由 step/run 展开 */
   commands?: string[]
+  /** 结构化步骤（优先于仅 commands 的语义说明） */
+  steps?: LaunchStep[]
+  /** 仅注入本会话进程环境 */
+  env?: Record<string, string>
   host?: string
   port?: number
   user?: string
-  /** 短暂凭证：前端读完即从地址栏擦除，请求体发送后丢弃 */
+  /** 短暂凭证：前端读完即从地址栏擦除，请求体发送后丢弃；交互输入亦仅内存 */
   password?: string
   auth?: 'sshpass' | 'key' | 'interactive' | string
   identityFile?: string
@@ -104,9 +117,11 @@ export interface LaunchTerminalResponse {
   session: TerminalSession
   commandResults: RunCommandResponse[]
   launchType: string
+  profile?: string
   message: string
   passwordProvided: boolean
   warning?: string
+  needsInteractivePassword?: boolean
 }
 
 /** CT 画廊 / 演示用固定态（跳过网络） */
@@ -144,5 +159,11 @@ export interface SmartTerminalFixture {
   passwordAckChecked?: boolean
   passwordAckMode?: 'always-ack' | 'intranet' | 'disabled'
   pendingLaunchSummary?: string
+  /** CT：交互式密码输入模态（无 URL 密码时） */
+  showInteractivePassword?: boolean
+  interactivePasswordHost?: string
+  interactivePasswordUser?: string
+  interactivePasswordPort?: number
+  interactivePasswordProfile?: string
 }
 

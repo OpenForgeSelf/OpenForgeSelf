@@ -19,8 +19,11 @@ public class DbAdminPlugin : IPlugin
     {
         XTrace.Log.Info("[DbAdminPlugin] 初始化数据库管理插件");
 
-        if (!Data.DbAdminTables.EnsureCreated())
-            XTrace.Log.Warn("[DbAdminPlugin] 插件库未就绪，连接/历史/审计将不可用（详见 DbAdminTables 的 Error 日志）");
+        // F1（2026-11-05）：不在 Apply（builder.Build 阶段）建表——插件跑在宿主 XCodeConfig 登记/建表之前，
+        // 此时 InitConnection 会触发 XCode 自动兜底 `Data Source=Data\<ConnName>.db`（相对 CWD=版本目录），
+        // 库落版本层，宿主升级换版本目录即丢用户数据（packaging-upgrade-backup §1.7 红线）。
+        // 对齐 AgentHub 先例：插件侧不建表，宿主 InitializeXCodeDatabase 在 app.Build 后按 DbFiles 登记并统一建表。
+        // EnsureCreated 方法本体保留（XCodeTestFixture / 测试夹具仍用）。
 
         String dataDir;
         try { dataDir = ctx.EnsurePluginDataDirectory(); }

@@ -1,6 +1,7 @@
 /**
  * DbAdmin 数据库管理 · 组件视觉与契约回归（CT）
- * 覆盖 Plugins/DbAdmin/docs/06 验收清单 S0–S9 + S-R（S9 三张、S-R 前后各一张）。
+ * 覆盖 Plugins/DbAdmin/docs/06 验收清单 S0–S9 + S-R（S9 三张、S-R 前后各一张）；
+ * fixture 为后端原始 JSON（docs/03 §3.1），另含 202 / 200 rejected / 409 / 424 的应答形态。
  * 运行：pnpm run test:ct        更新基线：pnpm run test:ct:update（基线不入库）
  */
 import { test, expect, type Page } from '@playwright/test'
@@ -91,6 +92,7 @@ test.describe('DbAdmin · S4 写审批', () => {
     await expect(tid(page, 'approval-sql')).toContainText('INSERT INTO users')
     await expect(tid(page, 'approval-modal')).toContainText('UI 编辑器')
     await expect(tid(page, 'approval-destructive')).toHaveCount(0)
+    await expect(tid(page, 'approval-modal')).toContainText('写')
     await expect(root(page)).toHaveScreenshot()
     await tid(page, 'approval-reject').click()
     await expect(tid(page, 'approval-modal')).toHaveCount(0)
@@ -100,6 +102,7 @@ test.describe('DbAdmin · S4 写审批', () => {
   test('破坏性：批准后弹二次确认；取消则不执行', async ({ page }) => {
     await openStory(page, 'DbAdmin/DestructiveApproval', '[data-testid="approval-modal"]')
     await expect(tid(page, 'approval-destructive')).toContainText('破坏性')
+    await expect(tid(page, 'approval-modal')).toContainText('写 · 破坏性')
     await expect(root(page)).toHaveScreenshot()
     await tid(page, 'approval-approve').click()
     await expect(tid(page, 'destructive-confirm')).toBeVisible()
@@ -115,18 +118,28 @@ test.describe('DbAdmin · S4 写审批', () => {
     await expect(tid(page, 'destructive-confirm')).toContainText('DROP TABLE orders')
     await expect(root(page)).toHaveScreenshot()
   })
+
+  test('破坏性未二次确认：resolve 409 confirmation_required，审批仍待处理', async ({ page }) => {
+    await openStory(page, 'DbAdmin/ConfirmRequired409', '[data-testid="result-error"]')
+    await expect(tid(page, 'result-error-code')).toHaveText('[confirmation_required · HTTP 409]')
+    await expect(tid(page, 'result-error')).toContainText('审批仍待处理')
+    await expect(tid(page, 'pending-approvals')).toContainText('待审批 1')
+    await expect(tid(page, 'approval-modal')).toHaveCount(0)
+    await expect(root(page)).toHaveScreenshot()
+  })
 })
 
 test.describe('DbAdmin · S5 失败（红条，不弹审批）', () => {
-  for (const [id, code, text] of [
-    ['DbAdmin/SqlError', 'sql_error', 'SQL 错误'],
-    ['DbAdmin/HardReject', 'rejected_hard', '硬拒'],
-    ['DbAdmin/ReadonlyWriteRejected', 'readonly_connection', '只读连接'],
+  for (const [id, code, text, http] of [
+    ['DbAdmin/SqlError', 'sql_error', 'SQL 错误', 400],
+    ['DbAdmin/HardReject', 'rejected_hard', '硬拒', 200],
+    ['DbAdmin/ReadonlyWriteRejected', 'readonly_connection', '只读连接', 200],
+    ['DbAdmin/DriverMissing424', 'driver_missing', 'Npgsql', 424],
   ] as const) {
-    test(`${code}`, async ({ page }) => {
+    test(`${code} · HTTP ${http}`, async ({ page }) => {
       await openStory(page, id, '[data-testid="result-error"]')
       await expect(tid(page, 'result-error')).toContainText(text)
-      await expect(tid(page, 'result-error')).toContainText(`[${code}]`)
+      await expect(tid(page, 'result-error-code')).toHaveText(`[${code} · HTTP ${http}]`)
       await expect(tid(page, 'approval-modal')).toHaveCount(0)
       await expect(root(page)).toHaveScreenshot()
     })
@@ -161,12 +174,19 @@ test.describe('DbAdmin · S8 Agent 工具回显', () => {
     await expect(tid(page, 'agent-echo-list')).toContainText('db_execute_write')
     await expect(tid(page, 'agent-echo-list')).toContainText('awaiting_approval')
     await expect(tid(page, 'agent-echo-list')).toContainText('truncated=true')
+    await expect(tid(page, 'agent-echo-list')).toContainText('审计 kind=agent')
+    await expect(tid(page, 'agent-echo-list').locator('[data-status="awaiting_approval"]')).toContainText('审批 21')
+    await expect(tid(page, 'agent-echo-list').locator('[data-status="rejected"]')).toContainText('[rejected_hard]')
     await expect(root(page)).toHaveScreenshot()
   })
 
-  test('截断结果提示 truncated=true', async ({ page }) => {
-    await openStory(page, 'DbAdmin/AgentTruncated', '[data-testid="truncated"]')
-    await expect(tid(page, 'truncated')).toContainText('truncated=true')
+  test('Agent 截断回显 truncated=true（仅 kind=agent 条目进回显）', async ({ page }) => {
+    await openStory(page, 'DbAdmin/AgentTruncated', '[data-testid="agent-echo-list"] [data-status="ok"]')
+    const rows = tid(page, 'agent-echo-list').locator('.echo')
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first()).toContainText('truncated=true')
+    await expect(rows.first()).toContainText('1000 行')
+    await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(12)
     await expect(root(page)).toHaveScreenshot()
   })
 })
@@ -175,7 +195,7 @@ test.describe('DbAdmin · S9 多 provider 测连', () => {
   test('成功（绿 + 服务器版本）+ 未实测', async ({ page }) => {
     await openStory(page, 'DbAdmin/ProviderTestOk', '[data-testid="test-result"]')
     await expect(tid(page, 'test-result')).toHaveClass(/tr-ok/)
-    await expect(tid(page, 'test-result')).toContainText('MySQL 8.0.36')
+    await expect(tid(page, 'test-result')).toContainText('服务器 8.0.36')
     await expect(tid(page, 'cf-untested')).toContainText('未实测')
     await expect(tid(page, 'cf-provider').locator('option')).toHaveCount(4)
     await expect(root(page)).toHaveScreenshot()
@@ -193,7 +213,7 @@ test.describe('DbAdmin · S9 多 provider 测连', () => {
   test('驱动缺失（黄，指明包名）+ 需驱动灰标', async ({ page }) => {
     await openStory(page, 'DbAdmin/ProviderDriverMissing', '[data-testid="test-result"]')
     await expect(tid(page, 'test-result')).toHaveClass(/tr-driver_missing/)
-    await expect(tid(page, 'test-result')).toContainText('XCode.PostgreSQL')
+    await expect(tid(page, 'test-result')).toContainText('Npgsql')
     await expect(tid(page, 'cf-needs-driver')).toContainText('需驱动')
     await expect(root(page)).toHaveScreenshot()
   })

@@ -34,3 +34,24 @@ describe('http', () => {
     expect(extractErrorCode({ code: 0 })).toBeUndefined()
   })
 })
+
+describe('http 状态与错误体', () => {
+  it('apiPostWithStatus 带回 202', async () => {
+    const { apiPostWithStatus } = await import('./http')
+    vi.stubGlobal('localStorage', { getItem: () => null })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ status: 'awaiting_approval', approvalId: 5, code: null }), { status: 202 })))
+    const r = await apiPostWithStatus<{ approvalId: number }>('/api/db-admin/query', {})
+    expect(r.status).toBe(202)
+    expect(r.data?.approvalId).toBe(5)
+  })
+  it('409 / 424：ApiError 保留 code 与完整 body', async () => {
+    const { apiPostWithStatus } = await import('./http')
+    vi.stubGlobal('localStorage', { getItem: () => null })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 'confirmation_required', message: '需二次确认' }), { status: 409 })))
+    const e1 = await apiPostWithStatus('/x').catch(e => e)
+    expect([e1.status, e1.code]).toEqual([409, 'confirmation_required'])
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ status: 'error', code: 'driver_missing', message: '缺 Npgsql' }), { status: 424 })))
+    const e2 = await apiPostWithStatus('/x').catch(e => e)
+    expect([e2.status, e2.code, (e2.body as { status: string }).status]).toEqual([424, 'driver_missing', 'error'])
+  })
+})

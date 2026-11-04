@@ -1,5 +1,14 @@
 /** 结果格分页（服务端分页；前端只算边界） */
 export const PAGE_SIZES = [50, 100, 500] as const
+/** 后端 UiMaxPageSize = 500（ResultLimiter）；history/audit 同上限 */
+export const MAX_PAGE_SIZE = 500
+
+/** pageSize 收敛到 [1, 500]；非法值回退 50 */
+export function clampPageSize(n: number | undefined): number {
+  const v = Math.floor(Number(n))
+  if (!Number.isFinite(v) || v <= 0) return 50
+  return Math.min(v, MAX_PAGE_SIZE)
+}
 
 export function pageCount(total: number | undefined, pageSize: number): number | undefined {
   if (total === undefined || total === null || total < 0) return undefined

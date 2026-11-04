@@ -1,10 +1,13 @@
 /**
- * DbAdmin 前端类型 —— 字段名以 docs/03-架构与接口.md 为准（camelCase JSON）。
- * 03 未写死的响应细节（如 query 结果的 columns/rows 形态）在此标注「前端假设」，联调时对齐。
+ * DbAdmin 前端类型 —— 以 docs/03 §3.1「已定契约」与后端 Models/DbAdminModels.cs 为准（camelCase JSON）。
+ * 这里是 normalize 之后的前端形态；后端原始 JSON 见 `BackendJson` 与 normalize.ts。
  */
 
-export type ProviderId = 'SQLite' | 'MySql' | 'PostgreSQL' | 'SqlServer' | (string & {})
+/** provider id 以后端小写为准；展示名见 connForm.PROVIDER_LABELS / providers[].displayName */
+export type ProviderId = 'sqlite' | 'mysql' | 'postgresql' | 'sqlserver' | (string & {})
 export type ConnMode = 'form' | 'connstr'
+/** 后端原始 JSON 对象（fixture 与联调样本按此形态写，经 normalize 进入 UI） */
+export type BackendJson = Record<string, unknown>
 export type PermissionMode = 'AskWrite' | 'Auto'
 export type SqlKind = 'read' | 'write'
 export type Source = 'ui' | 'agent'
@@ -14,17 +17,20 @@ export interface DbProvider {
   id: ProviderId
   displayName: string
   driverAvailable: boolean
-  /** 前端假设：缺驱动时提示的 NuGet 包名（如 XCode.MySql） */
+  /** 缺驱动时提示的 NuGet 包名（如 MySqlConnector） */
   driverPackage?: string
-  /** 前端假设：仅 SQLite 实测；缺省按 id==='SQLite' 判断 */
+  /** 仅 SQLite 实测；缺省按 id==='sqlite' 判断 */
   tested?: boolean
+  defaultPort?: number
 }
 
 /** GET /connections 单项（密码与连接串均为掩码版） */
 export interface DbConnection {
+  /** 用户连接为数字串 "12"；系统只读连接为 "sys:<ConnName>" */
   id: string
   name: string
   provider: ProviderId
+  /** 系统连接后端给 mode="system"，前端按 form 展示（不可编辑） */
   mode: ConnMode
   host?: string
   port?: number
@@ -35,8 +41,10 @@ export interface DbConnection {
   /** 掩码后的连接串（PasswordEnc / ConnStrEnc 不下发） */
   connStr?: string
   readonly: boolean
-  /** 前端假设：系统只读连接标记（宿主库 / PluginDbs）；缺省按 readonly 推断 */
+  /** 由后端 kind==='system' 推断（宿主库 / PluginDbs） */
   system?: boolean
+  /** 非 SQLite 为 false（「未实测」） */
+  tested?: boolean
   createTime?: string
   updateTime?: string
 }
@@ -54,12 +62,16 @@ export interface DbConnectionInput {
   connStr?: string
 }
 
-/** POST /connections/test */
+/** POST /connections/test —— 恒 200，后端 `{ok, code, message, serverVersion, elapsedMs}`；status 为前端派生三态 */
 export interface TestConnectionResult {
   status: 'ok' | 'error' | 'driver_missing'
+  ok: boolean
+  /** 后端 code：null(=ok) | sql_error | driver_missing */
+  code?: string
   message?: string
   serverVersion?: string
-  /** driver_missing 时需安装的包 */
+  elapsedMs?: number
+  /** driver_missing 时需安装的包（后端放在 message 里；此字段仅兼容） */
   driverPackage?: string
 }
 
@@ -103,10 +115,17 @@ export interface ResultColumn {
   type?: string
 }
 
-/** POST /query 响应（前端假设：status 三态 + 结果形态） */
+/**
+ * POST /query 与 /approvals/{id}/resolve 的响应（后端 QueryOutcome）。
+ * HTTP：ok / rejected → 200；awaiting_approval → 202；error → 按 code 映射（400/404/424/409…）。
+ */
 export interface QueryResponse {
-  status: 'ok' | 'awaiting_approval' | 'rejected'
+  status: 'ok' | 'awaiting_approval' | 'rejected' | 'error'
+  /** 对外只有 read / write；破坏性看 destructive */
   kind?: SqlKind
+  destructive?: boolean
+  /** 响应的 HTTP 状态码（202 = 待审批） */
+  httpStatus?: number
   columns?: ResultColumn[]
   rows?: unknown[][]
   total?: number
@@ -116,9 +135,16 @@ export interface QueryResponse {
   affectedRows?: number
   truncated?: boolean
   approvalId?: string
-  /** rejected 时：03 错误码 */
+  /** rejected / error 时：错误码（rejected_hard / readonly_connection / approval_rejected / sql_error …） */
   code?: string
   message?: string
+}
+
+/** 结果区错误红条（HTTP 非 2xx 或业务 rejected） */
+export interface ResultErrorState {
+  code: string
+  message: string
+  httpStatus?: number
 }
 
 /** GET /approvals（DbApproval） */
@@ -127,13 +153,14 @@ export interface DbApproval {
   connectionId: string
   connectionName?: string
   sqlRedacted: string
-  kind: string
+  /** 对外只有 read / write（§3.1）；破坏性看 destructive */
+  kind: SqlKind
   destructive: boolean
   status: 'pending' | 'approved' | 'rejected' | 'expired'
   source: Source
   createTime: string
   resolveTime?: string
-  /** 前端假设：预估风险说明 */
+  /** 后端不提供；仅前端演示用的风险说明 */
   risk?: string
 }
 
@@ -158,7 +185,7 @@ export interface DbQueryHistory {
   createTime: string
 }
 
-/** GET /audit（DbAuditLog） */
+/** GET /audit（AuditView）；kind==='agent' 时附带 Agent 回显摘要字段（§3.1 ④） */
 export interface DbAuditLog {
   id: string
   kind: string
@@ -167,53 +194,91 @@ export interface DbAuditLog {
   decision?: string
   detail?: string
   createTime: string
+  source?: Source
+  sessionId?: string
+  status?: string
+  code?: string
+  sqlKind?: SqlKind
+  rowCount?: number
+  truncated?: boolean
+  approvalId?: string
+  tool?: string
 }
 
 export interface PagedList<T> {
   items: T[]
   total: number
+  page?: number
+  pageSize?: number
 }
 
-/** S8：Agent `db_*` 工具回显（来自聊天，前端只展示） */
+/** /audit 与 /history 过滤（pageSize 上限 500） */
+export interface LogFilter {
+  kind?: string
+  source?: Source
+  sessionId?: string
+  status?: string
+  connectionId?: string
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * S8：Agent `db_*` 工具回显 —— 由 `GET /audit?kind=agent` 的审计条目映射（§3.1 ④）：
+ * tool←tool、status←status、rowCount←rowCount、truncated←truncated、approvalId←approvalId、
+ * message←detail、at←createTime；参数只展示 sqlRedacted。
+ */
 export interface AgentToolEcho {
+  id: string
   tool: string
-  args: Record<string, unknown>
-  status: 'ok' | 'awaiting_approval' | 'rejected'
+  sql?: string
+  status: 'ok' | 'awaiting_approval' | 'rejected' | 'error'
+  code?: string
+  sqlKind?: SqlKind
   rowCount?: number
   truncated?: boolean
   approvalId?: string
+  sessionId?: string
+  connectionId?: string
   message?: string
   at: string
 }
 
 export type OverlayKind = 'connForm' | 'approval' | 'destructive' | 'deleteConn' | 'audit' | null
 
-/** CT / 演示 fixture：存在即跳过网络 */
+/**
+ * CT / 演示 fixture：存在即跳过网络。
+ * 数据字段一律写**后端原始 JSON 形态**（数字 id、小写 provider、kind read/write + destructive、sys: 前缀…），
+ * 由 DbAdminView 走与真实请求同一套 normalize 进入 UI —— fixture 即契约样例。
+ */
 export interface DbAdminFixture {
   version?: string
   loading?: boolean
   unauthorized?: boolean
   banner?: { kind: 'error' | 'warn'; text: string } | null
   permissionMode?: PermissionMode
-  providers?: DbProvider[]
-  connections?: DbConnection[]
+  providers?: BackendJson[]
+  connections?: BackendJson[]
   activeConnectionId?: string | null
-  tables?: Record<string, DbTable[]>
-  tableDetails?: Record<string, DbTableDetail>
+  tables?: Record<string, BackendJson[]>
+  tableDetails?: Record<string, BackendJson>
   expanded?: string[]
   sql?: string
-  result?: QueryResponse | null
-  resultError?: { code: string; message: string } | null
-  approvals?: DbApproval[]
-  history?: DbQueryHistory[]
-  audit?: DbAuditLog[]
+  /** 最近一次 POST /query 或 resolve 的 HTTP 应答（status + 原始 body）；≥400 → 红条 */
+  reply?: { httpStatus: number; body: BackendJson } | null
+  /** GET /approvals?status=pending 原始数组 */
+  approvals?: BackendJson[]
+  /** GET /history 原始分页对象或数组 */
+  history?: BackendJson[] | BackendJson
+  /** GET /audit 原始分页对象或数组（含 kind=agent 条目 → S8 回显） */
+  audit?: BackendJson[] | BackendJson
   auditFilter?: string
-  agentEchoes?: AgentToolEcho[]
   overlay?: OverlayKind
   activeApprovalId?: string
   connForm?: Partial<DbConnectionInput> & { editingId?: string }
   connFormError?: string
-  testResult?: TestConnectionResult | null
+  /** POST /connections/test 原始 body（恒 200） */
+  testResult?: BackendJson | null
   sideTab?: 'history' | 'agent'
   /** 先写入 localStorage 再挂载（S-R 恢复后态）；落盘前会剥密码 */
   seedRestore?: Record<string, unknown>

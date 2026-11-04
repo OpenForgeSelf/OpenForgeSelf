@@ -98,6 +98,22 @@ test.describe('SmartTerminal · 视觉与契约', () => {
     await expect(root(page)).toHaveScreenshot()
   })
 
+  test('密码深链知情确认：未勾选时不可继续', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/PasswordRiskAck', '[data-testid="password-ack-modal"]')
+    await expect(page.locator('[data-testid="password-ack-modal"]')).toContainText('我已知晓风险')
+    await expect(page.locator('[data-testid="password-ack-mode"]')).toHaveText('always-ack')
+    await expect(page.locator('[data-testid="password-ack-continue"]')).toBeDisabled()
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('密码深链知情确认：已勾选可继续', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/PasswordRiskAckChecked', '[data-testid="password-ack-modal"]')
+    await expect(page.locator('[data-testid="password-ack-checkbox"]')).toBeChecked()
+    await expect(page.locator('[data-testid="password-ack-continue"]')).toBeEnabled()
+    await expect(page.locator('[data-testid="password-ack-mode"]')).toHaveText('intranet')
+    await expect(root(page)).toHaveScreenshot()
+  })
+
   test('URL 本地启动横幅', async ({ page }) => {
     await openStory(page, 'SmartTerminal/UrlLaunchLocal', '[data-testid="launch-banner"]')
     await expect(page.locator('[data-testid="launch-banner"]')).toContainText('type=local')

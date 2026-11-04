@@ -139,4 +139,10 @@ export interface SmartTerminalFixture {
   launchWarning?: string
   renamingId?: string
   showNewTabMenu?: boolean
+  /** CT：展示密码风险知情确认模态 */
+  showPasswordAck?: boolean
+  passwordAckChecked?: boolean
+  passwordAckMode?: 'always-ack' | 'intranet' | 'disabled'
+  pendingLaunchSummary?: string
 }
+

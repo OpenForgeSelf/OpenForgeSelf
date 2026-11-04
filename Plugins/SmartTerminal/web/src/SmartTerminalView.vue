@@ -2,6 +2,13 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { fetchPluginVersion, smartTerminalApi } from './api'
 import { parseLaunchQuery, scrubLaunchParamsFromUrl } from './launchFromQuery'
+import {
+  isUrlPasswordDisabled,
+  needsUrlPasswordAck,
+  persistUrlPasswordRiskAck,
+  resolveUrlPasswordMode,
+  type UrlPasswordMode,
+} from './urlPasswordPolicy'
 import type {
   AuditEvent,
   CommandRecord,
@@ -50,6 +57,14 @@ const launchWarning = ref('')
 const renamingId = ref('')
 const renameDraft = ref('')
 const showNewTabMenu = ref(false)
+const showPasswordAck = ref(false)
+const passwordAckChecked = ref(false)
+const passwordAckMode = ref<UrlPasswordMode>('always-ack')
+const pendingLaunch = ref<{
+  request: LaunchTerminalRequest
+  summary: string
+  passwordInUrl: boolean
+} | null>(null)
 
 const consoleEl = ref<HTMLElement | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -140,6 +155,18 @@ function applyFixture(f: SmartTerminalFixture) {
     renameDraft.value = sessions.value.find(s => s.sessionId === renamingId.value)?.title ?? ''
   }
   showNewTabMenu.value = !!f.showNewTabMenu
+  showPasswordAck.value = !!f.showPasswordAck
+  passwordAckChecked.value = !!f.passwordAckChecked
+  passwordAckMode.value = f.passwordAckMode ?? 'always-ack'
+  if (f.showPasswordAck) {
+    pendingLaunch.value = {
+      request: { type: 'ssh', host: '10.0.0.1', user: 'root', auth: 'sshpass' },
+      summary: f.pendingLaunchSummary ?? 'type=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
+      passwordInUrl: true,
+    }
+    launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
+    launchWarning.value = f.launchWarning ?? '地址栏曾含密码，已从 URL 擦除。继续前请确认风险。'
+  }
 }
 
 function noteError(e: unknown) {
@@ -421,12 +448,11 @@ async function rerun(commandId: string) {
 async function applyLaunch(request: LaunchTerminalRequest, summary: string, passwordInUrl: boolean) {
   launchBanner.value = `URL 启动：${summary}`
   if (passwordInUrl) {
-    launchWarning.value = '地址栏曾含密码，已从 URL 擦除；密码仅短暂注入进程环境，不写审计原文。建议改用密钥。'
+    launchWarning.value = '地址栏曾含密码，已从 URL 擦除；密码仅短暂注入进程环境，不写审计原文。建议改用密钥（auth=key）。'
   }
   if (isDemo.value) return
   busy.value = 'launch'
   try {
-    // 发送后立即丢弃本地明文
     const body = { ...request }
     const res = await smartTerminalApi.launch(body)
     body.password = undefined
@@ -441,11 +467,60 @@ async function applyLaunch(request: LaunchTerminalRequest, summary: string, pass
   }
 }
 
+function cancelPasswordAck() {
+  if (pendingLaunch.value?.request) {
+    pendingLaunch.value.request.password = undefined
+  }
+  pendingLaunch.value = null
+  showPasswordAck.value = false
+  passwordAckChecked.value = false
+  launchWarning.value = '已取消带密码的 URL 启动。请改用 auth=key，或在标签内后续使用交互输入/vault（排期中）。'
+}
+
+async function confirmPasswordAck() {
+  if (!passwordAckChecked.value || !pendingLaunch.value) return
+  const pending = pendingLaunch.value
+  showPasswordAck.value = false
+  passwordAckChecked.value = false
+  pendingLaunch.value = null
+  if (passwordAckMode.value === 'intranet') {
+    persistUrlPasswordRiskAck()
+  }
+  await applyLaunch(pending.request, pending.summary, pending.passwordInUrl)
+}
+
 async function consumeUrlLaunch() {
   if (isDemo.value || typeof location === 'undefined') return
   const parsed = parseLaunchQuery(location.search || '')
   scrubLaunchParamsFromUrl()
   if (!parsed) return
+
+  const mode = resolveUrlPasswordMode({ queryMode: parsed.urlPasswordMode })
+  passwordAckMode.value = mode
+
+  if (parsed.passwordInUrl && isUrlPasswordDisabled(mode)) {
+    parsed.request.password = undefined
+    launchBanner.value = `URL 启动：${parsed.summary}`
+    errorText.value = '当前策略禁用 URL 密码（url-password-mode=disabled）。请使用 auth=key，或将模式设为 intranet / always-ack。'
+    // 仍可尝试无密码启动（interactive/key）；若 auth=sshpass 则后端会报错——改为不调用 launch
+    if ((parsed.request.auth || 'sshpass') === 'sshpass' || (parsed.request.auth || '') === 'password') {
+      return
+    }
+  }
+
+  if (parsed.passwordInUrl && needsUrlPasswordAck(mode)) {
+    pendingLaunch.value = {
+      request: parsed.request,
+      summary: parsed.summary,
+      passwordInUrl: true,
+    }
+    launchBanner.value = `URL 启动：${parsed.summary}`
+    launchWarning.value = '检测到 URL 密码（内网过渡能力）。请确认风险后再继续；推荐改用 auth=key。'
+    showPasswordAck.value = true
+    passwordAckChecked.value = false
+    return
+  }
+
   await applyLaunch(parsed.request, parsed.summary, parsed.passwordInUrl)
 }
 
@@ -489,7 +564,7 @@ watch(activeId, () => {
     <header class="st-header">
       <div>
         <h1 class="view-title">智能终端 <span class="ver">v{{ version }}</span></h1>
-        <p class="sub">多标签 · URL 深链 · 三级权限 · JSONL 审计 · <code>st_*</code></p>
+        <p class="sub">可审批的命令会话 · 基础多标签 · URL 深链 · <code>st_*</code></p>
       </div>
       <div class="header-actions">
         <span class="badge" :class="modeBadgeClass" data-testid="mode-badge">权限：{{ modeLabel }}</span>
@@ -502,7 +577,7 @@ watch(activeId, () => {
     <div v-if="unauthorized" class="banner error" data-testid="banner-unauthorized">未授权（401）。请先登录宿主，确保 localStorage 有 forge_api_token。</div>
     <div v-else-if="errorText" class="banner error" data-testid="banner-error">{{ errorText }}</div>
 
-    <!-- Windows Terminal 风格标签栏 -->
+    <!-- Windows Terminal 基础标签栏（新建/关闭/切换/重命名） -->
     <div class="tabbar" data-testid="tab-bar">
       <div
         v-for="s in openSessions"
@@ -604,6 +679,35 @@ watch(activeId, () => {
         </ul>
       </div>
     </main>
+
+
+    <div v-if="showPasswordAck" class="modal-mask" data-testid="password-ack-modal" @click.self="cancelPasswordAck">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="st-pwd-ack-title">
+        <h2 id="st-pwd-ack-title">URL 密码风险确认</h2>
+        <p class="muted">当前策略：<code data-testid="password-ack-mode">{{ passwordAckMode }}</code>。密码深链仅为<strong>内网过渡</strong>，推荐 <code>auth=key</code>。</p>
+        <ul class="ack-list">
+          <li>密码可能进入浏览器历史、同步账号、代理与访问日志</li>
+          <li>转发或截屏链接即可能泄露凭证</li>
+          <li>已从地址栏擦除明文；若继续，密码仅短暂注入进程环境 SSHPASS，不写审计原文</li>
+        </ul>
+        <label class="ack-check" data-testid="password-ack-label">
+          <input v-model="passwordAckChecked" type="checkbox" data-testid="password-ack-checkbox" />
+          我已知晓风险，仍要在本环境使用 URL 密码启动
+        </label>
+        <div class="modal-actions">
+          <button class="btn ghost" type="button" data-testid="password-ack-cancel" @click="cancelPasswordAck">取消</button>
+          <button
+            class="btn primary"
+            type="button"
+            data-testid="password-ack-continue"
+            :disabled="!passwordAckChecked || !!busy"
+            @click="confirmPasswordAck"
+          >
+            继续启动
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="showApproval && activeApproval" class="modal-mask" data-testid="approval-modal" @click.self="showApproval = false">
       <div class="modal" role="dialog" aria-modal="true">
@@ -767,6 +871,9 @@ watch(activeId, () => {
 }
 .modal-cmd { background: #0b0f14; border-radius: 8px; padding: 10px; margin: 10px 0; word-break: break-all; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ack-list { margin: 10px 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.ack-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 8px; cursor: pointer; }
+.ack-check input { margin-top: 2px; }
 .audit-drawer {
   position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92%);
   background: var(--panel); border-left: 1px solid var(--line);

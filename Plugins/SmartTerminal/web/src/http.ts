@@ -9,9 +9,12 @@ export interface ApiEnvelope<T> {
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  /** 失败响应体中的 data（如 needsInteractivePassword） */
+  readonly data?: unknown
+  constructor(status: number, message: string, data?: unknown) {
     super(message)
     this.status = status
+    this.data = data
   }
 }
 
@@ -38,13 +41,15 @@ async function request<T>(path: string, init: RequestInit): Promise<T | undefine
   const res = await fetch(path, { ...init, headers })
   if (!res.ok) {
     let detail = ''
+    let data: unknown
     try {
-      const body = (await res.json()) as { message?: string }
+      const body = (await res.json()) as { message?: string; data?: unknown; success?: boolean; code?: number }
       detail = body?.message ?? ''
+      data = body?.data
     } catch {
       // ignore
     }
-    throw new ApiError(res.status, detail || res.statusText || '未知错误')
+    throw new ApiError(res.status, detail || res.statusText || '未知错误', data)
   }
 
   const json = (await res.json()) as unknown

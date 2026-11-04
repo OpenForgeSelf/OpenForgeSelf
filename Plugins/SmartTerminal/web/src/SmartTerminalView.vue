@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { fetchPluginVersion, smartTerminalApi } from './api'
+import { ApiError } from './http'
 import { parseLaunchQuery, scrubLaunchParamsFromUrl } from './launchFromQuery'
 import { redactAuditText } from './secretDisplay'
 import {
@@ -64,6 +65,7 @@ const showApproval = ref(false)
 const activeApproval = ref<PendingApproval | null>(null)
 const launchBanner = ref('')
 const launchWarning = ref('')
+const reconnectBanner = ref('')
 const renamingId = ref('')
 const renameDraft = ref('')
 const showNewTabMenu = ref(false)
@@ -345,6 +347,7 @@ async function selectSession(id: string) {
   if (isDemo.value) {
     chunks.value = chunksBySession.value[id] ?? []
     commands.value = commandsBySession.value[id] ?? []
+    evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
     return
   }
   chunks.value = []
@@ -354,6 +357,18 @@ async function selectSession(id: string) {
   } else {
     chunks.value = chunksBySession.value[id] ?? []
     await Promise.all([pollOutput(false), loadCommands(), refreshApprovals()])
+  }
+  try {
+    const fresh = await smartTerminalApi.getSession(id)
+    if (fresh) {
+      const idx = sessions.value.findIndex(s => s.sessionId === id)
+      if (idx >= 0) sessions.value[idx] = { ...sessions.value[idx], ...fresh }
+      evaluateReconnect(fresh)
+    } else {
+      evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
+    }
+  } catch {
+    evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
   }
 }
 
@@ -593,6 +608,91 @@ async function rerun(commandId: string) {
   }
 }
 
+/** 同时有 steps 与 commands 时只送 steps（后端亦以 steps 为准） */
+function buildLaunchBody(request: LaunchTerminalRequest): LaunchTerminalRequest {
+  const body: LaunchTerminalRequest = { ...request }
+  if (body.steps?.length) {
+    body.commands = undefined
+  }
+  return body
+}
+
+function openInteractivePasswordForRequest(request: LaunchTerminalRequest, summary: string, extraWarn?: string) {
+  pendingLaunch.value = {
+    request: { ...request, password: undefined, auth: 'interactive' },
+    summary,
+    passwordInUrl: false,
+    needsInteractivePassword: true,
+  }
+  launchBanner.value = `URL 启动：${summary}`
+  launchWarning.value = extraWarn
+    || '需要交互密码：确认后再创建标签并 launch（auth=sshpass）。强烈推荐改用 auth=key。'
+  interactivePassword.value = ''
+  interactivePasswordReveal.value = false
+  showInteractivePassword.value = true
+  showPasswordAck.value = false
+}
+
+function evaluateReconnect(session: TerminalSession | null | undefined) {
+  if (!session || isDemo.value) {
+    reconnectBanner.value = ''
+    return
+  }
+  const hint = session.reconnectHint || ''
+  const alive = !!session.processAlive
+  const can = session.reconnectable !== false
+  const isSsh = session.launchType === 'ssh' || session.launchType === 'wsl-ssh'
+  const conn = connectionsBySession.value[session.sessionId]
+  const authMethod = conn?.authMethod || ''
+  const hasMemPwd = !!sessionPasswords.value[session.sessionId]
+
+  if (!can) {
+    reconnectBanner.value = hint || '会话已关闭，请重新 launch / 新建。'
+    return
+  }
+  if (alive) {
+    reconnectBanner.value = hint || ''
+    return
+  }
+  // 进程已死：展示提示；缺密 SSH 引导再走 S5
+  if (isSsh && authMethod !== 'key' && !hasMemPwd) {
+    reconnectBanner.value = (hint || '活动进程可能已退出。')
+      + ' 缺密 SSH 需重新输入密码后再 launch（先框后标签）。'
+  } else {
+    reconnectBanner.value = hint || (isSsh ? '活动进程可能已退出；可继续拉历史 output，或重新 launch。' : '')
+  }
+}
+
+/** 从当前标签连接摘要打开 S5，确认后重新 launch（不复用旧孤儿空标签） */
+function promptReconnectPassword() {
+  const s = activeSession.value
+  if (!s) return
+  const conn = connectionsBySession.value[s.sessionId] || {}
+  const request: LaunchTerminalRequest = {
+    profile: conn.profile || (s.launchType as string) || 'ssh',
+    type: (s.launchType as string) || 'ssh',
+    host: conn.host || s.remoteHost,
+    port: conn.port || 22,
+    user: conn.user || s.remoteUser,
+    cwd: conn.cwd || s.cwd,
+    shellId: conn.shellId || s.shellId,
+    title: conn.title || s.title,
+    auth: 'interactive',
+  }
+  const summary = [
+    `profile=${request.profile}`,
+    request.host ? `host=${request.host}` : '',
+    request.user ? `user=${request.user}` : '',
+    'auth=interactive',
+    'reconnect=1',
+  ].filter(Boolean).join(' · ')
+  openInteractivePasswordForRequest(
+    request,
+    summary,
+    '刷新/断连后密码未恢复。确认后将重新 launch（先框后标签）；推荐改用 auth=key。',
+  )
+}
+
 async function applyLaunch(request: LaunchTerminalRequest, summary: string, passwordInUrl: boolean) {
   launchBanner.value = `URL 启动：${summary}`
   if (passwordInUrl) {
@@ -601,16 +701,21 @@ async function applyLaunch(request: LaunchTerminalRequest, summary: string, pass
   if (isDemo.value) return
   busy.value = 'launch'
   try {
-    const body = { ...request }
+    const body = buildLaunchBody(request)
+    // S5 确认路径：password + auth=sshpass；禁止无密 interactive 误打出孤儿标签
     const res = await smartTerminalApi.launch(body)
     const pwd = body.password
     body.password = undefined
     request.password = undefined
+    if (res?.needsInteractivePassword) {
+      // 防御：即便 200 带此标志也不建标签
+      openInteractivePasswordForRequest(request, summary, res.message || undefined)
+      return
+    }
     if (res?.warning) launchWarning.value = res.warning
     await refreshMeta()
     if (res?.session?.sessionId) {
       rememberConnection(res.session.sessionId, request, res.launchType || res.profile)
-      // 关标签即焚：仅内存暂存，供同标签生命周期；刷新后不会恢复
       if (pwd) {
         sessionPasswords.value = { ...sessionPasswords.value, [res.session.sessionId]: pwd }
       }
@@ -618,6 +723,19 @@ async function applyLaunch(request: LaunchTerminalRequest, summary: string, pass
       schedulePersistRestore()
     }
   } catch (e) {
+    const err = e as ApiError
+    const data = (err?.data || {}) as { needsInteractivePassword?: boolean; message?: string; NeedsInteractivePassword?: boolean }
+    const needs = !!(data.needsInteractivePassword || data.NeedsInteractivePassword || /交互密码|needsInteractivePassword|先框后/i.test(err?.message || ''))
+    if (err instanceof ApiError && err.status === 400 && needs) {
+      // 后端硬拒无密 interactive：无 session；打开 S5，勿留孤儿标签
+      openInteractivePasswordForRequest(
+        { ...request, password: undefined, auth: 'interactive' },
+        summary,
+        err.message || '需要交互密码后再 launch。',
+      )
+      errorText.value = ''
+      return
+    }
     noteError(e)
   } finally {
     busy.value = ''
@@ -667,6 +785,7 @@ async function confirmInteractivePassword() {
   // 先框后标签：确认前不创建任何标签；确认后才 launch（服务端建会话）
   const pending = pendingLaunch.value
   pending.request.password = pwd
+  // 定稿：确认后带 password + auth=sshpass 再 launch（key 除外）
   pending.request.auth = pending.request.auth === 'key' ? 'key' : 'sshpass'
   interactivePassword.value = ''
   interactivePasswordReveal.value = false
@@ -826,6 +945,16 @@ watch(
 
     <div v-if="launchBanner" class="banner info" data-testid="launch-banner">{{ launchBanner }}</div>
     <div v-if="launchWarning" class="banner warn" data-testid="launch-warning">{{ launchWarning }}</div>
+    <div v-if="reconnectBanner" class="banner warn" data-testid="reconnect-banner">
+      <span>{{ reconnectBanner }}</span>
+      <button
+        v-if="activeSession && (activeSession.launchType === 'ssh' || activeSession.launchType === 'wsl-ssh') && !sessionPasswords[activeSession.sessionId] && connectionsBySession[activeSession.sessionId]?.authMethod !== 'key'"
+        class="btn tiny ghost"
+        type="button"
+        data-testid="reconnect-password-btn"
+        @click="promptReconnectPassword"
+      >重新输入密码并 launch</button>
+    </div>
     <div v-if="unauthorized" class="banner error" data-testid="banner-unauthorized">未授权（401）。请先登录宿主，确保 localStorage 有 forge_api_token。</div>
     <div v-else-if="errorText" class="banner error" data-testid="banner-error">{{ errorText }}</div>
 
@@ -890,6 +1019,9 @@ watch(
             · {{ tabMeta(activeSession) }}
             <template v-if="activeSession.launchType && activeSession.launchType !== 'local'"> · {{ activeSession.launchType }}</template>
             · {{ activeSession.cwd }}
+            <template v-if="activeSession.processAlive != null">
+              · <span :data-testid="'process-alive-' + (activeSession.processAlive ? 'yes' : 'no')">{{ activeSession.processAlive ? '进程存活' : '进程已退出' }}</span>
+            </template>
           </span>
         </div>
         <button v-if="activeSession" class="btn ghost tiny" type="button" @click="closeTab(activeSession.sessionId)">关闭</button>
@@ -1165,6 +1297,7 @@ watch(
 .banner { border-radius: 8px; padding: 8px 10px; font-size: 13px; flex-shrink: 0; }
 .banner.error { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
 .banner.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.banner.warn[data-testid="reconnect-banner"] { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .banner.info { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
 .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
 .modal-mask {

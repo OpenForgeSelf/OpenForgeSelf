@@ -22,6 +22,11 @@ export interface ParsedLaunch {
   summary: string
   /** 当次策略覆盖（来自 st_url_password_mode） */
   urlPasswordMode?: string
+  /**
+   * 本里程碑不支持的 profile（如 custom:<id>）。
+   * 有值时 UI 只展示可读错误，不得静默当 local，也不提供选择器。
+   */
+  unsupportedProfileError?: string
 }
 
 function pick(params: URLSearchParams, ...keys: string[]): string | undefined {
@@ -114,12 +119,31 @@ function allSteps(params: URLSearchParams): { steps: LaunchStep[]; commands: str
   return { steps, commands: lines }
 }
 
-function normalizeProfile(raw: string | undefined): { profile: string; type: LaunchType } {
+function normalizeProfile(raw: string | undefined): {
+  profile: string
+  type: LaunchType
+  unsupported?: string
+} {
   const p = (raw || 'local').trim().toLowerCase()
   if (p === 'wsl-ssh' || p === 'wslssh') return { profile: 'wsl-ssh', type: 'wsl-ssh' }
   if (p === 'ssh') return { profile: 'ssh', type: 'ssh' }
   if (p === 'shell' || p === 'local') return { profile: 'local', type: 'local' }
-  if (p.startsWith('custom:')) return { profile: p, type: 'local' }
+  if (p.startsWith('custom:')) {
+    const id = p.slice('custom:'.length) || '(空)'
+    return {
+      profile: p,
+      type: 'local',
+      unsupported: `profile=custom:${id} 本里程碑未实现（仅协议位预留）。请改用 profile=local|ssh|wsl-ssh；不会静默当作 local。`,
+    }
+  }
+  // 未知 profile：可读错误，不静默当 local
+  if (p && p !== 'local') {
+    return {
+      profile: p,
+      type: 'local',
+      unsupported: `未知 profile「${p}」。本里程碑仅支持 local / ssh / wsl-ssh（custom:<id> 仅协议位）。`,
+    }
+  }
   return { profile: p || 'local', type: 'local' }
 }
 
@@ -145,9 +169,22 @@ export function parseLaunchQuery(search: string): ParsedLaunch | null {
   if (!isLaunchQuery(params)) return null
 
   const passwordInUrl = [...params.keys()].some(k => SENSITIVE_KEYS.has(k.toLowerCase()))
-  const { profile, type } = normalizeProfile(pick(params, 'st_profile', 'profile', 'st_type', 'type'))
+  const { profile, type, unsupported } = normalizeProfile(pick(params, 'st_profile', 'profile', 'st_type', 'type'))
   const { steps, commands } = allSteps(params)
   const env = parseEnv(params)
+
+  if (unsupported) {
+    const summaryParts = [`profile=${profile}`]
+    if (commands.length) summaryParts.push(`steps=${commands.length}`)
+    return {
+      request: { profile, type },
+      passwordInUrl: false,
+      needsInteractivePassword: false,
+      summary: summaryParts.join(' · '),
+      urlPasswordMode: pick(params, 'st_url_password_mode', 'url_password_mode'),
+      unsupportedProfileError: unsupported,
+    }
+  }
 
   const portStr = pick(params, 'st_port', 'port')
   const port = portStr ? Number(portStr) : undefined

@@ -2,6 +2,16 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { fetchPluginVersion, smartTerminalApi } from './api'
 import { parseLaunchQuery, scrubLaunchParamsFromUrl } from './launchFromQuery'
+import { redactAuditText } from './secretDisplay'
+import {
+  buildSnapshot,
+  clearSnapshot,
+  loadSnapshot,
+  removeTabFromSnapshot,
+  restoredTabToSession,
+  saveSnapshot,
+  type RestoredConnectionSummary,
+} from './sessionRestore'
 import {
   isUrlPasswordDisabled,
   needsUrlPasswordAck,
@@ -70,6 +80,12 @@ const pendingLaunch = ref<{
   needsInteractivePassword?: boolean
 } | null>(null)
 
+/** 连接摘要（无密码）；用于 S-R 恢复与标签元信息 */
+const connectionsBySession = ref<Record<string, RestoredConnectionSummary>>({})
+/** 仅内存：关标签即焚；永不写入 sessionStorage / localStorage */
+const sessionPasswords = ref<Record<string, string>>({})
+let restorePersistTimer: ReturnType<typeof setTimeout> | null = null
+
 const consoleEl = ref<HTMLElement | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -102,8 +118,22 @@ const filteredAudit = computed(() => {
       .join(' ')
       .toLowerCase()
     return hay.includes(q)
-  })
+  }).map(a => ({
+    ...a,
+    commandRedacted: redactAuditText(a.commandRedacted),
+    detail: redactAuditText(a.detail),
+    matchedRule: redactAuditText(a.matchedRule),
+    decision: redactAuditText(a.decision),
+  }))
 })
+
+/** 浮层互斥：风险 ack > 交互密码 > 审批 > 审计 */
+const canShowApprovalOverlay = computed(
+  () => showApproval.value && !!activeApproval.value && !showPasswordAck.value && !showInteractivePassword.value,
+)
+const canShowAuditDrawer = computed(
+  () => showAudit.value && !showPasswordAck.value && !showInteractivePassword.value,
+)
 
 const openSessions = computed(() => sessions.value.filter(s => s.status !== 'closed'))
 
@@ -190,7 +220,7 @@ function applyFixture(f: SmartTerminalFixture) {
       needsInteractivePassword: true,
     }
     launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
-    launchWarning.value = f.launchWarning ?? '未提供密码：请在遮罩输入框中交互输入（仅内存，不写 URL / 审计原文）。推荐改用 auth=key。'
+    launchWarning.value = f.launchWarning ?? '未提供密码：请先在遮罩输入（确认后再建标签；关标签即焚）。强烈推荐改用 auth=key 密钥登录。'
   }
 }
 
@@ -198,6 +228,74 @@ function noteError(e: unknown) {
   const anyErr = e as { status?: number; message?: string }
   unauthorized.value = anyErr?.status === 401
   errorText.value = anyErr?.message ? `操作失败：${anyErr.message}` : '操作失败：未知错误'
+}
+
+function schedulePersistRestore() {
+  if (isDemo.value) return
+  if (restorePersistTimer) clearTimeout(restorePersistTimer)
+  restorePersistTimer = setTimeout(() => {
+    restorePersistTimer = null
+    persistRestoreNow()
+  }, 200)
+}
+
+function persistRestoreNow() {
+  if (isDemo.value) return
+  cacheActiveBuckets()
+  const open = sessions.value.filter(s => s.status !== 'closed')
+  if (!open.length) {
+    clearSnapshot()
+    return
+  }
+  saveSnapshot(
+    buildSnapshot({
+      activeId: activeId.value,
+      sessions: open,
+      connectionsBySession: connectionsBySession.value,
+      chunksBySession: chunksBySession.value,
+      commandsBySession: commandsBySession.value,
+      nextIndexBySession: nextIndexBySession.value,
+    }),
+  )
+}
+
+function rememberConnection(sessionId: string, request: LaunchTerminalRequest, launchType?: string) {
+  const summary: RestoredConnectionSummary = {
+    profile: request.profile || request.type || launchType || 'local',
+    launchType: launchType || (request.type as string) || request.profile,
+    host: request.host,
+    port: request.port,
+    user: request.user,
+    cwd: request.cwd,
+    shellId: request.shellId,
+    title: request.title,
+    authMethod: request.auth === 'key' ? 'key' : request.auth === 'sshpass' ? 'sshpass' : request.auth || 'interactive',
+  }
+  connectionsBySession.value = { ...connectionsBySession.value, [sessionId]: summary }
+}
+
+function burnSessionSecrets(sessionId: string) {
+  if (sessionPasswords.value[sessionId]) {
+    const next = { ...sessionPasswords.value }
+    delete next[sessionId]
+    sessionPasswords.value = next
+  }
+  removeTabFromSnapshot(sessionId)
+}
+
+/** 应用 S-R 快照：填充输出缓冲与连接摘要；sessions 仍以服务端为准并在其后合并 */
+function applyRestoreSnapshot() {
+  const snap = loadSnapshot()
+  if (!snap) return null
+  chunksBySession.value = { ...(snap.chunksBySession || {}) }
+  commandsBySession.value = { ...(snap.commandsBySession || {}) }
+  nextIndexBySession.value = { ...(snap.nextIndexBySession || {}) }
+  const conns: Record<string, RestoredConnectionSummary> = {}
+  for (const t of snap.tabs) {
+    if (t.connection) conns[t.sessionId] = { ...t.connection }
+  }
+  connectionsBySession.value = { ...connectionsBySession.value, ...conns }
+  return snap
 }
 
 function cacheActiveBuckets() {
@@ -233,7 +331,8 @@ async function refreshMeta() {
 async function refreshApprovals() {
   if (isDemo.value) return
   approvals.value = (await smartTerminalApi.listApprovals(activeId.value || undefined)) ?? []
-  if (approvals.value.length && !showApproval.value) {
+  // 浮层顺序：风险 ack / 交互密码优先于审批
+  if (approvals.value.length && !showApproval.value && !showPasswordAck.value && !showInteractivePassword.value) {
     activeApproval.value = approvals.value[0]
     showApproval.value = true
   }
@@ -302,15 +401,35 @@ async function createSession() {
   }
 }
 
+function pickAdjacentSessionId(id: string, list: TerminalSession[]): string {
+  const idx = list.findIndex(s => s.sessionId === id)
+  if (idx < 0) return list[0]?.sessionId ?? ''
+  const neighbor = list[idx + 1] ?? list[idx - 1]
+  return neighbor?.sessionId ?? ''
+}
+
 async function closeTab(id: string, ev?: Event) {
   ev?.stopPropagation()
+  const before = sessions.value.filter(s => s.status !== 'closed')
+  const nextFocus = activeId.value === id ? pickAdjacentSessionId(id, before) : activeId.value
+  burnSessionSecrets(id)
+  const { [id]: _c, ...restChunks } = chunksBySession.value
+  const { [id]: _cmd, ...restCmds } = commandsBySession.value
+  const { [id]: _n, ...restNext } = nextIndexBySession.value
+  const { [id]: _conn, ...restConn } = connectionsBySession.value
+  chunksBySession.value = restChunks
+  commandsBySession.value = restCmds
+  nextIndexBySession.value = restNext
+  connectionsBySession.value = restConn
+
   if (isDemo.value) {
     sessions.value = sessions.value.filter(s => s.sessionId !== id)
     if (activeId.value === id) {
-      activeId.value = sessions.value[0]?.sessionId ?? ''
+      activeId.value = nextFocus
       chunks.value = activeId.value ? chunksBySession.value[activeId.value] ?? [] : []
       commands.value = activeId.value ? commandsBySession.value[activeId.value] ?? [] : []
     }
+    schedulePersistRestore()
     return
   }
   try {
@@ -321,9 +440,12 @@ async function closeTab(id: string, ev?: Event) {
       commands.value = []
     }
     await refreshMeta()
-    if (!activeId.value && sessions.value.length) {
+    if (nextFocus && sessions.value.some(s => s.sessionId === nextFocus)) {
+      await selectSession(nextFocus)
+    } else if (!activeId.value && sessions.value.length) {
       await selectSession(sessions.value[0].sessionId)
     }
+    schedulePersistRestore()
   } catch (e) {
     noteError(e)
   }
@@ -438,6 +560,7 @@ async function pollOutput(reset = false) {
       chunks.value = chunks.value.concat(snap.chunks)
       nextIndex.value = snap.nextIndex
       cacheActiveBuckets()
+      schedulePersistRestore()
       await nextTick()
       if (consoleEl.value) consoleEl.value.scrollTop = consoleEl.value.scrollHeight
     }
@@ -480,11 +603,20 @@ async function applyLaunch(request: LaunchTerminalRequest, summary: string, pass
   try {
     const body = { ...request }
     const res = await smartTerminalApi.launch(body)
+    const pwd = body.password
     body.password = undefined
     request.password = undefined
     if (res?.warning) launchWarning.value = res.warning
     await refreshMeta()
-    if (res?.session?.sessionId) await selectSession(res.session.sessionId)
+    if (res?.session?.sessionId) {
+      rememberConnection(res.session.sessionId, request, res.launchType || res.profile)
+      // 关标签即焚：仅内存暂存，供同标签生命周期；刷新后不会恢复
+      if (pwd) {
+        sessionPasswords.value = { ...sessionPasswords.value, [res.session.sessionId]: pwd }
+      }
+      await selectSession(res.session.sessionId)
+      schedulePersistRestore()
+    }
   } catch (e) {
     noteError(e)
   } finally {
@@ -529,9 +661,10 @@ async function confirmInteractivePassword() {
   if (!pendingLaunch.value) return
   const pwd = interactivePassword.value
   if (!pwd) {
-    errorText.value = '请输入密码，或取消后改用 auth=key。'
+    errorText.value = '请输入密码，或取消后改用 auth=key（推荐密钥登录）。'
     return
   }
+  // 先框后标签：确认前不创建任何标签；确认后才 launch（服务端建会话）
   const pending = pendingLaunch.value
   pending.request.password = pwd
   pending.request.auth = pending.request.auth === 'key' ? 'key' : 'sshpass'
@@ -551,6 +684,13 @@ async function consumeUrlLaunch() {
   const parsed = parseLaunchQuery(location.search || '')
   scrubLaunchParamsFromUrl()
   if (!parsed) return
+
+  if (parsed.unsupportedProfileError) {
+    launchBanner.value = `URL 启动：${parsed.summary}`
+    errorText.value = parsed.unsupportedProfileError
+    launchWarning.value = 'custom:<id> 仅协议位预留，本里程碑不提供选择器，也不会静默当作 local。'
+    return
+  }
 
   const mode = resolveUrlPasswordMode({ queryMode: parsed.urlPasswordMode })
   passwordAckMode.value = mode
@@ -579,6 +719,7 @@ async function consumeUrlLaunch() {
   }
 
   if (parsed.needsInteractivePassword) {
+    // S5：先出密码框，确认前不建标签（禁止空/孤儿标签）
     pendingLaunch.value = {
       request: parsed.request,
       summary: parsed.summary,
@@ -586,7 +727,7 @@ async function consumeUrlLaunch() {
       needsInteractivePassword: true,
     }
     launchBanner.value = `URL 启动：${parsed.summary}`
-    launchWarning.value = '未提供密码：请交互输入（遮罩，仅内存）。推荐改用 auth=key。'
+    launchWarning.value = '未提供密码：请先在遮罩中输入（仅内存，关标签即焚）。强烈推荐改用 auth=key 密钥登录。'
     interactivePassword.value = ''
     interactivePasswordReveal.value = false
     showInteractivePassword.value = true
@@ -602,9 +743,39 @@ onMounted(async () => {
     return
   }
   try {
+    const snap = applyRestoreSnapshot()
     await refreshMeta()
+    // 合并：服务端仍有的会话保留；快照补齐缓冲 / 激活项 / 连接摘要
+    if (snap) {
+      if (snap.activeId && sessions.value.some(s => s.sessionId === snap.activeId)) {
+        activeId.value = snap.activeId
+      }
+      // 服务端已无、但快照仍有：展示只读恢复态（可能已断连；SSH 缺密需重连再走 S5）
+      const serverIds = new Set(sessions.value.map(s => s.sessionId))
+      const orphans = snap.tabs.filter(t => !serverIds.has(t.sessionId))
+      if (orphans.length && !sessions.value.length) {
+        sessions.value = orphans.map(restoredTabToSession)
+        activeId.value = snap.activeId && sessions.value.some(s => s.sessionId === snap.activeId)
+          ? snap.activeId
+          : sessions.value[0]?.sessionId ?? ''
+        launchWarning.value = (launchWarning.value ? launchWarning.value + ' ' : '')
+          + '已从本页会话恢复标签与近期输出（无密码）。远端/本机壳进程可能已结束；SSH 若需重连将再次弹出密码框。'
+      }
+    }
     await consumeUrlLaunch()
-    if (activeId.value) await selectSession(activeId.value)
+    if (activeId.value) {
+      // 先灌入恢复缓冲；强制走一次加载（避免 activeId 已相同导致 selectSession 早退）
+      const resumeId = activeId.value
+      if (chunksBySession.value[resumeId]?.length) {
+        chunks.value = [...chunksBySession.value[resumeId]]
+        const restoredNext = nextIndexBySession.value[resumeId]
+        nextIndex.value = restoredNext && restoredNext > 0 ? restoredNext : chunks.value.length
+        nextIndexBySession.value = { ...nextIndexBySession.value, [resumeId]: nextIndex.value }
+      }
+      activeId.value = ''
+      await selectSession(resumeId)
+    }
+    schedulePersistRestore()
   } catch (e) {
     noteError(e)
   }
@@ -616,6 +787,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (restorePersistTimer) clearTimeout(restorePersistTimer)
+  persistRestoreNow()
 })
 
 watch(
@@ -628,7 +801,14 @@ watch(
 
 watch(activeId, () => {
   if (!isDemo.value) void loadCommands()
+  schedulePersistRestore()
 })
+
+watch(
+  [sessions, chunks, chunksBySession],
+  () => schedulePersistRestore(),
+  { deep: true },
+)
 </script>
 
 <template>
@@ -716,7 +896,10 @@ watch(activeId, () => {
       </div>
 
       <div ref="consoleEl" class="console" aria-live="polite" data-testid="console">
-        <div v-if="!activeSession" class="empty">点「+」新建标签，或通过 URL 深链启动（见文档 03-URL协议）。</div>
+        <div v-if="!activeSession" class="empty" data-testid="empty-state">
+          <p>点「+」新建标签，或通过 URL 深链启动（<code>profile</code> + <code>step</code>/<code>run</code>）。</p>
+          <p class="empty-hint"><strong>推荐密钥登录</strong>（<code>auth=key</code>）。URL 明文密码仅内网过渡；SSH 无密码时会先弹出交互密码框，确认后再建标签。</p>
+        </div>
         <div v-else-if="!chunks.length" class="empty">等待输出…输入命令后回车执行。</div>
         <div v-for="c in chunks" :key="c.index" class="line" :class="c.stream">
           <span class="tag">{{ c.stream }}</span>
@@ -753,7 +936,7 @@ watch(activeId, () => {
     </main>
 
 
-    <div v-if="showPasswordAck" class="modal-mask" data-testid="password-ack-modal" @click.self="cancelPasswordAck">
+    <div v-if="showPasswordAck" class="modal-mask modal-ack" data-testid="password-ack-modal" @click.self="cancelPasswordAck">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="st-pwd-ack-title">
         <h2 id="st-pwd-ack-title">URL 密码风险确认</h2>
         <p class="muted">当前策略：<code data-testid="password-ack-mode">{{ passwordAckMode }}</code>。密码深链仅为<strong>内网过渡</strong>，推荐 <code>auth=key</code>。</p>
@@ -782,8 +965,8 @@ watch(activeId, () => {
     </div>
 
     <div
-      v-if="showInteractivePassword"
-      class="modal-mask"
+      v-if="!showPasswordAck && showInteractivePassword"
+      class="modal-mask modal-interactive"
       data-testid="interactive-password-modal"
       @click.self="cancelInteractivePassword"
     >
@@ -795,7 +978,8 @@ watch(activeId, () => {
           </code>
           · profile=<code>{{ pendingLaunch?.request?.profile || pendingLaunch?.request?.type || 'ssh' }}</code>
         </p>
-        <p class="muted">密码仅保存在内存，确认后用于本次启动；<strong>不会</strong>写回 URL、JSONL 或命令历史原文。更推荐 <code>auth=key</code>。</p>
+        <p class="muted">密码仅保存在内存，确认后<strong>再</strong>创建标签并连接；取消不建标签。关标签即焚，不做「记住本会话」。<strong>强烈推荐改用密钥登录</strong>（<code>auth=key</code>）。</p>
+        <div class="key-recommend" data-testid="key-recommend">主推：使用 <code>auth=key</code> 与 <code>identityFile</code>，避免密码进入浏览器。</div>
         <label class="field-label">
           密码
           <div class="pwd-row">
@@ -831,7 +1015,7 @@ watch(activeId, () => {
       </div>
     </div>
 
-    <div v-if="showApproval && activeApproval" class="modal-mask" data-testid="approval-modal" @click.self="showApproval = false">
+    <div v-if="canShowApprovalOverlay" class="modal-mask modal-approval" data-testid="approval-modal" @click.self="showApproval = false">
       <div class="modal" role="dialog" aria-modal="true">
         <h2>需要审批</h2>
         <p class="muted">{{ activeApproval.reason }}</p>
@@ -844,7 +1028,7 @@ watch(activeId, () => {
       </div>
     </div>
 
-    <aside v-if="showAudit" class="audit-drawer" data-testid="audit-drawer">
+    <aside v-if="canShowAuditDrawer" class="audit-drawer" data-testid="audit-drawer">
       <div class="panel-head">
         <strong>审计日志（JSONL）</strong>
         <button class="btn tiny ghost" type="button" @click="showAudit = false">关闭</button>
@@ -987,6 +1171,11 @@ watch(activeId, () => {
   position: absolute; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: center; z-index: 40;
 }
+/* 浮层顺序：风险 ack → 交互密码 → 审批 → 审计 */
+.modal-ack { z-index: 50; }
+.modal-interactive { z-index: 45; }
+.modal-approval { z-index: 40; }
+.empty-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
 .modal {
   width: min(520px, 92%); background: var(--panel); border: 1px solid var(--line);
   border-radius: 14px; padding: 18px;
@@ -1007,6 +1196,10 @@ watch(activeId, () => {
 .a-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .a-cmd { margin: 4px 0; word-break: break-all; }
 
+.key-recommend {
+  margin: 10px 0; padding: 8px 10px; border-radius: 8px; font-size: 12px;
+  background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok);
+}
 .field-label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 13px; }
 .pwd-row { display: flex; gap: 8px; align-items: center; }
 .pwd-row input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border, #3a3a3a); background: var(--bg-input, #1a1a1a); color: inherit; }

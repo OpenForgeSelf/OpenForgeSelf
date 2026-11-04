@@ -1,6 +1,6 @@
 ---
 task_id: 2026-11-05-db-admin
-feature: docs/02-features/044-db-admin.md
+feature: 044
 risk: { level: L2, triggers: ["ForgeSelf.Web/e2e/menu-route-consistency.spec.ts", "ForgeSelf.Web/e2e/plugins/db-admin/**", "docs/ai/pilot/2026-11-05-db-admin/**"], raised_by_agent: true }
 gate1: { mode: user, at: "2026-11-05T01:45:00+08:00", decision: "夜冲刺 lead 任务板 task-5 [T-E] 派发即开工令（闸门1 视为已批；lead 2026-11-05 消息与任务正文在案）" }
 gate2: { mode: reviewer, at: null }

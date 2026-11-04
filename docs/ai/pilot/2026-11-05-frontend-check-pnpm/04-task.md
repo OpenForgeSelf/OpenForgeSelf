@@ -1,7 +1,7 @@
 ---
 task: 2026-11-05-frontend-check-pnpm
 risk: { level: L1, triggers: [.github/workflows/frontend-check.yml CI 配置单文件], raised_by_agent: false }
-feature: 100
+feature: 045
 requirements: [INFRA-1]
 rollback: git revert 单提交即可；workflow 文件无运行时影响
 expected_files:

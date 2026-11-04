@@ -1,6 +1,7 @@
 /**
  * SmartTerminal 组件视觉回归（CT）
  * 运行：pnpm run test:ct        更新基线：pnpm run test:ct:update
+ * 含终验：custom 红条、S-R 刷新恢复前后对照。
  */
 import { test, expect } from '@playwright/test'
 import { openStory } from './ct-support'
@@ -133,6 +134,46 @@ test.describe('SmartTerminal · 视觉与契约', () => {
     await expect(page.getByTestId('interactive-password-input')).toHaveAttribute('type', 'password')
     await expect(page.getByTestId('interactive-password-confirm')).toBeDisabled()
     await expect(page.getByTestId('interactive-password-target')).toContainText('root@10.0.0.1')
+  })
+
+  test('custom 不可用红条', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/CustomUnsupported', '[data-testid="custom-unsupported-banner"]')
+    const banner = page.getByTestId('custom-unsupported-banner')
+    await expect(banner).toBeVisible()
+    await expect(banner).toContainText('本里程碑不支持 custom')
+    await expect(banner).toContainText('custom:build-box')
+    await expect(banner).toContainText('不会静默当作 local')
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('S-R 刷新恢复前（对照）', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/SessionRestoreBefore', '[data-testid="tab-bar"]')
+    await expect(page.locator('[data-testid="tab-bar"] .tab')).toHaveCount(2)
+    await expect(root(page)).toContainText('跳板 SSH')
+    await expect(root(page)).toContainText('ops@10.0.0.8')
+    await expect(page.getByTestId('console')).toContainText('Welcome to Ubuntu')
+    await expect(page.getByTestId('process-alive-yes')).toBeVisible()
+    await expect(root(page)).toHaveScreenshot()
+  })
+
+  test('S-R 刷新恢复后：缓冲仍在且 sessionStorage 无密码', async ({ page }) => {
+    await openStory(page, 'SmartTerminal/SessionRestored', '[data-testid="reconnect-banner"]')
+    await expect(page.locator('[data-testid="tab-bar"] .tab')).toHaveCount(2)
+    await expect(page.getByTestId('console')).toContainText('已从本页会话恢复')
+    await expect(page.getByTestId('reconnect-banner')).toContainText('缺密 SSH')
+    await expect(page.getByTestId('process-alive-no')).toBeVisible()
+    await expect(page.getByTestId('reconnect-password-btn')).toBeVisible()
+
+    const raw = await page.evaluate(() =>
+      sessionStorage.getItem('forge.self.smart-terminal.session-restore.v1'),
+    )
+    expect(raw, '应写入恢复快照').toBeTruthy()
+    expect(raw!).not.toMatch(/SuperSecretCT/)
+    expect(raw!).not.toMatch(/"password"\s*:/)
+    expect(raw!).toContain('sess-ssh')
+    expect(raw!).toContain('10.0.0.8')
+
+    await expect(root(page)).toHaveScreenshot()
   })
 
 })

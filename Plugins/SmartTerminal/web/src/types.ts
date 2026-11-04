@@ -171,5 +171,14 @@ export interface SmartTerminalFixture {
   interactivePasswordUser?: string
   interactivePasswordPort?: number
   interactivePasswordProfile?: string
+  /** CT：custom:<id> 不可用红条（testid=custom-unsupported-banner） */
+  customUnsupported?: boolean
+  /** CT：S-R 重连黄条文案 */
+  reconnectBanner?: string
+  /**
+   * CT：写入 sessionStorage 的恢复快照（宿主壳负责落盘）。
+   * 可含故意污染的 password 字段；落盘前必须 strip。
+   */
+  seedSessionRestore?: Record<string, unknown>
 }
 

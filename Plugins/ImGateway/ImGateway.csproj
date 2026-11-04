@@ -9,6 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 测试缝：单测直接访问 internal 成员（与 AIAgent 同款，T16 NowProvider 假时钟等） -->
+    <InternalsVisibleTo Include="ForgeSelf.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

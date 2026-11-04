@@ -141,6 +141,8 @@
  * 避免出现两处独立状态导致统计与界面不一致。
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, unref, watch, watchEffect } from 'vue'
+// 深链（T9）：任务中心跳转带 query（runId/session）；插件视图渲染在宿主组件树内，useRoute 可用
+import { useRoute } from 'vue-router'
 // ElMessageBox：归档前的二次确认弹窗（宿主已全局引入 el-message-box.css，无需插件另引样式）。
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -400,6 +402,39 @@ function stepLabelFromCard(card: PlanRunCard): string {
   const cur = Math.min(done + running, card.steps.length)
   return `步骤 ${cur}/${card.steps.length}`
 }
+
+// ===== 任务中心深链（PILOT-079 R2 T9）=====
+// /ai-agent?runId=N → 直达该 Run 执行视图（步骤流/中间态）；?session=<id> → 打开对应会话。
+// 生效通道 console.debug 留痕（防静默降级悬案）；route 取不到时深链跳过、页面正常可用。
+const route = useRoute()
+
+function firstQueryValue(v: unknown): string {
+  return Array.isArray(v) ? String(v[0] ?? "") : v == null ? "" : String(v)
+}
+
+function applyDeepLinkQuery(): void {
+  const runIdRaw = route ? firstQueryValue(route.query.runId) : ""
+  if (runIdRaw) {
+    const runId = Number(runIdRaw)
+    if (Number.isFinite(runId) && runId > 0) {
+      console.debug("[ai-agent] deep link: open run", runId)
+      openRunDetail(runId)
+    }
+    return
+  }
+  const sessionRaw = route ? firstQueryValue(route.query.session) : ""
+  if (sessionRaw) {
+    console.debug("[ai-agent] deep link: open session", sessionRaw)
+    void selectSession(sessionRaw)
+  }
+}
+
+// 同一标签页内再次点击任务中心另一行 → query 变化即重放深链（无参时不动作）。
+watch(
+  () => (route ? `${firstQueryValue(route.query.runId)}|${firstQueryValue(route.query.session)}` : ""),
+  () => applyDeepLinkQuery(),
+)
+
 
 function openRunDetail(runId?: number) {
   runPanelVisible.value = true
@@ -1339,6 +1374,8 @@ onMounted(async () => {
   startRunPoll()
   // v1.8.0：初始会话历史灌入组件（hydrate 内部 emit state-changed → 左栏统计初始化）
   chatRef.value?.hydrate(messages.value)
+  // T9 深链：带 runId/session 进入时直达执行视图/会话（挂在载尾部，依赖已就绪）
+  applyDeepLinkQuery()
 })
 </script>
 

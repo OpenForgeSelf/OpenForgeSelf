@@ -26,6 +26,7 @@ public static class ImGatewayTables
         typeof(ImGatewaySession),
         typeof(ImGatewayProcessedMsg),
         typeof(ImGatewayMessage),
+        typeof(ImGatewayTask),
     };
 
     /// <summary>

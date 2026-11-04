@@ -162,6 +162,10 @@ public sealed class TasksOverviewController : ControllerBase
             EndedAt = terminal ? ToOffset(run.UpdateTime) : null,
             Retryable = retryable,
             RetryUrl = retryable ? $"/api/ai-agent/runs/{run.Id}/resume" : null,
+            // T14⑥：非终态均可取消（RunStateMachine：Pending/Planning/Running/Stuck/Failed → Cancelled 允许）
+            CancelUrl = run.Status is not (AgentRunStatus.Completed or AgentRunStatus.Cancelled)
+                ? $"/api/ai-agent/runs/{run.Id}/cancel"
+                : null,
             SourceRef = run.Id.ToString(),
         };
     }
@@ -390,6 +394,9 @@ public class TaskOverviewDto
 
     /// <summary>重试端点（planned：POST /api/ai-agent/runs/{id}/resume，SSE 流）。</summary>
     public string? RetryUrl { get; set; }
+
+    /// <summary>取消地址（非终态可取消 → /api/ai-agent/runs/{id}/cancel；T14⑥）。</summary>
+    public string? CancelUrl { get; set; }
 
     /// <summary>源标识原值（sessionId / runId）。</summary>
     public string SourceRef { get; set; } = string.Empty;

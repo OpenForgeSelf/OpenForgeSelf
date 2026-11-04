@@ -438,7 +438,7 @@ public abstract class MemoryToolFunctionBase : IToolFunctionExtension
         {
             if (_serviceProvider == null) return;
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
             if (usageStatsService != null)
             {

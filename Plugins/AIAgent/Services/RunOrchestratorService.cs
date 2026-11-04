@@ -145,7 +145,7 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// <param name="ctx">Cordis 上下文（可选；用于运行期懒解析宿主 <see cref="IInbox"/>——插件子容器不含宿主契约）。</param>
     /// <param name="runFlowTools">029 特殊工具集（complete_step/request_help schema 经 AgentOptions.ExtraTools 挂载）。</param>
     /// <param name="inbox">宿主收件箱显式注入（测试用；生产走 ctx 懒解析）。</param>
-    /// <param name="stepTimeout">单步骤超时覆盖（默认 45s；测试可缩短）。</param>
+    /// <param name="stepTimeout">单步骤超时覆盖（默认 300s，可经 AIAgent_StepTimeoutSeconds 环境变量配置；测试可缩短）。</param>
     /// <param name="modelResolver">对话模型解析（可选；缺失时保持旧行为——空模型交给 AIAgent 侧回退）。</param>
     /// <param name="runVerify">Run 级 Verify 校验器（B2② 测试注入面；缺省经 ctx 懒解析工作区构造）。</param>
     /// <param name="sessionStore">Run 级事件会话日志（B2② 测试注入面；缺省经 ctx 懒解析）。</param>
@@ -793,11 +793,11 @@ public class RunOrchestratorService : IRunOrchestratorService
             else
             {
                 // 无出口声明：挂起（请求无进展超时）或回合收束未提交 complete_step → 卡住保留现场（T011）
-                var timeout = (_stepTimeout ?? TimeSpan.FromSeconds(45)).TotalSeconds;
+                // T14 语义校正：区分「等待审批」与「无进展超时」（分类可辨；阈值 300s 可配见 ResolveStepTimeout）
+                var timeout = ResolveStepTimeout().TotalSeconds;
+                var pending = PendingApprovalProbe?.Invoke(run.SessionId) ?? CountPendingApprovals(run.SessionId);
                 result.Stuck = true;
-                result.StuckReason = turnReason == TurnEndReason.Suspended
-                    ? $"步骤执行超过 {timeout:0}s 挂起（请求无进展超时），已保留现场等待人工介入"
-                    : "步骤回合未调用 complete_step 声明完成即收束，已暂停等待人工介入";
+                result.StuckReason = ComposeSuspendReason(pending, timeout, turnReason == TurnEndReason.Suspended);
             }
 
             // 出口落库（complete_step / request_help / 挂起 / 异常）。
@@ -1001,6 +1001,46 @@ public class RunOrchestratorService : IRunOrchestratorService
         return sb.ToString();
     }
 
+    // ---- T14：无进展阈值（300s 默认，环境变量可配）与挂起原因分类 ----
+
+    /// <summary>单步骤无进展阈值：显式传参优先；否则 AIAgent_StepTimeoutSeconds 环境变量（10..7200s）；缺省 300s（用户裁定 45s→300s）。</summary>
+    internal TimeSpan ResolveStepTimeout()
+    {
+        if (_stepTimeout is { } explicitTimeout) return explicitTimeout;
+        var raw = Environment.GetEnvironmentVariable("AIAgent_StepTimeoutSeconds");
+        if (int.TryParse(raw, out var seconds) && seconds is >= 10 and <= 7200)
+            return TimeSpan.FromSeconds(seconds);
+        return TimeSpan.FromSeconds(300); // T14：默认 300s（用户裁定 45s→300s）
+    }
+
+    /// <summary>挂起原因三分类：有 pending 审批=等待审批；回合挂起=无进展超时；否则=未声明完成。</summary>
+    internal static string ComposeSuspendReason(int pendingApprovals, double timeoutSeconds, bool suspended)
+        => suspended
+            ? (pendingApprovals > 0
+                ? $"等待审批中：本步骤含需审批的写操作（{pendingApprovals} 条待批），批准后自动继续；超过 {timeoutSeconds:0}s 未批将保留现场等待人工介入"
+                : $"步骤执行超过 {timeoutSeconds:0}s 挂起（请求无进展超时），已保留现场等待人工介入")
+            : "步骤回合未调用 complete_step 声明完成即收束，已暂停等待人工介入";
+
+    /// <summary>测试注入面：生产走 CountPendingApprovals（ctx 懒解析 IApprovalService）。</summary>
+    internal Func<string, int>? PendingApprovalProbe;
+
+    /// <summary>该会话 pending 审批条数（同步快查；异常吞掉不阻塞 stuck 落库，返回 0）。</summary>
+    private int CountPendingApprovals(string sessionId)
+    {
+        try
+        {
+            var approvalService = _ctx?.Get<IApprovalService>();
+            if (approvalService == null) return 0;
+            var approvals = approvalService.ListBySessionAsync(sessionId).GetAwaiter().GetResult();
+            return approvals.Count(a => a.Status == nameof(ApprovalStatus.Pending));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[RunOrchestrator] 挂起审批感知查询失败（不影响 stuck 处理）: {0}", ex.Message);
+            return 0;
+        }
+    }
+
     /// <summary>
     /// Run 收束共用闸门（B2②③，非目标模式完成 / 目标模式达成 / ResumeAsync 三路共用）：
     /// 配置了 ExitCriteria 时先跑确定性 Verify（结论落 VerifyStatus/VerifyReport + run/verify 事件），
@@ -1035,6 +1075,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         }
 
         run.Status = (int)AgentRunStatus.Completed;
+        run.StuckReason = null;   // T10-A：完成清卡住原因——stuck→resume→complete 场景不得残留中间态原因
         FreezeReceipt(run, finalText, verify, "Completed");
         run.Update();
         return finalText;
@@ -1044,11 +1085,25 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// 结果收据冻结（B2③，write-once）：聚合步骤证据（文件清单/工具成败计数）+ Verify 结论，
     /// 序列化进 AgentRun.ResultReceipt。仅当该列为空时写入——终态后 restart/重放绝不覆盖。
     /// </summary>
-    private static void FreezeReceipt(AgentRun run, string finalText, RunVerifyOutcome? verify, string status)
+    internal static void FreezeReceipt(AgentRun run, string finalText, RunVerifyOutcome? verify, string status)
     {
         if (!string.IsNullOrWhiteSpace(run.ResultReceipt))
         {
-            return; // 已冻结：write-once，不覆盖
+            // T10-A：中间态（Stuck 等）冻结的收据允许被终局（Completed）收据覆盖；
+            // 终局→终局仍 write-once（restart/重放绝不覆盖既定终局收据）。
+            var isFinalReceipt = false;
+            try
+            {
+                using var doc = JsonDocument.Parse(run.ResultReceipt);
+                if (doc.RootElement.TryGetProperty("status", out var st))
+                    isFinalReceipt = string.Equals(st.GetString(), "Completed", StringComparison.Ordinal);
+            }
+            catch (JsonException)
+            {
+                isFinalReceipt = false; // 收据非 JSON（历史数据）→ 按中间态处理，允许终局覆盖
+            }
+            if (status != "Completed" || isFinalReceipt)
+                return;
         }
 
         var steps = AgentStepRun.FindAllByRunId(run.Id).OrderBy(s => s.StepIndex).ToList();
@@ -1202,7 +1257,7 @@ public class RunOrchestratorService : IRunOrchestratorService
             ToolAllowlist = step.AllowedTools,
             ExitToolNames = new[] { CompleteStepToolName, RequestHelpToolName },
             ExtraTools = _runFlowTools?.Stepping(),
-            StepTimeout = _stepTimeout ?? TimeSpan.FromSeconds(45),
+        StepTimeout = ResolveStepTimeout(),
         };
     }
 

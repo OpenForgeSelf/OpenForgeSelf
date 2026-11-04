@@ -248,7 +248,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
     private ICpuMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<ICpuMonitorService>();
     }
 
@@ -332,7 +332,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
     private IMemoryMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IMemoryMonitorService>();
     }
 
@@ -424,7 +424,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
     private IDiskMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IDiskMonitorService>();
     }
 
@@ -573,7 +573,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
     private IProcessMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 
@@ -671,7 +671,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
     private IProcessMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 

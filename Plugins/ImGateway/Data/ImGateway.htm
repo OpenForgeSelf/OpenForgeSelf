@@ -1,4 +1,4 @@
-﻿<style>
+<style>
     table {
         border-collapse: collapse;
         border: 1px solid;
@@ -135,6 +135,17 @@
             <td></td>
             <td></td>
             <td></td>
+        </tr>
+
+        <tr>
+            <td>TaskGatewayJson</td>
+            <td>任务网关配置JSON（TaskGatewayConfigcamelCase整包</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）</td>
         </tr>
     </tbody>
 </table>
@@ -406,6 +417,188 @@
             <td></td>
             <td></td>
             <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>IM网关派发任务绑定（PILOT-079）（ImGatewayTask）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>绑定ID</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>TaskKey</td>
+            <td>派发任务键（契约taskKey）</td>
+            <td>String</td>
+            <td>64</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>派发任务键（契约 taskKey）</td>
+        </tr>
+
+        <tr>
+            <td>RunId</td>
+            <td>MAFRunId（捕获后回填</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>MAF RunId（捕获后回填，0=未捕获）</td>
+        </tr>
+
+        <tr>
+            <td>ChannelKey</td>
+            <td>通道会话用户复合键</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ChannelType</td>
+            <td>通道类型</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ConversationId</td>
+            <td>会话标识</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>PlatformUserId</td>
+            <td>平台用户标识</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ChatType</td>
+            <td>聊天形态（single_group</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>聊天形态（single/group，主动推送用）</td>
+        </tr>
+
+        <tr>
+            <td>ReplyReqId</td>
+            <td>入站消息req_id（即时回执用）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>入站消息 req_id（即时回执用）</td>
+        </tr>
+
+        <tr>
+            <td>InboundMsgId</td>
+            <td>触发入站消息ID</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>TaskInput</td>
+            <td>任务原文摘要（200字）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>任务原文摘要（200 字）</td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态（任务中心统一小写词表）</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreatedAt</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>RepliedAt</td>
+            <td>终态回复时间（幂等防重发）</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>PromptedApprovalIds</td>
+            <td>已提示审批Id（逗号分隔</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>已提示审批 Id（逗号分隔，上限 10）</td>
         </tr>
     </tbody>
 </table>

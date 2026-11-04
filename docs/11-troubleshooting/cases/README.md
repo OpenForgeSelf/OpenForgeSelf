@@ -28,5 +28,6 @@
 | 2026-11-02-agent-page-blank-old-name | 2026-11-02 | 智能体页顶栏仍是旧名，主区域空注释；兜底路由曾把声明路径判成冲突 | [PC-021](../problem-classes/PC-021-agent-entry-blank-or-old-name.md) | Verified | [链接](2026-11-02-agent-page-blank-old-name.md) |
 | 2026-11-02-memory-timestamp-minvalue | 2026-11-02 | 记忆新建/导入时间戳 0001-01-01，更新/软删不推进 UpdatedAt（XCode 直插漏赋时间戳） | [PC-022](../problem-classes/PC-022-xcode-entity-timestamp-default.md) | Verified | [链接](2026-11-02-memory-timestamp-minvalue.md) |
 | 2026-11-02-fileschanged-persistence-loss | 2026-11-02 | agent 执行回写记录 filesChanged 恒空（快照提取裸正则打不中双编码 JSON + 自动留痕无参数可传） | [PC-023](../problem-classes/PC-023-todo-fileschanged-persistence-loss.md) | Verified | [链接](2026-11-02-fileschanged-persistence-loss.md) |
+| 2026-11-04-raw-createscope-on-ctx-sweep | 2026-11-04 | 插件侧 ctx 本体裸 CreateScope（IServiceScopeFactory 解析失败）全仓清扫 20 处一次改完（plan_workflow 实证） | [PC-005](../problem-classes/PC-005-plugin-eager-provider-resolve.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

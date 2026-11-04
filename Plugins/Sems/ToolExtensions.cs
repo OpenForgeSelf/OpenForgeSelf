@@ -43,8 +43,8 @@ public abstract class SemsToolFunctionBase : IToolFunctionExtension
         {
             // 传入的 _services 是插件 IContext（自有服务表，无 IServiceScopeFactory）；
             // 宿主把根 IServiceProvider seed 进 Context，经它回落宿主容器才能解析 Apply 里注册的服务。
-            var provider = (_services?.GetService(typeof(IServiceProvider)) as IServiceProvider) ?? _services;
-            using var scope = provider?.CreateScope();
+            // T13 清扫：统一走公共入口（原手工 GetService(IServiceProvider) 回落与本扩展语义等价，收敛避免再分叉）。
+            using var scope = _services.CreateHostScope();
             if (scope == null)
             {
                 result = Fail("服务提供者未初始化");

@@ -41,7 +41,10 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IPluginMessageService, PluginMessageService>();
         // B4（040）：会话日志 → AIChatMessage 只读视图的投影同步器（调用方返回前 await，勿改 Singleton）
         services?.AddScoped<AIAgentProjectionService>();
-        services?.AddScoped<IAgentRegistryService, AgentRegistryService>();
+        // 单例（缺陷召回 #2，qa e2e 暴露）：本类是「内存字典视图 + DB 持久化」的注册表，并发字典线程安全；
+        // 插件 4 处 eager scope（advisor/builtin/schedule/dispatch）与 UI 请求作用域必须共享同一实例，
+        // 否则 UI 新建 Agent 对派发/内置执行不可见（多视图分裂）。原 AddScoped 被 eager 捕获=俘虏依赖。
+        services?.AddSingleton<IAgentRegistryService, AgentRegistryService>();
         // B5（2026-11-02-b5-legacy-cleanup，lead 拍板=删除）：AgentCoordinator/AgentExecutor 启发式旁路
         // 已删除（零 UI/插件/IM 消费者 + ad-hoc 循环无审批泵；裁决留痕 agenthub-adjudication.md）。
         services?.AddScoped<IProactivePlanningService, ProactivePlanningService>();
@@ -62,17 +65,30 @@ public class AIAgentPlugin : IPlugin
         services?.AddScoped<IBuiltInAgentExecution, BuiltInAgentExecutionService>();
         // 调度器到点触发本机 MAF Run（同进程，不走 HTTP）。实现保持薄，不改审批挂起。
         services?.AddScoped<IScheduledAgentRunTrigger, ScheduledAgentRunTrigger>();
+        // IM 网关等消费方派任务到本机 MAF Run 的接缝（PILOT-079）：同进程后台驱动，不走 HTTP。
+        services?.AddScoped<IAgentRunDispatch, AgentRunDispatchService>();
 
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
         // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
         // 再 ctx.Register<IWorkflowAIAdvisor>(实例) 写入 root 共享服务表，供兄弟插件（WorkflowEngine）经 ctx.Get 消费。
+        // ===== 缺陷单 #3：共享插件级 provider + eager 实例单例注册（全局单视图） =====
+        // 原 4 个 eager 块各自 services.BuildServiceProvider() = 4 个独立 root provider + 宿主主 provider
+        // = 5 个 per-provider 单例注册表（各 DB 加载一次、各持独立字典）——运行期新建 Agent 只落创建侧，
+        // 控制器/IM 派发/内置执行互不可见。现共享同一个 provider（eagerScope 承载 scoped 依赖图存活），
+        // eager 产出以实例单例注册回 services（last-wins 覆盖同接口类型注册）→ 宿主主 provider 解析与
+        // ctx.Get 返回同一实例 → 全局单视图。AgentRegistryService 的 builtin seed 行为不变（ctor 仍 seed）。
+        IServiceProvider? pluginProvider = null;
+        IServiceScope? eagerScope = null;
         if (services != null)
         {
-            var advisorScope = services.BuildServiceProvider().CreateScope();
-            // 先注册 scope 释放 effect（早进列表，Dispose 逆序时后执行）→ 卸载时共享表条目先摘除、scope 后释放，避免 advisor 悬空引用已释放的服务。
-            ctx.Effect(() => advisorScope);
-            var advisor = advisorScope.ServiceProvider.GetRequiredService<IWorkflowAIAdvisor>();
+            pluginProvider = services.BuildServiceProvider();
+            eagerScope = pluginProvider.CreateScope();
+            // 卸载时释放 eager 依赖图（等义于原 4 个独立 scope effect；provider 随插件回收）
+            ctx.Effect(() => eagerScope);
+            var advisor = eagerScope.ServiceProvider.GetRequiredService<IWorkflowAIAdvisor>();
             ctx.Register<IWorkflowAIAdvisor>(advisor);
+            services.AddSingleton<IAgentRegistryService>(eagerScope.ServiceProvider.GetRequiredService<IAgentRegistryService>());
+            services.AddSingleton<IWorkflowAIAdvisor>(advisor);
         }
 
         RegisterMenuExtensions(pluginId);
@@ -85,12 +101,13 @@ public class AIAgentPlugin : IPlugin
         // 会话 Agent 跨请求存活（连续对话复用），故注册表本身是单例，并自建 root provider 开 scope：
         // Agent 依赖 IAIAgentService（scoped），scope 由 ScopedAgent 持有、注销时一起释放，
         // 避免「请求结束依赖被回收 → Agent 悬空」。注册表双注册（宿主 DI + ctx 共享服务表），与 IChatCompletion 同款。
-        if (services != null)
+        if (services != null && pluginProvider != null)
         {
-            var agentRootProvider = services.BuildServiceProvider();
+            // 缺陷单 #3：工厂并入共享 provider——会话 Agent 解析 IAIAgentService 触达的注册表单例与其余消费者同视图
+            // （原独立 BuildServiceProvider 会产出第 6 份实例）。
             var registry = new AgentRuntimeRegistry((sessionId, options) =>
             {
-                var agentScope = agentRootProvider.CreateScope();
+                var agentScope = pluginProvider.CreateScope();
                 var agentService = agentScope.ServiceProvider.GetRequiredService<IAIAgentService>();
                 return new ScopedAgent(agentService.CreateAgent(sessionId, options), agentScope);
             });
@@ -103,24 +120,32 @@ public class AIAgentPlugin : IPlugin
         // eager 提供 IBuiltInAgentExecution（内置执行接缝）：经子容器 scope 解析其依赖链
         // （BuiltInAgentExecutionService → IRunOrchestratorService/IAgentRegistryService），
         // 再 ctx.Register<IBuiltInAgentExecution>(实例) 写入 root 共享服务表，供 todo-tracker 等消费。
-        if (services != null)
+        if (services != null && eagerScope != null)
         {
-            var builtinScope = services.BuildServiceProvider().CreateScope();
-            ctx.Effect(() => builtinScope);
-            var builtinExecutor = builtinScope.ServiceProvider.GetRequiredService<IBuiltInAgentExecution>();
+            var builtinExecutor = eagerScope.ServiceProvider.GetRequiredService<IBuiltInAgentExecution>();
             ctx.Register<IBuiltInAgentExecution>(builtinExecutor);
+            services.AddSingleton<IBuiltInAgentExecution>(builtinExecutor);
             XTrace.Log.Info("[AIAgentPlugin] 已注册 IBuiltInAgentExecution（内置 AI Agent 执行接缝）");
         }
 
         // eager 提供 IScheduledAgentRunTrigger：调度器经 ctx.Get 到点创建 Run。
         // 与内置执行同一 lifetime（插件存活的 scope），卸载时 effect 先摘共享表再释放 scope。
-        if (services != null)
+        if (services != null && eagerScope != null)
         {
-            var scheduleScope = services.BuildServiceProvider().CreateScope();
-            ctx.Effect(() => scheduleScope);
-            var scheduleTrigger = scheduleScope.ServiceProvider.GetRequiredService<IScheduledAgentRunTrigger>();
+            var scheduleTrigger = eagerScope.ServiceProvider.GetRequiredService<IScheduledAgentRunTrigger>();
             ctx.Register<IScheduledAgentRunTrigger>(scheduleTrigger);
+            services.AddSingleton<IScheduledAgentRunTrigger>(scheduleTrigger);
             XTrace.Log.Info("[AIAgentPlugin] 已注册 IScheduledAgentRunTrigger（本机计划任务触发 MAF Run）");
+        }
+
+        // eager 提供 IAgentRunDispatch（PILOT-079）：IM 网关经 ctx.Get 把消息派成 MAF Run。
+        // 与 IScheduledAgentRunTrigger 同一 lifetime（插件存活的 scope），卸载时 effect 先摘共享表再释放 scope。
+        if (services != null && eagerScope != null)
+        {
+            var dispatch = eagerScope.ServiceProvider.GetRequiredService<IAgentRunDispatch>();
+            ctx.Register<IAgentRunDispatch>(dispatch);
+            services.AddSingleton<IAgentRunDispatch>(dispatch);
+            XTrace.Log.Info("[AIAgentPlugin] 已注册 IAgentRunDispatch（IM 网关派任务接缝，PILOT-079）");
         }
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
@@ -271,7 +296,7 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var plannerService = scope.ServiceProvider.GetRequiredService<IWorkflowPlannerService>();
 
             var workflow = await plannerService.PlanWorkflowAsync(userRequest, availableTools);

@@ -356,7 +356,7 @@ public class GetPersonalStatsToolFunction : IToolFunctionExtension
             if (root.TryGetProperty("timeRange", out var rangeProp))
                 timeRange = rangeProp.GetString() ?? "30d";
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var usageStatsService = scope.ServiceProvider.GetRequiredService<IUsageStatsService>();
 
             var stats = await usageStatsService.GetPersonalLibraryStatsAsync(timeRange);
@@ -488,7 +488,7 @@ public class GetRecommendationsToolFunction : IToolFunctionExtension
             if (root.TryGetProperty("limit", out var limitProp))
                 limit = limitProp.GetInt32();
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var recommendationService = scope.ServiceProvider.GetRequiredService<IWorkflowRecommendationService>();
 
             var request = new ContextualRecommendationRequest

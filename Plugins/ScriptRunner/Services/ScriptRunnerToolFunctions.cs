@@ -72,7 +72,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.GenerateScriptAsync(language, description, requirements);
@@ -191,7 +191,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.AnalyzeScriptErrorAsync(language, code, errorMessage);
@@ -300,7 +300,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.SuggestScriptFixAsync(language, code, errorMessage);

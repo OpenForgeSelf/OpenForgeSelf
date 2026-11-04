@@ -1039,7 +1039,7 @@ public class WorkflowExecutor : IWorkflowExecutor
         {
             if (_serviceProvider == null) return;
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var workflowUsageService = scope.ServiceProvider.GetService<IWorkflowUsageService>();
             if (workflowUsageService == null) return;
 
@@ -1069,7 +1069,7 @@ public class WorkflowExecutor : IWorkflowExecutor
         {
             if (_serviceProvider == null) return;
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var workflowUsageService = scope.ServiceProvider.GetService<IWorkflowUsageService>();
             if (workflowUsageService == null) return;
 

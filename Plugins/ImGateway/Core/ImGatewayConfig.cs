@@ -29,6 +29,51 @@ public class WeComConfig
 
     /// <summary>企微 CLI 可执行文件路径（扫码授权用；空则按环境变量 WECOM_CLI_PATH → 常见路径自动探测）。</summary>
     public string? CliPath { get; set; }
+
+    /// <summary>任务网关配置块（PILOT-079；嵌套对象经 config 端点整包透传，design D1/D2）。</summary>
+    public TaskGatewayConfig TaskGateway { get; set; } = new();
+
+
+}
+
+/// <summary>任务网关配置（PILOT-079 FR-6，v2.2.0）。Enabled=false 时网关行为与 v2.1.1 完全一致。</summary>
+public class TaskGatewayConfig
+{
+    /// <summary>总开关（默认关）。</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>命令前缀（默认「/task 」「任务：」两条；前缀命中即尝试派任务）。</summary>
+    public List<string> CommandPrefixes { get; set; } = ["/task ", "任务："];
+
+    /// <summary>Watcher 轮询间隔秒（默认 10，钳制 3-3600）。</summary>
+    public int PollIntervalSeconds { get; set; } = 60;   // T16：默认 1 分钟节拍（验收#8 用户拍板）
+
+    /// <summary>终态回复最大字符数（默认 1500；超出截断并加「…全文见任务中心 #{RunId}」）。</summary>
+    public int MaxReplyChars { get; set; } = 6000;   // T12：总上限保险丝（0=关），非截断点；超通道阈值走分段
+
+    /// <summary>单条消息分段阈值（T12：超过即分段多次发送；企微智能机器人实测安全值）。</summary>
+    public int MaxCharsPerMessage { get; set; } = 2000;
+
+    /// <summary>任务最长跟进时长（小时，默认 24；超时回复指引后不再跟进）。</summary>
+    public int MaxWaitHours { get; set; } = 24;
+
+    /// <summary>默认 Agent（design D2 增补：空=跟随会话绑定；前端「默认 Agent」下拉落点，config 端点整包透传）。</summary>
+    public string? DefaultAgentId { get; set; }
+
+    /// <summary>IM 审批子开关（默认开；关=审批关键字不拦截，一律走聊天链路）。</summary>
+    public bool ImApprovalEnabled { get; set; } = true;
+
+    /// <summary>执行进展推送子开关（T16：快照变化即推简短进展；默认开，可关防刷屏）。</summary>
+    public bool ProgressPushEnabled { get; set; } = true;
+
+    /// <summary>无进展判卡住的分钟数（T16：连续 N 分钟无变化才通知，默认 5——与 AIAgent 侧 300s 对齐）。</summary>
+    public int StalledMinutes { get; set; } = 5;
+
+    /// <summary>同意关键字（默认 同意/批准）。</summary>
+    public List<string> ApproveKeywords { get; set; } = ["同意", "批准"];
+
+    /// <summary>拒绝关键字（默认 拒绝/驳回）。</summary>
+    public List<string> RejectKeywords { get; set; } = ["拒绝", "驳回"];
 }
 
 /// <summary>插件总配置（v2.0.0：仅企微长连接一通道，持久化为加密落库）。</summary>

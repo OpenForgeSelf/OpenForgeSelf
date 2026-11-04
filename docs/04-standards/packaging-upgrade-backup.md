@@ -137,6 +137,18 @@
 | `POST /api/plugin/rollback/{id}` `{version}` | 只校验 `versions/<version>/` 存在（`:200-205`），**不比版本号** | 最稳的强制激活；但页面入口是「版本历史」弹窗，而该弹窗受下述缺陷影响 |
 | `disable` → `enable` | 启用时重走 `ResolveEntryAssemblyPath`，`versions/<current>/` 优先 | 需 `current` 已指向目标版本 |
 
+### 1.8.1 全新插件首次安装（不动宿主）——动线与已知缺口（2026-11-04 输入3 问答读码沉淀）
+
+> 区别于上表「**已装插件**换版本」：新插件此前从未被宿主扫描过，上表三条口子都帮不上（`update`/`rollback` 都要求 `metadata` 已在内存）。**架构事实**：插件 = 独立程序集 + 顶层 `plugin.json` 清单，宿主代码/二进制零改动，只要落进**两路扫描根**任一路即可被识别（`PluginManager.cs:303-375`：内置根 `versions/<ver>/plugins/` + 数据根 `~/.forgeself/plugins/`，同 Id 按版本裁决，裁决细则见 §1.7）。
+
+| 动线 | 步骤 | 生效时机 | 现状 |
+| --- | --- | --- | --- |
+| ① 在线安装（不重启，**当前有缺陷候选**） | `pwsh scripts/package-plugin.ps1 -Plugin <PascalCase目录名>` 打出 `<id>-<ver>.forgeself-plugin`（`package-plugin.ps1:11-18`，`-Plugin` 传目录名非 id）→ 页面 `/plugins/import-export` 导入页上传（`router/index.ts:124-126`，插件市场左栏有链接 `PluginStore.vue:307`），或直接 `POST /api/plugin/install`（multipart 上传，`PluginController.cs:743-803`：校验包 → `InstallFromPackage` 应扁平落 `<pluginsDir>/<kebab-id>`（`PluginInstallerService.cs:60-66`）→ `DiscoverPlugins()` 重扫 `:776`）→ `POST /api/plugin/<id>/enable` 启用（`PluginController.cs:155`；重扫只登记 `NotLoaded`，`PluginManager.cs:361`，真正加载靠 enable） | 安装后即扫到，enable 后即加载，宿主不重启 | ⚠️ **缺陷候选（Inferred，读码未实测，见 TODO）**：`PluginInstallerService.Initialize(pluginsDirectory)` 全仓无调用（`AppBuilder.cs:447` 只 Initialize 了 `PluginVersionService`）⇒ `_pluginsDirectory` 恒空串 ⇒ 解包落点 = 宿主进程 CWD 相对路径，不在两路根内 ⇒ 重扫扫不到、装完不可见。实测复现后再修 |
+| ② 数据根手工放置 + 冷启动（不重启的替代，最稳兜底） | 插件目录（顶层必须有 `plugin.json` + 入口 DLL + `deps.json` + `web/dist/*`）放 `~/.forgeself/plugins/<kebab-id>/` | 宿主**下次冷启动**自动扫描加载（文件监视器 2026-09-24 已移除，运行中放文件不生效，§1.7 末行）；不动宿主任何二进制 | 可用；数据根是跨版本持久层，插件库落点登记见 `ForgeSelf.Api/Plugins/README.md` §三 |
+| ③ 随宿主整包走本地目录更新源（默认交付主路径） | 源码 `Plugins/<X>/` 开发（登记三处：XCodeConfig.PluginDbs / ForgeSelf.Api.csproj / 测试 csproj，plugin-development 铁律 12b）→ `release-local.ps1 -Sign -UpdateDir`（L1 不变量：包内必须含 `versions/<ver>/plugins/<Id>/plugin.json`）→ 用户设置页点「检查更新→下载→重启并更新」 | update-agent 自更新重启后出现（「重启」是宿主自更新，无人手动停宿主，不属"动宿主"） | 成熟主路径；宿主二进制不变、只是整包携带新插件 |
+
+**纪律**：agent 触碰运行实例（动线①的导入/update、动线②的放置）须先获用户同意（plugin-publish-verify / plugin-development 铁律 16）；开发期验证一律 dev-stack + 隔离 e2e 实例，不碰用户实例。
+
 **已知宿主缺陷（本批未修，见 TODO）**：① `PluginVersionService.cs:126` 用 `_pluginsDirectory + pluginId` 硬拼路径，
 不用 `metadata.PluginDirectory`、不跟随两路根 ⇒ 内置根 PascalCase 目录与数据根插件的**版本历史查不到**
 （实测 `GET /api/plugin/tool-bridge/versions` 只回内存那一条，`versions/1.0.3` 在盘上也不显示）⇒ 页面「回滚」按钮出不来；

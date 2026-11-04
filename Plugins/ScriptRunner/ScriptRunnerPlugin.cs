@@ -187,7 +187,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var scriptService = scope.ServiceProvider.GetRequiredService<IScriptService>();
             var scriptExecutor = scope.ServiceProvider.GetRequiredService<IScriptExecutor>();
 
@@ -315,7 +315,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var scriptService = scope.ServiceProvider.GetRequiredService<IScriptService>();
 
             var paramsDoc = JsonDocument.Parse(parameters);
@@ -460,7 +460,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var scriptExecutor = scope.ServiceProvider.GetRequiredService<IScriptExecutor>();
 
             var paramsDoc = JsonDocument.Parse(parameters);

@@ -6,7 +6,7 @@
  * 设计对齐 DESIGN.md：PageHead / ForgeCard / EmptyState / token 引用禁裸色值。
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import ForgeCard from '@/components/ForgeCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -15,6 +15,7 @@ import {
   fetchSchedulerLastFailure,
   fetchTaskCenterItems,
   resumePlannedRun,
+  cancelRun,
   runSchedulerNow,
 } from '@/services/taskCenterApi'
 import type { BucketErrors, TaskOverviewItem, TaskSource, TaskStatus } from '@/services/taskCenterApi'
@@ -189,8 +190,10 @@ const bucketErrorLines = computed(() =>
 
 function onRowActivate(item: TaskOverviewItem): void {
   // 行主点击 = 去来源页处理；定时任务无独立配置页，不响应
-  if (item.source === 'scheduler') return
-  openPage('/ai-agent', '智能体')
+  // T9 深链（PILOT-079 R2）：planned 带 runId 直达 Run 执行视图；open 带会话 id 直达对应会话
+  const deepQuery: Record<string, string> =
+    item.source === 'planned' ? { runId: item.sourceRef } : { session: item.sourceRef }
+  openPage({ path: '/ai-agent', query: deepQuery }, '智能体')
 }
 
 function onOpenAgent(): void {
@@ -213,6 +216,33 @@ async function onResume(item: TaskOverviewItem): Promise<void> {
     void refresh(false)
   }
 }
+
+/** 终止任务（POST cancelUrl；破坏性动作先确认——取消/关弹窗不发起任何请求） */
+async function onStop(item: TaskOverviewItem): Promise<void> {
+  if (!item.cancelUrl || actingIds.value.has(item.id)) return
+  try {
+    await ElMessageBox.confirm(
+      '终止后该任务不再执行，已产生的产物保留。确定终止？',
+      '终止任务',
+      { type: 'warning', confirmButtonText: '终止', cancelButtonText: '取消' }
+    )
+  } catch {
+    return // 用户取消/关弹窗
+  }
+  actingIds.value.add(item.id)
+  try {
+    const outcome = await cancelRun(item.cancelUrl)
+    if (outcome.ok) {
+      ElMessage.success(outcome.message || '已终止')
+    } else {
+      ElMessage.error(outcome.message || '终止失败')
+    }
+  } finally {
+    actingIds.value.delete(item.id)
+    void refresh(false)
+  }
+}
+
 
 /** 立即运行定时任务（POST run-now） */
 async function onRunNow(item: TaskOverviewItem): Promise<void> {
@@ -324,7 +354,13 @@ onUnmounted(() => {
                 class="tc-btn tc-btn-solid"
                 :disabled="isActing(item)"
                 @click="onResume(item)"
-              >{{ isActing(item) ? '执行中…' : '重试' }}</button>
+              >{{ isActing(item) ? '执行中…' : (item.status === 'stuck' ? '继续' : '重试') }}</button>
+              <button
+                v-if="item.cancelUrl"
+                class="tc-btn"
+                :disabled="isActing(item)"
+                @click="onStop(item)"
+              >{{ isActing(item) ? '处理中…' : '终止' }}</button>
               <button
                 v-if="item.runNowUrl && item.status === 'scheduled'"
                 class="tc-btn"
@@ -578,12 +614,19 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--el-color-success) 14%, transparent);
 }
 
-.tc-badge[data-status='failed'],
-.tc-badge[data-status='stuck'] {
+.tc-badge[data-status='failed'] {
   color: var(--cinnabar-400);
   border-color: color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
   background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
 }
+
+/* T15: stuck=awaiting-human, warning orange; failed stays red; pending group stays gold */
+.tc-badge[data-status='stuck'] {
+  color: var(--el-color-warning);
+  border-color: color-mix(in srgb, var(--el-color-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--el-color-warning) 14%, transparent);
+}
+
 
 .tc-badge[data-status='cancelled'],
 .tc-badge[data-status='unknown'] {

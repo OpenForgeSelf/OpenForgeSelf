@@ -21,15 +21,18 @@ public class ImGatewayRouter
     private readonly DbSessionStore _sessionStore;
     private readonly ImGatewayMessageStore _messageStore;
     private readonly Dictionary<string, IImChannel> _channels;
+    private readonly ImTaskDispatcher _taskDispatcher;
 
     public ImGatewayRouter(IContext ctx, IConfigStore configStore, DbSessionStore sessionStore,
-        ImGatewayMessageStore messageStore, IEnumerable<IImChannel> channels)
+        ImGatewayMessageStore messageStore, IEnumerable<IImChannel> channels, ImTaskDispatcher? taskDispatcher = null)
     {
         _ctx = ctx;
         _configStore = configStore;
         _sessionStore = sessionStore;
         _messageStore = messageStore;
         _channels = channels.ToDictionary(c => c.ChannelType, c => c);
+        // 缺省补齐：旧调用方未显式传派发器时按真实依赖就地组装（与 DI 注册同形）
+        _taskDispatcher = taskDispatcher ?? new ImTaskDispatcher(ctx, messageStore, _channels.Values);
     }
 
     /// <summary>处理一条入站消息：去重 → 映射会话 → 调 AI → 回发。全程吞异常，绝不阻塞网关。</summary>
@@ -70,6 +73,13 @@ public class ImGatewayRouter
             // 4.5) 消息落库（PILOT-078 ①）：会话映射后记入站 in（事件消息/空内容已在上面提前返回，天然不入表）
             var channelKey = ImChannelKeys.Build(inbound.ChannelType, inbound.ConversationId, inbound.PlatformUserId);
             _messageStore.RecordInbound(channelKey, inbound.ChannelType, inbound.Content, inbound.MsgId, sessionId);
+            // 4.6) 任务网关分支（PILOT-079）：Enabled 时按「任务前缀 > 审批关键字 > 任务状态 > 聊天」分流；
+            // Dispatcher 返回 false = 非任务消息，走原聊天链路（本分支零旁路、零误伤）。
+            if (wecomCfg.TaskGateway?.Enabled == true)
+            {
+                var handled = await _taskDispatcher.HandleAsync(inbound, wecomCfg, channelKey, sessionId, agentId, modelId, cancellationToken);
+                if (handled) return;
+            }
 
             // 5) 调 AI（跨插件契约，AIAgent 提供实现）
             var chat = _ctx.Get<IChatCompletion>();

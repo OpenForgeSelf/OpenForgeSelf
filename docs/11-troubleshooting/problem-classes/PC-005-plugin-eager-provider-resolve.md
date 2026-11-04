@@ -5,15 +5,17 @@ tags: [plugin-di, ctx-register, service-provider-scope]
 invariant: 插件侧任何经 IContext / 宿主 provider 的服务解析必须发生在执行期（每次调用内建 scope 或 ctx.Get）；构造期 eager 解析早于宿主 ProvideHostServices seed、或解析到插件子容器 ⇒ 恒空 / IServiceScopeFactory 未注册
 status: guarded
 first_seen: 2026-10-08
-recurrences: [2026-10-17-gateway-list-todos-scope]
-cases: [2026-10-17-gateway-list-todos-scope]
+recurrences: [2026-10-17-gateway-list-todos-scope, 2026-11-04-raw-createscope-on-ctx-sweep]
+cases: [2026-10-17-gateway-list-todos-scope, 2026-11-04-raw-createscope-on-ctx-sweep]
 signature:
   - {id: S1, kind: test, path: ForgeSelf.Api.Tests/Plugins/TodoTracker/UniversalGatewayListTodosScopeRegressionTests.cs}
   - {id: S2, kind: test, path: ForgeSelf.Api.Tests/Architecture/PluginToolConstructorDiGuardTests.cs}
+  - {id: S3, kind: test, path: ForgeSelf.Api.Tests/Architecture/PluginRawCreateScopeGuardTests.cs}
 allowlist: []
 guards:
   - {level: G1, path: ForgeSelf.Api.Tests/Plugins/TodoTracker/UniversalGatewayListTodosScopeRegressionTests.cs, status: active}
   - {level: G2, path: ForgeSelf.Api.Tests/Architecture/PluginToolConstructorDiGuardTests.cs, status: active}
+  - {level: G2, path: ForgeSelf.Api.Tests/Architecture/PluginRawCreateScopeGuardTests.cs, status: active}
 lens:
   - 工具/服务类的构造函数里有没有 `provider.GetService` / `scope.ServiceProvider` 取宿主服务的动作（应改为执行期取）？
   - 单例 `Initialize`/seed 时序：被调用顺序在宿主 `ProvideHostServices` 之后吗？解析用的是哪个 provider（插件子容器 vs root）？

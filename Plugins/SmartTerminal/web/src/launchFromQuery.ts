@@ -16,6 +16,8 @@ export interface ParsedLaunch {
   passwordInUrl: boolean
   /** 供 UI 展示的摘要（已脱敏） */
   summary: string
+  /** 当次策略覆盖（来自 st_url_password_mode） */
+  urlPasswordMode?: string
 }
 
 function pick(params: URLSearchParams, ...keys: string[]): string | undefined {
@@ -82,7 +84,8 @@ export function parseLaunchQuery(search: string): ParsedLaunch | null {
   if (passwordInUrl) summaryParts.push('password=***REDACTED***')
   if (request.commands?.length) summaryParts.push(`cmds=${request.commands.length}`)
 
-  return { request, passwordInUrl, summary: summaryParts.join(' · ') }
+  const urlPasswordMode = pick(params, 'st_url_password_mode', 'url_password_mode')
+  return { request, passwordInUrl, summary: summaryParts.join(' · '), urlPasswordMode }
 }
 
 /** 从当前地址栏移除敏感 query，并去掉一次性 launch 触发标记（避免刷新重复启动）。 */

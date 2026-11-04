@@ -2,7 +2,7 @@
 
 # 智能终端（SmartTerminal）
 
-会话化、可审批、可审计的本机终端插件。默认权限模式 **AskWrite**。
+可审批、可审计的**命令会话**插件（非完整交互式 PTY）。默认权限模式 **AskWrite**。
 
 ## 行业对齐
 
@@ -67,3 +67,7 @@ pnpm run ct:server   # http://127.0.0.1:5190/ 侧栏 SmartTerminal
 ```
 
 `POST /api/smart-terminal/launch` 与上表字段对等。密码风险见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。
+
+## 密码深链策略（前端）
+
+见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。默认 `always-ack`；内网可设 `intranet`；公网演示可设 `disabled`。

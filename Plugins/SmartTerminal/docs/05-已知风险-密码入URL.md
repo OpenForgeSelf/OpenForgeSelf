@@ -1,38 +1,45 @@
-# 05 · 已知风险：密码进入 URL（产品必读）
+# 05 · 已知风险：密码进入 URL（产品结论）
+
+> **PM 结论（2026-11-04）**：URL 密码 = **内网过渡能力，非推荐默认**；必须落地知情确认与其它缓解。公网/演示默认 `always-ack` 或 `disabled`。
 
 ## 1. 为什么危险
-
-即使用户要求「URL 带 host/user/password 自动 SSH」，也必须正视：
 
 | 风险面 | 说明 |
 |--------|------|
 | 浏览器历史 | 明文密码留在 History / 同步账号 |
 | 代理与访问日志 | Referer、反向代理 access.log、APM |
 | 截屏 / 分享 | 复制链接即泄露 |
-| 进程列表 | 若误把密码写进 argv（我们避免了 `-p password`）仍可能被其它用户窥视环境 |
-| 肩窥 | 地址栏可见 |
+| 进程列表 | 误入 argv 可被窥视（实现上避免 `-p password`，只用 `SSHPASS` 环境） |
+| 肩窥 | 确认前地址栏可能曾可见 |
 
-**结论：可以做「内网过渡能力」，不能当默认推荐。**
+## 2. 必做缓解（已实现 / 须保持）
 
-## 2. 本版本已做的缓解
+1. 读入后立即 **`history.replaceState` scrub** password/pwd 等键  
+2. 密码 **不进** JSONL / 命令历史 / 系统回显原文；审计仅 `passwordProvided` + 脱敏命令  
+3. 只注入进程环境 **`SSHPASS`** + `sshpass -e`；执行结束清空 EphemeralEnv  
+4. **首次/每次「我已知晓风险」勾选** 后方可继续（见 02 策略开关）  
+5. UI 黄条警告 + 本页文档  
+6. 产品主推 **`auth=key`**；交互输入密码 / vault 为后续排期  
 
-1. **读入后立即 `history.replaceState`** 去掉 password/pwd 等键  
-2. **密码不进 JSONL / 命令历史 / 系统回显原文**；审计只有 `passwordProvided=true` 与脱敏命令  
-3. **只注入进程环境 `SSHPASS`**，配合 `sshpass -e`；执行结束清空 `EphemeralEnv`  
-4. UI **黄条警告** + 文档本页  
-5. 推荐路径写进协议：`auth=key` + `identityFile`
+## 3. 推荐替代（优先推广）
 
-## 3. 产品推荐替代（请优先推广）
+1. SSH 公钥：`type=ssh&auth=key&identityFile=...`  
+2. 标签内交互输入一次密码（排期）  
+3. 堡垒机一次性短票（排期 / 后续）  
+4. 宿主 vault → API 内存传递，永不进 query（排期）  
 
-1. **SSH 公钥**：`type=ssh&auth=key&identityFile=~/.ssh/id_ed25519`  
-2. **打开标签后交互输入一次密码**（不走 URL；后续可做受控输入框，不进历史）  
-3. **一次性 Token / 堡垒机短票**（短期有效，可进 URL 但可吊销）  
-4. **Agent 侧保险库**：宿主 vault 取密，插件 API 内存传递，永不进 query  
+## 4. 产品经理确认（已勾选）
 
-## 4. 请产品经理确认
+- [x] URL 密码仅作**内网过渡**；公网/演示默认关闭（`disabled`）或**每次**二次确认（`always-ack`，当前默认）  
+- [x] UI 使用密码深链前须「我已知晓风险」勾选（`intranet` 下可首次后记住）  
+- [x] 排期「交互输入密码 / vault 注入」以替代 URL 密码；上线文案主推密钥  
 
-- [ ] 是否允许在**仅内网**环境启用 URL 密码；公网/演示环境默认关闭或强制二次确认？  
-- [ ] 是否在 UI 首次使用密码深链时增加「我已知晓风险」勾选？  
-- [ ] 是否排期「交互输入密码 / vault 注入」以替代 URL 密码？  
+## 5. 设置速查
 
-> 研发已按当前需求实现 URL+sshpass 路径；**未定稿前不推远程**，便于按评审结果改默认策略。
+```text
+localStorage['forge.self.smart-terminal.url-password-mode.v1']
+  = 'always-ack' | 'intranet' | 'disabled'
+
+localStorage['forge.self.smart-terminal.url-password-risk-ack.v1']
+  = '<ISO timestamp>'   # 仅 intranet 模式跳过重复弹窗
+```

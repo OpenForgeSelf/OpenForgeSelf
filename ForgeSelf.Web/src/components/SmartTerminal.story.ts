@@ -371,6 +371,47 @@ export const stories: ComponentStory[] = [
     },
   },
 
+
+  // 测试状态：密码深链「我已知晓风险」确认模态（未勾选时继续按钮禁用）
+  {
+    id: 'SmartTerminal/PasswordRiskAck',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.1-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        sessions: [],
+        globalMode: 'AskWrite',
+        showPasswordAck: true,
+        passwordAckChecked: false,
+        passwordAckMode: 'always-ack',
+        launchBanner: 'URL 启动：type=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
+        launchWarning: '检测到 URL 密码（内网过渡能力）。请确认风险后再继续；推荐改用 auth=key。',
+        pendingLaunchSummary: 'type=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：知情确认已勾选（继续可点）
+  {
+    id: 'SmartTerminal/PasswordRiskAckChecked',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.1-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        sessions: [],
+        globalMode: 'AskWrite',
+        showPasswordAck: true,
+        passwordAckChecked: true,
+        passwordAckMode: 'intranet',
+        launchBanner: 'URL 启动：type=wsl-ssh · host=10.0.0.1 · user=ops · password=***REDACTED***',
+        launchWarning: '内网模式：确认后将记住本浏览器的知情状态。',
+      } satisfies SmartTerminalFixture,
+    },
+  },
   // 测试状态：URL 启动本地壳 + 命令列表横幅
   {
     id: 'SmartTerminal/UrlLaunchLocal',

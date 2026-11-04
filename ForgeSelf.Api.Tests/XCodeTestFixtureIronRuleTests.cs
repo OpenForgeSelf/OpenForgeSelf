@@ -19,6 +19,7 @@ public class XCodeTestFixtureIronRuleTests
     private static readonly HashSet<string> Allowlist = new(StringComparer.OrdinalIgnoreCase)
     {
         "Integration\\ChatControllerIntegrationTests.cs",
+        "Plugins\\DbAdminTests\\DbAdminTestFixture.cs", // 2026-11-05 并入：插件自有库三连绑（DbAdmin/HostDemo/seed），与 Sems/DesignSystem 同型；迁移挂账 TODO
         "Integration\\ChatControllerInvariantTests.cs",
         "Integration\\ChatProjectionRaceTests.cs",
         "Plugins\\AgentHub\\AgentHubDelegationRuntimeTests.cs",

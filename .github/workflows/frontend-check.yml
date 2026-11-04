@@ -24,15 +24,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # pnpm 必须先于 setup-node 安装：setup-node 的 cache: "pnpm" 会先执行 `pnpm store path`，
+      # pnpm 不在 PATH 时该步直接报「Unable to locate executable file: pnpm」（PR#2 CI 实测失败点）。
+      # 旧 `corepack enable` 在新 runner 上不可靠；与 release.yml 同参改用 pnpm/action-setup@v4，
+      # 10.13.1 对齐 ForgeSelf.Web/package.json 的 packageManager 字段（pnpm-lock.yaml lockfileVersion 9.0 同源）。
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "pnpm"
           cache-dependency-path: ForgeSelf.Web/pnpm-lock.yaml
-
-      - name: Enable pnpm
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

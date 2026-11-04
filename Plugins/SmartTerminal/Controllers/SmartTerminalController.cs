@@ -80,6 +80,29 @@ public class SmartTerminalController : ControllerBase
             var result = _sessions.Launch(request ?? new LaunchTerminalRequest());
             return Ok(ApiResponse<LaunchTerminalResponse>.Ok(result, result.Message));
         }
+        catch (InteractivePasswordRequiredException ex)
+        {
+            // S5：无密 interactive 不建会话；返回可识别 JSON 供联调/误调兜底
+            XTrace.Log.Info("[SmartTerminal] launch 需要交互密码: {0}", ex.Message);
+            var profileHint = !string.IsNullOrWhiteSpace(request?.Profile)
+                ? request!.Profile
+                : request?.Type;
+            var payload = new LaunchTerminalResponse
+            {
+                NeedsInteractivePassword = true,
+                Message = ex.Message,
+                LaunchType = string.IsNullOrWhiteSpace(profileHint) ? "ssh" : profileHint!,
+                Profile = profileHint,
+                PasswordProvided = false
+            };
+            return BadRequest(new ApiResponse<LaunchTerminalResponse>
+            {
+                Success = false,
+                Code = 400,
+                Message = SecretRedactor.Redact(ex.Message),
+                Data = payload
+            });
+        }
         catch (Exception ex)
         {
             XTrace.Log.Warn("[SmartTerminal] launch 失败: {0}", SecretRedactor.Redact(ex.Message));

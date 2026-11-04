@@ -368,6 +368,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
         s.Closed = true;
         s.Status = "closed";
         s.UpdatedAt = DateTimeOffset.UtcNow;
+        s.SessionEnv.Clear();
         try { s.ActiveProcess?.Kill(entireProcessTree: true); } catch { /* ignore */ }
         _audit.Append(new AuditEventDto
         {
@@ -424,6 +425,15 @@ public sealed class TerminalSessionService : ITerminalSessionService
         var auth = (request.Auth ?? (passwordProvided ? "sshpass" : "interactive")).Trim().ToLowerInvariant();
         if (auth is "password") auth = "sshpass";
 
+        // S5：interactive（或缺省且无密）且未提供 password → 不创建会话，由前端先收密
+        if (type is "ssh" or "wsl-ssh")
+        {
+            if (auth == "interactive" && !passwordProvided)
+                throw new InteractivePasswordRequiredException();
+            if (auth == "sshpass" && !passwordProvided)
+                throw new InvalidOperationException("auth=sshpass 需要 password");
+        }
+
         // Windows + 密码 SSH：默认走 WSL sshpass（可用 type=wsl-ssh 强制）
         var isWindows = OperatingSystem.IsWindows();
         if (type == "ssh" && passwordProvided && auth == "sshpass" && isWindows)
@@ -455,7 +465,9 @@ public sealed class TerminalSessionService : ITerminalSessionService
         s.LaunchType = type;
         s.RemoteHost = request.Host;
         s.RemoteUser = request.User;
+        ApplySessionEnv(s, request.Env);
 
+        var envAudit = SecretRedactor.RedactEnvForAudit(s.SessionEnv.Count > 0 ? s.SessionEnv : null);
         _audit.Append(new AuditEventDto
         {
             EventId = NewId("evt"),
@@ -466,6 +478,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
             ShellId = s.Shell.Id,
             Cwd = s.Cwd,
             Detail = $"profile={(string.IsNullOrWhiteSpace(request.Profile) ? type : request.Profile)}; type={type}; auth={auth}; host={request.Host}; user={request.User}; passwordProvided={passwordProvided}"
+                     + (string.IsNullOrEmpty(envAudit) ? "" : $"; env=[{envAudit}]")
         });
 
         var results = new List<RunCommandResponse>();
@@ -481,16 +494,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
             var (bootCmd, env) = BuildSshBootstrap(type, auth, request, password);
             password = null; // 不再持有明文
             env ??= new Dictionary<string, string>(StringComparer.Ordinal);
-            if (request.Env != null)
-            {
-                foreach (var kv in request.Env)
-                {
-                    if (string.IsNullOrEmpty(kv.Key)) continue;
-                    // 不允许调用方覆盖 SSHPASS
-                    if (string.Equals(kv.Key, "SSHPASS", StringComparison.OrdinalIgnoreCase)) continue;
-                    env[kv.Key] = kv.Value ?? "";
-                }
-            }
+            MergeEnvSkippingSshPass(env, request.Env);
             results.Add(RunBootstrap(s, bootCmd, env, redactedLabel: BuildSshRedactedLabel(type, auth, request)));
         }
         else
@@ -498,13 +502,10 @@ public sealed class TerminalSessionService : ITerminalSessionService
             password = null;
         }
 
-        if (request.Commands != null)
+        foreach (var line in ExpandLaunchCommands(request))
         {
-            foreach (var c in request.Commands)
-            {
-                if (string.IsNullOrWhiteSpace(c)) continue;
-                results.Add(ProposeOrRun(s.SessionId, c, autoApproveIfAllowed: true));
-            }
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            results.Add(ProposeOrRun(s.SessionId, line, autoApproveIfAllowed: true));
         }
 
         return new LaunchTerminalResponse
@@ -516,7 +517,7 @@ public sealed class TerminalSessionService : ITerminalSessionService
             Message = $"已启动 {type} 会话",
             PasswordProvided = passwordProvided,
             Warning = warning,
-            NeedsInteractivePassword = !passwordProvided && auth == "interactive" && (type == "ssh" || type == "wsl-ssh")
+            NeedsInteractivePassword = false
         };
     }
 
@@ -564,7 +565,10 @@ public sealed class TerminalSessionService : ITerminalSessionService
     {
         var t = (type ?? "local").Trim().ToLowerInvariant();
         if (t.StartsWith("custom:", StringComparison.Ordinal))
-            return "local"; // custom 配置表合并前先落本地壳；完整 custom 解析排期
+        {
+            throw new ArgumentException(
+                "本里程碑不支持 custom profile（custom:<id>）；仅支持 local / ssh / wsl-ssh。请改用已实现的 profile，勿静默降级为 local。");
+        }
         return t switch
         {
             "local" or "shell" or "bash" => "local",
@@ -572,6 +576,81 @@ public sealed class TerminalSessionService : ITerminalSessionService
             "wsl-ssh" or "wslssh" or "wsl_ssh" => "wsl-ssh",
             _ => t
         };
+    }
+
+    /// <summary>
+    /// Steps 优先：有结构化 Steps 时只展开 Steps（前端常同时带已扁平的 commands，避免重复执行）；
+    /// 无 Steps 时回退扁平 Commands。
+    /// </summary>
+    private static List<string> ExpandLaunchCommands(LaunchTerminalRequest request)
+    {
+        var lines = new List<string>();
+        if (request.Steps is { Count: > 0 })
+        {
+            foreach (var step in request.Steps)
+            {
+                var flat = FlattenLaunchStep(step);
+                if (!string.IsNullOrWhiteSpace(flat))
+                    lines.Add(flat);
+            }
+            return lines;
+        }
+        if (request.Commands != null)
+        {
+            foreach (var c in request.Commands)
+            {
+                if (string.IsNullOrWhiteSpace(c)) continue;
+                lines.Add(c);
+            }
+        }
+        return lines;
+    }
+
+    private static string FlattenLaunchStep(LaunchStep? step)
+    {
+        if (step == null) return string.Empty;
+        var cmd = (step.Command ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(cmd)) return string.Empty;
+        if (step.Args == null || step.Args.Count == 0) return cmd;
+        var parts = new List<string> { cmd };
+        foreach (var a in step.Args)
+        {
+            if (a == null) continue;
+            parts.Add(QuoteArgPosix(a));
+        }
+        return string.Join(' ', parts);
+    }
+
+    private static string QuoteArgPosix(string arg)
+    {
+        // 无空白与危险元字符时可裸传；否则单引号包裹
+        if (arg.Length > 0
+            && !arg.Any(c => char.IsWhiteSpace(c) || ";&|$`\"'<>()".Contains(c)))
+            return arg;
+        return "'" + arg.Replace("'", "'\''") + "'";
+    }
+
+    private static void ApplySessionEnv(SessionState s, Dictionary<string, string>? env)
+    {
+        s.SessionEnv.Clear();
+        if (env == null) return;
+        foreach (var kv in env)
+        {
+            if (string.IsNullOrEmpty(kv.Key)) continue;
+            if (string.Equals(kv.Key, "SSHPASS", StringComparison.OrdinalIgnoreCase)) continue;
+            s.SessionEnv[kv.Key] = kv.Value ?? "";
+        }
+    }
+
+    private static void MergeEnvSkippingSshPass(Dictionary<string, string> target, Dictionary<string, string>? env)
+    {
+        if (env == null) return;
+        foreach (var kv in env)
+        {
+            if (string.IsNullOrEmpty(kv.Key)) continue;
+            if (string.Equals(kv.Key, "SSHPASS", StringComparison.OrdinalIgnoreCase)) continue;
+            target[kv.Key] = kv.Value ?? "";
+        }
     }
 
     private static string BuildSshRedactedLabel(string type, string auth, LaunchTerminalRequest request)
@@ -685,6 +764,12 @@ public sealed class TerminalSessionService : ITerminalSessionService
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
+            // 会话级 env（local/后续命令）；禁止用调用方覆盖已有 SSHPASS（仅 ephemeral 可设）
+            foreach (var kv in s.SessionEnv)
+            {
+                if (string.Equals(kv.Key, "SSHPASS", StringComparison.OrdinalIgnoreCase)) continue;
+                psi.Environment[kv.Key] = kv.Value;
+            }
             if (cmd.EphemeralEnv != null)
             {
                 foreach (var kv in cmd.EphemeralEnv)
@@ -817,23 +902,49 @@ public sealed class TerminalSessionService : ITerminalSessionService
             ? s
             : throw new KeyNotFoundException($"会话不存在: {sessionId}");
 
-    private static TerminalSessionDto ToDto(SessionState s) => new()
+    private static TerminalSessionDto ToDto(SessionState s)
     {
-        SessionId = s.SessionId,
-        Title = s.Title,
-        ShellId = s.Shell.Id,
-        ShellDisplayName = s.Shell.DisplayName,
-        Cwd = s.Cwd,
-        PermissionMode = s.PermissionMode,
-        Status = s.Status,
-        AgentId = s.AgentId,
-        CreatedAt = s.CreatedAt,
-        UpdatedAt = s.UpdatedAt,
-        CommandCount = s.Commands.Count,
-        LaunchType = s.LaunchType,
-        RemoteHost = s.RemoteHost,
-        RemoteUser = s.RemoteUser
-    };
+        var processAlive = false;
+        try
+        {
+            var p = s.ActiveProcess;
+            processAlive = p != null && !p.HasExited;
+        }
+        catch
+        {
+            processAlive = false;
+        }
+
+        var reconnectable = !s.Closed;
+        string? hint;
+        if (!reconnectable)
+            hint = "会话已关闭，请重新 launch / 新建。";
+        else if (processAlive)
+            hint = "会话可重连拉 output；活动进程仍在。";
+        else
+            hint = "会话对象仍在，可继续拉 output；活动进程可能已退出。缺密 SSH 需重新走交互密码后再 launch。";
+
+        return new TerminalSessionDto
+        {
+            SessionId = s.SessionId,
+            Title = s.Title,
+            ShellId = s.Shell.Id,
+            ShellDisplayName = s.Shell.DisplayName,
+            Cwd = s.Cwd,
+            PermissionMode = s.PermissionMode,
+            Status = s.Status,
+            AgentId = s.AgentId,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt,
+            CommandCount = s.Commands.Count,
+            LaunchType = s.LaunchType,
+            RemoteHost = s.RemoteHost,
+            RemoteUser = s.RemoteUser,
+            ProcessAlive = processAlive,
+            Reconnectable = reconnectable,
+            ReconnectHint = hint
+        };
+    }
 
     private static AuditEventDto DeniedEvent(SessionState s, CommandState cmd, string detail) => new()
     {
@@ -873,6 +984,8 @@ public sealed class TerminalSessionService : ITerminalSessionService
         public string LaunchType { get; set; } = "local";
         public string? RemoteHost { get; set; }
         public string? RemoteUser { get; set; }
+        /// <summary>注入后续命令进程的会话环境（不含 SSHPASS / 密码）。</summary>
+        public Dictionary<string, string> SessionEnv { get; } = new(StringComparer.Ordinal);
     }
 
     private sealed class CommandState

@@ -68,11 +68,44 @@ public sealed class TerminalSessionDto
     public string LaunchType { get; init; } = "local";
     public string? RemoteHost { get; init; }
     public string? RemoteUser { get; init; }
+    /// <summary>当前是否仍有可附着的活动进程（壳/引导命令未退出）。</summary>
+    public bool ProcessAlive { get; init; }
+    /// <summary>刷新后是否可用同一 sessionId 继续拉 output（未 close 即为 true）。</summary>
+    public bool Reconnectable { get; init; }
+    /// <summary>给前端的重连提示；不保证进程在刷新后仍存活。</summary>
+    public string? ReconnectHint { get; init; }
 }
 
 public sealed class RenameSessionRequest
 {
     public string Title { get; set; } = string.Empty;
+}
+
+/// <summary>通用启动器单步：command + 可选 args；亦可整行写入 command。</summary>
+public sealed class LaunchStep
+{
+    public string Command { get; set; } = string.Empty;
+    public List<string>? Args { get; set; }
+}
+
+/// <summary>
+/// SSH/wsl-ssh 且 auth=interactive（或缺省）但未提供 password 时抛出。
+/// 控制器映射为 400 + needsInteractivePassword，且不创建会话。
+/// </summary>
+public sealed class InteractivePasswordRequiredException : InvalidOperationException
+{
+    public const string DefaultMessage =
+        "需要先由前端收集密码再调用 launch（auth=interactive 且未提供 password；本里程碑遵循先框后标签，不创建会话）";
+
+    public InteractivePasswordRequiredException()
+        : base(DefaultMessage)
+    {
+    }
+
+    public InteractivePasswordRequiredException(string message)
+        : base(message)
+    {
+    }
 }
 
 /// <summary>
@@ -89,9 +122,11 @@ public sealed class LaunchTerminalRequest
     public string? Title { get; set; }
     public PermissionMode? PermissionMode { get; set; }
     public string? AgentId { get; set; }
-    /// <summary>会话就绪后顺序执行的命令（由前端 step/run 展开）。</summary>
+    /// <summary>会话就绪后顺序执行的命令（由前端 step/run 展开；扁平兼容）。</summary>
     public List<string>? Commands { get; set; }
-    /// <summary>仅注入本会话进程环境（敏感键仍脱敏审计）。</summary>
+    /// <summary>结构化步骤（优先展开）；亦可与 Commands 一并执行（Steps 在前）。</summary>
+    public List<LaunchStep>? Steps { get; set; }
+    /// <summary>仅注入本会话进程环境（敏感键仍脱敏审计）；禁止覆盖 SSHPASS。</summary>
     public Dictionary<string, string>? Env { get; set; }
     public string? Host { get; set; }
     public int? Port { get; set; } = 22;

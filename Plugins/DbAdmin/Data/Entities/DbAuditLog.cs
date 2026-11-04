@@ -71,6 +71,70 @@ public partial class DbAuditLog
     [BindColumn("Detail", "详情（脱敏）", "", Master = true)]
     public String Detail { get => _Detail; set { if (OnPropertyChanging("Detail", value)) { _Detail = value; OnPropertyChanged("Detail"); } } }
 
+    private String _Source;
+    /// <summary>来源 ui/agent</summary>
+    [DisplayName("来源ui_agent")]
+    [Description("来源 ui/agent")]
+    [DataObjectField(false, false, true, 50)]
+    [BindColumn("Source", "来源 ui/agent", "")]
+    public String Source { get => _Source; set { if (OnPropertyChanging("Source", value)) { _Source = value; OnPropertyChanged("Source"); } } }
+
+    private String _SessionId;
+    /// <summary>Agent 会话标识（仅 agent）</summary>
+    [DisplayName("Agent会话标识（仅agent）")]
+    [Description("Agent 会话标识（仅 agent）")]
+    [DataObjectField(false, false, true, 100)]
+    [BindColumn("SessionId", "Agent 会话标识（仅 agent）", "")]
+    public String SessionId { get => _SessionId; set { if (OnPropertyChanging("SessionId", value)) { _SessionId = value; OnPropertyChanged("SessionId"); } } }
+
+    private String _Status;
+    /// <summary>结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）</summary>
+    [DisplayName("结果状态ok_awaiting_approval_rejected_error（kind=agent摘要用）")]
+    [Description("结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）")]
+    [DataObjectField(false, false, true, 50)]
+    [BindColumn("Status", "结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）", "")]
+    public String Status { get => _Status; set { if (OnPropertyChanging("Status", value)) { _Status = value; OnPropertyChanged("Status"); } } }
+
+    private String _Code;
+    /// <summary>错误码（kind=agent 摘要用）</summary>
+    [DisplayName("错误码（kind=agent摘要用）")]
+    [Description("错误码（kind=agent 摘要用）")]
+    [DataObjectField(false, false, true, 50)]
+    [BindColumn("Code", "错误码（kind=agent 摘要用）", "")]
+    public String Code { get => _Code; set { if (OnPropertyChanging("Code", value)) { _Code = value; OnPropertyChanged("Code"); } } }
+
+    private String _SqlKind;
+    /// <summary>语句类别 read/write（kind=agent 摘要用）</summary>
+    [DisplayName("语句类别read_write（kind=agent摘要用）")]
+    [Description("语句类别 read/write（kind=agent 摘要用）")]
+    [DataObjectField(false, false, true, 50)]
+    [BindColumn("SqlKind", "语句类别 read/write（kind=agent 摘要用）", "")]
+    public String SqlKind { get => _SqlKind; set { if (OnPropertyChanging("SqlKind", value)) { _SqlKind = value; OnPropertyChanged("SqlKind"); } } }
+
+    private Int64 _RowCount;
+    /// <summary>返回行数或影响行数</summary>
+    [DisplayName("返回行数或影响行数")]
+    [Description("返回行数或影响行数")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("RowCount", "返回行数或影响行数", "")]
+    public Int64 RowCount { get => _RowCount; set { if (OnPropertyChanging("RowCount", value)) { _RowCount = value; OnPropertyChanged("RowCount"); } } }
+
+    private Boolean _Truncated;
+    /// <summary>结果是否被 Agent 上限截断</summary>
+    [DisplayName("结果是否被Agent上限截断")]
+    [Description("结果是否被 Agent 上限截断")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("Truncated", "结果是否被 Agent 上限截断", "")]
+    public Boolean Truncated { get => _Truncated; set { if (OnPropertyChanging("Truncated", value)) { _Truncated = value; OnPropertyChanged("Truncated"); } } }
+
+    private Int64 _ApprovalId;
+    /// <summary>关联审批编号</summary>
+    [DisplayName("关联审批编号")]
+    [Description("关联审批编号")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("ApprovalId", "关联审批编号", "")]
+    public Int64 ApprovalId { get => _ApprovalId; set { if (OnPropertyChanging("ApprovalId", value)) { _ApprovalId = value; OnPropertyChanged("ApprovalId"); } } }
+
     private DateTime _CreateTime;
     /// <summary>时间</summary>
     [DisplayName("时间")]
@@ -94,6 +158,14 @@ public partial class DbAuditLog
             "SqlRedacted" => _SqlRedacted,
             "Decision" => _Decision,
             "Detail" => _Detail,
+            "Source" => _Source,
+            "SessionId" => _SessionId,
+            "Status" => _Status,
+            "Code" => _Code,
+            "SqlKind" => _SqlKind,
+            "RowCount" => _RowCount,
+            "Truncated" => _Truncated,
+            "ApprovalId" => _ApprovalId,
             "CreateTime" => _CreateTime,
             _ => base[name]
         };
@@ -107,6 +179,14 @@ public partial class DbAuditLog
                 case "SqlRedacted": _SqlRedacted = Convert.ToString(value); break;
                 case "Decision": _Decision = Convert.ToString(value); break;
                 case "Detail": _Detail = Convert.ToString(value); break;
+                case "Source": _Source = Convert.ToString(value); break;
+                case "SessionId": _SessionId = Convert.ToString(value); break;
+                case "Status": _Status = Convert.ToString(value); break;
+                case "Code": _Code = Convert.ToString(value); break;
+                case "SqlKind": _SqlKind = Convert.ToString(value); break;
+                case "RowCount": _RowCount = value.ToLong(); break;
+                case "Truncated": _Truncated = value.ToBoolean(); break;
+                case "ApprovalId": _ApprovalId = value.ToLong(); break;
                 case "CreateTime": _CreateTime = value.ToDateTime(); break;
                 default: base[name] = value; break;
             }
@@ -126,7 +206,7 @@ public partial class DbAuditLog
         if (id < 0) return null;
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.Find(e => e.Id == id);
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.Find(e => e.Id == id);
 
         // 单对象缓存
         return Meta.SingleCache[id];
@@ -142,7 +222,7 @@ public partial class DbAuditLog
         if (kind.IsNullOrEmpty()) return [];
 
         // 实体缓存
-        if (Meta.Session.Count < 1000) return Meta.Cache.FindAll(e => e.Kind.EqualIgnoreCase(kind));
+        if (Meta.Session.Count < MaxCacheCount) return Meta.Cache.FindAll(e => e.Kind.EqualIgnoreCase(kind));
 
         return FindAll(_.Kind == kind);
     }
@@ -151,16 +231,18 @@ public partial class DbAuditLog
     #region 高级查询
     /// <summary>高级查询</summary>
     /// <param name="kind">conn_create/conn_update/conn_delete/conn_test/query/classify/approval_*/write_result/rejected/permission_mode</param>
+    /// <param name="truncated">结果是否被 Agent 上限截断</param>
     /// <param name="start">时间开始</param>
     /// <param name="end">时间结束</param>
     /// <param name="key">关键字</param>
     /// <param name="page">分页参数信息。可携带统计和数据权限扩展查询等信息</param>
     /// <returns>实体列表</returns>
-    public static IList<DbAuditLog> Search(String kind, DateTime start, DateTime end, String key, PageParameter page)
+    public static IList<DbAuditLog> Search(String kind, Boolean? truncated, DateTime start, DateTime end, String key, PageParameter page)
     {
         var exp = new WhereExpression();
 
         if (!kind.IsNullOrEmpty()) exp &= _.Kind == kind;
+        if (truncated != null) exp &= _.Truncated == truncated;
         exp &= _.CreateTime.Between(start, end);
         if (!key.IsNullOrEmpty()) exp &= SearchWhereByKeys(key);
 
@@ -190,6 +272,30 @@ public partial class DbAuditLog
         /// <summary>详情（脱敏）</summary>
         public static readonly Field Detail = FindByName("Detail");
 
+        /// <summary>来源 ui/agent</summary>
+        public static readonly Field Source = FindByName("Source");
+
+        /// <summary>Agent 会话标识（仅 agent）</summary>
+        public static readonly Field SessionId = FindByName("SessionId");
+
+        /// <summary>结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）</summary>
+        public static readonly Field Status = FindByName("Status");
+
+        /// <summary>错误码（kind=agent 摘要用）</summary>
+        public static readonly Field Code = FindByName("Code");
+
+        /// <summary>语句类别 read/write（kind=agent 摘要用）</summary>
+        public static readonly Field SqlKind = FindByName("SqlKind");
+
+        /// <summary>返回行数或影响行数</summary>
+        public static readonly Field RowCount = FindByName("RowCount");
+
+        /// <summary>结果是否被 Agent 上限截断</summary>
+        public static readonly Field Truncated = FindByName("Truncated");
+
+        /// <summary>关联审批编号</summary>
+        public static readonly Field ApprovalId = FindByName("ApprovalId");
+
         /// <summary>时间</summary>
         public static readonly Field CreateTime = FindByName("CreateTime");
 
@@ -216,6 +322,30 @@ public partial class DbAuditLog
 
         /// <summary>详情（脱敏）</summary>
         public const String Detail = "Detail";
+
+        /// <summary>来源 ui/agent</summary>
+        public const String Source = "Source";
+
+        /// <summary>Agent 会话标识（仅 agent）</summary>
+        public const String SessionId = "SessionId";
+
+        /// <summary>结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）</summary>
+        public const String Status = "Status";
+
+        /// <summary>错误码（kind=agent 摘要用）</summary>
+        public const String Code = "Code";
+
+        /// <summary>语句类别 read/write（kind=agent 摘要用）</summary>
+        public const String SqlKind = "SqlKind";
+
+        /// <summary>返回行数或影响行数</summary>
+        public const String RowCount = "RowCount";
+
+        /// <summary>结果是否被 Agent 上限截断</summary>
+        public const String Truncated = "Truncated";
+
+        /// <summary>关联审批编号</summary>
+        public const String ApprovalId = "ApprovalId";
 
         /// <summary>时间</summary>
         public const String CreateTime = "CreateTime";

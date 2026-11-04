@@ -27,6 +27,35 @@ public sealed class DbAuditWriter
         }
     }
 
+    /// <summary>Agent 发起的一次调用结果摘要（kind=agent），供前端 S8 回显：GET /audit?kind=agent。</summary>
+    public void WriteAgent(String tool, String? connectionId, String? sql, String? sessionId, Models.QueryOutcome o)
+    {
+        try
+        {
+            new DbAuditLog
+            {
+                Kind = "agent",
+                ConnectionId = connectionId!,
+                SqlRedacted = Cut(sql == null ? null : SqlRedactor.RedactSql(sql), 8000)!,
+                Decision = tool,
+                Detail = Cut(SqlRedactor.RedactText(o.Message), 2000)!,
+                Source = Models.QuerySources.Agent,
+                SessionId = Cut(sessionId, 100)!,
+                Status = o.Status,
+                Code = o.Code!,
+                SqlKind = o.Kind!,
+                RowCount = o.Rows?.Count ?? o.AffectedRows ?? 0,
+                Truncated = o.Truncated,
+                ApprovalId = o.ApprovalId ?? 0,
+                CreateTime = DateTime.Now,
+            }.Insert();
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[DbAdmin] 写 Agent 审计失败: {0}", SqlRedactor.RedactText(ex.Message));
+        }
+    }
+
     public void WriteHistory(String? connectionId, String? sql, String kind, Int64 rowCount, Int64 elapsedMs, Boolean success, String? error, String source)
     {
         try

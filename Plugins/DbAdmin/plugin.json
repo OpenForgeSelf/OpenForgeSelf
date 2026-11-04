@@ -12,5 +12,14 @@
   "Permissions": [
     "read_config",
     "write_config"
-  ]
+  ],
+  "frontend": {
+    "views": [
+      "DbAdminView"
+    ],
+    "menu": "数据库管理",
+    "route": "/db-admin",
+    "icon": "fa-database",
+    "entry": "web/dist/index.js"
+  }
 }

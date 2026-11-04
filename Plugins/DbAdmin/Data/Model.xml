@@ -104,6 +104,14 @@
         <Column Name="SqlRedacted" DataType="String" Length="8000" Description="脱敏后的 SQL" />
         <Column Name="Decision" DataType="String" Description="决策 allow/ask/reject/approved 等" />
         <Column Name="Detail" DataType="String" Master="True" Length="2000" Description="详情（脱敏）" />
+        <Column Name="Source" DataType="String" Description="来源 ui/agent" />
+        <Column Name="SessionId" DataType="String" Length="100" Description="Agent 会话标识（仅 agent）" />
+        <Column Name="Status" DataType="String" Description="结果状态 ok/awaiting_approval/rejected/error（kind=agent 摘要用）" />
+        <Column Name="Code" DataType="String" Description="错误码（kind=agent 摘要用）" />
+        <Column Name="SqlKind" DataType="String" Description="语句类别 read/write（kind=agent 摘要用）" />
+        <Column Name="RowCount" DataType="Int64" Description="返回行数或影响行数" />
+        <Column Name="Truncated" DataType="Boolean" Description="结果是否被 Agent 上限截断" />
+        <Column Name="ApprovalId" DataType="Int64" Description="关联审批编号" />
         <Column Name="CreateTime" DataType="DateTime" Description="时间" />
       </Columns>
       <Indexes>

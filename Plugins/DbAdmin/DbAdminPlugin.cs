@@ -8,7 +8,8 @@ namespace ForgeSelf.Api.Plugins.DbAdmin;
 
 /// <summary>
 /// DbAdmin 插件入口（Id db-admin，工具前缀 db，自有库 ConnName DbAdmin）。
-/// Agent 工具（IToolFunctionExtension）由 AI 工程师后续接入：执行期取 <see cref="DbAdminAgentService"/>。
+/// Agent 工具（IToolFunctionExtension，db_* 七件，见 Services/DbAdminToolFunctions.cs 与 docs/07）：
+/// 构造只存 pluginId + 上下文，执行期 CreateHostScope 取 <see cref="DbAdminAgentService"/>。
 /// </summary>
 public class DbAdminPlugin : IPlugin
 {
@@ -43,6 +44,16 @@ public class DbAdminPlugin : IPlugin
         services?.AddSingleton(queries);
         services?.AddSingleton(new DbAdminAgentService(connections, queries));
 
+        var pluginId = ctx.Get<PluginMetadata>()?.Id ?? "db-admin";
+        RegisterTools(pluginId, ctx);
+
         XTrace.Log.Info("[DbAdminPlugin] 数据库管理插件初始化完成");
+    }
+
+    private void RegisterTools(string pluginId, IServiceProvider services)
+    {
+        ToolExtensions.Clear();
+        ToolExtensions.AddRange(DbAdminTools.Create(pluginId, services));
+        XTrace.Log.Debug("[DbAdminPlugin] 已注册 {0} 个 db_* 工具", ToolExtensions.Count);
     }
 }

@@ -101,9 +101,10 @@
 | `local` | 本机壳（bash/zsh/sh/pwsh/…） | 无 |
 | `ssh` | 远程 SSH（Linux/macOS 原生 ssh；Windows 无密码时亦可用 OpenSSH） | `interactive`（默认）/ `key` / `sshpass` |
 | `wsl-ssh` | Windows 经 WSL 的 ssh/sshpass | 同上 |
-| `custom:<id>` | 插件或宿主注册的命名配置（预留；实现期查表合并默认 shell/cwd/env/steps） | 由注册表声明 |
+| `custom:<id>` | 插件或宿主注册的命名配置（**协议位已预留；本里程碑不实现**；实现期查表合并默认 shell/cwd/env/steps） | 由注册表声明 |
 
-> 新增场景优先 **加 profile 或 custom 配置**，而不是再发明平行 query 方言。
+> 新增场景优先 **加 profile 或 custom 配置**，而不是再发明平行 query 方言。  
+> **本里程碑**：仅实现 `local` / `ssh` / `wsl-ssh`。遇到 `custom:<id>` 应返回可读错误（不静默降级为 local）；UI 不提供 custom 选择器。
 
 ### 5.1 local 示例
 
@@ -118,8 +119,8 @@
 ```
 
 等价显式：`&auth=interactive`。  
-行为：新开标签 → 弹出**遮罩密码框**（见 02 / 06）→ 用户输入后仅内存注入 → 再连并执行 `step`。  
-密码**不得**写入 URL 历史回写、JSONL、命令历史原文。
+行为（定稿）：**先**弹出遮罩密码框（见 02 / 06）→ 用户确认后**再**创建标签并连接 → 内存注入 → 执行 `step`。取消则不建标签。  
+密码**不得**写入 URL 历史回写、JSONL、命令历史、sessionStorage / localStorage 原文。
 
 ### 5.3 ssh · 密钥
 
@@ -195,7 +196,9 @@
 | 能力 | 规则 |
 |------|------|
 | URL 明文密码 | 仅内网过渡 + ack；默认策略 `always-ack` |
-| 交互密码 | 遮罩输入；内存；不进 URL/JSONL/历史原文 |
+| 交互密码 | 遮罩输入；**先框后标签**；内存；关标签即焚；不进 URL/JSONL/历史/浏览器存储原文 |
+| env 疑似密钥 | 审计脱敏（键名或值形态像密钥 → `***`） |
+| custom profile | 协议位保留；**本里程碑不实现** |
 | 推荐 | `auth=key` 或后续 vault |
 
 详见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。

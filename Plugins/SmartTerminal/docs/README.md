@@ -39,7 +39,7 @@
 3. 宿主全量构建会经 `StageAllPlugins` 暂存到输出 `Plugins/SmartTerminal/`
 4. 插件管理页启用 **智能终端**，打开 `/smart-terminal`
 
-Windows / Linux 均为一等公民。v1.2 起支持多标签与 URL 深链（local / ssh / wsl-ssh）。
+Windows / Linux 均为一等公民。v1.2 起支持多标签与 URL 深链（local / ssh / wsl-ssh；`custom:<id>` 协议位预留、本里程碑不实现）。浏览器刷新尽量恢复标签 / 连接信息 / 近期输出缓冲（无密码；见 02§8）。
 
 ## 外壳支持（v1.1）
 

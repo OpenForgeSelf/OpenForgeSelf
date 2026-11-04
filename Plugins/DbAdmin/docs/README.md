@@ -21,7 +21,8 @@
 ## Agent 工具
 
 Must：`db_list_connections` / `db_list_tables` / `db_describe_table` / `db_query_readonly` / `db_execute_write`  
-Should：`db_set_permission_mode` / `db_resolve_approval`
+Should：`db_set_permission_mode` / `db_resolve_approval`  
+实现：`Services/DbAdminToolFunctions.cs`（`DbAdminPlugin.Apply` 注册进 `ToolExtensions`）；契约与权限级别见 [04 §4](./04-权限与审计.md)；评测集见 [07](./07-Agent工具评测.md)。
 
 ## HTTP
 

@@ -316,6 +316,46 @@ public sealed class DbConnectionService
     {
         lock (_regLock) _registered.Remove(UserConnPrefix + id);
     }
+
+    /// <summary>
+    /// 明文密钥清单（仅内存，供 Agent 工具回包做最后一道兜底擦除）：用户连接的密码、connstr 模式原始连接串、
+    /// 由表单拼出的连接串、连接串内 password/pwd 值，以及系统连接的连接串。长度 &lt; 4 的值不收（避免误伤普通数据）。
+    /// 绝不可序列化输出或写日志。
+    /// </summary>
+    public IReadOnlyCollection<String> CollectSecretsForScrub()
+    {
+        var set = new HashSet<String>(StringComparer.Ordinal);
+        void Add(String? v) { if (!String.IsNullOrEmpty(v) && v.Length >= 4) set.Add(v); }
+        void AddConnStr(String? cs)
+        {
+            if (String.IsNullOrEmpty(cs)) return;
+            Add(cs);
+            try
+            {
+                var b = new DbConnectionStringBuilder { ConnectionString = cs };
+                foreach (var key in new[] { "Password", "Pwd", "PassWord" })
+                    if (b.TryGetValue(key, out var v) && v is String s) Add(s);
+            }
+            catch { }
+        }
+        try
+        {
+            foreach (var e in DbConnection.FindAll(null, null, null, 0, 0))
+            {
+                Add(SafeUnprotect(e.PasswordEnc));
+                AddConnStr(SafeUnprotect(e.ConnStrEnc));
+                try { AddConnStr(BuildConnStr(e)); } catch { }
+            }
+        }
+        catch { }
+        try
+        {
+            foreach (var name in _systemConnNames())
+                if (DAL.ConnStrs!.TryGetValue(name, out var cs)) AddConnStr(cs);
+        }
+        catch { }
+        return set;
+    }
     #endregion
 
     #region 测连

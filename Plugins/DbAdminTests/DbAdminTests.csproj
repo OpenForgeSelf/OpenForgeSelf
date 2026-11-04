@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- DbAdmin 插件单测（跨平台 net10.0，可在 Linux/CI 直接 dotnet test）。
+       测试源码真源在 ForgeSelf.Api.Tests/Plugins/DbAdminTests/（宿主测试工程同时编译），此处链接编译。
+       只测 SQLite；测试库落系统 temp 下随机隔离目录，测试绝不删除任何 DB 文件 / 目录（铁律10）。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- 与宿主同款 SQLite provider（宿主 ForgeSelf.Api.csproj 同版本） -->
+    <PackageReference Include="XCode.SQLite" Version="11.24.2026.302" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DbAdmin\DbAdmin.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\ForgeSelf.Api.Tests\Plugins\DbAdminTests\*.cs" Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

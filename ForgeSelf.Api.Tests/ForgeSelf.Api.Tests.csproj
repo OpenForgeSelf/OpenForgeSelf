@@ -72,6 +72,7 @@
     <!-- ToolBridge 插件（PILOT-053）：单测直接引用其解析/守卫/格式化与执行器类型 -->
     <ProjectReference Include="..\Plugins\ToolBridge\ToolBridge.csproj" />
     <ProjectReference Include="..\Plugins\SmartTerminal\SmartTerminal.csproj" />
+    <ProjectReference Include="..\Plugins\DbAdmin\DbAdmin.csproj" />
     <!-- DesignSystem 插件 v2（设计语言底座）：单测直接引用其色彩数学 / 别名图 / 令牌库 / 建表入口 -->
     <ProjectReference Include="..\Plugins\DesignSystem\DesignSystem.csproj" />
     <!-- CostScope 插件（PILOT-033）：单测直接引用其成本纯函数（A3 起）与后续 CRUD/聚合/trace 服务 -->

@@ -163,7 +163,7 @@ test.describe('菜单声明 ↔ 实际路由 一致性对账（批次A 防漂移
     }
   })
 
-  test('④ 回归断言：/quicklinks 清零；scheduler/sample 已撤销；mcp-center/design-system 补发且逐字段一致', async ({
+  test('④ 回归断言：/quicklinks 清零；scheduler/sample 已撤销；mcp-center/design-system 补发且逐字段一致；夜冲刺 smart-terminal/db-admin 在列且逐字段一致', async ({
     page,
   }) => {
     await page.goto('/home')
@@ -186,8 +186,8 @@ test.describe('菜单声明 ↔ 实际路由 一致性对账（批次A 防漂移
       'sample 无界面，悬空菜单声明应已撤销',
     ).toHaveLength(0)
 
-    // AC-4：D2 补发的两项存在且与 manifest 逐字段相等（Name/Path/Icon）
-    for (const pluginId of ['mcp-center', 'design-system']) {
+    // AC-4：D2 补发两项 + 夜冲刺 smart-terminal/db-admin（route 新增须同步本清单，铁律19③）存在且与 manifest 逐字段相等（Name/Path/Icon）
+    for (const pluginId of ['mcp-center', 'design-system', 'smart-terminal', 'db-admin']) {
       const item = menuItems.find((i) => i.pluginId === pluginId)
       expect(item, `menu-items 应含 ${pluginId} 项`).toBeTruthy()
       const manifestItem = manifest.find((m) => m.id === pluginId)

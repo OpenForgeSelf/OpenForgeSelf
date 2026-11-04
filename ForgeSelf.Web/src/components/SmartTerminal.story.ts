@@ -2,7 +2,8 @@
  * SmartTerminal 智能终端 · CT 画廊故事
  *
  * 覆盖：空标签、多标签、直播输出、三级权限、审批、拒绝/批准、审计过滤、
- * 脱敏、错误、Linux 多壳、URL 本地/SSH 启动横幅、标签重命名。
+ * 脱敏、错误、Linux 多壳、URL 本地/SSH 启动横幅、标签重命名、
+ * custom 不可用红条、S-R 刷新恢复前/后。
  */
 import SmartTerminalStoryHost from './SmartTerminalStoryHost.vue'
 import type { ComponentStory } from '../../ct/types'
@@ -490,6 +491,236 @@ export const stories: ComponentStory[] = [
         pendingLaunchSummary: 'profile=ssh · host=10.0.0.1 · user=root · auth=interactive · steps=1',
         launchBanner: 'URL 启动：profile=ssh · host=10.0.0.1 · user=root · auth=interactive · steps=1',
         launchWarning: '未提供密码：请交互输入（遮罩，仅内存）。推荐改用 auth=key。',
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：custom:<id> 本里程碑不支持 → 红条（终验截图）
+  {
+    id: 'SmartTerminal/CustomUnsupported',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.2-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        sessions: [],
+        globalMode: 'AskWrite',
+        customUnsupported: true,
+        launchBanner: 'URL 启动：profile=custom:build-box · steps=1',
+        launchWarning: 'custom:<id> 仅协议位预留，本里程碑不提供选择器，也不会静默当作 local。',
+        errorText:
+          'profile=custom:build-box 本里程碑不支持 custom profile（仅协议位预留）。请改用 profile=local|ssh|wsl-ssh；不会静默当作 local。',
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：S-R 刷新恢复前（多标签 + 输出缓冲，供对照截图）
+  {
+    id: 'SmartTerminal/SessionRestoreBefore',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.2-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        globalMode: 'AskWrite',
+        sessions: [
+          session({
+            sessionId: 'sess-local',
+            title: '本地构建',
+            processAlive: true,
+            reconnectable: true,
+            reconnectHint: '会话可重连拉 output；活动进程仍在。',
+          }),
+          session({
+            sessionId: 'sess-ssh',
+            title: '跳板 SSH',
+            launchType: 'ssh',
+            remoteHost: '10.0.0.8',
+            remoteUser: 'ops',
+            status: 'running',
+            processAlive: true,
+            reconnectable: true,
+            reconnectHint: '会话可重连拉 output；活动进程仍在。',
+          }),
+        ],
+        activeId: 'sess-ssh',
+        chunksBySession: {
+          'sess-local': [
+            { index: 0, stream: 'stdout', text: 'pnpm build ok', at: AT },
+            { index: 1, stream: 'stdout', text: 'dist ready', at: AT },
+          ],
+          'sess-ssh': [
+            { index: 0, stream: 'system', text: 'SSH 已连接 · ops@10.0.0.8', at: AT },
+            { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu 22.04', at: AT },
+            { index: 2, stream: 'stdout', text: 'ops@jump:~$', at: AT },
+          ],
+        },
+        chunks: [
+          { index: 0, stream: 'system', text: 'SSH 已连接 · ops@10.0.0.8', at: AT },
+          { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu 22.04', at: AT },
+          { index: 2, stream: 'stdout', text: 'ops@jump:~$', at: AT },
+        ],
+        commandsBySession: {
+          'sess-ssh': [
+            {
+              commandId: 'cmd-uname',
+              sessionId: 'sess-ssh',
+              commandRedacted: 'uname -a',
+              risk: 'Read',
+              decision: 'Allow',
+              matchedRule: 'readAllow:uname',
+              status: 'completed',
+              exitCode: 0,
+              createdAt: AT,
+            },
+          ],
+        },
+        commands: [
+          {
+            commandId: 'cmd-uname',
+            sessionId: 'sess-ssh',
+            commandRedacted: 'uname -a',
+            risk: 'Read',
+            decision: 'Allow',
+            matchedRule: 'readAllow:uname',
+            status: 'completed',
+            exitCode: 0,
+            createdAt: AT,
+          },
+        ],
+        launchBanner: '刷新前对照：多标签 + SSH 连接摘要 + 近期输出（密码仅内存，不入存储）',
+      } satisfies SmartTerminalFixture,
+    },
+  },
+
+  // 测试状态：S-R 刷新恢复后（缓冲仍在；进程已退；缺密黄条；sessionStorage 已 strip 密码）
+  {
+    id: 'SmartTerminal/SessionRestored',
+    component: SmartTerminalStoryHost,
+    props: {
+      fixture: {
+        version: '1.2.2-ct',
+        shells: linuxShells,
+        draftShell: 'bash',
+        globalMode: 'AskWrite',
+        sessions: [
+          session({
+            sessionId: 'sess-local',
+            title: '本地构建',
+            processAlive: false,
+            reconnectable: true,
+            reconnectHint: '会话对象仍在，可继续拉 output；活动进程可能已退出。',
+          }),
+          session({
+            sessionId: 'sess-ssh',
+            title: '跳板 SSH',
+            launchType: 'ssh',
+            remoteHost: '10.0.0.8',
+            remoteUser: 'ops',
+            status: 'idle',
+            processAlive: false,
+            reconnectable: true,
+            reconnectHint: '会话对象仍在，可继续拉 output；活动进程可能已退出。缺密 SSH 需重新走交互密码后再 launch。',
+          }),
+        ],
+        activeId: 'sess-ssh',
+        chunksBySession: {
+          'sess-local': [
+            { index: 0, stream: 'stdout', text: 'pnpm build ok', at: AT },
+            { index: 1, stream: 'stdout', text: 'dist ready', at: AT },
+          ],
+          'sess-ssh': [
+            { index: 0, stream: 'system', text: 'SSH 已连接 · ops@10.0.0.8', at: AT },
+            { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu 22.04', at: AT },
+            { index: 2, stream: 'stdout', text: 'ops@jump:~$', at: AT },
+            { index: 3, stream: 'system', text: '已从本页会话恢复标签与近期输出（无密码）。', at: AT },
+          ],
+        },
+        chunks: [
+          { index: 0, stream: 'system', text: 'SSH 已连接 · ops@10.0.0.8', at: AT },
+          { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu 22.04', at: AT },
+          { index: 2, stream: 'stdout', text: 'ops@jump:~$', at: AT },
+          { index: 3, stream: 'system', text: '已从本页会话恢复标签与近期输出（无密码）。', at: AT },
+        ],
+        commands: [
+          {
+            commandId: 'cmd-uname',
+            sessionId: 'sess-ssh',
+            commandRedacted: 'uname -a',
+            risk: 'Read',
+            decision: 'Allow',
+            matchedRule: 'readAllow:uname',
+            status: 'completed',
+            exitCode: 0,
+            createdAt: AT,
+          },
+        ],
+        launchBanner: '刷新后：已恢复标签列表 / 连接摘要 / 近期输出缓冲',
+        launchWarning: '密码未写入 sessionStorage；缺密 SSH 需再走 S5。',
+        reconnectBanner:
+          '会话对象仍在，可继续拉 output；活动进程可能已退出。缺密 SSH 需重新输入密码后再 launch（先框后标签）。',
+        // 故意塞 password 污染字段；宿主落盘前必须 strip（终验：DevTools 无明文）
+        seedSessionRestore: {
+          version: 1,
+          savedAt: AT,
+          activeId: 'sess-ssh',
+          password: 'SuperSecretCT',
+          tabs: [
+            {
+              sessionId: 'sess-local',
+              title: '本地构建',
+              shellId: 'bash',
+              shellDisplayName: 'Bash',
+              cwd: '/workspace/OpenForgeSelf',
+              permissionMode: 'AskWrite',
+              status: 'idle',
+              launchType: 'local',
+              password: 'SuperSecretCT',
+              connection: {
+                profile: 'local',
+                cwd: '/workspace/OpenForgeSelf',
+                shellId: 'bash',
+                title: '本地构建',
+              },
+            },
+            {
+              sessionId: 'sess-ssh',
+              title: '跳板 SSH',
+              shellId: 'bash',
+              shellDisplayName: 'Bash',
+              cwd: '/home/ops',
+              permissionMode: 'AskWrite',
+              status: 'idle',
+              launchType: 'ssh',
+              remoteHost: '10.0.0.8',
+              remoteUser: 'ops',
+              connection: {
+                profile: 'ssh',
+                host: '10.0.0.8',
+                user: 'ops',
+                port: 22,
+                authMethod: 'interactive',
+                title: '跳板 SSH',
+                password: 'SuperSecretCT',
+              },
+            },
+          ],
+          chunksBySession: {
+            'sess-local': [
+              { index: 0, stream: 'stdout', text: 'pnpm build ok', at: AT },
+              { index: 1, stream: 'stdout', text: 'dist ready', at: AT },
+            ],
+            'sess-ssh': [
+              { index: 0, stream: 'system', text: 'SSH 已连接 · ops@10.0.0.8', at: AT },
+              { index: 1, stream: 'stdout', text: 'Welcome to Ubuntu 22.04', at: AT },
+              { index: 2, stream: 'stdout', text: 'ops@jump:~$', at: AT },
+            ],
+          },
+          commandsBySession: {},
+          nextIndexBySession: { 'sess-local': 2, 'sess-ssh': 3 },
+        },
       } satisfies SmartTerminalFixture,
     },
   },

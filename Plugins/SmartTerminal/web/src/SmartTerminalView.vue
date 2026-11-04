@@ -59,6 +59,7 @@ const draftCwd = ref('')
 const commandInput = ref('')
 const busy = ref('')
 const errorText = ref('')
+const customUnsupported = ref(false)
 const unauthorized = ref(false)
 const showAudit = ref(false)
 const showApproval = ref(false)
@@ -179,7 +180,10 @@ function applyFixture(f: SmartTerminalFixture) {
   auditKindFilter.value = f.auditKindFilter ?? ''
   auditQuery.value = f.auditQuery ?? ''
   errorText.value = f.errorText ?? ''
+  customUnsupported.value = !!f.customUnsupported
+    || /本里程碑不支持\s*custom|custom:<|不会静默当作 local/i.test(f.errorText ?? '')
   unauthorized.value = !!f.unauthorized
+  reconnectBanner.value = f.reconnectBanner ?? ''
   draftTitle.value = f.draftTitle ?? '新标签'
   draftShell.value = f.draftShell ?? shells.value.find(s => s.available)?.id ?? ''
   draftCwd.value = f.draftCwd ?? ''
@@ -807,6 +811,7 @@ async function consumeUrlLaunch() {
   if (parsed.unsupportedProfileError) {
     launchBanner.value = `URL 启动：${parsed.summary}`
     errorText.value = parsed.unsupportedProfileError
+    customUnsupported.value = true
     launchWarning.value = 'custom:<id> 仅协议位预留，本里程碑不提供选择器，也不会静默当作 local。'
     return
   }
@@ -956,7 +961,11 @@ watch(
       >重新输入密码并 launch</button>
     </div>
     <div v-if="unauthorized" class="banner error" data-testid="banner-unauthorized">未授权（401）。请先登录宿主，确保 localStorage 有 forge_api_token。</div>
-    <div v-else-if="errorText" class="banner error" data-testid="banner-error">{{ errorText }}</div>
+    <div
+      v-else-if="errorText"
+      class="banner error"
+      :data-testid="customUnsupported ? 'custom-unsupported-banner' : 'banner-error'"
+    >{{ errorText }}</div>
 
     <!-- Windows Terminal 基础标签栏（新建/关闭/切换/重命名） -->
     <div class="tabbar" data-testid="tab-bar">

@@ -1,0 +1,533 @@
+﻿<style>
+    table {
+        border-collapse: collapse;
+        border: 1px solid;
+        border-color: rgb(211, 202, 221);
+    }
+
+    table thead,
+    table tr {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: rgb(211, 202, 221);
+    }
+
+    table {
+        border-bottom-width: 1px;
+        border-bottom-style: solid;
+        border-bottom-color: rgb(211, 202, 221);
+    }
+
+    table td,
+    table th {
+        padding: 5px 10px;
+        font-size: 14px;
+        font-family: Verdana;
+        color: rgb(95, 74, 121);
+    }
+
+    table tr:nth-child(even) {
+        background: rgb(223, 216, 232)
+    }
+
+    table tr:nth-child(odd) {
+        background: #FFF
+    }
+</style>
+<h3>用户数据库连接配置（密码_连接串加密存储）（DbConnection）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>连接ID</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Name</td>
+            <td>连接名（唯一）</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td title="唯一索引">UQ</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Provider</td>
+            <td>数据库类型sqlite_mysql_postgresql_sqlserver</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>数据库类型 sqlite/mysql/postgresql/sqlserver</td>
+        </tr>
+
+        <tr>
+            <td>Mode</td>
+            <td>配置方式form_connstr</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>配置方式 form/connstr</td>
+        </tr>
+
+        <tr>
+            <td>Host</td>
+            <td>主机（SQLite为文件路径时放Database）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>主机（SQLite 为文件路径时放 Database）</td>
+        </tr>
+
+        <tr>
+            <td>Port</td>
+            <td>端口</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Database</td>
+            <td>数据库名或SQLite文件路径</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>数据库名或 SQLite 文件路径</td>
+        </tr>
+
+        <tr>
+            <td>UserName</td>
+            <td>用户名</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>PasswordEnc</td>
+            <td>加密后的密码</td>
+            <td>String</td>
+            <td>1000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ConnStrEnc</td>
+            <td>加密后的原始连接串（Mode=connstr）</td>
+            <td>String</td>
+            <td>4000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Readonly</td>
+            <td>用户自设只读</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreateTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdateTime</td>
+            <td>更新时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>SQL执行历史（仅存脱敏SQL）（DbQueryHistory）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>编号</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ConnectionId</td>
+            <td>连接标识（用户连接为数字Id</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>系统连接为 sys:连接名）</td>
+        </tr>
+
+        <tr>
+            <td>SqlRedacted</td>
+            <td>脱敏后的SQL</td>
+            <td>String</td>
+            <td>8000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>脱敏后的 SQL</td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>read_write</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>read/write</td>
+        </tr>
+
+        <tr>
+            <td>RowCount</td>
+            <td>返回或影响行数</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ElapsedMs</td>
+            <td>耗时毫秒</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Success</td>
+            <td>是否成功</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Error</td>
+            <td>错误（脱敏）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Source</td>
+            <td>ui_agent</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>ui/agent</td>
+        </tr>
+
+        <tr>
+            <td>CreateTime</td>
+            <td>时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>写操作审批（原始SQL仅内存持有）（DbApproval）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>编号</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ConnectionId</td>
+            <td>连接标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SqlRedacted</td>
+            <td>脱敏后的SQL</td>
+            <td>String</td>
+            <td>8000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>脱敏后的 SQL</td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>write_destructive</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>write/destructive</td>
+        </tr>
+
+        <tr>
+            <td>Destructive</td>
+            <td>是否破坏性（需二次确认）</td>
+            <td>Boolean</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>pending_approved_rejected_expired</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>pending/approved/rejected/expired</td>
+        </tr>
+
+        <tr>
+            <td>Source</td>
+            <td>ui_agent</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>ui/agent</td>
+        </tr>
+
+        <tr>
+            <td>CreateTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>ResolveTime</td>
+            <td>处理时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>审计日志（脱敏）（DbAuditLog）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>编号</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Kind</td>
+            <td>conn_create_conn_update_conn_delete_conn_test_query_classify_approval_*_write_result_rejected_permission_mode</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>conn_create/conn_update/conn_delete/conn_test/query/classify/approval_*/write_result/rejected/permission_mode</td>
+        </tr>
+
+        <tr>
+            <td>ConnectionId</td>
+            <td>连接标识</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SqlRedacted</td>
+            <td>脱敏后的SQL</td>
+            <td>String</td>
+            <td>8000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>脱敏后的 SQL</td>
+        </tr>
+
+        <tr>
+            <td>Decision</td>
+            <td>决策allow_ask_reject_approved等</td>
+            <td>String</td>
+            <td>50</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>决策 allow/ask/reject/approved 等</td>
+        </tr>
+
+        <tr>
+            <td>Detail</td>
+            <td>详情（脱敏）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreateTime</td>
+            <td>时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>

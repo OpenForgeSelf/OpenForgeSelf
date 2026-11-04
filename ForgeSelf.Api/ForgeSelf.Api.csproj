@@ -140,6 +140,8 @@
     <ProjectReference Include="..\Plugins\BrowserUse\BrowserUse.csproj" ReferenceOutputAssembly="false" />
     <!-- SmartTerminal 智能终端：仅建立构建顺序 -->
     <ProjectReference Include="..\Plugins\SmartTerminal\SmartTerminal.csproj" ReferenceOutputAssembly="false" />
+    <!-- DbAdmin 数据库管理：仅建立构建顺序 -->
+    <ProjectReference Include="..\Plugins\DbAdmin\DbAdmin.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 将仓库根 Plugins/<Name>/bin/<Config>/net10.0 下各插件的完整输出（DLL + deps.json + 非宿主共享

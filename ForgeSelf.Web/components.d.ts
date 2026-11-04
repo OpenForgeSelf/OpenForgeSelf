@@ -101,6 +101,7 @@ declare module 'vue' {
     ScriptStepEditor: typeof import('./src/components/workflow/ScriptStepEditor.vue')['default']
     ScriptTemplateSelector: typeof import('./src/components/scriptrunner/ScriptTemplateSelector.vue')['default']
     Sidebar: typeof import('./src/components/Sidebar.vue')['default']
+    SmartTerminalStoryHost: typeof import('./src/components/SmartTerminalStoryHost.vue')['default']
     StatsPanel: typeof import('./src/components/texttools/StatsPanel.vue')['default']
     StatusBar: typeof import('./src/components/StatusBar.vue')['default']
     StepTimeline: typeof import('./src/components/workflow/StepTimeline.vue')['default']

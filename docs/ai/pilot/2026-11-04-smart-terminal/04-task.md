@@ -10,6 +10,8 @@ expected_files:
   - ForgeSelf.Api.Tests/Plugins/SmartTerminalTests/**
   - ForgeSelf.Web/e2e/plugins/smart-terminal/**
   - ForgeSelf.Web/src/components/SmartTerminal*
+  - ForgeSelf.Web/components.d.ts
+  - ForgeSelf.Abstractions/ToolNamespace.cs
   - ForgeSelf.Web/ct/stories.ts
   - ForgeSelf.slnx
   - ForgeSelf.Api/ForgeSelf.Api.csproj

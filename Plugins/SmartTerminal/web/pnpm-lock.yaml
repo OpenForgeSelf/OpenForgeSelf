@@ -17,6 +17,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.44
 
 packages:
 

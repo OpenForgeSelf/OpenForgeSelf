@@ -30,6 +30,7 @@ declare module 'vue' {
     ColorTool: typeof import('./src/components/devtools/ColorTool.vue')['default']
     DataConverter: typeof import('./src/components/devtools/DataConverter.vue')['default']
     DataStoragePanel: typeof import('./src/components/settings/DataStoragePanel.vue')['default']
+    DbAdminStoryHost: typeof import('./src/components/DbAdminStoryHost.vue')['default']
     DiskDetail: typeof import('./src/components/systemmonitor/DiskDetail.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElButton: typeof import('element-plus/es')['ElButton']

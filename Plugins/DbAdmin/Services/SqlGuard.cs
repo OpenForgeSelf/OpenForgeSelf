@@ -87,7 +87,7 @@ public static class SqlGuard
         }
 
         // 多语句：按 ; 切分（字符串与注释已剥），去掉末尾空语句后 >1 条即硬拒
-        var statements = stripped.Split(';').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+        var statements = SplitStatements(stripped).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
         if (statements.Count == 0) return new(SqlCategory.Rejected, "SQL 为空（仅含注释或分号）");
         if (statements.Count > 1) return new(SqlCategory.Rejected, $"禁止一次执行多条语句（检测到 {statements.Count} 条）");
 
@@ -118,9 +118,9 @@ public static class SqlGuard
             case "WITH":
                 if (DmlInsideRx.IsMatch(text))
                 {
-                    // CTE 内带 DML：UPDATE/DELETE 同样要求 WHERE
-                    if (Regex.IsMatch(text, @"\b(UPDATE|DELETE)\b", RegexOptions.IgnoreCase) && !WhereRx.IsMatch(text))
-                        return new(SqlCategory.Rejected, "禁止无 WHERE 的 UPDATE / DELETE");
+                    // 主语句及每个 CTE / 子查询里的 UPDATE/DELETE 都要在「本层」有 WHERE；子层 WHERE 不算
+                    if (HasUnboundedDml(text))
+                        return new(SqlCategory.Rejected, "禁止无 WHERE 的 UPDATE / DELETE（只认本层 WHERE，子查询/CTE 内的不算）");
                     return new(SqlCategory.Write, "WITH 内含写操作");
                 }
                 if (SelectIntoRx.IsMatch(text)) return new(SqlCategory.Write, "WITH … SELECT INTO 会写入表");
@@ -146,7 +146,8 @@ public static class SqlGuard
                 return new(SqlCategory.Write, first);
             case "UPDATE":
             case "DELETE":
-                if (!WhereRx.IsMatch(text)) return new(SqlCategory.Rejected, $"禁止无 WHERE 的 {first}");
+                if (!WhereRx.IsMatch(OwnLevel(text))) return new(SqlCategory.Rejected, $"禁止无 WHERE 的 {first}（只认顶层 WHERE，子查询内的不算）");
+                if (HasUnboundedDml(text)) return new(SqlCategory.Rejected, "禁止无 WHERE 的 UPDATE / DELETE");
                 return new(SqlCategory.Write, first + " … WHERE");
             case "CREATE":
                 return new(SqlCategory.Write, "CREATE");
@@ -160,6 +161,99 @@ public static class SqlGuard
             default:
                 return new(SqlCategory.Write, $"无法确定类别（{(first.Length == 0 ? "?" : first)}），按写操作询问（fail-closed）");
         }
+    }
+
+    /// <summary>DML 关键字但不是 ON DELETE / ON UPDATE / FOR UPDATE / OF 之类修饰</summary>
+    private static readonly Regex DmlVerbRx = new(@"(?<!\b(ON|FOR|OF|BEFORE|AFTER)\s)\b(UPDATE|DELETE)\b", Opt);
+
+    /// <summary>
+    /// 按括号层级检查：顶层与每个括号组的「本层文本」（子括号内容替换为 ()）里若出现 UPDATE/DELETE 动词，
+    /// 则同一层必须出现 WHERE。子查询 / CTE 里的 WHERE 不会为外层兜底。
+    /// </summary>
+    internal static Boolean HasUnboundedDml(String text)
+    {
+        foreach (var seg in Levels(text))
+        {
+            if (DmlVerbRx.IsMatch(seg) && !WhereRx.IsMatch(seg)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>仅保留深度 0 的字符；括号内内容折叠为 ()</summary>
+    internal static String OwnLevel(String text)
+    {
+        var sb = new StringBuilder(text.Length);
+        var depth = 0;
+        foreach (var c in text)
+        {
+            if (c == '(') { if (depth++ == 0) sb.Append('('); continue; }
+            if (c == ')') { if (depth > 0 && --depth == 0) sb.Append(')'); continue; }
+            if (depth == 0) sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>枚举顶层及所有括号组各自的本层文本</summary>
+    private static IEnumerable<String> Levels(String text)
+    {
+        yield return OwnLevel(text);
+        var stack = new Stack<Int32>();
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '(') stack.Push(i);
+            else if (text[i] == ')' && stack.Count > 0)
+            {
+                var open = stack.Pop();
+                yield return OwnLevel(text.Substring(open + 1, i - open - 1));
+            }
+        }
+    }
+
+    private static readonly Regex WordOrSemiRx = new(@"[A-Za-z_][A-Za-z0-9_$]*|;", Opt);
+
+    /// <summary>
+    /// 按 ; 切分语句（字符串/注释已剥）。仅当语句以 CREATE … TRIGGER 开头时，把 BEGIN…END 视为块，
+    /// 块内分号不切分；CASE…END 单独配对，不当块。其它语句（含 BEGIN TRANSACTION）照常按 ; 切分。
+    /// </summary>
+    internal static List<String> SplitStatements(String stripped)
+    {
+        var result = new List<String>();
+        var start = 0;
+        var blockDepth = 0;
+        var caseDepth = 0;
+        var trigger = false;
+        var isCreate = false;
+        var wordIndex = 0;
+        foreach (Match m in WordOrSemiRx.Matches(stripped))
+        {
+            var tok = m.Value;
+            if (tok == ";")
+            {
+                if (trigger && blockDepth > 0) continue;
+                result.Add(stripped[start..m.Index]);
+                start = m.Index + 1;
+                blockDepth = caseDepth = wordIndex = 0;
+                trigger = isCreate = false;
+                continue;
+            }
+            var w = tok.ToUpperInvariant();
+            // CREATE [TEMP|TEMPORARY] TRIGGER [IF NOT EXISTS] …：TRIGGER 须出现在前几个词内
+            if (wordIndex == 0) isCreate = w == "CREATE";
+            else if (isCreate && !trigger && wordIndex <= 2 && w == "TRIGGER") trigger = true;
+            wordIndex++;
+            if (!trigger) continue;
+            switch (w)
+            {
+                case "CASE": caseDepth++; break;
+                case "BEGIN": blockDepth++; break;
+                case "END":
+                    if (caseDepth > 0) caseDepth--;
+                    else if (blockDepth > 0) blockDepth--;
+                    break;
+            }
+        }
+        result.Add(stripped[start..]);
+        return result;
     }
 
     private static String FirstWord(String text)

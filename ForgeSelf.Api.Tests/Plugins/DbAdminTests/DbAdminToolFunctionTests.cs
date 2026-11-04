@@ -79,10 +79,10 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
     }
 
     [Fact]
-    public void NoServiceProvider_ReturnsStructuredError_NotThrow()
+    public async Task NoServiceProvider_ReturnsStructuredError_NotThrow()
     {
         var t = new DbListConnectionsTool("db-admin", null);
-        using var doc = JsonDocument.Parse(t.ExecuteAsync("{}").GetAwaiter().GetResult());
+        using var doc = JsonDocument.Parse(await t.ExecuteAsync("{}"));
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(DbAgentCodes.InternalError, doc.RootElement.GetProperty("code").GetString());
     }
@@ -107,7 +107,7 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
     }
 
     [Fact]
-    public void ListTables_DescribeTable_Work_AndUnknownConnGivesHint()
+    public async Task ListTables_DescribeTable_Work_AndUnknownConnGivesHint()
     {
         var tools = Tools(fx);
         var cid = NewUserConn(fx, 0);
@@ -125,7 +125,7 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
 
         var miss = Call(tools, "db_describe_table", new { connectionId = cid });
         Assert.Equal(DbAgentCodes.InvalidArguments, miss.GetProperty("code").GetString());
-        var bad = tools["db_list_tables"].ExecuteAsync("not json").GetAwaiter().GetResult();
+        var bad = await tools["db_list_tables"].ExecuteAsync("not json");
         Assert.Contains(DbAgentCodes.InvalidArguments, bad);
     }
 
@@ -155,7 +155,7 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
     }
 
     [Fact]
-    public void QueryReadonly_ByteCap_256KB()
+    public async Task QueryReadonly_ByteCap_256KB()
     {
         var tools = Tools(fx);
         var file = fx.CreateTargetDb("big");
@@ -163,7 +163,7 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
         var dal = DAL.Create(fx.Connections.Resolve(cid).ConnName);
         var note = new String('x', 2000);
         dal.Execute($"WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < 600) INSERT INTO items (name, note) SELECT 'r' || x, '{note}' FROM c");
-        var raw = tools["db_query_readonly"].ExecuteAsync(JsonSerializer.Serialize(new { connectionId = cid, sql = "SELECT id, note FROM items", maxRows = 1000, sessionId = Sid() })).GetAwaiter().GetResult();
+        var raw = await tools["db_query_readonly"].ExecuteAsync(JsonSerializer.Serialize(new { connectionId = cid, sql = "SELECT id, note FROM items", maxRows = 1000, sessionId = Sid() }));
         Assert.True(System.Text.Encoding.UTF8.GetByteCount(raw) <= ResultLimiter.AgentMaxBytes, $"回包 {raw.Length} 字节超上限");
         using var doc = JsonDocument.Parse(raw);
         Assert.True(doc.RootElement.GetProperty("data").GetProperty("truncated").GetBoolean());

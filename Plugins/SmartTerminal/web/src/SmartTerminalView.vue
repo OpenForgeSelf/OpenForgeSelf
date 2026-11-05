@@ -61,6 +61,9 @@ const busy = ref('')
 const errorText = ref('')
 const customUnsupported = ref(false)
 const unauthorized = ref(false)
+/** 死会话登记：404（服务端已不存在，如宿主重启后 S-R 恢复的会话）→ 停轮询 + 标签置灰，仅提示一次 */
+const deadSessions = ref<Set<string>>(new Set())
+const deadNotice = ref('')
 const showAudit = ref(false)
 const showApproval = ref(false)
 const activeApproval = ref<PendingApproval | null>(null)
@@ -336,7 +339,13 @@ async function refreshMeta() {
 
 async function refreshApprovals() {
   if (isDemo.value) return
-  approvals.value = (await smartTerminalApi.listApprovals(activeId.value || undefined)) ?? []
+  try {
+    approvals.value = (await smartTerminalApi.listApprovals(activeId.value || undefined)) ?? []
+  } catch (e) {
+    // 同类扫查：approvals 端点 sessionId 仅过滤参数、无 404 路径；裸抛会成 unhandled rejection
+    if ((e as { status?: number })?.status === 401) noteError(e)
+    return
+  }
   // 浮层顺序：风险 ack / 交互密码优先于审批
   if (approvals.value.length && !showApproval.value && !showPasswordAck.value && !showInteractivePassword.value) {
     activeApproval.value = approvals.value[0]
@@ -371,7 +380,8 @@ async function selectSession(id: string) {
     } else {
       evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
     }
-  } catch {
+  } catch (e) {
+    if (isSessionDead404(e, id)) return
     evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
   }
 }
@@ -432,6 +442,11 @@ async function closeTab(id: string, ev?: Event) {
   const before = sessions.value.filter(s => s.status !== 'closed')
   const nextFocus = activeId.value === id ? pickAdjacentSessionId(id, before) : activeId.value
   burnSessionSecrets(id)
+  if (deadSessions.value.has(id)) {
+    const nextDead = new Set(deadSessions.value)
+    nextDead.delete(id)
+    deadSessions.value = nextDead
+  }
   const { [id]: _c, ...restChunks } = chunksBySession.value
   const { [id]: _cmd, ...restCmds } = commandsBySession.value
   const { [id]: _n, ...restNext } = nextIndexBySession.value
@@ -496,7 +511,7 @@ async function commitRename() {
 }
 
 async function runCommand() {
-  if (isDemo.value || !activeId.value || !commandInput.value.trim() || busy.value) return
+  if (isDemo.value || !activeId.value || deadSessions.value.has(activeId.value) || !commandInput.value.trim() || busy.value) return
   busy.value = 'run'
   errorText.value = ''
   try {
@@ -562,12 +577,32 @@ async function loadCommands() {
     commands.value = []
     return
   }
-  commands.value = (await smartTerminalApi.commands(activeId.value)) ?? []
-  commandsBySession.value = { ...commandsBySession.value, [activeId.value]: [...commands.value] }
+  if (deadSessions.value.has(activeId.value)) return
+  try {
+    commands.value = (await smartTerminalApi.commands(activeId.value)) ?? []
+    commandsBySession.value = { ...commandsBySession.value, [activeId.value]: [...commands.value] }
+  } catch (e) {
+    // 原版无 catch：404 上抛经 onMounted noteError = 反复 toast 的元凶之一
+    if (isSessionDead404(e, activeId.value)) return
+    noteError(e)
+  }
+}
+
+function markSessionDead(id: string) {
+  if (!id || deadSessions.value.has(id)) return
+  deadSessions.value = new Set(deadSessions.value).add(id)
+  const t = sessions.value.find(s => s.sessionId === id)
+  deadNotice.value = `标签「${t?.title || id}」的会话在服务端已不存在（宿主可能已重启），已停止轮询；标签保留为只读，可点 × 关闭。`
+}
+function isSessionDead404(e: unknown, id: string): boolean {
+  if (!(e instanceof ApiError) || e.status !== 404) return false
+  markSessionDead(id)
+  return true
 }
 
 async function pollOutput(reset = false) {
   if (isDemo.value || !activeId.value) return
+  if (deadSessions.value.has(activeId.value)) return
   try {
     if (reset) {
       chunks.value = []
@@ -584,6 +619,7 @@ async function pollOutput(reset = false) {
       if (consoleEl.value) consoleEl.value.scrollTop = consoleEl.value.scrollHeight
     }
   } catch (e) {
+    if (isSessionDead404(e, activeId.value)) return
     if (reset) noteError(e)
   }
 }
@@ -967,13 +1003,15 @@ watch(
       :data-testid="customUnsupported ? 'custom-unsupported-banner' : 'banner-error'"
     >{{ errorText }}</div>
 
+    <div v-if="deadNotice" class="banner warn" data-testid="banner-dead">{{ deadNotice }}</div>
+
     <!-- Windows Terminal 基础标签栏（新建/关闭/切换/重命名） -->
     <div class="tabbar" data-testid="tab-bar">
       <div
         v-for="s in openSessions"
         :key="s.sessionId"
         class="tab"
-        :class="{ active: s.sessionId === activeId }"
+        :class="{ active: s.sessionId === activeId, dead: deadSessions.has(s.sessionId) }"
         :data-session-id="s.sessionId"
         @click="selectSession(s.sessionId)"
         @dblclick="startRename(s, $event)"
@@ -990,7 +1028,7 @@ watch(
           />
         </template>
         <template v-else>
-          <span class="tab-title">{{ s.title }}</span>
+          <span class="tab-title">{{ deadSessions.has(s.sessionId) ? '✕ ' : '' }}{{ s.title }}</span>
           <span class="tab-meta">{{ tabMeta(s) }}</span>
         </template>
         <button class="tab-close" type="button" title="关闭标签" data-testid="tab-close" @click="closeTab(s.sessionId, $event)">×</button>
@@ -1051,7 +1089,7 @@ watch(
       <form class="cmdline" @submit.prevent="runCommand">
         <input
           v-model="commandInput"
-          :disabled="!activeSession || !!busy || isDemo"
+          :disabled="!activeSession || !!busy || isDemo || deadSessions.has(activeSession.sessionId)"
           placeholder="输入命令，Enter 执行（密钥/密码会在日志中脱敏）"
           autocomplete="off"
           spellcheck="false"
@@ -1063,14 +1101,14 @@ watch(
       </form>
 
       <div class="history" data-testid="command-history">
-        <div class="panel-head"><strong>命令历史</strong></div>
+        <div class="panel-head"><strong>命令历史</strong><span v-if="activeSession && deadSessions.has(activeSession.sessionId)" class="muted" data-testid="dead-badge"> · 会话已失效</span></div>
         <ul>
           <li v-if="!commands.length" class="empty">暂无历史。</li>
           <li v-for="c in commands" :key="c.commandId">
             <code>{{ c.commandRedacted }}</code>
             <span class="pill">{{ riskLabel(c.risk) }}</span>
             <span class="muted">{{ c.status }}{{ c.exitCode != null ? ` · exit ${c.exitCode}` : '' }}</span>
-            <button class="btn tiny ghost" type="button" :disabled="isDemo" @click="rerun(c.commandId)">重跑</button>
+            <button class="btn tiny ghost" type="button" :disabled="isDemo || deadSessions.has(c.sessionId)" @click="rerun(c.commandId)">重跑</button>
           </li>
         </ul>
       </div>
@@ -1229,6 +1267,8 @@ watch(
   color: var(--el-text-color-secondary); font-size: 12px;
 }
 .tab.active { color: var(--el-text-color-primary); background: var(--el-bg-color-overlay); border-color: var(--el-color-primary); }
+.tab.dead { opacity: 0.55; }
+.tab.dead .tab-title { text-decoration: line-through; }
 .tab-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-meta { color: var(--el-text-color-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-close {

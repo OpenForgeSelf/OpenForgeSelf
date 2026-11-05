@@ -13,7 +13,13 @@ public class DevModeTests : IDisposable
     {
         foreach (var name in _setEnvNames)
             Environment.SetEnvironmentVariable(name, null);
+        // 复位静态态：Dispose 只清环境变量不够——Enabled 是 private set 静态，残留 true 会让并行类
+        // （如 PluginFrontendFileMiddlewareTests）的 WebSrcEnabled 变 true → 缓存头断言 flake（task-17）。
+        // 复位协议 = 清总闸 env + Initialize 幂等归 false（守卫测试 ResetProtocol_* 固化此协议）。
+        Environment.SetEnvironmentVariable(DevMode.EnvName, null);
+        DevMode.Initialize([]);
     }
+
 
     private void SetEnv(string name, string? value)
     {
@@ -115,5 +121,24 @@ public class DevModeTests : IDisposable
 
         DevMode.BuildConfiguration.Should().Be("Debug");
         DevMode.TargetFramework.Should().Be("net10.0");
+    }
+    /// <summary>
+    /// task-17 守卫：复位协议唯一形态固化——「清总闸 env + Initialize 幂等」必须把静态态归回确定关。
+    /// 防回归点：Dispose/清理只清环境变量不复位 Enabled 静态 → 并行类读到残留 true → 缓存头 flake。
+    /// </summary>
+    [Fact]
+    public void ResetProtocol_ClearEnvPlusInitialize_IsDeterministicOff()
+    {
+        SetEnv(DevMode.EnvName, "1");
+        DevMode.Initialize([]);
+        DevMode.Enabled.Should().BeTrue();
+
+        // 复位协议（与 Dispose 内一致）
+        Environment.SetEnvironmentVariable(DevMode.EnvName, null);
+        DevMode.Initialize([]);
+
+        DevMode.Enabled.Should().BeFalse();
+        DevMode.WebSrcEnabled.Should().BeFalse();
+        DevMode.ShadowCopyEnabled.Should().BeFalse();
     }
 }

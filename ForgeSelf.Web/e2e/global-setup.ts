@@ -305,7 +305,25 @@ export default async function globalSetup(_config: FullConfig) {
   await waitForUrl(`${backendUrl}/api/health`, 120_000)
 
   // 4) 初始化 token（首启返回明文；否则回退 real-auth 解密 ForgeSetting.config）
-  const token = await fetchInitToken(`${backendUrl}/api/api-server/init-token`)
+  // task-14（2026-11-05 lead wt-st 实测两轮）：fresh worktree 首启宿主可能卡在
+  // 「初始化内置 Agent」——health 已 200 但 api-server 未就绪，首抓即空 → 回退解密
+  // 也必败（新树无 config）→ 全部用例假红「ForgeSetting.config 中未找到 ApiToken」。
+  // 修法：首抓空则等 8s 重试一次；两抓皆空且回退 config 不存在 → fail-fast 抛明确
+  // 错误（指认场景+处置），不再放行到全量假红。config 存在时仍走正常回退路径。
+  let token = await fetchInitToken(`${backendUrl}/api/api-server/init-token`)
+  if (!token) {
+    console.warn('[e2e-global-setup] init-token 首抓为空——等 8s 重试一次（fresh worktree 首启可能卡在内置 Agent 初始化）')
+    await new Promise((resolve) => setTimeout(resolve, 8000))
+    token = await fetchInitToken(`${backendUrl}/api/api-server/init-token`)
+  }
+  const fallbackConfigPath = path.join(dataDir, 'config', 'ForgeSetting.config')
+  if (!token && !existsSync(fallbackConfigPath)) {
+    throw new Error(
+      '[e2e-global-setup] init-token 两次抓取皆空且回退 ForgeSetting.config 不存在——' +
+        '大概率 fresh worktree 首启宿主卡在内置 Agent 初始化（backend.log 停在「初始化内置 Agent」）。' +
+        '处置：直接重跑一次 e2e（DB 建好后即恢复）；若复发请查 .temp/e2e/<ts>/backend.log。',
+    )
+  }
 
   // 5) 写出运行态快照 + 注入 worker 环境
   const state = {

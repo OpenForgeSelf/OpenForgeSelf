@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace ForgeSelf.Api.Plugins.SmartTerminal.Models;
 
 /// <summary>
 /// 权限模式（对齐 VS Code Agent Approvals 的分级审批 + Open Interpreter approval policy 分层）。
 /// 默认 <see cref="AskWrite"/>：只读类自动放行，写/副作用询问，硬拒绝仍拦。
 /// </summary>
+/// <remarks>HTTP 边界按字符串名交换（前端契约 'Auto'|'AskWrite'|'AskHighRisk'；STJ 默认只收数字，51888 实测 400 后加转换器；输入仍兼容数字）。</remarks>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PermissionMode
 {
     /// <summary>自动执行，仅硬 denylist 拒绝。</summary>

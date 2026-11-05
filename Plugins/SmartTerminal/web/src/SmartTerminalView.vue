@@ -1156,7 +1156,7 @@ watch(
       </div>
     </div>
 
-    <div v-if="canShowApprovalOverlay" class="modal-mask modal-approval" data-testid="approval-modal" @click.self="showApproval = false">
+    <div v-if="canShowApprovalOverlay && activeApproval" class="modal-mask modal-approval" data-testid="approval-modal" @click.self="showApproval = false">
       <div class="modal" role="dialog" aria-modal="true">
         <h2>需要审批</h2>
         <p class="muted">{{ activeApproval.reason }}</p>

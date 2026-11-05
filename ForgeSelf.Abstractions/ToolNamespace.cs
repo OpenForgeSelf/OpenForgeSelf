@@ -68,6 +68,7 @@ public static class ToolNamespace
             ["scheduler"] = "schedule",
             ["script-runner"] = "script",
             ["sems"] = "sems",
+            ["smart-terminal"] = "st",
             ["design-system"] = "design",
             ["system-monitor"] = "sys",
             ["todo-tracker"] = "todo",

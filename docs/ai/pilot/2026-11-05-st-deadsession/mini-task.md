@@ -1,4 +1,4 @@
-# mini-task：SmartTerminal 死会话 404 轮询（task-18，轻量路径）
+﻿# mini-task：SmartTerminal 死会话 404 轮询（task-18，轻量路径）
 
 ## Intent（为什么/做什么/到什么程度）
 51888 升级后实测暴露：宿主重启后 S-R 恢复的会话 id 服务端已不存在，前端对 output/commands 轮询持续 404 + 反复 toast「会话不存在」，标签永不关闭。目标：首个 404 即停轮询 + 标签置灰 ✕ + 仅提示一次；同类轮询点全部按 problem-class-closure 扫查封口。
@@ -21,3 +21,7 @@
 
 ## Evidence / Review
 见 05-evidence.md / 06-review.md；问题类归档见 07-final-report.md 三节。
+
+## Interaction Design（无界面交互 → 实为轻量 UI 行为，qa-ci 2026-11-05 补）
+
+点开已失效会话的留存页签 → 页内出现一次性 banner「会话不存在/已失效」，该页签标题置灰并出现 ✕ 关闭钮；3 秒窗口内不重复发起会话读取（无新增 404 刷屏）。边界：banner 只提示一次；置灰页签仍可手动 ✕ 关闭；正常会话页签行为不变。S-R 路径对不存在 id 注入的响应码契约不变（404 语义保留，仅前端消费方式收敛）。

@@ -1131,7 +1131,7 @@
   padding: 8px 14px 0;
   background: var(--aiw-bg);
   border-top: 1px solid var(--aiw-line);
-  animation: aiw-runstrip-in 0.15s var(--aiw-ease-out);
+  animation: aiw-runstrip-in var(--aiw-dur-fast) var(--aiw-ease-out);
 }
 @keyframes aiw-runstrip-in {
   from { opacity: 0; transform: translateY(4px); }

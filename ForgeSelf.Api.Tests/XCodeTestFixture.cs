@@ -36,7 +36,9 @@ public class XCodeTestFixture
         "TodoTracker",
         "ProxyCapture",
         "ImGateway",
-        "FileTools"
+        "FileTools",
+        "DbAdmin",         // task-15（2026-11-05）：DbAdminTestFixture 并入首绑体系（PC-014 归化）
+        "DbAdminTestHost", // 同上：DbAdmin 测试的模拟宿主只读连接
     };
 
     public XCodeTestFixture()
@@ -56,7 +58,7 @@ public class XCodeTestFixture
             foreach (var name in new[]
             {
                 "ForgeSelf.Api", "AIAgent", "TodoTracker", "QuickLinks", "Scheduler",
-                "ScriptRunner", "WorkflowEngine", "ImGateway", "MemorySystem", "FileTools",
+                "ScriptRunner", "WorkflowEngine", "ImGateway", "MemorySystem", "FileTools", "DbAdmin",
                 "DesignSystem", "CostScope", "Sems", "AgentHub", "McpCenter", "SamplePlugin",
                 "DevTools", "SystemMonitor", "ToolBridge",
             })
@@ -94,7 +96,15 @@ public class XCodeTestFixture
     }
 
     /// <summary>进程绑定的测试库目录（首个 ctor 创建，后续复用）。测试类需要直接读库文件时取用。</summary>
+    /// <summary>进程绑定目录的静态只读访问（DbAdminTestFixture 等衍生夹具取库目录用；未首绑时为 null）。</summary>
+    public static string? BoundDir => _boundDir;
     public string DbDir => _dbDir;
+    /// <summary>测试种子连接的唯一注册入口（PC-014：连接串登记只允许发生在本文件）。返回传入的库文件路径。</summary>
+    public static string RegisterSeedConn(string connName, string dbPath)
+    {
+        DAL.AddConnStr(connName, $"Data Source={dbPath}", null, "SQLite");
+        return dbPath;
+    }
 
     /// <summary>
     /// 注册连接串后，为每个连接名主动建表（反向工程）。
@@ -131,6 +141,8 @@ public class XCodeTestFixture
     {
         foreach (var connName in _connNames)
         {
+            if (connName is "DbAdmin" or "DbAdminTestHost") continue;
+            // task-15：DbAdmin 族由 DbAdminCollection 自管（跨 collection 清库会与 DbAdminTests 并行竞态互清）
             try
             {
                 var dal = DAL.Create(connName);

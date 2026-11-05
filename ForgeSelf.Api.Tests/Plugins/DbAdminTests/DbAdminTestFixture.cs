@@ -24,20 +24,19 @@ public sealed class DbAdminTestFixture
 
     public DbAdminTestFixture()
     {
-        Dir = Path.Combine(Path.GetTempPath(), "ForgeSelfDbAdminTests", DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(Dir);
+        // task-15（PC-014 归化）：不再自建目录/手搓连接串——连接名已并入 XCodeTestFixture
+        // 进程级首绑（_connNames 含 DbAdmin/DbAdminTestHost），此处仅触发/复用首绑并补种子。
+        _ = new XCodeTestFixture(); // 幂等：首绑或复用（ClearAllData 已排除 DbAdmin 族，不清本库）
+        Dir = XCodeTestFixture.BoundDir!;
 
-        // 插件自有库
-        DAL.AddConnStr(DbAdminTables.ConnName, $"Data Source={Path.Combine(Dir, "DbAdmin.db")}", null, "SQLite");
         Assert.True(DbAdminTables.EnsureCreated(), "DbAdmin 测试库建表失败");
 
-        // 模拟宿主 / 其它插件库（系统只读连接）
-        SystemDbFile = Path.Combine(Dir, "HostDemo.db");
-        DAL.AddConnStr(SystemConnName, $"Data Source={SystemDbFile}", null, "SQLite");
+        // 模拟宿主（系统只读连接）：种子表（连接串已由首绑登记）
+        SystemDbFile = Path.Combine(Dir, "DbAdminTestHost.db");
         var sys = DAL.Create(SystemConnName);
         sys.Execute("CREATE TABLE IF NOT EXISTS host_items (id INTEGER PRIMARY KEY, name TEXT)");
+        sys.Execute("DELETE FROM host_items");
         sys.Execute("INSERT INTO host_items (name) VALUES ('a'), ('b')");
-
         Protector = new FileKeySecretProtector(Path.Combine(Dir, "data"));
         Connections = new DbConnectionService(Protector, new SqliteOnlyProbe(), Audit, () => [SystemConnName]);
         Modes = new PermissionModeStore(Path.Combine(Dir, "data"));
@@ -49,7 +48,7 @@ public sealed class DbAdminTestFixture
     {
         var file = Path.Combine(Dir, $"target_{tag}_{Guid.NewGuid().ToString("N")[..6]}.db");
         var seedName = "DbAdminTestSeed_" + Guid.NewGuid().ToString("N")[..8];
-        DAL.AddConnStr(seedName, $"Data Source={file}", null, "SQLite");
+        XCodeTestFixture.RegisterSeedConn(seedName, file); // PC-014：经唯一入口登记
         var dal = DAL.Create(seedName);
         dal.Execute(ddl ?? "CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT, note TEXT)");
         return file;

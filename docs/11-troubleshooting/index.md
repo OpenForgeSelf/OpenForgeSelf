@@ -28,6 +28,8 @@
 | `response.output_text.delta` / `item_id` expected string, received undefined / 「AI 返回的内容格式无效」 | case [2026-10-30 Responses 出站空 delta](cases/2026-10-30-responses-outbound-delta-item-id.md) → [PC-016](problem-classes/PC-016-responses-outbound-delta-item-id.md) |
 | `text part msg_… not found` / Open Responses 流已有 item_id 仍失败 | case [2026-10-30 text part 未登记](cases/2026-10-30-responses-text-part-not-registered.md) → [PC-016](problem-classes/PC-016-responses-outbound-delta-item-id.md) |
 | 工具调用报 `Expected depth to be zero at the end of the JSON payload` / `INVALID_PARAMETERS 参数JSON解析失败`（单个工具全挂、同批其他工具正常、构建却全绿） | case [2026-10-30 工具 schema 重复键](cases/2026-10-30-tool-schema-json-duplicate-key.md) → [PC-017](problem-classes/PC-017-tool-schema-json-duplicate-key.md) |
+
+| 前端轮询 404 反复重试/错误 toast 反复弹（会话已不存在仍轮询） | case [2026-11-05 死会话轮询](cases/2026-11-05-smart-terminal-dead-session-poll-404.md) → [PC-024](problem-classes/PC-024-frontend-poll-error-handling.md) |
 | 工具报 `success:true` 但实际没生效（文件没写出来/进程没退/库没提交），回读验证才现形 | case [2026-10-30 write_file 零落盘](cases/2026-10-30-tool-success-without-side-effect.md) → [PC-018](problem-classes/PC-018-tool-success-without-side-effect.md) |
 | 宿主映射控制器 `FileNotFoundException` / `Could not load` 某个 NuGet 程序集；或插件接口 500 `Unable to resolve service for type` | case [2026-11-02 浏览器与审批 DI](cases/2026-11-02-browseruse-and-approval-di.md) → [PC-020](problem-classes/PC-020-plugin-dependency-unresolved.md) |
 | `/ai-agent` 主区域空白或顶栏仍写 AI Agent | case [2026-11-02 智能体页空白与旧名](cases/2026-11-02-agent-page-blank-old-name.md) → [PC-021](problem-classes/PC-021-agent-entry-blank-or-old-name.md) |

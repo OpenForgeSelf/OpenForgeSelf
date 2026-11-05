@@ -58,6 +58,7 @@
 | PC-021 | 智能体入口顶栏仍用旧名，或主区域因兜底路由被判冲突而空白 | guarded | G1×2 active | 1 | [PC-021](PC-021-agent-entry-blank-or-old-name.md) |
 | PC-022 | XCode 实体直插漏赋时间戳字段，落库为 0001-01-01 缺省值 | guarded | G1 active（MemoryTimestampGuardTests） | 0 | [PC-022](PC-022-xcode-entity-timestamp-default.md) |
 | PC-023 | 执行记录 filesChanged 断链：自动留痕无参数 + 双编码 JSON 裸正则永不命中 | guarded | G1 active（BuiltInFilesChangedPersistenceTests） | 0 | [PC-023](PC-023-todo-fileschanged-persistence-loss.md) |
+| PC-024 | 前端轮询面错误处理缺失：静默吞 404（终态错误继续轮询）/ 无 catch 裸抛反复 toast | guarded | G2 active（e2e dead-session restored：banner 一次 + 3s 零新增 404） | 0 | [PC-024](PC-024-frontend-poll-error-handling.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

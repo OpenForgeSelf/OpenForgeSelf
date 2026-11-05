@@ -35,6 +35,57 @@ test.describe('smart-terminal smoke', () => {
     // entryHit 在未启用插件时可能为 false；标题断言是主判据
     void entryHit
   })
+
+  // 死会话恢复（宿主重启后 S-R 恢复的会话 id 服务端已不存在）：
+  // 首个 404 → 停轮询 + banner 一次 + 标签置灰 ✕；此后 404 计数零新增。
+  test('dead session restored: tab marked dead, polling stops with zero new 404s', async ({ page }) => {
+    const deadSessionId = 'e2e-dead-sess'
+    const snapshot = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      activeId: deadSessionId,
+      tabs: [
+        {
+          sessionId: deadSessionId,
+          title: '死会话',
+          shellId: 'pwsh',
+          shellDisplayName: 'PowerShell',
+          cwd: 'C:\\',
+          permissionMode: 'AskWrite',
+          status: 'idle',
+        },
+      ],
+      chunksBySession: { [deadSessionId]: [{ index: 0, stream: 'stdout', text: 'legacy output' }] },
+      commandsBySession: {},
+      nextIndexBySession: { [deadSessionId]: 1 },
+    }
+    await page.addInitScript((snap) => {
+      sessionStorage.setItem('forge.self.smart-terminal.session-restore.v1', JSON.stringify(snap))
+    }, snapshot)
+
+    let notFoundCount = 0
+    page.on('response', (r) => {
+      if (r.status() === 404 && r.url().includes('/api/smart-terminal/')) notFoundCount += 1
+    })
+
+    await page.goto('/')
+    await page.waitForResponse((r) => r.url().includes('/api/plugin/frontend-manifest') && r.ok(), { timeout: 30000 }).catch(() => null)
+    await page.goto(ROUTE)
+    await page.waitForLoadState('networkidle')
+
+    const tab = page.locator(`[data-testid="tab-bar"] [data-session-id="${deadSessionId}"]`)
+    await expect(tab).toBeVisible()
+    await expect(page.getByTestId('banner-dead')).toBeVisible()
+    await expect(tab).toHaveClass(/dead/)
+    await expect(tab.locator('.tab-title')).toContainText('✕')
+
+    // 视觉证据：死标签置灰 ✕ + 失效 banner（e2e-testing 技能：截图读图常规化）
+    await page.screenshot({ path: 'screenshots/e2e/smart-terminal/dead-session.png', fullPage: true })
+
+    const settled = notFoundCount
+    await page.waitForTimeout(3000)
+    expect(notFoundCount, '修复前此断言红：轮询持续 404；修复后停止轮询').toBe(settled)
+  })
 })
 
 /**

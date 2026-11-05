@@ -109,6 +109,9 @@
 - **坑**：`Measure-Object` 无论管道命中 0 条还是 N 条，**恒输出单个 MeasureInfo 对象**——`@(... | Measure-Object).Count` 永远等于 1，**零命中也报「1 处」**。中档全量判责时五个测试家族同时「误报 ×1 新红」，差点把对表结论写反（锚定逐条计数后全部为 0）。
 - **正解**：计数直接 `@(Select-String …).Count`（数组包 Select-String 原输出，空集=0）；判责一律锚定 `^\s+失败 ` 逐条打印完整测试名再核对，**聚合计数不得作为判责证据**。
 
+### 共享 main 上的 history 操作：先重读 log 再动手（2026-11-05 赛跑实证，qa-ci）
+- **坑**：并发队友分钟级窗口内即可前移 HEAD。qa-ci 做 eset --soft HEAD~1 时 HEAD 已被队友前移两个提交，HEAD~1 落到更早处 → 队友合并内容被留在暂存区、提交出一条「瞬时回退他人成果」的中间提交（bisect 必踩），后续 amend 又把他人内容以错误作者消息带回（重写才修复）。
+- **纪律**：① 共享分支上任何 reset/rebase/amend 前先 git log --oneline -3 确认 HEAD 新鲜度；② soft-reset 后必须 git status 核对暂存区归属，**只 add 自己的文件**；③ 提交消息走 -F 文件（内联 here-string 经工具传输会丢字符）；④ 改完即跑 git diff <原HEAD> HEAD --stat 作为零损失机器证明。
 ### 多实例并存现场验收：先核监听端口的 PID 归属（2026-10-17 PILOT-062 实证）
 - **打到谁的端口不可想当然**：用户常驻 dev 宿主会占住默认段端口（含 MCP 网关 18890/18895 这类插件自管口）；本批首次现场验收的 initialize/tools/call 实际落在用户实例的**旧代码有状态网关**上（-32001 Session not found），若未识破就会把用户实例的报错当成修复批的验证结论。**规则**：自起验收实例后、发判据请求前，必做 `Get-NetTCPConnection -LocalPort <口> -State Listen | Select OwningProcess` 核对监听者 PID == 自己拉起的进程 PID（命令行可用 `Get-CimInstance Win32_Process -Filter "ProcessId=N"` 验认）；不符则换空闲端口重拉（宿主侧用 `FORGESELF_PORT` / `FORGESELF_MCP_GATEWAY_PORT` 等环境变量错开），不属本批证据的响应一律弃用不入库。
 - **同源子坑**：`dev-stack.ps1` 内部固定 `dotnet build -c Debug`，用户 dev 宿主在跑时必撞 DLL 锁（MSB3027）且 `-SkipBuild` 只会用陈旧产物——锁下现场验收的等效姿势：用 e2e globalSetup 刚编译的全新 publish 产物（`.temp/e2e/wt-<hash>/publish`）按同款环境变量（`--console` 首参 + `FORGESELF_DATA_ROOT` 隔离 + 独立 `FORGESelf_INSTANCE_ID`）自起实例，验收完只停**自己拉的** PID（证据写法见 2026-10-17-plugin-di-helper-todo-fix 05-evidence）。

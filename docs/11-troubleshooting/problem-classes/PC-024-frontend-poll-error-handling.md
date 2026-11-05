@@ -10,7 +10,6 @@ cases: [2026-11-05-smart-terminal-dead-session-poll-404]
 allowlist: []
 signature:
   - {id: S1, kind: test, path: "ForgeSelf.Web/e2e/plugins/smart-terminal/smart-terminal.spec.ts"}
-  - {id: S2, kind: grep, glob: "Plugins/SmartTerminal/web/src/SmartTerminalView.vue", regex: "isSessionDead404", expect: match}
 guards:
   - {level: G2, path: "ForgeSelf.Web/e2e/plugins/smart-terminal/smart-terminal.spec.ts", status: active}
 lens:

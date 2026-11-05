@@ -51,7 +51,7 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await page.screenshot({ path: `${SHOT_DIR}/02-test-ok.png`, fullPage: true })
     await tid(page, 'cf-save').click()
     await expect(tid(page, 'conn-form')).toBeHidden({ timeout: 30_000 })
-    const connItem = page.locator(`[data-testid^="conn-"]`, { hasText: connName }).first()
+    const connItem = page.locator('.node.conn', { hasText: connName }).first() // 修：前缀撞 conn-tree 容器（hasText 匹配容器内子文本→first() 选容器→click 无效、selectConnection 从未触发）
     await expect(connItem).toBeVisible({ timeout: 30_000 })
 
     // ③ 选中连接，跑 CREATE TABLE（写语句 → AskWrite 审批弹窗 → 批准执行）
@@ -67,18 +67,13 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await expect(tid(page, 'approval-modal')).toBeHidden({ timeout: 30_000 })
     await expect(tid(page, 'result-grid').or(tid(page, 'result-stats'))).toBeVisible({ timeout: 30_000 })
 
-    // ④ schema 浏览：loadTables 对已拉取连接缓存短路（DbAdminView.vue:258），批准建表后树不自动刷新；
-    // 走整页刷新（S-R 恢复连接/当前连接/草稿，表列表内存缓存不恢复→重新拉取）→ 展开连接见新表
-    await page.reload()
-    await expect(connItem).toBeVisible({ timeout: 30_000 })
-    await connItem.click()
-    // S-R 恢复竞态防护：reload 后 applyRestore 异步重渲可能吞掉首次点击（或首次点击=折叠）。
-    // 8s 内表未出现则再点一次，收敛到「展开且 loadTables 已调」（第 5 轮实证 flake）。
+        // ④ schema 树即时刷新（R1 修复断言）：批准建表执行完成后，schema 树**不经整页刷新**即见新表
+    // （resolveApproval finally 触发 loadTables(force)；修复前此处必须 page.reload() 才能见新表）
     const tableNode = page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first()
     try {
       await tableNode.waitFor({ state: 'visible', timeout: 8_000 })
     } catch {
-      await connItem.click()
+      await connItem.click() // 连接节点若未展开，展开一次（数据层已是新表集合）
     }
     await expect(tableNode).toBeVisible({ timeout: 30_000 })
     await page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first().click()

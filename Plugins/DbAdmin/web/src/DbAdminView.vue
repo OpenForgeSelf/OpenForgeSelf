@@ -254,8 +254,8 @@ async function loadAll() {
   }
 }
 
-async function loadTables(id: string) {
-  if (isDemo.value || tables.value[id]) return
+async function loadTables(id: string, force = false) {
+  if (isDemo.value || (!force && tables.value[id])) return // force：建表/写执行后强制重拉（R1）
   try {
     tables.value = { ...tables.value, [id]: await dbAdminApi.tables(id) }
   } catch (e) {
@@ -465,6 +465,7 @@ async function resolveApproval(a: DbApproval, approveIt: boolean, confirmDestruc
     else handleError(e, '审批')
   } finally {
     activeApprovalId.value = null
+    if (approveIt) void loadTables(a.connectionId, true) // R1：批准执行后 schema 树即时可见
     await Promise.all([refreshApprovals(), refreshHistory(), refreshAgentEchoes()])
   }
 }
@@ -913,7 +914,7 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
         <h3>写操作审批 <span v-if="currentApproval.source === 'agent'" class="tag tag-agent" data-testid="approval-from-agent">来自 Agent</span></h3>
         <dl class="kv">
           <dt>目标连接</dt><dd>{{ currentApproval.connectionName ?? connName(currentApproval.connectionId) }}</dd>
-          <dt>类型</dt><dd>{{ kindLabel(currentApproval.kind, currentApproval.destructive) }}<span v-if="currentApproval.destructive" class="tag tag-danger" data-testid="approval-destructive">破坏性</span></dd>
+          <dt>类型</dt><dd>{{ kindLabel(currentApproval.kind, currentApproval.destructive) }}<span v-if="currentApproval.destructive" class="tag tag-danger" data-testid="approval-destructive">不可恢复</span></dd>
           <dt>来源</dt><dd>{{ currentApproval.source === 'agent' ? 'Agent（db_execute_write）' : 'UI 编辑器' }}</dd>
           <dt>预估风险</dt><dd>{{ currentApproval.risk ?? (currentApproval.destructive ? '高：结构或数据不可恢复' : '中：修改数据') }}</dd>
         </dl>

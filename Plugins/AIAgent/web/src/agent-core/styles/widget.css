@@ -1195,6 +1195,8 @@
   cursor: pointer;
   color: var(--aiw-text);
 }
+.aiw-runstrip__btn:hover { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-runstrip__btn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
 .aiw-runstrip__btn--primary {
   border-color: var(--aiw-primary-32);
   background: var(--aiw-primary-08);

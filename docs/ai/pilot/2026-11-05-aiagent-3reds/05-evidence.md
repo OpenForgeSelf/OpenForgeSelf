@@ -14,3 +14,9 @@
 ## 红1 修复后（Verified，2026-11-05）
 - 改动：widget.css :1134 nimation: aiw-runstrip-in 0.15s var(--aiw-ease-out) → ar(--aiw-dur-fast)（160ms 既有台阶，与 150ms 差 10ms 不可感知；不新建 token）。棘轮命中 7→6 = 上限内，**未抬上限**（route b 未动用）；其余 6 处均为存量 infinite 装饰循环（归「无限动画受控」测试管辖，不在本次范围）。
 - 依据：cssCode 聚合范围 = widget.css（widget-contract.test.ts :25），上限常量 6；runstrip-in 是 7 处中唯一交互档位动画（runstrip 落地新增），其余 6 处为存量。
+
+## 红3 修复后（Verified，2026-11-05）
+- 根因：free 分流 transport 的 onContent（agentBridge.ts :447-450）只把正文推给 ctx.onBlock（text 段块，text-segment 交错改造时引入），**没有调 ctx.onDelta**——types.d.ts TransportCtx 契约「正文经 onDelta 增量上抛」被断，凡只听 delta 的宿主/测试收不到正文（本测试 expected [] to deeply equal ['你','好']）。
+- 改动：onContent 补回 ctx.onDelta(chunk)（一行 + 契约注释）；text 段块保留——双通道并存是组件既有设计：useChat finalize 有 content===merged 去重（useChat.js :769-775），MessageItem 交错模式只渲染 blocks 不渲染 content 气泡（MessageItem.vue :58-63），无双渲染风险。plan 分支 onContent（步骤正文进步骤卡）语义不同，未动。
+- 断言零改动（修实现不改断言）；未牵出 AIAgent 后端行为问题（SSE 事件解析与请求体断言均已在同一用例内验证通过）。
+- 过滤集：**12 files passed | 149 tests passed**，三红清零无新增（vitest_exit=0）。

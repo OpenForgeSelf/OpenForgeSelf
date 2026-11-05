@@ -1,9 +1,9 @@
 # 07 Final Report
 
 ## Validation
-- 快档：AIAgent 过滤集 vitest（ForgeSelf.Web 归口）红2 清零（2 failed|147 passed，无新增红）——Verified。红1/红3 修复后补记。
+- 快档：AIAgent 过滤集 vitest（ForgeSelf.Web 归口）红2 清零（2 failed|147 passed，无新增红）——Verified。红1 bed971d：棘轮 7→6 回预算内、上限未抬；红3：onDelta 契约修复（断言零改动），过滤集 12 files/149 tests 全绿。
 ## Review
-见 06（Final Decision: CHANGES_REQUIRED 进行中）。
+见 06（Final Decision: APPROVED——三红清零、修实现未改断言、无新增红）。
 ## 问题类归档
 复用既有类级守卫（widget-contract 棘轮 + 交互规格扫描）即本次拦截机制，无需新增 PC；三红均为守卫正常拦截的新增违例（红原文与判类见 05）。PC-014 排除依据：隔离复跑稳定红、与数据根/夹具无关。
 ## 重构提案

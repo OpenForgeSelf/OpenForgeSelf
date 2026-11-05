@@ -13,6 +13,8 @@
 | E5 | E4 的 3 红归属 | `dotnet test --filter ProblemClassRegistryTests -v normal` 单类复跑 | 3 红全为 **PC-024（smart-terminal 死会话 404，st-dev 域）工件登记腐烂**：① PC-024-frontend-poll-error-handling.md 缺必填键 signature ② cases/README.md 索引缺 case 行 ③ case front-matter id 为空与文件名不一致——**非本任务引入（本任务未触碰任何 PC 工件）；main 84875d3 引入工件后即带** | Verified（.temp/log-t17-pcreg.txt） |
 | E6 | 中档全量本机环境不可达 | 两次全量（13:15/13:30）均卡死 ScriptRunner 簇（ScriptRunnerTests.CancelAsync 等，40+ 分钟零输出、testhost 单核烧） | 定性：CPU 争用下取消类 async 测试挂（主工作区 20+ dotnet 进程 + 51888 实例争用）；孤儿 testhost 占锁期间疑诱发 XCode 自愈风暴。**qa #3 同代码 15 分钟正常收口为对照证据**。孤儿已全部清理；正式全量由 qa 环境代跑（lead 已派） | Verified（进程采样）+ Inferred（机理） |
 
+| E7 | 中档全量（qa 环境代跑，feat/db-admin head 16b57aa，干净 worktree 串行独占） | qa 报告（日志 .temp/tmp/tb-dbdelegate-1.log 留存） | ✅ **3712 例 / 14m55s / 27 红**；对表四项口径全过：① task-17 三件 0 新红 ② ForgeSetting ×1 绿 ③ PC-014 族零新增（no such table 0 次）④ db-admin 基线照旧。27 红归属：23 稳定基线 + 3（分支缺 main 1118f9d 的 PC-024 signature 补全，**merge main 自清**）+ 1（Guards_ActivePaths 读 gitignored TODO.md，fresh worktree 天然缺件，已知基建项） | Verified（qa 代跑，lead 转交） |
+
 ## 结论
 - task-17 三件修复（复位协议/防御复位/守卫）在定向对表集内 **0 红**（E2/E4）。
 - qa 收尾残余 ×2 的归属闭环：PluginFrontendFileMiddleware ×2 = 本任务直接修复对象（E2 绿）；ForgeSetting ×1 = E3 绿。

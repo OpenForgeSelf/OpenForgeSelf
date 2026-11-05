@@ -7,7 +7,8 @@ namespace ForgeSelf.Api.Tests.Unit;
 /// MultimodalProcessor 图片识别缓存行为测试（输入31：统一聊天接口多模态图片识别缓存）。
 /// 覆盖：同会话同图命中缓存、会话间隔离、历史图+新图仅补识别新图、无会话/无缓存回退原行为、失败不缓存。
 /// </summary>
-public class MultimodalProcessorCacheTests
+[Collection("XCode")]
+public class MultimodalProcessorCacheTests : IClassFixture<XCodeTestFixture>
 {
     private readonly string _cacheRoot;
     private readonly AIProviderRegistry _registry;
@@ -15,8 +16,9 @@ public class MultimodalProcessorCacheTests
     private readonly CountingVisionProvider _visionProvider;
     private readonly LocalFileImageRecognitionCache _cache;
 
-    public MultimodalProcessorCacheTests()
+    public MultimodalProcessorCacheTests(XCodeTestFixture fixture)
     {
+        _ = fixture;
         _cacheRoot = Path.Combine(Path.GetTempPath(), "ofos-mm-cache-tests", Guid.NewGuid().ToString("N"));
         _registry = new AIProviderRegistry();
         _config = new AIProviderConfig

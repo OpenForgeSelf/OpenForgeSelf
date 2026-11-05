@@ -39,8 +39,39 @@ STYLED=$(git diff --cached --name-only --diff-filter=ACMR \
   | grep -E '^(ForgeSelf\.Web/src|Plugins/[^/]+/web/src)/' || true)
 if [ -n "$STYLED" ]; then
   echo "[pre-commit] 校验设计规范守卫 (design:check)"
+  # 棘轮基线同步（task-14，2026-11-05）：worktree 的基线文件可能落后 main（分支点旧）
+  # → 拦截口径漂移（11-04 夜 db-dev 9 色违规在 wt-db 漏拦、合 main 才拦）。
+  # 规则：分支自身自 merge-base 起改过基线（合法棘轮抬升/-Update）或本次暂存改基线
+  # → 尊重分支版本；否则临时取 main 侧基线校验本次提交，校验后恢复工作区文件
+  # （只动工作区、不进暂存区，提交内容不变）。main 不可用时跳过（保持旧行为）。
+  BASE_SHA=$(git merge-base HEAD main 2>/dev/null || git merge-base HEAD origin/main 2>/dev/null)
+  MAIN_REF=""
+  if git rev-parse --verify -q main >/dev/null 2>&1; then
+    MAIN_REF=main
+  elif git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+    MAIN_REF=origin/main
+  fi
+  RESTORE_BASELINES=""
+  if [ -n "$MAIN_REF" ] && [ -n "$BASE_SHA" ]; then
+    for BLF in scripts/design-compliance-baseline.json scripts/style-token-baseline.json; do
+      if [ -f "$BLF" ] \
+         && [ -z "$(git diff --name-only "$BASE_SHA" HEAD -- "$BLF")" ] \
+         && [ -z "$(git diff --name-only --cached -- "$BLF")" ]; then
+        if git show "$MAIN_REF:$BLF" > "$BLF" 2>/dev/null; then
+          RESTORE_BASELINES="$RESTORE_BASELINES $BLF"
+        fi
+      fi
+    done
+    if [ -n "$RESTORE_BASELINES" ]; then
+      echo "[pre-commit] 棘轮基线按 $MAIN_REF 同步校验（分支基线未改动；校验后恢复）"
+    fi
+  fi
   (cd ForgeSelf.Web && node ../scripts/check-style-tokens.mjs && node ../scripts/check-design-compliance.mjs)
-  if [ $? -ne 0 ]; then
+  GATE_RC=$?
+  if [ -n "$RESTORE_BASELINES" ]; then
+    git checkout -- $RESTORE_BASELINES 2>/dev/null || true
+  fi
+  if [ $GATE_RC -ne 0 ]; then
     echo "[pre-commit] 设计规范守卫 FAIL：存在新增硬编码色值 / 设计规范违反（DESIGN.md 门禁），提交已拒绝。"
     FAIL=1
   fi

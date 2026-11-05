@@ -1,3 +1,11 @@
+---
+id: 2026-11-05-smart-terminal-dead-session-poll-404
+title: SmartTerminal 死会话轮询持续 404——S-R 恢复的陈旧会话 id 无失效机制
+pc: PC-024
+severity: P3
+evidence: Verified
+---
+
 # case：SmartTerminal 死会话轮询持续 404（2026-11-05）
 
 ## 现象

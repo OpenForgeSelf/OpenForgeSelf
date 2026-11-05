@@ -445,6 +445,11 @@ export function buildAgentChatConfig(deps: AgentBridgeDeps): AgentChatConfig {
         },
         {
           onContent: (chunk: string) => {
+            /* 契约（types.d.ts TransportCtx）：正文经 onDelta 增量上抛（组件 streamingText 累积）；
+               text 段块与 onDelta 双通道并存是 useChat 既有设计（finalize 有 content===merged 去重，
+               MessageItem 交错模式只渲染 blocks）——此前只走块通道把 onDelta 断了，凡只听 delta 的
+               宿主/测试都收不到正文。 */
+            ctx.onDelta(chunk)
             textBuf += chunk
             emitTextLive()
           },

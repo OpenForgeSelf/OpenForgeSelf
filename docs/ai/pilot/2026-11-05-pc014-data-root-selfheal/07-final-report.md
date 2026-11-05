@@ -9,3 +9,9 @@
 
 - 全量两轮 3711 例：#1 28红/16m06s → #2 26红/15m52s（风暴族两轮 0 红、no-such-table 5→0、时长 +14.4%<15% 预算）；#3（中档合并门禁）25红/15m17s 全为已知基线+波动尾巴。来源 tb-full-1/2/3.log（Verified）。
 - 隔离健全：三受害族 64/64 绿；AIProviderRegistry 13/13 绿（Verified）。
+
+## 复发记录（2026-11-05 14:05 · qa-ci）
+
+- 中档全量 #6 暴露 MultimodalProcessorCacheTests ×6 `no such table: AIModel`——该类构造 AIProviderRegistry 摸 AIModel 实体但**无 [Collection("XCode")] 锚**（与 AIProviderRegistryTests 同一纪律缺口；此前绿=类序幸运，#3 绿/#6 红即类序方差实锤）。
+- 修复：同机制锚定（[Collection("XCode")] + IClassFixture<XCodeTestFixture> + ctor 收 fixture），过滤集 6/6 绿（73ms）。二次复发已按 problem-class-closure 逃逸口径处理：同类扫查命中（AIProviderRegistry 之后第二个无锚摸 XCode 实体的类）。
+- 教训更新：**静态扫查提案升级为必要项**——「ctor/new 触碰 XCode 实体的测试类必须挂 Collection(XCode)」应机器化，防第三例（06-review 提案栏同步）。

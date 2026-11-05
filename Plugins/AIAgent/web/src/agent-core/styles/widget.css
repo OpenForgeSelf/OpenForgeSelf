@@ -1131,7 +1131,7 @@
   padding: 8px 14px 0;
   background: var(--aiw-bg);
   border-top: 1px solid var(--aiw-line);
-  animation: aiw-runstrip-in 0.15s var(--aiw-ease-out);
+  animation: aiw-runstrip-in var(--aiw-dur-fast) var(--aiw-ease-out);
 }
 @keyframes aiw-runstrip-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -1195,6 +1195,8 @@
   cursor: pointer;
   color: var(--aiw-text);
 }
+.aiw-runstrip__btn:hover { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-runstrip__btn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
 .aiw-runstrip__btn--primary {
   border-color: var(--aiw-primary-32);
   background: var(--aiw-primary-08);

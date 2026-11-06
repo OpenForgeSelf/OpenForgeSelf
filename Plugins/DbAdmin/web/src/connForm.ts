@@ -31,15 +31,15 @@ export function isTested(p: Pick<DbProvider, 'id' | 'tested'> | undefined): bool
 
 export function emptyForm(provider = 'sqlite'): DbConnectionInput {
   const p = provider.toLowerCase()
-  return { name: '', provider: p, mode: 'form', host: '', port: DEFAULT_PORTS[p], database: '', userName: '', password: '', connStr: '' }
+  return { name: '', provider: p, mode: 'form', host: '', port: DEFAULT_PORTS[p], database: '', userName: '', password: '', connStr: '', defaultTable: '' }
 }
 
 /** 编辑已有连接：密码置空（留空 = 不改，UI 占位显示 ****），连接串不回填掩码值 */
-export function formFromConnection(c: DbConnection): DbConnectionInput {
+export function formFromConnection(c: DbConnection, defaultTable = ''): DbConnectionInput {
   return {
     name: c.name, provider: c.provider, mode: c.mode,
     host: c.host ?? '', port: c.port, database: c.database ?? '', userName: c.userName ?? '',
-    password: '', connStr: '',
+    password: '', connStr: '', defaultTable,
   }
 }
 
@@ -73,9 +73,10 @@ export function buildConnStr(f: DbConnectionInput): string {
   return parts.join(';')
 }
 
-/** 提交体：编辑且密码为空 → 不带 password 字段（03：密码空 = 不改） */
+/** 提交体：编辑且密码为空 → 不带 password 字段（03：密码空 = 不改）；`defaultTable` 是本机偏好，绝不进请求体 */
 export function toSubmitBody(f: DbConnectionInput, editing: boolean): DbConnectionInput {
   const body: DbConnectionInput = { ...f }
+  delete body.defaultTable
   if (body.mode === 'connstr') {
     delete body.host; delete body.port; delete body.database; delete body.userName; delete body.password
     if (editing && !body.connStr) delete body.connStr

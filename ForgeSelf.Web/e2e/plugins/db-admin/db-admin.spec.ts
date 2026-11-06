@@ -118,6 +118,9 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await page.screenshot({ path: `${SHOT_DIR}/03b-selected-dark.png`, fullPage: true })
     console.log(`[db-admin] 选中行对比度 light=${lightContrast.ratio.toFixed(2)}:1 dark=${darkContrast.ratio.toFixed(2)}:1`)
     await page.evaluate(() => document.documentElement.classList.remove('dark'))
+    // 连接未配默认表 → 点连接只展开加载全部表，不自动开标签（AC-12）；显式新建空白查询后才有编辑器
+    await expect(tid(page, 'workspace-empty')).toBeVisible()
+    await tid(page, 'empty-new-query').click()
     const editor = tid(page, 'sql-editor')
     await expect(editor).toBeEnabled({ timeout: 30_000 })
     await editor.fill(`CREATE TABLE e2e_items (id INTEGER PRIMARY KEY, name TEXT)`)
@@ -127,9 +130,9 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await page.screenshot({ path: `${SHOT_DIR}/03-approval-create.png`, fullPage: true })
     await tid(page, 'approval-approve').click()
     await expect(tid(page, 'approval-modal')).toBeHidden({ timeout: 30_000 })
-    await expect(tid(page, 'result-grid').or(tid(page, 'result-stats'))).toBeVisible({ timeout: 30_000 })
+    await expect(tid(page, 'result-stats')).toBeVisible({ timeout: 30_000 })
 
-        // ④ schema 树即时刷新（R1 修复断言）：批准建表执行完成后，schema 树**不经整页刷新**即见新表
+    // ④ schema 树即时刷新（R1 修复断言）：批准建表执行完成后，schema 树**不经整页刷新**即见新表
     // （resolveApproval finally 触发 loadTables(force)；修复前此处必须 page.reload() 才能见新表）
     const tableNode = page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first()
     try {
@@ -144,7 +147,62 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await expect(page.locator('[data-testid^="col-"]').first()).toBeVisible({ timeout: 30_000 })
     await page.screenshot({ path: `${SHOT_DIR}/04-schema.png`, fullPage: true })
 
-    // ④.1 插入一行并批准：让后续 SELECT 有真实数据行，用于断言「表头与内容列对齐」
+    // ④.0 多标签工作区（FR-1~4 / AC-1~4 / AC-13）：点表 → 预填 SELECT * + 展开列；再点同表聚焦不新增、不重置
+    await expect(tid(page, 'query-tabs')).toBeVisible()
+    await expect(editor).toHaveValue('SELECT * FROM e2e_items')
+    const tableTab = page.locator('.qtab', { hasText: 'e2e_items' }).first()
+    const manualTab = page.locator('.qtab', { hasText: '新查询' }).first()
+    const tabCount = page.locator('[data-testid^="qtab-"]')
+    await expect(tabCount).toHaveCount(2)
+    // 手写标签里改 SQL → 切到表标签再切回，内容不被覆盖
+    await manualTab.click()
+    await editor.fill('SELECT count(*) AS n FROM e2e_items')
+    await page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first().click()
+    await expect(tabCount).toHaveCount(2)
+    await expect(editor).toHaveValue('SELECT * FROM e2e_items')
+    await manualTab.click()
+    await expect(editor).toHaveValue('SELECT count(*) AS n FROM e2e_items')
+    await tableTab.click()
+    await expect(editor).toHaveValue('SELECT * FROM e2e_items')
+    await page.screenshot({ path: `${SHOT_DIR}/04b-query-tabs.png`, fullPage: true })
+    // 关闭手写标签：仅剩表标签，编辑器回到表标签
+    await manualTab.locator('[data-testid="close-tab"]').click()
+    await expect(page.locator('.qtab', { hasText: '新查询' })).toHaveCount(0)
+    await expect(editor).toHaveValue('SELECT * FROM e2e_items')
+
+    // ④.1 表过滤（AC-21）：本地过滤表名；无匹配显示「无匹配表」（不发请求）
+    await tid(page, 'table-filter').fill('e2e_items')
+    await expect(page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first()).toBeVisible()
+    await tid(page, 'table-filter').fill('no-such-table')
+    await expect(tid(page, 'table-filter-empty')).toContainText('无匹配表')
+    await tid(page, 'table-filter').fill('')
+    await expect(page.locator('[data-testid^="table-"]').first()).toBeVisible()
+
+    // ④.2 默认表（FR-8~10 / AC-9~12）：连接可配「打开即查询的表」，留空则点连接只展开加载全部表
+    const connEditorEntry = connItem.locator('button[title="编辑连接"]')
+    await connItem.hover()
+    await connEditorEntry.click()
+    await expect(tid(page, 'conn-form')).toBeVisible()
+    await expect(tid(page, 'cf-default-table')).toHaveValue('')
+    await tid(page, 'cf-default-table').fill('e2e_items')
+    await tid(page, 'cf-save').click()
+    await expect(tid(page, 'conn-form')).toBeHidden({ timeout: 30_000 })
+    // 关掉全部标签 → 工作区空态
+    for (let i = 0; i < 5; i += 1) {
+      const closeBtn = page.locator('[data-testid="close-tab"]').first()
+      if ((await closeBtn.count()) === 0) break
+      await closeBtn.click()
+    }
+    await expect(tid(page, 'workspace-empty')).toBeVisible()
+    // 连接当前是展开状态：先点一次收起，再点一次展开 → 展开动作才带出默认表标签（FR-7）
+    await connItem.click()
+    await expect(page.locator('[data-testid^="table-"]')).toHaveCount(0)
+    await connItem.click()
+    await expect(tid(page, 'query-tabs')).toBeVisible({ timeout: 30_000 })
+    await expect(editor).toHaveValue('SELECT * FROM e2e_items')
+    await page.screenshot({ path: `${SHOT_DIR}/04c-default-table.png`, fullPage: true })
+
+    // ④.3 插入一行并批准：让后续 SELECT 有真实数据行，用于断言「表头与内容列对齐」
     await editor.fill("INSERT INTO e2e_items (id, name) VALUES (1, 'e2e_row')")
     await tid(page, 'run').click()
     await expect(tid(page, 'approval-modal')).toBeVisible({ timeout: 30_000 })
@@ -169,6 +227,43 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     })
     expect(Math.max(...colLeftDiffs)).toBeLessThanOrEqual(1)
     await page.screenshot({ path: `${SHOT_DIR}/05-select.png`, fullPage: true })
+
+    // ⑤.1 多语句执行（FR-15~19 / AC-15~19）：两条语句 → 结果标签条，切换不串数据
+    await editor.fill('SELECT count(*) AS n FROM e2e_items;\nSELECT * FROM e2e_items;')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'result-tabs')).toBeVisible({ timeout: 30_000 })
+    await expect(tid(page, 'result-tab-0')).toContainText('结果 1')
+    await expect(tid(page, 'result-tab-1')).toContainText('结果 2')
+    await expect(tid(page, 'result-tab-0')).toHaveClass(/on/)
+    await expect(tid(page, 'result-grid')).not.toContainText('e2e_row')
+    await tid(page, 'result-tab-1').click()
+    await expect(tid(page, 'result-tab-1')).toHaveClass(/on/)
+    await expect(tid(page, 'result-grid')).toContainText('e2e_row', { timeout: 30_000 })
+    await page.screenshot({ path: `${SHOT_DIR}/05b-multi-result.png`, fullPage: true })
+
+    // ⑤.2 选区执行（AC-14）：只跑选中的那条 → 单结果、无结果标签条
+    await tid(page, 'sql-editor').evaluate((el) => {
+      const ta = el as HTMLTextAreaElement
+      const needle = 'SELECT * FROM e2e_items;'
+      const start = ta.value.indexOf(needle)
+      ta.focus()
+      ta.setSelectionRange(start, start + needle.length)
+      ta.dispatchEvent(new Event('select', { bubbles: true }))
+    })
+    await expect(tid(page, 'selection-hint')).toContainText('仅执行选中')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'result-grid')).toContainText('e2e_row', { timeout: 30_000 })
+    await expect(tid(page, 'result-tabs')).toHaveCount(0)
+
+    // ⑤.3 结果工具（AC-22~24）：双击单元格看详情、导出当前页 CSV（文件名含页码）
+    await tid(page, 'cell-0-1').dblclick()
+    await expect(tid(page, 'cell-detail')).toBeVisible()
+    await expect(tid(page, 'cell-detail-value')).toContainText('e2e_row')
+    await page.keyboard.press('Escape')
+    await expect(tid(page, 'cell-detail')).toHaveCount(0)
+    const [download] = await Promise.all([page.waitForEvent('download'), tid(page, 'export-csv').click()])
+    expect(download.suggestedFilename()).toMatch(/^e2e_items-r1-p1-\d{10}\.csv$/)
+    await page.screenshot({ path: `${SHOT_DIR}/05c-result-tools.png`, fullPage: true })
 
     // ⑥ INSERT：审批弹窗 → 拒绝 → 语句不执行（查证无该行）
     await editor.fill(`INSERT INTO e2e_items (name) VALUES ('e2e_rejected_row')`)

@@ -34,6 +34,13 @@ describe('连接表单', () => {
     expect(buildConnStr({ ...emptyForm('sqlite'), database: '/a.db' })).toBe('Data Source=/a.db')
     expect(buildConnStr({ ...emptyForm('mysql'), host: 'h', database: 'd', userName: 'u' })).toBe('Server=h;Port=3306;Database=d;User Id=u')
   })
+  it('默认表是本机偏好：不进请求体（AC-12 机械守卫）', () => {
+    const f = { ...emptyForm('sqlite'), name: 'demo', database: '/d.db', defaultTable: 'users' }
+    expect('defaultTable' in toSubmitBody(f, false)).toBe(false)
+    expect('defaultTable' in toSubmitBody(f, true)).toBe(false)
+    expect(toSubmitBody(f, false)).toEqual({ name: 'demo', provider: 'sqlite', mode: 'form', database: '/d.db' })
+    expect(formFromConnection({ id: '1', name: 'd', provider: 'sqlite', mode: 'form', readonly: false }, 'orders').defaultTable).toBe('orders')
+  })
 })
 
 describe('provider 小写契约', () => {

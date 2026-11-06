@@ -5,9 +5,9 @@
 
 ## 1. 定位与范围
 
-「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server 可配置但「未实测」；驱动预检关闭，失败回显底层错误）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览、SQL 执行与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
+「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server 可配置但「未实测」；驱动预检关闭，失败回显底层错误）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览（表名过滤/刷新）、**多标签查询工作区（点表开标签、同表聚焦不覆盖、连接默认表）**、SQL 执行（**选区执行 + 多语句逐条执行 → 结果分页签**）与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
 
-**非目标**：表设计器、ER 图、数据导入导出、主动驱动在线下载（2026-11-06 起交由 XCode 在连接期自行获取）、执行 shell、Agent 自建连接、宿主库写入（任何模式）。
+**非目标**：表设计器、ER 图、数据导入、批量/全库导出（结果格单页 CSV 导出已纳入）、主动驱动在线下载（2026-11-06 起交由 XCode 在连接期自行获取）、执行 shell、Agent 自建连接、宿主库写入（任何模式）。
 
 ## 2. 契约速查（真源见插件 docs/03 §3.1）
 
@@ -48,7 +48,15 @@
 
 ## 4. UI 交互（五态 + 主链路）
 
-布局：左「连接+schema 树（系统只读区恒显）」右「SQL 编辑器（Ctrl+Enter）+结果格分页」；浮层互斥：连接表单→审批→破坏性二次确认→删除确认→审计抽屉。五态：加载（版本徽标「加载中」+树骨架）/空（新建引导）/出错（红横幅+结果区错误）/无权限（401 横幅）/正常。刷新恢复：连接+当前连接+编辑器草稿（localStorage ≤64KB，不恢复密码/结果集/待审批）。逐功能「点什么出现什么」与验收清单：`Plugins/DbAdmin/docs/06`（S0–S9+S-R）。
+布局：左「连接+schema 树（系统只读区恒显，支持表名过滤与单连接刷新）」右「多标签查询工作区」；浮层互斥：连接表单→审批→破坏性二次确认→删除确认→审计抽屉→单元格详情。五态：加载（版本徽标「加载中」+树骨架）/空（新建引导、工作区空态）/出错（红横幅+结果区错误）/无权限（401 横幅）/正常。刷新恢复：连接+当前连接+**打开的标签与各自 SQL**+**默认表偏好**（localStorage ≤64KB，按预算先丢非活动长草稿，不恢复密码/结果集/待审批）。逐功能「点什么出现什么」与验收清单：`Plugins/DbAdmin/docs/06`（S0–S9+S-R）。
+
+**多标签查询工作区（2026-11-06 增量，PILOT `2026-11-06-db-admin-query-tabs`）**：
+- 点表名行 → 新建/聚焦该表标签（`SELECT * FROM <表>` 预填，同时展开该表列）；同连接同名表已有标签则只聚焦、不重置 SQL；`▸` 只展开列不开标签；上限 12 个（满则提示，不静默丢弃）。
+- 关闭标签：右邻优先激活，无右邻取左邻，全部关闭显示工作区空态；关闭会丢弃该标签的草稿与结果集（表标签可随时重点重建）。
+- 连接「默认表（可选，仅本机）」：填了则点连接直接打开该表标签；留空则点连接只展开并加载全部表（不再「一张表一个连接」）。默认表不进连接请求体（`toSubmitBody` 剔除 + 单测守卫），只落 localStorage。
+- 执行：编辑器有选区 → 只执行选中（按钮变「执行选中」+「仅执行选中」提示）；多条语句按客户端镜像 SqlGuard 的切分语义（跳过字符串/引号标识符/行注释/块注释/`$tag$`，`CREATE TRIGGER … BEGIN…END` 块不切，未闭合引号报错）**逐条 HTTP 执行**，不改 `/query` 单语句契约；结果区按语句分「结果 1/2/3」标签条（单语句不渲染），每条带状态点与失败即停（后续标「未执行（第 N 条失败）」）；分页只重发该条语句。
+- 结果工具：状态栏「N 行 · X ms」/「影响 N 行」；点行选中后可「复制整行」；「导出 CSV」只导当前结果当前页（RFC 4180 + BOM，文件名 `<表或连接>-r<结果>-p<页>-<yyMMddHHmm>.csv`）；双击单元格看详情浮层（`NULL` 与长文本区分，Esc 关闭）。
+- 审批按标签作用域回填：关闭标签后迟到的响应按 `(tabKey, runSeq)` 丢弃，不会写到别的标签或已关闭标签。
 
 ## 5. 宿主登记（并入 main 即生效）
 
@@ -65,4 +73,59 @@
 
 ## 7. 验收证据
 
-`docs/ai/pilot/2026-11-05-db-admin/`（00-07）：门禁/测试/插件冒烟 e2e（e2e/plugins/db-admin/）+ 截图（screenshots/e2e/db-admin/、screenshots/dev/db-admin/）+ 走查记录。
+- 基线（2026-11-05）：`docs/ai/pilot/2026-11-05-db-admin/`（00-07）：门禁/测试/插件冒烟 e2e（`e2e/plugins/db-admin/`）+ 截图（`screenshots/e2e/db-admin/`、`screenshots/dev/db-admin/`）+ 走查记录。
+- 本轮增量（多标签/默认表/选区与多语句/结果工具，2026-11-06）：`docs/ai/pilot/2026-11-06-db-admin-query-tabs/`（00-07）。门禁：插件 `pnpm run build` + `pnpm run test`（103 用例）、宿主 `pnpm run check` / `pnpm run test` / `design:check`、Playwright CT（`DbAdmin.ct.spec.ts` 32 用例含新增多标签/多语句/结果工具）、插件层冒烟 e2e（单用例内扩展到建连→建表→多标签→默认表→多语句/选区→结果工具→INSERT 拒绝）。
+
+## 8. 竞品对标与待补功能（Backlog）
+
+> 调研对象：DBeaver（SQL Editor 与结果集能力）、Navicat（查询与结果功能）、TablePlus（官网功能列表）、HeidiSQL（功能清单）、DataGrip（通用能力）。
+> 证据等级：**文档级调研（Inferred）**，非逐版本实机对比；竞品结论用于「该不该有」，不作为验收证据。
+> 逐项理由原始表：`docs/ai/pilot/2026-11-06-db-admin-query-tabs/02-spec.md`「竞品对标与能力补齐」。
+
+### 8.1 本轮已补齐（2026-11-06，11 项，Verified）
+
+| 能力 | 竞品依据 | 落地 |
+|------|----------|------|
+| 多查询标签（不同表独立 / 同表聚焦） | DBeaver、Navicat、TablePlus | `tabs.ts` + `DbAdminView.vue` |
+| 每连接可选默认表 | Navicat 双击表开查询、TablePlus 快速跳转 | `connForm.ts` + `defaultTables` |
+| 选区执行 | DBeaver「执行选中」、HeidiSQL、DataGrip | `runFromEditor` + `sqlSplit.ts` |
+| 多语句执行 + 结果分页签 | DBeaver 多结果集 | `results.ts` + 结果标签条 |
+| 会话恢复（标签 / 草稿 / 默认表） | DBeaver 恢复编辑器与脚本 | `restore.ts`（旧快照可迁移） |
+| 表名过滤 + 刷新表 | DBeaver/Navicat 对象过滤器、HeidiSQL | `tableFilter` + `loadTables(force)` |
+| 复制整行 | 全部竞品通用 | `rowText` + `copySelectedRow` |
+| 导出 CSV（当前页，RFC 4180 + BOM） | HeidiSQL/Navicat/DBeaver | `exportCsv.ts` |
+| 单元格长值详情（可复制） | TablePlus/DBeaver 单元格查看器 | `cell-detail` 浮层 |
+| 结果状态栏（N 行 · X ms / 影响 N 行） | DBeaver/Navicat 状态栏 | `statsLabel` + `result-range` |
+| 快捷键 Ctrl+Enter / F5 | DBeaver、HeidiSQL | `onEditorKey` / 窗口级 `onWindowKey` |
+
+### 8.2 待补 · P1（纯前端、零新依赖，可作为一个独立小批）
+
+| 能力 | 竞品依据 | 现状缺口（代码依据） | 成本 |
+|------|----------|----------------------|------|
+| 标签快捷键：Ctrl+W 关闭当前、Ctrl+Tab / Ctrl+Shift+Tab 切换、Ctrl+T 新建 | DBeaver、DataGrip | `onWindowKey` 只管 Ctrl+Enter/F5（`DbAdminView.vue` 692 行） | S |
+| 结果列宽拖拽 + 双击列头自适应 | HeidiSQL、Navicat 表格列宽可调 | 结果格无任何 resizer 逻辑，长值只能靠横向滚动 | S |
+| 单元格级复制：点选单元格 Ctrl+C / 右键「复制单元格」；列头右键「复制列名」 | 全部竞品通用 | 只有「复制整行」+ 详情浮层「复制」 | S |
+| 结果分页键盘操作：PgUp/PgDn/Home/End | DBeaver、HeidiSQL | 只有 `‹ ›` 按钮 | S |
+| 表树右键菜单：复制表名 / 查看结构 / 只刷新该表 | HeidiSQL、TablePlus | 单击只开标签、`▸` 只展开；无右键菜单 | S |
+| 连接树按名称过滤（多连接场景） | DBeaver、Navicat | 只有表名过滤（`tableFilter`），连接区无搜索 | S |
+| 查询标签重命名 | DBeaver、DataGrip | `tabTitle` 手写标签恒为「新查询」 | S |
+| 结果空态明确化：「0 行（X ms）」+ 加载骨架 | DBeaver/Navicat 状态栏 | 空结果与加载态区分仅靠状态点 | S |
+| 导出全部页（客户端循环分页拼一份 CSV） | HeidiSQL/Navicat「导出全部」 | 现仅「当前页」 | M |
+| 导出 JSON / SQL INSERT 语句 | DBeaver「Generate SQL」、Navicat | 只有 CSV | M |
+
+### 8.3 待补 · P2（需小范围契约扩展或轻量实现）
+
+| 能力 | 竞品依据 | 依赖 / 风险 | 成本 |
+|------|----------|-------------|------|
+| 取消执行（长查询中断） | DBeaver、DataGrip | 后端需 cancel 端点（现 `POST /query` 单请求无句柄） | L |
+| 错误定位到编辑器行号 | DBeaver error indication | 需 `/query` 回传语句偏移 | M |
+| 结果列排序/过滤（仅当前页，明确标注） | TablePlus 筛选、DBeaver | 纯前端可做，但全页排序需服务端改 SQL → 先限当前页并显式提示 | M |
+| 结果列类型 / 主键标识（列头 tooltip） | HeidiSQL、DBeaver | 依赖表详情接口的列元数据覆盖度 | M |
+| 查询收藏 / 命名脚本库（本机） | DBeaver 脚本管理、Navicat 收藏 | 纯 localStorage，需与快照预算共用配额 | M |
+| 编辑器增强：括号配对、Tab 缩进、当前行高亮 | DBeaver、HeidiSQL | 纯 `<textarea>` 可实现，但复杂度上升；超过阈值应上 CodeMirror | M |
+| 多结果并排对比视图 | DBeaver「并排结果」 | 布局改造，不改契约 | M |
+| 参数化查询（`:param` 绑定） | DBeaver 参数绑定、DataGrip | 前端替换有注入风险，须复用 SqlGuard 校验 + 脱敏审计 | M |
+
+### 8.4 明确不做（不在 backlog，见 ADR）
+
+语法高亮/自动补全、SQL 格式化、事务模式、服务端排序改写、EXPLAIN、结果内联编辑、结果图表、标签拖拽排序、内部 SSH/SSL/用户管理、整库 dump 导入导出 —— 决策与重审条件见 `docs/07-decisions/not-taken-decisions.md` **056**。

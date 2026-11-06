@@ -60,6 +60,11 @@ export interface DbConnectionInput {
   userName?: string
   password?: string
   connStr?: string
+  /**
+   * 「默认表」为本机界面偏好（落 localStorage），**不进入请求体**（`connForm.toSubmitBody` 会剔除）。
+   * 填了 → 点该连接直接打开该表标签；留空 → 点连接只展开并加载全部表。
+   */
+  defaultTable?: string
 }
 
 /** POST /connections/test —— 恒 200，后端 `{ok, code, message, serverVersion, elapsedMs}`；status 为前端派生三态 */
@@ -266,8 +271,27 @@ export interface DbAdminFixture {
   tableDetails?: Record<string, BackendJson>
   expanded?: string[]
   sql?: string
+  /** 多标签 fixture：初始标签（key 可省略，按 table/seq 规则生成） */
+  tabs?: Array<{
+    key?: string
+    connectionId: string
+    table?: string
+    sql?: string
+    /** 该标签预置一条结果（旧 fixture 形态） */
+    reply?: { httpStatus: number; body: BackendJson }
+    /** 该标签预置多条结果（多语句结果标签条定格用） */
+    replies?: Array<{ httpStatus: number; body: BackendJson }>
+  }>
+  /** 活动标签 key（缺省取第一个） */
+  activeTabKey?: string | null
+  /** 本机偏好：连接默认表 */
+  defaultTables?: Record<string, string>
+  /** 上次使用的连接（刷新后高亮侧栏） */
+  lastConnectionId?: string | null
   /** 最近一次 POST /query 或 resolve 的 HTTP 应答（status + 原始 body）；≥400 → 红条 */
   reply?: { httpStatus: number; body: BackendJson } | null
+  /** 多语句批量：按顺序取用；用尽后回落到 `reply`（每条单语句一条应答） */
+  replies?: Array<{ httpStatus: number; body: BackendJson }>
   /** GET /approvals?status=pending 原始数组 */
   approvals?: BackendJson[]
   /** GET /history 原始分页对象或数组 */

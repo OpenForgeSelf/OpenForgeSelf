@@ -85,13 +85,13 @@ test('S2 点击连接加载表：显示局部 loading，空态不抢先', async 
   await expect(root(page)).toHaveScreenshot()
 })
 
-test('S3 只读结果：末页边界、耗时、类型提示', async ({ page }) => {
+test('S3 只读结果：末页边界、状态栏、类型提示', async ({ page }) => {
   await openStory(page, 'DbAdmin/ReadResult', '[data-testid="result-grid"] table')
   await expect(tid(page, 'page-label')).toHaveText('3 / 3')
   await expect(tid(page, 'page-next')).toBeDisabled()
   await expect(tid(page, 'page-prev')).toBeEnabled()
-  await expect(tid(page, 'result-stats')).toContainText('耗时 4 ms')
-  await expect(tid(page, 'result-stats')).toContainText('第 101–120 行 / 共 120')
+  await expect(tid(page, 'result-stats')).toContainText('120 行 · 4 ms')
+  await expect(tid(page, 'result-range')).toHaveText('第 101–120 行 / 共 120')
   await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(20)
   await expect(root(page)).toHaveScreenshot()
 })
@@ -226,6 +226,160 @@ test.describe('DbAdmin · S9 多 provider 测连', () => {
     await expect(tid(page, 'test-result')).toContainText('Npgsql')
     await expect(tid(page, 'cf-needs-driver')).toContainText('需驱动')
     await expect(root(page)).toHaveScreenshot()
+  })
+})
+
+test.describe('DbAdmin · 多标签查询（FR-1~7 / AC-1~4 / AC-13 / AC-21）', () => {
+  test('两标签互不覆盖；切换保留内容；重复开同表不新建不重置', async ({ page }) => {
+    await openStory(page, 'DbAdmin/QueryTabs', '[data-testid="query-tabs"]')
+    await expect(tid(page, 'qtab-t:1:users')).toHaveClass(/on/)
+    await expect(tid(page, 'qtab-t:1:orders')).toHaveCount(1)
+    await expect(tid(page, 'sql-editor')).toHaveValue('SELECT * FROM users ORDER BY id')
+    await expect(tid(page, 'result-stats')).toContainText('120 行 · 4 ms')
+
+    await tid(page, 'qtab-t:1:orders').click()
+    await expect(tid(page, 'qtab-t:1:orders')).toHaveClass(/on/)
+    await expect(tid(page, 'sql-editor')).toHaveValue('SELECT * FROM orders')
+    await expect(tid(page, 'result-stats')).toContainText('3 行 · 2 ms')
+
+    await tid(page, 'qtab-t:1:users').click()
+    await expect(tid(page, 'sql-editor')).toHaveValue('SELECT * FROM users ORDER BY id')
+    await expect(tid(page, 'result-stats')).toContainText('120 行 · 4 ms')
+    await expect(root(page)).toHaveScreenshot()
+
+    // 已打开的表再点：仍为 2 个标签，且用户改过的 SQL 不被重置（FR-2/FR-3）
+    await tid(page, 'sql-editor').fill('SELECT id FROM users')
+    await tid(page, 'table-1-users').click()
+    await expect(tid(page, 'qtab-t:1:users')).toHaveCount(1)
+    await expect(tid(page, 'qtab-t:1:orders')).toHaveCount(1)
+    await expect(tid(page, 'sql-editor')).toHaveValue('SELECT id FROM users')
+
+    // 展开箭头只切列、不开标签（AC-13）
+    await tid(page, 'table-1-orders').locator('.caret').click()
+    await expect(tid(page, 'qtab-t:1:orders')).toHaveCount(1)
+    await expect(tid(page, 'sql-editor')).toHaveValue('SELECT id FROM users')
+
+    // 表过滤：本地过滤 + 无匹配（AC-21）
+    await tid(page, 'table-filter').fill('ord')
+    await expect(tid(page, 'table-1-users')).toHaveCount(0)
+    await expect(tid(page, 'table-1-orders')).toHaveCount(1)
+    await tid(page, 'table-filter').fill('zzz')
+    await expect(tid(page, 'table-filter-empty')).toContainText('无匹配表')
+    await tid(page, 'table-filter').fill('')
+    await expect(tid(page, 'table-1-users')).toHaveCount(1)
+  })
+
+  test('关闭标签：右邻激活；关到 0 显示工作区空态', async ({ page }) => {
+    await openStory(page, 'DbAdmin/QueryTabs', '[data-testid="query-tabs"]')
+    await tid(page, 'qtab-t:1:users').locator('[data-testid="close-tab"]').click()
+    await expect(tid(page, 'qtab-t:1:orders')).toHaveClass(/on/)
+    await tid(page, 'qtab-t:1:orders').locator('[data-testid="close-tab"]').click()
+    await expect(tid(page, 'query-tabs')).toHaveCount(0)
+    await expect(tid(page, 'workspace-empty')).toContainText('还没有打开的查询')
+    await expect(tid(page, 'sql-editor')).toHaveCount(0)
+    await expect(root(page)).toHaveScreenshot()
+  })
+})
+
+test.describe('DbAdmin · 多语句与选区执行（FR-14~19 / AC-15~19）', () => {
+  test('多语句 → 结果标签条；切换结果不串数据；单语句不渲染标签条', async ({ page }) => {
+    await openStory(page, 'DbAdmin/QueryTabsMultiResult', '[data-testid="result-tabs"]')
+    await expect(tid(page, 'result-tab-0')).toContainText('结果 1')
+    await expect(tid(page, 'result-tab-1')).toContainText('结果 2')
+    await expect(tid(page, 'result-tab-0')).toHaveClass(/on/)
+    await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(10)
+    await expect(root(page)).toHaveScreenshot()
+
+    await tid(page, 'result-tab-1').click()
+    await expect(tid(page, 'result-tab-1')).toHaveClass(/on/)
+    await expect(tid(page, 'result-grid')).toContainText('120')
+    await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(1)
+
+    // 单语句回归（AC-19）
+    await openStory(page, 'DbAdmin/ReadResult', '[data-testid="result-grid"] table')
+    await expect(tid(page, 'result-tabs')).toHaveCount(0)
+  })
+
+  test('批量遇写审批：暂停 → 批准续跑；拒绝则其余「未执行」', async ({ page }) => {
+    await openStory(page, 'DbAdmin/QueryRunApproval', '[data-testid="sql-editor"]')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'approval-modal')).toBeVisible()
+    await expect(tid(page, 'result-tab-1').locator('.rtab-dot')).toHaveClass(/d-awaiting/)
+    await expect(tid(page, 'result-tab-2').locator('.rtab-dot')).toHaveClass(/d-pending/)
+    await expect(root(page)).toHaveScreenshot()
+
+    await tid(page, 'approval-approve').click()
+    await expect(tid(page, 'approval-modal')).toHaveCount(0)
+    await expect(tid(page, 'result-tab-1').locator('.rtab-dot')).toHaveClass(/d-ok/)
+    await expect(tid(page, 'result-tab-2').locator('.rtab-dot')).toHaveClass(/d-ok/)
+
+    // 拒绝分支：第 2 条标失败、第 3 条标未执行
+    await openStory(page, 'DbAdmin/QueryRunApproval', '[data-testid="sql-editor"]')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'approval-modal')).toBeVisible()
+    await tid(page, 'approval-reject').click()
+    await expect(tid(page, 'result-tab-1').locator('.rtab-dot')).toHaveClass(/d-error/)
+    await expect(tid(page, 'result-tab-2').locator('.rtab-dot')).toHaveClass(/d-skipped/)
+  })
+
+  test('全选执行：失败即停，后续标「未执行」；选区执行只跑选中语句', async ({ page }) => {
+    await openStory(page, 'DbAdmin/QueryRunBatch', '[data-testid="sql-editor"]')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'result-tabs')).toBeVisible()
+    await expect(tid(page, 'result-tab-0')).toContainText('结果 1')
+    await expect(tid(page, 'result-tab-1')).toContainText('结果 2')
+    await expect(tid(page, 'result-tab-2')).toContainText('结果 3')
+    await expect(tid(page, 'result-tab-0').locator('.rtab-dot')).toHaveClass(/d-ok/)
+    await expect(tid(page, 'result-tab-1').locator('.rtab-dot')).toHaveClass(/d-error/)
+    await expect(tid(page, 'result-tab-2').locator('.rtab-dot')).toHaveClass(/d-skipped/)
+    // 默认停在结果 1（成功行可见）
+    await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(2)
+    // 失败结果 → 红条；未执行结果 → 未执行说明（不显示结果格）
+    await tid(page, 'result-tab-1').click()
+    await expect(tid(page, 'result-error')).toContainText('SQL 错误')
+    await tid(page, 'result-tab-2').click()
+    await expect(tid(page, 'result-skip')).toContainText('未执行（第 2 条失败）')
+    await expect(root(page)).toHaveScreenshot()
+
+    // 选区执行（AC-14）：选中第 3 条 → 只产生 1 个结果，不出现结果标签条
+    await openStory(page, 'DbAdmin/QueryRunBatch', '[data-testid="sql-editor"]')
+    await tid(page, 'sql-editor').evaluate((el, needle) => {
+      const ta = el as HTMLTextAreaElement
+      const start = ta.value.indexOf(needle)
+      ta.focus()
+      ta.setSelectionRange(start, start + needle.length)
+      ta.dispatchEvent(new Event('select', { bubbles: true }))
+    }, 'SELECT 1;')
+    await expect(tid(page, 'selection-hint')).toContainText('仅执行选中')
+    await tid(page, 'run').click()
+    await expect(tid(page, 'result-tabs')).toHaveCount(0)
+    await expect(page.locator('[data-testid="result-grid"] tbody tr')).toHaveCount(2)
+    await expect(tid(page, 'result-error')).toHaveCount(0)
+  })
+})
+
+test.describe('DbAdmin · 结果工具（FR-21~23 / AC-22~24）', () => {
+  test('双击单元格 → 详情浮层（可复制）；整行复制随选中启用；Esc 关闭', async ({ page }) => {
+    await openStory(page, 'DbAdmin/ReadResult', '[data-testid="result-grid"] table')
+    await expect(tid(page, 'copy-row')).toBeDisabled()
+    await tid(page, 'row-0').click()
+    await expect(tid(page, 'copy-row')).toBeEnabled()
+    await tid(page, 'cell-0-1').dblclick()
+    await expect(tid(page, 'cell-detail')).toBeVisible()
+    await expect(tid(page, 'cell-detail-value')).toHaveText('user_101')
+    await expect(root(page)).toHaveScreenshot()
+    await page.keyboard.press('Escape')
+    await expect(tid(page, 'cell-detail')).toHaveCount(0)
+  })
+
+  test('导出 CSV：当前结果标签当前页，文件名含 -p<page>', async ({ page }) => {
+    await openStory(page, 'DbAdmin/ReadResult', '[data-testid="result-grid"] table')
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      tid(page, 'export-csv').click(),
+    ])
+    // 手写标签无表名 → 文件名基底回落连接名；-r<result>-p<page>-<yyMMddHHmm>
+    expect(download.suggestedFilename()).toMatch(/^demo\.db-r1-p3-\d{10}\.csv$/)
   })
 })
 

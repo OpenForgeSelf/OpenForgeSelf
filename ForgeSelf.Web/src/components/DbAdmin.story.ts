@@ -128,10 +128,12 @@ const restoreSeed = {
     // 落盘前由 StoryHost + saveSnapshot 双重剥离 password；此处故意给掩码值验证剥离
     { id: '2', name: '报表库', provider: 'postgresql', mode: 'form', readonly: false, system: false, host: '10.0.0.12', port: 5432, database: 'reports', userName: 'report_ro', password: '****' },
   ],
-  drafts: {
-    '1': '-- 刷新前未执行的草稿\nSELECT id, name FROM users WHERE email IS NULL',
-    '2': 'SELECT count(*) FROM daily_sales',
-  },
+  tabs: [
+    { key: 'm:1:0', connectionId: '1', sql: '-- 刷新前未执行的草稿\nSELECT id, name FROM users WHERE email IS NULL' },
+    { key: 'm:2:0', connectionId: '2', sql: 'SELECT count(*) FROM daily_sales' },
+  ],
+  activeTabKey: 'm:1:0',
+  defaultTables: { '1': 'users' },
 }
 
 export const stories: ComponentStory[] = [
@@ -223,7 +225,71 @@ export const stories: ComponentStory[] = [
   // 测试状态：S9 多 provider —— PostgreSQL 驱动缺失（恒 200 {ok:false, code:driver_missing}，message 指明 Npgsql）+ 下拉「需驱动」
   { id: 'DbAdmin/ProviderDriverMissing', component: DbAdminStoryHost, props: { fixture: base({ overlay: 'connForm', connForm: { name: '报表库', provider: 'postgresql', mode: 'form', host: '10.0.0.12', port: 5432, database: 'reports', userName: 'report_ro', password: '' }, testResult: { ok: false, code: 'driver_missing', message: 'PostgreSQL 驱动未安装：本插件 MVP 未随附该驱动。请将 NuGet 包「Npgsql」的 DLL 放入宿主程序目录或 DbAdmin 插件目录后重启。', serverVersion: null, elapsedMs: 0 } }) } },
   // 测试状态：S-R 刷新前 —— 编辑器有草稿、结果格有数据（草稿写入 localStorage，结果集不落盘）
-  { id: 'DbAdmin/RestoreBefore', component: DbAdminStoryHost, props: { fixture: base({ sql: restoreSeed.drafts['1'], reply: { httpStatus: 200, body: outcome({ columns: ['id', 'name'], columnTypes: ['Int64', 'String'], rows: [[7, 'user_007'], [14, 'user_014']], total: 2, page: 1, pageSize: 50, elapsedMs: 2 }) } }) } },
+  { id: 'DbAdmin/RestoreBefore', component: DbAdminStoryHost, props: { fixture: base({ sql: restoreSeed.tabs[0].sql, reply: { httpStatus: 200, body: outcome({ columns: ['id', 'name'], columnTypes: ['Int64', 'String'], rows: [[7, 'user_007'], [14, 'user_014']], total: 2, page: 1, pageSize: 50, elapsedMs: 2 }) } }) } },
   // 测试状态：S-R 刷新后 —— 连接列表 / 当前连接 / 草稿从 localStorage 恢复；无密码、无结果集；待审批从服务端重拉
   { id: 'DbAdmin/RestoreAfter', component: DbAdminStoryHost, props: { fixture: { version: '0.1.0-ct', providers, seedRestore: restoreSeed, approvals: [pendingInsert] } satisfies DbAdminFixture } },
+  // 测试状态：多标签查询（FR-1~4）—— users / orders 两个独立标签，同连接、互不覆盖；默认表偏好挂在连接节点 title
+  {
+    id: 'DbAdmin/QueryTabs', component: DbAdminStoryHost, props: { fixture: base({
+      sql: undefined,
+      expanded: ['c:1', 't:1/users', 't:1/orders'],
+      defaultTables: { '1': 'users' },
+      tabs: [
+        { connectionId: '1', table: 'users', sql: 'SELECT * FROM users ORDER BY id', reply: { httpStatus: 200, body: outcome({ ...USER_COLS, rows: userRows(101, 20), total: 120, page: 3, pageSize: 50, elapsedMs: 4 }) } },
+        { connectionId: '1', table: 'orders', sql: 'SELECT * FROM orders', reply: { httpStatus: 200, body: outcome({ columns: ['id', 'user_id', 'amount'], columnTypes: ['Int64', 'Int64', 'Decimal'], rows: [[1, 7, 59.9], [2, 8, 120], [3, 9, 8.5]], total: 3, page: 1, pageSize: 50, elapsedMs: 2 }) } },
+      ],
+      activeTabKey: 't:1:users',
+    }) },
+  },
+  // 测试状态：多语句结果标签（FR-15~19）—— 同一标签内两条语句 → 「结果 1 / 结果 2」+ 状态点；单语句不渲染标签条
+  {
+    id: 'DbAdmin/QueryTabsMultiResult', component: DbAdminStoryHost, props: { fixture: base({
+      sql: undefined,
+      expanded: ['c:1', 't:1/users'],
+      tabs: [
+        {
+          connectionId: '1', table: 'users',
+          sql: 'SELECT * FROM users ORDER BY id;\nSELECT count(*) AS total FROM users;',
+          replies: [
+            { httpStatus: 200, body: outcome({ ...USER_COLS, rows: userRows(1, 10), total: 10, page: 1, pageSize: 50, elapsedMs: 3 }) },
+            { httpStatus: 200, body: outcome({ columns: ['total'], columnTypes: ['Int64'], rows: [[120]], total: 1, page: 1, pageSize: 50, elapsedMs: 1 }) },
+          ],
+        },
+      ],
+      activeTabKey: 't:1:users',
+    }) },
+  },
+  // 测试状态：执行交互（FR-14~19）—— 3 条语句 + 两条应答（第 2 条 400）：全选执行 → 失败即停、第 3 条「未执行」；
+  // 选中第 3 条再执行 → 只跑 1 条（不出现结果标签条）。CT 用真点击驱动，不预置结果。
+  {
+    id: 'DbAdmin/QueryRunBatch', component: DbAdminStoryHost, props: { fixture: base({
+      sql: undefined,
+      expanded: ['c:1', 't:1/users'],
+      tabs: [
+        {
+          connectionId: '1', table: 'users',
+          sql: 'SELECT id, name FROM users;\nSELEC broken FROM users;\nSELECT 1;',
+        },
+      ],
+      activeTabKey: 't:1:users',
+      replies: [
+        { httpStatus: 200, body: outcome({ columns: ['id', 'name'], columnTypes: ['Int64', 'String'], rows: [[1, 'user_001'], [2, 'user_002']], total: 2, page: 1, pageSize: 50, elapsedMs: 2 }) },
+        { httpStatus: 400, body: outcome({ status: 'error', code: 'sql_error', message: 'near "SELEC": syntax error' }) },
+      ],
+    }) },
+  },
+  // 测试状态：批量遇写审批（FR-18 / AC-17）—— 3 条语句，第 2 条 202 待审批 → 暂停；批准后续跑剩余，拒绝则其余「未执行」
+  {
+    id: 'DbAdmin/QueryRunApproval', component: DbAdminStoryHost, props: { fixture: base({
+      sql: undefined,
+      tabs: [{ connectionId: '1', sql: "SELECT id FROM users;\nUPDATE users SET name = 'x' WHERE id = 1;\nSELECT count(*) AS n FROM users;" }],
+      activeTabKey: 'm:1:0',
+      replies: [
+        { httpStatus: 200, body: outcome({ columns: ['id'], columnTypes: ['Int64'], rows: [[1], [2]], total: 2, page: 1, pageSize: 50, elapsedMs: 1 }) },
+        { httpStatus: 202, body: outcome({ status: 'awaiting_approval', approvalId: '55', kind: 'write' }) },
+        { httpStatus: 200, body: outcome({ columns: ['n'], columnTypes: ['Int64'], rows: [[120]], total: 1, page: 1, pageSize: 50, elapsedMs: 1 }) },
+      ],
+      approvals: [{ ...pendingInsert, id: '55', sqlRedacted: "UPDATE users SET name = '****' WHERE id = 1", kind: 'write', destructive: false, status: 'pending' }],
+    }) },
+  },
 ]

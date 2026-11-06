@@ -210,6 +210,8 @@
 - **两处逃逸同根因**：① 上游——AIAgent 工具块四缺陷（亮色黑底/步骤压缩残行/默认收起/不对齐）是外部 widget 样式原样迁移 + 对齐教义只落气泡未落工具块的**存量合法化**（design:check 棘轮只拦新增硬编码色，#0f172a 躺在基线里不拦）；② 下游——修复批 Spec 有交互节与 CRAP 自查，但**视觉目标态（对齐线目标值/主题矩阵/逐表面 token）没有成文**，走查=只复测用户指认点，完整 ui-ux-design 符合性清单没留痕。
 - **规则**：凡触用户可见 UI 的批次（**缺陷修复批不豁免**）：① Spec 交互设计节内必写「视觉规格（目标态）」子节——对齐线/几何值/逐表面×light-dark token 矩阵/五态×主题，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`（2026-10-31 已增）；先定目标态再改样式，禁止点状补丁。② 走查按 `ui-ux-design` 符合性清单**全项逐条 + 对比度实测（亮/暗）**，数值进 05-evidence；「只复测指认点」不算走查。③ UI 活跃插件必须维护 `Plugins/<X>/docs/ui-design-brief.md`（2026-10-30 已立；AIAgent 至今缺位=本规则实证反面教材，回填见 TODO）。④ 几何断言落 e2e（flexShrink/对齐线/裁切量），样式类缺陷修完必须带守卫（PC-019 模式），不留「下次目测」。
 - **判责口径**：后续 UI 批若再出现「亮色没验」「对齐线临场推断」「走查只对指认点」，按流程违规处理（缺视觉规格节 = 闸门1 不通过），不再是「经验不足」。
+- **主题矩阵必须覆盖「选中/激活/标签底/横幅底」（2026-11-06 DbAdmin 暗色连接名实证）**：这些表面最容易用 `--el-color-primary-light-8/9` 作背景，Spec 视觉规格逐格写 token，走查亮/暗两态**实测对比度（≥4.5:1）并进 05-evidence**。**默认主题不算暗色验证**：`system` 在 CI/Playwright 解析为 light；e2e 必须显式切 `html.dark`（或 `forgeself.theme.mode=dark`），否则暗色缺陷永远逃逸——本轮 DbAdmin 的 e2e/走查全走浅色，暗色选中行 1.10:1 直到用户截图才暴露。
+- **主题 token 倒置按类级缺陷处理**：`--el-color-primary-light-N` 暗色下必须逐级更暗（PC-025）。只改单个组件颜色 = 点状补丁；正确修法是修 `workshop-forge.css` ramp + 跑 `pnpm run test` 的主题守卫 `workshop-forge.contrast.test.ts`，并把选中/标签/横幅三表面写进走查清单。
 
 ### flex/grid 子项尺寸约束双面铁律：shrink 面 + min-width 面（2026-10-31 IM 网关会话视图实证，PC-019 扩面）
 - **现象**：`.ig-chat__side{flex:0 0 300px}` 无 `min-width:0`——flex 子项 automatic minimum（`min-width:auto`）被 60 字符 `white-space:nowrap` 预览的 min-content（≈720px）逐级上传撑到 ~788px，主内容 `1fr` 被挤到 ~460px；内层省略链（`.ig-clist__body` `min-width:0` + preview `overflow:hidden`）齐全也拦不住，**失守的是外层 flex 子项本身**。走查种子预览短（min-content<300px）→ 侧栏恒 300px → 目测/比色全过，用户真实数据一撑就破。

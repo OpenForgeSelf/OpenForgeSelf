@@ -29,6 +29,8 @@
 | 2026-11-02-memory-timestamp-minvalue | 2026-11-02 | 记忆新建/导入时间戳 0001-01-01，更新/软删不推进 UpdatedAt（XCode 直插漏赋时间戳） | [PC-022](../problem-classes/PC-022-xcode-entity-timestamp-default.md) | Verified | [链接](2026-11-02-memory-timestamp-minvalue.md) |
 | 2026-11-02-fileschanged-persistence-loss | 2026-11-02 | agent 执行回写记录 filesChanged 恒空（快照提取裸正则打不中双编码 JSON + 自动留痕无参数可传） | [PC-023](../problem-classes/PC-023-todo-fileschanged-persistence-loss.md) | Verified | [链接](2026-11-02-fileschanged-persistence-loss.md) |
 | 2026-11-05-smart-terminal-dead-session-poll-404 | 2026-11-05 | 宿主重启后 S-R 恢复的会话 id 持续轮询 404 + 反复 toast（PC-024 轮询面错误处理缺失首例） | [PC-024](../problem-classes/PC-024-frontend-poll-error-handling.md) | Verified | [链接](2026-11-05-smart-terminal-dead-session-poll-404.md) |
+| 2026-11-06-dbadmin-dark-connection-contrast | 2026-11-06 | 暗色 DbAdmin 选中连接名亮金底 + 浅色字，对比度 1.10:1（主题 light-N 倒置） | [PC-025](../problem-classes/PC-025-dark-theme-token-contrast.md) | Verified | [链接](2026-11-06-dbadmin-dark-connection-contrast.md) |
+| 2026-11-06-dbadmin-table-header-misalign | 2026-11-06 | DbAdmin 结果表 `class="grid"` 命中宿主 Tailwind `.grid{display:grid}`，表头与数据列错位 188.8px；表名带「表」前缀 | [PC-026](../problem-classes/PC-026-plugin-class-tailwind-collision.md) | Verified | [链接](2026-11-06-dbadmin-table-header-misalign.md) |
 | 2026-11-04-raw-createscope-on-ctx-sweep | 2026-11-04 | 插件侧 ctx 本体裸 CreateScope（IServiceScopeFactory 解析失败）全仓清扫 20 处一次改完（plan_workflow 实证） | [PC-005](../problem-classes/PC-005-plugin-eager-provider-resolve.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

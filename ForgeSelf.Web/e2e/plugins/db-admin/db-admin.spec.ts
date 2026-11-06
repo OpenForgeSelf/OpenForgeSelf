@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { test, expect } from '../../fixtures/e2e'
 import { getRealApiKey } from '../../helpers/real-auth'
 import { E2E_TEMP_ROOT, backendUrl } from '../../helpers/e2e-env'
@@ -23,9 +23,41 @@ import { E2E_TEMP_ROOT, backendUrl } from '../../helpers/e2e-env'
 const tid = (page: Page, id: string) => page.locator(`[data-testid="${id}"]`)
 const SHOT_DIR = 'screenshots/e2e/db-admin'
 
+/**
+ * 实测元素的文字/背景 WCAG 对比度（PC-025 实例级守卫）。
+ * 必须真取 computedStyle，不靠截图目测；背景半透明时直接报错，避免算错。
+ */
+async function measureContrast(locator: Locator): Promise<{ color: string; background: string; ratio: number }> {
+  return locator.evaluate((el) => {
+    const style = getComputedStyle(el)
+    const color = style.color
+    const background = style.backgroundColor
+    const parse = (value: string) => {
+      const match = value.match(/rgba?\(([^)]+)\)/)
+      if (!match) throw new Error(`无法解析颜色: ${value}`)
+      const parts = match[1].split(',').map((part) => Number.parseFloat(part.trim()))
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 }
+    }
+    const fg = parse(color)
+    const bg = parse(background)
+    if (bg.a < 1) throw new Error(`背景为半透明，无法直接计算对比度: ${background}`)
+    const luminance = (c: { r: number; g: number; b: number }) => {
+      const [r, g, b] = [c.r, c.g, c.b].map((channel) => {
+        const ratio = channel / 255
+        return ratio <= 0.03928 ? ratio / 12.92 : ((ratio + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const ratio = (Math.max(luminance(fg), luminance(bg)) + 0.05) / (Math.min(luminance(fg), luminance(bg)) + 0.05)
+    return { color, background, ratio }
+  })
+}
+
 test.describe('DbAdmin · 冒烟主链路', () => {
   test('建连→建表（批准）→schema→SELECT→INSERT（拒绝）', async ({ page }) => {
     test.setTimeout(180_000)
+    // 主题固定为 light 作基线（system 在 CI/Playwright 默认解析为 light，显式写入避免环境差异）
+    await page.addInitScript(() => localStorage.setItem('forgeself.theme.mode', 'light'))
     const stamp = Date.now()
     const connName = `E2E-DB-${stamp}`
     const dbDir = path.join(E2E_TEMP_ROOT, '..', 'e2e-db')
@@ -43,6 +75,11 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     // ② 新建连接：SQLite 表单 + 测试连接（恒 200，绿态）+ 保存
     await tid(page, 'new-connection').click()
     await expect(tid(page, 'conn-form')).toBeVisible()
+    // 驱动预检关闭（2026-11-06 用户输入2）：provider 下拉不再标「需驱动」
+    const providerOptions = await tid(page, 'cf-provider').locator('option').allTextContents()
+    expect(providerOptions.join('|')).not.toContain('需驱动')
+    await expect(tid(page, 'cf-needs-driver')).toHaveCount(0)
+    await page.screenshot({ path: `${SHOT_DIR}/02-provider-no-driver-tag.png`, fullPage: true })
     await tid(page, 'cf-name').fill(connName)
     await tid(page, 'cf-provider').selectOption('sqlite')
     await tid(page, 'cf-path').fill(dbFile)
@@ -55,7 +92,32 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await expect(connItem).toBeVisible({ timeout: 30_000 })
 
     // ③ 选中连接，跑 CREATE TABLE（写语句 → AskWrite 审批弹窗 → 批准执行）
+    // 运行态 loading 守卫：延迟一次真实 /tables 请求（不 mock 数据），确保局部 loading 能被观察到
+    await page.route(/\/api\/db-admin\/connections\/[^/]+\/tables$/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      await route.continue()
+    }, { times: 1 })
     await connItem.click()
+    await expect(page.locator('[data-testid^="tables-loading-"]')).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('.node.column.muted', { hasText: '（无表）' })).toHaveCount(0)
+    await expect(page.locator('[data-testid^="tables-loading-"]')).toHaveCount(0, { timeout: 30_000 })
+    // PC-025 实例级守卫：选中行（primary-light-8 底）文字在 light/dark 两态都必须可读。
+    // 默认主题只覆盖 light，必须显式切 html.dark 才测得到暗色（2026-11-06 暗色连接名 1.10:1 逃逸根因）。
+    const lightContrast = await measureContrast(connItem)
+    expect(
+      lightContrast.ratio,
+      `light 选中行对比度 ${lightContrast.ratio.toFixed(2)}:1（${lightContrast.color} on ${lightContrast.background}）`,
+    ).toBeGreaterThanOrEqual(4.5)
+    await page.screenshot({ path: `${SHOT_DIR}/03a-selected-light.png`, fullPage: true })
+    await page.evaluate(() => document.documentElement.classList.add('dark'))
+    const darkContrast = await measureContrast(connItem)
+    expect(
+      darkContrast.ratio,
+      `dark 选中行对比度 ${darkContrast.ratio.toFixed(2)}:1（${darkContrast.color} on ${darkContrast.background}）`,
+    ).toBeGreaterThanOrEqual(4.5)
+    await page.screenshot({ path: `${SHOT_DIR}/03b-selected-dark.png`, fullPage: true })
+    console.log(`[db-admin] 选中行对比度 light=${lightContrast.ratio.toFixed(2)}:1 dark=${darkContrast.ratio.toFixed(2)}:1`)
+    await page.evaluate(() => document.documentElement.classList.remove('dark'))
     const editor = tid(page, 'sql-editor')
     await expect(editor).toBeEnabled({ timeout: 30_000 })
     await editor.fill(`CREATE TABLE e2e_items (id INTEGER PRIMARY KEY, name TEXT)`)
@@ -76,14 +138,36 @@ test.describe('DbAdmin · 冒烟主链路', () => {
       await connItem.click() // 连接节点若未展开，展开一次（数据层已是新表集合）
     }
     await expect(tableNode).toBeVisible({ timeout: 30_000 })
+    // 表名直接显示（2026-11-06 输入3：不再加「表」前缀；视图仍保留「视图」标识）
+    await expect(page.locator('[data-testid^="table-"] .name', { hasText: 'e2e_items' }).first()).toHaveText('e2e_items')
     await page.locator(`[data-testid^="table-"]`, { hasText: 'e2e_items' }).first().click()
     await expect(page.locator('[data-testid^="col-"]').first()).toBeVisible({ timeout: 30_000 })
     await page.screenshot({ path: `${SHOT_DIR}/04-schema.png`, fullPage: true })
 
-    // ⑤ SELECT：结果格可见（空表 0 行）
+    // ④.1 插入一行并批准：让后续 SELECT 有真实数据行，用于断言「表头与内容列对齐」
+    await editor.fill("INSERT INTO e2e_items (id, name) VALUES (1, 'e2e_row')")
+    await tid(page, 'run').click()
+    await expect(tid(page, 'approval-modal')).toBeVisible({ timeout: 30_000 })
+    await tid(page, 'approval-approve').click()
+    await expect(tid(page, 'approval-modal')).toBeHidden({ timeout: 30_000 })
+    // 等批准后的 INSERT 真正执行完成（避免 SELECT 抢跑拿到 0 行，列对齐断言无行可测）
+    await expect(tid(page, 'result-stats')).toContainText('影响 1 行', { timeout: 30_000 })
+
+    // ⑤ SELECT：结果格可见且有 1 行数据
     await editor.fill('SELECT * FROM e2e_items')
     await tid(page, 'run').click()
     await expect(tid(page, 'result-grid')).toBeVisible({ timeout: 30_000 })
+    const resultTable = tid(page, 'result-grid').locator('table')
+    await expect(resultTable).toBeVisible({ timeout: 30_000 })
+    // 防 CSS 类名与宿主 Tailwind 工具类冲突（2026-11-06 输入3：.grid → display:grid 让表头/内容错列）
+    expect(await resultTable.evaluate((el) => getComputedStyle(el).display)).toBe('table')
+    // 表头与第一行数据逐列左边界对齐（误差 ≤1px）
+    const colLeftDiffs = await resultTable.evaluate((el) => {
+      const ths = [...el.querySelectorAll('thead th')]
+      const tds = [...(el.querySelector('tbody tr')?.querySelectorAll('td') ?? [])]
+      return ths.map((th, i) => Math.abs(th.getBoundingClientRect().left - (tds[i]?.getBoundingClientRect().left ?? 0)))
+    })
+    expect(Math.max(...colLeftDiffs)).toBeLessThanOrEqual(1)
     await page.screenshot({ path: `${SHOT_DIR}/05-select.png`, fullPage: true })
 
     // ⑥ INSERT：审批弹窗 → 拒绝 → 语句不执行（查证无该行）

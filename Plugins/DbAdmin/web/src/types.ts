@@ -261,6 +261,8 @@ export interface DbAdminFixture {
   connections?: BackendJson[]
   activeConnectionId?: string | null
   tables?: Record<string, BackendJson[]>
+  /** 每个连接的「加载表」局部状态（CT 用于定格 loading；真实请求由 DbAdminView 维护） */
+  tablesLoading?: Record<string, boolean>
   tableDetails?: Record<string, BackendJson>
   expanded?: string[]
   sql?: string

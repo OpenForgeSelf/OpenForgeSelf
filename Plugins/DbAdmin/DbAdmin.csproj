@@ -19,7 +19,8 @@
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
     <!-- 宿主已带同版本 XCode + XCode.SQLite（StageAllPlugins 排除 NewLife.* 出插件目录，类型身份单份）。
-         驱动打包决策见 docs/05 §2：MVP 不随插件打包 MySQL/PG/SQLServer 驱动，缺失统一映射 driver_missing。 -->
+         驱动打包决策见 docs/05 §2：MVP 不随插件打包 MySQL/PG/SQLServer 驱动；2026-11-06 起驱动预检关闭，
+         交给 XCode 在连接期自行获取，失败回显底层错误。 -->
     <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
   </ItemGroup>
 

@@ -41,8 +41,12 @@ public sealed class DbConnectionService
         DAL.ConnStrs!.Keys.Where(k => !k.StartsWith(UserConnPrefix, StringComparison.OrdinalIgnoreCase)).OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
 
     #region provider
+    /// <summary>provider 列表。预检关闭时 <c>DriverAvailable</c> 恒 true（不再据此拦截/标「需驱动」）。</summary>
     public IReadOnlyList<ProviderInfo> ListProviders() =>
-        DriverCatalog.Providers.Select(p => new ProviderInfo(p.Id, p.DisplayName, _driverProbe.IsAvailable(p), p.Tested, p.DriverPackage, p.DefaultPort)).ToList();
+        DriverCatalog.Providers.Select(p => new ProviderInfo(
+            p.Id, p.DisplayName,
+            !DriverCatalog.ProbeEnabled || _driverProbe.IsAvailable(p),
+            p.Tested, p.DriverPackage, p.DefaultPort)).ToList();
     #endregion
 
     #region 列表 / 查询
@@ -274,7 +278,10 @@ public sealed class DbConnectionService
         return b.ConnectionString;
     }
 
-    /// <summary>解析连接标识 → 已注册的 ConnName（用户连接首次 AddConnStr）。驱动缺失抛 driver_missing。</summary>
+    /// <summary>
+    /// 解析连接标识 → 已注册的 ConnName（用户连接首次 AddConnStr）。
+    /// 驱动预检开启且缺失时抛 driver_missing；关闭时（当前默认）交给 XCode 在连接期自行获取驱动。
+    /// </summary>
     public ResolvedConnection Resolve(String? id)
     {
         if (String.IsNullOrWhiteSpace(id)) throw new DbAdminException(DbErrorCodes.InvalidRequest, "connectionId 不能为空");
@@ -286,7 +293,8 @@ public sealed class DbConnectionService
         }
         var e = LoadUser(id);
         var def = DriverCatalog.Find(e.Provider) ?? throw Invalid($"不支持的 provider：{e.Provider}");
-        if (!_driverProbe.IsAvailable(def)) throw new DbAdminException(DbErrorCodes.DriverMissing, DriverCatalog.DriverMissingMessage(def));
+        if (DriverCatalog.ProbeEnabled && !_driverProbe.IsAvailable(def))
+            throw new DbAdminException(DbErrorCodes.DriverMissing, DriverCatalog.DriverMissingMessage(def));
         var connStr = BuildConnStr(e);
         EnsureSqliteFileExists(def, connStr);
         var connName = UserConnPrefix + e.Id;
@@ -359,7 +367,10 @@ public sealed class DbConnectionService
     #endregion
 
     #region 测连
-    /// <summary>测连（未保存表单亦可）。返回 ok / error(sql_error) / driver_missing；不抛业务异常。</summary>
+    /// <summary>
+    /// 测连（未保存表单亦可）。返回 ok / error(sql_error)；驱动预检开启时才可能返回 driver_missing。
+    /// 预检关闭时直接交给 XCode 连接，失败回显底层错误。不抛业务异常。
+    /// </summary>
     public ConnectionTestResult Test(ConnectionInput input)
     {
         var sw = Stopwatch.StartNew();
@@ -379,7 +390,7 @@ public sealed class DbConnectionService
                 ApplyForTest(e, input);
             }
             var def = DriverCatalog.Find(e.Provider) ?? throw Invalid($"不支持的 provider：{e.Provider}");
-            if (!_driverProbe.IsAvailable(def))
+            if (DriverCatalog.ProbeEnabled && !_driverProbe.IsAvailable(def))
             {
                 var msg = DriverCatalog.DriverMissingMessage(def);
                 _audit.Write("conn_test", auditId, null, DbErrorCodes.DriverMissing, msg);
@@ -406,9 +417,10 @@ public sealed class DbConnectionService
         catch (Exception ex)
         {
             var def = DriverCatalog.Find(input.Provider);
-            var isDriver = DriverCatalog.IsDriverException(ex);
+            // 预检关闭时不按异常文本猜「驱动缺失」，直接回显底层错误（用户输入2：驱动还是其他问题另说）
+            var isDriver = DriverCatalog.ProbeEnabled && DriverCatalog.IsDriverException(ex);
             var code = isDriver ? DbErrorCodes.DriverMissing : DbErrorCodes.SqlError;
-            var msg = isDriver && def != null ? DriverCatalog.DriverMissingMessage(def) : SqlRedactor.RedactText(ex.GetBaseException().Message);
+            var msg = isDriver && def != null ? DriverCatalog.DriverMissingMessage(def) : ErrorMessageOf(ex);
             _audit.Write("conn_test", auditId, null, code, msg);
             return new ConnectionTestResult(false, code, msg, null, sw.ElapsedMilliseconds);
         }
@@ -456,20 +468,27 @@ public sealed class DbConnectionService
         return new TableDetail(t.TableName, t.IsView, t.Description, cols, t.PrimaryKeys.Select(c => c.ColumnName).ToList(), idx);
     }
 
-    /// <summary>把底层异常映射为 driver_missing / sql_error</summary>
+    /// <summary>把底层异常映射为 sql_error（预检开启时才可能映射 driver_missing）</summary>
     internal static T Wrap<T>(ResolvedConnection rc, Func<T> fn)
     {
         try { return fn(); }
         catch (DbAdminException) { throw; }
         catch (Exception ex)
         {
-            if (DriverCatalog.IsDriverException(ex))
+            if (DriverCatalog.ProbeEnabled && DriverCatalog.IsDriverException(ex))
             {
                 var def = DriverCatalog.Find(rc.Provider);
                 throw new DbAdminException(DbErrorCodes.DriverMissing, def != null ? DriverCatalog.DriverMissingMessage(def) : "驱动缺失");
             }
-            throw new DbAdminException(DbErrorCodes.SqlError, SqlRedactor.RedactText(ex.GetBaseException().Message));
+            throw new DbAdminException(DbErrorCodes.SqlError, ErrorMessageOf(ex));
         }
+    }
+
+    /// <summary>底层异常 → 可展示错误文本：消息为空时回退异常类型名，保证「连接失败必有提示」</summary>
+    private static String ErrorMessageOf(Exception ex)
+    {
+        var msg = SqlRedactor.RedactText(ex.GetBaseException().Message);
+        return String.IsNullOrWhiteSpace(msg) ? ex.GetBaseException().GetType().Name : msg;
     }
     #endregion
 }

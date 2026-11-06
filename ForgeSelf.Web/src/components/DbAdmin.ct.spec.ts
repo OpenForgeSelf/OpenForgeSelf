@@ -75,6 +75,16 @@ test('S2 Schema 树：连接 → 表 → 列（类型 / PK）+ 只读徽标', as
   await expect(root(page)).toHaveScreenshot()
 })
 
+test('S2 点击连接加载表：显示局部 loading，空态不抢先', async ({ page }) => {
+  await openStory(page, 'DbAdmin/TablesLoading', '[data-testid="tables-loading-1"]')
+  const loading = tid(page, 'tables-loading-1')
+  await expect(loading).toContainText('加载表')
+  await expect(loading.locator('.spinner')).toBeVisible()
+  // 空态（无表）只能在加载结束后出现，不能在 loading 期间抢先渲染
+  await expect(page.locator('.node.column.muted', { hasText: '（无表）' })).toHaveCount(0)
+  await expect(root(page)).toHaveScreenshot()
+})
+
 test('S3 只读结果：末页边界、耗时、类型提示', async ({ page }) => {
   await openStory(page, 'DbAdmin/ReadResult', '[data-testid="result-grid"] table')
   await expect(tid(page, 'page-label')).toHaveText('3 / 3')
@@ -101,7 +111,7 @@ test.describe('DbAdmin · S4 写审批', () => {
 
   test('破坏性：批准后弹二次确认；取消则不执行', async ({ page }) => {
     await openStory(page, 'DbAdmin/DestructiveApproval', '[data-testid="approval-modal"]')
-    await expect(tid(page, 'approval-destructive')).toContainText('破坏性')
+    await expect(tid(page, 'approval-destructive')).toContainText('不可恢复')
     await expect(tid(page, 'approval-modal')).toContainText('写 · 破坏性')
     await expect(root(page)).toHaveScreenshot()
     await tid(page, 'approval-approve').click()

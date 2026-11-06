@@ -147,6 +147,8 @@ export const stories: ComponentStory[] = [
   { id: 'DbAdmin/ConnFormInvalid', component: DbAdminStoryHost, props: { fixture: base({ overlay: 'connForm', connForm: { editingId: '2', name: '报表库', provider: 'postgresql', mode: 'form', host: '10.0.0.12', port: 5432, database: '', userName: 'report_ro', password: '' }, connFormError: '请填写数据库名' }) } },
   // 测试状态：S2 Schema 树 —— 连接 → 表 → 列（rawType / PK）；系统库展开并带只读徽标
   { id: 'DbAdmin/SchemaTree', component: DbAdminStoryHost, props: { fixture: base({ activeConnectionId: 'sys:ForgeSelf', expanded: ['c:1', 't:1/users', 'c:sys:ForgeSelf'], sql: 'SELECT * FROM Agent' }) } },
+  // 测试状态：S2 表加载中 —— 点击连接后局部 spinner「加载表…」；完成前不得先显示「（无表）」
+  { id: 'DbAdmin/TablesLoading', component: DbAdminStoryHost, props: { fixture: base({ expanded: ['c:1'], tables: {}, tableDetails: {}, tablesLoading: { '1': true }, sql: undefined }) } },
   // 测试状态：S3 只读结果 —— 200 ok：columns:string[] + columnTypes，服务端分页（第 3 页 / 末页）+ 耗时
   { id: 'DbAdmin/ReadResult', component: DbAdminStoryHost, props: { fixture: base({ reply: { httpStatus: 200, body: outcome({ ...USER_COLS, rows: userRows(101, 20), total: 120, page: 3, pageSize: 50, elapsedMs: 4 }) } }) } },
   // 测试状态：S4 写审批 —— POST /query 202 awaiting_approval → 审批弹窗（语句 / 类型 / 来源 / 目标连接）

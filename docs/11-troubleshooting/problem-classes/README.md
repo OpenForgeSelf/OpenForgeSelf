@@ -30,6 +30,8 @@
 | 智能体顶栏旧名 / 主区域空注释 / 兜底路由把插件路径判成冲突 | PC-021 |
 | XCode 实体直插时间戳 / CreatedAt / UpdatedAt / 0001-01-01 | PC-022 |
 | 执行记录文件清单 / ToolCallsJson 提取 / 双编码 JSON / 留痕参数面 | PC-023 |
+| UI 主题 / 暗色对比度 / primary light-N / 选中行·标签·横幅 | PC-025 |
+| 插件前端类名 / 宿主 Tailwind 工具类 / table display / 表头内容错列 | PC-026 |
 
 ## 台账总表
 
@@ -59,6 +61,8 @@
 | PC-022 | XCode 实体直插漏赋时间戳字段，落库为 0001-01-01 缺省值 | guarded | G1 active（MemoryTimestampGuardTests） | 0 | [PC-022](PC-022-xcode-entity-timestamp-default.md) |
 | PC-023 | 执行记录 filesChanged 断链：自动留痕无参数 + 双编码 JSON 裸正则永不命中 | guarded | G1 active（BuiltInFilesChangedPersistenceTests） | 0 | [PC-023](PC-023-todo-fileschanged-persistence-loss.md) |
 | PC-024 | 前端轮询面错误处理缺失：静默吞 404（终态错误继续轮询）/ 无 catch 裸抛反复 toast | guarded | G2 active（e2e dead-session restored：banner 一次 + 3s 零新增 404） | 0 | [PC-024](PC-024-frontend-poll-error-handling.md) |
+| PC-025 | 暗色主题 primary light-N 明暗倒置，主色浅底上的文字不可见 | guarded | G2 active（token vitest）+ G1 active（db-admin e2e 亮暗对比度） | 0（前案 2026-10-15 IM 网关暗色对比度未立 PC，按逃逸分析处理） | [PC-025](PC-025-dark-theme-token-contrast.md) |
+| PC-026 | 插件语义类名与宿主 Tailwind 工具类同名，table 被改成 display:grid 致表头/内容错列 | guarded | G2 active（class vitest）+ G1 active（db-admin e2e display/对齐）+ G3 签名 | 0 | [PC-026](PC-026-plugin-class-tailwind-collision.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

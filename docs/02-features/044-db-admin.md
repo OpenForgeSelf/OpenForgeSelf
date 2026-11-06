@@ -5,9 +5,9 @@
 
 ## 1. 定位与范围
 
-「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server 可配置但「未实测」、驱动缺失明确提示）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览、SQL 执行与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
+「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server 可配置但「未实测」；驱动预检关闭，失败回显底层错误）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览、SQL 执行与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
 
-**非目标**：表设计器、ER 图、数据导入导出、驱动在线下载、执行 shell、Agent 自建连接、宿主库写入（任何模式）。
+**非目标**：表设计器、ER 图、数据导入导出、主动驱动在线下载（2026-11-06 起交由 XCode 在连接期自行获取）、执行 shell、Agent 自建连接、宿主库写入（任何模式）。
 
 ## 2. 契约速查（真源见插件 docs/03 §3.1）
 
@@ -16,6 +16,28 @@
 - 测连 `POST /connections/test` 恒 200 `{ok,code,message,serverVersion,elapsedMs}`；审批轮询 `GET /approvals?status=pending`（前端 5s）；`POST /approvals/{id}/resolve` body `{decision: approve|reject, confirmDestructive?}`。
 - 连接 id：用户=数字串、系统=`sys:<ConnName>`；provider id 小写；kind 对外只有 read/write（破坏性=destructive:true）；密码恒 `****`、connStr 恒掩码；时间 ISO 8601 本地。
 - Agent 工具（toolPrefix db，扩展点 Id `db-admin.<name>`）：`db_list_connections` / `db_list_tables` / `db_describe_table` / `db_query_readonly`（严格 SELECT/WITH、≤1000 行/≤256KB、truncated）/ `db_execute_write`（AskWrite→awaiting_approval）/ `db_set_permission_mode`（仅会话级）/ `db_resolve_approval`（破坏性恒 confirmation_required；批准需用户原话）。统一回包 `{success,tool,status,data,hint?}`，出口两道脱敏。
+
+### 2.1 AI 驱动入口与调用方式（2026-11-06 补齐：agent 怎么用这个插件）
+
+**三个入口，能力不对等**：
+
+| 入口 | 位置 | 谁在用 | 现状 |
+|------|------|--------|------|
+| 内置 AIAgent 对话 | `/ai-agent` 页面 → composer 🔧 工具选择器 | 本机用户 | **`db_*` 不在默认挂载**：AIAgent 默认作用域只有「本插件 + memory-system + design-system」（`Plugins/AIAgent/Services/AIAgentService.cs:674`），必须手动 🔧 勾选 `db_*`（勾选后候选池放开到全注册表 `:694`），或写进 Agent 编辑框的 Tools 白名单 |
+| MCP 网关（外部 agent） | MCP 中心「网关」tab 给地址/端口/令牌 | Claude / Codex 等外部 agent | 先 `search_tools`（找不到再 `list_tools`），再 `universal_tool {tool:"db_query_readonly", parameters:{…}}`（对外工具定义 `Plugins/McpCenter/Services/UniversalToolForwarder.cs:38`） |
+| DbAdmin 页面「Agent 工具回显」tab | `/db-admin` 右栏 | 本机用户 | **只读审计旁听**（`GET /audit?kind=agent`），**不能发起** agent 调用；空态「本会话暂无 Agent db_* 调用」 |
+
+**下参示例（`db_query_readonly`，schema 真源 `Plugins/DbAdmin/Services/DbAdminToolFunctions.cs:442`）**：
+
+```json
+{"connectionId":"1","sql":"SELECT id, name FROM users WHERE id = @id LIMIT 50","params":{"id":1},"maxRows":50}
+```
+
+`connectionId` 先用 `db_list_connections` 取；`params` 与 SQL 里的 `@name` 对应；`sessionId` 可选（决定会话级权限模式并用于审计回显）。
+
+**写操作链路**：`db_execute_write` 返回 `status=awaiting_approval` + `approvalId` → 用户在 DbAdmin 页面「审批」批准（审批中心在插件页，不在 AI 对话里）；Agent 侧 `db_resolve_approval` 仅当用户本轮原话明确同意才可调用，后端只校验 quote 非空（工具自述局限，`DbAdminToolFunctions.cs:540`），破坏性语句 Agent 恒无法批准。
+
+**已知缺口**（已记 `TODO.md`）：插件页面内没有「自然语言 → 查询」入口，必须切到 `/ai-agent` 并手动勾选工具；`db_*` 不在默认作用域 → 「装了插件但 AI 默认用不了」没有任何界面提示。
 
 ## 3. 安全模型
 
@@ -37,7 +59,7 @@
 
 ## 6. 已知边界
 
-- 非 SQLite 引擎「未实测」且不随插件打包驱动（决策1）；缺驱动测连/执行返回 driver_missing(424)+NuGet 包名，用户放 DLL 后重启生效。
+- 非 SQLite 引擎「未实测」且不随插件打包驱动（决策1）；2026-11-06 起暂时关闭驱动预检（决策3）：`/providers` 全部 `driverAvailable=true`，连接/测连交给 XCode，失败回显底层错误（`sql_error` 400，脱敏）；`driver_missing`(424) 仅在预检开关开启时产生。
 - 密钥文件（dbadmin.key）丢失则已存密码不可解（重新录入）；备份/迁移须库+密钥同带（决策2）。
 - 拿到数据目录（DbAdmin.db+dbadmin.key）即可解密——防「单独拷走 .db」，不防本机同用户进程；后续可迁宿主 vault。
 

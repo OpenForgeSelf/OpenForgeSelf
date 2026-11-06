@@ -186,11 +186,13 @@ html.dark {
   color-scheme: dark;
 
   --el-color-primary: #F59E0B;
-  --el-color-primary-light-3: #F9BC4E;
-  --el-color-primary-light-5: #FBBF24;
-  --el-color-primary-light-7: #FCD34D;
-  --el-color-primary-light-8: #FDE68A;
-  --el-color-primary-light-9: #FEF3C7;
+  /* light-N 是「背景级」token：N 越大越暗（与设计稿 forgeself-design/themes/workshop-forge.css:112-116 一致）。
+     2026-11-06 用户输入1 实证：旧值逐级变亮，选中行 #FDE68A 配 #F4F0E7 文字对比度仅 1.10:1。 */
+  --el-color-primary-light-3: #D97706;
+  --el-color-primary-light-5: #B45309;
+  --el-color-primary-light-7: #92400E;
+  --el-color-primary-light-8: #78350F;
+  --el-color-primary-light-9: #451A03;
   --el-color-primary-dark-2: #D97706;
 
   --el-color-success: #6B8E4E;

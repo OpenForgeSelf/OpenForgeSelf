@@ -39,6 +39,10 @@ const providers = ref<DbProvider[]>([])
 const connections = ref<DbConnection[]>([])
 const activeId = ref<string | null>(null)
 const tables = ref<Record<string, DbTable[]>>({})
+/** 每个连接独立的「加载表」状态：点击连接即显示局部 loading，空态必须等加载结束再出现 */
+const tablesLoading = ref<Record<string, boolean>>({})
+/** 请求序号：force 重拉时旧响应不得覆盖新结果（竞态防护） */
+const tableLoadSeq: Record<string, number> = {}
 const details = ref<Record<string, DbTableDetail>>({})
 const expanded = ref<Set<string>>(new Set())
 
@@ -169,6 +173,7 @@ function applyFixture(f: DbAdminFixture) {
   connections.value = listOf(f.connections ?? [], normConnection)
   activeId.value = f.activeConnectionId ?? null
   tables.value = Object.fromEntries(Object.entries(f.tables ?? {}).map(([k, v]) => [k, listOf(v, normTable)]))
+  tablesLoading.value = { ...(f.tablesLoading ?? {}) }
   details.value = Object.fromEntries(Object.entries(f.tableDetails ?? {}).map(([k, v]) => [k, normTableDetail(v)]))
   expanded.value = new Set(f.expanded ?? [])
   drafts.value = activeId.value && f.sql !== undefined ? { [activeId.value]: f.sql } : {}
@@ -256,10 +261,18 @@ async function loadAll() {
 
 async function loadTables(id: string, force = false) {
   if (isDemo.value || (!force && tables.value[id])) return // force：建表/写执行后强制重拉（R1）
+  if (!force && tablesLoading.value[id]) return // 同一连接加载中不重复发请求
+  const seq = (tableLoadSeq[id] ?? 0) + 1
+  tableLoadSeq[id] = seq
+  tablesLoading.value = { ...tablesLoading.value, [id]: true }
   try {
-    tables.value = { ...tables.value, [id]: await dbAdminApi.tables(id) }
+    const data = await dbAdminApi.tables(id)
+    if (tableLoadSeq[id] !== seq) return // 旧请求被 force 重拉取代，丢弃
+    tables.value = { ...tables.value, [id]: data }
   } catch (e) {
-    handleError(e, '读取表')
+    if (tableLoadSeq[id] === seq) handleError(e, '读取表')
+  } finally {
+    if (tableLoadSeq[id] === seq) tablesLoading.value = { ...tablesLoading.value, [id]: false }
   }
 }
 async function loadDetail(id: string, table: string) {
@@ -667,17 +680,22 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
               <span class="lock" title="系统只读连接：任何写入硬拒">🔒</span>
             </div>
             <template v-if="expanded.has(`c:${c.id}`)">
-              <template v-for="t in tables[c.id] ?? []" :key="t.name">
-                <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="toggleTable(c.id, t)" @dblclick="insertSelect(c.id, t)">
-                  <span class="caret">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
-                  <span class="name">{{ t.type === 'view' ? '视图' : '表' }} {{ t.name }}</span>
-                </div>
-                <template v-if="expanded.has(`t:${c.id}/${t.name}`)">
-                  <div v-for="col in details[`${c.id}/${t.name}`]?.columns ?? []" :key="col.name" class="node column">
-                    · {{ col.name }} <span class="type">{{ col.type }}</span>
-                    <span v-if="col.primaryKey" class="pk">PK</span>
-                    <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+              <div v-if="tablesLoading[c.id]" class="node node-loading" role="status" :data-testid="`tables-loading-${c.id}`">
+                <span class="spinner" aria-hidden="true"></span>加载表…
+              </div>
+              <template v-else>
+                <template v-for="t in tables[c.id] ?? []" :key="t.name">
+                  <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="toggleTable(c.id, t)" @dblclick="insertSelect(c.id, t)">
+                    <span class="caret">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
+                    <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
                   </div>
+                  <template v-if="expanded.has(`t:${c.id}/${t.name}`)">
+                    <div v-for="col in details[`${c.id}/${t.name}`]?.columns ?? []" :key="col.name" class="node column">
+                      · {{ col.name }} <span class="type">{{ col.type }}</span>
+                      <span v-if="col.primaryKey" class="pk">PK</span>
+                      <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+                    </div>
+                  </template>
                 </template>
               </template>
             </template>
@@ -706,23 +724,28 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
               </span>
             </div>
             <template v-if="expanded.has(`c:${c.id}`)">
-              <div v-if="(tables[c.id] ?? []).length === 0" class="node column muted">（无表）</div>
-              <template v-for="t in tables[c.id] ?? []" :key="t.name">
-                <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="toggleTable(c.id, t)" @dblclick="insertSelect(c.id, t)">
-                  <span class="caret">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
-                  <span class="name">{{ t.type === 'view' ? '视图' : '表' }} {{ t.name }}</span>
-                </div>
-                <template v-if="expanded.has(`t:${c.id}/${t.name}`)">
-                  <div
-                    v-for="col in details[`${c.id}/${t.name}`]?.columns ?? []"
-                    :key="col.name"
-                    class="node column"
-                    :data-testid="`col-${c.id}-${t.name}-${col.name}`"
-                  >
-                    · {{ col.name }} <span class="type">{{ col.type }}</span>
-                    <span v-if="col.primaryKey" class="pk">PK</span>
-                    <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+              <div v-if="tablesLoading[c.id]" class="node node-loading" role="status" :data-testid="`tables-loading-${c.id}`">
+                <span class="spinner" aria-hidden="true"></span>加载表…
+              </div>
+              <div v-else-if="(tables[c.id] ?? []).length === 0" class="node column muted">（无表）</div>
+              <template v-else>
+                <template v-for="t in tables[c.id] ?? []" :key="t.name">
+                  <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="toggleTable(c.id, t)" @dblclick="insertSelect(c.id, t)">
+                    <span class="caret">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
+                    <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
                   </div>
+                  <template v-if="expanded.has(`t:${c.id}/${t.name}`)">
+                    <div
+                      v-for="col in details[`${c.id}/${t.name}`]?.columns ?? []"
+                      :key="col.name"
+                      class="node column"
+                      :data-testid="`col-${c.id}-${t.name}-${col.name}`"
+                    >
+                      · {{ col.name }} <span class="type">{{ col.type }}</span>
+                      <span v-if="col.primaryKey" class="pk">PK</span>
+                      <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+                    </div>
+                  </template>
                 </template>
               </template>
             </template>
@@ -780,7 +803,7 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
 
         <div class="grid-wrap" data-testid="result-grid">
           <div v-if="result?.truncated" class="truncated" data-testid="truncated">结果已截断（truncated=true）：仅显示上限内的行</div>
-          <table v-if="result?.columns?.length" class="grid">
+          <table v-if="result?.columns?.length" class="dba-grid">
             <thead>
               <tr>
                 <th class="rownum">#</th>
@@ -1026,6 +1049,14 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
 .node .name { overflow: hidden; text-overflow: ellipsis; }
 .node.table { padding-left: 20px; }
 .node.column { padding-left: 38px; cursor: default; color: var(--el-text-color-secondary); font-size: 12px; }
+.node-loading { padding-left: 20px; color: var(--el-text-color-secondary); font-size: 12px; cursor: default; }
+.node-loading .spinner {
+  width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%;
+  border: 2px solid var(--el-border-color); border-top-color: var(--el-color-primary);
+  animation: dba-spin 0.8s linear infinite;
+}
+@keyframes dba-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .node-loading .spinner { animation: none; } }
 .caret { width: 10px; color: var(--el-text-color-secondary); }
 .lock { font-size: 11px; }
 .node-actions { margin-left: auto; display: none; gap: 2px; }
@@ -1061,10 +1092,11 @@ watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
 .err-msg { color: var(--el-text-color-primary); font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
 .main > .grid-wrap { flex: 1 1 auto; min-height: 80px; overflow: auto; border: 1px solid var(--el-border-color); border-radius: 10px; background: var(--el-bg-color-overlay); }
 .truncated { padding: 6px 10px; color: var(--el-color-warning); border-bottom: 1px solid var(--el-border-color); font-size: 12px; }
-.grid { border-collapse: collapse; width: max-content; min-width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
-.grid th, .grid td { border-bottom: 1px solid var(--el-border-color); padding: 4px 10px; text-align: left; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.grid th { position: sticky; top: 0; background: var(--el-bg-color-overlay); font-weight: 600; }
-.grid td.null { color: var(--el-text-color-secondary); font-style: italic; }
+/* 类名带 dba- 前缀：避免与宿主 Tailwind 工具类（.grid → display:grid）冲突，导致 table 脱离表格布局、表头与内容错列 */
+.dba-grid { border-collapse: collapse; width: max-content; min-width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
+.dba-grid th, .dba-grid td { border-bottom: 1px solid var(--el-border-color); padding: 4px 10px; text-align: left; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dba-grid th { position: sticky; top: 0; background: var(--el-bg-color-overlay); font-weight: 600; }
+.dba-grid td.null { color: var(--el-text-color-secondary); font-style: italic; }
 .rownum { color: var(--el-text-color-secondary); width: 36px; }
 .placeholder { padding: 16px; }
 .pager { display: flex; align-items: center; gap: 8px; }

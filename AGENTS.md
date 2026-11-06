@@ -334,7 +334,7 @@ Verify 失败
 **设计门禁三步（框架变更 / 页面开发 / 新建查询，缺一不可，不许靠自觉）**：
 1. **静态守卫（自动，机器判）**：`pnpm run design:check`（= `scripts/check-style-tokens.mjs` 禁新增裸色值 + `scripts/check-design-compliance.mjs` 禁新增 token 族违规/胶囊按钮/玻璃过头/蓝紫渐变，棘轮基线）。**每次改完代码必跑（§5.6 快档已接线）**；pre-commit hook 亦拦截。
 2. **Spec 硬性环节（闸门1）**：涉用户可见 UI 的 Spec 必含「Interaction Design」节（模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能），写清「点什么出现什么」+ 空态/反馈/边界 + 验收标准；**缺节闸门1 不通过**。
-3. **走查符合性（验收）**：涉及 UI 的交付必经起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design`「走查 UI 符合性清单」逐项核对（CRAP + DESIGN.md 组件规格 + 品牌语汇），不只"能显示"。
+3. **走查符合性（验收）**：涉及 UI 的交付必经起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design`「走查 UI 符合性清单」逐项核对（CRAP + DESIGN.md 组件规格 + 品牌语汇），不只"能显示"。**涉及主题/颜色的改动必须亮/暗两态各走一遍**；默认 `system` 在 CI/Playwright 解析为 light，**不算暗色验证**，必须显式切 `html.dark`；列表/树选中行、标签、横幅底实测对比度 ≥4.5:1（2026-11-06 DbAdmin 暗色连接名 1.10:1 实证，PC-025 / 守卫 `workshop-forge.contrast.test.ts`）；**异步动作（点连接/切数据源/查询）≤100ms 出局部 loading，完成前不得先显示空态（无表/无数据），重复点击去重、旧响应不得覆盖新选择**（2026-11-06 DbAdmin 表加载实证）。
 
 - **新建页面/新建查询**：一律按 `DESIGN.md`「新建页面与查询执行规范」节（PageHead/ForgeCard/EmptyState、token 引用禁裸色值、空态/反馈/边界、品牌语汇、三禁红线复查），并跑设计门禁三步。
 - 新增设置项 SOP、file:// 协议限制等 → `docs/04-standards/agent-workflow/a-workflow-docs-report.md` §A7。

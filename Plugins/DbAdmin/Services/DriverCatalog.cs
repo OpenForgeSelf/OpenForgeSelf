@@ -15,11 +15,18 @@ public interface IDriverProbe
 /// <summary>
 /// provider 目录与驱动探测。驱动打包决策（docs/05 §2，已写回文档）：
 /// MVP <b>只依赖宿主随附的 SQLite</b>（XCode.SQLite），插件<b>不打包</b> MySQL / PostgreSQL / SQL Server 驱动；
-/// 探测不到驱动时返回 <c>driver_missing</c> + NuGet 包名，<b>不</b>交给 XCode 自动下载（离线/代理环境会卡住且引入未审计 DLL）。
-/// 用户可把驱动 DLL 放入宿主程序目录或本插件目录后重启生效。
+/// 探测不到驱动时返回 <c>driver_missing</c> + NuGet 包名。
+/// <para>
+/// <b>2026-11-06 用户输入2：暂时关闭驱动预检</b>——不再在连接/测连前探测驱动，交给 XCode 在真正
+/// 连接时自行获取驱动；连接失败直接回显底层错误（是驱动问题还是网络/认证问题，后续再按错误信息细分）。
+/// 恢复预检只需把 <see cref="ProbeEnabled"/> 改回 true。
+/// </para>
 /// </summary>
 public static class DriverCatalog
 {
+    /// <summary>驱动预检开关（2026-11-06 暂时关闭，见类注释）</summary>
+    public const Boolean ProbeEnabled = false;
+
     public static readonly IReadOnlyList<ProviderDef> Providers =
     [
         new("sqlite", "SQLite", "SQLite", null, true, "System.Data.SQLite（宿主已随附）",

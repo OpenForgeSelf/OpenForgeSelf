@@ -59,7 +59,7 @@ onMounted(loadUpdateSource)
         <div>
           <div class="text-base font-medium text-text">插件更新源</div>
           <div class="text-xs text-text-secondary mt-1">
-            配置插件本地包目录后，插件市场「检查更新」会扫描目录内 .forgeself-plugin 包并发现更高版本（与宿主更新互不影响）
+            配置插件本地包目录后，插件市场「检查更新」会扫描目录内 .zip 包并发现更高版本（与宿主更新互不影响）
           </div>
         </div>
       </div>

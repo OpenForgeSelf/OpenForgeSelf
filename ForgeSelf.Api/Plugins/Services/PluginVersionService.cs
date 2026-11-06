@@ -23,16 +23,22 @@ public class PluginVersionService
     private readonly PluginManager _pluginManager;
     private readonly PluginUpdateSettingsService _pluginUpdateSettings;
     private readonly PluginPackagerService _packagerService;
+    private readonly IDataLocationService? _dataLocation;
+    private readonly PluginJobStore? _jobs;
     private string _pluginsDirectory = string.Empty;
 
     public PluginVersionService(
         PluginManager pluginManager,
         PluginUpdateSettingsService pluginUpdateSettings,
-        PluginPackagerService packagerService)
+        PluginPackagerService packagerService,
+        IDataLocationService? dataLocation = null,
+        PluginJobStore? jobs = null)
     {
         _pluginManager = pluginManager;
         _pluginUpdateSettings = pluginUpdateSettings;
         _packagerService = packagerService;
+        _dataLocation = dataLocation;
+        _jobs = jobs;
     }
 
     public void Initialize(string pluginsDirectory)
@@ -53,7 +59,7 @@ public class PluginVersionService
             // ① versions/<id>/ 内已 staged 但未生效的更高版本（side-by-side 直落，source=staged）
             string? latestFromStaged = GetHighestStagedVersion(metadata.Id);
 
-            // ② 插件更新源本地包目录（输入27）：顶层 *.forgeself-plugin 包，版本高于当前生效才列为可更新
+            // ② 插件更新源本地包目录：顶层 *.zip，版本高于当前生效才列为可更新
             string? latestFromPackage = ScanPackageSource(metadata.Id, metadata.Version);
 
             string? latestVersion = null;
@@ -123,7 +129,7 @@ public class PluginVersionService
         }
 
         // 版本目录（versions/<ver>/，side-by-side 布局；含已 staged 未生效的新版本与扁平迁移快照）
-        var pluginDir = Path.Combine(_pluginsDirectory, pluginId);
+        var pluginDir = ResolvePluginDirectory(pluginId);
         var versionsDir = Path.Combine(pluginDir, PluginVersionLayout.VersionsFolderName);
         if (Directory.Exists(versionsDir))
         {
@@ -180,7 +186,7 @@ public class PluginVersionService
         }
 
         // 版本已直落 versions/（包源/侧载 stage 产物），无需复制，直接激活（切指针 + 同步清单 + 热切换）
-        return ActivateVersion(pluginId, latestVersion);
+        return Activate(pluginId, latestVersion);
     }
 
     public bool RollbackPlugin(string pluginId, string version)
@@ -204,15 +210,13 @@ public class PluginVersionService
             return false;
         }
 
-        return ActivateVersion(pluginId, version);
+        return Activate(pluginId, version);
     }
 
     /// <summary>
-    /// 激活指定版本：停用旧版（如运行中）→ 强制回收释放 DLL 句柄 → 切 current 指针 →
-    /// 同步活动清单 plugin.json → 刷新内存元数据 → 启用新版 → 裁剪更旧版本。
-    /// 不复制任何文件：目标版本必须已存在于 versions/&lt;ver&gt;/（直落布局）。
+    /// 激活指定发行串。加载失败时把 current 与活动清单写回切换前的内容。
     /// </summary>
-    private bool ActivateVersion(string pluginId, string version)
+    public bool Activate(string pluginId, string version)
     {
         var metadata = _pluginManager.GetPluginMetadata(pluginId);
         if (metadata == null || string.IsNullOrWhiteSpace(metadata.PluginDirectory))
@@ -221,56 +225,85 @@ public class PluginVersionService
             return false;
         }
 
-        var oldEntryPath = _pluginManager.GetPluginEntryAssemblyPath(pluginId);
+        var pluginDir = metadata.PluginDirectory;
+        if (!Directory.Exists(PluginVersionLayout.VersionDirectory(pluginDir, version)))
+        {
+            XTrace.Log.Error("目标版本不存在: {0} {1}", pluginId, version);
+            _jobs?.Write(pluginDir, "activate", false, version, "目标版本不存在");
+            return false;
+        }
+
+        var previous = PluginVersionLayout.ReadCurrentVersion(pluginDir);
+        var manifestPath = Path.Combine(pluginDir, "plugin.json");
+        var previousManifest = File.Exists(manifestPath) ? File.ReadAllText(manifestPath) : null;
         var wasRunning = _pluginManager.GetPluginState(pluginId) == PluginState.Running;
+        var oldEntryPath = _pluginManager.GetPluginEntryAssemblyPath(pluginId);
 
         try
         {
-            // 1. 停用旧版（fiber.Dispose + ALC Unload）
             if (wasRunning)
                 _pluginManager.DisablePlugin(pluginId);
 
-            // 2. 强制回收，释放旧 DLL 句柄
             PluginAssemblyUnloader.ForceCollect();
-
-            // 3. 确认旧 DLL 句柄可释放（未锁则后续可删；仍锁则交给延迟删除，绝不阻塞）
             if (!string.IsNullOrWhiteSpace(oldEntryPath))
-            {
-                if (PluginAssemblyUnloader.TryOpenExclusive(oldEntryPath))
-                    XTrace.Log.Info("旧 DLL 句柄已释放: {0}", oldEntryPath);
-                else
-                    XTrace.Log.Warn("旧 DLL 仍被占用，延迟删除: {0}", oldEntryPath);
-            }
+                PluginAssemblyUnloader.TryOpenExclusive(oldEntryPath);
 
-            // 4. 切换 current 指针到目标版本
-            PluginVersionLayout.WriteCurrentVersion(metadata.PluginDirectory, version);
-
-            // 5. 同步活动清单 plugin.json（使 DiscoverPlugins / 下次启动读到新版本元数据）
+            PluginVersionLayout.WriteCurrentVersion(pluginDir, version);
             SyncActiveManifest(pluginId, version);
-
-            // 6. 刷新内存元数据并加载新版
             _pluginManager.RefreshMetadataFromDisk(pluginId);
-            if (wasRunning)
-                _pluginManager.EnablePlugin(pluginId);
+            if (wasRunning && !_pluginManager.EnablePlugin(pluginId))
+                throw new InvalidOperationException("新版本加载失败");
 
-            // 7. 保留最近 N 个版本，更旧版本延迟删除（不阻塞）
             PruneVersions(pluginId);
-
+            _jobs?.Write(pluginDir, "activate", true, version, null);
             XTrace.Log.Info("插件版本激活成功: {0} v{1}", pluginId, version);
             return true;
         }
         catch (Exception ex)
         {
-            XTrace.Log.Error("插件版本激活失败 [{0}] v{1}: {2}", pluginId, version, ex.Message);
+            RestoreActivation(pluginDir, previous, previousManifest);
+            try { _pluginManager.RefreshMetadataFromDisk(pluginId); }
+            catch (Exception refreshEx) { XTrace.Log.Warn("回滚后刷新元数据失败: {0}", refreshEx.Message); }
+            if (wasRunning)
+            {
+                try { _pluginManager.EnablePlugin(pluginId); }
+                catch (Exception enableEx) { XTrace.Log.Warn("回滚后重新加载旧版失败: {0}", enableEx.Message); }
+            }
+
+            _jobs?.Write(pluginDir, "activate", false, version, ex.Message);
+            XTrace.Log.Error("插件版本激活失败，已回滚指针 [{0}] v{1}: {2}", pluginId, version, ex.Message);
             return false;
         }
     }
 
-    /// <summary>
-    /// 把上传的 .forgeself-plugin 包解包直落 stage 到 versions/&lt;id&gt;/&lt;ver&gt;/（批次2.5，输入34）：
-    /// 与 038 包源同一布局——不覆盖活动目录，多版本共存即回滚。已存在目标版本目录则保留（幂等）。
-    /// 校验：包 Id 匹配、版本号合法（防路径穿越）、包内存在入口 DLL、ValidatePackage 通过。
-    /// </summary>
+    private static void RestoreActivation(string pluginDir, string? previous, string? previousManifest)
+    {
+        var pointer = PluginVersionLayout.CurrentPointerPath(pluginDir);
+        if (string.IsNullOrWhiteSpace(previous))
+        {
+            if (File.Exists(pointer))
+                File.Delete(pointer);
+        }
+        else
+        {
+            PluginVersionLayout.WriteCurrentVersion(pluginDir, previous);
+        }
+
+        if (previousManifest != null)
+            File.WriteAllText(Path.Combine(pluginDir, "plugin.json"), previousManifest);
+    }
+
+    private string ResolvePluginDirectory(string pluginId)
+    {
+        var metadata = _pluginManager.GetPluginMetadata(pluginId);
+        if (!string.IsNullOrWhiteSpace(metadata?.PluginDirectory))
+            return metadata.PluginDirectory;
+        if (_dataLocation != null)
+            return _dataLocation.GetPluginDataDirectory(pluginId);
+        return Path.Combine(_pluginsDirectory, pluginId);
+    }
+
+    /// <summary>把上传的 .zip 解包直落到 versions/&lt;ver&gt;/。已停止读取 .forgeself-plugin。</summary>
     public bool StageUploadedPackage(string pluginId, string packagePath)
     {
         try
@@ -338,7 +371,7 @@ public class PluginVersionService
         {
             string? bestPkg = null;
             string? bestVer = null;
-            foreach (var pkg in Directory.GetFiles(localDir, "*.forgeself-plugin", SearchOption.TopDirectoryOnly))
+            foreach (var pkg in Directory.GetFiles(localDir, "*.zip", SearchOption.TopDirectoryOnly))
             {
                 PluginMetadata? meta = null;
                 try
@@ -413,8 +446,7 @@ public class PluginVersionService
     }
 
     /// <summary>
-    /// 扫描插件更新源本地包目录（输入27）：顶层 *.forgeself-plugin 包，读取包内 plugin.json，
-    /// 返回版本高于 currentVersion 且高于 versions/ 现有最高 staged 版本的最高包版本；无包源/无效包/异常返回 null。
+    /// 扫描插件更新源本地包目录：顶层 *.zip。旧的 .forgeself-plugin 不再读取。
     /// </summary>
     private string? ScanPackageSource(string pluginId, string currentVersion)
     {
@@ -425,7 +457,7 @@ public class PluginVersionService
         string? best = null;
         try
         {
-            foreach (var pkg in Directory.GetFiles(localDir, "*.forgeself-plugin", SearchOption.TopDirectoryOnly))
+            foreach (var pkg in Directory.GetFiles(localDir, "*.zip", SearchOption.TopDirectoryOnly))
             {
                 PluginMetadata? meta = null;
                 try
@@ -503,9 +535,11 @@ public class PluginVersionService
         }
     }
 
-    /// <summary>版本号必须为 x[.y[.z[.w]]] 数字序列（防路径穿越，P1-5）。</summary>
-    private static bool IsValidVersion(string version)
+    /// <summary>版本号必须为数字段（1–4 段），第 4 段允许 10 位时间码。拒绝路径穿越。</summary>
+    public static bool IsReleaseVersion(string version)
         => System.Text.RegularExpressions.Regex.IsMatch(version, @"^\d+(\.\d+){0,3}$");
+
+    private static bool IsValidVersion(string version) => IsReleaseVersion(version);
 
     /// <summary>
     /// 把当前版本目录下的 plugin.json 同步到插件根目录活动清单，
@@ -569,10 +603,10 @@ public class VersionComparer : IComparer<string>
         if (x == null) return -1;
         if (y == null) return 1;
 
-        if (Version.TryParse(x, out var vx) && Version.TryParse(y, out var vy))
-        {
-            return vx.CompareTo(vy);
-        }
+        var a = UpdateChecker.ParseSemVer(x);
+        var b = UpdateChecker.ParseSemVer(y);
+        if (a != null && b != null)
+            return UpdateChecker.CompareSemVer(a, b);
 
         return string.Compare(x, y, StringComparison.Ordinal);
     }

@@ -380,9 +380,13 @@ public class PluginManager
     /// </summary>
     internal static int ComparePluginVersions(string? candidate, string? kept)
     {
-        if (Version.TryParse(candidate, out var a) && Version.TryParse(kept, out var b))
-            return a.CompareTo(b);
-        return 0;
+        // 纯数字段走宿主世代比较（10 位时间码）。带 v 前缀或预发布后缀视为不可比，
+        // 返回 0 以保留先扫到的内置根（PluginRootsTests）。
+        var a = PluginReleaseVersion.TryParseStrict(candidate);
+        var b = PluginReleaseVersion.TryParseStrict(kept);
+        if (a == null || b == null)
+            return 0;
+        return UpdateChecker.CompareSemVer(a, b);
     }
 
     /// <summary>

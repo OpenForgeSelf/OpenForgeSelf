@@ -28,6 +28,17 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
+async function readError(response: Response, fallback: string): Promise<string> {
+  if (response.status === 401) return '需要宿主令牌'
+  try {
+    const body = await response.json() as { message?: string }
+    if (body.message) return body.message
+  } catch {
+    /* 响应不是 JSON */
+  }
+  return `${fallback}: ${response.status}`
+}
+
 
 
 interface ApiResponse<T = unknown> {
@@ -195,9 +206,31 @@ export const pluginApi = {
       body: formData
     })
     if (!response.ok) {
-      throw new Error(`安装插件失败: ${response.status}`)
+      throw new Error(await readError(response, '安装插件失败'))
     }
     return unwrap<PluginDetail>(response)
+  },
+
+  async installFromSource(kind: 'github' | 'nuget', locator: string, activate: boolean): Promise<void> {
+    const response = await authFetch(`${API_BASE_URL}/plugin/install/source`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, locator, activate })
+    })
+    if (!response.ok) {
+      throw new Error(await readError(response, '从来源安装失败'))
+    }
+  },
+
+  async activatePlugin(pluginId: string, version: string): Promise<void> {
+    const response = await authFetch(`${API_BASE_URL}/plugin/activate/${pluginId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version })
+    })
+    if (!response.ok) {
+      throw new Error(await readError(response, '激活失败'))
+    }
   },
 
   async uninstallPlugin(pluginId: string): Promise<void> {

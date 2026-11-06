@@ -114,21 +114,33 @@ public class DbConnectionServiceTests(DbAdminTestFixture fx)
         Assert.False(File.Exists(file));
     }
 
-    [Theory]
-    [InlineData("mysql", "MySqlConnector")]
-    [InlineData("postgresql", "Npgsql")]
-    [InlineData("sqlserver", "Microsoft.Data.SqlClient")]
-    public void Test_DriverMissing_ClearHint(String provider, String package)
+    [Fact]
+    public void ListProviders_AllAvailable_WhenDriverProbeDisabled()
     {
-        var r = fx.Connections.Test(new ConnectionInput { Provider = provider, Host = "127.0.0.1", Database = "db", UserName = "u", Password = "SecretPw" });
-        Assert.False(r.Ok);
-        Assert.Equal(DbErrorCodes.DriverMissing, r.Code);
-        Assert.Contains(package, r.Message);
-        Assert.DoesNotContain("SecretPw", r.Message);
+        // 2026-11-06 用户输入2：暂时关闭驱动预检，provider 不再标「需驱动」
+        Assert.False(DriverCatalog.ProbeEnabled);
+        Assert.All(fx.Connections.ListProviders(), p => Assert.True(p.DriverAvailable));
+    }
 
-        var prov = fx.Connections.ListProviders().Single(p => p.Id == provider);
-        Assert.False(prov.DriverAvailable);
-        Assert.False(prov.Tested);
+    [Fact]
+    public void Resolve_NonSqlite_NoDriverGate()
+    {
+        // 预检关闭后不再由探测结果拦截：建一条 MySQL 配置即可进入解析、注册 ConnName
+        var v = fx.Connections.Create(new ConnectionInput
+        {
+            Name = DbAdminTestFixture.UniqueName("mysql"),
+            Provider = "mysql", Host = "127.0.0.1", Port = 3306, Database = "db", UserName = "u", Password = "SecretPw",
+        });
+        var rc = fx.Connections.Resolve(v.Id);
+        Assert.Equal(DbConnectionService.UserConnPrefix + v.Id, rc.ConnName);
+        Assert.Equal("mysql", rc.Provider);
+
+        // 测连失败时回显底层错误（不判 driver_missing、不泄露密码）——SQLite 缺文件路径无需外网即可判定
+        var r = fx.Connections.Test(new ConnectionInput { Provider = "sqlite", Database = Path.Combine(fx.Dir, "missing_driver_gate.db") });
+        Assert.False(r.Ok);
+        Assert.Equal(DbErrorCodes.SqlError, r.Code);
+        Assert.False(String.IsNullOrWhiteSpace(r.Message));
+        Assert.DoesNotContain("SecretPw", r.Message);
     }
 
     [Fact]

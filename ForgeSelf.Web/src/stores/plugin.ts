@@ -202,6 +202,36 @@ export const usePluginStore = defineStore('plugin', () => {
     }
   }
 
+  async function installFromSource(kind: 'github' | 'nuget', locator: string, activate: boolean): Promise<void> {
+    try {
+      isLoading.value = true
+      error.value = null
+      await pluginApi.installFromSource(kind, locator, activate)
+      await loadPlugins()
+    } catch (e) {
+      console.error('从来源安装失败:', e)
+      error.value = e instanceof Error ? e.message : '从来源安装失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function activatePlugin(pluginId: string, version: string): Promise<void> {
+    try {
+      isLoading.value = true
+      error.value = null
+      await pluginApi.activatePlugin(pluginId, version)
+      await loadPlugins()
+    } catch (e) {
+      console.error('激活插件失败:', e)
+      error.value = e instanceof Error ? e.message : '激活插件失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function uninstallPlugin(pluginId: string): Promise<void> {
     try {
       error.value = null
@@ -328,6 +358,8 @@ export const usePluginStore = defineStore('plugin', () => {
     loadPopularPlugins,
     packagePlugin,
     installPlugin,
+    installFromSource,
+    activatePlugin,
     uninstallPlugin,
     checkForUpdates,
     updatePlugin,

@@ -26,17 +26,22 @@ public class PluginPackagerService
 
         try
         {
+            var version = PluginVersionLayout.ReadCurrentVersion(metadata.PluginDirectory);
+            if (string.IsNullOrWhiteSpace(version))
+                version = metadata.Version;
+            var versionDir = PluginVersionLayout.VersionDirectory(metadata.PluginDirectory, version);
+            var root = Directory.Exists(versionDir) ? versionDir : metadata.PluginDirectory;
+
             using var ms = new MemoryStream();
             using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
             {
-                var pluginDir = metadata.PluginDirectory;
-                var files = Directory.GetFiles(pluginDir, "*", SearchOption.AllDirectories);
-
-                foreach (var file in files)
+                foreach (var file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
                 {
-                    var relativePath = Path.GetRelativePath(pluginDir, file);
-                    var entry = archive.CreateEntry(relativePath);
+                    var relativePath = Path.GetRelativePath(root, file).Replace('\\', '/');
+                    if (IsExcludedFromPackage(relativePath))
+                        continue;
 
+                    var entry = archive.CreateEntry(relativePath);
                     using var entryStream = entry.Open();
                     using var fileStream = File.OpenRead(file);
                     fileStream.CopyTo(entryStream);
@@ -53,12 +58,53 @@ public class PluginPackagerService
         }
     }
 
+    /// <summary>打包排除源码、版本库、测试、作业目录和宿主共享程序集。旧扩展名不进包。</summary>
+    internal static bool IsExcludedFromPackage(string relativePath)
+    {
+        var parts = relativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Any(p => p is "src" or ".git" or "tests" or ".forge" or ".github"))
+            return true;
+
+        var name = parts.Length == 0 ? relativePath : parts[^1];
+        if (name.EndsWith(PluginArtifactValidator.LegacyPackageExtension, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return IsHostProvidedPackageFile(name);
+    }
+
+    /// <summary>
+    /// 宿主已经加载的共享程序集及其 pdb，以及 Microsoft.Extensions.* 这类宿主提供的依赖，不进插件包。
+    /// 插件自己的 dll / pdb / deps.json 保留。
+    /// </summary>
+    internal static bool IsHostProvidedPackageFile(string fileName)
+    {
+        var ext = Path.GetExtension(fileName);
+        if (!ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".pdb", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (fileName.StartsWith("ForgeSelf.", StringComparison.OrdinalIgnoreCase) ||
+            fileName.StartsWith("NewLife.", StringComparison.OrdinalIgnoreCase) ||
+            fileName.StartsWith("Microsoft.Extensions.", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return fileName.Equals("XCode.dll", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Equals("XCode.pdb", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Equals("MX.dll", StringComparison.OrdinalIgnoreCase) ||
+               fileName.Equals("MX.pdb", StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool ValidatePackage(string packagePath)
     {
         XTrace.Log.Info("校验插件包: {0}", packagePath);
 
         try
         {
+            if (PluginArtifactValidator.IsLegacyPackage(packagePath))
+            {
+                XTrace.Log.Error("已停止接受 .forgeself-plugin: {0}", packagePath);
+                return false;
+            }
+
             if (!File.Exists(packagePath))
             {
                 XTrace.Log.Error("插件包文件不存在: {0}", packagePath);
@@ -66,6 +112,7 @@ public class PluginPackagerService
             }
 
             using var archive = ZipFile.OpenRead(packagePath);
+            PluginArtifactValidator.EnsureSafe(archive);
 
             var manifestEntry = archive.GetEntry("plugin.json");
             if (manifestEntry == null)
@@ -127,12 +174,10 @@ public class PluginPackagerService
                 throw new InvalidDataException("插件包校验失败");
             }
 
-            if (!Directory.Exists(targetDir))
+            using (var archive = ZipFile.OpenRead(packagePath))
             {
-                Directory.CreateDirectory(targetDir);
+                PluginArtifactValidator.ExtractSafe(archive, targetDir);
             }
-
-            ZipFile.ExtractToDirectory(packagePath, targetDir, true);
 
             var manifestPath = Path.Combine(targetDir, "plugin.json");
             var json = File.ReadAllText(manifestPath);
@@ -162,12 +207,14 @@ public class PluginPackagerService
 
         try
         {
-            if (!File.Exists(packagePath))
-            {
+            if (PluginArtifactValidator.IsLegacyPackage(packagePath) || !File.Exists(packagePath))
                 return null;
-            }
+
+            if (PluginArtifactValidator.IsDll(packagePath))
+                return PluginArtifactValidator.ReadDllManifest(packagePath);
 
             using var archive = ZipFile.OpenRead(packagePath);
+            PluginArtifactValidator.EnsureSafe(archive);
             var manifestEntry = archive.GetEntry("plugin.json");
             if (manifestEntry == null)
             {

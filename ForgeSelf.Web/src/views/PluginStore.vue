@@ -180,6 +180,88 @@ async function handleToggle(plugin: PluginInfo): Promise<void> {
   }
 }
 
+const installGithub = ref('')
+const installNuget = ref('')
+const installZip = ref<File | null>(null)
+const installDll = ref<File | null>(null)
+const confirmActivate = ref(false)
+const installBusy = ref(false)
+const installError = ref('')
+
+function onZipPicked(event: Event): void {
+  const file = (event.target as HTMLInputElement).files?.[0] ?? null
+  installError.value = ''
+  if (file && !file.name.toLowerCase().endsWith('.zip')) {
+    installError.value = '请选择 .zip 安装包'
+    installZip.value = null
+    return
+  }
+  installZip.value = file
+}
+
+function onDllPicked(event: Event): void {
+  const file = (event.target as HTMLInputElement).files?.[0] ?? null
+  installError.value = ''
+  if (file && !file.name.toLowerCase().endsWith('.dll')) {
+    installError.value = '请选择带内嵌清单的 .dll'
+    installDll.value = null
+    return
+  }
+  installDll.value = file
+}
+
+async function installSource(kind: 'github' | 'nuget'): Promise<void> {
+  const locator = kind === 'github' ? installGithub.value.trim() : installNuget.value.trim()
+  if (!locator) return
+  installBusy.value = true
+  installError.value = ''
+  try {
+    await pluginStore.installFromSource(kind, locator, confirmActivate.value)
+    ElMessage.success({ message: confirmActivate.value ? '已安装并激活' : '已暂存，可在版本历史里激活', offset: 60 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    installError.value = message
+    ElMessage.error({ message, offset: 60 })
+  } finally {
+    installBusy.value = false
+  }
+}
+
+async function uploadPackage(file: File | null): Promise<void> {
+  if (!file) return
+  installBusy.value = true
+  installError.value = ''
+  try {
+    await pluginStore.installPlugin(file)
+    ElMessage.success({ message: '安装包已处理', offset: 60 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    installError.value = message
+    ElMessage.error({ message, offset: 60 })
+  } finally {
+    installBusy.value = false
+  }
+}
+
+async function handleActivate(plugin: PluginInfo, version: string): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`确定将「${plugin.name}」激活为 v${version}？`, '激活此版本', {
+      confirmButtonText: '激活',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+  try {
+    await pluginStore.activatePlugin(plugin.id, version)
+    ElMessage.success({ message: `已激活 v${version}`, offset: 60 })
+    versionsVisible.value = false
+    await loadPlugins()
+  } catch (e) {
+    ElMessage.error({ message: `激活失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
+  }
+}
 const versionsVisible = ref(false)
 const versionsLoading = ref(false)
 const activeVersions = ref<PluginVersionInfo[]>([])
@@ -216,26 +298,6 @@ async function handleUpdate(plugin: PluginInfo): Promise<void> {
     await loadPlugins()
   } catch (e) {
     ElMessage.error({ message: `更新失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
-  }
-}
-
-async function handleRollback(plugin: PluginInfo, version: string): Promise<void> {
-  try {
-    await ElMessageBox.confirm(`确定将「${plugin.name}」回滚到 v${version}？当前版本的未发布改动将不再生效。`, '回滚插件', {
-      confirmButtonText: '回滚',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-  } catch {
-    return // 用户取消：不发请求
-  }
-  try {
-    await pluginStore.rollbackPlugin(plugin.id, version)
-    ElMessage.success({ message: `已回滚到 v${version}`, offset: 60 })
-    versionsVisible.value = false
-    await loadPlugins()
-  } catch (e) {
-    ElMessage.error({ message: `回滚失败: ${e instanceof Error ? e.message : String(e)}`, offset: 60 })
   }
 }
 
@@ -312,6 +374,36 @@ onMounted(() => {
             <span class="nav-icon">🛠️</span>
             <span class="nav-name">开发脚手架</span>
           </router-link>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">安装</h3>
+        <div class="install-box">
+          <label class="install-label">GitHub 仓库</label>
+          <input v-model="installGithub" class="install-input" type="url" placeholder="https://github.com/owner/repo" />
+          <button type="button" class="install-btn" :disabled="installBusy || !installGithub.trim()" @click="installSource('github')">
+            从 GitHub 安装
+          </button>
+          <label class="install-label">NuGet 包名</label>
+          <input v-model="installNuget" class="install-input" type="text" placeholder="HelloWorld 或 OpenForgeSelf.Plugin.HelloWorld" />
+          <button type="button" class="install-btn" :disabled="installBusy || !installNuget.trim()" @click="installSource('nuget')">
+            从 NuGet 安装
+          </button>
+          <label class="install-check">
+            <input v-model="confirmActivate" type="checkbox" />
+            本次确认激活
+          </label>
+          <p v-if="!confirmActivate" class="install-hint">未勾选时只暂存，稍后在版本历史里激活。</p>
+          <label class="install-label">本地 ZIP</label>
+          <input class="install-input" type="file" accept=".zip" @change="onZipPicked" />
+          <button type="button" class="install-btn" :disabled="installBusy || !installZip" @click="uploadPackage(installZip)">上传 ZIP</button>
+          <label class="install-label">本地 DLL</label>
+          <input class="install-input" type="file" accept=".dll" @change="onDllPicked" />
+          <button type="button" class="install-btn" :disabled="installBusy || !installDll" @click="uploadPackage(installDll)">上传 DLL</button>
+          <p v-if="installBusy" class="install-hint">正在提交…</p>
+          <p v-if="installError" class="install-error">{{ installError }}</p>
+          <p v-if="!installGithub && !installNuget && !installZip && !installDll && !installError" class="install-hint">填写地址或选择文件后再安装。</p>
         </div>
       </div>
     </aside>
@@ -492,9 +584,9 @@ onMounted(() => {
           <button
             class="rollback-btn"
             :disabled="v.version === activePlugin?.version"
-            @click="handleRollback(activePlugin!, v.version)"
+            @click="handleActivate(activePlugin!, v.version)"
           >
-            {{ v.version === activePlugin?.version ? '当前版本' : '回滚' }}
+            {{ v.version === activePlugin?.version ? '当前版本' : '激活此版本' }}
           </button>
         </div>
       </div>
@@ -1040,6 +1132,48 @@ onMounted(() => {
 .version-btn:hover {
   border-color: var(--el-color-primary);
   color: var(--el-color-primary);
+}
+.install-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+.install-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.install-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.install-btn {
+  height: 28px;
+  border: 1px solid var(--el-color-primary);
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.install-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.install-check,
+.install-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.install-error {
+  font-size: 12px;
+  color: var(--el-color-danger);
 }
 .versions-body {
   min-height: 60px;

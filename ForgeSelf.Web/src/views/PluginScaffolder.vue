@@ -194,7 +194,7 @@ onMounted(() => {
             <li>填写插件基本信息</li>
             <li>点击「生成插件项目」下载 ZIP 包</li>
             <li>解压到本地目录开始开发</li>
-            <li>开发完成后打包为 .forgeself-plugin 文件</li>
+            <li>开发完成后打包为 .zip（发行串文件名）</li>
             <li>在插件市场中导入安装</li>
           </ol>
         </div>

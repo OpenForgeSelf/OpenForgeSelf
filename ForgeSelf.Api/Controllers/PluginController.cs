@@ -25,6 +25,7 @@ public class PluginController : ControllerBase
     private readonly PluginInstallerService _installerService;
     private readonly PluginScaffolderService _scaffolderService;
     private readonly PluginUpdateSettingsService _pluginUpdateSettings;
+    private readonly PluginSourceResolver? _sources;
 
     public PluginController(
         PluginManager pluginManager,
@@ -33,7 +34,8 @@ public class PluginController : ControllerBase
         PluginPackagerService packagerService,
         PluginInstallerService installerService,
         PluginScaffolderService scaffolderService,
-        PluginUpdateSettingsService pluginUpdateSettings)
+        PluginUpdateSettingsService pluginUpdateSettings,
+        PluginSourceResolver? sources = null)
     {
         _pluginManager = pluginManager;
         _extensionPointManager = extensionPointManager;
@@ -42,6 +44,7 @@ public class PluginController : ControllerBase
         _installerService = installerService;
         _scaffolderService = scaffolderService;
         _pluginUpdateSettings = pluginUpdateSettings;
+        _sources = sources;
     }
 
     [HttpGet]
@@ -729,7 +732,10 @@ public class PluginController : ControllerBase
             }
 
             var packageBytes = _packagerService.PackagePlugin(pluginId);
-            var fileName = $"{metadata.Name}-{metadata.Version}.forgeself-plugin";
+            var safeName = string.Concat(metadata.Name.Where(ch => !Path.GetInvalidFileNameChars().Contains(ch)));
+            if (string.IsNullOrWhiteSpace(safeName))
+                safeName = metadata.Id;
+            var fileName = $"{safeName}-{metadata.Version}.zip";
 
             return File(packageBytes, "application/zip", fileName);
         }
@@ -753,16 +759,31 @@ public class PluginController : ControllerBase
                 return BadRequest(ApiResponse.Error("请上传插件文件", 400));
             }
 
-            var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.forgeself-plugin");
+            var ext = Path.GetExtension(file.FileName);
+            if (PluginArtifactValidator.IsLegacyPackage(file.FileName) ||
+                (!ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) &&
+                 !ext.Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(ApiResponse.Error("安装包只接受 .zip，或带内嵌清单的单文件 .dll", 400));
+            }
+
+            var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{ext}");
             using (var stream = new FileStream(tempPath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
-            if (!_packagerService.ValidatePackage(tempPath))
+            if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) && !_packagerService.ValidatePackage(tempPath))
             {
                 System.IO.File.Delete(tempPath);
                 return BadRequest(ApiResponse.Error("插件包校验失败", 400));
+            }
+
+            if (ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
+                PluginArtifactValidator.ReadDllManifest(tempPath) == null)
+            {
+                System.IO.File.Delete(tempPath);
+                return BadRequest(ApiResponse.Error("DLL 缺少内嵌 ForgeSelf.PluginManifest.json", 400));
             }
 
             var metadata = _installerService.InstallFromPackage(tempPath);
@@ -877,7 +898,14 @@ public class PluginController : ControllerBase
                 return BadRequest(ApiResponse.Error("插件更新源目录不存在", 400));
             }
 
-            _pluginUpdateSettings.Update(cfg => cfg.LocalDir = localDir);
+            _pluginUpdateSettings.Update(cfg =>
+            {
+                cfg.LocalDir = localDir;
+                if (!string.IsNullOrWhiteSpace(request?.GitHubApiBase))
+                    cfg.GitHubApiBase = request.GitHubApiBase.Trim();
+                if (!string.IsNullOrWhiteSpace(request?.NuGetV3Index))
+                    cfg.NuGetV3Index = request.NuGetV3Index.Trim();
+            });
             return Ok(ApiResponse<PluginUpdateSettings>.Ok(_pluginUpdateSettings.Current, "插件更新源配置已保存"));
         }
         catch (Exception ex)
@@ -886,6 +914,54 @@ public class PluginController : ControllerBase
             return StatusCode(500, ApiResponse<PluginUpdateSettings>.Error("保存插件更新源配置失败: " + ex.Message));
         }
     }
+    [HttpPost("activate/{pluginId}")]
+    public ActionResult<ApiResponse> ActivatePlugin(string pluginId, [FromBody] ActivatePluginRequest request)
+    {
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Version))
+                return BadRequest(ApiResponse.Error("必须指定 version", 400));
+
+            var metadata = _pluginManager.GetPluginMetadata(pluginId);
+            if (metadata == null)
+                return NotFound(ApiResponse.Error("插件不存在", 404));
+
+            var success = _versionService.Activate(pluginId, request.Version);
+            if (!success)
+                return BadRequest(ApiResponse.Error("激活失败，已回滚到切换前的版本", 400));
+
+            _pluginManager.DiscoverPlugins();
+            return Ok(ApiResponse.Ok("插件已激活"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("激活插件失败 [{0}]: {1}", pluginId, ex.Message);
+            return StatusCode(500, ApiResponse.Error("激活插件失败: " + ex.Message));
+        }
+    }
+
+    [HttpPost("install/source")]
+    public async Task<ActionResult<ApiResponse>> InstallFromSource([FromBody] PluginSourceInstallRequest request)
+    {
+        try
+        {
+            if (_sources == null)
+                return StatusCode(500, ApiResponse.Error("安装源未注册", 500));
+            if (request == null || string.IsNullOrWhiteSpace(request.Kind) || string.IsNullOrWhiteSpace(request.Locator))
+                return BadRequest(ApiResponse.Error("需要 kind 与 locator", 400));
+
+            var metadata = await _sources.InstallAsync(request.Kind, request.Locator, request.Activate, HttpContext.RequestAborted);
+            _pluginManager.DiscoverPlugins();
+            var message = request.Activate ? "插件已安装并激活" : "插件已暂存，需要时再激活指定版本";
+            return Ok(ApiResponse<object>.Ok(new { metadata.Id, metadata.Version }, message));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("从来源安装插件失败: {0}", ex.Message);
+            return BadRequest(ApiResponse.Error(ex.Message, 400));
+        }
+    }
+
     [HttpPost("update/{pluginId}")]
     public ActionResult<ApiResponse> UpdatePlugin(string pluginId)
     {
@@ -1021,6 +1097,20 @@ public class PluginController : ControllerBase
 public class RollbackRequest
 {
     public string Version { get; set; } = string.Empty;
+}
+
+public class ActivatePluginRequest
+{
+    public string Version { get; set; } = string.Empty;
+}
+
+public class PluginSourceInstallRequest
+{
+    public string Kind { get; set; } = string.Empty;
+
+    public string Locator { get; set; } = string.Empty;
+
+    public bool Activate { get; set; }
 }
 
 public class ScaffoldRequest

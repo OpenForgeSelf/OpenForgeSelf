@@ -57,9 +57,13 @@ public class DbAdminContractTests(DbAdminTestFixture fx)
     [Fact]
     public void TestResult_OkPlusCode()
     {
-        var j = JsonSerializer.SerializeToElement(fx.Connections.Test(new ConnectionInput { Provider = "mysql", Host = "h", Database = "d" }), Web);
+        // 2026-11-06 用户输入2：驱动预检关闭 → 失败回显底层错误（sql_error），不再判 driver_missing。
+        // 用 SQLite 缺文件路径校验失败形态，避免单测依赖外部数据库/网络。
+        var missing = Path.Combine(fx.Dir, "contract_missing.db");
+        var j = JsonSerializer.SerializeToElement(fx.Connections.Test(new ConnectionInput { Provider = "sqlite", Database = missing }), Web);
         Assert.False(j.GetProperty("ok").GetBoolean());
-        Assert.Equal("driver_missing", j.GetProperty("code").GetString());
+        Assert.Equal("sql_error", j.GetProperty("code").GetString());
+        Assert.False(String.IsNullOrWhiteSpace(j.GetProperty("message").GetString()));
     }
 
     [Fact]

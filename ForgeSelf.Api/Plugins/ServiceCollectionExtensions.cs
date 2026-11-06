@@ -34,10 +34,16 @@ public static class PluginServiceCollectionExtensions
         }
 
         services.AddSingleton<ExtensionPointManager>();
+        services.AddSingleton<PluginJobStore>();
         services.AddSingleton<PluginVersionService>();
         services.AddSingleton<PluginPackagerService>();
         services.AddSingleton<PluginInstallerService>();
         services.AddSingleton<PluginScaffolderService>();
+        services.AddSingleton<PluginGitHubProvider>();
+        services.AddSingleton<PluginNuGetProvider>();
+        services.AddSingleton<PluginSourceResolver>();
+        services.AddSingleton<PluginBuildService>();
+        services.AddSingleton<PluginHostToolCatalog>();
 
         if (!string.IsNullOrEmpty(pluginsDirectory))
         {

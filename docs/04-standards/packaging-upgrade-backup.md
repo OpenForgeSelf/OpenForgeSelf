@@ -33,7 +33,7 @@
 | 版本号机制 | ForgeSelf.Api.csproj（**VersionPrefix = 三段版本行真源，当前 2.4.22** + VersionSuffix 纯时间码）/ ForgeSelf.Bootstrapper.csproj（兜底串旧形未动，发布态经注入）+ scripts/release/release-local.ps1（发行串单点生成）+ new-version.ps1（辅助打印） | **2026-10-02 起新规则（输入9/输入10）：发行串 = 三段号 + 时间码** —— `V = <major>.<minor>.<patch>.<yyMMddHHmm>`（10 位时间码，例 `2.3.0.2609161125`）；git tag / `versions/<ver>/` 目录名 / `versions/current` / zip 名 / 两个 exe 的 FileVersion+ProductVersion / 设置页「当前版本」**全部同一串**。发行串由 `release-local.ps1` 单点生成（显式 `-Version` 3 段 → 自动补时间码；4 段 → 幂等原样；CI tag 原样不改写）并逐级注入 publish-host / publish-bootstrapper。**2026-10-30 更新（输入3 用户拍板）：release-local 本地不传 `-Version` 时缺省读 Api csproj 的 VersionPrefix（三段固定部分）自动补时间码 → 发布 zip 不需指定版本；`0.0.0-local` dry-run 缺省废止；csproj 版本行 bump 必须经用户允许，agent 不得擅自改**（守卫 `ForgeSelf.Api.Tests/RepositoryReleaseVersionTests`）。**废止输入43 的「发行号与文件版本各司其职」双轨**。完整规则、代价与踩坑（CS7035 / NuGet NU1105 / 世代比较）见 §4-R10 |
 | Authenticode 签名 | scripts/sign-publish.ps1（经 `release-local.ps1 -Sign` 调用，签名在 zip 打包前） | **签名策略（2026-10-04 输入11 定稿）：本地发布＝必带签名，流水线＝默认不签**。凡**给人装的本地宿主包**（`release-local.ps1` 出到本地更新源、交给用户点「重启并更新」的那一类）**必须显式加 `-Sign`**，签名无效的包不得交付；CI 流水线**默认不传** ⇒ 不签（原因：自签证书生成会把 GitHub runner 卡死 20min+，run 36664225915 两次实测，见变更记录 2026-09-30 行）。签与不签都走同一条 `release-local.ps1 -Sign` 通道：自签证书 CN=OpenForgeSelf 铸己匣 自动生成/复用 + certutil 静默信任 + signtool SHA256 + **RFC3161 时间戳多点回退（2026-10-06 改，此前单点 DigiCert）**：默认候选链 `sectigo → digicert → globalsign → comodoca`，某个文件当前一家失败自动换下一家，全链仍失败才 throw；`-TimestampServer` 只是把某家排到最前，`-TimestampFallbacks` 可自定义顺序。**改此单点的原因（实测）**：2026-10-06 22:33 `release-local -Sign` 整条链跑到最后一段被 `SignTool Error: The specified timestamp server either could not be reached or returned an invalid response` 挡死，`Number of files successfully Signed: 0` ⇒ **zip 根本没产出**；同日 `curl` 实测该主机对四家 TSA 均可达、均能签成，即 digicert 是**间歇返回无效响应**（2026-10-04 亦红过一次），单点依赖＝发布链的可用性瓶颈。仍**禁止**用 `-NoTimestamp` 交付给人装的包（无时间戳＝证书 2029-09-26 过期即签名失效）；商业证书传 -PfxPath/-PfxPassword 可插拔；指纹记录 .forgeself/codesign-thumbprint.txt（CI 可 -Thumbprint 复用）。**递归签全部 exe**（顶层根启动器 + `versions/<ver>/` 业务层每版快照），漏签会破坏多版本回滚的签名一致性 |
 | 内置插件落位 | `scripts/release/package-release.ps1` 第 3 步（2026-10-04 输入18 改） | **内置插件必须留在 `versions/<ver>/plugins/`**：publish 产出什么就随版本进什么，不再复制到安装根、也不再从版本目录删除；版本目录里没有 `plugins/` 时脚本**当场 throw**（不许静默出"升级后 0 插件"的空包）。常驻守卫：`ForgeSelf.Api.Tests/RepositoryScriptTests.PackageRelease_MustKeepBundledPluginsInsideVersionDirectory`。运行侧判据见 §1.6 ③。
-| 插件打包 | `scripts/package-plugin.ps1`（输入27/038） | 产 `<id>-<ver>.forgeself-plugin`（plugin.json + 入口 DLL + web/dist；排除宿主共享 DLL）→ `artifacts/plugin-packages` |
+| 插件打包 | `scripts/package-plugin.ps1` | 产 `{Name}-{发行串}.zip`（只认 zip；DLL 是第二种发行物）。契约只维护在 §1.9。停止产出 `.forgeself-plugin` |
 | 插件侧载 | `scripts/publish-plugin.ps1` / `publish-plugin-full.ps1` | 直落 stage 到 `Plugins/<id>/versions/<ver>/`（2026-09-28 输入31 去 _backups） |
 | 存量迁移 | `scripts/migrate-plugin-versions.ps1` | 扁平插件 → `versions/<ver>/` + current（幂等；跳过 `_*` 目录） |
 | 全量构建 | `scripts/build.ps1` | legacy 全量构建覆盖 `publish/`（宿主二进制被锁会静默漏更，B5 有坑） |
@@ -155,6 +155,31 @@
 ② `AppBuilder.cs:335-336` + `PluginVersionService.Initialize(pluginsPath)`（`AppBuilder.cs:390`）只喂内置根 ⇒ **数据根那一路无版本化能力**（Inferred，未实测）；
 ③ `SyncActiveManifest` 只同步清单**不拷 DLL**（`:515-524`）⇒ 顶层扁平件可能长期是旧字节，`current` 丢失时回退到"显示新版跑旧版"。
 
+> **2026-11-05**：用户插件安装落点与发行物契约以 **§1.9** 为准。`.forgeself-plugin` 已删除，不再生成、不再扫描。本节表格里出现的旧扩展名是 2026-11-04 读码记录。
+
+---
+
+## 1.9 独立插件发行契约（2026-11-05）
+
+安装包**只认 `.zip`**。单文件 `.dll` 是第二种发行物（内嵌资源名 `ForgeSelf.PluginManifest.json`，用元数据读取，不 `Assembly.Load`），不是另一种压缩包。`.forgeself-plugin` **停止读取、停止生成**。
+
+用户插件目录 = `IDataLocationService.GetHostDataDirectory()/plugins/{pluginId}`（实现即 `GetPluginDataDirectory`）。`FORGESELF_DATA_ROOT` 的优先级不变：设了就用该目录；没设时 Production 为 `~/.forgeself`，Development 为程序目录 `data/`。内置插件仍从版本目录旁的 `plugins/` 扫描，不改落点。
+
+```
+{数据根}/plugins/{pluginId}/
+  plugin.json
+  current
+  versions/{major.minor.patch.yyMMddHHmm}/
+  src/
+  .forge/jobs/
+```
+
+- ZIP 根是扁平的：`plugin.json`、入口 DLL、`deps.json`、`PrivateDependencies/`、`web/dist/`、`releasenotes.txt`。排除 `src/`、`.git/`、`tests/`、`.forge/`、宿主共享程序集及其 pdb（`ForgeSelf.*`、`NewLife.*`、`XCode`、`MX` 的 dll 与 pdb），以及宿主已提供的 `Microsoft.Extensions.*` dll/pdb。插件自己的 dll、pdb、deps.json 保留。解压前拒绝 `..`、绝对路径、盘符、重名。
+- 发行串与宿主相同：`<major>.<minor>.<patch>.<yyMMddHHmm>`。`plugin.json` 的 Version、`versions/{version}` 目录名、ZIP 文件名中的版本、git tag、GitHub Release 使用同一串。比较用宿主世代比较（`UpdateChecker.CompareSemVer`，第 4 段 10 位时间码优先），不用 `System.Version`。
+- NuGet `PackageVersion` 不能用 10 位时间码（NU1105，超过 int）。沿用宿主规避：`PackageVersion` = `<major>.<minor>.<patch>.0`。清单和目录名仍用完整发行串。
+- 清单 `hostApiVersion` 首版 `"1.0"`。首次安装写入 `versions/{发行串}/`、根 `plugin.json` 和 `current`。再次安装只暂存。卸载只删根 `plugin.json`、`current`、`versions/`，保留 `src/` 与 `.forge/`。
+- 激活指定版本失败时，把 `current` 和活动清单写回切换前。本地更新源只扫顶层 `*.zip`。
+
 ---
 
 ## 2. 空间浪费点（优化目标清单）
@@ -257,6 +282,7 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-11-05 | §1.9 独立插件发行契约：安装包只认 `.zip`，DLL 为内嵌 `ForgeSelf.PluginManifest.json` 的第二种发行物，删除 `.forgeself-plugin`；用户插件落在数据根 `plugins/{id}`；发行串与宿主相同，NuGet PackageVersion 仍用三段加 `.0`。 |
 | 2026-09-28 | 建立本文（输入30）：盘点打包/升级/备份/缓存全部落点；确立 QQNT 式目标目录结构；确立去 `_backups`/去插件备份/更新缓存清理规则；登记实施改动清单。 |
 | 2026-09-28 | 批次1 实施完成（输入31 用户拍板改代码）：插件去 `_backups`/`BackupPlugin`（PluginVersionService/PluginInstallerService/publish-plugin.ps1 直落 versions/）；update-agent.ps1 去整目录备份 + 应用后清理 Updates/<tag> + 退役 Backups 存量；`LocalFileImageRecognitionCache` TTL 30 天清理；测试 56/56 绿；宿主 QQNT versions 结构（批次2）待立项。 |
 | 2026-09-28 | 批次2 实施完成（输入34 用户拍板立项）：①宿主 QQNT 目录结构——`ForgeSelf.Bootstrapper` 根启动器（AssemblyName 避开宿主 ForgeSelf.dll、versions/current 指针、ALC 版本目录解析、EntryPoint 调 Main）；AppBuilder/Program 路径基准改入口程序集目录；发布脚本 QQNT 组装（publish-host FDD + publish-bootstrapper 公共层自包含 + package-release versions/<ver>/+current+Plugins 并排），zip 65.3MB（旧扁平 72-78MB）；②冻结 008（UpdateService 类头冻结声明、托盘检查收敛 036 CheckAsync）；③插件装包更新统一版本化（UpdateFromPackage 版本必须更高、StageUploadedPackage 直落 versions/）；update-agent.ps1 QQNT 版本化应用（落 versions/<ver>/ + current + 重启根启动器 + 扁平迁移 + 版本保留 current+上一版），演练 8 项全过；过滤集 23/23 绿。 |

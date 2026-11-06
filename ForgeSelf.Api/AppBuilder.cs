@@ -445,6 +445,10 @@ public static class AppBuilder
         // 否则初始化的是另一个单例实例，控制器拿到的实例备份目录仍为空串，
         // 导致 /api/plugin/updates 恒空、update 恒 400。
         app.Services.GetRequiredService<PluginVersionService>().Initialize(pluginsPath);
+        app.Services.GetRequiredService<PluginInstallerService>().Initialize(
+            Path.Combine(dataLocation.GetHostDataDirectory(), IDataLocationService.PluginDataRootName));
+        app.Services.GetRequiredService<PluginHostToolCatalog>().Register(
+            app.Services.GetRequiredService<IToolRegistry>());
 
         // 把独立程序集插件的控制器程序集加入 MVC 部件，使其 [Route] 控制器被路由发现（修复拆独立程序集后的 404）。
         // 同时把 partManager 与 ActionDescriptor 刷新通知交给 PluginManager：卸载插件时移除对应 AssemblyPart

@@ -1,0 +1,20 @@
+{
+  "Id": "clock-badge",
+  "toolPrefix": "clockbadge",
+  "Name": "时钟徽标插件",
+  "Version": "1.0.0",
+  "Author": "ForgeSelf Team",
+  "Description": "演示插件：GET /api/clock-badge/now 返回服务器当前时间（time + timestamp），自带 web/ 界面展示时间、刷新按钮与版本徽标。",
+  "IconUrl": "https://example.com/clockbadge-icon.png",
+  "EntryAssembly": "ClockBadge.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.ClockBadge.ClockBadgePlugin",
+  "Dependencies": [],
+  "Permissions": [],
+  "frontend": {
+    "views": ["ClockBadgeView"],
+    "menu": "时钟徽标",
+    "route": "/clock-badge",
+    "icon": "fa-clock",
+    "entry": "web/dist/index.js"
+  }
+}

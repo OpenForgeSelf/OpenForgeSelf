@@ -15,6 +15,7 @@
     <Project Path="Plugins/Sems/Sems.csproj" />
     <Project Path="Plugins/SmartTerminal/SmartTerminal.csproj" />
     <Project Path="Plugins/DbAdmin/DbAdmin.csproj" />
+    <Project Path="Plugins/ClockBadge/ClockBadge.csproj" />
   </Folder>
   <Folder Name="/ForgeSelf.Api/" />
   <Folder Name="/ForgeSelf.Api/Plugins/">

@@ -543,3 +543,9 @@
 
 ---
 
+
+## 2026-11-11 分批提交批（输入2）
+- **NOT push/tag/发布**：用户 11-09 授权面=本地提交；§8.5(4) 发布动作（推送/tag/Release/通知更新）需单独同意。
+- **NOT 提交 B5 Scheduler + ClockBadge + ForgeSelf.slnx + ForgeSelf.Api.csproj**：B5 红态 6 红、ClockBadge 未过立项闸门、slnx/csproj 变更无独立判据——留工作区待各自批次。
+- **NOT 顺手修 24 红存量**：全量 32 红中 24 红系工作区存量（提交动作未改内容），按 §1.3 范围控制记 TODO 基线治理批，不在提交任务内扩面修复。
+- **NOT 改钩子为 pwsh**：pre-commit 仍用 powershell.exe 属既有偏差登记（TODO 在案），非本批范围。

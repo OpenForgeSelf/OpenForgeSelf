@@ -88,7 +88,9 @@ public static class PluginArtifactValidator
 
             return JsonSerializer.Deserialize<PluginMetadata>(bytes, new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true,
+                // PC-027：统一不变量——所有 JsonSerializerOptions 一律声明 Encoder（反序列化时 Encoder 被忽略，零读侧风险）
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
         }
         catch (Exception)
@@ -106,7 +108,7 @@ public static class PluginArtifactValidator
             ? Path.GetFileName(dllPath)
             : metadata.EntryAssembly;
         File.Copy(dllPath, Path.Combine(versionDir, fileName), true);
-        var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(metadata, ForgeJson.Indented);
         File.WriteAllText(Path.Combine(versionDir, "plugin.json"), json);
     }
 

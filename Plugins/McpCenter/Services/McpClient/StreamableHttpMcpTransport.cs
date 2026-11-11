@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
@@ -192,7 +193,7 @@ public sealed class StreamableHttpMcpTransport : IMcpClientTransport
         req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
         foreach (var kv in _headers) req.Headers.TryAddWithoutValidation(kv.Key, kv.Value);
         ApplyProtocolHeaders(req);
-        req.Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", method }), Encoding.UTF8, "application/json");
+        req.Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", method }, ForgeJson.Default), Encoding.UTF8, "application/json");
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _runCts.Token);
         linked.CancelAfter(_requestTimeoutMs);

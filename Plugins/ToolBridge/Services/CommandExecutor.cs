@@ -38,10 +38,12 @@ public static class CommandExecutor
 
         // PILOT-075：多段命令（| && || ; 换行）经 pwsh -NoProfile -NonInteractive -Command 执行完整命令串
         //（ArgumentList 负责转义）；单段命令维持直接 Process 首 token 的既有姿势（行为零变化）。
-        CommandGuard.TrySplitSegments(command, out var segments, out _);
-        var isChain = segments.Count > 1;
+        // PILOT-079 P2①：任一段引号外带输出重定向（> >> 1> 2> 2>&1）也整体路由 pwsh（重定向只能由 shell 解释）。
+        CommandGuard.TrySplitSegmentsEx(command, out var segments, out _);
+        var hasRedirect = segments.Any(s => s.HasRedirect);
+        var isChain = segments.Count > 1 || hasRedirect;
         var exeLabel = isChain ? "pwsh(chain)" : CommandGuard.SplitExecutable(command).exe;
-        var timeout = Math.Clamp(timeoutSeconds ?? CommandGuard.MaxTimeoutSeconds, 1, CommandGuard.MaxTimeoutSeconds);
+        var timeout = Math.Clamp(timeoutSeconds ?? CommandGuard.DefaultTimeoutSeconds, 1, CommandGuard.MaxTimeoutSeconds);
 
         var psi = new ProcessStartInfo
         {

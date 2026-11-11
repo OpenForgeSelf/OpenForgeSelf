@@ -1,4 +1,5 @@
 using System.Text;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.ToolBridge.Services;
 
@@ -135,7 +136,7 @@ public static class ResultFormatter
     {
         if (obj.TryGetPropertyValue(key, out var node) && node != null && node.GetValueKind() != JsonValueKind.Null)
         {
-            sb.Append($"  {key}: {node.ToJsonString(new JsonSerializerOptions { WriteIndented = false })}").Append('\n');
+            sb.Append($"  {key}: {node.ToJsonString(ForgeJson.Default)}").Append('\n');
         }
     }
 
@@ -156,10 +157,10 @@ public static class ResultFormatter
             sb.Append($"  {key}:").Append('\n');
             foreach (var item in array)
             {
-                sb.Append($"    {item?.ToJsonString()}").Append('\n');
+                sb.Append($"    {item?.ToJsonString(ForgeJson.Default)}").Append('\n');
             }
             return;
         }
-        sb.Append($"  {key}: {node.ToJsonString()}").Append('\n');
+        sb.Append($"  {key}: {node.ToJsonString(ForgeJson.Default)}").Append('\n');
     }
 }

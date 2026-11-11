@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Net.WebSockets;
+using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
@@ -155,7 +156,9 @@ public static class AppBuilder
             });
         });
 
-        builder.Services.AddControllers().AddApplicationPart(typeof(AppBuilder).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(AppBuilder).Assembly)
+            // PC-027：MVC 管道默认 Encoder 会把中文转义成 \uXXXX，这里放开为保持原文
+            .AddJsonOptions(o => o.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
 
         builder.Services.AddEndpointsApiExplorer();
 

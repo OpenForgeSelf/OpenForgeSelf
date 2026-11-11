@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Models.Plugins;
@@ -401,7 +402,9 @@ public class PluginManager
             var json = File.ReadAllText(manifestPath);
             var metadata = JsonSerializer.Deserialize<PluginMetadata>(json, new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true,
+                // PC-027：统一不变量——所有 JsonSerializerOptions 一律声明 Encoder（反序列化时 Encoder 被忽略，零读侧风险）
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
 
             if (metadata == null || string.IsNullOrWhiteSpace(metadata.Id))

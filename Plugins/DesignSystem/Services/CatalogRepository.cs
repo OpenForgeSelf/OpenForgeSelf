@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using NewLife;
 using XCode;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
@@ -408,7 +409,7 @@ public sealed class CatalogRepository
                     {
                         if (!first) w.Append(',');
                         first = false;
-                        w.Append(JsonSerializer.Serialize(kv.Key));
+                        w.Append(JsonSerializer.Serialize(kv.Key, ForgeJson.Default));
                         w.Append(':');
                         Write(kv.Value, w);
                     }

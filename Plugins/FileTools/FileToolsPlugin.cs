@@ -209,7 +209,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
                     operationId = result.OperationId
                 };
 
-                var json = JsonSerializer.Serialize(response);
+                var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
                 stopwatch.Stop();
                 await this.RecordUsageAsync(_serviceProvider, "file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -232,7 +232,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
                     previewItems = preview
                 };
 
-                var json = JsonSerializer.Serialize(response);
+                var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
                 stopwatch.Stop();
                 await this.RecordUsageAsync(_serviceProvider, "file_rename", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -260,7 +260,7 @@ public class FileRenameToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -454,7 +454,7 @@ public class FileCleanupToolFunction : IToolFunctionExtension
                     break;
             }
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "file_cleanup", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -481,7 +481,7 @@ public class FileCleanupToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -636,7 +636,7 @@ public class FileCompressToolFunction : IToolFunctionExtension
                     break;
             }
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "file_compress", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -661,7 +661,7 @@ public class FileCompressToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -820,7 +820,7 @@ public class FileStatsToolFunction : IToolFunctionExtension
                     break;
             }
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "file_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -846,7 +846,7 @@ public class FileStatsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -916,12 +916,12 @@ public class FileExtractToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(archivePath))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "压缩包路径不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "压缩包路径不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(outputPath))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "解压输出目录不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "解压输出目录不能为空" }, ForgeJson.Default);
             }
 
             var service = new ArchiveService();
@@ -936,7 +936,7 @@ public class FileExtractToolFunction : IToolFunctionExtension
                 totalExtractedSizeFormatted = extractResult.TotalExtractedSizeFormatted
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "file_extract", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -962,7 +962,7 @@ public class FileExtractToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 

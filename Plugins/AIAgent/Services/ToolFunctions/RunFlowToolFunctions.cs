@@ -90,18 +90,18 @@ public class SubmitPlanToolFunction : IToolFunctionExtension
         try
         {
             if (string.IsNullOrWhiteSpace(parameters))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "plan 参数为空" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "plan 参数为空" }, ForgeJson.Default));
 
             using var doc = JsonDocument.Parse(parameters);
             if (!doc.RootElement.TryGetProperty("plan", out var plan) || plan.ValueKind != JsonValueKind.Object)
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 plan 对象" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 plan 对象" }, ForgeJson.Default));
 
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "计划已提交，进入逐步执行阶段" }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "计划已提交，进入逐步执行阶段" }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] submit_plan 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 }
@@ -137,18 +137,18 @@ public class CompleteStepToolFunction : IToolFunctionExtension
         try
         {
             if (string.IsNullOrWhiteSpace(parameters))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "output 参数为空" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "output 参数为空" }, ForgeJson.Default));
 
             using var doc = JsonDocument.Parse(parameters);
             if (!doc.RootElement.TryGetProperty("output", out var output) || string.IsNullOrWhiteSpace(output.GetString()))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 output" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 output" }, ForgeJson.Default));
 
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "步骤完成" }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "步骤完成" }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] complete_step 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 }
@@ -185,18 +185,18 @@ public class RequestHelpToolFunction : IToolFunctionExtension
         try
         {
             if (string.IsNullOrWhiteSpace(parameters))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "reason 参数为空" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "reason 参数为空" }, ForgeJson.Default));
 
             using var doc = JsonDocument.Parse(parameters);
             if (!doc.RootElement.TryGetProperty("reason", out var reason) || string.IsNullOrWhiteSpace(reason.GetString()))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 reason" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 reason" }, ForgeJson.Default));
 
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "已求助，等待人工介入" }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "已求助，等待人工介入" }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] request_help 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 }

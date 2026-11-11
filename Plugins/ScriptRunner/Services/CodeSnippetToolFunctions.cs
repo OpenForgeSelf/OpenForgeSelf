@@ -116,7 +116,7 @@ public class ListCodeSnippetsToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "list_code_snippets", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -142,7 +142,7 @@ public class ListCodeSnippetsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -216,17 +216,17 @@ public class CreateCodeSnippetToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "代码片段标题不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "代码片段标题不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(code))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "代码内容不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "代码内容不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(language))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "编程语言不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "编程语言不能为空" }, ForgeJson.Default);
             }
 
             string? description = null;
@@ -275,7 +275,7 @@ public class CreateCodeSnippetToolFunction : IToolFunctionExtension
                 message = "代码片段创建成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "create_code_snippet", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -302,7 +302,7 @@ public class CreateCodeSnippetToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -346,7 +346,7 @@ public class GetPersonalStatsToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var doc = JsonDocument.Parse(parameters);
@@ -394,7 +394,7 @@ public class GetPersonalStatsToolFunction : IToolFunctionExtension
                 message = "获取个人统计数据成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_personal_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -419,7 +419,7 @@ public class GetPersonalStatsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -470,7 +470,7 @@ public class GetRecommendationsToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var doc = JsonDocument.Parse(parameters);
@@ -541,7 +541,7 @@ public class GetRecommendationsToolFunction : IToolFunctionExtension
                 message = "获取推荐成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_recommendations", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -567,7 +567,7 @@ public class GetRecommendationsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 

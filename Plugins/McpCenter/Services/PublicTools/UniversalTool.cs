@@ -74,14 +74,14 @@ public class UniversalTool : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(toolName))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "工具名为空：入参需 {tool: 工具名, parameters: 参数对象}" });
+                return JsonSerializer.Serialize(new { success = false, error = "工具名为空：入参需 {tool: 工具名, parameters: 参数对象}" }, ForgeJson.Default);
             }
 
             // 2. 防自引用（防递归耗 tokens）
             if (toolName.Trim().Equals(Name, StringComparison.OrdinalIgnoreCase))
             {
                 XTrace.Log.Warn("[McpCenter] universal_tool 拒绝自引用");
-                return JsonSerializer.Serialize(new { success = false, error = "universal_tool cannot invoke itself" });
+                return JsonSerializer.Serialize(new { success = false, error = "universal_tool cannot invoke itself" }, ForgeJson.Default);
             }
 
             // 3. v1.9.0 外部 MCP 工具直调：mcp.<服务器id>.<工具名> 经本插件提供的跨插件契约转发
@@ -106,7 +106,7 @@ public class UniversalTool : IToolFunctionExtension
                     success = false,
                     error = $"unknown tool '{toolName}'（已注册 {n} 个，可用工具名见各工具说明）",
                     hint
-                });
+                }, ForgeJson.Default);
             }
 
             // 5. 经宿主六闸门分发核执行（pre-execute 三态/守卫/事件链/统计在宿主侧生效；B9 迁 ExecuteAsync）
@@ -129,17 +129,17 @@ public class UniversalTool : IToolFunctionExtension
                 return result.Result;
             }
             XTrace.Log.Warn("[McpCenter] universal_tool 转发 {0} 失败：{1}", toolName, result.ErrorMessage);
-            return JsonSerializer.Serialize(new { success = false, error = result.ErrorMessage ?? "EXECUTION_FAILED" });
+            return JsonSerializer.Serialize(new { success = false, error = result.ErrorMessage ?? "EXECUTION_FAILED" }, ForgeJson.Default);
         }
         catch (JsonException jex)
         {
             XTrace.Log.Error("[McpCenter] universal_tool 入参解析失败: {0}", jex.Message);
-            return JsonSerializer.Serialize(new { success = false, error = "入参必须是 JSON：{tool: 工具名, parameters: 参数对象}，" + jex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = "入参必须是 JSON：{tool: 工具名, parameters: 参数对象}，" + jex.Message }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[McpCenter] universal_tool 执行失败: {0}", ex.Message);
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -159,7 +159,7 @@ public class UniversalTool : IToolFunctionExtension
             {
                 success = false,
                 error = "外部 MCP 能力不可用：请确认 MCP 中心插件已启用，并在「网关配置」里连接目标外部服务器"
-            });
+            }, ForgeJson.Default);
         }
 
         try
@@ -170,7 +170,7 @@ public class UniversalTool : IToolFunctionExtension
         catch (Exception ex)
         {
             XTrace.Log.Warn("[McpCenter] universal_tool 外部工具 {0} 调用失败: {1}", toolName, ex.Message);
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 

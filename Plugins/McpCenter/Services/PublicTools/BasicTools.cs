@@ -60,12 +60,12 @@ public class GetCurrentTimeToolFunction : IToolFunctionExtension
                 timestamp = new DateTimeOffset(now).ToUnixTimeSeconds()
             };
 
-            return Task.FromResult(JsonSerializer.Serialize(response));
+            return Task.FromResult(JsonSerializer.Serialize(response, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[McpCenter] get_current_time 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 }
@@ -107,12 +107,12 @@ public class CalculateToolFunction : IToolFunctionExtension
                 result = result
             };
 
-            return Task.FromResult(JsonSerializer.Serialize(response));
+            return Task.FromResult(JsonSerializer.Serialize(response, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[McpCenter] calculate 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 

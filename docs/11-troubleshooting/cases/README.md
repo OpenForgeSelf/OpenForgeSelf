@@ -31,6 +31,8 @@
 | 2026-11-05-smart-terminal-dead-session-poll-404 | 2026-11-05 | 宿主重启后 S-R 恢复的会话 id 持续轮询 404 + 反复 toast（PC-024 轮询面错误处理缺失首例） | [PC-024](../problem-classes/PC-024-frontend-poll-error-handling.md) | Verified | [链接](2026-11-05-smart-terminal-dead-session-poll-404.md) |
 | 2026-11-06-dbadmin-dark-connection-contrast | 2026-11-06 | 暗色 DbAdmin 选中连接名亮金底 + 浅色字，对比度 1.10:1（主题 light-N 倒置） | [PC-025](../problem-classes/PC-025-dark-theme-token-contrast.md) | Verified | [链接](2026-11-06-dbadmin-dark-connection-contrast.md) |
 | 2026-11-06-dbadmin-table-header-misalign | 2026-11-06 | DbAdmin 结果表 `class="grid"` 命中宿主 Tailwind `.grid{display:grid}`，表头与数据列错位 188.8px；表名带「表」前缀 | [PC-026](../problem-classes/PC-026-plugin-class-tailwind-collision.md) | Verified | [链接](2026-11-06-dbadmin-table-header-misalign.md) |
+| 2026-11-07-json-chinese-raw-encoder | 2026-11-07 | 全仓 JSON 写出默认把中文转义成 \uXXXX（G2 守卫 RED 488 处 → 清扫后 GREEN 归零） | [PC-027](../problem-classes/PC-027-json-nonascii-default-escaping.md) | Verified | [链接](2026-11-07-json-chinese-raw-encoder.md) |
+| 2026-11-09-mcp-sdk-outer-escaping | 2026-11-09 | MCP 网关 JSON-RPC/SSE 外层（第三方 SDK 传输层）中文仍转义 \uFF08；调研实证 SDK 无配置缝，记录不修呈选项 | [PC-027](../problem-classes/PC-027-json-nonascii-default-escaping.md) | Verified | [链接](2026-11-09-mcp-sdk-outer-escaping.md) |
 | 2026-11-04-raw-createscope-on-ctx-sweep | 2026-11-04 | 插件侧 ctx 本体裸 CreateScope（IServiceScopeFactory 解析失败）全仓清扫 20 处一次改完（plan_workflow 实证） | [PC-005](../problem-classes/PC-005-plugin-eager-provider-resolve.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

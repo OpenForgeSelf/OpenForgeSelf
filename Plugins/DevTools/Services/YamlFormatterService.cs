@@ -1,7 +1,9 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForgeSelf.Api.Plugins.DevTools.Models;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.DevTools.Services;
@@ -82,7 +84,7 @@ public class YamlFormatterService : IYamlFormatterService
             var jsonDoc = JsonDocument.Parse(json);
 
             using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
             {
                 jsonDoc.WriteTo(writer);
             }
@@ -102,7 +104,7 @@ public class YamlFormatterService : IYamlFormatterService
     {
         var lines = yaml.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         var result = ParseYamlLines(lines, 0, 0);
-        return JsonSerializer.Serialize(result.Value);
+        return JsonSerializer.Serialize(result.Value, ForgeJson.Default);
     }
 
     private static (object? Value, int NextLine) ParseYamlLines(string[] lines, int startLine, int baseIndent)

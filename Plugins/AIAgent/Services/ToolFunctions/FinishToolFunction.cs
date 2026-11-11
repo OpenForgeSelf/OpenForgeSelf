@@ -48,15 +48,15 @@ public class FinishToolFunction : IToolFunctionExtension
         {
             var summary = TryExtractSummary(parameters);
             if (string.IsNullOrWhiteSpace(summary))
-                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 summary" }));
+                return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "缺少 summary" }, ForgeJson.Default));
 
             XTrace.Log.Info("[AIAgentPlugin] 模型声明任务完成（finish），总结长度: {0}", summary!.Length);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "任务已声明完成", summary }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "任务已声明完成", summary }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[AIAgentPlugin] finish 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 

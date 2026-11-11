@@ -77,7 +77,7 @@ public class TerminalCommandGuardTests
         var decision = TerminalCommandGuard.Check(command);
         decision.Allowed.Should().BeFalse();
         decision.Reason.Should().Contain("chained/piped",
-            because: $"重定向/反引号/裸 &/空段仍整串拒绝，实际 reason: {decision.Reason}");
+            because: $"反引号/裸 &/空段仍整串拒绝（输出重定向已由 PILOT-079 P2① 放行），实际 reason: {decision.Reason}");
     }
 
     [Fact]
@@ -158,8 +158,7 @@ public class TerminalCommandGuardTests
     }
 
     [Theory]
-    [InlineData("git log > out.txt", "contains '>'")]
-    [InlineData("cat id_rsa < key", "contains '<'")]
+    [InlineData("cat id_rsa < key", "contains '<'")]   // 输入重定向不放开（PILOT-079 P2①：只放行输出重定向）
     [InlineData("echo `id`", "contains '`'")]
     [InlineData("git status &", "contains '&'")]
     [InlineData("git \"status", null)]
@@ -175,6 +174,39 @@ public class TerminalCommandGuardTests
         {
             error.Should().Contain(expectedFragment);
         }
+    }
+
+    // ---------- 输出重定向放行（PILOT-079 P2①）：> >> 1> 2> 2>&1 标记 HasRedirect，执行层路由 pwsh ----------
+
+    [Theory]
+    [InlineData("git log > out.txt")]
+    [InlineData("git log --oneline -5 >> out.txt")]
+    [InlineData("dotnet build 1> build.log")]
+    [InlineData("dotnet build 2>&1")]
+    [InlineData("dotnet build > build.log 2>&1")]
+    public void Check_OutputRedirect_Allowed_P2_1(string command)
+    {
+        var decision = TerminalCommandGuard.Check(command);
+        decision.Allowed.Should().BeTrue(because: $"输出重定向（> >> 1> 2> 2>&1）PILOT-079 P2① 放行：{command}（reason: {decision.Reason}）");
+    }
+
+    [Fact]
+    public void TrySplitSegmentsEx_MarksRedirectSegment()
+    {
+        TerminalCommandGuard.TrySplitSegmentsEx("dotnet build > build.log && git status", out var segments, out _).Should().BeTrue();
+        segments.Should().HaveCount(2);
+        segments[0].Text.Should().Be("dotnet build > build.log");
+        segments[0].HasRedirect.Should().BeTrue();
+        segments[1].Text.Should().Be("git status");
+        segments[1].HasRedirect.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TrySplitSegments_CompatShell_StripsRedirectFlag()
+    {
+        // 旧签名兼容壳：只取段文本，行为与 PILOT-075 时代一致（重定向串不再拒，文本原样返回）。
+        TerminalCommandGuard.TrySplitSegments("dotnet build > build.log", out var segments, out _).Should().BeTrue();
+        segments.Should().BeEquivalentTo(new[] { "dotnet build > build.log" });
     }
 
     [Fact]

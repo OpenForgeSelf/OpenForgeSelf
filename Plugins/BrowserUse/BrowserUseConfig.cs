@@ -72,6 +72,8 @@ public sealed class BrowserUseConfig
     private static readonly JsonSerializerOptions ReadOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 }

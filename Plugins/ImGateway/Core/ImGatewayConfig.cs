@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.ImGateway.Core;
@@ -104,6 +106,7 @@ public class FileConfigStore : IConfigStore
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>对外暴露读写共用选项（供测试复用，确保序列化契约一致、可回归）。</summary>
@@ -206,7 +209,7 @@ public class SessionMappingStore
 
     private void Write(StoreModel m)
     {
-        var json = JsonSerializer.Serialize(m, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(m, ForgeJson.Indented);
         File.WriteAllText(_filePath, json);
     }
 

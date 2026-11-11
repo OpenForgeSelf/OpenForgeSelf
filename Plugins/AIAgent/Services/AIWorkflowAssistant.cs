@@ -214,7 +214,7 @@ public class AIWorkflowAssistant : IAIWorkflowAssistant
 
     private string BuildAnalysisUserPrompt(WorkflowStep step, string errorMessage, Dictionary<string, object?>? context)
     {
-        var contextInfo = context != null ? JsonSerializer.Serialize(context) : "无";
+        var contextInfo = context != null ? JsonSerializer.Serialize(context, ForgeJson.Default) : "无";
         return $@"
 ## 步骤信息
 - 步骤名称: {step.Name}

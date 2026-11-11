@@ -171,7 +171,12 @@ public class PlanGeneratorService : IPlanGeneratorService
             using var doc = JsonDocument.Parse(arguments);
             if (!doc.RootElement.TryGetProperty("plan", out var plan) || plan.ValueKind != JsonValueKind.Object)
                 return null;
-            var agentPlan = plan.Deserialize<AgentPlan>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var agentPlan = plan.Deserialize<AgentPlan>(new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
             if (agentPlan == null || agentPlan.Steps.Count == 0) return null;
             // 步骤 id 缺失时按序号补齐，保证 StepRun 索引可对。
             for (var i = 0; i < agentPlan.Steps.Count; i++)

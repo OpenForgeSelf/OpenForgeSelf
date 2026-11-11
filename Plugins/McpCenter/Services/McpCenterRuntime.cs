@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.McpCenter.Models;
 using NewLife.Log;
 
@@ -150,7 +151,7 @@ public sealed class McpCenterRuntime
                 allowedOrigins = _config.AllowedOrigins,
                 stateless = _config.Stateless,
                 executionTimeoutMs = _config.ExecutionTimeoutMs
-            }, new JsonSerializerOptions { WriteIndented = true });
+            }, ForgeJson.Indented);
             await File.WriteAllTextAsync(path, json);
         }
         catch (Exception ex)

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.ToolBridge.Services;
 
@@ -36,7 +37,9 @@ public static class CallParser
     {
         PropertyNameCaseInsensitive = true,
         AllowTrailingCommas = true,
-        ReadCommentHandling = JsonCommentHandling.Skip
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public static ParseResult Parse(string? text)
@@ -476,7 +479,7 @@ public static class CallParser
             case JsonArray array:
                 foreach (var item in array)
                 {
-                    if (item != null) AddFromJson(item, offset, Trim(item.ToJsonString()), result);
+                    if (item != null) AddFromJson(item, offset, Trim(item.ToJsonString(ForgeJson.Default)), result);
                 }
                 return;
 
@@ -487,8 +490,8 @@ public static class CallParser
                 {
                     foreach (var item in (JsonArray)obj[callsKey]!)
                     {
-                        if (item is JsonObject itemObj) AddFromCallObject(itemObj, offset, Trim(itemObj.ToJsonString()), result);
-                        else result.Unparsed.Add(Unparsed(item?.ToJsonString() ?? string.Empty, offset, "调用项不是 JSON 对象"));
+                        if (item is JsonObject itemObj) AddFromCallObject(itemObj, offset, Trim(itemObj.ToJsonString(ForgeJson.Default)), result);
+                        else result.Unparsed.Add(Unparsed(item?.ToJsonString(ForgeJson.Default) ?? string.Empty, offset, "调用项不是 JSON 对象"));
                     }
                     return;
                 }

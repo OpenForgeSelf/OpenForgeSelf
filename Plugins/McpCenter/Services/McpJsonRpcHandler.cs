@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.McpCenter.Services;
@@ -195,7 +196,7 @@ public sealed class McpJsonRpcHandler
             protocolVersion = negotiated,
             capabilities = new { tools = new { listChanged = false } },
             serverInfo = new { name = _serverName, version = _serverVersion, description = "OpenForgeSelf MCP Center（万能工具网关，支持 MCP 2.0）" }
-        });
+        }, ForgeJson.Default);
 
         return Task.FromResult(Response(id, result));
     }
@@ -204,7 +205,7 @@ public sealed class McpJsonRpcHandler
     {
         using var defDoc = JsonDocument.Parse(UniversalToolForwarder.ToolDefinitionJson);
         var tool = defDoc.RootElement.Clone();
-        var result = JsonSerializer.Serialize(new { tools = new[] { tool } });
+        var result = JsonSerializer.Serialize(new { tools = new[] { tool } }, ForgeJson.Default);
         XTrace.Log.Info("[McpCenter] tools/list 返回 1 个工具（万能工具网关）");
         return Task.FromResult(Response(id, result));
     }
@@ -249,7 +250,7 @@ public sealed class McpJsonRpcHandler
         {
             content = new[] { new { type = "text", text = forwarded.Text } },
             isError = forwarded.IsError
-        });
+        }, ForgeJson.Default);
 
         XTrace.Log.Info("[McpCenter] tools/call 完成，isError={0}，结果长度={1}", forwarded.IsError, forwarded.Text.Length);
         return Response(id, result);
@@ -259,7 +260,7 @@ public sealed class McpJsonRpcHandler
     {
         using var resultDoc = JsonDocument.Parse(resultJson);
         var result = resultDoc.RootElement.Clone();
-        return JsonSerializer.Serialize(new { jsonrpc = "2.0", id, result });
+        return JsonSerializer.Serialize(new { jsonrpc = "2.0", id, result }, ForgeJson.Default);
     }
 
     private static string Error(JsonElement id, int code, string message)
@@ -267,8 +268,8 @@ public sealed class McpJsonRpcHandler
         var error = new { code, message };
         if (id.ValueKind == JsonValueKind.Undefined)
         {
-            return JsonSerializer.Serialize(new { jsonrpc = "2.0", id = default(object), error });
+            return JsonSerializer.Serialize(new { jsonrpc = "2.0", id = default(object), error }, ForgeJson.Default);
         }
-        return JsonSerializer.Serialize(new { jsonrpc = "2.0", id, error });
+        return JsonSerializer.Serialize(new { jsonrpc = "2.0", id, error }, ForgeJson.Default);
     }
 }

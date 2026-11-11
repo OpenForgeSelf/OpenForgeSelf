@@ -239,7 +239,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "工作流名称不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "工作流名称不能为空" }, ForgeJson.Default);
             }
 
             var request = new CreateWorkflowRequest
@@ -270,7 +270,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
                 message = "工作流创建成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "create_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -291,7 +291,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -325,7 +325,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             var executor = new WorkflowExecutor(_serviceProvider);
@@ -335,7 +335,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
             var workflow = await service.GetWorkflowAsync(workflowId);
             if (workflow == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "工作流不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "工作流不存在" }, ForgeJson.Default);
             }
 
             var response = new
@@ -373,7 +373,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
                 message = "获取工作流详情成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -394,7 +394,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -458,7 +458,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
                 message = "工作流已启动"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "execute_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -479,7 +479,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -518,7 +518,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             var execution = await service.GetExecutionDetailAsync(executionId);
             if (execution == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "执行记录不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "执行记录不存在" }, ForgeJson.Default);
             }
 
             var response = new
@@ -539,7 +539,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
                 message = "获取状态成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_workflow_status", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -559,7 +559,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -632,7 +632,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "list_workflows", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -654,7 +654,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 

@@ -24,9 +24,11 @@ namespace ForgeSelf.Api.Tests.Architecture;
 /// </summary>
 public class PluginRawCreateScopeGuardTests
 {
-    /// <summary>裸 CreateScope 且接收者为 ctx 形态字段的违规模式（全仓实证：这些名字在插件侧恒为 ctx 本体）。</summary>
+    /// <summary>裸 CreateScope 且接收者为 ctx 形态字段的违规模式（全仓实证：这些名字在插件侧恒为 ctx 本体）。
+    /// 2026-11-07 PILOT-079 逃逸补口：SmartTerminal 8 处以 <c>_sp</c> 存 ctx（输入7 实抓 st_* 四 shell 全灭），
+    /// 旧正则只认 _serviceProvider/serviceProvider/provider? 三形态被逃逸——二次复发按 ≥G2 补齐字段形态。</summary>
     private static readonly Regex RawCreateScopePattern = new(
-        @"(_serviceProvider|serviceProvider|provider\?)\s*\.\s*CreateScope\s*\(",
+        @"(_sp|_provider|_ctx|_context|_serviceProvider|serviceProvider|provider\?)\s*\.\s*CreateScope\s*\(",
         RegexOptions.Compiled);
 
     /// <summary>已治理锚点：守卫必须能在扫描面里找到这些统一入口用点（缺失=扫描路径漂移，门禁失效）。</summary>
@@ -35,6 +37,7 @@ public class PluginRawCreateScopeGuardTests
         ("Plugins/AIAgent/AIAgentPlugin.cs", "_serviceProvider.CreateHostScope()"),
         ("ForgeSelf.Abstractions/ToolFunctionUsageReportingExtensions.cs", "serviceProvider.CreateHostScope()"),
         ("Plugins/Sems/ToolExtensions.cs", "_services.CreateHostScope()"),
+        ("Plugins/SmartTerminal/Services/SmartTerminalToolFunctions.cs", "_sp.CreateHostScope()"),
     };
 
     private static string RepoRootOf()

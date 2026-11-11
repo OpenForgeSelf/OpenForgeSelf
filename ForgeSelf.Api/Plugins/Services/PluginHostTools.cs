@@ -183,10 +183,10 @@ public sealed class PluginHostToolCatalog
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     private static string Ok(string? jobId, string message) =>
-        JsonSerializer.Serialize(new { ok = true, jobId, message });
+        JsonSerializer.Serialize(new { ok = true, jobId, message }, ForgeJson.Default);
 
     private static string Fail(string? jobId, string message) =>
-        JsonSerializer.Serialize(new { ok = false, jobId, message });
+        JsonSerializer.Serialize(new { ok = false, jobId, message }, ForgeJson.Default);
 
     private static async Task<(int ExitCode, string Output)> RunAsync(string file, string args, CancellationToken cancellationToken)
     {
@@ -234,7 +234,7 @@ public sealed class PluginHostTool : IToolFunctionExtension
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(new { ok = false, jobId = (string?)null, message = ex.Message });
+            return JsonSerializer.Serialize(new { ok = false, jobId = (string?)null, message = ex.Message }, ForgeJson.Default);
         }
     }
 }

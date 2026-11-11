@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.ImGateway.Core;
 using ForgeSelf.Api.Plugins.ImGateway.Services;
@@ -37,7 +38,11 @@ public class ImGatewayController : ControllerBase
     }
 
     /// <summary>统一 camelCase 序列化（对齐前端 DTO 约定；否则默认 PascalCase 会让前端读不到 channelType/type 等字段）。</summary>
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     /// <summary>读取当前配置（含已保存的通道凭证）。</summary>
     [HttpGet("config")]

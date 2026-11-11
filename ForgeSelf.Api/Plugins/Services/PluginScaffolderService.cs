@@ -318,6 +318,7 @@ public class PluginScaffolderService
     {
         return $$$"""
         using System.Text.Json;
+        using ForgeSelf.Abstractions;
         using NewLife.Log;
 
         namespace {{{namespaceName}}}.Services;
@@ -335,7 +336,7 @@ public class PluginScaffolderService
                         message = "示例工具执行成功",
                         timestamp = DateTime.Now
                     };
-                    return Task.FromResult(JsonSerializer.Serialize(result));
+                    return Task.FromResult(JsonSerializer.Serialize(result, ForgeJson.Default));
                 }
                 catch (Exception ex)
                 {

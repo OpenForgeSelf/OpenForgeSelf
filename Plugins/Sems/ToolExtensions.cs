@@ -98,10 +98,10 @@ public abstract class SemsToolFunctionBase : IToolFunctionExtension
         Fail($"参数 {name}（整数）必填，请先调用 {fromTool} 取得；全部 sems 工具可用 universal_tool{{\"tool\":\"list_tools\"}} 枚举");
 
     /// <summary>成功封套。</summary>
-    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data });
+    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data }, ForgeJson.Default);
 
     /// <summary>失败封套。</summary>
-    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error });
+    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error }, ForgeJson.Default);
 
     /// <summary>把 sems 服务结果转成工具封套（与 HTTP 端点共用同一状态语义）。</summary>
     protected static string From<T>(SemsResult<T> result) =>

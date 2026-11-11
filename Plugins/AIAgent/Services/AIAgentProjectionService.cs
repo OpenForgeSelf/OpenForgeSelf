@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Entities;
@@ -31,6 +32,7 @@ public sealed class AIAgentProjectionService
     private static readonly JsonSerializerOptions TraceJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     private readonly IContext _ctx;

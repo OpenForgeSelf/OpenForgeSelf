@@ -73,7 +73,11 @@ public class DbConfigStore : IConfigStore
         row.CliPath = config.WeCom.CliPath;
         row.TaskGatewayJson = System.Text.Json.JsonSerializer.Serialize(
             config.WeCom.TaskGateway ?? new Core.TaskGatewayConfig(),
-            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
         row.UpdatedAt = DateTime.Now;
         row.Save();
     }
@@ -85,7 +89,12 @@ public class DbConfigStore : IConfigStore
         try
         {
             var cfg = System.Text.Json.JsonSerializer.Deserialize<Core.TaskGatewayConfig>(
-                json, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                json, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
             return cfg ?? new Core.TaskGatewayConfig();
         }
         catch (System.Text.Json.JsonException ex)

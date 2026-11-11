@@ -212,7 +212,7 @@ internal static class WorkflowServiceResolver
         {
             success = false,
             error = "工作流服务不可用：workflow-engine 插件未启用，或未提供 IWorkflowService 契约（请在插件管理中启用「工作流引擎」后重试）"
-        });
+        }, ForgeJson.Default);
 }
 
 public class AIAgentMenuExtension : IMenuExtension
@@ -288,12 +288,12 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(userRequest))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "用户需求描述不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "用户需求描述不能为空" }, ForgeJson.Default);
             }
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var scope = _serviceProvider.CreateHostScope();
@@ -332,7 +332,7 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
                 message = "工作流规划成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "plan_workflow", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -353,7 +353,7 @@ public class PlanWorkflowToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 

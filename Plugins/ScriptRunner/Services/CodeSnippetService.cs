@@ -21,7 +21,7 @@ public class CodeSnippetService : ICodeSnippetService
             Code = request.Code,
             Language = request.Language,
             Category = request.Category,
-            TagsJson = JsonSerializer.Serialize(request.Tags ?? []),
+            TagsJson = JsonSerializer.Serialize(request.Tags ?? [], ForgeJson.Default),
             IsFavorite = false,
             CreatedAt = now,
             UpdatedAt = now,
@@ -49,7 +49,7 @@ public class CodeSnippetService : ICodeSnippetService
         entity.Code = request.Code;
         entity.Language = request.Language;
         entity.Category = request.Category;
-        entity.TagsJson = JsonSerializer.Serialize(request.Tags ?? []);
+        entity.TagsJson = JsonSerializer.Serialize(request.Tags ?? [], ForgeJson.Default);
         entity.UpdatedAt = DateTime.Now;
 
         entity.Update();

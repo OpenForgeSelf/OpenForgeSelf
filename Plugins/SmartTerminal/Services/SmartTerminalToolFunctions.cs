@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
@@ -11,7 +12,8 @@ internal static class ToolJson
     public static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public static string Ok(object data) => JsonSerializer.Serialize(new { success = true, data }, Options);
@@ -30,7 +32,7 @@ public sealed class StListShellsToolFunction : IToolFunctionExtension
     public string ParametersJsonSchema => """{"type":"object","properties":{}}""";
     public Task<string> ExecuteAsync(string parameters)
     {
-        using var scope = _sp.CreateScope();
+        using var scope = _sp.CreateHostScope();
         var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
         return Task.FromResult(ToolJson.Ok(svc.ListShells()));
     }
@@ -71,7 +73,7 @@ public sealed class StCreateSessionToolFunction : IToolFunctionExtension
                     req.PermissionMode = mode;
                 }
             }
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             return Task.FromResult(ToolJson.Ok(svc.CreateSession(req)));
         }
@@ -111,7 +113,7 @@ public sealed class StRunCommandToolFunction : IToolFunctionExtension
             var command = doc.RootElement.TryGetProperty("command", out var c) ? c.GetString() : null;
             if (string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(command))
                 return Task.FromResult(ToolJson.Fail("sessionId 与 command 必填"));
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             var result = svc.ProposeOrRun(sessionId!, command!);
             return Task.FromResult(ToolJson.Ok(result));
@@ -150,7 +152,7 @@ public sealed class StGetOutputToolFunction : IToolFunctionExtension
             var sessionId = doc.RootElement.TryGetProperty("sessionId", out var s) ? s.GetString() : null;
             var after = doc.RootElement.TryGetProperty("afterIndex", out var a) && a.TryGetInt32(out var n) ? n : 0;
             if (string.IsNullOrWhiteSpace(sessionId)) return Task.FromResult(ToolJson.Fail("sessionId 必填"));
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             return Task.FromResult(ToolJson.Ok(svc.GetOutput(sessionId!, after)));
         }
@@ -172,7 +174,7 @@ public sealed class StListSessionsToolFunction : IToolFunctionExtension
     public string ParametersJsonSchema => """{"type":"object","properties":{}}""";
     public Task<string> ExecuteAsync(string parameters)
     {
-        using var scope = _sp.CreateScope();
+        using var scope = _sp.CreateHostScope();
         var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
         return Task.FromResult(ToolJson.Ok(svc.ListSessions()));
     }
@@ -204,7 +206,7 @@ public sealed class StSetPermissionModeToolFunction : IToolFunctionExtension
             if (!doc.RootElement.TryGetProperty("mode", out var m) || !Enum.TryParse<PermissionMode>(m.GetString(), true, out var mode))
                 return Task.FromResult(ToolJson.Fail("mode 必须是 Auto|AskWrite|AskHighRisk"));
             var sessionId = doc.RootElement.TryGetProperty("sessionId", out var s) ? s.GetString() : null;
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             if (string.IsNullOrWhiteSpace(sessionId)) svc.SetGlobalPermissionMode(mode);
             else svc.SetPermissionMode(sessionId!, mode);
@@ -245,7 +247,7 @@ public sealed class StQueryAuditToolFunction : IToolFunctionExtension
             string? Get(string name) => doc.RootElement.TryGetProperty(name, out var e) ? e.GetString() : null;
             var take = doc.RootElement.TryGetProperty("take", out var t) && t.TryGetInt32(out var tn) ? tn : 100;
             var skip = doc.RootElement.TryGetProperty("skip", out var sk) && sk.TryGetInt32(out var sn) ? sn : 0;
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             return Task.FromResult(ToolJson.Ok(svc.QueryAudit(Get("sessionId"), Get("kind"), Get("agentId"), take, skip)));
         }
@@ -284,7 +286,7 @@ public sealed class StResolveApprovalToolFunction : IToolFunctionExtension
             var approve = doc.RootElement.TryGetProperty("approve", out var b) && b.ValueKind == JsonValueKind.True;
             var note = doc.RootElement.TryGetProperty("note", out var n) ? n.GetString() : null;
             if (string.IsNullOrWhiteSpace(approvalId)) return Task.FromResult(ToolJson.Fail("approvalId 必填"));
-            using var scope = _sp.CreateScope();
+            using var scope = _sp.CreateHostScope();
             var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
             return Task.FromResult(ToolJson.Ok(svc.ResolveApproval(approvalId!, approve, note)));
         }

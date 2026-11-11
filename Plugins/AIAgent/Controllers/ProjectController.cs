@@ -147,7 +147,7 @@ public class ProjectController : ControllerBase
             path = request.Path,
             byteLength = Encoding.UTF8.GetByteCount(content),
             sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))),
-        });
+        }, ForgeJson.Default);
         var denied = await RequireApprovalAsync("write_file", argsJson, "项目接口直接写入文件 " + request.Path, ct);
         if (denied != null)
         {
@@ -176,7 +176,7 @@ public class ProjectController : ControllerBase
 
         var denied = await RequireApprovalAsync(
             "delete_file",
-            JsonSerializer.Serialize(new { path }),
+            JsonSerializer.Serialize(new { path }, ForgeJson.Default),
             "项目接口直接删除文件 " + path,
             ct);
         if (denied != null)

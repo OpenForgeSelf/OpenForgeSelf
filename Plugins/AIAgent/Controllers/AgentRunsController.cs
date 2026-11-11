@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
@@ -24,7 +25,8 @@ public class AgentRunsController : ControllerBase
     /// <summary>SSE 事件序列化选项：camelCase（对齐前端事件/usage 字段）。</summary>
     private static readonly JsonSerializerOptions SseJsonOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public AgentRunsController(IRunOrchestratorService orchestrator)

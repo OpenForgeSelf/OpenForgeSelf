@@ -96,7 +96,12 @@ public class BuiltInAgentExecutionService : IBuiltInAgentExecution
                         try
                         {
                             var payload = JsonSerializer.Deserialize<StepStartedPayload>(ev.Content,
-                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                new JsonSerializerOptions
+                                {
+                                    PropertyNameCaseInsensitive = true,
+                                    // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+                                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                                });
                             if (payload?.RunId > 0) runIdTcs.TrySetResult(payload.RunId);
                         }
                         catch (JsonException) { /* 载荷异常不致命，继续等 */ }

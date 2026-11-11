@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+
 namespace ForgeSelf.Api.Plugins.ToolBridge.Services;
 
 /// <summary>工作根读数（02-spec Output）。</summary>
@@ -276,7 +278,8 @@ public sealed class SandboxRoot
     private static readonly JsonSerializerOptions SettingsOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        WriteIndented = true
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     internal static readonly System.Text.Encoding NoBomUtf8 = new System.Text.UTF8Encoding(false);

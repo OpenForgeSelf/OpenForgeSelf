@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.Services;
 
@@ -42,7 +43,7 @@ public static class PluginSrcScaffold
             EntryType = safeName + ".HelloPlugin",
             Description = "OpenForgeSelf 独立插件骨架"
         };
-        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(manifest, ForgeJson.Indented);
         File.WriteAllText(Path.Combine(srcDirectory, "plugin.json"), json);
         File.WriteAllText(Path.Combine(projectDir, "ForgeSelf.PluginManifest.json"), json);
         File.WriteAllText(Path.Combine(projectDir, "HelloPlugin.cs"), HelloPluginCs.Replace("__SAFENAME__", safeName));

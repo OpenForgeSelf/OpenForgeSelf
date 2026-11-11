@@ -272,7 +272,7 @@ public class WorkflowExecutor : IWorkflowExecutor
 
         execution.Status = WorkflowStatus.Completed;
         execution.Progress = 100;
-        execution.ResultsJson = JsonSerializer.Serialize(execution.StepResults);
+        execution.ResultsJson = JsonSerializer.Serialize(execution.StepResults, ForgeJson.Default);
 
         AddLog(execution, null, null, "Info", "工作流执行完成");
     }
@@ -878,10 +878,10 @@ public class WorkflowExecutor : IWorkflowExecutor
                 entity.EndTime = execution.EndTime ?? DateTime.MinValue;
                 entity.ErrorMessage = execution.ErrorMessage;
                 entity.Progress = execution.Progress;
-                entity.LogsJson = JsonSerializer.Serialize(execution.Logs);
+                entity.LogsJson = JsonSerializer.Serialize(execution.Logs, ForgeJson.Default);
                 entity.ResultsJson = execution.ResultsJson;
-                entity.VariablesJson = execution.Variables != null ? JsonSerializer.Serialize(execution.Variables) : null;
-                entity.StepResultsJson = execution.StepResults != null ? JsonSerializer.Serialize(execution.StepResults) : null;
+                entity.VariablesJson = execution.Variables != null ? JsonSerializer.Serialize(execution.Variables, ForgeJson.Default) : null;
+                entity.StepResultsJson = execution.StepResults != null ? JsonSerializer.Serialize(execution.StepResults, ForgeJson.Default) : null;
 
                 entity.Update();
             }
@@ -996,11 +996,11 @@ public class WorkflowExecutor : IWorkflowExecutor
             StartTime = execution.StartTime,
             EndTime = execution.EndTime ?? DateTime.MinValue,
             CurrentStepId = execution.CurrentStepId,
-            LogsJson = JsonSerializer.Serialize(execution.Logs),
+            LogsJson = JsonSerializer.Serialize(execution.Logs, ForgeJson.Default),
             ResultsJson = execution.ResultsJson,
             ErrorMessage = execution.ErrorMessage,
-            VariablesJson = execution.Variables != null ? JsonSerializer.Serialize(execution.Variables) : null,
-            StepResultsJson = execution.StepResults != null ? JsonSerializer.Serialize(execution.StepResults) : null,
+            VariablesJson = execution.Variables != null ? JsonSerializer.Serialize(execution.Variables, ForgeJson.Default) : null,
+            StepResultsJson = execution.StepResults != null ? JsonSerializer.Serialize(execution.StepResults, ForgeJson.Default) : null,
             Progress = execution.Progress,
             TriggeredBy = execution.TriggeredBy
         };

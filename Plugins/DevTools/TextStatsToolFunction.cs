@@ -60,7 +60,7 @@ public class TextStatsToolFunction : IToolFunctionExtension
                 byteCount = stats.ByteCount
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "dev_text_stats", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -87,7 +87,7 @@ public class TextStatsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }

@@ -166,7 +166,7 @@ public class ChatController : ControllerBase
             if (string.IsNullOrWhiteSpace(userMessage))
             {
                 Response.StatusCode = 400;
-                await Response.WriteAsync(JsonSerializer.Serialize(new { error = "消息不能为空" }));
+                await Response.WriteAsync(JsonSerializer.Serialize(new { error = "消息不能为空" }, ForgeJson.Default));
                 return;
             }
 
@@ -205,7 +205,7 @@ public class ChatController : ControllerBase
                 fullResponse.Append(chunk);
 
                 // 发送SSE事件
-                var sseData = JsonSerializer.Serialize(new { content = chunk, sessionId });
+                var sseData = JsonSerializer.Serialize(new { content = chunk, sessionId }, ForgeJson.Default);
                 await Response.WriteAsync($"data: {sseData}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
             }
@@ -219,7 +219,7 @@ public class ChatController : ControllerBase
             await SyncProjectionSafeAsync(sessionId);
 
             // 发送完成事件
-            var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId = assistantEventId });
+            var completeData = JsonSerializer.Serialize(new { done = true, sessionId, responseId = assistantEventId }, ForgeJson.Default);
             await Response.WriteAsync($"data: {completeData}\n\n", cancellationToken);
             await Response.Body.FlushAsync(cancellationToken);
 
@@ -233,7 +233,7 @@ public class ChatController : ControllerBase
         {
             _logService.Error("处理流式聊天请求失败: {0}", ex.Message);
             Response.StatusCode = 500;
-            await Response.WriteAsync(JsonSerializer.Serialize(new { error = "处理请求时发生错误", details = ex.Message }));
+            await Response.WriteAsync(JsonSerializer.Serialize(new { error = "处理请求时发生错误", details = ex.Message }, ForgeJson.Default));
         }
     }
 

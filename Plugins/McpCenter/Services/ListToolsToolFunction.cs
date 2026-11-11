@@ -145,7 +145,7 @@ public sealed class ListToolsToolFunction : IToolFunctionExtension
             total = list.Count,
             keyword = kw,
             tools = list
-        });
+        }, ForgeJson.Default);
         return Task.FromResult(result);
     }
 

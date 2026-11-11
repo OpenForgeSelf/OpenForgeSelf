@@ -64,8 +64,8 @@ public static class PromptBuilder
         // 白名单一句话必须由守卫常量派生（FR-1.2 同源口径；反向探针实测：手抄清单时守卫改小、
         // 提示词仍在对外承诺能跑 ssh，属于"说明与实现自相矛盾"）。
         sb.AppendLine($"- 命令执行受限：每段首 token 只能是 {string.Join(" / ", CommandGuard.DefaultAllowlist)}，");
-        sb.AppendLine("  支持管道与链式（| && || ; 换行）但每一段都同样过白名单与破坏性红线，任一段被拒则整条拒绝；");
-        sb.AppendLine("  重定向 < > 、反引号与后台单 & 一律拒绝；删除/格式化/下载/提权类命令一律拒绝。");
+        sb.AppendLine("  支持管道与链式（| && || ; 换行）与输出重定向（> >> 1> 2> 2>&1），但每一段都同样过白名单与破坏性红线，任一段被拒则整条拒绝；");
+        sb.AppendLine("  输入重定向 < 、反引号与后台单 & 一律拒绝；删除/格式化/下载/提权类命令一律拒绝。");
         sb.AppendLine($"  单条超时上限 {CommandGuard.MaxTimeoutSeconds}s，单段输出上限 {CommandGuard.MaxOutputBytes} 字节。");
         sb.AppendLine("- 不要输出本机绝对路径、密钥或端口号。");
 

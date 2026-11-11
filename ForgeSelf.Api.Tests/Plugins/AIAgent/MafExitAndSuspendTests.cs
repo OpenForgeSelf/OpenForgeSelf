@@ -110,6 +110,42 @@ public class MafExitAndSuspendTests
         Assert.Single(fixture.Inbox.Peek(fixture.SessionId));
     }
 
+    // ---- 2b. 零产出超时 → 失败而非挂起（PILOT-079 B3/P1②，PC-013 同族）----
+    // 上游死链（零字节直到看门狗触发）与「生成到一半停住」不同：没有任何现场可保留，
+    // 静默挂起 = 用户永远等不到错误帧。必须走显式失败出口（镜像 requestError）。
+    [Fact]
+    public async Task ZeroByteTimeout_TurnFailed_NotSuspended()
+    {
+        var fixture = new Fixture();
+        var provider = new HangZeroByteProvider();
+
+        var agent = fixture.CreateAgent(options: new AgentOptions
+        {
+            StepTimeout = TimeSpan.FromMilliseconds(400)
+        }, provider: provider);
+        agent.Inbox.Followup(fixture.SessionId, "零产出请求");
+        using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var frames = await fixture.RunAsync(agent, bounded.Token);
+
+        var events = fixture.Store.Replay(fixture.SessionId).ToList();
+
+        // 失败语义（镜像 requestError 出口）：step/end(Failed) + turn/end(Aborted) + TurnFailed 帧
+        var stepEnd = Assert.Single(events.OfType<StepEndEvent>());
+        Assert.Equal(StepEndReason.Failed, stepEnd.Reason);
+        var turnEnd = Assert.Single(events.OfType<TurnEndEvent>());
+        Assert.Equal(TurnEndReason.Aborted, turnEnd.Reason);
+        var failed = Assert.Single(frames.OfType<TurnFailed>());
+        Assert.Contains("超时", failed.Error);
+        Assert.Contains("零", failed.Error);
+
+        // 显式错误留痕：attempt 错误类型可区分「零产出超时」（对照部分产出挂起的 request-timeout）
+        var attempt = Assert.Single(events.OfType<AssistantAttemptEvent>());
+        Assert.Equal("request-timeout-empty", attempt.ErrorKind);
+
+        // 现场保留：输入未确认（失败不消耗输入，可重跑）
+        Assert.Single(fixture.Inbox.Peek(fixture.SessionId));
+    }
+
     // ---- 3. 挂起后 steer 恢复：新回合认领全部待处理输入，跑完 Completed ----
     [Fact]
     public async Task SuspendedTurn_ResumesViaSteer()

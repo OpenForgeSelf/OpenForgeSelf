@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Entities;
 
 namespace ForgeSelf.Api.Services;
@@ -43,7 +44,7 @@ public static class ChatSessionResolver
         {
             try
             {
-                using var doc = JsonDocument.Parse(JsonSerializer.Serialize(body));
+                using var doc = JsonDocument.Parse(JsonSerializer.Serialize(body, ForgeJson.Default));
                 if (doc.RootElement.TryGetProperty("conversationId", out var c) && c.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(c.GetString()))
                     return c.GetString()!;
                 if (doc.RootElement.TryGetProperty("sessionId", out var s) && s.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(s.GetString()))
@@ -69,7 +70,7 @@ public static class ChatSessionResolver
         if (body == null) return null;
         try
         {
-            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(body));
+            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(body, ForgeJson.Default));
             if (!doc.RootElement.TryGetProperty("messages", out var msgs) || msgs.ValueKind != JsonValueKind.Array)
                 return null;
             foreach (var m in msgs.EnumerateArray())

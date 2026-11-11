@@ -57,7 +57,7 @@ public class UsageStatsService : IUsageStatsService
                 Timestamp = DateTime.UtcNow,
                 UserAgent = userAgent,
                 IpAddress = ipAddress,
-                MetadataJson = metadata != null ? JsonSerializer.Serialize(metadata) : null
+                MetadataJson = metadata != null ? JsonSerializer.Serialize(metadata, ForgeJson.Default) : null
             };
 
             record.Insert();

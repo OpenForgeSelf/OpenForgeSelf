@@ -1,6 +1,7 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.Sems.Services;
 
@@ -28,7 +29,7 @@ public sealed class SpecFileStore
 {
     private static readonly object Gate = new();
     private static readonly Regex IdRx = new("^[0-9a-f]{12}$", RegexOptions.Compiled);
-    private static readonly JsonSerializerOptions Opts = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Opts = ForgeJson.Indented;
     private readonly Func<string> _root;
 
     public SpecFileStore(Func<string> root) => _root = root;
@@ -93,7 +94,7 @@ public sealed class SpecFileStore
         {
             var dir = Dir(projectId, specId);
             Directory.CreateDirectory(dir);
-            File.AppendAllText(Path.Combine(dir, "links.jsonl"), JsonSerializer.Serialize(link) + "\n");
+            File.AppendAllText(Path.Combine(dir, "links.jsonl"), JsonSerializer.Serialize(link, ForgeJson.Default) + "\n");
         }
     }
 
@@ -132,7 +133,7 @@ public sealed class SpecFileStore
         {
             var dir = Dir(projectId, specId);
             Directory.CreateDirectory(dir);
-            File.AppendAllText(Path.Combine(dir, "cases.jsonl"), JsonSerializer.Serialize(c) + "\n");
+            File.AppendAllText(Path.Combine(dir, "cases.jsonl"), JsonSerializer.Serialize(c, ForgeJson.Default) + "\n");
         }
     }
 

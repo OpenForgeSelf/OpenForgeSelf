@@ -164,22 +164,24 @@ public class RunTerminalCommandChainExecutionTests
     }
 
     [Fact]
-    public async Task Redirect_StillRejected_Integral()
+    public async Task InputRedirect_StillRejected_Integral_P2_1()
     {
+        // PILOT-079 P2①：输出重定向（> >> 1> 2> 2>&1）已放行（落盘接受见
+        // RunTerminalCommandRedirectAndTimeoutTests）；输入重定向（<）仍整串拒绝，不放开任意读入口。
+        // 本用例保留原 Redirect_StillRejected_Integral 的整串拒绝语义，锚定「拒绝时不启动任何子进程」。
         var dir = NewTempDir();
         try
         {
             var root = await ExecuteAsync(JsonSerializer.Serialize(new
             {
-                command = "git log > out.txt",
+                command = "pwsh -Command Get-Content < secret.txt",
                 cwd = dir,
                 timeoutSeconds = 30,
             }));
 
             root.GetProperty("success").GetBoolean().Should().BeFalse();
             (root.GetProperty("error").GetString() ?? string.Empty)
-                .Should().Contain("chained/piped").And.Contain("contains '>'");
-            File.Exists(Path.Combine(dir, "out.txt")).Should().BeFalse("重定向未放开，不得落盘");
+                .Should().Contain("chained/piped").And.Contain("contains '<'");
         }
         finally
         {

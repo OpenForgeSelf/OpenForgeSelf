@@ -1,6 +1,7 @@
 namespace ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
 
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 /// <summary>
 /// MCP 客户端协议常量与 initialize 载荷单点构造（v2.5.0，PC-008 canonical fix）。
@@ -47,6 +48,6 @@ public static class McpClientProtocol
     /// （无 result 无 error），客户端只能干等 30s 超时；省略键则正常响应。
     /// </summary>
     public static string SerializeRequest(int id, string method, object? prms) => prms is null
-        ? JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method })
-        : JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = prms });
+        ? JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method }, ForgeJson.Default)
+        : JsonSerializer.Serialize(new { jsonrpc = "2.0", id, method, @params = prms }, ForgeJson.Default);
 }

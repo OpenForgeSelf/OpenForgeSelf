@@ -259,7 +259,7 @@ public sealed class PersistentApprovalService : IApprovalService
         try
         {
             using var doc = JsonDocument.Parse(argsJson);
-            return JsonSerializer.Serialize(doc.RootElement);
+            return JsonSerializer.Serialize(doc.RootElement, ForgeJson.Default);
         }
         catch
         {

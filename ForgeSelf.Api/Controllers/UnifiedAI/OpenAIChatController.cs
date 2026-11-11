@@ -106,8 +106,8 @@ public class OpenAIChatController : ControllerBase
                 Model = request.Model,
                 RequestMethod = "POST",
                 RequestPath = "/v1/chat/completions",
-                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString())),
-                RequestBody = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = false }),
+                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default),
+                RequestBody = JsonSerializer.Serialize(request, ForgeJson.Default),
                 Temperature = request.Temperature,
                 MaxTokens = request.MaxTokens ?? 0,
                 MessageCount = request.Messages?.Count ?? 0,
@@ -129,8 +129,8 @@ public class OpenAIChatController : ControllerBase
                 // 更新轮次
                 stopwatch.Stop();
                 turn.ResponseStatus = 200;
-                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
-                turn.ResponseBody = JsonSerializer.Serialize(openaiResponse, new JsonSerializerOptions { WriteIndented = false });
+                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
+                turn.ResponseBody = JsonSerializer.Serialize(openaiResponse, ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.HasReasoning = response.Choices?.Any(c => !string.IsNullOrEmpty(c.ReasoningContent)) ?? false;
                 turn.PromptTokens = response.Usage?.PromptTokens ?? 0;
@@ -151,7 +151,7 @@ public class OpenAIChatController : ControllerBase
             if (turn != null)
             {
                 turn.ResponseStatus = err.StatusCode;
-                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
+                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
                 await _chatTurnService.SaveTurnAsync(turn);
@@ -272,7 +272,7 @@ public class OpenAIChatController : ControllerBase
             // 更新轮次
             stopwatch.Stop();
             turn.ResponseStatus = 200;
-            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
             turn.ResponseBody = responseBody.ToString();
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
             turn.PromptTokens = lastPrompt;

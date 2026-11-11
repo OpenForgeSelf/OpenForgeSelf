@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using ForgeSelf.Api.Plugins.AgentHub.Profiles;
 using NewLife;
@@ -177,8 +178,8 @@ public class EventPipeline
 
         // 标量 → 字符串；复杂节点 → JSON 字面量
         return current is JsonValue val
-            ? val.TryGetValue<String>(out var s) ? s : val.ToJsonString().Trim('"')
-            : current.ToJsonString();
+            ? val.TryGetValue<String>(out var s) ? s : val.ToJsonString(ForgeJson.Default).Trim('"')
+            : current.ToJsonString(ForgeJson.Default);
     }
 
     /// <summary>切分路径段：a.b[0].c → [a, b, 0, c]</summary>
@@ -219,7 +220,7 @@ public class EventPipeline
     {
         if (node is JsonValue val)
         {
-            return val.TryGetValue<String>(out var s) ? s : val.ToJsonString().Trim('"');
+            return val.TryGetValue<String>(out var s) ? s : val.ToJsonString(ForgeJson.Default).Trim('"');
         }
 
         if (node is not JsonObject obj) return null;

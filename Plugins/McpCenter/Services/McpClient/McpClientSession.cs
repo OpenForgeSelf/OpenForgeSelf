@@ -91,7 +91,7 @@ public sealed class McpClientSession : IAsyncDisposable
             {
                 success = false,
                 error = string.IsNullOrWhiteSpace(view.Text) ? "外部工具执行失败" : view.Text
-            });
+            }, ForgeJson.Default);
         }
         // content 数组存在但拼不出文本 → 沿用既有 "{}"；无 content 字段 → 原样透传 result 原文。
         return view.HasContent ? (string.IsNullOrWhiteSpace(view.Text) ? "{}" : view.Text) : view.RawJson;

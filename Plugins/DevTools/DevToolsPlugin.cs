@@ -366,7 +366,7 @@ public class FormatJsonToolFunction : DevToolsToolFunctionBase
                 action = action
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("format_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -393,7 +393,7 @@ public class FormatJsonToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -441,7 +441,7 @@ public class ValidateJsonToolFunction : DevToolsToolFunctionBase
                 position = result.Position
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("validate_json", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -467,7 +467,7 @@ public class ValidateJsonToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -534,7 +534,7 @@ public class ConvertJsonYamlToolFunction : DevToolsToolFunctionBase
                 direction = direction
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("convert_json_yaml", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -560,7 +560,7 @@ public class ConvertJsonYamlToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -611,7 +611,7 @@ public class JsonPathQueryToolFunction : DevToolsToolFunctionBase
                 expression = expression
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("jsonpath_query", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -637,7 +637,7 @@ public class JsonPathQueryToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -713,7 +713,7 @@ public class FormatXmlToolFunction : DevToolsToolFunctionBase
                 action = action
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("format_xml", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -740,7 +740,7 @@ public class FormatXmlToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -787,7 +787,7 @@ public class Base64EncodeToolFunction : DevToolsToolFunctionBase
                 encodedLength = result.Length
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("base64_encode", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -813,7 +813,7 @@ public class Base64EncodeToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -860,7 +860,7 @@ public class Base64DecodeToolFunction : DevToolsToolFunctionBase
                 decodedLength = result.Length
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("base64_decode", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -886,7 +886,7 @@ public class Base64DecodeToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -931,7 +931,7 @@ public class UrlEncodeToolFunction : DevToolsToolFunctionBase
                 result = result
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("url_encode", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -956,7 +956,7 @@ public class UrlEncodeToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1001,7 +1001,7 @@ public class UrlDecodeToolFunction : DevToolsToolFunctionBase
                 result = result
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("url_decode", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1026,7 +1026,7 @@ public class UrlDecodeToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1100,7 +1100,7 @@ public class ComputeHashToolFunction : DevToolsToolFunctionBase
                 algorithm = algorithm
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("compute_hash", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1126,7 +1126,7 @@ public class ComputeHashToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1188,7 +1188,7 @@ public class ComputeHmacToolFunction : DevToolsToolFunctionBase
                 algorithm = algorithm
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("compute_hmac", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1214,7 +1214,7 @@ public class ComputeHmacToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1273,7 +1273,7 @@ public class AesEncryptToolFunction : DevToolsToolFunctionBase
                 result = result
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("aes_encrypt", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1299,7 +1299,7 @@ public class AesEncryptToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1358,7 +1358,7 @@ public class AesDecryptToolFunction : DevToolsToolFunctionBase
                 result = result
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("aes_decrypt", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1384,7 +1384,7 @@ public class AesDecryptToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1458,7 +1458,7 @@ public class TestRegexToolFunction : DevToolsToolFunctionBase
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("test_regex", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1484,7 +1484,7 @@ public class TestRegexToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1538,7 +1538,7 @@ public class GenerateRegexToolFunction : DevToolsToolFunctionBase
                 description = description
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_regex", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1563,7 +1563,7 @@ public class GenerateRegexToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1627,7 +1627,7 @@ public class RegexReplaceToolFunction : DevToolsToolFunctionBase
                 replacementCount = result.ReplacementCount
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("regex_replace", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1653,7 +1653,7 @@ public class RegexReplaceToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1725,7 +1725,7 @@ public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
                     timezone = result.Timezone
                 };
 
-                var json = JsonSerializer.Serialize(response);
+                var json = JsonSerializer.Serialize(response, ForgeJson.Default);
                 stopwatch.Stop();
                 await RecordUsageAsync("convert_timestamp", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
@@ -1748,7 +1748,7 @@ public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
                     timezone = result.Timezone
                 };
 
-                var json = JsonSerializer.Serialize(response);
+                var json = JsonSerializer.Serialize(response, ForgeJson.Default);
                 stopwatch.Stop();
                 await RecordUsageAsync("convert_timestamp", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
@@ -1767,7 +1767,7 @@ public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
                     dateTimeIso = result.DateTimeIso,
                     dateTimeLocal = result.DateTimeLocal
                 };
-                var json = JsonSerializer.Serialize(response);
+                var json = JsonSerializer.Serialize(response, ForgeJson.Default);
                 stopwatch.Stop();
                 await RecordUsageAsync("convert_timestamp", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
                 {
@@ -1791,7 +1791,7 @@ public class ConvertTimestampToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1852,7 +1852,7 @@ public class ConvertColorToolFunction : DevToolsToolFunctionBase
                 hslString = result.HslString
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("convert_color", stopwatch.ElapsedMilliseconds);
@@ -1874,7 +1874,7 @@ public class ConvertColorToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -1938,7 +1938,7 @@ public class GenerateColorPaletteToolFunction : DevToolsToolFunctionBase
                 colors = result.Colors
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_color_palette", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -1964,7 +1964,7 @@ public class GenerateColorPaletteToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2019,7 +2019,7 @@ public class CheckColorContrastToolFunction : DevToolsToolFunctionBase
                 aaaLarge = result.AAALarge
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("check_color_contrast", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2044,7 +2044,7 @@ public class CheckColorContrastToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2096,7 +2096,7 @@ public class DecodeJwtToolFunction : DevToolsToolFunctionBase
                 error = result.ErrorMessage
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("decode_jwt", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2121,7 +2121,7 @@ public class DecodeJwtToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2181,7 +2181,7 @@ public class ValidateJwtToolFunction : DevToolsToolFunctionBase
                 errorMessage = result.ErrorMessage
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("validate_jwt", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2207,7 +2207,7 @@ public class ValidateJwtToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2277,7 +2277,7 @@ public class GenerateJwtToolFunction : DevToolsToolFunctionBase
                 expiration = result.Expiration
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_jwt", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2303,7 +2303,7 @@ public class GenerateJwtToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2380,7 +2380,7 @@ public class GenerateUuidToolFunction : DevToolsToolFunctionBase
                 count = result.Count
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_uuid", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2406,7 +2406,7 @@ public class GenerateUuidToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2484,7 +2484,7 @@ public class GenerateSnowflakeIdToolFunction : DevToolsToolFunctionBase
                 count = result.Count
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_snowflake_id", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2509,7 +2509,7 @@ public class GenerateSnowflakeIdToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }
@@ -2599,7 +2599,7 @@ public class GenerateQrCodeToolFunction : DevToolsToolFunctionBase
                 level = result.Level
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("generate_qrcode", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -2626,7 +2626,7 @@ public class GenerateQrCodeToolFunction : DevToolsToolFunctionBase
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 }

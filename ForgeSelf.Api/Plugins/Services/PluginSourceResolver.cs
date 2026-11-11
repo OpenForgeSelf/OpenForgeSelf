@@ -77,7 +77,7 @@ public sealed class PluginSourceResolver
             kind,
             locator,
             version
-        });
+        }, ForgeJson.Default);
         File.WriteAllText(path, json);
     }
 }

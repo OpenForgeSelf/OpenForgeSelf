@@ -244,7 +244,7 @@ public class SearchLinksToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "search", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -267,7 +267,7 @@ public class SearchLinksToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -311,7 +311,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
                     ["error"] = "链接不存在"
                 });
 
-                return JsonSerializer.Serialize(new { success = false, error = "链接不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "链接不存在" }, ForgeJson.Default);
             }
 
             await service.IncrementClickCountAsync(linkId);
@@ -329,7 +329,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
                 message = "链接已打开，点击次数已记录"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "open", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -350,7 +350,7 @@ public class OpenLinkToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -396,7 +396,7 @@ public class GetCategoriesToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_categories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -416,7 +416,7 @@ public class GetCategoriesToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -470,12 +470,12 @@ public class CreateLinkToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "链接名称不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "链接名称不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(url))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "链接URL不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "链接URL不能为空" }, ForgeJson.Default);
             }
 
             var service = new QuickLinkService();
@@ -514,7 +514,7 @@ public class CreateLinkToolFunction : IToolFunctionExtension
                 }
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "create_link", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -536,7 +536,7 @@ public class CreateLinkToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 

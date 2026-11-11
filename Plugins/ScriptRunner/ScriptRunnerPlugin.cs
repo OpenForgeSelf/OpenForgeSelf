@@ -184,7 +184,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var scope = _serviceProvider.CreateHostScope();
@@ -203,7 +203,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
             var script = await scriptService.GetScriptAsync(scriptId);
             if (script == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "脚本不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "脚本不存在" }, ForgeJson.Default);
             }
 
             var execution = await scriptExecutor.ExecuteAsync(scriptId, scriptParams);
@@ -220,7 +220,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
                 message = "脚本已开始执行"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "run_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -247,7 +247,7 @@ public class RunScriptToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -312,7 +312,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var scope = _serviceProvider.CreateHostScope();
@@ -375,7 +375,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "list_scripts", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -402,7 +402,7 @@ public class ListScriptsToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -457,7 +457,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
             using var scope = _serviceProvider.CreateHostScope();
@@ -471,7 +471,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
 
             if (!Enum.TryParse<ScriptLanguage>(languageStr, out var language))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "不支持的语言类型" });
+                return JsonSerializer.Serialize(new { success = false, error = "不支持的语言类型" }, ForgeJson.Default);
             }
 
             Dictionary<string, object?>? scriptParams = null;
@@ -497,7 +497,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
                 message = "代码已开始执行"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "execute_code", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -523,7 +523,7 @@ public class ExecuteCodeToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 

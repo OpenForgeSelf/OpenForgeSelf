@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Entities;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using ForgeSelf.Api.Plugins.AgentHub.Profiles;
@@ -287,7 +288,7 @@ public class AgentRegistry : IAgentRegistry
             OutputFormat = profile.OutputFormat,
             OutputMappingJson = profile.OutputMapping == null
                 ? null
-                : JsonSerializer.Serialize(profile.OutputMapping),
+                : JsonSerializer.Serialize(profile.OutputMapping, ForgeJson.Default),
             SessionFlagTemplate = profile.SessionFlagTemplate,
             ProbeArgs = profile.ProbeArgs,
             CancelSupported = false, // one-shot 只有杀进程，不算真正的取消能力
@@ -324,7 +325,7 @@ public class AgentRegistry : IAgentRegistry
                 Transport = req.Transport ?? "Cli",
                 Executable = req.Executable,
                 ArgsTemplate = req.ArgsTemplate,
-                EnvJson = req.EnvVars == null ? null : JsonSerializer.Serialize(req.EnvVars),
+                EnvJson = req.EnvVars == null ? null : JsonSerializer.Serialize(req.EnvVars, ForgeJson.Default),
                 PromptInjection = req.PromptInjection ?? "Arg",
                 OutputFormat = req.OutputFormat ?? "Text",
                 OutputMappingJson = req.OutputMappingJson,

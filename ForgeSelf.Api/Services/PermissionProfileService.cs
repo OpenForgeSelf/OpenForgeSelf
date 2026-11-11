@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ForgeSelf.Abstractions;
@@ -20,6 +21,8 @@ public sealed class PermissionProfileService : IPermissionProfileService
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() },
+        // PC-027：中文保持原文，禁止默认 \uXXXX 转义
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>文件类工具（路径白名单）。</summary>

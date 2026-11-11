@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using NewLife;
 using NewLife.Log;
@@ -206,7 +207,7 @@ public class PermissionBroker
             source = verdict.Source,
             onceOnly = verdict.OnceOnly,
             reason = verdict.Reason
-        });
+        }, ForgeJson.Default);
 
     /// <summary>授信范围匹配：范围含该类别，或含通配 <c>*</c>。</summary>
     /// <param name="scopes">授信范围</param>

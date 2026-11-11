@@ -20,10 +20,7 @@ namespace ForgeSelf.Api.Plugins.AIAgent.MafLoop;
 /// </remarks>
 public static class ForgeChatMessageMapper
 {
-    private static readonly JsonSerializerOptions ArgsJsonOptions = new()
-    {
-        WriteIndented = false
-    };
+    private static readonly JsonSerializerOptions ArgsJsonOptions = ForgeJson.Default;
 
     /// <summary>M.E.AI 消息列表 → 宿主统一消息列表（系统消息剔除，返回其文本）。</summary>
     public static (List<UnifiedChatMessage> Messages, string SystemPrompt) ToUnifiedMessages(IEnumerable<ChatMessage> messages)

@@ -21,7 +21,8 @@ public sealed class GuardDecision
 /// 规则与 mcp-center 公共工具的（2026-10-28 归属迁移前在 AIAgent）
 /// <c>Plugins/McpCenter/Services/PublicTools/TerminalCommandGuard.cs</c> **逐条同值**：
 /// 引号感知分段（PILOT-075，2026-10-29 用户拍板，与 mcp-center 同步）：引号外 | ; &amp;&amp; || 换行 = 分隔符，
-/// 逐段过同一套门；重定向（&lt; &gt; 反引号）与单独 &amp;、空段、引号不配对整串拒 → 可执行名必须裸名 →
+/// 逐段过同一套门；输出重定向（&gt; &gt;&gt; 1&gt; 2&gt; 2&gt;&amp;1，PILOT-079 P2① 同步放行）由分段器标记后经
+/// pwsh -Command 落盘执行；输入重定向（&lt;）、反引号与单独 &amp;、空段、引号不配对整串拒 → 可执行名必须裸名 →
 /// 白名单（dotnet/pnpm/node/git/ssh/pwsh，拒绝模式）→ 破坏性 token 精确匹配 + 内联代码词边界扫描 +
 /// -EncodedCommand base64（UTF-16LE）解码后扫描，不可验证即拒。
 ///
@@ -38,8 +39,14 @@ public static class CommandGuard
     /// <summary>单段输出截断上限（bytes）：50KB，防 prompt 爆炸。</summary>
     public const int MaxOutputBytes = 50 * 1024;
 
-    /// <summary>超时上限（秒），与内置 agent 对齐。</summary>
-    public const int MaxTimeoutSeconds = 30;
+    /// <summary>
+    /// 超时上限（秒），与内置 agent 对齐（PILOT-079 P2① 同步：30s 上限让 dotnet build 等长构建必假失败，放宽到 30 分钟；
+    /// 工具入参 timeoutSeconds 落 [1, 此上限]，默认见 DefaultTimeoutSeconds）。
+    /// </summary>
+    public const int MaxTimeoutSeconds = 1800;
+
+    /// <summary>超时默认值（秒），与内置 agent 对齐（PILOT-079 P2①）：长构建常见 1-5 分钟，默认 5 分钟。</summary>
+    public const int DefaultTimeoutSeconds = 300;
 
     /// <summary>可执行名白名单（默认 allowlist 拒绝模式；首个 token 必须命中，裸名或裸名.exe）。</summary>
     public static readonly string[] DefaultAllowlist = { "dotnet", "pnpm", "node", "git", "ssh", "pwsh" };
@@ -116,14 +123,25 @@ public static class CommandGuard
         return GuardDecision.Allow();
     }
 
-    /// <summary>
-    /// 引号感知分段（PILOT-075 FR-1，与 mcp-center <c>TerminalCommandGuard.TrySplitSegments</c> 逐行同构）：
-    /// 仅在引号外把 <c>&amp;&amp;</c> <c>||</c> <c>|</c> <c>;</c> 换行当分隔符；段内原文保留（含引号）。
-    /// 返回 false 时 <paramref name="error"/> 为整串级拒绝原因，<paramref name="segments"/> 为空。
-    /// </summary>
+    /// <summary>分段结果段：Text = 段内原文（含引号/重定向），HasRedirect = 段内引号外出现输出重定向（&gt; &gt;&gt; 1&gt; 2&gt; 2&gt;&amp;1）。</summary>
+    public sealed record CommandSegment(string Text, bool HasRedirect);
+
+    /// <summary>旧签名兼容壳：只取段文本（HasRedirect 丢弃），拒绝行为与 PILOT-075 时代完全一致。</summary>
     public static bool TrySplitSegments(string? command, out IReadOnlyList<string> segments, out string? error)
     {
-        segments = Array.Empty<string>();
+        var ok = TrySplitSegmentsEx(command, out var raw, out error);
+        segments = ok ? raw.Select(s => s.Text).ToArray() : Array.Empty<string>();
+        return ok;
+    }
+
+    /// <summary>
+    /// 引号感知分段（PILOT-075 FR-1 + PILOT-079 P2① 输出重定向放行，与 mcp-center <c>TerminalCommandGuard.TrySplitSegmentsEx</c> 逐行同构）：
+    /// 仅在引号外把 <c>&amp;&amp;</c> <c>||</c> <c>|</c> <c>;</c> 换行当分隔符；段内原文保留（含引号/重定向）。
+    /// 返回 false 时 <paramref name="error"/> 为整串级拒绝原因，<paramref name="segments"/> 为空。
+    /// </summary>
+    public static bool TrySplitSegmentsEx(string? command, out IReadOnlyList<CommandSegment> segments, out string? error)
+    {
+        segments = Array.Empty<CommandSegment>();
         error = null;
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -131,7 +149,8 @@ public static class CommandGuard
             return false;
         }
 
-        var result = new List<string>();
+        var result = new List<CommandSegment>();
+        var segHasRedirect = false;
         var sb = new System.Text.StringBuilder();
         var inDouble = false;
         var inSingle = false;
@@ -144,7 +163,8 @@ public static class CommandGuard
             {
                 return "Error: chained/piped commands are not allowed (empty segment)";
             }
-            result.Add(seg);
+            result.Add(new CommandSegment(seg, segHasRedirect));
+            segHasRedirect = false;
             return null;
         }
 
@@ -179,9 +199,19 @@ public static class CommandGuard
                     sb.Append(ch);
                     i++;
                     break;
-                case '<' or '>' or '`':
+                case '<' or '`':
+                    // PILOT-079 P2①：输出重定向（>）放行（见 '>' 分支）；输入重定向（<）与反引号仍整串拒绝
+                    //（防止误开任意读入口与命令替换执行面）。
                     error = $"Error: chained/piped commands are not allowed (contains '{ch}')";
                     return false;
+                case '>':
+                    // 输出重定向放行（PILOT-079 P2①）：> >> 1> 2> 2>&1 标记段内 HasRedirect，
+                    // 执行层据此整体路由 pwsh -Command（重定向只能由 shell 解释，直接启动不经 shell）。
+                    // 重定向目标 token 仍受 CheckSingleCommand 白名单+红线校验（同段位置参数）。
+                    segHasRedirect = true;
+                    sb.Append(ch);
+                    i++;
+                    break;
                 case '&':
                     if (i + 1 < text.Length && text[i + 1] == '&')
                     {
@@ -191,6 +221,12 @@ public static class CommandGuard
                             return false;
                         }
                         i += 2;
+                    }
+                    else if (sb.Length > 0 && sb[^1] == '>')
+                    {
+                        // 2>&1 流合并：& 紧跟在 > 后（且下一段不是 &）→ 透传为段内字面量。
+                        sb.Append(ch);
+                        i++;
                     }
                     else
                     {

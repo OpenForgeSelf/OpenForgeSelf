@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Models.Plugins;
 using NewLife.Log;
 
@@ -80,8 +81,7 @@ public class PluginUpdateSettingsService
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);
 
-            var json = JsonSerializer.Serialize(_config,
-                new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(_config, ForgeJson.Indented);
             File.WriteAllText(_settingsFilePath, json);
         }
         catch (Exception ex)

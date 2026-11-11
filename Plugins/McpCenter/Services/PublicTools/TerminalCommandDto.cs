@@ -14,7 +14,7 @@ public class TerminalCommandDto
     /// <summary>工作目录（必填，绝对路径且目录须存在；2026-10-29 起不再回退当前项目根/FORGESELF_DEFAULT_PROJECT_ROOT，未传直接报必传错误）。</summary>
     public string? Cwd { get; set; }
 
-    /// <summary>超时秒数（1-30，默认 30；超时后进程在后台继续，结果标记 timedOut）。</summary>
+    /// <summary>超时秒数（1-1800，默认 300，PILOT-079 P2①；超时中止进程并回传已捕获的部分输出）。</summary>
     public int? TimeoutSeconds { get; set; }
 
     /// <summary>附加环境变量（键值对，可选）。</summary>

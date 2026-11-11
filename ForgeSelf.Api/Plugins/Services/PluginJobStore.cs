@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins;
 
 namespace ForgeSelf.Api.Plugins.Services;
@@ -19,7 +20,7 @@ public sealed class PluginJobStore
             version,
             message,
             at = DateTimeOffset.Now
-        });
+        }, ForgeJson.Default);
         File.WriteAllText(Path.Combine(dir, id + ".json"), json);
         return id;
     }

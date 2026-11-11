@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.DesignSystem;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
@@ -51,7 +52,7 @@ public sealed class AgentAccess
         var dir = Path.GetDirectoryName(file);
         if (!String.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-        var payload = JsonSerializer.Serialize(new { allowWrite, updatedAt = DateTime.Now.ToString("o") });
+        var payload = JsonSerializer.Serialize(new { allowWrite, updatedAt = DateTime.Now.ToString("o") }, ForgeJson.Default);
         var tmp = file + ".tmp";
         File.WriteAllText(tmp, payload);
         File.Move(tmp, file, true);

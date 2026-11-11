@@ -48,7 +48,7 @@ public sealed class RegistryToolFunction : AIFunction
     /// <inheritdoc />
     protected override async ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
     {
-        var argsJson = JsonSerializer.Serialize((IReadOnlyDictionary<string, object?>)arguments);
+        var argsJson = JsonSerializer.Serialize((IReadOnlyDictionary<string, object?>)arguments, ForgeJson.Default);
         var callId = $"{_callIdPrefix}-{Guid.NewGuid().ToString("N")[..8]}";
 
         await _bridge.RecordToolStartAsync(callId, Name, argsJson, cancellationToken).ConfigureAwait(false);
@@ -75,12 +75,12 @@ public sealed class RegistryToolFunction : AIFunction
             }
 
             // 失败结果照 M.E.AI 约定返回错误描述文本（由管线作为工具结果喂回模型，模型可自纠）。
-            return JsonSerializer.Serialize(new { success = false, error = result.ErrorMessage ?? outcome.ToString() });
+            return JsonSerializer.Serialize(new { success = false, error = result.ErrorMessage ?? outcome.ToString() }, ForgeJson.Default);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await _bridge.RecordToolEndAsync(callId, Name,
-                JsonSerializer.Serialize(new { success = false, error = ex.Message }), ToolOutcome.Error, 0,
+                JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default), ToolOutcome.Error, 0,
                 cancellationToken).ConfigureAwait(false);
             throw;
         }
@@ -121,7 +121,7 @@ public sealed class TaskCompleteAIFunction : AIFunction
     /// <inheritdoc />
     protected override ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
         // 正常路径由 FunctionInvoker 短路；防御性兜底。
-        => ValueTask.FromResult<object?>(JsonSerializer.Serialize(new { success = true, message = "任务已完成" }));
+        => ValueTask.FromResult<object?>(JsonSerializer.Serialize(new { success = true, message = "任务已完成" }, ForgeJson.Default));
 }
 
 /// <summary>
@@ -157,5 +157,5 @@ public sealed class ExitToolAIFunction : AIFunction
 
     /// <inheritdoc />
     protected override ValueTask<object?> InvokeCoreAsync(AIFunctionArguments arguments, CancellationToken cancellationToken)
-        => ValueTask.FromResult<object?>(JsonSerializer.Serialize(new { success = true }));
+        => ValueTask.FromResult<object?>(JsonSerializer.Serialize(new { success = true }, ForgeJson.Default));
 }

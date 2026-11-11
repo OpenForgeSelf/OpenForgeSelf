@@ -696,7 +696,7 @@ public class RunOrchestratorService : IRunOrchestratorService
                 yield return new AgentLoopEvent
                 {
                     Type = "step_completed",
-                    Content = JsonSerializer.Serialize(new StepCompletedPayload { RunId = run.Id, StepIndex = i, Output = stepRun.HumanOverride })
+                    Content = JsonSerializer.Serialize(new StepCompletedPayload { RunId = run.Id, StepIndex = i, Output = stepRun.HumanOverride }, ForgeJson.Default)
                 };
                 continue;
             }
@@ -943,7 +943,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         stepRun.Status = (int)AgentStepStatus.Completed;
         stepRun.OutputJson = result.Output;
         stepRun.InputJson = result.InputJson ?? stepRun.InputJson;
-        stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls);
+        stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls, ForgeJson.Default);
         stepRun.EvidenceJson = BuildStepEvidenceJson(result.ToolCalls); // B2②：证据随行（Verify/收据取证来源）
         stepRun.TokensUsed = result.TokensUsed;
         stepRun.DurationMs = Math.Max(0, (long)(DateTime.Now - stepRun.StartedAt).TotalMilliseconds);
@@ -956,7 +956,7 @@ public class RunOrchestratorService : IRunOrchestratorService
         stepRun.Status = (int)AgentStepStatus.Stuck;
         stepRun.StuckReason = result.StuckReason;
         stepRun.InputJson = result.InputJson ?? stepRun.InputJson;
-        stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls);
+        stepRun.ToolCallsJson = JsonSerializer.Serialize(result.ToolCalls, ForgeJson.Default);
         stepRun.EvidenceJson = BuildStepEvidenceJson(result.ToolCalls); // B2②：卡住步的已发生证据照常取证
         stepRun.TokensUsed = result.TokensUsed;
         stepRun.Update();
@@ -965,7 +965,7 @@ public class RunOrchestratorService : IRunOrchestratorService
     /// <summary>步骤证据（B2②）：从工具轨迹提取结构化文件清单 + 成败计数，落 EvidenceJson。</summary>
     private static string BuildStepEvidenceJson(List<StepToolCallTrace> traces)
     {
-        var traceJson = JsonSerializer.Serialize(traces);
+        var traceJson = JsonSerializer.Serialize(traces, ForgeJson.Default);
         var evidence = new StepRunEvidenceBag
         {
             Files = [.. ToolCallFileExtractor.ExtractFilePaths(traceJson)],

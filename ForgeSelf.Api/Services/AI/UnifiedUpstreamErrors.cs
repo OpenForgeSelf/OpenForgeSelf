@@ -1,5 +1,6 @@
 using System.ClientModel;
 using System.Net;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace ForgeSelf.Api.Services.AI;
@@ -158,7 +159,9 @@ public static class UnifiedUpstreamErrors
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            // PC-027：中文保持原文，禁止默认 \uXXXX 转义
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
         var json = JsonSerializer.Serialize(payload, jsonOptions);
         await response.WriteAsync("event: error\n", cancellationToken);

@@ -147,9 +147,9 @@ public abstract class TodoAgentToolBase : IToolFunctionExtension
         if (el.ValueKind == JsonValueKind.String) request.FilesChangedText = el.GetString();
     }
 
-    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data });
+    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data }, ForgeJson.Default);
 
-    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error });
+    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error }, ForgeJson.Default);
 
     /// <summary>服务缺失的统一答复（不静默返回 null 让调用方以为"没有任务"）。</summary>
     protected static string MissingService(string typeName) => Fail($"{typeName} 未注册");

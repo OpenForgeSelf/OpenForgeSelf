@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
@@ -21,7 +22,8 @@ public sealed class AuditLogStore : IAuditLogStore
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        WriteIndented = false
+        WriteIndented = false,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     private readonly string _filePath;

@@ -40,18 +40,21 @@ public class ToolBridgeGuardParityTests
         "",
         "   ",
 
-        // ---- 第 2 道门（PILOT-075）：分隔符放行 + 逐段同一校验；重定向/反引号/裸 &/空段/引号不配对整串拒 ----
+        // ---- 第 2 道门（PILOT-075）：分隔符放行 + 逐段同一校验；PILOT-079 P2① 两份实现同步放行输出重定向；
+        // 输入重定向/反引号/裸 &/空段/引号不配对仍整串拒 ----
         "git status\ngit log",                            // 换行分段：两段均白名单 → 放行
         "dotnet build && pwsh -c x",                      // && 链 → 放行
         "dotnet build; dotnet test",                      // 分号链 → 放行
         "git log | node count.js",                        // 管道 → 放行
         "git log --format=\"%h | %s\"",                   // 引号内 | 不是分隔符 → 单段放行
+        "git log --oneline -5 > out.txt",                 // 输出重定向（PILOT-079 P2① 同步放行）
+        "dotnet build >> build.log 2>&1",                 // 追加 + 流合并重定向 → 放行
         "git status && rm -rf x",                         // 第 2 段 rm 不在白名单 → 拒（segment 2/2）
         "git status | select-string foo",                 // 第 2 段不在白名单 → 拒
         "git status | head",                              // 同上
         "git status; del *",                              // 段内门序=白名单先于红线：del 非白名单先拒（segment 2/2）
-        "echo a > out.txt",                               // 重定向未放开 → 整串拒
-        "cat < in.txt",
+        "echo a > out.txt",                               // echo 非白名单 → 仍拒（重定向已放行，拒因=allowlist）
+        "cat < in.txt",                                   // 输入重定向 → 整串拒
         "node -e `code`",                                 // 反引号 → 整串拒
         "git status &",                                   // 后台单 & → 整串拒
         "git status &&",                                  // 空段 → 整串拒
@@ -109,6 +112,11 @@ public class ToolBridgeGuardParityTests
         AiagentGuard.Check("git status && git diff").Allowed.Should().BeTrue();
         CommandGuard.Check("dotnet build; dotnet test").Allowed.Should().BeTrue();
         AiagentGuard.Check("dotnet build; dotnet test").Allowed.Should().BeTrue();
+        // PILOT-079 P2① 阳性对照：输出重定向在两份实现里都必须真放行（防止"两边一致地全拒"假绿）。
+        CommandGuard.Check("git log --oneline -5 > out.txt").Allowed.Should().BeTrue();
+        AiagentGuard.Check("git log --oneline -5 > out.txt").Allowed.Should().BeTrue();
+        CommandGuard.Check("dotnet build > build.log 2>&1").Allowed.Should().BeTrue();
+        AiagentGuard.Check("dotnet build > build.log 2>&1").Allowed.Should().BeTrue();
     }
 
     [Fact]

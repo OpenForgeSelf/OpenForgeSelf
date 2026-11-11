@@ -12,6 +12,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
 |---|---|
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新；禁止 agent 停宿主 |
+| `plugin-compliance-audit` | **交付前逐项核对**：完整性 / 合规 / 改动面复核（门禁判不了的语义与渲染，见该技能 P-01…P-24） |
 | `e2e-testing` | 插件层 e2e（`e2e/plugins/<id>/<id>.spec.ts`）+ 截图读图 |
 
 ---

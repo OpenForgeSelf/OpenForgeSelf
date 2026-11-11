@@ -305,7 +305,7 @@ public class ToolRegistry : IToolRegistry
                 XTrace.Log.Warn("[ToolRegistry] 工具执行被拒绝(pre-execute) [{0}]: {1}", execution.ToolName, denied.Reason);
                 return await FinalizeAsync(execution, result, stopwatch,
                     success: false,
-                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, denied.Reason, "该操作被权限策略拒绝")),
+                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, denied.Reason, "该操作被权限策略拒绝"), ForgeJson.Default),
                     errorMessage: denied.Reason,
                     outcome: ToolOutcome.Denied,
                     denyReason: denied.Reason,
@@ -325,7 +325,7 @@ public class ToolRegistry : IToolRegistry
                     XTrace.Log.Warn("[ToolRegistry] 工具执行被拒绝(Ask fail-closed) [{0}]: {1}", execution.ToolName, failReason);
                     return await FinalizeAsync(execution, result, stopwatch,
                         success: false,
-                        resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, failReason, "该操作未获审批通过")),
+                        resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, failReason, "该操作未获审批通过"), ForgeJson.Default),
                         errorMessage: failReason,
                         outcome: ToolOutcome.Denied,
                         denyReason: failReason,
@@ -340,7 +340,7 @@ public class ToolRegistry : IToolRegistry
                 XTrace.Log.Warn("[ToolRegistry] {0}", errorMsg);
                 return await FinalizeAsync(execution, result, stopwatch,
                     success: false,
-                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ToolNotFound, errorMsg, "请检查工具名称是否正确，或确认插件是否已启用")),
+                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ToolNotFound, errorMsg, "请检查工具名称是否正确，或确认插件是否已启用"), ForgeJson.Default),
                     errorMessage: errorMsg,
                     outcome: ToolOutcome.Error,
                     denyReason: null,
@@ -354,7 +354,7 @@ public class ToolRegistry : IToolRegistry
                 XTrace.Log.Warn("[ToolRegistry] {0}", errorMsg);
                 return await FinalizeAsync(execution, result, stopwatch,
                     success: false,
-                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.InvalidParameters, errorMsg, "请检查参数是否符合要求")),
+                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.InvalidParameters, errorMsg, "请检查参数是否符合要求"), ForgeJson.Default),
                     errorMessage: errorMsg,
                     outcome: ToolOutcome.Error,
                     denyReason: null,
@@ -368,7 +368,7 @@ public class ToolRegistry : IToolRegistry
                 XTrace.Log.Warn("[ToolRegistry] 工具执行被守卫拒绝 [{0}]: {1}", execution.ToolName, guardReason);
                 return await FinalizeAsync(execution, result, stopwatch,
                     success: false,
-                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, guardReason, "该操作被守卫策略拒绝")),
+                    resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.PermissionDenied, guardReason, "该操作被守卫策略拒绝"), ForgeJson.Default),
                     errorMessage: guardReason,
                     outcome: ToolOutcome.Denied,
                     denyReason: guardReason,
@@ -409,7 +409,7 @@ public class ToolRegistry : IToolRegistry
                 case PostToolDecision.Block block:
                     executed.Success = false;
                     executed.ErrorMessage = block.Feedback;
-                    executed.Result = JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ExecutionFailed, block.Feedback, "工具结果被 post-execute 阻断"));
+                    executed.Result = JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ExecutionFailed, block.Feedback, "工具结果被 post-execute 阻断"), ForgeJson.Default);
                     break;
             }
 
@@ -434,7 +434,7 @@ public class ToolRegistry : IToolRegistry
             XTrace.Log.Warn("[ToolRegistry] 工具执行被取消 [{0}]", execution.ToolName);
             return await FinalizeAsync(execution, result, stopwatch,
                 success: false,
-                resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.Timeout, "工具执行被取消或超时", "请稍后重试或检查工具是否正常")),
+                resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.Timeout, "工具执行被取消或超时", "请稍后重试或检查工具是否正常"), ForgeJson.Default),
                 errorMessage: "工具执行被取消",
                 outcome: ToolOutcome.Error,
                 denyReason: null,
@@ -449,7 +449,7 @@ public class ToolRegistry : IToolRegistry
 
             return await FinalizeAsync(execution, result, stopwatch,
                 success: false,
-                resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ExecutionFailed, ex.Message, "请检查工具配置或联系管理员")),
+                resultJson: JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.ExecutionFailed, ex.Message, "请检查工具配置或联系管理员"), ForgeJson.Default),
                 errorMessage: ex.Message,
                 outcome: ToolOutcome.Error,
                 denyReason: null,
@@ -505,7 +505,7 @@ public class ToolRegistry : IToolRegistry
             CallId = call.CallId,
             ToolName = call.ToolName,
             Success = false,
-            Result = JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.InternalError, reason, "该调用未执行")),
+            Result = JsonSerializer.Serialize(ToolCallResponse.Fail(ToolErrorCode.InternalError, reason, "该调用未执行"), ForgeJson.Default),
             ErrorMessage = reason,
             Outcome = ToolOutcome.Skipped
         };

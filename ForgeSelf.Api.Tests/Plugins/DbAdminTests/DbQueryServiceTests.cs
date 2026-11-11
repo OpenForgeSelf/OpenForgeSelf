@@ -250,4 +250,37 @@ public class DbQueryServiceTests(DbAdminTestFixture fx)
         Assert.Equal(DbErrorCodes.NotFound, Ui("999999", "SELECT 1").Code);
         Assert.Equal(DbErrorCodes.NotFound, Ui("sys:NoSuchConn", "SELECT 1").Code);
     }
+
+    // —— 多库（2026-11-07 输入5）机制级：database 透传 + 审批视图保库（03-plan S5.12 / AC3·AC4）——
+
+    [Fact]
+    public void Database_Param_SqliteMainPasses_OtherRejected()
+    {
+        var cid = NewUserConn(3);
+        var ok = fx.Queries.Execute(new QueryRequest { ConnectionId = cid, Sql = "SELECT count(*) FROM items", Database = "main" }, QueryContext.Agent("mdb"));
+        Assert.Equal("ok", ok.Status);
+        Assert.Equal(3L, Convert.ToInt64(ok.Rows![0][0]));
+        // 审计 Detail 标注目标库（BR4）
+        Assert.Contains(DbAuditLog.FindAll(DbAuditLog._.ConnectionId == cid, null, null, 0, 0), a => (a.Detail ?? "").Contains("db=main"));
+
+        var bad = fx.Queries.Execute(new QueryRequest { ConnectionId = cid, Sql = "SELECT 1", Database = "temp" }, QueryContext.Agent("mdb"));
+        Assert.Equal(DbErrorCodes.InvalidRequest, bad.Code);
+    }
+
+    [Fact]
+    public void AskWrite_ApprovalView_KeepsDatabase_OnPendingAndReplay()
+    {
+        fx.Modes.SetGlobal(PermissionModes.AskWrite);
+        var cid = NewUserConn(3);
+        var r = fx.Queries.Execute(new QueryRequest { ConnectionId = cid, Sql = "UPDATE items SET name = 'moved' WHERE id = 2", Database = "main" }, QueryContext.Agent("mdb2"));
+        Assert.Equal("awaiting_approval", r.Status);
+
+        // PendingWrite.Database 透传到审批视图（AC4 判据：审批重放不再丢库落错库）
+        var view = fx.Queries.ListApprovals("pending").Single(a => a.Id == r.ApprovalId);
+        Assert.Equal("main", view.Database);
+
+        var done = fx.Queries.Resolve(r.ApprovalId!.Value, approve: true, confirmDestructive: false, QueryContext.Ui);
+        Assert.Equal("ok", done.Status);
+        Assert.Equal("moved", Ui(cid, "SELECT name FROM items WHERE id=2").Rows![0][0]);
+    }
 }

@@ -5,7 +5,7 @@
 
 ## 1. 定位与范围
 
-「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server 可配置但「未实测」；驱动预检关闭，失败回显底层错误）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览（表名过滤/刷新）、**多标签查询工作区（点表开标签、同表聚焦不覆盖、连接默认表）**、SQL 执行（**选区执行 + 多语句逐条执行 → 结果分页签**）与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
+「本地 + Agent-first 的轻量数据库管理台」：人在页面连库、看表、跑 SQL；Agent 经 `db_*` 工具在可审批、可审计前提下查库与改库。MVP：连接管理（SQLite 实测；MySQL/PostgreSQL/SQL Server/Oracle 可配置但「未实测」，2026-11-06 增 Oracle；驱动预检关闭，失败回显底层错误）、系统只读挂出（宿主库 + XCodeConfig.PluginDbs）、Schema 浏览（表名过滤/刷新）、**多标签查询工作区（点表开标签、同表聚焦不覆盖、连接默认表）**、SQL 执行（**选区执行 + 多语句逐条执行 → 结果分页签**）与分页、写审批（AskWrite 默认 + 硬拒清单兜底 + 破坏性二次确认）、全量审计脱敏、刷新恢复。
 
 **非目标**：表设计器、ER 图、数据导入、批量/全库导出（结果格单页 CSV 导出已纳入）、主动驱动在线下载（2026-11-06 起交由 XCode 在连接期自行获取）、执行 shell、Agent 自建连接、宿主库写入（任何模式）。
 
@@ -34,6 +34,8 @@
 ```
 
 `connectionId` 先用 `db_list_connections` 取；`params` 与 SQL 里的 `@name` 对应；`sessionId` 可选（决定会话级权限模式并用于审计回显）。
+
+**`connectionId` 类型与容错（2026-11-07 三态实测，连接 5 + `SELECT COUNT(*) AS CNT FROM V_ROOMANALYSIS`）**：类型恒为 **string**——schema 声明 `"type": "string"`（`Plugins/DbAdmin/Services/DbAdminToolFunctions.cs:446`），宿主网关调用前按 schema 强校验，**传数字直接拒**：`INVALID_PARAMETERS 参数验证失败: 参数 'connectionId' 类型错误，期望 string，实际 Number`（`ForgeSelf.Api/Services/ToolRegistry.cs:238-252`，DurationMs=0，根本到不了插件；注意校验层失败信封是 PascalCase `{Success,Error}`，与插件业务信封 `{success,tool,…}` 不同）。内容必须是能 `Int32.TryParse` 的数字串（用户连接，`Plugins/DbAdmin/Services/DbConnectionService.cs:121-125`）或 `sys:<ConnName>`（系统连接）。**带首尾空格的数字串（如 `"5 "`）也能命中**——是 .NET `Int32.TryParse` 容忍首尾空白，不是 trim 逻辑（插件侧 `OptString` 对字符串原样取、不 trim，`DbAdminToolFunctions.cs:78-85`），调用侧不要依赖该行为。三态实测：`"5 "` → ok CNT=22；`5` → 网关拒（见上）；`"5"` → ok CNT=22。
 
 **写操作链路**：`db_execute_write` 返回 `status=awaiting_approval` + `approvalId` → 用户在 DbAdmin 页面「审批」批准（审批中心在插件页，不在 AI 对话里）；Agent 侧 `db_resolve_approval` 仅当用户本轮原话明确同意才可调用，后端只校验 quote 非空（工具自述局限，`DbAdminToolFunctions.cs:540`），破坏性语句 Agent 恒无法批准。
 
@@ -67,7 +69,7 @@
 
 ## 6. 已知边界
 
-- 非 SQLite 引擎「未实测」且不随插件打包驱动（决策1）；2026-11-06 起暂时关闭驱动预检（决策3）：`/providers` 全部 `driverAvailable=true`，连接/测连交给 XCode，失败回显底层错误（`sql_error` 400，脱敏）；`driver_missing`(424) 仅在预检开关开启时产生。
+- 非 SQLite 引擎「未实测」且不随插件打包驱动（决策1）；2026-11-06 起暂时关闭驱动预检（决策3）：`/providers` 全部 `driverAvailable=true`，连接/测连交给 XCode，失败回显底层错误（`sql_error` 400，脱敏）；`driver_missing`(424) 仅在预检开关开启时产生。**2026-11-06 增 Oracle**（DriverCatalog 第 5 项，XCode 内置 provider；表单连接串=ODP.NET EZConnect `//host:port/service`，驱动包 `Oracle.ManagedDataAccess` 同样不打包）。
 - 密钥文件（dbadmin.key）丢失则已存密码不可解（重新录入）；备份/迁移须库+密钥同带（决策2）。
 - 拿到数据目录（DbAdmin.db+dbadmin.key）即可解密——防「单独拷走 .db」，不防本机同用户进程；后续可迁宿主 vault。
 

@@ -19,8 +19,10 @@ const body = (k: string) => S[k].body as Record<string, unknown>
 describe('真实后端样本 → normalize', () => {
   it('providers：小写 id + displayName + defaultPort；仅 sqlite 实测', () => {
     const ps = listOf(S.providers.body, normProvider)
-    expect(ps.map(p => p.id)).toEqual(['sqlite', 'mysql', 'postgresql', 'sqlserver'])
+    expect(ps.map(p => p.id)).toEqual(['sqlite', 'mysql', 'postgresql', 'sqlserver', 'oracle'])
     expect(ps.find(p => p.id === 'mysql')).toMatchObject({ displayName: 'MySQL / MariaDB', driverAvailable: false, defaultPort: 3306 })
+    // oracle：2026-11-06 新增类型；预检关闭（ProbeEnabled=false）后端真值 driverAvailable=true，未实测
+    expect(ps.find(p => p.id === 'oracle')).toMatchObject({ displayName: 'Oracle', driverAvailable: true, tested: false, driverPackage: 'Oracle.ManagedDataAccess', defaultPort: 1521 })
     expect(ps.filter(p => isTested(p)).map(p => p.id)).toEqual(['sqlite'])
     expect(providerLabel('postgresql')).toBe('PostgreSQL')
   })

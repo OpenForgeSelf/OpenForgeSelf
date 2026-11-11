@@ -22,6 +22,8 @@ const providers: BackendJson[] = [
   { id: 'mysql', displayName: 'MySQL / MariaDB', driverAvailable: true, tested: false, driverPackage: 'MySqlConnector', defaultPort: 3306 },
   { id: 'postgresql', displayName: 'PostgreSQL', driverAvailable: false, tested: false, driverPackage: 'Npgsql', defaultPort: 5432 },
   { id: 'sqlserver', displayName: 'SQL Server', driverAvailable: false, tested: false, driverPackage: 'Microsoft.Data.SqlClient', defaultPort: 1433 },
+  // 2026-11-06 新增 Oracle（真实 DriverCatalog 第 5 项）；其余 4 项 driverAvailable 为演示值（ProviderDriverMissing story 依赖）
+  { id: 'oracle', displayName: 'Oracle', driverAvailable: true, tested: false, driverPackage: 'Oracle.ManagedDataAccess', defaultPort: 1521 },
 ]
 
 /** GET /connections 单项（ConnectionView） */

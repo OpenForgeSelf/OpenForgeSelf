@@ -23,7 +23,8 @@ public sealed class DbQueryService
     private readonly DbAuditWriter _audit;
     private readonly ConcurrentDictionary<Int64, PendingWrite> _pending = new();
 
-    private sealed record PendingWrite(String ConnectionId, String Sql, Dictionary<String, Object?>? Params, Boolean Destructive, String Source, DateTime CreateTime);
+    /// <summary>Database：提交时指定的目标库（审批通过后重放必须仍落到同一个库）</summary>
+    private sealed record PendingWrite(String ConnectionId, String Sql, Dictionary<String, Object?>? Params, Boolean Destructive, String Source, DateTime CreateTime, String? Database = null);
 
     public DbQueryService(DbConnectionService connections, PermissionModeStore modes, DbAuditWriter audit)
     {
@@ -64,7 +65,7 @@ public sealed class DbQueryService
         if (cls.IsRejected) return Reject(cid, sql, cls.Reason, DbErrorCodes.RejectedHard, ctx, cls.Kind);
 
         ResolvedConnection rc;
-        try { rc = _connections.Resolve(cid); }
+        try { rc = _connections.Resolve(cid, req.Database); }
         catch (DbAdminException ex) { return Error(cid, sql, ex.Code, ex.Message, cls.Kind, ctx); }
 
         if (!cls.IsRead && rc.Readonly)
@@ -81,9 +82,9 @@ public sealed class DbQueryService
 
         // AskWrite：所有写都询问；Auto：仅破坏性询问
         if (mode == PermissionModes.AskWrite || destructive)
-            return Enqueue(rc.Id, sql, req.Params, destructive, ctx, cls.Kind);
+            return Enqueue(rc.Id, sql, req.Params, destructive, ctx, cls.Kind, req.Database);
 
-        return RunWrite(rc, sql, req.Params, ctx, cls.Kind);
+        return RunWrite(rc, sql, req.Params, ctx, cls.Kind, req.Database);
     }
 
     private QueryOutcome RunRead(ResolvedConnection rc, String sql, QueryRequest req, QueryContext ctx)
@@ -146,7 +147,7 @@ public sealed class DbQueryService
                 outcome.PageSize = pageSize;
             }
             outcome.ElapsedMs = sw.ElapsedMilliseconds;
-            _audit.Write("query", rc.Id, sql, "allow", $"source={ctx.Source} rows={outcome.Rows.Count} truncated={outcome.Truncated} {SqlRedactor.DescribeParams(req.Params)}");
+            _audit.Write("query", rc.Id, sql, "allow", $"source={ctx.Source} rows={outcome.Rows.Count} truncated={outcome.Truncated}{DbTag(req.Database)} {SqlRedactor.DescribeParams(req.Params)}");
             _audit.WriteHistory(rc.Id, sql, "read", outcome.Rows.Count, outcome.ElapsedMs, true, null, ctx.Source);
             return outcome;
         }
@@ -158,7 +159,7 @@ public sealed class DbQueryService
         }
     }
 
-    private QueryOutcome RunWrite(ResolvedConnection rc, String sql, Dictionary<String, Object?>? ps, QueryContext ctx, String kind)
+    private QueryOutcome RunWrite(ResolvedConnection rc, String sql, Dictionary<String, Object?>? ps, QueryContext ctx, String kind, String? database = null)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -168,7 +169,7 @@ public sealed class DbQueryService
             var affected = DbConnectionService.Wrap(rc, () => ps == null || ps.Count == 0
                 ? dal.Execute(body)
                 : dal.Execute(body, CommandType.Text, ps.ToDictionary(k => k.Key, v => v.Value)!));
-            _audit.Write("write_result", rc.Id, sql, "ok", $"source={ctx.Source} affected={affected}");
+            _audit.Write("write_result", rc.Id, sql, "ok", $"source={ctx.Source} affected={affected}{DbTag(database)}");
             _audit.WriteHistory(rc.Id, sql, "write", affected, sw.ElapsedMilliseconds, true, null, ctx.Source);
             return new QueryOutcome { Status = "ok", Kind = kind, AffectedRows = affected, ElapsedMs = sw.ElapsedMilliseconds, Destructive = kind == "destructive" };
         }
@@ -195,6 +196,9 @@ public sealed class DbQueryService
 
     internal static String TrimTrailingSemicolon(String sql) => sql.Trim().TrimEnd(';').TrimEnd();
 
+    /// <summary>审计 detail 的库标记（未指定库时不输出）</summary>
+    internal static String DbTag(String? db) => String.IsNullOrEmpty(db) ? "" : $" db={db}";
+
     /// <summary>仅 SELECT / WITH / VALUES 可包成子查询做服务端分页</summary>
     private static Boolean IsWrappable(String sql)
     {
@@ -206,7 +210,7 @@ public sealed class DbQueryService
     #endregion
 
     #region 审批
-    private QueryOutcome Enqueue(String cid, String sql, Dictionary<String, Object?>? ps, Boolean destructive, QueryContext ctx, String kind)
+    private QueryOutcome Enqueue(String cid, String sql, Dictionary<String, Object?>? ps, Boolean destructive, QueryContext ctx, String kind, String? database = null)
     {
         var a = new DbApproval
         {
@@ -219,8 +223,8 @@ public sealed class DbQueryService
             CreateTime = DateTime.Now,
         };
         a.Insert();
-        _pending[a.Id] = new PendingWrite(cid, sql, ps, destructive, ctx.Source, a.CreateTime);
-        _audit.Write("approval_pending", cid, sql, "ask", $"approvalId={a.Id} destructive={destructive} source={ctx.Source}");
+        _pending[a.Id] = new PendingWrite(cid, sql, ps, destructive, ctx.Source, a.CreateTime, database);
+        _audit.Write("approval_pending", cid, sql, "ask", $"approvalId={a.Id} destructive={destructive} source={ctx.Source}{DbTag(database)}");
         return new QueryOutcome
         {
             Status = "awaiting_approval",
@@ -279,11 +283,11 @@ public sealed class DbQueryService
         var cls = SqlGuard.Classify(p.Sql);
         if (cls.IsRejected) return Reject(p.ConnectionId, p.Sql, cls.Reason, DbErrorCodes.RejectedHard, ctx, cls.Kind);
         ResolvedConnection rc;
-        try { rc = _connections.Resolve(p.ConnectionId); }
+        try { rc = _connections.Resolve(p.ConnectionId, p.Database); }
         catch (DbAdminException ex) { return Error(p.ConnectionId, p.Sql, ex.Code, ex.Message, cls.Kind, ctx); }
         if (rc.Readonly) return Reject(rc.Id, p.Sql, "连接只读", DbErrorCodes.ReadonlyConnection, ctx, cls.Kind);
 
-        var outcome = RunWrite(rc, p.Sql, p.Params, new QueryContext(p.Source, ctx.SessionId), cls.Kind);
+        var outcome = RunWrite(rc, p.Sql, p.Params, new QueryContext(p.Source, ctx.SessionId), cls.Kind, p.Database);
         outcome.ApprovalId = approvalId;
         return outcome;
     }
@@ -320,7 +324,8 @@ public sealed class DbQueryService
         ExpireStale();
         var exp = String.IsNullOrEmpty(status) ? null : DbApproval._.Status == status;
         return DbApproval.FindAll(exp, DbApproval._.Id.Desc(), null, 0, 200)
-            .Select(a => new ApprovalView(a.Id, a.ConnectionId, a.SqlRedacted, PublicKind(a.Kind), a.Destructive || a.Kind == "destructive", a.Status, a.Source, a.CreateTime, a.ResolveTime == DateTime.MinValue ? null : a.ResolveTime))
+            .Select(a => new ApprovalView(a.Id, a.ConnectionId, a.SqlRedacted, PublicKind(a.Kind), a.Destructive || a.Kind == "destructive", a.Status, a.Source, a.CreateTime, a.ResolveTime == DateTime.MinValue ? null : a.ResolveTime,
+                _pending.TryGetValue(a.Id, out var pw) ? pw.Database : null))
             .ToList();
     }
     #endregion

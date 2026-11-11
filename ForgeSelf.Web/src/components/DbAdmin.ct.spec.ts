@@ -207,7 +207,8 @@ test.describe('DbAdmin · S9 多 provider 测连', () => {
     await expect(tid(page, 'test-result')).toHaveClass(/tr-ok/)
     await expect(tid(page, 'test-result')).toContainText('服务器 8.0.36')
     await expect(tid(page, 'cf-untested')).toContainText('未实测')
-    await expect(tid(page, 'cf-provider').locator('option')).toHaveCount(4)
+    // 2026-11-06 providers 第 5 项 Oracle（DriverCatalog oracle）
+    await expect(tid(page, 'cf-provider').locator('option')).toHaveCount(5)
     await expect(root(page)).toHaveScreenshot()
   })
 

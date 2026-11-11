@@ -198,7 +198,7 @@ public sealed class DbConnectionService
 
         if (mode == "form")
         {
-            if (String.IsNullOrWhiteSpace(e.Database)) throw Invalid(e.Provider == "sqlite" ? "SQLite 需填写数据库文件路径（Database）" : "需填写数据库名（Database）");
+            GuardRequiredDatabase(e);
             if (e.Provider != "sqlite" && String.IsNullOrWhiteSpace(e.Host)) throw Invalid("需填写主机（Host）");
             e.ConnStrEnc = null!;
         }
@@ -213,6 +213,16 @@ public sealed class DbConnectionService
     private static Boolean IsUnchanged(String? v) => String.IsNullOrEmpty(v) || v == SqlRedactor.Mask;
 
     private static DbAdminException Invalid(String msg) => new(DbErrorCodes.InvalidRequest, msg);
+
+    /// <summary>Database 必填面：sqlite（库文件路径）与 oracle（服务名）必填；mysql/sqlserver/postgresql 可留空（连上后可枚举/切换数据库）</summary>
+    private static void GuardRequiredDatabase(DbConnection e)
+    {
+        if (String.IsNullOrWhiteSpace(e.Database))
+        {
+            if (e.Provider == "sqlite") throw Invalid("SQLite 需填写数据库文件路径（Database）");
+            if (e.Provider == "oracle") throw Invalid("Oracle 需填写服务名（Database，EZConnect 形如 //host:port/service 中的 service）");
+        }
+    }
 
     /// <summary>防绕过：用户 SQLite 连接不得指向任何系统连接的库文件（否则可借用户连接写宿主库）</summary>
     private void GuardNotSystemFile(DbConnection e)
@@ -248,29 +258,43 @@ public sealed class DbConnectionService
     #endregion
 
     #region 连接串 / 注册
-    /// <summary>构造明文连接串（仅内存使用，绝不落日志 / 审计）</summary>
-    public String BuildConnStr(DbConnection e)
+    /// <summary>构造明文连接串（仅内存使用，绝不落日志 / 审计）。database=null 时行为与旧版一致。</summary>
+    public String BuildConnStr(DbConnection e) => BuildConnStr(e, null);
+
+    /// <summary>构造明文连接串。database 非空 = 切到目标库（仅 mysql/sqlserver/postgresql 支持，调用方 Resolve 已校验）。</summary>
+    public String BuildConnStr(DbConnection e, String? database)
     {
-        if (e.Mode == "connstr") return _protector.Unprotect(e.ConnStrEnc) ?? "";
+        if (e.Mode == "connstr") return RewriteConnStrDatabase(_protector.Unprotect(e.ConnStrEnc) ?? "", e.Provider, database);
         var pwd = SafeUnprotect(e.PasswordEnc) ?? "";
         var b = new DbConnectionStringBuilder();
+        var db = String.IsNullOrWhiteSpace(database) ? e.Database : database.Trim();
         switch (e.Provider)
         {
             case "sqlite":
                 b["Data Source"] = e.Database;
                 break;
             case "mysql":
-                b["Server"] = e.Host; b["Port"] = e.Port > 0 ? e.Port : 3306; b["Database"] = e.Database;
+                b["Server"] = e.Host; b["Port"] = e.Port > 0 ? e.Port : 3306;
                 b["Uid"] = e.UserName; b["Pwd"] = pwd;
+                // 库名可留空：不选库直接连上，SHOW DATABASES 枚举后再切
+                if (!String.IsNullOrWhiteSpace(db)) b["Database"] = db;
                 break;
             case "postgresql":
-                b["Server"] = e.Host; b["Port"] = e.Port > 0 ? e.Port : 5432; b["Database"] = e.Database;
+                b["Server"] = e.Host; b["Port"] = e.Port > 0 ? e.Port : 5432;
+                b["Database"] = String.IsNullOrWhiteSpace(db) ? "postgres" : db; // 空库回落维护库 postgres
                 b["User Id"] = e.UserName; b["Password"] = pwd;
                 break;
             case "sqlserver":
                 b["Data Source"] = e.Port > 0 ? $"{e.Host},{e.Port}" : e.Host;
-                b["Initial Catalog"] = e.Database; b["User ID"] = e.UserName; b["Password"] = pwd;
+                // 库名可留空：登录默认库，sys.databases 枚举后再切
+                if (!String.IsNullOrWhiteSpace(db)) b["Initial Catalog"] = db;
+                b["User ID"] = e.UserName; b["Password"] = pwd;
                 b["TrustServerCertificate"] = "true";
+                break;
+            case "oracle":
+                // ODP.NET EZConnect：//host:port/service（port 缺省 1521）；TNS 别名/完整描述符走 connstr 模式
+                b["Data Source"] = $"//{e.Host}:{(e.Port > 0 ? e.Port : 1521)}/{e.Database}";
+                b["User Id"] = e.UserName; b["Password"] = pwd;
                 break;
             default:
                 throw Invalid($"不支持的 provider：{e.Provider}");
@@ -278,15 +302,53 @@ public sealed class DbConnectionService
         return b.ConnectionString;
     }
 
+    /// <summary>connstr 模式指定数据库：改写/补写库关键字（mysql/postgresql=Database，sqlserver=Initial Catalog）</summary>
+    private static String RewriteConnStrDatabase(String connStr, String? provider, String? database)
+    {
+        if (String.IsNullOrWhiteSpace(database)) return connStr;
+        var key = provider switch
+        {
+            "mysql" or "postgresql" => "Database",
+            "sqlserver" => "Initial Catalog",
+            _ => null,
+        };
+        if (key == null) throw Invalid("该 provider 不支持指定数据库");
+        try
+        {
+            var b = new DbConnectionStringBuilder { ConnectionString = connStr };
+            b[key] = database.Trim();
+            return b.ConnectionString;
+        }
+        catch (Exception ex)
+        {
+            throw Invalid($"连接串无法解析，无法切换数据库：{SqlRedactor.RedactText(ex.Message)}");
+        }
+    }
+
+    /// <summary>多库派生连接名：DbAdminU_{id}__D{净化库名}_{8位稳定哈希}。哈希保证不同库（含仅大小写差异）不共用 ConnName。</summary>
+    internal static String DeriveConnName(Int32 id, String database)
+    {
+        var raw = database.Trim();
+        var sb = new System.Text.StringBuilder(raw.Length);
+        foreach (var ch in raw) sb.Append(char.IsAsciiLetterOrDigit(ch) || ch == '_' ? ch : '_');
+        var name = sb.ToString();
+        if (name.Length > 40) name = name[..40];
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)), 0, 4).ToLowerInvariant();
+        return $"{UserConnPrefix}{id}__D{name}_{hash}";
+    }
+
     /// <summary>
     /// 解析连接标识 → 已注册的 ConnName（用户连接首次 AddConnStr）。
+    /// database 非空时按库派生独立 ConnName（DbAdminU_{id}__D{净化库名}_{哈希}），实现一连接多库；
+    /// 系统连接 / SQLite（仅 main）/ Oracle（不支持切换）会抛 invalid_request。
     /// 驱动预检开启且缺失时抛 driver_missing；关闭时（当前默认）交给 XCode 在连接期自行获取驱动。
     /// </summary>
-    public ResolvedConnection Resolve(String? id)
+    public ResolvedConnection Resolve(String? id, String? database = null)
     {
         if (String.IsNullOrWhiteSpace(id)) throw new DbAdminException(DbErrorCodes.InvalidRequest, "connectionId 不能为空");
         if (id.StartsWith(SystemIdPrefix, StringComparison.Ordinal))
         {
+            if (!String.IsNullOrWhiteSpace(database)) throw Invalid("系统连接不支持指定数据库（sys:* 恒为单库只读）");
             var name = id[SystemIdPrefix.Length..];
             if (!_systemConnNames().Contains(name, StringComparer.Ordinal)) throw NotFound(id);
             return new ResolvedConnection(id, name, true, true, SystemView(name).Provider);
@@ -295,11 +357,26 @@ public sealed class DbConnectionService
         var def = DriverCatalog.Find(e.Provider) ?? throw Invalid($"不支持的 provider：{e.Provider}");
         if (DriverCatalog.ProbeEnabled && !_driverProbe.IsAvailable(def))
             throw new DbAdminException(DbErrorCodes.DriverMissing, DriverCatalog.DriverMissingMessage(def));
-        var connStr = BuildConnStr(e);
+        var targetDb = NormalizeTargetDatabase(def, database);
+        var connStr = BuildConnStr(e, targetDb);
         EnsureSqliteFileExists(def, connStr);
-        var connName = UserConnPrefix + e.Id;
+        var connName = targetDb == null ? UserConnPrefix + e.Id : DeriveConnName(e.Id, targetDb);
         Register(connName, connStr, def);
         return new ResolvedConnection(id, connName, false, e.Readonly, def.Id);
+    }
+
+    /// <summary>校验「切换数据库」参数：null/空 = 连接默认库；sqlite 仅接受 main（归一为默认）；oracle 不支持切换</summary>
+    private static String? NormalizeTargetDatabase(ProviderDef def, String? database)
+    {
+        var db = database?.Trim();
+        if (String.IsNullOrEmpty(db)) return null;
+        return def.Id switch
+        {
+            "sqlite" when db.Equals("main", StringComparison.OrdinalIgnoreCase) => null,
+            "sqlite" => throw Invalid("SQLite 连接不支持切换数据库（一个库文件即一个库，仅 main）"),
+            "oracle" => throw Invalid("Oracle 连接不支持切换数据库（枚举到的是 schema，查询请显式写 schema.table）"),
+            _ => db,
+        };
     }
 
     private static void EnsureSqliteFileExists(ProviderDef def, String connStr)
@@ -438,7 +515,7 @@ public sealed class DbConnectionService
         if (!IsUnchanged(input.Password)) e.PasswordEnc = _protector.Protect(input.Password)!;
         if (!IsUnchanged(input.ConnStr)) e.ConnStrEnc = _protector.Protect(input.ConnStr)!;
         if (e.Mode == "connstr" && String.IsNullOrEmpty(e.ConnStrEnc)) throw Invalid("connstr 模式需填写连接串");
-        if (e.Mode == "form" && String.IsNullOrWhiteSpace(e.Database)) throw Invalid("需填写 Database");
+        if (e.Mode == "form") GuardRequiredDatabase(e);
     }
 
     private static DbConnection Clone(DbConnection s) => new()
@@ -449,17 +526,17 @@ public sealed class DbConnectionService
     #endregion
 
     #region Schema
-    public IReadOnlyList<TableSummary> ListTables(String id)
+    public IReadOnlyList<TableSummary> ListTables(String id, String? database = null)
     {
-        var rc = Resolve(id);
+        var rc = Resolve(id, database);
         var tables = Wrap(rc, () => DAL.Create(rc.ConnName).Db.CreateMetaData().GetTables());
         return tables.OrderBy(t => t.TableName, StringComparer.OrdinalIgnoreCase)
             .Select(t => new TableSummary(t.TableName, t.IsView, t.Description, t.Columns.Count)).ToList();
     }
 
-    public TableDetail DescribeTable(String id, String table)
+    public TableDetail DescribeTable(String id, String table, String? database = null)
     {
-        var rc = Resolve(id);
+        var rc = Resolve(id, database);
         var tables = Wrap(rc, () => DAL.Create(rc.ConnName).Db.CreateMetaData().GetTables());
         var t = tables.FirstOrDefault(x => String.Equals(x.TableName, table, StringComparison.OrdinalIgnoreCase))
             ?? throw new DbAdminException(DbErrorCodes.NotFound, $"表不存在：{table}");
@@ -490,5 +567,56 @@ public sealed class DbConnectionService
         var msg = SqlRedactor.RedactText(ex.GetBaseException().Message);
         return String.IsNullOrWhiteSpace(msg) ? ex.GetBaseException().GetType().Name : msg;
     }
+    #endregion
+
+    #region 多数据库
+    /// <summary>
+    /// 枚举连接可见的数据库（mysql / sqlserver / postgresql）或 schema（Oracle，kind=schema，默认 schema=登录用户名）。
+    /// SQLite 恒返回 [main]（kind=main）。系统连接不支持枚举（invalid_request）。
+    /// </summary>
+    public DatabaseList ListDatabases(String id)
+    {
+        if (id.StartsWith(SystemIdPrefix, StringComparison.Ordinal))
+            throw Invalid("系统连接不支持枚举数据库（sys:* 恒为单库只读）");
+        var e = LoadUser(id);
+        var def = DriverCatalog.Find(e.Provider) ?? throw Invalid($"不支持的 provider：{e.Provider}");
+        if (def.Id == "sqlite")
+            return new DatabaseList(id, "sqlite", e.Database, [new DatabaseInfo("main", "main", true, false)]);
+        var rc = Resolve(id);
+        var defaultDb = def.Id == "oracle" ? e.UserName?.Trim() : (String.IsNullOrWhiteSpace(e.Database) ? null : e.Database!.Trim());
+        (String sql, String col, String kind) = def.Id switch
+        {
+            "mysql" => ("SHOW DATABASES", "Database", "database"),
+            "sqlserver" => ("SELECT name FROM sys.databases WHERE state = 0 AND HAS_DBACCESS(name) = 1 ORDER BY name", "name", "database"),
+            "postgresql" => ("SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY datname", "datname", "database"),
+            "oracle" => ("SELECT username FROM all_users ORDER BY username", "username", "schema"),
+            _ => throw Invalid($"不支持的 provider：{def.Id}"),
+        };
+        var dt = Wrap(rc, () => DAL.Create(rc.ConnName).Query(sql, (Dictionary<String, Object?>?)null));
+        var cols = (dt.Columns ?? []).ToList();
+        var idx = cols.FindIndex(c => c.Equals(col, StringComparison.OrdinalIgnoreCase));
+        if (idx < 0) idx = 0;
+        var items = (dt.Rows ?? [])
+            .Select(r => r.ElementAtOrDefault(idx)?.ToString() ?? "")
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .Select(n => new DatabaseInfo(n, kind,
+                defaultDb != null && String.Equals(n, defaultDb, def.Id == "sqlserver" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
+                IsSystemDatabase(def.Id, n)))
+            .ToList();
+        return new DatabaseList(id, def.Id, defaultDb, items);
+    }
+
+    /// <summary>系统库标记（仅提示，不禁止访问）</summary>
+    private static Boolean IsSystemDatabase(String provider, String n) => provider switch
+    {
+        "mysql" => n.Equals("information_schema", StringComparison.OrdinalIgnoreCase) || n.Equals("mysql", StringComparison.OrdinalIgnoreCase)
+            || n.Equals("performance_schema", StringComparison.OrdinalIgnoreCase) || n.Equals("sys", StringComparison.OrdinalIgnoreCase),
+        "sqlserver" => n.Equals("master", StringComparison.OrdinalIgnoreCase) || n.Equals("tempdb", StringComparison.OrdinalIgnoreCase)
+            || n.Equals("model", StringComparison.OrdinalIgnoreCase) || n.Equals("msdb", StringComparison.OrdinalIgnoreCase),
+        "postgresql" => n.Equals("postgres", StringComparison.OrdinalIgnoreCase),
+        _ => false,
+    };
     #endregion
 }

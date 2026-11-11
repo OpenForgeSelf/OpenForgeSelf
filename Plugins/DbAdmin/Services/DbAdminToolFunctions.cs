@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ForgeSelf.Api.Plugins.DbAdmin.Services;
 
 /// <summary>
-/// DbAdmin Agent 工具（docs/04 §4、docs/07）。七件：db_list_connections / db_list_tables / db_describe_table /
+/// DbAdmin Agent 工具（docs/04 §4、docs/07）。八件：db_list_connections / db_list_databases / db_list_tables / db_describe_table /
 /// db_query_readonly / db_execute_write / db_set_permission_mode / db_resolve_approval。
 /// <para>统一回包：成功 <c>{success:true, tool, status, data, hint?}</c>；失败 <c>{success:false, tool, status, code, message, hint}</c>。
 /// hint 永远给“下一步该做什么”，便于模型自我纠正。</para>
@@ -377,17 +377,19 @@ public sealed class DbListConnectionsTool(string pluginId, IServiceProvider? ser
     }
 }
 
-/// <summary>db_list_tables</summary>
-public sealed class DbListTablesTool(string pluginId, IServiceProvider? services) : DbToolBase(pluginId, services)
+/// <summary>db_list_databases</summary>
+public sealed class DbListDatabasesTool(string pluginId, IServiceProvider? services) : DbToolBase(pluginId, services)
 {
-    public override string Name => "db_list_tables";
+    public override string Name => "db_list_databases";
     public override string Description =>
-        "列出某个连接下的表和视图（只读，无副作用）。返回表名、类型（table/view）、注释。connectionId 来自 db_list_connections（系统库形如 \"sys:Name\"，用户连接为数字串）。看列结构请再调用 db_describe_table。";
+        "列出一个连接可见的数据库（只读，无副作用）：mysql/sqlserver/postgresql 返回库列表（kind=database），Oracle 返回 schema 列表（kind=schema），SQLite 恒返回 [main]（kind=main）。" +
+        "返回 name、kind、isDefault（连接上配置的默认库/默认 schema）、isSystem（系统库，仅提示不禁止访问）。" +
+        "切换库：把选中的 name 传给 db_list_tables / db_describe_table / db_query_readonly / db_execute_write 的可选 database 参数。系统连接（sys:*）不支持枚举。";
     public override string ParametersJsonSchema => """
     {
       "type": "object",
       "properties": {
-        "connectionId": { "type": "string", "description": "连接 id，来自 db_list_connections，如 \"sys:Membership\" 或 \"3\"" }
+        "connectionId": { "description": "连接 id，来自 db_list_connections（数字或字符串均可；不接受 sys:*）" }
       },
       "required": ["connectionId"]
     }
@@ -396,8 +398,38 @@ public sealed class DbListTablesTool(string pluginId, IServiceProvider? services
     protected override Object Invoke(DbAdminAgentService svc, JsonElement args)
     {
         var cid = RequireString(args, "connectionId");
-        var tables = svc.ListTables(cid);
-        return DbToolJson.Ok(Name, new Dictionary<String, Object?> { ["connectionId"] = cid, ["tables"] = tables, ["count"] = tables.Count },
+        var d = svc.ListDatabases(cid);
+        return DbToolJson.Ok(Name, d,
+            d.Databases.Count == 0
+                ? "未枚举到任何数据库（账号可能无可见库）。请让用户检查连接账号权限。"
+                : "下一步：用 db_list_tables(connectionId, database) 查看目标库的表；不传 database 则用默认库。");
+    }
+}
+
+/// <summary>db_list_tables</summary>
+public sealed class DbListTablesTool(string pluginId, IServiceProvider? services) : DbToolBase(pluginId, services)
+{
+    public override string Name => "db_list_tables";
+    public override string Description =>
+        "列出某个连接下的表和视图（只读，无副作用）。返回表名、类型（table/view）、注释。connectionId 来自 db_list_connections（系统库形如 \"sys:Name\"，用户连接为数字串，传数字或字符串均可）。" +
+        "一连接多库时可用 database 参数选库（先 db_list_databases 枚举）。看列结构请再调用 db_describe_table。";
+    public override string ParametersJsonSchema => """
+    {
+      "type": "object",
+      "properties": {
+        "connectionId": { "description": "连接 id，来自 db_list_connections，如 \"sys:Membership\" 或 3（数字或字符串均可）" },
+        "database": { "description": "可选：数据库名，一连接多库时切换（先 db_list_databases 枚举）。缺省用连接默认库；Oracle/SQLite/系统连接不支持切换" }
+      },
+      "required": ["connectionId"]
+    }
+    """;
+
+    protected override Object Invoke(DbAdminAgentService svc, JsonElement args)
+    {
+        var cid = RequireString(args, "connectionId");
+        var database = OptString(args, "database");
+        var tables = svc.ListTables(cid, database);
+        return DbToolJson.Ok(Name, new Dictionary<String, Object?> { ["connectionId"] = cid, ["database"] = database, ["tables"] = tables, ["count"] = tables.Count },
             tables.Count == 0 ? "该连接下没有表。" : "下一步：db_describe_table(connectionId, table) 看列与索引，然后用 db_query_readonly 查询。");
     }
 }
@@ -412,8 +444,9 @@ public sealed class DbDescribeTableTool(string pluginId, IServiceProvider? servi
     {
       "type": "object",
       "properties": {
-        "connectionId": { "type": "string", "description": "连接 id，来自 db_list_connections" },
-        "table": { "type": "string", "description": "表名或视图名，来自 db_list_tables" }
+        "connectionId": { "description": "连接 id，来自 db_list_connections（数字或字符串均可）" },
+        "table": { "type": "string", "description": "表名或视图名，来自 db_list_tables；Oracle 跨 schema 时写 SCHEMA.TABLE" },
+        "database": { "description": "可选：数据库名，一连接多库时切换（先 db_list_databases 枚举）。缺省用连接默认库；Oracle/SQLite/系统连接不支持切换" }
       },
       "required": ["connectionId", "table"]
     }
@@ -423,7 +456,8 @@ public sealed class DbDescribeTableTool(string pluginId, IServiceProvider? servi
     {
         var cid = RequireString(args, "connectionId");
         var table = RequireString(args, "table");
-        return DbToolJson.Ok(Name, svc.DescribeTable(cid, table), "下一步：用 db_query_readonly 查询，例如 SELECT 需要的列 FROM 表 WHERE … LIMIT 50。");
+        var database = OptString(args, "database");
+        return DbToolJson.Ok(Name, svc.DescribeTable(cid, table, database), "下一步：用 db_query_readonly 查询，例如 SELECT 需要的列 FROM 表 WHERE … LIMIT 50。");
     }
 }
 
@@ -443,10 +477,11 @@ public sealed class DbQueryReadonlyTool(string pluginId, IServiceProvider? servi
     {
       "type": "object",
       "properties": {
-        "connectionId": { "type": "string", "description": "连接 id，来自 db_list_connections" },
+        "connectionId": { "description": "连接 id，来自 db_list_connections（数字或字符串均可）" },
         "sql": { "type": "string", "description": "单条 SELECT 或 WITH…SELECT 语句，参数写 @name" },
         "params": { "type": "object", "description": "参数值，如 {\"id\": 1, \"name\": \"abc\"}；只收字符串/数字/布尔/null", "additionalProperties": true },
         "maxRows": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "最多返回行数，默认 200，硬上限 1000" },
+        "database": { "description": "可选：数据库名，一连接多库时切换（先 db_list_databases 枚举）。缺省用连接默认库；Oracle/SQLite/系统连接不支持切换" },
         "sessionId": { "type": "string", "description": "当前对话会话 Id（可选，用于审计回显）" }
       },
       "required": ["connectionId", "sql"]
@@ -459,7 +494,8 @@ public sealed class DbQueryReadonlyTool(string pluginId, IServiceProvider? servi
         var sql = RequireString(args, "sql");
         var ps = OptParams(args);
         var maxRows = Math.Clamp(OptInt32(args, "maxRows") ?? DefaultMaxRows, 1, ResultLimiter.AgentMaxRows);
-        var o = svc.QueryReadonlyStrict(cid, sql, ps, SessionOrDefault(args), maxRows);
+        var database = OptString(args, "database");
+        var o = svc.QueryReadonlyStrict(cid, sql, ps, SessionOrDefault(args), maxRows, database);
         if (o.Status != "ok") return DbToolJson.FromOutcome(Name, o);
         var masked = DbToolJson.MaskSecretColumns(o);
         DbToolJson.EnforceByteLimit(o);
@@ -480,9 +516,10 @@ public sealed class DbExecuteWriteTool(string pluginId, IServiceProvider? servic
     {
       "type": "object",
       "properties": {
-        "connectionId": { "type": "string", "description": "用户连接 id（数字串），来自 db_list_connections；sys:* 系统库只读" },
+        "connectionId": { "description": "用户连接 id（数字或字符串均可），来自 db_list_connections；sys:* 系统库只读" },
         "sql": { "type": "string", "description": "单条写语句；UPDATE/DELETE 必须带 WHERE；参数写 @name" },
         "params": { "type": "object", "description": "参数值，如 {\"id\": 1}", "additionalProperties": true },
+        "database": { "description": "可选：数据库名，一连接多库时切换（先 db_list_databases 枚举）。审批通过后仍会落到同一个库；Oracle/SQLite/系统连接不支持切换" },
         "sessionId": { "type": "string", "description": "当前对话会话 Id（决定生效的会话级权限模式，并用于审计回显）" }
       },
       "required": ["connectionId", "sql"]
@@ -493,7 +530,8 @@ public sealed class DbExecuteWriteTool(string pluginId, IServiceProvider? servic
     {
         var cid = RequireString(args, "connectionId");
         var sql = RequireString(args, "sql");
-        var o = svc.ExecuteWriteStrict(cid, sql, OptParams(args), SessionOrDefault(args));
+        var database = OptString(args, "database");
+        var o = svc.ExecuteWriteStrict(cid, sql, OptParams(args), SessionOrDefault(args), database);
         return DbToolJson.FromOutcome(Name, o);
     }
 }
@@ -578,6 +616,7 @@ public static class DbAdminTools
     public static IReadOnlyList<IToolFunctionExtension> Create(string pluginId, IServiceProvider? services) =>
     [
         new DbListConnectionsTool(pluginId, services),
+        new DbListDatabasesTool(pluginId, services),
         new DbListTablesTool(pluginId, services),
         new DbDescribeTableTool(pluginId, services),
         new DbQueryReadonlyTool(pluginId, services),

@@ -59,10 +59,10 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
     private const String SysId = DbConnectionService.SystemIdPrefix + DbAdminTestFixture.SystemConnName;
 
     [Fact]
-    public void Tools_SevenWithDbPrefix_IdsAndSchemas()
+    public void Tools_EightWithDbPrefix_IdsAndSchemas()
     {
         var tools = DbAdminTools.Create("db-admin", null);
-        Assert.Equal(7, tools.Count);
+        Assert.Equal(8, tools.Count);
         Assert.Equal("db", ToolNamespace.PrefixByPluginId["db-admin"]);
         foreach (var t in tools)
         {
@@ -74,7 +74,7 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
             using var schema = JsonDocument.Parse(t.ParametersJsonSchema);
             Assert.Equal("object", schema.RootElement.GetProperty("type").GetString());
         }
-        Assert.Equal(new[] { "db_list_connections", "db_list_tables", "db_describe_table", "db_query_readonly", "db_execute_write", "db_set_permission_mode", "db_resolve_approval" },
+        Assert.Equal(new[] { "db_list_connections", "db_list_databases", "db_list_tables", "db_describe_table", "db_query_readonly", "db_execute_write", "db_set_permission_mode", "db_resolve_approval" },
             tools.Select(t => t.Name));
     }
 
@@ -404,5 +404,30 @@ public class DbAdminToolFunctionTests(DbAdminTestFixture fx)
         Assert.Equal("db_query_readonly", items[0].Tool);
         Assert.Equal(DbAgentCodes.NotReadonlySql, items[1].Code);
         Assert.Equal("awaiting_approval", items[2].Status);
+    }
+
+    // —— connectionId 数字直传（2026-11-07 输入4）机制级：网关 type 后插件双收（mini-task 方案A 判据）——
+
+    [Fact]
+    public void ConnectionId_NumberDirect_QueryReadonly_And_ListTables_Ok()
+    {
+        var tools = Tools(fx);
+        var cid = NewUserConn(fx, 2);
+        var q = Call(tools, "db_query_readonly", new { connectionId = Int32.Parse(cid), sql = "SELECT id FROM items", sessionId = Sid() });
+        Assert.True(q.GetProperty("success").GetBoolean(), q.GetRawText());
+        Assert.Equal(2, q.GetProperty("data").GetProperty("rowCount").GetInt32());
+
+        var t = Call(tools, "db_list_tables", new { connectionId = Int32.Parse(cid) });
+        Assert.True(t.GetProperty("success").GetBoolean(), t.GetRawText());
+        Assert.Contains("items", t.GetRawText());
+    }
+
+    [Fact]
+    public void ConnectionId_BooleanStillRejected_AtPluginLayer()
+    {
+        var tools = Tools(fx);
+        var b = Call(tools, "db_list_tables", new { connectionId = true });
+        Assert.False(b.GetProperty("success").GetBoolean());
+        Assert.Contains("connectionId", b.GetProperty("message").GetString());
     }
 }

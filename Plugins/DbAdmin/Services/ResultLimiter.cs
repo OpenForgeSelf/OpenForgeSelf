@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DbAdmin.Services;
 
@@ -34,12 +35,12 @@ public static class ResultLimiter
     public static (List<Object?[]> Rows, Boolean Truncated) Limit(IEnumerable<Object?[]> rows, IReadOnlyList<String> columns, Int32 maxRows, Int32 maxBytes)
     {
         var result = new List<Object?[]>();
-        Int64 bytes = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(columns)) + 256; // 外层包装余量
+        Int64 bytes = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(columns, ForgeJson.Default)) + 256; // 外层包装余量
         var truncated = false;
         foreach (var r in rows)
         {
             if (result.Count >= maxRows) { truncated = true; break; }
-            var size = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(r)) + 1;
+            var size = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(r, ForgeJson.Default)) + 1;
             if (bytes + size > maxBytes) { truncated = true; break; }
             bytes += size;
             result.Add(r);

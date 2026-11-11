@@ -63,11 +63,15 @@ public class DbAdminController(DbConnectionService connections, DbQueryService q
     [HttpPost("connections/test")]
     public IActionResult TestConnection([FromBody] ConnectionInput input) => Ok(connections.Test(input));
 
+    /// <summary>枚举连接可见的数据库（mysql/sqlserver/postgresql）或 schema（Oracle）；SQLite 恒 [main]</summary>
+    [HttpGet("connections/{id}/databases")]
+    public IActionResult Databases(String id) => Run(() => connections.ListDatabases(id));
+
     [HttpGet("connections/{id}/tables")]
-    public IActionResult Tables(String id) => Run(() => connections.ListTables(id));
+    public IActionResult Tables(String id, [FromQuery] String? database) => Run(() => connections.ListTables(id, database));
 
     [HttpGet("connections/{id}/tables/{table}")]
-    public IActionResult Table(String id, String table) => Run(() => connections.DescribeTable(id, table));
+    public IActionResult Table(String id, String table, [FromQuery] String? database) => Run(() => connections.DescribeTable(id, table, database));
 
     /// <summary>
     /// 执行 SQL。200 = ok / rejected（业务拒绝，看 code）；202 = awaiting_approval；error 按 code 映射状态码，

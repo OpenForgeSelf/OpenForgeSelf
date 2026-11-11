@@ -4,7 +4,7 @@
  */
 
 /** provider id 以后端小写为准；展示名见 connForm.PROVIDER_LABELS / providers[].displayName */
-export type ProviderId = 'sqlite' | 'mysql' | 'postgresql' | 'sqlserver' | (string & {})
+export type ProviderId = 'sqlite' | 'mysql' | 'postgresql' | 'sqlserver' | 'oracle' | (string & {})
 export type ConnMode = 'form' | 'connstr'
 /** 后端原始 JSON 对象（fixture 与联调样本按此形态写，经 normalize 进入 UI） */
 export type BackendJson = Record<string, unknown>

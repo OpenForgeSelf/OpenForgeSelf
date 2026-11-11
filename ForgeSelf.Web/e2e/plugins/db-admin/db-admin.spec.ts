@@ -176,7 +176,9 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await tid(page, 'table-filter').fill('no-such-table')
     await expect(tid(page, 'table-filter-empty')).toContainText('无匹配表')
     await tid(page, 'table-filter').fill('')
-    await expect(page.locator('[data-testid^="table-"]').first()).toBeVisible()
+    // 同类修复（2026-11-06 oracle 批暴露）：前缀选择器会命中恒渲染的 table-filter 输入框（table-filter-empty 同理），
+    // 收紧为表行节点 .node.table[data-testid^="table-"]
+    await expect(page.locator('.node.table[data-testid^="table-"]').first()).toBeVisible()
 
     // ④.2 默认表（FR-8~10 / AC-9~12）：连接可配「打开即查询的表」，留空则点连接只展开加载全部表
     const connEditorEntry = connItem.locator('button[title="编辑连接"]')
@@ -196,7 +198,7 @@ test.describe('DbAdmin · 冒烟主链路', () => {
     await expect(tid(page, 'workspace-empty')).toBeVisible()
     // 连接当前是展开状态：先点一次收起，再点一次展开 → 展开动作才带出默认表标签（FR-7）
     await connItem.click()
-    await expect(page.locator('[data-testid^="table-"]')).toHaveCount(0)
+    await expect(page.locator('.node.table[data-testid^="table-"]')).toHaveCount(0)
     await connItem.click()
     await expect(tid(page, 'query-tabs')).toBeVisible({ timeout: 30_000 })
     await expect(editor).toHaveValue('SELECT * FROM e2e_items')

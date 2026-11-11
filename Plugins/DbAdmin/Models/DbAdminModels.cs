@@ -110,6 +110,12 @@ public record IndexInfo(String? Name, String[] Columns, Boolean Unique, Boolean 
 
 public record TableDetail(String Name, Boolean IsView, String? Description, IReadOnlyList<ColumnInfo> Columns, IReadOnlyList<String> PrimaryKeys, IReadOnlyList<IndexInfo> Indexes);
 
+/// <summary>数据库条目（一连接多库枚举）。kind：database / schema（Oracle）/ main（SQLite）；isSystem 仅提示，不禁止访问</summary>
+public record DatabaseInfo(String Name, String Kind, Boolean IsDefault, Boolean IsSystem);
+
+/// <summary>连接的多数据库枚举结果。DefaultDatabase：连接上配置的默认库（Oracle 为默认 schema=登录用户名；未配置为 null）</summary>
+public record DatabaseList(String ConnectionId, String Provider, String? DefaultDatabase, IReadOnlyList<DatabaseInfo> Databases);
+
 /// <summary>SQL 执行请求</summary>
 public class QueryRequest
 {
@@ -121,6 +127,8 @@ public class QueryRequest
     public Int32 Page { get; set; } = 1;
     /// <summary>每页条数（UI，50/100/500，上限 500）</summary>
     public Int32 PageSize { get; set; } = 50;
+    /// <summary>可选：指定数据库（一连接多库时切换；缺省用连接默认库。Oracle/SQLite/系统连接不支持，返回 invalid_request）</summary>
+    public String? Database { get; set; }
 }
 
 /// <summary>调用上下文（来源 + 会话，用于会话级权限模式）</summary>
@@ -154,8 +162,8 @@ public class QueryOutcome
     public Boolean Destructive { get; set; }
 }
 
-/// <summary>审批视图</summary>
-public record ApprovalView(Int64 Id, String? ConnectionId, String? SqlRedacted, String? Kind, Boolean Destructive, String Status, String? Source, DateTime CreateTime, DateTime? ResolveTime);
+/// <summary>审批视图。Database：提交时指定的目标库（仅待审批且进程未重启时可回显；已处理/过期/重启后为 null）</summary>
+public record ApprovalView(Int64 Id, String? ConnectionId, String? SqlRedacted, String? Kind, Boolean Destructive, String Status, String? Source, DateTime CreateTime, DateTime? ResolveTime, String? Database = null);
 
 /// <summary>审批处理请求</summary>
 public class ApprovalResolveInput

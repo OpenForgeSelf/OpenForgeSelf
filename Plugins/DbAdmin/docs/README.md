@@ -16,7 +16,7 @@
 
 - 执行：XCode `DAL`（`DAL.AddConnStr` → `DAL.Create` → `Tables` / `Query` / `Execute`，参数化）  
 - 系统库只读；用户连接 ConnName `DbAdminU_*`  
-- 引擎：SQLite（实测）；MySQL / PostgreSQL / SQL Server 等（未实测，需额外 NuGet + `CopyLocalLockFileAssemblies`）
+- 引擎：SQLite（实测）；MySQL / PostgreSQL / SQL Server / Oracle 等（未实测；驱动不随插件打包，2026-11-06 起驱动预检关闭，由 XCode 连接期获取，失败回显底层错误）
 
 ## Agent 工具
 

@@ -2,11 +2,11 @@
 import type { DbConnection, DbConnectionInput, DbProvider } from './types'
 
 /** provider id 以后端小写为准（§3.1）；后端 providers[].defaultPort 优先 */
-export const DEFAULT_PORTS: Record<string, number> = { mysql: 3306, postgresql: 5432, sqlserver: 1433 }
+export const DEFAULT_PORTS: Record<string, number> = { mysql: 3306, postgresql: 5432, sqlserver: 1433, oracle: 1521 }
 
 /** 前端自带展示名（providers 列表未加载 / 连接上只有 id 时用） */
 export const PROVIDER_LABELS: Record<string, string> = {
-  sqlite: 'SQLite', mysql: 'MySQL / MariaDB', postgresql: 'PostgreSQL', sqlserver: 'SQL Server',
+  sqlite: 'SQLite', mysql: 'MySQL / MariaDB', postgresql: 'PostgreSQL', sqlserver: 'SQL Server', oracle: 'Oracle',
 }
 
 export function providerLabel(id: string | undefined, providers: Pick<DbProvider, 'id' | 'displayName'>[] = []): string {
@@ -63,6 +63,13 @@ export function validateForm(f: DbConnectionInput, editing: boolean): string | n
 /** 表单 → 连接串（切到「连接串」模式时预填；输入框始终遮罩） */
 export function buildConnStr(f: DbConnectionInput): string {
   if (isSqlite(f.provider)) return `Data Source=${f.database ?? ''}`
+  if ((f.provider ?? '').toLowerCase() === 'oracle') {
+    // ODP.NET EZConnect，与服务端 BuildConnStr oracle 分支同构
+    const port = f.port || 1521
+    return [`Data Source=//${f.host ?? ''}:${port}/${f.database ?? ''}`,
+      f.userName ? `User Id=${f.userName}` : '',
+      f.password ? `Password=${f.password}` : ''].filter(Boolean).join(';')
+  }
   const parts = [
     `Server=${f.host ?? ''}`,
     f.port ? `Port=${f.port}` : '',

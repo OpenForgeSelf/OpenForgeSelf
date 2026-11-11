@@ -37,6 +37,10 @@ public static class DriverCatalog
             ["Npgsql.NpgsqlFactory, Npgsql"]),
         new("sqlserver", "SQL Server", "SqlServer", 1433, false, "Microsoft.Data.SqlClient",
             ["Microsoft.Data.SqlClient.SqlClientFactory, Microsoft.Data.SqlClient", "System.Data.SqlClient.SqlClientFactory, System.Data.SqlClient"]),
+        // 2026-11-06 用户输入：增加 Oracle 类型（XCode 内置 XCode.DataAccessLayer.Oracle，走 ODP.NET Managed Driver；
+        // 驱动不随插件打包，缺驱动时由连接期失败回显——与驱动预检关闭决策一致）
+        new("oracle", "Oracle", "Oracle", 1521, false, "Oracle.ManagedDataAccess",
+            ["Oracle.ManagedDataAccess.Client.OracleClientFactory, Oracle.ManagedDataAccess"]),
     ];
 
     public static ProviderDef? Find(String? id) =>

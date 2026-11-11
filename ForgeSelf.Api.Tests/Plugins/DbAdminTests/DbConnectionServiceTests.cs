@@ -144,6 +144,43 @@ public class DbConnectionServiceTests(DbAdminTestFixture fx)
     }
 
     [Fact]
+    public void Oracle_ProviderRegistered_AndConnStrBuilt()
+    {
+        // 目录项：id/XCodeProvider/默认端口/未实测
+        var def = DriverCatalog.Find("oracle");
+        Assert.NotNull(def);
+        Assert.Equal("Oracle", def!.XCodeProvider);
+        Assert.Equal(1521, def.DefaultPort);
+        Assert.False(def.Tested);
+        Assert.Contains(fx.Connections.ListProviders(), p => p.Id == "oracle" && p.DefaultPort == 1521 && !p.Tested);
+
+        // 表单连接：EZConnect 连接串构造（host:port/service + User Id/Password）
+        var v = fx.Connections.Create(new ConnectionInput
+        {
+            Name = DbAdminTestFixture.UniqueName("ora"),
+            Provider = "oracle", Host = "127.0.0.1", Port = 1521, Database = "ORCL", UserName = "ora_user", Password = "OraPw123",
+        });
+        Assert.Equal("oracle", v.Provider);
+        var e = DbConnection.Find(DbConnection._.Id == Int32.Parse(v.Id))!;
+        var cs = fx.Connections.BuildConnStr(e);
+        Assert.Contains("127.0.0.1:1521/ORCL", cs);
+        Assert.Contains("ora_user", cs);
+        Assert.Contains("OraPw123", cs);
+
+        // Resolve 注册 ConnName（预检关闭，不拦驱动）
+        var rc = fx.Connections.Resolve(v.Id);
+        Assert.Equal(DbConnectionService.UserConnPrefix + v.Id, rc.ConnName);
+        Assert.Equal("oracle", rc.Provider);
+
+        // 测连：本机无 Oracle 驱动/实例 → 失败回显底层错误（sql_error + 脱敏，不泄露密码）
+        var r = fx.Connections.Test(new ConnectionInput { Provider = "oracle", Host = "127.0.0.1", Port = 1521, Database = "ORCL", UserName = "ora_user", Password = "OraPw123" });
+        Assert.False(r.Ok);
+        Assert.Equal(DbErrorCodes.SqlError, r.Code);
+        Assert.False(String.IsNullOrWhiteSpace(r.Message));
+        Assert.DoesNotContain("OraPw123", r.Message);
+    }
+
+    [Fact]
     public void Schema_ListAndDescribe()
     {
         var file = fx.CreateTargetDb("schema", "CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INT)");
@@ -154,5 +191,34 @@ public class DbConnectionServiceTests(DbAdminTestFixture fx)
         Assert.Contains(d.Columns, c => c.Name == "id" && c.PrimaryKey);
         Assert.Contains(d.Columns, c => c.Name == "name");
         Assert.Equal(DbErrorCodes.NotFound, Assert.Throws<DbAdminException>(() => fx.Connections.DescribeTable(v.Id, "nope")).Code);
+    }
+
+    // —— 多库（2026-11-07 输入5）机制级：Database 可选矩阵 + 库枚举（03-plan S5.11/S5.12）——
+
+    [Fact]
+    public void Database_Optional_ServerTypes_SqliteStillRequired()
+    {
+        // server 型（AC1 判据）：Database 可空 → 创建成功、落库 null
+        var v = fx.Connections.Create(new ConnectionInput { Name = DbAdminTestFixture.UniqueName("nd"), Provider = "mysql", Host = "127.0.0.1", Port = 3306, UserName = "u", Password = "p" });
+        Assert.Null(DbConnection.Find(DbConnection._.Id == Int32.Parse(v.Id))!.Database);
+
+        // sqlite：文件路径仍必填（FR1 矩阵：必填文案不变）
+        Assert.Throws<DbAdminException>(() => fx.Connections.Create(new ConnectionInput { Name = DbAdminTestFixture.UniqueName("nd2"), Provider = "sqlite" }));
+    }
+
+    [Fact]
+    public void ListDatabases_SqliteMainOnly_SystemConnRejected()
+    {
+        var file = fx.CreateTargetDb("ml");
+        var cid = fx.Connections.Create(new ConnectionInput { Name = DbAdminTestFixture.UniqueName("ml"), Provider = "sqlite", Database = file }).Id;
+        var d = fx.Connections.ListDatabases(cid);
+        Assert.Equal("sqlite", d.Provider);
+        var main = Assert.Single(d.Databases);
+        Assert.Equal("main", main.Name);
+        Assert.Equal("main", main.Kind);
+        Assert.True(main.IsDefault);
+
+        var ex = Assert.Throws<DbAdminException>(() => fx.Connections.ListDatabases(DbConnectionService.SystemIdPrefix + DbAdminTestFixture.SystemConnName));
+        Assert.Equal(DbErrorCodes.InvalidRequest, ex.Code);
     }
 }

@@ -49,8 +49,21 @@ describe('provider 小写契约', () => {
     expect(defaultPort('postgresql')).toBe(5432)
     expect(defaultPort('MySQL')).toBe(3306)
     expect(defaultPort('mysql', [{ id: 'mysql', defaultPort: 3307 }])).toBe(3307)
+    expect(defaultPort('oracle')).toBe(1521)
     expect(providerLabel('sqlserver')).toBe('SQL Server')
+    expect(providerLabel('oracle')).toBe('Oracle')
     expect(providerLabel('sqlite', [{ id: 'sqlite', displayName: 'SQLite（实测）' }])).toBe('SQLite（实测）')
     expect(emptyForm('SQLite').provider).toBe('sqlite')
+    expect(emptyForm('oracle').port).toBe(1521)
+  })
+  it('Oracle：非 SQLite 表单校验与 EZConnect 连接串预填', () => {
+    const f = { ...emptyForm('oracle'), name: 'o' }
+    expect(validateForm(f, false)).toBe('请填写主机')
+    expect(validateForm({ ...f, host: 'db.h', database: 'ORCL', userName: 'u' }, false)).toBeNull()
+    expect(buildConnStr({ ...f, host: 'db.h', port: 1521, database: 'ORCL', userName: 'u', password: 'p' }))
+      .toBe('Data Source=//db.h:1521/ORCL;User Id=u;Password=p')
+    // 端口缺省走 1521
+    expect(buildConnStr({ ...f, host: 'db.h', database: 'ORCL', userName: 'u' }))
+      .toBe('Data Source=//db.h:1521/ORCL;User Id=u')
   })
 })

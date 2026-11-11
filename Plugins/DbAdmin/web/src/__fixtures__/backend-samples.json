@@ -38,6 +38,14 @@
     "tested": false,
     "driverPackage": "Microsoft.Data.SqlClient",
     "defaultPort": 1433
+   },
+   {
+    "id": "oracle",
+    "displayName": "Oracle",
+    "driverAvailable": true,
+    "tested": false,
+    "driverPackage": "Oracle.ManagedDataAccess",
+    "defaultPort": 1521
    }
   ]
  },

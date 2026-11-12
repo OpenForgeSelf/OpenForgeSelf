@@ -76,7 +76,7 @@ public class SearchToolsToolFunction : IToolFunctionExtension
                     success = false,
                     error = "keyword 必填：请给出要搜索的工具能力关键词（如 file/记忆/工作流/端端）",
                     hint = "示例：search_tools {\"keyword\":\"file\"}。要看全部工具用 list_tools。"
-                }));
+                }, ForgeJson.Default));
             }
 
             var limit = DefaultLimit;
@@ -105,7 +105,7 @@ public class SearchToolsToolFunction : IToolFunctionExtension
                     score = m.Score,
                     matchedIn = m.MatchedIn.ToArray()
                 })
-            }));
+            }, ForgeJson.Default));
         }
         catch (JsonException jex)
         {
@@ -114,12 +114,12 @@ public class SearchToolsToolFunction : IToolFunctionExtension
             {
                 success = false,
                 error = "入参必须是 JSON：{keyword: 关键词, limit?: 条数}，" + jex.Message
-            }));
+            }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[McpCenter] search_tools 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default));
         }
     }
 }

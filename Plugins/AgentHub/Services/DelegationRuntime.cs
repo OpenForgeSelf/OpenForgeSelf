@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Entities;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using ForgeSelf.Api.Plugins.AgentHub.Profiles;
@@ -173,7 +174,7 @@ public class DelegationRuntime
     /// <summary>正在占用的 cwd（G6 互斥）</summary>
     private static readonly ConcurrentDictionary<String, Int32> _busyCwds = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions JsonOpts = ForgeJson.Default;
 
     public DelegationRuntime(
         IAgentRegistry registry,
@@ -291,7 +292,7 @@ public class DelegationRuntime
             accessPointId = ap.Id,
             cwd,
             permissionMode = mode
-        }));
+        }, ForgeJson.Default));
 
         return Task.FromResult(ToDto(entity, agent.Name));
     }
@@ -409,7 +410,7 @@ public class DelegationRuntime
                     errorMessage = evt.Text;
                 }
 
-                AppendEvent(entity, evt.Type, evt.Payload?.ToJsonString(), evt.Text, evt.Truncated, evt.ExitCode);
+                AppendEvent(entity, evt.Type, evt.Payload?.ToJsonString(ForgeJson.Default), evt.Text, evt.Truncated, evt.ExitCode);
             }
 
             // 判终态：取消 > 超时 > 退出码
@@ -541,7 +542,7 @@ public class DelegationRuntime
             errorCode = (String?)null,
             message = "已由执行回报标记完成（回报优先于进程退出判定）",
             exitCode = 0
-        }), "已由执行回报标记完成");
+        }, ForgeJson.Default), "已由执行回报标记完成");
 
         XTrace.Log.Info("[AgentHub] 任务 {0} 已由外部回报标记完成（{1}）", entity.Id, taskKey);
         return true;
@@ -660,7 +661,7 @@ public class DelegationRuntime
             errorCode,
             message,
             exitCode = entity.ExitCode
-        }), message);
+        }, ForgeJson.Default), message);
     }
 
     /// <summary>工作目录白名单校验（G7：危险目录直接拒绝，不进进程）。</summary>

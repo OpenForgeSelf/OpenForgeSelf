@@ -27,8 +27,8 @@ public class WorkflowService : IWorkflowService
             Description = request.Description,
             Category = request.Category,
             Icon = request.Icon,
-            StepsJson = JsonSerializer.Serialize(request.Steps),
-            VariablesJson = JsonSerializer.Serialize(request.Variables),
+            StepsJson = JsonSerializer.Serialize(request.Steps, ForgeJson.Default),
+            VariablesJson = JsonSerializer.Serialize(request.Variables, ForgeJson.Default),
             CreatedAt = DateTime.Now,
             UpdatedAt = DateTime.Now,
             IsFavorite = false,
@@ -59,8 +59,8 @@ public class WorkflowService : IWorkflowService
         entity.Description = request.Description;
         entity.Category = request.Category;
         entity.Icon = request.Icon;
-        entity.StepsJson = JsonSerializer.Serialize(request.Steps);
-        entity.VariablesJson = JsonSerializer.Serialize(request.Variables);
+        entity.StepsJson = JsonSerializer.Serialize(request.Steps, ForgeJson.Default);
+        entity.VariablesJson = JsonSerializer.Serialize(request.Variables, ForgeJson.Default);
         entity.UpdatedAt = DateTime.Now;
         entity.Status = (int)request.Status;
         entity.StartStepId = request.StartStepId;

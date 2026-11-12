@@ -61,7 +61,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "参数 title 不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "参数 title 不能为空" }, ForgeJson.Default);
             }
 
             DateTime? parsedDueDate = null;
@@ -75,7 +75,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" });
+                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" }, ForgeJson.Default);
             }
 
             var request = new CreateTodoRequest
@@ -94,7 +94,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
                 ["title"] = created.Title
             });
 
-            return JsonSerializer.Serialize(new { success = true, data = created });
+            return JsonSerializer.Serialize(new { success = true, data = created }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -104,7 +104,7 @@ public class CreateTodoToolFunction : IToolFunctionExtension
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -164,7 +164,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" });
+                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" }, ForgeJson.Default);
             }
 
             var result = await todoService.GetTodosAsync(status, page, pageSize);
@@ -179,7 +179,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
                 ["total"] = result.Total
             });
 
-            return JsonSerializer.Serialize(new { success = true, data = result });
+            return JsonSerializer.Serialize(new { success = true, data = result }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -189,7 +189,7 @@ public class ListTodosToolFunction : IToolFunctionExtension
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -231,7 +231,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
 
             if (id <= 0)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "参数 id 必须为正整数" });
+                return JsonSerializer.Serialize(new { success = false, error = "参数 id 必须为正整数" }, ForgeJson.Default);
             }
 
             // 执行期即时解析宿主容器（对 Apply/seed 时序免疫）；未就绪的明确报错由 catch 转错误封套
@@ -239,7 +239,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
             var todoService = scope.ServiceProvider.GetService<ITodoService>();
             if (todoService == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" });
+                return JsonSerializer.Serialize(new { success = false, error = "ITodoService 未注册" }, ForgeJson.Default);
             }
 
             var updated = await todoService.CompleteTodoAsync(id);
@@ -251,7 +251,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
                     ["todoId"] = id,
                     ["notFound"] = true
                 });
-                return JsonSerializer.Serialize(new { success = false, error = $"待办 {id} 不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = $"待办 {id} 不存在" }, ForgeJson.Default);
             }
 
             stopwatch.Stop();
@@ -261,7 +261,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
                 ["title"] = updated.Title
             });
 
-            return JsonSerializer.Serialize(new { success = true, data = updated });
+            return JsonSerializer.Serialize(new { success = true, data = updated }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -271,7 +271,7 @@ public class CompleteTodoToolFunction : IToolFunctionExtension
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 

@@ -64,15 +64,15 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(description))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "脚本描述不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "脚本描述不能为空" }, ForgeJson.Default);
             }
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.GenerateScriptAsync(language, description, requirements);
@@ -95,7 +95,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
                 message = "脚本生成成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "generate_script", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -121,7 +121,7 @@ public class GenerateScriptToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -178,20 +178,20 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(code))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "代码不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "代码不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(errorMessage))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "错误信息不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "错误信息不能为空" }, ForgeJson.Default);
             }
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.AnalyzeScriptErrorAsync(language, code, errorMessage);
@@ -205,7 +205,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
                 message = "错误分析完成"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "analyze_script_error", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -230,7 +230,7 @@ public class AnalyzeScriptErrorToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -287,20 +287,20 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(code))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "代码不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "代码不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(errorMessage))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "错误信息不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "错误信息不能为空" }, ForgeJson.Default);
             }
 
             if (_serviceProvider == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" });
+                return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var aiAgentService = scope.ServiceProvider.GetRequiredService<IAIAgentService>();
 
             var result = await aiAgentService.SuggestScriptFixAsync(language, code, errorMessage);
@@ -315,7 +315,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
                 message = "修复建议生成成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "suggest_script_fix", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -340,7 +340,7 @@ public class SuggestScriptFixToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
@@ -433,7 +433,7 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
                 message = "获取到 " + templates.Count + " 个模板"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "list_script_templates", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -459,7 +459,7 @@ public class ListScriptTemplatesToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 

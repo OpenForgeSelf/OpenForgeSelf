@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ForgeSelf.Abstractions;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ForgeSelf.Api.Entities;
@@ -50,10 +51,11 @@ public class AnthropicMessagesController : ControllerBase
             if (request.MaxTokens <= 0)
                 return BadRequest(new { error = new { type = "invalid_request_error", message = "max_tokens is required and must be > 0" } });
 
-            var provider = _registry.GetProviderByModel(request.Model);
+            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { type = "invalid_request_error", message = $"No provider found for model '{request.Model}'" } });
 
+            request.Model = upstreamModelId;
             var unifiedRequest = ConvertToUnifiedRequest(request);
 
             _logService.Info("Anthropic Message 请求 - 模型: {0}, 提供者: {1}, 消息数: {2}",
@@ -76,8 +78,8 @@ public class AnthropicMessagesController : ControllerBase
                 Model = request.Model,
                 RequestMethod = "POST",
                 RequestPath = "/v1/anthropic/messages",
-                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString())),
-                RequestBody = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = false }),
+                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default),
+                RequestBody = JsonSerializer.Serialize(request, ForgeJson.Default),
                 Temperature = request.Temperature ?? 1.0,
                 MaxTokens = request.MaxTokens,
                 MessageCount = request.Messages?.Count ?? 0,
@@ -99,8 +101,8 @@ public class AnthropicMessagesController : ControllerBase
                 // 更新轮次
                 stopwatch.Stop();
                 turn.ResponseStatus = 200;
-                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
-                turn.ResponseBody = JsonSerializer.Serialize(anthropicResponse, new JsonSerializerOptions { WriteIndented = false });
+                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
+                turn.ResponseBody = JsonSerializer.Serialize(anthropicResponse, ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.PromptTokens = response.Usage?.PromptTokens ?? 0;
                 turn.CompletionTokens = response.Usage?.CompletionTokens ?? 0;
@@ -120,7 +122,7 @@ public class AnthropicMessagesController : ControllerBase
             if (turn != null)
             {
                 turn.ResponseStatus = err.StatusCode;
-                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
+                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
                 await _chatTurnService.SaveTurnAsync(turn);
@@ -169,7 +171,7 @@ public class AnthropicMessagesController : ControllerBase
                 }
             };
             await WriteSseAsync("message_start", messageStart);
-            responseBody.Append(JsonSerializer.Serialize(messageStart));
+            responseBody.Append(JsonSerializer.Serialize(messageStart, ForgeJson.Default));
 
             var contentBlockStart = new
             {
@@ -178,7 +180,7 @@ public class AnthropicMessagesController : ControllerBase
                 content_block = new { type = "text", text = string.Empty }
             };
             await WriteSseAsync("content_block_start", contentBlockStart);
-            responseBody.Append(JsonSerializer.Serialize(contentBlockStart));
+            responseBody.Append(JsonSerializer.Serialize(contentBlockStart, ForgeJson.Default));
 
             await foreach (var chunk in provider.ChatStreamAsync(request, cancellationToken))
             {
@@ -194,7 +196,7 @@ public class AnthropicMessagesController : ControllerBase
                         delta = new { type = "text_delta", text = chunk.DeltaContent }
                     };
                     await WriteSseAsync("content_block_delta", contentBlockDelta);
-                    responseBody.Append(JsonSerializer.Serialize(contentBlockDelta));
+                    responseBody.Append(JsonSerializer.Serialize(contentBlockDelta, ForgeJson.Default));
                 }
 
                 if (streamSession != null)
@@ -210,7 +212,7 @@ public class AnthropicMessagesController : ControllerBase
                 index = 0
             };
             await WriteSseAsync("content_block_stop", contentBlockStop);
-            responseBody.Append(JsonSerializer.Serialize(contentBlockStop));
+            responseBody.Append(JsonSerializer.Serialize(contentBlockStop, ForgeJson.Default));
 
             var messageDelta = new
             {
@@ -223,7 +225,7 @@ public class AnthropicMessagesController : ControllerBase
                 usage = new { output_tokens = 0 }
             };
             await WriteSseAsync("message_delta", messageDelta);
-            responseBody.Append(JsonSerializer.Serialize(messageDelta));
+            responseBody.Append(JsonSerializer.Serialize(messageDelta, ForgeJson.Default));
 
             await WriteSseAsync("message_stop", new { type = "message_stop" });
             responseBody.Append("{\"type\":\"message_stop\"}");
@@ -231,7 +233,7 @@ public class AnthropicMessagesController : ControllerBase
             // 更新轮次
             stopwatch.Stop();
             turn.ResponseStatus = 200;
-            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
             turn.ResponseBody = responseBody.ToString();
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
             turn.AssistantPreview = ChatSessionResolver.Truncate(turn.ResponseText, 500);
@@ -263,7 +265,7 @@ public class AnthropicMessagesController : ControllerBase
             }
 
             turn.ResponseStatus = err.StatusCode;
-            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
+            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default);
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
             turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
             if (streamSession != null)
@@ -283,6 +285,7 @@ public class AnthropicMessagesController : ControllerBase
     {
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
         {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         });
@@ -370,7 +373,7 @@ public class AnthropicMessagesController : ControllerBase
                 Id = b.Id ?? string.Empty,
                 Name = b.Name ?? string.Empty,
                 Arguments = b.Input != null
-                    ? JsonSerializer.Serialize(b.Input, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                    ? JsonSerializer.Serialize(b.Input, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })
                     : string.Empty
             })
             .ToList();

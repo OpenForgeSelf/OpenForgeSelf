@@ -137,7 +137,7 @@ public class PluginVersionUpdateSourceTests
     {
         CreateInstalledPlugin("1.0.0");
         // plugin.json 缺 Version 的无效包
-        var pkgPath = Path.Combine(_packageSourceDir, $"{PluginId}-2.0.0.forgeself-plugin");
+        var pkgPath = Path.Combine(_packageSourceDir, $"{PluginId}-2.0.0.zip");
         var staging = Path.Combine(Path.GetTempPath(), $"pkg-invalid-{Guid.NewGuid():N}");
         Directory.CreateDirectory(staging);
         File.WriteAllText(Path.Combine(staging, "plugin.json"),
@@ -163,6 +163,18 @@ public class PluginVersionUpdateSourceTests
         _updateSettings.Update(c => c.LocalDir = "");
 
         _service.CheckForUpdates().Should().NotContain(u => u.PluginId == PluginId);
+    }
+
+    [Fact]
+    public void PackageSource_IgnoresLegacyExtension()
+    {
+        CreateInstalledPlugin("1.0.0");
+        var zip = CreatePackage("9.0.0", includeEntryDll: true);
+        var legacy = Path.Combine(_packageSourceDir, $"{PluginId}-9.0.0.forgeself-plugin");
+        File.Move(zip, legacy);
+        _manager.DiscoverPlugins();
+
+        _service.CheckForUpdates().Should().NotContain(u => u.LatestVersion == "9.0.0");
     }
 
     private void CreateInstalledPlugin(string version)
@@ -194,7 +206,7 @@ public class PluginVersionUpdateSourceTests
         if (includeEntryDll)
             File.WriteAllBytes(Path.Combine(staging, $"{pluginId}.dll"), new byte[] { 0x4D, 0x5A });
 
-        var pkgPath = Path.Combine(_packageSourceDir, $"{pluginId}-{version}.forgeself-plugin");
+        var pkgPath = Path.Combine(_packageSourceDir, $"{pluginId}-{version}.zip");
         ZipFile.CreateFromDirectory(staging, pkgPath);
         Directory.Delete(staging, true);
         return pkgPath;

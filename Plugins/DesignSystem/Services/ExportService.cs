@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using NewLife;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
@@ -325,7 +326,7 @@ public sealed class ExportService
         {
             ["note"] = "FileName/FileRef 非空的行会在 CSS 投影里生成 @font-face；其余是字体栈成员（系统提供，不随产物分发）",
             ["faces"] = faces,
-        });
+        }, ForgeJson.Default);
     }
 
     /// <summary>页面清单：这个设计系统服务哪些屏（生成器给的是起手建议，不是产品事实）</summary>
@@ -346,7 +347,7 @@ public sealed class ExportService
         {
             ["note"] = "起手屏建议（可改可删），不是对产品功能的断言",
             ["screens"] = screens,
-        });
+        }, ForgeJson.Default);
     }
 
     #region UX 规范投影（M3）
@@ -1347,7 +1348,7 @@ public sealed class ExportService
         if (guidanceJson.IsNullOrEmpty()) return null;
         try
         {
-            return guidanceJson is not null && JsonNode.Parse(guidanceJson)?["anatomy"] is JsonNode anatomy ? anatomy.ToJsonString() : null;
+            return guidanceJson is not null && JsonNode.Parse(guidanceJson)?["anatomy"] is JsonNode anatomy ? anatomy.ToJsonString(ForgeJson.Default) : null;
         }
         catch (JsonException) { return null; }   // 手改坏的 JSON 不许把整个导出带崩，按"没有"处理
     }
@@ -1753,7 +1754,7 @@ public sealed class ExportService
 
     static String Sql(String? v) => v == null ? "NULL" : "'" + v.Replace("'", "''") + "'";
 
-    static String Quote(String v) => JsonSerializer.Serialize(v);
+    static String Quote(String v) => JsonSerializer.Serialize(v, ForgeJson.Default);
 
     static String Safe(String v) => new(v.Where(ch => Char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.').ToArray());
 

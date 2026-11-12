@@ -1,7 +1,7 @@
 # 01-architecture — 宿主→插件能力供给设计（能力接缝三层模型）
 
 > 状态：方案 B 已实施（2026-09-29；`IProjectRegistry` 入 `ForgeSelf.Abstractions`、宿主 `HostProjectRegistry` seed 进 root `PluginManager.ProvideHostServices`，常驻 app 生命周期）
-> 最后更新：2026-08-31
+> 最后更新：2026-11-04（§8 新增）
 > 关联：调研依据 [`06-research/001-deepseek-harness-plugin-architecture.md`](../06-research/001-deepseek-harness-plugin-architecture.md)（§5.5 软依赖判例 / §5.6 裁决 A-F / §6 偏差清单与 FAQ Q1-Q6）；内核设计 [`cordis-kernel.md`](cordis-kernel.md)（§3.6 插件间服务互通）；首个落地候选 = sems 项目登记接缝
 
 本文回答：**宿主（Agent 等内置高级功能）如何设计完整流程，让插件直接取用宿主/其他插件的能力**，取代「共享 JSON 文件」这类隐式契约。
@@ -120,3 +120,18 @@ L3 拦截管道（waterfall/serial，特例）
 2. **消费方不得用「原因文本」判依赖缺席**。委派失败映射 503 还是 400 取决于 `GatewayResult.SeamMissing` 标志位；靠字符串嗅探，提供方一改措辞，503 就静默退化成 400，用户会被指去改参数而不是装插件。
 
 对照记录：`Plugins/Home/web/src/homeStore.ts` 等**插件前端直连其他插件 REST**（6 处）是本模型之外的存量做法，本文不为其背书；新写的跨插件能力供给一律先建 L1 契约（PILOT-054 曾评估过「插件前端 fetch `/api/agent-hub/tasks`」，因违反 §2 的互通裁决而否掉，见 `docs/07-decisions/not-taken-decisions.md` 2026-10-07 条目）。
+
+## 8. 第三个落地：IM 任务派发接缝 `IAgentRunDispatch`（2026-11-04，PILOT-079）
+
+| 项 | 内容 |
+|------|------|
+| 契约 | `ForgeSelf.Abstractions/AgentRunDispatchContracts.cs`：`IAgentRunDispatch{ SubmitAsync(提交即回 taskKey) / FindAsync(taskKey 读回快照) / ResumeAsync(taskKey 续跑，仅 Stuck/Failed) }` + 纯 POCO（Request/Outcome/Snapshot）；状态词表复用任务中心统一词表（stuck 不算终态） |
+| 提供方 | **插件** `ai-agent`：eager 构造 `AgentRunDispatchService`（后台 Task 驱动 `IRunOrchestratorService.RunAsync`，模式同 ScheduledAgentRunTrigger）+ `ctx.Register<IAgentRunDispatch>` + **实例单例注册回 services**（见下坑 2） |
+| 消费方 | `im-gateway`（`ImTaskDispatcher`/`ImTaskWatcher`）：`ctx.Get<IAgentRunDispatch>()` 每次用每次取；TaskGateway 关闭时零消费 |
+| 语义边界 | 接缝只做「提交 + 读回 + 续跑」适配；状态机、并发互斥（同会话 1 个未终态双层闸）、审批链（写操作照常 stuck 等审批）由 AIAgent 单方持有。与 `IAgentDelegation` 的差别：本接缝是**同进程后台驱动**（无 cwd 白名单/进程隔离，任务跑在 AIAgent 的 MAF 内）；Run 约定 `imtask:` SessionId 前缀以便任务中心与 runs 查询双投影 |
+| 为什么 `ResumeAsync` 是契约方法 | MAF 循环在**下一回合**才消费审批决策（ConsumeContinuationsAsync），批准后 Run 不会自动续跑——IM 审批闭环（FR-9）与人工续跑都需要显式 resume 入口 |
+
+两个新坑（都写进了代码注释与守卫）：
+
+1. **§7 坑 1 的复发（2026-11-04 实证，缺陷 #2/#3）**：`AddSingleton` 的单例语义是 **per-ServiceProvider** 的。AIAgent 插件 4 个 eager 块各自 `BuildServiceProvider()` + 宿主主 provider = **5 个并存「单例」注册表实例**，控制器（主 provider）/IM 派发（dispatch eager 块）/内置执行（builtin eager 块）三视图互不可见，运行期新建的 Agent 派发侧看不到。修复：全部 eager 块共享**同一个**插件级 provider + eager 产出实例以**实例单例**注册回 services（`AddSingleton<T>(instance)`，与 `IChatCompletion` 既有先例同形）→ 全局单视图。§7 坑 1 当年只在 AgentHub 记录，未扫到 AIAgent 的 eager 模式（逃逸）；守卫 `AgentRegistryCaptiveTests` 已升级为跨 provider 三同实例断言，同类复发由测试拦截。
+2. **宿主重定向日志是 GBK 编码**：`dev-stack` 起的宿主经控制台重定向写日志为 GBK；pwsh 7 `Get-Content` 默认按 UTF-8 解码，中文日志全文 mojibake、按中文关键字 grep 必得假 0 匹配。读宿主日志须显式 `[Text.Encoding]::GetEncoding(936)` 或先验编码。

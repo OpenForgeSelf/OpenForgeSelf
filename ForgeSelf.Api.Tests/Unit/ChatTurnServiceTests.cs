@@ -70,6 +70,37 @@ public class ChatTurnServiceTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
+    public async Task SaveTurnAsync_HeaderJsonOver1000Chars_PersistsFullText()
+    {
+        var headers = "{\"Cookie\":\"" + new string('a', 1200) + "\"}";
+        headers.Length.Should().BeGreaterThan(1000);
+        var sessionKey = "test-hdr-" + Guid.NewGuid().ToString("N")[..16];
+        var turn = new ChatTurn
+        {
+            SessionKey = sessionKey,
+            TurnIndex = 1,
+            Style = "OpenAI_Responses",
+            Model = "qwen3_8_vision",
+            RequestMethod = "POST",
+            RequestPath = "/v1/responses",
+            RequestHeaders = headers,
+            RequestBody = "{}",
+            ResponseStatus = 404,
+            ResponseHeaders = headers,
+            ResponseBody = "{}",
+            CreatedTime = DateTime.Now
+        };
+
+        await _chatTurnService.SaveTurnAsync(turn);
+
+        turn.Id.Should().BeGreaterThan(0);
+        var saved = ChatTurn.FindById(turn.Id);
+        saved.Should().NotBeNull();
+        saved!.RequestHeaders.Should().Be(headers);
+        saved.ResponseHeaders.Should().Be(headers);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ExistingId_ShouldReturnTurn()
     {
         // Arrange

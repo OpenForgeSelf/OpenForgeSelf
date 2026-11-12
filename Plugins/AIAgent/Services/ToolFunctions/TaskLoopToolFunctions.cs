@@ -46,7 +46,7 @@ public class TaskCompleteToolFunction : IToolFunctionExtension
     {
         XTrace.Log.Warn("[AIAgentPlugin] task_complete 被直接执行（声明即出口，正常不应走到）：{0}",
             parameters is { Length: > 200 } ? parameters[..200] : parameters);
-        return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "任务已完成" }));
+        return Task.FromResult(JsonSerializer.Serialize(new { success = true, message = "任务已完成" }, ForgeJson.Default));
     }
 }
 

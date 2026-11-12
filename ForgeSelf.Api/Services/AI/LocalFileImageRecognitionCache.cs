@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -17,7 +18,9 @@ public class LocalFileImageRecognitionCache : IImageRecognitionCache
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = false
+        WriteIndented = false,
+        // PC-027：中文保持原文，禁止默认 \uXXXX 转义
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public LocalFileImageRecognitionCache(string rootPath)

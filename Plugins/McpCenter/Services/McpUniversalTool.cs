@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ForgeSelf.Abstractions;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -43,7 +44,7 @@ public sealed class McpUniversalTool
             ? JsonNode.Parse(parameters.Value.GetRawText())
             : new JsonObject();
 
-        var result = await _forwarder.ForwardAsync(args.ToJsonString());
+        var result = await _forwarder.ForwardAsync(args.ToJsonString(ForgeJson.Default));
 
         return new CallToolResult
         {

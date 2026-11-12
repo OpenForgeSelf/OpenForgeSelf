@@ -405,6 +405,87 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         disabled.Save();
         registry.GetProviderByModel("client-model").Should().BeNull();
     }
+
+    /// <summary>
+    /// 对外别名必须换成上游模型 id。Chat 与 Responses 以前各写一份解析，Responses 把别名原样发给上游（GPUStack 404）。
+    /// </summary>
+    [Fact]
+    public async Task ResolveUpstreamModel_PublicAlias_SubstitutesUpstreamId()
+    {
+        ClearAll();
+        var providerEntity = InsertProvider(name: "gpustack", endpoint: "http://gpustack.example/v1/chat/completions");
+        new AIModel
+        {
+            ProviderId = providerEntity.Id,
+            ProviderName = providerEntity.Name,
+            UpstreamModelId = "qwen3_8_vision",
+            ChatModelId = "gpustack:qwen3_8_vision",
+            PublicAlias = "default",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        var registry = new AIProviderRegistry();
+        await registry.ReloadAsync(new HandlerHttpClientFactory(OpenAiHandler(ModelsJson(("qwen3_8_vision", "gpustack")))), new[]
+        {
+            new AIProviderConfig
+            {
+                Name = "gpustack",
+                ProviderType = AIProviderType.OpenAI,
+                Endpoint = "http://gpustack.example/v1/chat/completions",
+                ApiKey = "k",
+                SupportedModels = new() { "qwen3_8_vision" },
+                IsDefault = true
+            }
+        });
+
+        var (provider, upstream) = registry.ResolveUpstreamModel("default");
+        provider.Should().NotBeNull();
+        provider!.ProviderName.Should().Be("gpustack");
+        upstream.Should().Be("qwen3_8_vision");
+
+        var prefixed = registry.ResolveUpstreamModel("gpustack:qwen3_8_vision");
+        prefixed.Provider!.ProviderName.Should().Be("gpustack");
+        prefixed.UpstreamModelId.Should().Be("qwen3_8_vision");
+
+        var disabled = AIModel.FindByPublicAlias("default")!;
+        disabled.Enabled = false;
+        disabled.Save();
+        registry.ResolveUpstreamModel("default").Provider.Should().BeNull();
+    }
+
+    [Fact]
+    public void GatewayModelEntries_CallSharedResolveUpstreamModel()
+    {
+        var root = RepoRoot();
+        string[] files =
+        [
+            "ForgeSelf.Api/Controllers/UnifiedAI/OpenAIChatController.cs",
+            "ForgeSelf.Api/Controllers/UnifiedAI/OpenAIResponsesController.cs",
+            "ForgeSelf.Api/Controllers/UnifiedAI/AgentChatController.cs",
+            "ForgeSelf.Api/Controllers/UnifiedAI/AnthropicMessagesController.cs",
+        ];
+        foreach (var rel in files)
+        {
+            var text = File.ReadAllText(Path.Combine(root, rel));
+            text.Should().Contain("_registry.ResolveUpstreamModel(", $"{rel} 必须走共用解析");
+            text.Should().NotContain("ResolveProviderAndModel", $"{rel} 不得再保留分叉的私有解析");
+        }
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "ForgeSelf.slnx")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+
+        throw new InvalidOperationException("找不到仓库根（ForgeSelf.slnx）");
+    }
 }
 
 /// <summary>测试用 HttpMessageHandler，按请求返回预设响应</summary>

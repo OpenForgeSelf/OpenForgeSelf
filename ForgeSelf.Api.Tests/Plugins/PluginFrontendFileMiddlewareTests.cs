@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ForgeSelf.Api.Plugins;
 using ForgeSelf.Api.Plugins.Abstractions;
 using ForgeSelf.Api.Plugins.Services;
+using ForgeSelf.Api.Plugins.Dev;
 
 namespace ForgeSelf.Api.Tests.Plugins;
 
@@ -15,8 +16,17 @@ namespace ForgeSelf.Api.Tests.Plugins;
 /// 覆盖契约要点：合法相对路径通过、<c>..</c> 穿越拒 404、非 <c>web/</c> 目录越权拒 404、
 /// <c>.js</c> MIME 正确、带 <c>?v=</c> 时返回 immutable 缓存头 / 不带则 no-cache。
 /// </summary>
-public class PluginFrontendFileMiddlewareTests
+public class PluginFrontendFileMiddlewareTests : IAsyncLifetime
 {
+    // task-17 防御性复位：本类断言缓存头（immutable/no-cache），中间件读 DevMode.WebSrcEnabled 静态态——
+    // 若并行类（DevModeTests）残留 Enabled=true 会翻转 no-store → flake。每用例前幂等归 off，类内自洽。
+    public Task InitializeAsync()
+    {
+        DevMode.Initialize(null);
+        return Task.CompletedTask;
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
     private readonly TempPluginDirectory _tempDir;
     private readonly PluginManager _manager;
 

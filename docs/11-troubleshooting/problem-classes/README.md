@@ -30,6 +30,11 @@
 | 智能体顶栏旧名 / 主区域空注释 / 兜底路由把插件路径判成冲突 | PC-021 |
 | XCode 实体直插时间戳 / CreatedAt / UpdatedAt / 0001-01-01 | PC-022 |
 | 执行记录文件清单 / ToolCallsJson 提取 / 双编码 JSON / 留痕参数面 | PC-023 |
+| UI 主题 / 暗色对比度 / primary light-N / 选中行·标签·横幅 | PC-025 |
+| 插件前端类名 / 宿主 Tailwind 工具类 / table display / 表头内容错列 | PC-026 |
+| JSON 序列化 / 中文转义 \uXXXX / Encoder / System.Text.Json 写出路径 | PC-027 |
+| 对外别名 PublicAlias / 网关 model 解析 / Responses 把别名发给上游 | PC-028 |
+| ChatTurn 请求头 JSON / 长度限制 1000 字符 | PC-029 |
 
 ## 台账总表
 
@@ -58,6 +63,12 @@
 | PC-021 | 智能体入口顶栏仍用旧名，或主区域因兜底路由被判冲突而空白 | guarded | G1×2 active | 1 | [PC-021](PC-021-agent-entry-blank-or-old-name.md) |
 | PC-022 | XCode 实体直插漏赋时间戳字段，落库为 0001-01-01 缺省值 | guarded | G1 active（MemoryTimestampGuardTests） | 0 | [PC-022](PC-022-xcode-entity-timestamp-default.md) |
 | PC-023 | 执行记录 filesChanged 断链：自动留痕无参数 + 双编码 JSON 裸正则永不命中 | guarded | G1 active（BuiltInFilesChangedPersistenceTests） | 0 | [PC-023](PC-023-todo-fileschanged-persistence-loss.md) |
+| PC-024 | 前端轮询面错误处理缺失：静默吞 404（终态错误继续轮询）/ 无 catch 裸抛反复 toast | guarded | G2 active（e2e dead-session restored：banner 一次 + 3s 零新增 404） | 0 | [PC-024](PC-024-frontend-poll-error-handling.md) |
+| PC-025 | 暗色主题 primary light-N 明暗倒置，主色浅底上的文字不可见 | guarded | G2 active（token vitest）+ G1 active（db-admin e2e 亮暗对比度） | 0（前案 2026-10-15 IM 网关暗色对比度未立 PC，按逃逸分析处理） | [PC-025](PC-025-dark-theme-token-contrast.md) |
+| PC-026 | 插件语义类名与宿主 Tailwind 工具类同名，table 被改成 display:grid 致表头/内容错列 | guarded | G2 active（class vitest）+ G1 active（db-admin e2e display/对齐）+ G3 签名 | 0 | [PC-026](PC-026-plugin-class-tailwind-collision.md) |
+| PC-027 | JSON 写出路径未声明非 ASCII Encoder，System.Text.Json 默认把中文转义成 \uXXXX | guarded | G2 active（JsonNonAsciiEscapingGuardTests 源码扫描）+ G1 active（ForgeJson 行为锁） | 1（2026-11-09 外层第三方 SDK 传输层；**非逃逸**——新暴露面，G2 范围=仓内源码，第三方内部不可达，见 PC-027 §6） | [PC-027](PC-027-json-nonascii-default-escaping.md) |
+| PC-028 | 网关入口各自解析模型名，对外别名只在部分入口换成上游 id | guarded | G1+G2 active（AIModelFeatureTests） | 0 | [PC-028](PC-028-gateway-alias-not-substituted.md) |
+| PC-029 | ChatTurn 整包请求头/响应头 JSON 被 1000 字校验拒绝 | guarded | G1 active（ChatTurnServiceTests） | 0 | [PC-029](PC-029-chatturn-header-json-length.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

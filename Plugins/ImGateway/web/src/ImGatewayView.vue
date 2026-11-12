@@ -9,14 +9,15 @@
  * 一律原生 HTML + --el-* / design token 变量（零裸色值）；滚动容器子区块 flex-shrink:0。
  */
 
-import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
-  fetchConfig, saveConfig, fetchStatus, reconnectWeCom, startScanAuth, fetchScanAuth, fetchPluginVersion,
+  fetchConfig, saveConfig, fetchStatus, reconnectWeCom, startScanAuth, fetchScanAuth, fetchPluginVersion, fetchAgents,
   fetchConversations, fetchMessages,
-  type ConversationDto, type ChatMessageDto, type ScanAuthDto,
+  type ConversationDto, type ChatMessageDto, type ScanAuthDto, type TaskGatewayDto, type AgentRosterItemDto,
 } from './http'
 import ChatList from './components/ChatList.vue'
 import ChatThread from './components/ChatThread.vue'
+import TagListInput from './components/TagListInput.vue'
 
 /** 企微单通道配置（camelCase 与后端 STJ 命名一致）。 */
 interface WeComConfigDto {
@@ -25,6 +26,8 @@ interface WeComConfigDto {
   boundChatModelId?: string | null
   botId?: string
   secret?: string
+  /** 任务网关块（PILOT-079 FR-6；后端未升级时前端按 FR-6 默认兜底）。 */
+  taskGateway?: TaskGatewayDto
 }
 
 interface GatewayConfigDto {
@@ -47,8 +50,43 @@ interface StatusDto {
   connection?: ConnectionDto
 }
 
+/** 任务网关前端兜底默认值（与 FR-6 后端默认一致；后端未部署 TaskGateway 字段时防 undefined）。 */
+function defaultTaskGateway(): TaskGatewayDto {
+  return {
+    enabled: false,
+    commandPrefixes: ['/task ', '任务：'],
+    defaultAgentId: '',
+    pollIntervalSeconds: 10,
+    imApprovalEnabled: true,
+    approveKeywords: ['同意', '批准'],
+    rejectKeywords: ['拒绝', '驳回'],
+  }
+}
+
+/**
+ * 回读归一化（FR-7 规格 §5「空=默认配置兜底」）：后端缺块/缺字段时补默认值；
+ * 数组保留原值（含空数组——空列表由保存校验阻断，不在此静默改回默认，保住「数值保留不丢」）。
+ */
+function normalizeTaskGateway(raw?: TaskGatewayDto | null): TaskGatewayDto {
+  const d = defaultTaskGateway()
+  if (!raw) return d
+  return {
+    enabled: raw.enabled ?? false,
+    commandPrefixes: Array.isArray(raw.commandPrefixes) ? raw.commandPrefixes : d.commandPrefixes,
+    defaultAgentId: raw.defaultAgentId ?? '',
+    pollIntervalSeconds:
+      typeof raw.pollIntervalSeconds === "number" && !Number.isNaN(raw.pollIntervalSeconds)
+        ? raw.pollIntervalSeconds
+        : d.pollIntervalSeconds,
+    imApprovalEnabled: raw.imApprovalEnabled ?? true,
+    approveKeywords: Array.isArray(raw.approveKeywords) ? raw.approveKeywords : d.approveKeywords,
+    rejectKeywords: Array.isArray(raw.rejectKeywords) ? raw.rejectKeywords : d.rejectKeywords,
+  }
+}
+
+
 const config = reactive<GatewayConfigDto>({
-  weCom: { enabled: false, botId: '', secret: '' },
+  weCom: { enabled: false, botId: '', secret: '', taskGateway: defaultTaskGateway() },
 })
 const statuses = ref<StatusDto[]>([])
 const saving = ref(false)
@@ -56,6 +94,23 @@ const message = ref('')
 const messageType = ref<'ok' | 'err'>('ok')
 /** 本插件运行版本（从宿主 /api/plugin 读，界面展示「自身版本」，便于排查版本错位）。 */
 const pluginVersion = ref('')
+/** 智能体名册（FR-7 默认 Agent 下拉数据源：GET /api/agents，仅列 IsEnabled）。 */
+const agents = ref<AgentRosterItemDto[]>([])
+/** 名册加载失败：select 置灰 + 提示「可留空走默认链」，不白屏（FR-7 规格 §2）。 */
+const agentsFailed = ref(false)
+
+async function loadAgents(): Promise<void> {
+  agentsFailed.value = false
+  try {
+    const list = await fetchAgents()
+    agents.value = (list ?? []).filter((a) => a.isEnabled !== false)
+  } catch {
+    agents.value = []
+    agentsFailed.value = true
+  }
+}
+
+
 
 // 扫码授权弹窗状态（方案 A：CLI 扫码 → 后端解密自动回填，前端只轮询展示）
 const scanOpen = ref(false)
@@ -146,6 +201,7 @@ function closeScanAuth() {
 
 onMounted(() => {
   void load()
+  void loadAgents()
   void refreshConversations(false)
   startPolling()
 })
@@ -176,7 +232,10 @@ function connText(): string {
 async function load() {
   try {
     const cfg = (await fetchConfig()) as GatewayConfigDto | undefined
-    if (cfg && cfg.weCom) config.weCom = cfg.weCom
+    if (cfg && cfg.weCom) {
+      config.weCom = cfg.weCom
+      config.weCom.taskGateway = normalizeTaskGateway(cfg.weCom.taskGateway)
+    }
     const st = (await fetchStatus()) as StatusDto[] | undefined
     if (st) statuses.value = st
     pluginVersion.value = await fetchPluginVersion('im-gateway')
@@ -190,7 +249,36 @@ function setMsg(text: string, type: 'ok' | 'err' = 'ok') {
   messageType.value = type
 }
 
+/** 轮询间隔行内校验（FR-7 规格 §2：整数 3–3600；输入即时红字反馈 + 保存阻断）。 */
+const pollError = computed(() => {
+  const raw: unknown = config.weCom.taskGateway?.pollIntervalSeconds
+  if (raw === null || raw === undefined || raw === '') return '请输入轮询间隔（3–3600 秒）'
+  const n = typeof raw === "number" ? raw : Number(raw)
+  if (!Number.isInteger(n) || n < 3 || n > 3600) return '轮询间隔须为 3–3600 的整数'
+  return ''
+})
+
+/**
+ * 任务网关保存前置校验（FR-7 规格 §4「先校验后请求」，错误写明字段与原因）。
+ * 仅在总开关开启时校验 A/B 分区字段：off 时字段禁用、不参与派发，不阻断保存（避免禁用字段死锁）。
+ */
+function taskGatewayError(): string {
+  const tg = config.weCom.taskGateway
+  if (!tg?.enabled) return ''
+  if (pollError.value) return pollError.value
+  if (tg.commandPrefixes.length === 0) return '至少保留 1 条命令前缀'
+  if (tg.imApprovalEnabled && (tg.approveKeywords.length === 0 || tg.rejectKeywords.length === 0))
+    return 'IM 审批已启用，同意/拒绝关键字各至少保留 1 条'
+  return ''
+}
+
+
 async function save() {
+  const tgErr = taskGatewayError()
+  if (tgErr) {
+    setMsg(tgErr, 'err')
+    return
+  }
   saving.value = true
   message.value = ''
   try {
@@ -486,6 +574,114 @@ async function pollThread(): Promise<void> {
           <button v-if="canReconnect()" class="ig-btn ig-btn--reconnect" @click="reconnect">
             重连
           </button>
+        </div>
+      </section>
+
+      <!-- ============ 任务网关卡（PILOT-079 FR-7）：形态复用 .ig-channel 卡；规格 = 02-spec「FR-7 视觉与交互规格（design · 2026-11-03）」 ============ -->
+      <section class="ig-channel">
+        <div class="ig-channel__head">
+          <div>
+            <div class="ig-channel__name">
+              任务网关
+              <span
+                class="ig-badge"
+                :class="config.weCom.taskGateway!.enabled ? 'ig-badge--on' : 'ig-badge--off'"
+              >
+                {{ config.weCom.taskGateway!.enabled ? '已启用' : '未启用' }}
+              </span>
+            </div>
+            <div class="ig-channel__desc">带前缀的 IM 消息派给 AI Agent 执行，完成后自动回复；支持 IM 审批关键字决策</div>
+          </div>
+          <label class="ig-switch">
+            <input type="checkbox" v-model="config.weCom.taskGateway!.enabled" />
+            <span class="ig-switch__track"></span>
+          </label>
+        </div>
+
+        <div class="ig-field">
+          <!-- 总开关 off：A/B 分区禁用 + 可见原因（禁用≠隐藏，数值保留不丢） -->
+          <div v-if="!config.weCom.taskGateway!.enabled" class="ig-tg-off-hint">
+            任务网关未启用——打开右上开关后可编辑
+          </div>
+
+          <!-- 分区 A · 派发规则 -->
+          <div class="ig-tg-section">派发规则</div>
+          <label>命令前缀</label>
+          <TagListInput
+            v-model="config.weCom.taskGateway!.commandPrefixes"
+            placeholder="如 /task 或 任务："
+            input-label="命令前缀"
+            :disabled="!config.weCom.taskGateway!.enabled"
+          />
+          <label>默认 Agent</label>
+          <div class="ig-tg-agent">
+            <select
+              v-model="config.weCom.taskGateway!.defaultAgentId"
+              class="ig-select"
+              :disabled="!config.weCom.taskGateway!.enabled || agentsFailed"
+              aria-label="默认 Agent"
+            >
+              <option value="">跟随会话绑定</option>
+              <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+            <span v-if="agentsFailed" class="ig-inline-hint">名册加载失败，可留空走默认链</span>
+          </div>
+          <label>轮询间隔</label>
+          <div class="ig-poll">
+            <input
+              v-model.number="config.weCom.taskGateway!.pollIntervalSeconds"
+              type="number"
+              class="ig-poll__input"
+              min="3"
+              max="3600"
+              step="1"
+              aria-label="轮询间隔秒数"
+              :disabled="!config.weCom.taskGateway!.enabled"
+            />
+            <span class="ig-poll__unit">秒</span>
+          </div>
+          <div v-if="pollError" class="ig-inline-err">{{ pollError }}</div>
+
+          <!-- 分区 B · IM 审批 -->
+          <div class="ig-tg-section">IM 审批</div>
+          <div class="ig-tg-approval">
+            <div>
+              <div class="ig-tg-approval__label">IM 审批</div>
+              <div class="ig-tg-approval__desc">任务卡住时经 IM 推送审批卡，回复关键字即可决策</div>
+            </div>
+            <label class="ig-switch">
+              <input
+                type="checkbox"
+                v-model="config.weCom.taskGateway!.imApprovalEnabled"
+                :disabled="!config.weCom.taskGateway!.enabled"
+              />
+              <span class="ig-switch__track"></span>
+            </label>
+          </div>
+          <div v-if="!config.weCom.taskGateway!.imApprovalEnabled" class="ig-tg-sub-off-hint">
+            IM 审批未启用，关键字暂不生效
+          </div>
+          <label>同意关键字</label>
+          <TagListInput
+            v-model="config.weCom.taskGateway!.approveKeywords"
+            placeholder="如 同意"
+            input-label="同意关键字"
+            :disabled="!config.weCom.taskGateway!.enabled || !config.weCom.taskGateway!.imApprovalEnabled"
+          />
+          <label>拒绝关键字</label>
+          <TagListInput
+            v-model="config.weCom.taskGateway!.rejectKeywords"
+            :disabled="!config.weCom.taskGateway!.enabled || !config.weCom.taskGateway!.imApprovalEnabled"
+            placeholder="如 拒绝"
+            input-label="拒绝关键字"
+          />
+
+          <!-- 尾注（默认值 · 生效时机 · 关键字不拦截普通聊天；跨两列） -->
+          <div class="ig-note">
+            默认：前缀「/task␣」「任务：」、轮询 10 秒、同意关键字「同意/批准」、拒绝关键字「拒绝/驳回」。
+            保存后下一轮轮询生效（≤ 轮询间隔）；改前缀不影响已建任务；关键字仅在本会话存在待审批任务时拦截，
+            其余消息照常走普通聊天（零误伤）；「/task␣」尾随空格属匹配规则。
+          </div>
         </div>
       </section>
 
@@ -1053,5 +1249,125 @@ async function pollThread(): Promise<void> {
 }
 .ig-switch input:checked + .ig-switch__track::after {
   transform: translateX(20px);
+}
+
+/* ============ 任务网关卡（PILOT-079 FR-7）：复用 .ig-channel 卡 + .ig-field 栅格，全 token 零裸色值 ============ */
+.ig-tg-section {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--fg-secondary);
+}
+.ig-tg-section::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--el-border-color-lighter, var(--el-border-color));
+}
+.ig-tg-off-hint,
+.ig-tg-sub-off-hint {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-secondary);
+  background: var(--paper-tint-weak);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+.ig-tg-approval {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.ig-tg-approval__label {
+  font-size: 13px;
+  color: var(--fg-regular, var(--fg-secondary));
+}
+.ig-tg-approval__desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+}
+.ig-tg-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.ig-select {
+  flex: 0 1 260px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--radius-md);
+  background: var(--el-bg-color);
+  color: var(--fg-primary);
+  font-size: 13px;
+  box-sizing: border-box;
+  outline: none;
+}
+.ig-select:focus {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 3px var(--gold-tint);
+}
+.ig-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.ig-poll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ig-poll__input {
+  flex: 0 0 140px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--radius-md);
+  background: var(--el-bg-color);
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+  box-sizing: border-box;
+  outline: none;
+}
+.ig-poll__input:focus {
+  border-color: var(--gold-400);
+  box-shadow: 0 0 0 3px var(--gold-tint);
+}
+.ig-poll__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.ig-poll__unit {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono, monospace);
+}
+.ig-inline-hint {
+  font-size: 12px;
+  color: var(--fg-secondary);
+}
+.ig-inline-err {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--cinnabar-400);
+}
+/* 开关禁用态：总开关 off 时子开关禁用（可见原因由分区提示行承担） */
+.ig-switch input:disabled {
+  cursor: not-allowed;
+}
+.ig-switch input:disabled + .ig-switch__track {
+  opacity: 0.6;
 }
 </style>

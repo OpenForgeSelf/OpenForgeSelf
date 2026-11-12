@@ -51,6 +51,7 @@ public class DbConfigStore : IConfigStore
             BotId = row.BotId ?? string.Empty,
             Secret = ResolveSecret(row.SecretCipher),
             CliPath = row.CliPath,
+            TaskGateway = ParseTaskGateway(row.TaskGatewayJson),
         };
         return cfg;
     }
@@ -70,10 +71,38 @@ public class DbConfigStore : IConfigStore
             ? string.Empty
             : Enc.Encrypt(config.WeCom.Secret);
         row.CliPath = config.WeCom.CliPath;
+        row.TaskGatewayJson = System.Text.Json.JsonSerializer.Serialize(
+            config.WeCom.TaskGateway ?? new Core.TaskGatewayConfig(),
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
         row.UpdatedAt = DateTime.Now;
         row.Save();
     }
 
+    /// <summary>解析任务网关配置 JSON（PILOT-079）：空/损坏 → 默认配置（Enabled=false 兜底，不抛）。</summary>
+    private static Core.TaskGatewayConfig ParseTaskGateway(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new Core.TaskGatewayConfig();
+        try
+        {
+            var cfg = System.Text.Json.JsonSerializer.Deserialize<Core.TaskGatewayConfig>(
+                json, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
+            return cfg ?? new Core.TaskGatewayConfig();
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            XTrace.Log.Warn("[ImGateway] TaskGatewayJson 解析失败，回默认配置: {0}", ex.Message);
+            return new Core.TaskGatewayConfig();
+        }
+    }
     /// <summary>解密密文列；解不开（密钥不匹配/损坏）时返回空串并记日志，不抛——用户可重填 Secret。</summary>
     private string ResolveSecret(string? cipher)
     {

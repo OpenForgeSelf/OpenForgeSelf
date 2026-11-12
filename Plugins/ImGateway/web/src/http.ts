@@ -8,6 +8,7 @@
  * - GET   /api/im-gateway/config         → ImGatewayConfig（企微凭证）
  * - POST  /api/im-gateway/config         → { ok: true }（保存）
  * - GET   /api/im-gateway/status         → [{ type, name, enabled }]（通道启用状态）
+ * - GET   /api/agents                    → AgentDefinition[]（智能体名册；FR-7 默认 Agent 下拉数据源，PILOT-079）
  * - POST  /api/im-gateway/wecom/reconnect → { ok: true }（手动重连长连接，D2）
  * - POST  /api/im-gateway/wecom/scan-auth   → { id, state, qrLink, qrText }（发起扫码授权）
  * - GET   /api/im-gateway/wecom/scan-auth/{id} → { id, state, qrLink, qrText, botId, error }（轮询扫码状态）
@@ -49,6 +50,33 @@ export function saveConfig(config: unknown): Promise<{ ok?: boolean } | undefine
   return request<{ ok?: boolean }>('/api/im-gateway/config', { method: 'POST', body: JSON.stringify(config) })
 }
 
+/**
+ * 任务网关配置块（PILOT-079 FR-6；挂在 weCom.taskGateway，camelCase 与后端 STJ 命名一致）。
+ * 保存走既有 config POST 整包透传；MaxReplyChars/MaxWaitHours 不进面板（FR-7 规格 D2），由整包透传保留。
+ */
+export interface TaskGatewayDto {
+  /** 总开关：off 时其余字段禁用且不参与派发（Enabled=false 零行为变化）。 */
+  enabled: boolean
+  /** 命令前缀（≥1 条；「/task␣」的尾随空格属匹配规则，由尾注说明）。 */
+  commandPrefixes: string[]
+  /** 默认 Agent Id（空=跟随会话绑定；FR-7 规格 D2 新增字段）。 */
+  defaultAgentId?: string | null
+  /** 终态轮询间隔（秒，整数 3–3600）。 */
+  pollIntervalSeconds: number
+  /** IM 审批子开关（默认随主开关开）。 */
+  imApprovalEnabled: boolean
+  /** 同意关键字（审批开启时 ≥1 条；默认[同意,批准]）。 */
+  approveKeywords: string[]
+  /** 拒绝关键字（同上；默认[拒绝,驳回]）。 */
+  rejectKeywords: string[]
+}
+
+/** 智能体名册条目（GET /api/agents 的 AgentDefinition 投影，仅取下拉所需字段）。 */
+export interface AgentRosterItemDto {
+  id: string
+  name: string
+  isEnabled?: boolean
+}
 /** 读取通道启用状态。 */
 export function fetchStatus(): Promise<unknown> {
   return request<unknown>('/api/im-gateway/status', { method: 'GET' })
@@ -137,6 +165,21 @@ export function fetchMessages(channelKey: string, limit = 50, beforeId?: number)
   return request<MessagesPageDto>(`/api/im-gateway/messages?${qs.toString()}`, { method: 'GET' })
 }
 
+/** 读取智能体名册（AIAgent AgentsController）：响应兼容裸数组与 {data:[...]} 封套（同 fetchPluginVersion）。 */
+export async function fetchAgents(): Promise<AgentRosterItemDto[] | undefined> {
+  const resp = await request<unknown>('/api/agents', { method: 'GET' })
+  if (!resp) return undefined
+  const list: unknown = Array.isArray(resp) ? resp : (resp as { data?: unknown }).data
+  if (!Array.isArray(list)) return undefined
+  const items: AgentRosterItemDto[] = []
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object') continue
+    const a = raw as AgentRosterItemDto
+    if (typeof a.id !== 'string' || a.id === '') continue
+    items.push({ id: a.id, name: typeof a.name === 'string' && a.name ? a.name : a.id, isEnabled: a.isEnabled })
+  }
+  return items
+}
 /** 读取本插件当前运行版本（宿主 /api/plugin 清单），用于界面展示「自身版本」。 */
 export async function fetchPluginVersion(pluginId: string): Promise<string> {
   const resp = await request<{ data?: Array<{ id: string; version: string }> } | Array<{ id: string; version: string }>>('/api/plugin', { method: 'GET' })

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Web.Script.Serialization;
 using System.Xml.Serialization;
+using ForgeSelf.Abstractions;
 using NewLife;
 using NewLife.Data;
 using NewLife.Log;
@@ -134,7 +135,7 @@ public partial class AgentDefinition : Entity<AgentDefinition>
             Workflows = model.Workflows,
             ExecutionMode = string.IsNullOrWhiteSpace(model.ExecutionMode) ? "free" : model.ExecutionMode,
         };
-        ConfigJson = JsonSerializer.Serialize(cfg);
+        ConfigJson = JsonSerializer.Serialize(cfg, ForgeJson.Default);
     }
     #endregion
 }

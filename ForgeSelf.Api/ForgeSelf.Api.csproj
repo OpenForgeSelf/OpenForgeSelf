@@ -140,7 +140,13 @@
     <ProjectReference Include="..\Plugins\BrowserUse\BrowserUse.csproj" ReferenceOutputAssembly="false" />
     <!-- SmartTerminal 智能终端：仅建立构建顺序 -->
     <ProjectReference Include="..\Plugins\SmartTerminal\SmartTerminal.csproj" ReferenceOutputAssembly="false" />
+
+    <!-- DbAdmin 数据库管理：仅建立构建顺序 -->
+    <ProjectReference Include="..\Plugins\DbAdmin\DbAdmin.csproj" ReferenceOutputAssembly="false" />
+    <!-- ClockBadge 时钟徽标（演示插件）：仅建立构建顺序，不编译引用、不复制到输出根目录 -->
+    <ProjectReference Include="..\Plugins\ClockBadge\ClockBadge.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
 
   <!-- 将仓库根 Plugins/<Name>/bin/<Config>/net10.0 下各插件的完整输出（DLL + deps.json + 非宿主共享
        NuGet 依赖）暂存到 Backend 输出 $(OutDir)Plugins\<Name>\，供 PluginManager 隔离加载。
@@ -154,7 +160,7 @@
   <Target Name="StageAllPlugins" AfterTargets="Build">
     <ItemGroup>
       <_PluginBin Include="..\Plugins\*\bin\$(Configuration)\net10.0\**\*.*"
-                  Exclude="..\Plugins\*\bin\$(Configuration)\net10.0\ForgeSelf.*;..\Plugins\*\bin\$(Configuration)\net10.0\NewLife.*" />
+                  Exclude="..\Plugins\*\bin\$(Configuration)\net10.0\ForgeSelf.*;..\Plugins\*\bin\$(Configuration)\net10.0\NewLife.*;..\Plugins\*\bin\$(Configuration)\net10.0\XCode.*;..\Plugins\*\bin\$(Configuration)\net10.0\MX.*" />
       <!-- 插件清单：原先由宿主 <None Update="Plugins\**\plugin.json"> 从项目目录拷出；插件源码迁出宿主
            范围后该规则对根 Plugins/ 不命中，staging 职责移入本目标（行为等价：清单必须随 DLL 进输出）。 -->
       <_PluginManifests Include="..\Plugins\*\plugin.json" />

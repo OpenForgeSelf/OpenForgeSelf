@@ -12,7 +12,7 @@ namespace ForgeSelf.Api.Plugins.Scheduler.Services;
 /// </summary>
 public static class AgentRunTaskHandler
 {
-    public static async Task<string> ExecuteAsync(ScheduledTask task, IServiceProvider services)
+    public static async Task<(bool Skipped, string Message)> ExecuteAsync(ScheduledTask task, IServiceProvider services)
     {
         var config = Parse(task);
         var ctx = ResolveContext(services);
@@ -32,7 +32,7 @@ public static class AgentRunTaskHandler
         if (!result.Success)
             throw new InvalidOperationException(result.Message);
 
-        return result.Message;
+        return (result.Skipped, result.Message);
     }
 
     private static AgentRunConfig Parse(ScheduledTask task)

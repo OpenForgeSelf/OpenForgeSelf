@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ForgeSelf.Abstractions;
@@ -21,6 +22,8 @@ public sealed class SessionEventJsonConverter : JsonConverter<SessionEvent>
         Converters = { new SessionEventJsonConverter() },
         // 落盘/回读同一套选项，枚举以名称还是数字并不影响一致性；保持默认（数字）以最小化载荷
         WriteIndented = false,
+        // PC-027：中文保持原文，禁止默认 \uXXXX 转义
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>只对抽象基类生效，派生类型走默认反射转换，避免自递归。</summary>

@@ -104,7 +104,8 @@ describe('fetchTaskCenterItems · 三源聚合容错', () => {
           { source: 'planned', count: 1, ok: true },
         ],
         items: [
-          { id: 'open:s1', source: 'open', title: '开放任务A', status: 'running', retryable: false, sourceRef: 's1' },
+          { id: 'open:s1', source: 'open', title: '开放任务A', status: 'running', retryable: false,
+            startedAt: '2026-10-30T09:00:00+08:00', sourceRef: 's1' },
           {
             id: 'plan:7',
             source: 'planned',
@@ -113,6 +114,7 @@ describe('fetchTaskCenterItems · 三源聚合容错', () => {
             failureReason: 'boom',
             retryable: true,
             retryUrl: '/api/ai-agent/runs/7/resume',
+            startedAt: '2026-11-01T10:00:00+08:00',
             sourceRef: '7',
           },
         ],
@@ -124,8 +126,35 @@ describe('fetchTaskCenterItems · 三源聚合容错', () => {
     ])
 
     const { items, errors } = await fetchTaskCenterItems()
-    expect(items.map((i) => i.id)).toEqual(['open:s1', 'plan:7', 'sched:5'])
+    // T8 起跨桶统一倒序：open(10-30) < plan(11-01) < sched(11-02) → sched 最前
+    expect(items.map((x) => x.id)).toEqual(['sched:5', 'plan:7', 'open:s1'])
     expect(errors).toEqual({})
+  })
+
+  it('T8：跨桶统一按 startedAt 倒序（最新在上）', async () => {
+    stubFetchOnce([
+      jsonResponse({
+        success: true,
+        sources: [
+          { source: 'open', count: 1, ok: true },
+          { source: 'planned', count: 1, ok: true },
+        ],
+        items: [
+          { id: 'open:s1', source: 'open', title: '旧会话任务', status: 'running', retryable: false,
+            startedAt: '2026-11-01T09:00:00+08:00', sourceRef: 's1' },
+          { id: 'plan:7', source: 'planned', title: '新计划任务', status: 'running', retryable: false,
+            startedAt: '2026-11-03T10:00:00+08:00', sourceRef: '7' },
+        ],
+      }),
+      jsonResponse({
+        success: true,
+        data: { items: [schedTask()], total: 1, page: 1, pageSize: 100 },
+      }),
+    ])
+
+    const { items } = await fetchTaskCenterItems()
+    // 输入序 open(11-01)→planned(11-03)→sched(11-02)；跨桶倒序后应 plan:7 → sched:5 → open:s1
+    expect(items.map((i) => i.id)).toEqual(['plan:7', 'sched:5', 'open:s1'])
   })
 
   it('Scheduler 失败 → open/planned 条目仍在，errors.scheduler 带原文', async () => {

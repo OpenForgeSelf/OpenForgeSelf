@@ -11,7 +11,7 @@ namespace ForgeSelf.Api.Plugins.Scheduler.Services;
 
 public interface ITaskExecutor
 {
-    Task ExecuteTaskAsync(ScheduledTask task);
+    Task<TaskExecutionOutcome> ExecuteTaskAsync(ScheduledTask task);
 }
 
 public class TaskExecutor : ITaskExecutor
@@ -28,7 +28,7 @@ public class TaskExecutor : ITaskExecutor
         _httpHandler = httpHandler;
     }
 
-    public async Task ExecuteTaskAsync(ScheduledTask task)
+    public async Task<TaskExecutionOutcome> ExecuteTaskAsync(ScheduledTask task)
     {
         var stopwatch = Stopwatch.StartNew();
         long logId = 0;
@@ -40,6 +40,7 @@ public class TaskExecutor : ITaskExecutor
             logId = CreateTaskLog(task.Id);
 
             string resultMessage;
+            var skipped = false;
 
             switch (task.TaskType)
             {
@@ -56,7 +57,7 @@ public class TaskExecutor : ITaskExecutor
                     break;
 
                 case ScheduledTaskType.AgentRun:
-                    resultMessage = await AgentRunTaskHandler.ExecuteAsync(task, _serviceProvider);
+                    (skipped, resultMessage) = await AgentRunTaskHandler.ExecuteAsync(task, _serviceProvider);
                     break;
 
                 default:
@@ -67,6 +68,8 @@ public class TaskExecutor : ITaskExecutor
             UpdateTaskLog(logId, ScheduledTaskLogStatus.Success, resultMessage, null, stopwatch.Elapsed.TotalMilliseconds);
 
             XTrace.Log.Info("[TaskExecutor] 任务 [{0}] {1} 执行成功，耗时 {2}ms", task.Id, task.Name, stopwatch.ElapsedMilliseconds);
+
+            return skipped ? TaskExecutionOutcome.Skipped : TaskExecutionOutcome.Executed;
         }
         catch (Exception ex)
         {

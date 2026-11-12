@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DbAdmin</AssemblyName>
+    <RootNamespace>ForgeSelf.Api.Plugins.DbAdmin</RootNamespace>
+    <!-- F1 真凶（2026-11-05）：禁止 CopyLocalLockFileAssemblies——私带 XCode.dll 会被隔离 ALC 优先加载，
+         插件侧 EntityFactory/DAL 成独立静态态，宿主 DAL.AddConnStr 登记不可见 → 兜底落版本层（跨升级丢数据）。
+         宿主已带同版本 XCode/NewLife.Core（StageAllPlugins 排除 NewLife.* 出插件目录，类型身份单份）。
+         铁律12c 的「非宿主 NuGet 随插件 bin 输出」仅指宿主没有的库（如外置驱动），且引入前须过 problem-class-closure。 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <!-- 宿主已带同版本 XCode + XCode.SQLite（StageAllPlugins 排除 NewLife.* 出插件目录，类型身份单份）。
+         驱动打包决策见 docs/05 §2：MVP 不随插件打包 MySQL/PG/SQLServer 驱动；2026-11-06 起驱动预检关闭，
+         交给 XCode 在连接期自行获取，失败回显底层错误。 -->
+    <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
+    <ProjectReference Include="..\..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

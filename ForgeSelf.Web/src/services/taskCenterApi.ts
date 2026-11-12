@@ -37,6 +37,8 @@ export interface TaskOverviewItem {
   retryable: boolean
   /** planned：POST 续跑端点（SSE 流） */
   retryUrl?: string | null
+  /** 终止端点（后端对非终态 Run 下发，POST 后任务进 Cancelled；scheduler 行恒 null；T14⑥）。 */
+  cancelUrl?: string | null
   /** scheduler：POST 立即运行端点 */
   runNowUrl?: string | null
   sourceRef: string
@@ -60,6 +62,7 @@ interface OverviewResponse {
     endedAt?: string | null
     retryable: boolean
     retryUrl?: string | null
+      cancelUrl?: string | null
     sourceRef: string
   }>
 }
@@ -125,6 +128,7 @@ export function mapSchedulerTask(task: SchedulerTaskDto): TaskOverviewItem | nul
     endedAt: null,
     retryable: failed,
     retryUrl: null,
+    cancelUrl: null,
     runNowUrl: `/api/scheduler/tasks/${task.id}/run-now`,
     sourceRef: String(task.id),
     nextRunAt: task.nextRunTime ?? null,
@@ -133,6 +137,12 @@ export function mapSchedulerTask(task: SchedulerTaskDto): TaskOverviewItem | nul
 }
 
 /** Scheduler 行失败详情文案（来自任务日志最近失败记录，视图按需拉取后回填）。 */
+/** T8 排序键：startedAt 毫秒时间戳（缺/不可解析=0 排最后）。 */
+function startedKey(item: TaskOverviewItem): number {
+  const t = Date.parse(item.startedAt ?? '')
+  return Number.isNaN(t) ? 0 : t
+}
+
 export function schedulerFailureFromLog(errorMessage?: string | null, resultMessage?: string | null): string | null {
   const text = (errorMessage ?? '').trim() || (resultMessage ?? '').trim()
   return text || null
@@ -158,6 +168,7 @@ export async function fetchTaskCenterItems(): Promise<TaskCenterSnapshot> {
         endedAt: item.endedAt ?? null,
         retryable: item.retryable,
         retryUrl: item.retryUrl ?? null,
+        cancelUrl: item.cancelUrl ?? null,
         runNowUrl: null,
         sourceRef: item.sourceRef,
         nextRunAt: null,
@@ -185,6 +196,10 @@ export async function fetchTaskCenterItems(): Promise<TaskCenterSnapshot> {
     const msg = scheduler.reason instanceof Error ? scheduler.reason.message : String(scheduler.reason)
     errors.scheduler = msg
   }
+
+  // T8（验收#1）：跨桶统一按开始时间倒序（最新在上）——桶内序由后端保证（open=最后活跃 / planned=创建时间 /
+  // scheduler=最近运行），拼接序不再决定展示序；无 startedAt 的行排最后，同键保持稳定序（桶内相对序不变）。
+  items.sort((a, b) => startedKey(b) - startedKey(a))
 
   return { items, errors }
 }
@@ -310,6 +325,23 @@ export async function runSchedulerNow(runNowUrl: string): Promise<ResumeOutcome>
 /**
  * 拉取定时任务最近一次失败原因（GET /api/scheduler/tasks/{id}/logs，取最近 Failed 日志）。
  * 拉不到/无失败日志返回 null（视图回退展示「连续失败 N 次」计数文案）。
+ */
+/** 终止 Run（POST cancelUrl；封套 success=false 视为失败并透出 message）。 */
+export async function cancelRun(cancelUrl: string): Promise<ResumeOutcome> {
+  try {
+    const json = await fetchJson<{ success?: boolean; message?: string }>(cancelUrl, { method: "POST" })
+    if (json && json.success === false) {
+      return { ok: false, message: json.message || "终止失败" }
+    }
+    return { ok: true, message: json?.message || "已终止" }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "网络错误" }
+  }
+}
+
+
+/**
+ * 拉取定时任务最近一次失败原因（GET /api/scheduler/tasks/{id}/logs，取最近 Failed 日志）。
  */
 export async function fetchSchedulerLastFailure(taskId: number): Promise<string | null> {
   try {

@@ -366,5 +366,21 @@ public class ToolRegistryTests
         result.Errors.Should().NotBeEmpty();
     }
 
+    [Fact]
+    public void ValidateParameters_PropertyWithoutType_AcceptsNumber()
+    {
+        // 2026-11-07 输入4：db_* 工具 connectionId 删除 "type":"string" 后，网关对无 type 属性放行任意 ValueKind（早退分支）；
+        // 对照：有 type 属性的参数仍严格校验（其他工具契约行为不变）
+        var tool = new TestTool { Id = "dbadmin.list", Name = "db_no_type_tool", Description = "t", PluginId = "db-admin", ParametersJsonSchema = "{\"type\":\"object\",\"properties\":{\"connectionId\":{\"description\":\"数字或字符串均可\"}},\"required\":[\"connectionId\"]}" };
+        _registry.RegisterTool(tool);
+
+        _registry.ValidateParameters("db_no_type_tool", "{\"connectionId\":5}").IsValid.Should().BeTrue();
+        _registry.ValidateParameters("db_no_type_tool", "{\"connectionId\":\"sys:Membership\"}").IsValid.Should().BeTrue();
+
+        var strict = new TestTool { Id = "dbadmin.strict", Name = "db_strict_tool", Description = "t", PluginId = "db-admin", ParametersJsonSchema = "{\"type\":\"object\",\"properties\":{\"table\":{\"type\":\"string\"}},\"required\":[\"table\"]}" };
+        _registry.RegisterTool(strict);
+        _registry.ValidateParameters("db_strict_tool", "{\"table\":7}").IsValid.Should().BeFalse();
+    }
+
     #endregion
 }

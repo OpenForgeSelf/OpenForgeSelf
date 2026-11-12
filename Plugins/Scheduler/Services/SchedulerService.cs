@@ -43,6 +43,14 @@ public class SchedulerService : ISchedulerService
         {
             XTrace.Log.Info("[SchedulerService] 创建定时任务: {0}, 类型: {1}", request.Name, request.TaskType);
 
+            if (request.ScheduleType == ScheduleType.Once)
+            {
+                if (request.RunAt == null)
+                    throw new ArgumentException("Once 任务的 runAt 不能为空", nameof(request.RunAt));
+                if (request.RunAt.Value <= DateTime.UtcNow)
+                    throw new ArgumentException("Once 任务的 runAt 必须晚于当前时间", nameof(request.RunAt));
+            }
+
             var now = DateTime.UtcNow;
             var entity = new ScheduledTaskEntity
             {
@@ -53,7 +61,7 @@ public class SchedulerService : ISchedulerService
                 ScheduleType = (int)request.ScheduleType,
                 CronExpression = request.CronExpression,
                 IntervalMinutes = request.IntervalMinutes ?? 0,
-                RunAt = request.RunAt ?? DateTime.MinValue,
+                RunAt = request.RunAt.HasValue ? request.RunAt.Value.ToUniversalTime() : DateTime.MinValue,
                 WeekDays = request.WeekDays,
                 DayOfMonth = request.DayOfMonth ?? 0,
                 TimeOfDay = request.TimeOfDay.HasValue ? request.TimeOfDay.Value.ToString() : null,
@@ -92,6 +100,14 @@ public class SchedulerService : ISchedulerService
             if (entity == null)
                 return Task.FromResult<ScheduledTaskDto?>(null);
 
+            if (request.ScheduleType == ScheduleType.Once)
+            {
+                if (request.RunAt == null)
+                    throw new ArgumentException("Once 任务的 runAt 不能为空", nameof(request.RunAt));
+                if (request.RunAt.Value <= DateTime.UtcNow)
+                    throw new ArgumentException("Once 任务的 runAt 必须晚于当前时间", nameof(request.RunAt));
+            }
+
             entity.Name = request.Name;
             entity.Description = request.Description;
             entity.TaskType = (int)request.TaskType;
@@ -99,7 +115,7 @@ public class SchedulerService : ISchedulerService
             entity.ScheduleType = (int)request.ScheduleType;
             entity.CronExpression = request.CronExpression;
             entity.IntervalMinutes = request.IntervalMinutes ?? 0;
-            entity.RunAt = request.RunAt ?? DateTime.MinValue;
+            entity.RunAt = request.RunAt.HasValue ? request.RunAt.Value.ToUniversalTime() : DateTime.MinValue;
             entity.WeekDays = request.WeekDays;
             entity.DayOfMonth = request.DayOfMonth ?? 0;
             entity.TimeOfDay = request.TimeOfDay.HasValue ? request.TimeOfDay.Value.ToString() : null;

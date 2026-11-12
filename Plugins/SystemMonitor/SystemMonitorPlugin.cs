@@ -204,7 +204,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
             var service = GetService();
             if (service == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "CPU监控服务不可用" });
+                return JsonSerializer.Serialize(new { success = false, error = "CPU监控服务不可用" }, ForgeJson.Default);
             }
 
             var cpuUsage = await service.GetCpuUsageAsync();
@@ -216,7 +216,7 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
                 timestamp = cpuUsage.Timestamp
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_cpu_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -241,14 +241,14 @@ public class GetCpuUsageToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
     private ICpuMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<ICpuMonitorService>();
     }
 
@@ -286,7 +286,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
             var service = GetService();
             if (service == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "内存监控服务不可用" });
+                return JsonSerializer.Serialize(new { success = false, error = "内存监控服务不可用" }, ForgeJson.Default);
             }
 
             var memoryInfo = await service.GetMemoryInfoAsync();
@@ -300,7 +300,7 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
                 timestamp = memoryInfo.Timestamp
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_memory_usage", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -325,14 +325,14 @@ public class GetMemoryUsageToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
     private IMemoryMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IMemoryMonitorService>();
     }
 
@@ -370,7 +370,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
             var service = GetService();
             if (service == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "磁盘监控服务不可用" });
+                return JsonSerializer.Serialize(new { success = false, error = "磁盘监控服务不可用" }, ForgeJson.Default);
             }
 
             var disks = await service.GetDiskDrivesAsync();
@@ -391,7 +391,7 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_disk_info", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -417,14 +417,14 @@ public class GetDiskInfoToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
     private IDiskMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IDiskMonitorService>();
     }
 
@@ -508,7 +508,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
             var service = GetService();
             if (service == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "进程监控服务不可用" });
+                return JsonSerializer.Serialize(new { success = false, error = "进程监控服务不可用" }, ForgeJson.Default);
             }
 
             var request = new ProcessListRequest
@@ -538,7 +538,7 @@ public class GetProcessListToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "get_process_list", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -566,14 +566,14 @@ public class GetProcessListToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
     private IProcessMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 
@@ -625,7 +625,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
             var service = GetService();
             if (service == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "进程监控服务不可用" });
+                return JsonSerializer.Serialize(new { success = false, error = "进程监控服务不可用" }, ForgeJson.Default);
             }
 
             var result = await service.KillProcessAsync(processId, force);
@@ -637,7 +637,7 @@ public class KillProcessToolFunction : IToolFunctionExtension
                 message = result ? "进程已成功结束" : "进程结束失败"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "kill_process", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -664,14 +664,14 @@ public class KillProcessToolFunction : IToolFunctionExtension
                 success = false,
                 error = ex.Message
             };
-            return JsonSerializer.Serialize(errorResponse);
+            return JsonSerializer.Serialize(errorResponse, ForgeJson.Default);
         }
     }
 
     private IProcessMonitorService? GetService()
     {
         if (_serviceProvider == null) return null;
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _serviceProvider.CreateHostScope();
         return scope.ServiceProvider.GetService<IProcessMonitorService>();
     }
 

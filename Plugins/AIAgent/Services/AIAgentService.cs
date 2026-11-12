@@ -1395,7 +1395,7 @@ public class AIAgentService : IAIAgentService
             XTrace.Log.Info("[AIAgentPlugin] 正在检索相关记忆...");
 
             var trimmed = query.Length > 500 ? query[..500] : query;
-            var toolParams = JsonSerializer.Serialize(new { query = trimmed, limit = 5 });
+            var toolParams = JsonSerializer.Serialize(new { query = trimmed, limit = 5 }, ForgeJson.Default);
             // B9 迁六闸门执行面：15s 超时以 linked CTS 注入（语义等价旧 WithTimeout）。
             ToolExecutionResult toolResult;
             using (var toolTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))

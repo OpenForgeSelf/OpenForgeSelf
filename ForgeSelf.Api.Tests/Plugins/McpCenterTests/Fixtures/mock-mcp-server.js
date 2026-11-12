@@ -82,20 +82,22 @@ function handleRequest(req, json) {
 }
 
 // ---------- stdio ----------
+// PC-027 暴露伴生修复（2026-11-07）：客户端 JSON 输出改中文原文后，LSP 帧体含多字节字符，
+// Content-Length 是字节数 —— 读取必须按 Buffer 字节级切帧（旧实现 setEncoding('utf8') 后按
+// JS 字符串长度切片，ASCII 载荷碰巧正确，中文载荷帧永远"不完整"→ 客户端 300s 超时）。
 function runStdio() {
-  let buf = '';
-  process.stdin.setEncoding('utf8');
+  let buf = Buffer.alloc(0);
   process.stdin.on('data', (chunk) => {
-    buf += chunk;
+    buf = Buffer.concat([buf, chunk]);
     while (true) {
       const idx = buf.indexOf('\r\n\r\n');
       if (idx < 0) return;
-      const header = buf.slice(0, idx);
+      const header = buf.slice(0, idx).toString('utf8');
       const m = /Content-Length:\s*(\d+)/i.exec(header);
       if (!m) { buf = buf.slice(idx + 4); continue; }
       const len = parseInt(m[1], 10);
       if (buf.length < idx + 4 + len) return;
-      const body = buf.slice(idx + 4, idx + 4 + len);
+      const body = buf.slice(idx + 4, idx + 4 + len).toString('utf8');
       buf = buf.slice(idx + 4 + len);
       let req;
       try { req = JSON.parse(body); } catch { continue; }

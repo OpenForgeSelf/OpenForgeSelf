@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 using ForgeSelf.Api.Models;
 
@@ -90,8 +91,7 @@ public class UpdateSettingsService
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);
 
-            var json = JsonSerializer.Serialize(_config,
-                new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(_config, ForgeJson.Indented);
             File.WriteAllText(_settingsFilePath, json);
         }
         catch (Exception ex)

@@ -109,12 +109,15 @@ public class TaskScheduler : ITaskScheduler, ISchedulerHost
     {
         var now = DateTime.UtcNow;
 
+        // 同一字段写两次时间比较时，XCode 会复用一个参数，上下界变成同一个值，结果恒为空。
+        // 未设置的 NextRunTime（MinValue）改在内存里丢掉。
         var exp = new WhereExpression();
         exp &= ScheduledTaskEntity._.Status == (int)ScheduledTaskStatus.Enabled;
-        exp &= ScheduledTaskEntity._.NextRunTime > DateTime.MinValue;
         exp &= ScheduledTaskEntity._.NextRunTime <= now;
 
-        var dueTasks = ScheduledTaskEntity.FindAll(exp);
+        var dueTasks = ScheduledTaskEntity.FindAll(exp)
+            .Where(t => t.NextRunTime > DateTime.MinValue)
+            .ToList();
 
         if (dueTasks.Count == 0)
             return Task.CompletedTask;
@@ -136,10 +139,13 @@ public class TaskScheduler : ITaskScheduler, ISchedulerHost
 
             _ = Task.Run(async () =>
             {
+                // 执行异常按「已执行」推进，保持既有消费语义（FailureCount 由执行器负责）；
+                // 仅触发器明确返回「跳过」时才不消费，Once 保持 Enabled 等待下轮到期重试。
+                var outcome = TaskExecutionOutcome.Executed;
                 try
                 {
                     var task = MapToDto(taskEntity);
-                    await _taskExecutor.ExecuteTaskAsync(task);
+                    outcome = await _taskExecutor.ExecuteTaskAsync(task);
                 }
                 catch (Exception ex)
                 {
@@ -147,37 +153,49 @@ public class TaskScheduler : ITaskScheduler, ISchedulerHost
                 }
                 finally
                 {
+                    try
+                    {
+                        AdvanceScheduleState(taskEntity, outcome, now);
+                    }
+                    catch (Exception ex)
+                    {
+                        XTrace.Log.Error("[Scheduler] 更新任务 [{0}] 状态失败: {1}", taskEntity.Id, ex.Message);
+                    }
+
                     lock (_runningTasks)
                     {
                         _runningTasks.Remove(taskEntity.Id);
                     }
                 }
             }, cancellationToken);
-
-            try
-            {
-                taskEntity.LastRunTime = now;
-                taskEntity.RunCount++;
-
-                var task = MapToDto(taskEntity);
-                var nextRunTime = GetNextRunTime(task);
-                taskEntity.NextRunTime = nextRunTime ?? DateTime.MinValue;
-                taskEntity.UpdatedAt = DateTime.UtcNow;
-
-                if (taskEntity.ScheduleType == (int)ScheduleType.Once)
-                {
-                    taskEntity.Status = (int)ScheduledTaskStatus.Disabled;
-                }
-
-                taskEntity.Update();
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Error("[Scheduler] 更新任务 [{0}] 状态失败: {1}", taskEntity.Id, ex.Message);
-            }
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>按执行结果推进调度状态；「跳过」不消费调度窗口（不推进、Once 不禁用）。</summary>
+    private void AdvanceScheduleState(ScheduledTaskEntity taskEntity, TaskExecutionOutcome outcome, DateTime now)
+    {
+        if (outcome == TaskExecutionOutcome.Skipped)
+        {
+            XTrace.Log.Debug("[Scheduler] 任务 [{0}] 本轮触发被跳过，保留调度状态等待下轮到期", taskEntity.Id);
+            return;
+        }
+
+        taskEntity.LastRunTime = now;
+        taskEntity.RunCount++;
+
+        var task = MapToDto(taskEntity);
+        var nextRunTime = GetNextRunTime(task);
+        taskEntity.NextRunTime = nextRunTime ?? DateTime.MinValue;
+        taskEntity.UpdatedAt = DateTime.UtcNow;
+
+        if (taskEntity.ScheduleType == (int)ScheduleType.Once)
+        {
+            taskEntity.Status = (int)ScheduledTaskStatus.Disabled;
+        }
+
+        taskEntity.Update();
     }
 
     public Task ScheduleTaskAsync(ScheduledTask task)

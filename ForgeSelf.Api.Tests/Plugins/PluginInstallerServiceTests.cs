@@ -11,9 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ForgeSelf.Api.Tests.Plugins;
 
 /// <summary>
-/// PluginInstallerService 装包更新（UpdateFromPackage）版本化测试。
-/// 批次2.5（输入34）：上传 .forgeself-plugin 包更新统一为版本化——解包直落 versions/&lt;ver&gt;/ 后激活，
-/// 不再覆盖活动目录；包版本必须高于当前生效版本（多版本共存即回滚，禁止覆盖式更新）。
+/// 再次安装只暂存到 versions/，不切换 current。包文件是 .zip。
 /// </summary>
 public class PluginInstallerServiceTests
 {
@@ -38,10 +36,10 @@ public class PluginInstallerServiceTests
         _installer.Initialize(_tempDir.RootPath);
     }
 
-    /// <summary>构造 .forgeself-plugin 包（zip 根 = plugin.json + 入口 DLL 占位）。</summary>
+    /// <summary>构造 .zip 包（zip 根 = plugin.json + 入口 DLL 占位）。</summary>
     private string CreatePackage(string pluginId, string version)
     {
-        var packagePath = Path.Combine(_tempDir.RootPath, $"{pluginId}-{version}.forgeself-plugin");
+        var packagePath = Path.Combine(_tempDir.RootPath, $"{pluginId}-{version}.zip");
         using var fs = File.Create(packagePath);
         using (var archive = new ZipArchive(fs, ZipArchiveMode.Create, true))
         {
@@ -65,7 +63,7 @@ public class PluginInstallerServiceTests
     }
 
     [Fact]
-    public void UpdateFromPackage_StagesToVersionsAndActivates()
+    public void UpdateFromPackage_StagesWithoutActivating()
     {
         var pluginId = "test.installer.upgrade";
         _tempDir.CreatePluginManifest(pluginId, m =>
@@ -82,19 +80,16 @@ public class PluginInstallerServiceTests
         result.Should().NotBeNull();
         result!.Version.Should().Be("2.0.0");
 
-        // 版本直落 versions/<id>/<ver>/（不覆盖活动目录）
         var pluginDir = Path.Combine(_tempDir.RootPath, pluginId);
         Directory.Exists(Path.Combine(pluginDir, "versions", "2.0.0")).Should().BeTrue();
         File.Exists(Path.Combine(pluginDir, "versions", "2.0.0", "fake.dll")).Should().BeTrue();
 
-        // current 指针与活动清单已切到新版本
-        PluginVersionLayout.ReadCurrentVersion(pluginDir).Should().Be("2.0.0");
+        PluginVersionLayout.ReadCurrentVersion(pluginDir).Should().BeNull();
         var activeManifest = JsonSerializer.Deserialize<PluginMetadata>(
-            File.ReadAllText(Path.Combine(pluginDir, "plugin.json")));
-        activeManifest!.Version.Should().Be("2.0.0");
-
-        // 内存元数据已刷新
-        _manager.GetPluginMetadata(pluginId)!.Version.Should().Be("2.0.0");
+            File.ReadAllText(Path.Combine(pluginDir, "plugin.json")),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        activeManifest!.Version.Should().Be("1.0.0");
+        _manager.GetPluginMetadata(pluginId)!.Version.Should().Be("1.0.0");
     }
 
     [Fact]

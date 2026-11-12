@@ -28,7 +28,7 @@
 | `build-plugin-web.ps1` | 插件前端「出树构建」：把插件 `web/src` + vite 配置暂存到宿主树内，用宿主完整 node_modules 驱动 vite 构建（沙箱兜底路径，产物仅 `index.js` + `style.css`） | `pwsh scripts/build-plugin-web.ps1 -Plugin FileTools` |
 | `publish-plugin.ps1` | 发布单插件到 `<PluginsRoot>/<id>/versions/<version>/`（side-by-side 版本化布局）；由宿主 `POST /api/plugin/update/{id}` 切换 `current` 指针与热重载 | `pwsh scripts/publish-plugin.ps1 -Plugin AIAgent [-Configuration Release] [-PluginsRoot <dir>] [-Force] [-DryRun]` |
 | `publish-plugin-full.ps1` | 单插件一键发布闭环：先构建插件前端（web/dist），再调 plugin-publish-verify（全量发布 → 单插件发布 → 触发热重载 → 验证） | `pwsh scripts/publish-plugin-full.ps1 -Plugin AIAgent [-BumpVersion] [-PluginsRoot <dir>] [-Port <n>]` |
-| `package-plugin.ps1` | 打包单插件为 `<id>-<ver>.forgeself-plugin` 更新源包（plugin.json + 入口 DLL + 依赖 + web/dist，排除宿主共享程序集），供设置页「插件更新源」离线更新 | `pwsh scripts/package-plugin.ps1 -Plugin AIAgent [-OutDir <dir>] [-Configuration Debug] [-Force] [-DryRun]` |
+| `package-plugin.ps1` | 打包单插件为 `{Name}-{发行串}.zip`（只认 zip；停止产出 `.forgeself-plugin`）。契约见 `docs/04-standards/packaging-upgrade-backup.md` §1.9 | `pwsh -NoProfile -File scripts/package-plugin.ps1 -Plugin AIAgent [-Source <目录>] [-OutDir <dir>]` |
 | `migrate-plugin-versions.ps1` | 一次性存量迁移：扁平布局插件 → 版本化布局（补 `versions/<ver>/` 快照 + `current` 指针），只新增文件、不删不改活动目录 | `pwsh scripts/migrate-plugin-versions.ps1 [-PluginsRoot "<repo>\publish\plugins"]` |
 | `get-forge-token.cjs` | 解密 `ForgeSetting.config` 里的明文 API token（v2 = PBKDF2 + AES-256-CBC，与 AesSecretEncryptionService 同算法），走查注入用；宿主每次启动轮换 token，需指向当前运行实例 | `node scripts/get-forge-token.cjs [--config <path>]` |
 | `probe-dll-string.cjs` | 二进制字符串探针：.NET 元数据字符串是 UTF-16LE，`strings`/`grep` 会漏检；用于验证新代码进了 publish 产物 / 已删实现不在产物里 | `node scripts/probe-dll-string.cjs <文件> <目标字符串> [--expect-absent]` |

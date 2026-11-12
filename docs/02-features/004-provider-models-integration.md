@@ -56,10 +56,10 @@ LLM 客户端（GitHub Copilot 等）按 OpenAI / Anthropic / OpenAI Responses �
 | 场景 | 返回的 `id` | 是否含 `提供商:` 前缀 |
 |------|-------------|----------------------|
 | 未配置 `PublicAlias` | `AIModel.GetGatewayModelListId` → `提供商:上游模型id`（与 `ChatModelId` 一致） | **是**（例：`OpenAI:gpt-4o`；2026-11-03 PILOT 落地） |
-| 已配置 `PublicAlias`（且启用） | 清洗后的别名 | **否**（例：`client-model`；聊天侧靠 `AIModel.FindByPublicAlias` 反查提供方，见 PILOT-068 FR-07） |
+| 已配置 `PublicAlias`（且启用） | 清洗后的别名 | **否**（例：`default` → 上游 `qwen3_8_vision`；Chat / Responses / Agent / Anthropic 共用 `AIProviderRegistry.ResolveUpstreamModel`，把别名换成 `UpstreamModelId` 再出站） |
 | 同名字段 | `owned_by` = 提供方显示名 | 前缀在 **owned_by**，不在 **id** |
 
-与聊天路由的关系：`POST v1/chat/completions` 等接口的 `model` **推荐**使用 `ChatModelId`（`提供商:上游模型id`，见 002 §2.1）；`ResolveProviderAndModel` / `GetProviderByChatModelId` 支持带前缀显式路由。客户端从 `/v1/models` 原样取 `id` 再发起对话时，无别名模型已可直接用于 `provider:` 前缀路由；有别名时仍以别名为准。`GET /v1/models/{model}` 支持按 `提供商:上游id` 或别名查询。
+与聊天路由的关系：`POST /v1/chat/completions`、`POST /v1/responses`、Agent 测试接口、Anthropic Messages 的 `model` 都走 `AIProviderRegistry.ResolveUpstreamModel`（2026-11-12 收口；此前只有 Chat 会把别名换成上游 id，Responses 把别名原样出站，GPUStack 对未知模型名返回 404）。带前缀的 `提供商:上游模型id` 仍可显式路由。客户端从 `/v1/models` 原样取 `id` 再发起对话时，无别名模型用 `provider:` 前缀；有别名时以别名为准，出站前换成 `UpstreamModelId`。`GET /v1/models/{model}` 支持按 `提供商:上游id` 或别名查询。
 
 ### 2.5 AIService 回退路径（PILOT-074 FR-8）
 

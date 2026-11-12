@@ -210,8 +210,8 @@ Agent 侧新增两个工具（实现在 `Plugins/AIAgent/Services/ToolFunctions/
 > **2026-10-28 命名空间统一（ADR-004，pilot `2026-10-28-tool-namespace-ownership`）**：全部插件工具改 `<toolPrefix>_<语义名>` 或命中平台保留名白名单；**mcp-center 整插件豁免前缀**（用户拍板 2026-10-28 17:29「mcp中心的工具不用前缀，是特殊例外」，`ToolNamespace.ExemptPluginId`）——其工具名即公共 API 面；公共基础工具迁 mcp-center；81 个旧名即退役（无别名层，`ToolNamespace.RenameMap` 为对账唯一真源）；注册口 `ExtensionPointManager` 校验违规即拒。
 
 **四层可见性**：
-1. **FreeLoop 默认挂载**（不勾选工具时）：仅本插件 + memory-system + design-system 三个插件的作用域（`ToolScopePluginIds`，AIAgentService.cs:579），并剔除计划流三工具。
-2. **显式勾选（composer 🔧 / Agent 白名单）**：候选池放开到全注册表（`ResolveSelectableToolDefinitions`，AIAgentService.cs:599）。
+1. **FreeLoop 默认挂载**（不勾选工具时）：仅本插件 + memory-system + design-system 三个插件的作用域（`ToolScopePluginIds`，AIAgentService.cs:674），并剔除计划流三工具。**业务插件（db-admin / todo-tracker 等）不在其中**，默认对话看不见其工具，须显式勾选（2026-11-06 db-admin 实测）。
+2. **显式勾选（composer 🔧 / Agent 白名单）**：候选池放开到全注册表（`ResolveSelectableToolDefinitions`，AIAgentService.cs:694）。
 3. **白名单外工具**：经 `universal_tool` 按名转发触达；工具名不确定先 `search_tools` 检索，再 `list_tools` 全量枚举兜底。
 4. **不进注册表的**：`finish`（循环控制工具，运行期构造挂载，FinishToolFunction.cs:95）；外部 MCP 工具（决策 D10，不注册，经 `universal_tool` 以 `mcp.<服务器id>.<工具名>` 调用）。
 

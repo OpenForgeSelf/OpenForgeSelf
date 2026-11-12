@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Services;
@@ -31,7 +32,7 @@ public class WebSocketBroadcaster : IWebSocketBroadcaster
             return;
 
         var envelope = new { type = eventType, data = payload };
-        var json = JsonSerializer.Serialize(envelope);
+        var json = JsonSerializer.Serialize(envelope, ForgeJson.Default);
         var bytes = Encoding.UTF8.GetBytes(json);
 
         foreach (var socket in _sockets.Keys)

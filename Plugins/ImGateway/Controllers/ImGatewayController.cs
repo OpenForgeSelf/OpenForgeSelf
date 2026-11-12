@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.ImGateway.Core;
 using ForgeSelf.Api.Plugins.ImGateway.Services;
@@ -37,7 +38,11 @@ public class ImGatewayController : ControllerBase
     }
 
     /// <summary>统一 camelCase 序列化（对齐前端 DTO 约定；否则默认 PascalCase 会让前端读不到 channelType/type 等字段）。</summary>
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     /// <summary>读取当前配置（含已保存的通道凭证）。</summary>
     [HttpGet("config")]
@@ -211,10 +216,50 @@ public class ImGatewayController : ControllerBase
         return new JsonResult(new { messages = items, hasMore }, JsonOpts);
     }
 
+
+    /// <summary>
+    /// 模拟入站消息（PILOT-079 FR-8）：组装与生产同形状 InboundMessage → 直调 Router.ProcessInboundAsync（零旁路）。
+    /// 用途：e2e/集成测试「主动触发 IM 收到消息」的唯一自动化入口 + 通道→路由链路运维自检。
+    /// msgId 缺省由端点生成（避开既有幂等去重）；仅文本消息，不伪造事件类；本端点不做任何任务语义。
+    /// </summary>
+    [HttpPost("simulate-inbound")]
+    public async Task<IActionResult> SimulateInbound([FromBody] SimulateInboundRequest request, CancellationToken ct)
+    {
+        if (request == null) return BadRequest(new { error = "请求为空" });
+        if (string.IsNullOrWhiteSpace(request.ConversationId)) return BadRequest(new { error = "conversationId 不能为空" });
+        if (string.IsNullOrWhiteSpace(request.PlatformUserId)) return BadRequest(new { error = "platformUserId 不能为空" });
+        if (string.IsNullOrWhiteSpace(request.Content)) return BadRequest(new { error = "content 不能为空" });
+
+        var inbound = new InboundMessage
+        {
+            ChannelType = string.IsNullOrWhiteSpace(request.ChannelType) ? ImChannelTypes.WeCom : request.ChannelType.Trim(),
+            ConversationId = request.ConversationId.Trim(),
+            PlatformUserId = request.PlatformUserId.Trim(),
+            MessageType = ImMessageTypes.Text,
+            Content = request.Content,
+            MsgId = $"sim-{Guid.NewGuid():N}",
+            ChatType = string.IsNullOrWhiteSpace(request.ChatType) ? null : request.ChatType.Trim(),
+        };
+        await _router.ProcessInboundAsync(inbound, ct);
+        return new JsonResult(new { success = true, note = "已注入模拟入站消息（直调 Router，零旁路）", msgId = inbound.MsgId }, JsonOpts);
+    }
+
     /// <summary>文本截断（null 安全）：preview 截 60 字符等场景。</summary>
     private static string Truncate(string? text, int maxLength)
     {
         if (string.IsNullOrEmpty(text)) return string.Empty;
         return text.Length <= maxLength ? text : text[..maxLength];
     }
+}
+
+/// <summary>模拟入站请求体（FR-8；chatType 可空=被动回复语义，缺省单聊主动推送由调用方决定）。</summary>
+public class SimulateInboundRequest
+{
+    /// <summary>通道类型（空=wecom）。</summary>
+    public string? ChannelType { get; set; }
+    public string ConversationId { get; set; } = string.Empty;
+    public string PlatformUserId { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    /// <summary>会话形态 single/group（可空）。</summary>
+    public string? ChatType { get; set; }
 }

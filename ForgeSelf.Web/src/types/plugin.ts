@@ -149,6 +149,8 @@ export interface PluginUpdateInfo {
 /** 插件更新源配置（2026-09-28，输入27）：localDir 空字符串 = 未配置/停用 */
 export interface PluginUpdateSettings {
   localDir: string
+  githubApiBase?: string
+  nugetV3Index?: string
 }
 
 export interface PluginBackupInfo {

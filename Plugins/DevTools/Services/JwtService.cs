@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.DevTools.Models;
 using NewLife.Log;
 
@@ -163,8 +164,8 @@ public class JwtService : IJwtService
                 ["typ"] = "JWT"
             };
 
-            var headerJson = JsonSerializer.Serialize(header);
-            var payloadJson = JsonSerializer.Serialize(payloadCopy);
+            var headerJson = JsonSerializer.Serialize(header, ForgeJson.Default);
+            var payloadJson = JsonSerializer.Serialize(payloadCopy, ForgeJson.Default);
 
             var headerBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
             var payloadBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));

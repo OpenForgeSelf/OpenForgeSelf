@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.McpCenter.Models;
 using ForgeSelf.Api.Plugins.McpCenter.Services.McpClient;
 using NewLife.Log;
@@ -51,7 +52,7 @@ public sealed class ExternalServersStore
         {
             var dir = Path.GetDirectoryName(_filePath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            var json = JsonSerializer.Serialize(configs, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(configs, ForgeJson.Indented);
             var tmp = _filePath + ".tmp";
             File.WriteAllText(tmp, json, new UTF8Encoding(false));
             File.Move(tmp, _filePath, overwrite: true);

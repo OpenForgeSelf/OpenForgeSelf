@@ -6,11 +6,11 @@
  * 滚动容器经 defineExpose 暴露：父组件轮询追加新消息后按 isNearBottom 决定是否自动滚底。
  * 样式铁律：插件是独立预编译产物，禁 <ElXxx>，一律原生 HTML + --el-* / design token（零裸色值）。
  */
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import type { ChatMessageDto } from '../http'
 import { bubbleTime } from './im-format'
 
-defineProps<{
+const props = defineProps<{
   displayName: string
   messages: ChatMessageDto[]
   hasMore: boolean
@@ -31,12 +31,39 @@ function isNearBottom(): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight < 60
 }
 
+/** 滚到底（rAF×2：等布局帧完成再量 scrollHeight，防 50 条大列表首帧高度未定滚不到位）。 */
 function scrollToBottom(): void {
   const el = scrollEl.value
-  if (el) el.scrollTop = el.scrollHeight
+  if (!el) return
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
+  })
 }
 
+
+
 defineExpose({ isNearBottom, scrollToBottom, scrollEl })
+
+// T11（PILOT-079 R2）：滚动自治——打开/切换会话（messages 0→N 首次灌入）无条件滚到最新；
+// 会话内新消息（N→M）仅在已近底部时自动滚（上翻阅读不打扰）。父组件既有调用保留为双保险（幂等）。
+let hadMessages = false
+watch(
+  () => props.messages.length,
+  async (len) => {
+    if (len <= 0) {
+      hadMessages = false
+      return
+    }
+    const firstFill = !hadMessages
+    hadMessages = true
+    if (!firstFill && !isNearBottom()) return
+    await nextTick()
+    scrollToBottom()
+  },
+)
+
 
 /** 气泡正文：error 态显示失败摘要（Content 为空串），其余显示内容原文。 */
 function bubbleText(m: ChatMessageDto): string {

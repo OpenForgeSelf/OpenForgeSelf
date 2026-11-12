@@ -71,17 +71,17 @@ public class ListFilesToolFunction : IToolFunctionExtension
 
             if (!FileToolPathOps.EnsureCwd(cwdRaw, out var cwd, out var cwdError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, cwdError!)));
+                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, cwdError!), ForgeJson.Default));
             }
 
             if (!FileToolPathOps.TryBind(cwd!, pathRaw, required: false, out var baseDir, out var bindError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, bindError!)));
+                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, bindError!), ForgeJson.Default));
             }
 
             if (!Directory.Exists(baseDir))
             {
-                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, "目录不存在：" + baseDir)));
+                return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, "目录不存在：" + baseDir), ForgeJson.Default));
             }
 
             var di = new DirectoryInfo(baseDir!);
@@ -113,12 +113,12 @@ public class ListFilesToolFunction : IToolFunctionExtension
                 files
             };
             XTrace.Log.Info("[FileTools] list_files 成功：root={0}, 数量={1}", baseDir, files.Count);
-            return Task.FromResult(JsonSerializer.Serialize(response));
+            return Task.FromResult(JsonSerializer.Serialize(response, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[FileTools] list_files 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, ex.Message)));
+            return Task.FromResult(JsonSerializer.Serialize(FailEnvelope(_ctx, ex.Message), ForgeJson.Default));
         }
     }
 
@@ -181,31 +181,31 @@ public class ReadFileToolFunction : IToolFunctionExtension
                 : null;
             if (!FileToolPathOps.EnsureCwd(cwd, out var absCwd, out var cwdError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, cwdError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, cwdError!), ForgeJson.Default));
             }
 
             var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
             if (!FileToolPathOps.TryBind(absCwd!, path, required: true, out var absPath, out var pathError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!), ForgeJson.Default));
             }
             if (!FileToolPathOps.EnsureFileExists(absPath!, out var existsError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existsError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existsError!), ForgeJson.Default));
             }
             var fileLength = new FileInfo(absPath!).Length;
             if (!FilePathGuard.TryLimitBytes(fileLength, "文件", out var sizeError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, sizeError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, sizeError!), ForgeJson.Default));
             }
 
             if (!FileToolLineOps.TryReadStartLine(doc.RootElement, out var startLine, out var startLineError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!), ForgeJson.Default));
             }
             if (!FileToolLineOps.TryReadEndLine(doc.RootElement, startLine, required: false, out var endSpecified, out var endLineError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!), ForgeJson.Default));
             }
 
             var content = File.ReadAllText(absPath!);
@@ -218,12 +218,12 @@ public class ReadFileToolFunction : IToolFunctionExtension
                 : string.Join("\n", lines, startLine - 1, endLine - startLine + 1);
             var response = new { success = true, path = absPath, cwd = absCwd, startLine, endLine, content = segment, totalLines, usedRoot = absPath };
             XTrace.Log.Info("[FileTools] read_file 成功：path={0}, startLine={1}, endLine={2}, totalLines={3}, 返回长度={4}", absPath, startLine, endLine, totalLines, segment.Length);
-            return Task.FromResult(JsonSerializer.Serialize(response));
+            return Task.FromResult(JsonSerializer.Serialize(response, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[FileTools] read_file 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message)));
+            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message), ForgeJson.Default));
         }
     }
 }
@@ -280,7 +280,7 @@ public class WriteFileToolFunction : IToolFunctionExtension
                 : null;
             if (!FileToolPathOps.EnsureCwd(cwd, out var absCwd, out var cwdError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, cwdError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, cwdError!), ForgeJson.Default));
             }
 
             var path = doc.RootElement.GetProperty("path").GetString() ?? string.Empty;
@@ -289,27 +289,27 @@ public class WriteFileToolFunction : IToolFunctionExtension
                 : string.Empty;
             if (!FilePathGuard.TryLimitBytes(Encoding.UTF8.GetByteCount(content), "写入内容", out var contentSizeError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, contentSizeError! + "，未写入")));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, contentSizeError! + "，未写入"), ForgeJson.Default));
             }
             if (!FileToolPathOps.TryBind(absCwd!, path, required: true, out var absPath, out var pathError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, pathError!), ForgeJson.Default));
             }
 
             if (!FileToolLineOps.TryReadStartLine(doc.RootElement, out var startLine, out var startLineError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, startLineError!), ForgeJson.Default));
             }
             if (!FileToolLineOps.TryReadEndLine(doc.RootElement, startLine, required: true, out var endSpecified, out var endLineError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!)));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, endLineError!), ForgeJson.Default));
             }
 
             // 存在性、大小与行区间全部在落盘前判定；越界直接拒绝，不钳制、不写入。
             var exists = File.Exists(absPath);
             if (exists && !FilePathGuard.TryLimitBytes(new FileInfo(absPath!).Length, "现有文件", out var existingSizeError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existingSizeError! + "，未写入")));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, existingSizeError! + "，未写入"), ForgeJson.Default));
             }
             var existingLines = exists
                 ? FileToolLineOps.SplitLines(File.ReadAllText(absPath!))
@@ -317,19 +317,19 @@ public class WriteFileToolFunction : IToolFunctionExtension
             if (!exists && (startLine != 1 || endSpecified != 1))
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
-                    "文件不存在，新建时 start_line 与 end_line 都必须为 1（收到 start_line=" + startLine + ", end_line=" + endSpecified + "），未写入")));
+                    "文件不存在，新建时 start_line 与 end_line 都必须为 1（收到 start_line=" + startLine + ", end_line=" + endSpecified + "），未写入"), ForgeJson.Default));
             }
             if (exists && startLine > existingLines.Length + 1)
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
-                    "start_line=" + startLine + " 超出文件末尾（现有 " + existingLines.Length + " 行，最大可写 " + (existingLines.Length + 1) + "），未写入")));
+                    "start_line=" + startLine + " 超出文件末尾（现有 " + existingLines.Length + " 行，最大可写 " + (existingLines.Length + 1) + "），未写入"), ForgeJson.Default));
             }
             // 文末下一行且 end 与 start 相同 = 追加。中间替换的 end 超出末尾仍拒绝，避免静默钳到文末。
             var appending = startLine == existingLines.Length + 1 && endSpecified == startLine;
             if (exists && endSpecified > existingLines.Length && !appending)
             {
                 return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx,
-                    "end_line=" + endSpecified + " 超出文件末尾（现有 " + existingLines.Length + " 行）。写入前拒绝越界，不会静默钳到文末，未写入")));
+                    "end_line=" + endSpecified + " 超出文件末尾（现有 " + existingLines.Length + " 行）。写入前拒绝越界，不会静默钳到文末，未写入"), ForgeJson.Default));
             }
 
             var endLine = endSpecified ?? existingLines.Length;
@@ -338,7 +338,7 @@ public class WriteFileToolFunction : IToolFunctionExtension
             var final = string.Join("\n", head.Concat(FileToolLineOps.SplitLines(content)).Concat(tail));
             if (!FilePathGuard.TryLimitBytes(Encoding.UTF8.GetByteCount(final), "写入结果", out var finalSizeError))
             {
-                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, finalSizeError! + "，未写入")));
+                return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, finalSizeError! + "，未写入"), ForgeJson.Default));
             }
             var parentDir = Path.GetDirectoryName(absPath);
             if (!string.IsNullOrEmpty(parentDir))
@@ -349,12 +349,12 @@ public class WriteFileToolFunction : IToolFunctionExtension
             File.WriteAllText(absPath, final);
             var response = new { success = true, path = absPath, cwd = absCwd, startLine, endLine, writtenLength = final.Length, totalLines = FileToolLineOps.SplitLines(final).Length, usedRoot = absPath };
             XTrace.Log.Info("[FileTools] write_file 成功：绝对路径={0}, startLine={1}, endLine={2}, 写入大小={3}", absPath, startLine, endLine, final.Length);
-            return Task.FromResult(JsonSerializer.Serialize(response));
+            return Task.FromResult(JsonSerializer.Serialize(response, ForgeJson.Default));
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("[FileTools] write_file 执行失败: {0}", ex.Message);
-            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message)));
+            return Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, ex.Message), ForgeJson.Default));
         }
     }
 }

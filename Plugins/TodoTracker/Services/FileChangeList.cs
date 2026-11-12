@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForgeSelf.Api.Plugins.TodoTracker.Models;
@@ -22,7 +23,11 @@ public static class FileChangeList
     /// 落库用 camelCase：出参 <see cref="ChangedFileDto"/> 也是 camelCase，
     /// 存成 PascalCase 会让 <see cref="FromStorage"/> 读回空串（实测踩过：三面写进去的记录都"看不出改了哪些文件"）。
     /// </summary>
-    private static readonly JsonSerializerOptions StorageOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions StorageOpts = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     /// <summary>结构化数组优先；数组为空时用文本（一行一个路径，可带 A/M/D 前缀）。</summary>
     public static string ToStorage(IReadOnlyList<ChangedFileDto>? items, string? text)

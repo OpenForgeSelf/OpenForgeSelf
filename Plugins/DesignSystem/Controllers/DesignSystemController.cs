@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.DesignSystem.Agent;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
@@ -22,7 +23,11 @@ namespace ForgeSelf.Api.Plugins.DesignSystem.Controllers;
 [Route("api/design-system")]
 public class DesignSystemController : ControllerBase
 {
-    static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     private readonly DesignProjectService _projects;
     private readonly TokenRepository _tokens;

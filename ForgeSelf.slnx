@@ -14,6 +14,8 @@
     <Project Path="Plugins/SamplePlugin/SamplePlugin.csproj" />
     <Project Path="Plugins/Sems/Sems.csproj" />
     <Project Path="Plugins/SmartTerminal/SmartTerminal.csproj" />
+    <Project Path="Plugins/DbAdmin/DbAdmin.csproj" />
+    <Project Path="Plugins/ClockBadge/ClockBadge.csproj" />
   </Folder>
   <Folder Name="/ForgeSelf.Api/" />
   <Folder Name="/ForgeSelf.Api/Plugins/">
@@ -24,6 +26,7 @@
   <Project Path="ForgeSelf.Abstractions.Tests/ForgeSelf.Abstractions.Tests.csproj" />
   <Project Path="ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj" />
   <Project Path="Plugins/SmartTerminal.Tests/SmartTerminal.Tests.csproj" />
+  <Project Path="Plugins/DbAdminTests/DbAdminTests.csproj" />
   <Project Path="ForgeSelf.Api/ForgeSelf.Api.csproj" />
   <Project Path="Plugins/DevTools/DevTools.csproj" />
   <Project Path="Plugins/FileTools/FileTools.csproj" />

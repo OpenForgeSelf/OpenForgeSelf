@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.Serialization;
@@ -84,6 +84,14 @@ public partial class ImGatewayChannel
     [DataObjectField(false, false, true, 0)]
     [BindColumn("UpdatedAt", "更新时间", "")]
     public DateTime UpdatedAt { get => _UpdatedAt; set { if (OnPropertyChanging("UpdatedAt", value)) { _UpdatedAt = value; OnPropertyChanged("UpdatedAt"); } } }
+
+    private String _TaskGatewayJson;
+    /// <summary>任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）</summary>
+    [DisplayName("任务网关配置JSON（TaskGatewayConfigcamelCase整包")]
+    [Description("任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）")]
+    [DataObjectField(false, false, true, 2000)]
+    [BindColumn("TaskGatewayJson", "任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）", "")]
+    public String TaskGatewayJson { get => _TaskGatewayJson; set { if (OnPropertyChanging("TaskGatewayJson", value)) { _TaskGatewayJson = value; OnPropertyChanged("TaskGatewayJson"); } } }
     #endregion
 
     #region 获取/设置 字段值
@@ -102,6 +110,7 @@ public partial class ImGatewayChannel
             "SecretCipher" => _SecretCipher,
             "CliPath" => _CliPath,
             "UpdatedAt" => _UpdatedAt,
+            "TaskGatewayJson" => _TaskGatewayJson,
             _ => base[name]
         };
         set
@@ -116,6 +125,7 @@ public partial class ImGatewayChannel
                 case "SecretCipher": _SecretCipher = Convert.ToString(value); break;
                 case "CliPath": _CliPath = Convert.ToString(value); break;
                 case "UpdatedAt": _UpdatedAt = value.ToDateTime(); break;
+                case "TaskGatewayJson": _TaskGatewayJson = Convert.ToString(value); break;
                 default: base[name] = value; break;
             }
         }
@@ -188,6 +198,9 @@ public partial class ImGatewayChannel
         /// <summary>更新时间</summary>
         public static readonly Field UpdatedAt = FindByName("UpdatedAt");
 
+        /// <summary>任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）</summary>
+        public static readonly Field TaskGatewayJson = FindByName("TaskGatewayJson");
+
         static Field FindByName(String name) => Meta.Table.FindByName(name);
     }
 
@@ -217,6 +230,9 @@ public partial class ImGatewayChannel
 
         /// <summary>更新时间</summary>
         public const String UpdatedAt = "UpdatedAt";
+
+        /// <summary>任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）</summary>
+        public const String TaskGatewayJson = "TaskGatewayJson";
     }
     #endregion
 }

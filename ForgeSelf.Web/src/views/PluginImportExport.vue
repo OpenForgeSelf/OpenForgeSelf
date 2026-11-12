@@ -31,11 +31,11 @@ function handleDrop(event: DragEvent): void {
   const files = event.dataTransfer?.files
   if (files && files.length > 0) {
     const file = files[0]
-    if (file.name.endsWith('.forgeself-plugin') || file.name.endsWith('.zip')) {
+    if (file.name.toLowerCase().endsWith('.zip') || file.name.toLowerCase().endsWith('.dll')) {
       selectedFile.value = file
       installResult.value = null
     } else {
-      installResult.value = { success: false, message: '请上传 .forgeself-plugin 或 .zip 格式的插件包' }
+      installResult.value = { success: false, message: '请上传 .zip，或带内嵌清单的 .dll' }
     }
   }
 }
@@ -95,7 +95,7 @@ async function handleExportSelected(): Promise<void> {
     for (const id of ids) {
       const blob = await pluginStore.packagePlugin(id)
       const plugin = pluginStore.plugins.find(p => p.id === id)
-      const fileName = `${plugin?.name || id}-${plugin?.version || '1.0.0'}.forgeself-plugin`
+      const fileName = `${plugin?.name || id}-${plugin?.version || '1.0.0'}.zip`
       downloadBlob(blob, fileName)
     }
   } catch (e) {
@@ -112,7 +112,7 @@ async function handleExportAll(): Promise<void> {
   try {
     for (const plugin of pluginStore.plugins) {
       const blob = await pluginStore.packagePlugin(plugin.id)
-      const fileName = `${plugin.name}-${plugin.version}.forgeself-plugin`
+      const fileName = `${plugin.name}-${plugin.version}.zip`
       downloadBlob(blob, fileName)
     }
   } catch (e) {
@@ -171,7 +171,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
           <input
             ref="fileInput"
             type="file"
-            accept=".forgeself-plugin,.zip"
+            accept=".zip,.dll"
             style="display: none"
             @change="handleFileSelect"
           />
@@ -185,7 +185,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
             </div>
             <h3>拖拽插件包到此处</h3>
             <p>或点击选择文件</p>
-            <p class="format-hint">支持 .forgeself-plugin 和 .zip 格式</p>
+            <p class="format-hint">支持 .zip，以及带内嵌清单的 .dll</p>
           </div>
           <div v-else class="file-info">
             <div class="file-icon">

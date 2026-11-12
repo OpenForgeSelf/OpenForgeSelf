@@ -43,8 +43,8 @@ public abstract class SemsToolFunctionBase : IToolFunctionExtension
         {
             // 传入的 _services 是插件 IContext（自有服务表，无 IServiceScopeFactory）；
             // 宿主把根 IServiceProvider seed 进 Context，经它回落宿主容器才能解析 Apply 里注册的服务。
-            var provider = (_services?.GetService(typeof(IServiceProvider)) as IServiceProvider) ?? _services;
-            using var scope = provider?.CreateScope();
+            // T13 清扫：统一走公共入口（原手工 GetService(IServiceProvider) 回落与本扩展语义等价，收敛避免再分叉）。
+            using var scope = _services.CreateHostScope();
             if (scope == null)
             {
                 result = Fail("服务提供者未初始化");
@@ -98,10 +98,10 @@ public abstract class SemsToolFunctionBase : IToolFunctionExtension
         Fail($"参数 {name}（整数）必填，请先调用 {fromTool} 取得；全部 sems 工具可用 universal_tool{{\"tool\":\"list_tools\"}} 枚举");
 
     /// <summary>成功封套。</summary>
-    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data });
+    protected static string Ok(object? data) => JsonSerializer.Serialize(new { success = true, data }, ForgeJson.Default);
 
     /// <summary>失败封套。</summary>
-    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error });
+    protected static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error }, ForgeJson.Default);
 
     /// <summary>把 sems 服务结果转成工具封套（与 HTTP 端点共用同一状态语义）。</summary>
     protected static string From<T>(SemsResult<T> result) =>

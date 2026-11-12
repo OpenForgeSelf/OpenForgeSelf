@@ -1,3 +1,5 @@
+using ForgeSelf.Abstractions;
+
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
 /// <summary>尺度类生成参数（间距/圆角/描边/阴影/动效/断点/层级）。</summary>
@@ -226,7 +228,7 @@ public static class ScaleGenerators
             {
                 Path = $"ease.{name}", Tier = TokenTiers.Primitive, Type = TokenTypes.CubicBezier,
                 Value = $"[{Fmt(curve[0])}, {Fmt(curve[1])}, {Fmt(curve[2])}, {Fmt(curve[3])}]",
-                ValueJson = System.Text.Json.JsonSerializer.Serialize(new { x = curve }),
+                ValueJson = System.Text.Json.JsonSerializer.Serialize(new { x = curve }, ForgeJson.Default),
                 Group = "ease", Generator = TokenGenerators.Derived, SortOrder = i,
             });
         }
@@ -254,7 +256,7 @@ public static class ScaleGenerators
         tokens.Add(new TokenPatch
         {
             Path = "transition.base", Tier = TokenTiers.Semantic, Type = TokenTypes.Transition,
-            ValueJson = System.Text.Json.JsonSerializer.Serialize(new { duration = "{duration.base}", timing = "{ease.standard}", delay = "{duration.micro}" }),
+            ValueJson = System.Text.Json.JsonSerializer.Serialize(new { duration = "{duration.base}", timing = "{ease.standard}", delay = "{duration.micro}" }, ForgeJson.Default),
             Group = "transition", Generator = TokenGenerators.Derived,
         });
         return tokens;

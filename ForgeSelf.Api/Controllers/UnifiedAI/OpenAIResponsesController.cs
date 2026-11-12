@@ -47,8 +47,8 @@ public class OpenAIResponsesController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            // 解析提供方前缀和上游模型 ID（格式：provider:model_id）
-            var (provider, upstreamModelId) = ResolveProviderAndModel(request.Model);
+            // 与 OpenAI Chat 共用解析：别名必须换成上游模型 id，不能原样发给上游
+            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
 
@@ -76,8 +76,8 @@ public class OpenAIResponsesController : ControllerBase
                 Model = request.Model,
                 RequestMethod = "POST",
                 RequestPath = "/v1/responses",
-                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString())),
-                RequestBody = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = false }),
+                RequestHeaders = JsonSerializer.Serialize(Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default),
+                RequestBody = JsonSerializer.Serialize(request, ForgeJson.Default),
                 Temperature = request.Temperature ?? 1.0,
                 MaxTokens = request.MaxOutputTokens ?? 0,
                 MessageCount = 1,
@@ -99,8 +99,8 @@ public class OpenAIResponsesController : ControllerBase
                 // 更新轮次
                 stopwatch.Stop();
                 turn.ResponseStatus = 200;
-                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
-                turn.ResponseBody = JsonSerializer.Serialize(responsesResponse, new JsonSerializerOptions { WriteIndented = false });
+                turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
+                turn.ResponseBody = JsonSerializer.Serialize(responsesResponse, ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.PromptTokens = response.Usage?.PromptTokens ?? 0;
                 turn.CompletionTokens = response.Usage?.CompletionTokens ?? 0;
@@ -120,7 +120,7 @@ public class OpenAIResponsesController : ControllerBase
             if (turn != null)
             {
                 turn.ResponseStatus = err.StatusCode;
-                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
+                turn.ResponseBody = JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default);
                 turn.DurationMs = stopwatch.ElapsedMilliseconds;
                 turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
                 await _chatTurnService.SaveTurnAsync(turn);
@@ -166,7 +166,7 @@ public class OpenAIResponsesController : ControllerBase
                 }
             };
             await WriteSseAsync(createdEvent);
-            responseBody.Append(JsonSerializer.Serialize(createdEvent));
+            responseBody.Append(JsonSerializer.Serialize(createdEvent, ForgeJson.Default));
 
             var streamEvents = new OpenAIResponsesStreamEvents.Accumulator();
 
@@ -179,7 +179,7 @@ public class OpenAIResponsesController : ControllerBase
                 foreach (var deltaEvent in OpenAIResponsesStreamEvents.TextDeltaEvents(streamEvents, chunk.DeltaContent))
                 {
                     await WriteSseAsync(deltaEvent);
-                    responseBody.Append(JsonSerializer.Serialize(deltaEvent));
+                    responseBody.Append(JsonSerializer.Serialize(deltaEvent, ForgeJson.Default));
                 }
 
                 if (streamSession != null)
@@ -192,7 +192,7 @@ public class OpenAIResponsesController : ControllerBase
             foreach (var finishEvent in OpenAIResponsesStreamEvents.FinishEvents(streamEvents, responseId, created, modelName))
             {
                 await WriteSseAsync(finishEvent);
-                responseBody.Append(JsonSerializer.Serialize(finishEvent));
+                responseBody.Append(JsonSerializer.Serialize(finishEvent, ForgeJson.Default));
             }
             await WriteSseRawAsync("[DONE]");
             responseBody.Append("[DONE]");
@@ -200,7 +200,7 @@ public class OpenAIResponsesController : ControllerBase
             // 更新轮次
             stopwatch.Stop();
             turn.ResponseStatus = 200;
-            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+            turn.ResponseHeaders = JsonSerializer.Serialize(Response.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()), ForgeJson.Default);
             turn.ResponseBody = responseBody.ToString();
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
             turn.AssistantPreview = ChatSessionResolver.Truncate(turn.ResponseText, 500);
@@ -225,7 +225,7 @@ public class OpenAIResponsesController : ControllerBase
             {
                 await UnifiedUpstreamErrors.WriteOpenAiResponsesStreamErrorAsync(
                     Response, OpenAIResponsesStreamEvents.SerializerOptions, err, cancellationToken);
-                responseBody.Append(JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err)));
+                responseBody.Append(JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default));
                 responseBody.Append("[DONE]");
             }
             catch (Exception writeEx)
@@ -234,7 +234,7 @@ public class OpenAIResponsesController : ControllerBase
             }
 
             turn.ResponseStatus = err.StatusCode;
-            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err));
+            turn.ResponseBody = responseBody.Length > 0 ? responseBody.ToString() : JsonSerializer.Serialize(UnifiedUpstreamErrors.ToErrorBody(err), ForgeJson.Default);
             turn.DurationMs = stopwatch.ElapsedMilliseconds;
             turn.ErrorMessage = ChatSessionResolver.Truncate(err.Message, 1000);
             if (streamSession != null)
@@ -261,30 +261,6 @@ public class OpenAIResponsesController : ControllerBase
     {
         await Response.WriteAsync($"data: {data}\n\n");
         await Response.Body.FlushAsync();
-    }
-
-    /// <summary>
-    /// 解析模型名中的提供方前缀，返回 (提供方, 上游模型ID)。
-    /// 支持格式 "provider:model_id" 和 "model_id"（无前缀时使用默认提供方）。
-    /// </summary>
-    private (IAIProvider? Provider, string UpstreamModelId) ResolveProviderAndModel(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName))
-            return (null, modelName);
-
-        var idx = modelName.IndexOf(':');
-        if (idx > 0)
-        {
-            var providerName = modelName[..idx];
-            var upstreamModelId = modelName[(idx + 1)..];
-            var provider = _registry.GetProviderByName(providerName);
-            if (provider != null)
-                return (provider, upstreamModelId);
-        }
-
-        // 无前缀或提供方不存在，回退到 GetProviderByModel
-        var fallbackProvider = _registry.GetProviderByModel(modelName);
-        return (fallbackProvider, modelName);
     }
 
     private UnifiedChatRequest ConvertToUnifiedRequest(OpenAIResponseRequest request)

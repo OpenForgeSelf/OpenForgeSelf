@@ -16,6 +16,7 @@ import { stories as emptyStateStories } from '../src/components/EmptyState.story
 // AIAgent 插件聊天助手：组件在插件包内，宿主薄壳在 src/components（跨包理由见该 story 注释）
 import { stories as aiAgentMessageStories } from '../src/components/AIAgentMessage.story'
 import { stories as smartTerminalStories } from '../src/components/SmartTerminal.story'
+import { stories as dbAdminStories } from '../src/components/DbAdmin.story'
 
 export const stories: ComponentStory[] = [
   ...forgeCardStories,
@@ -23,6 +24,7 @@ export const stories: ComponentStory[] = [
   ...emptyStateStories,
   ...aiAgentMessageStories,
   ...smartTerminalStories,
+  ...dbAdminStories,
 ]
 
 export interface NavGroupConfig {
@@ -50,6 +52,7 @@ export const navConfig: NavConfig = {
     { key: 'EmptyState', title: 'EmptyState · 空状态' },
     { key: 'AIAgent', title: 'AIAgent · 聊天助手' },
     { key: 'SmartTerminal', title: 'SmartTerminal · 智能终端' },
+    { key: 'DbAdmin', title: 'DbAdmin · 数据库管理' },
   ],
   collapseWhenMoreThan: 25,
 }

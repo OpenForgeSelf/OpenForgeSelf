@@ -33,3 +33,17 @@ public enum ScheduledTaskLogStatus
     Failed = 1,
     Running = 2
 }
+
+/// <summary>
+/// 单次任务执行的结果归类。B5（2026-11-08）：
+/// <see cref="Skipped"/> 表示触发被消费方拒绝（如同一 Agent 会话已有未结束 Run），
+/// 调度器不得推进 LastRunTime/RunCount/NextRunTime/Status（Once 不被空耗）。
+/// </summary>
+public enum TaskExecutionOutcome
+{
+    /// <summary>任务实际执行（成功或失败都算已消费一次触发）。</summary>
+    Executed = 0,
+
+    /// <summary>触发被跳过，本轮不算消费，下轮到点重试。</summary>
+    Skipped = 1
+}

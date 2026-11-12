@@ -6,12 +6,20 @@ namespace ForgeSelf.Api.Tests.Unit;
 /// <summary>
 /// AI提供者注册表单元测试
 /// </summary>
-public class AIProviderRegistryTests
+/// <remarks>
+/// [Collection("XCode")]（task-12 2026-11-05）：GetModelById/GetProviderByModel 等 5 用例经
+/// AIProviderRegistry 传递访问 XCode 实体（AIModel 表）。无夹具锚时若 DAL 已被宿主启动型测试
+/// 窃绑到已删的临时数据根，即「no such table: AIModel」（隔离跑因 bin\Data 自动兜底积表而假绿）。
+/// 按 PC-014 唯一入口纪律挂 XCodeTestFixture：ctor 自愈重绑 + EnsureTablesCreated，全量/隔离同绿。
+/// </remarks>
+[Collection("XCode")]
+public class AIProviderRegistryTests : IClassFixture<XCodeTestFixture>
 {
     private readonly AIProviderRegistry _registry;
 
-    public AIProviderRegistryTests()
+    public AIProviderRegistryTests(XCodeTestFixture fixture)
     {
+        _ = fixture;
         _registry = new AIProviderRegistry();
     }
 

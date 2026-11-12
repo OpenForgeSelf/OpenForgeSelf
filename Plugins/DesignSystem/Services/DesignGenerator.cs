@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
+using ForgeSelf.Abstractions;
 using NewLife;
 using XCode;
 
@@ -181,14 +182,14 @@ public static class DesignGenerator
                     Tier = TokenTiers.Primitive,
                     Type = TokenTypes.Color,
                     Value = s.Hex,
-                    ValueJson = JsonSerializer.Serialize(new { colorSpace = "oklch", components = new[] { Num(s.Oklch.L), Num(s.Oklch.C), Num(Oklch.NormalizeHue(s.Oklch.H)) }, alpha = 1 }),
+                    ValueJson = JsonSerializer.Serialize(new { colorSpace = "oklch", components = new[] { Num(s.Oklch.L), Num(s.Oklch.C), Num(Oklch.NormalizeHue(s.Oklch.H)) }, alpha = 1 }, ForgeJson.Default),
                     AliasPath = null,
                     Group = family,
                     Name = $"{family}-{s.Step}",
                     Description = s.Clamped ? $"该阶在 sRGB 内彩度受限（maxC≈{Num(s.MaxChroma)}）" : null,
                     Generator = TokenGenerators.Ramp,
                     GeneratorSeed = result.Seed,
-                    Extensions = JsonSerializer.Serialize(new { forgeself = new { hue = Num(hue), chroma = Num(chroma), maxChroma = Num(s.MaxChroma), clamped = s.Clamped } }),
+                    Extensions = JsonSerializer.Serialize(new { forgeself = new { hue = Num(hue), chroma = Num(chroma), maxChroma = Num(s.MaxChroma), clamped = s.Clamped } }, ForgeJson.Default),
                 });
 
         // 2) 非色 primitive：尺度/排版/动效/断点（全部随参数变）
@@ -236,7 +237,7 @@ public static class DesignGenerator
                     Name = c.Role,
                     Generator = TokenGenerators.Derived,
                     GeneratorSeed = result.Seed,
-                    Extensions = JsonSerializer.Serialize(new { forgeself = new { against = c.AgainstPath, ratio = Num(c.Ratio), required = Num(c.Required), satisfied = c.Satisfied } }),
+                    Extensions = JsonSerializer.Serialize(new { forgeself = new { against = c.AgainstPath, ratio = Num(c.Ratio), required = Num(c.Required), satisfied = c.Satisfied } }, ForgeJson.Default),
                 });
             }
 
@@ -249,7 +250,7 @@ public static class DesignGenerator
                     Tier = TokenTiers.Semantic,
                     Type = TokenTypes.Shadow,
                     Value = ShadowCss(s),
-                    ValueJson = JsonSerializer.Serialize(s.Layers.Select(l => new { offsetX = Num(l.OffsetX), offsetY = Num(l.OffsetY), blur = Num(l.Blur), spread = Num(l.Spread), color = l.ColorValue, alpha = Num(l.Alpha), inset = l.IsInset })),
+                    ValueJson = JsonSerializer.Serialize(s.Layers.Select(l => new { offsetX = Num(l.OffsetX), offsetY = Num(l.OffsetY), blur = Num(l.Blur), spread = Num(l.Spread), color = l.ColorValue, alpha = Num(l.Alpha), inset = l.IsInset }), ForgeJson.Default),
                     Group = "shadow",
                     Name = s.Name,
                     Description = s.Note,
@@ -390,8 +391,8 @@ public static class DesignGenerator
                 Interactive = b.Interactive,
                 Description = $"生成器落地的{b.Name}规格，引用令牌 {refs.Count} 条（种子 {result.Seed}）",
                 A11yNotes = b.A11y,
-                TokenRefsJson = JsonSerializer.Serialize(refs),
-                GuidanceJson = JsonSerializer.Serialize(new { anatomy = b.Anatomy, variants }),
+                TokenRefsJson = JsonSerializer.Serialize(refs, ForgeJson.Default),
+                GuidanceJson = JsonSerializer.Serialize(new { anatomy = b.Anatomy, variants }, ForgeJson.Default),
                 Status = "generated",
                 SortOrder = components,
             });
@@ -403,10 +404,10 @@ public static class DesignGenerator
                 {
                     Code = $"{b.Code}-{variant}-{state}",
                     Name = $"{b.Name}·{variant}·{state}",
-                    VariantJson = JsonSerializer.Serialize(AxisOf(variant)),
+                    VariantJson = JsonSerializer.Serialize(AxisOf(variant), ForgeJson.Default),
                     State = state,
                     ThemeId = DesignSystemConstants.SharedThemeId,
-                    TokenRefsJson = JsonSerializer.Serialize(tokens),
+                    TokenRefsJson = JsonSerializer.Serialize(tokens, ForgeJson.Default),
                     Description = $"由 {tokens.Count} 条 {prefix}{variant}* 令牌推导（不是手写清单，凑不出令牌的组合不落格）",
                     SortOrder = cells,
                 });
@@ -540,7 +541,7 @@ public static class DesignGenerator
         {
             if (knownAssets.Contains(code)) continue;
             catalog.SaveAsset(projectId, code, name, kind, svg,
-                null, JsonSerializer.Serialize(refs), desc, "Owned");
+                null, JsonSerializer.Serialize(refs, ForgeJson.Default), desc, "Owned");
             knownAssets.Add(code);
             assets++;
         }
@@ -866,7 +867,7 @@ public static class DesignGenerator
             Group = full.Split('.')[1],
             Name = full,
             Generator = TokenGenerators.Derived,
-            Extensions = tint == null ? null : JsonSerializer.Serialize(new { forgeself = new { tint = tint.Value, css = $"color-mix(in oklab, var(--{alias.Replace('.', '-')}) {Num(tint.Value * 100)}%, transparent)" } }),
+            Extensions = tint == null ? null : JsonSerializer.Serialize(new { forgeself = new { tint = tint.Value, css = $"color-mix(in oklab, var(--{alias.Replace('.', '-')}) {Num(tint.Value * 100)}%, transparent)" } }, ForgeJson.Default),
         };
     }
 

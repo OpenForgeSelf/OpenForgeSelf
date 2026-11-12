@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForgeSelf.Api.Plugins.DevTools.Models;
@@ -22,7 +23,8 @@ public class JsonFormatterService : IJsonFormatterService
             {
                 Indented = true,
                 IndentCharacter = ' ',
-                IndentSize = indentSize
+                IndentSize = indentSize,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
             using var stream = new MemoryStream();
@@ -56,7 +58,8 @@ public class JsonFormatterService : IJsonFormatterService
             var jsonDoc = JsonDocument.Parse(input);
             var options = new JsonWriterOptions
             {
-                Indented = false
+                Indented = false,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
             using var stream = new MemoryStream();
@@ -370,7 +373,7 @@ public class JsonFormatterService : IJsonFormatterService
         {
             var jsonDoc = JsonDocument.Parse(json);
             using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
             {
                 jsonDoc.WriteTo(writer);
             }

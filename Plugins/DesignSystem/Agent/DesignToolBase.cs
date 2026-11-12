@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Api.Plugins.DesignSystem.Entities;
 using ForgeSelf.Api.Plugins.DesignSystem.Services;
@@ -31,7 +32,11 @@ public abstract class DesignToolBase : IToolFunctionExtension
     /// 序列化统一 camelCase（03-plan §B 出参键名即契约，全部小写）。</summary>
     public async Task<string> ExecuteAsync(string parameters)
     {
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
         try
         {
             JsonElement args;

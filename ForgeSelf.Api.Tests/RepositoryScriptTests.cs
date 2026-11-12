@@ -107,4 +107,21 @@ public class RepositoryScriptTests
         // 阳性对照：本判据扫的不是空文件
         new FileInfo(script).Length.Should().BeGreaterThan(1000);
     }
+
+    /// <summary>
+    /// 插件 zip 不得带上宿主共享程序集、它们的 pdb，以及宿主已提供的 Microsoft.Extensions.*。
+    /// 2026-11-05 HelloWorld 包曾打进 ForgeSelf.Abstractions.pdb、ForgeSelf.Core.pdb 和
+    /// Microsoft.Extensions.DependencyInjection.Abstractions.dll。
+    /// </summary>
+    [Fact]
+    public void PackagePluginScript_ExcludesHostSharedPdbAndFrameworkExtensions()
+    {
+        var script = Path.Combine(FindRepoRoot(), "scripts", "package-plugin.ps1");
+        var text = File.ReadAllText(script);
+        text.Should().Contain("function Test-HostSharedPackageFile");
+        text.Should().Contain("Microsoft.Extensions.");
+        text.Should().Contain("ForgeSelf.*");
+        text.Should().Contain(".pdb");
+        text.Should().Contain("Package hygiene failed");
+    }
 }

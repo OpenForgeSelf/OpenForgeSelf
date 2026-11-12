@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
@@ -117,5 +118,5 @@ public static class BuiltinIcons
 
     /// <summary>导出成 JSON（给界面/测试核对绘制规范用；不进交付物）</summary>
     public static String ToJson() => JsonSerializer.Serialize(All.Select(a => new { a.Code, a.Name, a.Tags, a.Usage }),
-        new JsonSerializerOptions { WriteIndented = true });
+        ForgeJson.Indented);
 }

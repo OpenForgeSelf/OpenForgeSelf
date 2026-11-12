@@ -16,9 +16,15 @@ public class PluginMetadata
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// 获取或设置插件版本
+    /// 获取或设置插件版本。发行串与宿主相同：<c>&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;.&lt;yyMMddHHmm&gt;</c>。
+    /// 仓内既有三段号仍可读。
     /// </summary>
     public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 插件清单面向的宿主 API 版本。首版固定 <c>1.0</c>。缺省按 1.0 理解；显式写成其它值时安装器拒绝。
+    /// </summary>
+    public string HostApiVersion { get; set; } = "1.0";
 
     /// <summary>
     /// 获取或设置插件作者

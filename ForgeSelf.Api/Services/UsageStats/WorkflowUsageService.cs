@@ -33,8 +33,8 @@ public class WorkflowUsageService : IWorkflowUsageService
                 EndTime = request.EndTime ?? DateTime.MinValue,
                 Status = (int)request.Status,
                 DurationSeconds = request.DurationSeconds,
-                InputVariablesJson = request.InputVariables != null ? JsonSerializer.Serialize(request.InputVariables) : null,
-                OutputResultJson = request.OutputResult != null ? JsonSerializer.Serialize(request.OutputResult) : null,
+                InputVariablesJson = request.InputVariables != null ? JsonSerializer.Serialize(request.InputVariables, ForgeJson.Default) : null,
+                OutputResultJson = request.OutputResult != null ? JsonSerializer.Serialize(request.OutputResult, ForgeJson.Default) : null,
                 ToolCallCount = request.ToolCallCount,
                 StepCount = request.StepCount,
                 TriggeredBy = request.TriggeredBy,
@@ -77,7 +77,7 @@ public class WorkflowUsageService : IWorkflowUsageService
 
             if (outputResult != null)
             {
-                record.OutputResultJson = JsonSerializer.Serialize(outputResult);
+                record.OutputResultJson = JsonSerializer.Serialize(outputResult, ForgeJson.Default);
             }
 
             record.Update();
@@ -328,7 +328,7 @@ public class WorkflowUsageService : IWorkflowUsageService
                 ActionType = actionType,
                 DurationMs = durationMs,
                 Timestamp = DateTime.UtcNow,
-                MetadataJson = metadata != null ? JsonSerializer.Serialize(metadata) : null,
+                MetadataJson = metadata != null ? JsonSerializer.Serialize(metadata, ForgeJson.Default) : null,
                 WorkflowExecutionId = workflowExecutionId,
                 StepId = stepId
             };

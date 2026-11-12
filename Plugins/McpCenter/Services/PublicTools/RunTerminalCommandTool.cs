@@ -31,7 +31,9 @@ public class RunTerminalCommandTool : IToolFunctionExtension
     /// </summary>
     private static readonly JsonSerializerOptions CaseInsensitiveOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public string Id => "mcp-center.run_terminal_command";
@@ -40,10 +42,9 @@ public class RunTerminalCommandTool : IToolFunctionExtension
 
     public string Description =>
         "执行终端命令（默认白名单拒绝模式）。首 token 必须在白名单（dotnet/pnpm/node/git/ssh/pwsh）。" +
-        "支持管道与链式（| && || ; 换行）——每一段都独立过同一套白名单+破坏性红线校验，任一段被拒则整条拒绝；重定向（> <）、反引号、后台单 & 仍拒绝。" +
-        "多段命令经 pwsh -NoProfile -NonInteractive -Command 执行，退出码取最后一段。" +
-        "入参 {command, cwd（必填，工作目录绝对路径，目录须存在）, timeoutSeconds?, env?}；不再回退当前项目根，未传 cwd 直接报必传错误。" +
-        "返回 {exitCode, stdout, stderr}；非 0 退出码是正常回传（失败输出同样是有效观察数据）；超时或取消时终止进程树并返回错误。";
+        "支持管道与链式（| && || ; 换行）与输出重定向（> >> 1> 2> 2>&1）——每一段都独立过同一套白名单+破坏性红线校验，任一段被拒则整条拒绝；含重定向的命令经 pwsh -NoProfile -NonInteractive -Command 执行（输出真实落盘）。输入重定向（<）、反引号、后台单 & 仍拒绝。" +
+        "入参 {command, cwd（必填，工作目录绝对路径，目录须存在）, timeoutSeconds?（1-1800，默认300）, env?}；不再回退当前项目根，未传 cwd 直接报必传错误。" +
+        "返回 {exitCode, stdout, stderr}；非 0 退出码是正常回传（失败输出同样是有效观察数据）；超时或取消时终止进程树，但**已捕获的部分输出仍回传**（stdout/stderr 字段保留，用于观察错误现场）。";
 
     public string ParametersJsonSchema => @"
 {
@@ -51,7 +52,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
     ""properties"": {
         ""command"": {
             ""type"": ""string"",
-            ""description"": ""要执行的完整命令，如 dotnet build / git status / git log | node count.js / dotnet build && dotnet test。支持管道与链式（| && || ; 换行），每段首 token 须在白名单（dotnet/pnpm/node/git/ssh/pwsh）；不得含重定向（> <）、反引号或后台单 &""
+            ""description"": ""要执行的完整命令，如 dotnet build / git status / git log | node count.js / dotnet build && dotnet test。支持管道与链式（| && || ; 换行）与输出重定向（> >> 1> 2> 2>&1，结果写文件/合并错误流），每段首 token 须在白名单（dotnet/pnpm/node/git/ssh/pwsh）；不得含输入重定向（<）、反引号或后台单 &""
         },
         ""cwd"": {
             ""type"": ""string"",
@@ -59,7 +60,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
         },
         ""timeoutSeconds"": {
             ""type"": ""integer"",
-            ""description"": ""超时秒数（1-30，默认30；超时后终止进程树，结果标记 timedOut）""
+            ""description"": ""超时秒数（1-1800，默认300；超时后终止进程树，结果标记 timedOut，已捕获的部分输出仍回传）""
         },
         ""env"": {
             ""type"": ""object"",
@@ -97,7 +98,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(dto.Command))
             {
-                return Fail("command 为空：入参 {command: 完整命令, cwd: 工作目录绝对路径（必填）, timeoutSeconds?: 1-30}");
+                return Fail("command 为空：入参 {command: 完整命令, cwd: 工作目录绝对路径（必填）, timeoutSeconds?: 1-1800（默认300）}");
             }
 
             // 2. 第一/二道门 + 破坏性红线（纯逻辑，全部在启动子进程之前；拒绝路径零子进程）
@@ -125,14 +126,16 @@ public class RunTerminalCommandTool : IToolFunctionExtension
             }
 
             // 4. 进程执行（UseShellExecute=false：不经过 shell 解释；PILOT-075 双路径）：
-            //    单段命令 = 直接 Process 启动首 token（既有姿势，行为零变化）；
-            //    多段命令（| && || ; 换行分隔）= pwsh -NoProfile -NonInteractive -Command 执行完整命令串，
-            //    由 ArgumentList 负责转义（不手工拼引号）；退出码取 pwsh 返回值（链式 = 最后一段）。
-            TerminalCommandGuard.TrySplitSegments(dto.Command, out var segments, out _);
-            var isChain = segments.Count > 1;
+            //    单段无重定向 = 直接 Process 启动首 token（既有姿势，行为零变化）；
+            //    多段（| && || ; 换行）或任一段引号外带输出重定向（> >> 1> 2> 2>&1，PILOT-079 P2①）=
+            //    pwsh -NoProfile -NonInteractive -Command 执行完整命令串，由 ArgumentList 负责转义（不手工拼引号）；
+            //    重定向只能由 shell 解释（直接启动不经 shell），故含重定向必须整体走 pwsh；退出码取 pwsh 返回值（链式 = 最后一段）。
+            TerminalCommandGuard.TrySplitSegmentsEx(dto.Command, out var segments, out _);
+            var hasRedirect = segments.Any(s => s.HasRedirect);
+            var isChain = segments.Count > 1 || hasRedirect;
             var exeLabel = isChain ? "pwsh(chain)" : TerminalCommandGuard.SplitExecutable(dto.Command).exe;
             var timeoutSeconds = Math.Clamp(
-                dto.TimeoutSeconds ?? TerminalCommandGuard.MaxTimeoutSeconds, 1, TerminalCommandGuard.MaxTimeoutSeconds);
+                dto.TimeoutSeconds ?? TerminalCommandGuard.DefaultTimeoutSeconds, 1, TerminalCommandGuard.MaxTimeoutSeconds);
             var psi = new ProcessStartInfo
             {
                 WorkingDirectory = cwd,
@@ -202,11 +205,19 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                 }
                 else
                 {
-                    // 进程已杀：捕获任务可能因管道关闭而故障，吞掉避免未观察异常。
-                    _ = outTask.ContinueWith(static _ => { }, TaskScheduler.Default);
-                    _ = errTask.ContinueWith(static _ => { }, TaskScheduler.Default);
-                    stdoutBytes = Array.Empty<byte>();
-                    stderrBytes = Array.Empty<byte>();
+                    // PILOT-079 P2①（2026-11-07 输入7 缺陷③）：进程已杀，但管道里已捕获的字节必须保住——
+                    // 超时/取消的错误现场（编译器报错、构建日志前段）不回传 = agent 无法自诊断 = 假失败。
+                    // 杀进程后管道随即关闭，捕获任务毫秒级收尾；≤5s 兜底防悬挂，故障任务按空处理。
+                    try
+                    {
+                        await Task.WhenAll(outTask, errTask).WaitAsync(TimeSpan.FromSeconds(5));
+                    }
+                    catch (Exception drainEx)
+                    {
+                        XTrace.Log.Info("[McpCenter] run_terminal_command 中止后管道收尾异常（按已捕获字节回填）：{0}", drainEx.Message);
+                    }
+                    stdoutBytes = outTask.Status == TaskStatus.RanToCompletion ? outTask.Result : Array.Empty<byte>();
+                    stderrBytes = errTask.Status == TaskStatus.RanToCompletion ? errTask.Result : Array.Empty<byte>();
                 }
             }
             catch (ObjectDisposedException)
@@ -246,8 +257,13 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                     error,
                     timedOut = !callerCancelled,
                     cancelled = callerCancelled,
+                    // PILOT-079 P2①：中止也要带已捕获的部分输出——错误现场可观察（agent 自诊断的前提）。
+                    stdout = stdoutText,
+                    stderr = stderrText,
+                    stdoutTruncated = stdoutTruncated,
+                    stderrTruncated = stderrTruncated,
                     durationMs = Environment.TickCount64 - start
-                });
+                }, ForgeJson.Default);
             }
 
             // 非 0 退出码**非异常**——失败输出同样是有效观察数据（031 design.md §4.3，success=true 正常回传）。
@@ -262,7 +278,7 @@ public class RunTerminalCommandTool : IToolFunctionExtension
                 stdoutTruncated = stdoutTruncated,
                 stderrTruncated = stderrTruncated,
                 durationMs = Environment.TickCount64 - start
-            });
+            }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -340,6 +356,6 @@ public class RunTerminalCommandTool : IToolFunctionExtension
 
     private static string Fail(string error)
     {
-        return JsonSerializer.Serialize(new { success = false, error });
+        return JsonSerializer.Serialize(new { success = false, error }, ForgeJson.Default);
     }
 }

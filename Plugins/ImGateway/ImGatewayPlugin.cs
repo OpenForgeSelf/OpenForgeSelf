@@ -55,6 +55,10 @@ public class ImGatewayPlugin : IPlugin
 
         // 扫码授权服务（方案 A：CLI 仅作扫码取凭据工具，扫码成功后自动解密回填 BotId+Secret）
         services?.AddSingleton<WeComScanAuthService>();
+        // 任务网关（PILOT-079）：派发器 + 轮询 Watcher（Router 依赖 Dispatcher，构造时缺省补齐）
+        services?.AddSingleton<ImTaskDispatcher>();
+        services?.AddSingleton<ImTaskWatcher>();
+        services?.AddSingleton<IHostedService>(sp => sp.GetRequiredService<ImTaskWatcher>());
 
         // 侧边栏入口
         MenuExtensions.Add(new ImGatewayMenuExtension

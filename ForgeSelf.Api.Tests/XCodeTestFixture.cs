@@ -23,6 +23,9 @@ public class XCodeTestFixture
 {
     private static string? _boundDir;
 
+    /// <summary>进程级期望连接串表（connName → 本夹具登记的原始串）。自愈比对基准（task-12 2026-11-05）。</summary>
+    private static Dictionary<string, string>? _expectedConnStrs;
+
     private readonly string _dbDir;
     private static readonly string[] _connNames = new[]
     {
@@ -36,7 +39,9 @@ public class XCodeTestFixture
         "TodoTracker",
         "ProxyCapture",
         "ImGateway",
-        "FileTools"
+        "FileTools",
+        "DbAdmin",         // task-15（2026-11-05）：DbAdminTestFixture 并入首绑体系（PC-014 归化）
+        "DbAdminTestHost", // 同上：DbAdmin 测试的模拟宿主只读连接
     };
 
     public XCodeTestFixture()
@@ -56,7 +61,7 @@ public class XCodeTestFixture
             foreach (var name in new[]
             {
                 "ForgeSelf.Api", "AIAgent", "TodoTracker", "QuickLinks", "Scheduler",
-                "ScriptRunner", "WorkflowEngine", "ImGateway", "MemorySystem", "FileTools",
+                "ScriptRunner", "WorkflowEngine", "ImGateway", "MemorySystem", "FileTools", "DbAdmin",
                 "DesignSystem", "CostScope", "Sems", "AgentHub", "McpCenter", "SamplePlugin",
                 "DevTools", "SystemMonitor", "ToolBridge",
             })
@@ -65,11 +70,13 @@ public class XCodeTestFixture
                 catch { /* 可选程序集缺失不影响其余连接名 */ }
             }
 
+            _expectedConnStrs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var connName in _connNames)
             {
                 var dbPath = Path.Combine(_dbDir, $"{connName}.db");
                 var connStr = $"Data Source={dbPath}";
                 DAL.AddConnStr(connName, connStr, null, "SQLite");
+                _expectedConnStrs[connName] = connStr;
             }
 
             EnsureTablesCreated();
@@ -89,12 +96,45 @@ public class XCodeTestFixture
             // 连接串不变 ⇒ 无重绑、无重建，清库是纯 DELETE（见类注释）
             _dbDir = _boundDir;
 
+            ReassertBindingsIfStolen();
             ClearAllData();
         }
     }
 
+    /// <summary>
+    /// 绑定被窃自愈（task-12 2026-11-05）：宿主启动型测试（WebApplicationFactory / XCodeConfigTests 等）
+    /// 经 XCodeConfig.AddXCode → DAL.AddConnStr 把进程级 ConnStrs 重绑到它们自己的数据根（其下无本夹具的表）
+    /// → 受害族（Todo/ImGateway/ImTaskDispatch 等）随后查询即「no such table」（SQLite 连接时自动建空文件的经典形态；
+    /// 11-02 基线 64 条、11-05 坏跑 106+ 的根源）。程序集已全局串行（XCodeCollection），
+    /// ctor 期检测到绑定被窃即重登记 + 补建表，一次治本；只在检测到失窃时才动 ConnStrs（不逐类换库），
+    /// 规避 PILOT-051 记录的换库竞态。
+    /// </summary>
+    private void ReassertBindingsIfStolen()
+    {
+        if (_expectedConnStrs == null) return;
+        var stolen = false;
+        foreach (var kv in _expectedConnStrs)
+        {
+            var current = DAL.ConnStrs.TryGetValue(kv.Key, out var cs) ? cs : null;
+            if (current == null || !current.StartsWith(kv.Value, StringComparison.OrdinalIgnoreCase))
+            {
+                DAL.AddConnStr(kv.Key, kv.Value, null, "SQLite");
+                stolen = true;
+            }
+        }
+        if (stolen) EnsureTablesCreated();
+    }
+
     /// <summary>进程绑定的测试库目录（首个 ctor 创建，后续复用）。测试类需要直接读库文件时取用。</summary>
+    /// <summary>进程绑定目录的静态只读访问（DbAdminTestFixture 等衍生夹具取库目录用；未首绑时为 null）。</summary>
+    public static string? BoundDir => _boundDir;
     public string DbDir => _dbDir;
+    /// <summary>测试种子连接的唯一注册入口（PC-014：连接串登记只允许发生在本文件）。返回传入的库文件路径。</summary>
+    public static string RegisterSeedConn(string connName, string dbPath)
+    {
+        DAL.AddConnStr(connName, $"Data Source={dbPath}", null, "SQLite");
+        return dbPath;
+    }
 
     /// <summary>
     /// 注册连接串后，为每个连接名主动建表（反向工程）。
@@ -131,6 +171,8 @@ public class XCodeTestFixture
     {
         foreach (var connName in _connNames)
         {
+            if (connName is "DbAdmin" or "DbAdminTestHost") continue;
+            // task-15：DbAdmin 族由 DbAdminCollection 自管（跨 collection 清库会与 DbAdminTests 并行竞态互清）
             try
             {
                 var dal = DAL.Create(connName);

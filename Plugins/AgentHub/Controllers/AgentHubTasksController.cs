@@ -176,7 +176,7 @@ public class AgentHubTasksController : ControllerBase
             if (TaskStatus.IsTerminal(task.Status))
             {
                 // 终态：发一条 done 后收流，客户端据此关闭
-                await WriteRawAsync("event: done\ndata: " + JsonSerializer.Serialize(new { taskId = id, status = task.Status, lastSeq = sent }) + "\n\n", ct);
+                await WriteRawAsync("event: done\ndata: " + JsonSerializer.Serialize(new { taskId = id, status = task.Status, lastSeq = sent }, ForgeJson.Default) + "\n\n", ct);
                 break;
             }
 
@@ -228,7 +228,7 @@ public class AgentHubTasksController : ControllerBase
     /// <summary>写一条 SSE 事件</summary>
     private async Task WriteEventAsync(Int32 seq, String type, String? payload, Boolean truncated, CancellationToken ct)
     {
-        var data = JsonSerializer.Serialize(new { seq, type, payload, truncated });
+        var data = JsonSerializer.Serialize(new { seq, type, payload, truncated }, ForgeJson.Default);
         await WriteRawAsync($"id: {seq}\nevent: {type}\ndata: {data}\n\n", ct);
     }
 

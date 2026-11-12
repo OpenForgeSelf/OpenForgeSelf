@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.TodoTracker.Services;
 
@@ -142,7 +143,7 @@ public static class DispatchPayloadBuilder
             permissionMode = IsBlank(task.PermissionMode) ? "read-only" : task.PermissionMode.Trim(),
             createdBy = "todo-tracker"
         };
-        return JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = false });
+        return JsonSerializer.Serialize(payload, ForgeJson.Default);
     }
 
     /// <summary>按行拆条目（去空行、去掉行首的 "- " / "* " / "1. " 前缀）。</summary>

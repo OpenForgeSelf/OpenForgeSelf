@@ -415,6 +415,21 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
 
                 if (requestTimedOut)
                 {
+                    // PILOT-079 B3/P1②（PC-013 同族）：看门狗触发时零产出（无正文、无工具调用）
+                    // = 上游死链，没有现场可保留；静默挂起会让用户永远等不到错误帧 → 走显式失败
+                    // 出口（镜像 requestError）。有部分产出的超时仍挂起：半截内容可经 steer 恢复续跑。
+                    if (!runState.HasText && !runState.HasToolCall)
+                    {
+                        var timeoutError = $"模型请求超时且零产出：模型 {_runtime.ModelId} 在看门狗窗口内未返回任何字节，上游可能宕机或网络不可达";
+                        XTrace.Log.Warn("[MafTaskLoopAgent] {0}（SessionId={1}, StepId={2}）", timeoutError, SessionId, stepId);
+                        Append(bridge, new AssistantAttemptEvent(0, SessionId, DateTimeOffset.Now, string.Empty, "request-timeout-empty", _runtime.ModelId));
+                        Append(bridge, new StepEndEvent(0, SessionId, DateTimeOffset.Now, turnId, stepId, StepEndReason.Failed));
+                        yield return new StepCompleted(stepId, StepEndReason.Failed);
+                        yield return new TurnFailed(stepId, timeoutError);
+                        turnEndReason = TurnEndReason.Aborted;
+                        break;
+                    }
+
                     Append(bridge, new AssistantAttemptEvent(0, SessionId, DateTimeOffset.Now, string.Empty, "request-timeout", _runtime.ModelId));
                     Append(bridge, new StepEndEvent(0, SessionId, DateTimeOffset.Now, turnId, stepId, StepEndReason.Suspended));
                     yield return new StepCompleted(stepId, StepEndReason.Suspended);
@@ -673,7 +688,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
                         {
                             success = false,
                             error = "该工具需要审批，尚未批准，已拒绝执行（fail-closed）"
-                        }));
+                        }, ForgeJson.Default));
                     }
 
                     return context.Function?.InvokeAsync(context.Arguments, invokeCt)
@@ -763,7 +778,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
         if (arguments == null || arguments.Count == 0) return "{}";
         try
         {
-            return JsonSerializer.Serialize(arguments);
+            return JsonSerializer.Serialize(arguments, ForgeJson.Default);
         }
         catch
         {
@@ -805,7 +820,7 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
 
         await bridge.RecordToolStartAsync(callId, toolName, argsJson, default).ConfigureAwait(false);
         bridge.SetExit(toolName, argsJson, summary);
-        var resultJson = JsonSerializer.Serialize(new { success = true, recorded = true });
+        var resultJson = JsonSerializer.Serialize(new { success = true, recorded = true }, ForgeJson.Default);
         await bridge.RecordToolEndAsync(callId, toolName, resultJson, ToolOutcome.Ok, 0, default).ConfigureAwait(false);
 
         context.Terminate = true;
@@ -1142,7 +1157,7 @@ internal sealed class ForgeModelCallLogger : DelegatingChatClient
                         case FunctionCallContent fcc:
                             calls ??= new List<ToolCallRef>();
                             calls.Add(new ToolCallRef(fcc.CallId, fcc.Name ?? string.Empty,
-                                JsonSerializer.Serialize(fcc.Arguments ?? new Dictionary<string, object?>())));
+                                JsonSerializer.Serialize(fcc.Arguments ?? new Dictionary<string, object?>(), ForgeJson.Default)));
                             break;
                         case UsageContent usageContent:
                             usage = new UsageInfo(

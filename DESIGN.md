@@ -179,6 +179,7 @@ components:
 - 熔金橙仅用于主操作、选中态、品牌标识；同一视图内主色强调不超过一处。
 - 颜色语义必须对应功能（成功/警告/错误），不得用于装饰。
 - 文字对比度不低于 4.5:1（正文）、3:1（大号文字与图标）；背景图模式下靠遮罩与 `fg-*` 分级文字保证可读（`kit-styles.css:570-573`）。
+- **主题 token 明暗语义（2026-11-06 立）**：`--el-color-primary-light-N` 是**背景级** token，暗色下 N 越大越暗（`light-3:#D97706` → `light-9:#451A03`，与设计稿 `forgeself-design/themes/workshop-forge.css:112-116` 一致），**禁止定义成比主色更亮**。`light-8/9` 作底色时文字必须 ≥4.5:1（选中行配 `--el-text-color-primary`，标签/横幅配 `--el-color-primary`）；**禁止把 `light-N` 当文字色**（亮/暗下明暗相反，跨主题不可控）。守卫：`ForgeSelf.Web/src/styles/themes/workshop-forge.contrast.test.ts`（`pnpm run test`）。
 - Tailwind 不定义独立色值，所有 `--color-*` 映射到设计稿 token / `--el-*`。
 - 需要透明度派生时用 `color-mix(in srgb, var(--gold-400) 12%, transparent)`，不写硬编码 `rgba(245,158,11,…)` 进组件。
 
@@ -389,6 +390,7 @@ components:
 - 文字对比度 ≥4.5:1（正文）、3:1（大号文字与图标）；背景图下用遮罩 + `fg-*` 分级保证可读。
 - 列表/面板提供空态、加载态、错误态；空态 = 图标 + 一句 serif 引言（+ 主操作）。
 - 破坏性操作（删除、覆盖、停用）前必须二次确认，失败要留痕可见。
+- **异步动作先给可见反馈（2026-11-06 立）**：点击连接/切换数据源/查询等异步操作，≤100ms 出**局部** loading（spinner/skeleton/按钮 loading），完成前不得先显示空态（无表/无数据）；重复点击去重、force 重拉时旧响应不得覆盖新选择；失败保留原文 + 重试入口。
 - 滚动区域内固定高度卡片设 `flex-shrink-0`；日志区限高滚动。
 - flex/grid 子项含长文本（nowrap 预览/长 URL/长标题）必须显式 `min-width: 0`（或 overflow hidden），防 automatic minimum 撑破分栏（2026-10-31 实证：IM 网关 300px 侧栏被 60 字预览的 min-content 撑到 ~788px）。
 - 主操作按钮每屏仅一个；破坏性用朱砂 `--cinnabar-400`。
@@ -440,6 +442,7 @@ components:
 | 规范条款 | 机器判据（脚本） | 违规示例 |
 |---|---|---|
 | token 单一来源：禁新增自定义 token 族 | `check-design-compliance.mjs` 规则 A（棘轮基线） | 组件层新增 `--surface-*` / `--forge-*` / `--app-*` / 白名单外 `--xxx` |
+| 主题 token 明暗语义：暗色 light-N 必须逐级更暗、浅底文字 ≥4.5:1 | `ForgeSelf.Web/src/styles/themes/workshop-forge.contrast.test.ts`（vitest） | 暗色 `light-8` 亮金底 `#FDE68A` + `#F4F0E7` 文字（1.10:1，2026-11-06 DbAdmin 选中行实证） |
 | 禁裸色值（hex/rgb 硬编码） | `check-style-tokens.mjs`（棘轮基线） | `.vue` 里写 `#F59E0B` / `rgba(...)` |
 | 禁胶囊按钮 | 规则 B（`border-radius: 9999px` / `rounded-full` 于按钮上下文） | 主操作按钮做成胶囊 |
 | 禁玻璃拟态过头 | 规则 C（backdrop-filter/filter 的 blur > 40px） | blur 50px 的浮层 |

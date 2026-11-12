@@ -1,0 +1,1138 @@
+{
+ "_meta": {
+  "source": "真实 DbAdminController（后端 fdc6e84）在 SQLite 夹具上逐个调用，按 ASP.NET Web JSON（camelCase）序列化；status=HTTP 状态码",
+  "generatedAt": "2026-11-04 12:4x (UTC+8)",
+  "note": "密码仅为占位假值，后端回包中已掩码为 ****；大分页样本已截短"
+ },
+ "providers": {
+  "status": 200,
+  "body": [
+   {
+    "id": "sqlite",
+    "displayName": "SQLite",
+    "driverAvailable": true,
+    "tested": true,
+    "driverPackage": "System.Data.SQLite（宿主已随附）",
+    "defaultPort": null
+   },
+   {
+    "id": "mysql",
+    "displayName": "MySQL / MariaDB",
+    "driverAvailable": false,
+    "tested": false,
+    "driverPackage": "MySqlConnector",
+    "defaultPort": 3306
+   },
+   {
+    "id": "postgresql",
+    "displayName": "PostgreSQL",
+    "driverAvailable": false,
+    "tested": false,
+    "driverPackage": "Npgsql",
+    "defaultPort": 5432
+   },
+   {
+    "id": "sqlserver",
+    "displayName": "SQL Server",
+    "driverAvailable": false,
+    "tested": false,
+    "driverPackage": "Microsoft.Data.SqlClient",
+    "defaultPort": 1433
+   },
+   {
+    "id": "oracle",
+    "displayName": "Oracle",
+    "driverAvailable": true,
+    "tested": false,
+    "driverPackage": "Oracle.ManagedDataAccess",
+    "defaultPort": 1521
+   }
+  ]
+ },
+ "createConnection": {
+  "status": 200,
+  "body": {
+   "id": "2",
+   "name": "pg-demo",
+   "provider": "postgresql",
+   "kind": "user",
+   "mode": "form",
+   "host": "db.local",
+   "port": 5432,
+   "database": "app",
+   "userName": "u",
+   "password": "****",
+   "connStr": null,
+   "readonly": false,
+   "tested": false,
+   "createTime": "2026-11-04T12:45:08.6356557+08:00",
+   "updateTime": "2026-11-04T12:45:08.6356557+08:00"
+  }
+ },
+ "createConnStr": {
+  "status": 200,
+  "body": {
+   "id": "3",
+   "name": "cs-demo",
+   "provider": "mysql",
+   "kind": "user",
+   "mode": "connstr",
+   "host": null,
+   "port": null,
+   "database": null,
+   "userName": null,
+   "password": null,
+   "connStr": "Server=h;Uid=u;Pwd=****",
+   "readonly": false,
+   "tested": false,
+   "createTime": "2026-11-04T12:45:08.6377347+08:00",
+   "updateTime": "2026-11-04T12:45:08.6377347+08:00"
+  }
+ },
+ "connections": {
+  "status": 200,
+  "body": [
+   {
+    "id": "sys:DbAdminTestHost",
+    "name": "DbAdminTestHost",
+    "provider": "sqlite",
+    "kind": "system",
+    "mode": "system",
+    "host": null,
+    "port": null,
+    "database": null,
+    "userName": null,
+    "password": null,
+    "connStr": null,
+    "readonly": true,
+    "tested": true,
+    "createTime": null,
+    "updateTime": null
+   },
+   {
+    "id": "1",
+    "name": "dump",
+    "provider": "sqlite",
+    "kind": "user",
+    "mode": "form",
+    "host": null,
+    "port": null,
+    "database": "/tmp/ForgeSelfDbAdminTests/20261104124508_a7fd65f1/target_dump_3fa6a3.db",
+    "userName": null,
+    "password": null,
+    "connStr": null,
+    "readonly": false,
+    "tested": true,
+    "createTime": "2026-11-04T12:45:08.6299354",
+    "updateTime": "2026-11-04T12:45:08.6299354"
+   },
+   {
+    "id": "2",
+    "name": "pg-demo",
+    "provider": "postgresql",
+    "kind": "user",
+    "mode": "form",
+    "host": "db.local",
+    "port": 5432,
+    "database": "app",
+    "userName": "u",
+    "password": "****",
+    "connStr": null,
+    "readonly": false,
+    "tested": false,
+    "createTime": "2026-11-04T12:45:08.6356557",
+    "updateTime": "2026-11-04T12:45:08.6356557"
+   },
+   {
+    "id": "3",
+    "name": "cs-demo",
+    "provider": "mysql",
+    "kind": "user",
+    "mode": "connstr",
+    "host": null,
+    "port": null,
+    "database": null,
+    "userName": null,
+    "password": null,
+    "connStr": "Server=h;Uid=u;Pwd=****",
+    "readonly": false,
+    "tested": false,
+    "createTime": "2026-11-04T12:45:08.6377347",
+    "updateTime": "2026-11-04T12:45:08.6377347"
+   }
+  ]
+ },
+ "testOk": {
+  "status": 200,
+  "body": {
+   "ok": true,
+   "code": null,
+   "message": "连接成功",
+   "serverVersion": "3.50.4",
+   "elapsedMs": 1
+  }
+ },
+ "testDriverMissing": {
+  "status": 200,
+  "body": {
+   "ok": false,
+   "code": "driver_missing",
+   "message": "MySQL / MariaDB 驱动未安装：本插件 MVP 未随附该驱动。请将 NuGet 包「MySqlConnector」的 DLL 放入宿主程序目录或 DbAdmin 插件目录后重启。",
+   "serverVersion": null,
+   "elapsedMs": 3
+  }
+ },
+ "testSqlError": {
+  "status": 200,
+  "body": {
+   "ok": false,
+   "code": "sql_error",
+   "message": "SQLite 文件不存在：/nonexistent/dir/x.db（DbAdmin 不会自动创建库文件）",
+   "serverVersion": null,
+   "elapsedMs": 0
+  }
+ },
+ "tables": {
+  "status": 200,
+  "body": [
+   {
+    "name": "items",
+    "isView": false,
+    "description": null,
+    "columnCount": 3
+   },
+   {
+    "name": "scratch",
+    "isView": false,
+    "description": null,
+    "columnCount": 1
+   }
+  ]
+ },
+ "tableDetail": {
+  "status": 200,
+  "body": {
+   "name": "items",
+   "isView": false,
+   "description": null,
+   "columns": [
+    {
+     "name": "id",
+     "dataType": "Int64",
+     "rawType": "INTEGER",
+     "nullable": false,
+     "primaryKey": true,
+     "identity": false,
+     "length": 0,
+     "defaultValue": null,
+     "description": null
+    },
+    {
+     "name": "name",
+     "dataType": "String",
+     "rawType": "TEXT",
+     "nullable": false,
+     "primaryKey": false,
+     "identity": false,
+     "length": 0,
+     "defaultValue": null,
+     "description": null
+    },
+    {
+     "name": "note",
+     "dataType": "String",
+     "rawType": "TEXT",
+     "nullable": false,
+     "primaryKey": false,
+     "identity": false,
+     "length": 0,
+     "defaultValue": null,
+     "description": null
+    }
+   ],
+   "primaryKeys": [
+    "id"
+   ],
+   "indexes": []
+  }
+ },
+ "tablesSys": {
+  "status": 200,
+  "body": [
+   {
+    "name": "host_items",
+    "isView": false,
+    "description": null,
+    "columnCount": 2
+   }
+  ]
+ },
+ "queryRead": {
+  "status": 200,
+  "body": {
+   "status": "ok",
+   "code": null,
+   "message": null,
+   "kind": "read",
+   "columns": [
+    "id",
+    "name"
+   ],
+   "columnTypes": [
+    "Int64",
+    "String"
+   ],
+   "rows": [
+    [
+     4,
+     "row4"
+    ],
+    [
+     5,
+     "row5"
+    ],
+    [
+     6,
+     "row6"
+    ]
+   ],
+   "total": 1200,
+   "page": 2,
+   "pageSize": 3,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 2,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "queryReadBigPage": {
+  "status": 200,
+  "body": {
+   "status": "ok",
+   "code": null,
+   "message": null,
+   "kind": "read",
+   "columns": [
+    "id"
+   ],
+   "columnTypes": [
+    "Int64"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ]
+   ],
+   "total": 1200,
+   "page": 1,
+   "pageSize": 500,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 1,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "queryWrite202": {
+  "status": 202,
+  "body": {
+   "status": "awaiting_approval",
+   "code": null,
+   "message": "写操作等待批准",
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": 1,
+   "destructive": false
+  }
+ },
+ "queryDestructive202": {
+  "status": 202,
+  "body": {
+   "status": "awaiting_approval",
+   "code": null,
+   "message": "破坏性语句：需在界面批准并二次确认",
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": 2,
+   "destructive": true
+  }
+ },
+ "queryHardReject": {
+  "status": 200,
+  "body": {
+   "status": "rejected",
+   "code": "rejected_hard",
+   "message": "禁止 ATTACH 挂载其他数据库",
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "queryReadonlyReject": {
+  "status": 200,
+  "body": {
+   "status": "rejected",
+   "code": "readonly_connection",
+   "message": "系统连接（宿主/插件库）只读，任何写操作均被拒绝",
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "querySqlError": {
+  "status": 400,
+  "body": {
+   "status": "error",
+   "code": "sql_error",
+   "message": "SQL logic error\nno such table: no_such_table[SQL:[DbAdminU_1] Select Count(*) From (SELECT * FROM no_such_table) dbadmin_t]",
+   "kind": "read",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 4,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "queryDriverMissing424": {
+  "status": 424,
+  "body": {
+   "status": "error",
+   "code": "driver_missing",
+   "message": "PostgreSQL 驱动未安装：本插件 MVP 未随附该驱动。请将 NuGet 包「Npgsql」的 DLL 放入宿主程序目录或 DbAdmin 插件目录后重启。",
+   "kind": "read",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "queryNotFound": {
+  "status": 404,
+  "body": {
+   "status": "error",
+   "code": "not_found",
+   "message": "连接不存在：999999",
+   "kind": "read",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": null,
+   "destructive": false
+  }
+ },
+ "approvalsPending": {
+  "status": 200,
+  "body": [
+   {
+    "id": 2,
+    "connectionId": "1",
+    "sqlRedacted": "DROP TABLE scratch",
+    "kind": "write",
+    "destructive": true,
+    "status": "pending",
+    "source": "ui",
+    "createTime": "2026-11-04T12:45:08.6937031",
+    "resolveTime": null
+   },
+   {
+    "id": 1,
+    "connectionId": "1",
+    "sqlRedacted": "UPDATE items SET name='x' WHERE id=1",
+    "kind": "write",
+    "destructive": false,
+    "status": "pending",
+    "source": "ui",
+    "createTime": "2026-11-04T12:45:08.6897729",
+    "resolveTime": null
+   }
+  ]
+ },
+ "resolveDestructiveNoConfirm409": {
+  "status": 409,
+  "body": {
+   "code": "confirmation_required",
+   "message": "破坏性语句需在界面批准并二次确认（confirmDestructive=true）"
+  }
+ },
+ "resolveBadDecision400": {
+  "status": 400,
+  "body": {
+   "code": "invalid_request",
+   "message": "decision 只能是 approve 或 reject"
+  }
+ },
+ "resolveApprove": {
+  "status": 200,
+  "body": {
+   "status": "ok",
+   "code": null,
+   "message": null,
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": 1,
+   "elapsedMs": 2,
+   "approvalId": 1,
+   "destructive": false
+  }
+ },
+ "resolveReject": {
+  "status": 200,
+  "body": {
+   "status": "rejected",
+   "code": "approval_rejected",
+   "message": "已拒绝",
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": null,
+   "elapsedMs": 0,
+   "approvalId": 2,
+   "destructive": true
+  }
+ },
+ "resolveDestructiveConfirmed": {
+  "status": 200,
+  "body": {
+   "status": "ok",
+   "code": null,
+   "message": null,
+   "kind": "write",
+   "columns": null,
+   "columnTypes": null,
+   "rows": null,
+   "total": null,
+   "page": null,
+   "pageSize": null,
+   "truncated": false,
+   "affectedRows": 0,
+   "elapsedMs": 1,
+   "approvalId": 3,
+   "destructive": true
+  }
+ },
+ "resolveAgain400": {
+  "status": 400,
+  "body": {
+   "code": "invalid_request",
+   "message": "审批已处理（rejected）"
+  }
+ },
+ "resolveMissing404": {
+  "status": 404,
+  "body": {
+   "code": "not_found",
+   "message": "审批不存在：987654"
+  }
+ },
+ "history": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 8,
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM items",
+     "kind": "read",
+     "rowCount": 1000,
+     "elapsedMs": 15,
+     "success": true,
+     "error": "",
+     "source": "agent",
+     "createTime": "2026-11-04T12:45:08.7528959"
+    },
+    {
+     "id": 7,
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "kind": "write",
+     "rowCount": 0,
+     "elapsedMs": 0,
+     "success": true,
+     "error": "",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.7321314"
+    },
+    {
+     "id": 6,
+     "connectionId": "1",
+     "sqlRedacted": "UPDATE items SET name='x' WHERE id=1",
+     "kind": "write",
+     "rowCount": 1,
+     "elapsedMs": 1,
+     "success": true,
+     "error": "",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.7223995"
+    },
+    {
+     "id": 5,
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM no_such_table",
+     "kind": "read",
+     "rowCount": 0,
+     "elapsedMs": 2,
+     "success": false,
+     "error": "SQL logic error\nno such table: no_such_table[SQL:[DbAdminU_1] Select Count(*) From (SELECT * FROM no_such_table) dbadmin_t]",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.70141"
+    },
+    {
+     "id": 4,
+     "connectionId": "sys:DbAdminTestHost",
+     "sqlRedacted": "UPDATE host_items SET name='x' WHERE id=1",
+     "kind": "write",
+     "rowCount": 0,
+     "elapsedMs": 0,
+     "success": false,
+     "error": "系统连接（宿主/插件库）只读，任何写操作均被拒绝",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.6974025"
+    },
+    {
+     "id": 3,
+     "connectionId": "1",
+     "sqlRedacted": "ATTACH DATABASE 'x.db' AS x",
+     "kind": "write",
+     "rowCount": 0,
+     "elapsedMs": 0,
+     "success": false,
+     "error": "禁止 ATTACH 挂载其他数据库",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.6960314"
+    },
+    {
+     "id": 2,
+     "connectionId": "1",
+     "sqlRedacted": "SELECT id FROM items",
+     "kind": "read",
+     "rowCount": 500,
+     "elapsedMs": 1,
+     "success": true,
+     "error": "",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.685279"
+    },
+    {
+     "id": 1,
+     "connectionId": "1",
+     "sqlRedacted": "SELECT id, name FROM items ORDER BY id",
+     "kind": "read",
+     "rowCount": 3,
+     "elapsedMs": 2,
+     "success": true,
+     "error": "",
+     "source": "ui",
+     "createTime": "2026-11-04T12:45:08.6815865"
+    }
+   ],
+   "total": 8,
+   "page": 1,
+   "pageSize": 8
+  }
+ },
+ "historyAgent": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 8,
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM items",
+     "kind": "read",
+     "rowCount": 1000,
+     "elapsedMs": 15,
+     "success": true,
+     "error": "",
+     "source": "agent",
+     "createTime": "2026-11-04T12:45:08.7528959"
+    }
+   ],
+   "total": 1,
+   "page": 1,
+   "pageSize": 50
+  }
+ },
+ "audit": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 31,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE items",
+     "decision": "db_query_readonly",
+     "detail": "db_query_readonly 只接受 SELECT / WITH 等只读语句，写操作请用 db_execute_write",
+     "createTime": "2026-11-04T12:45:08.7596771",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "rejected",
+     "code": "rejected_hard",
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": null,
+     "tool": "db_query_readonly"
+    },
+    {
+     "id": 30,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "db_execute_write",
+     "detail": "写操作等待批准",
+     "createTime": "2026-11-04T12:45:08.7588812",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "awaiting_approval",
+     "code": null,
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": 4,
+     "tool": "db_execute_write"
+    },
+    {
+     "id": 29,
+     "kind": "approval_pending",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "ask",
+     "detail": "approvalId=4 destructive=False source=agent",
+     "createTime": "2026-11-04T12:45:08.7581547",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 28,
+     "kind": "classify",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "write",
+     "detail": "mode=AskWrite source=agent INSERT ",
+     "createTime": "2026-11-04T12:45:08.7569749",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 27,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM items",
+     "decision": "db_query_readonly",
+     "detail": "",
+     "createTime": "2026-11-04T12:45:08.7553355",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "ok",
+     "code": null,
+     "sqlKind": "read",
+     "rowCount": 1000,
+     "truncated": true,
+     "approvalId": null,
+     "tool": "db_query_readonly"
+    },
+    {
+     "id": 26,
+     "kind": "query",
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM items",
+     "decision": "allow",
+     "detail": "source=agent rows=1000 truncated=True ",
+     "createTime": "2026-11-04T12:45:08.7514414",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 25,
+     "kind": "write_result",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "decision": "ok",
+     "detail": "source=ui affected=0",
+     "createTime": "2026-11-04T12:45:08.7316261",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 24,
+     "kind": "approval_approved",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "decision": "approved",
+     "detail": "approvalId=3 by=ui confirm=True",
+     "createTime": "2026-11-04T12:45:08.7300503",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 23,
+     "kind": "approval_pending",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "decision": "ask",
+     "detail": "approvalId=3 destructive=True source=ui",
+     "createTime": "2026-11-04T12:45:08.7269016",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 22,
+     "kind": "classify",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "decision": "destructive",
+     "detail": "mode=AskWrite source=ui DROP ",
+     "createTime": "2026-11-04T12:45:08.7257255",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 21,
+     "kind": "approval_rejected",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE scratch",
+     "decision": "rejected",
+     "detail": "approvalId=2 by=ui",
+     "createTime": "2026-11-04T12:45:08.7245909",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    },
+    {
+     "id": 20,
+     "kind": "write_result",
+     "connectionId": "1",
+     "sqlRedacted": "UPDATE items SET name='x' WHERE id=1",
+     "decision": "ok",
+     "detail": "source=ui affected=1",
+     "createTime": "2026-11-04T12:45:08.7217843",
+     "source": null,
+     "sessionId": null,
+     "status": null,
+     "code": null,
+     "sqlKind": null,
+     "rowCount": null,
+     "truncated": null,
+     "approvalId": null,
+     "tool": null
+    }
+   ],
+   "total": 31,
+   "page": 1,
+   "pageSize": 12
+  }
+ },
+ "auditAgent": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 31,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE items",
+     "decision": "db_query_readonly",
+     "detail": "db_query_readonly 只接受 SELECT / WITH 等只读语句，写操作请用 db_execute_write",
+     "createTime": "2026-11-04T12:45:08.7596771",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "rejected",
+     "code": "rejected_hard",
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": null,
+     "tool": "db_query_readonly"
+    },
+    {
+     "id": 30,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "db_execute_write",
+     "detail": "写操作等待批准",
+     "createTime": "2026-11-04T12:45:08.7588812",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "awaiting_approval",
+     "code": null,
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": 4,
+     "tool": "db_execute_write"
+    },
+    {
+     "id": 27,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "SELECT * FROM items",
+     "decision": "db_query_readonly",
+     "detail": "",
+     "createTime": "2026-11-04T12:45:08.7553355",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "ok",
+     "code": null,
+     "sqlKind": "read",
+     "rowCount": 1000,
+     "truncated": true,
+     "approvalId": null,
+     "tool": "db_query_readonly"
+    }
+   ],
+   "total": 3,
+   "page": 1,
+   "pageSize": 50
+  }
+ },
+ "auditAgentSession": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 30,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "db_execute_write",
+     "detail": "写操作等待批准",
+     "createTime": "2026-11-04T12:45:08.7588812",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "awaiting_approval",
+     "code": null,
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": 4,
+     "tool": "db_execute_write"
+    }
+   ],
+   "total": 1,
+   "page": 1,
+   "pageSize": 50
+  }
+ },
+ "approvalsAfter": {
+  "status": 200,
+  "body": [
+   {
+    "id": 4,
+    "connectionId": "1",
+    "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+    "kind": "write",
+    "destructive": false,
+    "status": "pending",
+    "source": "agent",
+    "createTime": "2026-11-04T12:45:08.7575672",
+    "resolveTime": null
+   }
+  ]
+ },
+ "auditBigPage": {
+  "status": 200,
+  "body": {
+   "items": [
+    {
+     "id": 31,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "DROP TABLE items",
+     "decision": "db_query_readonly",
+     "detail": "db_query_readonly 只接受 SELECT / WITH 等只读语句，写操作请用 db_execute_write",
+     "createTime": "2026-11-04T12:45:08.7596771",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "rejected",
+     "code": "rejected_hard",
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": null,
+     "tool": "db_query_readonly"
+    },
+    {
+     "id": 30,
+     "kind": "agent",
+     "connectionId": "1",
+     "sqlRedacted": "INSERT INTO items(name) VALUES ('agent')",
+     "decision": "db_execute_write",
+     "detail": "写操作等待批准",
+     "createTime": "2026-11-04T12:45:08.7588812",
+     "source": "agent",
+     "sessionId": "sess-1",
+     "status": "awaiting_approval",
+     "code": null,
+     "sqlKind": "write",
+     "rowCount": 0,
+     "truncated": false,
+     "approvalId": 4,
+     "tool": "db_execute_write"
+    }
+   ],
+   "total": 31,
+   "page": 1,
+   "pageSize": 500
+  }
+ },
+ "modeGet": {
+  "status": 200,
+  "body": {
+   "mode": "AskWrite",
+   "default": "AskWrite"
+  }
+ },
+ "modeSet": {
+  "status": 200,
+  "body": {
+   "mode": "AskWrite",
+   "default": "AskWrite"
+  }
+ },
+ "modeBad": {
+  "status": 400,
+  "body": {
+   "code": "invalid_request",
+   "message": "mode 只能是 AskWrite 或 Auto"
+  }
+ },
+ "deleteConn": {
+  "status": 204,
+  "body": null
+ },
+ "getMissing": {
+  "status": 404,
+  "body": {
+   "code": "not_found",
+   "message": "连接不存在：1"
+  }
+ }
+}

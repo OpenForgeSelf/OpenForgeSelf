@@ -96,6 +96,13 @@ function Glob-ToRegex([string]$glob) {
 $excludeRe = '(^|/)(\.git|node_modules|bin|obj|artifacts|publish|publish\.bak[^/]*|temp|\.temp|\.trash|screenshots|\.playwright[^/]*|\.pw-out[^/]*|\.codebuddy|\.atomcode[^/]*|\.gsk|\.claude|\.specify|\.trae|\.vscode|\.workbuddy|\.codegraph|\.forgeself|\.qoder[^/]*)(/|$)'
 function Get-FilesByGlob([string]$globPattern) {
     $g = Glob-ToRegex $globPattern
+    # 字面路径短路（无任何通配符）：直接取该文件，避免 -Recurse 全仓遍历（PC-023 签名曾因此单类卡 10min+，2026-11-11）
+    $lit = $globPattern -replace '\\', '/'
+    if ($lit -notmatch '[*{]') {
+        $p = Join-Path $repoRoot ($lit -replace '/', [IO.Path]::DirectorySeparatorChar)
+        if (Test-Path -LiteralPath $p -PathType Leaf) { return @(Get-Item -LiteralPath $p) }
+        return @()
+    }
     # 锚点优化：取首个 * 前的目录层级作扫描根（全仓 -Recurse 太慢）
     $gp = $globPattern -replace '\\', '/'
     $idx = $gp.IndexOf('*')

@@ -225,7 +225,7 @@ public class SearchFilesToolFunction : IToolFunctionExtension
                 skippedReparse,
                 skippedUnreadable,
                 matches
-            }));
+            }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
@@ -235,7 +235,7 @@ public class SearchFilesToolFunction : IToolFunctionExtension
     }
 
     private Task<string> Fail(string message) =>
-        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message)));
+        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message), ForgeJson.Default));
 }
 
 public class SearchContentToolFunction : IToolFunctionExtension
@@ -369,7 +369,7 @@ public class SearchContentToolFunction : IToolFunctionExtension
                 skippedOversize,
                 skippedBinary,
                 matches
-            }));
+            }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
@@ -402,7 +402,7 @@ public class SearchContentToolFunction : IToolFunctionExtension
     }
 
     private Task<string> Fail(string message) =>
-        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message)));
+        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message), ForgeJson.Default));
 }
 
 public class MoveFileToolFunction : IToolFunctionExtension
@@ -471,7 +471,7 @@ public class MoveFileToolFunction : IToolFunctionExtension
 
             File.Move(source!, destination!);
             XTrace.Log.Info("[FileTools] move_file 成功：{0} -> {1}", source, destination);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, source, destination }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, source, destination }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
@@ -481,7 +481,7 @@ public class MoveFileToolFunction : IToolFunctionExtension
     }
 
     private Task<string> Fail(string message) =>
-        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message)));
+        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message), ForgeJson.Default));
 }
 
 public class RenameFileToolFunction : IToolFunctionExtension
@@ -556,7 +556,7 @@ public class RenameFileToolFunction : IToolFunctionExtension
 
             File.Move(path!, destination!);
             XTrace.Log.Info("[FileTools] rename_file 成功：{0} -> {1}", path, destination);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, path, newName, destination }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, path, newName, destination }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
@@ -566,7 +566,7 @@ public class RenameFileToolFunction : IToolFunctionExtension
     }
 
     private Task<string> Fail(string message) =>
-        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message)));
+        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message), ForgeJson.Default));
 }
 
 public class DeleteFileToolFunction : IToolFunctionExtension
@@ -618,7 +618,7 @@ public class DeleteFileToolFunction : IToolFunctionExtension
 
             File.Delete(path!);
             XTrace.Log.Info("[FileTools] delete_file 成功：{0}", path);
-            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, path, deleted = true }));
+            return Task.FromResult(JsonSerializer.Serialize(new { success = true, cwd, path, deleted = true }, ForgeJson.Default));
         }
         catch (Exception ex)
         {
@@ -628,5 +628,5 @@ public class DeleteFileToolFunction : IToolFunctionExtension
     }
 
     private Task<string> Fail(string message) =>
-        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message)));
+        Task.FromResult(JsonSerializer.Serialize(ListFilesToolFunction.FailEnvelope(_ctx, message), ForgeJson.Default));
 }

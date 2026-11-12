@@ -1360,7 +1360,8 @@ defineExpose({ selectRun: openRun })
 }
 
 .rrp__line--human {
-  color: var(--el-color-primary-light-7);
+  /* 暗色下 light-N 已是背景级深色（PC-025），文字强调统一用主色 */
+  color: var(--el-color-primary);
 }
 
 .rrp__line--meta {

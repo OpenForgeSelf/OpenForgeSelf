@@ -1,14 +1,14 @@
-﻿---
+---
 feature_key: F031b
 feature_no: 031
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-11-04
 aliases: ["031-im-gateway"]
 ---
 
 # 031 - IM 多渠道网关（im-gateway 插件）
 
-> 插件形态：`ForgeSelf.Api/Plugins/ImGateway/`，运行时 id `im-gateway`，当前版本 **2.0.0**。
+> 插件形态：`ForgeSelf.Api/Plugins/ImGateway/`，运行时 id `im-gateway`，当前版本 **2.2.0**。
 
 ## 功能定位
 
@@ -117,6 +117,7 @@ GET /api/im-gateway/wecom/scan-auth/{id}
 | POST | `/api/im-gateway/wecom/reconnect` | 被踢/断开后手动重连（目标非长连接返回 409） |
 | POST | `/api/im-gateway/wecom/scan-auth` | 发起扫码授权（返回 {id, state, qrLink, qrText}；CLI 缺失返回 409） |
 | GET | `/api/im-gateway/wecom/scan-auth/{id}` | 轮询扫码会话（state: starting/waitingscan/succeeded/failed + botId/error） |
+| POST | `/api/im-gateway/simulate-inbound` | **2.2.0 任务网关**：模拟入站消息（body: channelType/conversationId/platformUserId/content/chatType?msgId 缺省生成）→ 组装同形状 InboundMessage 直调 Router（零旁路）；测试/自检触发器，类级 ApiKeyPolicy |
 
 > v2.0.0 已无回调端点（`/api/im-gateway/{channel}/callback` 删除）。
 
@@ -127,6 +128,7 @@ GET /api/im-gateway/wecom/scan-auth/{id}
 | `ImGatewayChannel` | `Id` / `Enabled` / `BoundAgentId` / `BoundChatModelId` / `BotId` / `SecretCipher` / `CliPath` / `UpdatedAt` | 配置单行（含密文列） |
 | `ImGatewaySession` | `ChannelKey`（唯一） / `SessionId` / `AgentId` / `ModelId` / `UpdatedAt` | 通道会话 → Agent 会话映射 |
 | `ImGatewayProcessedMsg` | `ChannelType`+`MsgId`（唯一） / `ProcessedAt` | 消息去重 |
+| `ImGatewayTask`（2.2.0） | `TaskKey` / `RunId?` / `ChannelKey` / `ConversationId` / `Status` / `RepliedAt?` / `PromptedApprovalIds` | IM 任务绑定行：派发↔回复幂等锚点（详见「任务网关」节） |
 
 ## 前端配置页
 
@@ -145,6 +147,38 @@ GET /api/im-gateway/wecom/scan-auth/{id}
 - e2e：`ForgeSelf.Web/e2e/plugins/im-gateway/im-gateway.spec.ts`（单通道断言：标题「IM 网关」、
   `{weCom:{...}}` 结构、1 通道 websocket、resetConfig 清空；enabled=false + 占位凭据避免真外连）。
 
+
+## 任务网关（2.2.0，PILOT-079）
+
+**一句话**：在 IM 里发「/task 写个xx报告」→ 网关建 AIAgent 任务并即时回执 → 任务终态后网关**主动推送**结果 → 写操作卡审批时推送审批卡片、用户回「同意 #id」即完成统一审批并续跑。
+
+```
+IM 文本 ──前缀命中──> ImGatewayRouter ──> ImTaskDispatcher ──ctx.Get<IAgentRunDispatch>().Submit──> AIAgent 后台 Run
+   │(即时 ack：已建任务（编号 xxxxxxxx）已指派 X)
+   │                                        └─ 绑定行落库 ImGatewayTask（RunId 待回填）
+ImTaskWatcher（HostedService，默认 10s 轮询）
+   ├─ FindAsync(taskKey/RunId) 状态回写（拿到 RunId 后回填绑定行——宿主重启恢复靠它）
+   ├─ 终态 → FR-5 模板经通道主动推送（ChatType 路径，RepliedAt 幂等不重发）
+   ├─ stuck → IApprovalService.ListBySessionAsync 查 Pending → 审批卡片（每审批 Id 仅一次，PromptedApprovalIds 上限10）
+   └─ MaxWaitHours(24h) 超时收尾
+IM 回复「同意/拒绝 #id」 → ImTaskDispatcher → DecideAsync(note=imgateway:{channelKey} 经 IM 决策) + ResumeAsync(taskKey) → ack
+```
+
+| 配置（WeCom.TaskGateway） | 默认 | 说明 |
+|---|---|---|
+| Enabled | false | 总开关；关闭时 Router 分支短路，行为与 2.1.1 完全一致 |
+| CommandPrefixes | ["/task ", "任务："] | 触发前缀（可配） |
+| DefaultAgentId | null（跟随会话绑定） | 会话未绑 Agent 时的派发目标 |
+| PollIntervalSeconds / MaxReplyChars / MaxWaitHours | 60 / 6000 / 24 | 轮询节拍（T16 默认 1 分钟）；回复总上限保险丝（0=关，非截断点，T12 改）；超时收尾 |
+| MaxCharsPerMessage | 2000 | 单条消息分段阈值（T12：超过即分段多次发送，段尾标 (i/n)，顺序保证不并发；中途失败不置 RepliedAt、下轮全量重发） |
+| ProgressPushEnabled / StalledMinutes | true / 5 | 执行中进展推送子开关 / 无变化卡住分钟（T16，对齐 AIAgent 侧 300s） |
+| ImApprovalEnabled + Approve/RejectKeywords | true；[同意,批准]/[拒绝,驳回] | IM 审批闭环子开关（分支优先级：任务前缀>审批关键字>任务状态>聊天；无待审批零误伤） |
+
+- **审批不绕行**：任务内写操作照触发 ToolApproval → Run 进 stuck（等待审批），IM 侧卡片指引宿主处理；MAF 下一回合才消费决策 ⇒ 批准后必须显式 `ResumeAsync`（契约方法，服务人工续跑与 IM 决策双场景）。
+- **发送失败语义**：RecordError 落库 + 进程内 `_sendAttempted` 去重不重发（宿主重启恢复路径可再尝试一次，有界）；RepliedAt 仅成功后置位（防重复推送优先）。
+- **会话/查询约定**（防误读，走查实证）：Run 的 `SessionId = imtask:{内部会话GUID}`（非原始 conversationId）；`GET /api/im-gateway/messages` 必带 `channelKey`（如 `wecom:ac4-conv-1:lead-ac4`）；任务中心 planned 桶=全状态投影（`TasksOverviewController` ListRunsAsync(status:null)），条目 `sourceRef=RunId`。
+- **测试法（零 mock）**：e2e 用「config 绑定哨兵模型」（`boundChatModelId` 指向不存在上游）让 Run 真实创建→真实失败→failed 终态全链断言（调用方指定模型免目录校验是 ChatModelResolver 既有设计语义）；单测 28 例（AC3/AC9/AC10）+ e2e 冒烟 5 例。
+- **DI 视图统一（PILOT-079 缺陷#2/#3 教训）**：AIAgent 全部 eager 块共享单一 pluginProvider 且实例单例注册回宿主 services——控制器/派发/内置执行同视图；守卫 `AgentRegistryCaptiveTests` 跨 provider 断言防复发（机理详见 host-capability-seams.md §8）。
 ## 版本历史
 
 | 版本 | 变更 |
@@ -152,6 +186,7 @@ GET /api/im-gateway/wecom/scan-auth/{id}
 | 1.0.0 | 首版：4 通道适配 + 网关路由 + 配置页 |
 | 1.0.1 | 修复 Save/Load 序列化契约不一致致配置读回空；修复开关控件被轨道遮挡；Load 失败记日志不再静默 |
 | 1.1.0 | 企业微信由「自建应用回调」改为「智能机器人 WebSocket 长连接」：凭据简化为 BotId+Secret，无需公网 IP/回调域名/消息加解密；内核新增长连接形态（订阅/心跳/重连/被踢停重连）；解析与帧构造抽为 `WeComFrameParser` 并补协议单测 |
+| **2.2.0** | **任务网关（PILOT-079）**：IM 文本消息 `/task` 前缀（默认「/task␣」「任务：」）→ 跨插件契约 `IAgentRunDispatch`（host-capability-seams.md §8）派发 AIAgent 后台 Run → 即时 ack → Watcher 轮询终态**主动推送**（completed/failed/stuck 三模板 + 审批卡片）；IM 审批闭环（关键字「同意/拒绝 #id」→ `IApprovalService.DecideAsync` 留痕 + `ResumeAsync` 续跑；新实体 `ImGatewayTask`；`simulate-inbound` 端点；设置面板「任务网关」卡（Enabled/前缀/默认 Agent/轮询/审批子开关+关键字）。会话约定：Run 的 SessionId=`imtask:{内部会话GUID}`；messages 端点必带 `channelKey` |
 | **2.0.0** | **大改**：① 移除 Callback 形态（只留企微长连接单通道）；② 配置/会话/去重改 SQLite 存储；③ Secret 加密入库（宿主 `ISecretEncryptionService` 体系，接口上移 Abstractions）；④ 扫码授权自动回填 BotId+Secret（CLI 隔离目录 + AES-256-GCM 解密）+ 手填并存（体验不降级）；⑤ 修 D1（消息处理阻塞接收泵 → 有界队列+并发闸+独立消费）/ D2（被踢后手动重连端点+按钮）；旧 config.json 不迁移仅留档 |
 
 ## 已知边界

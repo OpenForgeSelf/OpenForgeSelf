@@ -20,9 +20,9 @@ public class ScriptService : IScriptService
             Language = (int)request.Language,
             Code = request.Code,
             Category = request.Category,
-            TagsJson = JsonSerializer.Serialize(request.Tags ?? []),
+            TagsJson = JsonSerializer.Serialize(request.Tags ?? [], ForgeJson.Default),
             IsFavorite = false,
-            ParametersJson = JsonSerializer.Serialize(request.Parameters ?? []),
+            ParametersJson = JsonSerializer.Serialize(request.Parameters ?? [], ForgeJson.Default),
             CreatedAt = now,
             UpdatedAt = now,
             UsageCount = 0,
@@ -48,8 +48,8 @@ public class ScriptService : IScriptService
         entity.Language = (int)request.Language;
         entity.Code = request.Code;
         entity.Category = request.Category;
-        entity.TagsJson = JsonSerializer.Serialize(request.Tags ?? []);
-        entity.ParametersJson = JsonSerializer.Serialize(request.Parameters ?? []);
+        entity.TagsJson = JsonSerializer.Serialize(request.Tags ?? [], ForgeJson.Default);
+        entity.ParametersJson = JsonSerializer.Serialize(request.Parameters ?? [], ForgeJson.Default);
         entity.UpdatedAt = DateTime.Now;
         entity.TimeoutSeconds = request.TimeoutSeconds;
 

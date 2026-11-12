@@ -20,7 +20,9 @@ param(
     [string]$OutputRoot = '',
     [string]$UpdateDir = '',
     [switch]$SkipFrontend,
-    [switch]$Sign
+    [switch]$Sign,
+    # 磁盘水位阈值（GB），默认 2.5；测试用 -MinFreeGB 9999 模拟低水位中止（task-13① 可测化）
+    [double]$MinFreeGB = 2.5
 )
 
 . (Join-Path $PSScriptRoot 'release-lib.ps1')
@@ -35,6 +37,15 @@ if (-not (Test-Path $buildTemp)) { New-Item -ItemType Directory -Force -Path $bu
 $env:TEMP   = $buildTemp
 $env:TMP    = $buildTemp
 $env:TMPDIR = $buildTemp
+
+# ESBUILD_BINARY_PATH 护栏（2026-11-05 lead 实战）：harness 会话进程可能带全局 esbuild 二进制
+# 环境变量，插件 web `pnpm install` 的 esbuild@0.25.0 postinstall 会按它校验版本 →
+# 「Expected 0.25.0 but got 0.25.12」install 阶段必炸；patch-esbuild.mjs 的中和发生在 install
+# 之后救不了 install 阶段，故组包最前显式摘除（子脚本同进程继承）。
+if ($env:ESBUILD_BINARY_PATH) {
+    Write-Host ("release-local: removed ESBUILD_BINARY_PATH env guard conflict (was: {0})" -f $env:ESBUILD_BINARY_PATH) -ForegroundColor Yellow
+    Remove-Item Env:ESBUILD_BINARY_PATH -ErrorAction SilentlyContinue
+}
 
 # 版本来源三分支（2026-10-30 输入3 用户拍板，真源 docs/04-standards/packaging-upgrade-backup.md §1.1/§4-R10）：
 #   ① 显式 -Version：3 段补时间码 / 4 段幂等（行为不变）；
@@ -58,7 +69,26 @@ if (-not $OutputRoot) { $OutputRoot = Join-Path $repoRoot 'artifacts' }
 # 本地打包默认输出到「项目上级 updates 目录」（仓库外、不入 git，避免污染工作区与误入版本控制）；
 # CI（GITHUB_REF_NAME 有值）不传 -UpdateDir，保持 GitHub Release 通道、不向仓库外写目录。
 if (-not $UpdateDir -and -not $env:GITHUB_REF_NAME) {
-    $UpdateDir = Join-Path (Split-Path $repoRoot -Parent) 'updates'
+    # worktree 盲区修正（2026-11-05 lead 实战）：worktree 建在主仓 .temp\wt-<hash> 下时，
+    # Split-Path repoRoot -Parent 落到主仓 .temp → 缺省 updates 写进 .temp\updates（会被清理、
+    # 不入真源，正是 0401/0430「真源补拷」手动步骤的来源）。沿祖先链检测 <主仓>\.temp\wt-* 形态，
+    # 命中则把 updates 根锚回主仓根的上级；拿不准时用 -UpdateDir 显式指定。
+    $updatesRootParent = Split-Path $repoRoot -Parent
+    $probe = $repoRoot
+    while ($true) {
+        $parent = Split-Path $probe -Parent
+        if (-not $parent -or $parent -eq $probe) { break }
+        $leaf = Split-Path $probe -Leaf
+        $parentLeaf = Split-Path $parent -Leaf
+        if (($leaf -like 'wt-*') -and ($parentLeaf -eq '.temp')) {
+            $mainRoot = Split-Path $parent -Parent
+            $updatesRootParent = Split-Path $mainRoot -Parent
+            Write-Host ("release-local: worktree detected -> updates anchored to main repo parent: {0}" -f $updatesRootParent) -ForegroundColor Yellow
+            break
+        }
+        $probe = $parent
+    }
+    $UpdateDir = Join-Path $updatesRootParent 'updates'
 }
 # 发行串解析（2026-10-02 版本规则，真源 §1.1；2026-10-30 起本地缺省改读 csproj 版本行）：
 #   显式 -Version / csproj 缺省：3 段（2.4.22）自动补 yyMMddHHmm；4 段（含时间码）幂等原样；
@@ -68,6 +98,17 @@ $publishDir = Join-Path $OutputRoot 'publish'
 $bootDir = Join-Path $OutputRoot 'layout-root'
 $layoutDir = Join-Path $OutputRoot 'layout'
 $releaseDir = Join-Path $OutputRoot 'release'
+
+# 磁盘水位预检（task-13①，2026-11-05）：发布链需 ~3GB（publish + layout + zip 双份），磁盘满会在
+# 中途以模糊 IO 错失败并留半成品（昨夜 D 盘 0.06GB 时 92MB 拷贝失败被误读成文件问题）。free < 2.5GB 直接中止。
+foreach ($probe in @($OutputRoot, $UpdateDir, $buildTemp) | Where-Object { $_ }) {
+    $driveName = $probe.Substring(0, 1)
+    $drive = Get-PSDrive -Name $driveName -ErrorAction SilentlyContinue
+    $thresholdBytes = $MinFreeGB * 1GB
+    if ($drive -and $drive.Free -lt $thresholdBytes) {
+        throw ("disk watermark: free {0:n2}GB on {1}: (< {2}GB) - abort before packaging; clean old worktrees/artifacts first (or pass -MinFreeGB)" -f ($drive.Free / 1GB), $driveName, $MinFreeGB)
+    }
+}
 
 Write-Host ("release-local: Version={0} -> release={1} OutputRoot={2}" -f $Version, $ver, $OutputRoot)
 
@@ -103,6 +144,23 @@ if ($UpdateDir) {
     foreach ($f in @($zip, (Join-Path $releaseDir 'SHA256SUMS.txt'), (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver)))) {
         if (Test-Path $f) { Copy-Item $f $UpdateDir -Force }
     }
+    # 验包固定步骤（task-13②，0401/0430 空转 apply 的根因）：拷贝后必须按 SHA256SUMS.txt 复算
+    # 目标文件哈希并对表，防「复制没发生/拷一半」静默成功——宿主 hasUpdate=false 空转即源于此。
+    $sums = Join-Path $UpdateDir 'SHA256SUMS.txt'
+    if (-not (Test-Path $sums)) { throw "UpdateDir verification failed: SHA256SUMS.txt missing after copy" }
+    $verified = 0
+    Get-Content $sums | ForEach-Object {
+        if ($_ -match '^([0-9a-fA-F]{64})\s+\*?(.+)$') {
+            $expectedHash = $Matches[1].ToLowerInvariant()
+            $dest = Join-Path $UpdateDir $Matches[2].Trim()
+            if (-not (Test-Path $dest)) { throw ("UpdateDir verification failed: missing {0}" -f $Matches[2].Trim()) }
+            $actualHash = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualHash -ne $expectedHash) { throw ("UpdateDir verification failed: SHA256 mismatch for {0}" -f $Matches[2].Trim()) }
+            $verified++
+        }
+    }
+    if ($verified -eq 0) { throw "UpdateDir verification failed: SHA256SUMS.txt has no parseable entries" }
+    Write-Host ("release-local: UpdateDir SHA256 verification PASS ({0} file(s) rechecked)" -f $verified) -ForegroundColor Green
     Write-Host ''
     Write-Host ("release-local: update dir = {0}" -f $UpdateDir) -ForegroundColor Green
     Get-ChildItem $UpdateDir | ForEach-Object {

@@ -23,6 +23,15 @@ public static class PluginVersionLayout
     /// <summary>current 指针文件名。</summary>
     public const string CurrentPointerFileName = "current";
 
+    /// <summary>插件源码目录名（构建/测试/打包只进这里）。</summary>
+    public const string SourceFolderName = "src";
+
+    /// <summary>插件本地作业目录名。</summary>
+    public const string ForgeFolderName = ".forge";
+
+    /// <summary>作业记录子目录名。</summary>
+    public const string JobsFolderName = "jobs";
+
     /// <summary>版本目录根（Plugins/&lt;id&gt;/versions）。</summary>
     public static string VersionsDirectory(string pluginDir) =>
         Path.Combine(pluginDir, VersionsFolderName);
@@ -34,6 +43,28 @@ public static class PluginVersionLayout
     /// <summary>current 指针文件完整路径。</summary>
     public static string CurrentPointerPath(string pluginDir) =>
         Path.Combine(pluginDir, CurrentPointerFileName);
+
+    /// <summary>源码目录（<c>{插件目录}/src</c>）。</summary>
+    public static string SourceDirectory(string pluginDir) =>
+        Path.Combine(pluginDir, SourceFolderName);
+
+    /// <summary>作业根（<c>{插件目录}/.forge</c>）。</summary>
+    public static string ForgeDirectory(string pluginDir) =>
+        Path.Combine(pluginDir, ForgeFolderName);
+
+    /// <summary>作业记录目录（<c>{插件目录}/.forge/jobs</c>）。</summary>
+    public static string JobsDirectory(string pluginDir) =>
+        Path.Combine(ForgeDirectory(pluginDir), JobsFolderName);
+
+    /// <summary>保证运行目录骨架存在：版本目录、源码目录、作业目录。不删除已有文件。</summary>
+    public static void EnsureLayout(string pluginDir)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginDir);
+        Directory.CreateDirectory(pluginDir);
+        Directory.CreateDirectory(VersionsDirectory(pluginDir));
+        Directory.CreateDirectory(SourceDirectory(pluginDir));
+        Directory.CreateDirectory(JobsDirectory(pluginDir));
+    }
 
     /// <summary>读取当前生效版本；指针不存在或为空时返回 null。</summary>
     public static string? ReadCurrentVersion(string pluginDir)

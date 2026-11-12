@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.McpCenter.Services;
@@ -63,7 +64,12 @@ public sealed class McpGatewayConfig
             {
                 // 大小写不敏感：config.json 属用户可手改文件，小写/驼峰键都应被识别（实测踩坑：手写
                 // {"port": ...} 因默认大小写敏感被忽略 → 绑定回退默认端口 18890）。
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    // PC-027 统一不变量：只读初始化器同样声明 Encoder（反序列化时被忽略，零读侧风险）
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
                 var fromFile = JsonSerializer.Deserialize<McpGatewayConfig>(File.ReadAllText(configPath), options);
                 if (fromFile != null)
                 {
@@ -89,7 +95,7 @@ public sealed class McpGatewayConfig
             else
             {
                 Directory.CreateDirectory(dataDirectory);
-                File.WriteAllText(configPath, JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(configPath, JsonSerializer.Serialize(cfg, ForgeJson.Indented));
                 XTrace.Log.Info("[McpCenter] 已生成默认配置: {0}", configPath);
             }
         }

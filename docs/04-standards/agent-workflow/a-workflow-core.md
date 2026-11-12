@@ -13,6 +13,7 @@
 | 技能 | 何时用 | 关键约束 |
 |------|--------|----------|
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么 | 改完 = 门禁 + 插件 e2e + 发布 + 浏览器走查，四步缺一不算完成；完成后复盘回写技能 |
+| `plugin-compliance-audit` | **插件完整性/合规逐项核对**（交付前 / 每次改动按改动面矩阵复核 / 门禁没查出来的补查） | 每项有证据（Verified/Inferred/Unknown）；门禁绿≠合规；默认主题≠暗色验证；属改动面的 Unknown 不许算 PASS；问题必须分流（本批修/同类扫查/TODO/补守卫/回写真源） |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：行业调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `plugin-frontend-scaffold` | 从 AIAgent 模板生成插件 `web/` 前端骨架 | 产物入口固定 `web/dist/index.js`，导出名须等于 `views[0]` |
 | `plugin-publish-verify` | 发布与验证：主路径 = 打 tag 自动发布 + 页面自动更新（禁止 agent 停宿主）；本地目录更新源；插件版本化侧载（须用户同意） | 活动插件目录只放插件自身 DLL；`plugin.json` 最后拷 |
@@ -21,7 +22,7 @@
 
 **选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会在正文里把
 你转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/
-`plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`。
+`plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`；**改完 / 交付前收口一律转派 `plugin-compliance-audit` 逐项核对**。
 
 **职责边界（勿混）**：立项 = 做什么 / 叫什么 / 做多大；架构 = 怎么接才合规（契约入 `Abstractions`、
 事件族、能力供给选型）；开发 = 怎么落地；验证 = 怎么证明。遇到「契约放哪层」转 `architecture-design` 出 ADR。

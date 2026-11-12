@@ -239,6 +239,48 @@ internal sealed class HangThenTextProvider : IAIProvider
         => Task.FromResult(new List<ModelInfo>());
 }
 
+/// <summary>
+/// 零产出挂起替身（PILOT-079 B3/P1②）：首次请求<b>一个字节都不吐</b>即永久挂起——
+/// 看门狗触发时上游零产出（对照 <see cref="HangThenTextProvider"/> 的先吐增量再挂），
+/// 用于钉死「零产出超时必须判失败（上游死链），不得静默挂起等 steer」的语义。
+/// </summary>
+internal sealed class HangZeroByteProvider : IAIProvider
+{
+    private bool _hung;
+
+    /// <summary>每次请求收到的统一请求（调试观察用）。</summary>
+    public List<UnifiedChatRequest> Requests { get; } = new();
+
+    public string ProviderName => "fake-hang-zero";
+    public AIProviderType ProviderType => AIProviderType.Custom;
+    public List<string> SupportedModels => new() { "fake-model" };
+    public bool IsDefault => true;
+
+    public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("本测试替身只支持流式");
+
+    public async IAsyncEnumerable<UnifiedStreamChunk> ChatStreamAsync(
+        UnifiedChatRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        Requests.Add(request);
+
+        if (!_hung)
+        {
+            _hung = true;
+            // 永久挂起直到取消（看门狗触发 OCE → TimedOut）；零产出：无任何 yield。
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            yield break;
+        }
+
+        yield return new UnifiedStreamChunk { DeltaContent = "已恢复" };
+        yield return new UnifiedStreamChunk { FinishReason = "stop" };
+    }
+
+    public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(new List<ModelInfo>());
+}
+
 /// <summary>假工具注册表：记录调用并返回固定成功结果。</summary>
 internal sealed class FakeToolRegistry : IToolRegistry
 {

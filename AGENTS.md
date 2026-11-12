@@ -108,6 +108,7 @@
 | 技能 | 何时用 | 关键约束 |
 |------|--------|----------|
 | `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么、**用户说"我看看效果/先别发布/本地跑一下"（→ §四 的 👀 本地预览）** | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；本地预览不替代任何一步；完成后复盘回写技能 |
+| `plugin-compliance-audit` | **插件完整性/合规逐项核对**：新插件交付前自检、任意插件每次改动按「改动面矩阵」复核、用户说"核对插件/自检/门禁没查出来"、"跑起来才发现"的补查 | 每项必须有证据（Verified/Inferred/Unknown）；门禁绿≠合规；默认主题≠暗色验证；有 Unknown 且属改动面 ⇒ 不许写 PASS；发现问题必须分流（本批修/同类扫查/TODO/补守卫/回写真源） |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `pilot-handoff` | **跨 AI 规划交接**：用户要求「只做规划、实现交别的 AI、完成后你验收」时；产出 00–07 交接包 + 预注册验收清单后停下 | 05 只留骨架/栏位；**06 验收清单必须在实现开始前写好**（防看实现定标准）；实现方不得改 06/07 结论栏；收尾不提交 git |
 | `problem-class-closure` | **缺陷类任务总增强层**：缺陷修复/回归/返工/「又出现了」/Review 发现 Major 以上/基建流程缺陷暴露 | 修「类」不修「例」：复现红灯→同类扫查→守卫(G1-G4)→case/PC 归档 `docs/11-troubleshooting/`→逃逸分析+机制上浮；二次复发强制 ≥G2；是 §11 工件链的增强不是旁路（铁律 10）；台账真源 = `problem-classes/README.md` |
@@ -334,7 +335,7 @@ Verify 失败
 **设计门禁三步（框架变更 / 页面开发 / 新建查询，缺一不可，不许靠自觉）**：
 1. **静态守卫（自动，机器判）**：`pnpm run design:check`（= `scripts/check-style-tokens.mjs` 禁新增裸色值 + `scripts/check-design-compliance.mjs` 禁新增 token 族违规/胶囊按钮/玻璃过头/蓝紫渐变，棘轮基线）。**每次改完代码必跑（§5.6 快档已接线）**；pre-commit hook 亦拦截。
 2. **Spec 硬性环节（闸门1）**：涉用户可见 UI 的 Spec 必含「Interaction Design」节（模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能），写清「点什么出现什么」+ 空态/反馈/边界 + 验收标准；**缺节闸门1 不通过**。
-3. **走查符合性（验收）**：涉及 UI 的交付必经起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design`「走查 UI 符合性清单」逐项核对（CRAP + DESIGN.md 组件规格 + 品牌语汇），不只"能显示"。
+3. **走查符合性（验收）**：涉及 UI 的交付必经起源码本地前后端走查（`dev-stack.ps1`）+ 真实走查，按 `ui-ux-design`「走查 UI 符合性清单」逐项核对（CRAP + DESIGN.md 组件规格 + 品牌语汇），不只"能显示"。**涉及主题/颜色的改动必须亮/暗两态各走一遍**；默认 `system` 在 CI/Playwright 解析为 light，**不算暗色验证**，必须显式切 `html.dark`；列表/树选中行、标签、横幅底实测对比度 ≥4.5:1（2026-11-06 DbAdmin 暗色连接名 1.10:1 实证，PC-025 / 守卫 `workshop-forge.contrast.test.ts`）；**异步动作（点连接/切数据源/查询）≤100ms 出局部 loading，完成前不得先显示空态（无表/无数据），重复点击去重、旧响应不得覆盖新选择**（2026-11-06 DbAdmin 表加载实证）。
 
 - **新建页面/新建查询**：一律按 `DESIGN.md`「新建页面与查询执行规范」节（PageHead/ForgeCard/EmptyState、token 引用禁裸色值、空态/反馈/边界、品牌语汇、三禁红线复查），并跑设计门禁三步。
 - 新增设置项 SOP、file:// 协议限制等 → `docs/04-standards/agent-workflow/a-workflow-docs-report.md` §A7。

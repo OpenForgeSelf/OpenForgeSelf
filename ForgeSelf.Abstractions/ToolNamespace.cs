@@ -59,6 +59,7 @@ public static class ToolNamespace
             ["ai-agent"] = "aiagent",
             ["agent-hub"] = "hub",
             ["browser-use"] = "browser",
+            ["db-admin"] = "db",
             ["dev-tools"] = "dev",
             ["file-tools"] = "file",
             ["memory-system"] = "memory",
@@ -67,11 +68,11 @@ public static class ToolNamespace
             ["scheduler"] = "schedule",
             ["script-runner"] = "script",
             ["sems"] = "sems",
+            ["smart-terminal"] = "st",
             ["design-system"] = "design",
             ["system-monitor"] = "sys",
             ["todo-tracker"] = "todo",
             ["workflow-engine"] = "workflow",
-            ["smart-terminal"] = "st",
         };
 
     /// <summary>(pluginId, 旧名, 正式名) 行集。</summary>

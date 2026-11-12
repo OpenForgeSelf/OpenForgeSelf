@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <EntityModel xmlns:xs="http://www.w3.org/2001/XMLSchema" xs:schemaLocation="https://newlifex.com https://newlifex.com/Model202509.xsd" ModelVersion="2.0.2026.130" Document="https://newlifex.com/xcode/model" xmlns="https://newlifex.com/Model202509.xsd">
   <Option>
     <!--类名模板。其中{name}替换为Table.Name，如{name}Model/I{name}Dto等-->
@@ -51,6 +51,7 @@
         <Column Name="SecretCipher" DataType="String" Length="500" Description="企微长连接密钥密文（ISecretEncryptionService 加密）" />
         <Column Name="CliPath" DataType="String" Length="500" Description="企微 CLI 可执行文件路径（扫码授权用，空则自动探测）" />
         <Column Name="UpdatedAt" DataType="DateTime" Description="更新时间" />
+        <Column Name="TaskGatewayJson" DataType="String" Length="2000" Description="任务网关配置 JSON（TaskGatewayConfig camelCase 整包，PILOT-079）" />
       </Columns>
     </Table>
     <Table Name="ImGatewaySession" Description="IM 网关会话映射">
@@ -89,6 +90,28 @@
         <Column Name="Status" DataType="String" Length="10" Nullable="False" DefaultValue="ok" Description="状态 ok / error" />
         <Column Name="ErrorText" DataType="String" Length="1000" Description="失败原因摘要（error 态）" />
         <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="ChannelKey,Id" />
+      </Indexes>
+    </Table>
+    <Table Name="ImGatewayTask" Description="IM 网关派发任务绑定（PILOT-079）">
+      <Columns>
+        <Column Name="Id" DataType="Int64" Identity="True" PrimaryKey="True" Description="绑定ID" />
+        <Column Name="TaskKey" DataType="String" Length="64" Nullable="False" Description="派发任务键（契约 taskKey）" />
+        <Column Name="RunId" DataType="Int64" Description="MAF RunId（捕获后回填，0=未捕获）" />
+        <Column Name="ChannelKey" DataType="String" Master="True" Length="200" Nullable="False" Description="通道会话用户复合键" />
+        <Column Name="ChannelType" DataType="String" Nullable="False" Description="通道类型" />
+        <Column Name="ConversationId" DataType="String" Nullable="False" Description="会话标识" />
+        <Column Name="PlatformUserId" DataType="String" Nullable="False" Description="平台用户标识" />
+        <Column Name="ChatType" DataType="String" Length="20" Description="聊天形态（single/group，主动推送用）" />
+        <Column Name="ReplyReqId" DataType="String" Length="100" Description="入站消息 req_id（即时回执用）" />
+        <Column Name="InboundMsgId" DataType="String" Length="100" Description="触发入站消息ID" />
+        <Column Name="TaskInput" DataType="String" Length="200" Nullable="False" Description="任务原文摘要（200 字）" />
+        <Column Name="Status" DataType="String" Length="20" Nullable="False" DefaultValue="pending" Description="状态（任务中心统一小写词表）" />
+        <Column Name="CreatedAt" DataType="DateTime" Description="创建时间" />
+        <Column Name="RepliedAt" DataType="DateTime" Description="终态回复时间（幂等防重发）" />
+        <Column Name="PromptedApprovalIds" DataType="String" Length="200" Description="已提示审批 Id（逗号分隔，上限 10）" />
       </Columns>
       <Indexes>
         <Index Columns="ChannelKey,Id" />

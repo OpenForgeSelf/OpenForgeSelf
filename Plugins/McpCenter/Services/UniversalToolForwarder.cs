@@ -145,7 +145,7 @@ public sealed class UniversalToolForwarder
     }
 
     private static ForwardResult Err(string message) =>
-        new() { Text = JsonSerializer.Serialize(new { success = false, error = message }), IsError = true };
+        new() { Text = JsonSerializer.Serialize(new { success = false, error = message }, ForgeJson.Default), IsError = true };
 
     /// <summary>
     /// 未知工具错误追加的搜索提示（输入2·2026-10-13）：名称全词=5/包含=3（前缀+1）/描述包含=1，

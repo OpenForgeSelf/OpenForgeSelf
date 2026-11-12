@@ -21,7 +21,9 @@ public sealed class TerminalGuardDecision
 /// 第 1 门 可执行名白名单（首个 token 命中 dotnet/pnpm/node/git/ssh/pwsh）；
 /// 第 2 门（PILOT-075，2026-10-29 用户拍板「放开管道和链式，每段走同一拦截校验」）：引号感知分段——
 /// 引号外的 | ; &amp;&amp; || 换行是分隔符，切出各段后**逐段**过与单命令完全相同的第 1 门 + 破坏性红线；
-/// 重定向（&lt; &gt;）、反引号、单独 &amp;（不构成 &amp;&amp;）、空段、引号不配对仍整串拒绝；
+/// 输出重定向（&gt; &gt;&gt; 1&gt; 2&gt; 2&gt;&amp;1）放行（PILOT-079 P2①，2026-11-07：agent 自跑构建必须能把
+/// 输出落盘、能合并错误流），含重定向段由执行层整体路由 pwsh -Command 解释；
+/// 输入重定向（&lt;）、反引号、单独 &amp;（不构成 &amp;&amp; 且非 &gt;&amp; 上下文）、空段、引号不配对仍整串拒绝；
 /// 第 3 门 cwd 必填/绝对路径/目录存在由 RunTerminalCommandTool 工具内直检（2026-10-29 起，原 IProjectWorkspaceService 越界门退役）；
 /// 破坏性红线：精确 token 扫描 + 内联代码词边界扫描（防 pwsh -Command Remove-Item 绕过）。
 /// 白名单/红线 V1 写死常量 + 预留配置扩展位（design.md 4.1 注）。
@@ -36,8 +38,12 @@ public static class TerminalCommandGuard
     /// <summary>单段输出截断上限（bytes）：50KB，防 prompt 爆炸。</summary>
     public const int MaxOutputBytes = 50 * 1024;
 
-    /// <summary>超时上限（秒），与 FreeLoop ExecuteToolWithTimeoutAsync 的 30s 对齐。</summary>
-    public const int MaxTimeoutSeconds = 30;
+    /// <summary>超时上限（秒）。PILOT-079 P2①（2026-11-07 输入7 缺陷②）：30s 上限使 dotnet build/test 等
+    /// 长构建必假失败（错误现场被吞），放宽到 30 分钟；工具入参 timeoutSeconds 落 [1, 此上限]，默认见 DefaultTimeoutSeconds。</summary>
+    public const int MaxTimeoutSeconds = 1800;
+
+    /// <summary>未传 timeoutSeconds 时的默认值（秒）：5 分钟——普通命令足够，长构建须显式调大（PILOT-079 P2①）。</summary>
+    public const int DefaultTimeoutSeconds = 300;
 
     /// <summary>可执行名白名单（默认 allowlist 模式；首个 token 必须命中，裸名或裸名.exe）。</summary>
     public static readonly string[] DefaultAllowlist = { "dotnet", "pnpm", "node", "git", "ssh", "pwsh" };
@@ -126,15 +132,26 @@ public static class TerminalCommandGuard
         return TerminalGuardDecision.Allow();
     }
 
+    /// <summary>分段结果段：Text = 段内原文（含引号/重定向），HasRedirect = 段内引号外出现输出重定向（&gt; &gt;&gt; 1&gt; 2&gt; 2&gt;&amp;1）。</summary>
+    public sealed record CommandSegment(string Text, bool HasRedirect);
+
+    /// <summary>旧签名兼容壳：只取段文本（HasRedirect 丢弃），拒绝行为与 PILOT-075 时代完全一致。</summary>
+    public static bool TrySplitSegments(string? command, out IReadOnlyList<string> segments, out string? error)
+    {
+        var ok = TrySplitSegmentsEx(command, out var raw, out error);
+        segments = ok ? raw.Select(s => s.Text).ToArray() : Array.Empty<string>();
+        return ok;
+    }
+
     /// <summary>
-    /// 引号感知分段（PILOT-075 FR-1）：仅在引号外把 <c>&amp;&amp;</c> <c>||</c> <c>|</c> <c>;</c> 换行当分隔符；
-    /// 段内原文保留（含引号），与执行层（单段直启 / 多段 pwsh -Command）对同一串的解析语义一致。
+    /// 引号感知分段（PILOT-075 FR-1 + PILOT-079 P2① 输出重定向放行）：仅在引号外把 <c>&amp;&amp;</c> <c>||</c> <c>|</c> <c>;</c> 换行当分隔符；
+    /// 段内原文保留（含引号/重定向），与执行层（单段直启 / 含重定向或多段 → pwsh -Command）对同一串的解析语义一致。
     /// 返回 false 时 <paramref name="error"/> 为整串级拒绝原因，<paramref name="segments"/> 为空。
     /// 单引号串内成对 <c>''</c> = 转义（退出引号态后立即重开，扫描语义天然一致）；反引号整体拒绝，无转义歧义。
     /// </summary>
-    public static bool TrySplitSegments(string? command, out IReadOnlyList<string> segments, out string? error)
+    public static bool TrySplitSegmentsEx(string? command, out IReadOnlyList<CommandSegment> segments, out string? error)
     {
-        segments = Array.Empty<string>();
+        segments = Array.Empty<CommandSegment>();
         error = null;
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -142,7 +159,8 @@ public static class TerminalCommandGuard
             return false;
         }
 
-        var result = new List<string>();
+        var result = new List<CommandSegment>();
+        var segHasRedirect = false;
         var sb = new System.Text.StringBuilder();
         var inDouble = false;
         var inSingle = false;
@@ -155,7 +173,8 @@ public static class TerminalCommandGuard
             {
                 return "Error: chained/piped commands are not allowed (empty segment)";
             }
-            result.Add(seg);
+            result.Add(new CommandSegment(seg, segHasRedirect));
+            segHasRedirect = false;
             return null;
         }
 
@@ -190,9 +209,19 @@ public static class TerminalCommandGuard
                     sb.Append(ch);
                     i++;
                     break;
-                case '<' or '>' or '`':
+                case '<' or '`':
+                    // 输入重定向与反引号本批仍未放开（PILOT-079 P2① 只放输出重定向）：
+                    // < 是任意读入口，` 是 pwsh 子表达式执行通道。
                     error = $"Error: chained/piped commands are not allowed (contains '{ch}')";
                     return false;
+                case '>':
+                    // PILOT-079 P2①：输出重定向放行（> >> 1> 2>；2>&1 的 & 在下方按 > 上下文放行）。
+                    // 扫描只标记放行，落盘/合并语义由执行层 pwsh -Command 解释；目标路径仍在本段原文内
+                    // 参与破坏性红线扫描（CheckSingleCommand 拿的是含重定向的段文本）。
+                    sb.Append(ch);
+                    segHasRedirect = true;
+                    i++;
+                    break;
                 case '&':
                     if (i + 1 < text.Length && text[i + 1] == '&')
                     {
@@ -202,6 +231,13 @@ public static class TerminalCommandGuard
                             return false;
                         }
                         i += 2;
+                    }
+                    else if (sb.Length > 0 && sb[^1] == '>')
+                    {
+                        // 2>&1 >&2 流合并：& 处于「紧邻上一字符是 >」的合并流上下文 → 放行（PILOT-079 P2①）。
+                        sb.Append(ch);
+                        segHasRedirect = true;
+                        i++;
                     }
                     else
                     {

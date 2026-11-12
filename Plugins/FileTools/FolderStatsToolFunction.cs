@@ -123,7 +123,7 @@ public class FolderStatsToolFunction : IToolFunctionExtension
                         totalFormatted = view.OtherRow.TotalFormatted,
                         percentage = view.OtherRow.Percentage
                     }
-            });
+            }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -133,7 +133,7 @@ public class FolderStatsToolFunction : IToolFunctionExtension
             await this.RecordUsageAsync(_serviceProvider, "folder_stats", stopwatch.ElapsedMilliseconds,
                 new Dictionary<string, object> { ["error"] = ex.Message });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }

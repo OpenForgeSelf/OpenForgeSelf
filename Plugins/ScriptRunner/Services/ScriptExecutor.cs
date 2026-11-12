@@ -48,7 +48,7 @@ public class ScriptExecutor : IScriptExecutor
         }
 
         var script = MapToScript(scriptEntity);
-        var parametersJson = parameters != null ? JsonSerializer.Serialize(parameters) : string.Empty;
+        var parametersJson = parameters != null ? JsonSerializer.Serialize(parameters, ForgeJson.Default) : string.Empty;
 
         var executionEntity = new ScriptExecutionEntity
         {
@@ -90,7 +90,7 @@ public class ScriptExecutor : IScriptExecutor
             ScriptName = $"临时{language}脚本",
             Status = (int)ScriptExecutionStatus.Pending,
             StartTime = DateTime.Now,
-            ParametersJson = parameters != null ? JsonSerializer.Serialize(parameters) : string.Empty,
+            ParametersJson = parameters != null ? JsonSerializer.Serialize(parameters, ForgeJson.Default) : string.Empty,
             OutputLogsJson = "[]"
         };
 
@@ -329,7 +329,7 @@ public class ScriptExecutor : IScriptExecutor
                 status = ScriptExecutionStatus.Failed;
             }
 
-            var outputLogsJson = JsonSerializer.Serialize(outputLogs);
+            var outputLogsJson = JsonSerializer.Serialize(outputLogs, ForgeJson.Default);
             await UpdateExecutionAsync(executionId, status, process.ExitCode,
                 outputBuilder.ToString(), errorBuilder.ToString(),
                 stopwatch.ElapsedMilliseconds, outputLogsJson);
@@ -352,7 +352,7 @@ public class ScriptExecutor : IScriptExecutor
                 ? ScriptExecutionStatus.Timeout
                 : ScriptExecutionStatus.Cancelled;
 
-            var outputLogsJson = JsonSerializer.Serialize(outputLogs);
+            var outputLogsJson = JsonSerializer.Serialize(outputLogs, ForgeJson.Default);
             await UpdateExecutionAsync(executionId, status, null,
                 outputBuilder.ToString(), errorBuilder.ToString(),
                 stopwatch.ElapsedMilliseconds, outputLogsJson);
@@ -364,7 +364,7 @@ public class ScriptExecutor : IScriptExecutor
             stopwatch.Stop();
             errorBuilder.AppendLine($"执行异常: {ex.Message}");
 
-            var outputLogsJson = JsonSerializer.Serialize(outputLogs);
+            var outputLogsJson = JsonSerializer.Serialize(outputLogs, ForgeJson.Default);
             await UpdateExecutionAsync(executionId, ScriptExecutionStatus.Failed, null,
                 outputBuilder.ToString(), errorBuilder.ToString(),
                 stopwatch.ElapsedMilliseconds, outputLogsJson);

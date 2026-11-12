@@ -23,10 +23,10 @@ public static class ToolSpec
     /// <summary>列目录条目上限，超出标 truncated（FR-3.3）。</summary>
     public const int MaxListEntries = 500;
 
-    /// <summary>命令输出与超时上限：与内置 agent 的 TerminalCommandGuard 同值（决策 D1「不放宽」）。</summary>
+    /// <summary>命令输出与超时上限：与内置 agent 的 TerminalCommandGuard 同值（决策 D1；PILOT-079 P2① 同步放宽）。</summary>
     public const int MaxOutputBytes = 50 * 1024;
 
-    public const int MaxTimeoutSeconds = 30;
+    public const int MaxTimeoutSeconds = 1800;
 
     public static IReadOnlyList<ToolSpecEntry> All { get; } =
     [
@@ -76,16 +76,16 @@ public static class ToolSpec
 
         new(RunCommand,
             $"在工作目录内执行一条命令。首 token 必须在白名单（{string.Join("/", CommandGuard.DefaultAllowlist)}），" +
-            "支持管道与链式（| && || ; 换行）但每一段都独立过同一套白名单+破坏性红线，任一段被拒则整条拒绝；" +
-            "重定向（> <）、反引号、后台单 & 与删除格式化下载类命令一律被拒绝（拒绝时不启动任何子进程，原因原样回给你）。" +
+            "支持管道与链式（| && || ; 换行）与输出重定向（> >> 1> 2> 2>&1），每一段都独立过同一套白名单+破坏性红线，任一段被拒则整条拒绝；" +
+            "输入重定向（<）、反引号、后台单 & 与删除格式化下载类命令一律被拒绝（拒绝时不启动任何子进程，原因原样回给你）。" +
             "非 0 退出码属正常回传，失败输出同样是有效观察数据。",
             """
             {
               "type": "object",
               "properties": {
-                "command": { "type": "string", "description": "完整命令行，如 git status --short / git log | node count.js / dotnet build && dotnet test；支持 | && || ; 换行（每段同样过白名单与破坏性红线），不得含重定向（> <）、反引号或后台单 &" },
+                "command": { "type": "string", "description": "完整命令行，如 git status --short / git log | node count.js / dotnet build && dotnet test；支持 | && || ; 换行与输出重定向（> >> 1> 2> 2>&1）（每段同样过白名单与破坏性红线），不得含输入重定向（<）、反引号或后台单 &" },
                 "cwd": { "type": "string", "description": "工作目录内的相对子目录；省略=工作根" },
-                "timeoutSeconds": { "type": "integer", "description": "超时秒数 1-30，默认 30；超时后进程在后台继续" }
+                "timeoutSeconds": { "type": "integer", "description": "超时秒数 1-1800（默认 300）；超时后进程在后台继续" }
               },
               "required": ["command"]
             }

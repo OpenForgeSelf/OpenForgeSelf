@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Controllers.UnifiedAI;
 
 namespace ForgeSelf.Api.Controllers.UnifiedAI;
@@ -97,7 +98,7 @@ public static class AgentStreamTranslator
         roleEmitted = true;
         var argsJson = fcc.Arguments == null || fcc.Arguments.Count == 0
             ? "{}"
-            : JsonSerializer.Serialize(fcc.Arguments);
+            : JsonSerializer.Serialize(fcc.Arguments, ForgeJson.Default);
         return new OpenAIStreamChunk
         {
             Id = id,

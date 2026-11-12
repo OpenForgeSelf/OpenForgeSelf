@@ -1,3 +1,5 @@
+using ForgeSelf.Abstractions;
+
 namespace ForgeSelf.Api.Plugins.ToolBridge.Models;
 
 /// <summary>一条被识别出来的工具调用（PILOT-053 02-spec FR-2）。</summary>
@@ -22,7 +24,7 @@ public sealed class ParsedCall
     public string Fragment { get; init; } = string.Empty;
 
     public string? GetArgString(string key) =>
-        Args.TryGetValue(key, out var v) && v != null ? v.GetValueKind() == JsonValueKind.String ? v.GetValue<string>() : v.ToJsonString() : null;
+        Args.TryGetValue(key, out var v) && v != null ? v.GetValueKind() == JsonValueKind.String ? v.GetValue<string>() : v.ToJsonString(ForgeJson.Default) : null;
 
     public int? GetArgInt(string key)
     {

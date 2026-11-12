@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using NewLife.Log;
 
@@ -322,7 +323,7 @@ public class ProactivePlanningService : IProactivePlanningService
             PatternDescription = description,
             Confidence = confidence,
             OccurrenceCount = events.Count,
-            PatternData = JsonSerializer.Serialize(new { peakHour = peakHour.Key, peakCount = peakHour.Value })
+            PatternData = JsonSerializer.Serialize(new { peakHour = peakHour.Key, peakCount = peakHour.Value }, ForgeJson.Default)
         };
     }
 
@@ -363,7 +364,7 @@ public class ProactivePlanningService : IProactivePlanningService
             PatternDescription = description,
             Confidence = confidence,
             OccurrenceCount = dayCounts,
-            PatternData = JsonSerializer.Serialize(new { activeDays = dayCounts, totalEvents = events.Count })
+            PatternData = JsonSerializer.Serialize(new { activeDays = dayCounts, totalEvents = events.Count }, ForgeJson.Default)
         };
     }
 
@@ -445,7 +446,7 @@ public class ProactivePlanningService : IProactivePlanningService
             PatternDescription = description,
             Confidence = confidence,
             OccurrenceCount = events.Count,
-            PatternData = JsonSerializer.Serialize(new { toolRatio, chatRatio, workflowRatio })
+            PatternData = JsonSerializer.Serialize(new { toolRatio, chatRatio, workflowRatio }, ForgeJson.Default)
         };
     }
 

@@ -103,7 +103,7 @@ public static class LocalModelGate
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                var json = JsonSerializer.Serialize(new LocalModeFile { Enabled = Volatile.Read(ref _enabled) == 1 });
+                var json = JsonSerializer.Serialize(new LocalModeFile { Enabled = Volatile.Read(ref _enabled) == 1 }, ForgeJson.Default);
                 File.WriteAllText(path, json);
             }
             catch

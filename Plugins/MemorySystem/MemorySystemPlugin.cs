@@ -438,7 +438,7 @@ public abstract class MemoryToolFunctionBase : IToolFunctionExtension
         {
             if (_serviceProvider == null) return;
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateHostScope();
             var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
             if (usageStatsService != null)
             {
@@ -549,7 +549,7 @@ public class GetRelevantMemoriesToolFunction : MemoryToolFunctionBase
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("get_relevant", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -568,7 +568,7 @@ public class GetRelevantMemoriesToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -591,7 +591,7 @@ public class AddMemoryToolFunction : MemoryToolFunctionBase
             var content = root.GetProperty("content").GetString() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(content))
-                return JsonSerializer.Serialize(new { success = false, error = "标题和内容不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "标题和内容不能为空" }, ForgeJson.Default);
 
             var typeStr = root.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
             var impStr = root.TryGetProperty("importance", out var impProp) ? impProp.GetString() : null;
@@ -642,7 +642,7 @@ public class AddMemoryToolFunction : MemoryToolFunctionBase
                 }
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("add_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -661,7 +661,7 @@ public class AddMemoryToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -739,7 +739,7 @@ public class SearchMemoriesToolFunction : MemoryToolFunctionBase
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("search_memories", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -758,7 +758,7 @@ public class SearchMemoriesToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -806,7 +806,7 @@ public class UpdateMemoryToolFunction : MemoryToolFunctionBase
 
             var memory = await service.UpdateAsync(memoryId, request);
             if (memory == null)
-                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" }, ForgeJson.Default);
 
             var response = new
             {
@@ -823,7 +823,7 @@ public class UpdateMemoryToolFunction : MemoryToolFunctionBase
                 }
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("update_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -841,7 +841,7 @@ public class UpdateMemoryToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -886,7 +886,7 @@ public class GetMemoryStatsToolFunction : MemoryToolFunctionBase
                 }
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("get_stats", stopwatch.ElapsedMilliseconds);
@@ -901,7 +901,7 @@ public class GetMemoryStatsToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -920,7 +920,7 @@ public class CorrectMemoryToolFunction : MemoryToolFunctionBase
             var memoryId = root.GetProperty("memoryId").GetInt64();
             var content = root.TryGetProperty("content", out var contentProp) ? contentProp.GetString() : null;
             if (string.IsNullOrWhiteSpace(content))
-                return JsonSerializer.Serialize(new { success = false, error = "纠正内容不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "纠正内容不能为空" }, ForgeJson.Default);
 
             var service = CreateMemoryService();
             var memory = await service.CorrectAsync(memoryId, new CorrectMemoryRequest
@@ -930,7 +930,7 @@ public class CorrectMemoryToolFunction : MemoryToolFunctionBase
                 Reason = ReadOptionalString(root, "reason")
             });
             if (memory == null)
-                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" }, ForgeJson.Default);
 
             stopwatch.Stop();
             await RecordUsageAsync("correct_memory", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -942,7 +942,7 @@ public class CorrectMemoryToolFunction : MemoryToolFunctionBase
                 success = true,
                 message = "记忆已纠正",
                 memory = new { id = memory.Id, title = memory.Title, content = memory.Content }
-            });
+            }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -951,7 +951,7 @@ public class CorrectMemoryToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }
@@ -977,8 +977,8 @@ public class DeleteMemoryToolFunction : MemoryToolFunctionBase
                 ["deleted"] = deleted
             });
             if (!deleted)
-                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" });
-            return JsonSerializer.Serialize(new { success = true, message = "记忆已删除", memoryId });
+                return JsonSerializer.Serialize(new { success = false, error = "记忆不存在" }, ForgeJson.Default);
+            return JsonSerializer.Serialize(new { success = true, message = "记忆已删除", memoryId }, ForgeJson.Default);
         }
         catch (Exception ex)
         {
@@ -987,7 +987,7 @@ public class DeleteMemoryToolFunction : MemoryToolFunctionBase
             {
                 ["error"] = ex.Message
             });
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 }

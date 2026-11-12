@@ -253,6 +253,24 @@ public class TasksOverviewControllerTests
         item.Status.Should().Be("stuck");
         item.FailureReason.Should().Be("等待用户确认");
         item.Retryable.Should().BeTrue();
+        item.CancelUrl.Should().Be("/api/ai-agent/runs/9/cancel");   // T14⑥：stuck 行下发取消地址
+
+    }
+    [Fact]
+    public async Task PlannedRun_Completed_NoCancelUrl_T14()
+    {
+        var runs = new Mock<IRunOrchestratorService>();
+        runs.Setup(m => m.ListRunsAsync(It.IsAny<string?>(), It.IsAny<AgentRunStatus?>(), It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(new AgentRunListResponse
+            {
+                Items = new List<AgentRunDto>
+                {
+                    new() { Id = 8, TaskInput = "t", Status = AgentRunStatus.Completed, CreateTime = T0.LocalDateTime, UpdateTime = T0.LocalDateTime },
+                },
+            });
+        var response = ReadOk(await NewControllerWith(runs).GetOverview());
+        var item = response.Items.Should().ContainSingle().Subject;
+        item.CancelUrl.Should().BeNull();   // T14⑥：终态不可取消
     }
 
     #endregion

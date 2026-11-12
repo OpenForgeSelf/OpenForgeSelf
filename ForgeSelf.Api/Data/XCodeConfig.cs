@@ -46,6 +46,8 @@ public static class XCodeConfig
         ["ImGateway"] = "im-gateway",
         // 智能终端 v2：ConnName SmartTerminal，库落 Plugins/smart-terminal/SmartTerminal.db
         ["SmartTerminal"] = "smart-terminal",
+        // DbAdmin 数据库管理插件自有库（连接配置/历史/审批/审计）。用户连接 DbAdminU_* 由插件运行时注册，**不得**登记于此。
+        ["DbAdmin"] = "db-admin",
     };
 
     /// <summary>

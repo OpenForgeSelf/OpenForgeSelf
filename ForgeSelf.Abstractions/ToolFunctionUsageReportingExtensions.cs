@@ -26,7 +26,7 @@ public static class ToolFunctionUsageReportingExtensions
         {
             if (serviceProvider == null) return;
 
-            using var scope = serviceProvider.CreateScope();
+            using var scope = serviceProvider.CreateHostScope();
             var usageStatsService = scope.ServiceProvider.GetService<IUsageStatsService>();
             if (usageStatsService != null)
             {

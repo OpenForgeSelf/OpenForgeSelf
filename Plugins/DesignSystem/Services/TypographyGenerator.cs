@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 
 namespace ForgeSelf.Api.Plugins.DesignSystem.Services;
 
@@ -111,7 +112,7 @@ public static class TypographyGenerator
                 Generator = TokenGenerators.Derived,
                 SortOrder = i,
                 Description = $"clamp 视口 {o.MinVw}~{o.MaxVw}px；小屏 {Num(minPx)}px",
-                Extensions = JsonSerializer.Serialize(new { fluid = new { minPx = Num(minPx), maxPx = Num(maxPx), slope = Num(slopeVw), intercept = Num(interceptRem) } }),
+                Extensions = JsonSerializer.Serialize(new { fluid = new { minPx = Num(minPx), maxPx = Num(maxPx), slope = Num(slopeVw), intercept = Num(interceptRem) } }, ForgeJson.Default),
             });
 
             list.Add(new TokenPatch
@@ -137,7 +138,7 @@ public static class TypographyGenerator
                     lineHeight = Num(lineHeight),
                     letterSpacing = $"{Num(tracking)}em",
                     textTransform = role == "overline" ? "uppercase" : "none",
-                }),
+                }, ForgeJson.Default),
                 Group = "type",
                 Generator = TokenGenerators.Derived,
                 SortOrder = i,

@@ -1,0 +1,25 @@
+{
+  "Id": "db-admin",
+  "toolPrefix": "db",
+  "Name": "数据库管理",
+  "Version": "0.2.1",
+  "Author": "ForgeSelf Team",
+  "Description": "可审批的 SQL 工作台：连接管理（SQLite 实测，MySQL/PostgreSQL/SQL Server/Oracle 未实测）、Schema 浏览（表名过滤/刷新）、多标签查询工作区（同表聚焦互不覆盖）、连接默认表、SQL 执行（选区/多语句→结果分页签）与分页结果格（复制行/导出 CSV/单元格详情）；宿主与插件库只读，写操作 AskWrite 审批，硬拒清单兜底，全量审计脱敏。",
+  "IconUrl": "https://example.com/db-admin-icon.png",
+  "EntryAssembly": "DbAdmin.dll",
+  "EntryType": "ForgeSelf.Api.Plugins.DbAdmin.DbAdminPlugin",
+  "Dependencies": [],
+  "Permissions": [
+    "read_config",
+    "write_config"
+  ],
+  "frontend": {
+    "views": [
+      "DbAdminView"
+    ],
+    "menu": "数据库管理",
+    "route": "/db-admin",
+    "icon": "fa-database",
+    "entry": "web/dist/index.js"
+  }
+}

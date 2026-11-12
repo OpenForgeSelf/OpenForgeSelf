@@ -288,6 +288,45 @@ public class PlannedRunUnifiedLoopGates : IClassFixture<XCodeTestFixture>
         var secondUser = log.OfType<UserMessageEvent>().Last();
         Assert.Contains("上游恢复了，继续", secondUser.Content);
     }
+    [Fact]
+    public async Task PlannedRun_挂起时存在Pending审批_原因分类为等待审批_T14()
+    {
+        // T14 语义校正：挂起看门狗触发时若该会话存在 pending 审批（写操作等待批准），
+        // 原因应为「等待审批」而非「无进展超时」（等待审批 ≠ 无进展超时，分类可辨）。
+        var hangProvider = new HangThenTextProvider();
+        var sessionId = "s-" + Guid.NewGuid().ToString("N")[..8];
+        var store = new InMemorySessionStore();
+        var inbox = new InMemoryInbox();
+        var ai = new Mock<IAIAgentService>();
+        ai.Setup(m => m.CreateAgent(It.IsAny<string>(), It.IsAny<AgentOptions>()))
+            .Returns((string sid, AgentOptions options) => new MafTaskLoopAgent(sid, options, new AgentTurnRuntime
+            {
+                Store = store, Provider = hangProvider, ModelId = "fake-model",
+                ToolExecutor = new FakeToolRegistry(), Events = null, Inbox = inbox
+            }));
+        var planner = new Mock<IPlanGeneratorService>();
+        planner.Setup(m => m.GeneratePlanAsync(
+                It.IsAny<AgentRun>(), It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AgentPlan
+            {
+                Goal = "写入测试文件",
+                Steps = { new AgentPlanStep { Id = "s1", Name = "写文件", Objective = "写入测试文件" } }
+            });
+        var orchestrator = new RunOrchestratorService(
+            planner.Object, ai.Object,
+            runFlowTools: new ForgeSelf.Api.Plugins.AIAgent.Services.ToolFunctions.RunFlowToolSet("aiagent"),
+            inbox: inbox, stepTimeout: TimeSpan.FromMilliseconds(400));
+        orchestrator.PendingApprovalProbe = _ => 1;   // 模拟该会话有 1 条待审批写操作
+
+        var events = await CollectAsync(orchestrator.RunAsync(NewRequest(sessionId), CancellationToken.None));
+        Assert.Equal(new[] { "plan_created", "step_started", "content", "run_stuck" },
+            events.Select(e => e.Type).ToList());
+        var stuckEvent = events.Single(e => e.Type == "run_stuck");
+        var reason = JsonDocument.Parse(stuckEvent.Content!).RootElement.GetProperty("reason").GetString();
+        Assert.Contains("等待审批", reason);
+        Assert.DoesNotContain("无进展超时", reason);
+    }
+
 
     // ==================== 门禁 4：029 SSE 面 + 双表落库 回归保持 ====================
 

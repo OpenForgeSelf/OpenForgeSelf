@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Services.AI;
@@ -74,7 +75,12 @@ public class OpenAIResponsesProvider : IAIProvider
 
             var json = await resp.Content.ReadAsStringAsync(cts.Token);
             var doc = JsonSerializer.Deserialize<OpenAIModelsResponse>(json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    // PC-027：统一不变量——所有 JsonSerializerOptions 一律声明 Encoder（反序列化时 Encoder 被忽略，零读侧风险）
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
 
             if (doc?.Data == null) return new List<ModelInfo>();
 

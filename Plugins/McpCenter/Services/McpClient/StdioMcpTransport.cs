@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.McpCenter.Models;
 using NewLife.Log;
 
@@ -346,7 +347,7 @@ public sealed class StdioMcpTransport : IMcpClientTransport
     /// <summary>写入 JSON-RPC 通知帧（无 id，不等响应）。v2.5.0：initialized 通知用。</summary>
     private async Task NotifyAsync(string method, CancellationToken ct)
     {
-        var payload = JsonSerializer.Serialize(new { jsonrpc = "2.0", method });
+        var payload = JsonSerializer.Serialize(new { jsonrpc = "2.0", method }, ForgeJson.Default);
         await WriteMessageAsync(payload, EffectiveWriteFraming, ct);
     }
 

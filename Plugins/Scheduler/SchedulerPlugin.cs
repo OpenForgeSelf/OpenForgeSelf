@@ -154,6 +154,25 @@ public class SchedulerPlugin : IPlugin
 }"
         });
 
+        ToolExtensions.Add(new DeleteScheduledTaskToolFunction(services)
+        {
+            Id = "scheduler.tool.delete_scheduled_task",
+            Name = "schedule_delete",
+            PluginId = pluginId,
+            Description = "删除指定的定时任务（连同其执行日志，不可恢复）",
+            ParametersJsonSchema = @"
+{
+    ""type"": ""object"",
+    ""properties"": {
+        ""taskId"": {
+            ""type"": ""integer"",
+            ""description"": ""任务ID""
+        }
+    },
+    ""required"": [""taskId""]
+}"
+        });
+
         XTrace.Log.Debug("定时任务插件已注册AI工具函数扩展点，共 {0} 个工具", ToolExtensions.Count);
     }
 
@@ -243,12 +262,12 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "任务名称不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "任务名称不能为空" }, ForgeJson.Default);
             }
 
             if (string.IsNullOrWhiteSpace(targetId))
             {
-                return JsonSerializer.Serialize(new { success = false, error = "任务目标ID不能为空" });
+                return JsonSerializer.Serialize(new { success = false, error = "任务目标ID不能为空" }, ForgeJson.Default);
             }
 
             var taskType = Enum.Parse<ScheduledTaskType>(taskTypeStr);
@@ -308,7 +327,7 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
                 message = "定时任务创建成功"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "create_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -330,7 +349,7 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -414,7 +433,7 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
                 }).ToList()
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "list_scheduled_tasks", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -435,7 +454,7 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
@@ -478,7 +497,7 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
             var task = await service.ToggleTaskStatusAsync(taskId, false);
             if (task == null)
             {
-                return JsonSerializer.Serialize(new { success = false, error = "任务不存在" });
+                return JsonSerializer.Serialize(new { success = false, error = "任务不存在" }, ForgeJson.Default);
             }
 
             var response = new
@@ -493,7 +512,7 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
                 message = "任务已暂停"
             };
 
-            var json = JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
 
             stopwatch.Stop();
             await this.RecordUsageAsync(_serviceProvider, "pause_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
@@ -513,8 +532,79 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
                 ["error"] = ex.Message
             });
 
-            return JsonSerializer.Serialize(new { success = false, error = ex.Message });
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
         }
     }
 
+}
+
+public class DeleteScheduledTaskToolFunction : IToolFunctionExtension
+{
+    private readonly IServiceProvider? _serviceProvider;
+
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string PluginId { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ParametersJsonSchema { get; set; } = string.Empty;
+
+    public DeleteScheduledTaskToolFunction(IServiceProvider? serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
+    public async Task<string> ExecuteAsync(string parameters)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            XTrace.Log.Info("[Scheduler] 执行 delete_scheduled_task 工具函数，参数: {0}", parameters);
+
+            using var doc = JsonDocument.Parse(parameters);
+            var root = doc.RootElement;
+            var taskId = root.GetProperty("taskId").GetInt64();
+
+            // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
+            var ctx = (IContext)_serviceProvider!;
+            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
+            var httpHandler = new HttpWebhookHandler();
+            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
+            var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
+            var service = new SchedulerService(ctx, taskScheduler);
+
+            var deleted = await service.DeleteTaskAsync(taskId);
+            if (!deleted)
+            {
+                return JsonSerializer.Serialize(new { success = false, error = "任务不存在" }, ForgeJson.Default);
+            }
+
+            var response = new
+            {
+                success = true,
+                message = "任务已删除"
+            };
+
+            var json = JsonSerializer.Serialize(response, ForgeJson.Default);
+
+            stopwatch.Stop();
+            await this.RecordUsageAsync(_serviceProvider, "delete_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["taskId"] = taskId
+            });
+
+            return json;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[Scheduler] 执行 delete_scheduled_task 工具函数失败: {0}", ex.Message);
+
+            stopwatch.Stop();
+            await this.RecordUsageAsync(_serviceProvider, "delete_scheduled_task", stopwatch.ElapsedMilliseconds, new Dictionary<string, object>
+            {
+                ["error"] = ex.Message
+            });
+
+            return JsonSerializer.Serialize(new { success = false, error = ex.Message }, ForgeJson.Default);
+        }
+    }
 }

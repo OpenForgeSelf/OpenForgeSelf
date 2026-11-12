@@ -2,22 +2,22 @@
 
 ## 状态
 
-🔴 **NOT_COMPLETED（B1-B4 已入库 / B5 红态 / B6-B8 未做）**——7 缺陷批进行中收口，闸门2 未达。
+🟡 **PARTIALLY_COMPLETED（B1-B5 可入库 / B6-B8 未做）**——B5 守卫 32/32 绿。整批闸门2 仍差 B6-B8 与 AC3/AC4。
 
 ## Validation
 
 - **Verified**：B1-B4 修复+测试随 `49ec93e` 入库；过滤集 425/425；全量 3773/3741/32（BOM 红已修，6 红=B5 守卫测试）；PC 扫描绿。
-- **Verified（红态）**：B5 隔离复跑 6 红/26 过/32 总（16s，与全量同集）——非负载抖动。
+- **Verified**：B5 由 6 红转为 `FullyQualifiedName~Scheduler` 32/32（`.temp/tmp/scheduler-b5-r7.log`）。根因是同一 DateTime 字段两次比较复用一个 XCode 参数。
 - **Unknown**：AC3/AC4 集成验证（dev-stack + Agent 自跑构建 + 插件全流程闭环）未执行；AC5 本批逃逸分析完整性未复核。
 
 ## Review
 
-见 `06-review.md`：**Final Decision: BLOCKED**。B5 代码与测试留在工作区不入库，待独立修复批收口；B6-B8 按 TODO 队列推进。
+见 `06-review.md`：**B5 APPROVED**。B6-B8 仍按 TODO「51888 插件开发演示」推进，不在本次提交。
 
 ## 问题类归档
 
 - PC-005 / PC-013 归档已入库（PC-013 更新随 `49ec93e`）。
-- B5 命中的新类候选（Once 空耗/僵尸 runAt）**未定级归档**——待 B5 修复批按 problem-class-closure 完成后补。
+- B5 的守卫是 `ForgeSelf.Api.Tests/Plugins/Scheduler/SchedulerOnceGuardTests.cs`。同类扫查：生产代码里没有第二处「同一 DateTime 字段两次比较」；`.Biz.cs` 里的同类写法都在注释模板中。不单独立 PC。
 
 ## 重构提案
 
@@ -25,5 +25,4 @@
 
 ## 悬空教训
 
-- 守卫测试先行写齐（B5 六测）而实现未达绿时，**不得连红入库**——本次分批提交已实证拦截（B5 排除）；红灯批与实现必须同批收口。
-- 集成类验收（AC3/AC4）依赖运行实例，纯代码批次完成后仍悬空——应在 04 头部标注「集成验证批」单独排期，避免批完成判定被集成项无限拖住。
+无。B6-B8 与 AC3/AC4 已在 TODO「51888 插件开发演示暴露宿主缺陷批」。

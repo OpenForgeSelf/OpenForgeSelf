@@ -1,10 +1,10 @@
 # Evidence — PILOT-079（host-defects-agent-dev-loop）
 
-> 状态：**进行中收口记录（B1-B4 已入库 / B5 红态未入库 / B6-B8 未做）**。本文件为 2026-11-12 分批归档时按工作区实况补记。
+> 状态：**B5 已转绿可入库（B1-B4 已入库 / B6-B8 未做）**。2026-11-12 补记：到期查询对同一 DateTime 字段写两次比较时 XCode 复用一个参数，结果恒为空。
 
 ## 验收标准覆盖
 
-- **AC1（每项缺陷红灯→绿灯证据）**：部分达成。B1-B4（P1① SmartTerminal DI / P2① 终端重定向+超时 / P2② 审批唤醒 / P1② 空流 Failed）的修复与测试已随 `49ec93e` 入库，过滤集 425/425 绿（2026-11-11 r3 日志）；**B5（P2③ 调度器 Once 四缺陷）红态**——隔离复跑 6 红/26 过/32 总（16s，`.temp/tmp/scheduler-filtered-r1.log`，与全量红集一致）：SchedulerSkipConsumptionTests ×2 等待超时、SchedulerOnceValidationTests ×4；B6-B8（P3①/P3②）未开工。
+- **AC1（每项缺陷红灯→绿灯证据）**：部分达成。B1-B4 已随 `49ec93e` 入库。**B5（P2③）2026-11-12 转绿**：`FullyQualifiedName~Scheduler` 32/32（`.temp/tmp/scheduler-b5-r7.log`，1s）。根因是 `NextRunTime > MinValue` 与 `NextRunTime <= now` 绑在同一参数上，查询恒空；改为 SQL 只比上界，MinValue 在内存过滤。夹具绝对日期 `2026-11-08` 已过期，改为相对未来时间；拒绝用例按任务名计数，不再用全表 `FindCount()`。B6-B8 未开工。
 - **AC2（build 0 错误 / 全量新增红=0 / PC 扫描绿）**：build 0 错误 Verified（全量 3773 用例编译运行，2026-11-11）；全量对基线——32 红中 6 红即 B5 自身守卫测试红 ⇒ AC2 未达（责任=B5 批）；`check-problem-classes.ps1` 全量绿 Verified（38.6s，27 PC）。
 - **AC3（Agent 经 run_terminal_command 跑通 >30s 构建与重定向落盘）**：代码已入库（B2 随 49ec93e）；**集成验证未执行 = Unknown**（需 dev-stack 实例 + Agent 自跑构建）。
 - **AC4（Agent 自主开发新插件全流程闭环）**：**未执行**。ClockBadge 插件源码已存在于工作区（演示产物），但「Agent 自主闭环」的集成验证未跑。
@@ -15,8 +15,8 @@
 | 项 | 等级 | 证据 |
 |----|------|------|
 | B1-B4 修复+测试入库 | Verified | 提交 `49ec93e`（含 SmartTerminal/McpCenter/AIAgent/测试文件）；过滤集 425/425（`.temp/tmp/filtered-tests-20261111-r3.log`） |
-| B5 红态 | Verified | 隔离复跑 6 红/32（`.temp/tmp/scheduler-filtered-r1.log`，2026-11-12）；全量同集红（`.temp/tmp/full-tests-20261111.log`） |
-| B5 代码内容 | Verified | 工作区 diff：TaskExecutionOutcome 枚举 + AdvanceScheduleState 跳过不消费 + schedule_delete 新工具 + ForgeJson 扫尾（git diff Plugins/Scheduler/ = +174/−36） |
+| B5 曾红 | Verified | 隔离复跑 6 红/32（`.temp/tmp/scheduler-filtered-r1.log`）。诊断：`byStatus=1 byNext=1` 合取后 `due=0`（`.temp/tmp/scheduler-b5-r5.log`） |
+| B5 转绿 | Verified | `FullyQualifiedName~Scheduler` 32/32（`.temp/tmp/scheduler-b5-r7.log`，2026-11-12） |
 | B6-B8 未做 | Verified | 工作区无 AIAgent/McpCenter 对应改动（git status，2026-11-12） |
 | AC3/AC4 集成验证 | Unknown | 未执行 |
 

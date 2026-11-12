@@ -1,0 +1,181 @@
+
+/* Smart Terminal v2 — scoped tokens and chrome from locked prototype v0.2 */
+.smart-terminal{
+  box-sizing:border-box;
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  font:14px/1.55 var(--font-sans);
+  color:var(--fg-primary);
+  background:var(--ink-950);
+  background-image:radial-gradient(1200px 600px at 80% -10%,color-mix(in srgb,var(--gold-500) 8%,transparent),transparent);
+}
+.smart-terminal *,.smart-terminal *::before,.smart-terminal *::after{box-sizing:border-box}
+.smart-terminal button{font:inherit;cursor:pointer;color:inherit}
+.smart-terminal input,.smart-terminal select,.smart-terminal textarea{
+  font:inherit;color:var(--fg-primary);
+  background:color-mix(in srgb,var(--ink-950) 60%,transparent);
+  border:1px solid var(--subtle);border-radius:6px;padding:6px 10px;outline:none
+}
+.smart-terminal input:focus,.smart-terminal select:focus,.smart-terminal textarea:focus{
+  border-color:color-mix(in srgb,var(--gold-400) 60%,transparent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--gold-400) 14%,transparent)
+}
+.smart-terminal input:disabled,.smart-terminal textarea:disabled,.smart-terminal button:disabled,.smart-terminal select:disabled{
+  opacity:.5;cursor:not-allowed
+}
+.smart-terminal main.st-page,.smart-terminal .st-page{
+  flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:20px 28px 16px
+}
+
+/* 铸己匣 · 智能终端插件确认原型 v0.2｜自包含，tokens 取自 DESIGN.md（暗色默认）
+   生产界面 scoped 到 .smart-terminal，token 与原型 v0.2 一致 */
+.smart-terminal{
+  --gold-300:#F9BC4E;--gold-400:#F59E0B;--gold-500:#D97706;
+  --cinnabar-400:#C0392B;--bronze-500:#5A7A5A;
+  --ink-950:#0B0908;--ink-900:#14110F;--ink-850:#1B1815;--ink-700:#322D28;
+  --fg-primary:#F4F0E7;--fg-secondary:#B5AB9F;--fg-tertiary:#8F8478;--fg-muted:#6B6058;
+  --ok:#6B8E4E;--ok-fg:#A8C08A;--warn:#E0A030;--warn-fg:#F5C572;--danger:#C0392B;--danger-fg:#E86A5B;--info:#4A7A9B;--info-fg:#7FA8C8;
+  --hair:rgba(245,240,231,.06);--subtle:rgba(245,240,231,.10);--border:rgba(245,240,231,.16);
+  --font-display:"Noto Serif SC","LXGW WenKai","Songti SC",ui-serif,serif;
+  --font-serif:"LXGW WenKai","Noto Serif SC","Songti SC",serif;
+  --font-sans:"Inter","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --dur-fast:160ms;--dur-base:220ms;--ease-out:cubic-bezier(.22,1,.36,1);
+}
+.smart-terminal .mono{font-family:var(--font-mono)}
+.smart-terminal .serif{font-family:var(--font-serif)}
+.smart-terminal .muted{color:var(--fg-tertiary)}
+
+.smart-terminal .glass{background:rgba(20,17,15,.32);backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(245,240,231,.08);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04)}
+.smart-terminal .glass-strong{background:rgba(20,17,15,.92);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--subtle);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.65)}
+.smart-terminal .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;flex-shrink:0;gap:16px}
+.smart-terminal .eyebrow{font:500 10px var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold-400)}
+.smart-terminal .h1{font:700 26px/1.15 var(--font-display);letter-spacing:.05em;margin-top:4px}
+.smart-terminal .ver{font:10px var(--font-mono);color:var(--fg-tertiary);margin-left:8px;letter-spacing:.04em}
+
+.smart-terminal .btn{border:1px solid var(--subtle);background:transparent;border-radius:4px;padding:5px 12px;font-size:12px;transition:transform var(--dur-fast) var(--ease-out),opacity var(--dur-fast)}
+.smart-terminal .btn:hover{transform:translateY(-1px);border-color:var(--border)}
+.smart-terminal .btn:active{transform:translateY(1px)}
+.smart-terminal .btn.primary{background:color-mix(in srgb,var(--gold-400) 14%,transparent);border-color:color-mix(in srgb,var(--gold-400) 48%,transparent);color:var(--gold-300)}
+.smart-terminal .btn.danger{color:var(--danger-fg);border-color:color-mix(in srgb,var(--cinnabar-400) 48%,transparent)}
+.smart-terminal .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.smart-terminal .tag{display:inline-flex;align-items:center;gap:4px;font:500 10px var(--font-mono);letter-spacing:.04em;padding:1px 6px;border-radius:999px;border:1px solid var(--subtle);color:var(--fg-secondary);white-space:nowrap}
+.smart-terminal .tag.gold{color:var(--gold-300);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.smart-terminal .tag.ok{color:var(--ok-fg);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.smart-terminal .tag.bad{color:var(--danger-fg);border-color:color-mix(in srgb,var(--danger) 50%,transparent)}
+.smart-terminal .tag.warn{color:var(--warn-fg);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.smart-terminal .dot{width:6px;height:6px;border-radius:999px;display:inline-block;background:var(--fg-muted);flex-shrink:0}
+.smart-terminal .dot.on{background:var(--gold-400);animation:pulse 2s infinite}.smart-terminal .dot.green{background:var(--ok)}.smart-terminal .dot.red{background:var(--danger)}.smart-terminal .dot.warn{background:var(--warn)}
+@keyframes pulse{50%{opacity:.35}}
+.smart-terminal .body{flex:1;display:grid;grid-template-columns:260px minmax(0,1fr);gap:12px;min-height:0}
+.smart-terminal .body.with-rail{grid-template-columns:260px minmax(0,1fr) 320px}
+.smart-terminal .side,.smart-terminal .rail,.smart-terminal .workspace{display:flex;flex-direction:column;min-width:0;min-height:0}
+.smart-terminal .side,.smart-terminal .rail{padding:12px}
+.smart-terminal .types{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.smart-terminal .types button{font-size:12px;border:1px solid var(--hair);background:transparent;border-radius:6px;padding:3px 8px;color:var(--fg-secondary)}
+.smart-terminal .types button.on{color:var(--gold-300);background:color-mix(in srgb,var(--gold-400) 10%,transparent);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.smart-terminal .list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:0}
+.smart-terminal .item{text-align:left;border:1px solid var(--hair);background:transparent;border-radius:8px;padding:9px 10px;min-width:0;transition:background var(--dur-fast)}
+.smart-terminal .item:hover{background:color-mix(in srgb,var(--fg-primary) 4%,transparent)}
+.smart-terminal .item.on{background:color-mix(in srgb,var(--gold-400) 10%,transparent);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.smart-terminal .item .t{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.smart-terminal .item .m{font:10px var(--font-mono);color:var(--fg-tertiary);margin-top:3px;display:flex;gap:8px;overflow:hidden;white-space:nowrap}
+.smart-terminal .workspace{padding:0;overflow:hidden}
+.smart-terminal .tabbar{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--hair);padding:0 8px;flex-shrink:0;min-height:36px;overflow-x:auto}
+.smart-terminal .stab{display:flex;align-items:center;gap:6px;padding:0 10px;height:36px;border:none;background:none;color:var(--fg-secondary);font-size:12px;border-bottom:2px solid transparent;max-width:180px;flex-shrink:0}
+.smart-terminal .stab span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.smart-terminal .stab.on{color:var(--gold-300);border-color:var(--gold-400)}
+.smart-terminal .stab .x{border:none;background:none;color:var(--fg-muted);padding:0 2px;border-radius:4px;font-size:14px;line-height:1}
+.smart-terminal .stab .x:hover{color:var(--danger-fg)}
+.smart-terminal .panes{flex:1;display:grid;min-height:0;overflow:hidden}
+.smart-terminal .pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.smart-terminal .pane-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font:10px var(--font-mono);color:var(--fg-tertiary);border-bottom:1px solid var(--hair);letter-spacing:.04em;flex-shrink:0}
+.smart-terminal .term{flex:1;overflow:auto;padding:10px 12px 14px;font:12px/1.6 var(--font-mono);background:rgba(0,0,0,.28);min-height:0;cursor:text}
+.smart-terminal .block{margin:0 0 10px;padding:8px 9px;border:1px solid var(--hair);border-radius:6px;background:rgba(0,0,0,.18);cursor:pointer}
+.smart-terminal .block:hover,.smart-terminal .block.sel{border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.smart-terminal .block.sel{background:color-mix(in srgb,var(--gold-400) 8%,transparent)}
+.smart-terminal .block .meta{display:flex;justify-content:space-between;gap:8px;color:var(--fg-tertiary);font-size:10px;margin-bottom:4px}
+.smart-terminal .block .cmd{color:var(--gold-300)}
+.smart-terminal .block pre{white-space:pre-wrap;word-break:break-word;color:var(--fg-secondary);font:inherit}
+.smart-terminal .block.fail{border-color:color-mix(in srgb,var(--danger) 35%,transparent)}
+.smart-terminal .block .exit.bad{color:var(--danger-fg)}
+.smart-terminal .block .exit.ok{color:var(--ok-fg)}
+.smart-terminal .prompt-line{display:flex;align-items:flex-start;gap:8px;margin-top:2px;font:12px/1.6 var(--font-mono)}
+.smart-terminal .prompt-ps1{color:var(--gold-300);flex-shrink:0;white-space:nowrap;user-select:none}
+.smart-terminal .prompt-input{flex:1;min-width:8ch;background:transparent;border:none;border-radius:0;padding:0;font:inherit;color:var(--fg-primary);box-shadow:none;caret-color:var(--gold-400);outline:none}
+.smart-terminal .prompt-input:focus{border:none;box-shadow:none;outline:none}
+.smart-terminal .prompt-input:disabled{color:var(--fg-muted);cursor:not-allowed;caret-color:transparent}
+.smart-terminal .prompt-input::placeholder{color:var(--fg-muted);font-family:var(--font-sans);font-size:12px}
+.smart-terminal .suggest{display:none;margin:6px 0 0 0;padding:6px;max-width:640px}
+.smart-terminal .suggest.show{display:block}
+.smart-terminal .suggest button{display:block;width:100%;text-align:left;border:none;background:transparent;border-radius:4px;padding:6px 8px;font:12px var(--font-mono);color:var(--fg-secondary)}
+.smart-terminal .suggest button.on,.smart-terminal .suggest button:hover{background:color-mix(in srgb,var(--gold-400) 10%,transparent);color:var(--gold-300)}
+.smart-terminal .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 16px;color:var(--fg-tertiary);text-align:center;flex:1}
+.smart-terminal .empty .q{font:15px var(--font-serif);color:var(--fg-secondary)}
+.smart-terminal .err{color:var(--danger-fg);font-size:12px}
+.smart-terminal .rail-tabs{display:flex;gap:14px;border-bottom:1px solid var(--hair);margin-bottom:10px;flex-shrink:0}
+.smart-terminal .rail-tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:6px 0;font-size:12px;color:var(--fg-secondary)}
+.smart-terminal .rail-tabs button.on{color:var(--gold-300);border-color:var(--gold-400)}
+.smart-terminal .snip{width:100%;text-align:left;border:1px solid var(--hair);background:transparent;border-radius:6px;padding:8px 9px;margin-bottom:6px}
+.smart-terminal .snip:hover{border-color:var(--border)}
+.smart-terminal .snip .n{font-size:13px}
+.smart-terminal .snip .c{font:11px var(--font-mono);color:var(--fg-tertiary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.smart-terminal .chat{display:flex;flex-direction:column;flex:1;min-height:0}
+.smart-terminal .chat-context{font:10px/1.55 var(--font-mono);color:var(--fg-tertiary);padding:0 0 8px;border-bottom:1px solid var(--hair);margin-bottom:8px;flex-shrink:0}
+.smart-terminal .chat-context b{color:var(--gold-300);font-weight:500}
+.smart-terminal .chat-thread{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0;padding-bottom:4px}
+.smart-terminal .bubble{max-width:100%;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
+.smart-terminal .bubble.user{align-self:flex-end;background:color-mix(in srgb,var(--gold-400) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold-400) 28%,transparent)}
+.smart-terminal .bubble.assistant{align-self:flex-start;background:rgba(0,0,0,.28);border:1px solid var(--hair)}
+.smart-terminal .bubble .who{font:10px var(--font-mono);letter-spacing:.08em;margin-bottom:4px}
+.smart-terminal .bubble.user .who{color:var(--gold-300)}
+.smart-terminal .bubble.assistant .who{color:var(--fg-tertiary)}
+.smart-terminal .bubble code,.smart-terminal .fmt code{font:11px var(--font-mono);color:var(--gold-300)}
+.smart-terminal .bubble.thinking{color:var(--fg-tertiary);font-style:italic}
+.smart-terminal .ai-cmd{font:11px/1.55 var(--font-mono);background:rgba(0,0,0,.3);border-radius:6px;padding:8px 10px;color:var(--fg-secondary);margin:8px 0 6px;white-space:pre-wrap}
+.smart-terminal .chat-composer{display:flex;gap:8px;align-items:flex-end;padding-top:8px;border-top:1px solid var(--hair);flex-shrink:0}
+.smart-terminal .chat-composer textarea{flex:1;resize:none;min-height:44px;max-height:120px;font-size:13px;line-height:1.45;border-radius:6px}
+.smart-terminal .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+.smart-terminal .mask.show{display:block}
+.smart-terminal .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;max-width:92vw;max-height:86vh;overflow:auto;padding:20px 22px;z-index:21;display:none}
+.smart-terminal .modal.wide{width:640px}
+.smart-terminal .modal.show{display:block}
+.smart-terminal .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.smart-terminal .field label{font-size:12px;color:var(--fg-secondary)}
+.smart-terminal .field .d{font-size:11px;color:var(--fg-tertiary)}
+.smart-terminal .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.smart-terminal .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.smart-terminal .toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);padding:8px 14px;font-size:13px;z-index:40;display:none}
+.smart-terminal .toast.show{display:block}
+
+.smart-terminal .palette{position:fixed;left:50%;top:18%;transform:translateX(-50%);width:560px;max-width:92vw;z-index:22;display:none;padding:10px}
+.smart-terminal .palette.show{display:block}
+.smart-terminal .palette input{width:100%;margin-bottom:8px}
+.smart-terminal .pal-item{display:block;width:100%;text-align:left;border:none;background:transparent;border-radius:6px;padding:8px 10px;font-size:13px}
+.smart-terminal .pal-item:hover,.smart-terminal .pal-item.on{background:color-mix(in srgb,var(--gold-400) 10%,transparent)}
+.smart-terminal .pal-item .k{font:10px var(--font-mono);color:var(--fg-tertiary);float:right;margin-top:2px}
+.smart-terminal .banner{margin:0 10px 0;padding:7px 10px;border-radius:6px;font-size:12px;display:none;align-items:center;justify-content:space-between;gap:8px;border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn-fg)}
+.smart-terminal .banner.show{display:flex}
+.smart-terminal .banner.bad{border-color:color-mix(in srgb,var(--danger) 40%,transparent);background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger-fg)}
+.smart-terminal .sec-title{font:600 12px var(--font-display);letter-spacing:.04em;color:var(--fg-secondary);margin:4px 0 8px}
+.smart-terminal ::-webkit-scrollbar{width:8px;height:8px}
+.smart-terminal ::-webkit-scrollbar-thumb{background:var(--ink-700);border-radius:4px}
+
+.smart-terminal .banner.show{display:flex}
+.smart-terminal .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.smart-terminal .perm-badge{font:500 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border:1px solid color-mix(in srgb,var(--gold-400) 40%,transparent);color:var(--gold-300);background:transparent;border-radius:4px}
+.smart-terminal .key-hint{font-size:12px;color:var(--fg-tertiary);margin:6px 0}
+.smart-terminal .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.smart-terminal .field label{font-size:12px;color:var(--fg-secondary)}
+.smart-terminal .err-text{color:var(--danger-fg);font-size:12px;margin-top:6px}
+.smart-terminal .toast.show{display:block}
+
+.smart-terminal .stab .t{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+.smart-terminal .pagehead{position:relative}
+.smart-terminal .perm-menu{position:absolute;top:100%;right:0;z-index:15;padding:8px;display:flex;flex-direction:column;gap:4px;min-width:180px}
+.smart-terminal .perm-menu .btn{width:100%;text-align:left}
+.smart-terminal .side .item{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;background:transparent;border:1px solid transparent;padding:8px;border-radius:6px;color:inherit}
+.smart-terminal .chat-composer .btn{flex-shrink:0}

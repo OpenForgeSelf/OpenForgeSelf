@@ -1,20 +1,27 @@
 {
   "name": "forgeself-smartterminal-web",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "智能终端插件自带界面（构建为 ESM，由宿主运行时远程加载）",
+  "description": "智能终端 v2 插件界面（提示符回车，Vue 3 原生组件）",
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "gallery": "vite --config vite.gallery.ts"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "vite": "^6.2.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "typescript": "^5.8.2",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.8"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

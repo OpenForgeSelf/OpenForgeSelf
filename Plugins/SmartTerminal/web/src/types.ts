@@ -1,13 +1,16 @@
+export type SessionKind = 'local' | 'ssh'
+export type AuthMethod = 'key' | 'interactive'
+export type SessionStatus = 'connecting' | 'connected' | 'disconnected'
 export type PermissionMode = 'Auto' | 'AskWrite' | 'AskHighRisk'
-export type LaunchType = 'local' | 'ssh' | 'wsl-ssh'
+export type Risk = 'read' | 'write' | 'high' | 'deny'
+export type Decision = 'allow' | 'ask' | 'deny'
+export type BlockKind = 'command' | 'system'
+export type BlockStatus = 'running' | 'done' | 'failed' | 'awaiting_approval' | 'rejected'
+export type CommandSource = 'prompt' | 'snippet' | 'assistant'
+export type RailTab = 'ai' | 'snippets' | 'history'
+export type PageState = 'loading' | 'ready' | 'empty' | 'error' | 'unauthorized'
 
-/** 通用启动器单步：command + 可选 args；亦可整行写入 command */
-export interface LaunchStep {
-  command: string
-  args?: string[]
-}
-
-export interface ShellProfile {
+export interface ShellInfo {
   id: string
   displayName: string
   executable: string
@@ -16,86 +19,149 @@ export interface ShellProfile {
   note?: string
 }
 
-export interface TerminalSession {
-  sessionId: string
-  title: string
-  shellId: string
-  shellDisplayName: string
-  cwd: string
-  permissionMode: PermissionMode | number
-  status: string
-  agentId?: string
-  createdAt: string
-  updatedAt: string
-  commandCount: number
-  launchType?: LaunchType | string
-  remoteHost?: string
-  remoteUser?: string
-  /** 活动进程是否仍在（GET session） */
-  processAlive?: boolean
-  /** 未 close 时可继续拉 output */
-  reconnectable?: boolean
-  /** 重连提示；缺密 SSH 需再走 S5 后 launch */
-  reconnectHint?: string
-}
-
-export interface OutputChunk {
-  index: number
-  stream: string
-  text: string
-  at: string
-}
-
-export interface PendingApproval {
-  approvalId: string
-  sessionId: string
-  commandId: string
-  commandRedacted: string
-  risk: number | string
-  matchedRule: string
-  reason: string
-  mode: PermissionMode | number
-  createdAt: string
-}
-
-export interface AuditEvent {
-  eventId: string
-  time: string
-  kind: string
-  sessionId?: string
-  agentId?: string
+export interface Profile {
+  id: string
+  name: string
+  kind: SessionKind
   shellId?: string
   cwd?: string
-  commandRedacted?: string
-  decision?: string
-  matchedRule?: string
-  exitCode?: number
-  detail?: string
+  host?: string | null
+  port?: number | null
+  user?: string | null
+  auth?: AuthMethod | null
+  secretId?: string | null
+  identityFile?: string | null
+  summary?: string
 }
 
-export interface RunCommandResponse {
-  sessionId: string
-  commandId: string
-  status: string
-  approvalId?: string
-  message: string
-}
-
-export interface CommandRecord {
-  commandId: string
-  sessionId: string
-  commandRedacted: string
-  risk: number | string
-  decision: number | string
-  matchedRule: string
-  status: string
-  exitCode?: number
+export interface SecretMeta {
+  id: string
+  kind: string
+  fingerprint: string
+  label: string
   createdAt: string
-  approvalId?: string
 }
 
+export interface Block {
+  id: string
+  seq: number
+  kind: BlockKind
+  command: string
+  output: string
+  exitCode?: number | null
+  status: BlockStatus
+  durationMs?: number
+  startedAt?: string
+}
+
+export interface Session {
+  id: string
+  title: string
+  profileId?: string | null
+  kind: SessionKind
+  shell?: string
+  cwd?: string
+  status: SessionStatus
+  host?: string | null
+  port?: number | null
+  user?: string | null
+  auth?: AuthMethod | null
+  secretId?: string | null
+  processAlive?: boolean
+  prompt?: string
+  permissionMode?: PermissionMode
+  blocks?: Block[]
+}
+
+export interface Approval {
+  id: string
+  command: string
+  risk: Risk
+  mode: PermissionMode
+  status: 'pending' | 'approved' | 'rejected'
+  sessionId?: string
+}
+
+export interface CommandResult {
+  status: 'running' | 'awaiting_approval' | 'rejected'
+  decision: Decision
+  risk: Risk
+  block?: Block
+  approval?: Approval
+}
+
+export interface Snippet {
+  id: string
+  name: string
+  command: string
+}
+
+export interface ChatMessage {
+  id?: string
+  role: 'user' | 'assistant'
+  content: string
+  suggestedCommand?: string | null
+}
+
+export interface CreateSessionBody {
+  profileId?: string
+  kind: SessionKind
+  title?: string
+  shellId?: string
+  cwd?: string
+  host?: string
+  port?: number
+  user?: string
+  auth?: AuthMethod | null
+  secretId?: string | null
+  identityFile?: string | null
+  password?: string
+  permissionMode?: PermissionMode
+}
+
+export interface RestoreTab {
+  id: string
+  title: string
+  profileId?: string | null
+  kind: SessionKind
+  shell?: string | null
+  cwd?: string | null
+  status: SessionStatus
+  host?: string | null
+  port?: number | null
+  user?: string | null
+  auth?: AuthMethod | null
+  blocks: Block[]
+}
+
+export interface RestoreSnapshot {
+  activeId: string | null
+  railOpen: boolean
+  railTab: RailTab
+  tabs: RestoreTab[]
+}
+
+export type StoryId =
+  | 'S0'
+  | 'S1'
+  | 'S2'
+  | 'S3'
+  | 'S4'
+  | 'S5'
+  | 'S6'
+  | 'S7'
+  | 'S8'
+  | 'S9'
+  | 'S10'
+  | 'S11-loading'
+  | 'S11-error'
+  | 'S11-401'
+  | 'S-R'
+
+/** 旧版启动器兼容类型（本里程碑不作为 S0–S-R 验收主路径） */
+export type LaunchType = 'local' | 'ssh' | 'wsl-ssh'
+export interface LaunchStep { command: string; args?: string[] }
 export interface LaunchTerminalRequest {
-  /** 通用启动器主键；遗留 type 仍兼容 */
   profile?: string
   type?: LaunchType | string
   shellId?: string
@@ -103,82 +169,14 @@ export interface LaunchTerminalRequest {
   title?: string
   permissionMode?: PermissionMode
   agentId?: string
-  /** 扁平命令行列表（兼容）；由 step/run 展开 */
   commands?: string[]
-  /** 结构化步骤（优先于仅 commands 的语义说明） */
   steps?: LaunchStep[]
-  /** 仅注入本会话进程环境 */
   env?: Record<string, string>
   host?: string
   port?: number
   user?: string
-  /** 短暂凭证：前端读完即从地址栏擦除，请求体发送后丢弃；交互输入亦仅内存 */
   password?: string
   auth?: 'sshpass' | 'key' | 'interactive' | string
   identityFile?: string
   acceptNewHostKey?: boolean
 }
-
-export interface LaunchTerminalResponse {
-  session: TerminalSession
-  commandResults: RunCommandResponse[]
-  launchType: string
-  profile?: string
-  message: string
-  passwordProvided: boolean
-  warning?: string
-  needsInteractivePassword?: boolean
-}
-
-/** CT 画廊 / 演示用固定态（跳过网络） */
-export interface SmartTerminalFixture {
-  version?: string
-  shells?: ShellProfile[]
-  sessions?: TerminalSession[]
-  activeId?: string
-  chunks?: OutputChunk[]
-  /** 按 sessionId 分桶的输出（多标签演示） */
-  chunksBySession?: Record<string, OutputChunk[]>
-  commands?: CommandRecord[]
-  commandsBySession?: Record<string, CommandRecord[]>
-  globalMode?: PermissionMode
-  approvals?: PendingApproval[]
-  showApproval?: boolean
-  activeApproval?: PendingApproval | null
-  showAudit?: boolean
-  auditItems?: AuditEvent[]
-  auditKindFilter?: string
-  auditQuery?: string
-  errorText?: string
-  unauthorized?: boolean
-  draftTitle?: string
-  draftShell?: string
-  draftCwd?: string
-  commandInput?: string
-  /** 模拟 URL 启动横幅 */
-  launchBanner?: string
-  launchWarning?: string
-  renamingId?: string
-  showNewTabMenu?: boolean
-  /** CT：展示密码风险知情确认模态 */
-  showPasswordAck?: boolean
-  passwordAckChecked?: boolean
-  passwordAckMode?: 'always-ack' | 'intranet' | 'disabled'
-  pendingLaunchSummary?: string
-  /** CT：交互式密码输入模态（无 URL 密码时） */
-  showInteractivePassword?: boolean
-  interactivePasswordHost?: string
-  interactivePasswordUser?: string
-  interactivePasswordPort?: number
-  interactivePasswordProfile?: string
-  /** CT：custom:<id> 不可用红条（testid=custom-unsupported-banner） */
-  customUnsupported?: boolean
-  /** CT：S-R 重连黄条文案 */
-  reconnectBanner?: string
-  /**
-   * CT：写入 sessionStorage 的恢复快照（宿主壳负责落盘）。
-   * 可含故意污染的 password 字段；落盘前必须 strip。
-   */
-  seedSessionRestore?: Record<string, unknown>
-}
-

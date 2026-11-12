@@ -1,1348 +1,1425 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { fetchPluginVersion, smartTerminalApi } from './api'
+import './styles.css'
+import { api, SESSIONS_PATH, asList } from './api'
 import { ApiError } from './http'
-import { parseLaunchQuery, scrubLaunchParamsFromUrl } from './launchFromQuery'
-import { redactAuditText } from './secretDisplay'
+import { classifyRisk, decide, hardRejectReason } from './classify'
+import { loadRestore, saveRestore, RESTORED_TOAST } from './restore'
 import {
-  buildSnapshot,
-  clearSnapshot,
-  loadSnapshot,
-  removeTabFromSnapshot,
-  restoredTabToSession,
-  saveSnapshot,
-  type RestoredConnectionSummary,
-} from './sessionRestore'
-import {
-  isUrlPasswordDisabled,
-  needsUrlPasswordAck,
-  persistUrlPasswordRiskAck,
-  resolveUrlPasswordMode,
-  type UrlPasswordMode,
-} from './urlPasswordPolicy'
+  FIXTURE_CHAT,
+  FIXTURE_HISTORY,
+  FIXTURE_PROFILES,
+  FIXTURE_SECRETS,
+  FIXTURE_SESSIONS,
+  FIXTURE_SHELLS,
+  FIXTURE_SNIPPETS,
+  systemBlock,
+} from './fixtures'
+import { scrubLaunchParamsFromUrl } from './launchFromQuery'
 import type {
-  AuditEvent,
-  CommandRecord,
-  LaunchTerminalRequest,
-  OutputChunk,
-  PendingApproval,
+  Approval,
+  AuthMethod,
+  Block,
+  ChatMessage,
+  CommandSource,
+  CreateSessionBody,
   PermissionMode,
-  ShellProfile,
-  SmartTerminalFixture,
-  TerminalSession,
+  Profile,
+  RailTab,
+  SecretMeta,
+  Session,
+  SessionKind,
+  SessionStatus,
+  ShellInfo,
+  Snippet,
+  StoryId,
 } from './types'
 
-const props = defineProps<{ fixture?: SmartTerminalFixture }>()
+const props = defineProps<{ story?: StoryId }>()
+const isFixture = computed(() => !!props.story)
 
-const PLUGIN_ID = 'smart-terminal'
-const isDemo = computed(() => !!props.fixture)
+interface ViewSession extends Session {
+  draft: string
+  history: string[]
+  histIndex: number
+  blocks: Block[]
+  permissionMode: PermissionMode
+}
 
-const version = ref('加载中')
-const shells = ref<ShellProfile[]>([])
-const sessions = ref<TerminalSession[]>([])
-const activeId = ref<string>('')
-const chunks = ref<OutputChunk[]>([])
-const chunksBySession = ref<Record<string, OutputChunk[]>>({})
-const nextIndex = ref(0)
-const nextIndexBySession = ref<Record<string, number>>({})
-const commands = ref<CommandRecord[]>([])
-const commandsBySession = ref<Record<string, CommandRecord[]>>({})
-const approvals = ref<PendingApproval[]>([])
-const auditItems = ref<AuditEvent[]>([])
-const auditKindFilter = ref('')
-const auditQuery = ref('')
-const globalMode = ref<PermissionMode>('AskWrite')
-
-const draftTitle = ref('新标签')
-const draftShell = ref('')
-const draftCwd = ref('')
-const commandInput = ref('')
-const busy = ref('')
-const errorText = ref('')
-const customUnsupported = ref(false)
-const unauthorized = ref(false)
-const showAudit = ref(false)
-const showApproval = ref(false)
-const activeApproval = ref<PendingApproval | null>(null)
-const launchBanner = ref('')
-const launchWarning = ref('')
-const reconnectBanner = ref('')
-const renamingId = ref('')
-const renameDraft = ref('')
-const showNewTabMenu = ref(false)
-const showPasswordAck = ref(false)
-const passwordAckChecked = ref(false)
-const passwordAckMode = ref<UrlPasswordMode>('always-ack')
-const showInteractivePassword = ref(false)
-const interactivePassword = ref('')
-const interactivePasswordReveal = ref(false)
-const pendingLaunch = ref<{
-  request: LaunchTerminalRequest
-  summary: string
-  passwordInUrl: boolean
-  needsInteractivePassword?: boolean
+const pageState = ref<'loading' | 'ready' | 'empty' | 'error' | 'unauthorized'>('loading')
+const errorSummary = ref('')
+const profiles = ref<Profile[]>([])
+const shells = ref<ShellInfo[]>([])
+const secrets = ref<SecretMeta[]>([])
+const snippets = ref<Snippet[]>([])
+const sessions = ref<ViewSession[]>([])
+const activeId = ref<string | null>(null)
+const railOpen = ref(false)
+const railTab = ref<RailTab>('ai')
+const selectedBlockId = ref<string | null>(null)
+const chats = ref<Record<string, ChatMessage[]>>({})
+const chatDraft = ref('')
+const thinking = ref(false)
+const toastText = ref('')
+const toastTestId = ref<string | undefined>()
+const profileQuery = ref('')
+const historyQuery = ref('')
+const profileFilter = ref<'all' | 'local' | 'ssh'>('all')
+const suggestOn = ref(false)
+const permMenu = ref(false)
+const paletteOpen = ref(false)
+const paletteQuery = ref('')
+const paletteIndex = ref(0)
+const showNew = ref(false)
+const newKind = ref<SessionKind>('local')
+const newTitle = ref('')
+const newShellId = ref('bash')
+const newCwd = ref('~')
+const newHost = ref('')
+const newPort = ref(22)
+const newUser = ref('')
+const newAuth = ref<AuthMethod>('key')
+const newSecretId = ref('')
+const newIdentityFile = ref('')
+const newError = ref('')
+const passwordOpen = ref(false)
+const passwordValue = ref('')
+const passwordReveal = ref(false)
+const passwordError = ref('')
+const passwordCtx = ref<{
+  mode: 'create' | 'reconnect'
+  user: string
+  host: string
+  port: number
+  body?: CreateSessionBody
+  sessionId?: string
 } | null>(null)
+const approval = ref<Approval | null>(null)
+const approvalSource = ref<CommandSource>('prompt')
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+let pollTimer: ReturnType<typeof setInterval> | undefined
+let seq = 100
+let persistReady = false
 
-/** 连接摘要（无密码）；用于 S-R 恢复与标签元信息 */
-const connectionsBySession = ref<Record<string, RestoredConnectionSummary>>({})
-/** 仅内存：关标签即焚；永不写入 sessionStorage / localStorage */
-const sessionPasswords = ref<Record<string, string>>({})
-let restorePersistTimer: ReturnType<typeof setTimeout> | null = null
-
-const consoleEl = ref<HTMLElement | null>(null)
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
-const activeSession = computed(() => sessions.value.find(s => s.sessionId === activeId.value) ?? null)
-
-const modeLabel = computed(() => {
-  const m = normalizeMode(activeSession.value?.permissionMode ?? globalMode.value)
-  return m === 'Auto' ? '自动执行' : m === 'AskHighRisk' ? '仅询高危' : '写询问'
-})
-
-const modeBadgeClass = computed(() => {
-  const m = normalizeMode(activeSession.value?.permissionMode ?? globalMode.value)
-  return m === 'Auto' ? 'badge-auto' : m === 'AskHighRisk' ? 'badge-high' : 'badge-write'
-})
-
-const auditKinds = computed(() => {
-  const set = new Set<string>()
-  for (const a of auditItems.value) if (a.kind) set.add(a.kind)
-  return [...set].sort()
-})
-
-const filteredAudit = computed(() => {
-  const kind = auditKindFilter.value.trim().toLowerCase()
-  const q = auditQuery.value.trim().toLowerCase()
-  return auditItems.value.filter(a => {
-    if (kind && (a.kind || '').toLowerCase() !== kind) return false
+const active = computed(() => sessions.value.find((s) => s.id === activeId.value) ?? null)
+const filteredProfiles = computed(() => {
+  const q = profileQuery.value.trim().toLowerCase()
+  return profiles.value.filter((p) => {
+    if (profileFilter.value !== 'all' && p.kind !== profileFilter.value) return false
     if (!q) return true
-    const hay = [a.kind, a.decision, a.matchedRule, a.commandRedacted, a.detail, a.agentId, a.sessionId]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
+    const hay = `${p.name} ${profileSummary(p)} ${p.host ?? ''} ${p.user ?? ''}`.toLowerCase()
     return hay.includes(q)
-  }).map(a => ({
-    ...a,
-    commandRedacted: redactAuditText(a.commandRedacted),
-    detail: redactAuditText(a.detail),
-    matchedRule: redactAuditText(a.matchedRule),
-    decision: redactAuditText(a.decision),
-  }))
+  })
+})
+const suggestions = computed(() => {
+  const s = active.value
+  if (!s) return []
+  const q = s.draft.trim().toLowerCase()
+  if (!q) return []
+  const fromHist = s.history.filter((c) => c.toLowerCase().startsWith(q) && c !== s.draft)
+  const fromSnip = snippets.value.map((x) => x.command).filter((c) => c.toLowerCase().startsWith(q) && c !== s.draft)
+  return Array.from(new Set([...fromHist, ...fromSnip])).slice(0, 6)
+})
+const chatMessages = computed(() => (active.value ? chats.value[active.value.id] ?? [] : []))
+const contextBlock = computed(() => {
+  const s = active.value
+  if (!s) return null
+  if (selectedBlockId.value) return s.blocks.find((b) => b.id === selectedBlockId.value) ?? null
+  return [...s.blocks].reverse().find((b) => b.kind !== 'system') ?? null
+})
+const contextLine = computed(() => {
+  const b = contextBlock.value
+  if (!b) return '尚未点选命令块，将使用最近一条非系统命令作上下文'
+  return `上下文：${b.command}`
+})
+const promptBusy = computed(() => {
+  const s = active.value
+  if (!s || s.status !== 'connected') return true
+  return s.blocks.some((b) => b.status === 'running')
 })
 
-/** 浮层互斥：风险 ack > 交互密码 > 审批 > 审计 */
-const canShowApprovalOverlay = computed(
-  () => showApproval.value && !!activeApproval.value && !showPasswordAck.value && !showInteractivePassword.value,
-)
-const canShowAuditDrawer = computed(
-  () => showAudit.value && !showPasswordAck.value && !showInteractivePassword.value,
-)
-
-const openSessions = computed(() => sessions.value.filter(s => s.status !== 'closed'))
-
-function normalizeMode(m: PermissionMode | number | string | undefined): PermissionMode {
-  if (m === 0 || m === 'Auto') return 'Auto'
-  if (m === 2 || m === 'AskHighRisk') return 'AskHighRisk'
-  return 'AskWrite'
+function clone<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T
 }
 
-function riskLabel(r: number | string | undefined): string {
-  if (r === 3 || r === 'Deny') return '拒绝'
-  if (r === 2 || r === 'HighRisk') return '高危'
-  if (r === 1 || r === 'Write') return '写入'
-  return '只读'
-}
-
-function tabMeta(s: TerminalSession): string {
-  if (s.launchType === 'ssh' || s.launchType === 'wsl-ssh') {
-    return `${s.remoteUser || '?'}@${s.remoteHost || '?'}`
-  }
-  return s.shellDisplayName
-}
-
-function applyFixture(f: SmartTerminalFixture) {
-  version.value = f.version ?? '0.0.0-ct'
-  shells.value = f.shells ?? []
-  sessions.value = f.sessions ?? []
-  activeId.value = f.activeId ?? ''
-  chunksBySession.value = f.chunksBySession ?? {}
-  commandsBySession.value = f.commandsBySession ?? {}
-  if (f.chunks) chunks.value = f.chunks
-  else chunks.value = activeId.value ? chunksBySession.value[activeId.value] ?? [] : []
-  if (f.commands) commands.value = f.commands
-  else commands.value = activeId.value ? commandsBySession.value[activeId.value] ?? [] : []
-  globalMode.value = f.globalMode ?? 'AskWrite'
-  approvals.value = f.approvals ?? []
-  showApproval.value = !!f.showApproval
-  activeApproval.value = f.activeApproval ?? (f.showApproval ? f.approvals?.[0] ?? null : null)
-  showAudit.value = !!f.showAudit
-  auditItems.value = f.auditItems ?? []
-  auditKindFilter.value = f.auditKindFilter ?? ''
-  auditQuery.value = f.auditQuery ?? ''
-  errorText.value = f.errorText ?? ''
-  customUnsupported.value = !!f.customUnsupported
-    || /本里程碑不支持\s*custom|custom:<|不会静默当作 local/i.test(f.errorText ?? '')
-  unauthorized.value = !!f.unauthorized
-  reconnectBanner.value = f.reconnectBanner ?? ''
-  draftTitle.value = f.draftTitle ?? '新标签'
-  draftShell.value = f.draftShell ?? shells.value.find(s => s.available)?.id ?? ''
-  draftCwd.value = f.draftCwd ?? ''
-  commandInput.value = f.commandInput ?? ''
-  launchBanner.value = f.launchBanner ?? ''
-  launchWarning.value = f.launchWarning ?? ''
-  renamingId.value = f.renamingId ?? ''
-  if (renamingId.value) {
-    renameDraft.value = sessions.value.find(s => s.sessionId === renamingId.value)?.title ?? ''
-  }
-  showNewTabMenu.value = !!f.showNewTabMenu
-  showPasswordAck.value = !!f.showPasswordAck
-  passwordAckChecked.value = !!f.passwordAckChecked
-  passwordAckMode.value = f.passwordAckMode ?? 'always-ack'
-  showInteractivePassword.value = !!f.showInteractivePassword
-  interactivePassword.value = ''
-  interactivePasswordReveal.value = false
-  if (f.showPasswordAck) {
-    pendingLaunch.value = {
-      request: { profile: 'ssh', type: 'ssh', host: '10.0.0.1', user: 'root', auth: 'sshpass' },
-      summary: f.pendingLaunchSummary ?? 'profile=ssh · host=10.0.0.1 · user=root · auth=sshpass · password=***REDACTED***',
-      passwordInUrl: true,
-    }
-    launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
-    launchWarning.value = f.launchWarning ?? '地址栏曾含密码，已从 URL 擦除。继续前请确认风险。'
-  }
-  if (f.showInteractivePassword) {
-    pendingLaunch.value = {
-      request: {
-        profile: f.interactivePasswordProfile ?? 'ssh',
-        type: (f.interactivePasswordProfile as any) === 'wsl-ssh' ? 'wsl-ssh' : 'ssh',
-        host: f.interactivePasswordHost ?? '10.0.0.1',
-        user: f.interactivePasswordUser ?? 'root',
-        port: f.interactivePasswordPort ?? 22,
-        auth: 'interactive',
-      },
-      summary: f.pendingLaunchSummary
-        ?? `profile=${f.interactivePasswordProfile ?? 'ssh'} · host=${f.interactivePasswordHost ?? '10.0.0.1'} · user=${f.interactivePasswordUser ?? 'root'} · auth=interactive`,
-      passwordInUrl: false,
-      needsInteractivePassword: true,
-    }
-    launchBanner.value = f.launchBanner ?? `URL 启动：${pendingLaunch.value.summary}`
-    launchWarning.value = f.launchWarning ?? '未提供密码：请先在遮罩输入（确认后再建标签；关标签即焚）。强烈推荐改用 auth=key 密钥登录。'
+function toView(s: Session, prev?: ViewSession): ViewSession {
+  return {
+    ...s,
+    blocks: s.blocks ? clone(s.blocks) : prev?.blocks ?? [],
+    draft: prev?.draft ?? '',
+    history: prev?.history ?? [],
+    histIndex: prev?.histIndex ?? -1,
+    permissionMode: s.permissionMode ?? prev?.permissionMode ?? 'AskWrite',
   }
 }
 
-function noteError(e: unknown) {
-  const anyErr = e as { status?: number; message?: string }
-  unauthorized.value = anyErr?.status === 401
-  errorText.value = anyErr?.message ? `操作失败：${anyErr.message}` : '操作失败：未知错误'
+function profileSummary(p: Profile): string {
+  if (p.summary) return p.summary
+  if (p.kind === 'local') return `${p.shellId ?? 'shell'} · ${p.cwd ?? '~'}`
+  const auth = p.auth === 'key' ? '密钥' : '交互密码'
+  return `${p.user ?? ''}@${p.host ?? ''}:${p.port ?? 22} · ${auth}`
 }
 
-function schedulePersistRestore() {
-  if (isDemo.value) return
-  if (restorePersistTimer) clearTimeout(restorePersistTimer)
-  restorePersistTimer = setTimeout(() => {
-    restorePersistTimer = null
-    persistRestoreNow()
-  }, 200)
+function paneMeta(s: ViewSession): string {
+  if (s.kind === 'ssh') return `${s.user ?? ''}@${s.host ?? ''}`
+  return `${s.shell ?? 'shell'} · ${s.cwd ?? '~'}`
 }
 
-function persistRestoreNow() {
-  if (isDemo.value) return
-  cacheActiveBuckets()
-  const open = sessions.value.filter(s => s.status !== 'closed')
-  if (!open.length) {
-    clearSnapshot()
-    return
-  }
-  saveSnapshot(
-    buildSnapshot({
-      activeId: activeId.value,
-      sessions: open,
-      connectionsBySession: connectionsBySession.value,
-      chunksBySession: chunksBySession.value,
-      commandsBySession: commandsBySession.value,
-      nextIndexBySession: nextIndexBySession.value,
-    }),
-  )
+function ps1(s: ViewSession): string {
+  if (s.prompt) return s.prompt
+  const user = s.user || 'user'
+  const host = s.kind === 'ssh' ? s.host || 'host' : 'localhost'
+  const cwd = s.cwd || '~'
+  return `${user}@${host}:${cwd}$`
 }
 
-function rememberConnection(sessionId: string, request: LaunchTerminalRequest, launchType?: string) {
-  const summary: RestoredConnectionSummary = {
-    profile: request.profile || request.type || launchType || 'local',
-    launchType: launchType || (request.type as string) || request.profile,
-    host: request.host,
-    port: request.port,
-    user: request.user,
-    cwd: request.cwd,
-    shellId: request.shellId,
-    title: request.title,
-    authMethod: request.auth === 'key' ? 'key' : request.auth === 'sshpass' ? 'sshpass' : request.auth || 'interactive',
-  }
-  connectionsBySession.value = { ...connectionsBySession.value, [sessionId]: summary }
+function showToast(text: string, testId?: string) {
+  toastText.value = text
+  toastTestId.value = testId
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastText.value = ''
+    toastTestId.value = undefined
+  }, 2800)
 }
 
-function burnSessionSecrets(sessionId: string) {
-  if (sessionPasswords.value[sessionId]) {
-    const next = { ...sessionPasswords.value }
-    delete next[sessionId]
-    sessionPasswords.value = next
-  }
-  removeTabFromSnapshot(sessionId)
+function bumpPage() {
+  if (pageState.value === 'error' || pageState.value === 'unauthorized') return
+  pageState.value = sessions.value.length ? 'ready' : 'empty'
+  if (pageState.value !== 'ready') railOpen.value = false
 }
 
-/** 应用 S-R 快照：填充输出缓冲与连接摘要；sessions 仍以服务端为准并在其后合并 */
-function applyRestoreSnapshot() {
-  const snap = loadSnapshot()
-  if (!snap) return null
-  chunksBySession.value = { ...(snap.chunksBySession || {}) }
-  commandsBySession.value = { ...(snap.commandsBySession || {}) }
-  nextIndexBySession.value = { ...(snap.nextIndexBySession || {}) }
-  const conns: Record<string, RestoredConnectionSummary> = {}
-  for (const t of snap.tabs) {
-    if (t.connection) conns[t.sessionId] = { ...t.connection }
-  }
-  connectionsBySession.value = { ...connectionsBySession.value, ...conns }
-  return snap
+function persist() {
+  if (!persistReady) return
+  if (pageState.value === 'loading' || pageState.value === 'error' || pageState.value === 'unauthorized') return
+  saveRestore({
+    activeId: activeId.value,
+    railOpen: railOpen.value,
+    railTab: railTab.value,
+    tabs: sessions.value.map((s) => ({
+      id: s.id,
+      title: s.title,
+      profileId: s.profileId ?? null,
+      kind: s.kind,
+      shell: s.shell ?? null,
+      cwd: s.cwd ?? null,
+      status: s.status,
+      host: s.host ?? null,
+      port: s.port ?? null,
+      user: s.user ?? null,
+      auth: s.auth ?? null,
+      blocks: s.blocks,
+    })),
+  })
 }
 
-function cacheActiveBuckets() {
-  if (!activeId.value) return
-  chunksBySession.value = { ...chunksBySession.value, [activeId.value]: [...chunks.value] }
-  commandsBySession.value = { ...commandsBySession.value, [activeId.value]: [...commands.value] }
-  nextIndexBySession.value = { ...nextIndexBySession.value, [activeId.value]: nextIndex.value }
+watch([sessions, activeId, railOpen, railTab], persist, { deep: true })
+
+function nid(prefix: string) {
+  seq += 1
+  return `${prefix}-${seq}`
 }
 
-async function refreshMeta() {
-  if (isDemo.value) return
-  const [v, sh, mode, list] = await Promise.all([
-    fetchPluginVersion(PLUGIN_ID),
-    smartTerminalApi.listShells(),
-    smartTerminalApi.getPermissionMode(),
-    smartTerminalApi.listSessions(),
-  ])
-  version.value = v
-  shells.value = sh ?? []
-  if (mode?.mode === 'Auto' || mode?.mode === 'AskWrite' || mode?.mode === 'AskHighRisk') {
-    globalMode.value = mode.mode
-  }
-  sessions.value = (list ?? []).filter(s => s.status !== 'closed')
-  if (!draftShell.value) {
-    const first = shells.value.find(s => s.available)
-    draftShell.value = first?.id ?? ''
-  }
-  if (!activeId.value && sessions.value.length) {
-    activeId.value = sessions.value[0].sessionId
-  }
+function focusPrompt() {
+  void nextTick(() => {
+    const el = document.querySelector('[data-testid="st-command-input"]') as HTMLInputElement | null
+    el?.focus()
+  })
 }
 
-async function refreshApprovals() {
-  if (isDemo.value) return
-  approvals.value = (await smartTerminalApi.listApprovals(activeId.value || undefined)) ?? []
-  // 浮层顺序：风险 ack / 交互密码优先于审批
-  if (approvals.value.length && !showApproval.value && !showPasswordAck.value && !showInteractivePassword.value) {
-    activeApproval.value = approvals.value[0]
-    showApproval.value = true
+function applyStory(id: StoryId) {
+  persistReady = false
+  profiles.value = clone(FIXTURE_PROFILES)
+  shells.value = clone(FIXTURE_SHELLS)
+  secrets.value = clone(FIXTURE_SECRETS)
+  snippets.value = clone(FIXTURE_SNIPPETS)
+  chats.value = {}
+  chatDraft.value = ''
+  thinking.value = false
+  showNew.value = false
+  passwordOpen.value = false
+  approval.value = null
+  paletteOpen.value = false
+  selectedBlockId.value = null
+  railOpen.value = false
+  railTab.value = 'ai'
+  errorSummary.value = ''
+  newError.value = ''
+  passwordError.value = ''
+  passwordValue.value = ''
+
+  const take = (...ids: string[]) =>
+    ids.map((sid) =>
+      toView(clone(FIXTURE_SESSIONS[sid]), {
+        ...clone(FIXTURE_SESSIONS[sid]),
+        draft: '',
+        history: clone(FIXTURE_HISTORY[sid] ?? []),
+        histIndex: -1,
+        blocks: clone(FIXTURE_SESSIONS[sid].blocks ?? []),
+        permissionMode: 'AskWrite',
+      }),
+    )
+
+  switch (id) {
+    case 'S0':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'empty'
+      break
+    case 'S1':
+      sessions.value = take('s-local')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      break
+    case 'S2':
+      sessions.value = take('s-local', 's-key', 's-long')
+      activeId.value = 's-long'
+      pageState.value = 'ready'
+      break
+    case 'S3':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'empty'
+      openNew('local')
+      break
+    case 'S4':
+      sessions.value = take('s-key')
+      activeId.value = 's-key'
+      pageState.value = 'ready'
+      break
+    case 'S5':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'empty'
+      openPassword({
+        mode: 'create',
+        user: 'ops',
+        host: '10.9.1.4',
+        port: 22,
+        body: { kind: 'ssh', title: 'jump-01', host: '10.9.1.4', port: 22, user: 'ops', auth: 'interactive', profileId: 'p-ssh-pass' },
+      })
+      break
+    case 'S6':
+      sessions.value = take('s-local')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      approval.value = { id: 'ap-write', command: 'sudo nginx -s reload', risk: 'write', mode: 'AskWrite', status: 'pending', sessionId: 's-local' }
+      approvalSource.value = 'prompt'
+      break
+    case 'S7':
+      sessions.value = take('s-local')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      approval.value = { id: 'ap-high', command: 'rm -rf /tmp/st-demo-orphan', risk: 'high', mode: 'AskHighRisk', status: 'pending', sessionId: 's-local' }
+      approvalSource.value = 'prompt'
+      break
+    case 'S8':
+      sessions.value = take('s-pass')
+      activeId.value = 's-pass'
+      pageState.value = 'ready'
+      break
+    case 'S9':
+      sessions.value = take('s-local')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      railOpen.value = true
+      railTab.value = 'ai'
+      chats.value = { 's-local': clone(FIXTURE_CHAT) }
+      break
+    case 'S10':
+      sessions.value = take('s-local')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      railOpen.value = true
+      railTab.value = 'snippets'
+      break
+    case 'S11-loading':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'loading'
+      break
+    case 'S11-error':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'error'
+      errorSummary.value = `GET ${SESSIONS_PATH} → 503 服务暂不可用`
+      break
+    case 'S11-401':
+      sessions.value = []
+      activeId.value = null
+      pageState.value = 'unauthorized'
+      errorSummary.value = `GET ${SESSIONS_PATH} → 401 Unauthorized`
+      break
+    case 'S-R':
+      sessions.value = take('s-local', 's-key')
+      activeId.value = 's-local'
+      pageState.value = 'ready'
+      railOpen.value = true
+      railTab.value = 'ai'
+      persistReady = true
+      persist()
+      showToast(RESTORED_TOAST, 'st-restored')
+      break
   }
+  persistReady = pageState.value === 'ready' || pageState.value === 'empty'
+  if (pageState.value === 'ready') focusPrompt()
 }
 
-async function selectSession(id: string) {
-  if (id === activeId.value) return
-  cacheActiveBuckets()
-  activeId.value = id
-  if (isDemo.value) {
-    chunks.value = chunksBySession.value[id] ?? []
-    commands.value = commandsBySession.value[id] ?? []
-    evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
-    return
-  }
-  chunks.value = []
-  nextIndex.value = nextIndexBySession.value[id] ?? 0
-  if (nextIndex.value === 0) {
-    await Promise.all([pollOutput(true), loadCommands(), refreshApprovals()])
-  } else {
-    chunks.value = chunksBySession.value[id] ?? []
-    await Promise.all([pollOutput(false), loadCommands(), refreshApprovals()])
-  }
+async function loadLive(fromRetry = false) {
+  pageState.value = 'loading'
+  errorSummary.value = ''
   try {
-    const fresh = await smartTerminalApi.getSession(id)
-    if (fresh) {
-      const idx = sessions.value.findIndex(s => s.sessionId === id)
-      if (idx >= 0) sessions.value[idx] = { ...sessions.value[idx], ...fresh }
-      evaluateReconnect(fresh)
+    scrubLaunchParamsFromUrl()
+    const [sh, pf, sec, sn, ss] = await Promise.all([
+      api.shells().catch(() => []),
+      api.profiles().catch(() => []),
+      api.secrets().catch(() => []),
+      api.snippets().catch(() => []),
+      api.sessions(),
+    ])
+    shells.value = sh ?? []
+    profiles.value = pf ?? []
+    secrets.value = sec ?? []
+    snippets.value = sn ?? []
+    const live = asList(ss).map((s) => toView(s))
+    const snap = loadRestore()
+    if (snap?.tabs.length) {
+      const byId = new Map(live.map((s) => [s.id, s]))
+      sessions.value = snap.tabs.map((t) => {
+        const cur = byId.get(t.id)
+        if (cur) {
+          return toView(
+            { ...cur, blocks: (cur.blocks && cur.blocks.length ? cur.blocks : t.blocks), status: cur.status },
+            { ...cur, draft: '', history: [], histIndex: -1, blocks: t.blocks, permissionMode: cur.permissionMode ?? 'AskWrite' },
+          )
+        }
+        return toView(
+          {
+            id: t.id,
+            title: t.title,
+            profileId: t.profileId,
+            kind: t.kind,
+            shell: t.shell ?? undefined,
+            cwd: t.cwd ?? undefined,
+            status: 'disconnected',
+            host: t.host,
+            port: t.port,
+            user: t.user,
+            auth: t.auth,
+            processAlive: false,
+            blocks: t.blocks,
+            permissionMode: 'AskWrite',
+          },
+        )
+      })
+      for (const s of live) {
+        if (!sessions.value.some((x) => x.id === s.id)) sessions.value.push(s)
+      }
+      activeId.value = snap.activeId && sessions.value.some((s) => s.id === snap.activeId) ? snap.activeId : sessions.value[0]?.id ?? null
+      railOpen.value = snap.railOpen
+      railTab.value = snap.railTab
+      if (!fromRetry) showToast(RESTORED_TOAST, 'st-restored')
     } else {
-      evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
+      sessions.value = live
+      activeId.value = live[0]?.id ?? null
     }
-  } catch {
-    evaluateReconnect(sessions.value.find(s => s.sessionId === id) ?? null)
+    for (const s of sessions.value) {
+      if (!s.blocks.length && s.status !== 'disconnected') {
+        try {
+          const pack = await api.blocks(s.id, 0)
+          if (pack?.items) s.blocks = pack.items
+        } catch {
+          // keep empty
+        }
+      }
+      try {
+        const hist = asList(await api.history(s.id))
+        s.history = hist.map((h) => (typeof h === 'string' ? h : String(h)))
+      } catch {
+        // optional
+      }
+    }
+    persistReady = true
+    bumpPage()
+    if (sessions.value.length) focusPrompt()
+  } catch (e) {
+    persistReady = false
+    if (e instanceof ApiError && e.status === 401) {
+      pageState.value = 'unauthorized'
+      errorSummary.value = `GET ${SESSIONS_PATH} → 401 Unauthorized`
+      return
+    }
+    pageState.value = 'error'
+    errorSummary.value = e instanceof ApiError ? `GET ${SESSIONS_PATH} → ${e.status} ${e.message}` : `GET ${SESSIONS_PATH} → 加载失败`
   }
 }
 
-async function createSession() {
-  if (busy.value) return
-  if (isDemo.value) {
-    const id = `sess-demo-${Date.now()}`
-    const shell = shells.value.find(s => s.id === draftShell.value) ?? shells.value.find(s => s.available)
-    sessions.value = [
-      ...sessions.value,
-      {
-        sessionId: id,
-        title: draftTitle.value || '新标签',
-        shellId: shell?.id ?? 'bash',
-        shellDisplayName: shell?.displayName ?? 'Bash',
-        cwd: draftCwd.value || '/workspace',
-        permissionMode: globalMode.value,
-        status: 'idle',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        commandCount: 0,
-        launchType: 'local',
-      },
-    ]
-    showNewTabMenu.value = false
-    await selectSession(id)
-    return
-  }
-  busy.value = 'create'
-  errorText.value = ''
-  try {
-    const session = await smartTerminalApi.createSession({
-      title: draftTitle.value || undefined,
-      shellId: draftShell.value || undefined,
-      cwd: draftCwd.value || undefined,
-      permissionMode: globalMode.value,
+function openNew(kind: SessionKind = 'local') {
+  showNew.value = true
+  newKind.value = kind
+  newTitle.value = ''
+  newCwd.value = kind === 'local' ? '~' : '~'
+  newHost.value = ''
+  newPort.value = 22
+  newUser.value = ''
+  newAuth.value = 'key'
+  newSecretId.value = secrets.value[0]?.id ?? ''
+  newIdentityFile.value = ''
+  newError.value = ''
+  const avail = shells.value.find((s) => s.available)
+  newShellId.value = avail?.id ?? 'bash'
+}
+
+function closeModals() {
+  showNew.value = false
+  passwordOpen.value = false
+  paletteOpen.value = false
+  permMenu.value = false
+  passwordValue.value = ''
+  passwordReveal.value = false
+  passwordError.value = ''
+}
+
+function openPassword(ctx: NonNullable<typeof passwordCtx.value>) {
+  passwordCtx.value = ctx
+  passwordValue.value = ''
+  passwordReveal.value = false
+  passwordError.value = ''
+  passwordOpen.value = true
+  showNew.value = false
+}
+
+async function submitNew() {
+  newError.value = ''
+  if (newKind.value === 'local') {
+    await createSession({
+      kind: 'local',
+      title: newTitle.value.trim() || undefined,
+      shellId: newShellId.value,
+      cwd: newCwd.value.trim() || '~',
     })
-    showNewTabMenu.value = false
-    await refreshMeta()
-    if (session?.sessionId) await selectSession(session.sessionId)
-  } catch (e) {
-    noteError(e)
-  } finally {
-    busy.value = ''
+    return
   }
+  if (!newHost.value.trim() || !newUser.value.trim()) {
+    newError.value = '请填写主机和用户后再打开'
+    return
+  }
+  if (newAuth.value === 'key' && !newSecretId.value && !newIdentityFile.value.trim()) {
+    newError.value = '选私钥时必须指定已有凭据句柄或本机 identityFile，否则无法创建（credential_required）'
+    return
+  }
+  const body: CreateSessionBody = {
+    kind: 'ssh',
+    title: newTitle.value.trim() || `${newUser.value.trim()}@${newHost.value.trim()}`,
+    host: newHost.value.trim(),
+    port: newPort.value || 22,
+    user: newUser.value.trim(),
+    auth: newAuth.value,
+    secretId: newAuth.value === 'key' ? newSecretId.value || null : null,
+    identityFile: newAuth.value === 'key' ? newIdentityFile.value.trim() || null : null,
+    cwd: newCwd.value.trim() || undefined,
+  }
+  if (newAuth.value === 'interactive') {
+    openPassword({
+      mode: 'create',
+      user: body.user!,
+      host: body.host!,
+      port: body.port ?? 22,
+      body,
+    })
+    return
+  }
+  await createSession(body)
 }
 
-function pickAdjacentSessionId(id: string, list: TerminalSession[]): string {
-  const idx = list.findIndex(s => s.sessionId === id)
-  if (idx < 0) return list[0]?.sessionId ?? ''
-  const neighbor = list[idx + 1] ?? list[idx - 1]
-  return neighbor?.sessionId ?? ''
-}
-
-async function closeTab(id: string, ev?: Event) {
-  ev?.stopPropagation()
-  const before = sessions.value.filter(s => s.status !== 'closed')
-  const nextFocus = activeId.value === id ? pickAdjacentSessionId(id, before) : activeId.value
-  burnSessionSecrets(id)
-  const { [id]: _c, ...restChunks } = chunksBySession.value
-  const { [id]: _cmd, ...restCmds } = commandsBySession.value
-  const { [id]: _n, ...restNext } = nextIndexBySession.value
-  const { [id]: _conn, ...restConn } = connectionsBySession.value
-  chunksBySession.value = restChunks
-  commandsBySession.value = restCmds
-  nextIndexBySession.value = restNext
-  connectionsBySession.value = restConn
-
-  if (isDemo.value) {
-    sessions.value = sessions.value.filter(s => s.sessionId !== id)
-    if (activeId.value === id) {
-      activeId.value = nextFocus
-      chunks.value = activeId.value ? chunksBySession.value[activeId.value] ?? [] : []
-      commands.value = activeId.value ? commandsBySession.value[activeId.value] ?? [] : []
+async function confirmPassword() {
+  if (!passwordValue.value) {
+    passwordError.value = '请输入密码后再连接'
+    return
+  }
+  const ctx = passwordCtx.value
+  if (!ctx) return
+  const secret = passwordValue.value
+  passwordValue.value = ''
+  try {
+    if (ctx.mode === 'create' && ctx.body) {
+      await createSession({ ...ctx.body, password: secret })
+    } else if (ctx.mode === 'reconnect' && ctx.sessionId) {
+      await doReconnect(ctx.sessionId, secret)
     }
-    schedulePersistRestore()
-    return
+    passwordOpen.value = false
+    passwordCtx.value = null
+  } catch (e) {
+    passwordError.value = e instanceof ApiError ? e.message : '连接失败'
   }
-  try {
-    await smartTerminalApi.close(id)
-    if (activeId.value === id) {
-      activeId.value = ''
-      chunks.value = []
-      commands.value = []
+}
+
+function cancelPassword() {
+  passwordOpen.value = false
+  passwordCtx.value = null
+  passwordValue.value = ''
+  passwordError.value = ''
+}
+
+async function createSession(body: CreateSessionBody) {
+  if (isFixture.value) {
+    if (body.kind === 'ssh' && body.auth === 'interactive' && !body.password) {
+      throw new ApiError(409, '需要交互密码', { code: 'password_required', needsInteractivePassword: true }, SESSIONS_PATH)
     }
-    await refreshMeta()
-    if (nextFocus && sessions.value.some(s => s.sessionId === nextFocus)) {
-      await selectSession(nextFocus)
-    } else if (!activeId.value && sessions.value.length) {
-      await selectSession(sessions.value[0].sessionId)
+    if (body.kind === 'ssh' && (body.auth === 'key' || !body.auth) && !body.secretId && !body.identityFile && !body.profileId) {
+      newError.value = '缺少密钥材料（credential_required）'
+      throw new ApiError(400, 'credential_required', { code: 'credential_required' }, SESSIONS_PATH)
     }
-    schedulePersistRestore()
-  } catch (e) {
-    noteError(e)
-  }
-}
-
-function startRename(s: TerminalSession, ev?: Event) {
-  ev?.stopPropagation()
-  renamingId.value = s.sessionId
-  renameDraft.value = s.title
-}
-
-async function commitRename() {
-  const id = renamingId.value
-  if (!id) return
-  const title = renameDraft.value.trim()
-  renamingId.value = ''
-  if (!title) return
-  if (isDemo.value) {
-    const idx = sessions.value.findIndex(s => s.sessionId === id)
-    if (idx >= 0) sessions.value[idx] = { ...sessions.value[idx], title }
-    return
-  }
-  try {
-    await smartTerminalApi.renameSession(id, title)
-    await refreshMeta()
-  } catch (e) {
-    noteError(e)
-  }
-}
-
-async function runCommand() {
-  if (isDemo.value || !activeId.value || !commandInput.value.trim() || busy.value) return
-  busy.value = 'run'
-  errorText.value = ''
-  try {
-    const res = await smartTerminalApi.run(activeId.value, commandInput.value)
-    commandInput.value = ''
-    await Promise.all([pollOutput(true), loadCommands(), refreshApprovals(), refreshMeta()])
-    if (res?.status === 'awaiting_approval' && res.approvalId) {
-      const list = await smartTerminalApi.listApprovals(activeId.value)
-      approvals.value = list ?? []
-      activeApproval.value = approvals.value.find(a => a.approvalId === res.approvalId) ?? approvals.value[0] ?? null
-      showApproval.value = !!activeApproval.value
+    if (body.kind === 'ssh' && body.auth === 'key' && !body.secretId && !body.identityFile && body.profileId) {
+      const p = profiles.value.find((x) => x.id === body.profileId)
+      if (!p?.secretId && !p?.identityFile) {
+        newError.value = '缺少密钥材料（credential_required）'
+        throw new ApiError(400, 'credential_required', { code: 'credential_required' }, SESSIONS_PATH)
+      }
     }
-  } catch (e) {
-    noteError(e)
-  } finally {
-    busy.value = ''
-  }
-}
-
-async function resolveApproval(approve: boolean) {
-  if (!activeApproval.value || busy.value) return
-  if (isDemo.value) {
-    showApproval.value = false
-    const id = activeApproval.value.approvalId
-    approvals.value = approvals.value.filter(a => a.approvalId !== id)
-    activeApproval.value = null
+    const profile = body.profileId ? profiles.value.find((p) => p.id === body.profileId) : undefined
+    const id = nid('s')
+    const kind = body.kind
+    const s = toView({
+      id,
+      title: body.title || profile?.name || (kind === 'local' ? body.shellId || 'bash' : `${body.user}@${body.host}`),
+      profileId: body.profileId ?? null,
+      kind,
+      shell: body.shellId || profile?.shellId || 'bash',
+      cwd: body.cwd || profile?.cwd || '~',
+      status: 'connected',
+      host: body.host ?? profile?.host ?? null,
+      port: body.port ?? profile?.port ?? null,
+      user: body.user ?? profile?.user ?? (kind === 'local' ? 'user' : null),
+      auth: body.auth ?? profile?.auth ?? null,
+      processAlive: true,
+      permissionMode: 'AskWrite',
+      blocks: [
+        systemBlock(
+          nid('b'),
+          1,
+          'connected',
+          kind === 'ssh'
+            ? `已连接到 ${body.user ?? profile?.user}@${body.host ?? profile?.host}:${body.port ?? profile?.port ?? 22} · ${ (body.auth ?? profile?.auth) === 'key' ? '密钥' : '交互密码' }`
+            : `已连接到本机 ${body.shellId || 'bash'} · ${body.cwd || '~'}`,
+        ),
+      ],
+    })
+    sessions.value = [...sessions.value, s]
+    activeId.value = s.id
+    showNew.value = false
+    bumpPage()
+    focusPrompt()
     return
   }
-  busy.value = 'approval'
   try {
-    await smartTerminalApi.resolveApproval(activeApproval.value.approvalId, approve)
-    showApproval.value = false
-    activeApproval.value = null
-    await Promise.all([pollOutput(true), loadCommands(), refreshApprovals(), refreshMeta()])
+    const created = await api.createSession(body)
+    if (!created) throw new Error('empty')
+    const view = toView(created)
+    sessions.value = [...sessions.value, view]
+    activeId.value = view.id
+    showNew.value = false
+    bumpPage()
+    focusPrompt()
   } catch (e) {
-    noteError(e)
-  } finally {
-    busy.value = ''
-  }
-}
-
-async function changeMode(mode: PermissionMode) {
-  globalMode.value = mode
-  if (isDemo.value) {
-    if (activeSession.value) {
-      const idx = sessions.value.findIndex(s => s.sessionId === activeId.value)
-      if (idx >= 0) sessions.value[idx] = { ...sessions.value[idx], permissionMode: mode }
+    if (e instanceof ApiError && e.needsInteractivePassword) {
+      openPassword({
+        mode: 'create',
+        user: body.user || '',
+        host: body.host || '',
+        port: body.port ?? 22,
+        body,
+      })
+      return
     }
-    return
-  }
-  try {
-    await smartTerminalApi.setPermissionMode(mode)
-    if (activeId.value) await smartTerminalApi.setSessionMode(activeId.value, mode)
-    await refreshMeta()
-  } catch (e) {
-    noteError(e)
-  }
-}
-
-async function loadCommands() {
-  if (isDemo.value) return
-  if (!activeId.value) {
-    commands.value = []
-    return
-  }
-  commands.value = (await smartTerminalApi.commands(activeId.value)) ?? []
-  commandsBySession.value = { ...commandsBySession.value, [activeId.value]: [...commands.value] }
-}
-
-async function pollOutput(reset = false) {
-  if (isDemo.value || !activeId.value) return
-  try {
-    if (reset) {
-      chunks.value = []
-      nextIndex.value = 0
+    if (e instanceof ApiError && e.code === 'credential_required') {
+      newError.value = e.message || '缺少密钥材料（credential_required）'
+      return
     }
-    const snap = await smartTerminalApi.output(activeId.value, nextIndex.value)
-    if (!snap) return
-    if (snap.chunks?.length) {
-      chunks.value = chunks.value.concat(snap.chunks)
-      nextIndex.value = snap.nextIndex
-      cacheActiveBuckets()
-      schedulePersistRestore()
-      await nextTick()
-      if (consoleEl.value) consoleEl.value.scrollTop = consoleEl.value.scrollHeight
+    newError.value = e instanceof ApiError ? e.message : '创建会话失败'
+  }
+}
+
+async function openProfile(p: Profile) {
+  const existing = sessions.value.find((s) => s.profileId === p.id)
+  if (existing) {
+    activeId.value = existing.id
+    focusPrompt()
+    return
+  }
+  if (p.kind === 'ssh' && p.auth === 'interactive') {
+    openPassword({
+      mode: 'create',
+      user: p.user || '',
+      host: p.host || '',
+      port: p.port ?? 22,
+      body: { profileId: p.id, kind: 'ssh', title: p.name, auth: 'interactive', host: p.host ?? undefined, port: p.port ?? 22, user: p.user ?? undefined },
+    })
+    return
+  }
+  await createSession({
+    profileId: p.id,
+    kind: p.kind,
+    title: p.name,
+    shellId: p.shellId,
+    cwd: p.cwd,
+    host: p.host ?? undefined,
+    port: p.port ?? undefined,
+    user: p.user ?? undefined,
+    auth: p.auth,
+    secretId: p.secretId,
+    identityFile: p.identityFile,
+  })
+}
+
+function profileOpenStatus(p: Profile): 'on' | 'off' | 'none' {
+  const s = sessions.value.find((x) => x.profileId === p.id)
+  if (!s) return 'none'
+  return s.status === 'connected' ? 'on' : 'off'
+}
+
+async function closeTab(id: string) {
+  const idx = sessions.value.findIndex((s) => s.id === id)
+  if (idx < 0) return
+  if (!isFixture.value) {
+    try {
+      await api.closeSession(id)
+    } catch {
+      // still close locally
     }
-  } catch (e) {
-    if (reset) noteError(e)
   }
+  const next = sessions.value.filter((s) => s.id !== id)
+  const neighbor = next[idx] ?? next[idx - 1] ?? null
+  sessions.value = next
+  activeId.value = neighbor?.id ?? null
+  bumpPage()
+  if (neighbor) focusPrompt()
 }
 
-async function openAudit() {
-  showAudit.value = true
-  if (isDemo.value) return
-  try {
-    const data = await smartTerminalApi.audit(100)
-    auditItems.value = data?.items ?? []
-  } catch (e) {
-    noteError(e)
-  }
-}
-
-async function rerun(commandId: string) {
-  if (isDemo.value || !activeId.value || busy.value) return
-  busy.value = 'rerun'
-  try {
-    await smartTerminalApi.rerun(activeId.value, commandId)
-    await Promise.all([pollOutput(true), loadCommands(), refreshApprovals()])
-  } catch (e) {
-    noteError(e)
-  } finally {
-    busy.value = ''
-  }
-}
-
-/** 同时有 steps 与 commands 时只送 steps（后端亦以 steps 为准） */
-function buildLaunchBody(request: LaunchTerminalRequest): LaunchTerminalRequest {
-  const body: LaunchTerminalRequest = { ...request }
-  if (body.steps?.length) {
-    body.commands = undefined
-  }
-  return body
-}
-
-function openInteractivePasswordForRequest(request: LaunchTerminalRequest, summary: string, extraWarn?: string) {
-  pendingLaunch.value = {
-    request: { ...request, password: undefined, auth: 'interactive' },
-    summary,
-    passwordInUrl: false,
-    needsInteractivePassword: true,
-  }
-  launchBanner.value = `URL 启动：${summary}`
-  launchWarning.value = extraWarn
-    || '需要交互密码：确认后再创建标签并 launch（auth=sshpass）。强烈推荐改用 auth=key。'
-  interactivePassword.value = ''
-  interactivePasswordReveal.value = false
-  showInteractivePassword.value = true
-  showPasswordAck.value = false
-}
-
-function evaluateReconnect(session: TerminalSession | null | undefined) {
-  if (!session || isDemo.value) {
-    reconnectBanner.value = ''
+async function requestReconnect(s: ViewSession) {
+  if (s.kind === 'ssh' && s.auth === 'interactive') {
+    openPassword({ mode: 'reconnect', user: s.user || '', host: s.host || '', port: s.port ?? 22, sessionId: s.id })
     return
   }
-  const hint = session.reconnectHint || ''
-  const alive = !!session.processAlive
-  const can = session.reconnectable !== false
-  const isSsh = session.launchType === 'ssh' || session.launchType === 'wsl-ssh'
-  const conn = connectionsBySession.value[session.sessionId]
-  const authMethod = conn?.authMethod || ''
-  const hasMemPwd = !!sessionPasswords.value[session.sessionId]
-
-  if (!can) {
-    reconnectBanner.value = hint || '会话已关闭，请重新 launch / 新建。'
-    return
-  }
-  if (alive) {
-    reconnectBanner.value = hint || ''
-    return
-  }
-  // 进程已死：展示提示；缺密 SSH 引导再走 S5
-  if (isSsh && authMethod !== 'key' && !hasMemPwd) {
-    reconnectBanner.value = (hint || '活动进程可能已退出。')
-      + ' 缺密 SSH 需重新输入密码后再 launch（先框后标签）。'
-  } else {
-    reconnectBanner.value = hint || (isSsh ? '活动进程可能已退出；可继续拉历史 output，或重新 launch。' : '')
-  }
+  await doReconnect(s.id)
 }
 
-/** 从当前标签连接摘要打开 S5，确认后重新 launch（不复用旧孤儿空标签） */
-function promptReconnectPassword() {
-  const s = activeSession.value
+async function doReconnect(id: string, password?: string) {
+  const s = sessions.value.find((x) => x.id === id)
   if (!s) return
-  const conn = connectionsBySession.value[s.sessionId] || {}
-  const request: LaunchTerminalRequest = {
-    profile: conn.profile || (s.launchType as string) || 'ssh',
-    type: (s.launchType as string) || 'ssh',
-    host: conn.host || s.remoteHost,
-    port: conn.port || 22,
-    user: conn.user || s.remoteUser,
-    cwd: conn.cwd || s.cwd,
-    shellId: conn.shellId || s.shellId,
-    title: conn.title || s.title,
-    auth: 'interactive',
+  if (isFixture.value) {
+    if (s.auth === 'interactive' && !password) {
+      throw new ApiError(409, '需要交互密码', { code: 'password_required', needsInteractivePassword: true })
+    }
+    s.status = 'connected'
+    s.processAlive = true
+    s.blocks = [
+      ...s.blocks,
+      systemBlock(nid('b'), (s.blocks.at(-1)?.seq ?? 0) + 1, 'reconnect', '已重新连接。未恢复任何密码或密钥。'),
+    ]
+    focusPrompt()
+    return
   }
-  const summary = [
-    `profile=${request.profile}`,
-    request.host ? `host=${request.host}` : '',
-    request.user ? `user=${request.user}` : '',
-    'auth=interactive',
-    'reconnect=1',
-  ].filter(Boolean).join(' · ')
-  openInteractivePasswordForRequest(
-    request,
-    summary,
-    '刷新/断连后密码未恢复。确认后将重新 launch（先框后标签）；推荐改用 auth=key。',
-  )
+  const updated = await api.reconnect(id, password)
+  if (updated) Object.assign(s, toView(updated, s))
+  else s.status = 'connected'
+  focusPrompt()
 }
 
-async function applyLaunch(request: LaunchTerminalRequest, summary: string, passwordInUrl: boolean) {
-  launchBanner.value = `URL 启动：${summary}`
-  if (passwordInUrl) {
-    launchWarning.value = '地址栏曾含密码，已从 URL 擦除；密码仅短暂注入进程环境，不写审计原文。建议改用密钥（auth=key）。'
+async function submitCommand(command: string, source: CommandSource) {
+  const s = active.value
+  if (!s) return
+  const cmd = command.trim()
+  if (!cmd) return
+  if (s.status !== 'connected') {
+    showToast('会话未连接，请先重新连接')
+    return
   }
-  if (isDemo.value) return
-  busy.value = 'launch'
-  try {
-    const body = buildLaunchBody(request)
-    // S5 确认路径：password + auth=sshpass；禁止无密 interactive 误打出孤儿标签
-    const res = await smartTerminalApi.launch(body)
-    const pwd = body.password
-    body.password = undefined
-    request.password = undefined
-    if (res?.needsInteractivePassword) {
-      // 防御：即便 200 带此标志也不建标签
-      openInteractivePasswordForRequest(request, summary, res.message || undefined)
+  if (promptBusy.value && cmd !== 'clear') {
+    showToast('当前会话有命令正在执行')
+    return
+  }
+  if (cmd === 'clear') {
+    s.blocks = []
+    s.draft = ''
+    focusPrompt()
+    return
+  }
+  const mode = s.permissionMode
+  if (isFixture.value) {
+    const risk = classifyRisk(cmd)
+    const decision = decide(risk, mode)
+    if (decision === 'deny') {
+      s.blocks = [
+        ...s.blocks,
+        { id: nid('b'), seq: (s.blocks.at(-1)?.seq ?? 0) + 1, kind: 'system', command: cmd, output: hardRejectReason(cmd), status: 'rejected', exitCode: 1 },
+      ]
+      showToast(hardRejectReason(cmd))
       return
     }
-    if (res?.warning) launchWarning.value = res.warning
-    await refreshMeta()
-    if (res?.session?.sessionId) {
-      rememberConnection(res.session.sessionId, request, res.launchType || res.profile)
-      if (pwd) {
-        sessionPasswords.value = { ...sessionPasswords.value, [res.session.sessionId]: pwd }
+    if (decision === 'ask') {
+      approval.value = {
+        id: nid('ap'),
+        command: cmd,
+        risk,
+        mode: risk === 'high' ? 'AskHighRisk' : 'AskWrite',
+        status: 'pending',
+        sessionId: s.id,
       }
-      await selectSession(res.session.sessionId)
-      schedulePersistRestore()
+      approvalSource.value = source
+      return
+    }
+    finishFixtureCommand(s, cmd)
+    return
+  }
+  try {
+    const res = await api.runCommand(s.id, cmd, source)
+    if (!res) return
+    if (res.status === 'awaiting_approval' && res.approval) {
+      approval.value = { ...res.approval, sessionId: s.id }
+      approvalSource.value = source
+      if (res.block) mergeBlock(s, res.block)
+      return
+    }
+    if (res.block) mergeBlock(s, res.block)
+    s.history = [...s.history, cmd]
+    s.draft = ''
+    s.histIndex = -1
+    startPoll(s)
+    focusPrompt()
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'rejected_hard') {
+      showToast(e.message || hardRejectReason(cmd))
+      s.blocks = [
+        ...s.blocks,
+        { id: nid('b'), seq: (s.blocks.at(-1)?.seq ?? 0) + 1, kind: 'system', command: cmd, output: e.message, status: 'rejected', exitCode: 1 },
+      ]
+      return
+    }
+    showToast(e instanceof ApiError ? e.message : '命令提交失败')
+  }
+}
+
+function finishFixtureCommand(s: ViewSession, cmd: string, failed = false) {
+  const output = failed ? `命令失败：${cmd}` : `(fixture) ${cmd}\nok`
+  s.blocks = [
+    ...s.blocks,
+    {
+      id: nid('b'),
+      seq: (s.blocks.at(-1)?.seq ?? 0) + 1,
+      kind: 'command',
+      command: cmd,
+      output,
+      status: failed ? 'failed' : 'done',
+      exitCode: failed ? 1 : 0,
+    },
+  ]
+  s.history = [...s.history, cmd]
+  s.draft = ''
+  s.histIndex = -1
+  focusPrompt()
+}
+
+function mergeBlock(s: ViewSession, block: Block) {
+  const i = s.blocks.findIndex((b) => b.id === block.id)
+  if (i >= 0) s.blocks.splice(i, 1, { ...s.blocks[i], ...block })
+  else s.blocks = [...s.blocks, block]
+}
+
+async function confirmApproval() {
+  const ap = approval.value
+  const s = sessions.value.find((x) => x.id === (ap?.sessionId ?? activeId.value))
+  if (!ap || !s) return
+  approval.value = null
+  if (isFixture.value) {
+    finishFixtureCommand(s, ap.command)
+    return
+  }
+  try {
+    const res = await api.resolveApproval(ap.id, 'approve')
+    const block = (res as { block?: Block } | undefined)?.block
+    if (block) mergeBlock(s, block)
+    s.history = [...s.history, ap.command]
+    s.draft = ''
+    s.histIndex = -1
+    startPoll(s)
+    focusPrompt()
+  } catch (e) {
+    showToast(e instanceof ApiError ? e.message : '批准失败')
+  }
+}
+
+async function cancelApproval() {
+  const ap = approval.value
+  const s = sessions.value.find((x) => x.id === (ap?.sessionId ?? activeId.value))
+  if (s && ap && !s.draft) s.draft = ap.command
+  approval.value = null
+  if (ap && !isFixture.value) {
+    try {
+      await api.resolveApproval(ap.id, 'reject')
+    } catch {
+      // already dismissed
+    }
+  }
+  focusPrompt()
+}
+
+function startPoll(s: ViewSession) {
+  if (isFixture.value) return
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(async () => {
+    try {
+      const after = s.blocks.reduce((m, b) => Math.max(m, b.seq), 0)
+      const pack = await api.blocks(s.id, Math.max(0, after - 1))
+      if (pack?.items) {
+        for (const b of pack.items) mergeBlock(s, b)
+      }
+      if (pack?.status === 'disconnected') s.status = 'disconnected'
+      if (!s.blocks.some((b) => b.status === 'running')) {
+        if (pollTimer) clearInterval(pollTimer)
+        pollTimer = undefined
+      }
+    } catch {
+      // next tick
+    }
+  }, 800)
+}
+
+function onPromptKey(ev: KeyboardEvent, s: ViewSession) {
+  if (ev.key === 'Enter') {
+    ev.preventDefault()
+    void submitCommand(s.draft, 'prompt')
+    suggestOn.value = false
+    return
+  }
+  if (ev.key === 'ArrowUp') {
+    ev.preventDefault()
+    if (!s.history.length) return
+    if (s.histIndex < 0) s.histIndex = s.history.length - 1
+    else if (s.histIndex > 0) s.histIndex -= 1
+    s.draft = s.history[s.histIndex] ?? s.draft
+    return
+  }
+  if (ev.key === 'ArrowDown') {
+    ev.preventDefault()
+    if (s.histIndex < 0) return
+    if (s.histIndex < s.history.length - 1) {
+      s.histIndex += 1
+      s.draft = s.history[s.histIndex] ?? ''
+    } else {
+      s.histIndex = -1
+      s.draft = ''
+    }
+    return
+  }
+  if (ev.key === 'Tab') {
+    if (suggestions.value.length) {
+      ev.preventDefault()
+      s.draft = suggestions.value[0]
+      suggestOn.value = false
+    }
+    return
+  }
+  suggestOn.value = s.draft.trim().length > 0
+}
+
+function insertCmd(command: string) {
+  const s = active.value
+  if (!s) {
+    showToast('还没有打开的会话')
+    return
+  }
+  if (s.status !== 'connected') {
+    showToast('会话未连接，无法插入到提示符')
+    return
+  }
+  s.draft = command
+  showToast('已插入到终端提示符，不会自动执行')
+  focusPrompt()
+}
+
+function askRun(command: string) {
+  void submitCommand(command, 'assistant')
+}
+
+async function sendChat() {
+  const text = chatDraft.value.trim()
+  if (!text || thinking.value) return
+  const s = active.value
+  if (!s) {
+    showToast('还没有打开的会话')
+    return
+  }
+  chats.value = { ...chats.value, [s.id]: [...(chats.value[s.id] ?? []), { role: 'user', content: text }] }
+  chatDraft.value = ''
+  thinking.value = true
+  try {
+    if (isFixture.value) {
+      await new Promise((r) => setTimeout(r, 240))
+      const risk = classifyRisk(text)
+      const suggested =
+        /nginx|重载/.test(text) ? 'sudo nginx -s reload' : risk === 'high' || /删除|rm -rf/.test(text) ? 'rm -rf /tmp/st-demo-orphan' : 'git status -sb'
+      chats.value = {
+        ...chats.value,
+        [s.id]: [
+          ...chats.value[s.id],
+          {
+            role: 'assistant',
+            content: '已根据当前会话上下文给出建议。插入到终端只写入提示符，不会自动执行；批准后执行仍走同一道权限闸。',
+            suggestedCommand: suggested,
+          },
+        ],
+      }
+    } else {
+      const msg = await api.sendChat(s.id, text, contextBlock.value?.id)
+      if (msg) chats.value = { ...chats.value, [s.id]: [...chats.value[s.id], msg] }
     }
   } catch (e) {
-    const err = e as ApiError
-    const data = (err?.data || {}) as { needsInteractivePassword?: boolean; message?: string; NeedsInteractivePassword?: boolean }
-    const needs = !!(data.needsInteractivePassword || data.NeedsInteractivePassword || /交互密码|needsInteractivePassword|先框后/i.test(err?.message || ''))
-    if (err instanceof ApiError && err.status === 400 && needs) {
-      // 后端硬拒无密 interactive：无 session；打开 S5，勿留孤儿标签
-      openInteractivePasswordForRequest(
-        { ...request, password: undefined, auth: 'interactive' },
-        summary,
-        err.message || '需要交互密码后再 launch。',
-      )
-      errorText.value = ''
-      return
+    const err = e instanceof ApiError ? e.message : '宿主模型不可用'
+    chats.value = {
+      ...chats.value,
+      [s.id]: [...(chats.value[s.id] ?? []), { role: 'assistant', content: `调用宿主模型失败：${err}` }],
     }
-    noteError(e)
   } finally {
-    busy.value = ''
+    thinking.value = false
   }
 }
 
-function cancelPasswordAck() {
-  if (pendingLaunch.value?.request) {
-    pendingLaunch.value.request.password = undefined
-  }
-  pendingLaunch.value = null
-  showPasswordAck.value = false
-  passwordAckChecked.value = false
-  launchWarning.value = '已取消带密码的 URL 启动。请改用 auth=key，或重新打开深链走交互式密码输入。'
-}
-
-async function confirmPasswordAck() {
-  if (!passwordAckChecked.value || !pendingLaunch.value) return
-  const pending = pendingLaunch.value
-  showPasswordAck.value = false
-  passwordAckChecked.value = false
-  pendingLaunch.value = null
-  if (passwordAckMode.value === 'intranet') {
-    persistUrlPasswordRiskAck()
-  }
-  await applyLaunch(pending.request, pending.summary, pending.passwordInUrl)
-}
-
-function cancelInteractivePassword() {
-  if (pendingLaunch.value?.request) {
-    pendingLaunch.value.request.password = undefined
-  }
-  interactivePassword.value = ''
-  interactivePasswordReveal.value = false
-  showInteractivePassword.value = false
-  pendingLaunch.value = null
-  launchWarning.value = '已取消交互式密码输入。可改用 auth=key，或重新发起深链。'
-}
-
-async function confirmInteractivePassword() {
-  if (!pendingLaunch.value) return
-  const pwd = interactivePassword.value
-  if (!pwd) {
-    errorText.value = '请输入密码，或取消后改用 auth=key（推荐密钥登录）。'
-    return
-  }
-  // 先框后标签：确认前不创建任何标签；确认后才 launch（服务端建会话）
-  const pending = pendingLaunch.value
-  pending.request.password = pwd
-  // 定稿：确认后带 password + auth=sshpass 再 launch（key 除外）
-  pending.request.auth = pending.request.auth === 'key' ? 'key' : 'sshpass'
-  interactivePassword.value = ''
-  interactivePasswordReveal.value = false
-  showInteractivePassword.value = false
-  pendingLaunch.value = null
-  try {
-    await applyLaunch(pending.request, pending.summary, false)
-  } finally {
-    pending.request.password = undefined
+function onChatKey(ev: KeyboardEvent) {
+  if (ev.key === 'Enter' && !ev.shiftKey) {
+    ev.preventDefault()
+    void sendChat()
   }
 }
 
-async function consumeUrlLaunch() {
-  if (isDemo.value || typeof location === 'undefined') return
-  const parsed = parseLaunchQuery(location.search || '')
-  scrubLaunchParamsFromUrl()
-  if (!parsed) return
-
-  if (parsed.unsupportedProfileError) {
-    launchBanner.value = `URL 启动：${parsed.summary}`
-    errorText.value = parsed.unsupportedProfileError
-    customUnsupported.value = true
-    launchWarning.value = 'custom:<id> 仅协议位预留，本里程碑不提供选择器，也不会静默当作 local。'
-    return
-  }
-
-  const mode = resolveUrlPasswordMode({ queryMode: parsed.urlPasswordMode })
-  passwordAckMode.value = mode
-
-  if (parsed.passwordInUrl && isUrlPasswordDisabled(mode)) {
-    parsed.request.password = undefined
-    launchBanner.value = `URL 启动：${parsed.summary}`
-    errorText.value = '当前策略禁用 URL 密码（url-password-mode=disabled）。请使用 auth=key，或将模式设为 intranet / always-ack。'
-    // 仍可尝试无密码启动（interactive/key）；若 auth=sshpass 则后端会报错——改为不调用 launch
-    if ((parsed.request.auth || 'sshpass') === 'sshpass' || (parsed.request.auth || '') === 'password') {
-      return
+async function setMode(mode: PermissionMode) {
+  const s = active.value
+  permMenu.value = false
+  if (!s) return
+  s.permissionMode = mode
+  if (!isFixture.value) {
+    try {
+      await api.setSessionPermissionMode(s.id, mode)
+    } catch {
+      showToast('权限模式未能同步到服务端')
     }
   }
-
-  if (parsed.passwordInUrl && needsUrlPasswordAck(mode)) {
-    pendingLaunch.value = {
-      request: parsed.request,
-      summary: parsed.summary,
-      passwordInUrl: true,
-    }
-    launchBanner.value = `URL 启动：${parsed.summary}`
-    launchWarning.value = '检测到 URL 密码（内网过渡能力）。请确认风险后再继续；推荐改用 auth=key 或交互式输入。'
-    showPasswordAck.value = true
-    passwordAckChecked.value = false
-    return
-  }
-
-  if (parsed.needsInteractivePassword) {
-    // S5：先出密码框，确认前不建标签（禁止空/孤儿标签）
-    pendingLaunch.value = {
-      request: parsed.request,
-      summary: parsed.summary,
-      passwordInUrl: false,
-      needsInteractivePassword: true,
-    }
-    launchBanner.value = `URL 启动：${parsed.summary}`
-    launchWarning.value = '未提供密码：请先在遮罩中输入（仅内存，关标签即焚）。强烈推荐改用 auth=key 密钥登录。'
-    interactivePassword.value = ''
-    interactivePasswordReveal.value = false
-    showInteractivePassword.value = true
-    return
-  }
-
-  await applyLaunch(parsed.request, parsed.summary, parsed.passwordInUrl)
 }
 
-onMounted(async () => {
-  if (props.fixture) {
-    applyFixture(props.fixture)
+function relogin() {
+  window.location.assign('/')
+}
+
+const paletteItems = computed(() => {
+  const items: { id: string; label: string; run: () => void }[] = [
+    { id: 'new-local', label: '新建本机会话', run: () => openNew('local') },
+    { id: 'new-ssh', label: '新建 SSH 会话', run: () => openNew('ssh') },
+    { id: 'open-ai', label: '打开助手对话', run: () => { railOpen.value = true; railTab.value = 'ai' } },
+    { id: 'open-hist', label: '打开命令历史', run: () => { railOpen.value = true; railTab.value = 'history' } },
+    { id: 'open-snip', label: '打开片段', run: () => { railOpen.value = true; railTab.value = 'snippets' } },
+    ...profiles.value.map((p) => ({ id: `p-${p.id}`, label: `打开配置 ${p.name}`, run: () => void openProfile(p) })),
+    ...sessions.value.map((s) => ({ id: `s-${s.id}`, label: `切换到 ${s.title}`, run: () => { activeId.value = s.id; focusPrompt() } })),
+  ]
+  const q = paletteQuery.value.trim().toLowerCase()
+  return q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items
+})
+
+function openPalette() {
+  paletteOpen.value = true
+  paletteQuery.value = ''
+  paletteIndex.value = 0
+  void nextTick(() => (document.querySelector('[data-testid="st-palette-input"]') as HTMLInputElement | null)?.focus())
+}
+
+function runPalette(i = paletteIndex.value) {
+  const item = paletteItems.value[i]
+  paletteOpen.value = false
+  item?.run()
+}
+
+function onGlobalKey(ev: KeyboardEvent) {
+  const meta = ev.metaKey || ev.ctrlKey
+  if (meta && (ev.key === 'k' || ev.key === 'K' || (ev.shiftKey && (ev.key === 'p' || ev.key === 'P')))) {
+    ev.preventDefault()
+    openPalette()
     return
   }
-  try {
-    const snap = applyRestoreSnapshot()
-    await refreshMeta()
-    // 合并：服务端仍有的会话保留；快照补齐缓冲 / 激活项 / 连接摘要
-    if (snap) {
-      if (snap.activeId && sessions.value.some(s => s.sessionId === snap.activeId)) {
-        activeId.value = snap.activeId
-      }
-      // 服务端已无、但快照仍有：展示只读恢复态（可能已断连；SSH 缺密需重连再走 S5）
-      const serverIds = new Set(sessions.value.map(s => s.sessionId))
-      const orphans = snap.tabs.filter(t => !serverIds.has(t.sessionId))
-      if (orphans.length && !sessions.value.length) {
-        sessions.value = orphans.map(restoredTabToSession)
-        activeId.value = snap.activeId && sessions.value.some(s => s.sessionId === snap.activeId)
-          ? snap.activeId
-          : sessions.value[0]?.sessionId ?? ''
-        launchWarning.value = (launchWarning.value ? launchWarning.value + ' ' : '')
-          + '已从本页会话恢复标签与近期输出（无密码）。远端/本机壳进程可能已结束；SSH 若需重连将再次弹出密码框。'
-      }
+  if (ev.key === 'Escape') {
+    if (paletteOpen.value || showNew.value || passwordOpen.value || approval.value) {
+      ev.preventDefault()
+      if (approval.value) void cancelApproval()
+      else if (passwordOpen.value) cancelPassword()
+      else closeModals()
     }
-    await consumeUrlLaunch()
-    if (activeId.value) {
-      // 先灌入恢复缓冲；强制走一次加载（避免 activeId 已相同导致 selectSession 早退）
-      const resumeId = activeId.value
-      if (chunksBySession.value[resumeId]?.length) {
-        chunks.value = [...chunksBySession.value[resumeId]]
-        const restoredNext = nextIndexBySession.value[resumeId]
-        nextIndex.value = restoredNext && restoredNext > 0 ? restoredNext : chunks.value.length
-        nextIndexBySession.value = { ...nextIndexBySession.value, [resumeId]: nextIndex.value }
-      }
-      activeId.value = ''
-      await selectSession(resumeId)
-    }
-    schedulePersistRestore()
-  } catch (e) {
-    noteError(e)
+    return
   }
-  pollTimer = setInterval(() => {
-    void pollOutput(false)
-    void refreshApprovals()
-  }, 1000)
+  if (paletteOpen.value || showNew.value || passwordOpen.value || approval.value) return
+  const t = ev.target as HTMLElement | null
+  const tag = t?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return
+  if (ev.key.length === 1 && !meta && !ev.altKey && active.value && !promptBusy.value) {
+    ev.preventDefault()
+    active.value.draft += ev.key
+    suggestOn.value = true
+    focusPrompt()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKey)
+  if (props.story) applyStory(props.story)
+  else void loadLive()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKey)
+  if (toastTimer) clearTimeout(toastTimer)
   if (pollTimer) clearInterval(pollTimer)
-  if (restorePersistTimer) clearTimeout(restorePersistTimer)
-  persistRestoreNow()
 })
 
 watch(
-  () => props.fixture,
-  f => {
-    if (f) applyFixture(f)
+  () => props.story,
+  (id) => {
+    if (id) applyStory(id)
   },
-  { deep: true },
 )
 
-watch(activeId, () => {
-  if (!isDemo.value) void loadCommands()
-  schedulePersistRestore()
-})
+const showRail = computed(() => railOpen.value && pageState.value === 'ready')
+const layoutClass = computed(() => (showRail.value ? 'body with-rail' : 'body'))
 
-watch(
-  [sessions, chunks, chunksBySession],
-  () => schedulePersistRestore(),
-  { deep: true },
-)
+function approvalTitle(ap: Approval) {
+  if (ap.risk === 'high' || ap.mode === 'AskHighRisk') return 'ASKHIGHRISK · 高风险确认'
+  return 'ASKWRITE · 写操作确认'
+}
 </script>
 
 <template>
-  <div class="st-root" data-testid="smart-terminal-root">
-    <header class="st-header">
-      <div>
-        <h1 class="view-title">智能终端 <span class="ver">v{{ version }}</span></h1>
-        <p class="sub">可审批的命令会话 · 基础多标签 · URL 深链 · <code>st_*</code></p>
-      </div>
-      <div class="header-actions">
-        <span class="badge" :class="modeBadgeClass" data-testid="mode-badge">权限：{{ modeLabel }}</span>
-        <button class="btn ghost" type="button" data-testid="open-audit" @click="openAudit">审计</button>
-      </div>
-    </header>
-
-    <div v-if="launchBanner" class="banner info" data-testid="launch-banner">{{ launchBanner }}</div>
-    <div v-if="launchWarning" class="banner warn" data-testid="launch-warning">{{ launchWarning }}</div>
-    <div v-if="reconnectBanner" class="banner warn" data-testid="reconnect-banner">
-      <span>{{ reconnectBanner }}</span>
-      <button
-        v-if="activeSession && (activeSession.launchType === 'ssh' || activeSession.launchType === 'wsl-ssh') && !sessionPasswords[activeSession.sessionId] && connectionsBySession[activeSession.sessionId]?.authMethod !== 'key'"
-        class="btn tiny ghost"
-        type="button"
-        data-testid="reconnect-password-btn"
-        @click="promptReconnectPassword"
-      >重新输入密码并 launch</button>
-    </div>
-    <div v-if="unauthorized" class="banner error" data-testid="banner-unauthorized">未授权（401）。请先登录宿主，确保 localStorage 有 forge_api_token。</div>
-    <div
-      v-else-if="errorText"
-      class="banner error"
-      :data-testid="customUnsupported ? 'custom-unsupported-banner' : 'banner-error'"
-    >{{ errorText }}</div>
-
-    <!-- Windows Terminal 基础标签栏（新建/关闭/切换/重命名） -->
-    <div class="tabbar" data-testid="tab-bar">
-      <div
-        v-for="s in openSessions"
-        :key="s.sessionId"
-        class="tab"
-        :class="{ active: s.sessionId === activeId }"
-        :data-session-id="s.sessionId"
-        @click="selectSession(s.sessionId)"
-        @dblclick="startRename(s, $event)"
-      >
-        <template v-if="renamingId === s.sessionId">
-          <input
-            v-model="renameDraft"
-            class="tab-rename"
-            data-testid="tab-rename-input"
-            @click.stop
-            @keydown.enter.prevent="commitRename"
-            @keydown.esc.prevent="renamingId = ''"
-            @blur="commitRename"
-          />
-        </template>
-        <template v-else>
-          <span class="tab-title">{{ s.title }}</span>
-          <span class="tab-meta">{{ tabMeta(s) }}</span>
-        </template>
-        <button class="tab-close" type="button" title="关闭标签" data-testid="tab-close" @click="closeTab(s.sessionId, $event)">×</button>
-      </div>
-      <button class="tab-new" type="button" data-testid="tab-new" title="新建标签" @click="showNewTabMenu = !showNewTabMenu">+</button>
-    </div>
-
-    <div v-if="showNewTabMenu" class="new-tab-panel" data-testid="new-tab-panel">
-      <label>标题 <input v-model="draftTitle" placeholder="新标签" /></label>
-      <label>外壳
-        <select v-model="draftShell" data-testid="shell-picker">
-          <option disabled value="">选择外壳</option>
-          <option v-for="s in shells" :key="s.id" :value="s.id" :disabled="!s.available">
-            {{ s.displayName }}{{ s.available ? '' : '（不可用）' }}{{ s.note ? ` · ${s.note}` : '' }}
-          </option>
-        </select>
-      </label>
-      <label>工作目录 <input v-model="draftCwd" placeholder="留空=进程当前目录" /></label>
-      <div class="mode-row" data-testid="mode-row">
-        <button type="button" class="chip" :class="{ on: globalMode === 'Auto' }" @click="changeMode('Auto')">Auto</button>
-        <button type="button" class="chip" :class="{ on: globalMode === 'AskWrite' }" @click="changeMode('AskWrite')">AskWrite</button>
-        <button type="button" class="chip" :class="{ on: globalMode === 'AskHighRisk' }" @click="changeMode('AskHighRisk')">AskHighRisk</button>
-      </div>
-      <div class="new-tab-actions">
-        <button class="btn ghost" type="button" @click="showNewTabMenu = false">取消</button>
-        <button class="btn primary" type="button" :disabled="!!busy" @click="createSession">打开标签</button>
-      </div>
-    </div>
-
-    <main class="panel main">
-      <div class="panel-head">
+  <div class="smart-terminal">
+    <main class="st-page" data-testid="st-page">
+      <div class="pagehead">
         <div>
-          <strong>{{ activeSession?.title || '未选择标签' }}</strong>
-          <span v-if="activeSession" class="muted">
-            · {{ tabMeta(activeSession) }}
-            <template v-if="activeSession.launchType && activeSession.launchType !== 'local'"> · {{ activeSession.launchType }}</template>
-            · {{ activeSession.cwd }}
-            <template v-if="activeSession.processAlive != null">
-              · <span :data-testid="'process-alive-' + (activeSession.processAlive ? 'yes' : 'no')">{{ activeSession.processAlive ? '进程存活' : '进程已退出' }}</span>
+          <div class="eyebrow">TERMINAL · 会话与命令</div>
+          <div class="h1">智能终端<span class="ver">v2.0.0</span></div>
+        </div>
+        <div class="row">
+          <button
+            class="perm-badge"
+            type="button"
+            data-testid="st-permission-badge"
+            :title="'当前权限闸 · 默认 AskWrite'"
+            @click="permMenu = !permMenu"
+          >
+            {{ active?.permissionMode || 'AskWrite' }}
+          </button>
+          <div v-if="permMenu" class="glass-strong perm-menu">
+            <button class="btn" type="button" @click="setMode('Auto')">Auto</button>
+            <button class="btn" type="button" @click="setMode('AskWrite')">AskWrite（默认）</button>
+            <button class="btn" type="button" @click="setMode('AskHighRisk')">AskHighRisk</button>
+          </div>
+          <button class="btn" type="button" data-testid="st-command-palette-btn" @click="openPalette">命令面板</button>
+          <button class="btn" type="button" data-testid="st-toggle-rail" @click="railOpen = !railOpen">助手</button>
+          <button class="btn primary" type="button" data-testid="st-new-session" @click="openNew('local')">新建会话</button>
+        </div>
+      </div>
+
+      <div :class="layoutClass">
+        <aside v-if="pageState === 'ready' || pageState === 'empty'" class="glass side">
+          <input data-testid="st-profile-search" placeholder="搜索配置、主机或标签" v-model="profileQuery" />
+          <div class="types">
+            <button type="button" :class="{ on: profileFilter === 'all' }" data-testid="st-filter-all" @click="profileFilter = 'all'">全部</button>
+            <button type="button" :class="{ on: profileFilter === 'local' }" data-testid="st-filter-local" @click="profileFilter = 'local'">本机</button>
+            <button type="button" :class="{ on: profileFilter === 'ssh' }" data-testid="st-filter-ssh" @click="profileFilter = 'ssh'">SSH</button>
+          </div>
+          <div class="list" data-testid="st-profile-list">
+            <button
+              v-for="p in filteredProfiles"
+              :key="p.id"
+              class="item"
+              :class="{ on: active?.profileId === p.id }"
+              :data-testid="`st-profile-item-${p.id}`"
+              type="button"
+              @click="openProfile(p)"
+            >
+              <i class="dot" :class="profileOpenStatus(p) === 'on' ? 'green' : profileOpenStatus(p) === 'off' ? 'red' : ''" />
+              <span>
+                <b>{{ p.name }}</b>
+                <span class="tag">{{ p.kind === 'local' ? '本机' : 'SSH' }}</span>
+                <div class="muted">{{ profileSummary(p) }}</div>
+              </span>
+            </button>
+            <div v-if="!filteredProfiles.length" class="muted" style="padding:12px">没有匹配的配置</div>
+          </div>
+        </aside>
+
+        <section class="glass workspace" data-testid="st-workspace">
+          <div v-if="pageState === 'loading'" class="empty" data-testid="st-state-loading">
+            <i class="dot on" />
+            <div class="q">正在取回会话与配置…</div>
+          </div>
+          <div v-else-if="pageState === 'error'" class="empty" data-testid="st-state-error">
+            <div class="q">会话列表加载失败</div>
+            <div class="err mono">{{ errorSummary }}</div>
+            <button class="btn" type="button" @click="loadLive(true)">重试</button>
+          </div>
+          <div v-else-if="pageState === 'unauthorized'" class="empty" data-testid="st-state-401">
+            <div class="q">登录已过期，暂时无法打开终端会话</div>
+            <div class="err mono">{{ errorSummary }}</div>
+            <button class="btn primary" type="button" data-testid="st-relogin" @click="relogin">重新登录</button>
+          </div>
+          <div v-else-if="pageState === 'empty'" class="empty" data-testid="st-state-empty">
+            <div class="q">炉火已起，还没有打开任何会话</div>
+            <div class="muted">从左侧选择本机壳或 SSH 配置，也可以新建一个会话。SSH 请优先使用密钥，由宿主凭据库保管。</div>
+            <button class="btn primary" type="button" @click="openNew('local')">新建会话</button>
+          </div>
+
+          <template v-else-if="active">
+            <div class="tabbar" data-testid="st-tab-bar">
+              <button
+                v-for="s in sessions"
+                :key="s.id"
+                class="stab"
+                :class="{ on: s.id === activeId }"
+                :data-testid="`st-tab-${s.id}`"
+                type="button"
+                :title="s.title"
+                @click="activeId = s.id; focusPrompt()"
+              >
+                <i class="dot" :class="s.status === 'connected' ? 'green' : 'red'" />
+                <span class="t">{{ s.title }}</span>
+                <span class="x" :data-testid="`st-tab-close-${s.id}`" title="关闭" @click.stop="closeTab(s.id)">×</span>
+              </button>
+              <button class="stab" type="button" data-testid="st-tab-new" title="新建会话" @click="openNew('local')">+</button>
+            </div>
+            <div class="banner bad" :class="{ show: active.status !== 'connected' }" data-testid="st-disconnected-banner">
+              <span>会话已断开，输出仍保留。重新连接不会恢复密码。</span>
+              <button class="btn" type="button" data-testid="st-reconnect" @click="requestReconnect(active)">重新连接</button>
+            </div>
+            <div class="panes" data-testid="st-panes">
+              <div class="pane" data-testid="st-pane-main">
+                <div class="pane-head">
+                  <span>{{ paneMeta(active) }}</span>
+                  <span>{{ active.status === 'connected' ? '已连接' : '已断开' }}</span>
+                </div>
+                <div class="term" data-testid="st-term-surface-main" @click="focusPrompt">
+                  <div
+                    v-for="b in active.blocks"
+                    :key="b.id"
+                    class="block"
+                    :class="{ fail: b.status === 'failed' || (b.exitCode != null && b.exitCode !== 0), sel: selectedBlockId === b.id }"
+                    :data-testid="`st-block-${b.id}`"
+                    @click.stop="selectedBlockId = b.id; railOpen = true; railTab = 'ai'"
+                  >
+                    <div class="cmd">{{ b.kind === 'system' ? b.command : `$ ${b.command}` }}</div>
+                    <pre class="out">{{ b.output }}</pre>
+                    <div v-if="b.kind !== 'system'" class="meta muted">{{ b.status === 'running' ? '运行中' : `退出码 ${b.exitCode ?? 0}` }}</div>
+                  </div>
+                  <div class="prompt-line" data-testid="st-prompt-line" @click.stop="focusPrompt">
+                    <span class="prompt-ps1" data-testid="st-prompt-ps1">{{ ps1(active) }}</span>
+                    <input
+                      class="prompt-input"
+                      data-testid="st-command-input"
+                      spellcheck="false"
+                      autocomplete="off"
+                      :disabled="promptBusy"
+                      :placeholder="active.status !== 'connected' ? '会话未连接，请先重新连接' : ''"
+                      v-model="active.draft"
+                      @keydown="onPromptKey($event, active)"
+                      @input="suggestOn = active.draft.trim().length > 0"
+                    />
+                  </div>
+                  <div v-if="suggestOn && suggestions.length" class="suggest">
+                    <button
+                      v-for="(c, i) in suggestions"
+                      :key="c"
+                      type="button"
+                      :data-testid="`st-suggest-${i}`"
+                      @click="active.draft = c; suggestOn = false; focusPrompt()"
+                    >
+                      {{ c }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </section>
+
+        <aside v-if="showRail" class="glass rail" data-testid="st-side-panel">
+          <div class="rail-tabs">
+            <button type="button" :class="{ on: railTab === 'ai' }" data-testid="st-rail-ai" @click="railTab = 'ai'">对话</button>
+            <button type="button" :class="{ on: railTab === 'snippets' }" data-testid="st-rail-snippets" @click="railTab = 'snippets'">片段</button>
+            <button type="button" :class="{ on: railTab === 'history' }" data-testid="st-rail-history" @click="railTab = 'history'">历史</button>
+          </div>
+          <div v-if="railTab === 'ai'" class="chat" data-testid="st-rail-body">
+            <div class="chat-context" data-testid="st-chat-context">
+              <b>复用宿主已有设施</b> · 走宿主 AI 网关与已配置模型，不另开账号
+              <br />
+              {{ contextLine }}{{ active ? ` · 会话「${active.title}」` : '' }}
+            </div>
+            <div class="chat-thread" data-testid="st-chat-thread">
+              <div
+                v-for="(m, i) in chatMessages"
+                :key="m.id || i"
+                class="bubble"
+                :class="m.role"
+                :data-testid="m.role === 'user' ? `st-chat-user-${i}` : `st-chat-assistant-${i}`"
+              >
+                <div class="who">{{ m.role === 'user' ? '你' : '助手' }}</div>
+                <div class="fmt">{{ m.content }}</div>
+                <template v-if="m.role === 'assistant' && m.suggestedCommand">
+                  <div class="ai-cmd" data-testid="st-ai-suggestion">{{ m.suggestedCommand }}</div>
+                  <div class="row">
+                    <button class="btn" type="button" data-testid="st-ai-insert" @click="insertCmd(m.suggestedCommand)">插入到终端</button>
+                    <button class="btn primary" type="button" data-testid="st-ai-run" @click="askRun(m.suggestedCommand)">批准后执行</button>
+                  </div>
+                </template>
+              </div>
+              <div v-if="thinking" class="bubble assistant thinking" data-testid="st-chat-thinking">正在调用宿主模型…</div>
+              <div v-if="!chatMessages.length && !thinking" class="muted" style="padding:8px">还没有消息。向助手提问，Enter 发送，Shift+Enter 换行。</div>
+            </div>
+            <div class="chat-composer">
+              <textarea
+                data-testid="st-chat-input"
+                rows="2"
+                placeholder="向助手提问，Enter 发送，Shift+Enter 换行"
+                :disabled="thinking"
+                v-model="chatDraft"
+                @keydown="onChatKey"
+              />
+              <button class="btn primary" type="button" data-testid="st-chat-send" :disabled="thinking" @click="sendChat">发送</button>
+            </div>
+          </div>
+          <div v-else class="list" data-testid="st-rail-body">
+            <template v-if="railTab === 'snippets'">
+              <div v-for="sn in snippets" :key="sn.id" class="item" :data-testid="`st-snippet-${sn.id}`">
+                <div>
+                  <b>{{ sn.name }}</b>
+                  <div class="mono muted">{{ sn.command }}</div>
+                </div>
+                <div class="row">
+                  <button class="btn" type="button" @click="insertCmd(sn.command)">插入到终端</button>
+                  <button class="btn primary" type="button" @click="submitCommand(sn.command, 'snippet')">运行</button>
+                </div>
+              </div>
             </template>
-          </span>
-        </div>
-        <button v-if="activeSession" class="btn ghost tiny" type="button" @click="closeTab(activeSession.sessionId)">关闭</button>
-      </div>
-
-      <div ref="consoleEl" class="console" aria-live="polite" data-testid="console">
-        <div v-if="!activeSession" class="empty" data-testid="empty-state">
-          <p>点「+」新建标签，或通过 URL 深链启动（<code>profile</code> + <code>step</code>/<code>run</code>）。</p>
-          <p class="empty-hint"><strong>推荐密钥登录</strong>（<code>auth=key</code>）。URL 明文密码仅内网过渡；SSH 无密码时会先弹出交互密码框，确认后再建标签。</p>
-        </div>
-        <div v-else-if="!chunks.length" class="empty">等待输出…输入命令后回车执行。</div>
-        <div v-for="c in chunks" :key="c.index" class="line" :class="c.stream">
-          <span class="tag">{{ c.stream }}</span>
-          <span class="txt">{{ c.text }}</span>
-        </div>
-      </div>
-
-      <form class="cmdline" @submit.prevent="runCommand">
-        <input
-          v-model="commandInput"
-          :disabled="!activeSession || !!busy || isDemo"
-          placeholder="输入命令，Enter 执行（密钥/密码会在日志中脱敏）"
-          autocomplete="off"
-          spellcheck="false"
-          data-testid="command-input"
-        />
-        <button class="btn primary" type="submit" :disabled="!activeSession || !commandInput.trim() || !!busy || isDemo">
-          {{ busy === 'run' ? '执行中…' : '运行' }}
-        </button>
-      </form>
-
-      <div class="history" data-testid="command-history">
-        <div class="panel-head"><strong>命令历史</strong></div>
-        <ul>
-          <li v-if="!commands.length" class="empty">暂无历史。</li>
-          <li v-for="c in commands" :key="c.commandId">
-            <code>{{ c.commandRedacted }}</code>
-            <span class="pill">{{ riskLabel(c.risk) }}</span>
-            <span class="muted">{{ c.status }}{{ c.exitCode != null ? ` · exit ${c.exitCode}` : '' }}</span>
-            <button class="btn tiny ghost" type="button" :disabled="isDemo" @click="rerun(c.commandId)">重跑</button>
-          </li>
-        </ul>
+            <template v-else>
+              <input data-testid="st-history-search" v-model="historyQuery" placeholder="搜索历史" />
+              <button
+                v-for="(c, i) in (active?.history ?? []).filter((x) => !historyQuery || x.includes(historyQuery)).slice().reverse()"
+                :key="i + c"
+                class="item"
+                type="button"
+                data-testid="st-history-item"
+                @click="insertCmd(c)"
+              >
+                {{ c }}
+              </button>
+              <div v-if="!(active?.history ?? []).length" class="muted" style="padding:12px">还没有命令历史</div>
+            </template>
+          </div>
+        </aside>
       </div>
     </main>
 
+    <div v-if="showNew || passwordOpen || approval || paletteOpen" class="mask show" @click="approval ? cancelApproval() : passwordOpen ? cancelPassword() : closeModals()" />
 
-    <div v-if="showPasswordAck" class="modal-mask modal-ack" data-testid="password-ack-modal" @click.self="cancelPasswordAck">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="st-pwd-ack-title">
-        <h2 id="st-pwd-ack-title">URL 密码风险确认</h2>
-        <p class="muted">当前策略：<code data-testid="password-ack-mode">{{ passwordAckMode }}</code>。密码深链仅为<strong>内网过渡</strong>，推荐 <code>auth=key</code>。</p>
-        <ul class="ack-list">
-          <li>密码可能进入浏览器历史、同步账号、代理与访问日志</li>
-          <li>转发或截屏链接即可能泄露凭证</li>
-          <li>已从地址栏擦除明文；若继续，密码仅短暂注入进程环境 SSHPASS，不写审计原文</li>
-        </ul>
-        <label class="ack-check" data-testid="password-ack-label">
-          <input v-model="passwordAckChecked" type="checkbox" data-testid="password-ack-checkbox" />
-          我已知晓风险，仍要在本环境使用 URL 密码启动
-        </label>
-        <div class="modal-actions">
-          <button class="btn ghost" type="button" data-testid="password-ack-cancel" @click="cancelPasswordAck">取消</button>
-          <button
-            class="btn primary"
-            type="button"
-            data-testid="password-ack-continue"
-            :disabled="!passwordAckChecked || !!busy"
-            @click="confirmPasswordAck"
-          >
-            继续启动
-          </button>
-        </div>
+    <div v-if="showNew" class="glass-strong modal show" role="dialog">
+      <div class="sec-title">新建会话</div>
+      <div class="types">
+        <button type="button" :class="{ on: newKind === 'local' }" @click="newKind = 'local'">本机壳</button>
+        <button type="button" :class="{ on: newKind === 'ssh' }" @click="newKind = 'ssh'">SSH</button>
       </div>
-    </div>
-
-    <div
-      v-if="!showPasswordAck && showInteractivePassword"
-      class="modal-mask modal-interactive"
-      data-testid="interactive-password-modal"
-      @click.self="cancelInteractivePassword"
-    >
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="st-interactive-pwd-title">
-        <h2 id="st-interactive-pwd-title">输入连接密码</h2>
-        <p class="muted">
-          <code data-testid="interactive-password-target">
-            {{ pendingLaunch?.request?.user || '?' }}@{{ pendingLaunch?.request?.host || '?' }}:{{ pendingLaunch?.request?.port || 22 }}
-          </code>
-          · profile=<code>{{ pendingLaunch?.request?.profile || pendingLaunch?.request?.type || 'ssh' }}</code>
-        </p>
-        <p class="muted">密码仅保存在内存，确认后<strong>再</strong>创建标签并连接；取消不建标签。关标签即焚，不做「记住本会话」。<strong>强烈推荐改用密钥登录</strong>（<code>auth=key</code>）。</p>
-        <div class="key-recommend" data-testid="key-recommend">主推：使用 <code>auth=key</code> 与 <code>identityFile</code>，避免密码进入浏览器。</div>
-        <label class="field-label">
-          密码
-          <div class="pwd-row">
-            <input
-              v-model="interactivePassword"
-              :type="interactivePasswordReveal ? 'text' : 'password'"
-              autocomplete="current-password"
-              data-testid="interactive-password-input"
-              @keydown.enter.prevent="confirmInteractivePassword"
-            />
-            <button
-              class="btn tiny ghost"
-              type="button"
-              data-testid="interactive-password-reveal"
-              @click="interactivePasswordReveal = !interactivePasswordReveal"
-            >
-              {{ interactivePasswordReveal ? '隐藏' : '显示' }}
-            </button>
-          </div>
-        </label>
-        <div class="modal-actions">
-          <button class="btn ghost" type="button" data-testid="interactive-password-cancel" @click="cancelInteractivePassword">取消</button>
-          <button
-            class="btn primary"
-            type="button"
-            data-testid="interactive-password-confirm"
-            :disabled="!interactivePassword || !!busy"
-            @click="confirmInteractivePassword"
-          >
-            连接并启动
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="canShowApprovalOverlay" class="modal-mask modal-approval" data-testid="approval-modal" @click.self="showApproval = false">
-      <div class="modal" role="dialog" aria-modal="true">
-        <h2>需要审批</h2>
-        <p class="muted">{{ activeApproval.reason }}</p>
-        <div class="modal-cmd"><code>{{ activeApproval.commandRedacted }}</code></div>
-        <p>风险：<strong>{{ riskLabel(activeApproval.risk) }}</strong> · 规则：{{ activeApproval.matchedRule }}</p>
-        <div class="modal-actions">
-          <button class="btn ghost" type="button" data-testid="approval-deny" :disabled="!!busy" @click="resolveApproval(false)">拒绝</button>
-          <button class="btn primary" type="button" data-testid="approval-approve" :disabled="!!busy" @click="resolveApproval(true)">批准执行</button>
-        </div>
-      </div>
-    </div>
-
-    <aside v-if="canShowAuditDrawer" class="audit-drawer" data-testid="audit-drawer">
-      <div class="panel-head">
-        <strong>审计日志（JSONL）</strong>
-        <button class="btn tiny ghost" type="button" @click="showAudit = false">关闭</button>
-      </div>
-      <div class="audit-filters">
-        <label>
-          类型
-          <select v-model="auditKindFilter" data-testid="audit-kind-filter">
-            <option value="">全部</option>
-            <option v-for="k in auditKinds" :key="k" :value="k">{{ k }}</option>
+      <template v-if="newKind === 'local'">
+        <div class="field">
+          <label>外壳</label>
+          <select v-model="newShellId">
+            <option v-for="sh in (shells.length ? shells : [{ id: 'bash', displayName: 'bash', available: true }])" :key="sh.id" :value="sh.id" :disabled="!sh.available">
+              {{ sh.displayName }}{{ sh.available ? '' : '（不可用）' }}
+            </option>
           </select>
-        </label>
-        <label>
-          搜索
-          <input v-model="auditQuery" data-testid="audit-query" placeholder="命令 / 决策 / 规则" />
-        </label>
+        </div>
+        <div class="field">
+          <label>起始目录</label>
+          <input v-model="newCwd" />
+        </div>
+      </template>
+      <template v-else>
+        <div class="field">
+          <label>主机</label>
+          <input data-testid="st-ssh-host" v-model="newHost" placeholder="host.example" />
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>端口</label>
+            <input type="number" v-model.number="newPort" />
+          </div>
+          <div class="field">
+            <label>用户</label>
+            <input v-model="newUser" />
+          </div>
+        </div>
+        <div class="field">
+          <label>认证</label>
+          <select v-model="newAuth">
+            <option value="key">私钥（推荐，存宿主凭据库）</option>
+            <option value="interactive">交互式密码</option>
+          </select>
+        </div>
+        <div v-if="newAuth === 'key'" class="field">
+          <label>凭据句柄或本机私钥路径</label>
+          <select v-model="newSecretId">
+            <option value="">选择已导入的宿主凭据…</option>
+            <option v-for="sec in secrets" :key="sec.id" :value="sec.id">{{ sec.label }} · {{ sec.fingerprint }}</option>
+          </select>
+          <input v-model="newIdentityFile" placeholder="或填写本机 identityFile，例如 ~/.ssh/id_ed25519" style="margin-top:6px" />
+          <div class="key-hint">密钥由宿主凭据库保管。不会提供「记住密码」。缺材料时无法创建（credential_required）。</div>
+        </div>
+        <div v-else class="key-hint">交互式密码确认后再创建标签，取消不建标签。不会记住密码。</div>
+      </template>
+      <div class="field">
+        <label>可选标题</label>
+        <input v-model="newTitle" :placeholder="newKind === 'local' ? newShellId : (newUser && newHost ? `${newUser}@${newHost}` : 'user@host')" />
       </div>
-      <ul>
-        <li v-for="a in filteredAudit" :key="a.eventId">
-          <div class="a-top"><span>{{ a.kind }}</span><span class="muted">{{ a.time }}</span></div>
-          <div v-if="a.commandRedacted" class="a-cmd"><code>{{ a.commandRedacted }}</code></div>
-          <div class="muted">{{ a.decision || '' }} {{ a.matchedRule || '' }} {{ a.detail || '' }}</div>
-        </li>
-        <li v-if="!filteredAudit.length" class="empty">暂无审计事件。</li>
-      </ul>
-    </aside>
+      <div v-if="newError" class="err-text">{{ newError }}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn" type="button" @click="showNew = false">取消</button>
+        <button class="btn primary" type="button" data-testid="st-new-session-submit" @click="submitNew">打开</button>
+      </div>
+    </div>
+
+    <div v-if="passwordOpen && passwordCtx" class="glass-strong modal show" role="dialog">
+      <div class="sec-title">输入 SSH 密码</div>
+      <div class="muted mono">{{ passwordCtx.user }}@{{ passwordCtx.host }}:{{ passwordCtx.port }}</div>
+      <div class="key-hint">推荐改用密钥登录，由宿主凭据库保管。不会记住密码，关闭后即焚。</div>
+      <div class="field">
+        <label>密码</label>
+        <input data-testid="st-ssh-password" :type="passwordReveal ? 'text' : 'password'" v-model="passwordValue" autocomplete="off" />
+        <label class="muted"><input type="checkbox" v-model="passwordReveal" /> 显示密码</label>
+      </div>
+      <div v-if="passwordError" class="err-text">{{ passwordError }}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn" type="button" data-testid="st-ssh-cancel" @click="cancelPassword">取消</button>
+        <button class="btn primary" type="button" data-testid="st-ssh-connect" @click="confirmPassword">连接</button>
+      </div>
+    </div>
+
+    <div v-if="approval" class="glass-strong modal show" role="dialog">
+      <div class="sec-title">{{ approvalTitle(approval) }}</div>
+      <pre class="mono" data-testid="st-approval-cmd">{{ approval.command }}</pre>
+      <div class="key-hint">默认权限闸为 AskWrite。取消不执行，草稿可留在提示符。</div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn" type="button" data-testid="st-approval-cancel" @click="cancelApproval">取消</button>
+        <button class="btn primary" type="button" data-testid="st-approval-confirm" @click="confirmApproval">批准并运行</button>
+      </div>
+    </div>
+
+    <div v-if="paletteOpen" class="glass-strong palette show">
+      <input data-testid="st-palette-input" v-model="paletteQuery" placeholder="搜索命令…" @keydown.enter.prevent="runPalette()" @keydown.esc.prevent="paletteOpen = false" />
+      <button v-for="(it, i) in paletteItems" :key="it.id" type="button" class="pal-item" :class="{ on: i === paletteIndex }" @click="runPalette(i)">
+        {{ it.label }}
+      </button>
+    </div>
+
+    <div v-if="toastText" class="glass-strong toast show" :data-testid="toastTestId">{{ toastText }}</div>
   </div>
 </template>
-
-<style scoped>
-.st-root {
-  --bg: var(--el-bg-color, #0f1419);
-  --panel: var(--el-bg-color-overlay, #161b22);
-  --line: var(--el-border-color, #30363d);
-  --text: var(--el-text-color-primary, #e6edf3);
-  --muted: var(--el-text-color-secondary, #8b949e);
-  --accent: var(--el-color-primary, #2f81f7);
-  --ok: #3fb950;
-  --warn: #d29922;
-  --danger: #f85149;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  color: var(--text);
-  box-sizing: border-box;
-  min-height: 0;
-  position: relative;
-}
-.st-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-shrink: 0; }
-.view-title { margin: 0; font-size: 20px; }
-.ver { font-size: 12px; color: var(--muted); font-weight: 500; }
-.sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
-.header-actions { display: flex; gap: 8px; align-items: center; }
-
-.tabbar {
-  display: flex; align-items: stretch; gap: 4px; flex-shrink: 0;
-  border-bottom: 1px solid var(--line); padding-bottom: 0; overflow-x: auto;
-}
-.tab {
-  display: flex; align-items: center; gap: 8px;
-  max-width: 220px; padding: 8px 10px;
-  border: 1px solid var(--line); border-bottom: none;
-  border-radius: 10px 10px 0 0; background: transparent; cursor: pointer;
-  color: var(--muted); font-size: 12px;
-}
-.tab.active { color: var(--text); background: var(--panel); border-color: var(--accent); }
-.tab-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-meta { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-close {
-  border: none; background: transparent; color: var(--muted); cursor: pointer;
-  font-size: 14px; line-height: 1; padding: 0 2px;
-}
-.tab-close:hover { color: var(--danger); }
-.tab-new {
-  border: 1px dashed var(--line); background: transparent; color: var(--text);
-  border-radius: 8px; width: 36px; cursor: pointer; margin-bottom: 4px;
-}
-.tab-rename {
-  width: 120px; background: transparent; color: var(--text);
-  border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; font-size: 12px;
-}
-
-.new-tab-panel {
-  display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line);
-  border-radius: 12px; background: var(--panel); flex-shrink: 0;
-}
-.new-tab-panel label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
-.new-tab-panel input, .new-tab-panel select, .cmdline input, .audit-filters input, .audit-filters select {
-  width: 100%; box-sizing: border-box; background: transparent; color: var(--text);
-  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
-}
-.new-tab-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.mode-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip {
-  border: 1px solid var(--line); background: transparent; color: var(--text);
-  border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 12px;
-}
-.chip.on { border-color: var(--accent); color: var(--accent); }
-
-.panel {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-  padding: 12px; display: flex; flex-direction: column; min-height: 0; flex: 1;
-}
-.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
-.muted { color: var(--muted); font-size: 12px; }
-.console {
-  flex: 1; min-height: 220px; overflow: auto; background: #0b0f14;
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px;
-}
-.line { display: grid; grid-template-columns: 64px 1fr; gap: 8px; margin-bottom: 4px; }
-.line .tag { color: var(--muted); }
-.line.stderr .txt { color: var(--danger); }
-.line.system .txt { color: var(--warn); }
-.cmdline { display: flex; gap: 8px; margin-top: 10px; }
-.history { margin-top: 12px; max-height: 160px; overflow: auto; }
-.history ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.history li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
-.pill { border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
-.btn {
-  border: 1px solid var(--line); background: transparent; color: var(--text);
-  border-radius: 8px; padding: 8px 12px; cursor: pointer;
-}
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.ghost { background: transparent; }
-.btn.tiny { padding: 4px 8px; font-size: 12px; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.badge { border-radius: 999px; padding: 4px 10px; font-size: 12px; border: 1px solid var(--line); }
-.badge-auto { color: var(--ok); border-color: var(--ok); }
-.badge-write { color: var(--accent); border-color: var(--accent); }
-.badge-high { color: var(--warn); border-color: var(--warn); }
-.banner { border-radius: 8px; padding: 8px 10px; font-size: 13px; flex-shrink: 0; }
-.banner.error { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
-.banner.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
-.banner.warn[data-testid="reconnect-banner"] { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
-.banner.info { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-.empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
-.modal-mask {
-  position: absolute; inset: 0; background: rgba(0,0,0,.45);
-  display: grid; place-items: center; z-index: 40;
-}
-/* 浮层顺序：风险 ack → 交互密码 → 审批 → 审计 */
-.modal-ack { z-index: 50; }
-.modal-interactive { z-index: 45; }
-.modal-approval { z-index: 40; }
-.empty-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
-.modal {
-  width: min(520px, 92%); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 14px; padding: 18px;
-}
-.modal-cmd { background: #0b0f14; border-radius: 8px; padding: 10px; margin: 10px 0; word-break: break-all; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
-.ack-list { margin: 10px 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.ack-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 8px; cursor: pointer; }
-.ack-check input { margin-top: 2px; }
-.audit-drawer {
-  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92%);
-  background: var(--panel); border-left: 1px solid var(--line);
-  padding: 14px; overflow: auto; z-index: 30; box-sizing: border-box;
-}
-.audit-filters { display: grid; gap: 8px; margin-bottom: 12px; }
-.audit-filters label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
-.audit-drawer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.a-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-.a-cmd { margin: 4px 0; word-break: break-all; }
-
-.key-recommend {
-  margin: 10px 0; padding: 8px 10px; border-radius: 8px; font-size: 12px;
-  background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok);
-}
-.field-label { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 13px; }
-.pwd-row { display: flex; gap: 8px; align-items: center; }
-.pwd-row input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border, #3a3a3a); background: var(--bg-input, #1a1a1a); color: inherit; }
-</style>

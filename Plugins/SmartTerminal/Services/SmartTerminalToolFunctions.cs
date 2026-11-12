@@ -16,6 +16,9 @@ internal static class ToolJson
 
     public static string Ok(object data) => JsonSerializer.Serialize(new { success = true, data }, Options);
     public static string Fail(string error) => JsonSerializer.Serialize(new { success = false, error }, Options);
+    public static string FailEx(Exception ex) => ex is SmartTerminalException st
+        ? JsonSerializer.Serialize(new { success = false, error = SecretRedactor.Redact(st.Message), code = st.Code }, Options)
+        : Fail(SecretRedactor.Redact(ex.Message));
 }
 
 /// <summary>列出可用外壳（cmd / powershell / pwsh / WT profiles / POSIX）。</summary>
@@ -43,14 +46,22 @@ public sealed class StCreateSessionToolFunction : IToolFunctionExtension
     public string Id => "smart-terminal.create_session";
     public string Name => "st_create_session";
     public string PluginId { get; }
-    public string Description => "创建智能终端会话。可指定 shellId（bash/zsh/sh/pwsh/powershell/cmd/…）、cwd、permissionMode（Auto|AskWrite|AskHighRisk，默认 AskWrite）、title、agentId。Linux 默认按 $SHELL → bash → zsh → sh。";
+    public string Description => "创建智能终端命令会话（本机或 SSH）。不得传入 password；SSH 需交互密码时返回 password_required，选私钥但缺少 secretId/identityFile 时返回 credential_required，由人在 UI 完成。";
     public string ParametersJsonSchema => """
     {
       "type": "object",
       "properties": {
         "title": { "type": "string" },
-        "shellId": { "type": "string", "description": "外壳 Id，如 bash / zsh / sh / pwsh / powershell / cmd" },
-        "cwd": { "type": "string", "description": "工作目录绝对路径" },
+        "profileId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["local", "ssh"] },
+        "shellId": { "type": "string" },
+        "cwd": { "type": "string" },
+        "host": { "type": "string" },
+        "port": { "type": "integer" },
+        "user": { "type": "string" },
+        "auth": { "type": "string", "enum": ["interactive", "key"] },
+        "secretId": { "type": "string" },
+        "identityFile": { "type": "string" },
         "permissionMode": { "type": "string", "enum": ["Auto", "AskWrite", "AskHighRisk"] },
         "agentId": { "type": "string" }
       }
@@ -62,6 +73,7 @@ public sealed class StCreateSessionToolFunction : IToolFunctionExtension
         {
             var req = JsonSerializer.Deserialize<CreateSessionRequest>(string.IsNullOrWhiteSpace(parameters) ? "{}" : parameters, ToolJson.Options)
                       ?? new CreateSessionRequest();
+            req.Password = null; // Agent 不得携带密码
             if (!string.IsNullOrWhiteSpace(parameters))
             {
                 using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(parameters) ? "{}" : parameters);
@@ -72,8 +84,8 @@ public sealed class StCreateSessionToolFunction : IToolFunctionExtension
                 }
             }
             using var scope = _sp.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-            return Task.FromResult(ToolJson.Ok(svc.CreateSession(req)));
+            var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+            return Task.FromResult(ToolJson.Ok(svc.OpenSession(req, "agent", isAgent: true)));
         }
         catch (Exception ex)
         {
@@ -90,8 +102,7 @@ public sealed class StRunCommandToolFunction : IToolFunctionExtension
     public string Name => "st_run_command";
     public string PluginId { get; }
     public string Description =>
-        "在指定智能终端会话中提议/执行命令。经权限分类器闸门：Ask 时返回 awaiting_approval + approvalId（不启进程）；Allow 立即执行；Deny 拒绝。" +
-        "密钥会在审计与回传中脱敏。与 mcp-center.run_terminal_command（白名单一次性命令）互补：本工具面向会话化、可审批、可审计的终端面。";
+        "在指定会话提交命令，对应提示符回车，走同一权限闸。Ask 时返回 awaiting_approval，Agent 不得自批；硬拒绝返回 rejected_hard。命令与回包均脱敏。";
     public string ParametersJsonSchema => """
     {
       "type": "object",
@@ -112,14 +123,14 @@ public sealed class StRunCommandToolFunction : IToolFunctionExtension
             if (string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(command))
                 return Task.FromResult(ToolJson.Fail("sessionId 与 command 必填"));
             using var scope = _sp.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-            var result = svc.ProposeOrRun(sessionId!, command!);
+            var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+            var result = svc.SubmitCommand(sessionId!, new SubmitCommandRequest { Command = command! }, "agent");
             return Task.FromResult(ToolJson.Ok(result));
         }
         catch (Exception ex)
         {
-            XTrace.Log.Warn("[SmartTerminal] st_run_command 失败: {0}", ex.Message);
-            return Task.FromResult(ToolJson.Fail(ex.Message));
+            XTrace.Log.Warn("[SmartTerminal] st_run_command 失败: {0}", SecretRedactor.Redact(ex.Message));
+            return Task.FromResult(ToolJson.FailEx(ex));
         }
     }
 }
@@ -131,13 +142,14 @@ public sealed class StGetOutputToolFunction : IToolFunctionExtension
     public string Id => "smart-terminal.get_output";
     public string Name => "st_get_output";
     public string PluginId { get; }
-    public string Description => "拉取会话增量输出（afterIndex 起）。用于 Agent 轮询命令结果。";
+    public string Description => "拉取会话块，对应 GET /sessions/{id}/blocks?afterSeq=。afterSeq 优先，afterIndex 作为兼容别名。";
     public string ParametersJsonSchema => """
     {
       "type": "object",
       "properties": {
         "sessionId": { "type": "string" },
-        "afterIndex": { "type": "integer", "description": "从此序号起返回，默认 0" }
+        "afterSeq": { "type": "integer", "description": "返回 seq 大于该值的块，默认 0" },
+        "afterIndex": { "type": "integer", "description": "兼容别名，等同 afterSeq" }
       },
       "required": ["sessionId"]
     }
@@ -148,15 +160,17 @@ public sealed class StGetOutputToolFunction : IToolFunctionExtension
         {
             using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(parameters) ? "{}" : parameters);
             var sessionId = doc.RootElement.TryGetProperty("sessionId", out var s) ? s.GetString() : null;
-            var after = doc.RootElement.TryGetProperty("afterIndex", out var a) && a.TryGetInt32(out var n) ? n : 0;
+            var after = 0;
+            if (doc.RootElement.TryGetProperty("afterSeq", out var seq) && seq.TryGetInt32(out var seqN)) after = seqN;
+            else if (doc.RootElement.TryGetProperty("afterIndex", out var a) && a.TryGetInt32(out var n)) after = n;
             if (string.IsNullOrWhiteSpace(sessionId)) return Task.FromResult(ToolJson.Fail("sessionId 必填"));
             using var scope = _sp.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-            return Task.FromResult(ToolJson.Ok(svc.GetOutput(sessionId!, after)));
+            var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+            return Task.FromResult(ToolJson.Ok(svc.ListBlocks(sessionId!, after)));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(ToolJson.Fail(ex.Message));
+            return Task.FromResult(ToolJson.FailEx(ex));
         }
     }
 }
@@ -173,8 +187,8 @@ public sealed class StListSessionsToolFunction : IToolFunctionExtension
     public Task<string> ExecuteAsync(string parameters)
     {
         using var scope = _sp.CreateScope();
-        var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-        return Task.FromResult(ToolJson.Ok(svc.ListSessions()));
+        var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+        return Task.FromResult(ToolJson.Ok(svc.ListOpenSessions()));
     }
 }
 
@@ -246,12 +260,14 @@ public sealed class StQueryAuditToolFunction : IToolFunctionExtension
             var take = doc.RootElement.TryGetProperty("take", out var t) && t.TryGetInt32(out var tn) ? tn : 100;
             var skip = doc.RootElement.TryGetProperty("skip", out var sk) && sk.TryGetInt32(out var sn) ? sn : 0;
             using var scope = _sp.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-            return Task.FromResult(ToolJson.Ok(svc.QueryAudit(Get("sessionId"), Get("kind"), Get("agentId"), take, skip)));
+            var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+            var pageSize = take <= 0 ? 50 : take;
+            var page = skip <= 0 ? 1 : skip / pageSize + 1;
+            return Task.FromResult(ToolJson.Ok(svc.QueryAuditV2(Get("sessionId"), Get("kind"), Get("q"), page, pageSize)));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(ToolJson.Fail(ex.Message));
+            return Task.FromResult(ToolJson.FailEx(ex));
         }
     }
 }
@@ -263,7 +279,7 @@ public sealed class StResolveApprovalToolFunction : IToolFunctionExtension
     public string Id => "smart-terminal.resolve_approval";
     public string Name => "st_resolve_approval";
     public string PluginId { get; }
-    public string Description => "批准或拒绝待审批命令。approve=true 开始执行；false 拒绝。通常由 UI 调用，Agent 仅在用户明确授权时使用。";
+    public string Description => "查询或提示待审批项。Agent 不得自行批准或拒绝，必须由人在 UI 调用 POST /approvals/{id}/resolve。";
     public string ParametersJsonSchema => """
     {
       "type": "object",
@@ -285,12 +301,13 @@ public sealed class StResolveApprovalToolFunction : IToolFunctionExtension
             var note = doc.RootElement.TryGetProperty("note", out var n) ? n.GetString() : null;
             if (string.IsNullOrWhiteSpace(approvalId)) return Task.FromResult(ToolJson.Fail("approvalId 必填"));
             using var scope = _sp.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<ITerminalSessionService>();
-            return Task.FromResult(ToolJson.Ok(svc.ResolveApproval(approvalId!, approve, note)));
+            var svc = scope.ServiceProvider.GetRequiredService<ISmartTerminalV2>();
+            var decision = approve ? "approve" : "reject";
+            return Task.FromResult(ToolJson.Ok(svc.ResolveApprovalV2(approvalId!, decision, "agent", isAgent: true)));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(ToolJson.Fail(ex.Message));
+            return Task.FromResult(ToolJson.FailEx(ex));
         }
     }
 }

@@ -71,6 +71,7 @@ public static class ToolNamespace
             ["system-monitor"] = "sys",
             ["todo-tracker"] = "todo",
             ["workflow-engine"] = "workflow",
+            ["smart-terminal"] = "st",
         };
 
     /// <summary>(pluginId, 旧名, 正式名) 行集。</summary>

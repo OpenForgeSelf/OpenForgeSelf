@@ -211,6 +211,15 @@ public sealed class CreateSessionRequest
     public string? Cwd { get; set; }
     public PermissionMode? PermissionMode { get; set; }
     public string? AgentId { get; set; }
+    public string? ProfileId { get; set; }
+    public string? Kind { get; set; }
+    public string? Host { get; set; }
+    public int? Port { get; set; }
+    public string? User { get; set; }
+    public string? Auth { get; set; }
+    public string? Password { get; set; }
+    public string? SecretId { get; set; }
+    public string? IdentityFile { get; set; }
 }
 
 public sealed class RunCommandRequest

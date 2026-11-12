@@ -19,9 +19,9 @@
     <Using Include="System.Text.Json" />
   </ItemGroup>
 
-  <!-- 无 XCode 实体：会话内存 + JSONL 审计（对齐 ToolBridge 台账决策，便于跨机拷贝/回放） -->
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.17.2026.701" />
+    <PackageReference Include="NewLife.XCode" Version="12.0.2026.701" />
   </ItemGroup>
 
   <ItemGroup>

@@ -44,6 +44,8 @@ public static class XCodeConfig
         // key=连接名（PascalCase，须与各插件 Data 实体的 ConnName 一致），value=插件 Id（kebab，须与 plugin.json 一致）。
         ["AgentHub"] = "agent-hub",
         ["ImGateway"] = "im-gateway",
+        // 智能终端 v2：ConnName SmartTerminal，库落 Plugins/smart-terminal/SmartTerminal.db
+        ["SmartTerminal"] = "smart-terminal",
     };
 
     /// <summary>

@@ -28,11 +28,13 @@ public interface ITerminalSessionService
     IReadOnlyList<AuditEventDto> QueryAudit(string? sessionId, string? kind, string? agentId, int take, int skip);
 }
 
-public sealed class TerminalSessionService : ITerminalSessionService
+public sealed partial class TerminalSessionService : ITerminalSessionService, ISmartTerminalV2
 {
     private readonly IShellProfileDetector _shells;
     private readonly IPermissionClassifier _classifier;
     private readonly IAuditLogStore _audit;
+    private readonly IStCatalog _catalog;
+    private readonly IStHostGateway? _host;
     private readonly ConcurrentDictionary<string, SessionState> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, PendingState> _pending = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _modeLock = new();
@@ -41,11 +43,15 @@ public sealed class TerminalSessionService : ITerminalSessionService
     public TerminalSessionService(
         IShellProfileDetector shells,
         IPermissionClassifier classifier,
-        IAuditLogStore audit)
+        IAuditLogStore audit,
+        IStCatalog? catalog = null,
+        IStHostGateway? host = null)
     {
         _shells = shells;
         _classifier = classifier;
         _audit = audit;
+        _catalog = catalog ?? new StMemoryCatalog();
+        _host = host;
     }
 
     public IReadOnlyList<ShellProfileDto> ListShells() => _shells.ListProfiles();
@@ -370,6 +376,9 @@ public sealed class TerminalSessionService : ITerminalSessionService
         s.UpdatedAt = DateTimeOffset.UtcNow;
         s.SessionEnv.Clear();
         try { s.ActiveProcess?.Kill(entireProcessTree: true); } catch { /* ignore */ }
+        try { s.LiveShell?.Dispose(); } catch { /* ignore */ }
+        s.LiveShell = null;
+        DeleteTempKey(s);
         _audit.Append(new AuditEventDto
         {
             EventId = NewId("evt"),
@@ -986,6 +995,46 @@ public sealed class TerminalSessionService : ITerminalSessionService
         public string? RemoteUser { get; set; }
         /// <summary>注入后续命令进程的会话环境（不含 SSHPASS / 密码）。</summary>
         public Dictionary<string, string> SessionEnv { get; } = new(StringComparer.Ordinal);
+        public string? ProfileId { get; set; }
+        public string Kind { get; set; } = "local";
+        public int? Port { get; set; }
+        public string? Auth { get; set; }
+        public bool PasswordProvided { get; set; }
+        public string Prompt { get; set; } = string.Empty;
+        public string Source { get; set; } = "ui";
+        public List<BlockState> Blocks { get; } = new();
+        public int NextSeq { get; set; } = 1;
+        public SessionShell? LiveShell { get; set; }
+        public object CommandLock { get; } = new();
+        public bool CommandBusy { get; set; }
+        public string? SecretId { get; set; }
+        public string? IdentityFile { get; set; }
+        public string? TempKeyFile { get; set; }
+        public List<ChatMessageDto> Chat { get; } = new();
+    }
+
+    private sealed class BlockState
+    {
+        public string Id { get; init; } = string.Empty;
+        public int Seq { get; init; }
+        public string Kind { get; set; } = "command";
+        public string? Command { get; set; }
+        public string Output { get; set; } = string.Empty;
+        public int? ExitCode { get; set; }
+        public string Status { get; set; } = "done";
+        public DateTimeOffset? StartedAt { get; set; }
+        public DateTimeOffset? EndedAt { get; set; }
+        public string Source { get; set; } = "system";
+        public string? RawCommand { get; set; }
+    }
+
+    private sealed class V2Approval
+    {
+        public ApprovalDto Dto { get; init; } = new();
+        public SessionState Session { get; init; } = new();
+        public BlockState Block { get; init; } = new();
+        public string RawCommand { get; init; } = string.Empty;
+        public DateTimeOffset ExpiresAt { get; init; }
     }
 
     private sealed class CommandState

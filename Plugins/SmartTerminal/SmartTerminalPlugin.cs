@@ -1,5 +1,6 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
+using ForgeSelf.Api.Plugins.SmartTerminal.Data;
 using ForgeSelf.Api.Plugins.SmartTerminal.Services;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -35,7 +36,23 @@ public class SmartTerminalPlugin : IPlugin
         services?.AddSingleton<IShellProfileDetector, ShellProfileDetector>();
         services?.AddSingleton<IPermissionClassifier>(_ => new PermissionClassifier(dataDir));
         services?.AddSingleton<IAuditLogStore>(_ => new AuditLogStore(dataDir));
-        services?.AddSingleton<ITerminalSessionService, TerminalSessionService>();
+        services?.AddSingleton<IStHostGateway, StHostGateway>();
+        IStCatalog catalog;
+        try
+        {
+            catalog = SmartTerminalTables.EnsureCreated()
+                ? new StXCodeCatalog()
+                : new StMemoryCatalog();
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[SmartTerminalPlugin] 插件库初始化失败，回落内存目录: {0}", ex.Message);
+            catalog = new StMemoryCatalog();
+        }
+        services?.AddSingleton<IStCatalog>(catalog);
+        services?.AddSingleton<TerminalSessionService>();
+        services?.AddSingleton<ITerminalSessionService>(sp => sp.GetRequiredService<TerminalSessionService>());
+        services?.AddSingleton<ISmartTerminalV2>(sp => sp.GetRequiredService<TerminalSessionService>());
 
         RegisterMenu(pluginId);
         RegisterTools(pluginId, ctx);

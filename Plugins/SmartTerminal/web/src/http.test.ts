@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from './http'
 
 describe('ApiError', () => {
-  it('carries status and data for needsInteractivePassword', () => {
-    const err = new ApiError(400, '需要交互密码', { needsInteractivePassword: true })
-    expect(err.status).toBe(400)
-    expect((err.data as any).needsInteractivePassword).toBe(true)
+  it('recognizes 409 password_required', () => {
+    const err = new ApiError(409, '需要交互密码', { code: 'password_required', needsInteractivePassword: true }, '/api/smart-terminal/sessions')
+    expect(err.status).toBe(409)
+    expect(err.code).toBe('password_required')
+    expect(err.needsInteractivePassword).toBe(true)
+    expect(err.path).toBe('/api/smart-terminal/sessions')
     expect(err.message).toContain('交互密码')
   })
 })

@@ -8,6 +8,7 @@ import type { LaunchStep, LaunchTerminalRequest, LaunchType } from './types'
 
 const SENSITIVE_KEYS = new Set([
   'password', 'pwd', 'passwd', 'st_password', 'st_pwd', 'pass', 'ssh_password',
+  'sshpass', 'ssh_passwd', 'st_pass', 'passphrase', 'secret', 'token',
 ])
 
 const AUTH_PROFILES = new Set(['ssh', 'wsl-ssh'])
@@ -55,6 +56,11 @@ function parseEnv(params: URLSearchParams): Record<string, string> | undefined {
         const val = part.slice(sep + 1).trim()
         if (key) env[key] = val
       }
+    }
+  }
+  for (const key of Object.keys(env)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase()) || /password|passwd|secret|token|passphrase|sshpass/i.test(key)) {
+      delete env[key]
     }
   }
   return Object.keys(env).length ? env : undefined
@@ -188,19 +194,15 @@ export function parseLaunchQuery(search: string): ParsedLaunch | null {
 
   const portStr = pick(params, 'st_port', 'port')
   const port = portStr ? Number(portStr) : undefined
-  const password = pick(params, 'st_password', 'password', 'pwd', 'passwd', 'pass')
   let auth = pick(params, 'st_auth', 'auth') as LaunchTerminalRequest['auth'] | undefined
 
   const needsAuth = AUTH_PROFILES.has(type) || AUTH_PROFILES.has(profile)
-  if (needsAuth && !auth) {
-    auth = password || passwordInUrl ? 'sshpass' : 'interactive'
+  // 密码不得进入 URL，解析结果永不带 request.password；见到密文字段只提示改走交互输入。
+  if (needsAuth && (!auth || auth === 'sshpass' || auth === 'password' || passwordInUrl)) {
+    if (auth !== 'key') auth = 'interactive'
   }
 
-  const needsInteractivePassword =
-    needsAuth
-    && !passwordInUrl
-    && !password
-    && (auth === 'interactive' || !auth || auth === 'password')
+  const needsInteractivePassword = needsAuth && auth !== 'key'
 
   const request: LaunchTerminalRequest = {
     profile,
@@ -211,7 +213,6 @@ export function parseLaunchQuery(search: string): ParsedLaunch | null {
     host: pick(params, 'st_host', 'host'),
     port: Number.isFinite(port) ? port : undefined,
     user: pick(params, 'st_user', 'user'),
-    password,
     auth,
     identityFile: pick(params, 'st_identityFile', 'identityFile', 'identity', 'key'),
     env,

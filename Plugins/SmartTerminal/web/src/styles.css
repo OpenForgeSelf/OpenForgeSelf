@@ -179,3 +179,12 @@
 .smart-terminal .perm-menu .btn{width:100%;text-align:left}
 .smart-terminal .side .item{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;background:transparent;border:1px solid transparent;padding:8px;border-radius:6px;color:inherit}
 .smart-terminal .chat-composer .btn{flex-shrink:0}
+
+.smart-terminal .empty .err,
+.smart-terminal .err.mono{
+  overflow-x:auto;
+  max-width:100%;
+  white-space:nowrap;
+  overflow-wrap:normal;
+  word-break:normal;
+}

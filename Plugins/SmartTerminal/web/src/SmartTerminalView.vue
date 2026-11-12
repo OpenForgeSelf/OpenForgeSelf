@@ -15,6 +15,7 @@ import {
   FIXTURE_SNIPPETS,
   systemBlock,
 } from './fixtures'
+import { historyLines } from './history'
 import { scrubLaunchParamsFromUrl } from './launchFromQuery'
 import type {
   Approval,
@@ -433,8 +434,7 @@ async function loadLive(fromRetry = false) {
         }
       }
       try {
-        const hist = asList(await api.history(s.id))
-        s.history = hist.map((h) => (typeof h === 'string' ? h : String(h)))
+        s.history = historyLines(await api.history(s.id))
       } catch {
         // optional
       }

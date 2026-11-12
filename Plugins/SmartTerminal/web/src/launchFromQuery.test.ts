@@ -50,11 +50,14 @@ describe('parseLaunchQuery', () => {
     expect(p!.summary).toContain('env=2')
   })
 
-  it('detects password in url', () => {
+  it('detects password in url but never copies it into the request', () => {
     const p = parseLaunchQuery('st=1&profile=ssh&host=h&user=u&password=SECRET')
     expect(p!.passwordInUrl).toBe(true)
+    expect(p!.request.password).toBeUndefined()
+    expect(JSON.stringify(p)).not.toContain('SECRET')
     expect(p!.summary).toContain('***REDACTED***')
-    expect(p!.needsInteractivePassword).toBe(false)
+    expect(p!.needsInteractivePassword).toBe(true)
+    expect(p!.request.auth).toBe('interactive')
   })
 })
 

@@ -150,6 +150,7 @@ public class SmartTerminalController : ControllerBase
     [HttpPost("sessions")]
     public IActionResult OpenSession([FromBody] CreateSessionRequest? request)
     {
+        if (RejectPasswordInQuery() is { } blocked) return blocked;
         try
         {
             var dto = _v2.OpenSession(request ?? new CreateSessionRequest(), Source(), IsAgent());
@@ -182,6 +183,7 @@ public class SmartTerminalController : ControllerBase
     [HttpPost("sessions/{id}/reconnect")]
     public IActionResult Reconnect(string id, [FromBody] ReconnectRequest? request)
     {
+        if (RejectPasswordInQuery() is { } blocked) return blocked;
         try { return Ok(_v2.Reconnect(id, request, Source(), IsAgent())); }
         catch (Exception ex) { return Err(ex); }
     }
@@ -260,14 +262,21 @@ public class SmartTerminalController : ControllerBase
     [HttpPost("launch")]
     public IActionResult Launch([FromBody] LaunchTerminalRequest? request)
     {
-        if (Request.Query.ContainsKey("password") || Request.Query.ContainsKey("Password"))
-            return Err(new SmartTerminalException("invalid_request", "密码不得进入 URL", 400));
+        if (RejectPasswordInQuery() is { } blocked) return blocked;
         try
         {
             var result = _legacy.Launch(request ?? new LaunchTerminalRequest());
             return Ok(result);
         }
         catch (Exception ex) { return Err(ex); }
+    }
+
+    /// <summary>拒绝 URL / query 中的口令键（与 SecretRedactor.IsSensitiveQueryKey 对齐）。</summary>
+    private IActionResult? RejectPasswordInQuery()
+    {
+        if (Request.Query.Keys.Any(SecretRedactor.IsSensitiveQueryKey))
+            return Err(new SmartTerminalException("invalid_request", "密码不得进入 URL", 400));
+        return null;
     }
 
     private string Source() => StCallerIdentity.Resolve(HttpContext);

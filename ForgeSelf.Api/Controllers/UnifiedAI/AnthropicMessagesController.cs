@@ -51,10 +51,11 @@ public class AnthropicMessagesController : ControllerBase
             if (request.MaxTokens <= 0)
                 return BadRequest(new { error = new { type = "invalid_request_error", message = "max_tokens is required and must be > 0" } });
 
-            var provider = _registry.GetProviderByModel(request.Model);
+            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { type = "invalid_request_error", message = $"No provider found for model '{request.Model}'" } });
 
+            request.Model = upstreamModelId;
             var unifiedRequest = ConvertToUnifiedRequest(request);
 
             _logService.Info("Anthropic Message 请求 - 模型: {0}, 提供者: {1}, 消息数: {2}",

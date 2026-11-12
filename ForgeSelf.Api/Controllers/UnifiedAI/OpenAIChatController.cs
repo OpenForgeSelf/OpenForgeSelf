@@ -68,8 +68,8 @@ public class OpenAIChatController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            // 解析提供方前缀和上游模型 ID（格式：provider:model_id）
-            var (provider, upstreamModelId) = ResolveProviderAndModel(request.Model);
+            // 别名 / provider:model / 裸模型名，与 Responses 等入口共用同一解析
+            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
 
@@ -355,39 +355,6 @@ public class OpenAIChatController : ControllerBase
                 }
             }
         };
-    }
-
-    /// <summary>
-    /// 解析模型名中的提供方前缀，返回 (提供方, 上游模型ID)。
-    /// 支持格式 "provider:model_id" 和 "model_id"（无前缀时使用默认提供方）。
-    /// </summary>
-    private (IAIProvider? Provider, string UpstreamModelId) ResolveProviderAndModel(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName))
-            return (null, modelName);
-
-        if (!modelName.Contains(':'))
-        {
-            var alias = AIModel.FindByPublicAlias(modelName);
-            if (alias != null)
-                return alias.Enabled
-                    ? (_registry.GetProviderByName(alias.ProviderName), alias.UpstreamModelId)
-                    : (null, modelName);
-        }
-
-        var idx = modelName.IndexOf(':');
-        if (idx > 0)
-        {
-            var providerName = modelName[..idx];
-            var upstreamModelId = modelName[(idx + 1)..];
-            var provider = _registry.GetProviderByName(providerName);
-            if (provider != null)
-                return (provider, upstreamModelId);
-        }
-
-        // 无前缀或提供方不存在，回退到 GetProviderByModel
-        var fallbackProvider = _registry.GetProviderByModel(modelName);
-        return (fallbackProvider, modelName);
     }
 
     private UnifiedChatRequest ConvertToUnifiedRequest(OpenAIChatCompletionRequest request)

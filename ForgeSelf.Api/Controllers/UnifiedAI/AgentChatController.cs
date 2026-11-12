@@ -63,7 +63,7 @@ public class AgentChatController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            var (provider, upstreamModelId) = ResolveProviderAndModel(request.Model);
+            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
             if (provider == null)
                 return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
 
@@ -257,25 +257,4 @@ public class AgentChatController : ControllerBase
         return url;
     }
 
-    /// <summary>
-    /// 解析模型名中的提供方前缀，返回 (提供方, 上游模型ID)。与 OpenAIChatController 逻辑一致。
-    /// </summary>
-    private (IAIProvider? Provider, string UpstreamModelId) ResolveProviderAndModel(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName))
-            return (null, modelName);
-
-        var idx = modelName.IndexOf(':');
-        if (idx > 0)
-        {
-            var providerName = modelName[..idx];
-            var upstreamModelId = modelName[(idx + 1)..];
-            var provider = _registry.GetProviderByName(providerName);
-            if (provider != null)
-                return (provider, upstreamModelId);
-        }
-
-        var fallbackProvider = _registry.GetProviderByModel(modelName);
-        return (fallbackProvider, modelName);
-    }
 }

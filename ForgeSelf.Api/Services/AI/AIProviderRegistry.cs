@@ -109,6 +109,38 @@ public class AIProviderRegistry : IAIProviderRegistry
         return model == null || model.Enabled;
     }
 
+    /// <summary>
+    /// 把客户端模型名解析成 (提供方, 上游模型 id)。
+    /// Chat / Responses / Agent / Anthropic 必须共用本方法：对外别名要换成 <c>UpstreamModelId</c> 再发给上游。
+    /// 只调用 <see cref="GetProviderByModel"/> 会找到提供方，但调用方若仍把别名原样当模型名，上游会 404。
+    /// </summary>
+    public (IAIProvider? Provider, string UpstreamModelId) ResolveUpstreamModel(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+            return (null, modelName);
+
+        if (!modelName.Contains(':'))
+        {
+            var alias = AIModel.FindByPublicAlias(modelName);
+            if (alias != null)
+                return alias.Enabled
+                    ? (GetProviderByName(alias.ProviderName), alias.UpstreamModelId)
+                    : (null, modelName);
+        }
+
+        var idx = modelName.IndexOf(':');
+        if (idx > 0)
+        {
+            var providerName = modelName[..idx];
+            var upstreamModelId = modelName[(idx + 1)..];
+            var provider = GetProviderByName(providerName);
+            if (provider != null)
+                return (provider, upstreamModelId);
+        }
+
+        return (GetProviderByModel(modelName), modelName);
+    }
+
     public IAIProvider? GetProviderByModel(string modelName)
     {
         if (!String.IsNullOrWhiteSpace(modelName) && !modelName.Contains(':'))

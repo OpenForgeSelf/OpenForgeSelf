@@ -96,7 +96,8 @@ public partial class ChatTurn : IChatTurnModel, IEntity<IChatTurnModel>
     /// <summary>请求头JSON</summary>
     [DisplayName("请求头JSON")]
     [Description("请求头JSON")]
-    [DataObjectField(false, false, true, 1000)]
+    // 长度 -1 = 文本不限长。整包请求头 JSON 经常超过 1000（Cookie/Authorization），SQLite 不强制 VARCHAR 长度。
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("RequestHeaders", "请求头JSON", "")]
     public String RequestHeaders { get => _RequestHeaders; set { if (OnPropertyChanging("RequestHeaders", value)) { _RequestHeaders = value; OnPropertyChanged("RequestHeaders"); } } }
 
@@ -120,7 +121,8 @@ public partial class ChatTurn : IChatTurnModel, IEntity<IChatTurnModel>
     /// <summary>响应头JSON</summary>
     [DisplayName("响应头JSON")]
     [Description("响应头JSON")]
-    [DataObjectField(false, false, true, 1000)]
+    // 与 RequestHeaders 同一类：整包响应头 JSON，不按 1000 截断。
+    [DataObjectField(false, false, true, -1)]
     [BindColumn("ResponseHeaders", "响应头JSON", "")]
     public String ResponseHeaders { get => _ResponseHeaders; set { if (OnPropertyChanging("ResponseHeaders", value)) { _ResponseHeaders = value; OnPropertyChanged("ResponseHeaders"); } } }
 

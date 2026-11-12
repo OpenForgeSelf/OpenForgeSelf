@@ -34,5 +34,7 @@
 | 2026-11-07-json-chinese-raw-encoder | 2026-11-07 | 全仓 JSON 写出默认把中文转义成 \uXXXX（G2 守卫 RED 488 处 → 清扫后 GREEN 归零） | [PC-027](../problem-classes/PC-027-json-nonascii-default-escaping.md) | Verified | [链接](2026-11-07-json-chinese-raw-encoder.md) |
 | 2026-11-09-mcp-sdk-outer-escaping | 2026-11-09 | MCP 网关 JSON-RPC/SSE 外层（第三方 SDK 传输层）中文仍转义 \uFF08；调研实证 SDK 无配置缝，记录不修呈选项 | [PC-027](../problem-classes/PC-027-json-nonascii-default-escaping.md) | Verified | [链接](2026-11-09-mcp-sdk-outer-escaping.md) |
 | 2026-11-04-raw-createscope-on-ctx-sweep | 2026-11-04 | 插件侧 ctx 本体裸 CreateScope（IServiceScopeFactory 解析失败）全仓清扫 20 处一次改完（plan_workflow 实证） | [PC-005](../problem-classes/PC-005-plugin-eager-provider-resolve.md) |
+| 2026-11-12-responses-alias-forwarded-404 | 2026-11-12 | Responses 把别名 default 原样发给 GPUStack，上游 404；Chat 能换成 qwen3_8_vision | [PC-028](../problem-classes/PC-028-gateway-alias-not-substituted.md) | Verified | [链接](2026-11-12-responses-alias-forwarded-404.md) |
+| 2026-11-12-chatturn-requestheaders-length | 2026-11-12 | 写入 ChatTurn 失败：RequestHeaders 长度限制 1000 字符 | [PC-029](../problem-classes/PC-029-chatturn-header-json-length.md) | Verified | [链接](2026-11-12-chatturn-requestheaders-length.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

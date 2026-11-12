@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能终端 · 交互原型 v0.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* 铸己匣 · 智能终端插件确认原型 v0.2｜自包含，tokens 取自 DESIGN.md（暗色默认）
+   仅用于需求确认；不是旧版智能终端，生产实现将为 Vue 3 + 原生 HTML + token */
+:root{
+  --gold-300:#F9BC4E;--gold-400:#F59E0B;--gold-500:#D97706;
+  --cinnabar-400:#C0392B;--bronze-500:#5A7A5A;
+  --ink-950:#0B0908;--ink-900:#14110F;--ink-850:#1B1815;--ink-700:#322D28;
+  --fg-primary:#F4F0E7;--fg-secondary:#B5AB9F;--fg-tertiary:#8F8478;--fg-muted:#6B6058;
+  --ok:#6B8E4E;--ok-fg:#A8C08A;--warn:#E0A030;--warn-fg:#F5C572;--danger:#C0392B;--danger-fg:#E86A5B;--info:#4A7A9B;--info-fg:#7FA8C8;
+  --hair:rgba(245,240,231,.06);--subtle:rgba(245,240,231,.10);--border:rgba(245,240,231,.16);
+  --font-display:"Noto Serif SC","LXGW WenKai","Songti SC",ui-serif,serif;
+  --font-serif:"LXGW WenKai","Noto Serif SC","Songti SC",serif;
+  --font-sans:"Inter","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --dur-fast:160ms;--dur-base:220ms;--ease-out:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:14px/1.55 var(--font-sans);color:var(--fg-primary);background:var(--ink-950);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;cursor:pointer;color:inherit}
+input,select,textarea{font:inherit;color:var(--fg-primary);background:color-mix(in srgb,var(--ink-950) 60%,transparent);border:1px solid var(--subtle);border-radius:6px;padding:6px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--gold-400) 60%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold-400) 14%,transparent)}
+.mono{font-family:var(--font-mono)}
+.serif{font-family:var(--font-serif)}
+.muted{color:var(--fg-tertiary)}
+.topbar{height:48px;flex-shrink:0;display:flex;align-items:center;gap:20px;padding:0 16px;background:rgba(11,9,8,.35);backdrop-filter:blur(24px) saturate(140%);border-bottom:1px solid var(--hair);z-index:5}
+.brand{font:700 15px var(--font-display);letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.seal{width:22px;height:22px;border-radius:2px;background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:var(--ink-950);display:grid;place-items:center;font-size:12px;box-shadow:0 0 40px -8px rgba(245,158,11,.35)}
+.tab{font-size:13px;color:var(--fg-secondary);padding:13px 4px;border-bottom:2px solid transparent}
+.tab.on{color:var(--gold-300);border-color:var(--gold-400)}
+.statusbar{height:22px;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 12px;font:10px var(--font-mono);letter-spacing:.04em;color:var(--fg-tertiary);background:rgba(11,9,8,.4);border-top:1px solid var(--hair)}
+.statusbar .g{color:var(--gold-400)}
+main{flex:1;overflow:hidden;padding:20px 28px 16px;display:flex;flex-direction:column;min-height:0;background:radial-gradient(1200px 600px at 80% -10%,color-mix(in srgb,var(--gold-500) 8%,transparent),transparent)}
+.glass{background:rgba(20,17,15,.32);backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(245,240,231,.08);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04)}
+.glass-strong{background:rgba(20,17,15,.92);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--subtle);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.65)}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;flex-shrink:0;gap:16px}
+.eyebrow{font:500 10px var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold-400)}
+.h1{font:700 26px/1.15 var(--font-display);letter-spacing:.05em;margin-top:4px}
+.ver{font:10px var(--font-mono);color:var(--fg-tertiary);margin-left:8px;letter-spacing:.04em}
+.proto-note{font:12px/1.5 var(--font-serif);color:var(--fg-tertiary);margin:-2px 0 12px}
+.btn{border:1px solid var(--subtle);background:transparent;border-radius:4px;padding:5px 12px;font-size:12px;transition:transform var(--dur-fast) var(--ease-out),opacity var(--dur-fast)}
+.btn:hover{transform:translateY(-1px);border-color:var(--border)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:color-mix(in srgb,var(--gold-400) 14%,transparent);border-color:color-mix(in srgb,var(--gold-400) 48%,transparent);color:var(--gold-300)}
+.btn.danger{color:var(--danger-fg);border-color:color-mix(in srgb,var(--cinnabar-400) 48%,transparent)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.tag{display:inline-flex;align-items:center;gap:4px;font:500 10px var(--font-mono);letter-spacing:.04em;padding:1px 6px;border-radius:999px;border:1px solid var(--subtle);color:var(--fg-secondary);white-space:nowrap}
+.tag.gold{color:var(--gold-300);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.tag.ok{color:var(--ok-fg);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.tag.bad{color:var(--danger-fg);border-color:color-mix(in srgb,var(--danger) 50%,transparent)}
+.tag.warn{color:var(--warn-fg);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.dot{width:6px;height:6px;border-radius:999px;display:inline-block;background:var(--fg-muted);flex-shrink:0}
+.dot.on{background:var(--gold-400);animation:pulse 2s infinite}.dot.green{background:var(--ok)}.dot.red{background:var(--danger)}.dot.warn{background:var(--warn)}
+@keyframes pulse{50%{opacity:.35}}
+.body{flex:1;display:grid;grid-template-columns:260px minmax(0,1fr);gap:12px;min-height:0}
+.body.with-rail{grid-template-columns:260px minmax(0,1fr) 320px}
+.side,.rail,.workspace{display:flex;flex-direction:column;min-width:0;min-height:0}
+.side,.rail{padding:12px}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.types button{font-size:12px;border:1px solid var(--hair);background:transparent;border-radius:6px;padding:3px 8px;color:var(--fg-secondary)}
+.types button.on{color:var(--gold-300);background:color-mix(in srgb,var(--gold-400) 10%,transparent);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:0}
+.item{text-align:left;border:1px solid var(--hair);background:transparent;border-radius:8px;padding:9px 10px;min-width:0;transition:background var(--dur-fast)}
+.item:hover{background:color-mix(in srgb,var(--fg-primary) 4%,transparent)}
+.item.on{background:color-mix(in srgb,var(--gold-400) 10%,transparent);border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.item .t{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.item .m{font:10px var(--font-mono);color:var(--fg-tertiary);margin-top:3px;display:flex;gap:8px;overflow:hidden;white-space:nowrap}
+.workspace{padding:0;overflow:hidden}
+.tabbar{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--hair);padding:0 8px;flex-shrink:0;min-height:36px;overflow-x:auto}
+.stab{display:flex;align-items:center;gap:6px;padding:0 10px;height:36px;border:none;background:none;color:var(--fg-secondary);font-size:12px;border-bottom:2px solid transparent;max-width:180px;flex-shrink:0}
+.stab span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stab.on{color:var(--gold-300);border-color:var(--gold-400)}
+.stab .x{border:none;background:none;color:var(--fg-muted);padding:0 2px;border-radius:4px;font-size:14px;line-height:1}
+.stab .x:hover{color:var(--danger-fg)}
+.panes{flex:1;display:grid;min-height:0;overflow:hidden}
+.pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.pane-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font:10px var(--font-mono);color:var(--fg-tertiary);border-bottom:1px solid var(--hair);letter-spacing:.04em;flex-shrink:0}
+.term{flex:1;overflow:auto;padding:10px 12px 14px;font:12px/1.6 var(--font-mono);background:rgba(0,0,0,.28);min-height:0;cursor:text}
+.block{margin:0 0 10px;padding:8px 9px;border:1px solid var(--hair);border-radius:6px;background:rgba(0,0,0,.18);cursor:pointer}
+.block:hover,.block.sel{border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
+.block.sel{background:color-mix(in srgb,var(--gold-400) 8%,transparent)}
+.block .meta{display:flex;justify-content:space-between;gap:8px;color:var(--fg-tertiary);font-size:10px;margin-bottom:4px}
+.block .cmd{color:var(--gold-300)}
+.block pre{white-space:pre-wrap;word-break:break-word;color:var(--fg-secondary);font:inherit}
+.block.fail{border-color:color-mix(in srgb,var(--danger) 35%,transparent)}
+.block .exit.bad{color:var(--danger-fg)}
+.block .exit.ok{color:var(--ok-fg)}
+.prompt-line{display:flex;align-items:flex-start;gap:8px;margin-top:2px;font:12px/1.6 var(--font-mono)}
+.prompt-ps1{color:var(--gold-300);flex-shrink:0;white-space:nowrap;user-select:none}
+.prompt-input{flex:1;min-width:8ch;background:transparent;border:none;border-radius:0;padding:0;font:inherit;color:var(--fg-primary);box-shadow:none;caret-color:var(--gold-400);outline:none}
+.prompt-input:focus{border:none;box-shadow:none;outline:none}
+.prompt-input:disabled{color:var(--fg-muted);cursor:not-allowed;caret-color:transparent}
+.prompt-input::placeholder{color:var(--fg-muted);font-family:var(--font-sans);font-size:12px}
+.suggest{display:none;margin:6px 0 0 0;padding:6px;max-width:640px}
+.suggest.show{display:block}
+.suggest button{display:block;width:100%;text-align:left;border:none;background:transparent;border-radius:4px;padding:6px 8px;font:12px var(--font-mono);color:var(--fg-secondary)}
+.suggest button.on,.suggest button:hover{background:color-mix(in srgb,var(--gold-400) 10%,transparent);color:var(--gold-300)}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 16px;color:var(--fg-tertiary);text-align:center;flex:1}
+.empty .q{font:15px var(--font-serif);color:var(--fg-secondary)}
+.err{color:var(--danger-fg);font-size:12px}
+.rail-tabs{display:flex;gap:14px;border-bottom:1px solid var(--hair);margin-bottom:10px;flex-shrink:0}
+.rail-tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:6px 0;font-size:12px;color:var(--fg-secondary)}
+.rail-tabs button.on{color:var(--gold-300);border-color:var(--gold-400)}
+.snip{width:100%;text-align:left;border:1px solid var(--hair);background:transparent;border-radius:6px;padding:8px 9px;margin-bottom:6px}
+.snip:hover{border-color:var(--border)}
+.snip .n{font-size:13px}
+.snip .c{font:11px var(--font-mono);color:var(--fg-tertiary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat{display:flex;flex-direction:column;flex:1;min-height:0}
+.chat-context{font:10px/1.55 var(--font-mono);color:var(--fg-tertiary);padding:0 0 8px;border-bottom:1px solid var(--hair);margin-bottom:8px;flex-shrink:0}
+.chat-context b{color:var(--gold-300);font-weight:500}
+.chat-thread{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0;padding-bottom:4px}
+.bubble{max-width:100%;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
+.bubble.user{align-self:flex-end;background:color-mix(in srgb,var(--gold-400) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold-400) 28%,transparent)}
+.bubble.assistant{align-self:flex-start;background:rgba(0,0,0,.28);border:1px solid var(--hair)}
+.bubble .who{font:10px var(--font-mono);letter-spacing:.08em;margin-bottom:4px}
+.bubble.user .who{color:var(--gold-300)}
+.bubble.assistant .who{color:var(--fg-tertiary)}
+.bubble code,.fmt code{font:11px var(--font-mono);color:var(--gold-300)}
+.bubble.thinking{color:var(--fg-tertiary);font-style:italic}
+.ai-cmd{font:11px/1.55 var(--font-mono);background:rgba(0,0,0,.3);border-radius:6px;padding:8px 10px;color:var(--fg-secondary);margin:8px 0 6px;white-space:pre-wrap}
+.chat-composer{display:flex;gap:8px;align-items:flex-end;padding-top:8px;border-top:1px solid var(--hair);flex-shrink:0}
+.chat-composer textarea{flex:1;resize:none;min-height:44px;max-height:120px;font-size:13px;line-height:1.45;border-radius:6px}
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+.mask.show{display:block}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;max-width:92vw;max-height:86vh;overflow:auto;padding:20px 22px;z-index:21;display:none}
+.modal.wide{width:640px}
+.modal.show{display:block}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:12px;color:var(--fg-secondary)}
+.field .d{font-size:11px;color:var(--fg-tertiary)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);padding:8px 14px;font-size:13px;z-index:40;display:none}
+.toast.show{display:block}
+.anno{position:fixed;left:12px;bottom:30px;z-index:30;width:280px;padding:10px 12px;font-size:12px}
+.anno b{color:var(--gold-300)}
+.anno select{width:100%;margin-top:6px;font-size:12px}
+.palette{position:fixed;left:50%;top:18%;transform:translateX(-50%);width:560px;max-width:92vw;z-index:22;display:none;padding:10px}
+.palette.show{display:block}
+.palette input{width:100%;margin-bottom:8px}
+.pal-item{display:block;width:100%;text-align:left;border:none;background:transparent;border-radius:6px;padding:8px 10px;font-size:13px}
+.pal-item:hover,.pal-item.on{background:color-mix(in srgb,var(--gold-400) 10%,transparent)}
+.pal-item .k{font:10px var(--font-mono);color:var(--fg-tertiary);float:right;margin-top:2px}
+.banner{margin:0 10px 0;padding:7px 10px;border-radius:6px;font-size:12px;display:none;align-items:center;justify-content:space-between;gap:8px;border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn-fg)}
+.banner.show{display:flex}
+.banner.bad{border-color:color-mix(in srgb,var(--danger) 40%,transparent);background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger-fg)}
+.sec-title{font:600 12px var(--font-display);letter-spacing:.04em;color:var(--fg-secondary);margin:4px 0 8px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--ink-700);border-radius:4px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="seal">匠</span>铸己匣</div>
+  <span class="tab">首页</span><span class="tab">AI 助手</span><span class="tab on">智能终端</span><span class="tab">数据库</span><span class="tab">实验研究室</span>
+</header>
+
+<main data-testid="st-page">
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">TERMINAL · 会话与命令</div>
+      <div class="h1">智能终端<span class="ver">v0.2</span></div>
+    </div>
+    <div class="row">
+      <span class="tag gold" title="默认权限闸">AskWrite</span>
+      <button class="btn" data-testid="st-command-palette-btn" onclick="openPalette()">命令面板</button>
+      <button class="btn" data-testid="st-toggle-rail" onclick="toggleRail()">助手</button>
+      <button class="btn primary" data-testid="st-new-session" onclick="openNewSession()">新建会话</button>
+    </div>
+  </div>
+  <p class="proto-note">确认原型 v0.2。命令在终端提示符里输入，回车即执行；右侧是复用宿主模型的助手对话。首版是可审批、可审计的命令会话，不以完整 TUI / 真实 PTY 为验收标准，也不做分屏与 SFTP。</p>
+
+  <div class="body" id="layout">
+    <aside class="glass side">
+      <input id="profileSearch" data-testid="st-profile-search" placeholder="搜索配置、主机或标签" oninput="renderProfiles()">
+      <div class="types" id="filters"></div>
+      <div class="list" id="profileList" data-testid="st-profile-list"></div>
+    </aside>
+    <section class="glass workspace" id="workspace" data-testid="st-workspace"></section>
+    <aside class="glass rail" id="rail" data-testid="st-side-panel" hidden></aside>
+  </div>
+</main>
+
+<footer class="statusbar">
+  <span class="g">● 匠人 Lv.1</span>
+  <span>智能终端 · 会话 <span id="sbSessions">0</span></span>
+  <span id="sbPerm">权限 AskWrite</span>
+  <span>REST+WS :7788</span>
+  <span style="margin-left:auto" id="clock"></span>
+</footer>
+
+<div class="mask" id="mask" onclick="closeAll()"></div>
+<div class="glass-strong modal" id="modal"></div>
+<div class="glass-strong palette" id="palette"></div>
+<div class="glass-strong toast" id="toast"></div>
+
+<div class="glass-strong anno">
+  <b>原型演示开关</b>（不属于产品界面）
+  <select id="demoState" data-testid="st-demo-state" onchange="setDemo(this.value)">
+    <option value="normal">正常数据</option>
+    <option value="loading">加载态</option>
+    <option value="empty">空态（还没有会话）</option>
+    <option value="error">错误态（加载失败）</option>
+    <option value="disconnected">SSH 已断开</option>
+    <option value="401">未登录 / 会话过期（401）</option>
+    <option value="tabs">多标签 / 长标题压力</option>
+  </select>
+  <button class="btn" data-testid="st-simulate-refresh" style="margin-top:8px;width:100%" onclick="simulateRefresh()">模拟刷新（不恢复密码）</button>
+  <div class="muted" style="margin-top:8px;font-size:11px">终端里回车执行命令，上/下键翻历史。助手对话框里 Enter 发送，Shift+Enter 换行。写操作与高风险命令仍会弹出确认。</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+function nowClock(){const d=new Date();return d.toTimeString().slice(0,8)}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)}
+function closeAll(){["#mask","#modal","#palette"].forEach(s=>$(s).classList.remove("show"))}
+function showModal(h,wide){const m=$("#modal");m.innerHTML=h;m.classList.toggle("wide",!!wide);$("#mask").classList.add("show");m.classList.add("show")}
+function overlayOpen(){return $("#modal").classList.contains("show")||$("#palette").classList.contains("show")}
+function fmtText(s){return escapeHtml(s).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\n/g,"<br>")}
+
+const WRITE_RE=/^\s*(rm\s|sudo\s|systemctl\s|nginx\s+-s|apt\s|yum\s|dnf\s|docker\s+(rm|stop|kill)|kubectl\s+delete|chmod\s|chown\s)/i;
+const HIGH_RE=/^\s*(rm\s+-rf|mkfs|dd\s+if=|reboot|shutdown|kill\s+-9|drop\s+database|mkfs\.)/i;
+const SHELLS=["bash","zsh","sh","pwsh","powershell","cmd"];
+
+const PROFILES=[
+  {id:"p-local-bash",kind:"local",name:"本机开发",detail:"bash · ~/work/forgeself",shell:"bash",cwd:"~/work/forgeself"},
+  {id:"p-local-pwsh",kind:"local",name:"本机 PowerShell",detail:"pwsh · C:\\\\src",shell:"pwsh",cwd:"C:\\\\src"},
+  {id:"p-ssh-api",kind:"ssh",name:"prod-api-01",detail:"deploy@10.2.8.21:22 · 密钥",host:"10.2.8.21",user:"deploy",port:22,auth:"key"},
+  {id:"p-ssh-db",kind:"ssh",name:"staging-db",detail:"ops@db.staging.internal:22 · 交互密码",host:"db.staging.internal",user:"ops",port:22,auth:"interactive"},
+  {id:"p-ssh-jump",kind:"ssh",name:"jump-office",detail:"bastion@jump.office.local:22 · 密钥",host:"jump.office.local",user:"bastion",port:22,auth:"key"},
+  {id:"p-ssh-long",kind:"ssh",name:"prod-api-01 · /var/log/nginx 这是一个用来检查长标题会不会撑破侧栏与标签的会话名称",detail:"deploy@10.2.8.21:22 · 密钥",host:"10.2.8.21",user:"deploy",port:22,auth:"key"}
+];
+
+const SNIPPETS=[
+  {id:"s1",name:"查看磁盘",cmd:"df -h"},
+  {id:"s2",name:"容器列表",cmd:"docker ps --format 'table {{.Names}}\\t{{.Status}}'"},
+  {id:"s3",name:"最近错误日志",cmd:"journalctl -u nginx -n 50 --no-pager"},
+  {id:"s4",name:"重载 Nginx",cmd:"sudo nginx -s reload"},
+  {id:"s5",name:"Git 状态",cmd:"git status -sb"}
+];
+
+const HISTORY_SEED=["git status -sb","npm test","df -h","docker ps","ls -la","journalctl -u nginx -n 50 --no-pager"];
+
+function block(cmd,out,exit,at){return {id:"b-"+Math.random().toString(36).slice(2,8),cmd,out,exit,at:at||"18:02:11"}}
+
+function ps1(s){
+  if(!s) return "$";
+  if(s.kind==="ssh") return (s.user||"user")+"@"+(s.host||"host")+":"+(s.cwd||"~")+"$";
+  const who=s.shell==="pwsh"||s.shell==="powershell"||s.shell==="cmd"?"dev":"dev";
+  return who+"@localhost:"+(s.cwd||"~")+"$";
+}
+
+function welcomeChat(s){
+  const last=s.blocks&&s.blocks.length?s.blocks[s.blocks.length-1]:null;
+  let ctx="还没有命令输出，可以先在终端里跑一条，或直接在这里提问。";
+  if(last && last.cmd!=="connected" && last.cmd!=="reconnect"){
+    ctx="最近一条命令是 `"+last.cmd+"`"+(last.exit?"（exit "+last.exit+"）":"（成功）")+"。";
+  }
+  return [{role:"assistant",text:"我是智能终端助手，复用宿主已有的 AI 网关与模型配置，不会另开账号。当前会话是「"+(s.title||"未命名")+"」。"+ctx+"直接在下方输入提示词并发送即可。若要把建议落到终端，可用「插入到终端」（只写入提示符，不自动执行）或「批准后执行」。"}];
+}
+
+function seedSessions(){
+  const t1={id:"t1",title:"本机开发",profileId:"p-local-bash",kind:"local",shell:"bash",cwd:"~/work/forgeself",status:"connected",
+    blocks:[
+      block("git status -sb","## feat/lab-eval\n M Plugins/SmartTerminal/README.md\n?? docs/00-目录.md",0,"17:58:02"),
+      block("npm test","FAIL  src/parser.spec.ts\n  ● parseEnv masks secret-shaped values\n    Expected: '****'\n    Received: 'token=ghp_example'\n\nTests: 1 failed, 41 passed",1,"18:01:44")
+    ],
+    history:["git status -sb","npm test"],draft:"",histIndex:-1};
+  t1.chat=welcomeChat(t1);
+  const t2={id:"t2",title:"prod-api-01",profileId:"p-ssh-api",kind:"ssh",shell:"bash",cwd:"/var/www/api",status:"connected",host:"10.2.8.21",user:"deploy",
+    blocks:[block("uptime"," 18:04:01 up 42 days,  4:11,  1 user,  load average: 0.21, 0.18, 0.15",0,"18:04:01"),
+            block("df -h","Filesystem      Size  Used Avail Use%\n/dev/sda1        40G   28G   10G  74%\n/dev/sdb1       200G  141G   49G  75%",0,"18:04:09")],
+    history:["uptime","df -h"],draft:"",histIndex:-1};
+  t2.chat=welcomeChat(t2);
+  const t3={id:"t3",title:"staging-db",profileId:"p-ssh-db",kind:"ssh",shell:"bash",cwd:"~",status:"disconnected",host:"db.staging.internal",user:"ops",
+    blocks:[block("ss -lnt","State  Recv-Q Send-Q Local Address:Port\nLISTEN 0      128          0.0.0.0:5432",0,"16:20:11")],
+    history:["ss -lnt"],draft:"",histIndex:-1};
+  t3.chat=welcomeChat(t3);
+  return [t1,t2,t3];
+}
+
+let demoState="normal";
+let filter="all";
+let sessions=seedSessions();
+let activeId="t1";
+let railTab="ai";
+let railOpen=true;
+let pendingCmd=null;
+let selectedBlock=null;
+let lastFocus="term";
+let chatDraft="";
+let chatStick=true;
+let chatScroll=0;
+let termStick=true;
+let wantPromptFocus=true;
+
+function activeSession(){return sessions.find(s=>s.id===activeId)}
+function focusSession(){return activeSession()}
+
+function setDemo(v){
+  demoState=v;
+  if(v==="tabs"){
+    demoState="normal";
+    $("#demoState").value="tabs";
+    if(!sessions.some(s=>s.id==="t-long")){
+      for(let i=4;i<=9;i++){
+        const s={id:"t-x"+i,title:"会话 "+i+" · 构建日志回放",profileId:"p-local-bash",kind:"local",shell:"bash",cwd:"~/work",status:"connected",blocks:[block("echo ok","ok",0)],history:["echo ok"],draft:"",histIndex:-1};
+        s.chat=welcomeChat(s);
+        sessions.push(s);
+      }
+      const longS={id:"t-long",title:"prod-api-01 · /var/log/nginx 这是一个用来检查长标题会不会撑破标签栏的会话名称",profileId:"p-ssh-long",kind:"ssh",shell:"bash",cwd:"/var/log/nginx",status:"connected",host:"10.2.8.21",user:"deploy",blocks:[block("tail -n 3 access.log","10.0.0.8 - - \"GET /health\" 200\n10.0.1.2 - - \"POST /login\" 401\n10.0.1.2 - - \"POST /login\" 200",0)],history:["tail -n 3 access.log"],draft:"",histIndex:-1};
+      longS.chat=welcomeChat(longS);
+      sessions.push(longS);
+    }
+  } else if(v==="disconnected"){
+    const s=sessions.find(x=>x.kind==="ssh")||sessions[0];
+    s.status="disconnected";
+    activeId=s.id;
+    demoState="normal";
+  } else if(v==="empty"){
+    /* handled in render */
+  } else if(v==="normal"){
+    if(sessions.length>3 && sessions.some(s=>String(s.id).startsWith("t-x")||s.id==="t-long")){
+      sessions=seedSessions();
+      activeId="t1";
+    }
+    const s=sessions.find(x=>x.id==="t3");
+    if(s) s.status="disconnected";
+  }
+  render();
+  if(v==="normal"||v==="tabs"||v==="disconnected") wantPromptFocus=true;
+}
+
+function captureDrafts(){
+  const cmd=$("#cmdInput");
+  const s=focusSession();
+  if(cmd && s) s.draft=cmd.value;
+  const chat=$("#chatInput");
+  if(chat) chatDraft=chat.value;
+  const thread=$("#chatThread");
+  if(thread){ if(!chatStick) chatScroll=thread.scrollTop; }
+  const term=$("#term-main");
+  if(term && !termStick) term._savedScroll=term.scrollTop;
+}
+
+function restoreAfterRender(){
+  const term=$("#term-main");
+  if(term){ term.scrollTop=termStick||term._savedScroll==null?term.scrollHeight:(term._savedScroll||0); }
+  const thread=$("#chatThread");
+  if(thread){ thread.scrollTop=chatStick?thread.scrollHeight:chatScroll; }
+  if(overlayOpen()) return;
+  if(lastFocus==="chat"){
+    const c=$("#chatInput");
+    if(c){c.value=chatDraft;c.focus();c.setSelectionRange(c.value.length,c.value.length)}
+    return;
+  }
+  if(wantPromptFocus || lastFocus==="term"){
+    const p=$("#cmdInput");
+    if(p && !p.disabled){
+      p.focus();
+      const n=p.value.length;
+      try{p.setSelectionRange(n,n)}catch(e){}
+    }
+  }
+}
+
+function render(){
+  captureDrafts();
+  $("#sbSessions").textContent=sessions.filter(s=>s.status!=="closed").length;
+  $("#clock").textContent=nowClock();
+  const layout=$("#layout");
+  const showRail=railOpen && !["loading","empty","error","401"].includes(demoState);
+  layout.classList.toggle("with-rail",showRail);
+  $("#rail").hidden=!showRail;
+  renderFilters();
+  renderProfiles();
+  renderWorkspace();
+  if(showRail) renderRail();
+  restoreAfterRender();
+  termStick=true;
+  chatStick=false;
+  wantPromptFocus=false;
+}
+
+function renderFilters(){
+  const items=[["all","全部"],["local","本机"],["ssh","SSH"]];
+  $("#filters").innerHTML=items.map(([k,n])=>`<button class="${filter===k?"on":""}" data-testid="st-filter-${k}" onclick="filter='${k}';render()">${n}</button>`).join("");
+}
+
+function renderProfiles(){
+  const q=($("#profileSearch").value||"").trim();
+  const arr=PROFILES.filter(p=>(filter==="all"||p.kind===filter)&&(!q||p.name.includes(q)||p.detail.includes(q)));
+  if(!arr.length){$("#profileList").innerHTML=`<div class="empty"><div class="q">没有匹配的配置</div></div>`;return}
+  $("#profileList").innerHTML=arr.map(p=>{
+    const open=sessions.find(s=>s.profileId===p.id && s.status!=="closed");
+    const st=open?open.status:"idle";
+    const dot=st==="connected"?"green":st==="disconnected"?"red":"";
+    const tag=p.kind==="ssh"?"SSH":"本机";
+    return `<button class="item ${open&&open.id===activeId?"on":""}" data-testid="st-profile-item-${p.id}" onclick="openProfile('${p.id}')">
+      <div class="t"><i class="dot ${dot}"></i><span title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span></div>
+      <div class="m"><span class="tag">${tag}</span><span>${escapeHtml(p.detail)}</span></div>
+    </button>`}).join("");
+}
+
+function openProfile(id){
+  const existing=sessions.find(s=>s.profileId===id && s.status!=="closed");
+  if(existing){activeId=existing.id;wantPromptFocus=true;lastFocus="term";render();return}
+  const p=PROFILES.find(x=>x.id===id);
+  if(!p) return;
+  if(p.kind==="ssh" && p.auth==="interactive"){openPassword(p);return}
+  createFromProfile(p);
+}
+
+function createFromProfile(p,viaPassword){
+  const id="t-"+Math.random().toString(36).slice(2,7);
+  const sess={id,title:p.name,profileId:p.id,kind:p.kind,shell:p.shell||"bash",cwd:p.cwd||"~",status:"connected",host:p.host,user:p.user,
+    blocks:[block("connected",p.kind==="ssh"?`已连接到 ${p.user}@${p.host}:${p.port||22}（${p.auth==="key"||!viaPassword?"密钥由宿主凭据库提供":"交互密码仅留在内存，插件不落盘"}）`:`已打开本机 ${p.shell} · ${p.cwd||""}`,0,nowClock())],
+    history:[],draft:"",histIndex:-1};
+  sess.chat=welcomeChat(sess);
+  sessions.push(sess);
+  activeId=id;
+  closeAll();
+  toast(p.kind==="ssh"?"会话已连接":"已打开本机会话");
+  wantPromptFocus=true;
+  lastFocus="term";
+  render();
+}
+
+function renderWorkspace(){
+  const c=$("#workspace");
+  if(demoState==="loading"){c.innerHTML=`<div class="empty" data-testid="st-state-loading"><i class="dot on"></i><div class="q">正在取回会话与配置…</div></div>`;return}
+  if(demoState==="error"){c.innerHTML=`<div class="empty" data-testid="st-state-error"><div class="q">会话列表加载失败</div><div class="err mono">GET /api/plugins/smart-terminal/sessions → 503 服务暂不可用</div><button class="btn" onclick="demoState='normal';$('#demoState').value='normal';render()">重试</button></div>`;return}
+  if(demoState==="401"){c.innerHTML=`<div class="empty" data-testid="st-state-401"><div class="q">登录已过期，暂时无法打开终端会话</div><div class="err mono">GET /api/plugins/smart-terminal/sessions → 401 Unauthorized</div><button class="btn primary" data-testid="st-relogin" onclick="toast('跳转宿主登录（原型）')">重新登录</button></div>`;return}
+  if(demoState==="empty"||!sessions.length){c.innerHTML=`<div class="empty" data-testid="st-state-empty"><div class="q">炉火已起，还没有打开任何会话</div><div class="muted">从左侧选择本机壳或 SSH 配置，也可以新建一个会话。</div><button class="btn primary" onclick="openNewSession()">新建会话</button></div>`;return}
+  const tabs=sessions.filter(s=>s.status!=="closed");
+  const main=tabs.find(s=>s.id===activeId)||tabs[0];
+  if(main) activeId=main.id;
+  c.innerHTML=`
+    <div class="tabbar" data-testid="st-tab-bar">${tabs.map(s=>`
+      <button class="stab ${s.id===activeId?"on":""}" data-testid="st-tab-${s.id}" title="${escapeHtml(s.title)}" onclick="activeId='${s.id}';wantPromptFocus=true;lastFocus='term';render()">
+        <i class="dot ${s.status==="connected"?"green":"red"}"></i><span>${escapeHtml(s.title)}</span>
+        <span class="x" data-testid="st-tab-close-${s.id}" onclick="event.stopPropagation();closeTab('${s.id}')" title="关闭">×</span>
+      </button>`).join("")}
+      <button class="stab" data-testid="st-tab-new" onclick="openNewSession()" title="新建会话">+</button>
+    </div>
+    <div class="banner ${main.status!=="connected"?"show bad":""}" data-testid="st-disconnected-banner" id="discBanner">
+      <span>会话已断开，输出仍保留。重新连接不会恢复密码。</span>
+      <button class="btn" data-testid="st-reconnect" onclick="reconnect('${main.id}')">重新连接</button>
+    </div>
+    <div class="panes" data-testid="st-panes">${renderPane(main,"main")}</div>`;
+}
+
+function renderPane(s,role){
+  const disabled=s.status!=="connected";
+  return `<div class="pane" data-testid="st-pane-${role}">
+    <div class="pane-head"><span>${escapeHtml(s.kind==="ssh"?(s.user+"@"+s.host):s.shell+" · "+s.cwd)}</span><span>${s.status==="connected"?"已连接":"已断开"}</span></div>
+    <div class="term" id="term-${role}" data-testid="st-term-surface-${role}" onclick="onTermClick(event)">
+      ${s.blocks.map(b=>renderBlock(b,s.id)).join("")}
+      <div class="prompt-line" data-testid="st-prompt-line" onclick="event.stopPropagation();focusPrompt()">
+        <span class="prompt-ps1" data-testid="st-prompt-ps1">${escapeHtml(ps1(s))}</span>
+        <input class="prompt-input" id="cmdInput" data-testid="st-command-input" spellcheck="false" autocomplete="off"
+          ${disabled?"disabled":""}
+          value="${escapeHtml(s.draft||"")}"
+          placeholder="${disabled?"会话未连接，请先重新连接":""}"
+          oninput="onType()" onkeydown="onPromptKey(event)" onfocus="lastFocus='term'">
+      </div>
+      <div class="suggest glass-strong" id="suggest"></div>
+    </div>
+  </div>`;
+}
+
+function renderBlock(b,sid){
+  const fail=b.exit!==0;
+  const sys=b.cmd==="connected"||b.cmd==="reconnect";
+  return `<div class="block ${fail?"fail":""} ${selectedBlock===b.id?"sel":""}" data-testid="st-block-${b.id}" onclick="event.stopPropagation();selectBlock('${b.id}')">
+    <div class="meta"><span class="cmd">${sys?escapeHtml(b.cmd):"$ "+escapeHtml(b.cmd)}</span><span class="exit ${fail?"bad":"ok"}">${sys?b.at:(fail?"exit "+b.exit:"exit 0")+" · "+b.at}</span></div>
+    <pre>${escapeHtml(b.out)}</pre>
+  </div>`;
+}
+
+function onTermClick(e){
+  if(e.target.closest(".block")) return;
+  focusPrompt();
+}
+function focusPrompt(){
+  lastFocus="term";
+  const p=$("#cmdInput");
+  if(p && !p.disabled) p.focus();
+}
+
+function selectBlock(id){
+  selectedBlock=id;
+  railOpen=true;
+  termStick=false;
+  render();
+}
+
+function contextBlock(s){
+  if(!s) return null;
+  return s.blocks.find(b=>b.id===selectedBlock)||[...s.blocks].reverse().find(b=>b.cmd!=="connected"&&b.cmd!=="reconnect")||null;
+}
+
+function renderRail(){
+  const s=focusSession();
+  $("#rail").innerHTML=`
+    <div class="rail-tabs">
+      <button class="${railTab==="ai"?"on":""}" data-testid="st-rail-ai" onclick="railTab='ai';lastFocus='chat';render()">对话</button>
+      <button class="${railTab==="snip"?"on":""}" data-testid="st-rail-snippets" onclick="railTab='snip';render()">片段</button>
+      <button class="${railTab==="hist"?"on":""}" data-testid="st-rail-history" onclick="railTab='hist';render()">历史</button>
+    </div>
+    ${railTab==="ai"?renderChat(s):`<div class="list" data-testid="st-rail-body">${railTab==="snip"?renderSnips():renderHist(s)}</div>`}`;
+}
+
+function renderChat(s){
+  const ctx=contextBlock(s);
+  const msgs=(s&&s.chat)||[];
+  const thinking=s&&s._thinking;
+  const ctxLine=ctx?`上下文：\`${ctx.cmd}\`${ctx.exit?" · exit "+ctx.exit:""}`:"上下文：当前会话（尚未点选命令块）";
+  return `<div class="chat" data-testid="st-rail-body">
+    <div class="chat-context" data-testid="st-chat-context"><b>复用宿主已有设施</b> · 走宿主 AI 网关与已配置模型，不另开账号<br>${fmtText(ctxLine)}${s?" · 会话「"+escapeHtml(s.title)+"」":""}</div>
+    <div class="chat-thread" id="chatThread" data-testid="st-chat-thread">${msgs.map((m,i)=>renderBubble(m,i)).join("")}${thinking?`<div class="bubble assistant thinking" data-testid="st-chat-thinking">正在调用宿主模型…</div>`:""}</div>
+    <div class="chat-composer">
+      <textarea id="chatInput" data-testid="st-chat-input" rows="2" placeholder="向助手提问，Enter 发送，Shift+Enter 换行"
+        ${thinking?"disabled":""}
+        onfocus="lastFocus='chat'" oninput="chatDraft=this.value;this.style.height='44px';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+        onkeydown="onChatKey(event)">${escapeHtml(chatDraft)}</textarea>
+      <button class="btn primary" data-testid="st-chat-send" ${thinking?"disabled":""} onclick="sendChat()">发送</button>
+    </div>
+  </div>`;
+}
+
+function renderBubble(m,i){
+  if(m.role==="user"){
+    return `<div class="bubble user" data-testid="st-chat-user-${i}"><div class="who">你</div><div class="fmt">${fmtText(m.text)}</div></div>`;
+  }
+  const actions=m.cmd?`<div class="ai-cmd" data-testid="st-ai-suggestion">${escapeHtml(m.cmd)}</div>
+    <div class="row">
+      <button class="btn" data-testid="st-ai-insert" onclick="insertCmd(${JSON.stringify(m.cmd)})">插入到终端</button>
+      <button class="btn primary" data-testid="st-ai-run" onclick="askRun(${JSON.stringify(m.cmd)})">批准后执行</button>
+    </div>`:"";
+  return `<div class="bubble assistant" data-testid="st-chat-assistant-${i}"><div class="who">助手</div><div class="fmt">${fmtText(m.text)}</div>${actions}</div>`;
+}
+
+function onChatKey(e){
+  if(e.key==="Enter" && !e.shiftKey){e.preventDefault();sendChat();return}
+}
+
+function composeReply(prompt,s){
+  const ctx=contextBlock(s);
+  const q=prompt.trim();
+  if(/解释|失败|报错|为什么|怎么回事|error|fail/i.test(q) && ctx){
+    const failed=ctx.exit!==0;
+    const cmd=failed?`rg -n "token=" src tests || true`:"sed -n '1,20p' "+(ctx.cmd.split(/\s+/).pop()||"README.md");
+    const text=failed
+      ?`上一条 \`${ctx.cmd}\` 失败了（exit ${ctx.exit}）。从输出看，断言期望密钥被脱敏为 \`****\`，实际仍露出了 \`token=\` 形态。建议先在源码里定位未脱敏字段，再重跑测试。我把一条只读检查放在下面，可以插入到终端，或批准后执行。`
+      :`\`${ctx.cmd}\` 已成功（exit 0）。若要继续排查，我建议先看相关文件的前几行。这条不会自动执行。`;
+    return {role:"assistant",text,cmd};
+  }
+  if(/建议|下一步|检查|磁盘|空间|下一[条条]/i.test(q)){
+    return {role:"assistant",text:`根据当前会话「${s.title}」${ctx?`和命令 \`${ctx.cmd}\``:""}，可以先做一条只读检查。建议先插入到提示符里确认，再回车执行。`,cmd:"df -h"};
+  }
+  if(/重载|reload|nginx/i.test(q)){
+    return {role:"assistant",text:"重载 Nginx 属于写操作。我不会自动执行；若要跑，请走「批准后执行」，会先弹出 AskWrite 确认。",cmd:"sudo nginx -s reload"};
+  }
+  if(/删除|清掉|rm -rf|危险/i.test(q)){
+    return {role:"assistant",text:"这类命令会被视为高风险。即使你要求执行，也必须经过 AskHighRisk 确认，我不会直接代为运行。若只是演示路径，可以用下面这条（确认框仍会弹出）。",cmd:"rm -rf /tmp/st-demo-orphan"};
+  }
+  if(/你好|帮我|你是谁|怎么用/i.test(q)){
+    return {role:"assistant",text:"我复用宿主已有的 AI 网关和模型，不是一套新的账号。你可以问我解释输出、建议下一条命令。左侧终端里输入命令并回车就会执行；我给出的命令默认只插入到提示符，需要你自己回车，或点「批准后执行」。"};
+  }
+  const cmd=ctx&&ctx.exit!==0?`rg -n "token=" src tests || true`:"ls -la";
+  return {role:"assistant",text:`已参考当前会话「${s.title}」${ctx?`和最近命令 \`${ctx.cmd}\``:""}。下面是一条可落地的建议，不会自动执行：插入到终端后由你回车，或走批准后执行。`,cmd};
+}
+
+function sendChat(explicit){
+  const el=$("#chatInput");
+  const text=(explicit!=null?explicit:(el?el.value:"")).trim();
+  if(!text) return;
+  const s=focusSession();
+  if(!s){toast("还没有打开的会话");return}
+  if(!s.chat) s.chat=welcomeChat(s);
+  s.chat.push({role:"user",text});
+  chatDraft="";
+  s._thinking=true;
+  lastFocus="chat";
+  chatStick=true;
+  render();
+  const sid=s.id;
+  setTimeout(()=>{
+    const cur=sessions.find(x=>x.id===sid);
+    if(!cur) return;
+    cur.chat.push(composeReply(text,cur));
+    cur._thinking=false;
+    lastFocus="chat";
+    chatStick=true;
+    render();
+  },420);
+}
+
+function renderSnips(){
+  return SNIPPETS.map(s=>`<div class="snip" data-testid="st-snippet-${s.id}">
+    <div class="n">${escapeHtml(s.name)}</div>
+    <div class="c">${escapeHtml(s.cmd)}</div>
+    <div class="row" style="margin-top:6px">
+      <button class="btn" onclick="insertCmd(${JSON.stringify(s.cmd)})">插入到终端</button>
+      <button class="btn primary" onclick="askRun(${JSON.stringify(s.cmd)})">运行</button>
+    </div>
+  </div>`).join("");
+}
+
+function renderHist(s){
+  const items=[...new Set((s?.history||[]).concat(HISTORY_SEED))].reverse();
+  if(!items.length) return `<div class="empty"><div class="q">还没有命令历史</div></div>`;
+  return `<input id="histQ" data-testid="st-history-search" placeholder="搜索历史" oninput="filterHist()" style="margin-bottom:8px">
+    <div id="histList">${items.map(cmd=>histRow(cmd)).join("")}</div>`;
+}
+function histRow(cmd){return `<button class="snip" data-testid="st-history-item" onclick="insertCmd(${JSON.stringify(cmd)})"><div class="c">${escapeHtml(cmd)}</div></button>`}
+function filterHist(){
+  const q=($("#histQ").value||"").trim();
+  const s=focusSession();
+  const items=[...new Set((s?.history||[]).concat(HISTORY_SEED))].reverse().filter(c=>!q||c.includes(q));
+  $("#histList").innerHTML=items.map(cmd=>histRow(cmd)).join("")||`<div class="muted">没有匹配的历史</div>`;
+}
+
+function insertCmd(cmd){
+  const s=focusSession();
+  if(!s||s.status!=="connected"){toast("当前会话未连接");return}
+  s.draft=cmd;
+  s.histIndex=-1;
+  railOpen=true;
+  lastFocus="term";
+  wantPromptFocus=true;
+  termStick=true;
+  render();
+  toast("已插入到终端提示符，不会自动执行");
+}
+
+function askRun(cmd){
+  const s=focusSession();
+  if(!s||s.status!=="connected"){toast("当前会话未连接");return}
+  s.draft=cmd;
+  if(HIGH_RE.test(cmd)||WRITE_RE.test(cmd)){openApproval(cmd);return}
+  submitCmd(cmd);
+}
+
+function suggestPool(s){
+  return [...new Set([...(s?.history||[]),...HISTORY_SEED,...SNIPPETS.map(x=>x.cmd)])];
+}
+function currentHits(){
+  const el=$("#cmdInput");
+  const s=focusSession();
+  const q=(el?el.value:"").trim();
+  if(!q) return [];
+  return suggestPool(s).filter(c=>c.includes(q)&&c!==q).slice(0,6);
+}
+function onType(){
+  const el=$("#cmdInput");
+  const box=$("#suggest");
+  const s=focusSession();
+  if(el&&s) s.draft=el.value;
+  if(!box) return;
+  const hits=currentHits();
+  box.innerHTML=hits.map((c,i)=>`<button class="${i===0?"on":""}" data-testid="st-suggest-${i}" onclick="event.preventDefault();fillPrompt(${JSON.stringify(c)})">${escapeHtml(c)}</button>`).join("");
+  box.classList.toggle("show",!!hits.length);
+}
+function fillPrompt(cmd){
+  const s=focusSession();
+  if(!s) return;
+  s.draft=cmd;
+  const el=$("#cmdInput");
+  if(el){el.value=cmd;el.focus()}
+  const box=$("#suggest"); if(box) box.classList.remove("show");
+}
+
+function onPromptKey(e){
+  const el=$("#cmdInput");
+  const s=focusSession();
+  if(!s||!el) return;
+  if(e.key==="Enter"){e.preventDefault();submitCmd();return}
+  if(e.key==="Tab"){
+    const hits=currentHits();
+    if(hits.length){e.preventDefault();fillPrompt(hits[0]);return}
+  }
+  if(e.key==="ArrowUp"){
+    const h=s.history||[];
+    if(!h.length) return;
+    e.preventDefault();
+    if(s.histIndex==null||s.histIndex<0){s._stash=el.value;s.histIndex=h.length}
+    s.histIndex=Math.max(0,s.histIndex-1);
+    el.value=h[s.histIndex];
+    s.draft=el.value;
+    const box=$("#suggest"); if(box) box.classList.remove("show");
+  }
+  if(e.key==="ArrowDown"){
+    if(s.histIndex==null||s.histIndex<0) return;
+    e.preventDefault();
+    const h=s.history||[];
+    s.histIndex++;
+    if(s.histIndex>=h.length){s.histIndex=-1;el.value=s._stash||""}
+    else el.value=h[s.histIndex];
+    s.draft=el.value;
+  }
+  if(e.key==="c" && (e.ctrlKey||e.metaKey)){
+    /* 原型不模拟中断正在运行的进程 */
+  }
+}
+
+function submitCmd(explicit){
+  const s=focusSession();
+  if(!s||s.status!=="connected"){toast("会话未连接");return}
+  const el=$("#cmdInput");
+  const cmd=(explicit!=null?explicit:(el?el.value:"")).trim();
+  if(!cmd) return;
+  if((HIGH_RE.test(cmd)||WRITE_RE.test(cmd)) && pendingCmd!==cmd){openApproval(cmd);return}
+  pendingCmd=null;
+  s.draft="";
+  s.histIndex=-1;
+  s._stash="";
+  if(el) el.value="";
+  const sug=$("#suggest"); if(sug) sug.classList.remove("show");
+  const result=simulate(cmd,s);
+  if(cmd==="clear"){s.blocks=[];s.history.push(cmd)}
+  else {
+    s.blocks.push(block(cmd,result.out,result.exit,nowClock()));
+    s.history.push(cmd);
+  }
+  lastFocus="term";
+  wantPromptFocus=true;
+  termStick=true;
+  render();
+}
+
+function simulate(cmd,s){
+  if(cmd==="clear") return {out:"",exit:0};
+  if(cmd==="pwd") return {out:s.cwd||"~",exit:0};
+  if(/^ls/.test(cmd)) return {out:"README.md\ndocs\nsrc\npackage.json",exit:0};
+  if(/^git status/.test(cmd)) return {out:"## feat/terminal-v2\n?? smart-terminal-v2/",exit:0};
+  if(/^df/.test(cmd)) return {out:"Filesystem      Size  Used Avail Use%\n/dev/sda1        40G   28G   10G  74%",exit:0};
+  if(/^docker ps/.test(cmd)) return {out:"NAMES          STATUS\napi-1          Up 2 days\nnginx          Up 2 days",exit:0};
+  if(/^npm test/.test(cmd)) return {out:"FAIL  src/parser.spec.ts\n  ● parseEnv masks secret-shaped values\n    Expected: '****'\n    Received: 'token=ghp_example'",exit:1};
+  if(/nginx -s reload/.test(cmd)) return {out:"nginx: reloaded",exit:0};
+  if(/^journalctl/.test(cmd)) return {out:"Nov 11 18:01 nginx: reload succeeded\nNov 11 18:03 nginx: worker process started",exit:0};
+  if(/^echo /.test(cmd)) return {out:cmd.slice(5).replace(/^["']|["']$/g,""),exit:0};
+  if(/^rg /.test(cmd)) return {out:"src/mask.ts:41:  return '****'",exit:0};
+  if(/^rm\s+-rf/.test(cmd)) return {out:"(原型模拟) 已删除演示目录，未触及真实文件系统",exit:0};
+  if(/^uptime/.test(cmd)) return {out:" 18:20:01 up 42 days,  4:27,  1 user,  load average: 0.11, 0.14, 0.15",exit:0};
+  return {out:`(原型模拟) 已记录命令：${cmd}\n当前目录 ${s.cwd||"~"}`,exit:0};
+}
+
+function openApproval(cmd){
+  pendingCmd=cmd;
+  const high=HIGH_RE.test(cmd);
+  showModal(`
+    <div class="eyebrow">${high?"ASKHIGHRISK · 高风险确认":"ASKWRITE · 写操作确认"}</div>
+    <div class="h1" style="font-size:20px;margin:6px 0 12px">${high?"这条命令会被视为高风险操作":"这条命令会被视为写操作"}</div>
+    <div class="muted" style="margin-bottom:10px">默认权限闸为 AskWrite：日常只读命令在提示符里回车即执行；写操作或高风险命令会先弹出确认，批准后再跑。取消则不会执行。</div>
+    <div class="ai-cmd" data-testid="st-approval-cmd">${escapeHtml(cmd)}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" data-testid="st-approval-cancel" onclick="pendingCmd=null;closeAll();wantPromptFocus=true;lastFocus='term'">取消</button>
+      <button class="btn primary" data-testid="st-approval-confirm" onclick="closeAll();submitCmd(${JSON.stringify(cmd)})">批准并运行</button>
+    </div>`);
+}
+
+let pendingProfile=null, pendingReconnectId=null;
+function openPassword(p, reconnectId){
+  pendingProfile=p;
+  pendingReconnectId=reconnectId||null;
+  const verb=reconnectId?"重新连接":"创建会话";
+  showModal(`
+    <div class="eyebrow">SSH · 交互式密码</div>
+    <div class="h1" style="font-size:20px;margin:6px 0 12px">先确认口令，再${verb}</div>
+    <div class="muted" style="margin-bottom:12px">将连接到 <span class="mono">${escapeHtml(p.user+"@"+p.host+":"+(p.port||22))}</span>。推荐改用密钥，并由宿主凭据库保管。密码只留在内存，关闭本窗即焚，插件不会写入历史、审计或本地存储。取消则不会创建标签。</div>
+    <div class="field"><label>密码</label><input type="password" id="sshPass" data-testid="st-ssh-password" autocomplete="off" placeholder="不会被预填"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" data-testid="st-ssh-cancel" onclick="pendingProfile=null;pendingReconnectId=null;closeAll()">取消</button>
+      <button class="btn primary" data-testid="st-ssh-connect" onclick="confirmPassword()">连接</button>
+    </div>`);
+  setTimeout(()=>{const i=$("#sshPass"); if(i) i.focus()},50);
+}
+
+function confirmPassword(){
+  const val=($("#sshPass")||{}).value||"";
+  if(!val){toast("请输入密码后再连接");return}
+  const p=pendingProfile;
+  const rid=pendingReconnectId;
+  pendingProfile=null; pendingReconnectId=null;
+  if(!p) return;
+  closeAll();
+  if(rid){
+    const s=sessions.find(x=>x.id===rid);
+    if(s){
+      s.status="connected";
+      s.blocks.push(block("reconnect","已重新连接（口令仅在内存，不会被保存）",0,nowClock()));
+      toast("已重新连接");
+      wantPromptFocus=true;
+      lastFocus="term";
+      render();
+      return;
+    }
+  }
+  createFromProfile(p,true);
+}
+
+function openNewSession(){
+  showModal(`
+    <div class="eyebrow">NEW SESSION</div>
+    <div class="h1" style="font-size:20px;margin:6px 0 14px">新建会话</div>
+    <div class="types" id="nsKind">
+      <button class="on" data-k="local" onclick="nsSwitch('local')">本机壳</button>
+      <button data-k="ssh" onclick="nsSwitch('ssh')">SSH</button>
+    </div>
+    <div id="nsBody"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn" onclick="closeAll()">取消</button>
+      <button class="btn primary" data-testid="st-new-session-submit" onclick="submitNewSession()">打开</button>
+    </div>`,true);
+  window._nsKind="local";
+  nsSwitch("local");
+}
+
+function nsSwitch(k){
+  window._nsKind=k;
+  document.querySelectorAll("#nsKind button").forEach(b=>b.classList.toggle("on",b.getAttribute("data-k")===k));
+  if(k==="local"){
+    $("#nsBody").innerHTML=`<div class="grid2">
+      <div class="field"><label>外壳</label><select id="nsShell">${SHELLS.map(s=>`<option>${s}</option>`).join("")}</select></div>
+      <div class="field"><label>起始目录</label><input id="nsCwd" value="~/work/forgeself"></div>
+    </div>
+    <div class="field"><label>标签标题（可选）</label><input id="nsTitle" placeholder="默认用外壳名"></div>`;
+  } else {
+    $("#nsBody").innerHTML=`<div class="grid2">
+      <div class="field"><label>主机</label><input id="nsHost" data-testid="st-ssh-host" placeholder="10.2.8.21"></div>
+      <div class="field"><label>端口</label><input id="nsPort" value="22"></div>
+      <div class="field"><label>用户</label><input id="nsUser" placeholder="deploy"></div>
+      <div class="field"><label>认证</label><select id="nsAuth"><option value="key">私钥（推荐，存宿主凭据库）</option><option value="interactive">交互式密码</option></select></div>
+    </div>
+    <div class="field"><label>标签标题（可选）</label><input id="nsTitle" placeholder="默认用 user@host"></div>
+    <div class="d muted">密钥由宿主凭据库保管。不会提供「记住密码」。若选交互式密码，确认后再创建标签；取消不会建标签。</div>`;
+  }
+}
+
+function submitNewSession(){
+  const kind=window._nsKind||"local";
+  if(kind==="local"){
+    const shell=$("#nsShell").value;
+    const cwd=$("#nsCwd").value||"~";
+    const name=$("#nsTitle").value||("本机 "+shell);
+    createFromProfile({id:"adhoc-"+Date.now(),kind:"local",name,shell,cwd,detail:shell+" · "+cwd});
+    return;
+  }
+  const host=($("#nsHost").value||"").trim();
+  const user=($("#nsUser").value||"").trim();
+  const port=parseInt($("#nsPort").value||"22",10);
+  const auth=$("#nsAuth").value;
+  if(!host||!user){toast("请填写主机和用户");return}
+  const name=$("#nsTitle").value||(user+"@"+host);
+  const p={id:"adhoc-"+Date.now(),kind:"ssh",name,host,user,port,auth,shell:"bash",cwd:"~",detail:user+"@"+host+":"+port};
+  if(auth==="interactive"){closeAll();openPassword(p);return}
+  createFromProfile(p);
+}
+
+function closeTab(id){
+  sessions=sessions.filter(s=>s.id!==id);
+  if(activeId===id) activeId=sessions[0]?sessions[0].id:null;
+  render();
+}
+
+function reconnect(id){
+  const s=sessions.find(x=>x.id===id);
+  if(!s) return;
+  const p=PROFILES.find(x=>x.id===s.profileId);
+  if((p && p.auth==="interactive") || (!p && s.kind==="ssh" && !s._key)){
+    openPassword(p||{id:s.profileId||s.id,user:s.user,host:s.host,port:22,auth:"interactive",name:s.title,kind:"ssh"}, s.id);
+    return;
+  }
+  s.status="connected";
+  s.blocks.push(block("reconnect","已重新连接（未恢复任何密码）",0,nowClock()));
+  toast("已重新连接");
+  wantPromptFocus=true;
+  lastFocus="term";
+  render();
+}
+
+function toggleRail(){
+  railOpen=!railOpen;
+  if(railOpen){railTab="ai"}
+  render();
+}
+
+function simulateRefresh(){
+  closeAll();
+  const keep=sessions.filter(s=>s.status!=="closed").map(s=>({...s,draft:"",status:s.status}));
+  demoState="loading";
+  $("#demoState").value="loading";
+  render();
+  setTimeout(()=>{
+    sessions=keep;
+    if(!sessions.some(s=>s.id===activeId) && sessions[0]) activeId=sessions[0].id;
+    demoState="normal";
+    $("#demoState").value="normal";
+    wantPromptFocus=true;
+    lastFocus="term";
+    toast("已恢复标签与近期输出，未恢复任何密码或密钥");
+    render();
+  },650);
+}
+
+const PAL_ACTIONS=[
+  {n:"新建本机会话",k:"Ctrl+N",fn:()=>openNewSession()},
+  {n:"新建 SSH 会话",k:"",fn:()=>{openNewSession();setTimeout(()=>nsSwitch("ssh"),0)}},
+  {n:"打开助手对话",k:"",fn:()=>{railOpen=true;railTab="ai";lastFocus="chat";render()}},
+  {n:"打开命令历史",k:"",fn:()=>{railOpen=true;railTab="hist";render()}},
+  {n:"打开片段",k:"",fn:()=>{railOpen=true;railTab="snip";render()}},
+  ...PROFILES.map(p=>({n:"打开配置："+p.name,k:"",fn:()=>openProfile(p.id)}))
+];
+
+function openPalette(){
+  $("#mask").classList.add("show");
+  const box=$("#palette");
+  box.classList.add("show");
+  box.innerHTML=`<input id="palQ" data-testid="st-palette-input" placeholder="搜索操作、配置或会话" oninput="renderPal()" onkeydown="palKey(event)">
+    <div id="palList"></div>`;
+  renderPal();
+  setTimeout(()=>{$("#palQ")&&$("#palQ").focus()},30);
+}
+let palIdx=0;
+function palItems(){
+  const q=($("#palQ")&&$("#palQ").value||"").trim();
+  return PAL_ACTIONS.concat(sessions.filter(s=>s.status!=="closed").map(s=>({n:"切换到："+s.title,k:"",fn:()=>{activeId=s.id;wantPromptFocus=true;lastFocus="term";render()}})))
+    .filter(a=>!q||a.n.toLowerCase().includes(q.toLowerCase()));
+}
+function renderPal(){
+  const items=palItems();
+  palIdx=Math.max(0,Math.min(palIdx,items.length-1));
+  $("#palList").innerHTML=items.map((a,i)=>`<button class="pal-item ${i===palIdx?"on":""}" onclick="runPal(${i})"><span class="k">${escapeHtml(a.k||"")}</span>${escapeHtml(a.n)}</button>`).join("")||`<div class="muted" style="padding:8px">没有匹配项</div>`;
+}
+function palKey(e){
+  const items=palItems();
+  if(e.key==="ArrowDown"){e.preventDefault();palIdx=Math.min(items.length-1,palIdx+1);renderPal()}
+  if(e.key==="ArrowUp"){e.preventDefault();palIdx=Math.max(0,palIdx-1);renderPal()}
+  if(e.key==="Enter"){e.preventDefault();runPal(palIdx)}
+  if(e.key==="Escape"){closeAll()}
+}
+function runPal(i){const a=palItems()[i];closeAll();if(a) a.fn()}
+
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey) && (e.key==="k" || (e.shiftKey && (e.key==="P"||e.key==="p")))){
+    e.preventDefault();openPalette();return;
+  }
+  if(e.key==="Escape"){closeAll();return}
+  if(overlayOpen()) return;
+  const tag=(e.target&&e.target.tagName||"").toLowerCase();
+  const inField=["input","textarea","select"].includes(tag)||(e.target&&e.target.isContentEditable);
+  if(!inField && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length===1){
+    const p=$("#cmdInput");
+    if(p && !p.disabled){
+      p.focus();
+      p.value=(p.value||"")+e.key;
+      const s=focusSession(); if(s) s.draft=p.value;
+      lastFocus="term";
+      p.dispatchEvent(new Event("input"));
+      e.preventDefault();
+    }
+  }
+});
+
+setInterval(()=>{$("#clock").textContent=nowClock()},1000);
+render();
+wantPromptFocus=true;
+restoreAfterRender();
+</script>
+</body>
+</html>

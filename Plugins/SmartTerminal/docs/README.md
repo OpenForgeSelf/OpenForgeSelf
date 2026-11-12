@@ -1,74 +1,35 @@
-> 产品经理请先读 [**00-目录.md**](./00-目录.md)（需求 / 交互 / URL / 权限 / 密码风险）。
+> 产品经理请先读 [**00-目录.md**](./00-目录.md)。
 
-# 智能终端（SmartTerminal）
+# 智能终端（Smart Terminal）v2
 
-可审批、可审计的**命令会话**插件（非完整交互式 PTY）。默认权限模式 **AskWrite**。
+宿主插件里的 **可审批、可审计的命令会话**。Id `smart-terminal` · 建议版本 **2.0.0** · toolPrefix `st` · ConnName `SmartTerminal` · EntryType 沿用 `ForgeSelf.Api.Plugins.SmartTerminal.SmartTerminalPlugin`（实现落点是宿主仓 `Plugins/SmartTerminal`）。
 
-## 行业对齐
+对外一句话：**在宿主里打开本机或 SSH 命令会话——提示符里回车执行，写操作先确认，右侧是复用宿主模型的助手对话。**
 
-| 能力 | 对标 |
-|------|------|
-| 分级自动 / 询问 | [VS Code Agent Approvals](https://code.visualstudio.com/docs/copilot/agents) 的 autoApprove / 审批分层思路 |
-| 审批与执行分离 | [Open Interpreter](https://docs.openinterpreter.com/) sandbox 与 approval policy 分离 |
-| 破坏性命令字 / 管道到壳 | 本仓 `mcp-center` `TerminalCommandGuard` + ToolBridge `CommandGuard` |
-| JSONL 只追加审计 | CC Safety Net / AI Shield 一类「一行一事、可过滤回放」审计日志 |
+## 产品口径
 
-> 与宿主 `PermissionProfile`（工具级 allow/ask/deny）互补：本插件管**终端会话内命令分类**；全局工具策略仍走 B4 权限配置。
+以本目录 **01–06（已锁定 / 原型 v0.2 · 2026-11-12）** 为准。
 
-## 权限三级
-
-1. **Auto**：除硬 denylist 外自动执行  
-2. **AskWrite**（默认）：只读自动；写/副作用/高危询问；硬拒绝仍拦  
-3. **AskHighRisk**：多数自动；仅高危询问；硬拒绝仍拦  
-
-规则文件：`{插件数据目录}/permission-rules.json`（首次从 `Data/permission-rules.default.json` 复制，可热改后调 `ReloadRules` / 重启插件）。
-
-## Agent 工具（toolPrefix=`st`）
-
-- `st_list_shells` / `st_create_session` / `st_run_command` / `st_get_output`
-- `st_list_sessions` / `st_set_permission_mode` / `st_query_audit` / `st_resolve_approval`
+本套 **v2 文档**是当前真源。旧 UX（独立命令框 +「运行」按钮）已废弃，旧文档只作领域对照，**不得**再当验收真源。
 
 ## HTTP
 
-前缀 `/api/smart-terminal/*`，类级 `ApiKeyPolicy`。
+前缀 `/api/smart-terminal/*`，类级 `ApiKeyPolicy`，详见 [03](./03-架构与接口.md)。
+
+原型里曾写 `/api/plugins/smart-terminal/*`，只是示意，**实现必须以 `/api/smart-terminal` 为准**（与 `super-lab` / `db-admin` 等兄弟插件一致）。
+
+## 交互真源
+
+确认原型：[智能终端原型 v0.2](./smart-terminal-prototype.html)。变更说明：[CHANGELOG-v0.2.md](./CHANGELOG-v0.2.md)。竞品底稿：[competitor-brief.md](./competitor-brief.md)。
+
+## 工程约束
+
+- 前端：Vue 3 + 原生 HTML/CSS，**禁止**模板使用 Element Plus 组件；token 与三禁见 02 / 06。
+- 复用宿主能力：凭据走宿主凭据库 / `ISecretEncryptionService`；助手走宿主 AI 网关（`ILlmRuntime` / `IChatCompletion` / `IChatModelResolver`）。取宿主服务一律执行期 `CreateHostScope()` / `ctx.Get<T>()`。
+- **不要**把密码、私钥明文写入插件库、URL、日志或浏览器存储。
 
 ## 本地启用
 
-1. 构建插件：`dotnet build Plugins/SmartTerminal/SmartTerminal.csproj`
-2. 构建前端：`cd Plugins/SmartTerminal/web && pnpm install && pnpm build`
-3. 宿主全量构建会经 `StageAllPlugins` 暂存到输出 `Plugins/SmartTerminal/`
-4. 插件管理页启用 **智能终端**，打开 `/smart-terminal`
-
-Windows / Linux 均为一等公民。v1.2 起支持多标签与 URL 深链（local / ssh / wsl-ssh；`custom:<id>` 协议位预留、本里程碑不实现）。浏览器刷新尽量恢复标签 / 连接信息 / 近期输出缓冲（无密码；见 02§8）。
-
-## 外壳支持（v1.1）
-
-- **Linux/macOS 一等**：`bash` / `zsh` / `sh`（及探测到的 `fish` / `dash`），默认按 `$SHELL` → bash → zsh → sh。
-- **Windows 一等**：`cmd` / Windows PowerShell / `pwsh` + Windows Terminal profiles；Git Bash 若在 PATH 也会出现。
-- 跨平台列表会保留对方平台壳并标记 `available=false`，便于 UI 多壳选择器对照。
-
-## CT 画廊
-
-```bash
-cd ForgeSelf.Web
-pnpm run ct:server   # http://127.0.0.1:5190/ 侧栏 SmartTerminal
-```
-
-深链示例：`/?story=SmartTerminal/PendingApproval`
-
-
-## URL 深链（通用启动器 · 摘要）
-
-详见 [03-URL协议.md](./03-URL协议.md)。UI 状态评审见 [06-UI交互评审稿.md](./06-UI交互评审稿.md)。
-
-```text
-/smart-terminal?st=1&profile=local&shell=bash&step=echo%20hi&step=ls
-/smart-terminal?st=1&profile=ssh&host=10.0.0.1&user=root&step=uname%20-a
-  # 无 password → 交互式输入；勿把密码放进 URL（除非内网过渡 + ack）
-```
-
-`POST /api/smart-terminal/launch` 使用同一 LaunchSpec（`profile` / `steps` / `env` / auth 字段）。
-
-## 密码深链策略（前端）
-
-见 [05-已知风险-密码入URL.md](./05-已知风险-密码入URL.md)。默认 `always-ack`；内网可设 `intranet`；公网演示可设 `disabled`。
+1. 按 01 / 03 在宿主中启用插件 `smart-terminal`
+2. `cd web && pnpm install && pnpm build`（`web/dist` 不入库，挂宿主前再构建）
+3. 打开 `/smart-terminal`

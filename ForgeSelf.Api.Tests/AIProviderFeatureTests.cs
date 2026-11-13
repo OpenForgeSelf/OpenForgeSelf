@@ -62,10 +62,7 @@ public class AIProviderFeatureTests : IClassFixture<XCodeTestFixture>
         ApiKey: apiKey,
         SupportedModels: new() { "gpt-4o", "gpt-4o-mini" },
         IsDefault: true,
-        TimeoutSeconds: 120,
-        VisionModel: "gpt-4o",
-        EnableMultimodal: true,
-        VisionPromptTemplate: "describe the image");
+        TimeoutSeconds: 120);
 
     private static string? ResultToJson(IActionResult result)
     {

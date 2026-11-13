@@ -18,6 +18,6 @@
 | 前端组件/导航/API 封装规范 | `04-standards/engineering.md` §1 |
 | 统一 AI 网关多风格归一（OpenAI / Anthropic / Responses + Agent Framework 实验接口）/ 模型前缀路由 | `02-features/004-provider-models-integration.md` |
 | 聊天会话聚合（ChatSession/ChatTurn） | `02-features/010-chat-session-aggregation.md` |
-| 多模态图片缓存（分区键/原子写/容错） | `02-features/011-multimodal-image-cache.md` |
+| 多模态图片缓存（已撤，图片交上游） | `02-features/011-multimodal-image-cache.md` |
 
 新功能若提炼出可复用的通用设计模式，在此补独立小节，并同步 `docs/README.md` 索引。

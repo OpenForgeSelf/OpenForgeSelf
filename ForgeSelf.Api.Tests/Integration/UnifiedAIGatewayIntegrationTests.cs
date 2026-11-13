@@ -1,492 +1,208 @@
+using System.Diagnostics;
 using System.Net;
-using ForgeSelf.Api.Controllers.UnifiedAI;
+using System.Text;
+using System.Text.Json.Nodes;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Controllers.UnifiedAI;
 using ForgeSelf.Api.Entities;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
+using ForgeSelf.Api.Services.AI.Providers;
+using ForgeSelf.Api.Services.AI.Proxy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using NewLife.Log;
 
 namespace ForgeSelf.Api.Tests.Integration;
 
 /// <summary>
-/// 统一AI网关控制器集成测试
+/// 公开 Chat 入口只把原始 body 送进管道，再把管道的状态码和字节写回。
 /// </summary>
 public class UnifiedAIGatewayIntegrationTests
 {
-    private readonly Mock<ILogService> _mockLogService;
-    private readonly Mock<IChatTurnService> _mockChatTurnService;
-    private readonly Mock<IChatTurnStreamRecorder> _mockStreamRecorder;
-    private readonly Mock<IChatSessionService> _mockChatSessionService;
-    private readonly Mock<IImageRecognitionCache> _mockImageRecognitionCache;
-    private readonly AIProviderRegistry _registry;
+    private readonly Mock<ILogService> _log = new();
+    private readonly Mock<IChatTurnService> _turns = new();
+    private readonly Mock<IChatTurnStreamRecorder> _recorder = new();
+    private readonly Mock<IChatSessionService> _sessions = new();
+    private readonly Mock<ILlmTurnAudit> _audit = new();
 
     public UnifiedAIGatewayIntegrationTests()
     {
-        _mockLogService = new Mock<ILogService>();
-        _mockChatTurnService = new Mock<IChatTurnService>();
-        _mockStreamRecorder = new Mock<IChatTurnStreamRecorder>();
-        _mockChatSessionService = new Mock<IChatSessionService>();
-        _mockImageRecognitionCache = new Mock<IImageRecognitionCache>();
-        // 返回 null 会话：本集成测试只验证控制器逻辑，流式路径回退到 SaveTurnAsync（已 mock）。
-        _mockStreamRecorder.Setup(r => r.BeginAsync(It.IsAny<ChatTurn>())).ReturnsAsync((ChatTurnStreamSession)null!);
-        // 非泛型 Task 返回方法，Moq 默认返回 null，会导致控制器 await null 抛 NRE；
-        // 必须显式返回已完成的 Task，否则 ChatCompletions 内部保存轮次时 500
-        _mockChatTurnService.Setup(s => s.SaveTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
-        _mockChatTurnService.Setup(s => s.UpsertTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
-        // 控制器流程会解引用 UpsertSessionAsync 的返回值（chatSession.Id），必须返回非 null 会话
-        _mockChatSessionService
-            .Setup(s => s.UpsertSessionAsync(
+        _recorder.Setup(r => r.BeginAsync(It.IsAny<ChatTurn>())).ReturnsAsync((ChatTurnStreamSession)null!);
+        _turns.Setup(s => s.SaveTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
+        _turns.Setup(s => s.UpsertTurnAsync(It.IsAny<ChatTurn>())).Returns(Task.CompletedTask);
+        _sessions.Setup(s => s.UpsertSessionAsync(
                 It.IsAny<string>(), It.IsAny<SessionSource>(), It.IsAny<string?>(), It.IsAny<ClientKind>(),
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>()))
             .ReturnsAsync(new ChatSession { Id = 1, SessionKey = "test-session", RequestCount = 1 });
-        _mockChatSessionService
-            .Setup(s => s.RecordTurnStatsAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
+        _sessions.Setup(s => s.RecordTurnStatsAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
             .Returns(Task.CompletedTask);
-        _registry = new AIProviderRegistry();
-
-        // 注册模拟提供者
-        var mockProvider = new TestAIProvider("test", AIProviderType.OpenAI, new[] { "gpt-4", "gpt-3.5" });
-        _registry.RegisterProvider(mockProvider);
-    }
-
-    private OpenAIChatController CreateController()
-    {
-        var controller = new OpenAIChatController(
-            _registry, _mockLogService.Object, _mockChatTurnService.Object,
-            _mockStreamRecorder.Object, _mockChatSessionService.Object, _mockImageRecognitionCache.Object);
-        // 直接调用控制器方法（不走 HTTP 管道），必须注入 HttpContext，否则方法内访问 Request.Headers 会 NRE
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext()
-        };
-        return controller;
-    }
-
-    private (OpenAIChatController Controller, TestAIProvider Provider) CreateControllerWithProvider()
-    {
-        var testProvider = new TestAIProvider("test", AIProviderType.OpenAI, new[] { "gpt-4", "gpt-3.5" });
-        var registry = new AIProviderRegistry();
-        registry.RegisterProvider(testProvider);
-        var controller = new OpenAIChatController(
-            registry, _mockLogService.Object, _mockChatTurnService.Object,
-            _mockStreamRecorder.Object, _mockChatSessionService.Object, _mockImageRecognitionCache.Object);
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext()
-        };
-        return (controller, testProvider);
     }
 
     [Fact]
-    public async Task ChatCompletions_ValidRequest_ReturnsOk()
+    public async Task ChatCompletions_ForwardsBody_AndRewritesPrefixedModel()
     {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false
-        };
+        var (controller, capture) = Create();
+        await controller.ChatCompletions(CancellationToken.None);
 
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        // 控制器返回基类 ObjectResult（OkObjectResult 的父类）；用可赋值断言 + 状态码，避免精确类型耦合
-        result.Should().BeAssignableTo<ObjectResult>().Which.StatusCode.Should().Be(200);
+        controller.Response.StatusCode.Should().Be(200);
+        var sent = JsonNode.Parse(capture.Body!)!.AsObject();
+        sent["model"]!.GetValue<string>().Should().Be("gpt-4");
+        sent["stream_options"]!["include_usage"]!.GetValue<bool>().Should().BeTrue();
+        sent["messages"].Should().BeNull();
     }
 
     [Fact]
-    public async Task ChatCompletions_EmptyModel_ReturnsBadRequest()
+    public async Task ChatCompletions_EmptyModel_Returns400WithoutUpstreamCall()
     {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false
-        };
+        var (controller, capture) = Create("""{"model":""}""");
+        await controller.ChatCompletions(CancellationToken.None);
 
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
+        controller.Response.StatusCode.Should().Be(400);
+        capture.Count.Should().Be(0);
     }
 
     [Fact]
-    public async Task ChatCompletions_NullMessages_ReturnsBadRequest()
+    public async Task ChatCompletions_StreamCopiesUpstreamUsageBytes()
     {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = null!,
-            Stream = false
-        };
+        var sse = "data: {\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5,\"total_tokens\":15}}\n\n";
+        var (controller, _) = Create("""{"model":"test:gpt-4","stream":true}""", sse, "text/event-stream");
+        await controller.ChatCompletions(CancellationToken.None);
 
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task ChatCompletions_EmptyMessages_ReturnsBadRequest()
-    {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>(),
-            Stream = false
-        };
-
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task ChatCompletions_UnknownModel_UsesDefaultProvider()
-    {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "unknown-model",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false
-        };
-
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert - 未知模型会使用默认提供者，不会返回错误
-        // 控制器返回基类 ObjectResult（OkObjectResult 的父类）；用可赋值断言 + 状态码，避免精确类型耦合
-        result.Should().BeAssignableTo<ObjectResult>().Which.StatusCode.Should().Be(200);
-    }
-
-    [Fact]
-    public async Task ChatCompletions_WithSystemPrompt_ProcessesCorrectly()
-    {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "system", Content = "You are a helpful assistant." },
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false
-        };
-
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        // 控制器返回基类 ObjectResult（OkObjectResult 的父类）；用可赋值断言 + 状态码，避免精确类型耦合
-        result.Should().BeAssignableTo<ObjectResult>().Which.StatusCode.Should().Be(200);
-    }
-
-    [Fact]
-    public async Task ChatCompletions_WithTools_ProcessesCorrectly()
-    {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false,
-            Tools = new List<OpenAITool>
-            {
-                new()
-                {
-                    Type = "function",
-                    Function = new OpenAIFunctionDef
-                    {
-                        Name = "test_function",
-                        Description = "A test function",
-                        Parameters = "{}"
-                    }
-                }
-            }
-        };
-
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        // 控制器返回基类 ObjectResult（OkObjectResult 的父类）；用可赋值断言 + 状态码，避免精确类型耦合
-        result.Should().BeAssignableTo<ObjectResult>().Which.StatusCode.Should().Be(200);
-    }
-
-    [Fact]
-    public async Task ChatCompletions_ProviderPrefixedModel_StripsPrefixBeforeSendingToUpstream()
-    {
-        // Arrange
-        var controller = CreateController();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "test:gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "Hello" }
-            },
-            Stream = false
-        };
-
-        // Act
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert
-        // 当前行为（未修复）：上游收到的 model 是 "test:gpt-4"（带前缀）
-        // 期望行为（修复后）：上游收到的 model 是 "gpt-4"（剥离前缀）
-        // TestAIProvider.ChatAsync 返回 request.Model，所以可以从响应中读取
-        var okResult = result.Should().BeAssignableTo<ObjectResult>().Which;
-        okResult.StatusCode.Should().Be(200);
-        var response = okResult.Value;
-        response.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task ChatCompletions_StreamOptions_PropagatedToUpstream()
-    {
-        // Arrange
-        var (controller, provider) = CreateControllerWithProvider();
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "hi" }
-            },
-            Stream = true,
-            StreamOptions = new OpenAIStreamOptions { IncludeUsage = true }
-        };
-
-        // Act
-        // stream=true 走流式分支，返回 EmptyResult（流已写入 Response.Body），
-        // 但 provider.ChatStreamAsync 仍被调用，LastRequest 应被填充
-        try
-        {
-            await controller.ChatCompletions(request, CancellationToken.None);
-        }
-        catch
-        {
-            // 流式写入 Response.Body 可能抛 InvalidOperationException，忽略
-        }
-
-        // Assert
-        // 期望：客户端 stream_options.include_usage=true 必须透传到上游 provider
-        provider.LastRequest.Should().NotBeNull("上游 provider 必须被调用");
-        provider.LastRequest!.StreamOptions.Should().NotBeNull("stream_options 必须从客户端透传到 UnifiedChatRequest");
-        provider.LastRequest!.StreamOptions!.IncludeUsage.Should().BeTrue("include_usage=true 必须被透传");
-    }
-
-    [Fact]
-    public async Task ChatCompletions_Streaming_PropagatesUsageField()
-    {
-        // Arrange：provider 在流式末端吐出 usage 哨兵分片
-        var (controller, provider) = CreateControllerWithProvider();
-        provider.EmitUsage = true;
-        controller.Response.Body = new MemoryStream();
-
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage>
-            {
-                new() { Role = "user", Content = "hi" }
-            },
-            Stream = true
-        };
-
-        // Act：流式分支把 SSE 写入 Response.Body
-        await controller.ChatCompletions(request, CancellationToken.None);
-
-        // Assert：响应流必须包含 usage（已用 token）字段及 token 分项
         controller.Response.Body.Position = 0;
         var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
-        body.Should().Contain("\"usage\"", "流式响应必须透传 usage 字段");
-        body.Should().Contain("prompt_tokens", "usage 必须包含 prompt_tokens");
-        body.Should().Contain("completion_tokens", "usage 必须包含 completion_tokens");
-        body.Should().Contain("total_tokens", "usage 必须包含 total_tokens");
+        body.Should().Be(sse);
+        body.Should().Contain("prompt_tokens");
     }
 
     [Fact]
-    public async Task ChatCompletions_NonStream_Upstream429_Returns429Body()
+    public async Task ChatCompletions_Upstream429_PassesStatusAndBody()
     {
-        var (controller, provider) = CreateControllerWithProvider();
-        provider.ChatFailure = new HttpRequestException(
-            "HTTP 429 (rate_limit_error: 429) inference exceeds tpm/rpm limit", null, HttpStatusCode.TooManyRequests);
+        var error = """{"error":{"message":"rate_limit_error 429"}}""";
+        var (controller, _) = Create("""{"model":"test:gpt-4","stream":true}""", error, "application/json", HttpStatusCode.TooManyRequests);
+        await controller.ChatCompletions(CancellationToken.None);
 
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage> { new() { Role = "user", Content = "hi" } },
-            Stream = false
-        };
-
-        var result = await controller.ChatCompletions(request, CancellationToken.None);
-
-        var obj = result.Should().BeAssignableTo<ObjectResult>().Which;
-        obj.StatusCode.Should().Be(429);
-        obj.Value.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task ChatCompletions_Streaming_Upstream429_WritesErrorSseAndDone()
-    {
-        var (controller, provider) = CreateControllerWithProvider();
-        provider.StreamFailure = new HttpRequestException(
-            "HTTP 429 (rate_limit_error: 429) inference exceeds tpm/rpm limit", null, HttpStatusCode.TooManyRequests);
-        controller.Response.Body = new MemoryStream();
-
-        var request = new OpenAIChatCompletionRequest
-        {
-            Model = "gpt-4",
-            Messages = new List<OpenAIChatMessage> { new() { Role = "user", Content = "hi" } },
-            Stream = true
-        };
-
-        await controller.ChatCompletions(request, CancellationToken.None);
-
+        controller.Response.StatusCode.Should().Be(429);
         controller.Response.Body.Position = 0;
         var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
         body.Should().Contain("rate_limit_error");
-        body.Should().Contain("429");
-        body.Should().Contain("data: [DONE]");
+        body.Should().NotContain("data: [DONE]");
     }
 
-    }
-
-/// <summary>
-/// Test AI Provider for integration tests
-/// </summary>
-public class TestAIProvider : IAIProvider
-{
-    public string ProviderName { get; }
-    public AIProviderType ProviderType { get; }
-    public List<string> SupportedModels { get; }
-    public bool IsDefault { get; set; }
-
-    public TestAIProvider(string name, AIProviderType type, string[] models)
+    [Fact]
+    public async Task ChatCompletions_SlowAuditSave_DoesNotHoldResponse()
     {
-        ProviderName = name;
-        ProviderType = type;
-        SupportedModels = models.ToList();
-    }
-
-    /// <summary>
-    /// 测试开关：为 true 时，流式响应末尾额外吐出一个 usage 哨兵分片（模拟 OpenAI include_usage=true）。
-    /// 用于验证网关是否把「已用 token」字段透传到 SSE 流。
-    /// </summary>
-    public bool EmitUsage { get; set; }
-
-    public Exception? ChatFailure { get; set; }
-
-    public Exception? StreamFailure { get; set; }
-
-    public Task<UnifiedChatResponse> ChatAsync(UnifiedChatRequest request, CancellationToken cancellationToken = default)
-    {
-        LastRequest = request;
-        if (ChatFailure != null)
-            throw ChatFailure;
-        return Task.FromResult(new UnifiedChatResponse
-        {
-            Id = "test-" + Guid.NewGuid().ToString("N")[..8],
-            Model = request.Model,
-            Choices = new List<UnifiedChatMessage>
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _sessions.Setup(s => s.UpsertSessionAsync(
+                It.IsAny<string>(), It.IsAny<SessionSource>(), It.IsAny<string?>(), It.IsAny<ClientKind>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<int>(), It.IsAny<string?>()))
+            .Returns(async () =>
             {
-                new() { Role = "assistant", Content = "Test response" }
-            },
-            Usage = new UnifiedUsage
-            {
-                PromptTokens = 10,
-                CompletionTokens = 5,
-                TotalTokens = 15
-            }
-        });
-    }
+                started.TrySetResult();
+                await release.Task;
+                return new ChatSession { Id = 1, SessionKey = "test-session", RequestCount = 1 };
+            });
 
-    public UnifiedChatRequest? LastRequest { get; private set; }
+        var services = new ServiceCollection();
+        services.AddSingleton<ILogService>(_log.Object);
+        services.AddSingleton<IChatTurnService>(_turns.Object);
+        services.AddSingleton<IChatTurnStreamRecorder>(_recorder.Object);
+        services.AddSingleton<IChatSessionService>(_sessions.Object);
+        services.AddScoped<ILlmTurnAuditStore, LlmTurnAuditStore>();
+        services.AddSingleton<LlmTurnAuditQueue>();
+        await using var provider = services.BuildServiceProvider();
+        var queue = provider.GetRequiredService<LlmTurnAuditQueue>();
+        await queue.StartAsync(CancellationToken.None);
+        try
+        {
+            var (controller, _) = Create(audit: queue);
+            var sw = Stopwatch.StartNew();
+            await controller.ChatCompletions(CancellationToken.None);
+            sw.Stop();
 
-    public async IAsyncEnumerable<UnifiedStreamChunk> ChatStreamAsync(UnifiedChatRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        LastRequest = request;
-        if (StreamFailure != null)
-            throw StreamFailure;
-        await Task.CompletedTask;
-        yield return new UnifiedStreamChunk
+            sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(800));
+            controller.Response.StatusCode.Should().Be(200);
+            controller.Response.Body.Position = 0;
+            var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
+            body.Should().Contain("\"id\":\"ok\"");
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+        finally
         {
-            Id = "test-" + Guid.NewGuid().ToString("N")[..8],
-            Model = request.Model,
-            ChoiceIndex = 0,
-            DeltaContent = "Test"
-        };
-        yield return new UnifiedStreamChunk
-        {
-            Id = "test-" + Guid.NewGuid().ToString("N")[..8],
-            Model = request.Model,
-            ChoiceIndex = 0,
-            DeltaContent = " stream",
-            FinishReason = "stop"
-        };
-
-        // 模拟 OpenAI include_usage=true 末端 usage 哨兵分片（choices 为空、携带 usage）
-        if (EmitUsage)
-        {
-            yield return new UnifiedStreamChunk
-            {
-                Id = "test-" + Guid.NewGuid().ToString("N")[..8],
-                Model = request.Model,
-                ChoiceIndex = 0,
-                Usage = new UnifiedUsage
-                {
-                    PromptTokens = 10,
-                    CompletionTokens = 5,
-                    TotalTokens = 15
-                }
-            };
+            release.TrySetResult();
+            await queue.StopAsync(CancellationToken.None);
         }
     }
 
-    public Task<List<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken = default)
+    [Fact]
+    public async Task ChatCompletions_AuditEnqueueThrows_StillReturnsUpstreamBody()
     {
-        return Task.FromResult(SupportedModels.Select(m => new ModelInfo
+        _audit.Setup(a => a.Enqueue(It.IsAny<LlmTurnAuditWork>()))
+            .Throws(new InvalidOperationException("SQLite需要重建表"));
+
+        var (controller, _) = Create();
+        await controller.ChatCompletions(CancellationToken.None);
+
+        controller.Response.StatusCode.Should().Be(200);
+        controller.Response.Body.Position = 0;
+        var body = await new StreamReader(controller.Response.Body).ReadToEndAsync();
+        body.Should().Contain("\"id\":\"ok\"");
+    }
+
+    private (OpenAIChatController Controller, CaptureHandler Capture) Create(
+        string requestJson = """{"model":"test:gpt-4","stream_options":{"include_usage":true}}""",
+        string response = """{"id":"ok"}""",
+        string media = "application/json",
+        HttpStatusCode status = HttpStatusCode.OK,
+        ILlmTurnAudit? audit = null)
+    {
+        var capture = new CaptureHandler(response, media, status);
+        var config = new AIProviderConfig
         {
-            Id = m,
-            Name = m,
-            Owner = ProviderName,
-            Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            ProviderName = ProviderName
-        }).ToList());
+            Name = "test",
+            ProviderType = AIProviderType.OpenAI,
+            Endpoint = "https://upstream.test/v1",
+            ApiKey = "sk",
+            SupportedModels = ["gpt-4"],
+            IsDefault = true,
+            TimeoutSeconds = 30
+        };
+        var registry = new AIProviderRegistry();
+        registry.RegisterProvider(new OpenAICompatibleProvider(config, new HttpClient(capture)));
+        var controller = new OpenAIChatController(
+            new LlmProxyPipeline(registry), _log.Object, audit ?? _audit.Object);
+        var http = new DefaultHttpContext();
+        http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(requestJson));
+        http.Response.Body = new MemoryStream();
+        controller.ControllerContext = new ControllerContext { HttpContext = http };
+        return (controller, capture);
+    }
+
+    private sealed class CaptureHandler : HttpMessageHandler
+    {
+        private readonly string _response;
+        private readonly string _media;
+        private readonly HttpStatusCode _status;
+        public int Count { get; private set; }
+        public string? Body { get; private set; }
+
+        public CaptureHandler(string response, string media, HttpStatusCode status)
+        {
+            _response = response;
+            _media = media;
+            _status = status;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Count++;
+            Body = request.Content == null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(_status)
+            {
+                Content = new StringContent(_response, Encoding.UTF8, _media)
+            };
+        }
     }
 }

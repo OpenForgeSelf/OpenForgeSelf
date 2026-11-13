@@ -38,7 +38,7 @@
 
 - SQLite 文件：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`；
 - XCode 自动建表（`DAL.Migration` 默认 On）；`DAL.CheckDatabase()` 主动建库；
-- 图片识别缓存：`Data/ImageRecognitionCache/<会话键>/<sha256>.json`。
+- 图片识别缓存目录 `Data/ImageRecognitionCache/` 自 2026-11-12 起运行时不再读写。历史文件可留，不迁移。
 
 ## 5. 故障恢复 / 备份
 

@@ -41,7 +41,7 @@ aliases: ["010-chat-session-aggregation"]
 3. 头 `x-conversation-id`（Anthropic/Responses 风格兼容）；
 4. body 字段 `conversationId` / `sessionId`（今后 app 直接打代理时）；
 5. 兜底 `Guid.NewGuid()`（仅无会话标识的裸客户端，自成单轮会话）。
-- app 自有聊天：`ChatController` 自行 `UpsertSessionAsync(sessionId, Source='App')` 补写会话行。
+- app 自有聊天：`ChatController` 自行 `UpsertSessionAsync(sessionId, Source='App')` 补写会话行。出站不在本文件：这条仍走 `AIService`，不进 `ILlmProxyPipeline`。出站复用的范围见 [`004-provider-models-integration.md`](004-provider-models-integration.md) §2.5。
 - 注：旧实现曾误用 `x-agent-task-id` / `x-request-id`（每请求唯一）作会话键致 607 行散列，该逻辑已在重构中移除，代码中不再存在这两个头的解析。
 
 ### 2.3 实现位置

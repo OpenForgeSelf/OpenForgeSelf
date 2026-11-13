@@ -14,8 +14,7 @@ import {
   Delete,
   Edit,
   CopyDocument,
-  Link,
-  Picture
+  Link
 } from '@element-plus/icons-vue';
 import { aiProvidersApi } from '@/services/aiProvidersApi';
 import { aiModelsApi } from '@/services/aiModelsApi';
@@ -289,8 +288,6 @@ const form = reactive({
   apiKey: '',
   isDefault: false,
   timeoutSeconds: 120,
-  visionModel: '',
-  enableMultimodal: true,
   supportedModels: ''
 });
 
@@ -303,8 +300,6 @@ function openCreate() {
     apiKey: '',
     isDefault: false,
     timeoutSeconds: 120,
-    visionModel: '',
-    enableMultimodal: true,
     supportedModels: ''
   });
   formError.value = '';
@@ -320,8 +315,6 @@ function openEdit(p: AIProvider) {
     apiKey: '',
     isDefault: p.isDefault,
     timeoutSeconds: p.timeoutSeconds,
-    visionModel: p.visionModel ?? '',
-    enableMultimodal: p.enableMultimodal,
     supportedModels: p.supportedModels.join(', ')
   });
   formError.value = '';
@@ -354,9 +347,7 @@ async function saveProvider() {
       .map((s) => s.trim())
       .filter(Boolean),
     isDefault: form.isDefault,
-    timeoutSeconds: form.timeoutSeconds,
-    visionModel: form.visionModel || null,
-    enableMultimodal: form.enableMultimodal
+    timeoutSeconds: form.timeoutSeconds
   };
 
   try {
@@ -466,14 +457,6 @@ onMounted(() => {
                   {{ deploymentLabel(p) }}
                 </el-tag>
                 <el-tag v-if="p.isDefault" size="small" type="warning" effect="dark">默认</el-tag>
-                <el-tag
-                  v-if="p.enableMultimodal && p.visionModel"
-                  size="small"
-                  type="success"
-                  effect="light"
-                  class="inline-flex items-center gap-0.5">
-                  <el-icon :size="12"><Picture /></el-icon>多模态
-                </el-tag>
               </div>
               <div class="text-xs text-[var(--el-text-color-secondary)] mt-0.5 font-mono truncate">
                 {{ p.endpoint }}
@@ -699,16 +682,6 @@ onMounted(() => {
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-[var(--el-text-color-primary)]">默认提供方</label>
           <el-switch v-model="form.isDefault" />
-        </div>
-        <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-[var(--el-text-color-primary)]">启用多模态</label>
-          <el-switch v-model="form.enableMultimodal" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">
-            视觉模型
-          </label>
-          <el-input v-model="form.visionModel" placeholder="如 gpt-4o" />
         </div>
         <div>
           <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">

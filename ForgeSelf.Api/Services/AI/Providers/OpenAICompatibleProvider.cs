@@ -24,6 +24,9 @@ public class OpenAICompatibleProvider : IAIProvider
     /// </summary>
     public AIProviderConfig Config => _config;
 
+    /// <summary>薄转发与 SDK 传输共用的 HttpClient（代理、超时已在构造时装入）。</summary>
+    internal HttpClient Http => _httpClient;
+
     public OpenAICompatibleProvider(AIProviderConfig config, HttpClient httpClient)
     {
         _config = config;

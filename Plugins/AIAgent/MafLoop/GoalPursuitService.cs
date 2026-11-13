@@ -62,10 +62,12 @@ public sealed class GoalPursuitService
 """;
 
     private readonly IAIProviderRegistry? _providerRegistry;
+    private readonly ILlmProxyPipeline? _pipeline;
 
-    public GoalPursuitService(IAIProviderRegistry? providerRegistry)
+    public GoalPursuitService(IAIProviderRegistry? providerRegistry, ILlmProxyPipeline? pipeline = null)
     {
         _providerRegistry = providerRegistry;
+        _pipeline = pipeline;
     }
 
     /// <summary>评估目标达成情况（失败重试 1 次，仍失败按未达成处理）。证据（产出+工具轨迹）随行，缺省按无证据评估。</summary>
@@ -169,9 +171,17 @@ public sealed class GoalPursuitService
     private async Task<string?> CallModelAsync(
         string userPrompt, string systemPrompt, string? chatModelId, CancellationToken ct)
     {
-        var provider = ResolveProvider(chatModelId, out var upstreamModelId)
-            ?? throw new InvalidOperationException("目标评估器未找到可用的 AI 提供方");
-        var adapter = new ForgeChatClientAdapter(provider, upstreamModelId);
+        ForgeChatClientAdapter adapter;
+        if (_pipeline != null)
+        {
+            adapter = new ForgeChatClientAdapter(_pipeline, chatModelId ?? string.Empty);
+        }
+        else
+        {
+            var provider = ResolveProvider(chatModelId, out var upstreamModelId)
+                ?? throw new InvalidOperationException("目标评估器未找到可用的 AI 提供方");
+            adapter = new ForgeChatClientAdapter(provider, upstreamModelId);
+        }
         var messages = new List<ChatMessage>
         {
             new(ChatRole.System, systemPrompt),

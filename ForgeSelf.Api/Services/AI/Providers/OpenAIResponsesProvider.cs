@@ -25,6 +25,9 @@ public class OpenAIResponsesProvider : IAIProvider
     /// <summary>暴露底层提供方配置（与 OpenAICompatibleProvider 一致）。</summary>
     public AIProviderConfig Config => _config;
 
+    /// <summary>薄转发与 SDK 传输共用的 HttpClient。</summary>
+    internal HttpClient Http => _httpClient;
+
     public OpenAIResponsesProvider(AIProviderConfig config, HttpClient httpClient)
     {
         _config = config;

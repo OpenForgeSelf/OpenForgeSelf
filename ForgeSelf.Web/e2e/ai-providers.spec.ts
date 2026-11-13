@@ -59,7 +59,6 @@ async function createTestProvider(name: string, endpoint: string): Promise<TestP
       supportedModels: [],
       isDefault: false,
       timeoutSeconds: 10,
-      enableMultimodal: false,
     }),
   })
   const json = (await res.json()) as { success: boolean; data?: { id: number } }

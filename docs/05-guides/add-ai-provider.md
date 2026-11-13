@@ -8,12 +8,11 @@
 ## 1. 添加 AI 提供方
 
 1. 打开前端 → 设置 → AI 提供方；
-2. 新增：填 `Name`（唯一）、`ProviderType`（OpenAI/Anthropic/Custom）、`Endpoint`（base URL）、`ApiKey`（提交即加密落库）、`TimeoutSeconds`；
-3. 若需多模态：勾 `EnableMultimodal` 并填 `VisionModel`（支持 `provider:model_id` 前缀，如 `default:qwen/qwen3-vl-4b`）；
-4. 点"测试连接"（`POST /api/ai-providers/{id}/test`，解密后发最小探测）；
-5. 点"设为默认"（`SetDefault`）或"拉取模型"（`POST .../fetch-models` → 见下）。
+2. 新增：填 `Name`（唯一）、`ProviderType`（OpenAI/OpenAIResponses/Anthropic/Custom/Ollama/LMStudio）、`Endpoint`（base URL）、`ApiKey`（提交即加密落库）、`TimeoutSeconds`；
+3. 点"测试连接"（`POST /api/ai-providers/{id}/test`，解密后发最小探测）；
+4. 点"设为默认"（`SetDefault`）或"拉取模型"（`POST .../fetch-models` → 见下）。
 
-> 注意：修改 `VisionModel` 等运行期配置后，若后端进程无法被停止，**需手动重启 exe** 才生效。
+> 图片由上游处理。设置页不再提供视觉模型或「启用多模态」。带图请求按协议原样或标准字段转发。
 
 ## 2. 从上游拉取模型
 

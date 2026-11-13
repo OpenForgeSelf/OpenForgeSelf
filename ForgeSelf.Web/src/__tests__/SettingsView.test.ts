@@ -221,9 +221,6 @@ describe('SettingsView - Provider 模型集成（feature 004）', () => {
       isDefault: false,
       apiKeyMasked: '•••',
       timeoutSeconds: 120,
-      visionModel: null,
-      enableMultimodal: true,
-      visionPromptTemplate: null,
       createTime: '',
       updateTime: '',
     }

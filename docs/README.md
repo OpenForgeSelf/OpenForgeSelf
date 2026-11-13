@@ -333,7 +333,7 @@
 | 008 | [`02-features/008-tray-service-autoupdate.md`](02-features/008-tray-service-autoupdate.md) | 已实现 |
 | 009 | [`02-features/009-web-port-token-security.md`](02-features/009-web-port-token-security.md) | 已实现 |
 | 010 | [`02-features/010-chat-session-aggregation.md`](02-features/010-chat-session-aggregation.md) | 已实现（已提交 9d84e48） |
-| 011 | [`02-features/011-multimodal-image-cache.md`](02-features/011-multimodal-image-cache.md) | 已实现 |
+| 011 | [`02-features/011-multimodal-image-cache.md`](02-features/011-multimodal-image-cache.md) | 已撤（2026-11-12，图片交上游） |
 | 012 | [`02-features/012-code-snippets.md`](02-features/012-code-snippets.md) | 已实现（ScriptRunner 插件） |
 | 013 | [`02-features/013-workflow-engine.md`](02-features/013-workflow-engine.md) | 已实现 |
 | 014 | [`02-features/014-memory-system.md`](02-features/014-memory-system.md) | 已实现 |
@@ -358,5 +358,5 @@
 | 042 | [`02-features/042-network-proxy-settings.md`](02-features/042-network-proxy-settings.md) | 已实现（设置·网络设置：模型请求 HTTP/HTTPS 代理，保存即生效；关闭=显式直连忽略系统代理；SOCKS5 记 TODO） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 
-> 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
+> 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存已撤）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
 > 另有 `docs/chat-record-session-redesign.md` 为 010 会话聚合的**根因分析稿**（ChatRecord→ChatTurn 重构方案），已随 010 落地，其顶部"落地状态"段指向 `010-chat-session-aggregation.md`。

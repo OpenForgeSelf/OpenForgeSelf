@@ -254,12 +254,20 @@ public static class ForgeChatMessageMapper
 /// </summary>
 public sealed class ForgeChatClientAdapter : IChatClient
 {
-    private readonly IAIProvider _provider;
+    private readonly IAIProvider? _provider;
+    private readonly ILlmProxyPipeline? _pipeline;
     private readonly string _modelId;
 
     public ForgeChatClientAdapter(IAIProvider provider, string modelId)
     {
         _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _modelId = modelId ?? throw new ArgumentNullException(nameof(modelId));
+    }
+
+    /// <summary>生产路径：模型往返交给代理管道。这里只组 Chat JSON，不改别名、不选出站协议。</summary>
+    public ForgeChatClientAdapter(ILlmProxyPipeline pipeline, string modelId)
+    {
+        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _modelId = modelId ?? throw new ArgumentNullException(nameof(modelId));
     }
 
@@ -326,7 +334,10 @@ public sealed class ForgeChatClientAdapter : IChatClient
         // （实例实证：mvt30ipk-quraxi 每次发言 1~2ms 内必败、响应长度 0）。
         // 聚合语义与 ReactLoopAgent.AccumulateToolCall（生产验证版）一致。
         var pendingToolCalls = new List<UnifiedToolCall>();
-        await foreach (var chunk in _provider.ChatStreamAsync(request, cancellationToken).ConfigureAwait(false))
+        var chunks = _pipeline != null
+            ? ReadPipelineAsync(request, cancellationToken)
+            : _provider!.ChatStreamAsync(request, cancellationToken);
+        await foreach (var chunk in chunks.ConfigureAwait(false))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(responseId) && !string.IsNullOrEmpty(chunk.Id))
@@ -359,6 +370,35 @@ public sealed class ForgeChatClientAdapter : IChatClient
             });
             if (!string.IsNullOrEmpty(responseId)) callUpdate.ResponseId = responseId;
             yield return callUpdate;
+        }
+    }
+
+    private async IAsyncEnumerable<UnifiedStreamChunk> ReadPipelineAsync(
+        UnifiedChatRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var result = await _pipeline!.ExecuteAsync(
+            new LlmProxyRequest
+            {
+                Protocol = LlmWireProtocol.ChatCompletions,
+                BodyJson = OpenAIChatJson.FromUnified(request)
+            },
+            cancellationToken).ConfigureAwait(false);
+        await using (result)
+        {
+            if (result.StatusCode is < 200 or >= 300)
+            {
+                var error = result.Body == null
+                    ? string.Empty
+                    : await new StreamReader(result.Body).ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                throw new InvalidOperationException($"上游返回 {result.StatusCode}: {error}");
+            }
+
+            if (result.Body == null)
+                yield break;
+
+            await foreach (var chunk in OpenAIChatStreamReader.Read(result.Body, cancellationToken).ConfigureAwait(false))
+                yield return chunk;
         }
     }
 

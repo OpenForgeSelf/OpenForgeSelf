@@ -266,6 +266,7 @@ public class PluginManager
         typeof(IDataLocationService),
         typeof(IProjectRegistry),
         typeof(IAIProviderRegistry),
+        typeof(ILlmProxyPipeline),
         // 模型目录（只读，仅启用模型）：AIAgent 插件解析「本次用哪个对话模型」的可用性依据
         // （2026-10-25：内置执行/Run 恢复的模型解析链需要它，禁止插件硬编码模型名）
         typeof(ITurnTelemetryQuery),

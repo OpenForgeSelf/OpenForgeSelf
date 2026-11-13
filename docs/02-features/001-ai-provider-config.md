@@ -40,9 +40,9 @@ aliases: ["001-ai-provider-config"]
 | `SupportedModels` | 支持模型列表（逗号分隔） |
 | `IsDefault` | 是否默认提供方 |
 | `TimeoutSeconds` | 请求超时（秒） |
-| `VisionModel` | 多模态视觉模型名（支持 `provider:model_id` 前缀，见多模态缓存文档） |
-| `EnableMultimodal` | 是否启用多模态自动处理 |
-| `VisionPromptTemplate` | 图片识别系统提示词模板 |
+| `VisionModel` | 库列保留。2026-11-12 起 API 与设置页不再读写，运行时不调用视觉模型 |
+| `EnableMultimodal` | 库列保留。同上，不再作为请求开关 |
+| `VisionPromptTemplate` | 库列保留。同上。更新提供方时仓储不覆盖这三列 |
 
 ### 2.2 加密边界（铁律）
 - 仓储层仅**写时加密**；读返回**密文原样**，不解密、不克隆。
@@ -70,7 +70,7 @@ aliases: ["001-ai-provider-config"]
 - **守卫**：后端 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionOkGuardTests.cs`（ExtractContent 回退链 + SaysOk 大小写矩阵）；e2e `ForgeSelf.Web/e2e/ai-providers.spec.ts`（无模型禁用 / mock 上游全链路 / 上游不可达失败）；`e2e/helpers/mock-upstream.ts` 新增可选 `chatContent` 参数（默认 'hi' 不破存量用例）。实测铁证：dev-stack 源码宿主对 gpustack `dp-model` 返回 `{success:true, message:"连接成功 · 模型回复「ok」"}`（存证 `.forgeself/tmp-providertest-s9.json`）。
 
 ## 4. 注意事项
-1. 运行实例无权限停止时，改 `gpustack.VisionModel` 等需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。
+1. 运行实例无权限停止时，改提供方端点等运行期配置需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。视觉模型配置已退出 API。
 2. DB 位置：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`。
 
 ## 5. 测试覆盖

@@ -257,9 +257,6 @@ public class AIProviderController : ControllerBase
                     .ToList(),
             IsDefault: e.IsDefault,
             TimeoutSeconds: e.TimeoutSeconds,
-            VisionModel: string.IsNullOrEmpty(e.VisionModel) ? null : e.VisionModel,
-            EnableMultimodal: e.EnableMultimodal,
-            VisionPromptTemplate: string.IsNullOrEmpty(e.VisionPromptTemplate) ? null : e.VisionPromptTemplate,
             CreateTime: e.CreateTime,
             UpdateTime: e.UpdateTime,
             Deployment: LocalModelGate.ResolveDeployment(
@@ -285,10 +282,7 @@ public class AIProviderController : ControllerBase
             ApiKey = request.ApiKey ?? string.Empty,
             SupportedModels = request.SupportedModels ?? new List<string>(),
             IsDefault = request.IsDefault,
-            TimeoutSeconds = request.TimeoutSeconds,
-            VisionModel = request.VisionModel,
-            EnableMultimodal = request.EnableMultimodal,
-            VisionPromptTemplate = request.VisionPromptTemplate
+            TimeoutSeconds = request.TimeoutSeconds
         };
     }
 
@@ -305,9 +299,6 @@ public record AIProviderResponse(
     List<string> SupportedModels,
     bool IsDefault,
     int TimeoutSeconds,
-    string? VisionModel,
-    bool EnableMultimodal,
-    string? VisionPromptTemplate,
     DateTime CreateTime,
     DateTime UpdateTime,
     string Deployment);
@@ -320,10 +311,7 @@ public record AIProviderRequest(
     string? ApiKey,
     List<string>? SupportedModels,
     bool IsDefault,
-    int TimeoutSeconds,
-    string? VisionModel,
-    bool EnableMultimodal,
-    string? VisionPromptTemplate);
+    int TimeoutSeconds);
 
 /// <summary>测试连接请求。ModelId 非空=用该已登记模型发真实 chat（响应含 ok 判成功）；省略/null=仅探连通</summary>
 public record AIProviderTestRequest(long? ModelId);

@@ -20,8 +20,11 @@ public sealed class AgentTurnRuntime
     /// <summary>本回合使用的 AI 提供方。</summary>
     public required IAIProvider Provider { get; init; }
 
-    /// <summary>上游模型 id。</summary>
+    /// <summary>上游模型 id。管道存在时保留调用方原始 id（别名或 provider:model），由管道改写一次。</summary>
     public required string ModelId { get; init; }
+
+    /// <summary>模型往返管道。有值时适配器不再直接调用 <see cref="Provider"/>。</summary>
+    public ILlmProxyPipeline? Pipeline { get; init; }
 
     /// <summary>工具执行器（宿主工具注册表，含超时与权限拦截）。</summary>
     public required IToolRegistry ToolExecutor { get; init; }

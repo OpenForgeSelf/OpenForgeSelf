@@ -13,9 +13,6 @@ export interface AIProvider {
   supportedModels: string[]
   isDefault: boolean
   timeoutSeconds: number
-  visionModel: string | null
-  enableMultimodal: boolean
-  visionPromptTemplate: string | null
   createTime: string
   updateTime: string
   /** 本地 / 远程。缺省时由端点主机推断 */
@@ -39,9 +36,6 @@ export interface AIProviderRequest {
   supportedModels?: string[]
   isDefault: boolean
   timeoutSeconds: number
-  visionModel?: string | null
-  enableMultimodal: boolean
-  visionPromptTemplate?: string | null
 }
 
 /** 测试连接结果 */

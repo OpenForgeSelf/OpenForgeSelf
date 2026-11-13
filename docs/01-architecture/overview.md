@@ -16,7 +16,7 @@
 |----|------|------|
 | 后端 | .NET 10 / ASP.NET Core 10 | `ForgeSelf.Api/` |
 | 后端 ORM | NewLife.XCode | 实体继承自 `Entity<T>`，SQLite 持久化（`Data/ForgeSelf.db`） |
-| 后端 AI | NewLife.AI / Microsoft Agent Framework（实验性） | `Services/AI/` 统一网关与多模态处理 |
+| 后端 AI | NewLife.AI / Microsoft Agent Framework（实验性） | `Services/AI/` 统一网关，薄转发；图片交上游 |
 | 前端 | Vue 3.5 + Vite 6 + TS 5.7 + Element Plus 2.14 + Tailwind v4 + Pinia | `ForgeSelf.Web/`，pnpm |
 | 通信 | REST + WebSocket | 前端 `services/request.ts`（fetch 封装）+ `services/websocket.ts` |
 | 运行 | 托盘常驻 Windows 桌面应用（自更新） | 后端监听动态端口（默认 **7102**），前端 dev 默认 **7002** |
@@ -51,7 +51,7 @@
 │        ├─ ModelsController          v1/models                        │
 │        └─ AgentChatController       v1/agent/chat/completions (实验·Agent Framework 样本) │
 │                                                                         │
-│ Services/   AIProviderRegistry · MultimodalProcessor · ChatTurn* · ...  │
+│ Services/   AIProviderRegistry · LlmProxyPipeline · ChatTurn* · ...    │
 │ Entities/  AIProvider/AIModel · ChatSession/ChatTurn · Usage* · ...     │
 │ Plugins/    AIAgent/DevTools/FileTools/MemorySystem/QuickLinks/Scheduler/ │
 │             ScriptRunner/SystemMonitor/TextTools/TodoTracker/WorkflowEngine │
@@ -66,11 +66,11 @@
 
 ### 3.1 统一 AI 网关（UnifiedAI）
 
-外部 LLM 客户端（如 GitHub Copilot、各类 OpenAI 兼容客户端）按各自协议打到 `v1/*`，后端**按风格归一**后通过 `AIProviderRegistry` 路由到已配置 provider 的上游：
+外部 LLM 客户端按各自协议打到 `v1/*`。别名改写、协议桥和出站只在 `LlmProxyPipeline.ExecuteAsync` 做一次（`Services/AI/Proxy/`）。
 
-- **模型前缀路由**：请求 `model` 支持 `provider:upstream_model_id` 格式（如 `default:qwen/qwen3-vl-4b`）；无前缀且不在 provider 支持列表时回退默认 provider。
-- **三风格归一**：OpenAI Chat / Anthropic Messages / OpenAI Responses 三种请求→统一内部表示→上游；流式走 SSE（`HandleStreamAsync` 透传 `usage`，`include_usage=true`）。
-- **多模态**：`MultimodalProcessor` 逐图识别，结果走 `IImageRecognitionCache`（见 `02-features/011-multimodal-image-cache.md`）。
+- **同协议**：只把 `model` 换成 `ResolveUpstreamModel` 的上游 id，其余 JSON 原样 POST。流式字节原样回写，不补 `stream_options`、不补 `[DONE]`。
+- **跨协议**：Chat 与 Responses 只做标准字段映射；Anthropic 入站先落到 Chat 再按出站续转。
+- **图片**：不再本地识图，不再读写 `ImageRecognitionCache`。图片字段随请求转发，由上游处理（`02-features/011-multimodal-image-cache.md` 已撤）。
 
 ### 3.2 聊天会话聚合（ChatSession / ChatTurn）
 

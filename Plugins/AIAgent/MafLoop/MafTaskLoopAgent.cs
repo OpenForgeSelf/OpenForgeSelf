@@ -661,7 +661,9 @@ public sealed class MafTaskLoopAgent : IAgent, IAsyncDisposable
     /// </summary>
     private IChatClient BuildPipeline(MafLoopBridge bridge, HashSet<string> exitSet, IReadOnlyList<string> toolRefs)
     {
-        var adapter = new ForgeChatClientAdapter(_runtime.Provider, _runtime.ModelId);
+        IChatClient adapter = _runtime.Pipeline != null
+            ? new ForgeChatClientAdapter(_runtime.Pipeline, _runtime.ModelId)
+            : new ForgeChatClientAdapter(_runtime.Provider, _runtime.ModelId);
         var logger = new ForgeModelCallLogger(adapter, _runtime.Store, SessionId, _runtime.ModelId, toolRefs);
 
         return new ChatClientBuilder(logger)

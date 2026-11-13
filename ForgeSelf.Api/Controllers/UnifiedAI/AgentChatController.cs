@@ -1,19 +1,16 @@
 using System.Text;
-using ForgeSelf.Abstractions;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
-using System.ClientModel;
-using System.ClientModel.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
-using OpenAI;
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.AI;
-using ForgeSelf.Api.Services.AI.Providers;
+using ForgeSelf.Api.Services.AI.Proxy;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Controllers.UnifiedAI;
@@ -34,9 +31,8 @@ namespace ForgeSelf.Api.Controllers.UnifiedAI;
 [Authorize("ApiKeyPolicy")]
 public class AgentChatController : ControllerBase
 {
-    private readonly AIProviderRegistry _registry;
+    private readonly ILlmProxyPipeline _pipeline;
     private readonly ILogService _logService;
-    private readonly IHttpClientFactory _httpClientFactory;
 
     private static readonly JsonSerializerOptions StreamSerializerOptions = new()
     {
@@ -45,11 +41,10 @@ public class AgentChatController : ControllerBase
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
     };
 
-    public AgentChatController(AIProviderRegistry registry, ILogService logService, IHttpClientFactory httpClientFactory)
+    public AgentChatController(ILlmProxyPipeline pipeline, ILogService logService)
     {
-        _registry = registry;
+        _pipeline = pipeline;
         _logService = logService;
-        _httpClientFactory = httpClientFactory;
     }
 
     [HttpPost("chat/completions")]
@@ -63,27 +58,7 @@ public class AgentChatController : ControllerBase
             if (string.IsNullOrEmpty(request.Model))
                 return BadRequest(new { error = new { message = "model is required", type = "invalid_request_error" } });
 
-            var (provider, upstreamModelId) = _registry.ResolveUpstreamModel(request.Model);
-            if (provider == null)
-                return BadRequest(new { error = new { message = $"No provider found for model '{request.Model}'", type = "invalid_request_error" } });
-
-            if (provider is not OpenAICompatibleProvider ocProvider)
-                return BadRequest(new { error = new { message = "Agent 测试接口仅支持 OpenAI 兼容提供方", type = "invalid_request_error" } });
-
-            if (ocProvider.Config.ProviderType != AIProviderType.OpenAI && ocProvider.Config.ProviderType != AIProviderType.Custom)
-                return BadRequest(new { error = new { message = "Agent 测试接口仅支持 OpenAI 兼容提供方（OpenAI / Custom）", type = "invalid_request_error" } });
-
-            var baseUrl = DeriveOpenAIBaseUrl(ocProvider.Config.Endpoint);
-            // 设置·网络设置（2026-10-16-settings-network-proxy M6）：OpenAI SDK 经 IHttpClientFactory
-            // 的 client（已由 ConfigureModelProxyHttpClient 装入实时代理）发出模型请求，与其余出口同策略。
-            var openAiClient = new OpenAIClient(
-                new ApiKeyCredential(ocProvider.Config.ApiKey),
-                new OpenAIClientOptions
-                {
-                    Endpoint = new Uri(baseUrl),
-                    Transport = new HttpClientPipelineTransport(_httpClientFactory.CreateClient())
-                });
-            var chatClient = openAiClient.GetChatClient(upstreamModelId).AsIChatClient();
+            var chatClient = new LlmProxyChatClient(_pipeline, request.Model);
 
             // 演示用服务端工具：证明 agent 能完成「模型决策 → 执行工具 → 汇总」
             var demoTools = new List<AITool>
@@ -113,16 +88,16 @@ public class AgentChatController : ControllerBase
             bool roleEmitted = false;
 
             // 初始角色块（OpenAI 要求首块带 role）
-            await WriteSseAsync(CreateStreamChunk(id, upstreamModelId, created, 0, role: "assistant"));
+            await WriteSseAsync(CreateStreamChunk(id, request.Model, created, 0, role: "assistant"));
             roleEmitted = true;
 
             await foreach (var update in agent.RunStreamingAsync(messages, cancellationToken: cancellationToken))
             {
-                foreach (var chunk in AgentStreamTranslator.Translate(update, id, upstreamModelId, created, ref roleEmitted))
+                foreach (var chunk in AgentStreamTranslator.Translate(update, id, request.Model, created, ref roleEmitted))
                     await WriteSseAsync(chunk);
             }
 
-            await WriteSseAsync(CreateStreamChunk(id, upstreamModelId, created, 0, finishReason: "stop"));
+            await WriteSseAsync(CreateStreamChunk(id, request.Model, created, 0, finishReason: "stop"));
             await WriteSseRawAsync("[DONE]");
 
             return new EmptyResult();
@@ -234,27 +209,6 @@ public class AgentChatController : ControllerBase
                 }
             }
         };
-    }
-
-    /// <summary>
-    /// 从配置的 Endpoint 推导 OpenAI SDK 所需的 base（含 /v1），去掉末尾 /chat/completions。
-    /// 例如 https://api.openai.com/v1/chat/completions → https://api.openai.com/v1
-    /// </summary>
-    private static string DeriveOpenAIBaseUrl(string endpoint)
-    {
-        if (string.IsNullOrWhiteSpace(endpoint))
-            return "https://api.openai.com/v1";
-
-        var url = endpoint.Trim();
-        if (url.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
-            url = url[..^"/chat/completions".Length];
-        if (!url.Contains("://"))
-            url = "https://" + url;
-        url = url.TrimEnd('/');
-        // 保证 base 含有 /v1（OpenAI/OpenRouter 等约定）
-        if (!url.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
-            url += "/v1";
-        return url;
     }
 
 }

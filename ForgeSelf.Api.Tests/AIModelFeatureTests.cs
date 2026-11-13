@@ -459,6 +459,9 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
     public void GatewayModelEntries_CallSharedResolveUpstreamModel()
     {
         var root = RepoRoot();
+        var pipeline = File.ReadAllText(Path.Combine(root, "ForgeSelf.Api/Services/AI/Proxy/LlmProxyPipeline.cs"));
+        pipeline.Should().Contain("ResolveUpstreamModel(", "别名只允许管道改写一次");
+
         string[] files =
         [
             "ForgeSelf.Api/Controllers/UnifiedAI/OpenAIChatController.cs",
@@ -469,9 +472,18 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         foreach (var rel in files)
         {
             var text = File.ReadAllText(Path.Combine(root, rel));
-            text.Should().Contain("_registry.ResolveUpstreamModel(", $"{rel} 必须走共用解析");
+            text.Should().NotContain("ResolveUpstreamModel(", $"{rel} 不得各自改写别名");
             text.Should().NotContain("ResolveProviderAndModel", $"{rel} 不得再保留分叉的私有解析");
+            if (rel.Contains("AgentChatController", StringComparison.Ordinal))
+                text.Should().Contain("LlmProxyChatClient", $"{rel} 的模型回合必须进入管道客户端");
+            else
+                text.Should().Contain("LlmProxyHttp.ForwardAsync", $"{rel} 必须进入同一条管道");
         }
+
+        File.ReadAllText(Path.Combine(root, "ForgeSelf.Api/Services/AI/Proxy/LlmProxyHttp.cs"))
+            .Should().Contain("ExecuteAsync(");
+        File.ReadAllText(Path.Combine(root, "ForgeSelf.Api/Services/AI/Proxy/LlmProxyChatClient.cs"))
+            .Should().Contain("ExecuteAsync(");
     }
 
     private static string RepoRoot()

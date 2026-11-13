@@ -14,6 +14,7 @@ using Scalar.AspNetCore;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
 using ForgeSelf.Api.Services.AI.Providers;
+using ForgeSelf.Api.Services.AI.Proxy;
 using ForgeSelf.Api.Services.Skills;
 using ForgeSelf.Api.Services.Net;
 using ForgeSelf.Api.Services.UsageStats;
@@ -228,6 +229,11 @@ public static class AppBuilder
         builder.Services.AddScoped<IChatSessionService, ChatSessionService>();
         builder.Services.AddSingleton<IWebSocketBroadcaster, WebSocketBroadcaster>();
         builder.Services.AddScoped<IChatTurnStreamRecorder, ChatTurnStreamRecorder>();
+        // 网关旁路记录：单例队列 + 同一个 HostedService 实例。请求线程只 TryWrite，落库在后台 scope 里。
+        builder.Services.AddScoped<ILlmTurnAuditStore, LlmTurnAuditStore>();
+        builder.Services.AddSingleton<LlmTurnAuditQueue>();
+        builder.Services.AddSingleton<ILlmTurnAudit>(sp => sp.GetRequiredService<LlmTurnAuditQueue>());
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<LlmTurnAuditQueue>());
 
         // 机器派生密钥提供器（030 认证体系升级）：进程内单例，PBKDF2 只派生一次
         builder.Services.AddSingleton<IMachineKeyProvider, MachineKeyProvider>();
@@ -335,10 +341,8 @@ public static class AppBuilder
         builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
         // 契约形态（Abstractions）：供插件经 ctx.Get<IAIProviderRegistry>() 消费，须与上者为同一实例。
         builder.Services.AddSingleton<IAIProviderRegistry>(sp => sp.GetRequiredService<AIProviderRegistry>());
-
-        // 图片识别结果本地缓存（统一 AI 网关多模态处理用）：按会话 id 分文件夹，存于 {数据根}/ImageRecognitionCache
-        var imageCacheRoot = Path.Combine(dataLocation.GetHostDataDirectory(), "ImageRecognitionCache");
-        builder.Services.AddSingleton<IImageRecognitionCache>(new LocalFileImageRecognitionCache(imageCacheRoot));
+        builder.Services.AddSingleton<ILlmProxyPipeline>(sp =>
+            new ForgeSelf.Api.Services.AI.Proxy.LlmProxyPipeline(sp.GetRequiredService<AIProviderRegistry>()));
 
         // 插件可变 MS DI 容器（Option A）：先注册注册表单例，使 PluginManager 可构造注入同一份实例。
         var pluginServiceRegistry = new PluginServiceRegistry();

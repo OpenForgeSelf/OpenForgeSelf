@@ -396,11 +396,15 @@ public class AIAgentService : IAIAgentService
             unifiedTools = merged;
         }
 
+        var pipeline = _ctx.Get<ILlmProxyPipeline>();
         var runtime = new AgentTurnRuntime
         {
             Store = store,
             Provider = provider,
-            ModelId = ResolveModelId(effective.ModelId),
+            ModelId = pipeline != null && !string.IsNullOrWhiteSpace(effective.ModelId)
+                ? effective.ModelId
+                : ResolveModelId(effective.ModelId),
+            Pipeline = pipeline,
             ToolExecutor = ToolRegistry,
             SystemPrompt = effective.SystemPrompt,
             ToolDefinitions = unifiedTools,
@@ -473,8 +477,9 @@ public class AIAgentService : IAIAgentService
             }
         }
 
+        var pipeline = _ctx.Get<ILlmProxyPipeline>();
         var provider = ResolveProvider(chatModelId);
-        if (provider == null)
+        if (pipeline == null && provider == null)
         {
             yield return new AgentLoopEvent { Type = "error", Content = "未找到可用的 AI 提供方（检查提供方配置与模型路由）" };
             yield break;
@@ -552,10 +557,12 @@ public class AIAgentService : IAIAgentService
         // 供 LLM 用 workflow_execute 工具按需执行（多工作流由 LLM 决策）。
         systemPrompt = AppendAssociatedWorkflows(systemPrompt, agentId);
 
-        var model = ResolveModelId(chatModelId);
+        var model = pipeline != null && !string.IsNullOrWhiteSpace(chatModelId)
+            ? chatModelId!
+            : ResolveModelId(chatModelId);
 
         XTrace.Log.Info("[AIAgentPlugin] 开始 Agent 工具循环，provider: {0}, model: {1}, agent: {2}, 工具数: {3}, 技能数: {4}",
-            provider.ProviderName, model, agentId ?? "(默认)", unifiedTools?.Count ?? 0, skillIds?.Count ?? 0);
+            provider?.ProviderName ?? "pipeline", model, agentId ?? "(默认)", unifiedTools?.Count ?? 0, skillIds?.Count ?? 0);
 
         const int maxIterations = 10;
         for (var iteration = 0; iteration < maxIterations; iteration++)
@@ -574,7 +581,10 @@ public class AIAgentService : IAIAgentService
             var pendingToolCalls = new List<UnifiedToolCall>();
             UnifiedUsage? usage = null;
 
-            await foreach (var chunk in provider.ChatStreamAsync(request, cancellationToken))
+            var chunks = pipeline != null
+                ? ReadPipelineChunks(pipeline, request, cancellationToken)
+                : provider!.ChatStreamAsync(request, cancellationToken);
+            await foreach (var chunk in chunks)
             {
                 if (!string.IsNullOrEmpty(chunk.DeltaContent))
                 {
@@ -668,11 +678,11 @@ public class AIAgentService : IAIAgentService
     }
 
     /// <summary>
-    /// 内置 Agent 工具作用域插件白名单：本插件自己的工具 + 记忆系统（memory-system）+ 设计系统（design-system，M1）。
-    /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。
+    /// 内置 Agent 工具作用域插件白名单：本插件自己的工具 + 记忆系统（memory-system）+ 设计系统（design-system，M1）+ 智能终端（smart-terminal，st_* 驱动会话）。
+    /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。智能终端只加自己的 st_* 一组。
     /// </summary>
     public static IReadOnlyCollection<String> ToolScopePluginIds(String ownPluginId) =>
-        [ownPluginId, "memory-system", "design-system"];
+        [ownPluginId, "memory-system", "design-system", "smart-terminal"];
 
     /// <summary>
     /// Agent 工具范围：本插件自己的工具 + 记忆系统（memory-system）的 5 个记忆工具 + 设计系统（design-system）的 8 个 design_* 工具（M1）。
@@ -687,7 +697,7 @@ public class AIAgentService : IAIAgentService
     /// </summary>
     /// <remarks>
     /// 与 <see cref="ResolveOwnToolDefinitions"/> 的区别：后者是「默认挂载作用域」（不指定工具时挂什么），
-    /// 只含本插件 + memory-system + design-system，避免 ~77 个工具撑爆本地小模型 prompt → 上游 400。
+    /// 只含本插件 + memory-system + design-system + smart-terminal，避免 ~77 个工具撑爆本地小模型 prompt → 上游 400。
     /// 本方法是「用户/Agent 显式勾选时的候选池」——显式勾选是明确意图（例如勾 todo 工具），
     /// 不应再被默认作用域的插件白名单拦掉（历史缺陷：composer 里看得到 todo 工具却永远挂载不上）。
     /// </remarks>
@@ -869,6 +879,36 @@ public class AIAgentService : IAIAgentService
     }
 
     /// <summary>Abstractions 消息 → 统一请求消息（含工具调用字段）。</summary>
+    private static async IAsyncEnumerable<UnifiedStreamChunk> ReadPipelineChunks(
+        ILlmProxyPipeline pipeline,
+        UnifiedChatRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var result = await pipeline.ExecuteAsync(
+            new LlmProxyRequest
+            {
+                Protocol = LlmWireProtocol.ChatCompletions,
+                BodyJson = OpenAIChatJson.FromUnified(request)
+            },
+            cancellationToken).ConfigureAwait(false);
+        await using (result)
+        {
+            if (result.StatusCode is < 200 or >= 300)
+            {
+                var error = result.Body == null
+                    ? string.Empty
+                    : await new StreamReader(result.Body).ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                throw new InvalidOperationException($"上游返回 {result.StatusCode}: {error}");
+            }
+
+            if (result.Body == null)
+                yield break;
+
+            await foreach (var chunk in OpenAIChatStreamReader.Read(result.Body, cancellationToken).ConfigureAwait(false))
+                yield return chunk;
+        }
+    }
+
     private static UnifiedChatMessage ToUnifiedMessage(AIChatMessage m)
     {
         return new UnifiedChatMessage

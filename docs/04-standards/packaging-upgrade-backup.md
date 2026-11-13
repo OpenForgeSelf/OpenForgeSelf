@@ -63,7 +63,7 @@
 |---|---|
 | `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\` | 更新下载包 + 解压目录；**应用成功后清理已实施**（update-agent.ps1，输入31 批次1，保留 agent-*.log） |
 | `%LOCALAPPDATA%\ForgeSelf\Backups\<ts>` | 整目录备份**已退役并清理存量**（update-agent.ps1 不再写入、更新成功后清理，输入31 批次1；008 UpdateService 批次2 输入34 已冻结，不再写 Backups） |
-| `{数据根}/Data/ImageRecognitionCache/<会话键>/<sha256>.json` | 图片识别缓存（`AppBuilder.cs:246-248`）；**TTL 清理已实施**（`LocalFileImageRecognitionCache` 初始化清理超 30 天会话目录，输入31 批次1 R6） |
+| `{数据根}/Data/ImageRecognitionCache/<会话键>/<sha256>.json` | **运行时已停写（2026-11-12）**。历史文件可留。写入与 TTL 清理类已删除 |
 | `publish/wwwroot` 旧 `.br/.gz` | 发布前需删除旧预压缩文件（agent-workflow B3 既有规则） |
 | `ForgeSelf.Web DataStoragePanel.vue`「清除缓存」 | 前端按钮存在；**未见后端 API 接线**（2026-09-28 grep 核查，疑为占位，待核） |
 | Entity `Meta.Cache` | 进程内缓存（AsyncLocal），非磁盘，不算空间浪费 |

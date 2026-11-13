@@ -91,8 +91,27 @@ internal static class OpenAISdkAdapter
         options.RetryPolicy = new ClientRetryPolicy(maxRetries: 0);
         // U-6f 偏差：SDK 要求非空 ApiKeyCredential（空串在构造期抛异常，手写版是发「Bearer 」空参）；
         // 空 key 用无害占位符，键鉴权上游不会用到，键免鉴权上游（LM Studio/Ollama）忽略该头
-        var apiKey = string.IsNullOrWhiteSpace(config.ApiKey) ? "EMPTY" : config.ApiKey;
-        return new OpenAIClient(new ApiKeyCredential(apiKey), options);
+        return new OpenAIClient(new ApiKeyCredential(ResolveApiKey(config)), options);
+    }
+
+    /// <summary>与 <see cref="CreateClient"/> 相同的空密钥占位。薄转发只复用这条规则，不经 <c>CompleteChatAsync</c>。</summary>
+    public static string ResolveApiKey(AIProviderConfig config)
+        => string.IsNullOrWhiteSpace(config.ApiKey) ? "EMPTY" : config.ApiKey;
+
+    /// <summary>
+    /// 同协议转发的绝对地址。Chat 为兼容层 <c>{base}/chat/completions</c>，Responses 为 <c>{base}/responses</c>。
+    /// 地址推导与 <see cref="CreateChatClient"/> / <see cref="CreateResponsesClient"/> 相同，并经过 <see cref="LocalModelGate"/>。
+    /// </summary>
+    public static Uri GetWireUri(AIProviderConfig config, LlmWireProtocol protocol)
+    {
+        var baseUrl = protocol == LlmWireProtocol.Responses
+            ? DeriveResponsesBaseUrl(config.Endpoint)
+            : config.ProviderType == AIProviderType.Anthropic
+                ? DeriveAnthropicCompatBaseUrl(config.Endpoint)
+                : DeriveOpenAICompatBaseUrl(config);
+        LocalModelGate.EnsureAllowed(baseUrl);
+        var suffix = protocol == LlmWireProtocol.Responses ? "/responses" : "/chat/completions";
+        return new Uri(baseUrl.TrimEnd('/') + suffix);
     }
 
     /// <summary>OpenAI/Custom 共用 OpenAI 兼容推导规则（Custom 在既有 TryGetProviderPathParts 会抛异常，适配器视为 OpenAI 兼容，BC-4）。</summary>

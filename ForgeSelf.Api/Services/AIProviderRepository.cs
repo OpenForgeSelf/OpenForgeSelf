@@ -97,9 +97,7 @@ public class AIProviderRepository : IAIProviderRepository
         existing.SupportedModels = entity.SupportedModels;
         existing.IsDefault = entity.IsDefault;
         existing.TimeoutSeconds = entity.TimeoutSeconds;
-        existing.VisionModel = entity.VisionModel;
-        existing.EnableMultimodal = entity.EnableMultimodal;
-        existing.VisionPromptTemplate = entity.VisionPromptTemplate;
+        // 多模态三列已退出 API。更新提供方时保留库里的原值，避免保存时被空请求抹掉。
 
         // ApiKey：传入非空明文则重新加密；为空则保留库中既有密文（编辑留空语义）
         if (!string.IsNullOrEmpty(entity.ApiKey))

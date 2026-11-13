@@ -38,7 +38,7 @@
 | `Backend.Tests/Integration/UnifiedAIGatewayIntegrationTests` | 多风格路由（OpenAI/Anthropic/Responses/Agent Framework）+ 流式 usage 透传 |
 | `Backend.Tests/Integration/ChatRecordsControllerIntegrationTests` | 会话视图 |
 | `Backend.Tests/Unit/ChatSessionServiceTests` `ChatTurnServiceTests` `ChatTurnStreamRecorderTests` | 会话化改名后逻辑 |
-| `Backend.Tests/Unit/ImageRecognitionCacheTests` `MultimodalProcessorCacheTests` | 多模态缓存 |
+| `ForgeSelf.Api.Tests/Unit/LlmProxyPipelineTests` | 同协议原样转发、跨协议标准映射、空模型 400 |
 | 前端 `ChatRecordsView` / `ChatRecordDetail` 测试 | 会话维度渲染 + WS 推送 |
 
 ## 4. 判定规则

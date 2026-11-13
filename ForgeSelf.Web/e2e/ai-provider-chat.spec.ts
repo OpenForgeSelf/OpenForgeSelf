@@ -53,7 +53,6 @@ async function createTestProvider(name: string): Promise<number> {
       supportedModels: [LM_MODEL],
       isDefault: false,
       timeoutSeconds: 120,
-      enableMultimodal: false,
     }),
   })
   const json = (await res.json()) as { success: boolean; data?: { id: number } }

@@ -1,4 +1,4 @@
-﻿# 配置项参考
+# 配置项参考
 
 > 项目使用 `appsettings.json` + 环境覆盖（`appsettings.Development.json` / `appsettings.Production.json`）管理配置。
 > 配置通过 `IConfigurationService` 注入到各服务。
@@ -148,3 +148,4 @@
 | 端口配置 | `PortConfiguration` 表 | 设置页面 / `api/port-configuration` API |
 | 外观设置 | 前端 localStorage | 设置页面 |
 | 更新源配置 | `{数据根}/Config/update-settings.json` | 设置页「更新源配置」/ `api/update/config` API（2026-09-27 起，重启后优先加载） |
+| XCode 配置（反向工程/缓存等 XCodeSetting） | `{数据根}/config/XCode.config`（ConfigUnifier 统一收敛的权威位；程序目录下同名文件均为残留副本） | 直接改文件后重启宿主生效；反向工程字段 = `Migration`，档位 Off/ReadOnly/On/Full（On=仅新建，Full=完全含修改删除；NewLife.XCode 12.0.2026.701，2026-11-12 实测） |

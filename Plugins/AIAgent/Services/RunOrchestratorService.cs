@@ -130,7 +130,7 @@ public class RunOrchestratorService : IRunOrchestratorService
 
     /// <summary>目标评估器（PILOT-051 FR-3）：显式注入（测试）优先，否则经 Cordis 懒解析 provider 注册表构造。</summary>
     private GoalPursuitService GoalPursuit => _goalPursuitOverride
-        ?? new GoalPursuitService(_ctx?.Get<IAIProviderRegistry>());
+        ?? new GoalPursuitService(_ctx?.Get<IAIProviderRegistry>(), _ctx?.Get<ILlmProxyPipeline>());
 
     /// <summary>宿主收件箱（B7 软依赖）：优先显式注入（测试），否则经 Cordis 上下文运行期懒解析。</summary>
     private IInbox? Inbox => _inboxOverride ?? _ctx?.Get<IInbox>();

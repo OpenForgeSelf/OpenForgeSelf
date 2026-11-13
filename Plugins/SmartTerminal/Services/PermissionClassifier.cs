@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
@@ -210,7 +211,11 @@ public sealed class PermissionClassifier : IPermissionClassifier
         try
         {
             var json = File.ReadAllText(path);
-            var dto = JsonSerializer.Deserialize<RuleSetDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            var dto = JsonSerializer.Deserialize<RuleSetDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            })
                       ?? new RuleSetDto();
             return RuleSet.FromDto(dto);
         }

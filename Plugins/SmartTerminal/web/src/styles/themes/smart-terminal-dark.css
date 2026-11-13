@@ -1,0 +1,21 @@
+/* Smart Terminal v2 — theme token layer（暗色，锁定原型 v0.2）
+   设计稿色板单一来源（DESIGN.md 原型 v0.2，值原样迁入不改写）。
+   本目录（styles/themes/）为 token 定义层，按 scripts/check-style-tokens.mjs
+   EXCLUDE_SUFFIXES 豁免硬编码色值棘轮；组件层（styles.css 等）只允许 var() 引用。 */
+.smart-terminal{
+  --gold-300:#F9BC4E;--gold-400:#F59E0B;--gold-500:#D97706;
+  --cinnabar-400:#C0392B;--bronze-500:#5A7A5A;
+  --ink-950:#0B0908;--ink-900:#14110F;--ink-850:#1B1815;--ink-700:#322D28;
+  --fg-primary:#F4F0E7;--fg-secondary:#B5AB9F;--fg-tertiary:#8F8478;--fg-muted:#6B6058;
+  --ok:#6B8E4E;--ok-fg:#A8C08A;--warn:#E0A030;--warn-fg:#F5C572;--danger:#C0392B;--danger-fg:#E86A5B;--info:#4A7A9B;--info-fg:#7FA8C8;
+  --hair:rgba(245,240,231,.06);--subtle:rgba(245,240,231,.10);--border:rgba(245,240,231,.16);
+  --glass-bg:rgba(20,17,15,.32);--glass-strong-bg:rgba(20,17,15,.92);--glass-border:rgba(245,240,231,.08);
+  --surface-sunk:rgba(0,0,0,.28);--surface-block:rgba(0,0,0,.18);--surface-cmd:rgba(0,0,0,.3);--overlay:rgba(0,0,0,.55);
+  --shadow-glass:0 6px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-pop:0 24px 60px rgba(0,0,0,.65);
+  --font-display:"Noto Serif SC","LXGW WenKai","Songti SC",ui-serif,serif;
+  --font-serif:"LXGW WenKai","Noto Serif SC","Songti SC",serif;
+  --font-sans:"Inter","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --dur-fast:160ms;--dur-base:220ms;--ease-out:cubic-bezier(.22,1,.36,1);
+}

@@ -1,5 +1,6 @@
 
-/* Smart Terminal v2 — scoped tokens and chrome from locked prototype v0.2 */
+@import './styles/themes/smart-terminal-dark.css';
+/* Smart Terminal v2 — scoped chrome; tokens moved to styles/themes/smart-terminal-dark.css (DESIGN.md 原型 v0.2) */
 .smart-terminal{
   box-sizing:border-box;
   height:100%;
@@ -30,27 +31,12 @@
   flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:20px 28px 16px
 }
 
-/* 铸己匣 · 智能终端插件确认原型 v0.2｜自包含，tokens 取自 DESIGN.md（暗色默认）
-   生产界面 scoped 到 .smart-terminal，token 与原型 v0.2 一致 */
-.smart-terminal{
-  --gold-300:#F9BC4E;--gold-400:#F59E0B;--gold-500:#D97706;
-  --cinnabar-400:#C0392B;--bronze-500:#5A7A5A;
-  --ink-950:#0B0908;--ink-900:#14110F;--ink-850:#1B1815;--ink-700:#322D28;
-  --fg-primary:#F4F0E7;--fg-secondary:#B5AB9F;--fg-tertiary:#8F8478;--fg-muted:#6B6058;
-  --ok:#6B8E4E;--ok-fg:#A8C08A;--warn:#E0A030;--warn-fg:#F5C572;--danger:#C0392B;--danger-fg:#E86A5B;--info:#4A7A9B;--info-fg:#7FA8C8;
-  --hair:rgba(245,240,231,.06);--subtle:rgba(245,240,231,.10);--border:rgba(245,240,231,.16);
-  --font-display:"Noto Serif SC","LXGW WenKai","Songti SC",ui-serif,serif;
-  --font-serif:"LXGW WenKai","Noto Serif SC","Songti SC",serif;
-  --font-sans:"Inter","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-  --font-mono:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
-  --dur-fast:160ms;--dur-base:220ms;--ease-out:cubic-bezier(.22,1,.36,1);
-}
 .smart-terminal .mono{font-family:var(--font-mono)}
 .smart-terminal .serif{font-family:var(--font-serif)}
 .smart-terminal .muted{color:var(--fg-tertiary)}
 
-.smart-terminal .glass{background:rgba(20,17,15,.32);backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(245,240,231,.08);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.04)}
-.smart-terminal .glass-strong{background:rgba(20,17,15,.92);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--subtle);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.65)}
+.smart-terminal .glass{background:var(--glass-bg);backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--glass-border);border-radius:12px;box-shadow:var(--shadow-glass)}
+.smart-terminal .glass-strong{background:var(--glass-strong-bg);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--subtle);border-radius:14px;box-shadow:var(--shadow-pop)}
 .smart-terminal .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;flex-shrink:0;gap:16px}
 .smart-terminal .eyebrow{font:500 10px var(--font-mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold-400)}
 .smart-terminal .h1{font:700 26px/1.15 var(--font-display);letter-spacing:.05em;margin-top:4px}
@@ -93,8 +79,8 @@
 .smart-terminal .panes{flex:1;display:grid;min-height:0;overflow:hidden}
 .smart-terminal .pane{display:flex;flex-direction:column;min-width:0;min-height:0}
 .smart-terminal .pane-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font:10px var(--font-mono);color:var(--fg-tertiary);border-bottom:1px solid var(--hair);letter-spacing:.04em;flex-shrink:0}
-.smart-terminal .term{flex:1;overflow:auto;padding:10px 12px 14px;font:12px/1.6 var(--font-mono);background:rgba(0,0,0,.28);min-height:0;cursor:text}
-.smart-terminal .block{margin:0 0 10px;padding:8px 9px;border:1px solid var(--hair);border-radius:6px;background:rgba(0,0,0,.18);cursor:pointer}
+.smart-terminal .term{flex:1;overflow:auto;padding:10px 12px 14px;font:12px/1.6 var(--font-mono);background:var(--surface-sunk);min-height:0;cursor:text}
+.smart-terminal .block{margin:0 0 10px;padding:8px 9px;border:1px solid var(--hair);border-radius:6px;background:var(--surface-block);cursor:pointer}
 .smart-terminal .block:hover,.smart-terminal .block.sel{border-color:color-mix(in srgb,var(--gold-400) 40%,transparent)}
 .smart-terminal .block.sel{background:color-mix(in srgb,var(--gold-400) 8%,transparent)}
 .smart-terminal .block .meta{display:flex;justify-content:space-between;gap:8px;color:var(--fg-tertiary);font-size:10px;margin-bottom:4px}
@@ -129,16 +115,16 @@
 .smart-terminal .chat-thread{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0;padding-bottom:4px}
 .smart-terminal .bubble{max-width:100%;padding:8px 10px;border-radius:8px;font-size:13px;line-height:1.55}
 .smart-terminal .bubble.user{align-self:flex-end;background:color-mix(in srgb,var(--gold-400) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold-400) 28%,transparent)}
-.smart-terminal .bubble.assistant{align-self:flex-start;background:rgba(0,0,0,.28);border:1px solid var(--hair)}
+.smart-terminal .bubble.assistant{align-self:flex-start;background:var(--surface-sunk);border:1px solid var(--hair)}
 .smart-terminal .bubble .who{font:10px var(--font-mono);letter-spacing:.08em;margin-bottom:4px}
 .smart-terminal .bubble.user .who{color:var(--gold-300)}
 .smart-terminal .bubble.assistant .who{color:var(--fg-tertiary)}
 .smart-terminal .bubble code,.smart-terminal .fmt code{font:11px var(--font-mono);color:var(--gold-300)}
 .smart-terminal .bubble.thinking{color:var(--fg-tertiary);font-style:italic}
-.smart-terminal .ai-cmd{font:11px/1.55 var(--font-mono);background:rgba(0,0,0,.3);border-radius:6px;padding:8px 10px;color:var(--fg-secondary);margin:8px 0 6px;white-space:pre-wrap}
+.smart-terminal .ai-cmd{font:11px/1.55 var(--font-mono);background:var(--surface-cmd);border-radius:6px;padding:8px 10px;color:var(--fg-secondary);margin:8px 0 6px;white-space:pre-wrap}
 .smart-terminal .chat-composer{display:flex;gap:8px;align-items:flex-end;padding-top:8px;border-top:1px solid var(--hair);flex-shrink:0}
 .smart-terminal .chat-composer textarea{flex:1;resize:none;min-height:44px;max-height:120px;font-size:13px;line-height:1.45;border-radius:6px}
-.smart-terminal .mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+.smart-terminal .mask{position:fixed;inset:0;background:var(--overlay);display:none;z-index:20}
 .smart-terminal .mask.show{display:block}
 .smart-terminal .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;max-width:92vw;max-height:86vh;overflow:auto;padding:20px 22px;z-index:21;display:none}
 .smart-terminal .modal.wide{width:640px}

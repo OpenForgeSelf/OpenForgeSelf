@@ -549,3 +549,21 @@
 - **NOT 提交 B5 Scheduler + ClockBadge + ForgeSelf.slnx + ForgeSelf.Api.csproj**：B5 红态 6 红、ClockBadge 未过立项闸门、slnx/csproj 变更无独立判据——留工作区待各自批次。
 - **NOT 顺手修 24 红存量**：全量 32 红中 24 红系工作区存量（提交动作未改内容），按 §1.3 范围控制记 TODO 基线治理批，不在提交任务内扩面修复。
 - **NOT 改钩子为 pwsh**：pre-commit 仍用 powershell.exe 属既有偏差登记（TODO 在案），非本批范围。
+
+---
+
+## 057 · 2026-11-12 Responses 流式 usage 不搬参考代理的整套事件
+
+- **决策**：只在流式 Responses→Chat 出站补 `stream_options.include_usage`，沿用已有三字段抄写。不移植 `content_part.*` / `output_text.done` / reasoning 条目。不映射 `reasoning_tokens`。不改 Anthropic 流。不发布、不重启 `:51888`。
+- **为何不做（代价/收益）**：参考代理的事件词表含本仓故意不发的类型（AI SDK zod 会拒）。三字段已经能从 usage 块抄回。`reasoning_tokens` 和 Anthropic 是另外的写出路径，塞进本批会扩大协议面。运行包要等用户自己更新。
+- **重新审视的触发条件**：客户端明确要 `output_tokens_details.reasoning_tokens`，或 Anthropic 流的 `input_tokens` 被报成 0。发布由用户点名。
+- **状态**：有效（PC-031，2026-11-12）。
+
+---
+
+## 058 · PILOT-080 门禁违例修复批的四项不做（2026-11-13）
+
+- **决策**：①在途批文件（WireStreamTranslator.cs / TerminalOpenParserTests.cs / SmartTerminalToolFunctions.cs / TerminalInstanceForwarder.cs 等，完整 Forbidden 清单见该批 03 §7）零修改，守卫点名只归因不修；②PC-033（S3 未知 kind 'source'）不修——并行在途批归属，异根因；③RunTerminalCommandTimeoutKillTests 抖动红 ×2 不修——超时击杀负载时序非缺陷；④SmartTerminal 冒烟 e2e 过程 3 次环境类失败（run3 进程树外部收割、run4 NuGetScratch lock 瞬时竞争自解后重跑绿）不作缺陷修复——均非 SmartTerminal 功能缺陷，run5 绿 `1 passed (43.6s)`。
+- **为何不做（代价/收益）**：在途文件属并行批改动面，本批触碰必制造合并冲突且无归属权；PC-033 异根因按 2026-10-17 规则进 TODO 不进本批；抖动红无稳定复现，修「随机性」只会引入误归因；环境类 e2e 失败在锁自解、进程收割后原样重跑即绿，没有可修的功能对象。
+- **重新审视的触发条件**：①在途批合入后守卫复跑仍红（归因成立，届时须新批修复）；②PC-033 并行批完成后 pc-check 仍 FAIL；③TimeoutKill 抖动在同机空载下复现；④e2e 环境类失败在同一环境设置下稳定复现。
+- **状态**：有效（记录自 docs/ai/pilot/2026-11-13-gate-violations-fix/ 07 §8；lead 授权 pilot-writer 同步）。

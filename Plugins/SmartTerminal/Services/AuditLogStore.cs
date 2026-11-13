@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
@@ -19,6 +20,7 @@ public sealed class AuditLogStore : IAuditLogStore
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = false

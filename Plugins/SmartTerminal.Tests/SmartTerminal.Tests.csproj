@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- PC-020：Test.Sdk/xunit 等对宿主即「独有包」，类库 bin 需带测试 DLL（PluginLoadDependencyGuardTests）；
+         2026-11-13 门禁批（输入5）按 DbAdminTests 先例补齐 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
@@ -20,5 +23,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\ForgeSelf.Api.Tests\Plugins\SmartTerminalTests\*.cs" Link="%(Filename)%(Extension)" />
+    <!-- 2026-11-13 门禁批（输入5）：TerminalOpenParserTests.cs 依赖宿主 ForgeSelf.Api.Services.Terminal
+         （文件未跟踪、在途，归属 smart-terminal 批），本工程仅引用插件本体编译不过，暂排除；
+         该批落 track 后应补工程引用或迁移本文件，届时移除本条 Remove。 -->
+    <Compile Remove="..\..\ForgeSelf.Api.Tests\Plugins\SmartTerminalTests\TerminalOpenParserTests.cs" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
+using ForgeSelf.Core;
+using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.SmartTerminal.Services;
 
@@ -8,9 +10,12 @@ namespace ForgeSelf.Api.Plugins.SmartTerminal.Services;
 public sealed class SessionShell : IDisposable
 {
     private readonly Process _process;
+    private readonly string? _askPassFile;
     private readonly object _gate = new();
     private readonly StringBuilder _stdout = new();
     private readonly StringBuilder _stderr = new();
+    private readonly ProcessOutputLineBuffer _stdoutLines = new();
+    private readonly ProcessOutputLineBuffer _stderrLines = new();
     private bool _disposed;
 
     public string Cwd { get; private set; }
@@ -23,14 +28,47 @@ public sealed class SessionShell : IDisposable
         }
     }
 
-    private SessionShell(Process process, string cwd)
+    private SessionShell(Process process, string cwd, string? askPassFile = null)
     {
         _process = process;
+        _askPassFile = askPassFile;
         Cwd = cwd;
-        _process.OutputDataReceived += (_, e) => { if (e.Data != null) lock (_stdout) _stdout.AppendLine(e.Data); };
-        _process.ErrorDataReceived += (_, e) => { if (e.Data != null) lock (_stderr) _stderr.AppendLine(e.Data); };
-        _process.BeginOutputReadLine();
-        _process.BeginErrorReadLine();
+        // PC-011：不使用事件流默认解码（BeginOutputReadLine/BeginErrorReadLine/OutputDataReceived），
+        // 改为读原始字节 → ProcessOutputLineBuffer 逐行裁决，GBK 等非 UTF-8 输出不再乱码。
+        Pump(_process.StandardOutput.BaseStream, _stdoutLines, _stdout);
+        Pump(_process.StandardError.BaseStream, _stderrLines, _stderr);
+    }
+
+    /// <summary>读原始字节流，经字节裁决后按完整行落缓冲；进程退出（或会话销毁）读到流尾后 Flush 尾行。</summary>
+    private static void Pump(Stream stream, ProcessOutputLineBuffer lineBuffer, StringBuilder sink)
+    {
+        _ = Task.Run(async () =>
+        {
+            var chunk = new byte[8192];
+            try
+            {
+                while (true)
+                {
+                    var read = await stream.ReadAsync(chunk);
+                    if (read == 0) break;
+                    AppendLines(sink, lineBuffer.Append(chunk.AsSpan(0, read)));
+                }
+                AppendLines(sink, lineBuffer.Flush());
+                if (lineBuffer.UsedNonUtf8)
+                    XTrace.Log.Info("[SmartTerminal] 壳输出按非 UTF-8 还原：{0}", lineBuffer.NonUtf8EncodingUsed);
+            }
+            catch { /* 会话销毁/进程被杀时读流异常属正常收尾 */ }
+        });
+    }
+
+    private static void AppendLines(StringBuilder sink, List<string> lines)
+    {
+        if (lines.Count == 0) return;
+        lock (sink)
+        {
+            foreach (var line in lines)
+                sink.AppendLine(line);
+        }
     }
 
     public static SessionShell StartLocal(ShellProfileDto shell, string cwd, IDictionary<string, string>? env = null)
@@ -74,14 +112,28 @@ public sealed class SessionShell : IDisposable
         }
 
         var target = $"{user}@{host}";
+        string? askPassFile = null;
         if (!string.IsNullOrEmpty(password))
         {
             var sshpass = FindOnPath("sshpass");
-            if (sshpass == null)
-                throw new SmartTerminalException("connect_failed", "本机没有 sshpass，无法用交互密码建立 SSH", 400);
-            psi.FileName = sshpass;
-            psi.Arguments = $"-e ssh {sshArgs} {Quote(target)}";
-            psi.Environment["SSHPASS"] = password;
+            if (sshpass != null)
+            {
+                psi.FileName = sshpass;
+                psi.Arguments = $"-e ssh {sshArgs} {Quote(target)}";
+                psi.Environment["SSHPASS"] = password;
+            }
+            else
+            {
+                var ssh = FindOnPath("ssh.exe") ?? FindOnPath("ssh")
+                    ?? throw new SmartTerminalException("connect_failed", "本机没有 ssh，无法用密码建立 SSH", 400);
+                askPassFile = WriteAskPassShim();
+                psi.FileName = ssh;
+                psi.Arguments = $"{sshArgs} -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 {Quote(target)}";
+                psi.Environment["SSH_ASKPASS"] = askPassFile;
+                psi.Environment["SSH_ASKPASS_REQUIRE"] = "force";
+                psi.Environment["DISPLAY"] = "1";
+                psi.Environment["ST_SSH_PW"] = password;
+            }
         }
         else
         {
@@ -91,12 +143,19 @@ public sealed class SessionShell : IDisposable
         }
 
         CopyEnv(psi, env, skipSshPass: string.IsNullOrEmpty(password));
+        if (!string.IsNullOrEmpty(password) && askPassFile != null)
+        {
+            psi.Environment["SSH_ASKPASS"] = askPassFile;
+            psi.Environment["SSH_ASKPASS_REQUIRE"] = "force";
+            psi.Environment["DISPLAY"] = "1";
+            psi.Environment["ST_SSH_PW"] = password;
+        }
         var process = StartOrThrow(psi, "SSH 连接失败");
         // 给握手一点时间：若立刻退出则视为连接失败
         Thread.Sleep(200);
         if (process.HasExited)
             throw new SmartTerminalException("connect_failed", "SSH / 本机壳启动失败", 400);
-        var session = new SessionShell(process, "~");
+        var session = new SessionShell(process, "~", askPassFile);
         try { session.RefreshCwd("bash"); }
         catch { /* 远端提示符未就绪时保留 ~，后续命令再刷新 */ }
         return session;
@@ -135,6 +194,21 @@ public sealed class SessionShell : IDisposable
         _disposed = true;
         try { if (!_process.HasExited) _process.Kill(entireProcessTree: true); } catch { /* ignore */ }
         try { _process.Dispose(); } catch { /* ignore */ }
+        if (!string.IsNullOrEmpty(_askPassFile))
+        {
+            try { File.Delete(_askPassFile); } catch { /* ignore */ }
+        }
+    }
+
+    /// <summary>Windows 没有 sshpass 时，让 ssh 通过环境变量读口令。脚本本身不含口令。</summary>
+    private static string WriteAskPassShim()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "st-askpass-" + Guid.NewGuid().ToString("N") + ".cmd");
+        File.WriteAllText(path, """
+            @echo off
+            powershell.exe -NoProfile -NonInteractive -Command "[Console]::Out.Write($env:ST_SSH_PW)"
+            """);
+        return path;
     }
 
     private void RefreshCwd(string shellKind)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Controllers.UnifiedAI;
@@ -41,6 +42,10 @@ public class OpenAIResponsesOutboundSchemaTests
                 if (trimmed.StartsWith("//") || trimmed.StartsWith("*") || trimmed.StartsWith("///"))
                     continue;
                 if (!lines[i].Contains("\"response.output_text.delta\"", StringComparison.Ordinal))
+                    continue;
+                // 守卫只盯出站构造点（初始化赋值）；入站翻译器按 type == "…" 分发事件，
+                // 是比较不是构造，不该进扫描（PC-027 同类教训：字面量匹配须区分读侧与写侧）。
+                if (Regex.IsMatch(lines[i], "[!=]=\\s*\"response\\.output_text\\.delta\""))
                     continue;
 
                 var window = string.Join('\n', lines.Skip(i).Take(14));

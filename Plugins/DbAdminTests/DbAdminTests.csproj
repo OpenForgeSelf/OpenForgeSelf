@@ -26,5 +26,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\ForgeSelf.Api.Tests\Plugins\DbAdminTests\*.cs" Link="%(Filename)%(Extension)" />
+    <!-- 2026-11-13 门禁批（输入5）：PC-014 归化后 DbAdminTestFixture 依赖 XCodeTestFixture；
+         该夹具位于 ForgeSelf.Api.Tests 根（不在上面通配的 Plugins/ 子目录内），显式补链。 -->
+    <Compile Include="..\..\ForgeSelf.Api.Tests\XCodeTestFixture.cs" Link="XCodeTestFixture.cs" />
   </ItemGroup>
 </Project>

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
+using ForgeSelf.Core;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.SmartTerminal.Services;
@@ -769,9 +770,7 @@ public sealed partial class TerminalSessionService : ITerminalSessionService, IS
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
+                CreateNoWindow = true
             };
             // 会话级 env（local/后续命令）；禁止用调用方覆盖已有 SSHPASS（仅 ephemeral 可设）
             foreach (var kv in s.SessionEnv)
@@ -788,24 +787,19 @@ public sealed partial class TerminalSessionService : ITerminalSessionService, IS
             process = new Process { StartInfo = psi, EnableRaisingEvents = true };
             s.ActiveProcess = process;
 
-            process.OutputDataReceived += (_, e) =>
-            {
-                if (e.Data == null) return;
-                AppendChunk(s, "stdout", SecretRedactor.Redact(e.Data));
-            };
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data == null) return;
-                AppendChunk(s, "stderr", SecretRedactor.Redact(e.Data));
-            };
-
             if (!process.Start())
             {
                 throw new InvalidOperationException("进程启动失败");
             }
 
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            // PC-011：不使用事件流默认解码（OutputDataReceived/ErrorDataReceived + BeginOutputReadLine/BeginErrorReadLine），
+            // 读原始字节 → ProcessOutputLineBuffer 逐行裁决后再 Redact 落块，GBK 等非 UTF-8 输出不再乱码。
+            var stdoutBuffer = new ProcessOutputLineBuffer();
+            var stderrBuffer = new ProcessOutputLineBuffer();
+            var stdoutPump = PumpDecodedLinesAsync(process.StandardOutput.BaseStream, stdoutBuffer,
+                text => AppendChunk(s, "stdout", SecretRedactor.Redact(text)));
+            var stderrPump = PumpDecodedLinesAsync(process.StandardError.BaseStream, stderrBuffer,
+                text => AppendChunk(s, "stderr", SecretRedactor.Redact(text)));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
             try
@@ -819,6 +813,11 @@ public sealed partial class TerminalSessionService : ITerminalSessionService, IS
                 cmd.ExitCode = -1;
                 AppendSystem(s, "执行超时（10 分钟），已终止进程树");
             }
+
+            // 泵读到流尾/异常收尾后 Flush 尾行；FR-3：非 UTF-8 解码留痕日志
+            await Task.WhenAll(stdoutPump, stderrPump);
+            LogNonUtf8Decoding("stdout", stdoutBuffer);
+            LogNonUtf8Decoding("stderr", stderrBuffer);
 
             if (cmd.Status != "failed")
             {
@@ -904,6 +903,31 @@ public sealed partial class TerminalSessionService : ITerminalSessionService, IS
                 At = DateTimeOffset.UtcNow
             });
         }
+    }
+
+    /// <summary>PC-011：读原始字节流，经字节裁决后按完整行回调；进程退出（或被杀）读到流尾后 Flush 尾行。</summary>
+    private static async Task PumpDecodedLinesAsync(Stream stream, ProcessOutputLineBuffer lineBuffer, Action<string> onLine)
+    {
+        var chunk = new byte[8192];
+        try
+        {
+            while (true)
+            {
+                var read = await stream.ReadAsync(chunk);
+                if (read == 0) break;
+                foreach (var line in lineBuffer.Append(chunk.AsSpan(0, read)))
+                    onLine(line);
+            }
+            foreach (var line in lineBuffer.Flush())
+                onLine(line);
+        }
+        catch { /* 进程被杀/管道关闭属正常收尾 */ }
+    }
+
+    private static void LogNonUtf8Decoding(string stream, ProcessOutputLineBuffer lineBuffer)
+    {
+        if (lineBuffer.UsedNonUtf8)
+            XTrace.Log.Info("[SmartTerminal] {0} 按非 UTF-8 解码：{1}", stream, lineBuffer.NonUtf8EncodingUsed);
     }
 
     private SessionState Require(string sessionId)

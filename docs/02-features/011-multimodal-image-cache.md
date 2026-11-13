@@ -1,17 +1,18 @@
 ﻿---
 feature_key: F011
 feature_no: 011
-status: implemented
-last_updated: 2026-10-06
+status: withdrawn
+last_updated: 2026-11-12
 aliases: ["011-multimodal-image-cache"]
 ---
 
 # 011 多模态图片识别本地缓存 — 功能需求与设计
 
 > 功能编号：011（无独立 spec，对应能力特性）
-> 状态：已实现（输入 31 门禁：16/16，全量 dotnet test 906/906）
-> 关联：004 统一网关（多模态路由）；AIProvider.VisionModel（001）
-> 最后更新：2026-08-12
+> 状态：**已撤（2026-11-12）**。运行时不再调用视觉模型，也不再读写 `Data/ImageRecognitionCache`。图片随 LLM 代理原样或按标准字段转发给上游。
+> 库列 `VisionModel` / `EnableMultimodal` / `VisionPromptTemplate` 保留，不做破坏性迁移。API 与设置页不再读写这三列。更新提供方时仓储不覆盖这三列。
+> 下文第 1–5 节是撤档前的设计记录，不是当前行为。
+> 关联：004 统一网关；工件 `docs/ai/pilot/2026-11-12-llm-proxy-thin-forward/`
 
 ## 1. 功能需求
 

@@ -35,6 +35,10 @@
 | JSON 序列化 / 中文转义 \uXXXX / Encoder / System.Text.Json 写出路径 | PC-027 |
 | 对外别名 PublicAlias / 网关 model 解析 / Responses 把别名发给上游 | PC-028 |
 | ChatTurn 请求头 JSON / 长度限制 1000 字符 | PC-029 |
+| LLM 网关旁路落库 / SQLite 重建表挡住响应 | PC-030 |
+| 流式 Responses usage 三字段为 0 / 未向 Chat 上游要 include_usage | PC-031 |
+| 非流式 Responses 格式错误 / message 缺 id / output_text 缺 annotations | PC-032 |
+| 出站请求 tool_choice 与 tools 从属关系 / 同协议直通透传 / BadRequestError tool_choice must be set | PC-033 |
 
 ## 台账总表
 
@@ -50,7 +54,7 @@
 | PC-008 | 外部 MCP 协议客户端侧合规缺失（clientInfo/initialized/会话头/端点 data 契约） | guarded | G1+G2×3+G3 active（修复批 2026-10-17） | 0 | [PC-008](PC-008-mcp-external-client-protocol.md) |
 | PC-009 | HTTP 封装成功路径无条件 res.json()，204/空体解析崩溃被 catch 吞成无操作 | guarded-partial | G1+G3 active，G2 planned（TODO，expires 2026-12-31） | 1 | [PC-009](PC-009-http-204-empty-body-json-parse.md) |
 | PC-010 | stdio 外部进程启动与消息帧协商脱节（Windows shim/双帧协商/null params 沉默） | guarded | G1+G2×3+G3 active + e2e 零容忍用例（修复批 2026-10-18） | 0 | [PC-010](PC-010-mcp-stdio-launch-and-framing.md) |
-| PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073） | 0 | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
+| PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073） | 1（复发：11-13 smart-terminal 插件合入重蹈；守卫未逃逸——拦红但修复回流 8 天无 owner，见案例 §8） | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
 | PC-012 | 设置容器内的提供方编辑未使用视口级弹窗 | guarded | G1 active | 0 | [PC-012](PC-012-settings-provider-edit-container-clipping.md) |
 | PC-013 | 模型选择静默降级 + 上游空响应当成功 | guarded | G1+G2×2 active | 1（复发：10-30 IM 网关入口未接链；逃逸：041 门禁未覆盖空流） | [PC-013](PC-013-silent-model-fallback-empty-response.md) |
 | PC-014 | 测试 ctor 手搓 DAL.AddConnStr 换库（Reset 换 Database + 会话残留 → 吞行/吞表） | guarded | G2 active（XCodeTestFixtureIronRuleTests） | 0 | [PC-014](PC-014-test-ctor-rebind-connstr.md) |
@@ -69,6 +73,10 @@
 | PC-027 | JSON 写出路径未声明非 ASCII Encoder，System.Text.Json 默认把中文转义成 \uXXXX | guarded | G2 active（JsonNonAsciiEscapingGuardTests 源码扫描）+ G1 active（ForgeJson 行为锁） | 1（2026-11-09 外层第三方 SDK 传输层；**非逃逸**——新暴露面，G2 范围=仓内源码，第三方内部不可达，见 PC-027 §6） | [PC-027](PC-027-json-nonascii-default-escaping.md) |
 | PC-028 | 网关入口各自解析模型名，对外别名只在部分入口换成上游 id | guarded | G1+G2 active（AIModelFeatureTests） | 0 | [PC-028](PC-028-gateway-alias-not-substituted.md) |
 | PC-029 | ChatTurn 整包请求头/响应头 JSON 被 1000 字校验拒绝 | guarded | G1 active（ChatTurnServiceTests） | 0 | [PC-029](PC-029-chatturn-header-json-length.md) |
+| PC-030 | LLM 网关旁路落库被 await，SQLite 重建或记录失败挡住客户端响应 | guarded | G1+G2 active | 0 | [PC-030](PC-030-llm-audit-blocks-response.md) |
+| PC-031 | 流式 Responses 转 Chat 未请求 usage，三个 token 字段落成 0 | guarded | G1 active | 0 | [PC-031](PC-031-responses-stream-usage-not-requested.md) |
+| PC-032 | 非流式 Responses 回包缺 message.id 与 output_text.annotations，AI SDK 判格式错误 | guarded | G1 active | 0 | [PC-032](PC-032-responses-nonstream-shape.md) |
+| PC-033 | 出站 tool_choice 无 tools 未丢弃 → 上游 400（BadRequestError） | guarded | G1×2+G2×4 active（含 pipeline 咽喉点守卫） | 0 | [PC-033](PC-033-tool-choice-without-tools.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

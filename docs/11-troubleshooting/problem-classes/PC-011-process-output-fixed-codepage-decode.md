@@ -5,8 +5,8 @@ tags: [process-output,encoding,gbk,utf8,child-process]
 invariant: 子进程 stdout/stderr 是多码页字节流（sc.exe/原生 CLI 按系统 ANSI 写、dotnet/pnpm/node 按协议写 UTF-8），任何固定码页解码必坏一侧——必须读 BaseStream 原始字节，交唯一裁决器（ProcessOutputText 整段 / ProcessOutputLineBuffer 流式）按「剥BOM→严格UTF-8→ANSI回退+往返校验→宽容兜底」还原
 status: guarded
 first_seen: 2026-10-22
-recurrences: []
-cases: [2026-10-22-process-output-fixed-codepage-decode]
+recurrences: [2026-11-13-smart-terminal-output-pipeline-decode]
+cases: [2026-10-22-process-output-fixed-codepage-decode, 2026-11-13-smart-terminal-output-pipeline-decode]
 signature:
   - {id: S1, kind: grep, glob: "Plugins/**/*.cs", regex: "Standard(?:Output|Error)Encoding\s*=\s*Encoding\.", expect: no-match}
   - {id: S2, kind: grep, glob: "Plugins/**/*.cs", regex: "Begin(?:Output|Error)ReadLine\(", expect: no-match}
@@ -73,3 +73,4 @@ Windows 中文环境下，子进程写 stdout/stderr 的码页**不由调用方�
 | case | 日期 | 现象一句话 | 是否逃逸（守卫已在但没拦住） |
 |------|------|------------|------------------------------|
 | [2026-10-22-process-output-fixed-codepage-decode](../cases/2026-10-22-process-output-fixed-codepage-decode.md) | 2026-10-22 | 外部 agent 经 fs 工具集 MCP 调 `run_terminal_command` 执行 pwsh 读中文文件，返回 stdout 全 `?`/U+FFFD；同类扫查命中 8 站点 | N/A 首次（本类建类案） |
+| [2026-11-13-smart-terminal-output-pipeline-decode](../cases/2026-11-13-smart-terminal-output-pipeline-decode.md) | 2026-11-13 | 智能终端插件合入（fb48fe5）新写终端会话输出管道重蹈 S1×1+S2×2 三处（11-05 已见红挂账 8 天） | 否——G2/G3 均红拦住，未入运行时；但红→修复回流 8 天无 owner 属流程逃逸，见案例 §8 |

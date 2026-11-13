@@ -36,5 +36,10 @@
 | 2026-11-04-raw-createscope-on-ctx-sweep | 2026-11-04 | 插件侧 ctx 本体裸 CreateScope（IServiceScopeFactory 解析失败）全仓清扫 20 处一次改完（plan_workflow 实证） | [PC-005](../problem-classes/PC-005-plugin-eager-provider-resolve.md) |
 | 2026-11-12-responses-alias-forwarded-404 | 2026-11-12 | Responses 把别名 default 原样发给 GPUStack，上游 404；Chat 能换成 qwen3_8_vision | [PC-028](../problem-classes/PC-028-gateway-alias-not-substituted.md) | Verified | [链接](2026-11-12-responses-alias-forwarded-404.md) |
 | 2026-11-12-chatturn-requestheaders-length | 2026-11-12 | 写入 ChatTurn 失败：RequestHeaders 长度限制 1000 字符 | [PC-029](../problem-classes/PC-029-chatturn-header-json-length.md) | Verified | [链接](2026-11-12-chatturn-requestheaders-length.md) |
+| 2026-11-12-llm-audit-blocks-response | 2026-11-12 | 记录 ChatTurn 触发 SQLite 重建表，网关响应被拖住 | [PC-030](../problem-classes/PC-030-llm-audit-blocks-response.md) | Verified | [链接](2026-11-12-llm-audit-blocks-response.md) |
+| 2026-11-12-responses-stream-usage-zero | 2026-11-12 | 流式 Responses 的 usage 三字段是 0，出站没向 Chat 上游要 include_usage | [PC-031](../problem-classes/PC-031-responses-stream-usage-not-requested.md) | Verified | [链接](2026-11-12-responses-stream-usage-zero.md) |
+| 2026-11-13-responses-nonstream-format | 2026-11-13 | 非流式 Responses 有回复，AI SDK 因缺 id/annotations 报格式错误 | [PC-032](../problem-classes/PC-032-responses-nonstream-shape.md) | Verified | [链接](2026-11-13-responses-nonstream-format.md) |
+| 2026-11-13-toolchoice-without-tools | 2026-11-13 | OpenAI Responses 直通请求带 tool_choice 无 tools，上游 400 BadRequestError | [PC-033](../problem-classes/PC-033-tool-choice-without-tools.md) | Verified | [链接](2026-11-13-toolchoice-without-tools.md) |
+| 2026-11-13-smart-terminal-output-pipeline-decode | 2026-11-13 | 智能终端插件合入新写输出管道重蹈固定码页解码（S1×1+S2×2，守卫拦红但挂账 8 天无 owner） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md) | Verified | [链接](2026-11-13-smart-terminal-output-pipeline-decode.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

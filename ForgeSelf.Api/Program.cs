@@ -1,11 +1,13 @@
-﻿using System.IO.Pipes;
+using System.IO.Pipes;
 using System.Text;
 using NewLife.Agent;
 using NewLife.Log;
+using XCode;
 using ForgeSelf.Api;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Api.Services.Terminal;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Threading;
@@ -40,6 +42,26 @@ NewLife.Setting.Current.Save();
 ConfigUnifier.UnifyAllConfigFiles(
     Path.Combine(hostDataDir, "config"));
 
+// 反向工程强制全开（2026-11-12 用户指令，pilot/2026-11-12-xcode-migration-full）：SQLite 不支持
+// ALTER TABLE ... ALTER COLUMN，实体结构变更（如 ChatTurn 增列 RequestHeaders/ResponseHeaders）
+// 必须由 XCode「备份-重建-回填」落库；Migration=On（仅新建）时结构漂移会永久悬置——
+// 2026-11-12 17:20 运行实例实证。Full=完全（新建+修改+删除）。
+// 时序：必须晚于 ConfigUnifier 的 FileName 重定向（否则 Current 读旧路径），
+// 早于 AddXCode（AppBuilder 内访问 XCodeSetting）与首次 DAL 访问；每次启动强制归位，
+// 不依赖 {数据根}/config/XCode.config 是否被手工改动。testhost 早退分支不经过此处，
+// 测试夹具 Migration=On 约定（PC-014）不受影响。
+XTrace.Log.Info("XCode 反向工程强制为 Full（Migration=Full，新建+修改+删除）");
+XCodeSetting.Current.Migration = XCode.DataAccessLayer.Migration.Full;
+try
+{
+    XCodeSetting.Current.Save();
+}
+catch (Exception ex)
+{
+    // B9-5 同风格：文件落盘失败仅告警降级（内存值已生效），宿主启动不受阻
+    XTrace.Log.Warn("[Program] XCodeSetting 落盘失败（已降级，Migration=Full 仅本进程生效）: {0}", ex.Message);
+}
+
 // --tray 模式：服务模式下的托盘辅助进程，由 WindowsService 通过 CreateProcessAsUser 启动。
 // 此模式运行在用户会话中，通过命名管道与主服务通信，作为独立进程承载托盘图标。
 // 解决 Session 0 隔离问题：服务运行在 Session 0 无法直接显示 UI，需在用户会话中启动此进程。
@@ -70,6 +92,19 @@ if (!createdNew)
         // WaitOne(0) 立即探测：被存活进程持有返回 false；废弃态抛 AbandonedMutexException
         if (!mutex.WaitOne(0))
         {
+            var forwarded = TerminalLaunchBootstrap.TryForwardToRunningInstance(args);
+            if (forwarded == 0)
+            {
+                Console.WriteLine("已把打开请求交给正在运行的铸己匣。");
+                XTrace.Log.Info("另一个实例已在运行，打开请求已转交。");
+                return 0;
+            }
+            if (forwarded == 2)
+            {
+                Console.Error.WriteLine("另一个实例已在运行，但打开请求没有送达。");
+                XTrace.Log.Error("另一个实例已在运行，打开请求转交失败。");
+                return 2;
+            }
             Console.Error.WriteLine("错误：另一个实例已在运行，请勿重复启动。");
             XTrace.Log.Error("另一个实例已在运行，退出。");
             return 1;
@@ -81,6 +116,9 @@ if (!createdNew)
         XTrace.Log.Warn("检测到废弃的全局 Mutex（疑似上一实例异常退出），本实例已接管启动。");
     }
 }
+
+// 协议 URL / --open-terminal 收进智能终端收件箱，并从参数里拿掉，避免被当成服务命令。
+args = TerminalLaunchBootstrap.PreparePrimary(args);
 
 // 解析命令行参数
 string? firstArg = args.Length > 0 ? args[0].ToLowerInvariant() : null;
@@ -110,6 +148,7 @@ if (firstArg == "--console")
 
     var app = AppBuilder.CreateWebApplication(consoleArgs);
     var trayIcon = StartTrayIcon(app);
+    TerminalLaunchBootstrap.OpenUiIfRequested();
     XTrace.Log.Info("Main: 开始 app.Run()（--console 模式）");
     app.Run();
     XTrace.Log.Info("Main: app.Run() 已返回（--console 模式），清理托盘");
@@ -134,6 +173,7 @@ if (args.Length == 0)
 
     var app = AppBuilder.CreateWebApplication(args);
     var trayIcon = StartTrayIcon(app);
+    TerminalLaunchBootstrap.OpenUiIfRequested();
     XTrace.Log.Info("Main: 开始 app.Run()（普通模式）");
     app.Run();
     XTrace.Log.Info("Main: app.Run() 已返回（普通模式），清理托盘");

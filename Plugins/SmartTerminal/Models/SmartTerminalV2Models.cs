@@ -159,6 +159,15 @@ public sealed class ChatThreadDto
     public string? Model { get; init; }
 }
 
+public sealed class TerminalInboundRequest
+{
+    public string? Query { get; set; }
+    public string? SessionId { get; set; }
+    /// <summary>本次建连口令。不得写入日志。</summary>
+    public string? Password { get; set; }
+    public bool SecretStripped { get; set; }
+}
+
 public sealed class SendChatRequest
 {
     public string Content { get; set; } = string.Empty;

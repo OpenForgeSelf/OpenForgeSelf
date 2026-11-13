@@ -40,6 +40,23 @@ public class ShellProfileDetectorTests
     }
 
     [Fact]
+    public void Windows_Bash_UsesGitBashInsteadOfSystem32Stub()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        var gitBash = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Git", "bin", "bash.exe");
+        if (!File.Exists(gitBash))
+            return;
+
+        var bash = new ShellProfileDetector().Find("bash");
+        bash.Should().NotBeNull();
+        bash!.Available.Should().BeTrue();
+        bash.Executable.Should().EndWith("bash.exe");
+        bash.Executable.Should().NotContain("System32");
+    }
+
+    [Fact]
     public void Linux_WindowsOnlyShells_AreMarkedUnavailable()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

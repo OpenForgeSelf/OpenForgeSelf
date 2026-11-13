@@ -6,9 +6,11 @@ import TopNavbar from '@/components/TopNavbar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import { useAppearanceStore } from '@/stores/appearance'
 import { useOpenPage } from '@/composables/useOpenPage'
+import { useTerminalInbox } from '@/composables/useTerminalInbox'
 
 const appearanceStore = useAppearanceStore()
 const { openPage } = useOpenPage()
+useTerminalInbox()
 
 onMounted(() => {
   appearanceStore.initialize()

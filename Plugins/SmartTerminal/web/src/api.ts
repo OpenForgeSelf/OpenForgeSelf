@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './http'
+import { apiGet, apiPatch, apiPost, apiPut } from './http'
 import type {
   Approval,
   Block,

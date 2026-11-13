@@ -14,7 +14,7 @@ public class SmartTerminalV2Tests
         {
             Id = "bash",
             DisplayName = "Bash",
-            Executable = "/bin/bash",
+            Executable = ShellProfileDetector.LocateShell("bash") ?? "bash",
             Kind = "bash",
             Available = true
         };
@@ -220,5 +220,21 @@ public class SmartTerminalV2Tests
         var ex = act.Should().Throw<SmartTerminalException>().Which;
         ex.Code.Should().Be("rejected_hard");
         ex.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public void Inbound_password_is_used_for_ssh_and_absent_from_the_log_line()
+    {
+        var built = TerminalInboundSession.Build("type=ssh&host=db.example&user=ops&password=SECRET&step=uname", null);
+        built.Request.Kind.Should().Be("ssh");
+        built.Request.Password.Should().Be("SECRET");
+        built.Steps.Should().ContainSingle().Which.Should().Be("uname");
+        var line = TerminalInboundSession.Describe(built.Request);
+        line.Should().Contain("passwordProvided=True");
+        line.Should().NotContain("SECRET");
+
+        var local = TerminalInboundSession.Build("type=local&password=SECRET", null);
+        local.Request.Password.Should().BeNull();
+        TerminalInboundSession.Describe(local.Request).Should().NotContain("SECRET");
     }
 }

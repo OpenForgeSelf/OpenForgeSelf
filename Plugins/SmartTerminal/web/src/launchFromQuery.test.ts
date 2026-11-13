@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLaunchQuery, parseLaunchQuery, scrubLaunchParamsFromUrl } from './launchFromQuery'
+import { isLaunchQuery, parseLaunchQuery, scrubLaunchParamsFromUrl, stripConsumedLaunch, toCreateBody } from './launchFromQuery'
 
 describe('parseLaunchQuery', () => {
   it('parses local profile + repeated step', () => {
@@ -50,13 +50,13 @@ describe('parseLaunchQuery', () => {
     expect(p!.summary).toContain('env=2')
   })
 
-  it('detects password in url but never copies it into the request', () => {
+  it('keeps password only on the in-memory request', () => {
     const p = parseLaunchQuery('st=1&profile=ssh&host=h&user=u&password=SECRET')
     expect(p!.passwordInUrl).toBe(true)
-    expect(p!.request.password).toBeUndefined()
-    expect(JSON.stringify(p)).not.toContain('SECRET')
+    expect(p!.request.password).toBe('SECRET')
+    expect(p!.summary).not.toContain('SECRET')
     expect(p!.summary).toContain('***REDACTED***')
-    expect(p!.needsInteractivePassword).toBe(true)
+    expect(p!.needsInteractivePassword).toBe(false)
     expect(p!.request.auth).toBe('interactive')
   })
 })
@@ -64,6 +64,32 @@ describe('parseLaunchQuery', () => {
 describe('isLaunchQuery / scrub', () => {
   it('recognizes legacy type', () => {
     expect(isLaunchQuery(new URLSearchParams('type=ssh&host=h'))).toBe(true)
+  })
+
+  it('puts the url password on the session body for one POST', () => {
+    const parsed = parseLaunchQuery('st=1&type=ssh&host=10.0.0.1&port=22&user=ops&step=uname&password=SECRET')
+    const apply = toCreateBody(parsed!)
+    expect('error' in apply).toBe(false)
+    if ('error' in apply) return
+    expect(apply.body.kind).toBe('ssh')
+    expect(apply.body.host).toBe('10.0.0.1')
+    expect(apply.body.user).toBe('ops')
+    expect(apply.body.auth).toBe('interactive')
+    expect(apply.body.password).toBe('SECRET')
+    expect(apply.commands).toEqual(['uname'])
+    expect(apply.warning).toBeUndefined()
+    expect(parsed!.summary).not.toContain('SECRET')
+  })
+
+  it('refuses wsl-ssh instead of opening a local shell', () => {
+    const parsed = parseLaunchQuery('st=1&profile=wsl-ssh&host=h&user=u')
+    const apply = toCreateBody(parsed!)
+    expect(apply).toEqual({ error: 'wsl-ssh 只保留协议位，这一版不打开会话。' })
+  })
+
+  it('strips a consumed launch so refresh does not open again', () => {
+    const next = stripConsumedLaunch('http://local/smart-terminal?st=1&type=ssh&host=h&user=u#token=abc')
+    expect(next).toBe('/smart-terminal#token=abc')
   })
 
   it('scrubs password and launch flags', () => {

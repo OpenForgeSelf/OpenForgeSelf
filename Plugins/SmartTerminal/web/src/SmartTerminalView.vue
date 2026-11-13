@@ -16,7 +16,12 @@ import {
   systemBlock,
 } from './fixtures'
 import { historyLines } from './history'
-import { scrubLaunchParamsFromUrl } from './launchFromQuery'
+import {
+  parseLaunchQuery,
+  rememberOpenId,
+  stripConsumedLaunch,
+  toCreateBody,
+} from './launchFromQuery'
 import type {
   Approval,
   AuthMethod,
@@ -30,7 +35,6 @@ import type {
   SecretMeta,
   Session,
   SessionKind,
-  SessionStatus,
   ShellInfo,
   Snippet,
   StoryId,
@@ -97,6 +101,9 @@ const passwordCtx = ref<{
 } | null>(null)
 const approval = ref<Approval | null>(null)
 const approvalSource = ref<CommandSource>('prompt')
+const pendingLaunchCommands = ref<string[]>([])
+let bootstrapped = false
+const queuedOpens: string[] = []
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let seq = 100
@@ -369,8 +376,8 @@ function applyStory(id: StoryId) {
 async function loadLive(fromRetry = false) {
   pageState.value = 'loading'
   errorSummary.value = ''
+  const launchSearch = typeof location !== 'undefined' ? location.search : ''
   try {
-    scrubLaunchParamsFromUrl()
     const [sh, pf, sec, sn, ss] = await Promise.all([
       api.shells().catch(() => []),
       api.profiles().catch(() => []),
@@ -441,6 +448,16 @@ async function loadLive(fromRetry = false) {
     }
     persistReady = true
     bumpPage()
+    bootstrapped = true
+    if (launchSearch) await applyLaunchSearch(launchSearch)
+    const parked = sessionStorage.getItem('st-pending-open')
+    if (parked) {
+      sessionStorage.removeItem('st-pending-open')
+      await applyLaunchSearch(parked)
+    }
+    stripConsumedLaunch()
+    const queued = queuedOpens.splice(0)
+    for (const item of queued) await applyLaunchSearch(item)
     if (sessions.value.length) focusPrompt()
   } catch (e) {
     persistReady = false
@@ -543,7 +560,10 @@ async function confirmPassword() {
   passwordValue.value = ''
   try {
     if (ctx.mode === 'create' && ctx.body) {
-      await createSession({ ...ctx.body, password: secret })
+      const createdId = await createSession({ ...ctx.body, password: secret })
+      const cmds = pendingLaunchCommands.value
+      pendingLaunchCommands.value = []
+      if (createdId && cmds.length) await runLaunchCommands(createdId, cmds)
     } else if (ctx.mode === 'reconnect' && ctx.sessionId) {
       await doReconnect(ctx.sessionId, secret)
     }
@@ -559,6 +579,97 @@ function cancelPassword() {
   passwordCtx.value = null
   passwordValue.value = ''
   passwordError.value = ''
+  pendingLaunchCommands.value = []
+}
+
+async function runLaunchCommands(id: string, commands: string[]) {
+  activeId.value = id
+  for (const command of commands) {
+    if (approval.value) {
+      showToast('还有命令等这次确认后再执行')
+      return
+    }
+    await submitCommand(command, 'prompt')
+    if (approval.value) {
+      showToast('还有命令等这次确认后再执行')
+      return
+    }
+  }
+}
+
+async function focusInboundSession(sessionId: string) {
+  const existing = sessions.value.find((s) => s.id === sessionId)
+  if (existing) {
+    activeId.value = existing.id
+    bumpPage()
+    focusPrompt()
+    return
+  }
+  try {
+    const s = await api.session(sessionId)
+    if (!s) {
+      showToast('找不到要打开的会话')
+      return
+    }
+    const view = toView(s)
+    sessions.value = [...sessions.value, view]
+    activeId.value = view.id
+    bumpPage()
+    focusPrompt()
+    startPoll(view)
+  } catch {
+    showToast('找不到要打开的会话')
+  }
+}
+
+async function applyLaunchSearch(search: string) {
+  if (props.story) return
+  if (!bootstrapped) {
+    queuedOpens.push(search)
+    return
+  }
+  const raw = search.startsWith('?') ? search.slice(1) : search
+  if (!raw) return
+  const params = new URLSearchParams(raw)
+  const seen = rememberOpenId(params.get('st_id') || undefined)
+  stripConsumedLaunch()
+  if (seen) return
+  if (params.get('st_secret_stripped') === '1') showToast('链接里的密码已丢弃，请在对话框重新输入。')
+  const sessionId = params.get('sessionId') || params.get('st_session')
+  if (sessionId) {
+    await focusInboundSession(sessionId)
+    return
+  }
+  const parsed = parseLaunchQuery(raw)
+  if (!parsed) return
+  const apply = toCreateBody(parsed)
+  if ('error' in apply) {
+    showToast(apply.error)
+    return
+  }
+  if (apply.warning) showToast(apply.warning)
+  pendingLaunchCommands.value = apply.commands
+  if (apply.body.kind === 'ssh' && apply.body.auth === 'interactive' && !apply.body.password) {
+    openPassword({
+      mode: 'create',
+      user: apply.body.user || '',
+      host: apply.body.host || '',
+      port: apply.body.port ?? 22,
+      body: apply.body,
+    })
+    return
+  }
+  const id = await createSession(apply.body)
+  if (!id) return
+  const cmds = pendingLaunchCommands.value
+  pendingLaunchCommands.value = []
+  if (cmds.length) await runLaunchCommands(id, cmds)
+}
+
+function onExternalOpen(ev: Event) {
+  const detail = (ev as CustomEvent<string>).detail || sessionStorage.getItem('st-pending-open') || ''
+  sessionStorage.removeItem('st-pending-open')
+  void applyLaunchSearch(detail)
 }
 
 async function createSession(body: CreateSessionBody) {
@@ -610,7 +721,7 @@ async function createSession(body: CreateSessionBody) {
     showNew.value = false
     bumpPage()
     focusPrompt()
-    return
+    return s.id
   }
   try {
     const created = await api.createSession(body)
@@ -621,6 +732,7 @@ async function createSession(body: CreateSessionBody) {
     showNew.value = false
     bumpPage()
     focusPrompt()
+    return view.id
   } catch (e) {
     if (e instanceof ApiError && e.needsInteractivePassword) {
       openPassword({
@@ -632,6 +744,7 @@ async function createSession(body: CreateSessionBody) {
       })
       return
     }
+    pendingLaunchCommands.value = []
     if (e instanceof ApiError && e.code === 'credential_required') {
       newError.value = e.message || '缺少密钥材料（credential_required）'
       return
@@ -1067,12 +1180,14 @@ function onGlobalKey(ev: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
+  window.addEventListener('forgeself-terminal-open', onExternalOpen)
   if (props.story) applyStory(props.story)
   else void loadLive()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
+  window.removeEventListener('forgeself-terminal-open', onExternalOpen)
   if (toastTimer) clearTimeout(toastTimer)
   if (pollTimer) clearInterval(pollTimer)
 })

@@ -180,3 +180,135 @@ export interface LaunchTerminalRequest {
   identityFile?: string
   acceptNewHostKey?: boolean
 }
+
+/** ===== v0.1 兼容垫片（2026-11-12 输入5 · 发布链解堵）=====
+ * v0.2 提示符主路径重做（6892948）从本文件移除了下列旧类型，但迁移残留的
+ * `sessionRestore.ts` / `sessionRestore.test.ts` 与宿主 CT story
+ * （ForgeSelf.Web/src/components/SmartTerminal.story.ts / SmartTerminalStoryHost.vue）
+ * 仍按 v0.1 形状引用，HEAD `vue-tsc -b` 因此失败、release-local 发布链卡死。
+ * 本段按 fb48fe5 版本原样补回，**纯类型、零运行时行为**；
+ * 待 smart-terminal v2 批完成迁移（sessionRestore 死代码退役、story 迁 restore/fixtures）后整体删除本段。
+ */
+export type ShellProfile = ShellInfo
+
+export interface PendingApproval {
+  approvalId: string
+  sessionId: string
+  commandId: string
+  commandRedacted: string
+  risk: number | string
+  matchedRule: string
+  reason: string
+  mode: PermissionMode | number
+  createdAt: string
+}
+
+export interface AuditEvent {
+  eventId: string
+  time: string
+  kind: string
+  sessionId?: string
+  agentId?: string
+  shellId?: string
+  cwd?: string
+  commandRedacted?: string
+  decision?: string
+  matchedRule?: string
+  exitCode?: number
+  detail?: string
+}
+
+export interface TerminalSession {
+  sessionId: string
+  title: string
+  shellId: string
+  shellDisplayName: string
+  cwd: string
+  permissionMode: PermissionMode | number
+  status: string
+  agentId?: string
+  createdAt: string
+  updatedAt: string
+  commandCount: number
+  launchType?: LaunchType | string
+  remoteHost?: string
+  remoteUser?: string
+  /** 活动进程是否仍在（GET session） */
+  processAlive?: boolean
+  /** 未 close 时可继续拉 output */
+  reconnectable?: boolean
+  /** 重连提示；缺密 SSH 需再走 S5 后 launch */
+  reconnectHint?: string
+}
+
+export interface OutputChunk {
+  index: number
+  stream: string
+  text: string
+  at: string
+}
+
+export interface CommandRecord {
+  commandId: string
+  sessionId: string
+  commandRedacted: string
+  risk: number | string
+  decision: number | string
+  matchedRule: string
+  status: string
+  exitCode?: number
+  createdAt: string
+  approvalId?: string
+}
+
+/** CT 画廊 / 演示用固定态（跳过网络） */
+export interface SmartTerminalFixture {
+  version?: string
+  shells?: ShellProfile[]
+  sessions?: TerminalSession[]
+  activeId?: string
+  chunks?: OutputChunk[]
+  /** 按 sessionId 分桶的输出（多标签演示） */
+  chunksBySession?: Record<string, OutputChunk[]>
+  commands?: CommandRecord[]
+  commandsBySession?: Record<string, CommandRecord[]>
+  globalMode?: PermissionMode
+  approvals?: PendingApproval[]
+  showApproval?: boolean
+  activeApproval?: PendingApproval | null
+  showAudit?: boolean
+  auditItems?: AuditEvent[]
+  auditKindFilter?: string
+  auditQuery?: string
+  errorText?: string
+  unauthorized?: boolean
+  draftTitle?: string
+  draftShell?: string
+  draftCwd?: string
+  commandInput?: string
+  /** 模拟 URL 启动横幅 */
+  launchBanner?: string
+  launchWarning?: string
+  renamingId?: string
+  showNewTabMenu?: boolean
+  /** CT：展示密码风险知情确认模态 */
+  showPasswordAck?: boolean
+  passwordAckChecked?: boolean
+  passwordAckMode?: 'always-ack' | 'intranet' | 'disabled'
+  pendingLaunchSummary?: string
+  /** CT：交互式密码输入模态（无 URL 密码时） */
+  showInteractivePassword?: boolean
+  interactivePasswordHost?: string
+  interactivePasswordUser?: string
+  interactivePasswordPort?: number
+  interactivePasswordProfile?: string
+  /** CT：custom:<id> 不可用红条（testid=custom-unsupported-banner） */
+  customUnsupported?: boolean
+  /** CT：S-R 重连黄条文案 */
+  reconnectBanner?: string
+  /**
+   * CT：写入 sessionStorage 的恢复快照（宿主壳负责落盘）。
+   * 可含故意污染的 password 字段；落盘前必须 strip。
+   */
+  seedSessionRestore?: Record<string, unknown>
+}

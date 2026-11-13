@@ -1,3 +1,4 @@
+using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.SmartTerminal.Models;
 using ForgeSelf.Api.Plugins.SmartTerminal.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -257,6 +258,54 @@ public class SmartTerminalController : ControllerBase
     [HttpGet("audit")]
     public IActionResult Audit([FromQuery] string? sessionId, [FromQuery] string? kind, [FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         => Ok(_v2.QueryAuditV2(sessionId, kind, q, page, pageSize));
+
+    /// <summary>
+    /// 冷启动或第二个宿主进程投入的打开请求。口令只在本次请求体内使用，
+    /// 用完即丢；收件箱和日志只留会话号与 passwordProvided。
+    /// </summary>
+    [HttpPost("inbound")]
+    public IActionResult PostInbound([FromBody] TerminalInboundRequest? request)
+    {
+        var (clean, fromQuery, _) = TerminalOpenSecrets.Split(request?.Query);
+        var password = string.IsNullOrEmpty(request?.Password) ? fromQuery : request!.Password;
+        var sessionId = request?.SessionId;
+        try
+        {
+            if (!string.IsNullOrEmpty(password) && string.IsNullOrWhiteSpace(sessionId))
+            {
+                var built = TerminalInboundSession.Build(clean, password);
+                XTrace.Log.Info("[smart-terminal] inbound {0}", TerminalInboundSession.Describe(built.Request));
+                var opened = _v2.OpenSession(built.Request, "url", isAgent: false);
+                password = null;
+                foreach (var step in built.Steps)
+                {
+                    var submitted = _v2.SubmitCommand(opened.Id, new SubmitCommandRequest { Command = step }, "url");
+                    if (string.Equals(submitted.Status, "awaiting_approval", StringComparison.OrdinalIgnoreCase))
+                        break;
+                }
+                var notice = TerminalOpenInbox.Enqueue(null, opened.Id);
+                return StatusCode(202, new { id = notice.Id, sessionId = opened.Id });
+            }
+
+            password = null;
+            if (string.IsNullOrWhiteSpace(clean) && string.IsNullOrWhiteSpace(sessionId))
+                return Err(new SmartTerminalException("invalid_request", "缺少 query 或 sessionId", 400));
+            var queued = TerminalOpenInbox.Enqueue(
+                string.IsNullOrWhiteSpace(clean) ? null : clean,
+                sessionId,
+                request?.SecretStripped == true);
+            return StatusCode(202, new { id = queued.Id, sessionId });
+        }
+        catch (Exception ex)
+        {
+            password = null;
+            return Err(ex);
+        }
+    }
+
+    [HttpGet("inbound")]
+    public IActionResult GetInbound()
+        => Ok(new { items = TerminalOpenInbox.Drain() });
 
     /// <summary>沿用旧 launch；密码只能在请求体，禁止进 URL。缺密 SSH 改为 409 password_required。</summary>
     [HttpPost("launch")]

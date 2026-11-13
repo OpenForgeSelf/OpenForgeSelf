@@ -16,7 +16,7 @@ public class LaunchGuardTests
         {
             Id = "bash",
             DisplayName = "Bash",
-            Executable = "/bin/bash",
+            Executable = ShellProfileDetector.LocateShell("bash") ?? "bash",
             Kind = "bash",
             Available = true
         };

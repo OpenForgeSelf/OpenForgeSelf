@@ -194,11 +194,20 @@ public sealed class ShellProfileDetector : IShellProfileDetector
             Note = note
         };
 
-    /// <summary>POSIX 壳探测：PATH + 常见绝对路径 +（Windows）Git Bash。</summary>
+    /// <summary>给测试和会话启动用：解析 bash/sh 的真实路径。Windows 优先 Git Bash。</summary>
+    public static string? LocateShell(string name) => FindPosixShell(name);
+
+    /// <summary>POSIX 壳探测：Windows 先找 Git Bash，避免命中 System32 的 WSL 占位 bash。</summary>
     private static string? FindPosixShell(string name)
     {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var gitBash = FindGitForWindowsShell(name);
+            if (gitBash != null) return gitBash;
+        }
+
         var hit = FindOnPath(name) ?? FindOnPath(name + ".exe");
-        if (hit != null) return hit;
+        if (hit != null && !IsWindowsSystemBashStub(hit)) return hit;
 
         string[] wellKnown =
         [
@@ -223,7 +232,52 @@ public sealed class ShellProfileDetector : IShellProfileDetector
             }
         }
 
+        return hit;
+    }
+
+    private static string? FindGitForWindowsShell(string name)
+    {
+        var roots = new List<string>();
+        var git = FindOnPath("git.exe") ?? FindOnPath("git");
+        if (!string.IsNullOrEmpty(git))
+        {
+            var parent = Directory.GetParent(Path.GetDirectoryName(git) ?? "")?.FullName;
+            if (!string.IsNullOrEmpty(parent)) roots.Add(parent);
+        }
+
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrEmpty(programFiles)) roots.Add(Path.Combine(programFiles, "Git"));
+        if (!string.IsNullOrEmpty(programFilesX86)) roots.Add(Path.Combine(programFilesX86, "Git"));
+        if (!string.IsNullOrEmpty(local)) roots.Add(Path.Combine(local, "Programs", "Git"));
+
+        foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var relative in new[] { Path.Combine("bin", name + ".exe"), Path.Combine("usr", "bin", name + ".exe") })
+            {
+                var candidate = Path.Combine(root, relative);
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
         return null;
+    }
+
+    private static bool IsWindowsSystemBashStub(string path)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return false;
+        try
+        {
+            var full = Path.GetFullPath(path);
+            var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (string.IsNullOrEmpty(windows)) return false;
+            return full.StartsWith(Path.Combine(windows, "System32"), StringComparison.OrdinalIgnoreCase)
+                   || full.StartsWith(Path.Combine(windows, "SysWOW64"), StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string? FindOnPath(string fileName)

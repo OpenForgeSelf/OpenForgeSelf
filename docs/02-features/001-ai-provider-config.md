@@ -65,9 +65,9 @@ aliases: ["001-ai-provider-config"]
 
 **选定模型 · 真实对话测试（2026-10-18 输入3 拍板，真源）**：
 - **UI 动线**：点「测试连接」先弹「选择模型」弹窗（列出该提供方**已登记**模型，预选第一个启用项）→ 确定才发请求，取消不发；**无已登记模型 → 按钮禁用**（用户拍板「没有模型禁止测试」，tooltip 提示先点「获取模型」）。
-- **契约**：`POST api/ai-providers/{id}/test` body `{modelId}`；**省略 body = 旧仅探连通行为（向后兼容）**；modelId 非空 = 用该模型 `UpstreamModelId` 发真实 chat（content 精确为「请回复且仅回复ok」，**max_tokens=128** ——思考型模型先输出 reasoning 再输出 content，给 8 会在思考阶段被 length 截断致 content 永远 null，gpustack deepseek-v4-flash 实测），**成功判据 = HTTP 200 且响应文本含 ok（忽略大小写）**；模型不属于该提供方/已删除 → 明确拒绝。
-- **响应文本提取**（`AIProviderService.ExtractContent`，internal static 可测）：优先 `choices[0].message.content`，空则回退思考字段——qwen3 系用 `reasoning_content`，**vLLM 0.31（gpustack）/deepseek 系用 `reasoning`**（字段名不同，两类都要回退；聊天链路 `AIService.cs` 同语义）；兼容数组型多模态 content、补全 `choices[0].text`、Anthropic `content[0].text`；解析不出时失败消息附原始响应前 500 字（拒绝黑盒「解析失败」）。
-- **守卫**：后端 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionOkGuardTests.cs`（ExtractContent 回退链 + SaysOk 大小写矩阵）；e2e `ForgeSelf.Web/e2e/ai-providers.spec.ts`（无模型禁用 / mock 上游全链路 / 上游不可达失败）；`e2e/helpers/mock-upstream.ts` 新增可选 `chatContent` 参数（默认 'hi' 不破存量用例）。实测铁证：dev-stack 源码宿主对 gpustack `dp-model` 返回 `{success:true, message:"连接成功 · 模型回复「ok」"}`（存证 `.forgeself/tmp-providertest-s9.json`）。
+- **契约**：`POST api/ai-providers/{id}/test` body `{modelId}`；**省略 body = 旧仅探连通行为（向后兼容）**；modelId 非空 = 用该模型 `UpstreamModelId` 发真实 chat（content 精确为「请回复且仅回复ok」，**max_tokens=128** ——思考型模型先输出 reasoning 再输出 content，给 8 会在思考阶段被 length 截断致 content 永远 null，gpustack deepseek-v4-flash 实测），**成功判据 = HTTP 200 且回复非空白即成功，不校验回复内容（2026-11-14 输入1 放宽，PC-034：模型可拒绝「仅回复 ok」类指令但仍完全可用；成功消息展示回复前 100 字）**；**空回复仍判失败（PC-013）**；模型不属于该提供方/已删除 → 明确拒绝。
+- **响应文本提取**：PILOT-074 起统一走 SDK 适配器（`OpenAISdkAdapter`，failed/空输出按 PC-013 语义判失败/抛异常）；服务侧取 `UnifiedChatResponse.Choices[0].Content` 为回复，取不到（空/纯空白）→ 失败消息「响应解析失败（未取到模型回复）」。（历史：`ExtractContent` 裸 HTTP 回退链已随 SDK 迁移移除，2026-11-14 勘误。）
+- **守卫**：后端 `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionReplyGuardTests.cs`（回复非空白矩阵，PC-034 G1；原 `AIProviderTestConnectionOkGuardTests`「含 ok 判据」已随 2026-11-14 放宽删除）+ `ForgeSelf.Api.Tests/Unit/AIProviderTestConnectionUrlTests.cs`（URL 归一化）；e2e `ForgeSelf.Web/e2e/ai-providers.spec.ts`（无模型禁用 / mock 上游全链路 / 上游不可达失败）；`e2e/helpers/mock-upstream.ts` 可选 `chatContent` 参数（默认 'hi'）。实测铁证：dev-stack 源码宿主对 gpustack `dp-model` 返回 `{success:true, message:"连接成功 · 模型回复「ok」"}`（存证 `.forgeself/tmp-providertest-s9.json`，2026-10-18）。
 
 ## 4. 注意事项
 1. 运行实例无权限停止时，改提供方端点等运行期配置需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。视觉模型配置已退出 API。

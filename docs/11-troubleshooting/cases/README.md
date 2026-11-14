@@ -41,5 +41,6 @@
 | 2026-11-13-responses-nonstream-format | 2026-11-13 | 非流式 Responses 有回复，AI SDK 因缺 id/annotations 报格式错误 | [PC-032](../problem-classes/PC-032-responses-nonstream-shape.md) | Verified | [链接](2026-11-13-responses-nonstream-format.md) |
 | 2026-11-13-toolchoice-without-tools | 2026-11-13 | OpenAI Responses 直通请求带 tool_choice 无 tools，上游 400 BadRequestError | [PC-033](../problem-classes/PC-033-tool-choice-without-tools.md) | Verified | [链接](2026-11-13-toolchoice-without-tools.md) |
 | 2026-11-13-smart-terminal-output-pipeline-decode | 2026-11-13 | 智能终端插件合入新写输出管道重蹈固定码页解码（S1×1+S2×2，守卫拦红但挂账 8 天无 owner） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md) | Verified | [链接](2026-11-13-smart-terminal-output-pipeline-decode.md) |
+| 2026-11-14-provider-probe-ok-keyword-false-negative | 2026-11-14 | 测试连接（选定模型）把「我无法按要求只回复指定词语。」判失败——探针判据绑定关键词 ok，连接与模型实际可用（假阴性） | [PC-034](../problem-classes/PC-034-probe-keyword-false-negative.md) | Verified | [链接](2026-11-14-provider-probe-ok-keyword-false-negative.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

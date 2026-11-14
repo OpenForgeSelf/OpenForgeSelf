@@ -32,16 +32,18 @@ public class ModelsController : ControllerBase
     public async Task<IActionResult> ListModels(CancellationToken cancellationToken)
     {
         var allModels = await _registry.GetAllModelsAsync(cancellationToken);
+        // 2026-11-14 需求调整：模型设置了别名时额外返回原名（提供商:上游模型id），别名与原名都出现在列表中
         var response = new
         {
             @object = "list",
-            data = allModels.Select(m => new
-            {
-                id = AIModel.GetGatewayModelListId(m.ProviderName, m.Id),
-                @object = "model",
-                created = m.Created,
-                owned_by = m.Owner
-            }).ToList()
+            data = allModels.SelectMany(m => AIModel.GetGatewayModelListIds(m.ProviderName, m.Id)
+                .Select(id => new
+                {
+                    id,
+                    @object = "model",
+                    created = m.Created,
+                    owned_by = m.Owner
+                })).ToList()
         };
         return Ok(response);
     }

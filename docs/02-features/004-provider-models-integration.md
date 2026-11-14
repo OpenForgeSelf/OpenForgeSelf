@@ -58,17 +58,17 @@ LLM 客户端（GitHub Copilot 等）按 OpenAI / Anthropic / OpenAI Responses �
 
 应用内聊天 `POST /api/chat`（`ChatController`）不在这条管道上。它仍调用 `IAIService.ChatAsync` / `ChatStreamAsync`：带 `chatModelId` 时走 `IAIProvider` 的封闭 `UnifiedChatRequest`，否则走 `OpenAISdkAdapter` 直连 `ForgeSetting` 里的旧端点。这里的「内置 agent」是 AIAgent 模型回合（`AIAgentService.ReadPipelineChunks` 组 `LlmProxyRequest`）和实验页 `AgentChatController` 的 `LlmProxyChatClient`。薄转发约束写明不改会话日志，并保留 `OpenAISdkAdapter`（`docs/ai/pilot/2026-11-12-llm-proxy-thin-forward/01-intent.md`）。所以应用内聊天没有把请求交给出站管道，记录、别名和协议也没有复用到这一条。这是当时范围留下的缺口。会话投影是否在返回前等待，不决定这条路由。
 
-### 2.6 `GET /v1/models` 的 `data[].id` 语义（2026-11-03 实测对照源码）
+### 2.6 `GET /v1/models` 的 `data[].id` 语义（2026-11-03 实测对照源码；**2026-11-14 修订：别名模型额外返回原名**，工件 `docs/ai/pilot/2026-11-14-models-alias-raw/`）
 
-实现：`ForgeSelf.Api/Controllers/UnifiedAI/ModelsController.cs`（`ListModels` / `GetModel`）。
+实现：`ForgeSelf.Api/Controllers/UnifiedAI/ModelsController.cs`（`ListModels` / `GetModel`）；id 投影真源 = `AIModel.GetGatewayModelListIds`（`AIModel.Biz.cs`）。
 
-| 场景 | 返回的 `id` | 是否含 `提供商:` 前缀 |
+| 场景 | 列表中返回的条目 | 是否含 `提供商:` 前缀 |
 |------|-------------|----------------------|
-| 未配置 `PublicAlias` | `AIModel.GetGatewayModelListId` → `提供商:上游模型id`（与 `ChatModelId` 一致） | **是**（例：`OpenAI:gpt-4o`；2026-11-03 PILOT 落地） |
-| 已配置 `PublicAlias`（且启用） | 清洗后的别名 | **否**（例：`default` → 上游 `qwen3_8_vision`；Chat / Responses / Agent / Anthropic 共用 `AIProviderRegistry.ResolveUpstreamModel`，把别名换成 `UpstreamModelId` 再出站） |
-| 同名字段 | `owned_by` = 提供方显示名 | 前缀在 **owned_by**，不在 **id** |
+| 未配置 `PublicAlias` | 单条：`提供商:上游模型id`（与 `ChatModelId` 一致） | **是**（例：`OpenAI:gpt-4o`；2026-11-03 PILOT 落地） |
+| 已配置 `PublicAlias` | **两条**：别名条目 + 原名条目 `提供商:上游模型id`，别名在前（2026-11-14 需求调整：原名不再被别名遮蔽；列表不按 `Enabled` 过滤） | 别名条**否**、原名条**是**（例：`default` 与 `gpustack:qwen3_8_vision` 并存） |
+| 同名字段 | 两条条目 `owned_by` = 提供方显示名、`created` 相同 | 前缀在 **owned_by**，不在 **id** |
 
-与聊天路由的关系：`POST /v1/chat/completions`、`POST /v1/responses`、Agent 测试接口、Anthropic Messages 的 `model` 都走 `AIProviderRegistry.ResolveUpstreamModel`（2026-11-12 收口；此前只有 Chat 会把别名换成上游 id，Responses 把别名原样出站，GPUStack 对未知模型名返回 404）。带前缀的 `提供商:上游模型id` 仍可显式路由。客户端从 `/v1/models` 原样取 `id` 再发起对话时，无别名模型用 `provider:` 前缀；有别名时以别名为准，出站前换成 `UpstreamModelId`。`GET /v1/models/{model}` 支持按 `提供商:上游id` 或别名查询。
+与聊天路由的关系：`POST /v1/chat/completions`、`POST /v1/responses`、Agent 测试接口、Anthropic Messages 的 `model` 都走 `AIProviderRegistry.ResolveUpstreamModel`（2026-11-12 收口；此前只有 Chat 会把别名换成上游 id，Responses 把别名原样出站，GPUStack 对未知模型名返回 404）。带前缀的 `提供商:上游模型id` 仍可显式路由。客户端从 `/v1/models` 原样取 `id` 再发起对话时，无别名模型用 `provider:` 前缀；有别名模型**两个 id 都可回填**——别名条目经 `ResolveUpstreamModel` 出站前换成 `UpstreamModelId`，原名条目走 `provider:` 拆分路由。`GET /v1/models/{model}` 支持按 `提供商:上游id` 或别名查询，行为未随 2026-11-14 调整变化。
 
 ### 2.5 AIService 回退路径（PILOT-074 FR-8）
 

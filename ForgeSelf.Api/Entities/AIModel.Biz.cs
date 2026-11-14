@@ -131,19 +131,32 @@ public partial class AIModel : Entity<AIModel>
 
     /// <summary>
     /// OpenAI 兼容 <c>GET /v1/models</c> 对外 <c>id</c>：有别名输出别名，否则输出 <c>提供商:上游模型id</c>（与 <see cref="ChatModelId"/> 一致）。
+    /// 2026-11-14 起委托 <see cref="GetGatewayModelListIds"/> 取首项（别名模型列表额外返回原名，单值语义不变）。
     /// </summary>
     public static string GetGatewayModelListId(string providerName, string upstreamModelId)
-    {
-        if (string.IsNullOrWhiteSpace(upstreamModelId))
-            return upstreamModelId ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(providerName))
-            return upstreamModelId;
+        => GetGatewayModelListIds(providerName, upstreamModelId)[0];
 
+    /// <summary>
+    /// OpenAI 兼容 <c>GET /v1/models</c> 对外 <c>id</c> 集合（2026-11-14 需求调整：别名不再遮蔽原名）：
+    /// 有 <c>PublicAlias</c> 时返回 [别名, <c>提供商:上游模型id</c>]（别名在前），无别名仅返回原名。
+    /// 集合按 Ordinal 去重（退化路径：providerName 为空白时不加前缀，别名可能等于原名）。
+    /// </summary>
+    public static IReadOnlyList<string> GetGatewayModelListIds(string providerName, string upstreamModelId)
+    {
+        // 无别名时原本返回的 id：provider:upstream（provider 空白时退化为裸 upstream，与原单值方法一致）
+        var original = string.IsNullOrWhiteSpace(upstreamModelId)
+            ? (upstreamModelId ?? string.Empty)
+            : string.IsNullOrWhiteSpace(providerName)
+                ? upstreamModelId
+                : $"{providerName}:{upstreamModelId}";
+
+        var ids = new List<string>(2);
         var row = FindByProviderNameAndUpstreamModelId(providerName, upstreamModelId);
         if (row?.PublicAlias is { Length: > 0 } alias)
-            return alias;
+            ids.Add(alias);
+        ids.Add(original);
 
-        return $"{providerName}:{upstreamModelId}";
+        return ids.Distinct(StringComparer.Ordinal).ToList();
     }
 
     /// <summary>按对外别名直查数据库，忽略大小写。</summary>

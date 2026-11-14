@@ -406,6 +406,83 @@ public class AIModelFeatureTests : IClassFixture<XCodeTestFixture>
         registry.GetProviderByModel("client-model").Should().BeNull();
     }
 
+    // ===== 2026-11-14 需求调整（PILOT-081）：别名模型额外返回原名，不再被别名遮蔽 =====
+    [Fact]
+    public void GetGatewayModelListIds_WithAlias_ReturnsAliasThenOriginal()
+    {
+        ClearAll();
+        new AIModel
+        {
+            ProviderId = 1,
+            ProviderName = "OpenAI",
+            UpstreamModelId = "gpt-4o",
+            ChatModelId = "OpenAI:gpt-4o",
+            PublicAlias = "client-model",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        // 有别名：别名在前、原名也在（2026-11-14 需求调整）
+        AIModel.GetGatewayModelListIds("OpenAI", "gpt-4o").Should().Equal("client-model", "OpenAI:gpt-4o");
+        // 无别名：仅原名，与既有单值语义一致
+        AIModel.GetGatewayModelListIds("OpenAI", "gpt-4o-mini").Should().Equal("OpenAI:gpt-4o-mini");
+    }
+
+    [Fact]
+    public async Task ModelsApi_WithPublicAlias_ListContainsAliasAndOriginalId()
+    {
+        ClearAll();
+        var providerEntity = InsertProvider(name: "OpenAI", endpoint: "https://api.openai.com/v1");
+        new AIModel
+        {
+            ProviderId = providerEntity.Id,
+            ProviderName = providerEntity.Name,
+            UpstreamModelId = "gpt-4o",
+            ChatModelId = "OpenAI:gpt-4o",
+            PublicAlias = "client-model",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        var registry = new AIProviderRegistry();
+        await registry.ReloadAsync(new HandlerHttpClientFactory(OpenAiHandler(ModelsJson(("gpt-4o", "openai")))), new[]
+        {
+            new AIProviderConfig { Name = "OpenAI", ProviderType = AIProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "k", SupportedModels = new() { "gpt-4o" } }
+        });
+
+        var controller = new ModelsController(registry);
+        var listResult = await controller.ListModels(CancellationToken.None);
+        var listJson = JsonDocument.Parse(JsonSerializer.Serialize(((Microsoft.AspNetCore.Mvc.OkObjectResult)listResult).Value));
+        var data = listJson.RootElement.GetProperty("data");
+        var ids = data.EnumerateArray().Select(e => e.GetProperty("id").GetString()!).ToList();
+
+        ids.Should().Equal("client-model", "OpenAI:gpt-4o"); // 别名在前，原名也要有
+        data[0].GetProperty("owned_by").GetString().Should().Be(data[1].GetProperty("owned_by").GetString());
+        data[0].GetProperty("created").GetInt64().Should().Be(data[1].GetProperty("created").GetInt64());
+    }
+
+    [Fact]
+    public void GetGatewayModelListIds_AliasEqualsOriginal_Dedupes()
+    {
+        ClearAll();
+        // 退化路径：providerName 为空白（IsNullOrWhiteSpace）时不加前缀，别名可等于原名 → 只输出一条
+        new AIModel
+        {
+            ProviderId = 1,
+            ProviderName = " ",
+            UpstreamModelId = "gpt-4o",
+            ChatModelId = " :gpt-4o",
+            PublicAlias = "gpt-4o",
+            Enabled = true,
+            CreateTime = DateTime.Now,
+            UpdateTime = DateTime.Now
+        }.Insert();
+
+        AIModel.GetGatewayModelListIds(" ", "gpt-4o").Should().Equal("gpt-4o");
+    }
+
     /// <summary>
     /// 对外别名必须换成上游模型 id。Chat 与 Responses 以前各写一份解析，Responses 把别名原样发给上游（GPUStack 404）。
     /// </summary>

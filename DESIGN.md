@@ -1,7 +1,7 @@
 ---
 version: v2-target
 name: OpenForgeSelf（铸己匣）· 工坊锻造 Workshop Forge · 器物美学目标规范
-description: 本地优先的 AI 工具箱宿主。以高保真设计稿为唯一真源：东方器物美学 × 现代工具箱，熔金橙 + 墨黑铸铁 + 宣纸白 + 朱砂印章，深夜铸造的工坊气质。规范真源 = D:\Users\12504\Downloads\design_handoff_forgeself_home_plugin_system\design_files\（index.html / App.jsx / HomeScreen.jsx / OtherScreens.jsx / kit-styles.css / colors_and_type.css）。
+description: 本地优先的 AI 工具箱宿主。以高保真设计稿为唯一真源：东方器物美学 × 现代工具箱，熔金橙 + 墨黑铸铁 + 宣纸白 + 朱砂印章，深夜铸造的工坊气质。规范真源 = 高保真参考稿（本机「下载」目录下 design_handoff_forgeself_home_plugin_system\design_files\，机器前缀按提交卫生门禁省略；index.html / App.jsx / HomeScreen.jsx / OtherScreens.jsx / kit-styles.css / colors_and_type.css）。
 colors:
   primary: "#F59E0B"
   primary-light: "#F9BC4E"
@@ -94,8 +94,8 @@ components:
 
 # OpenForgeSelf · UI 设计规范（DESIGN.md）
 
-> **唯一真源声明（2026-10-10 用户指令）**：以高保真设计参考稿
-> `D:\Users\12504\Downloads\design_handoff_forgeself_home_plugin_system\design_files\`
+> **唯一真源声明（2026-10-10 用户指令）**：以高保真设计参考稿（本机「下载」目录下
+> `design_handoff_forgeself_home_plugin_system\design_files\`；机器盘符/用户前缀按提交内容卫生门禁省略，换机按目录名定位）
 > （入口 `index.html`；主壳 `App.jsx`；首页 `HomeScreen.jsx`；功能屏 `OtherScreens.jsx`；
 > 布局 `kit-styles.css`；tokens `colors_and_type.css`；设计说明 `../README.md`）为**唯一真源**。
 > 本文件的目标 = **把现有代码对齐到该设计稿**。设计稿与代码不一致时，以设计稿为准，

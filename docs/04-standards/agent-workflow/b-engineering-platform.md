@@ -1,6 +1,6 @@
-# 项目工程规则 B-2（B7-B12：环境速查 / 架构要点 / 测试覆盖 / CI 自动发布 / Agent SDK 接入 / dsh 架构对齐）
+# 项目工程规则 B-2（B7-B13：环境速查 / 架构要点 / 测试覆盖 / CI 自动发布 / Agent SDK 接入 / dsh 架构对齐 / 提交内容卫生）
 
-> 本文件是 `agent-workflow.md`（2026-10-07 起拆分）的**一个分册**。§编号（A1-A10 / B1-B12）与规则文字**未作任何改动**，
+> 本文件是 `agent-workflow.md`（2026-10-07 起拆分）的**一个分册**。§编号（A1-A10 / B1-B13）与规则文字**未作任何改动**，
 > 索引与「§编号 → 文件」地址表见同目录 [`README.md`](README.md)；旧路径 `../agent-workflow.md` 保留为薄指路文件。
 
 <!-- ===== 以下为原文（自 docs/04-standards/agent-workflow.md 按行区间拆入，未作任何改写） ===== -->
@@ -145,4 +145,16 @@
   - ⚠️ **宿主侧关联缺陷（已知，未修）**：`Program.cs:38` 与 `AppBuilder.cs:89` 的 `Setting.Save()` 早于 `ConfigUnifier` 重定向 → 生产 publish 程序目录仍可能残留 Core.config；测试侧已由上述机制规避，宿主侧修复另立 TODO。
 
 ---
+
+## B13 提交内容卫生（2026-11-14 用户立 · pre-commit 第 4 道门）
+
+- **立规原则**：所提交的文档 / 代码 / 注释必须**换环境自洽**（不含随机器失效的绝对地址）、**不泄漏身份**（不含指向具体个人的标识）、**不夹带无关项目语境**（其他项目的业务细节不入库）。三类禁物：
+  1. **绝对地址**四种形态——盘符路径、file URL 盘符形态、POSIX 用户目录形态（`/Users`、`/home`、`/root`、`/mnt`、`/media`、`/srv` 族）、UNC 网络路径形态（双反斜杠主机名开头）；不带盘符的裸目录名放行。
+  2. **指向具体个人的标识**——人名、昵称、成员名、机器账号片段；通用角色词（用户 / 任务协调人 / 各专项审查方等）放行。
+  3. **其他项目的业务信息**——调研对象 / 公开依赖可提其名，业务细节禁入（以人工审计为主，机械检测不做，见 not-taken §060）。
+- **执行机制**：守卫 `scripts/check-commit-hygiene.ps1` 已接线为 pre-commit **第 4 道门**（设计门禁、工件链门禁之后，目录早退之前无条件执行），默认 `-Staged` 只机械拦截**暂存新增行**（棘轮：不追溯存量，存量清理另批推进）。`--no-verify` 绕过门禁须当天工作日记留痕。L1 规则 ID：`hygiene.abs-fileurl` / `hygiene.abs-drive` / `hygiene.abs-posix` / `hygiene.abs-unc`；L2：`hygiene.denylist`（拒绝列表子串，大小写不敏感；`re:` 前缀 = 正则）。二进制 / lockfile / `*.min.*` / 超过 2MB 的文件自动跳过。
+- **拒绝列表**：`.forgeself/commit-hygiene.denylist.txt`（`.forgeself/` 目录已 gitignore，**本地维护、不入库**；新 clone 缺该文件时 L2 自动跳过并提示，不算错误）。格式：每行一个大小写不敏感子串，`re:` 前缀行按正则匹配，`#` 开头为注释。人名 / 昵称 / 账号片段直接入列，通用角色词不入列。
+- **引用违规的铁律**：向任何提交物（文档 / 日记入库部分 / 代码注释）报告违规时，**只写规则 ID + `文件:行号` + 计数**，禁止把违规原文粘贴进提交物（防二次违规）。
+- **守卫用法**（一律 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-commit-hygiene.ps1 …`）：`-Staged`（默认，pre-commit 同参数）｜`-All`（全仓盘点，存量清理跟踪用）｜`-Files <逗号分隔清单>`｜`-DiffFile <补丁文件>`（评审单补丁）。退出码：0 = 干净，1 = 存在违规，2 = 用法或基础设施错误。摘要行 `check-commit-hygiene: PASS|FAIL (files=N lines=M hits=K)`。
+- **存量清理边界（2026-11-14 本批）**：只清理 AGENTS.md 与 DESIGN.md 中的命中项；`docs/**` 其余存量延后另批（全仓盘点用 `-All`）。
 

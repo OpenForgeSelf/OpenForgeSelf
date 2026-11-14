@@ -30,7 +30,7 @@
    - （如有可复用规律）已沉淀到 `docs/04-standards/agent-workflow/README.md` 对应小节；本次走通的流程若技能缺失或可优化，已回写/新建技能（§2.4 登记）；新增项目不变规范已入 agent-workflow/README.md 或本文。
    - **【PILOT 工件链门禁】** 开发类任务（AI-Native 闭环）回复完成前，提交必须经 pre-commit hook 校验：`docs/ai/pilot/YYYY-MM-DD-<task-id>/` 的 00-07 八件工件（含关键节）齐全（目录日期前缀规则见规范 §0），缺失/缺位提交被拒；新 clone / 新环境第一步执行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` 安装 hook（幂等；**脚本一律用 `pwsh` 跑，禁止 `powershell` 5.1**，见 §2.3）。
    - **【问题类闭环门禁（2026-10-17 用户立）】** 缺陷/回归/返工类任务回复完成前，必须按 `problem-class-closure` 技能跑完闭环（复现红灯→同类扫查→守卫落地→case/PC 归档到 `docs/11-troubleshooting/`→07 含「问题类归档/重构提案/悬空教训」三节）；机器校验 = `pwsh scripts/check-problem-classes.ps1` 绿 + pre-commit 对缺陷类 07 三节拒缺。纯问答/非缺陷任务不受约束。
-   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部六步**（2026-10-11 用户输入3 拍板重排）：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 单测/集成测试）② **本插件 1 个冒烟 e2e**（`e2e/plugins/<id>` 内一条主链路用例；**禁止铺全流程 e2e**，避免跑全量浪费时间）③ **起源码本地前后端按验收标准验收**（`pwsh scripts/dev-stack.ps1` 起源码前后端 → 按验收标准 + ui-ux-design 走查清单逐项核对 + 截图读图 + 清测试数据；**必做，双绿不能替代**）④ 发布（**默认本地目录更新源**：`release-local.ps1 -UpdateDir` + 设置页填本地目录 + 页面自动更新；打 tag 自动发布仅用户明确要求时）⑤ **真实走查（运行实例只读复验）**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）⑥ 更新插件文档 + 记日志。**六步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-10-11 用户拍板）**：**发布方式默认本地目录更新源**；**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 `D:\src\tools\ForgeSelf`、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责本地打包与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
+   - 【插件任务硬性门禁】若本次改动涉及 `Plugins/<X>/web/` 或插件本体（`.cs` / `Controllers` / `Services` / …），须跑完 `plugin-development` §四 维护闭环**全部六步**（2026-10-11 用户输入3 拍板重排）：① 门禁（插件前端 `cd Plugins/<X>/web && pnpm run build` / 后端 `dotnet build` + 单测/集成测试）② **本插件 1 个冒烟 e2e**（`e2e/plugins/<id>` 内一条主链路用例；**禁止铺全流程 e2e**，避免跑全量浪费时间）③ **起源码本地前后端按验收标准验收**（`pwsh scripts/dev-stack.ps1` 起源码前后端 → 按验收标准 + ui-ux-design 走查清单逐项核对 + 截图读图 + 清测试数据；**必做，双绿不能替代**）④ 发布（**默认本地目录更新源**：`release-local.ps1 -UpdateDir` + 设置页填本地目录 + 页面自动更新；打 tag 自动发布仅用户明确要求时）⑤ **真实走查（运行实例只读复验）**（触发：**用户已在 `:51888` 等运行实例启用/更新到新版本后**；动作：先验 token 有效（打一个需鉴权的只读端点，**401 立即上报，不许把空页当结论**）→ 注入 `forge_api_token` → 核 `.view-title` 版本徽标 → 走一条主链路并**采中间态**（占比 ≤100、合计闭合）→ 截图存 `ForgeSelf.Web/screenshots/live-<端口>/` 并读图；**只读、不点不可逆、不启停宿主、不调改状态的端点**，详见 `plugin-publish-verify`「运行实例只读复验」节）⑥ 更新插件文档 + 记日志。**六步缺一不可，缺失即视为未完成，禁止回复"任务完成"**。**发布规范（2026-10-11 用户拍板）**：**发布方式默认本地目录更新源**；**禁止 agent 停/启/杀任何用户运行中的宿主进程**（含 tools 发布目录下的 ForgeSelf 实例、`:51888` 实例）；宿主升级一律由 update-agent 自更新（用户/页面点「自动更新」），agent 只负责本地打包与验证发布产物。**铁律1 禁的是停/启/杀与不可逆写，不含只读走查**（2026-09-28 我曾据此漏掉第⑤步，被用户指出）。
    ⛔ 任一项不满足，禁止回复"任务完成"——先补齐再回。
 
 > 验证通过（测试绿）≠ 流程完成。Persist 与 Verify 同属 DoD，缺一项即未达标。
@@ -92,6 +92,7 @@
 ### 2.3 关键约定速记
 - 包管理器：**pnpm**（不是 npm），Node >= 20
 - **脚本执行统一用 `pwsh`（PowerShell 7），禁止 `powershell` / `powershell.exe`（= Windows PowerShell 5.1）**（2026-10-04 输入12 立；本机 `pwsh` 实测 7.6.6，CI `.github/workflows/release.yml` 早已是 `shell: pwsh`）：涵盖跑仓内 `*.ps1`、从 Git Bash / Node `spawn` 调 PowerShell 的一切场景，写法 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\<某脚本>.ps1 …`。三条**实测**代价（不是风格偏好）：① 5.1 按控制台码页（GBK/936）写重定向日志并解码外部命令输出 → 中文变乱码、乱码还会被烤进交付物（2026-10-04：`release-local -Sign` 的签名段整段 GBK；更早 `make-release-notes` 把乱码写进 RELEASE-NOTES，现由脚本内 UTF-8 切码页 + 仓库级守卫 `RepositoryScriptTests` 封堵）；② 5.1 从 Node `spawn` 时**没有 `Cert:` 提供程序** → Authenticode 签名必失败（2026-10-01 实证）；③ 5.1 靠 BOM 判定 `.ps1` 编码，UTF-8 无 BOM 脚本被当 GBK 解析 → 解析期崩溃、连日志都写不出（update-agent 曾据此把 51888 实例弄下线）。**唯一保留例外**：专门复现 5.1 解析/编码行为以证明某缺陷时反而必须用 `powershell`（Core 复现不出来），见 `docs/04-standards/agent-workflow/b-engineering-daily.md` §B6；除此之外一律 `pwsh`。脚本文件自身**仍须带 UTF-8 BOM**（随包分发时可能被旧 shell 拉起）。既有偏差登记：`scripts/hooks/pre-commit` 仍在用 `powershell.exe` 调工件门禁（见 TODO）
+- **提交内容卫生（2026-11-14 输入1 用户立）**：所提交文档/代码/注释不得含工作区或工作区外绝对地址（盘符 / file URL 盘符 / POSIX 用户目录 / UNC）、指向具体个人的标识（人名/昵称/成员名/账号片段）、其他项目的业务信息；pre-commit 第 4 道门机械拦暂存新增行（棘轮只拦新增，存量另批清理）；规则真源与守卫用法 → agent-workflow b-engineering-platform §B13；技能 `commit-hygiene-audit`
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
 - 后端插件通过 `Plugins/` 目录 + `plugin.json` 清单注册
@@ -120,6 +121,7 @@
 | `design-system-consume` | **设计系统插件消费侧**：外部/内置 agent 如何发现与调用 8 个 design_* 工具（封套、写开关、REST 对等、常见坑） | 写集成/测试时用；维护工具本身走 design-system-verify；出参键 camelCase；`list_tools` 无封套 |
 | `ui-ux-design` | **通用 UI/UX 设计审查与生成**（《写给大家看的设计书》CRAP 四原则 + 配色 + 字体）：审查既有界面/设计稿/截图、生成布局与视觉方案、Spec「交互设计」节编写与自查、走查前设计符合性核对 | 涉及用户可见 UI 改动的 Spec/走查必用；交互规格写「点什么出现什么」+ 空态/反馈/边界；走查按 UI 符合性清单逐项核对，不只"能显示" |
 | `architecture-design` | 影响面较大的架构/设计决策 | 先查依据（调研/ADR/既有设计），禁止脱离依据自作设计 |
+| `commit-hygiene-audit` | **提交内容卫生审计**：提交前自检、全仓盘点存量违规、清理批跟踪；或用户提到「提交里不能有绝对地址/人名/无关项目信息」 | pre-commit 第 4 道门自动拦暂存新增；拒绝列表在 .forgeself/（本地、不入库）；引用违规只写规则ID+file:line+计数；真源 §B13 |
 
 **选型顺序**：先判断「是不是插件任务」→ 是则先读 `plugin-development` → 它会转派到 `plugin-feasibility-study`（**新建插件**时）/ `architecture-design`（涉及契约与内核接缝时）/ `plugin-frontend-scaffold` / `plugin-publish-verify` / `e2e-testing`；**规划与实现分属不同 AI/会话**（用户要求「只做规划、实现交他人、完成后由本会话验收」）→ 先读 `pilot-handoff`。职责边界、新建插件硬顺序、登记规则、技能缺失策略 → `docs/04-standards/agent-workflow/a-workflow-core.md` §A1。
 **新增技能必须同步登记到本节**（技能不在表里 = 等于不存在，后续会话必然再次漏读）。
@@ -241,7 +243,7 @@ dotnet test
 
 | 档 | 跑什么 | 量级 | 触发条件（满足任一即跑） |
 |----|--------|------|--------------------------|
-| **快** | 本批相关过滤集（`dotnet test --filter`）+ `pnpm run check` + `pnpm run test` + **`pnpm run design:check`（设计规范守卫，§8 门禁）** + 本插件 1 冒烟 e2e | 分钟级 | **每次改完代码必跑**（§5.1/§5.2 的默认形态） |
+| **快** | 本批相关过滤集（`dotnet test --filter`）+ `pnpm run check` + `pnpm run test` + **`pnpm run design:check`（设计规范守卫，§8 门禁）** + 本插件 1 冒烟 e2e + 提交卫生守卫（`pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-commit-hygiene.ps1 -Staged`，秒级） | 分钟级 | **每次改完代码必跑**（§5.1/§5.2 的默认形态） |
 | **中** | 后端**全量** `dotnet test` | ~15 分钟 | 碰了①宿主源码（`ForgeSelf.Api/**`，含 `XCodeConfig`/`AppBuilder`）②仓库级脚本（`scripts/**`、`*.ps1`）③共享测试基建（`ForgeSelf.Api.Tests` 夹具）—— 理由：`RepositoryScriptTests` 这类**仓库级守卫**只有全量才扫得到 |
 | **深** | **全量 e2e**（单配置整跑） | ~38 分钟 | 碰了①`e2e/global-setup.ts` / `playwright.*.config.ts` / `e2e/fixtures/**`（所有插件 e2e 共用）②发版/tag 前③专跑「e2e 基线治理」批次 |
 
@@ -323,14 +325,14 @@ Verify 失败
 **② 执行过程中**：边做边追加当天工作记录；决策记录格式：`决策 → 背景 → 理由 → 准则`。
 **③ 任务完成时**（完成 = 代码闭环 + 文档同步 + 待办清除，三者缺一不可）：追加完整工作记录（含验证结果）→ TODO 待办**直接移除**（不留 ✅/[x] 堆积）→ 同步相关文档（docs/ai/pilot 工件 / docs / README）→ 提炼规律入 agent-workflow/README.md → 完善/新建技能并登记 §2.4。
 **④ 每日/每周检视**：日记「下一步」回流 TODO；重复模式提炼为规则；清除 TODO 中已完成残留（✅/[x]），保持队列新鲜。
-**⑤ 逐回合原文记录（用户 2026-09-28 立，强制）**：工作日记与项目文档必须**逐回合**记录每个对话方（用户、项目管理员哥、需求分析师、测试审查、DevOps哥、项管哥等）的**发言原文 + 序号(seqN)**；Agent 自己的发言同样**原样记录**。**禁止只记结论或转述**。落地写法：每输入一批次先落「原文」，收尾时补「逐回合原文记录」小节（T1..Tn 或真实 seqN），含自己每一次对外汇报的原文要点；被推翻的判断与自己的错误陈述也要原文留档，不得只留更正后的结论。
+**⑤ 逐回合原文记录（用户 2026-09-28 立，强制）**：工作日记与项目文档必须**逐回合**记录每个对话方的**发言原文 + 序号(seqN)**；对话方一律以通用角色词指称（用户/任务协调人/各专项审查方等），具体称呼、昵称、账号不入库（提交内容卫生门禁 §B13）；Agent 自己的发言同样**原样记录**。**禁止只记结论或转述**。落地写法：每输入一批次先落「原文」，收尾时补「逐回合原文记录」小节（T1..Tn 或真实 seqN），含自己每一次对外汇报的原文要点；被推翻的判断与自己的错误陈述也要原文留档，不得只留更正后的结论。
 **⑥ 常见错误（必须避免）**：把输入原文堆在 TODO.md；在 MEMORY 复制待办列表；任务完成不更新 TODO；完成任务只标 ✅ 不移除；不写「下一步」字段；把用户或群内角色的发言写成我的转述/结论。
 
 ---
 
 ## 8. 设计稿工作流（UI/UX/品牌三面一致 · 门禁三步，2026-10-11 用户输入3 强化）
 
-设计稿唯一真源 = 高保真参考稿 `D:\Users\12504\Downloads\design_handoff_forgeself_home_plugin_system\design_files\`（入口 `index.html`；主壳 `App.jsx`；首页 `HomeScreen.jsx`；功能屏 `OtherScreens.jsx`；布局 `kit-styles.css`；tokens `colors_and_type.css`；说明 `../README.md`）。**项目级 UI/UX 规范 = 仓库根 `DESIGN.md`**（v2-target，唯一真源映射：色板/token/字体/组件规格/动效/Plugin-First 约定/三禁红线/新建页面·查询执行规范）。实现层必须对齐其视觉与交互——**UI、UX、品牌三面一致**。
+设计稿唯一真源 = 高保真参考稿（本机「下载」目录下 `design_handoff_forgeself_home_plugin_system\design_files\`；机器盘符/用户前缀按提交内容卫生门禁 §B13 省略，换机按目录名定位。入口 `index.html`；主壳 `App.jsx`；首页 `HomeScreen.jsx`；功能屏 `OtherScreens.jsx`；布局 `kit-styles.css`；tokens `colors_and_type.css`；说明 `../README.md`）。**项目级 UI/UX 规范 = 仓库根 `DESIGN.md`**（v2-target，唯一真源映射：色板/token/字体/组件规格/动效/Plugin-First 约定/三禁红线/新建页面·查询执行规范）。实现层必须对齐其视觉与交互——**UI、UX、品牌三面一致**。
 
 **设计门禁三步（框架变更 / 页面开发 / 新建查询，缺一不可，不许靠自觉）**：
 1. **静态守卫（自动，机器判）**：`pnpm run design:check`（= `scripts/check-style-tokens.mjs` 禁新增裸色值 + `scripts/check-design-compliance.mjs` 禁新增 token 族违规/胶囊按钮/玻璃过头/蓝紫渐变，棘轮基线）。**每次改完代码必跑（§5.6 快档已接线）**；pre-commit hook 亦拦截。

@@ -91,6 +91,18 @@ if [ -n "$PCS" ]; then
   fi
 fi
 
+# 提交内容卫生门禁（第 4 道，2026-11-14 用户输入1 立）：暂存新增行不得含
+# 工作区/工作区外绝对地址（盘符 / file URL 盘符 / POSIX 用户目录 / UNC）、
+# 指向具体个人的标识（人名/昵称/成员名/账号片段）、其他项目业务信息；
+# 通用角色词与裸目录名放行。规则真源：docs/04-standards/agent-workflow/b-engineering-platform.md §B13
+echo "[pre-commit] 校验提交内容卫生 (check-commit-hygiene)"
+"$PS" -NoProfile -ExecutionPolicy Bypass -File "scripts/check-commit-hygiene.ps1" -Staged
+if [ $? -ne 0 ]; then
+  echo "[pre-commit] 提交内容卫生 FAIL：暂存新增行命中卫生红线（见上方清单），提交已拒绝"
+  echo "[pre-commit] 修复后重试；确需紧急放行仅限 git commit --no-verify（须在当日工作日记留痕）"
+  FAIL=1
+fi
+
 if [ -z "$DIRS" ]; then
   if [ $FAIL -ne 0 ]; then
     exit 1

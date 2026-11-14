@@ -34,6 +34,7 @@
 | §B10 | CI 自动发布（tag → GitHub Actions） | [`b-engineering-platform.md`](b-engineering-platform.md) |
 | §B11 | Qoder CN Agent SDK 接入（spec 037） | [`b-engineering-platform.md`](b-engineering-platform.md) |
 | §B12 | dsh 架构对齐（040–042） | [`b-engineering-platform.md`](b-engineering-platform.md) |
+| §B13 | 提交内容卫生（pre-commit 第 4 道门：绝对地址 / 人名昵称账号片段 / 无关项目业务信息；守卫 `scripts/check-commit-hygiene.ps1`） | [`b-engineering-platform.md`](b-engineering-platform.md) |
 | Part C | 变更记录（规则库自身的演进台账） | [`c-changelog.md`](c-changelog.md) |
 
 ## 该读哪一份（按场景）

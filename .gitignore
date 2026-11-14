@@ -94,6 +94,14 @@ specs/
 # 误标忽略——新增技能/工作流文件会静默不入库；以下负向豁免放行，.github/agents、.github/prompts 仍按下行忽略。
 !.agents/
 !.github/
+# Grok 项目入口（规则 / 代理 / 工作流）。`.*/` 会把整个 .grok 忽略，发现阶段会跳过被忽略的规则。
+!.grok/
+.grok/*
+!.grok/agents/
+!.grok/workflows/
+!.grok/rules/
+!.grok/personas/
+!.grok/roles/
 CONTEXT.md
 .github/agents/
 .github/prompts/

@@ -39,6 +39,7 @@
 | 流式 Responses usage 三字段为 0 / 未向 Chat 上游要 include_usage | PC-031 |
 | 非流式 Responses 格式错误 / message 缺 id / output_text 缺 annotations | PC-032 |
 | 出站请求 tool_choice 与 tools 从属关系 / 同协议直通透传 / BadRequestError tool_choice must be set | PC-033 |
+| 设置页「测试连接（选定模型）」探针 / 成功判据 / 回复内容关键词校验 | PC-034 |
 
 ## 台账总表
 
@@ -77,6 +78,7 @@
 | PC-031 | 流式 Responses 转 Chat 未请求 usage，三个 token 字段落成 0 | guarded | G1 active | 0 | [PC-031](PC-031-responses-stream-usage-not-requested.md) |
 | PC-032 | 非流式 Responses 回包缺 message.id 与 output_text.annotations，AI SDK 判格式错误 | guarded | G1 active | 0 | [PC-032](PC-032-responses-nonstream-shape.md) |
 | PC-033 | 出站 tool_choice 无 tools 未丢弃 → 上游 400（BadRequestError） | guarded | G1×2+G2×4 active（含 pipeline 咽喉点守卫） | 0 | [PC-033](PC-033-tool-choice-without-tools.md) |
+| PC-034 | 测试连接探针判据绑定回复关键词 → 有效回复误判失败（假阴性） | guarded | G1 active（AIProviderTestConnectionReplyGuardTests） | 0 | [PC-034](PC-034-probe-keyword-false-negative.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

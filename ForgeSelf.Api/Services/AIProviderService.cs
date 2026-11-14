@@ -44,7 +44,8 @@ public interface IAIProviderService
     /// <summary>
     /// 测试指定提供方连通性：解密 ApiKey 后发一次最小探测请求，返回耗时与结果。
     /// modelId 为空=仅探连通（URL 归一化后最小 ping，任一 HTTP 响应即「代理/网络可用」）；
-    /// 非空=用该已登记模型发真实 chat（content「请回复且仅回复ok」），成功判据=HTTP 200 且响应文本含 ok（忽略大小写）。
+    /// 非空=用该已登记模型发真实 chat（content「请回复且仅回复ok」），
+    /// 成功判据=HTTP 200 且回复非空白即成功，不校验回复内容（PC-034：模型可拒绝「仅回复 ok」的指令但仍完全可用）；空回复判失败（PC-013）。
     /// </summary>
     Task<AIProviderTestResult> TestConnectionAsync(long id, long? modelId = null);
 }
@@ -179,7 +180,7 @@ public class AIProviderService : IAIProviderService
 
         try
         {
-            // 选定已登记模型时的「真实对话」探测：发一条要求仅回复 ok 的最小消息，判据为响应含 ok（忽略大小写）
+            // 选定已登记模型时的「真实对话」探测：发一条要求仅回复 ok 的最小消息；回复内容不校验，非空白即成功（PC-034）
             if (modelId.HasValue)
             {
                 var model = AIModel.FindById(modelId.Value);
@@ -217,13 +218,14 @@ public class AIProviderService : IAIProviderService
                         probeLatency = (int)stopwatch.ElapsedMilliseconds;
                         statusCode = 200;
                         reply = unified.Choices.FirstOrDefault()?.Content ?? string.Empty;
-                        // 成功判据与 Anthropic 分支一致：回复含 ok（忽略大小写）；空回复判失败（PC-013）
-                        if (SaysOk(reply))
-                            return new AIProviderTestResult(true, probeLatency, $"连接成功 · 模型回复「{reply}」", statusCode);
-                        return new AIProviderTestResult(false, probeLatency,
-                            string.IsNullOrEmpty(reply)
-                                ? "响应解析失败（未取到模型回复）"
-                                : $"模型未回复 ok（实际回复：{reply}）", statusCode);
+                        // 成功判据（2026-11-14 输入1 放宽，PC-034）：调用成功且回复非空白即成功，
+                        // 不校验回复内容（模型可能拒绝「仅回复 ok」的指令但仍完全可用）；空回复仍判失败（PC-013）
+                        if (HasUsableReply(reply))
+                        {
+                            var shown = reply.Length > 100 ? reply[..100] + "…" : reply;
+                            return new AIProviderTestResult(true, probeLatency, $"连接成功 · 模型回复「{shown}」", statusCode);
+                        }
+                        return new AIProviderTestResult(false, probeLatency, "响应解析失败（未取到模型回复）", statusCode);
                     }
                     catch (System.ClientModel.ClientResultException cre)
                     {
@@ -291,11 +293,10 @@ public class AIProviderService : IAIProviderService
         }
     }
 
-    /// <summary>回复是否包含 ok（忽略大小写）——测试连接成功判据。</summary>
-    internal static bool SaysOk(string? content)
+    /// <summary>回复是否可用（非空白即可）——测试连接成功判据（PC-034：内容不校验；PC-013：空响应仍判失败）。</summary>
+    internal static bool HasUsableReply(string? content)
     {
-        return content != null &&
-            content.IndexOf("ok", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        return !string.IsNullOrWhiteSpace(content);
     }
 
     #region 校验

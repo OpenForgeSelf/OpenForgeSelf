@@ -1,7 +1,7 @@
 # 11-troubleshooting — 故障知识库
 
 > 状态：在役（2026-10-17 升级为「问题类闭环」知识库）
-> 最后更新：2026-11-13
+> 最后更新：2026-11-14
 
 本目录三层分工（同一事实只放一处）：
 - **[problem-classes/](problem-classes/README.md)** — 问题类台账：不变量 + 特征签名 + canonical fix + 守卫（「这类事为什么再犯、怎么防」的唯一真源，设计/修复前先查tags检索表）
@@ -32,6 +32,7 @@
 | 流式 Responses `usage.input_tokens/output_tokens/total_tokens` 全是 0，正文正常 | case [2026-11-12 usage 未请求](cases/2026-11-12-responses-stream-usage-zero.md) → [PC-031](problem-classes/PC-031-responses-stream-usage-not-requested.md) |
 | 非流式 `/v1/responses` 客户端格式错误，聊天记录里却有正文 | case [2026-11-13 非流式缺 id](cases/2026-11-13-responses-nonstream-format.md) → [PC-032](problem-classes/PC-032-responses-nonstream-shape.md) |
 | `When using tool_choice, tools must be set` / `BadRequestError` param=tool_choice（OpenAI 响应式接口报错） | case [2026-11-13 tool_choice 无 tools](cases/2026-11-13-toolchoice-without-tools.md) → [PC-033](problem-classes/PC-033-tool-choice-without-tools.md) |
+| 测试连接报「模型未回复 ok（实际回复：…）」但模型能正常出话（探针判据绑定回复关键词） | case [2026-11-14 探针关键词假阴性](cases/2026-11-14-provider-probe-ok-keyword-false-negative.md) → [PC-034](problem-classes/PC-034-probe-keyword-false-negative.md) |
 | `text part msg_… not found` / Open Responses 流已有 item_id 仍失败 | case [2026-10-30 text part 未登记](cases/2026-10-30-responses-text-part-not-registered.md) → [PC-016](problem-classes/PC-016-responses-outbound-delta-item-id.md) |
 | 工具调用报 `Expected depth to be zero at the end of the JSON payload` / `INVALID_PARAMETERS 参数JSON解析失败`（单个工具全挂、同批其他工具正常、构建却全绿） | case [2026-10-30 工具 schema 重复键](cases/2026-10-30-tool-schema-json-duplicate-key.md) → [PC-017](problem-classes/PC-017-tool-schema-json-duplicate-key.md) |
 

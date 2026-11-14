@@ -268,7 +268,7 @@ test.describe('AI 提供方管理（真实后端）', () => {
     await expect(dialog).toBeHidden()
   })
 
-  test('弹窗选模型全链路：新建→获取模型→弹窗取消不发请求→确定→回复含 ok 判成功（mock 上游）', async ({ page }) => {
+  test('弹窗选模型全链路：新建→获取模型→弹窗取消不发请求→确定→回复非空判成功（mock 上游）', async ({ page }) => {
     const testName = `E2E-Real-TestDlg-${Date.now()}`
     const upstream = await startMockUpstream(18083, { chatContent: 'ok' })
     let createdId: number | null = null
@@ -331,7 +331,7 @@ test.describe('AI 提供方管理（真实后端）', () => {
       await testResponsePromise
       expect(testPosts).toBe(1)
 
-      // 卡片展示真实成功结果（回复含 ok 判定）
+      // 卡片展示真实成功结果（回复非空白即成功，PC-034：内容不校验；mock 回 'ok' 在新判据下仍成功）
       await expect(newCard.getByText(/连接成功 · 模型回复/)).toBeVisible()
       await page.screenshot({ path: 'screenshots/e2e/provider-test-ok.png', fullPage: true })
 

@@ -62,7 +62,8 @@ export interface DbConnectionInput {
   connStr?: string
   /**
    * 「默认表」为本机界面偏好（落 localStorage），**不进入请求体**（`connForm.toSubmitBody` 会剔除）。
-   * 填了 → 点该连接直接打开该表标签；留空 → 点连接只展开并加载全部表。
+   * SQLite / Oracle：填了则点连接直接打开该表；留空则只展开并加载表。
+   * mysql / sqlserver / postgresql：还要连接上保存了非空默认库，才会在列库后展开该库并打开表。
    */
   defaultTable?: string
 }
@@ -78,6 +79,14 @@ export interface TestConnectionResult {
   elapsedMs?: number
   /** driver_missing 时需安装的包（后端放在 message 里；此字段仅兼容） */
   driverPackage?: string
+}
+
+/** GET /connections/{id}/databases 单项 */
+export interface DbDatabase {
+  name: string
+  kind?: string
+  isDefault: boolean
+  isSystem: boolean
 }
 
 /** GET /connections/{id}/tables */
@@ -113,6 +122,8 @@ export interface QueryRequest {
   params?: Record<string, unknown>
   page: number
   pageSize: number
+  /** 选中的库。缺省则用连接默认库（旧快照不带此字段） */
+  database?: string
 }
 
 export interface ResultColumn {
@@ -268,6 +279,12 @@ export interface DbAdminFixture {
   tables?: Record<string, BackendJson[]>
   /** 每个连接的「加载表」局部状态（CT 用于定格 loading；真实请求由 DbAdminView 维护） */
   tablesLoading?: Record<string, boolean>
+  /** GET .../databases。值可以是数组，或 `{ databases: [...] }` */
+  databases?: Record<string, BackendJson[] | BackendJson>
+  databasesLoading?: Record<string, boolean>
+  databaseErrors?: Record<string, string>
+  /** 连接 id → 库名 → 表。仅先列库的三类连接 */
+  dbTables?: Record<string, Record<string, BackendJson[]>>
   tableDetails?: Record<string, BackendJson>
   expanded?: string[]
   sql?: string
@@ -277,6 +294,10 @@ export interface DbAdminFixture {
     connectionId: string
     table?: string
     sql?: string
+    /** 表所在库 / 自由查询打开时所在库 */
+    database?: string
+    /** 自由查询自定义标题 */
+    title?: string
     /** 该标签预置一条结果（旧 fixture 形态） */
     reply?: { httpStatus: number; body: BackendJson }
     /** 该标签预置多条结果（多语句结果标签条定格用） */

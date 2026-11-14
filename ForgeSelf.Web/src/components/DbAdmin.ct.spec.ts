@@ -57,13 +57,26 @@ test.describe('DbAdmin · S1 连接表单', () => {
 
   test('校验失败留窗；编辑态密码遮罩、留空不改', async ({ page }) => {
     await openStory(page, 'DbAdmin/ConnFormInvalid', '[data-testid="conn-form"]')
-    await expect(tid(page, 'cf-error')).toContainText('请填写数据库名')
+    await expect(tid(page, 'cf-error')).toContainText('请填写服务名')
+    await expect(page.locator('[data-testid="conn-form"]')).toContainText('服务名')
     await expect(tid(page, 'cf-password')).toHaveAttribute('type', 'password')
     await expect(tid(page, 'cf-password')).toHaveAttribute('placeholder', /\*\*\*\*（留空 = 不改）/)
     await tid(page, 'cf-save').click()
     await expect(tid(page, 'conn-form')).toBeVisible()
     await expect(root(page)).toHaveScreenshot()
   })
+})
+
+test('S2 MySQL 展开后先见库节点（夹具）', async ({ page }) => {
+  await openStory(page, 'DbAdmin/MysqlDatabases', '[data-testid="db-8-app"]')
+  await expect(tid(page, 'db-8-app')).toContainText('默认')
+  await expect(tid(page, 'db-8-mysql')).toContainText('系统')
+  await expect(tid(page, 'db-8-information_schema')).toContainText('系统')
+  await expect(tid(page, 'databases-empty-8')).toHaveCount(0)
+  await expect(page.getByText('未枚举到数据库')).toHaveCount(0)
+  const order = await page.locator('[data-testid^="db-8-"]').evaluateAll(els => els.map(el => el.getAttribute('data-testid')))
+  expect(order).toEqual(['db-8-app', 'db-8-mysql', 'db-8-information_schema'])
+  await expect(tid(page, 'table-8-app-orders')).toBeVisible()
 })
 
 test('S2 Schema 树：连接 → 表 → 列（类型 / PK）+ 只读徽标', async ({ page }) => {

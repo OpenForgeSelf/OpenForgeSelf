@@ -7,7 +7,7 @@
  * 样本：src/__fixtures__/backend-samples.json（由真实 DbAdminController 产出，见 contract.test.ts）。
  */
 import type {
-  AgentToolEcho, DbApproval, DbAuditLog, DbColumn, DbConnection, DbProvider, DbQueryHistory, DbTable,
+  AgentToolEcho, DbApproval, DbAuditLog, DbColumn, DbConnection, DbDatabase, DbProvider, DbQueryHistory, DbTable,
   DbTableDetail, QueryResponse, ResultColumn, ResultErrorState, SqlKind, TestConnectionResult,
 } from './types'
 
@@ -56,6 +56,39 @@ export function normConnection(r: Raw): DbConnection {
     createTime: str(r.createTime),
     updateTime: str(r.updateTime),
   }
+}
+
+export function normDatabase(r: Raw): DbDatabase {
+  return {
+    name: String(r.name ?? ''),
+    kind: str(r.kind),
+    isDefault: r.isDefault === true,
+    isSystem: r.isSystem === true,
+  }
+}
+
+/** 数组，或 `{ databases: [...] }`（后端 DatabaseList） */
+export function databasesOf(data: unknown): DbDatabase[] {
+  if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray((data as Raw).databases)) {
+    return listOf((data as Raw).databases, normDatabase)
+  }
+  return listOf(data, normDatabase)
+}
+
+/** 与已存库名同名则标默认。仅 sqlserver 忽略大小写。系统库挪到末尾，其余保持原序。 */
+export function namesMatchDatabase(provider: string | undefined, saved: string | undefined, name: string): boolean {
+  const s = (saved ?? '').trim()
+  if (!s || !name) return false
+  if ((provider ?? '').toLowerCase() === 'sqlserver') return name.toLowerCase() === s.toLowerCase()
+  return name === s
+}
+
+export function presentDatabases(items: DbDatabase[], provider: string | undefined, savedDatabase?: string): DbDatabase[] {
+  const marked = items.map(d => ({
+    ...d,
+    isDefault: d.isDefault || namesMatchDatabase(provider, savedDatabase, d.name),
+  }))
+  return [...marked.filter(d => !d.isSystem), ...marked.filter(d => d.isSystem)]
 }
 
 export function normTable(r: Raw): DbTable {

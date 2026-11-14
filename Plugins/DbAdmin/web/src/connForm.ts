@@ -23,6 +23,12 @@ export function isSqlite(provider: string | undefined): boolean {
   return (provider ?? '').toLowerCase() === 'sqlite'
 }
 
+/** mysql / sqlserver / postgresql 库名可空，点开后先列全部库 */
+export function allowsEmptyDatabase(provider: string | undefined): boolean {
+  const p = (provider ?? '').toLowerCase()
+  return p === 'mysql' || p === 'sqlserver' || p === 'postgresql'
+}
+
 /** 仅 SQLite 实测；其它一律「未实测」 */
 export function isTested(p: Pick<DbProvider, 'id' | 'tested'> | undefined): boolean {
   if (!p) return false
@@ -56,7 +62,10 @@ export function validateForm(f: DbConnectionInput, editing: boolean): string | n
   }
   if (!(f.host ?? '').trim()) return '请填写主机'
   if (f.port !== undefined && (!Number.isInteger(f.port) || f.port <= 0 || f.port > 65535)) return '端口应为 1–65535'
-  if (!(f.database ?? '').trim()) return '请填写数据库名'
+  if (!(f.database ?? '').trim()) {
+    if ((f.provider ?? '').toLowerCase() === 'oracle') return '请填写服务名'
+    if (!allowsEmptyDatabase(f.provider)) return '请填写数据库名'
+  }
   return null
 }
 
@@ -70,10 +79,11 @@ export function buildConnStr(f: DbConnectionInput): string {
       f.userName ? `User Id=${f.userName}` : '',
       f.password ? `Password=${f.password}` : ''].filter(Boolean).join(';')
   }
+  const db = (f.database ?? '').trim()
   const parts = [
     `Server=${f.host ?? ''}`,
     f.port ? `Port=${f.port}` : '',
-    `Database=${f.database ?? ''}`,
+    db ? `Database=${db}` : '',
     f.userName ? `User Id=${f.userName}` : '',
     f.password ? `Password=${f.password}` : '',
   ].filter(Boolean)

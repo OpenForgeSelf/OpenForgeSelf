@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listOf, normApproval, normConnection, normQuery, normTable, normTableDetail, normTest } from './normalize'
+import { databasesOf, listOf, normApproval, normConnection, normQuery, normTable, normTableDetail, normTest, presentDatabases } from './normalize'
 
 describe('响应归一（03 未定的 JSON 细节）', () => {
   it('query：columns:string[] + columnTypes；数字 approvalId', () => {
@@ -32,6 +32,23 @@ describe('响应归一（03 未定的 JSON 细节）', () => {
     expect(normTable({ name: 'v', isView: true }).type).toBe('view')
     const d = normTableDetail({ name: 't', columns: [{ name: 'id', rawType: 'INTEGER', nullable: false }], primaryKeys: ['id'] })
     expect(d.columns[0]).toEqual({ name: 'id', type: 'INTEGER', nullable: false, primaryKey: true })
+  })
+  it('列库：系统库在后；sqlserver 默认库忽略大小写，mysql 不忽略', () => {
+    const raw = databasesOf({
+      databases: [
+        { name: 'mysql', isSystem: true, isDefault: false },
+        { name: 'App', isSystem: false, isDefault: false },
+        { name: 'analytics', isSystem: false },
+      ],
+      provider: 'mysql',
+    })
+    const mysql = presentDatabases(raw, 'mysql', 'app')
+    expect(mysql.map(d => d.name)).toEqual(['App', 'analytics', 'mysql'])
+    expect(mysql.find(d => d.name === 'App')?.isDefault).toBe(false)
+    expect(mysql.find(d => d.name === 'mysql')?.isSystem).toBe(true)
+    const ss = presentDatabases(raw, 'sqlserver', 'app')
+    expect(ss.find(d => d.name === 'App')?.isDefault).toBe(true)
+    expect(ss.map(d => d.name).at(-1)).toBe('mysql')
   })
   it('审批 + 分页包装', () => {
     const list = listOf({ items: [{ id: 7, connectionId: '1', sqlRedacted: 'DROP TABLE t', destructive: true, status: 'pending', source: 'agent' }], total: 1 }, normApproval)

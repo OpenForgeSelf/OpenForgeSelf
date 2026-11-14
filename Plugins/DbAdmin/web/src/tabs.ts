@@ -24,6 +24,10 @@ export interface QueryTab {
   connectionId: string
   /** 表标签的源表名；自由标签无 */
   table?: string
+  /** 表所在库，或自由查询打开时所在库。缺省则执行不带 database */
+  database?: string
+  /** 自由查询自定义标题。空则显示「新查询」 */
+  title?: string
   sql: string
   /** 多语句结果（空 = 未执行过） */
   results: ResultSet[]
@@ -36,30 +40,44 @@ export interface QueryTab {
   batch?: BatchState
 }
 
-export function tableTabKey(connId: string, table: string): string {
-  return `t:${connId}:${table}`
+/** 无库名保持 `t:<conn>:<table>`。有库名把库编进 key，不同库同名表不串。 */
+export function tableTabKey(connId: string, table: string, database?: string): string {
+  const db = (database ?? '').trim()
+  if (!db) return `t:${connId}:${table}`
+  return `t:${connId}:db:${encodeURIComponent(db)}:${table}`
 }
 
 export function manualTabKey(connId: string, seq: number): string {
   return `m:${connId}:${seq}`
 }
 
-/** 表标签标题 = 表名原文（不加「表」字）；自由标签 = 「新查询」 */
-export function tabTitle(tab: Pick<QueryTab, 'table'>): string {
-  return tab.table ?? NEW_QUERY_TITLE
+/** 表标签标题 = 表名原文（不加「表」字）；自由标签 = 自定义标题或「新查询」 */
+export function tabTitle(tab: Pick<QueryTab, 'table' | 'title'>): string {
+  if (tab.table) return tab.table
+  const t = (tab.title ?? '').trim()
+  return t || NEW_QUERY_TITLE
+}
+
+/** 自由查询重命名。空串回「新查询」。 */
+export function manualTitle(raw: string): string {
+  const t = raw.trim()
+  return t || NEW_QUERY_TITLE
 }
 
 /** 悬浮提示：连接名 · 表名（同名表可区分） */
-export function tabTooltip(tab: Pick<QueryTab, 'table' | 'connectionId'>, connName: (id: string) => string): string {
+export function tabTooltip(tab: Pick<QueryTab, 'table' | 'connectionId' | 'database'>, connName: (id: string) => string): string {
   const c = connName(tab.connectionId) || tab.connectionId
-  return tab.table ? `${c} · ${tab.table}` : c
+  if (!tab.table) return c
+  return tab.database ? `${c} · ${tab.database} · ${tab.table}` : `${c} · ${tab.table}`
 }
 
-export function createTableTab(connId: string, table: string, sql?: string): QueryTab {
+export function createTableTab(connId: string, table: string, sql?: string, database?: string): QueryTab {
+  const db = database?.trim() || undefined
   return {
-    key: tableTabKey(connId, table),
+    key: tableTabKey(connId, table, db),
     connectionId: connId,
     table,
+    ...(db ? { database: db } : {}),
     sql: sql ?? `SELECT * FROM ${table}`,
     results: [],
     activeResultIndex: 0,
@@ -69,10 +87,12 @@ export function createTableTab(connId: string, table: string, sql?: string): Que
   }
 }
 
-export function createManualTab(connId: string, seq: number, sql = ''): QueryTab {
+export function createManualTab(connId: string, seq: number, sql = '', database?: string): QueryTab {
+  const db = database?.trim() || undefined
   return {
     key: manualTabKey(connId, seq),
     connectionId: connId,
+    ...(db ? { database: db } : {}),
     sql,
     results: [],
     activeResultIndex: 0,
@@ -94,19 +114,28 @@ export interface OpenResult {
 /**
  * 打开/聚焦表标签（FR-2/FR-3/BR-2/BR-10）：已存在只返回 key，绝不重置 SQL 与结果。
  */
-export function openTableTab(tabs: QueryTab[], connId: string, table: string): OpenResult {
-  const key = tableTabKey(connId, table)
+export function openTableTab(tabs: QueryTab[], connId: string, table: string, database?: string): OpenResult {
+  const key = tableTabKey(connId, table, database)
   if (tabs.some(t => t.key === key)) return { tabs, key, created: false, full: false }
   if (tabs.length >= MAX_TABS) return { tabs, key: null, created: false, full: true }
-  return { tabs: [...tabs, createTableTab(connId, table)], key, created: true, full: false }
+  return { tabs: [...tabs, createTableTab(connId, table, undefined, database)], key, created: true, full: false }
 }
 
 /** 新建自由查询标签；seq 取该连接已有自由标签的最大序号 + 1 */
-export function openManualTab(tabs: QueryTab[], connId: string): OpenResult {
+export function openManualTab(tabs: QueryTab[], connId: string, database?: string): OpenResult {
   if (tabs.length >= MAX_TABS) return { tabs, key: null, created: false, full: true }
   const seq = nextManualSeq(tabs, connId)
-  const tab = createManualTab(connId, seq)
+  const tab = createManualTab(connId, seq, '', database)
   return { tabs: [...tabs, tab], key: tab.key, created: true, full: false }
+}
+
+/** 循环切标签。只剩一张则留在原标签。无标签返回 null。 */
+export function cycleTabKey(tabs: QueryTab[], activeKey: string | null, delta: 1 | -1): string | null {
+  if (tabs.length === 0) return null
+  const idx = tabs.findIndex(t => t.key === activeKey)
+  const base = idx < 0 ? (delta > 0 ? -1 : 0) : idx
+  const next = ((base + delta) % tabs.length + tabs.length) % tabs.length
+  return tabs[next].key
 }
 
 /** 已有自由标签的最大 seq + 1（避免 key 冲突，BR-1） */

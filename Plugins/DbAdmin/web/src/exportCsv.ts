@@ -54,7 +54,8 @@ export function safeBaseName(base: string): string {
   return t || 'query'
 }
 
-/** `<表名或query>-r<结果序号>-p<页码>-<yyMMddHHmm>.csv`（序号/页码均 1 起） */
-export function csvFileName(base: string, resultIndex: number, page: number, now: Date = new Date()): string {
-  return `${safeBaseName(base)}-r${Math.max(1, Math.floor(resultIndex))}-p${Math.max(1, Math.floor(page))}-${timeCode(now)}.csv`
+/** `<表名或query>-r<结果序号>-p<页码>-<yyMMddHHmm>.csv`（序号/页码均 1 起；全部页的页码段为 all） */
+export function csvFileName(base: string, resultIndex: number, page: number | 'all', now: Date = new Date()): string {
+  const pageSeg = page === 'all' ? 'all' : String(Math.max(1, Math.floor(page)))
+  return `${safeBaseName(base)}-r${Math.max(1, Math.floor(resultIndex))}-p${pageSeg}-${timeCode(now)}.csv`
 }

@@ -6,7 +6,7 @@
  */
 import { apiDelete, apiGet, apiPost, apiPostWithStatus, apiPut } from './http'
 import {
-  agentEchoesOf, listOf, normApproval, normAudit, normConnection, normHistory, normProvider, normQuery, normTable,
+  agentEchoesOf, databasesOf, listOf, normApproval, normAudit, normConnection, normHistory, normProvider, normQuery, normTable,
   normTableDetail, normTest,
 } from './normalize'
 import { clampPageSize } from './pager'
@@ -17,6 +17,10 @@ import type {
 export const PLUGIN_ID = 'db-admin'
 const BASE = '/api/db-admin'
 const enc = encodeURIComponent
+function dbQuery(database?: string): string {
+  const db = database?.trim()
+  return db ? `?database=${enc(db)}` : ''
+}
 type Raw = Record<string, unknown>
 const obj = (d: unknown): Raw => (d && typeof d === 'object' ? (d as Raw) : {})
 
@@ -49,11 +53,17 @@ export const dbAdminApi = {
   /** 恒 200：{ok, code, message, serverVersion, elapsedMs} */
   testConnection: async (body: DbConnectionInput, editingId?: string | null) =>
     normTest(obj(await apiPost(`${BASE}/connections/test`, testBody(body, editingId)))),
-  tables: async (id: string) => listOf(await apiGet(`${BASE}/connections/${enc(id)}/tables`), normTable),
-  tableDetail: async (id: string, table: string) =>
-    normTableDetail(obj(await apiGet(`${BASE}/connections/${enc(id)}/tables/${enc(table)}`))),
+  databases: async (id: string) => databasesOf(await apiGet(`${BASE}/connections/${enc(id)}/databases`)),
+  tables: async (id: string, database?: string) =>
+    listOf(await apiGet(`${BASE}/connections/${enc(id)}/tables${dbQuery(database)}`), normTable),
+  tableDetail: async (id: string, table: string, database?: string) =>
+    normTableDetail(obj(await apiGet(`${BASE}/connections/${enc(id)}/tables/${enc(table)}${dbQuery(database)}`))),
   query: async (body: QueryRequest): Promise<QueryResponse> => {
-    const r = await apiPostWithStatus(`${BASE}/query`, { ...body, page: Math.max(1, body.page), pageSize: clampPageSize(body.pageSize) })
+    const database = body.database?.trim()
+    const payload: QueryRequest = { ...body, page: Math.max(1, body.page), pageSize: clampPageSize(body.pageSize) }
+    if (database) payload.database = database
+    else delete payload.database
+    const r = await apiPostWithStatus(`${BASE}/query`, payload)
     return normQuery(obj(r.data), r.status)
   },
   approvals: async (status = 'pending') => listOf(await apiGet(`${BASE}/approvals?status=${enc(status)}`), normApproval),

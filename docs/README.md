@@ -33,7 +33,7 @@
 | 确认**插件数据落点与升级丢失原因**（为什么有的插件库在用户根不丢、有的随版本目录丢；新增插件库怎么登记） | [`ForgeSelf.Api/Plugins/README.md`](../../ForgeSelf.Api/Plugins/README.md) **§三**（`XCodeConfig.PluginDbs` 登记 = 落数据根唯一入口；未登记 → `versions/<ver>/Data/` 升级即丢） |
 | 确认**用户更新动线**（插件更新页从哪进、不重启生效的三条口子、**全新插件首次安装**的三条动线、已知宿主缺陷） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) **§1.8（新插件首装 = §1.8.1）** |
 | 做任何事时**查流程/标准/工具/验证**（通用操作手册） | [`05-guides/software-engineering-lifecycle-manual.md`](05-guides/software-engineering-lifecycle-manual.md)（SEMS V1.3：系统设计方案 12 章 + 迭代方法论 6 章 + AI 迭代工程 MCP 设计 7 章（含实现路线图）+ 操作手册全量版（S01–S20 含流程图/快速参考卡/文档大全 42 份）+ 34 个文档模板 + 25 条反模式清单 + 术语表 38 条 + 填写示例 + 手册治理规则） |
-| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；单功能调研在 `docs/ai/pilot/<task-id>/`） |
+| 做**跨功能技术选型/调研**（要不要换数据库、引新框架） | `06-research/`（[001 deepseek-harness 插件化调研](06-research/001-deepseek-harness-plugin-architecture.md)；[003 DeepSeek Harness 运行全链路：从 Web 输入框到工具执行完成](06-research/003-deepseek-harness-运行全链路.md)；[005 LoopForge 功能需求分析](06-research/005-loopforge-feature-analysis.md) + [006 LoopForge 功能吸收对照图](06-research/006-loopforge-absorption-map.md)（吸收裁决含 NOT-to-do）；单功能调研在 `docs/ai/pilot/<task-id>/`） |
 | 想了解**当初为什么这么选**（决策理由 ADR） | `07-decisions/`（[001 Cordis 内核重构决策](07-decisions/001-cordis-kernel-architecture.md)；[002 万能工具走 ToolRegistry 分发核](07-decisions/002-universal-tool-gateway-and-terminal-tool.md)；[003 外部 MCP 工具枚举可见+调用可达（修订 D10 枚举侧）](07-decisions/003-mcp-external-tools-enum-merge.md)；[005 本机 Agent 复用 MAF、不另起平行 Runtime](07-decisions/005-maf-local-agent-reuse.md)；[006 MAF 一等公民 + 绿场重设计](07-decisions/006-maf-first-class-greenfield.md)；[「审慎不做」决策台账](07-decisions/not-taken-decisions.md) 记录明确不做/缓做的选择） |
 | 确认 **执行中枢 MAF 是否一等 / 插件名是否为智能体 / 绿场是否做迁移** | [`07-decisions/006-maf-first-class-greenfield.md`](07-decisions/006-maf-first-class-greenfield.md)；愿景 [`00-vision/01-vision.md`](00-vision/01-vision.md)；pilot [`ai/pilot/2026-11-02-maf-first-class/`](ai/pilot/2026-11-02-maf-first-class/) |
 | 确认**任务中心（跨入口任务总览）做成什么样/数据从哪来/为什么只有只读** | [`ai/pilot/2026-11-02-b3-taskcenter/02-spec.md`](ai/pilot/2026-11-02-b3-taskcenter/02-spec.md)（B3 批真源，commit `2c6b30c`：只读聚合 open/planned 两桶 + 前端聚合 Scheduler 桶；**不做任务创建**；宿主视图 `/task-center`） |
@@ -127,7 +127,7 @@
 
 | 问题 | 说明 |
 |------|------|
-| **做什么** | 跨功能的**长期技术调研与选型对比**：如"是否换数据库/引入新框架/重构插件机制"。记录调研背景、候选方案对比（优劣势/证据）、初步倾向与待验证项。含 [003 DeepSeek Harness 运行全链路（Web 输入框 → 工具执行，含可抄设计与不变量）](06-research/003-deepseek-harness-运行全链路.md)（对标总纲 `01-architecture/dsh-alignment-plan.md` 的依据） |
+| **做什么** | 跨功能的**长期技术调研与选型对比**：如"是否换数据库/引入新框架/重构插件机制"。记录调研背景、候选方案对比（优劣势/证据）、初步倾向与待验证项。含 [003 DeepSeek Harness 运行全链路（Web 输入框 → 工具执行，含可抄设计与不变量）](06-research/003-deepseek-harness-运行全链路.md)（对标总纲 `01-architecture/dsh-alignment-plan.md` 的依据）；[005 LoopForge 功能需求分析](06-research/005-loopforge-feature-analysis.md)（对外部开源项目 LoopForge 的功能事实盘点）与 [006 LoopForge 功能吸收对照图](06-research/006-loopforge-absorption-map.md)（哪些吸收/哪些红线排除，NOT-to-do 台账 059 的来源） |
 | **不做什么** | 不做单功能调研（那在 `docs/ai/pilot/<task-id>/00-repository-understanding.md` 的任务上下文里）；不下最终决策（那是 `07-decisions/` 的活） |
 | **解释什么** | "这个技术方向调研了什么、比了哪些方案、证据是什么、倾向哪个" |
 | **不解释什么** | 不解释最终拍板理由 → `07-decisions/`（决策落地时把调研结论引过去）；不解释功能实现 → `02-features/` |

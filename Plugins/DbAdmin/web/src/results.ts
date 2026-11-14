@@ -83,6 +83,11 @@ export function activeResult(sets: ResultSet[], index: number): ResultSet | null
   return sets[index]
 }
 
+/** 成功且 0 行时结果区文案。无 elapsed 不写耗时。 */
+export function zeroRowLabel(elapsedMs: number | undefined): string {
+  return elapsedMs === undefined ? '0 行' : `0 行（${elapsedMs} ms）`
+}
+
 /** 状态栏「N 行 · X ms」（FR-23）；写语句取 affectedRows */
 export function statsLabel(set: ResultSet | null): string {
   if (!set || set.status !== 'ok' || !set.result) return ''

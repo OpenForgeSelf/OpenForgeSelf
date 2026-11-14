@@ -27,6 +27,10 @@ export interface RestoredTab {
   key: string
   connectionId: string
   table?: string
+  /** 表或自由查询所在库。旧快照没有此字段 */
+  database?: string
+  /** 自由查询自定义标题 */
+  title?: string
   sql: string
 }
 
@@ -185,6 +189,8 @@ function normTab(v: unknown): RestoredTab | null {
   if (typeof o.key !== 'string' || typeof o.connectionId !== 'string') return null
   const tab: RestoredTab = { key: o.key, connectionId: o.connectionId, sql: typeof o.sql === 'string' ? o.sql : '' }
   if (typeof o.table === 'string' && o.table) tab.table = o.table
+  if (typeof o.database === 'string' && o.database.trim()) tab.database = o.database
+  if (typeof o.title === 'string' && o.title.trim()) tab.title = o.title
   return tab
 }
 

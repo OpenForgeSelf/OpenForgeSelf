@@ -26,6 +26,32 @@ describe('api 契约', () => {
     expect(url).toContain('source=agent')
     expect(es[0]).toMatchObject({ id: '3', tool: 'db_query_readonly', rowCount: 2 })
   })
+  it('databases 路径；tables/query 带可选 database；空库名不写进 body', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => null })
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/databases')) {
+        return new Response(JSON.stringify({ databases: [{ name: 'app', isSystem: false, isDefault: true }], provider: 'mysql' }), { status: 200 })
+      }
+      if (String(url).includes('/tables')) {
+        return new Response(JSON.stringify([{ name: 'users' }]), { status: 200 })
+      }
+      return new Response(JSON.stringify({ status: 'ok', columns: [], rows: [], total: 0 }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const dbs = await dbAdminApi.databases('12')
+    expect(dbs.map(d => d.name)).toEqual(['app'])
+    expect((fetchMock.mock.calls as unknown as [string][])[0][0]).toBe('/api/db-admin/connections/12/databases')
+    await dbAdminApi.tables('12', 'demo db')
+    expect((fetchMock.mock.calls as unknown as [string][])[1][0]).toBe('/api/db-admin/connections/12/tables?database=demo%20db')
+    await dbAdminApi.tableDetail('12', 'users', 'demo db')
+    expect((fetchMock.mock.calls as unknown as [string][])[2][0]).toContain('/tables/users?database=demo%20db')
+    await dbAdminApi.query({ connectionId: '12', sql: 'select 1', page: 1, pageSize: 50, database: '  ' })
+    const emptyDb = JSON.parse((fetchMock.mock.calls as unknown as [string, RequestInit][])[3][1].body as string) as Record<string, unknown>
+    expect(emptyDb.database).toBeUndefined()
+    await dbAdminApi.query({ connectionId: '12', sql: 'select 1', page: 1, pageSize: 50, database: 'app' })
+    const withDb = JSON.parse((fetchMock.mock.calls as unknown as [string, RequestInit][])[4][1].body as string) as Record<string, unknown>
+    expect(withDb.database).toBe('app')
+  })
   it('logQuery clamp；testBody 仅数字 id 才带（后端 Int32?）', () => {
     expect(logQuery({ pageSize: 9999 })).toContain('pageSize=500')
     expect(testBody({ name: 'a', provider: 'sqlite', mode: 'form' }, '12')).toMatchObject({ id: 12 })

@@ -34,6 +34,16 @@ describe('连接表单', () => {
     expect(buildConnStr({ ...emptyForm('sqlite'), database: '/a.db' })).toBe('Data Source=/a.db')
     expect(buildConnStr({ ...emptyForm('mysql'), host: 'h', database: 'd', userName: 'u' })).toBe('Server=h;Port=3306;Database=d;User Id=u')
   })
+  it('mysql / sqlserver / postgresql 空库名可通过；sqlite 与 oracle 拒绝', () => {
+    for (const p of ['mysql', 'sqlserver', 'postgresql'] as const) {
+      const f = { ...emptyForm(p), name: 'n', host: 'h', database: '  ' }
+      expect(validateForm(f, false)).toBeNull()
+      expect(buildConnStr(f)).not.toContain('Database=')
+    }
+    expect(validateForm({ ...emptyForm('sqlite'), name: 's' }, false)).toBe('请填写 SQLite 文件路径')
+    const oracle = { ...emptyForm('oracle'), name: 'o', host: 'db.h', database: '' }
+    expect(validateForm(oracle, false)).toBe('请填写服务名')
+  })
   it('默认表是本机偏好：不进请求体（AC-12 机械守卫）', () => {
     const f = { ...emptyForm('sqlite'), name: 'demo', database: '/d.db', defaultTable: 'users' }
     expect('defaultTable' in toSubmitBody(f, false)).toBe(false)

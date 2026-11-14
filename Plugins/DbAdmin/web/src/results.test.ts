@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activeResult, buildResultSets, markSkippedFrom, resultDot, resultDotTitle, resultLabel, statsLabel } from './results'
+import { activeResult, buildResultSets, markSkippedFrom, resultDot, resultDotTitle, resultLabel, statsLabel, zeroRowLabel } from './results'
 
 describe('结果标签（FR-16~19 / BR-15~19）', () => {
   it('按语句创建顺序建结果集，默认 pending 第 1 页', () => {
@@ -58,5 +58,7 @@ describe('结果标签（FR-16~19 / BR-15~19）', () => {
     expect(statsLabel(sets[0])).toBe('')
     expect(statsLabel({ ...sets[0], status: 'ok', result: { status: 'ok', total: 120, elapsedMs: 7 } })).toBe('120 行 · 7 ms')
     expect(statsLabel({ ...sets[0], status: 'ok', result: { status: 'ok', affectedRows: 3 } })).toBe('影响 3 行')
+    expect(zeroRowLabel(12)).toBe('0 行（12 ms）')
+    expect(zeroRowLabel(undefined)).toBe('0 行')
   })
 })

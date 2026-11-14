@@ -77,6 +77,19 @@ describe('S-R 刷新恢复（localStorage ≤64KB，无密码；标签口径）'
     expect(back.defaultTables).toEqual({ a: 'orders' })
   })
 
+  it('自由查询标题与库名能读回；旧快照没有这两字段也不报错', () => {
+    const snap = buildSnapshot(
+      [conn('a')],
+      [{ key: 'm:a:0', connectionId: 'a', sql: 'select 1', title: '日报', database: 'app' }],
+      'm:a:0',
+      {},
+    )
+    expect(saveSnapshot(snap, st)).toBe(true)
+    const back = loadSnapshot(st)!
+    expect(back.tabs[0].title).toBe('日报')
+    expect(back.tabs[0].database).toBe('app')
+  })
+
   it('超 64KB：先丢非活动标签 SQL，再截断活动标签 SQL', () => {
     const big = 'x'.repeat(40 * 1024)
     const snap = buildSnapshot([conn('a'), conn('b')], [tab('a', 't1', big), tab('a', 't2', big)], 't:a:t2', {})

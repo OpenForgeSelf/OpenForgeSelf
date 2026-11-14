@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MAX_TABS, closeTab, createManualTab, createTableTab, findTab, manualTabKey, nextManualSeq, openManualTab, openTableTab,
+  MAX_TABS, closeTab, createManualTab, createTableTab, cycleTabKey, findTab, manualTabKey, manualTitle, nextManualSeq, openManualTab, openTableTab,
   replaceTab, tabTitle, tabTooltip, tableTabKey,
 } from './tabs'
 
@@ -66,8 +66,30 @@ describe('多查询标签（FR-1~6 / FR-11）', () => {
   it('标题不加「表」字；同名表用连接名区分 tooltip', () => {
     expect(tabTitle({ table: 'users' })).toBe('users')
     expect(tabTitle({})).toBe('新查询')
+    expect(tabTitle({ title: '销售' })).toBe('销售')
+    expect(tabTitle({ table: 'users', title: '忽略' })).toBe('users')
+    expect(manualTitle('  ')).toBe('新查询')
+    expect(manualTitle(' 日报 ')).toBe('日报')
     expect(tabTooltip({ table: 'users', connectionId: '12' }, id => ({ 12: 'demo.db' } as Record<string, string>)[id] ?? id))
       .toBe('demo.db · users')
+    expect(tabTooltip({ table: 'users', connectionId: '12', database: 'app' }, () => 'demo'))
+      .toBe('demo · app · users')
+  })
+
+  it('不同库的同名表是两张标签；下一张循环，只剩一张不动', () => {
+    const a = openTableTab([], '1', 'users', 'app')
+    const b = openTableTab(a.tabs, '1', 'users', 'other')
+    expect(b.tabs).toHaveLength(2)
+    expect(b.tabs[0].key).not.toBe(b.tabs[1].key)
+    expect(b.tabs[0].database).toBe('app')
+    expect(cycleTabKey(b.tabs, b.tabs[0].key, 1)).toBe(b.tabs[1].key)
+    expect(cycleTabKey(b.tabs, b.tabs[1].key, 1)).toBe(b.tabs[0].key)
+    expect(cycleTabKey(b.tabs, b.tabs[0].key, -1)).toBe(b.tabs[1].key)
+    expect(cycleTabKey([b.tabs[0]], b.tabs[0].key, 1)).toBe(b.tabs[0].key)
+    expect(cycleTabKey([], null, 1)).toBeNull()
+    const manual = openManualTab([], '1', 'app')
+    expect(manual.tabs[0].database).toBe('app')
+    expect(closeTab(b.tabs, b.tabs[0].key, b.tabs[0].key).activeKey).toBe(b.tabs[1].key)
   })
 
   it('replaceTab 只替换目标标签且保持顺序', () => {

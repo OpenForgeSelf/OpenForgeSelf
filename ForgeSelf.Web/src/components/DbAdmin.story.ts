@@ -148,9 +148,29 @@ export const stories: ComponentStory[] = [
   // 测试状态：S1 连接表单 —— SQLite 文件路径表单（新建，provider=sqlite）
   { id: 'DbAdmin/ConnFormSqlite', component: DbAdminStoryHost, props: { fixture: base({ overlay: 'connForm', connForm: { name: 'demo.db', provider: 'sqlite', mode: 'form', database: '/data/demo.db' } }) } },
   // 测试状态：S1 连接表单 —— 校验失败留窗 + 编辑态密码遮罩（**** 留空不改）
-  { id: 'DbAdmin/ConnFormInvalid', component: DbAdminStoryHost, props: { fixture: base({ overlay: 'connForm', connForm: { editingId: '2', name: '报表库', provider: 'postgresql', mode: 'form', host: '10.0.0.12', port: 5432, database: '', userName: 'report_ro', password: '' }, connFormError: '请填写数据库名' }) } },
+  { id: 'DbAdmin/ConnFormInvalid', component: DbAdminStoryHost, props: { fixture: base({ overlay: 'connForm', connForm: { editingId: '2', name: '报表库', provider: 'oracle', mode: 'form', host: '10.0.0.12', port: 1521, database: '', userName: 'report_ro', password: '' }, connFormError: '请填写服务名' }) } },
   // 测试状态：S2 Schema 树 —— 连接 → 表 → 列（rawType / PK）；系统库展开并带只读徽标
   { id: 'DbAdmin/SchemaTree', component: DbAdminStoryHost, props: { fixture: base({ activeConnectionId: 'sys:ForgeSelf', expanded: ['c:1', 't:1/users', 'c:sys:ForgeSelf'], sql: 'SELECT * FROM Agent' }) } },
+  // 测试状态：服务器型连接先见库节点（夹具，不连真实服务器）。系统库夹在中间，呈现时排到用户库后面。
+  { id: 'DbAdmin/MysqlDatabases', component: DbAdminStoryHost, props: { fixture: base({
+    connections: [
+      ...systemConns,
+      conn({ id: '8', name: '订单库', provider: 'mysql', host: '10.0.0.20', port: 3306, database: 'app', userName: 'app', password: '****' }),
+    ],
+    activeConnectionId: '8',
+    expanded: ['c:8', 'd:8/app'],
+    tables: {},
+    tableDetails: {},
+    sql: undefined,
+    databases: {
+      '8': [
+        { name: 'mysql', kind: 'system', isSystem: true, isDefault: false },
+        { name: 'app', kind: 'user', isSystem: false, isDefault: false },
+        { name: 'information_schema', kind: 'system', isSystem: true, isDefault: false },
+      ],
+    },
+    dbTables: { '8': { app: [{ name: 'orders', isView: false, description: null, columnCount: 3 }] } },
+  }) } },
   // 测试状态：S2 表加载中 —— 点击连接后局部 spinner「加载表…」；完成前不得先显示「（无表）」
   { id: 'DbAdmin/TablesLoading', component: DbAdminStoryHost, props: { fixture: base({ expanded: ['c:1'], tables: {}, tableDetails: {}, tablesLoading: { '1': true }, sql: undefined }) } },
   // 测试状态：S3 只读结果 —— 200 ok：columns:string[] + columnTypes，服务端分页（第 3 页 / 末页）+ 耗时

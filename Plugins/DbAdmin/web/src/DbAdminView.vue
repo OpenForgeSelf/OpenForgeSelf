@@ -5,33 +5,38 @@
  * 浮层互斥：连接表单 → 审批 → 破坏性二次确认 → 删除确认 → 审计抽屉 → 单元格详情（同一时刻只有一个）。
  * `fixture` 存在即演示模式：不发网络（CT 画廊用）。
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ApiError } from './http'
 import { dbAdminApi, fetchPluginVersion } from './api'
 import { classifyQueryResponse, errorReason, kindLabel, orchestrateApprove, rejectRequest } from './approvalFlow'
 import {
-  buildConnStr, defaultPort, emptyForm, formFromConnection, isSqlite, isTested, providerLabel as labelOf, toSubmitBody, validateForm,
+  allowsEmptyDatabase, buildConnStr, defaultPort, emptyForm, formFromConnection, isSqlite, isTested, providerLabel as labelOf, toSubmitBody, validateForm,
 } from './connForm'
 import {
-  agentEchoesOf, listOf, normApproval, normAudit, normConnection, normHistory, normProvider, normTable, normTableDetail, normTest,
-  replyToState,
+  agentEchoesOf, databasesOf, listOf, namesMatchDatabase, normApproval, normAudit, normConnection, normHistory, normProvider, normTable, normTableDetail, normTest,
+  presentDatabases, replyToState,
 } from './normalize'
 import type { ReplyState } from './normalize'
 import { PAGE_SIZES, canNext, canPrev, clampPage, clampPageSize, pageCount, rangeLabel } from './pager'
 import { MASK, maskConnStr, redactText } from './redact'
 import { buildSnapshot, loadSnapshot, restoredToConnection, saveSnapshot } from './restore'
-import { csvFileName, csvWithBom, rowText, toCsv } from './exportCsv'
+import { csvCell, csvFileName, csvWithBom, rowText, toCsv } from './exportCsv'
+import { EXPORT_ALL_MAX_PAGES, concatRows, exportFileName, shouldStopAfterPage, toInsert, toJson } from './exportResult'
 import {
-  DEFAULT_PAGE_SIZE, buildResultSets, markSkippedFrom, resultDot, resultDotTitle, resultLabel, statsLabel, activeResult as resultAt,
+  DEFAULT_PAGE_SIZE, buildResultSets, markSkippedFrom, resultDot, resultDotTitle, resultLabel, statsLabel, zeroRowLabel, activeResult as resultAt,
 } from './results'
 import type { ResultSet } from './results'
 import { SqlSplitError, splitExecutable } from './sqlSplit'
 import {
-  MAX_TABS, closeTab as closeTabOf, findTab, manualTabKey, openManualTab, openTableTab, replaceTab, tableTabKey, tabTitle,
+  MAX_TABS, NEW_QUERY_TITLE, closeTab as closeTabOf, cycleTabKey, findTab, manualTabKey, manualTitle, openManualTab, openTableTab, replaceTab, tableTabKey, tabTitle,
 } from './tabs'
 import type { QueryTab } from './tabs'
+import {
+  connectionVisible, databaseVisible, dbNodeKey, detailKey, tableNodeKey, tableVisible, tablesCacheKey,
+} from './treeFilter'
+import type { FilterNode } from './treeFilter'
 import type {
-  AgentToolEcho, DbAdminFixture, DbApproval, DbAuditLog, DbConnection, DbConnectionInput, DbProvider,
+  AgentToolEcho, DbAdminFixture, DbApproval, DbAuditLog, DbConnection, DbConnectionInput, DbDatabase, DbProvider,
   DbQueryHistory, DbTable, DbTableDetail, OverlayKind, PermissionMode, QueryResponse, ResolveApprovalRequest,
   TestConnectionResult,
 } from './types'
@@ -51,13 +56,20 @@ const connections = ref<DbConnection[]>([])
 const activeId = ref<string | null>(null)
 const lastConnectionId = ref<string | null>(null)
 const tables = ref<Record<string, DbTable[]>>({})
-/** 每个连接独立的「加载表」状态：点击连接即显示局部 loading，空态必须等加载结束再出现 */
+/** 每个连接（或连接+库）独立的「加载表」状态：点击后即显示局部 loading，空态必须等加载结束再出现 */
 const tablesLoading = ref<Record<string, boolean>>({})
 /** 请求序号：force 重拉时旧响应不得覆盖新结果（竞态防护） */
 const tableLoadSeq: Record<string, number> = {}
+const tableErrors = ref<Record<string, string>>({})
+const databases = ref<Record<string, DbDatabase[]>>({})
+const databasesLoading = ref<Record<string, boolean>>({})
+const databaseErrors = ref<Record<string, string>>({})
+const dbLoadSeq: Record<string, number> = {}
+const wantDefault: Record<string, boolean> = {}
+const focusedDb = ref<Record<string, string>>({})
 const details = ref<Record<string, DbTableDetail>>({})
 const expanded = ref<Set<string>>(new Set())
-/** 树内「筛选表名」（本地过滤，不发请求） */
+/** 树内筛选连接名 / 库名 / 表名（本地过滤，不发请求） */
 const tableFilter = ref('')
 
 /** 多查询标签（FR-1~6）；活动标签派生编辑器/结果/分页 */
@@ -71,6 +83,14 @@ const selectionLen = ref(0)
 const editorEl = ref<HTMLTextAreaElement | null>(null)
 /** 结果行选中（复制整行用） */
 const selectedRowIndex = ref<number | null>(null)
+/** 单击选中的单元格（Ctrl+C / 右键复制） */
+const selectedCell = ref<{ row: number; col: number } | null>(null)
+/** 列宽，仅本次页面状态，键为列名，不窄于 48 */
+const colWidths = ref<Record<string, number>>({})
+const exportingAll = ref(false)
+const menu = ref<{ x: number; y: number; items: { id: string; label: string; run: () => void }[] } | null>(null)
+const renamingKey = ref<string | null>(null)
+const renameDraft = ref('')
 /** 单元格详情浮层 */
 const cellDetail = ref<{ col: string; value: string } | null>(null)
 
@@ -121,6 +141,29 @@ const totalPages = computed(() => pageCount(result.value?.total, pageSize.value)
 const pendingApprovals = computed(() => approvals.value.filter(a => a.status === 'pending'))
 const currentApproval = computed(() => approvals.value.find(a => a.id === activeApprovalId.value) ?? null)
 const formProvider = computed(() => providerOf(connForm.provider))
+const shownSystem = computed(() => systemConns.value.filter(c => connectionShown(c)))
+const shownUser = computed(() => userConns.value.filter(c => connectionShown(c)))
+const databaseLabel = computed(() => {
+  const p = (connForm.provider ?? '').toLowerCase()
+  if (p === 'oracle') return '服务名'
+  if (allowsEmptyDatabase(p)) return '默认数据库'
+  return '数据库'
+})
+const databasePlaceholder = computed(() => (allowsEmptyDatabase(connForm.provider) ? '可留空，打开后列出全部数据库' : ''))
+const showPgHint = computed(() => (connForm.provider ?? '').toLowerCase() === 'postgresql' && connForm.mode === 'form')
+const resultBusy = computed(() => {
+  const set = activeSet.value
+  if (set?.running) return true
+  return !!activeTab.value?.running && !!set && set.status === 'pending' && !set.result
+})
+const showZeroRows = computed(() => {
+  const set = activeSet.value
+  const r = set?.result
+  if (!set || set.running || set.status !== 'ok' || !r) return false
+  if (!r.rows || r.rows.length > 0) return false
+  if ((r.columns?.length ?? 0) === 0 && r.affectedRows !== undefined) return false
+  return true
+})
 /** 后端真实审计 kind：query / classify / rejected / approval_pending|approved|rejected / write_result /
  *  conn_create|update|delete|test / permission_mode / agent；approval、conn 为前缀分组 */
 const AUDIT_KINDS = ['query', 'classify', 'rejected', 'approval', 'write_result', 'conn', 'permission_mode', 'agent']
@@ -207,8 +250,9 @@ function activateTab(key: string) {
   selectedRowIndex.value = null
 }
 /** 打开/聚焦表标签：已存在只聚焦，绝不重置 SQL 与结果（FR-2/FR-3） */
-function openTableQuery(connId: string, table: string) {
-  const r = openTableTab(tabs.value, connId, table)
+function openTableQuery(connId: string, table: string, database?: string) {
+  const db = database?.trim() || undefined
+  const r = openTableTab(tabs.value, connId, table, db)
   if (r.full) {
     banner.value = { kind: 'warn', text: `已打开 ${MAX_TABS} 个查询标签，请先关闭一些再继续` }
     return
@@ -217,9 +261,10 @@ function openTableQuery(connId: string, table: string) {
   if (r.key) activateTab(r.key)
   activeId.value = connId
   lastConnectionId.value = connId
-  const key = `t:${connId}/${table}`
+  if (db) focusDb(connId, db)
+  const key = tableNodeKey(connId, table, db)
   if (!expanded.value.has(key)) expanded.value = new Set([...expanded.value, key])
-  void loadDetail(connId, table)
+  void loadDetail(connId, table, db)
 }
 function newQueryTab() {
   const connId = activeId.value
@@ -227,7 +272,7 @@ function newQueryTab() {
     banner.value = { kind: 'warn', text: '先在左侧选择一个连接，再新建查询' }
     return
   }
-  const r = openManualTab(tabs.value, connId)
+  const r = openManualTab(tabs.value, connId, focusedDb.value[connId])
   if (r.full) {
     banner.value = { kind: 'warn', text: `已打开 ${MAX_TABS} 个查询标签，请先关闭一些再继续` }
     return
@@ -293,8 +338,20 @@ function applyFixture(f: DbAdminFixture) {
   providers.value = listOf(f.providers ?? [], normProvider)
   connections.value = listOf(f.connections ?? [], normConnection)
   activeId.value = f.activeConnectionId ?? null
-  tables.value = Object.fromEntries(Object.entries(f.tables ?? {}).map(([k, v]) => [k, listOf(v, normTable)]))
+  const tableMap: Record<string, DbTable[]> = Object.fromEntries(Object.entries(f.tables ?? {}).map(([k, v]) => [k, listOf(v, normTable)]))
+  for (const [id, byDb] of Object.entries(f.dbTables ?? {})) {
+    for (const [db, rows] of Object.entries(byDb)) tableMap[tablesCacheKey(id, db)] = listOf(rows, normTable)
+  }
+  tables.value = tableMap
   tablesLoading.value = { ...(f.tablesLoading ?? {}) }
+  const dbMap: Record<string, DbDatabase[]> = {}
+  for (const [id, raw] of Object.entries(f.databases ?? {})) {
+    const c = connections.value.find(x => x.id === id)
+    dbMap[id] = presentDatabases(databasesOf(raw), c?.provider, c?.database)
+  }
+  databases.value = dbMap
+  databasesLoading.value = { ...(f.databasesLoading ?? {}) }
+  databaseErrors.value = { ...(f.databaseErrors ?? {}) }
   details.value = Object.fromEntries(Object.entries(f.tableDetails ?? {}).map(([k, v]) => [k, normTableDetail(v)]))
   expanded.value = new Set(f.expanded ?? [])
   defaultTables.value = { ...(f.defaultTables ?? {}) }
@@ -306,9 +363,11 @@ function applyFixture(f: DbAdminFixture) {
   const tabsIn: QueryTab[] = (f.tabs ?? []).map((t, i) => {
     const repliesIn = t.replies ?? (t.reply ? [t.reply] : [])
     return {
-      key: t.key ?? (t.table ? tableTabKey(t.connectionId, t.table) : manualTabKey(t.connectionId, i)),
+      key: t.key ?? (t.table ? tableTabKey(t.connectionId, t.table, t.database) : manualTabKey(t.connectionId, i)),
       connectionId: t.connectionId,
       table: t.table,
+      database: t.database,
+      title: t.title,
       sql: t.sql ?? '',
       results: repliesIn.map(r => resultFromReply(r, t.sql ?? '')),
       activeResultIndex: 0,
@@ -360,7 +419,7 @@ function applyRestore(): boolean {
     tabs.value = snap.tabs
       .filter(t => connections.value.some(c => c.id === t.connectionId))
       .map(t => ({
-        key: t.key, connectionId: t.connectionId, table: t.table, sql: t.sql,
+        key: t.key, connectionId: t.connectionId, table: t.table, database: t.database, title: t.title, sql: t.sql,
         results: [], activeResultIndex: 0, lastSql: '', running: false, runSeq: 0,
       }))
     if (snap.activeTabKey) activeTabKey.value = snap.activeTabKey
@@ -378,7 +437,11 @@ function persist() {
   if (loading.value || unauthorized.value) return
   saveSnapshot(buildSnapshot(
     connections.value,
-    tabs.value.map(t => ({ key: t.key, connectionId: t.connectionId, table: t.table, sql: t.sql })),
+    tabs.value.map(t => ({
+      key: t.key, connectionId: t.connectionId, table: t.table, sql: t.sql,
+      ...(t.database ? { database: t.database } : {}),
+      ...(t.title ? { title: t.title } : {}),
+    })),
     activeTabKey.value,
     defaultTables.value,
   ))
@@ -423,7 +486,9 @@ async function loadAll() {
     loading.value = false
     if (activeId.value) {
       expanded.value = new Set([...expanded.value, `c:${activeId.value}`])
-      void loadTables(activeId.value)
+      const current = connections.value.find(c => c.id === activeId.value)
+      if (current && usesDbLayer(current)) void loadDatabases(current.id, false, false)
+      else void loadTables(activeId.value)
     }
     await Promise.all([refreshApprovals(true), refreshHistory(), refreshAgentEchoes()])
   } catch (e) {
@@ -432,30 +497,107 @@ async function loadAll() {
   }
 }
 
-async function loadTables(id: string, force = false) {
-  if (isDemo.value || (!force && tables.value[id])) return // force：建表/写执行后强制重拉（R1）
-  if (!force && tablesLoading.value[id]) return // 同一连接加载中不重复发请求
-  const seq = (tableLoadSeq[id] ?? 0) + 1
-  tableLoadSeq[id] = seq
-  tablesLoading.value = { ...tablesLoading.value, [id]: true }
+function usesDbLayer(c: DbConnection): boolean {
+  return !isSystem(c) && allowsEmptyDatabase(c.provider)
+}
+function focusDb(connId: string, name: string) {
+  focusedDb.value = { ...focusedDb.value, [connId]: name }
+}
+function nodeErrorText(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e)
+  return redactText(msg)
+}
+async function loadTables(id: string, force = false, database?: string) {
+  const key = tablesCacheKey(id, database)
+  if (isDemo.value || (!force && tables.value[key])) return
+  if (!force && tablesLoading.value[key]) return
+  const seq = (tableLoadSeq[key] ?? 0) + 1
+  tableLoadSeq[key] = seq
+  tablesLoading.value = { ...tablesLoading.value, [key]: true }
+  if (tableErrors.value[key]) {
+    const next = { ...tableErrors.value }
+    delete next[key]
+    tableErrors.value = next
+  }
   try {
-    const data = await dbAdminApi.tables(id)
-    if (tableLoadSeq[id] !== seq) return // 旧请求被 force 重拉取代，丢弃
-    tables.value = { ...tables.value, [id]: data }
+    const data = await dbAdminApi.tables(id, database)
+    if (tableLoadSeq[key] !== seq) return
+    tables.value = { ...tables.value, [key]: data }
   } catch (e) {
-    if (tableLoadSeq[id] === seq) handleError(e, '读取表')
+    if (tableLoadSeq[key] !== seq) return
+    if (database) tableErrors.value = { ...tableErrors.value, [key]: nodeErrorText(e) }
+    else handleError(e, '读取表')
   } finally {
-    if (tableLoadSeq[id] === seq) tablesLoading.value = { ...tablesLoading.value, [id]: false }
+    if (tableLoadSeq[key] === seq) tablesLoading.value = { ...tablesLoading.value, [key]: false }
   }
 }
-async function loadDetail(id: string, table: string) {
-  const key = `${id}/${table}`
-  if (isDemo.value || details.value[key]) return
+async function loadDetail(id: string, table: string, database?: string, force = false) {
+  const key = detailKey(id, table, database)
+  if (isDemo.value || (!force && details.value[key])) return
   try {
-    const d = await dbAdminApi.tableDetail(id, table)
+    const d = await dbAdminApi.tableDetail(id, table, database)
     if (d) details.value = { ...details.value, [key]: d }
   } catch (e) {
     handleError(e, '读取列')
+  }
+}
+function maybeOpenDefault(id: string) {
+  if (!expanded.value.has(`c:${id}`)) return
+  const c = connections.value.find(x => x.id === id)
+  if (!c) return
+  const saved = (c.database ?? '').trim()
+  const dt = (defaultTables.value[id] ?? '').trim()
+  if (!saved || !dt) return
+  const hit = (databases.value[id] ?? []).find(d => namesMatchDatabase(c.provider, saved, d.name))
+  const dbName = hit?.name ?? saved
+  const key = dbNodeKey(id, dbName)
+  if (!expanded.value.has(key)) expanded.value = new Set([...expanded.value, key])
+  focusDb(id, dbName)
+  void loadTables(id, false, dbName)
+  openTableQuery(id, dt, dbName)
+}
+async function loadDatabases(id: string, force = false, openDefault = false) {
+  if (isDemo.value || unauthorized.value) return
+  if (openDefault) wantDefault[id] = true
+  if (force && !openDefault) wantDefault[id] = false
+  if (!force && databases.value[id]) {
+    if (wantDefault[id]) {
+      wantDefault[id] = false
+      maybeOpenDefault(id)
+    }
+    return
+  }
+  if (!force && databasesLoading.value[id]) return
+  const seq = (dbLoadSeq[id] ?? 0) + 1
+  dbLoadSeq[id] = seq
+  databasesLoading.value = { ...databasesLoading.value, [id]: true }
+  if (databaseErrors.value[id]) {
+    const next = { ...databaseErrors.value }
+    delete next[id]
+    databaseErrors.value = next
+  }
+  try {
+    const raw = await dbAdminApi.databases(id)
+    if (dbLoadSeq[id] !== seq) return
+    const c = connections.value.find(x => x.id === id)
+    databases.value = { ...databases.value, [id]: presentDatabases(raw, c?.provider, c?.database) }
+  } catch (e) {
+    if (dbLoadSeq[id] !== seq) return
+    if (e instanceof ApiError && (e.status === 401 || e.code === 'unauthorized')) {
+      unauthorized.value = true
+      wantDefault[id] = false
+      return
+    }
+    databaseErrors.value = { ...databaseErrors.value, [id]: nodeErrorText(e) }
+    wantDefault[id] = false
+  } finally {
+    if (dbLoadSeq[id] === seq) {
+      databasesLoading.value = { ...databasesLoading.value, [id]: false }
+      if (!databaseErrors.value[id] && wantDefault[id]) {
+        wantDefault[id] = false
+        maybeOpenDefault(id)
+      }
+    }
   }
 }
 async function refreshApprovals(autoOpen = false) {
@@ -508,7 +650,7 @@ function toggle(key: string) {
   else s.add(key)
   expanded.value = s
 }
-/** 连接点击：展开并加载表（有默认表 → 直接打开该表标签）；已展开 → 收起（FR-7 / AC-12） */
+/** 连接点击：三类服务器先列库；其余直接列表。已展开则收起，不额外请求。 */
 function selectConnection(c: DbConnection) {
   const willExpand = !expanded.value.has(`c:${c.id}`)
   activeId.value = c.id
@@ -518,28 +660,71 @@ function selectConnection(c: DbConnection) {
     return
   }
   expanded.value = new Set([...expanded.value, `c:${c.id}`])
+  if (usesDbLayer(c)) {
+    void loadDatabases(c.id, false, true)
+    return
+  }
   void loadTables(c.id)
   const dt = (defaultTables.value[c.id] ?? '').trim()
   if (dt) openTableQuery(c.id, dt)
 }
-/** 表行单击：打开/聚焦查询标签 + 展开列（不是「重置」已打开的标签） */
-function onTableRowClick(connId: string, t: DbTable) {
-  openTableQuery(connId, t.name)
+function selectDatabase(c: DbConnection, name: string) {
+  const key = dbNodeKey(c.id, name)
+  const willExpand = !expanded.value.has(key)
+  activeId.value = c.id
+  lastConnectionId.value = c.id
+  focusDb(c.id, name)
+  if (!willExpand) {
+    toggle(key)
+    return
+  }
+  expanded.value = new Set([...expanded.value, key])
+  void loadTables(c.id, false, name)
 }
-/** 展开箭头单独单击：只切换列展开，不开标签（AC-13） */
-function onTableCaretClick(connId: string, t: DbTable) {
-  const key = `t:${connId}/${t.name}`
+function onTableRowClick(connId: string, t: DbTable, database?: string) {
+  openTableQuery(connId, t.name, database)
+}
+function onTableCaretClick(connId: string, t: DbTable, database?: string) {
+  const key = tableNodeKey(connId, t.name, database)
   toggle(key)
-  if (expanded.value.has(key)) void loadDetail(connId, t.name)
+  if (expanded.value.has(key)) void loadDetail(connId, t.name, database)
 }
-function refreshTables(id: string) {
-  void loadTables(id, true)
+async function refreshConnection(id: string) {
+  const c = connections.value.find(x => x.id === id)
+  if (!c || isDemo.value) return
+  if (!usesDbLayer(c)) {
+    void loadTables(id, true)
+    return
+  }
+  const openDbs = (databases.value[id] ?? []).filter(d => expanded.value.has(dbNodeKey(id, d.name))).map(d => d.name)
+  await loadDatabases(id, true, false)
+  const names = new Set((databases.value[id] ?? []).map(d => d.name))
+  for (const name of openDbs) if (names.has(name)) void loadTables(id, true, name)
 }
-/** 树内表名过滤（本地过滤，不发请求，FR-20） */
-function tablesFor(connId: string): DbTable[] {
-  const list = tables.value[connId] ?? []
-  const q = tableFilter.value.trim().toLowerCase()
-  return q ? list.filter(t => t.name.toLowerCase().includes(q)) : list
+function tablesFor(connId: string, database?: string): DbTable[] {
+  const list = tables.value[tablesCacheKey(connId, database)] ?? []
+  return list.filter(t => tableVisible(t.name, tableFilter.value, database))
+}
+function visibleDbs(c: DbConnection): DbDatabase[] {
+  const list = databases.value[c.id] ?? []
+  return list.filter(d => databaseVisible({
+    name: d.name,
+    tables: (tables.value[tablesCacheKey(c.id, d.name)] ?? []).map(t => t.name),
+  }, tableFilter.value))
+}
+function connectionShown(c: DbConnection): boolean {
+  if (usesDbLayer(c)) {
+    const dbs: FilterNode[] = (databases.value[c.id] ?? []).map(d => ({
+      name: d.name,
+      tables: (tables.value[tablesCacheKey(c.id, d.name)] ?? []).map(t => t.name),
+    }))
+    return connectionVisible(c.name, dbs, [], tableFilter.value)
+  }
+  const loose = (tables.value[c.id] ?? []).map(t => t.name)
+  return connectionVisible(c.name, [], loose, tableFilter.value)
+}
+function dbIsOn(connId: string, name: string): boolean {
+  return activeId.value === connId && focusedDb.value[connId] === name
 }
 
 /* ---------------- 执行（选区 / 多语句 / 批量，FR-14~19） ---------------- */
@@ -596,7 +781,7 @@ async function runFrom(tabKey: string, statements: string[], startIndex: number,
   for (let i = startIndex; i < statements.length; i++) {
     if (!tabExists(tabKey, seq)) return
     patchResult(tabKey, i, { running: true })
-    const state = await sendQuery(connId, statements[i], 1, size)
+    const state = await sendQuery(connId, statements[i], 1, size, start.database)
     if (!tabExists(tabKey, seq)) return
     const applied = applyReplyToSet(tabKey, i, state)
     if (applied.action === 'red_bar') {
@@ -615,10 +800,10 @@ async function runFrom(tabKey: string, statements: string[], startIndex: number,
     if (applied.result?.kind === 'write' || applied.result?.affectedRows !== undefined) wrote = true
   }
   patchTab(tabKey, { running: false, batch: undefined })
-  if (wrote && !isDemo.value) void loadTables(connId, true) // R1：写后 schema 树即时可见
+  if (wrote && !isDemo.value) void refreshConnection(connId)
   void refreshHistory()
 }
-async function sendQuery(connectionId: string, sqlText: string, pageNum: number, size: number): Promise<ReplyState> {
+async function sendQuery(connectionId: string, sqlText: string, pageNum: number, size: number, database?: string): Promise<ReplyState> {
   if (isDemo.value) {
     const next = fixtureReplies.value.shift() ?? props.fixture?.reply ?? null
     if (!next) {
@@ -627,7 +812,11 @@ async function sendQuery(connectionId: string, sqlText: string, pageNum: number,
     return replyToState(next.httpStatus, next.body)
   }
   try {
-    const q = await dbAdminApi.query({ connectionId, sql: sqlText, page: pageNum, pageSize: clampPageSize(size) })
+    const db = database?.trim()
+    const q = await dbAdminApi.query({
+      connectionId, sql: sqlText, page: pageNum, pageSize: clampPageSize(size),
+      ...(db ? { database: db } : {}),
+    })
     return { kind: 'result', result: { ...q, page: q.page ?? pageNum, pageSize: q.pageSize ?? clampPageSize(size) } }
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
@@ -715,7 +904,7 @@ async function goResultPage(index: number, p: number) {
   }
   const seq = tab.runSeq
   patchResult(tab.key, index, { running: true })
-  const state = await sendQuery(tab.connectionId, set.sql, next, set.pageSize)
+  const state = await sendQuery(tab.connectionId, set.sql, next, set.pageSize, tab.database)
   if (!tabExists(tab.key, seq)) return
   if (state.kind === 'result' && state.result.status === 'ok') {
     patchResult(tab.key, index, {
@@ -724,6 +913,7 @@ async function goResultPage(index: number, p: number) {
       result: { ...state.result, page: next },
     })
     selectedRowIndex.value = null
+    selectedCell.value = null
   } else {
     applyReplyToSet(tab.key, index, state)
   }
@@ -771,14 +961,12 @@ function copySelectedRow() {
   if (!r) return
   void copyText(rowText(r), '已复制整行（制表符分隔）')
 }
-function exportCsvNow() {
-  const set = activeSet.value
-  if (!set?.result?.columns?.length) return
+function exportBaseName(): string {
   const tab = activeTab.value
-  const base = tab?.table ?? (tab ? connName(tab.connectionId) : 'query')
-  const text = csvWithBom(toCsv(set.result.columns, set.result.rows ?? []))
-  const name = csvFileName(base || 'query', (tab?.activeResultIndex ?? 0) + 1, set.page)
-  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
+  return (tab?.table ?? (tab ? connName(tab.connectionId) : 'query')) || 'query'
+}
+function downloadText(name: string, text: string, mime: string) {
+  const blob = new Blob([text], { type: mime })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -789,6 +977,69 @@ function exportCsvNow() {
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 0)
   banner.value = { kind: 'warn', text: `已导出 ${name}` }
+}
+function exportCsvNow() {
+  const set = activeSet.value
+  if (!set?.result?.columns?.length) return
+  const tab = activeTab.value
+  const name = csvFileName(exportBaseName(), (tab?.activeResultIndex ?? 0) + 1, set.page)
+  downloadText(name, csvWithBom(toCsv(set.result.columns, set.result.rows ?? [])), 'text/csv;charset=utf-8')
+}
+async function exportAllCsv() {
+  if (exportingAll.value) return
+  const tab = activeTab.value
+  const set = activeSet.value
+  if (!tab || !set?.result?.columns?.length) return
+  exportingAll.value = true
+  const columns = set.result.columns
+  const size = set.pageSize
+  const pages: unknown[][][] = []
+  let failPage: number | null = null
+  try {
+    if (isDemo.value) {
+      pages.push(set.result.rows ?? [])
+    } else {
+      for (let p = 1; p <= EXPORT_ALL_MAX_PAGES; p++) {
+        const state = await sendQuery(tab.connectionId, set.sql, p, size, tab.database)
+        if (state.kind !== 'result' || state.result.status !== 'ok') {
+          failPage = p
+          break
+        }
+        const got = state.result.rows ?? []
+        pages.push(got)
+        const known = state.result.total ?? set.result.total
+        if (shouldStopAfterPage(p, size, got.length, known)) break
+      }
+    }
+  } catch {
+    failPage = pages.length + 1
+  } finally {
+    exportingAll.value = false
+  }
+  const name = exportFileName(exportBaseName(), tab.activeResultIndex + 1, 'all', 'csv')
+  if (pages.length) downloadText(name, csvWithBom(toCsv(columns, concatRows(pages))), 'text/csv;charset=utf-8')
+  if (failPage !== null) {
+    banner.value = {
+      kind: 'error',
+      text: pages.length
+        ? `导出在第 ${failPage} 页失败，已下载此前成功的 ${pages.length} 页`
+        : `导出在第 ${failPage} 页失败，没有可下载的行`,
+    }
+  }
+}
+function exportJsonNow() {
+  const set = activeSet.value
+  const tab = activeTab.value
+  if (!set?.result?.columns) return
+  const name = exportFileName(exportBaseName(), (tab?.activeResultIndex ?? 0) + 1, set.page, 'json')
+  downloadText(name, toJson(set.result.columns, set.result.rows ?? []), 'application/json')
+}
+function exportInsertNow() {
+  const set = activeSet.value
+  const tab = activeTab.value
+  if (!tab?.table || !set?.result?.columns) return
+  const name = exportFileName(exportBaseName(), tab.activeResultIndex + 1, set.page, 'sql')
+  downloadText(name, toInsert(tab.table, set.result.columns, set.result.rows ?? []), 'text/sql')
 }
 function openCellDetail(col: string, v: unknown) {
   cellDetail.value = { col, value: isNull(v) ? 'NULL' : (typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)) }
@@ -906,7 +1157,7 @@ async function resolveApproval(a: DbApproval, approveIt: boolean, confirmDestruc
   } finally {
     approvalCtx.value = null
     activeApprovalId.value = null
-    if (approveIt) void loadTables(a.connectionId, true) // R1：批准执行后 schema 树即时可见
+    if (approveIt) void refreshConnection(a.connectionId)
     await Promise.all([refreshApprovals(), refreshHistory(), refreshAgentEchoes()])
   }
 }
@@ -1051,8 +1302,170 @@ async function confirmDelete() {
   }
 }
 
+function isFieldTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el?.tagName) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el.isContentEditable
+}
+function openMenu(e: MouseEvent, items: { id: string; label: string; run: () => void }[]) {
+  e.preventDefault()
+  e.stopPropagation()
+  menu.value = { x: e.clientX, y: e.clientY, items }
+}
+function closeMenu() {
+  menu.value = null
+}
+function onTableMenu(e: MouseEvent, connId: string, t: DbTable, database?: string) {
+  openMenu(e, [
+    { id: 'copy-table', label: '复制表名', run: () => void copyText(t.name, '已复制表名') },
+    {
+      id: 'struct',
+      label: '查看结构',
+      run: () => {
+        const key = tableNodeKey(connId, t.name, database)
+        if (!expanded.value.has(key)) expanded.value = new Set([...expanded.value, key])
+        void loadDetail(connId, t.name, database)
+      },
+    },
+    { id: 'refresh-table', label: '只刷新该表', run: () => void loadDetail(connId, t.name, database, true) },
+  ])
+}
+function selectCell(row: number, col: number) {
+  selectedRowIndex.value = row
+  selectedCell.value = { row, col }
+}
+function onRowClick(row: number) {
+  selectedRowIndex.value = row
+  selectedCell.value = null
+}
+function onCellMenu(e: MouseEvent, row: number, col: number, value: unknown) {
+  selectCell(row, col)
+  openMenu(e, [{ id: 'copy-cell', label: '复制单元格', run: () => void copyText(csvCell(value), '已复制单元格') }])
+}
+function onColMenu(e: MouseEvent, name: string) {
+  openMenu(e, [{ id: 'copy-col', label: '复制列名', run: () => void copyText(name, '已复制列名') }])
+}
+function colStyle(name: string): Record<string, string> | undefined {
+  const w = colWidths.value[name]
+  if (!w) return undefined
+  const px = `${Math.max(48, w)}px`
+  return { width: px, minWidth: px, maxWidth: px }
+}
+function onColResizeDown(e: MouseEvent, name: string) {
+  e.preventDefault()
+  e.stopPropagation()
+  const startX = e.clientX
+  const th = (e.currentTarget as HTMLElement).parentElement
+  const startW = colWidths.value[name] ?? th?.getBoundingClientRect().width ?? 120
+  const move = (ev: MouseEvent) => {
+    const w = Math.max(48, Math.round(startW + ev.clientX - startX))
+    colWidths.value = { ...colWidths.value, [name]: w }
+  }
+  const up = () => {
+    window.removeEventListener('mousemove', move)
+    window.removeEventListener('mouseup', up)
+  }
+  window.addEventListener('mousemove', move)
+  window.addEventListener('mouseup', up)
+}
+function onColResizeDbl(e: MouseEvent, name: string, index: number) {
+  e.preventDefault()
+  e.stopPropagation()
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.font = '600 12px ui-monospace, monospace'
+  let max = ctx.measureText(name).width
+  ctx.font = '12px ui-monospace, monospace'
+  for (const row of rows.value) max = Math.max(max, ctx.measureText(cell(row[index])).width)
+  colWidths.value = { ...colWidths.value, [name]: Math.max(48, Math.ceil(max + 28)) }
+}
+function beginRename(t: QueryTab) {
+  if (t.table) return
+  renamingKey.value = t.key
+  renameDraft.value = t.title?.trim() ? t.title : NEW_QUERY_TITLE
+  void nextTick(() => {
+    const el = document.querySelector('[data-testid="tab-rename"]') as HTMLInputElement | null
+    el?.focus()
+    el?.select()
+  })
+}
+function commitRename(key: string) {
+  if (renamingKey.value !== key) return
+  renamingKey.value = null
+  patchTab(key, { title: manualTitle(renameDraft.value) })
+}
+function onRenameKey(e: KeyboardEvent, key: string) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    commitRename(key)
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    renamingKey.value = null
+  }
+}
+function pageByKey(key: string) {
+  const tab = activeTab.value
+  const set = activeSet.value
+  if (!tab || !set?.result?.columns?.length) return
+  const idx = tab.activeResultIndex
+  if (key === 'PageDown') {
+    if (!canNext(page.value, pageSize.value, result.value?.total, rows.value.length)) return
+    void goResultPage(idx, page.value + 1)
+  } else if (key === 'PageUp') {
+    if (!canPrev(page.value)) return
+    void goResultPage(idx, page.value - 1)
+  } else if (key === 'Home') {
+    if (page.value <= 1) return
+    void goResultPage(idx, 1)
+  } else if (key === 'End') {
+    const last = pageCount(result.value?.total, pageSize.value)
+    if (last === undefined || page.value >= last) return
+    void goResultPage(idx, last)
+  } else return
+}
 function onWindowKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && cellDetail.value) cellDetail.value = null
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'w' || e.key === 'W')) {
+    e.preventDefault()
+    if (overlay.value !== null || cellDetail.value) return
+    if (activeTabKey.value) closeTabAction(activeTabKey.value)
+    return
+  }
+  if (e.key === 'Escape') {
+    if (menu.value) { menu.value = null; return }
+    if (renamingKey.value) { renamingKey.value = null; return }
+    if (cellDetail.value) { cellDetail.value = null; return }
+  }
+  if (overlay.value !== null || cellDetail.value) return
+  const ctrl = e.ctrlKey || e.metaKey
+  if (ctrl && !e.altKey && e.key === 'Tab') {
+    e.preventDefault()
+    const next = cycleTabKey(tabs.value, activeTabKey.value, e.shiftKey ? -1 : 1)
+    if (next) activateTab(next)
+    return
+  }
+  if (ctrl && !e.altKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+    e.preventDefault()
+    newQueryTab()
+    return
+  }
+  if (ctrl && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+    if (isFieldTarget(e.target)) return
+    const hit = selectedCell.value
+    if (!hit) return
+    const row = rows.value[hit.row]
+    if (!row) return
+    e.preventDefault()
+    void copyText(csvCell(row[hit.col]), '已复制单元格')
+    return
+  }
+  if (ctrl || e.altKey || e.metaKey) return
+  if (isFieldTarget(e.target)) return
+  if (e.key === 'PageDown' || e.key === 'PageUp' || e.key === 'Home' || e.key === 'End') {
+    e.preventDefault()
+    pageByKey(e.key)
+  }
 }
 
 onMounted(() => {
@@ -1066,15 +1479,17 @@ onMounted(() => {
       if (sideTab.value === 'agent') void refreshAgentEchoes()
     }, 5000)
   }
-  window.addEventListener('keydown', onWindowKey)
+  window.addEventListener('keydown', onWindowKey, true)
 })
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
-  window.removeEventListener('keydown', onWindowKey)
+  window.removeEventListener('keydown', onWindowKey, true)
 })
 watch(() => props.fixture, f => f && applyFixture(f), { deep: true })
-// 切结果标签/切查询标签时清掉行选中
-watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selectedRowIndex.value = null })
+watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => {
+  selectedRowIndex.value = null
+  selectedCell.value = null
+})
 </script>
 
 <template>
@@ -1130,12 +1545,12 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
             v-model="tableFilter"
             class="table-filter"
             data-testid="table-filter"
-            placeholder="筛选表名（本地过滤）"
-            aria-label="筛选表名"
+            placeholder="筛选连接、库或表"
+            aria-label="筛选连接、库或表"
           >
-          <div class="group-title">系统（只读）</div>
+          <div v-if="shownSystem.length" class="group-title">系统（只读）</div>
           <div v-if="systemConns.length === 0" class="muted pad">无系统库</div>
-          <template v-for="c in systemConns" :key="c.id">
+          <template v-for="c in shownSystem" :key="c.id">
             <div
               class="node conn"
               :class="{ on: c.id === activeId }"
@@ -1153,7 +1568,7 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
               </div>
               <template v-else>
                 <template v-for="t in tablesFor(c.id)" :key="t.name">
-                  <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="onTableRowClick(c.id, t)">
+                  <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="onTableRowClick(c.id, t)" @contextmenu="onTableMenu($event, c.id, t)">
                     <span class="caret" @click.stop="onTableCaretClick(c.id, t)">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
                     <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
                   </div>
@@ -1175,7 +1590,7 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
             <button class="btn primary" data-testid="empty-new-connection" @click="openNewConnection">+ 新建连接</button>
             <p class="muted">支持 SQLite 文件，或 MySQL / PostgreSQL / SQL Server（未实测）。</p>
           </div>
-          <template v-for="c in userConns" :key="c.id">
+          <template v-for="c in shownUser" :key="c.id">
             <div
               class="node conn"
               :class="{ on: c.id === activeId }"
@@ -1187,34 +1602,101 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
               <span class="name">{{ c.name }}</span>
               <span v-if="c.readonly" class="lock" title="只读连接">🔒</span>
               <span class="node-actions">
-                <button class="icon" title="刷新表" :data-testid="`refresh-${c.id}`" @click.stop="refreshTables(c.id)">↻</button>
+                <button class="icon" title="刷新" :data-testid="`refresh-${c.id}`" @click.stop="refreshConnection(c.id)">↻</button>
                 <button class="icon" title="编辑连接" :data-testid="`edit-${c.id}`" @click.stop="openEditConnection(c)">✎</button>
                 <button class="icon danger" title="删除连接（仅删配置，不删库文件）" :data-testid="`delete-${c.id}`" @click.stop="askDelete(c)">✕</button>
               </span>
             </div>
             <template v-if="expanded.has(`c:${c.id}`)">
-              <div v-if="tablesLoading[c.id]" class="node node-loading" role="status" :data-testid="`tables-loading-${c.id}`">
-                <span class="spinner" aria-hidden="true"></span>加载表…
-              </div>
-              <div v-else-if="(tables[c.id] ?? []).length === 0" class="node column muted">（无表）</div>
-              <div v-else-if="tablesFor(c.id).length === 0" class="node column muted" data-testid="table-filter-empty">无匹配表</div>
-              <template v-else>
-                <template v-for="t in tablesFor(c.id)" :key="t.name">
-                  <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="onTableRowClick(c.id, t)">
-                    <span class="caret" @click.stop="onTableCaretClick(c.id, t)">{{ expanded.has(`t:${c.id}/${t.name}`) ? '▾' : '▸' }}</span>
-                    <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
-                  </div>
-                  <template v-if="expanded.has(`t:${c.id}/${t.name}`)">
+              <template v-if="usesDbLayer(c)">
+                <div v-if="databasesLoading[c.id]" class="node node-loading dba-db" role="status" :data-testid="`databases-loading-${c.id}`">
+                  <span class="spinner" aria-hidden="true"></span>加载数据库…
+                </div>
+                <div v-else-if="databaseErrors[c.id]" class="node dba-db" :data-testid="`databases-error-${c.id}`">
+                  <span class="name">{{ databaseErrors[c.id] }}</span>
+                  <button class="btn" type="button" @click.stop="loadDatabases(c.id, true)">重试</button>
+                </div>
+                <div v-else-if="(databases[c.id] ?? []).length === 0" class="node dba-db muted" :data-testid="`databases-empty-${c.id}`">
+                  未枚举到数据库
+                  <button class="btn" type="button" @click.stop="loadDatabases(c.id, true)">重试</button>
+                </div>
+                <div v-else-if="visibleDbs(c).length === 0" class="node dba-db muted" data-testid="db-filter-empty">无匹配库</div>
+                <template v-else>
+                  <template v-for="db in visibleDbs(c)" :key="db.name">
                     <div
-                      v-for="col in details[`${c.id}/${t.name}`]?.columns ?? []"
-                      :key="col.name"
-                      class="node column"
-                      :data-testid="`col-${c.id}-${t.name}-${col.name}`"
+                      class="node dba-db"
+                      :class="{ on: dbIsOn(c.id, db.name) }"
+                      :data-testid="`db-${c.id}-${db.name}`"
+                      @click="selectDatabase(c, db.name)"
                     >
-                      · {{ col.name }} <span class="type">{{ col.type }}</span>
-                      <span v-if="col.primaryKey" class="pk">PK</span>
-                      <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+                      <span class="caret">{{ expanded.has(dbNodeKey(c.id, db.name)) ? '▾' : '▸' }}</span>
+                      <span class="name">{{ db.name }}</span>
+                      <span v-if="db.isDefault" class="tag">默认</span>
+                      <span v-if="db.isSystem" class="tag tag-muted">系统</span>
                     </div>
+                    <template v-if="expanded.has(dbNodeKey(c.id, db.name))">
+                      <div v-if="tablesLoading[tablesCacheKey(c.id, db.name)]" class="node node-loading dba-under-db" role="status" :data-testid="`tables-loading-${c.id}-${db.name}`">
+                        <span class="spinner" aria-hidden="true"></span>加载表…
+                      </div>
+                      <div v-else-if="tableErrors[tablesCacheKey(c.id, db.name)]" class="node dba-under-db">
+                        <span class="name">{{ tableErrors[tablesCacheKey(c.id, db.name)] }}</span>
+                        <button class="btn" type="button" @click.stop="loadTables(c.id, true, db.name)">重试</button>
+                      </div>
+                      <div v-else-if="(tables[tablesCacheKey(c.id, db.name)] ?? []).length === 0" class="node column muted dba-under-db">（无表）</div>
+                      <div v-else-if="tablesFor(c.id, db.name).length === 0" class="node column muted dba-under-db">无匹配表</div>
+                      <template v-else>
+                        <template v-for="t in tablesFor(c.id, db.name)" :key="t.name">
+                          <div
+                            class="node table dba-under-db"
+                            :data-testid="`table-${c.id}-${db.name}-${t.name}`"
+                            @click="onTableRowClick(c.id, t, db.name)"
+                            @contextmenu="onTableMenu($event, c.id, t, db.name)"
+                          >
+                            <span class="caret" @click.stop="onTableCaretClick(c.id, t, db.name)">{{ expanded.has(tableNodeKey(c.id, t.name, db.name)) ? '▾' : '▸' }}</span>
+                            <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
+                          </div>
+                          <template v-if="expanded.has(tableNodeKey(c.id, t.name, db.name))">
+                            <div
+                              v-for="col in details[detailKey(c.id, t.name, db.name)]?.columns ?? []"
+                              :key="col.name"
+                              class="node column dba-under-db"
+                              :data-testid="`col-${c.id}-${db.name}-${t.name}-${col.name}`"
+                            >
+                              · {{ col.name }} <span class="type">{{ col.type }}</span>
+                              <span v-if="col.primaryKey" class="pk">PK</span>
+                              <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+                            </div>
+                          </template>
+                        </template>
+                      </template>
+                    </template>
+                  </template>
+                </template>
+              </template>
+              <template v-else>
+                <div v-if="tablesLoading[c.id]" class="node node-loading" role="status" :data-testid="`tables-loading-${c.id}`">
+                  <span class="spinner" aria-hidden="true"></span>加载表…
+                </div>
+                <div v-else-if="(tables[c.id] ?? []).length === 0" class="node column muted">（无表）</div>
+                <div v-else-if="tablesFor(c.id).length === 0" class="node column muted" data-testid="table-filter-empty">无匹配表</div>
+                <template v-else>
+                  <template v-for="t in tablesFor(c.id)" :key="t.name">
+                    <div class="node table" :data-testid="`table-${c.id}-${t.name}`" @click="onTableRowClick(c.id, t)" @contextmenu="onTableMenu($event, c.id, t)">
+                      <span class="caret" @click.stop="onTableCaretClick(c.id, t)">{{ expanded.has(tableNodeKey(c.id, t.name)) ? '▾' : '▸' }}</span>
+                      <span class="name">{{ t.type === 'view' ? '视图 ' : '' }}{{ t.name }}</span>
+                    </div>
+                    <template v-if="expanded.has(tableNodeKey(c.id, t.name))">
+                      <div
+                        v-for="col in details[detailKey(c.id, t.name)]?.columns ?? []"
+                        :key="col.name"
+                        class="node column"
+                        :data-testid="`col-${c.id}-${t.name}-${col.name}`"
+                      >
+                        · {{ col.name }} <span class="type">{{ col.type }}</span>
+                        <span v-if="col.primaryKey" class="pk">PK</span>
+                        <span v-if="!col.nullable && !col.primaryKey" class="nn">NOT NULL</span>
+                      </div>
+                    </template>
                   </template>
                 </template>
               </template>
@@ -1249,7 +1731,16 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
             @click="activateTab(t.key)"
           >
             <span v-if="tabDot(t)" class="qdot" :class="`d-${tabDot(t)}`" aria-hidden="true"></span>
-            <span class="qname">{{ tabTitle(t) }}</span>
+            <input
+              v-if="renamingKey === t.key"
+              v-model="renameDraft"
+              class="dba-tab-rename"
+              data-testid="tab-rename"
+              @click.stop
+              @keydown.stop="onRenameKey($event, t.key)"
+              @blur="commitRename(t.key)"
+            >
+            <span v-else class="qname" @dblclick.stop="beginRename(t)">{{ tabTitle(t) }}</span>
             <button class="qclose" data-testid="close-tab" :title="`关闭 ${tabTitle(t)}`" @click.stop="closeTabAction(t.key)">✕</button>
           </div>
           <button class="qnew" data-testid="new-query-tab" :disabled="!activeId" title="新建空白查询标签" @click="newQueryTab">＋</button>
@@ -1315,40 +1806,72 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
             <span v-if="result?.columns?.length" class="muted" data-testid="result-range">{{ rangeLabel(page, pageSize, rows.length, result.total) }}</span>
             <span class="spacer" />
             <button class="btn" data-testid="copy-row" :disabled="selectedRowIndex === null" @click="copySelectedRow">复制整行</button>
-            <button class="btn" data-testid="export-csv" :disabled="!result?.columns?.length" @click="exportCsvNow">导出 CSV</button>
+            <button class="btn" data-testid="export-csv" :disabled="!result?.columns?.length || exportingAll" @click="exportCsvNow">导出 CSV</button>
+            <button class="btn" data-testid="export-all" :disabled="!result?.columns?.length || exportingAll" @click="exportAllCsv">{{ exportingAll ? '导出中…' : '导出全部' }}</button>
+            <button class="btn" data-testid="export-json" :disabled="!result?.columns?.length" @click="exportJsonNow">导出 JSON</button>
+            <button
+              class="btn"
+              data-testid="export-insert"
+              :disabled="!result?.columns?.length || !activeTab.table"
+              :title="activeTab.table ? '导出当前页为 INSERT' : '自由查询没有表名，不能生成 INSERT'"
+              @click="exportInsertNow"
+            >导出 INSERT</button>
           </div>
 
           <div v-if="!resultError && activeSet?.status !== 'skipped'" class="grid-wrap" data-testid="result-grid">
-            <div v-if="result?.truncated" class="truncated" data-testid="truncated">结果已截断（truncated=true）：仅显示上限内的行</div>
-            <table v-if="result?.columns?.length" class="dba-grid">
-              <thead>
-                <tr>
-                  <th class="rownum">#</th>
-                  <th v-for="c in result.columns" :key="c.name">{{ c.name }}<span v-if="c.type" class="type">{{ c.type }}</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(r, i) in rows"
-                  :key="i"
-                  :class="{ sel: i === selectedRowIndex }"
-                  :data-testid="`row-${i}`"
-                  @click="selectedRowIndex = i"
-                >
-                  <td class="rownum">{{ (page - 1) * pageSize + i + 1 }}</td>
-                  <td
-                    v-for="(v, j) in r"
-                    :key="j"
-                    :class="{ null: isNull(v) }"
-                    :title="cell(v)"
-                    :data-testid="`cell-${i}-${j}`"
-                    @dblclick="openCellDetail(result.columns![j]?.name ?? String(j), v)"
-                  >{{ cell(v) }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-else-if="result && result.affectedRows !== undefined" class="placeholder">执行成功 · 影响 {{ result.affectedRows }} 行</div>
-            <div v-else class="placeholder muted">结果将显示在这里</div>
+            <div v-if="resultBusy" class="dba-result-skel" data-testid="result-skeleton" role="status" aria-label="正在执行">
+              <div v-for="i in 5" :key="i" class="sk-line" :style="{ width: `${90 - i * 9}%` }" />
+            </div>
+            <template v-else>
+              <div v-if="result?.truncated" class="truncated" data-testid="truncated">结果已截断（truncated=true）：仅显示上限内的行</div>
+              <div v-if="showZeroRows" class="placeholder" data-testid="result-zero">{{ zeroRowLabel(result?.elapsedMs) }}</div>
+              <table v-else-if="result?.columns?.length" class="dba-grid">
+                <thead>
+                  <tr>
+                    <th class="rownum">#</th>
+                    <th
+                      v-for="(c, ci) in result.columns"
+                      :key="c.name"
+                      class="dba-th"
+                      :style="colStyle(c.name)"
+                      @contextmenu="onColMenu($event, c.name)"
+                    >
+                      {{ c.name }}<span v-if="c.type" class="type">{{ c.type }}</span>
+                      <span
+                        class="dba-col-resizer"
+                        title="拖动调整列宽，双击适应当前页"
+                        @mousedown="onColResizeDown($event, c.name)"
+                        @dblclick="onColResizeDbl($event, c.name, ci)"
+                        @click.stop
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(r, i) in rows"
+                    :key="i"
+                    :class="{ sel: i === selectedRowIndex }"
+                    :data-testid="`row-${i}`"
+                    @click="onRowClick(i)"
+                  >
+                    <td class="rownum">{{ (page - 1) * pageSize + i + 1 }}</td>
+                    <td
+                      v-for="(v, j) in r"
+                      :key="j"
+                      :class="{ null: isNull(v), 'dba-cell-on': selectedCell?.row === i && selectedCell?.col === j }"
+                      :title="cell(v)"
+                      :data-testid="`cell-${i}-${j}`"
+                      @click.stop="selectCell(i, j)"
+                      @dblclick="openCellDetail(result.columns![j]?.name ?? String(j), v)"
+                      @contextmenu="onCellMenu($event, i, j, v)"
+                    >{{ cell(v) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else-if="result && result.affectedRows !== undefined" class="placeholder">执行成功 · 影响 {{ result.affectedRows }} 行</div>
+              <div v-else class="placeholder muted">结果将显示在这里</div>
+            </template>
           </div>
 
           <div v-if="result?.columns?.length" class="pager" data-testid="pager">
@@ -1430,7 +1953,8 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
               <label class="grow">主机<input v-model="connForm.host" data-testid="cf-host" placeholder="127.0.0.1" /></label>
               <label class="port">端口<input v-model.number="connForm.port" data-testid="cf-port" type="number" /></label>
             </div>
-            <label>数据库<input v-model="connForm.database" data-testid="cf-database" /></label>
+            <label>{{ databaseLabel }}<input v-model="connForm.database" data-testid="cf-database" :placeholder="databasePlaceholder" /></label>
+            <p v-if="showPgHint" class="muted" data-testid="cf-pg-hint">留空时先连维护库 postgres，再列出其它库</p>
             <label>用户名<input v-model="connForm.userName" data-testid="cf-user" autocomplete="off" /></label>
             <label>密码
               <input
@@ -1453,9 +1977,9 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
           />
         </label>
         <label>默认表（可选，仅本机）
-          <input v-model="connForm.defaultTable" data-testid="cf-default-table" placeholder="如 users；留空则点连接只展开加载全部表" />
+          <input v-model="connForm.defaultTable" data-testid="cf-default-table" placeholder="如 users；留空则不自动打开表" />
         </label>
-        <p class="muted">填写默认表：点该连接就直接打开这张表的查询标签；留空：点连接只展开并加载全部表。默认表只保存在本机，不写入连接记录。</p>
+        <p class="muted">SQLite 与 Oracle：填了默认表，点连接就打开这张表；留空只展开并加载表。MySQL、SQL Server、PostgreSQL：须已保存非空默认库，且本机有默认表，列完库才会展开该库并打开表；否则只列出库。默认表只保存在本机，不写入连接记录。</p>
 
         <div v-if="testResult" class="test-result" :class="`tr-${testResult.status}`" data-testid="test-result">
           <template v-if="testResult.status === 'ok'">✔ 连接成功{{ testResult.serverVersion ? ` · 服务器 ${testResult.serverVersion}` : '' }}</template>
@@ -1552,6 +2076,19 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
       </aside>
     </div>
 
+    <div v-if="menu" class="dba-menu-mask" data-testid="ctx-menu-mask" @click="closeMenu" @contextmenu.prevent="closeMenu">
+      <div class="dba-menu" data-testid="ctx-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @click.stop>
+        <button
+          v-for="it in menu.items"
+          :key="it.id"
+          type="button"
+          class="dba-menu-item"
+          :data-testid="`ctx-${it.id}`"
+          @click="it.run(); closeMenu()"
+        >{{ it.label }}</button>
+      </div>
+    </div>
+
     <!-- 浮层：单元格详情（双击单元格打开，Esc/遮罩关闭） -->
     <div v-if="cellDetail" class="mask" data-testid="cell-detail" @click.self="cellDetail = null">
       <div class="modal">
@@ -1610,7 +2147,11 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
 .node .name { overflow: hidden; text-overflow: ellipsis; }
 .node.table { padding-left: 20px; }
 .node.column { padding-left: 38px; cursor: default; color: var(--el-text-color-secondary); font-size: 12px; }
+.node.dba-db { padding-left: 20px; }
+.node.table.dba-under-db { padding-left: 38px; }
+.node.column.dba-under-db { padding-left: 56px; }
 .node-loading { padding-left: 20px; color: var(--el-text-color-secondary); font-size: 12px; cursor: default; }
+.node.node-loading.dba-under-db { padding-left: 38px; }
 .node-loading .spinner {
   width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%;
   border: 2px solid var(--el-border-color); border-top-color: var(--el-color-primary);
@@ -1651,6 +2192,11 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
 .qtab:hover { background: var(--el-fill-color-light); }
 .qtab.on { color: var(--el-text-color-primary); background: var(--el-bg-color-overlay); border-bottom-color: var(--el-color-primary); }
 .qtab .qname { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.dba-tab-rename {
+  width: 120px; max-width: 130px; box-sizing: border-box; font-size: 13px;
+  background: var(--el-bg-color); color: var(--el-text-color-primary);
+  border: 1px solid var(--el-border-color); border-radius: 6px; padding: 1px 4px;
+}
 .qtab .qclose {
   border: none; background: transparent; color: var(--el-text-color-secondary); cursor: pointer;
   padding: 0 2px; font-size: 12px; line-height: 1; border-radius: 4px;
@@ -1700,10 +2246,24 @@ watch([activeTabKey, () => activeTab.value?.activeResultIndex], () => { selected
 .dba-grid { border-collapse: collapse; width: max-content; min-width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
 .dba-grid th, .dba-grid td { border-bottom: 1px solid var(--el-border-color); padding: 4px 10px; text-align: left; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dba-grid th { position: sticky; top: 0; background: var(--el-bg-color-overlay); font-weight: 600; }
+.dba-th { position: relative; }
+.dba-col-resizer { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; }
 .dba-grid td.null { color: var(--el-text-color-secondary); font-style: italic; }
+.dba-grid td.dba-cell-on { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
 .dba-grid tbody tr { cursor: default; }
 .dba-grid tbody tr:hover { background: var(--el-fill-color-light); }
 .dba-grid tbody tr.sel { background: var(--el-color-primary-light-9); }
+.dba-result-skel { display: grid; gap: 8px; padding: 12px; }
+.dba-menu-mask { position: fixed; inset: 0; z-index: 40; }
+.dba-menu {
+  position: fixed; z-index: 41; min-width: 140px; display: grid; gap: 2px; padding: 4px;
+  background: var(--el-bg-color-overlay); border: 1px solid var(--el-border-color); border-radius: 8px;
+}
+.dba-menu-item {
+  border: none; background: transparent; color: var(--el-text-color-primary); text-align: left;
+  padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.dba-menu-item:hover { background: var(--el-fill-color-light); }
 .rownum { color: var(--el-text-color-secondary); width: 36px; }
 .placeholder { padding: 16px; }
 .workspace-empty {

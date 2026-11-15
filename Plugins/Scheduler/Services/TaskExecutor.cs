@@ -16,14 +16,16 @@ public interface ITaskExecutor
 
 public class TaskExecutor : ITaskExecutor
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IContext _ctx;
     private readonly WorkflowTaskHandler _workflowHandler;
     private readonly HttpWebhookHandler _httpHandler;
 
-    public TaskExecutor(IServiceProvider serviceProvider,
+    public TaskExecutor(IContext ctx,
         WorkflowTaskHandler workflowHandler, HttpWebhookHandler httpHandler)
     {
-        _serviceProvider = serviceProvider;
+        // PC-034：DI 构造服务只许注入 IContext；AgentRunTaskHandler.ExecuteAsync 的 IServiceProvider
+        // 形参由 ctx 隐式满足（IContext : IServiceProvider），工具路径与 DI 子容器路径行为一致。
+        _ctx = ctx;
         _workflowHandler = workflowHandler;
         _httpHandler = httpHandler;
     }
@@ -57,7 +59,7 @@ public class TaskExecutor : ITaskExecutor
                     break;
 
                 case ScheduledTaskType.AgentRun:
-                    (skipped, resultMessage) = await AgentRunTaskHandler.ExecuteAsync(task, _serviceProvider);
+                    (skipped, resultMessage) = await AgentRunTaskHandler.ExecuteAsync(task, _ctx);
                     break;
 
                 default:

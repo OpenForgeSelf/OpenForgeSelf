@@ -41,5 +41,6 @@
 | 2026-11-13-responses-nonstream-format | 2026-11-13 | 非流式 Responses 有回复，AI SDK 因缺 id/annotations 报格式错误 | [PC-032](../problem-classes/PC-032-responses-nonstream-shape.md) | Verified | [链接](2026-11-13-responses-nonstream-format.md) |
 | 2026-11-13-toolchoice-without-tools | 2026-11-13 | OpenAI Responses 直通请求带 tool_choice 无 tools，上游 400 BadRequestError | [PC-033](../problem-classes/PC-033-tool-choice-without-tools.md) | Verified | [链接](2026-11-13-toolchoice-without-tools.md) |
 | 2026-11-13-smart-terminal-output-pipeline-decode | 2026-11-13 | 智能终端插件合入新写输出管道重蹈固定码页解码（S1×1+S2×2，守卫拦红但挂账 8 天无 owner） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md) | Verified | [链接](2026-11-13-smart-terminal-output-pipeline-decode.md) |
+| 2026-11-14-plugin-di-service-host-contract-miss | 2026-11-14 | 智能终端助手/凭据恒 424「宿主对话/凭据加密模块不可用」：StHostGateway 注入 IServiceProvider 拿到插件子容器，宿主契约恒 null | [PC-034](../problem-classes/PC-034-plugin-di-service-host-contract-miss.md) | Verified | [链接](2026-11-14-plugin-di-service-host-contract-miss.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

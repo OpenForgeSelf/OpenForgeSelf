@@ -8,7 +8,8 @@
 
 | 触碰区域 | 必查 PC |
 |---|---|
-| 插件间契约 / ctx.Register / ctx.Get / Abstractions 接口 | PC-001, PC-005 |
+| 插件间契约 / ctx.Register / ctx.Get / Abstractions 接口 | PC-001, PC-005, PC-034 |
+| 插件 DI 服务构造注入（IContext vs IServiceProvider）/ 子容器 / 宿主契约恒 null / 424 宿主模块不可用 | PC-034 |
 | `/api/**` 鉴权、前端请求代码 | PC-002 |
 | 插件持久库 / XCode 连接名 / 升级迁移 | PC-003 |
 | Agent 委派 / 状态回报 / 进程生命周期 | PC-004 |
@@ -77,6 +78,7 @@
 | PC-031 | 流式 Responses 转 Chat 未请求 usage，三个 token 字段落成 0 | guarded | G1 active | 0 | [PC-031](PC-031-responses-stream-usage-not-requested.md) |
 | PC-032 | 非流式 Responses 回包缺 message.id 与 output_text.annotations，AI SDK 判格式错误 | guarded | G1 active | 0 | [PC-032](PC-032-responses-nonstream-shape.md) |
 | PC-033 | 出站 tool_choice 无 tools 未丢弃 → 上游 400（BadRequestError） | guarded | G1×2+G2×4 active（含 pipeline 咽喉点守卫） | 0 | [PC-033](PC-033-tool-choice-without-tools.md) |
+| PC-034 | 插件 DI 构造服务经子容器解析宿主/跨插件契约恒 null | guarded | G1+G2 active（allowlist 空账） | 0 | [PC-034](PC-034-plugin-di-service-host-contract-miss.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

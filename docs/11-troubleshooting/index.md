@@ -1,7 +1,7 @@
 # 11-troubleshooting — 故障知识库
 
 > 状态：在役（2026-10-17 升级为「问题类闭环」知识库）
-> 最后更新：2026-11-13
+> 最后更新：2026-11-14
 
 本目录三层分工（同一事实只放一处）：
 - **[problem-classes/](problem-classes/README.md)** — 问题类台账：不变量 + 特征签名 + canonical fix + 守卫（「这类事为什么再犯、怎么防」的唯一真源，设计/修复前先查tags检索表）
@@ -34,6 +34,7 @@
 | `When using tool_choice, tools must be set` / `BadRequestError` param=tool_choice（OpenAI 响应式接口报错） | case [2026-11-13 tool_choice 无 tools](cases/2026-11-13-toolchoice-without-tools.md) → [PC-033](problem-classes/PC-033-tool-choice-without-tools.md) |
 | `text part msg_… not found` / Open Responses 流已有 item_id 仍失败 | case [2026-10-30 text part 未登记](cases/2026-10-30-responses-text-part-not-registered.md) → [PC-016](problem-classes/PC-016-responses-outbound-delta-item-id.md) |
 | 工具调用报 `Expected depth to be zero at the end of the JSON payload` / `INVALID_PARAMETERS 参数JSON解析失败`（单个工具全挂、同批其他工具正常、构建却全绿） | case [2026-10-30 工具 schema 重复键](cases/2026-10-30-tool-schema-json-duplicate-key.md) → [PC-017](problem-classes/PC-017-tool-schema-json-duplicate-key.md) |
+| 插件恒 424「宿主对话模块不可用 / 宿主凭据加密模块不可用」（ai-agent/smart-terminal 均 enabled 仍 424；插件 DI 服务拿 IServiceProvider = 子容器） | case [2026-11-14 智能终端 424](cases/2026-11-14-plugin-di-service-host-contract-miss.md) → [PC-034](problem-classes/PC-034-plugin-di-service-host-contract-miss.md) |
 
 | 前端轮询 404 反复重试/错误 toast 反复弹（会话已不存在仍轮询） | case [2026-11-05 死会话轮询](cases/2026-11-05-smart-terminal-dead-session-poll-404.md) → [PC-024](problem-classes/PC-024-frontend-poll-error-handling.md) |
 | 暗色下文字/选中行看不见（亮金底浅字），切浅色正常 | case [2026-11-06 DbAdmin 连接名](cases/2026-11-06-dbadmin-dark-connection-contrast.md) → [PC-025](problem-classes/PC-025-dark-theme-token-contrast.md) |

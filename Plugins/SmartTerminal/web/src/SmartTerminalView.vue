@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+// 版本徽标数据源 = 构建期 vite define 注入（../plugin.json 的 Version），禁止硬编码
+// （2026-11-15 live 走查实证：清单 bump 后硬编码字面量滞后报旧版）
+const pluginVersion = __PLUGIN_VERSION__
 import './styles.css'
 import { api, SESSIONS_PATH, asList } from './api'
 import { ApiError } from './http'
@@ -1214,7 +1217,7 @@ function approvalTitle(ap: Approval) {
       <div class="pagehead">
         <div>
           <div class="eyebrow">TERMINAL · 会话与命令</div>
-          <div class="h1">智能终端<span class="ver">v2.0.0</span></div>
+          <div class="h1">智能终端<span class="ver">v{{ pluginVersion }}</span></div>
         </div>
         <div class="row">
           <button

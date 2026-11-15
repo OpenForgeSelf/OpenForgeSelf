@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Core;
 using ForgeSelf.Api.Plugins.Scheduler.Models;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
@@ -8,11 +9,14 @@ namespace ForgeSelf.Api.Plugins.Scheduler.Services;
 
 public class WorkflowTaskHandler
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IContext _ctx;
 
-    public WorkflowTaskHandler(IServiceProvider serviceProvider)
+    public WorkflowTaskHandler(IContext ctx)
     {
-        _serviceProvider = serviceProvider;
+        // PC-034：构造注入 IContext（Cordis 模式）。DI 子容器与工具手动路径（传 ctx）行为一致——
+        // IWorkflowExecutor 由 WorkflowEngine ctx.Register 进共享表，ctx.GetRequiredService 两路都可解析；
+        // 旧 IServiceProvider 注入在 DI 子容器路径会因缺 IWorkflowExecutor 抛 InvalidOperationException。
+        _ctx = ctx;
     }
 
     public async Task<string> ExecuteAsync(ScheduledTask task)
@@ -39,11 +43,11 @@ public class WorkflowTaskHandler
                 }
             }
 
-            // 通过 DI 解析 IWorkflowExecutor（接口已迁 Abstractions，实现由 WorkflowEngine 插件注册）。
-            // 取代旧的 Type.GetType("...WorkflowExecutor, ForgeSelf.Api") 反射 + 硬编码程序集名；
-            // 旧反射 Activator.CreateInstance(type, dbPath, _serviceProvider) 与当前构造函数
-            // WorkflowExecutor(IServiceProvider?) 签名不匹配，运行时会抛 MissingMethodException（陈旧代码）。
-            var executor = _serviceProvider.GetRequiredService<IWorkflowExecutor>();
+            // 通过 ctx（IContext）解析 IWorkflowExecutor（接口已迁 Abstractions，实现由 WorkflowEngine 插件
+            // ctx.Register 进共享表）。取代旧的 Type.GetType("...WorkflowExecutor, ForgeSelf.Api") 反射 +
+            // 硬编码程序集名；旧反射 Activator.CreateInstance(type, dbPath, ctx) 与当前构造函数
+            // WorkflowExecutor(IContext?) 签名不匹配，运行时会抛 MissingMethodException（陈旧代码）。
+            var executor = _ctx.GetRequiredService<IWorkflowExecutor>();
             var execution = await executor.ExecuteAsync(workflowId, inputVariables, "scheduler");
 
             if (execution == null)

@@ -44,9 +44,10 @@ public class WorkflowEnginePlugin : IPlugin
         XTrace.Log.Info("工作流引擎插件初始化完成");
     }
 
-    private void RegisterServices(IServiceProvider services)
+    private void RegisterServices(IContext ctx)
     {
-        _workflowExecutor = new WorkflowExecutor(services);
+        // PC-034：WorkflowExecutor 只收 IContext（构造注入 IServiceProvider 会被 MS DI 自解析为子容器）。
+        _workflowExecutor = new WorkflowExecutor(ctx);
         _workflowScheduler = new WorkflowScheduler(_workflowExecutor);
         _workflowService = new WorkflowService(_workflowScheduler);
 
@@ -249,7 +250,7 @@ public class CreateWorkflowToolFunction : IToolFunctionExtension
                 Category = category
             };
 
-            var executor = new WorkflowExecutor(_serviceProvider);
+            var executor = new WorkflowExecutor(_serviceProvider as IContext);
             var scheduler = new WorkflowScheduler(executor);
             var service = new WorkflowService(scheduler);
 
@@ -328,7 +329,7 @@ public class GetWorkflowToolFunction : IToolFunctionExtension
                 return JsonSerializer.Serialize(new { success = false, error = "服务提供者未初始化" }, ForgeJson.Default);
             }
 
-            var executor = new WorkflowExecutor(_serviceProvider);
+            var executor = new WorkflowExecutor(_serviceProvider as IContext);
             var scheduler = new WorkflowScheduler(executor);
             var service = new WorkflowService(scheduler);
 
@@ -432,7 +433,7 @@ public class ExecuteWorkflowToolFunction : IToolFunctionExtension
                 inputVariables = JsonSerializer.Deserialize<Dictionary<string, object?>>(varsProp.GetRawText());
             }
 
-            var executor = new WorkflowExecutor(_serviceProvider);
+            var executor = new WorkflowExecutor(_serviceProvider as IContext);
             var scheduler = new WorkflowScheduler(executor);
             var service = new WorkflowService(scheduler);
 
@@ -511,7 +512,7 @@ public class GetWorkflowStatusToolFunction : IToolFunctionExtension
             var root = doc.RootElement;
             var executionId = root.GetProperty("executionId").GetInt64();
 
-            var executor = new WorkflowExecutor(_serviceProvider);
+            var executor = new WorkflowExecutor(_serviceProvider as IContext);
             var scheduler = new WorkflowScheduler(executor);
             var service = new WorkflowService(scheduler);
 
@@ -606,7 +607,7 @@ public class ListWorkflowsToolFunction : IToolFunctionExtension
             if (root.TryGetProperty("pageSize", out var pageSizeProp))
                 pageSize = pageSizeProp.GetInt32();
 
-            var executor = new WorkflowExecutor(_serviceProvider);
+            var executor = new WorkflowExecutor(_serviceProvider as IContext);
             var scheduler = new WorkflowScheduler(executor);
             var service = new WorkflowService(scheduler);
 

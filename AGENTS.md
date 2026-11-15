@@ -406,7 +406,7 @@ Verify 失败
 任务：一句话说明本次完成的目标。
 完成内容 / 主要变更 / 验证结果（只列实际执行项，标 ✅/⚠️/❌ + Verified/Inferred/Unknown）/
 设计决策 / 代价·收益（运行经济学）/ 不做事决策（NOT-to-do，同步入 docs/07-decisions/not-taken-decisions.md）/
-风险 / 结论（是否完成 · 可否交付 · 是否建议 Code Review）
+风险 / 结论（是否完成 · 可否交付 · 自审结论——先审后报：Review/走查未完成禁止汇报完成，审出问题先修再报、修复与汇报同批交付，不再写「建议 Code Review」）
 ```
 
 ### 10.5 禁令

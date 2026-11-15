@@ -9,6 +9,7 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "postinstall": "node ../scripts/postinstall-install-hooks.cjs",
     "dev": "vite",
     "clean": "node scripts/clean.mjs",
     "build": "npm run clean && vue-tsc -b && vite build",

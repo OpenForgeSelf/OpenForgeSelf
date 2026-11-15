@@ -1,0 +1,33 @@
+{
+  "name": "openforgeself",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "OpenForgeSelf root manifest: restores git hooks automatically on install and forwards the frontend scripts of ForgeSelf.Web (run from repo root).",
+  "scripts": {
+    "postinstall": "node scripts/postinstall-install-hooks.cjs",
+    "dev": "pnpm -C ForgeSelf.Web dev",
+    "clean": "pnpm -C ForgeSelf.Web clean",
+    "build": "pnpm -C ForgeSelf.Web build",
+    "preview": "pnpm -C ForgeSelf.Web preview",
+    "lint": "pnpm -C ForgeSelf.Web lint",
+    "lint:fix": "pnpm -C ForgeSelf.Web lint:fix",
+    "type-check": "pnpm -C ForgeSelf.Web type-check",
+    "check": "pnpm -C ForgeSelf.Web check",
+    "design:check": "pnpm -C ForgeSelf.Web design:check",
+    "ct:server": "pnpm -C ForgeSelf.Web ct:server",
+    "test:ct": "pnpm -C ForgeSelf.Web test:ct",
+    "test:ct:update": "pnpm -C ForgeSelf.Web test:ct:update",
+    "check:features": "pnpm -C ForgeSelf.Web check:features",
+    "test": "pnpm -C ForgeSelf.Web test",
+    "test:ui": "pnpm -C ForgeSelf.Web test:ui",
+    "test:coverage": "pnpm -C ForgeSelf.Web test:coverage",
+    "browsers:install": "pnpm -C ForgeSelf.Web browsers:install",
+    "test:e2e": "pnpm -C ForgeSelf.Web test:e2e",
+    "test:e2e:ui": "pnpm -C ForgeSelf.Web test:e2e:ui",
+    "test:e2e:published": "pnpm -C ForgeSelf.Web test:e2e:published"
+  }
+}

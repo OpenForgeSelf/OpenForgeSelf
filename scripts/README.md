@@ -6,7 +6,7 @@
 
 - **PowerShell 脚本一律用 `pwsh`（PowerShell 7）执行**，禁止 `powershell`（Windows PowerShell 5.1，见 AGENTS.md §2.3）；个别示例已含完整写法。
 - Node 脚本（`.cjs`）用 `node` 执行。
-- 新 clone / 新环境第一步：安装 git pre-commit hook → `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`。
+- 新 clone / 新环境：git hooks **随依赖还原自动安装**——根目录（或 `ForgeSelf.Web/` 内）`pnpm install` 经根 `package.json` postinstall 触发 `scripts/postinstall-install-hooks.cjs`（非 git checkout / 缺 pwsh 时跳过并提示；`--ignore-scripts` 与 `Plugins/*/web` 目录内安装不覆盖）。手动兜底：`pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`。
 - `-Plugin` 参数一律传 **PascalCase 目录名**（如 `AIAgent`），不是 kebab-case 插件 id。
 
 ## 目录结构
@@ -15,7 +15,7 @@
 |---|---|
 | `scripts/` | 插件开发/发布、签名、门禁、审计、更新等独立脚本 |
 | `scripts/release/` | 宿主打包发布链（`release-local.ps1` 一键编排，`release-lib.ps1` 共享函数） |
-| `scripts/hooks/` | git pre-commit hook 源文件（由 `install-git-hooks.ps1` 安装） |
+| `scripts/hooks/` | git hook 源文件（`pre-commit` + `commit-msg`，由 postinstall shim / `install-git-hooks.ps1` 安装） |
 
 ---
 
@@ -58,7 +58,8 @@
 | 脚本 | 功能 | 用法 |
 |---|---|---|
 | `update-agent.ps1` | 宿主自更新代理（由宿主 StagedUpdateService 拉起，不手动调用）：等宿主进程退出 → 新版本落 `versions/<ver>/` → 切 `current` 指针 → 重启根启动器；清理暂存与多余版本 | `pwsh scripts/update-agent.ps1 -HostPid <pid> -InstallDir <dir> -StagedDir <dir> -ExeName ForgeSelf.exe [-ArgList <args>]` |
-| `install-git-hooks.ps1` | 安装 git pre-commit hook（幂等）：复制 `scripts/hooks/pre-commit` 到 `.git/hooks/`；新 clone / 新环境第一步执行，hook 源更新后重跑即同步 | `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` |
+| `install-git-hooks.ps1` | 安装 git hooks（幂等）：复制 `scripts/hooks/` 下 `pre-commit` 与 `commit-msg` 到 `.git/hooks/`；由根 postinstall 自动调用，也可手动跑（hook 源更新后重跑即同步） | `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` |
+| `postinstall-install-hooks.cjs` | postinstall 粘合层（根与 `ForgeSelf.Web` 的 package.json postinstall 均指向它）：非 git checkout 直接跳过、pwsh 缺失时跳过并提示手动兜底、其余失败上抛 | `node scripts/postinstall-install-hooks.cjs`（由 pnpm install 自动触发，一般不手动跑） |
 | `hooks/pre-commit` | pre-commit hook 本体（sh，由 git 自动调用）：提交触碰 `docs/ai/pilot/<task>/` 时校验 00-07 八件工件，缺失拒绝提交；校验逻辑在 `verify-pilot-artifacts.ps1` | — |
 
 ## 五、质量门禁与审计

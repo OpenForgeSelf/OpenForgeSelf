@@ -137,6 +137,10 @@
 | `POST /api/plugin/rollback/{id}` `{version}` | 只校验 `versions/<version>/` 存在（`:200-205`），**不比版本号** | 最稳的强制激活；但页面入口是「版本历史」弹窗，而该弹窗受下述缺陷影响 |
 | `disable` → `enable` | 启用时重走 `ResolveEntryAssemblyPath`，`versions/<current>/` 优先 | 需 `current` 已指向目标版本 |
 
+**⚠️ sidecar 能携带什么修复（2026-11-15 实测裁决）**：三条口子只对**插件自身程序集**内的变更有效（`SmartTerminal.dll` / `web/dist`）。**宿主侧库（`ForgeSelf.Core` 等）修复不能随插件 sidecar 走**：插件 ALC（`PluginLoadContext.Load`）resolver→beside→回退 Default 加载宿主 Core，运行实例上的 Core 永远是宿主版本层构建；把修复版 Core.dll 私有打进插件版本目录 = 把 `IContext`/`IChatCompletion` 等插件-宿主共享契约劈成两份类型，插件直接崩（`StHostGateway` 经 IContext 取宿主服务全断）。实证：智能终端 2.0.2 sidecar 上线后 A/C（插件内）生效、B（Core 裁决器）在 :51888 仍乱码，直至宿主更新才消。**修复落位横跨程序集时，必须声明「哪部分随宿主更新」并按宿主版本门控 live 断言**（case 2026-11-15-st-ux-defects §交付形态实测裁决）。
+
+**插件包统一交付目录（2026-11-15 输入25 用户立）**：`package-plugin.ps1` 打包成功后自动复制 zip 到 `<主仓根上级>\OpenForgeSelfPluginUpdates\`（worktree 从 `.git` 文件 gitdir 反解主仓根，同样落主仓侧该目录）；该目录是**插件 zip 取件/交付**用途，与宿主更新源（`release-local.ps1 -UpdateDir` → `../updates/`）语义分开，禁止各插件自创打包输出目录。
+
 ### 1.8.1 全新插件首次安装（不动宿主）——动线与已知缺口（2026-11-04 输入3 问答读码沉淀）
 
 > 区别于上表「**已装插件**换版本」：新插件此前从未被宿主扫描过，上表三条口子都帮不上（`update`/`rollback` 都要求 `metadata` 已在内存）。**架构事实**：插件 = 独立程序集 + 顶层 `plugin.json` 清单，宿主代码/二进制零改动，只要落进**两路扫描根**任一路即可被识别（`PluginManager.cs:303-375`：内置根 `versions/<ver>/plugins/` + 数据根 `~/.forgeself/plugins/`，同 Id 按版本裁决，裁决细则见 §1.7）。

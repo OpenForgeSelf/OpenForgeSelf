@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+// 版本徽标数据源 = 构建期 vite define 注入（../plugin.json 的 Version），禁止硬编码
+// （2026-11-15 live 走查实证：清单 bump 后硬编码字面量滞后报旧版）
+const pluginVersion = __PLUGIN_VERSION__
 import './styles.css'
 import { api, SESSIONS_PATH, asList } from './api'
 import { ApiError } from './http'
@@ -888,6 +891,7 @@ async function submitCommand(command: string, source: CommandSource) {
   try {
     const res = await api.runCommand(s.id, cmd, source)
     if (!res) return
+    if (res.cwd) s.cwd = res.cwd // PC-036(C)：命令执行后同步会话工作目录（tab 徽标与助手上下文随之更新）
     if (res.status === 'awaiting_approval' && res.approval) {
       approval.value = { ...res.approval, sessionId: s.id }
       approvalSource.value = source
@@ -951,6 +955,8 @@ async function confirmApproval() {
   try {
     const res = await api.resolveApproval(ap.id, 'approve')
     const block = (res as { block?: Block } | undefined)?.block
+    const cwd = (res as { cwd?: string } | undefined)?.cwd
+    if (cwd) s.cwd = cwd // PC-036(C)：批准执行的命令同样同步工作目录
     if (block) mergeBlock(s, block)
     s.history = [...s.history, ap.command]
     s.draft = ''
@@ -987,6 +993,7 @@ function startPoll(s: ViewSession) {
       if (pack?.items) {
         for (const b of pack.items) mergeBlock(s, b)
       }
+      if (pack?.prompt) s.prompt = pack.prompt // PC-036(C)：服务端 cd 后重建提示符，轮询同步（ps1 优先用服务端 prompt）
       if (pack?.status === 'disconnected') s.status = 'disconnected'
       if (!s.blocks.some((b) => b.status === 'running')) {
         if (pollTimer) clearInterval(pollTimer)
@@ -1214,7 +1221,7 @@ function approvalTitle(ap: Approval) {
       <div class="pagehead">
         <div>
           <div class="eyebrow">TERMINAL · 会话与命令</div>
-          <div class="h1">智能终端<span class="ver">v2.0.0</span></div>
+          <div class="h1">智能终端<span class="ver">v{{ pluginVersion }}</span></div>
         </div>
         <div class="row">
           <button

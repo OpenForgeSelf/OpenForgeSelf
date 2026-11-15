@@ -88,6 +88,8 @@ export interface CommandResult {
   risk: Risk
   block?: Block
   approval?: Approval
+  /** PC-036(C)：命令执行后的会话工作目录，用于同步 tab 与会话态展示 */
+  cwd?: string
 }
 
 export interface Snippet {

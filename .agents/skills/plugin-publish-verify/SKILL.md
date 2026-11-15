@@ -202,6 +202,16 @@ DLL 字符串是 UTF-16LE（strings/grep 漏检）。这两件事历史上反复
 ⇒ 正确顺序：只写 `versions/<ver>/`（+ `current`），然后走 `rollback`/`enable` 让宿主自己同步清单；
 若已经手改过，就靠 `rollback`（不比版本号）或 `disable→enable` 收口。
 
+## 插件包统一交付目录（2026-11-15 输入25 用户立）
+
+`scripts/package-plugin.ps1` 打包成功后**自动复制** zip 到统一交付目录：`<主仓根上级>\OpenForgeSelfPluginUpdates\`。
+- **worktree 打包同样落到主仓侧该目录**：worktree 的 `.git` 是文件（`gitdir: <主仓>/.git/worktrees/<名>`），脚本据此反解主仓根，
+  投递到**主仓根上级**——不是 worktree 自身上级（否则 `.agents/worktrees/` 下各撒一份，仍然不一致）。
+- 本地 `artifacts/plugin-packages/` 仍保留一份；投递复制失败只 Warning 不阻断（回滚点=本地副本）。
+- **与宿主更新源是两回事**：宿主更新源 = `release-local.ps1 -UpdateDir`（默认 `../updates/`，设置页配置的自动更新扫描目录）；
+  `OpenForgeSelfPluginUpdates/` 是**插件 zip 的统一取件/交付目录**，用户自己从中取包更新插件，agent 不代投到实例。
+- 各插件/各会话禁止再自创打包输出目录；新打包脚本一律对齐该目录（重复动作脚本化优先，见 AGENTS §0-4）。
+
 ## 运行实例更新（agent 代点，需用户显式授权）
 
 **性质**：这是流程骨架 step 4「用户明确同意后代点」的落地版，**不违反铁律1**（宿主重启由自身 update-agent 执行，agent 不 kill/start 进程）。**只在用户显式授权要求更新时走本流程**；否则更新动作归用户自己。

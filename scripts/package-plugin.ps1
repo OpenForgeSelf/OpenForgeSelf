@@ -25,6 +25,27 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..')
 
+# 统一交付目录（2026-11-15 输入25 用户立）：主仓根上级 OpenForgeSelfPluginUpdates，避免各插件/各工作树输出目录不一致。
+# worktree 里 .git 是文件（gitdir: <主仓>/.git/worktrees/<名>），据此反解主仓根，投递到主仓根上级的同一目录。
+function Get-PluginPackageDeliveryDir([string] $rootPath) {
+    $gitPath = Join-Path $rootPath '.git'
+    $mainRoot = $null
+    if (Test-Path -LiteralPath (Join-Path $gitPath 'HEAD')) {
+        $mainRoot = $rootPath
+    }
+    elseif (Test-Path -LiteralPath $gitPath -PathType Leaf) {
+        $line = (Get-Content -LiteralPath $gitPath -TotalCount 1)
+        if ($line -like 'gitdir:*') {
+            $gitdir = $line.Substring(7).Trim()
+            $p = Split-Path -Parent $gitdir
+            $p = Split-Path -Parent $p
+            $mainRoot = Split-Path -Parent $p
+        }
+    }
+    if (-not $mainRoot) { return $null }
+    return Join-Path (Split-Path -Parent $mainRoot) 'OpenForgeSelfPluginUpdates'
+}
+
 function Test-PluginPackageRelExcluded([string] $relative) {
     foreach ($part in ($relative -split '[\\/]')) {
         if ($part -in @('src', '.git', 'tests', '.forge', '.github')) { return $true }
@@ -187,6 +208,20 @@ Write-Host "[package-plugin] SHA256: $hash"
 # cleanup temp dirs
 Remove-Item -LiteralPath $publishTemp -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+
+# 5) Deliver: 统一交付目录（默认主仓根上级 OpenForgeSelfPluginUpdates；worktree 打包同样落到主仓侧该目录）。
+#    复制失败只告警不失败：本地 artifacts 副本仍在（回滚点）。
+$deliveryDir = Get-PluginPackageDeliveryDir $repoRoot
+if ($deliveryDir) {
+    try {
+        New-Item -ItemType Directory -Force -Path $deliveryDir | Out-Null
+        Copy-Item -LiteralPath $pkgPath -Destination $deliveryDir -Force
+        Write-Host "[package-plugin] Delivered: $(Join-Path $deliveryDir (Split-Path -Leaf $pkgPath))"
+    }
+    catch {
+        Write-Warning "[package-plugin] Delivery copy failed (local package kept): $($_.Exception.Message)"
+    }
+}
 
 Write-Host ""
 Write-Host "Next steps: put this .zip into the plugin update source directory."

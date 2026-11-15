@@ -179,4 +179,99 @@ public class ProblemClassEnumerationTests
             .ToList();
         missing.Should().BeEmpty("PC-003 不变量违反——见 docs/11-troubleshooting/problem-classes/PC-003-*.md");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-034：插件 DI 构造服务，构造函数注入 IServiceProvider = MS DI 自解析为插件子容器本体
+    //         → 宿主/跨插件契约（IChatCompletion/ISecretEncryptionService/…）经它解析恒 null
+    //         （2026-11-14 smart-terminal 助手/凭据恒 424 实证）。
+    // 不变量：进插件子容器的服务（AddSingleton/AddScoped/AddTransient）构造函数只许注入 IContext；
+    //         宿主契约执行期经 ctx.Get<T>()（共享表/宿主 seed）或 ctx.Get<IServiceProvider>() 回落宿主根。
+    // 正道对照：StHostGateway(IContext)、ImGatewayRouter(IContext)、AgentDelegationProvider（ctx 回落宿主根）。
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>PC-034 检测核心：DI 注册实现类型 ∧ 同文件类构造函数含 IServiceProvider 参数 → 违规。</summary>
+    internal static List<string> FindPc034Violations(IEnumerable<KeyValuePair<string, string>> files)
+    {
+        var violations = new List<string>();
+        var registeredImpls = new HashSet<string>();
+        foreach (var (_, text) in files)
+            foreach (System.Text.RegularExpressions.Match m in Regex.Matches(
+                text, @"Add(?:Singleton|Scoped|Transient)<\s*(?:(\w+)\s*,\s*)?(\w+)\s*>"))
+            {
+                var impl = m.Groups[2].Success ? m.Groups[2].Value : m.Groups[1].Value;
+                if (impl.Length > 0) registeredImpls.Add(impl);
+            }
+
+        foreach (var (rel, text) in files)
+            foreach (var impl in registeredImpls)
+            {
+                // 类声明在本文件（含 C# 12 主构造函数形态）且任一构造函数注入 IServiceProvider
+                if (!Regex.IsMatch(text, $@"class\s+{impl}\b")) continue;
+                var ctorHasIsp = Regex.IsMatch(text, $@"(public|internal)\s+{impl}\s*\(([^)]*)\)")
+                    && Regex.Matches(text, $@"(public|internal)\s+{impl}\s*\(([^)]*)\)")
+                        .Any(cm => cm.Groups[2].Value.Contains("IServiceProvider"))
+                    || Regex.IsMatch(text, $@"class\s+{impl}\s*\(([^)]*)\)")
+                        && Regex.Matches(text, $@"class\s+{impl}\s*\(([^)]*)\)")
+                        .Any(cm => cm.Groups[1].Value.Contains("IServiceProvider"));
+                if (ctorHasIsp) violations.Add($"{rel}（{impl}）");
+            }
+
+        return violations;
+    }
+
+    /// <summary>守卫咬合自证：合成样本上检出 IServiceProvider 构造、放行 IContext 构造（防检测器静默失效）。</summary>
+    [Fact]
+    public void Pc034_Detector_FlagsServiceProviderCtor_AndPassesIContextCtor()
+    {
+        var samples = new List<KeyValuePair<string, string>>
+        {
+            new("Plugins/X/Broken.cs", """
+                public class BrokenGateway : IGateway
+                {
+                    public BrokenGateway(IServiceProvider services) { }
+                }
+                // 注册：services.AddSingleton<IGateway, BrokenGateway>();
+                """),
+            new("Plugins/X/Good.cs", """
+                public class GoodGateway : IGateway
+                {
+                    public GoodGateway(IContext ctx) { }
+                }
+                // 注册：services.AddSingleton<IGateway, GoodGateway>();
+                """),
+        };
+
+        var hits = FindPc034Violations(samples);
+        hits.Should().HaveCount(1, "IServiceProvider 构造必须被检出（守卫咬合证明）");
+        hits[0].Should().Contain("Broken.cs");
+    }
+
+    [Fact]
+    public void Pc034_DiConstructedPluginServices_MustInjectIContextNotServiceProvider()
+    {
+        var root = FindRepoRoot();
+        // 只扫 Plugins/ 树：本 PC 的不变量面 = 进插件子 DI 容器的服务（注册点全在插件 Apply）。
+        // ForgeSelf.Api/Plugins/ 树是宿主基建（PluginManager 等，宿主 DI 生命周期，注册进宿主容器），
+        // 不属插件子容器服务面——PC-001 双树扫的是 ctx.Get 消费点，此处单树是有意收窄，非遗漏。
+        var files = EnumerateCsFiles("Plugins")
+            .Select(f => new KeyValuePair<string, string>(
+                Path.GetRelativePath(root, f).Replace('\\', '/'), File.ReadAllText(f)))
+            .ToList();
+
+        // 阳性对照：确有 DI 注册面在扫（含本次修复主角 StHostGateway 的注册点）
+        files.Select(f => f.Value).Should().Contain(t =>
+            t.Contains("AddSingleton<IStHostGateway, StHostGateway>()"),
+            "SmartTerminalPlugin 的注册点必须在扫描面内；消失说明扫描面或注册点变更，先更新本守卫");
+        files.Count(f => Regex.IsMatch(f.Value, @"Add(?:Singleton|Scoped|Transient)<")).Should()
+            .BeGreaterThan(20, "插件 DI 注册面阳性对照，防空转假绿");
+
+        var allow = PcAllowlistPaths("PC-034");
+        var offenders = FindPc034Violations(files)
+            .Where(v => !allow.Contains(v.Split('（')[0]))
+            .ToList();
+
+        offenders.Should().BeEmpty(
+            "PC-034 不变量违反：DI 构造的插件服务注入 IServiceProvider = 拿到插件子容器，宿主/跨插件契约恒解析为 null；" +
+            "改注入 IContext（见 StHostGateway / ImGatewayRouter 正道）。确需豁免 → PC-034 front-matter allowlist（理由+到期日）");
+    }
 }

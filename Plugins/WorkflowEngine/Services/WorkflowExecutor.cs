@@ -12,19 +12,19 @@ namespace ForgeSelf.Api.Plugins.WorkflowEngine.Services;
 
 public class WorkflowExecutor : IWorkflowExecutor
 {
-    private readonly IServiceProvider? _serviceProvider;
     private readonly IContext? _ctx;
 
     private static readonly Dictionary<long, WorkflowExecution> _runningExecutions = new();
     private static readonly Dictionary<long, CancellationTokenSource> _cancellationTokenSources = new();
     private static readonly object _lock = new();
 
-    public WorkflowExecutor(IServiceProvider? serviceProvider = null, IContext? ctx = null)
+    public WorkflowExecutor(IContext? ctx = null)
     {
-        _serviceProvider = serviceProvider;
-        // 兄弟插件提供的服务（如 AIAgent 的 IWorkflowAIAdvisor）经 Cordis 上下文 ctx.Get<T>() 解析
-        // （软依赖探测，缺失返回 null → 走默认重试）。WorkflowEnginePlugin 传的 serviceProvider 即 IContext。
-        _ctx = ctx ?? serviceProvider as IContext;
+        // 兄弟插件提供的服务（如 AIAgent 的 IWorkflowAIAdvisor、ScriptRunner 的 IScriptExecutor）经
+        // Cordis 上下文 ctx.Get<T>() 解析（软依赖探测，缺失返回 null → 降级/报错）。
+        // 宿主契约与跨容器解析一律走 IContext 通路（PC-034）：构造注入 IServiceProvider 会被 MS DI
+        // 自解析为插件子容器本体，对其解析宿主/兄弟插件契约恒 null（2026-11-14 smart-terminal 424 同族）。
+        _ctx = ctx;
     }
 
     public async Task<WorkflowExecution> ExecuteAsync(long workflowId, Dictionary<string, object?>? inputVariables = null, string? triggeredBy = null)
@@ -563,8 +563,8 @@ public class WorkflowExecutor : IWorkflowExecutor
 
     private async Task<object?> ExecuteScriptStepAsync(WorkflowStep step, WorkflowExecution execution, CancellationToken cancellationToken)
     {
-        var scriptExecutor = _serviceProvider?.GetService<IScriptExecutor>();
-        var scriptService = _serviceProvider?.GetService<IScriptService>();
+        var scriptExecutor = _ctx?.Get<IScriptExecutor>();
+        var scriptService = _ctx?.Get<IScriptService>();
 
         if (scriptExecutor == null)
         {
@@ -1037,9 +1037,9 @@ public class WorkflowExecutor : IWorkflowExecutor
     {
         try
         {
-            if (_serviceProvider == null) return;
+            if (_ctx == null) return;
 
-            using var scope = _serviceProvider.CreateHostScope();
+            using var scope = _ctx.CreateHostScope();
             var workflowUsageService = scope.ServiceProvider.GetService<IWorkflowUsageService>();
             if (workflowUsageService == null) return;
 
@@ -1067,9 +1067,9 @@ public class WorkflowExecutor : IWorkflowExecutor
     {
         try
         {
-            if (_serviceProvider == null) return;
+            if (_ctx == null) return;
 
-            using var scope = _serviceProvider.CreateHostScope();
+            using var scope = _ctx.CreateHostScope();
             var workflowUsageService = scope.ServiceProvider.GetService<IWorkflowUsageService>();
             if (workflowUsageService == null) return;
 

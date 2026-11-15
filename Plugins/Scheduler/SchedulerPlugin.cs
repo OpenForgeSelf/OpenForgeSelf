@@ -287,9 +287,9 @@ public class ScheduleTaskToolFunction : IToolFunctionExtension
 
             // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
             var ctx = (IContext)_serviceProvider!;
-            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
+            var workflowHandler = new WorkflowTaskHandler(ctx);
             var httpHandler = new HttpWebhookHandler();
-            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
+            var taskExecutor = new TaskExecutor(ctx, workflowHandler, httpHandler);
             var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
             var service = new SchedulerService(ctx, taskScheduler);
 
@@ -402,9 +402,9 @@ public class ListScheduledTasksToolFunction : IToolFunctionExtension
 
             // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
             var ctx = (IContext)_serviceProvider!;
-            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
+            var workflowHandler = new WorkflowTaskHandler(ctx);
             var httpHandler = new HttpWebhookHandler();
-            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
+            var taskExecutor = new TaskExecutor(ctx, workflowHandler, httpHandler);
             var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
             var service = new SchedulerService(ctx, taskScheduler);
 
@@ -488,9 +488,9 @@ public class PauseScheduledTaskToolFunction : IToolFunctionExtension
 
             // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
             var ctx = (IContext)_serviceProvider!;
-            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
+            var workflowHandler = new WorkflowTaskHandler(ctx);
             var httpHandler = new HttpWebhookHandler();
-            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
+            var taskExecutor = new TaskExecutor(ctx, workflowHandler, httpHandler);
             var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
             var service = new SchedulerService(ctx, taskScheduler);
 
@@ -566,9 +566,9 @@ public class DeleteScheduledTaskToolFunction : IToolFunctionExtension
 
             // Cordis 模式：宿主契约（ICronParser）经 IContext 由服务内部 ctx.Get 获取，这里不再直接解析。
             var ctx = (IContext)_serviceProvider!;
-            var workflowHandler = new WorkflowTaskHandler(_serviceProvider!);
+            var workflowHandler = new WorkflowTaskHandler(ctx);
             var httpHandler = new HttpWebhookHandler();
-            var taskExecutor = new TaskExecutor(_serviceProvider!, workflowHandler, httpHandler);
+            var taskExecutor = new TaskExecutor(ctx, workflowHandler, httpHandler);
             var taskScheduler = new Services.TaskScheduler(taskExecutor, ctx);
             var service = new SchedulerService(ctx, taskScheduler);
 

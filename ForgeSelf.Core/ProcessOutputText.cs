@@ -35,6 +35,32 @@ public static class ProcessOutputText
     /// <summary>严格 UTF-8：非法字节序列必抛，作为"确系 UTF-8"的判据。</summary>
     private static readonly UTF8Encoding StrictUtf8 = new(false, true); // 不出 BOM + 非法字节必抛
 
+    /// <summary>PC-011 逃逸门：解码结果含 U+00A0–U+024F（拉丁补充/扩展 A/B）且全文无 CJK 才视为可疑。</summary>
+    private static bool LooksLikeAnsiMisreadAsUtf8(string utf8Text)
+    {
+        var hasSuspect = false;
+        foreach (var c in utf8Text)
+        {
+            if (c is >= '\u00A0' and <= '\u024F')
+            {
+                hasSuspect = true;
+                break;
+            }
+        }
+        return hasSuspect && !ContainsCjk(utf8Text);
+    }
+
+    /// <summary>是否含 CJK 表意文字（含兼容表意、全角形式）。</summary>
+    private static bool ContainsCjk(string s)
+    {
+        foreach (var c in s)
+        {
+            if (c is >= '\u2E80' and <= '\u9FFF' or >= '\uF900' and <= '\uFAFF' or >= '\uFF00' and <= '\uFFEF')
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>解码结果：文本 + 实际生效的解码方式（调用方据此履行日志义务，见 PILOT-073 FR-3）。</summary>
     /// <param name="Text">还原后的文本。</param>
     /// <param name="EncodingUsed">"utf8" / "utf8-bom" / "ansi-<codepage>" / "utf8-lossy" 之一。</param>
@@ -87,7 +113,23 @@ public static class ProcessOutputText
         // 2. 严格 UTF-8：合法即采信（dotnet/pnpm/node/Git 等现代 CLI 的输出面）。
         try
         {
-            return new Decoded(StrictUtf8.GetString(raw), "utf8");
+            var text = StrictUtf8.GetString(raw);
+
+            // 2.5 PC-011 逃逸门（2026-11-15 输入22 实测：PowerShell 5.1 `ls` 表头「目录:」→「Ŀ¼:」）：
+            // GBK 等双字节 ANSI 字节可能**恰好构成合法 UTF-8**（如「目录」C4 BF C2 BC → U+013F U+00BC），
+            // 「合法即采信」对此盲区。窄门判据：解码文本含可疑拉丁扩展字符（U+00A0–U+024F）且全文无 CJK，
+            // 且 ANSI 往返成功、结果含 CJK → 才翻案为 ANSI。已知局限（原理性不可分，按 CJK 区域设置偏向）：
+            // 真正的纯拉丁重音 UTF-8 文本（如单独的 café）在此类码页环境会被误判为 ANSI。
+            if (LooksLikeAnsiMisreadAsUtf8(text) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var ansi = DecodeAnsi(raw, out var codepage);
+                if (ansi != null && ContainsCjk(ansi))
+                {
+                    return new Decoded(ansi, $"ansi-{codepage}");
+                }
+            }
+
+            return new Decoded(text, "utf8");
         }
         catch (DecoderFallbackException)
         {

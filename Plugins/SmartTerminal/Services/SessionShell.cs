@@ -174,12 +174,32 @@ public sealed class SessionShell : IDisposable
             _process.StandardInput.Flush();
 
             var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromMinutes(2));
+            string done2 = "";
+            var phase2 = false;
             string snapshot;
             while (DateTime.UtcNow < deadline)
             {
                 snapshot = Snapshot();
-                if (snapshot.Contains(done, StringComparison.Ordinal))
+                if (!phase2 && snapshot.Contains(done, StringComparison.Ordinal))
+                {
+                    if (shellKind is "cmd")
+                    {
+                        // PC-036(C)：交互式 cmd 的 %VAR% 在整行解析期展开（命令执行前），同行拿不到
+                        // 执行后的 cwd（实测 `call echo`/`%%` 转义均不可用）。两行协议：标记行结束后
+                        // 再发一条采集行，其 %CD% 在命令完成后才被解析展开。
+                        phase2 = true;
+                        done2 = $"__ST_CWD_{Guid.NewGuid().ToString("N")[..12]}__";
+                        _process.StandardInput.WriteLine($"echo {done2}::%CD%");
+                        _process.StandardInput.Flush();
+                        continue;
+                    }
                     return Parse(snapshot, done, token, shellKind);
+                }
+                if (phase2 && snapshot.Contains(done2, StringComparison.Ordinal))
+                {
+                    var baseResult = Parse(snapshot, done, token, shellKind);
+                    return ApplyCmdCwd(baseResult, snapshot, done2);
+                }
                 if (!IsAlive)
                     return new ShellCommandResult(SnapshotOutput(snapshot, done), 1, Cwd);
                 Thread.Sleep(40);
@@ -215,7 +235,9 @@ public sealed class SessionShell : IDisposable
     {
         try
         {
-            var result = Run("pwd", shellKind, TimeSpan.FromSeconds(5));
+            // PC-036：cmd 没有 pwd，`cd`（无参数）即打印当前目录。
+            var probe = shellKind is "cmd" ? "cd" : "pwd";
+            var result = Run(probe, shellKind, TimeSpan.FromSeconds(5));
             if (!string.IsNullOrWhiteSpace(result.Cwd) && result.Cwd != "~")
                 Cwd = result.Cwd;
         }
@@ -271,6 +293,21 @@ public sealed class SessionShell : IDisposable
         }
         if (!string.IsNullOrWhiteSpace(cwd)) Cwd = cwd;
         return new ShellCommandResult(SecretRedactor.Redact(before.TrimEnd()), exit, Cwd);
+    }
+
+    /// <summary>cmd 第二行采集：取**最后一次**出现的采集标记（cmd 会回显输入行，真输出行在其后），
+    /// `::` 后即命令执行完成后的 %CD%。</summary>
+    private ShellCommandResult ApplyCmdCwd(ShellCommandResult baseResult, string snapshot, string done2)
+    {
+        var idx = snapshot.LastIndexOf(done2, StringComparison.Ordinal);
+        if (idx < 0) return baseResult;
+        var after = snapshot[(idx + done2.Length)..].Trim();
+        if (after.StartsWith("::", StringComparison.Ordinal))
+        {
+            var p = after[2..].Trim();
+            if (p.Length > 0 && p != "~") Cwd = p;
+        }
+        return new ShellCommandResult(baseResult.Output, baseResult.ExitCode, Cwd);
     }
 
     private string Snapshot()

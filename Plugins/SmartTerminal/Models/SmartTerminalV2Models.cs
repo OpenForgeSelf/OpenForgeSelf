@@ -53,6 +53,9 @@ public sealed class SubmitCommandResponse
     public string Risk { get; init; } = string.Empty;
     public BlockDto? Block { get; init; }
     public ApprovalDto? Approval { get; init; }
+
+    /// <summary>PC-036(C)：命令执行后的会话工作目录（cmd 两行采集 / PowerShell `::cwd`），供前端同步 tab 展示。</summary>
+    public string? Cwd { get; init; }
 }
 
 public sealed class ApprovalDto

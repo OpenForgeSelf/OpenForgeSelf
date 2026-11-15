@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using ForgeSelf.Core;
 using Xunit;
@@ -69,6 +69,45 @@ public class ProcessOutputTextTests
     }
 
     [Fact]
+    public void GbkChineseBytes_CoupledAsValidUtf8_PreferAnsiWhenAnsiYieldsCjk()
+    {
+        // PC-011 逃逸（2026-11-15 实测：PowerShell 5.1 `ls` 表头「目录:」在页面显示为「Ŀ¼:」）：
+        // GBK 双字节「目录」(C4 BF C2 BC) 恰好构成合法 UTF-8 的拉丁扩展序列（U+013F U+00BC），
+        // 严格 UTF-8「合法即采信」的判据对此盲区。修复期望：解码文本出现可疑拉丁扩展且不含 CJK，
+        // 而 ANSI 往返成功且结果含 CJK 时 → 采信 ANSI。
+        var acp = GetACP();
+        var raw = ToAnsiBytesAllowingUtf8Collision("    目录: demo/示例", acp);
+        if (raw == null)
+        {
+            // 65001：子进程按 UTF-8 写出，该盲区形态在环境上不存在，退化为验证 UTF-8 采信。
+            var utf8 = Encoding.UTF8.GetBytes("    目录: demo/示例");
+            var r = ProcessOutputText.Decode(utf8);
+            Assert.Equal("    目录: demo/示例", r.Text);
+            Assert.Equal("utf8", r.EncodingUsed);
+            return;
+        }
+        var utf8Probe = Encoding.UTF8.GetString(raw);
+        Assert.NotEqual("    目录: demo/示例", utf8Probe); // 前提自查：该字节串确实会被 UTF-8 误读
+
+        var result = ProcessOutputText.Decode(raw);
+
+        Assert.Equal("    目录: demo/示例", result.Text);
+        Assert.StartsWith("ansi-", result.EncodingUsed);
+    }
+
+    [Fact]
+    public void Utf8ChineseWithLatinAccent_KeepsUtf8Verdict()
+    {
+        // 对照护栏：UTF-8 解码结果本身含 CJK（真中文）时，即便夹杂拉丁重音也不翻案——
+        // 翻案只在「可疑拉丁扩展且全文无 CJK」的窄门触发。
+        var text = "中文 café 列表";
+        var result = ProcessOutputText.Decode(Encoding.UTF8.GetBytes(text));
+
+        Assert.Equal(text, result.Text);
+        Assert.Equal("utf8", result.EncodingUsed);
+    }
+
+    [Fact]
     public void SystemAnsiBytes_FallBackToAnsiDecode()
     {
         var acp = GetACP();
@@ -128,6 +167,29 @@ public class ProcessOutputTextTests
             {
                 return raw;
             }
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// PC-011 逃逸测试专用：与 <see cref="ToAnsiBytesOrThrow"/> 唯一差别是**允许**「ANSI 字节对严格
+    /// UTF-8 也合法」的撞车形态——那正是被测盲区本身（旧 helper 把它当"不可构造"拒收，
+    /// 测试基建自己挡住了逃逸形态的入册，见 2026-11-15 逃逸分析）。
+    /// </summary>
+    private static byte[]? ToAnsiBytesAllowingUtf8Collision(string text, uint acp)
+    {
+        if (acp == 65001) return null;
+        try
+        {
+            var needed = WideCharToMultiByte(acp, 0, text, text.Length, null, 0, IntPtr.Zero, IntPtr.Zero);
+            if (needed <= 0) return null;
+            var buf = new byte[needed];
+            var written = WideCharToMultiByte(acp, 0, text, text.Length, buf, buf.Length, IntPtr.Zero, IntPtr.Zero);
+            if (written <= 0) return null;
+            return buf[..written];
         }
         catch (Exception)
         {

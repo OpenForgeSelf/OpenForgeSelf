@@ -99,13 +99,7 @@ public sealed partial class TerminalSessionService : ITerminalSessionService, IS
                 "没有可用的终端外壳。Windows 请确认 cmd/powershell/pwsh 在 PATH；Linux/macOS 请确认 bash/zsh/sh 可用。");
         }
 
-        var cwd = string.IsNullOrWhiteSpace(request.Cwd)
-            ? Environment.CurrentDirectory
-            : Path.GetFullPath(request.Cwd);
-        if (!Directory.Exists(cwd))
-        {
-            throw new DirectoryNotFoundException($"工作目录不存在: {cwd}");
-        }
+        var cwd = StStartDir.Resolve(request.Cwd);
 
         var mode = request.PermissionMode ?? GetGlobalPermissionMode();
         var session = new SessionState

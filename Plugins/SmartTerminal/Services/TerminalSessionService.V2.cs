@@ -303,7 +303,8 @@ public sealed partial class TerminalSessionService
             Status = running.Status == "done" ? "done" : "running",
             Decision = decision,
             Risk = risk,
-            Block = ToBlockDto(running)
+            Block = ToBlockDto(running),
+            Cwd = s.Cwd
         };
     }
 
@@ -379,7 +380,8 @@ public sealed partial class TerminalSessionService
             Status = block.Status == "done" ? "done" : "running",
             Decision = "allow",
             Risk = pending.Dto.Risk,
-            Block = ToBlockDto(block)
+            Block = ToBlockDto(block),
+            Cwd = s.Cwd
         };
     }
 
@@ -752,15 +754,7 @@ public sealed partial class TerminalSessionService
         return string.IsNullOrWhiteSpace(server) ? "ui" : server;
     }
 
-    private static string ResolveLocalCwd(string? cwd)
-    {
-        var path = string.IsNullOrWhiteSpace(cwd)
-            ? (Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) is var home && Directory.Exists(home) ? home : Environment.CurrentDirectory)
-            : Path.GetFullPath(cwd);
-        if (!Directory.Exists(path))
-            throw new SmartTerminalException("invalid_request", "工作目录不存在: " + path, 400);
-        return path;
-    }
+    private static string ResolveLocalCwd(string? cwd) => StStartDir.Resolve(cwd);
 
     private static string PublicId(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
 

@@ -40,6 +40,8 @@
 | 流式 Responses usage 三字段为 0 / 未向 Chat 上游要 include_usage | PC-031 |
 | 非流式 Responses 格式错误 / message 缺 id / output_text 缺 annotations | PC-032 |
 | 出站请求 tool_choice 与 tools 从属关系 / 同协议直通透传 / BadRequestError tool_choice must be set | PC-033 |
+| 会话起始目录 ~ 占位符 / startDir 解析 / 工作目录报错泄露宿主路径 | PC-035 |
+| 终端会话 cwd 跟踪 / cd 后目录不更新 / cmd 包裹命令与标记协议 / shell kind 新增 | PC-036 |
 
 ## 台账总表
 
@@ -55,7 +57,7 @@
 | PC-008 | 外部 MCP 协议客户端侧合规缺失（clientInfo/initialized/会话头/端点 data 契约） | guarded | G1+G2×3+G3 active（修复批 2026-10-17） | 0 | [PC-008](PC-008-mcp-external-client-protocol.md) |
 | PC-009 | HTTP 封装成功路径无条件 res.json()，204/空体解析崩溃被 catch 吞成无操作 | guarded-partial | G1+G3 active，G2 planned（TODO，expires 2026-12-31） | 1 | [PC-009](PC-009-http-204-empty-body-json-parse.md) |
 | PC-010 | stdio 外部进程启动与消息帧协商脱节（Windows shim/双帧协商/null params 沉默） | guarded | G1+G2×3+G3 active + e2e 零容忍用例（修复批 2026-10-18） | 0 | [PC-010](PC-010-mcp-stdio-launch-and-framing.md) |
-| PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073） | 1（复发：11-13 smart-terminal 插件合入重蹈；守卫未逃逸——拦红但修复回流 8 天无 owner，见案例 §8） | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
+| PC-011 | 子进程输出固定码页解码（GBK↔UTF-8 双向毁；裁决器单点 ProcessOutputText） | guarded | G1×2+G2+G3 active（修复批 2026-10-22，PILOT-073；11-15 补怀疑门+撞车形态测试） | 2（复发：11-13 插件合入重蹈拦红；**逃逸：11-15 合法 UTF-8 偶合 ANSI 入运行时**，启发式语义盲区，见案例） | [PC-011](PC-011-process-output-fixed-codepage-decode.md) |
 | PC-012 | 设置容器内的提供方编辑未使用视口级弹窗 | guarded | G1 active | 0 | [PC-012](PC-012-settings-provider-edit-container-clipping.md) |
 | PC-013 | 模型选择静默降级 + 上游空响应当成功 | guarded | G1+G2×2 active | 1（复发：10-30 IM 网关入口未接链；逃逸：041 门禁未覆盖空流） | [PC-013](PC-013-silent-model-fallback-empty-response.md) |
 | PC-014 | 测试 ctor 手搓 DAL.AddConnStr 换库（Reset 换 Database + 会话残留 → 吞行/吞表） | guarded | G2 active（XCodeTestFixtureIronRuleTests） | 0 | [PC-014](PC-014-test-ctor-rebind-connstr.md) |
@@ -79,6 +81,8 @@
 | PC-032 | 非流式 Responses 回包缺 message.id 与 output_text.annotations，AI SDK 判格式错误 | guarded | G1 active | 0 | [PC-032](PC-032-responses-nonstream-shape.md) |
 | PC-033 | 出站 tool_choice 无 tools 未丢弃 → 上游 400（BadRequestError） | guarded | G1×2+G2×4 active（含 pipeline 咽喉点守卫） | 0 | [PC-033](PC-033-tool-choice-without-tools.md) |
 | PC-034 | 插件 DI 构造服务经子容器解析宿主/跨插件契约恒 null | guarded | G1+G2 active（allowlist 空账） | 0 | [PC-034](PC-034-plugin-di-service-host-contract-miss.md) |
+| PC-035 | 会话起始目录占位符（~）未解析，报错拼接解析路径泄露宿主进程目录 | guarded | G1 active | 1（延期债到期：11-13 分诊 TODO、11-15 实测命中） | [PC-035](PC-035-tilde-startdir-unresolved-info-leak.md) |
+| PC-036 | cmd 会话执行后 cwd 采集缺失（交互式 %VAR% 解析期展开 + 响应无 cwd + 前端不回写） | guarded | G1 active（真实 cmd 进程集成测试） | 0 | [PC-036](PC-036-cmd-session-cwd-capture-missing.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

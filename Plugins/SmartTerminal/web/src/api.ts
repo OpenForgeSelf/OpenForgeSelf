@@ -48,7 +48,7 @@ export const api = {
   runCommand: (id: string, command: string, source: CommandSource) =>
     apiPost<CommandResult>(`${API_PREFIX}/sessions/${id}/commands`, { command, source }),
   blocks: (id: string, afterSeq = 0) =>
-    apiGet<{ prompt?: string; status?: string; items: Block[] }>(`${API_PREFIX}/sessions/${id}/blocks?afterSeq=${afterSeq}`),
+    apiGet<{ prompt?: string; cwd?: string; status?: string; items: Block[] }>(`${API_PREFIX}/sessions/${id}/blocks?afterSeq=${afterSeq}`),
   history: (id: string) => apiGet<string[] | { items: string[] }>(`${API_PREFIX}/sessions/${id}/commands`),
 
   approvals: (sessionId?: string) => {

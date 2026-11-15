@@ -312,7 +312,7 @@ public sealed partial class TerminalSessionService
     {
         var s = RequireOpen(sessionId);
         var items = s.Blocks.Where(b => b.Seq > afterSeq).OrderBy(b => b.Seq).Select(ToBlockDto).ToList();
-        return new BlockListDto { Prompt = s.Prompt, Status = SessionStatus(s), Items = items };
+        return new BlockListDto { Prompt = s.Prompt, Cwd = s.Cwd, Status = SessionStatus(s), Items = items };
     }
 
     public IReadOnlyList<BlockDto> ListCommandHistory(string sessionId)

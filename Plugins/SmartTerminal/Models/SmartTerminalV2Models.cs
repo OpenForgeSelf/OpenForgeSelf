@@ -79,6 +79,7 @@ public sealed class ResolveApprovalRequest
 public sealed class BlockListDto
 {
     public string Prompt { get; init; } = string.Empty;
+    public string? Cwd { get; init; }
     public string Status { get; init; } = string.Empty;
     public IReadOnlyList<BlockDto> Items { get; init; } = Array.Empty<BlockDto>();
 }

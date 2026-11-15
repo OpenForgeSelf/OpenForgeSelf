@@ -82,7 +82,7 @@ const showNew = ref(false)
 const newKind = ref<SessionKind>('local')
 const newTitle = ref('')
 const newShellId = ref('bash')
-const newCwd = ref('~')
+const newCwd = ref('')
 const newHost = ref('')
 const newPort = ref(22)
 const newUser = ref('')
@@ -478,7 +478,7 @@ function openNew(kind: SessionKind = 'local') {
   showNew.value = true
   newKind.value = kind
   newTitle.value = ''
-  newCwd.value = kind === 'local' ? '~' : '~'
+  newCwd.value = ''
   newHost.value = ''
   newPort.value = 22
   newUser.value = ''
@@ -516,7 +516,7 @@ async function submitNew() {
       kind: 'local',
       title: newTitle.value.trim() || undefined,
       shellId: newShellId.value,
-      cwd: newCwd.value.trim() || '~',
+      cwd: newCwd.value.trim() || undefined,
     })
     return
   }
@@ -994,6 +994,7 @@ function startPoll(s: ViewSession) {
         for (const b of pack.items) mergeBlock(s, b)
       }
       if (pack?.prompt) s.prompt = pack.prompt // PC-036(C)：服务端 cd 后重建提示符，轮询同步（ps1 优先用服务端 prompt）
+      if (pack?.cwd) s.cwd = pack.cwd
       if (pack?.status === 'disconnected') s.status = 'disconnected'
       if (!s.blocks.some((b) => b.status === 'running')) {
         if (pollTimer) clearInterval(pollTimer)
@@ -1462,7 +1463,7 @@ function approvalTitle(ap: Approval) {
         </div>
         <div class="field">
           <label>起始目录</label>
-          <input v-model="newCwd" />
+          <input v-model="newCwd" placeholder="用户主目录" />
         </div>
       </template>
       <template v-else>

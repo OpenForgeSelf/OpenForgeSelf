@@ -21,13 +21,13 @@ public static class StStartDir
         if (raw is "~" or "~/" or "~\\")
         {
             if (!hasHome)
-                throw new SmartTerminalException("invalid_request", "工作目录不存在: ~", 400);
+                throw new SmartTerminalException("invalid_cwd", "工作目录不存在: ~", 400);
             path = home;
         }
         else if (raw.StartsWith("~/") || raw.StartsWith("~\\"))
         {
             if (!hasHome)
-                throw new SmartTerminalException("invalid_request", "工作目录不存在: " + raw, 400);
+                throw new SmartTerminalException("invalid_cwd", "工作目录不存在: " + raw, 400);
             path = Path.Combine(home, raw[2..]);
         }
         else
@@ -42,10 +42,10 @@ public static class StStartDir
         }
         catch (Exception)
         {
-            throw new SmartTerminalException("invalid_request", "工作目录不存在: " + Display(raw, path), 400);
+            throw new SmartTerminalException("invalid_cwd", "工作目录不存在: " + Display(raw, path), 400);
         }
         if (!Directory.Exists(full))
-            throw new SmartTerminalException("invalid_request", "工作目录不存在: " + Display(raw, full), 400);
+            throw new SmartTerminalException("invalid_cwd", "工作目录不存在: " + Display(raw, full), 400);
         return full;
     }
 

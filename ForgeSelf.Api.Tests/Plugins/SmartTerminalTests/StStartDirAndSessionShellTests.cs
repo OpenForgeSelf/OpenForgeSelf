@@ -26,10 +26,13 @@ public class StStartDirTests
     public void Resolve_TildeWithSubpath_CombinesUnderUserProfile()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var child = Directory.GetDirectories(home).Select(Path.GetFileName).FirstOrDefault(n => !string.IsNullOrEmpty(n) && !n.StartsWith('.'));
+        if (child is null)
+            child = Path.GetFileName(Directory.GetDirectories(home).First());
 
-        var resolved = StStartDir.Resolve("~/Documents");
+        var resolved = StStartDir.Resolve("~/" + child);
 
-        Assert.Equal(Path.Combine(home, "Documents"), resolved);
+        Assert.Equal(Path.Combine(home, child), resolved);
     }
 
     [Fact]
@@ -47,6 +50,7 @@ public class StStartDirTests
         // 脱敏回归：相对路径不存在时报错只回显用户输入，不得拼接宿主进程工作目录（BUG#1 泄露面）。
         var ex = Assert.Throws<SmartTerminalException>(() => StStartDir.Resolve("no-such-dir-st-test"));
 
+        Assert.Equal("invalid_cwd", ex.Code);
         Assert.Equal("工作目录不存在: no-such-dir-st-test", ex.Message);
         Assert.DoesNotContain(Environment.CurrentDirectory, ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -58,6 +62,7 @@ public class StStartDirTests
 
         var ex = Assert.Throws<SmartTerminalException>(() => StStartDir.Resolve(missing));
 
+        Assert.Equal("invalid_cwd", ex.Code);
         Assert.Contains(missing, ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

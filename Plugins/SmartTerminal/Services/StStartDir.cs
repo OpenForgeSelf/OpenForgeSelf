@@ -14,7 +14,11 @@ public static class StStartDir
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var hasHome = !string.IsNullOrEmpty(home) && Directory.Exists(home);
         if (string.IsNullOrWhiteSpace(cwd))
-            return hasHome ? home : Environment.CurrentDirectory;
+        {
+            if (!hasHome)
+                throw new SmartTerminalException("invalid_cwd", "无法展开起始目录：当前用户主目录不可用", 400);
+            return home;
+        }
 
         var raw = cwd.Trim();
         string path;
@@ -29,6 +33,13 @@ public static class StStartDir
             if (!hasHome)
                 throw new SmartTerminalException("invalid_cwd", "工作目录不存在: " + raw, 400);
             path = Path.Combine(home, raw[2..]);
+        }
+        else if (raw == "$HOME" || raw.StartsWith("$HOME/") || raw.StartsWith("$HOME\\"))
+        {
+            var envHome = Environment.GetEnvironmentVariable("HOME");
+            if (string.IsNullOrWhiteSpace(envHome))
+                throw new SmartTerminalException("invalid_cwd", "无法展开起始目录: $HOME", 400);
+            path = raw.Length == 5 ? envHome : Path.Combine(envHome, raw[6..]);
         }
         else
         {

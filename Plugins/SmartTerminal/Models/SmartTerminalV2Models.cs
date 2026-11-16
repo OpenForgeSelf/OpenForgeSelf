@@ -54,8 +54,11 @@ public sealed class SubmitCommandResponse
     public BlockDto? Block { get; init; }
     public ApprovalDto? Approval { get; init; }
 
-    /// <summary>PC-036(C)：命令执行后的会话工作目录（cmd 两行采集 / PowerShell `::cwd`），供前端同步 tab 展示。</summary>
+    /// <summary>命令执行后的会话工作目录（cmd 两行采集 / PowerShell `::cwd`），供前端同步 tab 展示。</summary>
     public string? Cwd { get; init; }
+
+    /// <summary>与 Cwd 同步的提示符，便于命令回包后直接写回界面。</summary>
+    public string? Prompt { get; init; }
 }
 
 public sealed class ApprovalDto

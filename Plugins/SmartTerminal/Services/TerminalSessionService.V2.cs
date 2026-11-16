@@ -289,7 +289,9 @@ public sealed partial class TerminalSessionService
                 Decision = decision,
                 Risk = risk,
                 Block = ToBlockDto(block),
-                Approval = approval
+                Approval = approval,
+                Cwd = s.Cwd,
+                Prompt = s.Prompt
             };
         }
 
@@ -304,7 +306,8 @@ public sealed partial class TerminalSessionService
             Decision = decision,
             Risk = risk,
             Block = ToBlockDto(running),
-            Cwd = s.Cwd
+            Cwd = s.Cwd,
+            Prompt = s.Prompt
         };
     }
 
@@ -366,7 +369,9 @@ public sealed partial class TerminalSessionService
                 Decision = "deny",
                 Risk = pending.Dto.Risk,
                 Block = ToBlockDto(block),
-                Approval = pending.Dto
+                Approval = pending.Dto,
+                Cwd = s.Cwd,
+                Prompt = s.Prompt
             };
         }
 
@@ -381,7 +386,8 @@ public sealed partial class TerminalSessionService
             Decision = "allow",
             Risk = pending.Dto.Risk,
             Block = ToBlockDto(block),
-            Cwd = s.Cwd
+            Cwd = s.Cwd,
+            Prompt = s.Prompt
         };
     }
 
@@ -420,6 +426,8 @@ public sealed partial class TerminalSessionService
         }
         if (string.IsNullOrWhiteSpace(request.Name))
             request.Name = kind == "ssh" ? $"{request.User}@{request.Host}" : "本机";
+        if (kind == "local" && !string.IsNullOrWhiteSpace(request.Cwd))
+            StStartDir.Resolve(request.Cwd);
         return _catalog.CreateProfile(request, source);
     }
 
@@ -427,6 +435,10 @@ public sealed partial class TerminalSessionService
     {
         if (!string.IsNullOrEmpty(request.Password))
             throw new SmartTerminalException("password_not_persistable", "密码不得写入已保存配置", 400);
+        var prev = _catalog.GetProfile(id) ?? throw SmartTerminalException.NotFound("配置不存在");
+        var kind = NormalizeKind(request.Kind ?? prev.Kind);
+        if (kind == "local" && !string.IsNullOrWhiteSpace(request.Cwd))
+            StStartDir.Resolve(request.Cwd);
         return _catalog.UpdateProfile(id, request);
     }
 

@@ -66,8 +66,8 @@ const railOpen = ref(false)
 const railTab = ref<RailTab>('ai')
 const selectedBlockId = ref<string | null>(null)
 const chats = ref<Record<string, ChatMessage[]>>({})
-const chatDraft = ref('')
-const thinking = ref(false)
+const chatDrafts = ref<Record<string, string>>({})
+const thinkingIds = ref<Record<string, boolean>>({})
 const toastText = ref('')
 const toastTestId = ref<string | undefined>()
 const profileQuery = ref('')
@@ -108,11 +108,25 @@ const pendingLaunchCommands = ref<string[]>([])
 let bootstrapped = false
 const queuedOpens: string[] = []
 let toastTimer: ReturnType<typeof setTimeout> | undefined
-let pollTimer: ReturnType<typeof setInterval> | undefined
+const pollTimers = new Map<string, ReturnType<typeof setInterval>>()
 let seq = 100
 let persistReady = false
 
 const active = computed(() => sessions.value.find((s) => s.id === activeId.value) ?? null)
+const chatDraft = computed({
+  get: () => (active.value ? chatDrafts.value[active.value.id] ?? '' : ''),
+  set: (v: string) => {
+    if (!active.value) return
+    chatDrafts.value = { ...chatDrafts.value, [active.value.id]: v }
+  },
+})
+const thinking = computed(() => !!(active.value && thinkingIds.value[active.value.id]))
+const visibleApproval = computed(() => {
+  const ap = approval.value
+  if (!ap) return null
+  if (ap.sessionId && ap.sessionId !== activeId.value) return null
+  return ap
+})
 const filteredProfiles = computed(() => {
   const q = profileQuery.value.trim().toLowerCase()
   return profiles.value.filter((p) => {
@@ -172,8 +186,12 @@ function profileSummary(p: Profile): string {
 }
 
 function paneMeta(s: ViewSession): string {
-  if (s.kind === 'ssh') return `${s.user ?? ''}@${s.host ?? ''}`
-  return `${s.shell ?? 'shell'} · ${s.cwd ?? '~'}`
+  const cwd = s.cwd?.trim()
+  if (s.kind === 'ssh') {
+    const who = `${s.user ?? ''}@${s.host ?? ''}`
+    return cwd ? `${who} · ${cwd}` : who
+  }
+  return `${s.shell ?? 'shell'} · ${cwd || '用户主目录'}`
 }
 
 function ps1(s: ViewSession): string {
@@ -245,8 +263,8 @@ function applyStory(id: StoryId) {
   secrets.value = clone(FIXTURE_SECRETS)
   snippets.value = clone(FIXTURE_SNIPPETS)
   chats.value = {}
-  chatDraft.value = ''
-  thinking.value = false
+  chatDrafts.value = {}
+  thinkingIds.value = {}
   showNew.value = false
   passwordOpen.value = false
   approval.value = null
@@ -439,6 +457,7 @@ async function loadLive(fromRetry = false) {
         try {
           const pack = await api.blocks(s.id, 0)
           if (pack?.items) s.blocks = pack.items
+          applySessionPack(s, pack)
         } catch {
           // keep empty
         }
@@ -797,6 +816,8 @@ function profileOpenStatus(p: Profile): 'on' | 'off' | 'none' {
 async function closeTab(id: string) {
   const idx = sessions.value.findIndex((s) => s.id === id)
   if (idx < 0) return
+  stopPoll(id)
+  if (approval.value?.sessionId === id) approval.value = null
   if (!isFixture.value) {
     try {
       await api.closeSession(id)
@@ -808,6 +829,13 @@ async function closeTab(id: string) {
   const neighbor = next[idx] ?? next[idx - 1] ?? null
   sessions.value = next
   activeId.value = neighbor?.id ?? null
+  const { [id]: _draft, ...draftRest } = chatDrafts.value
+  chatDrafts.value = draftRest
+  const { [id]: _think, ...thinkRest } = thinkingIds.value
+  thinkingIds.value = thinkRest
+  if (selectedBlockId.value && !neighbor?.blocks.some((b) => b.id === selectedBlockId.value)) {
+    selectedBlockId.value = null
+  }
   bumpPage()
   if (neighbor) focusPrompt()
 }
@@ -917,7 +945,23 @@ async function submitCommand(command: string, source: CommandSource) {
   }
 }
 
+function applyFixtureCwd(s: ViewSession, cmd: string) {
+  const m = cmd.trim().match(/^cd\s+(.+)$/i)
+  if (!m) return
+  const dest = m[1].trim().replace(/^['"]|['"]$/g, '')
+  if (!dest || dest === '-') return
+  const cur = (s.cwd || '').trim()
+  if (dest === '~' || dest === '$HOME') s.cwd = '/home/user'
+  else if (dest.startsWith('/') || /^[A-Za-z]:[\\/]/.test(dest)) s.cwd = dest
+  else if (cur) s.cwd = `${cur.replace(/[\\/]+$/, '')}/${dest}`
+  else s.cwd = dest
+  const user = s.user || 'user'
+  const host = s.kind === 'ssh' ? s.host || 'host' : 'localhost'
+  s.prompt = `${user}@${host}:${s.cwd}$`
+}
+
 function finishFixtureCommand(s: ViewSession, cmd: string, failed = false) {
+  applyFixtureCwd(s, cmd)
   const output = failed ? `命令失败：${cmd}` : `(fixture) ${cmd}\nok`
   s.blocks = [
     ...s.blocks,
@@ -983,27 +1027,47 @@ async function cancelApproval() {
   focusPrompt()
 }
 
+function applySessionPack(s: ViewSession, pack?: { prompt?: string; cwd?: string; status?: string } | null) {
+  if (!pack) return
+  if (pack.prompt) s.prompt = pack.prompt
+  if (pack.cwd) s.cwd = pack.cwd
+  if (pack.status === 'disconnected' || pack.status === 'connected' || pack.status === 'connecting') {
+    s.status = pack.status
+  }
+}
+
+function stopPoll(id: string) {
+  const timer = pollTimers.get(id)
+  if (timer) clearInterval(timer)
+  pollTimers.delete(id)
+}
+
 function startPoll(s: ViewSession) {
   if (isFixture.value) return
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = setInterval(async () => {
+  stopPoll(s.id)
+  const timer = setInterval(async () => {
     try {
       const after = s.blocks.reduce((m, b) => Math.max(m, b.seq), 0)
       const pack = await api.blocks(s.id, Math.max(0, after - 1))
       if (pack?.items) {
         for (const b of pack.items) mergeBlock(s, b)
       }
-      if (pack?.prompt) s.prompt = pack.prompt // PC-036(C)：服务端 cd 后重建提示符，轮询同步（ps1 优先用服务端 prompt）
-      if (pack?.cwd) s.cwd = pack.cwd
-      if (pack?.status === 'disconnected') s.status = 'disconnected'
+      applySessionPack(s, pack)
       if (!s.blocks.some((b) => b.status === 'running')) {
-        if (pollTimer) clearInterval(pollTimer)
-        pollTimer = undefined
+        if (!pack?.cwd) {
+          try {
+            applySessionPack(s, await api.session(s.id))
+          } catch {
+            // prompt from the pack may already be enough
+          }
+        }
+        stopPoll(s.id)
       }
     } catch {
       // next tick
     }
   }, 800)
+  pollTimers.set(s.id, timer)
 }
 
 function onPromptKey(ev: KeyboardEvent, s: ViewSession) {
@@ -1072,14 +1136,22 @@ async function sendChat() {
     return
   }
   chats.value = { ...chats.value, [s.id]: [...(chats.value[s.id] ?? []), { role: 'user', content: text }] }
-  chatDraft.value = ''
-  thinking.value = true
+  chatDrafts.value = { ...chatDrafts.value, [s.id]: '' }
+  thinkingIds.value = { ...thinkingIds.value, [s.id]: true }
   try {
     if (isFixture.value) {
       await new Promise((r) => setTimeout(r, 240))
       const risk = classifyRisk(text)
       const suggested =
-        /nginx|重载/.test(text) ? 'sudo nginx -s reload' : risk === 'high' || /删除|rm -rf/.test(text) ? 'rm -rf /tmp/st-demo-orphan' : 'git status -sb'
+        text === 'st-insert-ls'
+          ? 'ls'
+          : text === 'st-run-write'
+            ? 'touch /tmp/st-write-demo'
+            : /nginx|重载/.test(text)
+              ? 'sudo nginx -s reload'
+              : risk === 'high' || /删除|rm -rf/.test(text)
+                ? 'rm -rf /tmp/st-demo-orphan'
+                : 'git status -sb'
       chats.value = {
         ...chats.value,
         [s.id]: [
@@ -1102,7 +1174,7 @@ async function sendChat() {
       [s.id]: [...(chats.value[s.id] ?? []), { role: 'assistant', content: `调用宿主模型失败：${err}` }],
     }
   } finally {
-    thinking.value = false
+    thinkingIds.value = { ...thinkingIds.value, [s.id]: false }
   }
 }
 
@@ -1166,15 +1238,15 @@ function onGlobalKey(ev: KeyboardEvent) {
     return
   }
   if (ev.key === 'Escape') {
-    if (paletteOpen.value || showNew.value || passwordOpen.value || approval.value) {
+    if (paletteOpen.value || showNew.value || passwordOpen.value || visibleApproval.value) {
       ev.preventDefault()
-      if (approval.value) void cancelApproval()
+      if (visibleApproval.value) void cancelApproval()
       else if (passwordOpen.value) cancelPassword()
       else closeModals()
     }
     return
   }
-  if (paletteOpen.value || showNew.value || passwordOpen.value || approval.value) return
+  if (paletteOpen.value || showNew.value || passwordOpen.value || visibleApproval.value) return
   const t = ev.target as HTMLElement | null
   const tag = t?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return
@@ -1197,7 +1269,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('forgeself-terminal-open', onExternalOpen)
   if (toastTimer) clearTimeout(toastTimer)
-  if (pollTimer) clearInterval(pollTimer)
+  for (const id of [...pollTimers.keys()]) stopPoll(id)
 })
 
 watch(
@@ -1206,6 +1278,13 @@ watch(
     if (id) applyStory(id)
   },
 )
+
+watch(activeId, () => {
+  const s = sessions.value.find((x) => x.id === activeId.value)
+  if (selectedBlockId.value && !s?.blocks.some((b) => b.id === selectedBlockId.value)) {
+    selectedBlockId.value = null
+  }
+})
 
 const showRail = computed(() => railOpen.value && pageState.value === 'ready')
 const layoutClass = computed(() => (showRail.value ? 'body with-rail' : 'body'))
@@ -1444,7 +1523,7 @@ function approvalTitle(ap: Approval) {
       </div>
     </main>
 
-    <div v-if="showNew || passwordOpen || approval || paletteOpen" class="mask show" @click="approval ? cancelApproval() : passwordOpen ? cancelPassword() : closeModals()" />
+    <div v-if="showNew || passwordOpen || visibleApproval || paletteOpen" class="mask show" @click="visibleApproval ? cancelApproval() : passwordOpen ? cancelPassword() : closeModals()" />
 
     <div v-if="showNew" class="glass-strong modal show" role="dialog">
       <div class="sec-title">新建会话</div>
@@ -1526,9 +1605,9 @@ function approvalTitle(ap: Approval) {
       </div>
     </div>
 
-    <div v-if="approval" class="glass-strong modal show" role="dialog">
-      <div class="sec-title">{{ approvalTitle(approval) }}</div>
-      <pre class="mono" data-testid="st-approval-cmd">{{ approval.command }}</pre>
+    <div v-if="visibleApproval" class="glass-strong modal show" role="dialog">
+      <div class="sec-title">{{ approvalTitle(visibleApproval) }}</div>
+      <pre class="mono" data-testid="st-approval-cmd">{{ visibleApproval.command }}</pre>
       <div class="key-hint">默认权限闸为 AskWrite。取消不执行，草稿可留在提示符。</div>
       <div class="row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn" type="button" data-testid="st-approval-cancel" @click="cancelApproval">取消</button>

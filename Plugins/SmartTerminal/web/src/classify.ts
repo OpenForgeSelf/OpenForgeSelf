@@ -47,12 +47,17 @@ export function classifyRisk(command: string): Risk {
   return 'write'
 }
 
+/** Official wire and audit name is highRisk (03/04). Local classifier and gallery fixtures still use high. */
+export function isHighRisk(risk: string | null | undefined): boolean {
+  return risk === 'high' || risk === 'highRisk'
+}
+
 export function decide(risk: Risk, mode: PermissionMode): Decision {
   if (risk === 'deny') return 'deny'
   if (mode === 'Auto') return 'allow'
   if (mode === 'AskWrite') return risk === 'read' ? 'allow' : 'ask'
   // AskHighRisk
-  return risk === 'high' ? 'ask' : 'allow'
+  return isHighRisk(risk) ? 'ask' : 'allow'
 }
 
 export function hardRejectReason(command: string): string {

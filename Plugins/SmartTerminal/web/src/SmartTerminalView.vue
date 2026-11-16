@@ -6,7 +6,7 @@ const pluginVersion = __PLUGIN_VERSION__
 import './styles.css'
 import { api, SESSIONS_PATH, asList } from './api'
 import { ApiError } from './http'
-import { classifyRisk, decide, hardRejectReason } from './classify'
+import { classifyRisk, decide, hardRejectReason, isHighRisk } from './classify'
 import { loadRestore, saveRestore, RESTORED_TOAST } from './restore'
 import {
   FIXTURE_CHAT,
@@ -1159,7 +1159,7 @@ async function sendChat() {
             ? 'touch /tmp/st-write-demo'
             : /nginx|重载/.test(text)
               ? 'sudo nginx -s reload'
-              : risk === 'high' || /删除|rm -rf/.test(text)
+              : isHighRisk(risk) || /删除|rm -rf/.test(text)
                 ? 'rm -rf /tmp/st-demo-orphan'
                 : 'git status -sb'
       chats.value = {
@@ -1300,7 +1300,7 @@ const showRail = computed(() => railOpen.value && pageState.value === 'ready')
 const layoutClass = computed(() => (showRail.value ? 'body with-rail' : 'body'))
 
 function approvalTitle(ap: Approval) {
-  if (ap.risk === 'high' || ap.mode === 'AskHighRisk') return 'ASKHIGHRISK · 高风险确认'
+  if (isHighRisk(ap.risk) || ap.mode === 'AskHighRisk') return 'ASKHIGHRISK · 高风险确认'
   return 'ASKWRITE · 写操作确认'
 }
 </script>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyRisk, decide } from './classify'
+import { classifyRisk, decide, isHighRisk } from './classify'
 
 describe('permission gate (AskWrite default)', () => {
   it('allows read, asks write and high-risk, hard-rejects destructive roots', () => {
@@ -19,5 +19,13 @@ describe('permission gate (AskWrite default)', () => {
     expect(decide('deny', 'Auto')).toBe('deny')
     expect(decide('write', 'AskHighRisk')).toBe('allow')
     expect(decide('high', 'AskHighRisk')).toBe('ask')
+  })
+
+  it('treats official wire highRisk the same as local high', () => {
+    expect(isHighRisk('high')).toBe(true)
+    expect(isHighRisk('highRisk')).toBe(true)
+    expect(isHighRisk('write')).toBe(false)
+    expect(decide('highRisk', 'AskWrite')).toBe('ask')
+    expect(decide('highRisk', 'AskHighRisk')).toBe('ask')
   })
 })

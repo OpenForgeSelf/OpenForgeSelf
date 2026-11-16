@@ -1,4 +1,5 @@
 using System;
+using NewLife;
 using System.ComponentModel;
 using System.Runtime.Serialization;
 using XCode;
@@ -88,5 +89,108 @@ public partial class StAudit
     [DataObjectField(false, false, true, 0)]
     [BindColumn("CreateTime", "创建时间", "")]
     public DateTime CreateTime { get => _CreateTime; set { if (OnPropertyChanging("CreateTime", value)) { _CreateTime = value; OnPropertyChanged("CreateTime"); } } }
+    #endregion
+    #region 获取/设置 字段值
+    /// <summary>获取/设置 字段值</summary>
+    /// <param name="name">字段名</param>
+    /// <returns></returns>
+    public override Object this[String name]
+    {
+        get => name switch
+        {
+            "Id" => _Id,
+            "Kind" => _Kind,
+            "SessionId" => _SessionId,
+            "ProfileId" => _ProfileId,
+            "Source" => _Source,
+            "Actor" => _Actor,
+            "CommandRedacted" => _CommandRedacted,
+            "DetailJson" => _DetailJson,
+            "CreateTime" => _CreateTime,
+            _ => base[name]
+        };
+        set
+        {
+            switch (name)
+            {
+                case "Id": _Id = value.ToLong(); break;
+                case "Kind": _Kind = Convert.ToString(value); break;
+                case "SessionId": _SessionId = Convert.ToString(value); break;
+                case "ProfileId": _ProfileId = Convert.ToString(value); break;
+                case "Source": _Source = Convert.ToString(value); break;
+                case "Actor": _Actor = Convert.ToString(value); break;
+                case "CommandRedacted": _CommandRedacted = Convert.ToString(value); break;
+                case "DetailJson": _DetailJson = Convert.ToString(value); break;
+                case "CreateTime": _CreateTime = value.ToDateTime(); break;
+                default: base[name] = value; break;
+            }
+        }
+    }
+    #endregion
+
+    #region 字段名
+    /// <summary>取得审计记录字段信息的快捷方式</summary>
+    public partial class _
+    {
+        /// <summary>主键</summary>
+        public static readonly Field Id = FindByName("Id");
+
+        /// <summary>类型</summary>
+        public static readonly Field Kind = FindByName("Kind");
+
+        /// <summary>会话</summary>
+        public static readonly Field SessionId = FindByName("SessionId");
+
+        /// <summary>配置</summary>
+        public static readonly Field ProfileId = FindByName("ProfileId");
+
+        /// <summary>来源</summary>
+        public static readonly Field Source = FindByName("Source");
+
+        /// <summary>操作者</summary>
+        public static readonly Field Actor = FindByName("Actor");
+
+        /// <summary>已脱敏命令</summary>
+        public static readonly Field CommandRedacted = FindByName("CommandRedacted");
+
+        /// <summary>明细</summary>
+        public static readonly Field DetailJson = FindByName("DetailJson");
+
+        /// <summary>创建时间</summary>
+        public static readonly Field CreateTime = FindByName("CreateTime");
+
+        static Field FindByName(String name) => Meta.Table.FindByName(name);
+    }
+
+    /// <summary>取得审计记录字段名称的快捷方式</summary>
+    public partial class __
+    {
+        /// <summary>主键</summary>
+        public const String Id = "Id";
+
+        /// <summary>类型</summary>
+        public const String Kind = "Kind";
+
+        /// <summary>会话</summary>
+        public const String SessionId = "SessionId";
+
+        /// <summary>配置</summary>
+        public const String ProfileId = "ProfileId";
+
+        /// <summary>来源</summary>
+        public const String Source = "Source";
+
+        /// <summary>操作者</summary>
+        public const String Actor = "Actor";
+
+        /// <summary>已脱敏命令</summary>
+        public const String CommandRedacted = "CommandRedacted";
+
+        /// <summary>明细</summary>
+        public const String DetailJson = "DetailJson";
+
+        /// <summary>创建时间</summary>
+        public const String CreateTime = "CreateTime";
+    }
     #endregion
 }

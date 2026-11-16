@@ -1,4 +1,5 @@
 using System;
+using NewLife;
 using System.ComponentModel;
 using System.Runtime.Serialization;
 using XCode;
@@ -71,5 +72,92 @@ public partial class StSecretRef
     [DataObjectField(false, false, true, 0)]
     [BindColumn("CreateTime", "创建时间", "")]
     public DateTime CreateTime { get => _CreateTime; set { if (OnPropertyChanging("CreateTime", value)) { _CreateTime = value; OnPropertyChanged("CreateTime"); } } }
+    #endregion
+    #region 获取/设置 字段值
+    /// <summary>获取/设置 字段值</summary>
+    /// <param name="name">字段名</param>
+    /// <returns></returns>
+    public override Object this[String name]
+    {
+        get => name switch
+        {
+            "Id" => _Id,
+            "PublicId" => _PublicId,
+            "Kind" => _Kind,
+            "Fingerprint" => _Fingerprint,
+            "Label" => _Label,
+            "Cipher" => _Cipher,
+            "CreateTime" => _CreateTime,
+            _ => base[name]
+        };
+        set
+        {
+            switch (name)
+            {
+                case "Id": _Id = value.ToLong(); break;
+                case "PublicId": _PublicId = Convert.ToString(value); break;
+                case "Kind": _Kind = Convert.ToString(value); break;
+                case "Fingerprint": _Fingerprint = Convert.ToString(value); break;
+                case "Label": _Label = Convert.ToString(value); break;
+                case "Cipher": _Cipher = Convert.ToString(value); break;
+                case "CreateTime": _CreateTime = value.ToDateTime(); break;
+                default: base[name] = value; break;
+            }
+        }
+    }
+    #endregion
+
+    #region 字段名
+    /// <summary>取得密钥引用字段信息的快捷方式</summary>
+    public partial class _
+    {
+        /// <summary>主键</summary>
+        public static readonly Field Id = FindByName("Id");
+
+        /// <summary>对外 id</summary>
+        public static readonly Field PublicId = FindByName("PublicId");
+
+        /// <summary>类型</summary>
+        public static readonly Field Kind = FindByName("Kind");
+
+        /// <summary>指纹</summary>
+        public static readonly Field Fingerprint = FindByName("Fingerprint");
+
+        /// <summary>标签</summary>
+        public static readonly Field Label = FindByName("Label");
+
+        /// <summary>密文</summary>
+        public static readonly Field Cipher = FindByName("Cipher");
+
+        /// <summary>创建时间</summary>
+        public static readonly Field CreateTime = FindByName("CreateTime");
+
+        static Field FindByName(String name) => Meta.Table.FindByName(name);
+    }
+
+    /// <summary>取得密钥引用字段名称的快捷方式</summary>
+    public partial class __
+    {
+        /// <summary>主键</summary>
+        public const String Id = "Id";
+
+        /// <summary>对外 id</summary>
+        public const String PublicId = "PublicId";
+
+        /// <summary>类型</summary>
+        public const String Kind = "Kind";
+
+        /// <summary>指纹</summary>
+        public const String Fingerprint = "Fingerprint";
+
+        /// <summary>标签</summary>
+        public const String Label = "Label";
+
+        /// <summary>密文</summary>
+        public const String Cipher = "Cipher";
+
+        /// <summary>创建时间</summary>
+        public const String CreateTime = "CreateTime";
+    }
     #endregion
 }

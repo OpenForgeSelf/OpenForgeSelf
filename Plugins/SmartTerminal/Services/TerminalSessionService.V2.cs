@@ -205,9 +205,9 @@ public sealed partial class TerminalSessionService
         s.PasswordProvided = false;
         s.UpdatedAt = DateTimeOffset.UtcNow;
         s.Prompt = BuildPrompt(s);
-        AppendBlock(s, "system", "reconnect", "已重新连接", 0, "done", "system");
+        AppendBlock(s, "system", "reconnect", "已重新连接。未恢复任何密码或密钥。", 0, "done", "system");
         AuditV2("session_reconnect", s, null, null, source);
-        return ToSessionDto(s);
+        return ToSessionDto(s, includeBlocks: true);
     }
 
     public SessionDto CloseV2(string id)

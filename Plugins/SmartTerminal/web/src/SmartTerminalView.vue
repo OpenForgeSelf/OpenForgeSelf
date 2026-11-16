@@ -867,6 +867,12 @@ async function doReconnect(id: string, password?: string) {
   const updated = await api.reconnect(id, password)
   if (updated) Object.assign(s, toView(updated, s))
   else s.status = 'connected'
+  if (!s.blocks.some((b) => b.command === 'reconnect' && (b.output || '').includes('已重新连接'))) {
+    s.blocks = [
+      ...s.blocks,
+      systemBlock(nid('b'), (s.blocks.at(-1)?.seq ?? 0) + 1, 'reconnect', '已重新连接。未恢复任何密码或密钥。'),
+    ]
+  }
   focusPrompt()
 }
 

@@ -61,6 +61,8 @@ test.describe('起源码 dev-stack · mcp-center 走查', () => {
 
     // ③ 工具表格：默认选中的是外部 MCP 服务器（Database/Filesystem/GitHub），其工具本就没有前缀；
     //    要验本批命名空间，必须切到「ForgeSelf Local」（= 宿主注册表）再看工具名。
+    //    v2.9.1 起「网关配置」为第一个页签且默认激活（2026-11-16 用户指令）→ 工具管理需显式切换。
+    await page.getByRole('tab', { name: '工具管理' }).click()
     await expect(page.locator('.table-header'), '工具表格表头未渲染').toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.table-row').first(), '工具表格无数据行').toBeVisible({ timeout: 30_000 })
     await page.locator('.server-item', { hasText: 'ForgeSelf Local' }).click()
@@ -91,7 +93,7 @@ test.describe('起源码 dev-stack · mcp-center 走查', () => {
 
     await shot(page, 'mcp-center-walkthrough')
 
-    // ⑤ 网关配置页签（第二个 tab）
+    // ⑤ 网关配置页签（v2.9.1 起为第一个 tab 且默认激活；此时处于工具管理页签，显式切回）
     await page.getByRole('tab', { name: '网关配置' }).click()
     await expect(page.locator('.gateway-status-cards'), '网关配置页签未渲染').toBeVisible({ timeout: 30_000 })
     await shot(page, 'mcp-center-gateway')

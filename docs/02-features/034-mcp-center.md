@@ -9,7 +9,7 @@ aliases: ["034-mcp-center"]
 # 034 - MCP 中心（mcp-center 插件）
 
 > 插件形态：`Plugins/McpCenter/`，运行时 id `mcp-center`，当前版本 **2.7.0**。
-> 自带界面（`/mcp-center`，双 tab：工具管理 + 网关配置），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
+> 自带界面（`/mcp-center`，双 tab：**网关配置（第一个页签且默认激活）+ 工具管理**；v2.9.1 起调序，2026-11-16 用户指令），经宿主远程加载（`frontend.entry = web/dist/index.js`）。
 > 前身：`mcp-gateway` v1.0.0（034-MCP 统一网关）更名 + 整合宿主内置「MCP 工具」管理（`api/mcp` + McpService）合并而成。
 
 ## 需求清单（稳定 ID，只增不改号）
@@ -291,8 +291,8 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 
 - 顶部：标题「MCP 中心」+ **版本徽标**（铁律 13，`GET /api/plugin` 解包 `.data` 按 id 过滤）+ **MCP 端点地址 chip**（v2.2.1：显示 `listenUrl + /mcp`，即**可直接粘进 MCP 客户端**的地址）+ 运行状态。
 - 左侧：MCP 服务器列表（名称 + 工具数），点击联动右侧工具表。
-- 工具管理 tab：搜索框 + 分类筛选（全部/系统/文件/网络/数据/开发）+ 工具表（名称/服务器/描述/状态开关/测试按钮）。
-- 网关配置 tab：3 状态卡（**MCP 服务地址 = `listenUrl + /mcp`**（v2.2.1：带 `data-mcp-url` 挂点 + 一行「客户端须使用 /mcp 路径（根路径 404）」说明）+ 复制地址 / 运行状态（仍展示真实绑定 `监听 host:port`）/ 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
+- 网关配置 tab（**第一个页签且默认激活**，v2.9.1 起；dsh 写入状态随默认页签挂载即拉）：3 状态卡（**MCP 服务地址 = `listenUrl + /mcp`**（v2.2.1：带 `data-mcp-url` 挂点 + 一行「客户端须使用 /mcp 路径（根路径 404）」说明）+ 复制地址 / 运行状态（仍展示真实绑定 `监听 host:port`）/ 访问令牌状态）+ 修改表单（监听端口 1024-65535 / 监听地址 0.0.0.0 局域网提示 / 访问令牌）+ 「保存并重启生效」（失败自动回滚）+ **外部 MCP 服务器区块（v2.1.0）**：列表（状态 ElTag：已连接/未连接/错误）+ 连接/断开/测试/工具/编辑/删除按钮 + 新增/编辑对话框（ID/名称/传输下拉/命令+参数或 URL/环境变量）+ 外部工具清单对话框。
+- 工具管理 tab（第二个页签，v2.9.1 起不再是默认）：搜索框 + 分类筛选（全部/系统/文件/网络/数据/开发）+ 工具表（名称/服务器/描述/状态开关/测试按钮）。
   - ⚠ **地址口径（v2.2.1 起）**：界面展示/复制的地址一律是**端点** `http://<host>:<port>/mcp`（客户端唯一可用地址）；后端 `McpGatewayConfig.ListenUrl` 仍是 **Kestrel 绑定串**（`http://<host>:<port>`，被 `McpGatewayServer` 的 `UseUrls` 使用），**禁止**在后端给它加路径 —— 端点由前端 `mcpEndpointUrl`（去尾斜杠 + `/mcp`，与设计系统插件 `delivery/snippets.ts` 的 `mcpEndpoint()` 同构）派生。
 - 插件前端契约：`export { McpCenterView }`（= plugin.json `frontend.views[0]`）；`vue/vue-router/pinia/element-plus` external；`<ElTabs/ElTabPane/ElSwitch/ElInputNumber/ElInput/ElCheckbox/ElButton/ElSelect/ElOption>` 需宿主 `exposeSharedDeps` 暴露（已在 `ForgeSelf.Web/src/shared/exposeSharedDeps.ts` + `public/shared/element-plus.js` 补齐）。
 
@@ -465,3 +465,13 @@ curl -X PUT http://localhost:51888/api/mcp-center/config -H 'Content-Type: appli
 
 **验证**：定向 dotnet test 32/32（新文件 McpStdioWindowsShimTests 7 + McpStdioFramingTests 4 组 + 守卫段）；插件 e2e 6/6（新「stdio npx 真实世界」零容忍用例：npx server-everything toolCount=13、握手 3689ms、UI 截图两张 `ForgeSelf.Web/screenshots/e2e/mcp-center/npx-shim-{list,test-toast}.png`）；门禁③ dev-stack API 按用户原文配置（npx @playwright/mcp@latest 无 -y）connected=True toolCount=25、/test success 3851ms；check-problem-classes 10 PC 绿 + ProblemClassRegistryTests 5/5。
 **发布**：插件 2.5.0 → **2.5.1**；本地目录更新源发布见 05-evidence（-Sign）；用户在 :51888 更新后做运行实例只读复验（门禁⑤）。
+
+## v2.9.1 「网关配置」调为第一个页签且默认激活（2026-11-16）
+
+**背景（用户指令）**：「我不是说了吗，mcp插件，网关配置放第一个页签，避免每次都要切换」——打开 `/mcp-center` 默认落在「工具管理」，用网关配置每次都要先点一次页签。
+
+**落地**（pilot `docs/ai/pilot/2026-11-16-mcpcenter-gateway-tab-first/`）：
+- `McpCenterView.vue`：①页签块换位（网关配置在前）；②`activeTab` 初值 `'tools'` → `'gateway'`（默认激活）；③dsh 写入状态 watch 加 `immediate`——网关配置成为默认页签后原「首次切换才拉」永不触发，改为挂载即拉。
+- 插件 `2.9.0` → `2.9.1`；e2e 三处同步：UI 渲染用例改断言「第一页签=网关配置 + 默认激活 + 挂载即见状态卡」（先红后绿实证：旧实现红在 `tabNames[0]='工具管理'`）；宿主侧 `mcp-tools.spec.ts` 与 live 走查 spec 增加显式切「工具管理」页签步骤。
+
+**验证**：插件前端 check/test/build 三绿（23/23）；mcp-center 全套 e2e **9/9**（1.4m，含新断言）；`mcp-tools.spec.ts` **4/4**；`design:check` PASS 无新增违例；dev-stack 起源码走查 + 截图读图见 05-evidence。

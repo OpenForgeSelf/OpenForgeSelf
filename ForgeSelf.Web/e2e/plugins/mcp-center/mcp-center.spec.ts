@@ -21,7 +21,8 @@ import { getRealApiKey } from '../../helpers/real-auth'
  *  3. 网关配置 API：GET /api/mcp-center/config → PUT 改端口与 CORS 来源白名单热重启，预检验证后恢复配置
  *  4. 外部 MCP 服务器接入（v2.1.0）：stdio / Streamable HTTP / HTTP+SSE 三传输配置→连接→工具→
  *     universal_tool 的 mcp.<服务器id>.<工具名> 转发（真连 node mock 服务器，零 mock 断言）
- *  5. 插件自带界面 /mcp-center：标题 + 版本徽标 + 服务器列表 + 工具表格 + 网关配置 tab（截图读图）
+ *  5. 插件自带界面 /mcp-center：标题 + 版本徽标 + 服务器列表 + 网关配置 tab（v2.9.1 起为第一个页签且默认激活）
+ *     + 工具表格（切到「工具管理」后断言）（截图读图）
  *  6. 地址展示（v2.2.1 / PILOT-052）：界面展示与复制的必须是**可直连的端点** `listenUrl + /mcp`
  *     （含反向腿：根地址 404 ⇒ 少了 /mcp 就连不上，这是"地址必须带路径"的事实依据）
  */
@@ -375,12 +376,11 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
     // 服务器列表（预置 4 台）
     await expect(page.locator('.server-item')).toHaveCount(4)
 
-    // 工具管理 tab（默认激活）：表头 + 至少一行工具
-    await expect(page.locator('.table-header')).toBeVisible()
-    await expect(page.locator('.table-row').first()).toBeVisible()
-
-    // 切到网关配置 tab：状态卡 + 修改表单
-    await page.getByRole('tab', { name: '网关配置' }).click()
+    // 网关配置 tab（v2.9.1 起为第一个页签且默认激活，2026-11-16 用户指令）：
+    // 断言页签头顺序 + 默认激活态 + 挂载即见状态卡（无需点击）
+    const tabNames = await page.getByRole('tab').allInnerTexts()
+    expect(tabNames[0], '第一个页签应为「网关配置」').toContain('网关配置')
+    await expect(page.getByRole('tab', { name: '网关配置' })).toHaveClass(/is-active/)
     await expect(page.locator('.gateway-status-cards')).toBeVisible()
     await expect(page.locator('.status-card')).toHaveCount(3)
 
@@ -423,7 +423,10 @@ test.describe('统一 e2e（插件层）：mcp-center MCP 服务端 + 配置 API
 
     // 截图（视觉检查：图标/间距/对齐/溢出，Level 3）
     await page.screenshot({ path: path.join(OUT_DIR, 'gateway-tab.png') })
+    // 切到工具管理 tab（原默认页签，v2.9.1 起为第二个页签）：表头 + 至少一行工具
     await page.getByRole('tab', { name: '工具管理' }).click()
+    await expect(page.locator('.table-header')).toBeVisible()
+    await expect(page.locator('.table-row').first()).toBeVisible()
     await page.screenshot({ path: path.join(OUT_DIR, 'tools-tab.png') })
   })
 

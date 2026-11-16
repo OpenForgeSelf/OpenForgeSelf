@@ -923,7 +923,7 @@ async function submitCommand(command: string, source: CommandSource) {
     if (res.status === 'awaiting_approval' && res.approval) {
       approval.value = { ...res.approval, sessionId: s.id }
       approvalSource.value = source
-      if (res.block) mergeBlock(s, res.block)
+      // 待确认命令还不是输出块：先展示确认框，批准后再出现执行结果
       return
     }
     if (res.block) mergeBlock(s, res.block)
@@ -987,6 +987,14 @@ function mergeBlock(s: ViewSession, block: Block) {
   else s.blocks = [...s.blocks, block]
 }
 
+function blockMetaText(b: Block): string {
+  if (b.status === 'running') return '运行中'
+  if (b.status === 'awaiting_approval') return '待确认'
+  if (b.status === 'rejected') return '未执行'
+  if ((b as { status?: string }).status === 'expired') return '已过期'
+  return `退出码 ${b.exitCode ?? 0}`
+}
+
 async function confirmApproval() {
   const ap = approval.value
   const s = sessions.value.find((x) => x.id === (ap?.sessionId ?? activeId.value))
@@ -1019,9 +1027,11 @@ async function cancelApproval() {
   approval.value = null
   if (ap && !isFixture.value) {
     try {
-      await api.resolveApproval(ap.id, 'reject')
+      const res = await api.resolveApproval(ap.id, 'reject')
+      const block = (res as { block?: Block } | undefined)?.block
+      if (s && block) mergeBlock(s, block)
     } catch {
-      // already dismissed
+      if (s) s.blocks = s.blocks.filter((b) => b.status !== 'awaiting_approval')
     }
   }
   focusPrompt()
@@ -1413,7 +1423,7 @@ function approvalTitle(ap: Approval) {
                   >
                     <div class="cmd">{{ b.kind === 'system' ? b.command : `$ ${b.command}` }}</div>
                     <pre class="out">{{ b.output }}</pre>
-                    <div v-if="b.kind !== 'system'" class="meta muted">{{ b.status === 'running' ? '运行中' : `退出码 ${b.exitCode ?? 0}` }}</div>
+                    <div v-if="b.kind !== 'system'" class="meta muted">{{ blockMetaText(b) }}</div>
                   </div>
                   <div class="prompt-line" data-testid="st-prompt-line" @click.stop="focusPrompt">
                     <span class="prompt-ps1" data-testid="st-prompt-ps1">{{ ps1(active) }}</span>

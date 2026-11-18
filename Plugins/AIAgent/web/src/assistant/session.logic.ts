@@ -123,7 +123,7 @@ export function statusLabel(status: AgentSessionStatus): string {
   }
 }
 
-export type PrimaryKind = 'new' | 'confirm-plan' | 'approve'
+export type PrimaryKind = 'new' | 'confirm-plan' | 'approve' | 'retry'
 
 export function primaryKind(input: {
   status: AgentSessionStatus
@@ -132,6 +132,7 @@ export function primaryKind(input: {
 }): PrimaryKind {
   if (input.approvalPending || input.status === 'awaiting_approval') return 'approve'
   if (input.hasPlan && input.status === 'awaiting_plan') return 'confirm-plan'
+  if (input.status === 'failed') return 'retry'
   return 'new'
 }
 

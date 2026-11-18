@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel, toolExpandText } from './session.logic'
 
 describe('primaryKind', () => {
-  it('lets confirm-plan take the gold button', () => {
+  it('yields the header button when a plan awaits confirm', () => {
     expect(primaryKind({ status: 'awaiting_plan', hasPlan: true, approvalPending: false })).toBe('confirm-plan')
   })
   it('lets approval take the gold button', () => {
     expect(primaryKind({ status: 'awaiting_approval', hasPlan: true, approvalPending: true })).toBe('approve')
+  })
+  it('yields the header button when a run failed and can retry', () => {
+    expect(primaryKind({ status: 'failed', hasPlan: false, approvalPending: false })).toBe('retry')
   })
   it('defaults to new session', () => {
     expect(primaryKind({ status: 'idle', hasPlan: false, approvalPending: false })).toBe('new')

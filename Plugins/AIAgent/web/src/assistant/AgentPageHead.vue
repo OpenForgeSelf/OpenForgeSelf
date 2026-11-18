@@ -6,11 +6,10 @@ const props = defineProps<{
   layout: AgentAssistantLayout
   title: string
   mode: AgentMode
-  kind: 'new' | 'confirm-plan' | 'approve'
+  kind: 'new' | 'confirm-plan' | 'approve' | 'retry'
 }>()
 const emit = defineEmits<{
   new: []
-  confirm: []
   sessions: []
   workspace: []
 }>()
@@ -32,17 +31,11 @@ const emit = defineEmits<{
         @click="emit('new')"
       >新建会话</button>
       <button
-        v-if="kind === 'new'"
+        v-else
         type="button"
         class="aa-btn pri"
         @click="emit('new')"
       >新建会话</button>
-      <button
-        v-else-if="kind === 'confirm-plan'"
-        type="button"
-        class="aa-btn pri"
-        @click="emit('confirm')"
-      >确认并执行</button>
     </div>
   </header>
 </template>

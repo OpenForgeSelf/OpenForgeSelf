@@ -96,7 +96,6 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
         :mode="session.mode.value"
         :kind="session.kind.value"
         @new="session.newSession()"
-        @confirm="session.confirm()"
         @sessions="session.panelLayer.value = 'sessions'"
         @workspace="session.panelLayer.value = 'workspace'"
       />

@@ -561,6 +561,54 @@ public class AgentFacadeTests
         }
     }
 
+    [Fact]
+    public void WorkflowApprovalKeyword_RequiresConfirmAndDoesNotExecuteUntilApproved()
+    {
+        var path = "/tmp/agent-itest/note.txt";
+        if (File.Exists(path)) File.Delete(path);
+        Directory.CreateDirectory("/tmp/agent-itest");
+
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (status, _) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-workflow-approval" });
+        Assert.Equal(202, status);
+        var waiting = svc.GetSession(session.Id)!;
+        Assert.Equal("awaiting_approval", waiting.Session.Status);
+        Assert.Equal("running", waiting.Workspace.Single(w => w.Id == "workflow").Status);
+        var wf = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
+        Assert.Equal("running", wf.GetProperty("workflowStatus").GetString());
+        Assert.Equal("completed", wf.GetProperty("steps")[0].GetProperty("status").GetString());
+        Assert.Equal("pending", wf.GetProperty("steps")[1].GetProperty("status").GetString());
+        Assert.False(File.Exists(path));
+        var required = Assert.Single(svc.ReplayEvents(session.Id, 0), e => e.Type == "approval.required");
+        var payload = JsonSerializer.SerializeToElement(required.Payload!);
+        var approvalId = payload.GetProperty("approvalId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(approvalId));
+        Assert.Equal("write_file", payload.GetProperty("action").GetString());
+        Assert.Equal("high", payload.GetProperty("risk").GetString());
+
+        var rejected = svc.CreateSession(SessionReq("ai-agent", surfaceKey: "wf-appr-reject"));
+        svc.PostMessage(rejected.Id, new PostAgentMessageRequest { Text = "请执行 agent-workflow-approval" });
+        var rejectReq = Assert.Single(svc.ReplayEvents(rejected.Id, 0), e => e.Type == "approval.required");
+        var rejectId = JsonSerializer.SerializeToElement(rejectReq.Payload!).GetProperty("approvalId").GetString()!;
+        svc.DecideApproval(rejected.Id, rejectId, new DecideApprovalRequest { Approved = false, Note = "取消" });
+        var afterReject = svc.GetSession(rejected.Id)!;
+        Assert.Equal("cancelled", afterReject.Session.Status);
+        Assert.Equal("cancelled", afterReject.Workspace.Single(w => w.Id == "workflow").Status);
+        Assert.False(File.Exists(path));
+        Assert.DoesNotContain(svc.ReplayEvents(rejected.Id, 0), e => e.Type == "tool.completed");
+
+        svc.DecideApproval(session.Id, approvalId!, new DecideApprovalRequest { Approved = true });
+        var afterApprove = svc.GetSession(session.Id)!;
+        Assert.Equal("completed", afterApprove.Session.Status);
+        Assert.Equal("completed", afterApprove.Workspace.Single(w => w.Id == "workflow").Status);
+        var doneWf = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
+        Assert.Equal("completed", doneWf.GetProperty("steps")[1].GetProperty("status").GetString());
+        Assert.True(File.Exists(path));
+        Assert.Contains(svc.ReplayEvents(session.Id, 0), e => e.Type == "tool.completed");
+        if (File.Exists(path)) File.Delete(path);
+    }
+
 
 }
 

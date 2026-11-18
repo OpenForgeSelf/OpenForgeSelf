@@ -8,6 +8,8 @@ Keeps the original ST keywords and adds:
   agent-running    → delay a few seconds, then a short completion (F13 in-progress)
   agent-workflow / agent-design / agent-suggest / agent-project / agent-todo
                    → short text; the facade seeds the matching workspace panel
+  agent-workflow-approval → workflow already started; high-risk write_file
+                   must be confirmed in the main thread before it runs
 After a tool result is already in the messages, returns one "工具已执行完毕。"
 (and task_complete when that exit tool is advertised) so the loop ends.
 
@@ -31,7 +33,7 @@ KEYWORDS = (
     ("st-run-write", "mkdir -p /tmp/st-r7-probe"),
     ("st-insert-ls", "ls"),
 )
-MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call、agent-approval、agent-fail、agent-running、agent-workflow、agent-design、agent-suggest、agent-project 或 agent-todo。"
+MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call、agent-approval、agent-fail、agent-running、agent-workflow、agent-workflow-approval、agent-design、agent-suggest、agent-project 或 agent-todo。"
 TOOL_DONE_REPLY = "工具已执行完毕。"
 
 LIST_FILES_ARGS = {"cwd": "/tmp"}
@@ -134,6 +136,7 @@ def match_text(haystack: str) -> str:
 TEXT_KEYWORDS = (
     ("agent-fail", "任务失败，请重试。"),
     ("agent-running", "任务仍在进行，即将完成。"),
+    ("agent-workflow-approval", "工作流已启动，高风险步骤待确认。"),
     ("agent-workflow", "已关联联调工作流，可暂停或取消。"),
     ("agent-design", "已给出设计预览，默认不写库。"),
     ("agent-suggest", "已给出可执行建议。"),
@@ -145,11 +148,13 @@ RUNNING_HOLD_SECONDS = 8
 
 def match_seed_text(haystack: str) -> str | None:
     last_index = -1
+    last_len = 0
     chosen: str | None = None
     for keyword, reply in TEXT_KEYWORDS:
         index = haystack.rfind(keyword)
-        if index >= 0 and index >= last_index:
+        if index >= 0 and (index > last_index or (index == last_index and len(keyword) > last_len)):
             last_index = index
+            last_len = len(keyword)
             chosen = reply
     return chosen
 
@@ -158,9 +163,11 @@ def choose_tool(haystack: str) -> tuple[str, dict[str, Any]] | None:
     # last occurrence wins if both appear
     i_tool = haystack.rfind("agent-tool-call")
     i_appr = haystack.rfind("agent-approval")
-    if i_tool < 0 and i_appr < 0:
+    i_wf_appr = haystack.rfind("agent-workflow-approval")
+    i_write = max(i_appr, i_wf_appr)
+    if i_tool < 0 and i_write < 0:
         return None
-    if i_appr > i_tool:
+    if i_write > i_tool:
         return "write_file", WRITE_FILE_ARGS
     return "list_files", LIST_FILES_ARGS
 
@@ -430,7 +437,7 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(
         f"agent-keyword-mock listening on http://{args.host}:{args.port}/v1 "
-        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval, agent-fail, agent-running, agent-workflow, agent-design, agent-suggest, agent-project, agent-todo)",
+        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval, agent-fail, agent-running, agent-workflow, agent-workflow-approval, agent-design, agent-suggest, agent-project, agent-todo)",
         flush=True,
     )
     try:

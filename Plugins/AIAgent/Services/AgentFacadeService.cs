@@ -156,6 +156,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
         if (TryHoldRunningByKeyword(s, run))
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
+        if (TryRequireWorkflowApprovalByKeyword(s, run))
+            return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
 
         s.Status = "running";
         Touch(s);
@@ -216,6 +218,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
         if (TryHoldRunningByKeyword(s, run))
             return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
+        if (TryRequireWorkflowApprovalByKeyword(s, run))
+            return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
         _ = SafeStart(() => _executor?.StartPlanAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
     }
@@ -268,10 +272,21 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (!request.Approved)
         {
             MarkCancelled(s, run);
+            if (s.WorkflowSteps.Count > 0)
+            {
+                ApplyWorkflowStepStatus(s, "cancelled");
+                s.WorkflowStatus = "cancelled";
+            }
             Touch(s);
             Append(s, "run.cancelled", run.Id, new { reason = "approval_rejected", approvalId, note = request.Note });
             Append(s, "session.status", run.Id, new { status = s.Status });
             Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+            return item;
+        }
+
+        if (IsWorkflowApprovalHold(run))
+        {
+            CompleteWorkflowApproval(s, run);
             return item;
         }
 
@@ -816,7 +831,15 @@ public sealed class AgentFacadeService : IAgentFacadeService
     private void ApplyWorkspaceSeeds(SessionState s, RunState run)
     {
         var text = run.Text ?? "";
-        if (ContainsKeyword(text, "agent-workflow"))
+        if (ContainsKeyword(text, "agent-workflow-approval"))
+        {
+            s.WorkflowId = "wf-itest";
+            s.WorkflowStatus = "running";
+            s.WorkflowSteps.Clear();
+            s.WorkflowSteps.Add(new AgentWorkspaceWorkflowStepDto { Id = "w1", Name = "准备", Status = "completed" });
+            s.WorkflowSteps.Add(new AgentWorkspaceWorkflowStepDto { Id = "w2", Name = "写入结果", Status = "pending", Risk = "high" });
+        }
+        else if (ContainsKeyword(text, "agent-workflow"))
         {
             s.WorkflowId = "wf-itest";
             s.WorkflowStatus = "running";
@@ -912,6 +935,81 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Publish(sessionId, "run.completed", new { text = "进行中任务已结束。" }, runId);
         });
         return true;
+    }
+
+    private const string WorkflowApprovalWritePath = "/tmp/agent-itest/note.txt";
+
+    private bool TryRequireWorkflowApprovalByKeyword(SessionState s, RunState run)
+    {
+        if (!ContainsKeyword(run.Text, "agent-workflow-approval"))
+            return false;
+        if (string.IsNullOrWhiteSpace(s.WorkflowId))
+        {
+            s.WorkflowId = "wf-itest";
+            s.WorkflowStatus = "running";
+        }
+        var cwd = (run.ContextSnapshot ?? s.Context).Cwd;
+        if (string.IsNullOrWhiteSpace(cwd))
+            cwd = "/tmp/agent-itest";
+        var args = new
+        {
+            cwd,
+            path = WorkflowApprovalWritePath,
+            content = "ok",
+            start_line = 1,
+            end_line = 1
+        };
+        var approvalId = "wf-appr-" + run.Id;
+        var payload = new
+        {
+            approvalId,
+            id = approvalId,
+            summary = "工作流已启动，高风险工具 write_file 需要审批后执行",
+            action = "write_file",
+            toolName = "write_file",
+            args = System.Text.Json.JsonSerializer.Serialize(args),
+            risk = "high",
+            callId = "call_" + run.Id
+        };
+        Touch(s);
+        Append(s, "session.status", run.Id, new { status = "running" });
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+        Publish(s.Id, "approval.required", payload, run.Id);
+        return true;
+    }
+
+    private static bool IsWorkflowApprovalHold(RunState run) =>
+        ContainsKeyword(run.Text, "agent-workflow-approval") && run.NativeRunId == null;
+
+    private void CompleteWorkflowApproval(SessionState s, RunState run)
+    {
+        var path = WorkflowApprovalWritePath;
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(dir))
+            Directory.CreateDirectory(dir);
+        File.WriteAllText(path, "ok");
+        var detail = System.Text.Json.JsonSerializer.Serialize(new { success = true, path, content = "ok" });
+        foreach (var step in s.WorkflowSteps)
+        {
+            if (step.Status is "pending" or "running" or "paused")
+                step.Status = "completed";
+        }
+        if (s.WorkflowSteps.Count > 0)
+            s.WorkflowStatus = "completed";
+        s.Status = "running";
+        run.Status = "running";
+        Touch(s);
+        Append(s, "session.status", run.Id, new { status = s.Status });
+        Publish(s.Id, "tool.completed", new
+        {
+            name = "write_file",
+            toolCallId = "call_" + run.Id,
+            summary = "write_file 已写入",
+            detail,
+            status = "done"
+        }, run.Id);
+        Publish(s.Id, "message.completed", new { text = "高风险步骤已批准并执行。" }, run.Id);
+        Publish(s.Id, "run.completed", new { text = "高风险步骤已批准并执行。" }, run.Id);
     }
 
     private static void SeedRunningRecords(RunState run)

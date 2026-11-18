@@ -214,12 +214,19 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
                 foreach (var mapped in AgentFacadeEventMapper.MapFrame(frame, toolResult, toolName))
                     _facade.Publish(sessionId, mapped.Type, mapped.Payload, runId);
 
-                if (frame is TurnCompleted)
+                if (frame is TurnCompleted completed)
                 {
-                    var textOut = full.ToString();
-                    if (!string.IsNullOrWhiteSpace(textOut))
-                        _facade.Publish(sessionId, "message.completed", new { text = textOut }, runId);
-                    _facade.Publish(sessionId, "run.completed", new { text = textOut }, runId);
+                    if (completed.Reason == TurnEndReason.Suspended)
+                    {
+                        await PublishPendingApprovalAsync(sessionId, runId, cts.Token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var textOut = full.ToString();
+                        if (!string.IsNullOrWhiteSpace(textOut))
+                            _facade.Publish(sessionId, "message.completed", new { text = textOut }, runId);
+                        _facade.Publish(sessionId, "run.completed", new { text = textOut }, runId);
+                    }
                 }
             }
         }
@@ -285,6 +292,29 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
         {
             DetachCancel(sessionId, runId, cts);
         }
+    }
+
+    private async Task PublishPendingApprovalAsync(string sessionId, string runId, CancellationToken ct)
+    {
+        var approvals = _ctx?.Get<IApprovalService>();
+        if (approvals == null) return;
+        var list = await approvals.ListBySessionAsync(sessionId, ct).ConfigureAwait(false);
+        var pending = list.LastOrDefault(a =>
+            string.Equals(a.Status, nameof(ApprovalStatus.Pending), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(a.Status, "pending", StringComparison.OrdinalIgnoreCase));
+        if (pending == null) return;
+        var approvalId = pending.Id.ToString();
+        _facade.Publish(sessionId, "approval.required", new
+        {
+            approvalId,
+            id = approvalId,
+            summary = string.IsNullOrWhiteSpace(pending.Description) ? $"需要确认工具 {pending.ToolName}" : pending.Description,
+            action = pending.ToolName,
+            toolName = pending.ToolName,
+            args = pending.ArgsJson,
+            risk = pending.RiskLevel,
+            callId = pending.CallId
+        }, runId);
     }
 
     private async Task<string?> ResolveModelAsync(string? requested, CancellationToken ct)

@@ -237,21 +237,32 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (item.Status != "pending") return new { error = "该审批已处理" };
         item.Status = request.Approved ? "approved" : "rejected";
         item.Note = request.Note;
-        if (!request.Approved)
+        if (long.TryParse(item.Id, out var nativeId))
         {
-            // 未批准不得执行：保持不进入工具执行，回到可继续或取消。
-            s.Status = "running";
-            run.Status = "running";
+            var approvals = _ctx?.Get<IApprovalService>();
+            if (approvals != null)
+            {
+                try
+                {
+                    var dto = approvals.DecideAsync(nativeId, request.Approved, request.Note).GetAwaiter().GetResult();
+                    if (dto == null) return new { error = "审批不存在" };
+                }
+                catch (Exception ex)
+                {
+                    return new { error = ex.Message };
+                }
+            }
         }
-        else
-        {
-            s.Status = "running";
-            run.Status = "running";
-        }
+        run.ContinueInput = request.Approved
+            ? "（审批已通过，请继续执行原任务）"
+            : "（审批已拒绝，请调整方案后继续）";
+        s.Status = "running";
+        run.Status = "running";
         Touch(s);
         Append(s, "approval.resolved", run.Id, new { approvalId, approved = request.Approved, note = request.Note });
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+        _ = SafeStart(() => _executor?.ResumeAsync(s.Id, run.Id, "continue", CancellationToken.None) ?? Task.CompletedTask);
         return item;
     }
 
@@ -446,8 +457,9 @@ public sealed class AgentFacadeService : IAgentFacadeService
                 .Select(a => new CatalogAgentDto { Id = a.Id, Name = a.Name, Description = a.Description })
                 .ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            NewLife.Log.XTrace.Log.Warn("[AgentFacade] 列出智能体失败: {0}", ex.Message);
             return Array.Empty<CatalogAgentDto>();
         }
     }
@@ -459,8 +471,11 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (runId == null) runId = s.CurrentRun?.Id;
         if (type == "approval.required" && s.CurrentRun != null)
         {
-            var id = Guid.NewGuid().ToString("N");
-            s.CurrentRun.Approvals.Add(new ApprovalState { Id = id, Status = "pending" });
+            var id = ReadString(payload, "approvalId")
+                     ?? ReadString(payload, "id")
+                     ?? Guid.NewGuid().ToString("N");
+            if (!s.CurrentRun.Approvals.Any(a => a.Id == id))
+                s.CurrentRun.Approvals.Add(new ApprovalState { Id = id, Status = "pending" });
             s.Status = "awaiting_approval";
             s.CurrentRun.Status = "awaiting_approval";
             payload = MergeApprovalId(payload, id);

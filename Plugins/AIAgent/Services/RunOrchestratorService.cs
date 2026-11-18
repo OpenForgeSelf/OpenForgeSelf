@@ -332,9 +332,10 @@ public class RunOrchestratorService : IRunOrchestratorService
         }
 
         var from = (AgentRunStatus)run.Status;
-        if (from is not (AgentRunStatus.Stuck or AgentRunStatus.Failed))
+        // skip/override 介入会把卡住步标完并把 Run 置为 Running，随后从 CurrentStepIndex 续跑。
+        if (from is not (AgentRunStatus.Stuck or AgentRunStatus.Failed or AgentRunStatus.Running))
         {
-            yield return new AgentLoopEvent { Type = "error", Content = $"当前状态 {from} 不可恢复（仅 Stuck/Failed 可 resume）" };
+            yield return new AgentLoopEvent { Type = "error", Content = $"当前状态 {from} 不可恢复（仅 Stuck/Failed/Running 可 resume）" };
             yield break;
         }
         if (string.IsNullOrWhiteSpace(run.PlanJson))

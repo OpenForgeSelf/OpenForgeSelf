@@ -336,6 +336,23 @@ public class AgentFacadeTests
         Assert.DoesNotContain("AnonymousType", stuck);
         Assert.DoesNotContain("<>", stuck);
     }
+
+    [Fact]
+    public void Publish_ApprovalRequired_ReusesPayloadId()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (_, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "写文件" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        svc.Publish(session.Id, "approval.required", new { approvalId = "42", description = "写到敏感位置", action = "write_file" }, runId);
+        var ev = svc.ReplayEvents(session.Id, 0).Last(e => e.Type == "approval.required");
+        var id = ev.Payload!.GetType().GetProperty("approvalId")!.GetValue(ev.Payload)!.ToString();
+        Assert.Equal("42", id);
+        var decided = svc.DecideApproval(session.Id, "42", new DecideApprovalRequest { Approved = false, Note = "先不写" });
+        Assert.NotNull(decided);
+        Assert.DoesNotContain("error", decided!.GetType().GetProperties().Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal("rejected", decided.GetType().GetProperty("Status")!.GetValue(decided)!.ToString());
+    }
 }
 
 internal sealed class StubAgentCatalog : IAgentRegistryService

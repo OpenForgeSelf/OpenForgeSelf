@@ -18,6 +18,7 @@
 | `No service for type 'IServiceScopeFactory' has been registered`、工具恒空 | case [2026-10-17 list_todos](cases/2026-10-17-gateway-list-todos-scope.md) → [PC-005](problem-classes/PC-005-plugin-eager-provider-resolve.md) |
 | RELEASE-NOTES/日志中文乱码、脚本解析期崩溃、签名必失败 | [PC-006](problem-classes/PC-006-powershell-51-encoding.md)（真源 AGENTS §2.3 + §B6） |
 | 手敲命令起宿主 exit 0 无端口 / vite 崩 | [PC-007](problem-classes/PC-007-manual-dev-launch-silent-trap.md)（用 `scripts/dev-stack.ps1`） |
+| 根 `pnpm dev` 需启动宿主前后端 | case [2026-11-16 根开发入口](cases/2026-11-16-dev-api-multi-instance.md) → [PC-007](problem-classes/PC-007-manual-dev-launch-silent-trap.md) |
 | Agent 委派「成功」但进程未退出/状态不一致 | [PC-004](problem-classes/PC-004-agent-report-vs-process-terminal-state.md)（候选，待定性） |
 | 外部 MCP 握手 `-32602 Invalid request parameters`、新增连接/测试失败、握手成功仍报「测试失败」、编辑不回显 | case [2026-10-17 外部 MCP 客户端合规](cases/2026-10-17-mcp-external-client-protocol.md) → [PC-008](problem-classes/PC-008-mcp-external-client-protocol.md) |
 | 外部 MCP stdio 配 `npx` 报 400「无法启动外部 MCP 进程…系统找不到指定的文件」，或进程起了但 tools/list 永远超时（服务器沉默） | case [2026-10-18 npx 三层全灭](cases/2026-10-18-mcp-stdio-npx-windows-shim.md) → [PC-010](problem-classes/PC-010-mcp-stdio-launch-and-framing.md) |

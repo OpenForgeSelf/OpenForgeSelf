@@ -6,10 +6,11 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "description": "OpenForgeSelf root manifest: restores git hooks automatically on install and forwards the frontend scripts of ForgeSelf.Web (run from repo root).",
+  "description": "OpenForgeSelf root commands: full-stack development and forwarded ForgeSelf.Web scripts.",
   "scripts": {
     "postinstall": "node scripts/postinstall-install-hooks.cjs",
-    "dev": "pnpm -C ForgeSelf.Web dev",
+    "dev": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev-stack.ps1",
+    "dev:web": "pnpm -C ForgeSelf.Web dev",
     "clean": "pnpm -C ForgeSelf.Web clean",
     "build": "pnpm -C ForgeSelf.Web build",
     "preview": "pnpm -C ForgeSelf.Web preview",

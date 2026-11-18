@@ -14,7 +14,7 @@
 | 插件持久库 / XCode 连接名 / 升级迁移 | PC-003 |
 | Agent 委派 / 状态回报 / 进程生命周期 | PC-004 |
 | 写/改 *.ps1 脚本、发布链路 | PC-006 |
-| 本地起前后端 / 端口 / dev 环境 | PC-007 |
+| 本地起前后端 / 端口 / dev 环境 / 根 `pnpm dev` 入口 | PC-007 |
 | 对外协议客户端（MCP 传输/第三方 API 封装）/ 端点响应 data 与前端契约 | PC-008 |
 | fetch 封装/DELETE 类 204 端点/前端 JSON 解包 | PC-002, PC-009 |
 | stdio 拉起外部进程（npx/uvx 等 shim）/消息帧型/服务器沉默不回 | PC-010 |
@@ -54,7 +54,7 @@
 | PC-004 | Agent 成功回报 ≠ 进程真实退出（**候选，待定性**） | open | none（TODO+期限 2026-12-31） | 0 | [PC-004](PC-004-agent-report-vs-process-terminal-state.md) |
 | PC-005 | 插件执行体构造期 eager 解析宿主 provider | guarded | G1+G2 active（PILOT-062 修复批） | 1（逃逸：10-08 同族未建 PC） | [PC-005](PC-005-plugin-eager-provider-resolve.md) |
 | PC-006 | PowerShell 5.1 编码/BOM/码页（**范例 PC**） | guarded | G2 active（RepositoryScriptTests） | 0（守卫后未复发） | [PC-006](PC-006-powershell-51-encoding.md) |
-| PC-007 | 手敲命令起前后端静默陷阱（**范例 PC**） | structural | G4 active（dev-stack.ps1） | 0 | [PC-007](PC-007-manual-dev-launch-silent-trap.md) |
+| PC-007 | 手敲命令起前后端静默陷阱（**范例 PC**） | structural | G4 active（dev-stack.ps1）+ G2 active（RepositoryScriptTests） | 1（2026-11-16 根开发入口隔离缺口） | [PC-007](PC-007-manual-dev-launch-silent-trap.md) |
 | PC-008 | 外部 MCP 协议客户端侧合规缺失（clientInfo/initialized/会话头/端点 data 契约） | guarded | G1+G2×3+G3 active（修复批 2026-10-17） | 0 | [PC-008](PC-008-mcp-external-client-protocol.md) |
 | PC-009 | HTTP 封装成功路径无条件 res.json()，204/空体解析崩溃被 catch 吞成无操作 | guarded-partial | G1+G3 active，G2 planned（TODO，expires 2026-12-31） | 1 | [PC-009](PC-009-http-204-empty-body-json-parse.md) |
 | PC-010 | stdio 外部进程启动与消息帧协商脱节（Windows shim/双帧协商/null params 沉默） | guarded | G1+G2×3+G3 active + e2e 零容忍用例（修复批 2026-10-18） | 0 | [PC-010](PC-010-mcp-stdio-launch-and-framing.md) |

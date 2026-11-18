@@ -4,6 +4,7 @@
 
 | case id | 日期 | 现象一句话 | PC | 证据 | 档案 |
 |---------|------|------------|----|------|------|
+| 2026-11-16-dev-api-multi-instance | 2026-11-16 | 根 `pnpm dev` 改为复用整栈启动器，前后端均可运行 | [PC-007](../problem-classes/PC-007-manual-dev-launch-silent-trap.md) | Partial | [链接](2026-11-16-dev-api-multi-instance.md) |
 | 2026-09-24-plugin-auth-frontend-bare-fetch | 2026-09-24 | 鉴权后插件管理页裸 fetch 全 401 空态 | [PC-002](../problem-classes/PC-002-auth-frontend-bare-fetch.md) | Verified | [链接](2026-09-24-plugin-auth-frontend-bare-fetch.md) |
 | 2026-10-09-agenthub-db-unregistered-data-loss | 2026-10-09 | 未登记 PluginDbs，升级后登记数据"全丢" | [PC-003](../problem-classes/PC-003-plugin-db-unregistered-data-loss.md) | Verified | [链接](2026-10-09-agenthub-db-unregistered-data-loss.md) |
 | 2026-10-10-workflow-engine-contract-not-registered | 2026-10-10 | 工作流工具「服务没激活」= 契约没进共享表 | [PC-001](../problem-classes/PC-001-cross-plugin-contract-shared-table.md) | Verified | [链接](2026-10-10-workflow-engine-contract-not-registered.md) |

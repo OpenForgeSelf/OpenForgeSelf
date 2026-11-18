@@ -124,4 +124,31 @@ public class RepositoryScriptTests
         text.Should().Contain(".pdb");
         text.Should().Contain("Package hygiene failed");
     }
+
+    [Fact]
+    public void RootDevCommand_MustUseFullStackLauncher()
+    {
+        var root = FindRepoRoot();
+        using var package = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "package.json")));
+        var scripts = package.RootElement.GetProperty("scripts");
+
+        scripts.GetProperty("dev").GetString().Should().Be(
+            "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev-stack.ps1",
+            "根目录 pnpm dev 必须复用已有的前后端整栈启动器");
+        scripts.GetProperty("dev:web").GetString().Should().Be("pnpm -C ForgeSelf.Web dev",
+            "原前端开发入口必须保留为 dev:web");
+        scripts.TryGetProperty("dev:api", out _).Should().BeFalse("旧的 dev:api 入口必须移除");
+
+        var launcher = Path.Combine(root, "scripts", "dev-stack.ps1");
+        File.Exists(launcher).Should().BeTrue("根 dev 命令的整栈启动器必须在位");
+        var launcherText = File.ReadAllText(launcher);
+        launcherText.Should().Contain("Start-Process -FilePath 'dotnet'",
+            "整栈启动器必须实际启动宿主后端");
+        launcherText.Should().Contain("Start-Process -FilePath 'node'",
+            "整栈启动器必须实际启动宿主前端");
+        launcherText.Should().Contain("dev-stack.json",
+            "整栈启动器须保留既有实例状态管理");
+        new FileInfo(launcher).Length.Should().BeGreaterThan(1000,
+            "启动脚本阳性对照：守卫不得因空文件或路径误配而空转");
+    }
 }

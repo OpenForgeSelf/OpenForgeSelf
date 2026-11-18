@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AgentWorkspaceItemStatus, AgentWorkspacePanelId } from './types'
+import { statusLabel } from './session.logic'
+import type { AgentSessionStatus, AgentWorkspaceItemStatus, AgentWorkspacePanelId } from './types'
 
 const props = defineProps<{
   panel: AgentWorkspacePanelId
@@ -14,6 +15,7 @@ const props = defineProps<{
   kind: 'new' | 'confirm-plan' | 'approve'
   revising: boolean
   status: string
+  layout?: 'page' | 'panel'
 }>()
 const emit = defineEmits<{
   open: [id: AgentWorkspacePanelId]
@@ -26,6 +28,7 @@ const emit = defineEmits<{
   dispatchTodo: [id: string]
   pauseWorkflow: []
   cancelWorkflow: []
+  chat: []
 }>()
 const reviseNote = defineModel<string>('reviseNote', { default: '' })
 const memoryDraft = defineModel<string>('memoryDraft', { default: '' })
@@ -37,6 +40,28 @@ function asList(key: string): Array<Record<string, unknown>> {
 function text(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
+
+function display(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  return ''
+}
+
+const runLabel = computed(() => {
+  const raw = display(props.detail?.runStatus)
+  if (!raw) return ''
+  return statusLabel(raw as AgentSessionStatus)
+})
+
+const roundText = computed(() => {
+  const round = display(props.detail?.round)
+  if (!round) return ''
+  const max = display(props.detail?.turnMax)
+  return max ? `${round} / ${max}` : round
+})
+
+const hasRun = computed(() => Boolean(runLabel.value || roundText.value || asList('steps').length || asList('items').length))
+
 
 const canWriteMemory = computed(() => {
   if (memoryDraft.value.trim()) return true
@@ -57,7 +82,10 @@ const canCommitDesign = computed(() => {
 <template>
   <aside class="aa-artifact">
     <template v-if="panel === 'catalog'">
-      <div class="aa-art-head"><h2>打开面板</h2></div>
+      <div class="aa-art-head">
+        <h2>打开面板</h2>
+        <button v-if="layout === 'panel'" type="button" class="aa-btn ghost" @click="emit('chat')">返回对话</button>
+      </div>
       <p class="aa-art-lead">从这里进入计划、记忆、工作流等。对话进行中也可以随时切换。</p>
       <div class="aa-art-body">
         <button
@@ -79,7 +107,10 @@ const canCommitDesign = computed(() => {
     <template v-else>
       <div class="aa-art-head">
         <h2>{{ catalog.find((c) => c.id === panel)?.name || '面板' }}</h2>
-        <button type="button" class="aa-btn ghost" @click="emit('open', 'catalog')">全部面板</button>
+        <div class="aa-art-actions">
+          <button v-if="layout === 'panel'" type="button" class="aa-btn ghost" @click="emit('chat')">返回对话</button>
+          <button type="button" class="aa-btn ghost" @click="emit('open', 'catalog')">全部面板</button>
+        </div>
       </div>
       <div class="aa-art-body">
         <template v-if="panel === 'plan'">
@@ -103,8 +134,10 @@ const canCommitDesign = computed(() => {
         </template>
         <template v-else-if="panel === 'records'">
           <div class="aa-art-sec">
-            <p v-if="!asList('steps').length && !asList('items').length">开始任务后，步骤、工具结果和轮次会显示在这里。</p>
-            <p v-if="text(detail?.round)">轮次 {{ text(detail?.round) }}</p>
+            <p v-if="!hasRun">开始任务后，步骤、工具结果和轮次会显示在这里。</p>
+            <p v-if="runLabel">状态 {{ runLabel }}</p>
+            <p v-if="roundText">轮次 {{ roundText }}</p>
+            <p v-if="text(detail?.stuckReason)">{{ text(detail?.stuckReason) }}</p>
             <ol class="aa-steps">
               <li v-for="(st, i) in (asList('steps').length ? asList('steps') : asList('items'))" :key="i">
                 {{ text(st.title) || text(st.name) }} · {{ text(st.status) || '记录' }}

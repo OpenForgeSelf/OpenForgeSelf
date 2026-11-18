@@ -107,8 +107,10 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
       :sessions="session.sessions.value"
       :active-id="session.activeId.value"
       :show-demo="layout === 'page'"
+      :show-back="layout === 'panel'"
       @select="session.openSession($event); session.panelLayer.value = 'chat'"
       @demo="previewPanel"
+      @chat="session.panelLayer.value = 'chat'"
     />
     <div v-if="layout === 'page' || session.panelLayer.value === 'chat'" class="aa-main">
       <AgentPageHead
@@ -155,6 +157,7 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
     </div>
     <AgentWorkspace
       v-if="layout === 'page' || session.panelLayer.value === 'workspace'"
+      :layout="layout"
       :panel="session.workspacePanel.value"
       :catalog="session.thread.catalog"
       :plan="session.thread.plan"
@@ -166,6 +169,7 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
       @update:revise-note="session.reviseNote.value = $event"
       :memory-draft="session.memoryDraft.value"
       @update:memory-draft="session.memoryDraft.value = $event"
+      @chat="session.panelLayer.value = 'chat'"
       @open="session.openPanel($event)"
       @confirm="session.confirm()"
       @start-revise="session.revising.value = true"

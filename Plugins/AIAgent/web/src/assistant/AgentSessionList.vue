@@ -6,10 +6,12 @@ defineProps<{
   sessions: AgentSessionSummary[]
   activeId: string | null
   showDemo?: boolean
+  showBack?: boolean
 }>()
 const emit = defineEmits<{
   select: [id: string]
   demo: []
+  chat: []
 }>()
 
 function dotClass(status: AgentSessionStatus): string {
@@ -23,7 +25,10 @@ function dotClass(status: AgentSessionStatus): string {
 
 <template>
   <aside class="aa-sidebar">
-    <div class="aa-side-label">会话</div>
+    <div class="aa-side-head">
+      <div class="aa-side-label">会话</div>
+      <button v-if="showBack" type="button" class="aa-btn ghost" @click="emit('chat')">返回对话</button>
+    </div>
     <div class="aa-session-list">
       <button
         v-for="s in sessions"

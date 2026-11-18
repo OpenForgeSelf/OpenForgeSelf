@@ -279,6 +279,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       const run = (data.run ?? null) as Record<string, unknown> | null
       if (run) {
         if (out.round == null) out.round = run.turn ?? run.Turn
+        if (out.turnMax == null) out.turnMax = run.turnMax ?? run.TurnMax
+        if (out.runStatus == null) out.runStatus = run.status ?? run.Status
+        if (out.stuckReason == null) out.stuckReason = run.stuckReason ?? run.StuckReason
         const plan = (run.plan ?? run.Plan ?? null) as Record<string, unknown> | null
         const steps = run.steps ?? plan?.steps
         if (!out.steps && steps) out.steps = steps

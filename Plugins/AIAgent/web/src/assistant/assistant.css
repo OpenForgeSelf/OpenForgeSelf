@@ -28,8 +28,16 @@
   border-right: 1px solid var(--border-hairline);
   background: color-mix(in srgb, var(--el-bg-color) 65%, transparent);
 }
+.aa-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 0 0;
+  flex-shrink: 0;
+}
 .aa-side-label {
-  padding: 18px 18px 8px;
+  padding: 8px 18px;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.16em;
@@ -363,6 +371,7 @@
   flex-shrink: 0;
 }
 .aa-art-head h2 { margin: 0; font-family: var(--font-display); font-size: 18px; }
+.aa-art-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .aa-art-lead { margin: 0 22px 10px; font-size: 12px; color: var(--fg-secondary); line-height: 1.55; }
 .aa-art-body { flex: 1; overflow: auto; padding: 0 0 20px; min-height: 0; }
 .aa-panel-item {
@@ -410,3 +419,7 @@
 .agent-assistant.is-panel .aa-hero { padding-left: 16px; padding-right: 16px; }
 .agent-assistant.is-panel .aa-col,
 .agent-assistant.is-panel .aa-dock-inner { width: 100%; }
+/* 避开宿主右下角助手气泡（40px，bottom:44px），避免挡住发送键 */
+.agent-assistant.is-panel {
+  padding-bottom: 72px;
+}

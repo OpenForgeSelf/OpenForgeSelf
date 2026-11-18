@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AgentWorkspaceItemStatus, AgentWorkspacePanelId } from './types'
 
 const props = defineProps<{
@@ -36,6 +37,21 @@ function asList(key: string): Array<Record<string, unknown>> {
 function text(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
+
+const canWriteMemory = computed(() => {
+  if (memoryDraft.value.trim()) return true
+  const data = props.detail
+  const items = Array.isArray(data?.items) ? data!.items : Array.isArray(data?.entries) ? data!.entries : []
+  return items.some((it) => {
+    const rec = it as Record<string, unknown>
+    return Boolean(text(rec.content) || text(rec.title) || text(rec.summary))
+  })
+})
+
+const canCommitDesign = computed(() => {
+  const data = props.detail
+  return Boolean(text(data?.preview) || text(data?.content) || (Array.isArray(data?.tokens) && data!.tokens.length))
+})
 </script>
 
 <template>
@@ -198,10 +214,10 @@ function text(v: unknown): string {
         <button type="button" class="aa-btn pri" @click="emit('retry')">重试</button>
       </div>
       <div v-else-if="panel === 'memory'" class="aa-art-foot">
-        <button type="button" class="aa-btn" @click="emit('writeMemory')">写回记忆</button>
+        <button type="button" class="aa-btn" :disabled="!canWriteMemory" @click="canWriteMemory && emit('writeMemory')">写回记忆</button>
       </div>
       <div v-else-if="panel === 'design'" class="aa-art-foot">
-        <button type="button" class="aa-btn pri" @click="emit('commitDesign')">确认写入设计系统</button>
+        <button type="button" class="aa-btn pri" :disabled="!canCommitDesign" @click="canCommitDesign && emit('commitDesign')">确认写入设计系统</button>
       </div>
       <div v-else-if="panel === 'workflow'" class="aa-art-foot">
         <button type="button" class="aa-btn" @click="emit('pauseWorkflow')">暂停</button>

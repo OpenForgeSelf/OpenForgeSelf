@@ -341,6 +341,7 @@
   display: grid;
   place-items: center;
 }
+.aa-send:disabled { opacity: 0.45; cursor: default; }
 .aa-send.is-stop { background: var(--cinnabar-400); color: #fff; }
 .aa-hint { margin: 8px 4px 0; font-size: 11px; color: var(--fg-muted); }
 

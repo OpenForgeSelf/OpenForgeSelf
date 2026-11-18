@@ -22,7 +22,14 @@ export async function agentRequest<T>(
   const res = await fetch(`${BASE}${path}`, { ...rest, headers, body })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(text || `${res.status} ${res.statusText}`)
+    let message = text || `${res.status} ${res.statusText}`
+    try {
+      const parsed = JSON.parse(text) as { error?: unknown }
+      if (typeof parsed.error === 'string' && parsed.error.trim()) message = parsed.error
+    } catch {
+      /* keep raw text */
+    }
+    throw new Error(message)
   }
   if (res.status === 204) return undefined as T
   const ct = res.headers.get('content-type') ?? ''

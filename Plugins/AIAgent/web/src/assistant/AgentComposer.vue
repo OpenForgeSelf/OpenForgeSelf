@@ -25,10 +25,12 @@ const emit = defineEmits<{
 }>()
 const draft = defineModel<string>('draft', { default: '' })
 
+const canSend = () => draft.value.trim().length > 0 && !props.running
+
 function onKey(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
-    if (!props.running) emit('send')
+    if (canSend()) emit('send')
   }
 }
 </script>
@@ -88,7 +90,8 @@ function onKey(e: KeyboardEvent) {
             type="button"
             class="aa-send"
             aria-label="发送"
-            @click="emit('send')"
+            :disabled="!draft.trim()"
+            @click="canSend() && emit('send')"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>

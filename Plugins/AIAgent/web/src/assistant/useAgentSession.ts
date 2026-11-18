@@ -159,7 +159,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }
 
-  async function newSession() {
+  async function newSession(options?: { keepInput?: boolean }) {
     error.value = ''
     try {
       const created = await api.createSession({
@@ -175,8 +175,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       Object.assign(thread, emptyThreadState(created.status))
       workspacePanel.value = 'catalog'
       workspaceDetail.value = null
-      draft.value = ''
-      attachments.value = []
+      if (!options?.keepInput) {
+        draft.value = ''
+        attachments.value = []
+      }
       if (opts.layout() === 'panel') panelLayer.value = 'chat'
       startEvents(created.id, 0)
     } catch (e) {
@@ -188,22 +190,21 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     const text = draft.value.trim()
     if (!text || thread.status === 'running') return
     error.value = ''
-    if (!activeId.value) await newSession()
+    const pins = attachments.value.slice()
+    if (!activeId.value) await newSession({ keepInput: true })
     const id = activeId.value
     if (!id) return
     const userId = `user-${Date.now()}`
     thread.items.push({ kind: 'user', id: userId, text })
-    const sent = draft.value
     draft.value = ''
-    const pins = attachments.value.slice()
     try {
-      const res = await api.sendMessage(id, { text: sent, attachments: pins, embed: embed() })
+      const res = await api.sendMessage(id, { text, attachments: pins, embed: embed() })
       thread.runId = res.runId
       if (mode.value === 'planned') thread.status = 'awaiting_plan'
       else thread.status = 'running'
     } catch (e) {
       report(e)
-      draft.value = sent
+      draft.value = text
     }
   }
 
@@ -334,10 +335,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   async function writeMemory() {
     if (!activeId.value) return
     const content = (memoryDraft.value || memoryItemsContent(workspaceDetail.value)).trim()
-    if (!content) {
-      error.value = '写回内容不能为空'
-      return
-    }
+    if (!content) return
     try {
       await api.writeMemory(activeId.value, { content })
       memoryDraft.value = ''
@@ -349,8 +347,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   async function commitDesign() {
     if (!activeId.value) return
+    const content = String(workspaceDetail.value?.preview ?? workspaceDetail.value?.content ?? '').trim()
+    if (!content) return
     try {
-      await api.commitDesign(activeId.value, { content: String(workspaceDetail.value?.preview ?? workspaceDetail.value?.content ?? '') })
+      await api.commitDesign(activeId.value, { content })
       await loadWorkspace('design')
     } catch (e) {
       report(e)

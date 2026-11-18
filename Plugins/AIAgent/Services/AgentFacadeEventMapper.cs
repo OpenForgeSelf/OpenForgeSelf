@@ -37,7 +37,8 @@ internal static class AgentFacadeEventMapper
                     callId,
                     success = ev.Success ?? true,
                     status = ev.Success == false ? "failed" : "done",
-                    summary = Summarize(ev.Result)
+                    summary = Summarize(ev.Result),
+                    detail = ev.Result ?? ""
                 }, TryRunId(ev.Content));
                 break;
             }
@@ -118,6 +119,7 @@ internal static class AgentFacadeEventMapper
                     success = done.Outcome == ToolOutcome.Ok,
                     status = done.Outcome == ToolOutcome.Ok ? "done" : "failed",
                     summary = Summarize(toolResult),
+                    detail = toolResult ?? "",
                     outcome = done.Outcome.ToString()
                 });
                 break;

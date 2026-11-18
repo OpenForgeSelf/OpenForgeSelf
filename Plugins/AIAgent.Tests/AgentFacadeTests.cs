@@ -465,10 +465,85 @@ public class AgentFacadeTests
         Assert.Contains("dispatch_todo", actions);
         var dispatched = svc.DispatchTodo(session.Id, "todo-itest");
         Assert.NotNull(dispatched);
+        var todoAfter = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "todo"));
+        var todos = todoAfter.GetProperty("items").EnumerateArray().ToList();
+        Assert.Single(todos);
+        Assert.Equal("todo-itest", todos[0].GetProperty("id").GetString());
+        Assert.Equal("整理联调纪要", todos[0].GetProperty("title").GetString());
+        Assert.True(todos[0].GetProperty("dispatched").GetBoolean());
+        Assert.Equal("ai-agent", todos[0].GetProperty("assignee").GetString());
         var committed = svc.CommitDesign(session.Id, new WorkspaceWritebackRequest { Content = "ok" });
         Assert.NotNull(committed);
         Assert.True(JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "design")).GetProperty("committed").GetBoolean());
     }
+
+
+    [Fact]
+    public void RejectApproval_MarksCancelledAndDoesNotComplete()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (_, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "写文件" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        svc.Publish(session.Id, "approval.required", new { approvalId = "7", action = "write_file" }, runId);
+        var decided = svc.DecideApproval(session.Id, "7", new DecideApprovalRequest { Approved = false, Note = "取消" });
+        Assert.Equal("rejected", decided!.GetType().GetProperty("Status")!.GetValue(decided)!.ToString());
+        var after = svc.GetSession(session.Id)!;
+        Assert.Equal("cancelled", after.Session.Status);
+        Assert.Equal("cancelled", after.CurrentRun!.Status);
+        Assert.DoesNotContain(svc.ReplayEvents(session.Id, 0), e => e.Type == "run.completed");
+        svc.Publish(session.Id, "run.completed", new { text = "工具已执行完毕。" }, runId);
+        var late = svc.GetSession(session.Id)!;
+        Assert.Equal("cancelled", late.Session.Status);
+        Assert.Equal("cancelled", late.CurrentRun!.Status);
+    }
+
+    [Fact]
+    public void PauseAndCancelWorkflow_UpdateMatchingSteps()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-workflow" });
+        var paused = JsonSerializer.SerializeToElement(svc.PauseWorkflow(session.Id, "wf-itest"));
+        Assert.Equal("paused", paused.GetProperty("status").GetString());
+        Assert.Equal("completed", paused.GetProperty("steps")[0].GetProperty("status").GetString());
+        Assert.Equal("paused", paused.GetProperty("steps")[1].GetProperty("status").GetString());
+        Assert.Equal("paused", svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "workflow").Status);
+        var wfPanel = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
+        Assert.Equal("paused", wfPanel.GetProperty("workflowStatus").GetString());
+
+        var cancelled = JsonSerializer.SerializeToElement(svc.CancelWorkflow(session.Id, "wf-itest"));
+        Assert.Equal("cancelled", cancelled.GetProperty("status").GetString());
+        Assert.Equal("completed", cancelled.GetProperty("steps")[0].GetProperty("status").GetString());
+        Assert.Equal("cancelled", cancelled.GetProperty("steps")[1].GetProperty("status").GetString());
+        Assert.Equal("cancelled", svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "workflow").Status);
+    }
+
+    [Fact]
+    public async Task AgentRunning_HoldsInProgressThenCompletes()
+    {
+        var prev = AgentFacadeService.RunningHoldDuration;
+        AgentFacadeService.RunningHoldDuration = TimeSpan.FromMilliseconds(40);
+        try
+        {
+            var svc = NewFacade();
+            var session = svc.CreateSession(SessionReq("ai-agent"));
+            var (status, _) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-running" });
+            Assert.Equal(202, status);
+            var running = svc.GetSession(session.Id)!;
+            Assert.Equal("running", running.Session.Status);
+            Assert.StartsWith("进行中", running.Workspace.Single(w => w.Id == "records").Status);
+            await Task.Delay(200);
+            var done = svc.GetSession(session.Id)!;
+            Assert.Equal("completed", done.Session.Status);
+            Assert.Equal("已完成", done.Workspace.Single(w => w.Id == "records").Status);
+        }
+        finally
+        {
+            AgentFacadeService.RunningHoldDuration = prev;
+        }
+    }
+
 
 }
 

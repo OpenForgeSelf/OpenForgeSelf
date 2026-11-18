@@ -44,6 +44,37 @@ public class AgentFacadeExecutorTests
     }
 
     [Fact]
+    public async Task OpenRun_PostToolTextEndsTurnOnce()
+    {
+        var facade = new AgentFacadeService();
+        var agent = new FakeAgent
+        {
+            Frames =
+            {
+                new ToolStarted("c1", "list_files", """{"cwd":"/tmp"}"""),
+                new ToolCompleted("c1", ToolOutcome.Ok, 1),
+                new AssistantDelta("工具已执行完毕。"),
+                new StepCompleted("s1", StepEndReason.Completed),
+                new AssistantDelta("工具已执行完毕。"),
+                new AssistantDelta("工具已执行完毕。"),
+                new TurnCompleted("t1", TurnEndReason.Completed)
+            }
+        };
+        facade.AttachExecutor(new AgentFacadeRunExecutor(facade, agentService: new StubAgentService(), registry: new StubRegistry(agent)));
+        var session = facade.CreateSession(Req("ai-agent"));
+        facade.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-tool-call" });
+        await DrainUntil(facade, session.Id, "run.completed");
+        var detail = facade.GetSession(session.Id)!;
+        Assert.Equal("completed", detail.Session.Status);
+        var text = detail.Messages.Last(m => m.Role == "assistant").Content;
+        Assert.Equal("工具已执行完毕。", text);
+        Assert.Equal(1, facade.ReplayEvents(session.Id, 0).Count(e => e.Type == "run.completed"));
+        var deltas = facade.ReplayEvents(session.Id, 0).Where(e => e.Type == "message.delta").Select(e =>
+            e.Payload!.GetType().GetProperty("text")!.GetValue(e.Payload)!.ToString()).ToList();
+        Assert.Equal(new[] { "工具已执行完毕。" }, deltas);
+    }
+
+    [Fact]
     public async Task ConfirmPlan_RunsConfirmedPlanAndMapsStepEvents()
     {
         var facade = new AgentFacadeService();

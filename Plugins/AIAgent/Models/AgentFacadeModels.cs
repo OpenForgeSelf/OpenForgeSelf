@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ForgeSelf.Api.Plugins.AIAgent.Models;
 
 /// <summary>统一 Agent 能力入口的请求与事件模型（/api/agent）。</summary>
@@ -256,4 +258,24 @@ public static class AgentToolScopeRules
             set.ExceptWith(denyList.Where(s => !string.IsNullOrWhiteSpace(s)));
         return set.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
+}
+
+public sealed class AgentWorkspaceTodoDto
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("title")] public string? Title { get; set; }
+    [JsonPropertyName("goal")] public string? Goal { get; set; }
+    [JsonPropertyName("scope")] public string? Scope { get; set; }
+    [JsonPropertyName("acceptance")] public string? Acceptance { get; set; }
+    [JsonPropertyName("dispatched")] public bool Dispatched { get; set; }
+    [JsonPropertyName("assignee")] public string? Assignee { get; set; }
+    [JsonPropertyName("at")] public DateTimeOffset? At { get; set; }
+}
+
+public sealed class AgentWorkspaceWorkflowStepDto
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("status")] public string Status { get; set; } = "pending";
+    [JsonPropertyName("risk")] public string? Risk { get; set; }
 }

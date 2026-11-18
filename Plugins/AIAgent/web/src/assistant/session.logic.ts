@@ -44,6 +44,23 @@ export function splitProse(text: string): ProsePart[] {
   return parts
 }
 
+export function asToolDetail(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (value && typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2)
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
+
+export function toolExpandText(tool: { detail?: string; summary?: string }): string {
+  return (tool.detail || tool.summary || '').trim()
+}
+
 export function isSettledStatus(status: AgentSessionStatus): boolean {
   return (
     status === 'completed' ||
@@ -225,10 +242,13 @@ export function applyEvent(state: ThreadState, ev: AgentEventEnvelope): ThreadSt
         id,
         name: str(p.name, '工具'),
         summary: str(p.summary, ev.type === 'tool.completed' ? '已完成' : '进行中'),
-        detail: typeof p.detail === 'string' ? p.detail : undefined,
+        detail: asToolDetail(p.detail) || asToolDetail(p.result) || asToolDetail(p.output) || undefined,
         status: ev.type === 'tool.completed' ? (str(p.status) === 'failed' ? 'failed' : 'done') : 'running',
       }
       const idx = s.items.findIndex((it) => it.kind === 'tool' && it.id === id)
+      if (idx >= 0 && s.items[idx].kind === 'tool' && !tool.detail && s.items[idx].tool.detail) {
+        tool.detail = s.items[idx].tool.detail
+      }
       const item: AgentThreadItem = { kind: 'tool', id, tool }
       if (idx >= 0) s.items[idx] = item
       else s.items.push(item)

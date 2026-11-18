@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel } from './session.logic'
+import { applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel, toolExpandText } from './session.logic'
 
 describe('primaryKind', () => {
   it('lets confirm-plan take the gold button', () => {
@@ -113,5 +113,45 @@ describe('applyEvent cancel', () => {
     })
     expect(s.status).toBe('cancelled')
     expect(s.items.filter((it) => it.kind === 'stuck').length).toBe(stuckCount)
+  })
+})
+
+describe('toolExpandText', () => {
+  it('falls back to summary when detail is missing', () => {
+    expect(toolExpandText({ summary: 'list_files · 已完成' })).toBe('list_files · 已完成')
+  })
+  it('prefers detail', () => {
+    expect(toolExpandText({ detail: '{ "ok": true }', summary: '已完成' })).toBe('{ "ok": true }')
+  })
+})
+
+describe('applyEvent tool.completed', () => {
+  it('stringifies object result into detail so the row can expand', () => {
+    let s = emptyThreadState()
+    s = applyEvent(s, {
+      type: 'tool.completed',
+      sessionId: 's1',
+      runId: 'r1',
+      seq: 1,
+      ts: '',
+      payload: { toolCallId: 't1', name: 'list_files', summary: '已完成', result: { success: true, root: '/tmp' } },
+    })
+    const item = s.items.find((it) => it.kind === 'tool')
+    expect(item?.kind === 'tool' && item.tool.detail?.includes('/tmp')).toBe(true)
+    expect(item?.kind === 'tool' && toolExpandText(item.tool).includes('/tmp')).toBe(true)
+  })
+  it('can still expand from summary alone', () => {
+    let s = emptyThreadState()
+    s = applyEvent(s, {
+      type: 'tool.completed',
+      sessionId: 's1',
+      runId: 'r1',
+      seq: 1,
+      ts: '',
+      payload: { toolCallId: 't2', name: 'list_files', summary: '列出 /tmp' },
+    })
+    const item = s.items.find((it) => it.kind === 'tool')
+    expect(item?.kind === 'tool' && !item.tool.detail).toBe(true)
+    expect(item?.kind === 'tool' && toolExpandText(item.tool)).toBe('列出 /tmp')
   })
 })

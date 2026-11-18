@@ -154,6 +154,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
 
         if (TryFailByKeyword(s, run))
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
+        if (TryHoldRunningByKeyword(s, run))
+            return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
 
         s.Status = "running";
         Touch(s);
@@ -212,6 +214,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         if (TryFailByKeyword(s, run))
             return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
+        if (TryHoldRunningByKeyword(s, run))
+            return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
         _ = SafeStart(() => _executor?.StartPlanAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
     }
@@ -260,13 +264,21 @@ public sealed class AgentFacadeService : IAgentFacadeService
                 }
             }
         }
-        run.ContinueInput = request.Approved
-            ? "（审批已通过，请继续执行原任务）"
-            : "（审批已拒绝，请调整方案后继续）";
+        Append(s, "approval.resolved", run.Id, new { approvalId, approved = request.Approved, note = request.Note });
+        if (!request.Approved)
+        {
+            MarkCancelled(s, run);
+            Touch(s);
+            Append(s, "run.cancelled", run.Id, new { reason = "approval_rejected", approvalId, note = request.Note });
+            Append(s, "session.status", run.Id, new { status = s.Status });
+            Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+            return item;
+        }
+
+        run.ContinueInput = "（审批已通过，请继续执行原任务）";
         s.Status = "running";
         run.Status = "running";
         Touch(s);
-        Append(s, "approval.resolved", run.Id, new { approvalId, approved = request.Approved, note = request.Note });
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         _ = SafeStart(() => _executor?.ResumeAsync(s.Id, run.Id, "continue", CancellationToken.None) ?? Task.CompletedTask);
@@ -359,10 +371,11 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
         s.WorkflowStatus = "paused";
         s.WorkflowId = workflowId;
+        ApplyWorkflowStepStatus(s, "paused");
         Touch(s);
-        Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "paused" });
+        Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "paused", steps = s.WorkflowSteps });
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
-        return new { workflowId, status = "paused" };
+        return new { workflowId, status = "paused", steps = s.WorkflowSteps };
     }
 
     public object? CancelWorkflow(string sessionId, string workflowId)
@@ -370,10 +383,11 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
         s.WorkflowStatus = "cancelled";
         s.WorkflowId = workflowId;
+        ApplyWorkflowStepStatus(s, "cancelled");
         Touch(s);
-        Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "cancelled" });
+        Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "cancelled", steps = s.WorkflowSteps });
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
-        return new { workflowId, status = "cancelled" };
+        return new { workflowId, status = "cancelled", steps = s.WorkflowSteps };
     }
 
     public object? GetWorkspace(string sessionId, string? panel)
@@ -393,7 +407,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
             "snippets" => new { panel = id, items = s.Snippets, status = items.First(i => i.Id == "snippets").Status },
             "todo" => new { panel = id, items = s.Todos, status = items.First(i => i.Id == "todo").Status },
             "design" => new { panel = id, preview = s.DesignPreview, committed = s.DesignCommitted, status = items.First(i => i.Id == "design").Status },
-            "workflow" => new { panel = id, workflowId = s.WorkflowId, steps = s.WorkflowSteps, status = items.First(i => i.Id == "workflow").Status },
+            "workflow" => new { panel = id, workflowId = s.WorkflowId, steps = s.WorkflowSteps, workflowStatus = s.WorkflowStatus, status = items.First(i => i.Id == "workflow").Status },
             "project" => new { panel = id, context = s.CurrentRun?.ContextSnapshot ?? s.Context, status = items.First(i => i.Id == "project").Status },
             "skills" => new { panel = id, attachments = s.CurrentRun?.Attachments.Where(a => a.Kind == "skill").ToList(), status = items.First(i => i.Id == "skills").Status },
             _ => new { error = "未知面板" }
@@ -425,10 +439,15 @@ public sealed class AgentFacadeService : IAgentFacadeService
     public object? DispatchTodo(string sessionId, string todoId)
     {
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
-        s.Todos.Add(new { id = todoId, dispatched = true, at = DateTimeOffset.Now });
+        var item = s.Todos.FirstOrDefault(t => string.Equals(t.Id, todoId, StringComparison.OrdinalIgnoreCase));
+        if (item == null) return new { error = "待办不存在" };
+        if (item.Dispatched) return item;
+        item.Dispatched = true;
+        item.Assignee = s.AgentId ?? s.PluginId;
+        item.At = DateTimeOffset.Now;
         Touch(s);
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
-        return new { todoId, dispatched = true };
+        return item;
     }
 
     public object? SaveSnippet(string sessionId, WorkspaceWritebackRequest request)
@@ -493,8 +512,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             s.CurrentRun.Status = "awaiting_approval";
             payload = MergeApprovalId(payload, id);
         }
-        if (s.Status == "cancelled"
-            && (type is "run.stuck" or "run.failed" or "run.completed" or "approval.required"))
+        if ((s.Status == "cancelled" || s.Status == "completed")
+            && (type is "run.stuck" or "run.failed" or "run.completed" or "run.cancelled" or "approval.required"))
         {
             return true;
         }
@@ -783,8 +802,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             s.WorkflowId = "wf-itest";
             s.WorkflowStatus = "running";
             s.WorkflowSteps.Clear();
-            s.WorkflowSteps.Add(new { id = "w1", name = "准备", status = "completed" });
-            s.WorkflowSteps.Add(new { id = "w2", name = "写入结果", status = "running", risk = "high" });
+            s.WorkflowSteps.Add(new AgentWorkspaceWorkflowStepDto { Id = "w1", Name = "准备", Status = "completed" });
+            s.WorkflowSteps.Add(new AgentWorkspaceWorkflowStepDto { Id = "w2", Name = "写入结果", Status = "running", Risk = "high" });
         }
         if (ContainsKeyword(text, "agent-design"))
         {
@@ -814,14 +833,14 @@ public sealed class AgentFacadeService : IAgentFacadeService
         {
             if (s.Todos.Count == 0)
             {
-                s.Todos.Add(new
+                s.Todos.Add(new AgentWorkspaceTodoDto
                 {
-                    id = "todo-itest",
-                    title = "整理联调纪要",
-                    goal = "把本轮结果写成三条纪要",
-                    scope = "/tmp/agent-itest",
-                    acceptance = "纪要文件可打开且含三条要点",
-                    dispatched = false
+                    Id = "todo-itest",
+                    Title = "整理联调纪要",
+                    Goal = "把本轮结果写成三条纪要",
+                    Scope = "/tmp/agent-itest",
+                    Acceptance = "纪要文件可打开且含三条要点",
+                    Dispatched = false
                 });
             }
         }
@@ -845,6 +864,44 @@ public sealed class AgentFacadeService : IAgentFacadeService
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         return true;
+    }
+
+    public static TimeSpan RunningHoldDuration { get; set; } = TimeSpan.FromSeconds(8);
+
+    private bool TryHoldRunningByKeyword(SessionState s, RunState run)
+    {
+        if (!ContainsKeyword(run.Text, "agent-running"))
+            return false;
+        s.Status = "running";
+        run.Status = "running";
+        Touch(s);
+        Append(s, "session.status", run.Id, new { status = s.Status });
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+        var sessionId = s.Id;
+        var runId = run.Id;
+        var delay = RunningHoldDuration;
+        _ = SafeStart(async () =>
+        {
+            try { await Task.Delay(delay).ConfigureAwait(false); }
+            catch { return; }
+            if (!_sessions.TryGetValue(sessionId, out var live) || live.Deleted) return;
+            if (live.Status is "cancelled" or "failed" or "completed") return;
+            if (live.CurrentRun == null || live.CurrentRun.Id != runId) return;
+            Publish(sessionId, "message.completed", new { text = "进行中任务已结束。" }, runId);
+            Publish(sessionId, "run.completed", new { text = "进行中任务已结束。" }, runId);
+        });
+        return true;
+    }
+
+    private static void ApplyWorkflowStepStatus(SessionState s, string status)
+    {
+        foreach (var step in s.WorkflowSteps)
+        {
+            if (status == "paused" && step.Status is "running" or "pending")
+                step.Status = "paused";
+            if (status == "cancelled" && step.Status is "running" or "pending" or "paused")
+                step.Status = "cancelled";
+        }
     }
 
     private static AgentWorkspaceStatusDto Item(string id, string name, string description, string status) =>
@@ -951,8 +1008,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
         public List<object> Memories { get; } = new();
         public List<object> Suggestions { get; } = new();
         public List<object> Snippets { get; } = new();
-        public List<object> Todos { get; } = new();
-        public List<object> WorkflowSteps { get; } = new();
+        public List<AgentWorkspaceTodoDto> Todos { get; } = new();
+        public List<AgentWorkspaceWorkflowStepDto> WorkflowSteps { get; } = new();
     }
 
     private sealed class RunState

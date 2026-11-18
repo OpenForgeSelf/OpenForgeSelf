@@ -195,6 +195,8 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
 
             var full = new StringBuilder();
             var store = _ctx?.Get<ISessionStore>();
+            var sawTool = false;
+            var endAfterPostToolText = false;
             await foreach (var frame in agent.RunAsync(cts.Token).ConfigureAwait(false))
             {
                 string? toolResult = null;
@@ -206,13 +208,35 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
                         .LastOrDefault(r => string.Equals(r.CallId, done.CallId, StringComparison.Ordinal));
                     toolResult = last?.ResultJson;
                     toolName = last?.ToolName;
+                    sawTool = true;
                 }
+                else if (frame is ToolCompleted)
+                    sawTool = true;
 
                 if (frame is AssistantDelta delta)
-                    full.Append(delta.Content);
+                {
+                    var piece = delta.Content ?? "";
+                    if (ShouldAppendDelta(full, piece))
+                        full.Append(piece);
+                    else
+                        continue;
+                    if (sawTool && !string.IsNullOrWhiteSpace(piece))
+                        endAfterPostToolText = true;
+                }
 
                 foreach (var mapped in AgentFacadeEventMapper.MapFrame(frame, toolResult, toolName))
                     _facade.Publish(sessionId, mapped.Type, mapped.Payload, runId);
+
+                if (endAfterPostToolText && frame is StepCompleted)
+                {
+                    var textOut = CollapseRepeated(full.ToString());
+                    if (!string.IsNullOrWhiteSpace(textOut))
+                        _facade.Publish(sessionId, "message.completed", new { text = textOut }, runId);
+                    _facade.Publish(sessionId, "run.completed", new { text = textOut }, runId);
+                    try { await agent.CancelAsync(new ForgeSelf.Abstractions.AgentCancelCause.User()).ConfigureAwait(false); }
+                    catch { /* 已收束，取消只为停掉后续空转 */ }
+                    break;
+                }
 
                 if (frame is TurnCompleted completed)
                 {
@@ -222,7 +246,7 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
                     }
                     else
                     {
-                        var textOut = full.ToString();
+                        var textOut = CollapseRepeated(full.ToString());
                         if (!string.IsNullOrWhiteSpace(textOut))
                             _facade.Publish(sessionId, "message.completed", new { text = textOut }, runId);
                         _facade.Publish(sessionId, "run.completed", new { text = textOut }, runId);
@@ -292,6 +316,31 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
         {
             DetachCancel(sessionId, runId, cts);
         }
+    }
+
+
+    private static bool ShouldAppendDelta(StringBuilder full, string piece)
+    {
+        if (string.IsNullOrEmpty(piece)) return false;
+        var current = full.ToString();
+        if (current.EndsWith(piece, StringComparison.Ordinal)) return false;
+        const string done = "工具已执行完毕。";
+        if (piece.Contains(done, StringComparison.Ordinal) && current.Contains(done, StringComparison.Ordinal))
+            return false;
+        return true;
+    }
+
+    private static string CollapseRepeated(string text)
+    {
+        var t = (text ?? "").Trim();
+        if (t.Length == 0) return t;
+        const string done = "工具已执行完毕。";
+        if (t.Contains(done, StringComparison.Ordinal))
+        {
+            var rest = t.Replace(done, "", StringComparison.Ordinal).Trim();
+            if (rest.Length == 0) return done;
+        }
+        return t;
     }
 
     private async Task PublishPendingApprovalAsync(string sessionId, string runId, CancellationToken ct)

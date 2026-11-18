@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { statusLabel } from './session.logic'
 import type { AgentSessionStatus, AgentWorkspaceItemStatus, AgentWorkspacePanelId } from './types'
 
@@ -90,6 +90,70 @@ const canCommitDesign = computed(() => {
   const data = props.detail
   return Boolean(text(data?.preview) || text(data?.content) || (Array.isArray(data?.tokens) && data!.tokens.length))
 })
+
+const designConfirming = ref(false)
+const designCommitted = computed(() => {
+  const v = props.detail?.committed
+  return v === true || v === 'true' || v === '已写入'
+})
+
+watch(
+  () => [props.panel, designCommitted.value],
+  () => {
+    if (props.panel !== 'design' || designCommitted.value) designConfirming.value = false
+  }
+)
+
+const locallyDispatched = ref(new Set<string>())
+
+function isDispatched(it: Record<string, unknown>): boolean {
+  const status = text(it.status)
+  const id = text(it.id)
+  return (
+    it.dispatched === true ||
+    it.assigned === true ||
+    status === 'dispatched' ||
+    status === '已下发' ||
+    (id !== '' && locallyDispatched.value.has(id))
+  )
+}
+
+function todoItems(): Array<Record<string, unknown>> {
+  const items = asList('items')
+  const out: Array<Record<string, unknown>> = []
+  for (const it of items) {
+    const id = text(it.id)
+    const title = text(it.title) || text(it.name)
+    if (!title) continue
+    out.push(isDispatched(it) ? { ...it, dispatched: true } : it)
+  }
+  return out
+}
+
+function onDispatchTodo(it: Record<string, unknown>, fallbackId: string) {
+  const id = text(it.id) || fallbackId
+  if (id) locallyDispatched.value = new Set([...locallyDispatched.value, id])
+  emit('dispatchTodo', id)
+}
+
+function workflowStatusText(): string {
+  const raw = text(props.detail?.workflowStatus) || text(props.detail?.WorkflowStatus)
+  if (!raw) return ''
+  switch (raw) {
+    case 'paused':
+      return '已暂停'
+    case 'cancelled':
+      return '已取消'
+    case 'running':
+      return '进行中'
+    case 'completed':
+      return '已完成'
+    case 'idle':
+      return '未启动'
+    default:
+      return raw
+  }
+}
 </script>
 
 <template>
@@ -160,7 +224,8 @@ const canCommitDesign = computed(() => {
         </template>
         <template v-else-if="panel === 'workflow'">
           <div class="aa-art-sec">
-            <p v-if="!asList('steps').length">未启动工作流。</p>
+            <p v-if="workflowStatusText()">状态 {{ workflowStatusText() }}</p>
+            <p v-if="!asList('steps').length && !workflowStatusText()">未启动工作流。</p>
             <ol class="aa-steps">
               <li v-for="(st, i) in asList('steps')" :key="i">{{ text(st.title) || text(st.name) }} · {{ text(st.status) }}</li>
             </ol>
@@ -181,6 +246,7 @@ const canCommitDesign = computed(() => {
           <div class="aa-art-sec">
             <p v-if="!detail || !(detail.preview || asList('tokens').length)">暂无预览。写入设计系统需要明确确认，默认不写库。</p>
             <p v-else>{{ text(detail.preview) || '已有预览，确认后才写入设计系统。' }}</p>
+            <p v-if="designCommitted">已写入</p>
           </div>
         </template>
         <template v-else-if="panel === 'suggest'">
@@ -212,10 +278,11 @@ const canCommitDesign = computed(() => {
         </template>
         <template v-else-if="panel === 'todo'">
           <div class="aa-art-sec">
-            <p v-if="!asList('items').length">暂无可下发的待办。</p>
-            <div v-for="(it, i) in asList('items')" :key="i" class="aa-art-sec">
-              <p>{{ text(it.title) || text(it.name) }}</p>
-              <button type="button" class="aa-btn" @click="emit('dispatchTodo', text(it.id) || String(i))">下发给当前智能体</button>
+            <p v-if="!todoItems().length">暂无可下发的待办。</p>
+            <div v-for="(it, i) in todoItems()" :key="text(it.id) || String(i)" class="aa-art-sec">
+              <p>{{ text(it.title) || text(it.name) || '待办' }}</p>
+              <p v-if="isDispatched(it)" class="aa-muted-line">已下发</p>
+              <button v-else type="button" class="aa-btn" @click="onDispatchTodo(it, String(i))">下发给当前智能体</button>
             </div>
           </div>
         </template>
@@ -266,7 +333,13 @@ const canCommitDesign = computed(() => {
         <button type="button" class="aa-btn" :disabled="!canWriteMemory" @click="canWriteMemory && emit('writeMemory')">写回记忆</button>
       </div>
       <div v-else-if="panel === 'design'" class="aa-art-foot">
-        <button type="button" class="aa-btn pri" :disabled="!canCommitDesign" @click="canCommitDesign && emit('commitDesign')">确认写入设计系统</button>
+        <button v-if="designCommitted" type="button" class="aa-btn pri" disabled>已写入</button>
+        <template v-else-if="designConfirming">
+          <span class="aa-confirm-ask">确认写入设计系统？</span>
+          <button type="button" class="aa-btn pri" :disabled="!canCommitDesign" @click="canCommitDesign && emit('commitDesign')">确认写入</button>
+          <button type="button" class="aa-btn ghost" @click="designConfirming = false">取消</button>
+        </template>
+        <button v-else type="button" class="aa-btn pri" :disabled="!canCommitDesign" @click="canCommitDesign && (designConfirming = true)">确认写入设计系统</button>
       </div>
       <div v-else-if="panel === 'workflow'" class="aa-art-foot">
         <button type="button" class="aa-btn" @click="emit('pauseWorkflow')">暂停</button>

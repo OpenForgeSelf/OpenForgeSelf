@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { splitProse } from './session.logic'
+import { splitProse, toolExpandText } from './session.logic'
 import type { AgentStuck, AgentThreadItem } from './types'
 
 defineProps<{
@@ -42,7 +42,7 @@ function can(stuck: AgentStuck, action: AgentStuck['allowedActions'][number]) {
           <button type="button" class="aa-tool" @click="toggle(item.id)">
             {{ item.tool.name }} · {{ item.tool.summary }}
           </button>
-          <pre v-if="openTools[item.id] && item.tool.detail" class="aa-tool-detail">{{ item.tool.detail }}</pre>
+          <pre v-if="openTools[item.id] && toolExpandText(item.tool)" class="aa-tool-detail">{{ toolExpandText(item.tool) }}</pre>
         </div>
         <div v-else-if="item.kind === 'approval'" class="aa-msg assistant">
           <div class="aa-card">

@@ -106,7 +106,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         if (ev.type === 'session.status' || ev.type.startsWith('run.') || ev.type === 'plan.proposed' || ev.type === 'approval.required') {
           void refreshSessions()
         }
-        if (ev.type === 'run.cancelled' || ev.type === 'run.completed' || ev.type === 'run.failed') {
+        if (
+          ev.type === 'run.cancelled' ||
+          ev.type === 'run.completed' ||
+          ev.type === 'run.failed' ||
+          ev.type === 'workflow.updated' ||
+          ev.type === 'workspace.updated'
+        ) {
           const panel = workspacePanel.value
           void loadWorkspace(panel === 'catalog' ? undefined : panel)
         }
@@ -337,7 +343,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (!out.enabled && Array.isArray(data.attachments)) out.enabled = data.attachments
       if (!out.disabled) out.disabled = []
     }
-    if (panel === 'workflow' && !out.id && data.workflowId) out.id = data.workflowId
+    if (panel === 'workflow') {
+      if (!out.id && data.workflowId) out.id = data.workflowId
+      if (out.workflowStatus == null) {
+        const raw = data.workflowStatus ?? data.WorkflowStatus ?? data.status
+        if (raw != null && raw !== '') out.workflowStatus = raw
+      }
+    }
     return out
   }
 
@@ -405,6 +417,52 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } catch (e) {
       report(e)
     }
+  }
+
+  function resolveWorkflowId(detail: Record<string, unknown> | null): string {
+    if (!detail) return 'current'
+    const direct = textOf(detail.id) || textOf(detail.workflowId) || textOf(detail.WorkflowId)
+    if (direct) return direct
+    const nested = detail.workflow
+    if (nested && typeof nested === 'object') {
+      const rec = nested as Record<string, unknown>
+      const fromNested = textOf(rec.id) || textOf(rec.workflowId)
+      if (fromNested) return fromNested
+    }
+    const steps = Array.isArray(detail.steps) ? (detail.steps as Array<Record<string, unknown>>) : []
+    for (const st of steps) {
+      const id = textOf(st.workflowId) || textOf(st.id)
+      if (id) return id
+    }
+    return 'current'
+  }
+
+  async function pauseWorkflow() {
+    if (!activeId.value) {
+      await loadWorkspace('workflow')
+      return
+    }
+    const wf = resolveWorkflowId(workspaceDetail.value)
+    try {
+      await api.pauseWorkflow(activeId.value, wf)
+    } catch (e) {
+      report(e)
+    }
+    await loadWorkspace('workflow')
+  }
+
+  async function cancelWorkflow() {
+    if (!activeId.value) {
+      await loadWorkspace('workflow')
+      return
+    }
+    const wf = resolveWorkflowId(workspaceDetail.value)
+    try {
+      await api.cancelWorkflow(activeId.value, wf)
+    } catch (e) {
+      report(e)
+    }
+    await loadWorkspace('workflow')
   }
 
   async function changeMode(next: AgentMode) {
@@ -482,6 +540,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     writeMemory,
     commitDesign,
     dispatchTodo,
+    pauseWorkflow,
+    cancelWorkflow,
     changeMode,
   }
 }

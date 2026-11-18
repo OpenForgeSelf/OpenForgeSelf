@@ -5,10 +5,11 @@ Keeps the original ST keywords and adds:
   agent-tool-call  → list_files tool_call
   agent-approval   → write_file tool_call (high-risk, must approve)
   agent-fail       → text used with the facade fail+retry path
+  agent-running    → delay a few seconds, then a short completion (F13 in-progress)
   agent-workflow / agent-design / agent-suggest / agent-project / agent-todo
                    → short text; the facade seeds the matching workspace panel
-After a tool result is already in the messages, returns a short completion
-so the loop can finish instead of calling the tool again.
+After a tool result is already in the messages, returns one "工具已执行完毕。"
+(and task_complete when that exit tool is advertised) so the loop ends.
 
 Default: 127.0.0.1:18766 (do not bind 18765, which the ST host uses).
 """
@@ -30,7 +31,7 @@ KEYWORDS = (
     ("st-run-write", "mkdir -p /tmp/st-r7-probe"),
     ("st-insert-ls", "ls"),
 )
-MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call、agent-approval、agent-fail、agent-workflow、agent-design、agent-suggest、agent-project 或 agent-todo。"
+MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call、agent-approval、agent-fail、agent-running、agent-workflow、agent-design、agent-suggest、agent-project 或 agent-todo。"
 TOOL_DONE_REPLY = "工具已执行完毕。"
 
 LIST_FILES_ARGS = {"cwd": "/tmp"}
@@ -132,12 +133,14 @@ def match_text(haystack: str) -> str:
 
 TEXT_KEYWORDS = (
     ("agent-fail", "任务失败，请重试。"),
+    ("agent-running", "任务仍在进行，即将完成。"),
     ("agent-workflow", "已关联联调工作流，可暂停或取消。"),
     ("agent-design", "已给出设计预览，默认不写库。"),
     ("agent-suggest", "已给出可执行建议。"),
     ("agent-project", "已绑定联调项目。"),
     ("agent-todo", "已添加可下发待办。"),
 )
+RUNNING_HOLD_SECONDS = 8
 
 
 def match_seed_text(haystack: str) -> str | None:
@@ -280,8 +283,36 @@ def normalize_path(path: str) -> str:
     return (parsed.path or "/").rstrip("/") or "/"
 
 
+def advertised_tool_names(body: dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for tool in body.get("tools") or []:
+        if not isinstance(tool, dict):
+            continue
+        fn = tool.get("function") if isinstance(tool.get("function"), dict) else {}
+        name = str(tool.get("name") or fn.get("name") or "")
+        if name:
+            names.add(name)
+    return names
+
+
+def assistant_already_said_done(body: dict[str, Any]) -> bool:
+    for msg in body.get("messages") or []:
+        if not isinstance(msg, dict):
+            continue
+        if str(msg.get("role") or "").lower() != "assistant":
+            continue
+        if TOOL_DONE_REPLY in collect_text(msg):
+            return True
+        for name in _message_tool_names(msg):
+            if name in {"task_complete", "aiagent.task_complete"}:
+                return True
+    return False
+
+
 def resolve_response(body: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
     if has_keyword_tool_result(body):
+        if assistant_already_said_done(body):
+            return "", None
         return TOOL_DONE_REPLY, None
     haystack = extract_haystack(body)
     tool = choose_tool(haystack)
@@ -339,6 +370,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         text, tool = resolve_response(body)
+        haystack = extract_haystack(body)
+        if tool is None and "agent-running" in haystack.lower() and not has_keyword_tool_result(body):
+            time.sleep(RUNNING_HOLD_SECONDS)
         try:
             import sys
             summary = []
@@ -396,7 +430,7 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(
         f"agent-keyword-mock listening on http://{args.host}:{args.port}/v1 "
-        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval, agent-fail, agent-workflow, agent-design, agent-suggest, agent-project, agent-todo)",
+        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval, agent-fail, agent-running, agent-workflow, agent-design, agent-suggest, agent-project, agent-todo)",
         flush=True,
     )
     try:

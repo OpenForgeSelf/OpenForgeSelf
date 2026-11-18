@@ -7,7 +7,6 @@ import AgentSessionList from './AgentSessionList.vue'
 import AgentThread from './AgentThread.vue'
 import AgentWorkspace from './AgentWorkspace.vue'
 import './assistant.css'
-import * as api from './api'
 import type { AgentAssistantLayout, AgentEmbedContext, AgentToolScope, AgentAttachment } from './types'
 import { useAgentSession } from './useAgentSession'
 
@@ -58,28 +57,6 @@ function removePin(id: string) {
 
 async function onRetry() {
   await session.actStuck('retry')
-}
-
-async function onPauseWorkflow() {
-  const id = session.activeId.value
-  const wf = String(session.workspaceDetail.value?.id ?? session.workspaceDetail.value?.workflowId ?? '')
-  if (!id || !wf) return
-  try {
-    await api.pauseWorkflow(id, wf)
-  } catch (e) {
-    session.error.value = e instanceof Error ? e.message : String(e)
-  }
-}
-
-async function onCancelWorkflow() {
-  const id = session.activeId.value
-  const wf = String(session.workspaceDetail.value?.id ?? session.workspaceDetail.value?.workflowId ?? '')
-  if (!id || !wf) return
-  try {
-    await api.cancelWorkflow(id, wf)
-  } catch (e) {
-    session.error.value = e instanceof Error ? e.message : String(e)
-  }
 }
 
 onMounted(async () => {
@@ -178,8 +155,8 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
       @write-memory="session.writeMemory()"
       @commit-design="session.commitDesign()"
       @dispatch-todo="session.dispatchTodo($event)"
-      @pause-workflow="onPauseWorkflow"
-      @cancel-workflow="onCancelWorkflow"
+      @pause-workflow="session.pauseWorkflow()"
+      @cancel-workflow="session.cancelWorkflow()"
     />
   </div>
 </template>

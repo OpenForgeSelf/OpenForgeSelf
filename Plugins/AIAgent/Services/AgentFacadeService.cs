@@ -24,7 +24,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
 
     public AgentSessionSummaryDto CreateSession(CreateAgentSessionRequest request)
     {
-        var context = request.Embed?.Context ?? new AgentEmbedContext();
+        var context = request.Embed?.ResolvedContext() ?? new AgentEmbedContext();
         if (string.IsNullOrWhiteSpace(context.PluginId))
             throw new ArgumentException("pluginId 不能为空");
 
@@ -105,7 +105,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (IsBusy(s.Status))
             return (409, new { error = "该会话上一轮仍在进行" });
 
-        if (request.Embed?.Context is { } incoming)
+        var incoming = request.Embed?.ResolvedContext();
+        if (incoming != null)
         {
             if (!string.IsNullOrWhiteSpace(incoming.PluginId)
                 && !incoming.PluginId.Trim().Equals(s.PluginId, StringComparison.OrdinalIgnoreCase))
@@ -120,7 +121,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Id = Guid.NewGuid().ToString("N"),
             Status = s.Mode == "planned" ? "planning" : "running",
             ToolScope = request.Embed?.ToolScope,
-            ContextSnapshot = CloneContext(request.Embed?.Context ?? s.Context, s.PluginId, s.SurfaceKey),
+            ContextSnapshot = CloneContext(request.Embed?.ResolvedContext() ?? s.Context, s.PluginId, s.SurfaceKey),
             Attachments = request.Attachments ?? new List<AgentAttachment>(),
             Text = request.Text.Trim(),
             Turn = 0,
@@ -143,14 +144,14 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Touch(s);
             Append(s, "session.status", run.Id, new { status = s.Status });
             Append(s, "plan.proposed", run.Id, run.Plan);
-            Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+            Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
         }
 
         s.Status = "running";
         Touch(s);
         Append(s, "session.status", run.Id, new { status = s.Status });
-        Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         _ = SafeStart(() => _executor?.StartOpenAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
     }
@@ -201,7 +202,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         Touch(s);
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "plan.updated", run.Id, run.Plan);
-        Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         _ = SafeStart(() => _executor?.StartPlanAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
     }
@@ -215,11 +216,12 @@ public sealed class AgentFacadeService : IAgentFacadeService
         run.Plan ??= new AgentPlanDto();
         if (request.Steps is { Count: > 0 })
             run.Plan.Steps = request.Steps;
-        if (!string.IsNullOrWhiteSpace(request.Text))
-            run.Plan.Goal = request.Text.Trim();
+        var reviseText = request.ResolvedText();
+        if (!string.IsNullOrWhiteSpace(reviseText))
+            run.Plan.Goal = reviseText.Trim();
         Touch(s);
         Append(s, "plan.updated", run.Id, run.Plan);
-        Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         return run.Plan;
     }
 
@@ -247,7 +249,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         Touch(s);
         Append(s, "approval.resolved", run.Id, new { approvalId, approved = request.Approved, note = request.Note });
         Append(s, "session.status", run.Id, new { status = s.Status });
-        Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         return item;
     }
 
@@ -264,7 +266,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         _ = SafeStart(() => _executor?.StopAsync(s.Id, run.Id) ?? Task.CompletedTask);
         Append(s, "run.cancelled", run.Id, new { reason = "stopped" });
         Append(s, "session.status", run.Id, new { status = s.Status });
-        Append(s, "workspace.updated", run.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
     }
 
@@ -331,7 +333,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         s.WorkflowId = workflowId;
         Touch(s);
         Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "paused" });
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { workflowId, status = "paused" };
     }
 
@@ -342,7 +344,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         s.WorkflowId = workflowId;
         Touch(s);
         Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "cancelled" });
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { workflowId, status = "cancelled" };
     }
 
@@ -378,7 +380,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         var item = new { id = Guid.NewGuid().ToString("N"), content = request.Content.Trim(), at = DateTimeOffset.Now };
         s.Memories.Add(item);
         Touch(s);
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return item;
     }
 
@@ -388,7 +390,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         s.DesignCommitted = true;
         s.DesignPreview = request.Content ?? s.DesignPreview;
         Touch(s);
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { committed = true };
     }
 
@@ -397,7 +399,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
         s.Todos.Add(new { id = todoId, dispatched = true, at = DateTimeOffset.Now });
         Touch(s);
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { todoId, dispatched = true };
     }
 
@@ -407,7 +409,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         var item = new { id = Guid.NewGuid().ToString("N"), title = request.Title, content = request.Content ?? "" };
         s.Snippets.Add(item);
         Touch(s);
-        Append(s, "workspace.updated", s.CurrentRun?.Id, BuildWorkspace(s));
+        Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return item;
     }
 
@@ -464,7 +466,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             s.Status = "stuck";
             s.CurrentRun.Status = "stuck";
             s.CurrentRun.StuckReason = AgentFacadeEventMapper.ExtractText(payload) ?? payload?.ToString();
-            s.CurrentRun.AllowedActions = new List<string> { "continue", "skip", "cancel" };
+            s.CurrentRun.AllowedActions = new List<string> { "continue", "skip", "override", "retry", "cancel" };
+            payload = MergeStuck(payload, runId, s.CurrentRun.AllowedActions);
         }
         if (type == "run.failed" && s.CurrentRun != null)
         {
@@ -478,26 +481,25 @@ public sealed class AgentFacadeService : IAgentFacadeService
         }
         if (type is "message.completed" or "message.delta")
         {
+            var text = AgentFacadeEventMapper.ExtractText(payload) ?? "";
+            var messageId = "asst-" + (runId ?? s.Id);
+            payload = new { text, messageId, id = messageId };
             // 文本增量由运行时推送；完成时落入会话消息。
-            if (type == "message.completed")
+            if (type == "message.completed" && !string.IsNullOrWhiteSpace(text))
             {
-                var text = AgentFacadeEventMapper.ExtractText(payload);
-                if (!string.IsNullOrWhiteSpace(text))
+                s.Messages.Add(new AgentMessageDto
                 {
-                    s.Messages.Add(new AgentMessageDto
-                    {
-                        Id = Guid.NewGuid().ToString("N"),
-                        Role = "assistant",
-                        Content = text,
-                        CreatedAt = DateTimeOffset.Now
-                    });
-                }
+                    Id = messageId,
+                    Role = "assistant",
+                    Content = text,
+                    CreatedAt = DateTimeOffset.Now
+                });
             }
         }
         Touch(s);
         Append(s, type, runId, payload);
         if (type is "run.stuck" or "run.failed" or "run.completed" or "approval.required" or "session.status")
-            Append(s, "workspace.updated", runId, BuildWorkspace(s));
+            Append(s, "workspace.updated", runId, WorkspacePayload(s));
         return true;
     }
 
@@ -542,12 +544,42 @@ public sealed class AgentFacadeService : IAgentFacadeService
         !_sessions.TryGetValue(sessionId, out var s) || s.Deleted ? null : (s.CurrentRun?.ContextSnapshot ?? s.Context);
 
     private IReadOnlyList<string> VisibleTools(SessionState s) =>
-        AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.AllowTools, s.CurrentRun?.ToolScope);
+        AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.ResolvedAllow(), s.CurrentRun?.ToolScope);
+
+    private static object WorkspacePayload(SessionState s) => new { items = BuildWorkspace(s) };
 
     private static object? MergeApprovalId(object? payload, string id)
     {
-        if (payload == null) return new { approvalId = id };
-        return new { approvalId = id, payload };
+        var summary = ReadString(payload, "summary")
+                      ?? ReadString(payload, "description")
+                      ?? ReadString(payload, "action")
+                      ?? "需要确认";
+        return new
+        {
+            approvalId = id,
+            id,
+            summary,
+            action = ReadString(payload, "action"),
+            risk = ReadString(payload, "risk"),
+            payload
+        };
+    }
+
+    private static object MergeStuck(object? payload, string? runId, List<string> allowedActions) => new
+    {
+        reason = AgentFacadeEventMapper.ExtractText(payload) ?? ReadString(payload, "reason") ?? "无法继续",
+        runId,
+        stepId = ReadString(payload, "stepId"),
+        stepIndex = ReadString(payload, "stepIndex"),
+        allowedActions
+    };
+
+    private static string? ReadString(object? payload, string name)
+    {
+        if (payload == null) return null;
+        var prop = payload.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+        var value = prop?.GetValue(payload)?.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     private static void SkipCurrentStep(RunState run, bool completed = false)
@@ -611,7 +643,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
 
     private static string VisibleToolsLabel(SessionState s)
     {
-        var tools = AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.AllowTools, s.CurrentRun?.ToolScope);
+        var tools = AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.ResolvedAllow(), s.CurrentRun?.ToolScope);
         return tools.Count == 0 ? "未限定" : $"{tools.Count} 个可见";
     }
 

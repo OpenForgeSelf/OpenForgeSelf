@@ -226,4 +226,85 @@ public class AgentFacadeTests
         foreach (var id in new[] { "plan", "records", "workflow", "memory", "design", "suggest", "project", "todo", "skills", "tools", "snippets" })
             Assert.Contains(id, ids);
     }
+
+    [Fact]
+    public void CreateSession_AcceptsPluginIdOnEmbedRoot()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(new CreateAgentSessionRequest
+        {
+            Embed = new AgentEmbedOptions { PluginId = "ai-agent", SurfaceKey = "panel-1" }
+        });
+        Assert.Equal("ai-agent", session.PluginId);
+        Assert.Equal("panel-1", session.SurfaceKey);
+    }
+
+    [Fact]
+    public void ToolScope_AllowDenyAliases_Shrink()
+    {
+        var narrowed = AgentToolScopeRules.Narrow(
+            new[] { "fs.read", "fs.write", "shell" },
+            new AgentToolScope
+            {
+                Allow = new List<string> { "fs.read", "fs.write", "db.write" },
+                Deny = new List<string> { "fs.write" }
+            });
+        Assert.Equal(new[] { "fs.read" }, narrowed);
+    }
+
+    [Fact]
+    public void RevisePlan_AcceptsNoteAsText()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "整理目录" });
+        var plan = Assert.IsType<AgentPlanDto>(svc.RevisePlan(session.Id, new RevisePlanRequest { Note = "改成先备份" }));
+        Assert.Equal("改成先备份", plan.Goal);
+    }
+
+    [Fact]
+    public void PlanProposed_StepsExposeTitleAndDetail()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "整理目录" });
+        var ev = svc.ReplayEvents(session.Id, 0).Single(e => e.Type == "plan.proposed");
+        var plan = Assert.IsType<AgentPlanDto>(ev.Payload);
+        Assert.Equal(plan.Steps[0].Name, plan.Steps[0].Title);
+        Assert.Equal(plan.Steps[0].Objective, plan.Steps[0].Detail);
+    }
+
+    [Fact]
+    public void WorkspaceUpdated_PayloadHasItems()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "任务" });
+        var ev = svc.ReplayEvents(session.Id, 0).Last(e => e.Type == "workspace.updated");
+        var itemsProp = ev.Payload!.GetType().GetProperty("items");
+        Assert.NotNull(itemsProp);
+        var items = Assert.IsAssignableFrom<System.Collections.IEnumerable>(itemsProp!.GetValue(ev.Payload));
+        var list = items.Cast<AgentWorkspaceStatusDto>().ToList();
+        Assert.Equal(11, list.Count);
+        Assert.False(string.IsNullOrWhiteSpace(list[0].StatusText));
+    }
+
+    [Fact]
+    public void Publish_MessageEvents_UseStableMessageId()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (_, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "你好" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        svc.Publish(session.Id, "message.delta", new { text = "你" }, runId);
+        svc.Publish(session.Id, "message.delta", new { text = "好" }, runId);
+        svc.Publish(session.Id, "message.completed", new { text = "你好" }, runId);
+        var evs = svc.ReplayEvents(session.Id, 0).Where(e => e.Type.StartsWith("message.")).ToList();
+        Assert.NotEmpty(evs);
+        Assert.All(evs, e =>
+        {
+            var mid = e.Payload!.GetType().GetProperty("messageId")!.GetValue(e.Payload)!.ToString();
+            Assert.Equal("asst-" + runId, mid);
+        });
+    }
 }

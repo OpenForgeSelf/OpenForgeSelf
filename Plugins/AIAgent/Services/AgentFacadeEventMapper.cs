@@ -21,24 +21,39 @@ internal static class AgentFacadeEventMapper
                     yield return ("message.delta", new { text = ev.Content }, null);
                 break;
             case "tool_call":
-                yield return ("tool.started", new { name = ev.Name, summary = Summarize(ev.Arguments) }, TryRunId(ev.Content));
+            {
+                var callId = Text(Read(ev.Content), "callId") ?? ev.Name;
+                yield return ("tool.started", new { name = ev.Name, id = callId, toolCallId = callId, callId, summary = Summarize(ev.Arguments) }, TryRunId(ev.Content));
                 break;
+            }
             case "tool_result":
+            {
+                var callId = Text(Read(ev.Content), "callId") ?? ev.Name;
                 yield return ("tool.completed", new
                 {
                     name = ev.Name,
+                    id = callId,
+                    toolCallId = callId,
+                    callId,
                     success = ev.Success ?? true,
+                    status = ev.Success == false ? "failed" : "done",
                     summary = Summarize(ev.Result)
                 }, TryRunId(ev.Content));
                 break;
+            }
             case "step_started":
             {
                 var step = Read(ev.Content);
+                var stepId = Text(step, "stepId") ?? Text(step, "id");
+                var name = Text(step, "name");
                 yield return ("step.started", new
                 {
-                    stepId = Text(step, "stepId") ?? Text(step, "id"),
-                    name = Text(step, "name"),
+                    stepId,
+                    id = stepId,
+                    name,
+                    title = name ?? Text(step, "title"),
                     objective = Text(step, "objective"),
+                    detail = Text(step, "objective") ?? Text(step, "detail"),
                     stepIndex = Num(step, "stepIndex")
                 }, Num(step, "runId"));
                 break;
@@ -91,23 +106,26 @@ internal static class AgentFacadeEventMapper
                 yield return ("message.delta", new { text = delta.Content });
                 break;
             case ToolStarted started:
-                yield return ("tool.started", new { name = started.ToolName, callId = started.CallId, summary = Summarize(started.ArgsJson) });
+                yield return ("tool.started", new { name = started.ToolName, id = started.CallId, toolCallId = started.CallId, callId = started.CallId, summary = Summarize(started.ArgsJson) });
                 break;
             case ToolCompleted done:
                 yield return ("tool.completed", new
                 {
+                    id = done.CallId,
+                    toolCallId = done.CallId,
                     callId = done.CallId,
                     name = toolName,
                     success = done.Outcome == ToolOutcome.Ok,
+                    status = done.Outcome == ToolOutcome.Ok ? "done" : "failed",
                     summary = Summarize(toolResult),
                     outcome = done.Outcome.ToString()
                 });
                 break;
             case StepStarted step:
-                yield return ("step.started", new { stepId = step.StepId, stepIndex = step.Index });
+                yield return ("step.started", new { stepId = step.StepId, id = step.StepId, title = step.StepId, stepIndex = step.Index });
                 break;
             case StepCompleted step:
-                yield return ("step.completed", new { stepId = step.StepId, status = step.Reason.ToString() });
+                yield return ("step.completed", new { stepId = step.StepId, id = step.StepId, status = step.Reason.ToString() });
                 break;
             case TurnFailed failed:
                 yield return ("error", new { message = failed.Error });

@@ -38,6 +38,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const error = ref('')
   const workspacePanel = ref<AgentWorkspacePanelId>('catalog')
   const workspaceDetail = ref<Record<string, unknown> | null>(null)
+  const memoryDraft = ref('')
   const panelLayer = ref<'chat' | 'sessions' | 'workspace'>('chat')
   const loading = ref(false)
   const revising = ref(false)
@@ -258,6 +259,47 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
   }
 
+
+  function textOf(v: unknown): string {
+    return typeof v === 'string' ? v.trim() : ''
+  }
+
+  function memoryItemsContent(data: Record<string, unknown> | null): string {
+    const items = Array.isArray(data?.items) ? (data!.items as Array<Record<string, unknown>>) : []
+    return items
+      .map((it) => textOf(it.content) || textOf(it.title) || textOf(it.summary))
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  function normalizePanel(panel: Exclude<AgentWorkspacePanelId, 'catalog'>, data: Record<string, unknown>) {
+    const out: Record<string, unknown> = { ...data }
+    if (panel === 'records') {
+      const run = (data.run ?? null) as Record<string, unknown> | null
+      if (run) {
+        if (out.round == null) out.round = run.turn ?? run.Turn
+        const plan = (run.plan ?? run.Plan ?? null) as Record<string, unknown> | null
+        const steps = run.steps ?? plan?.steps
+        if (!out.steps && steps) out.steps = steps
+      }
+    }
+    if (panel === 'project') {
+      const ctx = (data.context ?? {}) as Record<string, unknown>
+      if (!out.name) out.name = ctx.title ?? ctx.projectId ?? ctx.Title ?? ctx.ProjectId
+      if (!out.cwd) out.cwd = ctx.cwd ?? ctx.Cwd
+      if (!out.summary) {
+        const bits = [ctx.objectType ?? ctx.ObjectType, ctx.objectId ?? ctx.ObjectId].map((x) => textOf(x)).filter(Boolean)
+        out.summary = bits.join(' ')
+      }
+    }
+    if (panel === 'skills') {
+      if (!out.enabled && Array.isArray(data.attachments)) out.enabled = data.attachments
+      if (!out.disabled) out.disabled = []
+    }
+    if (panel === 'workflow' && !out.id && data.workflowId) out.id = data.workflowId
+    return out
+  }
+
   async function loadWorkspace(panel?: Exclude<AgentWorkspacePanelId, 'catalog'>) {
     if (!activeId.value) {
       workspaceDetail.value = null
@@ -268,7 +310,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (!panel && Array.isArray((data as { items?: unknown }).items)) {
         thread.catalog = (data as { items: ThreadState['catalog'] }).items
       }
-      if (panel) workspaceDetail.value = data
+      if (panel) {
+        const rec = (data ?? {}) as Record<string, unknown>
+        workspaceDetail.value = normalizePanel(panel, rec)
+        if (panel === 'memory' && !memoryDraft.value) memoryDraft.value = memoryItemsContent(workspaceDetail.value)
+      }
     } catch (e) {
       if (panel) report(e)
     }
@@ -287,8 +333,14 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   async function writeMemory() {
     if (!activeId.value) return
+    const content = (memoryDraft.value || memoryItemsContent(workspaceDetail.value)).trim()
+    if (!content) {
+      error.value = '写回内容不能为空'
+      return
+    }
     try {
-      await api.writeMemory(activeId.value, { confirmed: true })
+      await api.writeMemory(activeId.value, { content })
+      memoryDraft.value = ''
       await loadWorkspace('memory')
     } catch (e) {
       report(e)
@@ -298,7 +350,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   async function commitDesign() {
     if (!activeId.value) return
     try {
-      await api.commitDesign(activeId.value, { confirmed: true })
+      await api.commitDesign(activeId.value, { content: String(workspaceDetail.value?.preview ?? workspaceDetail.value?.content ?? '') })
       await loadWorkspace('design')
     } catch (e) {
       report(e)
@@ -365,6 +417,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     error,
     workspacePanel,
     workspaceDetail,
+    memoryDraft,
     panelLayer,
     loading,
     revising,

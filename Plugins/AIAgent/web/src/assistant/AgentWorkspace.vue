@@ -27,6 +27,7 @@ const emit = defineEmits<{
   cancelWorkflow: []
 }>()
 const reviseNote = defineModel<string>('reviseNote', { default: '' })
+const memoryDraft = defineModel<string>('memoryDraft', { default: '' })
 
 function asList(key: string): Array<Record<string, unknown>> {
   const v = props.detail?.[key]
@@ -105,12 +106,13 @@ function text(v: unknown): string {
         </template>
         <template v-else-if="panel === 'memory'">
           <div class="aa-art-sec">
-            <p v-if="!asList('items').length && !asList('entries').length">本轮还没有检索到记忆。</p>
+            <p v-if="!asList('items').length && !asList('entries').length">本轮还没有检索到记忆。可以直接写下要写回的内容。</p>
             <ul class="aa-steps">
               <li v-for="(it, i) in (asList('items').length ? asList('items') : asList('entries'))" :key="i">
                 {{ text(it.title) || text(it.content) || text(it.summary) }}
               </li>
             </ul>
+            <textarea v-model="memoryDraft" rows="4" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:8px" placeholder="要写回记忆的内容" />
           </div>
         </template>
         <template v-else-if="panel === 'design'">

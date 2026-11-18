@@ -26,14 +26,38 @@ public sealed class AgentToolScope
 {
     public List<string>? AllowTools { get; set; }
     public List<string>? DenyTools { get; set; }
+    /// <summary>前端字段 allow，等同 allowTools。</summary>
+    public List<string>? Allow { get; set; }
+    /// <summary>前端字段 deny，等同 denyTools。</summary>
+    public List<string>? Deny { get; set; }
     public List<string>? AllowCapabilities { get; set; }
+
+    public List<string>? ResolvedAllow() =>
+        AllowTools is { Count: > 0 } ? AllowTools : Allow;
+
+    public List<string>? ResolvedDeny() =>
+        DenyTools is { Count: > 0 } ? DenyTools : Deny;
 }
 
 public sealed class AgentEmbedOptions
 {
     public string? Surface { get; set; }
+    /// <summary>可写在 embed 根上，缺省时回填到 context。</summary>
+    public string? PluginId { get; set; }
+    /// <summary>可写在 embed 根上，缺省时回填到 context。</summary>
+    public string? SurfaceKey { get; set; }
     public AgentEmbedContext? Context { get; set; }
     public AgentToolScope? ToolScope { get; set; }
+
+    public AgentEmbedContext ResolvedContext()
+    {
+        var ctx = Context ?? new AgentEmbedContext();
+        if (string.IsNullOrWhiteSpace(ctx.PluginId) && !string.IsNullOrWhiteSpace(PluginId))
+            ctx.PluginId = PluginId.Trim();
+        if (string.IsNullOrWhiteSpace(ctx.SurfaceKey) && !string.IsNullOrWhiteSpace(SurfaceKey))
+            ctx.SurfaceKey = SurfaceKey.Trim();
+        return ctx;
+    }
 }
 
 public sealed class CreateAgentSessionRequest
@@ -70,7 +94,12 @@ public sealed class AgentAttachment
 public sealed class RevisePlanRequest
 {
     public string? Text { get; set; }
+    /// <summary>前端修订说明字段，等同 text。</summary>
+    public string? Note { get; set; }
     public List<AgentPlanStepDto>? Steps { get; set; }
+
+    public string? ResolvedText() =>
+        !string.IsNullOrWhiteSpace(Text) ? Text : Note;
 }
 
 public sealed class DecideApprovalRequest
@@ -107,6 +136,19 @@ public sealed class AgentPlanStepDto
     public string Name { get; set; } = string.Empty;
     public string Objective { get; set; } = string.Empty;
     public string Status { get; set; } = "pending";
+    // 前端计划卡片读 title/detail，与 name/objective 对齐。
+    public string Title
+    {
+        get => string.IsNullOrWhiteSpace(_title) ? Name : _title!;
+        set => _title = value;
+    }
+    public string Detail
+    {
+        get => string.IsNullOrWhiteSpace(_detail) ? Objective : _detail!;
+        set => _detail = value;
+    }
+    private string? _title;
+    private string? _detail;
 }
 
 public sealed class AgentEventDto
@@ -158,6 +200,12 @@ public sealed class AgentWorkspaceStatusDto
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    /// <summary>前端目录项字段，与 Status 同值。</summary>
+    public string StatusText
+    {
+        get => Status;
+        set => Status = value;
+    }
 }
 
 public sealed class AgentSessionDetailDto
@@ -193,16 +241,18 @@ public static class AgentToolScopeRules
     public static List<string> Narrow(IEnumerable<string>? whitelist, AgentToolScope? scope)
     {
         var set = new HashSet<string>(whitelist ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-        if (scope?.AllowTools is { Count: > 0 })
+        var allowList = scope?.ResolvedAllow();
+        if (allowList is { Count: > 0 })
         {
-            var allow = new HashSet<string>(scope.AllowTools.Where(s => !string.IsNullOrWhiteSpace(s)), StringComparer.OrdinalIgnoreCase);
+            var allow = new HashSet<string>(allowList.Where(s => !string.IsNullOrWhiteSpace(s)), StringComparer.OrdinalIgnoreCase);
             if (set.Count == 0)
                 set = allow;
             else
                 set.IntersectWith(allow);
         }
-        if (scope?.DenyTools is { Count: > 0 })
-            set.ExceptWith(scope.DenyTools.Where(s => !string.IsNullOrWhiteSpace(s)));
+        var denyList = scope?.ResolvedDeny();
+        if (denyList is { Count: > 0 })
+            set.ExceptWith(denyList.Where(s => !string.IsNullOrWhiteSpace(s)));
         return set.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }

@@ -46,10 +46,29 @@ public sealed class AgentFacadeController : ControllerBase
     }
 
     [HttpGet("sessions/{id}")]
-    public ActionResult<AgentSessionDetailDto> Get(string id)
+    public IActionResult Get(string id)
     {
         var detail = _facade.GetSession(id);
-        return detail == null ? NotFound(new { error = "会话不存在" }) : Ok(detail);
+        if (detail == null) return NotFound(new { error = "会话不存在" });
+        var session = detail.Session;
+        // 根上展开会话字段，workspace 用 { items }，与页面当前读法对齐。
+        return Ok(new
+        {
+            session,
+            messages = detail.Messages,
+            currentRun = detail.CurrentRun,
+            workspace = new { items = detail.Workspace },
+            id = session.Id,
+            title = session.Title,
+            mode = session.Mode,
+            status = session.Status,
+            agentId = session.AgentId,
+            modelId = session.ModelId,
+            pluginId = session.PluginId,
+            surfaceKey = session.SurfaceKey,
+            surface = session.Surface,
+            updatedAt = session.UpdatedAt
+        });
     }
 
     [HttpPatch("sessions/{id}")]

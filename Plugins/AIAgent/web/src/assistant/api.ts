@@ -103,7 +103,7 @@ export function getWorkspace(id: string, panel?: Exclude<AgentWorkspacePanelId, 
   return agentRequest(`/sessions/${encodeURIComponent(id)}/workspace${q}`)
 }
 
-export function writeMemory(id: string, body: Record<string, unknown>): Promise<void> {
+export function writeMemory(id: string, body: { content: string; title?: string }): Promise<void> {
   return agentRequest(`/sessions/${encodeURIComponent(id)}/workspace/memory/writeback`, { method: 'POST', json: body })
 }
 

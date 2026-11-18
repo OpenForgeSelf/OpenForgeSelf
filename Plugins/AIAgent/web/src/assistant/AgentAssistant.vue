@@ -164,6 +164,8 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
       :status="session.thread.status"
       :revise-note="session.reviseNote.value"
       @update:revise-note="session.reviseNote.value = $event"
+      :memory-draft="session.memoryDraft.value"
+      @update:memory-draft="session.memoryDraft.value = $event"
       @open="session.openPanel($event)"
       @confirm="session.confirm()"
       @start-revise="session.revising.value = true"

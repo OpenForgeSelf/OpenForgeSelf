@@ -13,11 +13,13 @@ public sealed class AgentFacadeService : IAgentFacadeService
     private readonly ConcurrentDictionary<string, SessionState> _sessions = new(StringComparer.Ordinal);
     private IAgentRunExecutor? _executor;
     private readonly IContext? _ctx;
+    private readonly IAgentRegistryService? _agents;
 
-    public AgentFacadeService(IAgentRunExecutor? executor = null, IContext? ctx = null)
+    public AgentFacadeService(IAgentRunExecutor? executor = null, IContext? ctx = null, IAgentRegistryService? agents = null)
     {
         _executor = executor;
         _ctx = ctx;
+        _agents = agents;
     }
 
     public void AttachExecutor(IAgentRunExecutor executor) => _executor = executor;
@@ -293,6 +295,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
             case "skip":
                 if (s.Status != "stuck" && s.Status != "running")
                     return new { error = "当前状态不可跳过" };
+                run.InterveneStepIndex = ResolveInterveneIndex(run);
                 SkipCurrentStep(run);
                 run.Status = "running";
                 s.Status = "running";
@@ -304,6 +307,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
             case "override":
                 if (s.Status != "stuck")
                     return new { error = "当前状态不可补位" };
+                run.InterveneStepIndex = ResolveInterveneIndex(run);
                 SkipCurrentStep(run, completed: true);
                 run.Status = "running";
                 s.Status = "running";
@@ -434,7 +438,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
 
     public IReadOnlyList<CatalogAgentDto> ListAgents()
     {
-        var registry = _ctx?.Get<IAgentRegistryService>();
+        var registry = _agents ?? _ctx?.Get<IAgentRegistryService>();
         if (registry == null) return Array.Empty<CatalogAgentDto>();
         try
         {
@@ -465,7 +469,9 @@ public sealed class AgentFacadeService : IAgentFacadeService
         {
             s.Status = "stuck";
             s.CurrentRun.Status = "stuck";
-            s.CurrentRun.StuckReason = AgentFacadeEventMapper.ExtractText(payload) ?? payload?.ToString();
+            s.CurrentRun.StuckReason = AgentFacadeEventMapper.ExtractText(payload)
+                                       ?? ReadString(payload, "reason")
+                                       ?? "无法继续";
             s.CurrentRun.AllowedActions = new List<string> { "continue", "skip", "override", "retry", "cancel" };
             payload = MergeStuck(payload, runId, s.CurrentRun.AllowedActions);
         }
@@ -521,7 +527,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Cwd = (run.ContextSnapshot ?? s.Context).Cwd,
             Plan = run.Plan,
             ToolScope = run.ToolScope,
-            NativeRunId = run.NativeRunId
+            NativeRunId = run.NativeRunId,
+            InterveneStepIndex = run.InterveneStepIndex
         };
     }
 
@@ -586,6 +593,15 @@ public sealed class AgentFacadeService : IAgentFacadeService
     {
         var step = run.Plan?.Steps.FirstOrDefault(x => x.Status is "pending" or "running" or "stuck");
         if (step != null) step.Status = completed ? "completed" : "skipped";
+    }
+
+    private static int ResolveInterveneIndex(RunState run)
+    {
+        var steps = run.Plan?.Steps;
+        if (steps == null || steps.Count == 0) return 0;
+        var idx = steps.FindIndex(x => x.Status is "stuck" or "running");
+        if (idx < 0) idx = steps.FindIndex(x => x.Status is "pending");
+        return idx < 0 ? 0 : idx;
     }
 
     private static AgentPlanDto BuildDraftPlan(string text)
@@ -769,6 +785,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         public string? ContinueInput { get; set; }
         public List<ApprovalState> Approvals { get; } = new();
         public long? NativeRunId { get; set; }
+        public int? InterveneStepIndex { get; set; }
     }
 
     private sealed class ApprovalState
@@ -794,4 +811,5 @@ public sealed class AgentRunExecutionSnapshot
     public AgentPlanDto? Plan { get; set; }
     public AgentToolScope? ToolScope { get; set; }
     public long? NativeRunId { get; set; }
+    public int? InterveneStepIndex { get; set; }
 }

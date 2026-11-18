@@ -147,7 +147,7 @@ internal static class AgentFacadeEventMapper
     {
         if (payload is string s) return s;
         if (payload is null) return null;
-        foreach (var name in new[] { "text", "Text", "content", "Content", "message", "Message" })
+        foreach (var name in new[] { "text", "Text", "content", "Content", "message", "Message", "reason", "Reason" })
         {
             var prop = payload.GetType().GetProperty(name);
             var value = prop?.GetValue(payload)?.ToString();

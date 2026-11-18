@@ -82,6 +82,39 @@ public class AgentFacadeExecutorTests
     }
 
     [Fact]
+    public async Task SkipStuckStep_IntervenesOnCurrentIndexNotNext()
+    {
+        var facade = new AgentFacadeService();
+        var orch = new FakeOrchestrator
+        {
+            CurrentStepIndex = 0,
+            Events =
+            {
+                new AgentLoopEvent { Type = "step_started", Content = """{"runId":41,"stepIndex":0,"stepId":"s1","name":"准备","objective":"确认目标"}""" },
+                new AgentLoopEvent { Type = "run_stuck", Content = """{"runId":41,"stepIndex":0,"reason":"未调用 complete_step"}""" }
+            },
+            ResumeEvents =
+            {
+                new AgentLoopEvent { Type = "step_started", Content = """{"runId":41,"stepIndex":1,"stepId":"s2","name":"执行","objective":"继续"}""" },
+                new AgentLoopEvent { Type = "done", Content = "已跳过并完成" }
+            }
+        };
+        facade.AttachExecutor(new AgentFacadeRunExecutor(facade, orchestrator: orch));
+
+        var session = facade.CreateSession(Req("ai-agent", mode: "planned"));
+        var (_, body) = facade.PostMessage(session.Id, new PostAgentMessageRequest { Text = "整理目录" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        facade.ConfirmPlan(session.Id);
+        await DrainUntil(facade, session.Id, "run.stuck");
+        Assert.Equal("未调用 complete_step", facade.GetSession(session.Id)!.CurrentRun!.StuckReason);
+
+        var skip = facade.Intervene(session.Id, runId, new InterveneRunRequest { Action = "skip", StepId = "s1" });
+        Assert.IsType<AcceptedRunResponse>(skip);
+        await DrainUntil(facade, session.Id, "run.completed");
+        Assert.Equal(0, orch.LastInterveneStepIndex);
+    }
+
+    [Fact]
     public void ConfirmPlan_DoesNotExecuteBeforeConfirm()
     {
         var facade = new AgentFacadeService();
@@ -171,8 +204,11 @@ public class AgentFacadeExecutorTests
     private sealed class FakeOrchestrator : IRunOrchestratorService
     {
         public List<AgentLoopEvent> Events { get; } = new();
+        public List<AgentLoopEvent> ResumeEvents { get; } = new();
         public AgentPlan? LastPlan { get; private set; }
         public RunRequest? LastRequest { get; private set; }
+        public int CurrentStepIndex { get; set; }
+        public int? LastInterveneStepIndex { get; private set; }
 
         public IAsyncEnumerable<AgentLoopEvent> RunAsync(RunRequest request, CancellationToken ct) => AsAsync(Events, ct);
         public IAsyncEnumerable<AgentLoopEvent> ExecuteConfirmedPlanAsync(RunRequest request, AgentPlan plan, CancellationToken ct)
@@ -181,12 +217,27 @@ public class AgentFacadeExecutorTests
             LastPlan = plan;
             return AsAsync(Events, ct);
         }
-        public IAsyncEnumerable<AgentLoopEvent> ResumeAsync(long id, CancellationToken ct) => AsAsync(Events, ct);
+        public IAsyncEnumerable<AgentLoopEvent> ResumeAsync(long id, CancellationToken ct)
+            => AsAsync(ResumeEvents.Count > 0 ? ResumeEvents : Events, ct);
         public Task<AgentRunDto?> RestartAsync(long id) => Task.FromResult<AgentRunDto?>(null);
         public Task<AgentRunDto?> CancelAsync(long id) => Task.FromResult<AgentRunDto?>(null);
-        public Task<AgentRunDto?> InterveneAsync(long id, int stepIndex, InterveneRequest request) => Task.FromResult<AgentRunDto?>(null);
+        public Task<AgentRunDto?> InterveneAsync(long id, int stepIndex, InterveneRequest request)
+        {
+            LastInterveneStepIndex = stepIndex;
+            return Task.FromResult<AgentRunDto?>(new AgentRunDto
+            {
+                Id = id,
+                Status = AgentRunStatus.Running,
+                CurrentStepIndex = stepIndex + 1
+            });
+        }
         public Task<AgentRunListResponse> ListRunsAsync(string? sessionId, AgentRunStatus? status, int page, int pageSize) => Task.FromResult(new AgentRunListResponse());
-        public Task<AgentRunDto?> GetRunAsync(long id) => Task.FromResult<AgentRunDto?>(null);
+        public Task<AgentRunDto?> GetRunAsync(long id) => Task.FromResult<AgentRunDto?>(new AgentRunDto
+        {
+            Id = id,
+            Status = AgentRunStatus.Stuck,
+            CurrentStepIndex = CurrentStepIndex
+        });
         public Task<AgentRunDetailResponse?> GetRunDetailAsync(long id) => Task.FromResult<AgentRunDetailResponse?>(null);
     }
 

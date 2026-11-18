@@ -307,4 +307,48 @@ public class AgentFacadeTests
             Assert.Equal("asst-" + runId, mid);
         });
     }
+
+    [Fact]
+    public void ListAgents_ReturnsRegisteredAgents()
+    {
+        var catalog = new StubAgentCatalog();
+        catalog.Items.Add(new AgentDefinition
+        {
+            Id = "agent.generalist",
+            Name = "通用助手",
+            Description = "通用任务"
+        });
+        var list = new AgentFacadeService(agents: catalog).ListAgents();
+        Assert.Equal("agent.generalist", Assert.Single(list).Id);
+        Assert.Equal("通用助手", list[0].Name);
+    }
+
+    [Fact]
+    public void Publish_StuckReason_IsPlainText()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (_, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "你好" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        svc.Publish(session.Id, "run.stuck", new { reason = "未调用 complete_step", stepIndex = 0 }, runId);
+        var stuck = svc.GetSession(session.Id)!.CurrentRun!.StuckReason;
+        Assert.Equal("未调用 complete_step", stuck);
+        Assert.DoesNotContain("AnonymousType", stuck);
+        Assert.DoesNotContain("<>", stuck);
+    }
+}
+
+internal sealed class StubAgentCatalog : IAgentRegistryService
+{
+    public List<AgentDefinition> Items { get; } = new();
+    public void RegisterAgent(AgentDefinition agent) => Items.Add(agent);
+    public void UnregisterAgent(string agentId) => Items.RemoveAll(a => a.Id == agentId);
+    public AgentDefinition? GetAgent(string agentId) => Items.FirstOrDefault(a => a.Id == agentId);
+    public List<AgentDefinition> GetAllAgents() => Items.ToList();
+    public List<AgentDefinition> GetAgentsByType(AgentType type) => Items.Where(a => a.Type == type).ToList();
+    public List<AgentDefinition> FindAgentsByCapability(string capability) => Items.ToList();
+    public AgentDefinition? GetBestAgentForTask(string taskDescription, List<string> requiredCapabilities) => Items.FirstOrDefault();
+    public AgentDefinition CreateAgent(AgentDefinition agent) { Items.Add(agent); return agent; }
+    public AgentDefinition? UpdateAgent(string agentId, AgentDefinition agent) => agent;
+    public bool DeleteAgent(string agentId) => Items.RemoveAll(a => a.Id == agentId) > 0;
 }

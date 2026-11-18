@@ -88,7 +88,9 @@ public class AIAgentPlugin : IPlugin
             ctx.Effect(() => eagerScope);
             var advisor = eagerScope.ServiceProvider.GetRequiredService<IWorkflowAIAdvisor>();
             ctx.Register<IWorkflowAIAdvisor>(advisor);
-            services.AddSingleton<IAgentRegistryService>(eagerScope.ServiceProvider.GetRequiredService<IAgentRegistryService>());
+            var agentRegistryService = eagerScope.ServiceProvider.GetRequiredService<IAgentRegistryService>();
+            services.AddSingleton<IAgentRegistryService>(agentRegistryService);
+            ctx.Register<IAgentRegistryService>(agentRegistryService);
             services.AddSingleton<IWorkflowAIAdvisor>(advisor);
         }
 
@@ -151,16 +153,18 @@ public class AIAgentPlugin : IPlugin
 
         // 统一能力入口 /api/agent：会话单例 + 真实编排执行器（过程事件写入同一条流）。
         // 放在 eager scope / IAgentRegistry 就绪之后，执行器才能解析对话与编排服务。
-        var agentFacade = new AgentFacadeService(executor: null, ctx);
         IAIAgentService? facadeAgent = null;
         IRunOrchestratorService? facadeOrch = null;
         IChatModelResolver? facadeModels = null;
+        IAgentRegistryService? facadeAgents = null;
         if (eagerScope != null)
         {
             facadeAgent = eagerScope.ServiceProvider.GetService<IAIAgentService>();
             facadeOrch = eagerScope.ServiceProvider.GetService<IRunOrchestratorService>();
             facadeModels = eagerScope.ServiceProvider.GetService<IChatModelResolver>();
+            facadeAgents = eagerScope.ServiceProvider.GetService<IAgentRegistryService>();
         }
+        var agentFacade = new AgentFacadeService(executor: null, ctx, agents: facadeAgents);
         var agentExecutor = new AgentFacadeRunExecutor(agentFacade, ctx, facadeAgent, facadeOrch, facadeModels);
         agentFacade.AttachExecutor(agentExecutor);
         services?.AddSingleton<IAgentFacadeService>(agentFacade);

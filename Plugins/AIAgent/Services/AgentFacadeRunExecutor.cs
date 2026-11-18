@@ -249,7 +249,10 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
             var nativeId = snap.NativeRunId!.Value;
             if (action is "skip" or "override")
             {
-                var index = ResolveStepIndex(snap.Plan);
+                var native = await orch.GetRunAsync(nativeId).ConfigureAwait(false);
+                var index = snap.InterveneStepIndex
+                            ?? native?.CurrentStepIndex
+                            ?? ResolveStepIndex(snap.Plan);
                 await orch.InterveneAsync(nativeId, index, new InterveneRequest
                 {
                     Action = action,
@@ -318,7 +321,8 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
     private static int ResolveStepIndex(AgentPlanDto? plan)
     {
         if (plan?.Steps == null) return 0;
-        var idx = plan.Steps.FindIndex(s => s.Status is "pending" or "running" or "stuck");
+        var idx = plan.Steps.FindIndex(s => s.Status is "stuck" or "running");
+        if (idx < 0) idx = plan.Steps.FindIndex(s => s.Status is "pending");
         return idx < 0 ? 0 : idx;
     }
 

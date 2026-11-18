@@ -29,7 +29,7 @@
         v-for="r in runs"
         :key="runKey(r)"
         class="run__item"
-        :class="{ 'run__item--open': isLogOpen(r), 'run__item--focus': focusCommandId === r.commandId && r.origin === 'Launched' }"
+        :class="{ 'run__item--open': isLogOpen(r), 'run__item--focus': focusCommandId === r.commandId && r.origin === 'Launched', 'run__item--ended': r.ended }"
       >
         <div class="run__row">
           <div class="run__info">
@@ -37,16 +37,17 @@
               <span class="run__proj">{{ r.projectName }}</span>
               <span class="run__cmd">/ {{ r.commandName }}</span>
               <span class="run__origin" :class="originClass(r.origin)">{{ originLabel(r.origin) }}</span>
+              <span v-if="r.ended" class="run__origin run__origin--ended">已结束</span>
             </div>
             <div class="run__line2">
               <span class="run__pid">PID {{ r.pid }}</span>
-              <span class="run__dur">已运行 {{ formatRunDuration(r.startedAt, clock) }}</span>
+              <span class="run__dur">{{ r.ended ? '已结束' : `已运行 ${formatRunDuration(r.startedAt, clock)}` }}</span>
             </div>
           </div>
 
           <div class="run__acts">
             <button
-              v-if="r.origin === 'Launched' && r.commandId"
+              v-if="r.origin === 'Launched' && r.commandId && !r.ended"
               type="button"
               class="run__btn run__btn--log"
               :class="{ 'run__btn--log-on': isLogOpen(r) }"
@@ -56,7 +57,7 @@
             </button>
             <a v-if="hasUrl(r)" class="run__icon" :href="commandUrl(r)" target="_blank" rel="noopener" title="打开访问地址">↗</a>
             <button
-              v-if="r.origin === 'Launched'"
+              v-if="r.origin === 'Launched' && !r.ended"
               class="run__btn run__btn--stop"
               :disabled="busyPid === r.pid"
               @click="stopLaunched(r)"
@@ -64,7 +65,7 @@
               停止
             </button>
             <button
-              v-else
+              v-else-if="!r.ended"
               class="run__btn run__btn--stop"
               :disabled="busyPid === r.pid"
               @click="stopExternal(r)"
@@ -76,6 +77,7 @@
 
         <div v-if="isLogOpen(r) && r.origin === 'Launched' && r.commandId" class="run__log-wrap">
           <div v-if="logState(r.commandId)?.truncated" class="run__log-warn">输出过多，较早的行已丢弃（最多保留 4000 行）</div>
+          <div v-if="logState(r.commandId)?.errorHint" class="run__log-warn">{{ logState(r.commandId)?.errorHint }}</div>
           <pre ref="logViewport" class="run__log" :data-cmd="r.commandId">{{ logText(r.commandId) }}</pre>
           <p v-if="!logText(r.commandId)" class="run__log-empty">暂无输出，长任务请稍候；若脚本不往 stdout/stderr 写内容则此处为空。</p>
         </div>
@@ -123,11 +125,92 @@ const clock = ref(Date.now())
 const focusCommandId = ref<number | null>(null)
 const openLogIds = ref<Set<number>>(new Set())
 
+/* ------------------------------------------------------------------ *
+ * v0.2 缺陷修复 D2：运行记录不再「突然消失」
+ * 后端 /api/runs 只报告当前还在跑的会话，一旦会话结束或宿主重启，列表就被
+ * 整体替换成空 —— 用户看起来就是「运行记录突然不见了」。这里把会话快照落到
+ * localStorage，刷新时按 key 合并，后端没再返回的条目保留下来（标记为已结束）。
+ * ------------------------------------------------------------------ */
+const SESSION_KEY = 'sems-run-sessions-v1'
+
+interface SessionSnapshot {
+  key: string
+  projectName: string
+  commandName: string
+  pid: number
+  origin: string
+  startedAt: string
+  commandId?: number
+  ended?: boolean
+}
+
+function readSnapshots(): SessionSnapshot[] {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? (arr as SessionSnapshot[]) : []
+  } catch {
+    return []
+  }
+}
+
+function writeSnapshots(list: SessionSnapshot[]): void {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(list.slice(-50)))
+  } catch {
+    /* 存储不可用时不影响主流程 */
+  }
+}
+
+/** 把后端返回的会话并入历史快照；后端已无该会话则保留旧条目并标记 ended。 */
+function mergeSessions(incoming: RunSession[]): RunSession[] {
+  const history = readSnapshots()
+  const alive = new Set<string>()
+  const merged: RunSession[] = incoming.map((r) => {
+    const key = runKey(r)
+    alive.add(key)
+    const prev = history.find((h) => h.key === key)
+    const snap: SessionSnapshot = {
+      key,
+      projectName: r.projectName,
+      commandName: r.commandName,
+      pid: r.pid,
+      origin: r.origin,
+      startedAt: prev?.startedAt ?? r.startedAt,
+      commandId: r.commandId ?? undefined,
+      ended: false,
+    }
+    const idx = history.findIndex((h) => h.key === key)
+    if (idx >= 0) history[idx] = snap
+    else history.push(snap)
+    return r
+  })
+  // 后端不再返回的会话：保留记录，标记结束（不再显示「已运行」时长增长）
+  const retained: RunSession[] = history
+    .filter((s) => !alive.has(s.key))
+    .map((s) => ({
+      projectId: 0,
+      projectName: s.projectName,
+      commandName: s.commandName,
+      pid: s.pid,
+      origin: s.origin,
+      startedAt: s.startedAt,
+      commandId: s.commandId ?? 0,
+      ended: true,
+    } satisfies RunSession))
+  writeSnapshots(history)
+  // 结束记录排在后面，只保留最近若干条
+  return [...merged, ...retained.slice(-20)]
+}
+
 interface LogBucket {
   lines: RunLogLine[]
   nextIndex: number
   truncated: boolean
   running: boolean
+  /** v0.2：缓冲失效时的一次性提示文案。 */
+  errorHint?: string
 }
 
 const logBuckets = ref<Record<number, LogBucket>>({})
@@ -136,7 +219,7 @@ let clockTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function syncTimers() {
-  const hasLaunched = runs.value.some((r) => r.origin === 'Launched')
+  const hasLaunched = runs.value.some((r) => r.origin === 'Launched' && !r.ended)
   if (hasLaunched && !clockTimer) {
     clockTimer = setInterval(() => {
       clock.value = Date.now()
@@ -175,20 +258,25 @@ watch(runs, () => syncTimers(), { deep: true })
 async function refresh(): Promise<number> {
   try {
     const r = await apiGet<RunsResp>('/api/runs')
-    runs.value = r?.runs ?? []
+    runs.value = mergeSessions(r?.runs ?? [])
   } catch {
     // 静默：面板失败不影响项目列表（项目区已有错误态与重试）
   }
-  emit('count', runs.value.length)
-  return runs.value.length
+  emit('count', activeCount())
+  return activeCount()
+}
+
+/** 运行中条数（不含已结束的保留记录）。 */
+function activeCount(): number {
+  return runs.value.filter((r) => !r.ended).length
 }
 
 async function check() {
   checking.value = true
   try {
     const r = await apiPost<RunsResp>('/api/runs/check', {})
-    runs.value = r?.runs ?? []
-    emit('count', runs.value.length)
+    runs.value = mergeSessions(r?.runs ?? [])
+    emit('count', activeCount())
   } catch (e) {
     ElMessage.error(`检查失败：${errorMessage(e)}`)
   } finally {
@@ -322,13 +410,29 @@ async function pullLogs(commandId: number, scrollBottom = false) {
       const el = document.querySelector(`pre.run__log[data-cmd="${commandId}"]`)
       if (el) el.scrollTop = el.scrollHeight
     }
-  } catch {
-    // 404 = 非本面板启动或无缓冲，静默
+  } catch (e) {
+    // 404 = 该会话不是本面板启动或宿主已重启，缓冲已不存在。给出一次明确提示，
+    // 而不是静默吞掉（v0.2 缺陷 D1：用户看不到任何反馈，以为是功能坏了）。
+    const bucket = logBuckets.value[commandId]
+    if (bucket && !bucket.errorHint) {
+      logBuckets.value = {
+        ...logBuckets.value,
+        [commandId]: { ...bucket, errorHint: '日志缓冲已失效（会话非本面板启动或宿主已重启），此处仅保留已拉取内容。' },
+      }
+    }
   }
 }
 
+/**
+ * 拉取所有仍在运行的会话日志（不再只拉「展开的」）。
+ * v0.2 缺陷 D1：原实现只遍历 openLogIds，用户不点「输出日志」就永远拿不到实时输出。
+ */
 async function pullAllOpenLogs() {
-  for (const id of openLogIds.value) {
+  const ids = new Set<number>(openLogIds.value)
+  for (const r of runs.value) {
+    if (r.origin === 'Launched' && r.commandId > 0) ids.add(r.commandId)
+  }
+  for (const id of ids) {
     await pullLogs(id, true)
   }
 }
@@ -504,6 +608,15 @@ defineExpose({ refresh, check, focusLog })
 .run__origin--detected {
   color: var(--el-color-warning);
   background: var(--el-color-warning-light);
+}
+
+.run__origin--ended {
+  color: var(--el-color-info);
+  background: var(--el-color-info-light);
+}
+
+.run__item--ended {
+  opacity: 0.62;
 }
 
 .run__line2 {

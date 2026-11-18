@@ -97,6 +97,8 @@ export interface RunSession {
   startedAt: string
   /** Launched（本面板启动） / Detected（WMI 检测捕获）。 */
   origin: 'Launched' | 'Detected' | string
+  /** v0.2：后端已不再返回该会话（历史保留记录），前端标记为已结束。 */
+  ended?: boolean
 }
 
 /** GET /api/projects 响应。 */

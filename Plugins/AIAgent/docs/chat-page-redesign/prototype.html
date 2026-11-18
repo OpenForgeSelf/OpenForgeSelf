@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>智能体 · 原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Token 来源：ForgeSelf.Web/src/styles/themes/workshop-forge.css 与 DESIGN.md。不新增 --surface/--forge/--app 类 token。 */
+  :root {
+    --gold-300: #F9BC4E;
+    --gold-400: #F59E0B;
+    --gold-500: #D97706;
+    --gold-700: #B45309;
+    --cinnabar-400: #C0392B;
+    --bronze-500: #5A7A5A;
+    --ink-950: #0B0908;
+    --ink-900: #14110F;
+    --ink-850: #1B1815;
+    --ink-700: #322D28;
+    --paper-white: #FBF7EE;
+    --paper-warm: #F4EEDF;
+    --fg-primary: #F4F0E7;
+    --fg-secondary: #B5AB9F;
+    --fg-tertiary: #8F8478;
+    --fg-muted: #6B6058;
+    --border-hairline: rgba(245, 240, 231, 0.06);
+    --border-subtle: rgba(245, 240, 231, 0.1);
+    --border-default: rgba(245, 240, 231, 0.16);
+    --border-strong: rgba(245, 240, 231, 0.28);
+    --border-brand: rgba(245, 158, 11, 0.48);
+    --font-display: "Noto Serif SC", "Songti SC", ui-serif, serif;
+    --font-serif-cn: "Noto Serif SC", "Songti SC", "SimSun", ui-serif, serif;
+    --font-sans-cn: "Inter", "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --dur-fast: 160ms;
+    --dur-base: 220ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-brand: 0 0 0 1px rgba(245, 158, 11, 0.4), 0 8px 24px rgba(245, 158, 11, 0.18);
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --radius-2xl: 20px;
+    --glass-bg: rgba(20, 17, 15, 0.32);
+    --glass-strong-bg: rgba(20, 17, 15, 0.55);
+    --glass-blur: 18px;
+    --glass-blur-strong: 24px;
+    --glass-saturate: 140%;
+    --glass-saturate-strong: 160%;
+    --glass-border: 1px solid rgba(245, 240, 231, 0.08);
+    --glass-radius: 12px;
+    --glass-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --paper-tint-weak: rgba(245, 240, 231, 0.04);
+    --paper-tint: rgba(245, 240, 231, 0.08);
+    --gold-tint: rgba(245, 158, 11, 0.05);
+    --gold-tint-strong: rgba(245, 158, 11, 0.12);
+    --el-bg-color: #14110F;
+    --el-bg-color-page: #0B0908;
+    --el-bg-color-overlay: #1B1815;
+    --el-fill-color: #24201C;
+    --el-fill-color-light: #1B1815;
+    --el-text-color-primary: #F4F0E7;
+    --el-border-color: #322D28;
+    --topbar-bg: rgba(11, 9, 8, 0.35);
+    --status-bg: rgba(11, 9, 8, 0.4);
+    --user-bubble: color-mix(in srgb, var(--gold-400) 9%, var(--ink-850));
+  }
+  html:not(.dark) {
+    --fg-primary: #14110F;
+    --fg-secondary: #4A443C;
+    --fg-tertiary: #6B6058;
+    --fg-muted: #A79C8F;
+    --border-hairline: rgba(20, 17, 15, 0.06);
+    --border-subtle: rgba(20, 17, 15, 0.1);
+    --border-default: rgba(20, 17, 15, 0.16);
+    --border-strong: rgba(20, 17, 15, 0.28);
+    --border-brand: rgba(180, 83, 9, 0.48);
+    --glass-bg: rgba(251, 247, 238, 0.4);
+    --glass-strong-bg: rgba(251, 247, 238, 0.72);
+    --glass-border: 1px solid rgba(20, 17, 15, 0.08);
+    --glass-shadow: 0 6px 24px rgba(20, 17, 15, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --paper-tint-weak: rgba(20, 17, 15, 0.04);
+    --paper-tint: rgba(20, 17, 15, 0.08);
+    --gold-tint: rgba(180, 83, 9, 0.05);
+    --gold-tint-strong: rgba(180, 83, 9, 0.12);
+    --shadow-sm: 0 1px 2px rgba(20, 17, 15, 0.18), 0 0 0 1px rgba(20, 17, 15, 0.08);
+    --shadow-md: 0 4px 12px rgba(20, 17, 15, 0.2), 0 1px 2px rgba(20, 17, 15, 0.14);
+    --shadow-lg: 0 12px 32px rgba(20, 17, 15, 0.24), 0 2px 6px rgba(20, 17, 15, 0.16);
+    --shadow-brand: 0 0 0 1px rgba(180, 83, 9, 0.35), 0 8px 24px rgba(180, 83, 9, 0.14);
+    --el-bg-color: #FBF7EE;
+    --el-bg-color-page: #F4EEDF;
+    --el-bg-color-overlay: #FFFFFF;
+    --el-fill-color: #EFE8D8;
+    --el-fill-color-light: #FBF7EE;
+    --el-text-color-primary: #14110F;
+    --el-border-color: #E4DCCB;
+    --topbar-bg: rgba(251, 247, 238, 0.55);
+    --status-bg: rgba(251, 247, 238, 0.5);
+    --user-bubble: color-mix(in srgb, var(--gold-700) 8%, var(--paper-white));
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font-sans-cn);
+    background: var(--el-bg-color-page);
+    color: var(--fg-primary);
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: none; }
+  button, .chip, .seg button, .theme-btn, .scene-btn, .tab, .new-chat { transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out); }
+
+  /* 原型脚手架，产品界面之外 */
+  .proto {
+    flex: 0 0 auto;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 5px 14px;
+    background: color-mix(in srgb, var(--ink-950) 88%, var(--gold-400));
+    border-bottom: 1px solid var(--border-hairline);
+    color: var(--fg-tertiary);
+    z-index: 30;
+  }
+  html:not(.dark) .proto { background: color-mix(in srgb, var(--paper-warm) 88%, var(--gold-400)); }
+  .proto .mark {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-right: 6px;
+  }
+  .scenes { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
+  .scene-btn, .theme-btn {
+    height: 22px;
+    padding: 0 9px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+  }
+  .scene-btn:hover, .theme-btn:hover { color: var(--fg-primary); background: var(--paper-tint); }
+  .scene-btn.active, .theme-btn.active {
+    color: var(--gold-400);
+    background: var(--gold-tint);
+  }
+  .themes { display: flex; gap: 2px; margin-left: auto; }
+
+  .topbar {
+    flex: 0 0 48px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 16px;
+    background: var(--topbar-bg);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--border-hairline);
+    z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; min-width: 108px; }
+  .seal {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: var(--gold-tint-strong);
+    border: 1px solid var(--border-brand);
+    border-radius: var(--radius-sm);
+    color: var(--gold-400);
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .brand-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .tabs { display: flex; gap: 4px; }
+  .tab {
+    height: 48px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-secondary);
+    font-size: 13px;
+    position: relative;
+  }
+  .tab:hover { color: var(--fg-primary); background: var(--paper-tint-weak); }
+  .tab.active { color: var(--gold-400); }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 12px; right: 12px; bottom: 0;
+    height: 2px;
+    background: var(--gold-400);
+    box-shadow: var(--gold-glow-md, 0 0 8px rgba(245,158,11,.6));
+  }
+  .top-right { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--fg-tertiary); }
+
+  .app { flex: 1; display: flex; min-height: 0; }
+
+  .sidebar {
+    width: 248px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-hairline);
+    background: color-mix(in srgb, var(--el-bg-color) 65%, transparent);
+    min-height: 0;
+  }
+  .side-label {
+    padding: 16px 16px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .session-list { flex: 1; overflow: auto; padding: 0 8px 16px; }
+  .session {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-md);
+    padding: 9px 10px 9px 12px;
+    position: relative;
+    color: var(--fg-primary);
+  }
+  .session:hover { background: var(--paper-tint); }
+  .session.active {
+    background: var(--gold-tint);
+  }
+  .session.active::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--gold-400);
+    border-radius: 1px;
+  }
+  .session .title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .session .meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-tertiary);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--fg-muted); flex-shrink: 0; }
+  .dot.run { background: var(--gold-400); }
+  .dot.wait { background: var(--gold-300); }
+  .dot.stuck { background: var(--cinnabar-400); }
+  .dot.done { background: var(--bronze-500); }
+  .dot.fail { background: var(--cinnabar-400); }
+  .session .state { margin-left: auto; color: var(--fg-muted); }
+
+  .maincol { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .pagehead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 28px 12px;
+    flex-shrink: 0;
+  }
+  .pagehead .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 4px;
+  }
+  .pagehead h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.05em;
+  }
+  .btn {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-default);
+    background: var(--paper-tint);
+    color: var(--fg-primary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn.primary {
+    background: var(--gold-400);
+    border-color: var(--gold-400);
+    color: #1A1308;
+    box-shadow: 0 0 0 1px rgba(245,158,11,.2), 0 4px 12px rgba(245,158,11,.18);
+  }
+  .btn.primary:hover { background: var(--gold-300); }
+  .btn.ghost { background: transparent; }
+  .pagehead .btn.ghost { color: var(--fg-secondary); }
+
+  .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+  .stage.empty { justify-content: center; }
+  .thread {
+    flex: 1;
+    overflow: auto;
+    padding: 8px 28px 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  .thread .col { margin-top: auto; width: min(720px, 100%); }
+  .stage.has-rail .thread .col { margin-top: 0; }
+  .stage.empty .thread { display: none; }
+  .col {
+    width: min(720px, 100%);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .hero {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 28px 28px;
+  }
+  .stage.empty .hero { display: flex; }
+  .hero .seal { width: 36px; height: 36px; font-size: 16px; margin-bottom: 16px; }
+  .hero h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1.35;
+  }
+  .hero p {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--fg-tertiary);
+    line-height: 1.55;
+  }
+
+  .msg.user { display: flex; justify-content: flex-end; }
+  .msg.assistant { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  .who {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+  }
+  .bubble {
+    max-width: 68%;
+    padding: 10px 16px;
+    background: var(--user-bubble);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .prose {
+    font-size: 15.5px;
+    line-height: 1.7;
+    color: var(--fg-primary);
+  }
+  .prose p { margin: 0; }
+  .prose p + p { margin-top: 10px; }
+
+  .tool {
+    border: 1px solid var(--border-hairline);
+    background: var(--paper-tint-weak);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .tool summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--fg-secondary);
+  }
+  .tool summary::-webkit-details-marker { display: none; }
+  .tool summary:hover { color: var(--fg-primary); }
+  .tool .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .tool .name { font-family: var(--font-mono); font-size: 12px; color: var(--fg-primary); }
+  .tool .res { margin-left: auto; font-size: 12px; color: var(--fg-tertiary); }
+  .tool pre {
+    margin: 0;
+    padding: 0 12px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    white-space: pre-wrap;
+  }
+
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--gold-400);
+  }
+  .pulse {
+    width: 6px; height: 6px; border-radius: 99px;
+    background: var(--gold-400);
+    box-shadow: 0 0 0 0 rgba(245,158,11,.5);
+    animation: pulse 1.6s var(--ease-out) infinite;
+  }
+  @keyframes pulse {
+    50% { box-shadow: 0 0 0 5px rgba(245,158,11,0); }
+  }
+
+  .card {
+    padding: 16px 18px 16px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xl);
+    background: var(--el-bg-color-overlay);
+  }
+  .card.warn { border-color: color-mix(in srgb, var(--cinnabar-400) 45%, var(--border-default)); }
+  .card .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-tertiary);
+    margin-bottom: 6px;
+  }
+  .card.warn .k { color: var(--cinnabar-400); }
+  .card h3 {
+    margin: 0 0 12px;
+    font-family: var(--font-serif-cn);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.35;
+  }
+  .code {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: var(--paper-tint-weak);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--fg-secondary);
+    overflow: auto;
+  }
+  .card .actions { display: flex; gap: 8px; }
+
+  .err { color: var(--cinnabar-400); }
+
+  .dock {
+    flex-shrink: 0;
+    padding: 0 28px 20px;
+  }
+  .stage.empty .dock { padding-top: 0; }
+  .dock-inner { width: min(720px, 100%); margin: 0 auto; }
+  .hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--fg-muted);
+    text-align: center;
+  }
+  .composer {
+    background: var(--glass-strong-bg);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate-strong));
+    border: var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    padding: 10px 10px 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 6px 8px; }
+  .chip {
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--fg-tertiary);
+    font-size: 11px;
+  }
+  .chip.on {
+    color: var(--gold-400);
+    border-color: var(--border-brand);
+    background: var(--gold-tint);
+  }
+  .composer textarea {
+    width: 100%;
+    min-height: 52px;
+    max-height: 200px;
+    resize: none;
+    border: 0;
+    background: transparent;
+    padding: 4px 8px 8px;
+    font-size: 15px;
+    line-height: 1.6;
+    outline: none;
+  }
+  .composer textarea::placeholder { color: var(--fg-muted); }
+  .composer-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px 2px 6px;
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--paper-tint);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 2px;
+  }
+  .seg button {
+    height: 24px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-tertiary);
+    font-size: 12px;
+    border-radius: var(--radius-sm);
+  }
+  .seg button.on {
+    background: var(--el-bg-color-overlay);
+    color: var(--fg-primary);
+    box-shadow: var(--shadow-sm);
+  }
+  .quiet-select {
+    height: 24px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-secondary);
+    font-size: 12px;
+    padding: 0 4px;
+    max-width: 148px;
+  }
+  .send {
+    width: 32px; height: 32px;
+    margin-left: auto;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--gold-400);
+    color: #1A1308;
+    display: grid; place-items: center;
+    box-shadow: 0 4px 12px rgba(245,158,11,.22);
+  }
+  .send:hover { background: var(--gold-300); }
+  .send:disabled { opacity: .4; cursor: default; transform: none; box-shadow: none; }
+  .send.stop {
+    background: color-mix(in srgb, var(--cinnabar-400) 18%, var(--el-bg-color-overlay));
+    color: var(--cinnabar-400);
+    box-shadow: none;
+    border: 1px solid color-mix(in srgb, var(--cinnabar-400) 50%, transparent);
+  }
+  .send svg { width: 14px; height: 14px; display: block; }
+
+  .artifact {
+    display: none;
+    width: 380px;
+    flex-shrink: 0;
+    flex-direction: column;
+    min-height: 0;
+    border-left: 1px solid var(--border-hairline);
+    background: color-mix(in srgb, var(--el-bg-color) 80%, transparent);
+  }
+  .artifact.show { display: flex; }
+  .art-head {
+    padding: 18px 22px 10px;
+  }
+  .art-body { overflow: auto; padding: 0 22px 8px; }
+  .art-body h2 {
+    margin: 0 0 16px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+  }
+  .art-sec { margin-bottom: 18px; }
+  .art-sec .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-bottom: 8px;
+  }
+  .art-sec p, .art-sec li { font-size: 13px; line-height: 1.65; color: var(--fg-secondary); margin: 0; }
+  .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
+  .steps li {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 8px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-hairline);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg-primary);
+  }
+  .steps li:last-child { border-bottom: 1px solid var(--border-hairline); }
+  .steps .n { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); padding-top: 2px; }
+  .steps .st { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); white-space: nowrap; padding-top: 2px; }
+  .steps li.run .st, .steps li.run .n { color: var(--gold-400); }
+  .steps li.done .st { color: var(--bronze-500); }
+  .steps li.stuck .st, .steps li.stuck .n { color: var(--cinnabar-400); }
+  .art-foot {
+    padding: 8px 22px 22px;
+    display: flex;
+    gap: 8px;
+  }
+
+
+  .art-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .art-back {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    cursor: pointer;
+  }
+  .art-back:hover { color: var(--gold-300, var(--gold-400)); }
+  .art-k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .art-lead {
+    margin: -8px 0 8px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--fg-secondary);
+  }
+  .panel-list { display: flex; flex-direction: column; }
+  .panel-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    width: calc(100% + 44px);
+    margin: 0 -22px;
+    padding: 9px 22px;
+    text-align: left;
+    border: 0;
+    border-top: 1px solid var(--border-hairline);
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .panel-item:last-child { border-bottom: 1px solid var(--border-hairline); }
+  .panel-item:hover { background: var(--paper-tint); }
+  .pi-name { display: block; font-size: 14px; font-weight: 500; color: var(--fg-primary); }
+  .pi-desc { display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--fg-tertiary); }
+  .pi-st {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-muted);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+  .panel-item.hot .pi-st { color: var(--gold-400); }
+  .panel-item.warn .pi-st { color: var(--cinnabar-400); }
+  .snip pre {
+    margin: 0;
+    padding: 12px 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--fg-primary);
+    overflow-x: auto;
+    border-top: 1px solid var(--border-hairline);
+    border-bottom: 1px solid var(--border-hairline);
+    background: transparent;
+    white-space: pre;
+  }
+
+
+  .attach {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .attach-btn {
+    width: 28px; height: 28px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-secondary);
+    display: grid; place-items: center;
+  }
+  .attach-btn:hover { background: var(--paper-tint); color: var(--fg-primary); }
+  .attach-menu {
+    display: none;
+    position: absolute;
+    left: 0; bottom: calc(100% + 6px);
+    min-width: 168px;
+    padding: 6px;
+    background: var(--el-bg-color-overlay);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 40;
+  }
+  .attach-menu.open { display: block; }
+  .attach-menu button {
+    width: 100%;
+    text-align: left;
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--fg-primary);
+  }
+  .attach-menu button:hover { background: var(--paper-tint); }
+  .pin-row {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 8px 6px;
+  }
+  .pin-row.show { display: flex; }
+  .pin {
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: var(--gold-tint);
+    color: var(--fg-secondary);
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pin b { font-weight: 500; color: var(--fg-primary); }
+  .pin .x { border: 0; background: transparent; color: var(--fg-muted); padding: 0; height: auto; line-height: 1; font-size: 12px; }
+
+  .mem {
+    padding: 12px 0;
+    border-top: 1px solid var(--border-hairline);
+  }
+  .mem .cat {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .mem h3 { margin: 4px 0; font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .mem p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--fg-secondary); }
+
+  .suggest {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--border-hairline);
+    background: transparent;
+    border-radius: var(--radius-lg);
+    padding: 10px 12px;
+    margin: 0 0 8px;
+    color: inherit;
+  }
+  .suggest:hover { background: var(--paper-tint); border-color: var(--border-default); }
+  .suggest .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin-bottom: 4px;
+  }
+  .suggest .t { font-size: 13px; line-height: 1.55; color: var(--fg-primary); }
+
+  .preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 96px;
+    margin-bottom: 16px;
+    padding: 20px;
+    background: var(--paper-tint-weak);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-xl);
+  }
+  .token {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-hairline);
+    font-size: 12px;
+  }
+  .token .sw {
+    width: 18px; height: 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+  }
+  .token .nm { color: var(--fg-primary); }
+  .token .vl { font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary); }
+  .token.plain { grid-template-columns: 1fr auto; }
+
+  .path {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-tertiary);
+    margin: 0 0 14px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border-hairline);
+    font-size: 13px;
+  }
+  .cmd .st { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); }
+  .cmd .st.on { color: var(--bronze-500); }
+
+  .todo {
+    padding: 12px 0;
+    border-top: 1px solid var(--border-hairline);
+  }
+  .todo h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
+  .todo p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--fg-secondary); }
+  .todo .pri {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--gold-400);
+    margin-bottom: 4px;
+  }
+
+  .statusbar {
+    flex: 0 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    background: var(--status-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-hairline);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-tertiary);
+    z-index: 20;
+  }
+  .statusbar .on { color: var(--gold-400); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 56px;
+    transform: translateX(-50%) translateY(8px);
+    padding: 8px 14px;
+    background: var(--el-bg-color-overlay);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    font-size: 12px;
+    color: var(--fg-secondary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+    z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <div class="proto">
+    <span class="mark">原型预览</span>
+    <div class="scenes" id="scenes"></div>
+    <div class="themes">
+      <button class="theme-btn active" type="button" data-theme="dark">暗色</button>
+      <button class="theme-btn" type="button" data-theme="light">浅色</button>
+    </div>
+  </div>
+  <header class="topbar">
+    <div class="brand"><span class="seal">匣</span><span class="brand-name">铸己匣</span></div>
+    <nav class="tabs">
+      <button class="tab" type="button">首页</button>
+      <button class="tab active" type="button">智能体</button>
+      <button class="tab" type="button">技能</button>
+      <button class="tab" type="button">设置</button>
+    </nav>
+    <div class="top-right" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.2"/><path d="M7 4.2v.8M7 9v.8M4.2 7h.8M9 7h.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    </div>
+  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-label">会话</div>
+      <div class="session-list" id="sessions"></div>
+    </aside>
+    <section class="maincol">
+      <div class="pagehead">
+        <div>
+          <div class="eyebrow" id="eyebrow">智能体 · 开放任务</div>
+          <h1 id="pageTitle">新会话</h1>
+        </div>
+        <button class="btn primary" type="button" id="newBtn">新建会话</button>
+      </div>
+      <div class="stage" id="stage">
+        <div class="hero">
+          <div class="seal">匣</div>
+          <h2>下任务、看执行、能介入、可复盘。</h2>
+          <p>选好智能体和模型，在下方说明你要做的事。</p>
+        </div>
+        <div class="thread"><div class="col" id="thread"></div></div>
+        <div class="dock">
+          <div class="dock-inner">
+            <form class="composer" id="composer">
+              <div class="pin-row" id="pins"></div>
+              <textarea id="input" rows="2" placeholder="说明你要做的事。Enter 发送，Shift+Enter 换行。"></textarea>
+              <div class="composer-bar">
+                <div class="attach">
+                  <button class="attach-btn" type="button" id="attachBtn" aria-label="附加上下文" title="附加上下文">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2.5v9M2.5 7h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </button>
+                  <div class="attach-menu" id="attachMenu">
+                    <button type="button" data-pin="技能">技能</button>
+                    <button type="button" data-pin="记忆">记忆</button>
+                    <button type="button" data-pin="工作流">工作流</button>
+                    <button type="button" data-pin="项目">项目</button>
+                    <button type="button" data-pin="图片">图片</button>
+                    <button type="button" data-pin="MCP">MCP</button>
+                  </div>
+                </div>
+                <div class="seg" id="modeSeg">
+                  <button type="button" data-mode="free">开放任务</button>
+                  <button type="button" data-mode="plan">计划任务</button>
+                </div>
+                <select class="quiet-select" id="agentSel" aria-label="智能体">
+                  <option>通用助手</option>
+                  <option>研究助手</option>
+                  <option>工程助手</option>
+                </select>
+                <select class="quiet-select" id="modelSel" aria-label="模型">
+                  <option>宿主 · qwen2.5-32b</option>
+                  <option>宿主 · qwen2.5-14b</option>
+                </select>
+                <button class="send" type="submit" id="sendBtn" aria-label="发送">
+                  <svg viewBox="0 0 14 14" fill="none"><path d="M2.2 7h9.6M8.2 3.4 12 7l-3.8 3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </form>
+            <p class="hint" id="hint">复用宿主已配置的模型，不另开账号。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <aside class="artifact" id="artifact"></aside>
+  </div>
+  <footer class="statusbar">
+    <span><span class="on">匠人</span> · 智能体对话页原型 · 主题 workshop-forge</span>
+    <span id="clock"></span>
+  </footer>
+  <div class="toast" id="toast">原型未接入真实模型，发送仅作交互演示。</div>
+<script>
+const SCENES = [
+  { id: "empty", label: "空态" },
+  { id: "run", label: "开放任务" },
+  { id: "approve", label: "待审批" },
+  { id: "plan", label: "计划" },
+  { id: "workflow", label: "工作流" },
+  { id: "memory", label: "记忆" },
+  { id: "design", label: "设计" },
+  { id: "suggest", label: "建议" },
+  { id: "project", label: "项目" },
+  { id: "todo", label: "待办" },
+  { id: "skills", label: "技能" },
+  { id: "tools", label: "工具" },
+  { id: "snippets", label: "代码片段" },
+  { id: "records", label: "执行记录" },
+  { id: "stuck", label: "卡住" },
+  { id: "done", label: "已完成" },
+  { id: "fail", label: "失败" }
+];
+
+const iconSend = `<svg viewBox="0 0 14 14" fill="none"><path d="M2.2 7h9.6M8.2 3.4 12 7l-3.8 3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const iconStop = `<svg viewBox="0 0 14 14" fill="currentColor"><rect x="4" y="4" width="6" height="6" rx="1"/></svg>`;
+
+const SESSIONS = {
+  empty:    { title: "新会话", mode: "free", modeLabel: "开放任务", status: "刚刚", dot: "", running: false, decision: false, pins: [] },
+  run:      { title: "整理本周待办", mode: "free", modeLabel: "开放任务", status: "进行中 · 3/20 轮", dot: "run", running: true, decision: false, pins: [] },
+  approve:  { title: "初始化项目目录", mode: "free", modeLabel: "开放任务", status: "等待批准", dot: "wait", running: true, decision: true, pins: [] },
+  plan:     { title: "写周报大纲", mode: "plan", modeLabel: "计划任务", status: "计划待确认", dot: "wait", running: false, decision: true, pins: [] },
+  workflow: { title: "跑周报产出流", mode: "free", modeLabel: "开放任务", status: "工作流执行中", dot: "run", running: true, decision: false, pins: ["工作流"] },
+  memory:   { title: "按记忆排优先级", mode: "free", modeLabel: "开放任务", status: "已引用记忆", dot: "done", running: false, decision: false, pins: [] },
+  design:   { title: "预览主按钮规格", mode: "free", modeLabel: "开放任务", status: "设计预览", dot: "done", running: false, decision: true, pins: [] },
+  suggest:  { title: "本周结论", mode: "free", modeLabel: "开放任务", status: "可接着做", dot: "done", running: false, decision: false, pins: [] },
+  project:  { title: "登记工作目录", mode: "free", modeLabel: "开放任务", status: "已选项目", dot: "done", running: false, decision: false, pins: ["项目"] },
+  todo:     { title: "下发构建复盘", mode: "free", modeLabel: "开放任务", status: "待办可下发", dot: "wait", running: false, decision: true, pins: [] },
+  stuck:    { title: "跑构建脚本", mode: "plan", modeLabel: "计划任务", status: "已卡住", dot: "stuck", running: false, decision: true, pins: [] },
+  done:     { title: "检索记忆并总结", mode: "free", modeLabel: "开放任务", status: "已完成 · 5 轮", dot: "done", running: false, decision: false, pins: [] },
+  fail:     { title: "查询模型列表", mode: "free", modeLabel: "开放任务", status: "失败", dot: "fail", running: false, decision: false, pins: [] }
+};
+
+function tool(name, result, raw) {
+  return `<details class="tool"><summary><span class="k">工具</span><span class="name">${name}</span><span class="res">${result}</span></summary><pre>${raw}</pre></details>`;
+}
+
+const THREADS = {
+  empty: [],
+  run: [
+    { role: "user", text: "把本周还没完成的待办列出来，并按优先级排一下。" },
+    { role: "assistant", html: `<div class="prose"><p>先读取待办清单，再按优先级整理。</p></div>${tool("todo_list", "返回 4 条未完成待办", `{ "stage": "open" }`)}<div class="prose"><p>目前未完成 4 条。我先按截止时间和标签排序，再给你一份简报。</p></div><div class="progress"><span class="pulse"></span>进行中 · 第 3 / 20 轮</div>` }
+  ],
+  approve: [
+    { role: "user", text: "在 /tmp 下创建 st-r7-probe 目录。" },
+    { role: "assistant", html: `<div class="prose"><p>这是写操作，需要你批准后再执行。</p></div>
+      <div class="card warn">
+        <div class="k">待你确认 · 写操作 · 终端</div>
+        <h3>批准后才会在本机执行这条命令</h3>
+        <pre class="code">run_terminal_command
+mkdir -p /tmp/st-r7-probe
+cwd  /tmp</pre>
+        <div class="actions">
+          <button class="btn primary" type="button" data-act="approve">批准后执行</button>
+          <button class="btn ghost" type="button" data-act="cancel">取消</button>
+        </div>
+      </div>` }
+  ],
+  plan: [
+    { role: "user", text: "根据本周待办和记忆，写一份周报大纲，先给我计划。" },
+    { role: "assistant", html: `<div class="prose"><p>先给出计划，确认后再执行。你可以直接改步骤，也可以让我改一版。</p></div>` }
+  ],
+  workflow: [
+    { role: "user", text: "用周报产出流，把本周材料收成一份周报。" },
+    { role: "assistant", html: `${tool("workflow_execute", "已启动 周报产出流", `{ "workflowId": "weekly-report" }`)}<div class="prose"><p>已按关联工作流启动「周报产出流」。当前走到第 2 步：检索记忆。右侧可以暂停或取消，不会在后台悄悄跑完。</p></div><div class="progress"><span class="pulse"></span>工作流执行中 · 第 2 / 4 步</div>` }
+  ],
+  memory: [
+    { role: "user", text: "我上周是怎么排周报优先级的？先查记忆再回答。" },
+    { role: "assistant", html: `${tool("memory_search", "命中 3 条", `{ "query": "周报 优先级" }`)}<div class="prose"><p>按你上次留下的排法：先看截止时间，再看风险，最后才是标签。右侧是这次实际用到的三条，不准确可以直接改，或把这次的结论再写回去。</p></div>` }
+  ],
+  design: [
+    { role: "user", text: "按设计系统，给主按钮出一版规格预览，先不要写库。" },
+    { role: "assistant", html: `${tool("design_preview_component", "已生成预览 · 写库关闭", `{ "component": "Button", "variant": "primary" }`)}<div class="prose"><p>已按 workshop-forge 的 token 生成主按钮规格，写库保持关闭。右侧是预览和用到的令牌，可以改完再决定要不要写入设计系统。</p></div>` }
+  ],
+  suggest: [
+    { role: "user", text: "先给一份本周工作的简短结论。" },
+    { role: "assistant", html: `<div class="prose"><p>本周三件事已经收束：待办清理还在进行，周报大纲等你确认，构建还差一次重试。右侧是按你最近习惯排的下一步，点一下就能接着做。</p></div>` }
+  ],
+  project: [
+    { role: "user", text: "把当前工作目录登记到项目里，并看一下能跑哪些命令。" },
+    { role: "assistant", html: `${tool("sems_register_project", "已登记 OpenForgeSelf", `{ "source": "ai-agent" }`)}<div class="prose"><p>已选定 OpenForgeSelf。右侧是项目档案和可运行命令，需要的话我可以帮你启动或检查本机已有的进程。</p></div>` }
+  ],
+  todo: [
+    { role: "user", text: "看一下本周还没交给我做的待办，哪条可以下发。" },
+    { role: "assistant", html: `${tool("todo_list", "3 条待处理", `{ "stage": "open" }`)}<div class="prose"><p>建议先下发「补构建失败的复盘」。目标、验收和允许范围都写好了，右侧可以直接交给智能体执行。</p></div>` }
+  ],
+  stuck: [
+    { role: "user", text: "按计划跑构建脚本。" },
+    { role: "assistant", html: `<div class="prose"><p>第 2 步执行时脚本退出码为 1，需要你介入后才能继续。</p></div>
+      <div class="card warn">
+        <div class="k">已卡住 · 等待你介入</div>
+        <h3>构建脚本未能完成，要补充信息、跳过，还是取消？</h3>
+        <pre class="code">run_terminal_command
+./scripts/build.sh
+exit 1</pre>
+        <div class="actions">
+          <button class="btn primary" type="button" data-act="help">提供信息</button>
+          <button class="btn ghost" type="button" data-act="skip">跳过此步</button>
+          <button class="btn ghost" type="button" data-act="cancel">取消任务</button>
+        </div>
+      </div>` }
+  ],
+  done: [
+    { role: "user", text: "检索和本周工作相关的记忆，给一份简短总结。" },
+    { role: "assistant", html: `${tool("memory_search", "命中 6 条", `{ "query": "本周工作" }`)}<div class="prose"><p>已根据记忆整理出三件事：待办清理已启动，周报大纲待你确认，构建脚本还差一次重试。需要的话我可以按这个结构展开。</p></div>` }
+  ],
+  fail: [
+    { role: "user", text: "列出当前可用的模型。" },
+    { role: "assistant", html: `<div class="prose"><p class="err">没能取到模型列表，宿主接口返回了超时。可以稍后重试，或先换一个已配置的模型继续。</p></div>
+      <div class="actions" style="margin-top:4px"><button class="btn ghost" type="button" data-act="retry">重试</button></div>` }
+  ]
+};
+
+const ARTIFACTS = {
+  plan: {
+    k: "计划 · 待确认",
+    title: "写周报大纲",
+    body: `
+      <div class="art-sec"><div class="k">目标</div><p>产出一份可直接粘贴的周报大纲。</p></div>
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li><span class="n">01</span><span>读取本周未完成与已完成待办</span><span class="st">未开始</span></li>
+          <li><span class="n">02</span><span>检索相关记忆条目</span><span class="st">未开始</span></li>
+          <li><span class="n">03</span><span>按进展 / 风险 / 下周计划组织大纲</span><span class="st">未开始</span></li>
+        </ol>
+      </div>
+      <div class="art-sec"><div class="k">约束</div><p>不改待办状态；不写入文件，除非另行批准。</p></div>`,
+    foot: `<button class="btn primary" type="button" data-act="confirm">确认并执行</button><button class="btn ghost" type="button" data-act="revise">改计划</button>`
+  },
+  workflow: {
+    k: "工作流 · 执行中",
+    title: "周报产出流",
+    body: `
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li class="done"><span class="n">01</span><span>收集本周待办与完成项</span><span class="st">已完成</span></li>
+          <li class="run"><span class="n">02</span><span>检索相关记忆</span><span class="st">进行中</span></li>
+          <li><span class="n">03</span><span>生成周报文稿</span><span class="st">未开始</span></li>
+          <li><span class="n">04</span><span>写入指定位置</span><span class="st">未开始</span></li>
+        </ol>
+      </div>
+      <div class="art-sec"><div class="k">说明</div><p>关联工作流按步执行，可随时暂停或取消。第 4 步涉及写文件，仍会先请你确认。</p></div>`,
+    foot: `<button class="btn ghost" type="button" data-act="pause">暂停</button><button class="btn ghost" type="button" data-act="cancel">取消</button>`
+  },
+  memory: {
+    k: "记忆 · 本轮用到 3 条",
+    title: "相关记忆",
+    body: `
+      <div class="mem"><div class="cat">工作习惯</div><h3>周报先按截止时间再按风险排</h3><p>2026-11-10 · 你明确说过，标签只作第三排序，不要把「紧急」标签直接抬到最前。</p></div>
+      <div class="mem"><div class="cat">项目进展</div><h3>智能终端本轮已合入主分支</h3><p>2026-11-16 · 验收门禁关闭，后续只处理你点名的补充项。</p></div>
+      <div class="mem"><div class="cat">偏好</div><h3>正式文档里不要写参考项目名称</h3><p>2026-11-15 · 调研可以放临时文档，对外稿和提交记录都避开。</p></div>`,
+    foot: `<button class="btn ghost" type="button" data-act="write-memory">把这次结论写回记忆</button>`
+  },
+  design: {
+    k: "设计系统 · 预览 · 写库关闭",
+    title: "主按钮规格",
+    body: `
+      <div class="preview"><button class="btn primary" type="button">主按钮</button></div>
+      <div class="art-sec"><div class="k">令牌</div>
+        <div class="token"><span class="sw" style="background:var(--gold-400)"></span><span class="nm">主色</span><span class="vl">gold-400</span></div>
+        <div class="token"><span class="sw" style="background:#1A1308;border-color:var(--border-default)"></span><span class="nm">字色</span><span class="vl">ink on gold</span></div>
+        <div class="token plain"><span class="nm">圆角</span><span class="vl">radius-md · 6px</span></div>
+        <div class="token plain"><span class="nm">字号</span><span class="vl">12 / 500</span></div>
+      </div>
+      <div class="art-sec"><div class="k">说明</div><p>这是设计系统里的组件预览，不会直接写库。确认后再发布到当前品牌。</p></div>`,
+    foot: `<button class="btn primary" type="button" data-act="publish-design">写入设计系统</button><button class="btn ghost" type="button" data-act="revise">改一版</button>`
+  },
+  suggest: {
+    k: "建议 · 基于最近习惯",
+    title: "可以接着做",
+    body: `
+      <button class="suggest" type="button" data-act="do-workflow"><div class="k">工作流</div><div class="t">把这份结论转成「周报产出流」并开始执行</div></button>
+      <button class="suggest" type="button" data-act="write-memory"><div class="k">记忆</div><div class="t">把「本周结论」写回记忆，下次规划时引用</div></button>
+      <button class="suggest" type="button" data-act="do-todo"><div class="k">待办</div><div class="t">下发「补构建失败的复盘」，按已有验收执行</div></button>`,
+    foot: ""
+  },
+  project: {
+    k: "项目 · 已选工作目录",
+    title: "OpenForgeSelf",
+    body: `
+      <p class="path">~/work/OpenForgeSelf</p>
+      <div class="art-sec"><div class="k">档案</div><p>来源：智能体登记 · Git 可访问 · 类型 应用</p></div>
+      <div class="art-sec"><div class="k">可运行命令</div>
+        <div class="cmd"><span>启动前端</span><span class="st">已停止</span></div>
+        <div class="cmd"><span>启动后端</span><span class="st on">运行中</span></div>
+        <div class="cmd"><span>运行检查</span><span class="st">未运行</span></div>
+      </div>`,
+    foot: `<button class="btn ghost" type="button" data-act="open-project">打开目录</button><button class="btn ghost" type="button" data-act="run-cmd">启动前端</button>`
+  },
+  todo: {
+    k: "待办 · 可下发给智能体",
+    title: "本周待处理",
+    body: `
+      <div class="todo"><div class="pri">优先 · 建议本条下发</div><h3>补构建失败的复盘</h3><p>目标：定位 ./scripts/build.sh 退出码 1。允许读日志与复跑，禁止改发布配置。验收：给出失败原因和可执行的下一步。</p></div>
+      <div class="todo"><h3>确认周报大纲</h3><p>待你核对后，再交给工作流产出正文。</p></div>
+      <div class="todo"><h3>把本周结论写入记忆</h3><p>非阻塞，可在本轮结束后再做。</p></div>`,
+    foot: `<button class="btn primary" type="button" data-act="dispatch">下发这条任务</button><button class="btn ghost" type="button" data-act="skip">先看下一条</button>`
+  },
+
+  recordsEmpty: {
+    k: "执行记录",
+    title: "本会话还没有执行记录",
+    body: `<div class="art-sec"><p>开始任务后，步骤、工具结果和轮次会显示在这里。也可从工作区随时打开。</p></div>`
+  },
+  recordsRun: {
+    k: "执行记录 · 进行中",
+    title: "本轮 3 / 20",
+    body: `
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li class="done"><span class="n">01</span><span>读取待办列表</span><span class="st">完成</span></li>
+          <li class="done"><span class="n">02</span><span>todo_list</span><span class="st">3 条待处理</span></li>
+          <li class="run"><span class="n">03</span><span>整理本周仓库提交</span><span class="st">进行中</span></li>
+        </ol>
+      </div>`
+  },
+  recordsFail: {
+    k: "执行记录 · 失败",
+    title: "启动前端没有成功",
+    body: `
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li class="done"><span class="n">01</span><span>定位项目目录</span><span class="st">完成</span></li>
+          <li class="stuck"><span class="n">02</span><span>run_terminal_command</span><span class="st">失败</span></li>
+        </ol>
+      </div>
+      <div class="art-sec"><div class="k">原因</div><p>端口 5173 已被占用，命令已停止。</p></div>`,
+    foot: `<button class="btn ghost" type="button" data-act="retry">重试</button>`
+  },
+  skills: {
+    k: "技能",
+    title: "本智能体已启用的技能",
+    body: `
+      <div class="art-sec"><div class="k">已启用</div>
+        <ul class="steps">
+          <li><span class="n">01</span><span>周报整理<span style="display:block;font-size:12px;color:var(--fg-tertiary);margin-top:2px">按仓库提交与待办汇总周报大纲。</span></span><span class="st">开启</span></li>
+          <li><span class="n">02</span><span>构建排查<span style="display:block;font-size:12px;color:var(--fg-tertiary);margin-top:2px">读取日志，定位失败步骤。</span></span><span class="st">开启</span></li>
+        </ul>
+      </div>
+      <div class="art-sec"><div class="k">未启用</div>
+        <p>代码审阅。可在智能体设置里打开，不会在对话里直接改配置。</p>
+      </div>`
+  },
+  tools: {
+    k: "工具",
+    title: "本轮可见的工具",
+    body: `
+      <div class="art-sec"><div class="k">宿主工具（白名单）</div>
+        <ul class="steps">
+          <li><span class="n">—</span><span>文件与目录</span><span class="st">可见</span></li>
+          <li><span class="n">—</span><span>终端</span><span class="st">可见 · 高风险需确认</span></li>
+          <li><span class="n">—</span><span>待办</span><span class="st">可见</span></li>
+          <li><span class="n">—</span><span>记忆检索与写回</span><span class="st">可见</span></li>
+          <li><span class="n">—</span><span>工作流</span><span class="st">可见</span></li>
+          <li><span class="n">—</span><span>设计系统</span><span class="st">可见 · 写库需确认</span></li>
+        </ul>
+      </div>
+      <div class="art-sec"><div class="k">MCP</div><p>本示例未连接外部 MCP 服务。连接后会出现在这份名单里，并受同一套白名单约束。</p></div>
+      <div class="art-sec"><div class="k">说明</div><p>高风险操作在对话里确认或取消，不会在本面板直接执行。</p></div>`
+  },
+  snippets: {
+    k: "代码片段",
+    title: "本轮产出的片段",
+    body: `
+      <div class="art-sec">
+        <div class="k">bash · 启动前端</div>
+        <div class="snip"><pre>pnpm --filter web dev</pre></div>
+      </div>
+      <div class="art-sec"><p>片段可复制到剪贴板。未产出时，这里是空态提示。</p></div>`,
+    foot: `<button class="btn ghost" type="button" data-act="copy-snip">复制</button>`
+  },
+  snippetsEmpty: {
+    k: "代码片段",
+    title: "本轮还没有代码片段",
+    body: `<div class="art-sec"><p>智能体在对话里给出可复用的命令或代码后，会收在这里，方便复制。</p></div>`
+  },
+  stuck: {
+    k: "执行记录 · 已卡住",
+    title: "跑构建脚本",
+    body: `
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li class="done"><span class="n">01</span><span>确认工作目录与脚本路径</span><span class="st">已完成</span></li>
+          <li class="stuck"><span class="n">02</span><span>执行构建脚本</span><span class="st">已卡住</span></li>
+          <li><span class="n">03</span><span>回报结果</span><span class="st">未开始</span></li>
+        </ol>
+      </div>
+      <div class="art-sec"><div class="k">说明</div><p>第 2 步因脚本退出码 1 停下，不会自动继续后续步骤。</p></div>`,
+    foot: ""
+  },
+  done: {
+    k: "执行记录 · 已完成",
+    title: "检索记忆并总结",
+    body: `
+      <div class="art-sec"><div class="k">步骤</div>
+        <ol class="steps">
+          <li class="done"><span class="n">01</span><span>检索相关记忆</span><span class="st">已完成</span></li>
+          <li class="done"><span class="n">02</span><span>归纳并给出总结</span><span class="st">已完成</span></li>
+        </ol>
+      </div>`,
+    foot: ""
+  }
+};
+
+let current = "run";
+let pins = [];
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function renderSessions() {
+  const box = document.getElementById("sessions");
+  box.innerHTML = Object.keys(SESSIONS).map(id => {
+    const d = SESSIONS[id];
+    return `<button class="session${id===current?" active":""}" type="button" data-id="${id}">
+      <span class="title">${d.title}</span>
+      <span class="meta">${d.dot?`<span class="dot ${d.dot}"></span>`:""}<span>${d.modeLabel}</span><span class="state">${d.status}</span></span>
+    </button>`;
+  }).join("");
+}
+
+function renderThread() {
+  const items = THREADS[current] || [];
+  document.getElementById("thread").innerHTML = items.map(m => {
+    if (m.role === "user") return `<article class="msg user"><div class="bubble">${m.text}</div></article>`;
+    return `<article class="msg assistant">${m.html}</article>`;
+  }).join("");
+}
+
+const PANEL_DEFS = [
+  { id: "plan", name: "计划", desc: "先看步骤，确认后再执行" },
+  { id: "records", name: "执行记录", desc: "本轮步骤、工具结果与轮次" },
+  { id: "workflow", name: "工作流", desc: "关联工作流的执行与控制" },
+  { id: "memory", name: "记忆", desc: "本轮检索到的条目，可写回" },
+  { id: "design", name: "设计", desc: "组件与令牌预览，默认不写库" },
+  { id: "suggest", name: "建议", desc: "按最近习惯推荐下一步" },
+  { id: "project", name: "项目", desc: "当前工作目录、档案与命令" },
+  { id: "todo", name: "待办", desc: "可下发给智能体的任务" },
+  { id: "skills", name: "技能", desc: "本智能体已启用的技能" },
+  { id: "tools", name: "工具", desc: "本轮可见的宿主与 MCP 工具" },
+  { id: "snippets", name: "代码片段", desc: "本轮产出或收藏的片段" }
+];
+
+const DEFAULT_PANEL = {
+  empty: "catalog", run: "catalog", approve: "catalog",
+  plan: "plan", workflow: "workflow", memory: "memory",
+  design: "design", suggest: "suggest", project: "project",
+  todo: "todo", stuck: "records", done: "records", fail: "records"
+};
+
+const SCENE_MAP = {
+  empty: { session: "empty", panel: "catalog" },
+  run: { session: "run", panel: "catalog" },
+  approve: { session: "approve", panel: "catalog" },
+  plan: { session: "plan", panel: "plan" },
+  workflow: { session: "workflow", panel: "workflow" },
+  memory: { session: "memory", panel: "memory" },
+  design: { session: "design", panel: "design" },
+  suggest: { session: "suggest", panel: "suggest" },
+  project: { session: "project", panel: "project" },
+  todo: { session: "todo", panel: "todo" },
+  skills: { session: "run", panel: "skills" },
+  tools: { session: "run", panel: "tools" },
+  snippets: { session: "done", panel: "snippets" },
+  records: { session: "run", panel: "records" },
+  stuck: { session: "stuck", panel: "records" },
+  done: { session: "done", panel: "records" },
+  fail: { session: "fail", panel: "records" }
+};
+
+let scene = "empty";
+let panel = "catalog";
+
+function panelStatus(id) {
+  const s = current;
+  if (id === "plan") return s === "plan" ? { t: "待确认", k: "hot" } : { t: "无计划", k: "" };
+  if (id === "records") {
+    if (s === "run") return { t: "进行中 · 3/20", k: "hot" };
+    if (s === "approve") return { t: "待审批", k: "hot" };
+    if (s === "stuck") return { t: "卡住", k: "warn" };
+    if (s === "done") return { t: "已完成", k: "" };
+    if (s === "fail") return { t: "失败", k: "warn" };
+    if (s === "workflow") return { t: "工作流进行中", k: "hot" };
+    return { t: "暂无", k: "" };
+  }
+  if (id === "workflow") return s === "workflow" ? { t: "执行中", k: "hot" } : { t: "未启动", k: "" };
+  if (id === "memory") return { t: "3 条", k: "" };
+  if (id === "design") return s === "design" ? { t: "有预览", k: "hot" } : { t: "无预览", k: "" };
+  if (id === "suggest") return { t: "3 条", k: "" };
+  if (id === "project") return s === "empty" ? { t: "未绑定", k: "" } : { t: "OpenForgeSelf", k: "" };
+  if (id === "todo") return { t: "3 条待处理", k: "" };
+  if (id === "skills") return { t: "2 个已启用", k: "" };
+  if (id === "tools") return { t: "已连接", k: "" };
+  if (id === "snippets") return (s === "done" || s === "design") ? { t: "1 个", k: "" } : { t: "暂无", k: "" };
+  return { t: "", k: "" };
+}
+
+function panelData(id) {
+  if (id === "records") {
+    if (current === "stuck") return ARTIFACTS.stuck;
+    if (current === "done") return ARTIFACTS.done;
+    if (current === "fail") return ARTIFACTS.recordsFail;
+    if (current === "run" || current === "approve" || current === "workflow") return ARTIFACTS.recordsRun;
+    return ARTIFACTS.recordsEmpty;
+  }
+  if (id === "snippets") {
+    return (current === "done" || current === "design") ? ARTIFACTS.snippets : ARTIFACTS.snippetsEmpty;
+  }
+  return ARTIFACTS[id];
+}
+
+function renderCatalog() {
+  return PANEL_DEFS.map(p => {
+    const st = panelStatus(p.id);
+    return `<button type="button" class="panel-item ${st.k}" data-open-panel="${p.id}">
+      <span><span class="pi-name">${p.name}</span><span class="pi-desc">${p.desc}</span></span>
+      <span class="pi-st">${st.t}</span>
+    </button>`;
+  }).join("");
+}
+
+function renderArtifact() {
+  const el = document.getElementById("artifact");
+  el.classList.add("show");
+  if (panel === "catalog" || !panel) {
+    el.innerHTML = `<div class="art-head"><span class="art-k">工作区</span></div>
+      <div class="art-body">
+        <h2>打开面板</h2>
+        <p class="art-lead">从这里进入计划、记忆、工作流等。对话进行中也可以随时切换。</p>
+        <div class="panel-list">${renderCatalog()}</div>
+      </div>`;
+    return;
+  }
+  const data = panelData(panel);
+  if (!data) {
+    panel = "catalog";
+    renderArtifact();
+    return;
+  }
+  el.innerHTML = `<div class="art-head"><button type="button" class="art-back" data-act="back-catalog">全部面板</button><span class="art-k">${data.k}</span></div>
+    <div class="art-body"><h2>${data.title}</h2>${data.body}</div>
+    ${data.foot ? `<div class="art-foot">${data.foot}</div>` : ""}`;
+}
+
+function renderPins() {
+  const row = document.getElementById("pins");
+  if (!pins.length) { row.classList.remove("show"); row.innerHTML = ""; return; }
+  row.classList.add("show");
+  row.innerHTML = pins.map(n => `<span class="pin"><b>${n}</b><button class="x" type="button" data-unpin="${n}" aria-label="移除">×</button></span>`).join("");
+}
+
+function renderComposer(d) {
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === d.mode));
+  const send = document.getElementById("sendBtn");
+  send.classList.toggle("stop", !!d.running);
+  send.innerHTML = d.running ? iconStop : iconSend;
+  send.setAttribute("aria-label", d.running ? "停止" : "发送");
+  document.getElementById("hint").textContent = d.running
+    ? "任务进行中。可以停止，或等它完成后再继续追问。"
+    : "复用宿主已配置的模型，不另开账号。";
+  const newBtn = document.getElementById("newBtn");
+  newBtn.className = d.decision ? "btn ghost" : "btn primary";
+  renderPins();
+}
+
+function render() {
+  const d = SESSIONS[current];
+  pins = (d.pins || []).slice();
+  document.getElementById("eyebrow").textContent = `智能体 · ${d.modeLabel}`;
+  document.getElementById("pageTitle").textContent = d.title;
+  document.getElementById("stage").classList.toggle("empty", current === "empty");
+  document.getElementById("stage").classList.toggle("has-rail", true);
+  renderSessions();
+  renderThread();
+  renderArtifact();
+  renderComposer(d);
+  document.querySelectorAll(".scene-btn").forEach(b => {
+    const m = SCENE_MAP[b.dataset.id];
+    const on = m && m.session === current && m.panel === panel;
+    b.classList.toggle("active", !!on);
+  });
+  document.getElementById("attachMenu").classList.remove("open");
+  const def = DEFAULT_PANEL[current] || "catalog";
+  const hash = (panel && panel !== def) ? current + ":" + panel : current;
+  history.replaceState(null, "", "#" + hash);
+}
+
+function setScene(id) {
+  const m = SCENE_MAP[id];
+  if (m) {
+    scene = id;
+    current = m.session;
+    panel = m.panel;
+    render();
+    return;
+  }
+  if (!SESSIONS[id]) return;
+  scene = id;
+  current = id;
+  panel = DEFAULT_PANEL[id] || "catalog";
+  render();
+}
+
+function openPanel(id) {
+  panel = id || "catalog";
+  const match = Object.keys(SCENE_MAP).find(k => SCENE_MAP[k].session === current && SCENE_MAP[k].panel === panel);
+  scene = match || current;
+  render();
+}
+
+document.getElementById("scenes").innerHTML = SCENES.map(s =>
+  `<button class="scene-btn" type="button" data-id="${s.id}">${s.label}</button>`).join("");
+
+document.getElementById("scenes").addEventListener("click", e => {
+  const b = e.target.closest("[data-id]");
+  if (b) setScene(b.dataset.id);
+});
+document.getElementById("sessions").addEventListener("click", e => {
+  const b = e.target.closest("[data-id]");
+  if (b) setScene(b.dataset.id);
+});
+document.querySelector(".themes").addEventListener("click", e => {
+  const b = e.target.closest("[data-theme]");
+  if (!b) return;
+  const light = b.dataset.theme === "light";
+  document.documentElement.classList.toggle("dark", !light);
+  document.documentElement.dataset.theme = light ? "light" : "dark";
+  document.querySelectorAll(".theme-btn").forEach(x => x.classList.toggle("active", x === b));
+});
+document.getElementById("modeSeg").addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]");
+  if (!b) return;
+  document.querySelectorAll("#modeSeg button").forEach(x => x.classList.toggle("on", x === b));
+});
+document.getElementById("newBtn").addEventListener("click", () => setScene("empty"));
+document.getElementById("attachBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  document.getElementById("attachMenu").classList.toggle("open");
+});
+document.getElementById("attachMenu").addEventListener("click", e => {
+  const b = e.target.closest("[data-pin]");
+  if (!b) return;
+  const name = b.dataset.pin;
+  if (!pins.includes(name)) pins.push(name);
+  renderPins();
+  document.getElementById("attachMenu").classList.remove("open");
+});
+document.getElementById("pins").addEventListener("click", e => {
+  const b = e.target.closest("[data-unpin]");
+  if (!b) return;
+  pins = pins.filter(n => n !== b.dataset.unpin);
+  renderPins();
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest(".attach")) document.getElementById("attachMenu").classList.remove("open");
+});
+document.getElementById("composer").addEventListener("submit", e => {
+  e.preventDefault();
+  const d = SESSIONS[current];
+  if (d.running) { toast("已请求停止（原型演示）。"); return; }
+  const v = document.getElementById("input").value.trim();
+  if (!v) return;
+  toast("原型未接入真实模型，发送仅作交互演示。");
+});
+document.getElementById("input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById("composer").requestSubmit();
+  }
+});
+document.getElementById("artifact").addEventListener("click", e => {
+  const back = e.target.closest("[data-act='back-catalog']");
+  if (back) { e.stopPropagation(); openPanel("catalog"); return; }
+  const item = e.target.closest("[data-open-panel]");
+  if (item) { e.stopPropagation(); openPanel(item.dataset.openPanel); }
+});
+document.body.addEventListener("click", e => {
+  if (e.target.closest("[data-act='back-catalog']") || e.target.closest("[data-open-panel]")) return;
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const map = {
+    approve: "已批准，将继续执行（原型演示）。",
+    cancel: "已取消（原型演示）。",
+    confirm: "计划已确认，开始按步骤执行（原型演示）。",
+    revise: "可以在右侧直接改，或在下方说明要怎么改。",
+    help: "在下方补充信息后继续（原型演示）。",
+    skip: "已跳过（原型演示）。",
+    retry: "将重新请求（原型演示）。",
+    pause: "工作流已暂停（原型演示）。",
+    "write-memory": "将把这条结论写入记忆（原型演示）。",
+    "publish-design": "确认后才会写入设计系统（原型演示）。",
+    "do-workflow": "将按「周报产出流」继续（原型演示）。",
+    "do-todo": "将下发这条待办（原型演示）。",
+    "open-project": "将打开项目目录（原型演示）。",
+    "run-cmd": "将启动前端（原型演示）。",
+    dispatch: "已下发「补构建失败的复盘」（原型演示）。",
+    "copy-snip": "已复制（原型演示）。"
+  };
+  toast(map[b.dataset.act] || "已记录（原型演示）。");
+});
+
+function tick() {
+  const n = new Date();
+  document.getElementById("clock").textContent = n.toTimeString().slice(0,8);
+}
+tick(); setInterval(tick, 1000);
+
+(function boot() {
+  const raw = (location.hash || "#empty").replace("#", "");
+  const [sid, pid] = raw.split(":");
+  if (SCENE_MAP[sid] || SESSIONS[sid]) {
+    setScene(sid);
+    if (pid) openPanel(pid);
+    return;
+  }
+  if (PANEL_DEFS.some(p => p.id === sid)) {
+    setScene("run");
+    openPanel(sid);
+    return;
+  }
+  setScene("empty");
+})();
+</script>
+</body>
+</html>

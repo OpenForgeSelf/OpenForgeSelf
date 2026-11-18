@@ -68,6 +68,7 @@ public class AIAgentPlugin : IPlugin
         // IM 网关等消费方派任务到本机 MAF Run 的接缝（PILOT-079）：同进程后台驱动，不走 HTTP。
         services?.AddScoped<IAgentRunDispatch, AgentRunDispatchService>();
 
+
         // eager 提供 IWorkflowAIAdvisor（调研 §5.6 裁决 F：每上下文 eager 单例，非懒解析委托）：
         // 经子容器 scope 解析其依赖链（AIWorkflowAdvisor → IAIWorkflowAssistant → IAIAgentService/IToolSelectorService + IContext），
         // 再 ctx.Register<IWorkflowAIAdvisor>(实例) 写入 root 共享服务表，供兄弟插件（WorkflowEngine）经 ctx.Get 消费。
@@ -147,6 +148,25 @@ public class AIAgentPlugin : IPlugin
             services.AddSingleton<IAgentRunDispatch>(dispatch);
             XTrace.Log.Info("[AIAgentPlugin] 已注册 IAgentRunDispatch（IM 网关派任务接缝，PILOT-079）");
         }
+
+        // 统一能力入口 /api/agent：会话单例 + 真实编排执行器（过程事件写入同一条流）。
+        // 放在 eager scope / IAgentRegistry 就绪之后，执行器才能解析对话与编排服务。
+        var agentFacade = new AgentFacadeService(executor: null, ctx);
+        IAIAgentService? facadeAgent = null;
+        IRunOrchestratorService? facadeOrch = null;
+        IChatModelResolver? facadeModels = null;
+        if (eagerScope != null)
+        {
+            facadeAgent = eagerScope.ServiceProvider.GetService<IAIAgentService>();
+            facadeOrch = eagerScope.ServiceProvider.GetService<IRunOrchestratorService>();
+            facadeModels = eagerScope.ServiceProvider.GetService<IChatModelResolver>();
+        }
+        var agentExecutor = new AgentFacadeRunExecutor(agentFacade, ctx, facadeAgent, facadeOrch, facadeModels);
+        agentFacade.AttachExecutor(agentExecutor);
+        services?.AddSingleton<IAgentFacadeService>(agentFacade);
+        services?.AddSingleton<IAgentRunExecutor>(agentExecutor);
+        ctx.Register<IAgentFacadeService>(agentFacade);
+        ctx.Register<IAgentRunExecutor>(agentExecutor);
 
         XTrace.Log.Info("[AIAgentPlugin] AI代理插件初始化完成");
     }

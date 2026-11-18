@@ -61,6 +61,9 @@ public interface IRunOrchestratorService
     /// <summary>创建并驱动一次计划驱动执行（SSE 流）：建 Run → 规划 → 逐步执行 → 终局合成。</summary>
     IAsyncEnumerable<AgentLoopEvent> RunAsync(RunRequest request, CancellationToken ct);
 
+    /// <summary>使用已确认的计划直接执行，不再重新规划（确认前不得进入）。</summary>
+    IAsyncEnumerable<AgentLoopEvent> ExecuteConfirmedPlanAsync(RunRequest request, AgentPlan plan, CancellationToken ct);
+
     /// <summary>从当前步骤继续执行（重试语义，SSE 流）；仅 Status ∈ {Stuck, Failed} 允许。</summary>
     IAsyncEnumerable<AgentLoopEvent> ResumeAsync(long id, CancellationToken ct);
 
@@ -276,6 +279,44 @@ public class RunOrchestratorService : IRunOrchestratorService
         };
 
         // 4. 逐步执行（SSE 事件透传）；目标模式（SuccessCriteria 非空）经目标外循环（评估/续跑/预算）。
+        await foreach (var ev in ExecuteWithGoalLoopAsync(run, plan, chatModelId, 0, ct))
+            yield return ev;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<AgentLoopEvent> ExecuteConfirmedPlanAsync(RunRequest request, AgentPlan plan, [EnumeratorCancellation] CancellationToken ct)
+    {
+        if (plan?.Steps == null || plan.Steps.Count == 0)
+        {
+            yield return new AgentLoopEvent { Type = "error", Content = "执行计划为空" };
+            yield break;
+        }
+        if (string.IsNullOrWhiteSpace(request.TaskInput))
+        {
+            yield return new AgentLoopEvent { Type = "error", Content = "任务原文（taskInput）不能为空" };
+            yield break;
+        }
+
+        var chatModelId = await ResolveChatModelAsync(request.ChatModelId, ct);
+        if (_modelResolver != null && string.IsNullOrWhiteSpace(chatModelId))
+        {
+            yield return new AgentLoopEvent
+            {
+                Type = "error",
+                Content = "未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。"
+            };
+            yield break;
+        }
+
+        var run = CreateRun(request);
+        run.PlanJson = JsonSerializer.Serialize(plan, PlanJsonOptions);
+        run.StepCount = plan.Steps.Count;
+        run.Status = (int)AgentRunStatus.Running;
+        run.Insert();
+        try { _permissionProfiles?.RememberSessionAgent(RunSessionId(run), run.AgentId); }
+        catch { /* 记忆失败不影响 Run 流程 */ }
+        XTrace.Log.Info("[RunOrchestrator] 已确认计划直接执行 Run {0}（Agent={1}），跳过规划", run.Id, run.AgentId);
+
         await foreach (var ev in ExecuteWithGoalLoopAsync(run, plan, chatModelId, 0, ct))
             yield return ev;
     }

@@ -372,7 +372,12 @@ public sealed class AgentFacadeService : IAgentFacadeService
         s.WorkflowStatus = "paused";
         s.WorkflowId = workflowId;
         ApplyWorkflowStepStatus(s, "paused");
+        if (s.Status is "completed" or "idle" or "failed")
+            s.Status = "running";
+        if (s.CurrentRun is { Status: "completed" or "failed" })
+            s.CurrentRun.Status = "running";
         Touch(s);
+        Append(s, "session.status", s.CurrentRun?.Id, new { status = s.Status });
         Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "paused", steps = s.WorkflowSteps });
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { workflowId, status = "paused", steps = s.WorkflowSteps };
@@ -384,7 +389,11 @@ public sealed class AgentFacadeService : IAgentFacadeService
         s.WorkflowStatus = "cancelled";
         s.WorkflowId = workflowId;
         ApplyWorkflowStepStatus(s, "cancelled");
+        if (s.CurrentRun != null) MarkCancelled(s, s.CurrentRun);
+        else s.Status = "cancelled";
         Touch(s);
+        Append(s, "session.status", s.CurrentRun?.Id, new { status = s.Status });
+        Append(s, "run.cancelled", s.CurrentRun?.Id, new { reason = "workflow_cancelled" });
         Append(s, "workflow.updated", s.CurrentRun?.Id, new { workflowId, status = "cancelled", steps = s.WorkflowSteps });
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
         return new { workflowId, status = "cancelled", steps = s.WorkflowSteps };
@@ -400,7 +409,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         return id switch
         {
             "plan" => new { panel = id, plan = s.CurrentRun?.Plan, status = items.First(i => i.Id == "plan").Status },
-            "records" => new { panel = id, run = ToRunDto(s.CurrentRun), status = items.First(i => i.Id == "records").Status },
+            "records" => RecordsPanel(s, items),
             "tools" => new { panel = id, tools = VisibleToolEntries(s), mcp = McpConnections(), status = items.First(i => i.Id == "tools").Status },
             "memory" => new { panel = id, items = s.Memories, status = items.First(i => i.Id == "memory").Status },
             "suggest" => new { panel = id, items = s.Suggestions, status = items.First(i => i.Id == "suggest").Status },
@@ -540,10 +549,20 @@ public sealed class AgentFacadeService : IAgentFacadeService
         }
         if (type == "run.completed" && s.CurrentRun != null)
         {
-            s.Status = "completed";
-            s.CurrentRun.Status = "completed";
-            s.CurrentRun.StuckReason = null;
-            s.CurrentRun.AllowedActions = null;
+            if (s.WorkflowStatus is "running" or "paused")
+            {
+                s.Status = "running";
+                s.CurrentRun.Status = "running";
+                type = "session.status";
+                payload = new { status = s.Status };
+            }
+            else
+            {
+                s.Status = "completed";
+                s.CurrentRun.Status = "completed";
+                s.CurrentRun.StuckReason = null;
+                s.CurrentRun.AllowedActions = null;
+            }
         }
         if (type == "run.cancelled" && s.CurrentRun != null)
             MarkCancelled(s, s.CurrentRun);
@@ -874,6 +893,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
             return false;
         s.Status = "running";
         run.Status = "running";
+        SeedRunningRecords(run);
         Touch(s);
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
@@ -887,10 +907,66 @@ public sealed class AgentFacadeService : IAgentFacadeService
             if (!_sessions.TryGetValue(sessionId, out var live) || live.Deleted) return;
             if (live.Status is "cancelled" or "failed" or "completed") return;
             if (live.CurrentRun == null || live.CurrentRun.Id != runId) return;
+            CompleteRunningPlanSteps(live.CurrentRun);
             Publish(sessionId, "message.completed", new { text = "进行中任务已结束。" }, runId);
             Publish(sessionId, "run.completed", new { text = "进行中任务已结束。" }, runId);
         });
         return true;
+    }
+
+    private static void SeedRunningRecords(RunState run)
+    {
+        run.Turn = Math.Max(run.Turn, 1);
+        if (run.TurnMax <= 0) run.TurnMax = 20;
+        if (run.Plan?.Steps is { Count: > 0 })
+        {
+            if (run.Plan.Steps.All(st => st.Status is "pending" or "completed"))
+            {
+                var step = run.Plan.Steps.FirstOrDefault(st => st.Status == "pending") ?? run.Plan.Steps[0];
+                step.Status = "running";
+            }
+            return;
+        }
+        run.Plan = new AgentPlanDto
+        {
+            Goal = string.IsNullOrWhiteSpace(run.Text) ? "执行中任务" : run.Text,
+            Steps =
+            {
+                new AgentPlanStepDto { Id = "r1", Name = "准备上下文", Objective = "确认目标与输入", Status = "completed" },
+                new AgentPlanStepDto { Id = "r2", Name = "执行任务", Objective = "推进当前步骤", Status = "running" }
+            }
+        };
+    }
+
+    private static void CompleteRunningPlanSteps(RunState run)
+    {
+        if (run.Plan?.Steps == null) return;
+        foreach (var step in run.Plan.Steps)
+        {
+            if (step.Status is "running" or "pending")
+                step.Status = "completed";
+        }
+    }
+
+    private static object RecordsPanel(SessionState s, List<AgentWorkspaceStatusDto> items)
+    {
+        var run = s.CurrentRun;
+        var steps = run?.Plan?.Steps ?? new List<AgentPlanStepDto>();
+        var turn = run?.Turn ?? 0;
+        if ((s.Status == "running" || run?.Status == "running") && turn < 1)
+            turn = 1;
+        return new
+        {
+            panel = "records",
+            run = ToRunDto(run),
+            steps,
+            round = turn,
+            turnMax = run?.TurnMax ?? 20,
+            runStatus = run?.Status ?? s.Status,
+            stuckReason = run?.StuckReason,
+            failureReason = run?.FailureReason,
+            status = items.First(i => i.Id == "records").Status
+        };
     }
 
     private static void ApplyWorkflowStepStatus(SessionState s, string status)

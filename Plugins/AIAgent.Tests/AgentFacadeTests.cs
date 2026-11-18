@@ -504,11 +504,16 @@ public class AgentFacadeTests
         var svc = NewFacade();
         var session = svc.CreateSession(SessionReq("ai-agent"));
         svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-workflow" });
+        var runId = svc.GetSession(session.Id)!.CurrentRun!.Id;
+        svc.Publish(session.Id, "run.completed", new { text = "工具已执行完毕。" }, runId);
+        Assert.Equal("running", svc.GetSession(session.Id)!.Session.Status);
+
         var paused = JsonSerializer.SerializeToElement(svc.PauseWorkflow(session.Id, "wf-itest"));
         Assert.Equal("paused", paused.GetProperty("status").GetString());
         Assert.Equal("completed", paused.GetProperty("steps")[0].GetProperty("status").GetString());
         Assert.Equal("paused", paused.GetProperty("steps")[1].GetProperty("status").GetString());
         Assert.Equal("paused", svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "workflow").Status);
+        Assert.Equal("running", svc.GetSession(session.Id)!.Session.Status);
         var wfPanel = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
         Assert.Equal("paused", wfPanel.GetProperty("workflowStatus").GetString());
 
@@ -517,6 +522,8 @@ public class AgentFacadeTests
         Assert.Equal("completed", cancelled.GetProperty("steps")[0].GetProperty("status").GetString());
         Assert.Equal("cancelled", cancelled.GetProperty("steps")[1].GetProperty("status").GetString());
         Assert.Equal("cancelled", svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "workflow").Status);
+        Assert.Equal("cancelled", svc.GetSession(session.Id)!.Session.Status);
+        Assert.Equal("cancelled", svc.GetSession(session.Id)!.CurrentRun!.Status);
     }
 
     [Fact]
@@ -533,10 +540,20 @@ public class AgentFacadeTests
             var running = svc.GetSession(session.Id)!;
             Assert.Equal("running", running.Session.Status);
             Assert.StartsWith("进行中", running.Workspace.Single(w => w.Id == "records").Status);
+            Assert.True((running.CurrentRun?.Turn ?? 0) >= 1);
+            var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var rec = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "records"), jsonOpts);
+            Assert.True(rec.GetProperty("round").GetInt32() >= 1);
+            Assert.Equal(20, rec.GetProperty("turnMax").GetInt32());
+            var steps = rec.GetProperty("steps");
+            Assert.True(steps.GetArrayLength() >= 1);
+            Assert.Contains(steps.EnumerateArray(), st => st.GetProperty("status").GetString() == "running");
             await Task.Delay(200);
             var done = svc.GetSession(session.Id)!;
             Assert.Equal("completed", done.Session.Status);
             Assert.Equal("已完成", done.Workspace.Single(w => w.Id == "records").Status);
+            var doneRec = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "records"), jsonOpts);
+            Assert.DoesNotContain(doneRec.GetProperty("steps").EnumerateArray(), st => st.GetProperty("status").GetString() is "running" or "pending");
         }
         finally
         {

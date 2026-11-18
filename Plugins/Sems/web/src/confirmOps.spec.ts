@@ -3,6 +3,8 @@ import {
   deleteCommandMessage,
   errorMessage,
   removeProjectMessage,
+  removeBlockedByRunningMessage,
+  isRemoveBlockedByRunningError,
   runWithConfirm,
   stopExternalMessage,
   stopSessionMessage,
@@ -106,5 +108,21 @@ describe('破坏性动作文案', () => {
   it('errorMessage 兼容非 Error 抛出', () => {
     expect(errorMessage(new Error('boom'))).toBe('boom')
     expect(errorMessage('plain')).toBe('plain')
+  })
+
+  it('有运行中会话时说明原因并引导先到运行页停止', () => {
+    const msg = removeBlockedByRunningMessage('demo', 2)
+    expect(msg).toContain('demo')
+    expect(msg).toContain('2 个运行中会话')
+    expect(msg).toContain('不能直接移除')
+    expect(msg).toContain('运行')
+    expect(msg).toContain('停干净后再移除')
+    expect(msg).toContain('不会被改动')
+    expect(msg).not.toContain('**')
+  })
+
+  it('按 409 识别仍有运行中会话的移除拒绝', () => {
+    expect(isRemoveBlockedByRunningError(new Error('请求失败(409): 项目仍有运行中会话'))).toBe(true)
+    expect(isRemoveBlockedByRunningError(new Error('请求失败(500): boom'))).toBe(false)
   })
 })

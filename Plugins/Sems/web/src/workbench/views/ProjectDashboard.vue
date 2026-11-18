@@ -3,21 +3,17 @@
  * S06 项目仪表盘（交接包 FR-16）：4 类 widget + 项目档案卡。
  * 数值全部来自真实项目档案 / 运行命令 / 运行会话，不再用静态示例数字。
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ic } from '../icons'
 import {
-  store, currentProject, go, projectDeps, projectPorts, refreshRunningCount,
-  loadProjects, toProjectInfo,
+  store, currentProject, go, projectPorts, refreshRunningCount,
+  loadProjects, toProjectInfo, loadEngineeringPlugins, loadSpecCount,
 } from '../workbenchStore'
 import ProjectEditDialog from '../../ProjectEditDialog.vue'
-
-// Sems 已注册的 sems_* 工具数（与后端 SemsPlugin.cs 工具注册表一致）
-const TOOL_COUNT = 22
 
 const p = computed(() => currentProject())
 const projectInfo = computed(() => toProjectInfo(p.value))
 const editing = ref(false)
-const deps = computed(() => projectDeps(p.value))
 const ports = computed(() => projectPorts(p.value))
 const urls = computed(() => (p.value?.commands ?? []).filter((c) => c.url).length)
 const recent = computed(() => (p.value?.commands ?? []).slice(0, 5))
@@ -30,17 +26,26 @@ async function onSaved() {
   editing.value = false
   await loadProjects()
 }
+
+function loadOverviewStats() {
+  if (!p.value) return
+  void loadEngineeringPlugins(p.value.id)
+  void loadSpecCount(p.value.id)
+}
+
+onMounted(loadOverviewStats)
+watch(() => p.value?.id, () => loadOverviewStats())
 </script>
 
 <template>
   <template v-if="p">
     <div class="proj-header">
       <div class="proj-lead">
-        <h2>仪表盘</h2>
+        <h2>概览</h2>
         <div class="es-sub">{{ p.name }} · {{ p.type || '未分类' }}</div>
       </div>
       <div class="proj-tools">
-        <span class="wb-mode" :class="{ demo: store.mode === 'demo' }">{{ p.source }}</span>
+        <span class="badge muted">{{ p.source }}</span>
         <button class="btn btn-secondary" @click="refreshRunningCount()">
           <span v-html="ic('refresh', 'sm')"></span>刷新会话
         </button>
@@ -71,19 +76,19 @@ async function onSaved() {
         </div>
         <div class="stat">
           <div class="stat-head">
-            <span class="row-icon"><span v-html="ic('box', 'sm')"></span></span>
-            <span class="stat-k">依赖项</span>
+            <span class="row-icon"><span v-html="ic('clip', 'sm')"></span></span>
+            <span class="stat-k">规格数</span>
           </div>
-          <div class="stat-v">{{ deps.main.length + deps.dev.length }}</div>
-          <div class="stat-d">主命令 {{ deps.main.length }} · 辅助 {{ deps.dev.length }}</div>
+          <div class="stat-v">{{ store.specCount }}</div>
+          <div class="stat-d">本项目已登记规格</div>
         </div>
         <div class="stat">
           <div class="stat-head">
             <span class="row-icon"><span v-html="ic('puzzle', 'sm')"></span></span>
-            <span class="stat-k">可用工具</span>
+            <span class="stat-k">本项目插件</span>
           </div>
-          <div class="stat-v">{{ TOOL_COUNT }}</div>
-          <div class="stat-d">Sems 已注册能力</div>
+          <div class="stat-v">{{ store.engineeringPlugins.length }}</div>
+          <div class="stat-d">已声明的工程插件</div>
         </div>
       </div>
 
@@ -109,11 +114,11 @@ async function onSaved() {
 
         <section class="card">
           <h3>快速入口</h3>
-          <a class="quick-row" href="#/tasks" @click.prevent="go('/tasks')">
+          <a class="quick-row" href="#/runs" @click.prevent="go('/runs')">
             <span class="row-icon"><span v-html="ic('terminal', 'sm')"></span></span>
             <span class="row-main">
-              <span class="row-title">登记命令</span>
-              <span class="row-sub">在项目下维护可运行的命令脚本</span>
+              <span class="row-title">运行命令</span>
+              <span class="row-sub">在项目下启动命令并查看执行日志</span>
             </span>
             <span v-html="ic('external', 'sm')"></span>
           </a>
@@ -128,12 +133,12 @@ async function onSaved() {
           <a class="quick-row" href="#/plugins" @click.prevent="go('/plugins')">
             <span class="row-icon"><span v-html="ic('puzzle', 'sm')"></span></span>
             <span class="row-main">
-              <span class="row-title">工具清单</span>
-              <span class="row-sub">Sems 已注册的 {{ TOOL_COUNT }} 个能力工具</span>
+              <span class="row-title">项目插件</span>
+              <span class="row-sub">只读查看本项目已声明的工程插件</span>
             </span>
             <span v-html="ic('external', 'sm')"></span>
           </a>
-          <a class="quick-row" href="#/configuration" @click.prevent="go('/configuration')">
+          <a class="quick-row" href="#/settings" @click.prevent="go('/settings')">
             <span class="row-icon"><span v-html="ic('sliders', 'sm')"></span></span>
             <span class="row-main">
               <span class="row-title">项目设置</span>
@@ -163,8 +168,8 @@ async function onSaved() {
           <a class="link-btn" href="#/specs" @click.prevent="go('/specs')">
             规格与验收覆盖 <span v-html="ic('external', 'sm')"></span>
           </a>
-          <a class="link-btn" href="#/configuration" @click.prevent="go('/configuration')">
-            项目配置 <span v-html="ic('external', 'sm')"></span>
+          <a class="link-btn" href="#/settings" @click.prevent="go('/settings')">
+            项目设置 <span v-html="ic('external', 'sm')"></span>
           </a>
         </div>
       </div>

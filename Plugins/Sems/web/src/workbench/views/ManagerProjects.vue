@@ -10,15 +10,34 @@ import { ic } from '../icons'
 import {
   store, listProjects, projectTypes, projectLastRun, openProject, setFavorite, renameProject, removeProject,
   loadProjects, toast, go, projectLayout, setProjectLayout,
+  refreshRunningCount, projectHasRunningSessions, runningSessionCountOf,
 } from '../workbenchStore'
-import { removeProjectMessage } from '../../confirmOps'
+import { removeProjectMessage, removeBlockedByRunningMessage } from '../../confirmOps'
 
 const rows = computed(() => listProjects())
 const types = computed(() => projectTypes())
 const busyRemoveId = ref<number | null>(null)
 
+async function guideToStop(p: (typeof rows.value)[number], runningCount = 0) {
+  try {
+    await ElMessageBox.confirm(
+      removeBlockedByRunningMessage(p.name, runningCount),
+      '无法移除',
+      { type: 'warning', confirmButtonText: '去运行页停止', cancelButtonText: '取消' },
+    )
+    openProject(p.id, '/runs')
+  } catch {
+    /* 用户取消，留在当前页 */
+  }
+}
+
 async function onRemove(p: (typeof rows.value)[number]) {
   if (busyRemoveId.value) return
+  await refreshRunningCount()
+  if (projectHasRunningSessions(p)) {
+    await guideToStop(p, runningSessionCountOf(p))
+    return
+  }
   try {
     await ElMessageBox.confirm(
       removeProjectMessage(p.name, p.commands?.length ?? 0),
@@ -29,9 +48,17 @@ async function onRemove(p: (typeof rows.value)[number]) {
     return
   }
   busyRemoveId.value = p.id
-  const ok = await removeProject(p.id)
+  const result = await removeProject(p.id)
   busyRemoveId.value = null
-  toast(ok ? `已移除项目「${p.name}」的档案（磁盘文件未改动）` : '移除未成功，请查看提示')
+  if (result.ok) {
+    toast(`已移除项目「${p.name}」的档案（磁盘文件未改动）`)
+    return
+  }
+  if (result.blockedByRunning) {
+    await guideToStop(p)
+    return
+  }
+  toast('移除失败：' + result.error)
 }
 
 function onRename(p: (typeof rows.value)[number]) {
@@ -57,9 +84,9 @@ function onEditor(p: (typeof rows.value)[number]) {
 
 function lastRunText(p: (typeof rows.value)[number]): string {
   const h = projectLastRun(p)
-  if (!h) return '尚未运行过任务'
+  if (!h) return '尚未运行过命令'
   const label = h.status === 'running' ? '运行中' : h.status === 'done' ? '已完成' : '空闲'
-  return `最近任务 ${h.name} · ${label}`
+  return `最近运行 ${h.name} · ${label}`
 }
 </script>
 
@@ -74,7 +101,7 @@ function lastRunText(p: (typeof rows.value)[number]): string {
         </div>
         <div class="proj-tools">
           <span class="wb-badge" :class="{ info: store.mode === 'live' }">
-            共 {{ store.projects.length }} 个 · {{ store.mode === 'live' ? '真实档案' : '示例数据' }}
+            共 {{ store.projects.length }} 个 · 真实档案
           </span>
           <button class="btn btn-secondary" :disabled="store.loading" @click="loadProjects()">
             <span v-html="ic('refresh', 'sm')"></span>刷新
@@ -139,7 +166,7 @@ function lastRunText(p: (typeof rows.value)[number]): string {
       <div v-else-if="!store.projects.length" class="empty-state">
         <span v-html="ic('clip', 'lg')"></span>
         <div class="es-quote">还没有登记任何项目</div>
-        <div class="es-sub">登记已有目录，即可在此统一管理它的命令、任务与规格。</div>
+        <div class="es-sub">登记已有目录，即可在此统一管理它的运行命令、规格与工程插件。</div>
         <div class="wb-toolbar" style="justify-content:center;margin-top:12px">
           <button class="btn btn-primary" @click="go('/create')">登记项目</button>
           <button class="btn btn-secondary" @click="go('/import')">导入目录</button>
@@ -233,8 +260,8 @@ function lastRunText(p: (typeof rows.value)[number]): string {
       </div>
 
       <p class="wb-hint" style="margin-top:16px">
-        「新建 / 导入」登记的是本机已存在的目录（sems 原有能力），不会创建脚手架或写入文件；
-        移除只删除档案，不动磁盘。DEMO 模式下所有操作仅作用于浏览器本地视图。
+        「登记 / 导入」登记的是本机已存在的目录，不会创建脚手架或写入文件；
+        移除只删除档案，不动磁盘。
       </p>
     </div>
   </div>

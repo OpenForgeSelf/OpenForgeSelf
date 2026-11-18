@@ -138,6 +138,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             CreatedAt = DateTimeOffset.Now
         });
 
+        ApplyWorkspaceSeeds(s, run);
+
         if (s.Mode == "planned")
         {
             run.Plan = BuildDraftPlan(run.Text);
@@ -149,6 +151,9 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
         }
+
+        if (TryFailByKeyword(s, run))
+            return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
 
         s.Status = "running";
         Touch(s);
@@ -205,6 +210,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
         Append(s, "session.status", run.Id, new { status = s.Status });
         Append(s, "plan.updated", run.Id, run.Plan);
         Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+        if (TryFailByKeyword(s, run))
+            return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
         _ = SafeStart(() => _executor?.StartPlanAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
     }
@@ -273,8 +280,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (run == null || run.Id != runId) return new { error = "执行不存在" };
         if (s.Status is "completed" or "cancelled" or "failed")
             return new { error = "当前状态不可停止" };
-        run.Status = "cancelled";
-        s.Status = "cancelled";
+        MarkCancelled(s, run);
         Touch(s);
         _ = SafeStart(() => _executor?.StopAsync(s.Id, run.Id) ?? Task.CompletedTask);
         Append(s, "run.cancelled", run.Id, new { reason = "stopped" });
@@ -330,6 +336,13 @@ public sealed class AgentFacadeService : IAgentFacadeService
             case "retry":
                 if (s.Status is not ("failed" or "stuck"))
                     return new { error = "当前状态不可重试" };
+                run.Retrying = true;
+                run.StuckReason = null;
+                run.FailureReason = null;
+                run.AllowedActions = null;
+                run.ContinueInput = string.IsNullOrWhiteSpace(request.Input)
+                    ? "（重试上一任务，请继续完成）"
+                    : request.Input;
                 run.Status = "running";
                 s.Status = "running";
                 Touch(s);
@@ -374,13 +387,13 @@ public sealed class AgentFacadeService : IAgentFacadeService
         {
             "plan" => new { panel = id, plan = s.CurrentRun?.Plan, status = items.First(i => i.Id == "plan").Status },
             "records" => new { panel = id, run = ToRunDto(s.CurrentRun), status = items.First(i => i.Id == "records").Status },
-            "tools" => new { panel = id, tools = VisibleTools(s), status = items.First(i => i.Id == "tools").Status },
+            "tools" => new { panel = id, tools = VisibleToolEntries(s), mcp = McpConnections(), status = items.First(i => i.Id == "tools").Status },
             "memory" => new { panel = id, items = s.Memories, status = items.First(i => i.Id == "memory").Status },
             "suggest" => new { panel = id, items = s.Suggestions, status = items.First(i => i.Id == "suggest").Status },
             "snippets" => new { panel = id, items = s.Snippets, status = items.First(i => i.Id == "snippets").Status },
             "todo" => new { panel = id, items = s.Todos, status = items.First(i => i.Id == "todo").Status },
             "design" => new { panel = id, preview = s.DesignPreview, committed = s.DesignCommitted, status = items.First(i => i.Id == "design").Status },
-            "workflow" => new { panel = id, workflowId = s.WorkflowId, status = items.First(i => i.Id == "workflow").Status },
+            "workflow" => new { panel = id, workflowId = s.WorkflowId, steps = s.WorkflowSteps, status = items.First(i => i.Id == "workflow").Status },
             "project" => new { panel = id, context = s.CurrentRun?.ContextSnapshot ?? s.Context, status = items.First(i => i.Id == "project").Status },
             "skills" => new { panel = id, attachments = s.CurrentRun?.Attachments.Where(a => a.Kind == "skill").ToList(), status = items.First(i => i.Id == "skills").Status },
             _ => new { error = "未知面板" }
@@ -480,6 +493,11 @@ public sealed class AgentFacadeService : IAgentFacadeService
             s.CurrentRun.Status = "awaiting_approval";
             payload = MergeApprovalId(payload, id);
         }
+        if (s.Status == "cancelled"
+            && (type is "run.stuck" or "run.failed" or "run.completed" or "approval.required"))
+        {
+            return true;
+        }
         if (type == "run.stuck" && s.CurrentRun != null)
         {
             s.Status = "stuck";
@@ -494,12 +512,22 @@ public sealed class AgentFacadeService : IAgentFacadeService
         {
             s.Status = "failed";
             s.CurrentRun.Status = "failed";
+            s.CurrentRun.FailureReason = AgentFacadeEventMapper.ExtractText(payload)
+                                         ?? ReadString(payload, "reason")
+                                         ?? ReadString(payload, "message")
+                                         ?? "执行失败";
+            s.CurrentRun.AllowedActions = new List<string> { "retry" };
+            payload = new { reason = s.CurrentRun.FailureReason, allowedActions = s.CurrentRun.AllowedActions, payload };
         }
         if (type == "run.completed" && s.CurrentRun != null)
         {
             s.Status = "completed";
             s.CurrentRun.Status = "completed";
+            s.CurrentRun.StuckReason = null;
+            s.CurrentRun.AllowedActions = null;
         }
+        if (type == "run.cancelled" && s.CurrentRun != null)
+            MarkCancelled(s, s.CurrentRun);
         if (type is "message.completed" or "message.delta")
         {
             var text = AgentFacadeEventMapper.ExtractText(payload) ?? "";
@@ -559,16 +587,67 @@ public sealed class AgentFacadeService : IAgentFacadeService
     {
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted)
             return Array.Empty<string>();
-        return AgentToolScopeRules.Narrow(whitelist, s.CurrentRun?.ToolScope);
+        var baseline = whitelist is not null ? whitelist : DefaultVisibleToolNames(s);
+        return AgentToolScopeRules.Narrow(baseline, s.CurrentRun?.ToolScope);
     }
 
     public AgentEmbedContext? ContextSnapshot(string sessionId) =>
         !_sessions.TryGetValue(sessionId, out var s) || s.Deleted ? null : (s.CurrentRun?.ContextSnapshot ?? s.Context);
 
     private IReadOnlyList<string> VisibleTools(SessionState s) =>
-        AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.ResolvedAllow(), s.CurrentRun?.ToolScope);
+        AgentToolScopeRules.Narrow(DefaultVisibleToolNames(s), s.CurrentRun?.ToolScope);
 
-    private static object WorkspacePayload(SessionState s) => new { items = BuildWorkspace(s) };
+    private IReadOnlyList<string> DefaultVisibleToolNames(SessionState s)
+    {
+        var registry = _ctx?.Get<IToolRegistry>();
+        return AgentDefaultToolScope.ResolveNames(registry, s.PluginId);
+    }
+
+    private object[] VisibleToolEntries(SessionState s)
+    {
+        var names = VisibleTools(s);
+        var mcpTools = new Dictionary<string, McpExternalToolInfo>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var gateway = _ctx?.Get<IMcpExternalGateway>();
+            if (gateway != null)
+            {
+                foreach (var tool in gateway.ListConnectedTools())
+                    mcpTools[tool.FullName] = tool;
+            }
+        }
+        catch { /* 无 MCP 网关时降级为空 */ }
+
+        var scopedMcp = AgentToolScopeRules.Narrow(mcpTools.Keys, s.CurrentRun?.ToolScope);
+        return names.Select(n => (object)new { name = n, source = "host" })
+            .Concat(scopedMcp.Select(n =>
+            {
+                mcpTools.TryGetValue(n, out var info);
+                return (object)new { name = n, source = "mcp", serverId = info?.ServerId, status = "connected" };
+            }))
+            .ToArray();
+    }
+
+    private object[] McpConnections()
+    {
+        try
+        {
+            var gateway = _ctx?.Get<IMcpExternalGateway>();
+            var connected = gateway?.ListConnectedTools() ?? Array.Empty<McpExternalToolInfo>();
+            if (connected.Count == 0)
+                return [new { status = "未连接" }];
+            return connected
+                .GroupBy(t => t.ServerId, StringComparer.OrdinalIgnoreCase)
+                .Select(g => (object)new { id = g.Key, status = "connected", toolCount = g.Count() })
+                .ToArray();
+        }
+        catch
+        {
+            return [new { status = "未连接" }];
+        }
+    }
+
+    private object WorkspacePayload(SessionState s) => new { items = BuildWorkspace(s) };
 
     private static object? MergeApprovalId(object? payload, string id)
     {
@@ -633,7 +712,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         };
     }
 
-    private static List<AgentWorkspaceStatusDto> BuildWorkspace(SessionState s)
+    private List<AgentWorkspaceStatusDto> BuildWorkspace(SessionState s)
     {
         var run = s.CurrentRun;
         var records = s.Status switch
@@ -672,10 +751,100 @@ public sealed class AgentFacadeService : IAgentFacadeService
         };
     }
 
-    private static string VisibleToolsLabel(SessionState s)
+    private string VisibleToolsLabel(SessionState s)
     {
-        var tools = AgentToolScopeRules.Narrow(s.CurrentRun?.ToolScope?.ResolvedAllow(), s.CurrentRun?.ToolScope);
+        var tools = VisibleTools(s);
         return tools.Count == 0 ? "未限定" : $"{tools.Count} 个可见";
+    }
+
+    private static void MarkCancelled(SessionState s, RunState run)
+    {
+        s.Status = "cancelled";
+        run.Status = "cancelled";
+        run.StuckReason = null;
+        run.FailureReason = null;
+        run.AllowedActions = null;
+        if (run.Plan?.Steps == null) return;
+        foreach (var step in run.Plan.Steps)
+        {
+            if (step.Status is "stuck" or "running" or "pending")
+                step.Status = "cancelled";
+        }
+    }
+
+    private static bool ContainsKeyword(string? text, string keyword) =>
+        !string.IsNullOrWhiteSpace(text) && text.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+
+    private void ApplyWorkspaceSeeds(SessionState s, RunState run)
+    {
+        var text = run.Text ?? "";
+        if (ContainsKeyword(text, "agent-workflow"))
+        {
+            s.WorkflowId = "wf-itest";
+            s.WorkflowStatus = "running";
+            s.WorkflowSteps.Clear();
+            s.WorkflowSteps.Add(new { id = "w1", name = "准备", status = "completed" });
+            s.WorkflowSteps.Add(new { id = "w2", name = "写入结果", status = "running", risk = "high" });
+        }
+        if (ContainsKeyword(text, "agent-design"))
+        {
+            s.DesignCommitted = false;
+            s.DesignPreview = """{"component":"Button","tokens":{"color.accent":"#F59E0B","radius.md":"8px"},"note":"默认不写库"}""";
+        }
+        if (ContainsKeyword(text, "agent-suggest"))
+        {
+            if (s.Suggestions.Count == 0)
+            {
+                s.Suggestions.Add(new { id = "sg-workflow", title = "转到工作流", action = "open_workflow", detail = "打开关联工作流并继续当前步骤" });
+                s.Suggestions.Add(new { id = "sg-memory", title = "写回记忆", action = "write_memory", detail = "把本轮要点写回记忆" });
+                s.Suggestions.Add(new { id = "sg-todo", title = "下发待办", action = "dispatch_todo", detail = "把剩余工作交给当前智能体" });
+            }
+        }
+        if (ContainsKeyword(text, "agent-project"))
+        {
+            var cwd = "/tmp/agent-itest";
+            s.Context.Cwd = cwd;
+            s.Context.Title = "联调项目";
+            s.Context.ProjectId = "proj-itest";
+            run.ContextSnapshot.Cwd = cwd;
+            run.ContextSnapshot.Title = "联调项目";
+            run.ContextSnapshot.ProjectId = "proj-itest";
+        }
+        if (ContainsKeyword(text, "agent-todo"))
+        {
+            if (s.Todos.Count == 0)
+            {
+                s.Todos.Add(new
+                {
+                    id = "todo-itest",
+                    title = "整理联调纪要",
+                    goal = "把本轮结果写成三条纪要",
+                    scope = "/tmp/agent-itest",
+                    acceptance = "纪要文件可打开且含三条要点",
+                    dispatched = false
+                });
+            }
+        }
+    }
+
+    private bool TryFailByKeyword(SessionState s, RunState run)
+    {
+        if (run.Retrying || !ContainsKeyword(run.Text, "agent-fail"))
+            return false;
+        s.Status = "failed";
+        run.Status = "failed";
+        run.FailureReason = "模拟失败：命中 agent-fail，可重试";
+        run.AllowedActions = new List<string> { "retry" };
+        if (run.Plan?.Steps != null)
+        {
+            var step = run.Plan.Steps.FirstOrDefault(x => x.Status is "pending" or "running") ?? run.Plan.Steps.FirstOrDefault();
+            if (step != null) step.Status = "failed";
+        }
+        Touch(s);
+        Append(s, "run.failed", run.Id, new { reason = run.FailureReason, allowedActions = run.AllowedActions });
+        Append(s, "session.status", run.Id, new { status = s.Status });
+        Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+        return true;
     }
 
     private static AgentWorkspaceStatusDto Item(string id, string name, string description, string status) =>
@@ -691,8 +860,9 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Turn = run.Turn,
             TurnMax = run.TurnMax,
             Plan = run.Plan,
-            StuckReason = run.StuckReason,
-            AllowedActions = run.AllowedActions
+            StuckReason = run.Status == "stuck" ? run.StuckReason : null,
+            FailureReason = run.Status == "failed" ? run.FailureReason : null,
+            AllowedActions = run.Status is "cancelled" or "completed" ? null : run.AllowedActions
         };
     }
 
@@ -782,6 +952,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         public List<object> Suggestions { get; } = new();
         public List<object> Snippets { get; } = new();
         public List<object> Todos { get; } = new();
+        public List<object> WorkflowSteps { get; } = new();
     }
 
     private sealed class RunState
@@ -801,6 +972,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
         public List<ApprovalState> Approvals { get; } = new();
         public long? NativeRunId { get; set; }
         public int? InterveneStepIndex { get; set; }
+        public string? FailureReason { get; set; }
+        public bool Retrying { get; set; }
     }
 
     private sealed class ApprovalState

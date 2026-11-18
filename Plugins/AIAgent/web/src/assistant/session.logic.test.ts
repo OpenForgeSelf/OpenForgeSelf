@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyEvent, emptyThreadState, primaryKind, statusLabel } from './session.logic'
+import { applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel } from './session.logic'
 
 describe('primaryKind', () => {
   it('lets confirm-plan take the gold button', () => {
@@ -59,5 +59,59 @@ describe('applyEvent', () => {
     expect(s.status).toBe('awaiting_plan')
     expect(s.autoOpenPanel).toBe('plan')
     expect(s.plan?.goal).toBe('部署')
+  })
+})
+
+describe('splitProse', () => {
+  it('keeps plain text', () => {
+    expect(splitProse('你好')).toEqual([{ type: 'text', text: '你好' }])
+  })
+  it('splits a fenced block', () => {
+    const parts = splitProse('见下面：\n```bash\nls -la\n```\n完成')
+    expect(extractCodeFences('见下面：\n```bash\nls -la\n```\n完成')).toEqual([{ language: 'bash', content: 'ls -la' }])
+    expect(parts).toEqual([
+      { type: 'text', text: '见下面：\n' },
+      { type: 'code', language: 'bash', content: 'ls -la' },
+      { type: 'text', text: '\n完成' },
+    ])
+  })
+})
+
+describe('applyEvent cancel', () => {
+  it('marks stuck cards cancelled and clears stuck state', () => {
+    let s = emptyThreadState('stuck')
+    s = applyEvent(s, {
+      type: 'run.stuck',
+      sessionId: 's1',
+      runId: 'r1',
+      seq: 1,
+      ts: '',
+      payload: { reason: '步骤回合未调用 complete_step', allowedActions: ['skip', 'cancel'] },
+    })
+    expect(s.status).toBe('stuck')
+    s = applyEvent(s, {
+      type: 'run.cancelled',
+      sessionId: 's1',
+      runId: 'r1',
+      seq: 2,
+      ts: '',
+      payload: {},
+    })
+    expect(s.status).toBe('cancelled')
+    expect(s.stuck).toBeNull()
+    const card = s.items.find((it) => it.kind === 'stuck')
+    expect(card?.kind === 'stuck' && card.stuck.outcome).toBe('cancelled')
+    expect(card?.kind === 'stuck' && card.stuck.resolved).toBe(true)
+    const stuckCount = s.items.filter((it) => it.kind === 'stuck').length
+    s = applyEvent(s, {
+      type: 'run.stuck',
+      sessionId: 's1',
+      runId: 'r1',
+      seq: 3,
+      ts: '',
+      payload: { reason: '迟到的卡住' },
+    })
+    expect(s.status).toBe('cancelled')
+    expect(s.items.filter((it) => it.kind === 'stuck').length).toBe(stuckCount)
   })
 })

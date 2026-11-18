@@ -211,6 +211,21 @@
 }
 .aa-msg.assistant { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .aa-prose { font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+.aa-prose .aa-fence { margin: 8px 0; white-space: pre; }
+.aa-fence {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fg-primary);
+  background: var(--paper-tint);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  white-space: pre;
+}
+.aa-fence code { font-family: inherit; font-size: inherit; }
 .aa-tool {
   border: 0;
   background: transparent;
@@ -280,7 +295,16 @@
   font-family: inherit;
 }
 .aa-composer textarea::placeholder { color: var(--fg-muted); }
-.aa-composer-bar { display: flex; align-items: center; gap: 8px; padding: 2px 4px 2px 6px; }
+.aa-composer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 2px 6px;
+}
+.aa-composer-bar .aa-attach,
+.aa-composer-bar .aa-seg,
+.aa-composer-bar .aa-send { flex-shrink: 0; }
 .aa-attach { position: relative; }
 .aa-attach-btn {
   width: 28px;
@@ -336,6 +360,8 @@
   color: var(--fg-secondary);
   font-size: 12px;
   max-width: 140px;
+  min-width: 0;
+  flex: 1 1 72px;
   outline: none;
 }
 .aa-spacer { flex: 1; }
@@ -413,7 +439,6 @@
 .agent-assistant.is-panel.is-workspace .aa-sidebar,
 .agent-assistant.is-panel.is-workspace .aa-main { display: none; }
 .agent-assistant.is-panel .aa-pagehead { padding: 12px 16px 8px; }
-.agent-assistant.is-panel .aa-pagehead h1 { font-size: 18px; }
 .agent-assistant.is-panel .aa-thread,
 .agent-assistant.is-panel .aa-dock,
 .agent-assistant.is-panel .aa-hero { padding-left: 16px; padding-right: 16px; }
@@ -423,3 +448,18 @@
 .agent-assistant.is-panel {
   padding-bottom: 72px;
 }
+.agent-assistant.is-panel .aa-pagehead {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.agent-assistant.is-panel .aa-pagehead > div:first-child { min-width: 0; flex: 1 1 140px; }
+.agent-assistant.is-panel .aa-pagehead h1 {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-assistant.is-panel .aa-head-actions { flex-wrap: wrap; }
+.agent-assistant.is-panel .aa-composer-bar { row-gap: 6px; }
+.agent-assistant.is-panel .aa-spacer { display: none; }
+.agent-assistant.is-panel .aa-send { margin-left: auto; }

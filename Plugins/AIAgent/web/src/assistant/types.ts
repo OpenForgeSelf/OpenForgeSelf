@@ -42,6 +42,8 @@ export interface AgentEmbedContext {
 export interface AgentToolScope {
   allow?: string[]
   deny?: string[]
+  allowTools?: string[]
+  denyTools?: string[]
   allowCapabilities?: string[]
 }
 
@@ -97,6 +99,8 @@ export interface AgentStuck {
   reason: string
   allowedActions: Array<'continue' | 'skip' | 'override' | 'cancel' | 'retry'>
   stepId?: string
+  resolved?: boolean
+  outcome?: 'cancelled' | 'continued' | 'skipped'
 }
 
 export interface AgentToolCall {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { splitProse } from './session.logic'
 import type { AgentStuck, AgentThreadItem } from './types'
 
 defineProps<{
@@ -30,7 +31,12 @@ function can(stuck: AgentStuck, action: AgentStuck['allowedActions'][number]) {
           <div class="aa-bubble">{{ item.text }}</div>
         </div>
         <div v-else-if="item.kind === 'assistant'" class="aa-msg assistant">
-          <div class="aa-prose">{{ item.text }}</div>
+          <div class="aa-prose">
+            <template v-for="(part, i) in splitProse(item.text)" :key="i">
+              <span v-if="part.type === 'text'">{{ part.text }}</span>
+              <pre v-else class="aa-fence" :data-lang="part.language"><code>{{ part.content }}</code></pre>
+            </template>
+          </div>
         </div>
         <div v-else-if="item.kind === 'tool'" class="aa-msg assistant">
           <button type="button" class="aa-tool" @click="toggle(item.id)">
@@ -52,20 +58,22 @@ function can(stuck: AgentStuck, action: AgentStuck['allowedActions'][number]) {
         </div>
         <div v-else-if="item.kind === 'stuck'" class="aa-msg assistant">
           <div class="aa-card">
-            <h3>已卡住</h3>
+            <h3>{{ item.stuck.outcome === 'cancelled' ? '已取消' : '已卡住' }}</h3>
             <p>{{ item.stuck.reason }}</p>
-            <textarea
-              v-if="can(item.stuck, 'continue')"
-              v-model="stuckInput"
-              class="aa-prose"
-              style="width:100%;min-height:64px;background:transparent;border:1px solid var(--border-subtle);border-radius:var(--radius-md);color:inherit;padding:8px;margin-bottom:8px"
-              placeholder="补充信息后继续"
-            />
-            <div class="aa-actions">
-              <button v-if="can(item.stuck, 'continue')" type="button" class="aa-btn pri" @click="emit('intervene', 'continue')">补充后继续</button>
-              <button v-if="can(item.stuck, 'skip')" type="button" class="aa-btn" @click="emit('intervene', 'skip')">跳过</button>
-              <button v-if="can(item.stuck, 'cancel')" type="button" class="aa-btn ghost" @click="emit('intervene', 'cancel')">取消</button>
-            </div>
+            <template v-if="!item.stuck.resolved">
+              <textarea
+                v-if="can(item.stuck, 'continue')"
+                v-model="stuckInput"
+                class="aa-prose"
+                style="width:100%;min-height:64px;background:transparent;border:1px solid var(--border-subtle);border-radius:var(--radius-md);color:inherit;padding:8px;margin-bottom:8px"
+                placeholder="补充信息后继续"
+              />
+              <div class="aa-actions">
+                <button v-if="can(item.stuck, 'continue')" type="button" class="aa-btn pri" @click="emit('intervene', 'continue')">补充后继续</button>
+                <button v-if="can(item.stuck, 'skip')" type="button" class="aa-btn" @click="emit('intervene', 'skip')">跳过</button>
+                <button v-if="can(item.stuck, 'cancel')" type="button" class="aa-btn ghost" @click="emit('intervene', 'cancel')">取消</button>
+              </div>
+            </template>
           </div>
         </div>
       </template>

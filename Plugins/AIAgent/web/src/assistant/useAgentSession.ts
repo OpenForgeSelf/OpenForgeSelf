@@ -1,6 +1,6 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import * as api from './api'
-import { applyEvent, defaultCatalog, emptyThreadState, primaryKind, type ThreadState } from './session.logic'
+import { applyEvent, defaultCatalog, emptyThreadState, extractCodeFences, isSettledStatus, primaryKind, type ThreadState } from './session.logic'
 import { subscribeSessionEvents } from './sse'
 import type {
   AgentAssistantLayout,
@@ -106,6 +106,17 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         if (ev.type === 'session.status' || ev.type.startsWith('run.') || ev.type === 'plan.proposed' || ev.type === 'approval.required') {
           void refreshSessions()
         }
+        if (ev.type === 'run.cancelled' || ev.type === 'run.completed' || ev.type === 'run.failed') {
+          const panel = workspacePanel.value
+          void loadWorkspace(panel === 'catalog' ? undefined : panel)
+        }
+        if (ev.type === 'message.completed') {
+          const payload = ev.payload as { text?: string; messageId?: string; id?: string } | undefined
+          const mid = String(payload?.messageId ?? payload?.id ?? `asst-${ev.seq}`)
+          const item = thread.items.find((it) => it.kind === 'assistant' && it.id === mid)
+          const text = String(payload?.text || (item && item.kind === 'assistant' ? item.text : '') || '')
+          void collectSnippets(id, text)
+        }
         const cur = sessions.value.find((s) => s.id === id)
         if (cur) cur.status = thread.status
       },
@@ -200,8 +211,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     try {
       const res = await api.sendMessage(id, { text, attachments: pins, embed: embed() })
       thread.runId = res.runId
-      if (mode.value === 'planned') thread.status = 'awaiting_plan'
-      else thread.status = 'running'
+      // 关键词 mock 可能在 send 返回前就把终态事件推完，不能再把状态改回 running
+      if (!isSettledStatus(thread.status)) {
+        thread.status = mode.value === 'planned' ? 'awaiting_plan' : 'running'
+      }
     } catch (e) {
       report(e)
       draft.value = text
@@ -261,7 +274,30 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }
 
 
+  const savedSnippetKeys = new Set<string>()
+
+  async function collectSnippets(sessionId: string, text: string) {
+    const fences = extractCodeFences(text)
+    if (!fences.length) return
+    for (const fence of fences) {
+      const key = `${fence.language}\n${fence.content}`
+      if (savedSnippetKeys.has(key)) continue
+      savedSnippetKeys.add(key)
+      const title = fence.language || '片段'
+      try {
+        await api.addSnippet(sessionId, { title, content: fence.content })
+      } catch (e) {
+        savedSnippetKeys.delete(key)
+        report(e)
+      }
+    }
+    if (workspacePanel.value === 'snippets' || workspacePanel.value === 'catalog') {
+      void loadWorkspace(workspacePanel.value === 'catalog' ? undefined : 'snippets')
+    }
+  }
+
   function textOf(v: unknown): string {
+
     return typeof v === 'string' ? v.trim() : ''
   }
 
@@ -282,6 +318,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         if (out.turnMax == null) out.turnMax = run.turnMax ?? run.TurnMax
         if (out.runStatus == null) out.runStatus = run.status ?? run.Status
         if (out.stuckReason == null) out.stuckReason = run.stuckReason ?? run.StuckReason
+        if (out.failureReason == null) out.failureReason = run.failureReason ?? run.FailureReason
         const plan = (run.plan ?? run.Plan ?? null) as Record<string, unknown> | null
         const steps = run.steps ?? plan?.steps
         if (!out.steps && steps) out.steps = steps

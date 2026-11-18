@@ -5,9 +5,55 @@ import type {
   AgentStuck,
   AgentThreadItem,
   AgentToolCall,
+  AgentToolScope,
   AgentWorkspaceItemStatus,
   AgentWorkspacePanelId,
 } from './types'
+
+/** /ai-agent 整页与面板演示默认挂上的工具白名单。嵌入方传入 toolScope 时由对方决定。 */
+export const PAGE_TOOL_SCOPE: AgentToolScope = {
+  allow: ['list_files', 'write_file'],
+  allowTools: ['list_files', 'write_file'],
+}
+
+export type ProsePart =
+  | { type: 'text'; text: string }
+  | { type: 'code'; language: string; content: string }
+
+export function extractCodeFences(text: string): Array<{ language: string; content: string }> {
+  const parts = splitProse(text)
+  return parts
+    .filter((p): p is Extract<ProsePart, { type: 'code' }> => p.type === 'code')
+    .map((p) => ({ language: p.language, content: p.content }))
+}
+
+export function splitProse(text: string): ProsePart[] {
+  const parts: ProsePart[] = []
+  const re = new RegExp('```([^\\n`]*)\\n([\\s\\S]*?)```', 'g')
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push({ type: 'text', text: text.slice(last, m.index) })
+    const language = m[1].trim()
+    const content = m[2].replace(/\n$/, '')
+    if (content.trim()) parts.push({ type: 'code', language, content })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push({ type: 'text', text: text.slice(last) })
+  if (!parts.length && text) parts.push({ type: 'text', text })
+  return parts
+}
+
+export function isSettledStatus(status: AgentSessionStatus): boolean {
+  return (
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled' ||
+    status === 'stuck' ||
+    status === 'awaiting_plan' ||
+    status === 'awaiting_approval'
+  )
+}
 
 export const WORKSPACE_PANEL_DEFS: Array<{
   id: Exclude<AgentWorkspacePanelId, 'catalog'>
@@ -221,6 +267,7 @@ export function applyEvent(state: ThreadState, ev: AgentEventEnvelope): ThreadSt
       break
     }
     case 'approval.required': {
+      if (s.status === 'cancelled') break
       const approval: AgentApproval = {
         id: str(p.approvalId, str(p.id, `appr-${ev.seq}`)),
         summary: str(p.summary, str(p.action, '需要确认')),
@@ -247,6 +294,7 @@ export function applyEvent(state: ThreadState, ev: AgentEventEnvelope): ThreadSt
       break
     }
     case 'run.stuck': {
+      if (s.status === 'cancelled') break
       const stuck: AgentStuck = {
         runId: ev.runId ?? str(p.runId),
         reason: str(p.reason, '无法继续'),
@@ -262,14 +310,22 @@ export function applyEvent(state: ThreadState, ev: AgentEventEnvelope): ThreadSt
       break
     }
     case 'run.failed':
+      if (s.status === 'cancelled') break
       s.status = 'failed'
       break
     case 'run.completed':
+      if (s.status === 'cancelled') break
       s.status = 'completed'
       s.stuck = null
       break
     case 'run.cancelled':
       s.status = 'cancelled'
+      s.stuck = null
+      s.items = s.items.map((it) =>
+        it.kind === 'stuck'
+          ? { ...it, stuck: { ...it.stuck, resolved: true, outcome: 'cancelled' } }
+          : it
+      )
       break
     case 'workspace.updated': {
       const items = Array.isArray(p.items) ? (p.items as AgentWorkspaceItemStatus[]) : undefined

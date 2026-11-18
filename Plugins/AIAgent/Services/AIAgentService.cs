@@ -682,7 +682,7 @@ public class AIAgentService : IAIAgentService
     /// 不挂全部宿主工具（~77 个会撑爆本地小模型 prompt → 400）。智能终端只加自己的 st_* 一组。
     /// </summary>
     public static IReadOnlyCollection<String> ToolScopePluginIds(String ownPluginId) =>
-        [ownPluginId, "memory-system", "design-system", "smart-terminal"];
+        AgentDefaultToolScope.PluginIds(ownPluginId);
 
     /// <summary>
     /// Agent 工具范围：本插件自己的工具 + 记忆系统（memory-system）的 5 个记忆工具 + 设计系统（design-system）的 8 个 design_* 工具（M1）。
@@ -711,7 +711,9 @@ public class AIAgentService : IAIAgentService
         var result = new List<AIToolDefinition>();
         foreach (var tool in ToolRegistry.GetAllTools())
         {
-            if (scopePluginsOnly && !allowedPlugins.Contains(tool.PluginId)) continue;
+            if (scopePluginsOnly
+                && !allowedPlugins.Contains(tool.PluginId)
+                && !AgentDefaultToolScope.IsExtraFileTool(pluginId, tool.Name)) continue;
         // 计划驱动运行流特殊工具不进 FreeLoop（R4）：仅 PlanDriven 步骤循环经 extraTools 显式挂载。
         // task_complete 同理（PILOT-051）：任务循环出口工具「声明即出口」，永不作为普通工具挂载。
         if (tool.Name is "submit_plan" or "complete_step" or "request_help"

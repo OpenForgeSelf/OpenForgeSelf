@@ -4,6 +4,9 @@
 Keeps the original ST keywords and adds:
   agent-tool-call  → list_files tool_call
   agent-approval   → write_file tool_call (high-risk, must approve)
+  agent-fail       → text used with the facade fail+retry path
+  agent-workflow / agent-design / agent-suggest / agent-project / agent-todo
+                   → short text; the facade seeds the matching workspace panel
 After a tool result is already in the messages, returns a short completion
 so the loop can finish instead of calling the tool again.
 
@@ -27,7 +30,7 @@ KEYWORDS = (
     ("st-run-write", "mkdir -p /tmp/st-r7-probe"),
     ("st-insert-ls", "ls"),
 )
-MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call 或 agent-approval。"
+MISS_REPLY = "未命中约定关键词。请发送 st-insert-ls、st-run-write、agent-tool-call、agent-approval、agent-fail、agent-workflow、agent-design、agent-suggest、agent-project 或 agent-todo。"
 TOOL_DONE_REPLY = "工具已执行完毕。"
 
 LIST_FILES_ARGS = {"cwd": "/tmp"}
@@ -125,6 +128,27 @@ def match_text(haystack: str) -> str:
     if chosen is None:
         return MISS_REPLY
     return f"```bash\n{chosen}\n```"
+
+
+TEXT_KEYWORDS = (
+    ("agent-fail", "任务失败，请重试。"),
+    ("agent-workflow", "已关联联调工作流，可暂停或取消。"),
+    ("agent-design", "已给出设计预览，默认不写库。"),
+    ("agent-suggest", "已给出可执行建议。"),
+    ("agent-project", "已绑定联调项目。"),
+    ("agent-todo", "已添加可下发待办。"),
+)
+
+
+def match_seed_text(haystack: str) -> str | None:
+    last_index = -1
+    chosen: str | None = None
+    for keyword, reply in TEXT_KEYWORDS:
+        index = haystack.rfind(keyword)
+        if index >= 0 and index >= last_index:
+            last_index = index
+            chosen = reply
+    return chosen
 
 
 def choose_tool(haystack: str) -> tuple[str, dict[str, Any]] | None:
@@ -263,6 +287,9 @@ def resolve_response(body: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
     tool = choose_tool(haystack)
     if tool:
         return "", tool
+    seeded = match_seed_text(haystack)
+    if seeded:
+        return seeded, None
     return match_text(haystack), None
 
 
@@ -369,7 +396,7 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(
         f"agent-keyword-mock listening on http://{args.host}:{args.port}/v1 "
-        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval)",
+        f"(keywords: st-insert-ls, st-run-write, agent-tool-call, agent-approval, agent-fail, agent-workflow, agent-design, agent-suggest, agent-project, agent-todo)",
         flush=True,
     )
     try:

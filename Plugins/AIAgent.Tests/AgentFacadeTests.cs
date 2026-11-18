@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Api.Plugins.AIAgent.Services;
 using Xunit;
@@ -353,6 +354,122 @@ public class AgentFacadeTests
         Assert.DoesNotContain("error", decided!.GetType().GetProperties().Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
         Assert.Equal("rejected", decided.GetType().GetProperty("Status")!.GetValue(decided)!.ToString());
     }
+
+    [Fact]
+    public void AiAgent_DefaultTools_AreListedWhenToolScopeOmitted()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var names = svc.VisibleTools(session.Id, null);
+        Assert.Contains("list_files", names);
+        Assert.Contains("write_file", names);
+        var tools = svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "tools");
+        Assert.NotEqual("未限定", tools.Status);
+        Assert.Contains("可见", tools.Status);
+
+        var toolsJson = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "tools"));
+        var toolNames = toolsJson.GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
+        Assert.Contains("list_files", toolNames);
+        Assert.Contains("write_file", toolNames);
+        Assert.Contains(toolsJson.GetProperty("mcp").EnumerateArray(), m => m.GetProperty("status").GetString() == "未连接");
+    }
+
+    [Fact]
+    public void Cancel_ClearsStuckCardAndRecords()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        var (_, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "分步做" });
+        var runId = ((AcceptedRunResponse)body).RunId;
+        svc.ConfirmPlan(session.Id);
+        svc.Publish(session.Id, "run.stuck", new { reason = "缺少路径" }, runId);
+        svc.Intervene(session.Id, runId, new InterveneRunRequest { Action = "cancel" });
+
+        var detail = svc.GetSession(session.Id)!;
+        Assert.Equal("cancelled", detail.Session.Status);
+        Assert.Equal("cancelled", detail.CurrentRun!.Status);
+        Assert.Null(detail.CurrentRun.StuckReason);
+        Assert.Null(detail.CurrentRun.AllowedActions);
+        var records = detail.Workspace.Single(w => w.Id == "records");
+        Assert.Equal("已取消", records.Status);
+        Assert.All(detail.CurrentRun.Plan!.Steps, step => Assert.Equal("cancelled", step.Status));
+
+        svc.Publish(session.Id, "run.stuck", new { reason = "迟到的卡住" }, runId);
+        var after = svc.GetSession(session.Id)!;
+        Assert.Equal("cancelled", after.Session.Status);
+        Assert.Equal("cancelled", after.CurrentRun!.Status);
+        Assert.Null(after.CurrentRun.StuckReason);
+        Assert.Equal(1, svc.ReplayEvents(session.Id, 0).Count(e => e.Type == "run.stuck"));
+        Assert.Contains(svc.ReplayEvents(session.Id, 0), e => e.Type == "run.cancelled");
+    }
+
+    [Fact]
+    public void AgentFail_ThenRetry_LeavesFailedState()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        var (status, body) = svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请执行 agent-fail" });
+        Assert.Equal(202, status);
+        var runId = ((AcceptedRunResponse)body).RunId;
+        var failed = svc.GetSession(session.Id)!;
+        Assert.Equal("failed", failed.Session.Status);
+        Assert.Equal("failed", failed.CurrentRun!.Status);
+        Assert.Contains("agent-fail", failed.CurrentRun.FailureReason);
+        Assert.Contains("retry", failed.CurrentRun.AllowedActions!);
+        Assert.Contains(svc.ReplayEvents(session.Id, 0), e => e.Type == "run.failed");
+
+        var retried = svc.Intervene(session.Id, runId, new InterveneRunRequest { Action = "retry" });
+        Assert.IsType<AcceptedRunResponse>(retried);
+        var running = svc.GetSession(session.Id)!;
+        Assert.Equal("running", running.Session.Status);
+        Assert.Null(running.CurrentRun!.FailureReason);
+    }
+
+    [Fact]
+    public void WorkspaceKeywords_SeedWalkablePanels()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(new CreateAgentSessionRequest
+        {
+            Mode = "open",
+            Embed = new AgentEmbedOptions
+            {
+                Surface = "page",
+                Context = new AgentEmbedContext { PluginId = "ai-agent", SurfaceKey = "default" }
+            }
+        });
+        var project = svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "project");
+        Assert.Equal("未绑定", project.Status);
+
+        svc.PostMessage(session.Id, new PostAgentMessageRequest
+        {
+            Text = "请执行 agent-workflow agent-design agent-suggest agent-project agent-todo"
+        });
+        var detail = svc.GetSession(session.Id)!;
+        Assert.Equal("running", detail.Workspace.Single(w => w.Id == "workflow").Status);
+        Assert.Equal("有预览", detail.Workspace.Single(w => w.Id == "design").Status);
+        Assert.Equal("3", detail.Workspace.Single(w => w.Id == "suggest").Status);
+        Assert.NotEqual("未绑定", detail.Workspace.Single(w => w.Id == "project").Status);
+        Assert.Equal("1", detail.Workspace.Single(w => w.Id == "todo").Status);
+
+        var workflow = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
+        Assert.Equal("wf-itest", workflow.GetProperty("workflowId").GetString());
+        Assert.Contains(workflow.GetProperty("steps").EnumerateArray(), st => st.GetProperty("name").GetString() == "写入结果");
+        var design = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "design"));
+        Assert.Contains("Button", design.GetProperty("preview").GetString());
+        Assert.False(design.GetProperty("committed").GetBoolean());
+        var suggest = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "suggest"));
+        var actions = suggest.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("action").GetString()).ToList();
+        Assert.Contains("open_workflow", actions);
+        Assert.Contains("write_memory", actions);
+        Assert.Contains("dispatch_todo", actions);
+        var dispatched = svc.DispatchTodo(session.Id, "todo-itest");
+        Assert.NotNull(dispatched);
+        var committed = svc.CommitDesign(session.Id, new WorkspaceWritebackRequest { Content = "ok" });
+        Assert.NotNull(committed);
+        Assert.True(JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "design")).GetProperty("committed").GetBoolean());
+    }
+
 }
 
 internal sealed class StubAgentCatalog : IAgentRegistryService

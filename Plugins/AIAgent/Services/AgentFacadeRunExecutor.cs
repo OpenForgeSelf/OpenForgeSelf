@@ -177,7 +177,7 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
             return;
         }
 
-        var tools = snap.ToolScope?.AllowTools;
+        var tools = snap.ToolScope?.ResolvedAllow();
         var options = agentService.BuildAgentOptions(modelId, snap.AgentId, tools);
         var cts = AttachCancel(sessionId, runId, cancellationToken);
         try

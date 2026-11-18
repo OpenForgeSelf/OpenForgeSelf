@@ -191,6 +191,7 @@ public sealed class AgentFacadeRunDto
     public int? TurnMax { get; set; }
     public AgentPlanDto? Plan { get; set; }
     public string? StuckReason { get; set; }
+    public string? FailureReason { get; set; }
     public List<string>? AllowedActions { get; set; }
 }
 

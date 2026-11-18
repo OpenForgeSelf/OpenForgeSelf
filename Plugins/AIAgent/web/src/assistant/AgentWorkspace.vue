@@ -41,6 +41,16 @@ function text(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
 
+function suggestionPanel(it: Record<string, unknown>): AgentWorkspacePanelId | '' {
+  const panel = text(it.panel)
+  if (panel) return panel as AgentWorkspacePanelId
+  const action = text(it.action)
+  if (action === 'open_workflow') return 'workflow'
+  if (action === 'write_memory') return 'memory'
+  if (action === 'dispatch_todo') return 'todo'
+  return ''
+}
+
 function display(v: unknown): string {
   if (typeof v === 'string') return v
   if (typeof v === 'number' && Number.isFinite(v)) return String(v)
@@ -48,6 +58,9 @@ function display(v: unknown): string {
 }
 
 const runLabel = computed(() => {
+  if (props.status === 'cancelled' || props.status === 'failed' || props.status === 'completed') {
+    return statusLabel(props.status as AgentSessionStatus)
+  }
   const raw = display(props.detail?.runStatus)
   if (!raw) return ''
   return statusLabel(raw as AgentSessionStatus)
@@ -137,7 +150,7 @@ const canCommitDesign = computed(() => {
             <p v-if="!hasRun">开始任务后，步骤、工具结果和轮次会显示在这里。</p>
             <p v-if="runLabel">状态 {{ runLabel }}</p>
             <p v-if="roundText">轮次 {{ roundText }}</p>
-            <p v-if="text(detail?.stuckReason)">{{ text(detail?.stuckReason) }}</p>
+            <p v-if="text(detail?.failureReason) || text(detail?.stuckReason)">{{ text(detail?.failureReason) || text(detail?.stuckReason) }}</p>
             <ol class="aa-steps">
               <li v-for="(st, i) in (asList('steps').length ? asList('steps') : asList('items'))" :key="i">
                 {{ text(st.title) || text(st.name) }} · {{ text(st.status) || '记录' }}
@@ -178,11 +191,11 @@ const canCommitDesign = computed(() => {
               :key="i"
               type="button"
               class="aa-panel-item"
-              @click="it.panel ? emit('open', String(it.panel) as AgentWorkspacePanelId) : undefined"
+              @click="suggestionPanel(it) && emit('open', suggestionPanel(it) as AgentWorkspacePanelId)"
             >
               <span>
                 <div class="aa-pi-name">{{ text(it.title) || text(it.name) }}</div>
-                <div class="aa-pi-desc">{{ text(it.description) }}</div>
+                <div class="aa-pi-desc">{{ text(it.description) || text(it.detail) }}</div>
               </span>
             </button>
           </div>
@@ -219,12 +232,15 @@ const canCommitDesign = computed(() => {
         </template>
         <template v-else-if="panel === 'tools'">
           <div class="aa-art-sec">
-            <p v-if="!asList('tools').length && !asList('items').length">本轮可见工具将显示在这里。未连接 MCP 时会标明未连接。不能在本面板直接执行工具。</p>
+            <p v-if="!asList('tools').length && !asList('items').length">本轮可见工具将显示在这里。</p>
             <ul class="aa-steps">
               <li v-for="(it, i) in (asList('tools').length ? asList('tools') : asList('items'))" :key="i">
                 {{ text(it.name) }} {{ text(it.status) ? '· ' + text(it.status) : '' }}
               </li>
             </ul>
+            <p v-for="(it, i) in asList('mcp')" :key="'mcp'+i">MCP {{ text(it.id) ? text(it.id) + ' · ' : '' }}{{ text(it.status) || '未连接' }}</p>
+            <p v-if="!asList('mcp').length">MCP 未连接</p>
+            <p>不能在本面板直接执行工具。</p>
           </div>
         </template>
         <template v-else-if="panel === 'snippets'">

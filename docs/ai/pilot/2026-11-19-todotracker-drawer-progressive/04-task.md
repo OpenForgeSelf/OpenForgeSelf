@@ -2,7 +2,7 @@
 task_id: 2026-11-19-todotracker-drawer-progressive
 feature: "005"
 risk: { level: L2, triggers: ["Plugins/TodoTracker/web/src/", "ForgeSelf.Web/e2e/plugins/todo-tracker/", "scripts/dev-stack.ps1", "scripts/get-forge-token.cjs"], raised_by_agent: false }
-gate1: { mode: user, at: 2026-11-19, ref: "六段方案.md §6 推荐项已批" }
+gate1: { mode: user, at: 2026-11-19, ref: "six-section-plan.md §6 推荐项已批" }
 gate2: { mode: reviewer, at: 2026-11-19, decision: "APPROVED" }
 gate3: { mode: agent, at: 2026-11-19 }
 expected_files:

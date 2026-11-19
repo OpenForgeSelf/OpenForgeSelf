@@ -2,14 +2,15 @@
 feature_key: F032
 feature_no: 032
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-11-19
 aliases: ["032-agent-hub"]
 ---
 
 # 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
-> 版本：2026-09-24（v1.0.9）· 状态：**已落地**
-> 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）
+> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider 演进 = 已定案待实现**
+> 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）→ 2026-11-19 OAR 定案（ADR-007）
+> OAR 架构真源：[`docs/01-architecture/agenthub-oar-runtime.md`](../01-architecture/agenthub-oar-runtime.md)
 
 ## 1. 结论先行
 
@@ -55,7 +56,24 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 - **发布坑（v1.0.9 实证）**：版本化更新（`POST /api/plugin/update`）只把新前端产物放进 `versions/<v>/web/dist`，但前端中间件解析**插件根目录 `web/dist`** → 页面仍跑旧 bundle。发布后必须补拷：`versions/<v>/web/dist/*` → 根 `web/dist/`，并 grep 新增关键词核验（见 `plugin-publish-verify` troubleshooting）。
 - **待核对**：`AgentHubAgentsController` / `AgentHubTasksController` 是否带类级 `[Authorize("ApiKeyPolicy")]`（铁律 17 遗留项，v1.0.9 未动，单独记 TODO）。
 
-## 6. 来源
+## 6. 演进：OAR Runtime Provider（2026-11-19 定案，代码未落地）
+
+目标：在**不推翻**本节已落地能力的前提下，把 AgentHub 升级为外部 Coding Agent 的统一 Runtime Provider。
+
+| 项 | 定案 |
+| --- | --- |
+| 适配层 | AgentHub 内 Node≥24 Worker + `@botiverse/oar`（精确锁版本） |
+| Transport | 新增 `Oar`，保留 `Cli`；按 AccessPoint 选路 |
+| 跨插件契约 | 新增 `IAgentRuntime`；**保留**现有 `IAgentDelegation` |
+| Session | 独立持久化 + 对外 `SessionKey` |
+| 与本机 MAF | 正交；不违反 ADR-005 |
+
+阶段：P0 Worker 验证 → P1 契约/通信 → P2 Session/Transport → P3 Provider/UI → P4 集成与测试。  
+细节与安全约束只维护在架构真源，本节不复制。
+
+## 7. 来源
 
 - 输入4 调研报告：`docs/06-research/002-cli-agent-detection-delegation.md`（MCO 探测三件套 / Forkn 路径可配 / 五元组适配器契约等落地建议）
-- 技能：`plugin-development` §四（发布闭环）· §3.2（出树构建）
+- OAR 调研与落点核对：`docs/06-research/007-oar-agenthub-runtime.md`
+- 裁决：`docs/07-decisions/007-oar-agenthub-runtime.md`
+- 技能：`plugin-development` §四（发布闭环）· §3.2（出树构建）· `architecture-design`

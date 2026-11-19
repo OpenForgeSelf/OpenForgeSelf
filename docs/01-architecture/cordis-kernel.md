@@ -212,7 +212,9 @@ public interface IPlugin
 | 配置/日志/统计 | `IConfigurationService` / `ILogService` / `IUsageStatsService` | 平台实现 |
 | 工作流/脚本 | `IWorkflowService`/`IWorkflowExecutor`/`IWorkflowAIAdvisor` / `IScriptTemplateService` | 插件实现 |
 
-> 未落地接缝（`IToolRuntime`/`IAgentRuntime`/`IFsRuntime`/`IShellRuntime`/`ISandboxRuntime`）仍属设计稿规划，代码暂无对应契约。消费者只依赖接口，通过 `ctx.Get<T>()` 获取，替换 Provider = 换注册实例，消费者零改动。
+> 未落地接缝（`IToolRuntime`/`IFsRuntime`/`IShellRuntime`/`ISandboxRuntime`）仍属设计稿规划，代码暂无对应契约。消费者只依赖接口，通过 `ctx.Get<T>()` 获取，替换 Provider = 换注册实例，消费者零改动。
+>
+> **`IAgentRuntime`（2026-11-19 定案，代码待实现）**：表示对**外部 Coding Agent Runtime** 的统一管理与执行（发现/会话/任务/输入/控制/事件），**不是**本机 MAF 循环（本机 = `IAgent`/`IAgentRegistry`）。提供方规划为 `agent-hub`（内部经 OAR Node Worker 适配 Claude/Codex/OpenCode 等）；与已落地的薄委派接缝 `IAgentDelegation`（入队+读回）共存。架构真源 [`agenthub-oar-runtime.md`](agenthub-oar-runtime.md)；裁决 [ADR-007](../07-decisions/007-oar-agenthub-runtime.md)。**注意**：旧文档若仍写「用 `IAgentLoop` 对照 `IAgentRuntime`」已过时——`IAgentLoop` 已于 dsh B5/B9 删除。
 
 ---
 

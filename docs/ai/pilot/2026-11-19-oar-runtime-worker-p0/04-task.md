@@ -32,10 +32,10 @@ writeback: { feature_doc: 032-agent-hub, reason: "OAR RuntimeWorker P0 落地" }
 
 ## Acceptance Criteria
 
-- [ ] smoke 12/12
-- [ ] build 绿
-- [ ] 锁版本 0.109.0
-- [ ] 032 有 P0 进度句
+- [x] smoke 12/12
+- [x] build 绿
+- [x] 锁版本 0.109.0
+- [x] 032 有 P0 进度句
 
 ## Verification Commands
 

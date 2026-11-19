@@ -149,19 +149,19 @@ P3 走查绑定 `ui-ux-design` 清单 + 插件六步；本批文档交付不走 
 
 ### 本批（闸门1 文档包）
 
-- [ ] AC1：ADR-007 / 架构真源 / 调研 007 / pilot 00–04 / gate1-proposal 存在且交叉链接正确
-- [ ] AC2：README §一 可 30 秒定位到 OAR/`IAgentRuntime` 真源
-- [ ] AC3：明确写出与 `IAgent`、`IAgentDelegation`、ADR-005 的边界
-- [ ] AC4：缓做项已入 not-taken
-- [ ] AC5：无 `Plugins/AgentHub/**/*.cs` / `ForgeSelf.Abstractions/**/*.cs` 业务变更（本批）
+- [x] AC1：ADR-007 / 架构真源 / 调研 007 / pilot 00–04 / gate1-proposal 存在且交叉链接正确
+- [x] AC2：README §一 可 30 秒定位到 OAR/`IAgentRuntime` 真源
+- [x] AC3：明确写出与 `IAgent`、`IAgentDelegation`、ADR-005 的边界
+- [x] AC4：缓做项已入 not-taken
+- [x] AC5：无 `Plugins/AgentHub/**/*.cs` / `ForgeSelf.Abstractions/**/*.cs` 业务变更（本批）
 
 ### 后续实现总 AC（批准后分阶段验收）
 
-- [ ] AC-R1：P0 Worker 完成 list/install/auth/models/session/prompt/events/resume/cancel/dispose 探针
-- [ ] AC-R2：Cli 回归 + Oar 选路
-- [ ] AC-R3：`ctx.Get<IAgentRuntime>()` 可提交/监视/续接/取消
-- [ ] AC-R4：Session 持久化与 Sequence 单调
-- [ ] AC-R5：权限与 cwd 守卫仍有效
+- [x] AC-R1：P0 Worker 完成 list/install/auth/models/session/prompt/events/resume/cancel/dispose 探针（`2026-11-19-oar-runtime-worker-p0`）
+- [ ] AC-R2：Cli 回归 + Oar 选路（P2）
+- [ ] AC-R3：`ctx.Get<IAgentRuntime>()` 可提交/监视/续接/取消（P3）
+- [ ] AC-R4：Session 持久化与 Sequence 单调（P2）
+- [ ] AC-R5：权限与 cwd 守卫仍有效（P2 回归）
 
 ## Unknown
 

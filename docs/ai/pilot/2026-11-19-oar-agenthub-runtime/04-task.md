@@ -57,11 +57,11 @@ writeback: { feature_doc: 032-agent-hub, reason: "OAR 演进节" }
 
 ## Acceptance Criteria
 
-- [ ] ADR-007、架构真源、调研 007、gate1-proposal、pilot 00–04 齐备
-- [ ] README / cordis-kernel / host-capability-seams / 032 / not-taken 已回写
-- [ ] 文档明确：OAR 内部化、Node Worker、Transport 注册表、SessionKey、IAgentRuntime、与 IAgentDelegation/IAgent/ADR-005 边界
-- [ ] `git diff` 无业务代码
-- [ ] 对外回复：路径 + 一句话摘要 + 待拍板项
+- [x] ADR-007、架构真源、调研 007、gate1-proposal、pilot 00–04 齐备
+- [x] README / cordis-kernel / host-capability-seams / 032 / not-taken 已回写
+- [x] 文档明确：OAR 内部化、Node Worker、Transport 注册表、SessionKey、IAgentRuntime、与 IAgentDelegation/IAgent/ADR-005 边界
+- [x] `git diff` 无业务代码
+- [x] 对外回复：路径 + 一句话摘要 + 待拍板项
 
 ## Expected Files
 

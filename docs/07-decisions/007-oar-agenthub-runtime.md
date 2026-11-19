@@ -1,7 +1,7 @@
 # ADR-007：引入 OAR 作为 AgentHub 外部 Runtime Provider，并落地 `IAgentRuntime`
 
-- 状态：**Proposed → 待闸门1 用户确认后 Accepted**（2026-11-19 草案）
-- 关联：ADR-001（Cordis）· ADR-005（不另起本机 Runtime）· ADR-006（MAF 一等）· `IAgentDelegation`（PILOT-054）· pilot `2026-11-19-oar-agenthub-runtime`
+- 状态：**Accepted**（2026-11-19；闸门1 = 用户 seq6「搞定上面的问题后提交一把，然后开始实现」+ 续作消息「方案落实了…并发实现」）
+- 关联：ADR-001（Cordis）· ADR-005（不另起本机 Runtime）· ADR-006（MAF 一等）· `IAgentDelegation`（PILOT-054）· design pilot `2026-11-19-oar-agenthub-runtime` · P0 `2026-11-19-oar-runtime-worker-p0` · P1 `2026-11-19-oar-runtime-p1`
 - 真源：[`docs/01-architecture/agenthub-oar-runtime.md`](../01-architecture/agenthub-oar-runtime.md)
 - 调研：[`docs/06-research/007-oar-agenthub-runtime.md`](../06-research/007-oar-agenthub-runtime.md)
 
@@ -37,7 +37,7 @@
 
 - 正面：统一外部 Agent 接入；跨插件可测的 Runtime 能力；Cli 与 Oar 并存可回退。  
 - 负面：增加 Node≥24 运维面；OAR 版本演进快需钉版本与回归；Session 表增加 AgentHub 库结构变更。  
-- 后续：闸门1 确认后按 P0 Worker 验证开工；每阶段独立 pilot + 验证。
+- 后续：P0 Worker 已落地（`Plugins/AgentHub/RuntimeWorker`，smoke 12/12）；按并发计划推进 P1→P4，每阶段独立 pilot + 验证。
 
 ## 撤销 / 修订触发条件
 

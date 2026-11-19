@@ -1,10 +1,12 @@
 # AgentHub × Open Agent Runtime（OAR）架构真源
 
-> 状态：**已定案（待闸门1 确认后实现）**｜2026-11-19  
+> 状态：**已定案（ADR-007 Accepted）｜实现进行中**｜2026-11-19  
 > ADR：[007-oar-agenthub-runtime.md](../07-decisions/007-oar-agenthub-runtime.md)  
 > 调研：[007-oar-agenthub-runtime.md](../06-research/007-oar-agenthub-runtime.md)  
 > 功能档案：[032-agent-hub.md](../02-features/032-agent-hub.md)  
-> pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/`
+> design pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/`  
+> 并发计划：同目录 [`concurrency-plan.md`](../ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md)  
+> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`
 
 本文是「外部 Coding Agent 如何经铸己匣统一运行」的**唯一架构真源**。实现与本文冲突时，先改本文或提 ADR，禁止静默分叉。
 
@@ -145,13 +147,13 @@ public interface IAgentRuntime
 
 ## 11. 实施阶段
 
-| 阶段 | 内容 | 另开 pilot |
-| --- | --- | --- |
-| P0 | Worker 骨架 + OAR 探针（12 步） | 是 |
-| P1 | `IAgentRuntime` 契约 + Worker 通信/生命周期 | 是 |
-| P2 | Transport 注册表、RuntimeId、Session、事件、Delegation 选路 | 是（含 XCode） |
-| P3 | Provider 注册、工具 SessionKey、管理面/API | 是 |
-| P4 | 消费者试点、测试体系、打包/Node 检查文档 | 是 |
+| 阶段 | 内容 | 另开 pilot | 状态 |
+| --- | --- | --- | --- |
+| P0 | Worker 骨架 + OAR 探针（12 步） | `2026-11-19-oar-runtime-worker-p0` | ✅ Worker + smoke 12/12 |
+| P1 | `IAgentRuntime` 契约 + `OarWorkerClient` stdio JSON-RPC / 生命周期 | `2026-11-19-oar-runtime-p1` | ✅ |
+| P2 | Transport 注册表、RuntimeId、Session、事件、Delegation 选路 | 另开 | ⬜ |
+| P3 | Provider 注册、工具 SessionKey、管理面/API | 另开 | ⬜ |
+| P4 | 消费者试点、测试体系、打包/Node 检查文档 | 另开 | ⬜ |
 
 详细完成标准见 pilot `02-spec.md` / 用户调研方案第九章（已采纳）。
 

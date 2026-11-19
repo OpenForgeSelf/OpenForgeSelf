@@ -8,7 +8,7 @@ aliases: ["032-agent-hub"]
 
 # 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
-> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider = 定案；P0 Worker 已落地，P1+ 待实现**
+> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider = 定案；P0 Worker ✅；P1 契约+OarWorkerClient ✅；P2+ 待实现**
 > 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）→ 2026-11-19 OAR 定案（ADR-007）
 > OAR 架构真源：[`docs/01-architecture/agenthub-oar-runtime.md`](../01-architecture/agenthub-oar-runtime.md)
 
@@ -69,7 +69,9 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 | 与本机 MAF | 正交；不违反 ADR-005 |
 
 阶段：P0 Worker 验证 → P1 契约/通信 → P2 Session/Transport → P3 Provider/UI → P4 集成与测试。  
-**P0（2026-11-19）**：`Plugins/AgentHub/RuntimeWorker` 已锁 `@botiverse/oar@0.109.0`，stdio JSON-RPC + `pnpm run smoke` 12/12（scripted）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-worker-p0/`。P1+ 未开。  
+**P0（2026-11-19）**：`Plugins/AgentHub/RuntimeWorker` 已锁 `@botiverse/oar@0.109.0`，stdio JSON-RPC + `pnpm run smoke` 12/12（scripted）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-worker-p0/`。  
+**P1（2026-11-19）**：`ForgeSelf.Abstractions/AgentRuntimeContracts.cs`（`IAgentRuntime` + DTO）+ `Plugins/AgentHub/Services/OarWorkerClient.cs`（stdio JSON-RPC / 生命周期）；过滤测试 6/6；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p1/`。P2+（Transport/Session/Provider）未开。  
+并发计划：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md`。  
 细节与安全约束只维护在架构真源，本节不复制。
 
 ## 7. 来源

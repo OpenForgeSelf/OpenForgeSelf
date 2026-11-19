@@ -404,6 +404,14 @@ public class AgentRunDispatchTests : IClassFixture<XCodeTestFixture>
         public Task<AgentRunDto?> InterveneAsync(long id, int stepIndex, InterveneRequest request) => throw new NotSupportedException();
         public Task<AgentRunDto?> RestartAsync(long id) => throw new NotSupportedException();
         public Task<AgentRunDetailResponse?> GetRunDetailAsync(long id) => throw new NotSupportedException();
+
+        // 接口增量（ExecuteConfirmedPlanAsync）：本替身测的是 Dispatch 入队路径，确认计划执行不在覆盖面。
+        public async IAsyncEnumerable<AgentLoopEvent> ExecuteConfirmedPlanAsync(
+            RunRequest request, AgentPlan plan, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
     }
 
     /// <summary>Agent 注册表替身：内存字典，无 DB。</summary>

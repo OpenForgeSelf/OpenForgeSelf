@@ -357,7 +357,7 @@
 | 027 | [`02-features/027-cordis-kernel.md`](02-features/027-cordis-kernel.md) | 已实现（内核/契约/插件自注册/热更新/前端清单驱动；剩余项见档案） |
 | 028 | [`02-features/028-project-workspace.md`](02-features/028-project-workspace.md) | 已实现（项目档案+运行命令 CRUD+运行列表+进程检测 WMI+前端面板；spec028 相关测试 31/31 通过） |
 | 031 | [`02-features/031-im-gateway.md`](02-features/031-im-gateway.md) | 已实现（IM 网关插件；当前版本 2.0.0） |
-| 032 | [`02-features/032-agent-hub.md`](02-features/032-agent-hub.md) | 已实现（Agent 中枢插件；外部 agent 注册表+探测+CLI 委派总线+附加扫描目录）；OAR/`IAgentRuntime` 演进见档案 §6 + ADR-007（定案待实现） |
+| 032 | [`02-features/032-agent-hub.md`](02-features/032-agent-hub.md) | 已实现（Agent 中枢插件；外部 agent 注册表+探测+CLI 委派总线+附加扫描目录）；OAR/`IAgentRuntime`：ADR-007 Accepted；P0 Worker ✅；P1 契约+Client ✅；P2+ 见档案 §6 |
 | 034 | [`02-features/034-mcp-center.md`](02-features/034-mcp-center.md) | 已实现（MCP 中心插件 v2.1.0；mcp-gateway 更名 + 整合 022 mcp-tools；单工具转发 + list_tools + 管理面鉴权；自带界面双 tab） |
 | 035 | [`02-features/035-plugin-versioned-layout.md`](02-features/035-plugin-versioned-layout.md) | 需求记录（插件版本化发布与显式升级，下期再做） |
 | 042 | [`02-features/042-network-proxy-settings.md`](02-features/042-network-proxy-settings.md) | 已实现（设置·网络设置：模型请求 HTTP/HTTPS 代理，保存即生效；关闭=显式直连忽略系统代理；SOCKS5 记 TODO） |

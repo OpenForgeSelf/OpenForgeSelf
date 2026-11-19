@@ -1,6 +1,7 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Models;
 using ForgeSelf.Api.Plugins.AgentHub.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 // B5（041）：Abstractions 新增了 Agent 运行时注册表契约 IAgentRegistry，
@@ -12,9 +13,11 @@ namespace ForgeSelf.Api.Plugins.AgentHub.Controllers;
 /// <summary>
 /// Agent 注册表接口：登记、扫描、探测、授信。
 /// 路由前缀 <c>api/agent-hub/agents</c>。
+/// 铁律 17：类级 <c>[Authorize("ApiKeyPolicy")]</c>。
 /// </summary>
 [ApiController]
 [Route("api/agent-hub/agents")]
+[Authorize("ApiKeyPolicy")]
 public class AgentHubAgentsController : ControllerBase
 {
     private readonly IAgentRegistry _registry;

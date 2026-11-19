@@ -123,7 +123,7 @@ public interface IAgentRuntime
 
 ## 8. Worker 协议与生命周期
 
-- 方法面：`runtime.list|installation|auth|models|usage`，`session.open|resume|prompt|deliver|control|records|dispose`。  
+- 方法面：`runtime.list|installation|installPlan|install|auth|models|usage`，`session.open|resume|prompt|deliver|control|records|dispose`。  
 - stdout=协议，stderr=日志；多路并发 + 请求 id；超时与崩溃监控；进程树终止。  
 - 延迟启动；插件卸载 `ctx.Effect` 释放。  
 - **禁止**启动时自动 `install` 第三方 Agent；只读 `installPlan` 可先做，执行须用户确认。  
@@ -137,6 +137,8 @@ public interface IAgentRuntime
 | GET | `api/agent-hub/runtimes/{id}` | 详情 | ✅ P3 |
 | POST | `api/agent-hub/runtimes/{id}/probe` | 安装+认证只读探测 | ✅ gap-close |
 | GET | `api/agent-hub/runtimes/{id}/models` | 模型 | ✅ gap-close |
+| GET | `api/agent-hub/runtimes/{id}/install-plan` | 只读安装计划 | ✅ remaining-close |
+| POST | `api/agent-hub/runtimes/{id}/install` | 执行安装（须 confirmed=true） | ✅ remaining-close |
 | GET | `api/agent-hub/sessions` | 会话列表 | ✅ P3 |
 | GET | `api/agent-hub/sessions/{key}` | 详情 | ✅ P3 |
 | POST | `api/agent-hub/sessions/{key}/input` | 投递输入 | ✅ P3 |
@@ -145,7 +147,7 @@ public interface IAgentRuntime
 | GET | `api/agent-hub/sessions/{key}/stream` | Record SSE（轮询最小面） | ✅ gap-close |
 | POST | `api/agent-hub/sessions/{key}/close` | 关闭 | ✅ P3 |
 
-现有 `api/agent-hub/tasks` 保留。鉴权：`runtimes`/`sessions` 类级 `ApiKeyPolicy`（gap-close 已闭合）；agents/tasks 仍见 032 §5 待核对。
+现有 `api/agent-hub/tasks` 保留。鉴权：`runtimes`/`sessions`/`agents`/`tasks`/`settings` 均类级 `ApiKeyPolicy`（remaining-close 闭合 agents/tasks）。管理面 Session/Runtime UI 已接线 probe/models/install 确认与 input/abort/close/records/stream。
 
 ## 10. 安全约束（不可因 OAR 省略）
 

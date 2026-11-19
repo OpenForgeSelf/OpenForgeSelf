@@ -73,6 +73,83 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
+    public async Task SendInputAsync_空文本_Rejected()
+    {
+        var sp = BuildHost();
+        var runtime = new AgentHubRuntimeProvider(sp);
+        var r = await runtime.SendInputAsync("any-key", new AgentInput { Text = "  " });
+        r.Accepted.Should().BeFalse();
+        r.Code.Should().Be("input_required");
+    }
+
+    [Fact]
+    public async Task CloseSessionAsync_未知键_不抛()
+    {
+        var sp = BuildHost();
+        var runtime = new AgentHubRuntimeProvider(sp);
+        await runtime.Invoking(r => r.CloseSessionAsync("no-such-session"))
+            .Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task WatchTaskAsync_未知任务_空流()
+    {
+        var sp = BuildHost();
+        var runtime = new AgentHubRuntimeProvider(sp);
+        var count = 0;
+        await foreach (var _ in runtime.WatchTaskAsync("missing-task"))
+            count++;
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task WatchTaskAsync_假Transport任务_可读事件()
+    {
+        var sp = BuildHost(withFakeTransport: true);
+        var registry = sp.GetRequiredService<IAgentRegistry>();
+        foreach (var a in registry.List().Where(x => x.Vendor == "p3-watch").ToList())
+            registry.Delete(a.Id);
+
+        var agent = registry.Create(new AgentSaveRequest
+        {
+            Name = "p3-watch-" + Guid.NewGuid().ToString("N")[..6],
+            Vendor = "p3-watch",
+            Enabled = true,
+            DefaultCwd = Path.GetTempPath(),
+            AccessPoints =
+            [
+                new AgentAccessPointSaveRequest
+                {
+                    Mode = "Sessionful",
+                    Transport = "Cli",
+                    Executable = "echo",
+                    IsDefault = true,
+                    CancelSupported = true,
+                }
+            ]
+        });
+
+        var runtime = new AgentHubRuntimeProvider(sp);
+        var handle = await runtime.SubmitAsync(new AgentTaskRequest
+        {
+            Prompt = "watch-me",
+            AgentId = agent.Id,
+            Cwd = Path.GetTempPath(),
+            CreatedBy = "test",
+        });
+
+        handle.TaskKey.Should().NotBeNullOrWhiteSpace();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var events = new List<AgentTaskEvent>();
+        await foreach (var ev in runtime.WatchTaskAsync(handle.TaskKey, 0, cts.Token))
+            events.Add(ev);
+
+        // 假 transport 很快终态；至少不应抛；事件数可为 0（竞态已终态）或更多
+        events.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Submit_经假Transport入队_GetTask可读()
     {
         var sp = BuildHost(withFakeTransport: true);

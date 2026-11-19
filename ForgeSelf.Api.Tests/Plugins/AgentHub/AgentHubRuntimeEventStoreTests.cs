@@ -58,4 +58,24 @@ public class AgentHubRuntimeEventStoreTests : IClassFixture<XCodeTestFixture>
         rec.Truncated.Should().BeTrue();
         rec.PayloadJson!.Length.Should().Be(AgentRuntimeEventStore.MaxPayloadChars);
     }
+
+    [Fact]
+    public void Append_prompt路径类型_可按afterSeq增量列出()
+    {
+        // V7：模拟 OarTransport 写入 prompt.ok / oar_event 后的耐久可读路径
+        var mgr = new AgentSessionManager();
+        var store = new AgentRuntimeEventStore(mgr);
+        var session = mgr.Open(1, 1, "Oar", "scripted", "inner-v7", null, null, generation: 1);
+
+        store.Append(session.SessionKey, "prompt.ok", "echo:hi", taskId: 42);
+        store.Append(session.SessionKey, "oar_event", """{"type":"text"}""", taskId: 42);
+
+        var all = store.List(session.SessionKey, afterAgentHubSequence: 0);
+        all.Should().HaveCountGreaterThanOrEqualTo(2);
+        all.Select(x => x.Type).Should().Contain(new[] { "prompt.ok", "oar_event" });
+        all.Should().OnlyContain(x => x.TaskId == 42 || x.TaskId == 0 || x.TaskId == 42);
+
+        var watermark = mgr.Find(session.SessionKey)!.AgentHubSequence;
+        store.List(session.SessionKey, afterAgentHubSequence: watermark).Should().BeEmpty();
+    }
 }

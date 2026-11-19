@@ -117,6 +117,72 @@ public class AgentHubRuntimesController : ControllerBase
             return BadRequest(ApiResponse<RuntimeModelsDto>.Error(ex.Message, 400));
         }
     }
+
+    /// <summary>只读安装计划（不执行）。</summary>
+    [HttpGet("{id}/install-plan")]
+    public async Task<ActionResult<ApiResponse<RuntimeInstallPlanDto>>> InstallPlan(String id, CancellationToken ct)
+    {
+        if (id.IsNullOrWhiteSpace())
+            return BadRequest(ApiResponse<RuntimeInstallPlanDto>.Error("runtime id 不能为空", 400));
+
+        var started = _worker.IsAvailable || await _worker.EnsureStartedAsync(ct).ConfigureAwait(false);
+        if (!started || !_worker.IsAvailable)
+        {
+            return StatusCode(503, ApiResponse<RuntimeInstallPlanDto>.Error(
+                _worker.UnavailableReason ?? "OAR Worker 不可用", 503));
+        }
+
+        try
+        {
+            var el = await _worker.InstallPlanAsync(id, ct).ConfigureAwait(false);
+            return Ok(ApiResponse<RuntimeInstallPlanDto>.Ok(new RuntimeInstallPlanDto
+            {
+                RuntimeId = id,
+                PlanJson = el.GetRawText(),
+            }));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<RuntimeInstallPlanDto>.Error(ex.Message, 400));
+        }
+    }
+
+    /// <summary>执行安装（必须 confirmed=true；禁止静默自动装）。</summary>
+    [HttpPost("{id}/install")]
+    public async Task<ActionResult<ApiResponse<RuntimeInstallResultDto>>> Install(
+        String id,
+        [FromBody] RuntimeInstallRequest? body,
+        CancellationToken ct)
+    {
+        if (id.IsNullOrWhiteSpace())
+            return BadRequest(ApiResponse<RuntimeInstallResultDto>.Error("runtime id 不能为空", 400));
+        if (body == null || !body.Confirmed)
+        {
+            return BadRequest(ApiResponse<RuntimeInstallResultDto>.Error(
+                "安装须用户确认：请求体 confirmed 必须为 true", 400));
+        }
+
+        var started = _worker.IsAvailable || await _worker.EnsureStartedAsync(ct).ConfigureAwait(false);
+        if (!started || !_worker.IsAvailable)
+        {
+            return StatusCode(503, ApiResponse<RuntimeInstallResultDto>.Error(
+                _worker.UnavailableReason ?? "OAR Worker 不可用", 503));
+        }
+
+        try
+        {
+            var el = await _worker.InstallAsync(id, body.Line, ct).ConfigureAwait(false);
+            return Ok(ApiResponse<RuntimeInstallResultDto>.Ok(new RuntimeInstallResultDto
+            {
+                RuntimeId = id,
+                ResultJson = el.GetRawText(),
+            }));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<RuntimeInstallResultDto>.Error(ex.Message, 400));
+        }
+    }
 }
 
 /// <summary>Runtime probe 结果（installation / auth 分列 JSON 字符串）。</summary>
@@ -133,4 +199,25 @@ public class RuntimeModelsDto
 {
     public String RuntimeId { get; set; } = String.Empty;
     public String? PayloadJson { get; set; }
+}
+
+/// <summary>Runtime installPlan 原样 JSON。</summary>
+public class RuntimeInstallPlanDto
+{
+    public String RuntimeId { get; set; } = String.Empty;
+    public String? PlanJson { get; set; }
+}
+
+/// <summary>安装执行请求：必须 confirmed。</summary>
+public class RuntimeInstallRequest
+{
+    public Boolean Confirmed { get; set; }
+    public String? Line { get; set; }
+}
+
+/// <summary>Runtime install 结果原样 JSON。</summary>
+public class RuntimeInstallResultDto
+{
+    public String RuntimeId { get; set; } = String.Empty;
+    public String? ResultJson { get; set; }
 }

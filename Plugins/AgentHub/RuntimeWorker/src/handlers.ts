@@ -135,6 +135,22 @@ export async function dispatch(
       return { runtimeId, plan: jsonSafe(plan) };
     }
 
+    case 'runtime.install': {
+      // Host must gate on user confirm; Worker never auto-installs on boot.
+      const runtimeId = str(params, 'runtimeId')!;
+      const rt = requireRuntime(ctx, runtimeId);
+      if (!rt.install) {
+        return { runtimeId, result: null, reason: 'not_supported' };
+      }
+      const line = str(params, 'line', false);
+      const timeoutMs = typeof params?.timeoutMs === 'number' ? params.timeoutMs : undefined;
+      const result = await rt.install({
+        ...(line ? { line } : {}),
+        ...(timeoutMs != null ? { timeoutMs } : {}),
+      });
+      return { runtimeId, result: jsonSafe(result) };
+    }
+
     case 'runtime.auth': {
       const runtimeId = str(params, 'runtimeId')!;
       const rt = requireRuntime(ctx, runtimeId);

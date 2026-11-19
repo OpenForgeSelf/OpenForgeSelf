@@ -6,7 +6,7 @@
 
 - **PowerShell 脚本一律用 `pwsh`（PowerShell 7）执行**，禁止 `powershell`（Windows PowerShell 5.1，见 AGENTS.md §2.3）；个别示例已含完整写法。
 - Node 脚本（`.cjs`）用 `node` 执行。
-- 新 clone / 新环境：git hooks **随依赖还原自动安装**——根目录（或 `ForgeSelf.Web/` 内）`pnpm install` 经根 `package.json` postinstall 触发 `scripts/postinstall-install-hooks.cjs`（非 git checkout / 缺 pwsh 时跳过并提示；`--ignore-scripts` 与 `Plugins/*/web` 目录内安装不覆盖）。手动兜底：`pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`。
+- 新 clone / 新环境：git hooks **随依赖还原自动安装**——根目录（或 `ForgeSelf.Web/` 内）`pnpm install` 经根 `package.json` postinstall 触发 `scripts/postinstall-install-hooks.cjs`（非 git checkout 跳过；缺 pwsh 时本地跳过并提示、**CI 直接失败**；安装后校验 `git-common-dir/hooks` 下 hook **可执行**，否则失败——防 Cursor `hooksPath`/644 静默跳过；`--ignore-scripts` 与 `Plugins/*/web` 目录内安装不覆盖）。手动兜底：`pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`。
 - `-Plugin` 参数一律传 **PascalCase 目录名**（如 `AIAgent`），不是 kebab-case 插件 id。
 
 ## 目录结构

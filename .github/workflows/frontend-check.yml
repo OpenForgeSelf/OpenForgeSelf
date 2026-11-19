@@ -43,6 +43,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # CT StoryHost（ForgeSelf.Web/src/components/*StoryHost.vue）静态 import 插件 SFC；
+      # vue-tsc -b 会跟随进 Plugins/<X>/web/src。仅装宿主依赖时插件无 vue → TS2307 级联上千错
+      # （2026-11-19 CI run 44525817715 / main 同构红）。此处只装「画廊已链接」的插件前端。
+      - name: Install story-linked plugin frontends
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          for d in Plugins/DbAdmin/web Plugins/SmartTerminal/web; do
+            echo "::group::pnpm install $d"
+            (cd "$d" && pnpm install --frozen-lockfile)
+            echo "::endgroup::"
+          done
+
       - name: Run lint + typecheck (pnpm run check)
         # check = vue-tsc -b && eslint . --ext .vue,.ts,.tsx
         # 任何 error 都会使构建失败，阻止合并

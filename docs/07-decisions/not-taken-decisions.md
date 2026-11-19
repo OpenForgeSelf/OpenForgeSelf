@@ -600,3 +600,23 @@
 - **为何不做（代价/收益）**：①ElTabs 无官方重排能力，CSS 强排使页签头视觉顺序与 DOM/可访问性顺序（Tab 键焦点、读屏）不一致，违反 DESIGN.md 组件规格精神，且后续新增页签时顺序易再度漂移；②直接造成页签名与内容错位，属功能性错误非方案取舍。DOM 换位（单次原子编辑，内容逐字节保真）一次到位且零运行时成本。
 - **重新审视的触发条件**：ElTabs 官方提供顺序 API 时可改声明式配置替代 DOM 移动；无其他重估条件。
 - **状态**：有效（2026-11-16 mcp-center v2.9.1 页签调序批；lead 裁决）。
+
+---
+
+## 062 · OAR / AgentHub Runtime 第一期缓做能力（2026-11-19）
+
+> 决策来源：ADR-007 / `docs/01-architecture/agenthub-oar-runtime.md` / pilot `2026-11-19-oar-agenthub-runtime`。
+
+- **决策**：第一期**不做**以下能力（即使 OAR SDK 已暴露）：Skills / Commands / MCP 管理与会话挂载、Account Usage 账单视图、宿主启动自动 Install/Upgrade 第三方 Agent、高级 Steering 全集、Subagents、Agent 间消息投递、一次性加载 OAR 根入口全 Runtime。
+- **为何不做（代价/收益）**：第一期目标是「Runtime 探测 + Session + Prompt/事件/取消 + `IAgentRuntime` + Cli 并存」。上述能力各自牵涉权限面、安装信任边界、多 Agent 编排与内存占用，塞进首批会把改造扩成平台重写，违反单任务可验证与 ADR-005 正交边界。
+- **重新审视的触发条件**：P0–P3 主路径 Verified 且出现真实产品需求（例如必须向外部 Agent 挂载铸己匣 MCP 工具）；自动安装须另有用户明示授权模型。
+- **状态**：有效（2026-11-19）。
+
+---
+
+## 063 · 不把 OAR 提升为宿主全局依赖 / 不让插件直连 Worker（2026-11-19）
+
+- **决策**：不做。禁止在 `ForgeSelf.Api` 宿主或非 AgentHub 插件中直接依赖 `@botiverse/oar` 或私连 RuntimeWorker；禁止用插件 HTTP 调用 AgentHub 内部 Worker 端口替代 `IAgentRuntime`。
+- **为何不做**：OAR 是 TS/Node 适配层，上升为宿主依赖会污染本机 MAF 栈并与 ADR-005 混淆；直连 Worker 会绕过 cwd/权限/审计单一真相（违反 host-capability-seams 与 architecture-design 铁律）。
+- **重新审视的触发条件**：出现第二个同等地位的外部 Runtime Provider 插件，且经 ADR 批准拆分 Provider 接口实现。
+- **状态**：有效（2026-11-19）。

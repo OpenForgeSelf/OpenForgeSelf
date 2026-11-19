@@ -32,3 +32,4 @@
 - 正面：产品目标（审批、可恢复记录）落在既有 MAF + ToolRegistry 上，避免第二套 Runtime；后续审批批有明确缺口清单与禁止项。
 - 负面：审批协议在包内可用但本仓未接线——高风险工具今日仍可经 FunctionInvoker 直调；终端超时后子进程可能残留（宿主缺口，属后续批）。
 - 边界：本 ADR 不定审批 UI/协议实现细节（留给 `maf-tool-approval` pilot）；不定 Browser / Routines / Memory 隔离 / 本地模型；不定 AgentHub PermissionBroker 语义扩展。
+- **澄清（2026-11-19）**：本 ADR 禁止的是「本机 LocalBot / 平行 MAF Runtime」。AgentHub 经 OAR 适配**外部** Coding Agent（ADR-007）与本禁令正交，不构成本 ADR 的撤销。

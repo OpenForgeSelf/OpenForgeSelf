@@ -73,8 +73,11 @@ public class AgentAccessPointDto
     /// <summary>能力等级（OneShot|Sessionful）</summary>
     public String Mode { get; set; } = "OneShot";
 
-    /// <summary>传输方式（Cli|Acp|Http）</summary>
+    /// <summary>传输方式（Cli|Oar|Acp|Http）</summary>
     public String Transport { get; set; } = "Cli";
+
+    /// <summary>OAR Runtime registry id（与 Vendor 独立；Transport=Oar 时必填）</summary>
+    public String? RuntimeId { get; set; }
 
     /// <summary>可执行文件</summary>
     public String? Executable { get; set; }
@@ -165,8 +168,11 @@ public class AgentAccessPointSaveRequest
     /// <summary>能力等级</summary>
     public String? Mode { get; set; }
 
-    /// <summary>传输方式</summary>
+    /// <summary>传输方式（Cli|Oar|Acp|Http）</summary>
     public String? Transport { get; set; }
+
+    /// <summary>OAR Runtime registry id</summary>
+    public String? RuntimeId { get; set; }
 
     /// <summary>可执行文件</summary>
     public String? Executable { get; set; }

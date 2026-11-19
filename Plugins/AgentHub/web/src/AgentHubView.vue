@@ -34,11 +34,15 @@ import {
   streamTaskEvents,
   getSettings,
   saveSettings,
+  listRuntimes,
+  listSessions,
   type AgentDto,
   type AgentSaveRequest,
   type DiscoveredAgentDto,
   type PendingPermissionDto,
   type ProbeResultDto,
+  type RuntimeDescriptorDto,
+  type SessionDto,
   type TaskDto,
   type TaskEventDto,
   fetchPluginVersion,
@@ -48,7 +52,7 @@ import AgentHubAgentForm from './AgentHubAgentForm.vue'
 import AgentHubEventStream from './AgentHubEventStream.vue'
 
 /** 当前页签。 */
-type TabKey = 'agents' | 'delegate' | 'tasks'
+type TabKey = 'agents' | 'delegate' | 'tasks' | 'sessions'
 const tab = ref<TabKey>('agents')
 const pluginVersion = ref('')
 
@@ -271,7 +275,14 @@ const delegate = reactive({
   prompt: '',
   cwd: '',
   permissionMode: 'read-only',
+  /** P3：续接 SessionKey（可选） */
+  sessionKey: '',
 })
+
+/** Runtime / Session 面（P3）。 */
+const runtimes = ref<RuntimeDescriptorDto[]>([])
+const sessions = ref<SessionDto[]>([])
+const loadingSessions = ref(false)
 
 const submitting = ref(false)
 
@@ -292,15 +303,23 @@ async function submitDelegate() {
   }
   submitting.value = true
   try {
+    const sessionKey = delegate.sessionKey.trim() || undefined
     const task = await createTask({
       agentId: delegate.agentId,
       prompt: delegate.prompt.trim(),
       cwd: delegate.cwd.trim() || undefined,
       permissionMode: delegate.permissionMode,
+      sessionKey,
+      sessionRef: sessionKey,
       createdBy: 'ui',
       wait: false,
     })
-    setMsg(`任务 ${task?.taskKey ?? ''} 已入队`)
+    const sk = task?.sessionKey ?? task?.sessionRef
+    setMsg(
+      sk
+        ? `任务 ${task?.taskKey ?? ''} 已入队（SessionKey ${sk}）`
+        : `任务 ${task?.taskKey ?? ''} 已入队`,
+    )
     delegate.prompt = ''
     // 切到任务台并自动选中新任务
     tab.value = 'tasks'
@@ -474,6 +493,18 @@ function elapsedText(ms?: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
+async function loadRuntimeSurface() {
+  loadingSessions.value = true
+  try {
+    runtimes.value = (await listRuntimes()) ?? []
+    sessions.value = (await listSessions()) ?? []
+  } catch (e) {
+    setMsg(`加载 Runtime/Session 失败：${(e as Error).message}`, 'err')
+  } finally {
+    loadingSessions.value = false
+  }
+}
+
 onMounted(async () => {
   pluginVersion.value = await fetchPluginVersion('agent-hub')
   await loadAgents()
@@ -520,6 +551,13 @@ onBeforeUnmount(() => {
       </button>
       <button class="ok-tab" :class="{ 'ok-tab--on': tab === 'tasks' }" @click="tab = 'tasks'">
         任务台
+      </button>
+      <button
+        class="ok-tab"
+        :class="{ 'ok-tab--on': tab === 'sessions' }"
+        @click="tab = 'sessions'; loadRuntimeSurface()"
+      >
+        Session
       </button>
     </nav>
 
@@ -623,9 +661,16 @@ onBeforeUnmount(() => {
           <option value="accept-edits">accept-edits（自动接受编辑）</option>
         </select>
 
+        <label class="ok-form__label">SessionKey（可选，续接）</label>
+        <input
+          class="ok-input"
+          v-model="delegate.sessionKey"
+          placeholder="留空开新会话；填入上次任务返回的 SessionKey 以续接"
+        />
+
         <div class="ok-form__note">
           默认只读。越权的写操作会被外部 agent 转成权限申请，回到「任务台 → 审批台」等你在场裁决；
-          对单个 agent 显式授信（带范围）后才自动放行。
+          对单个 agent 显式授信（带范围）后才自动放行。对外只使用 SessionKey，不暴露内部会话 id。
         </div>
 
         <div class="ok-form__actions">
@@ -678,6 +723,11 @@ onBeforeUnmount(() => {
                 {{ statusLabel(activeTask.status) }}
               </span>
               <code class="ok-code">{{ activeTask.taskKey }}</code>
+              <code
+                v-if="activeTask.sessionKey || activeTask.sessionRef"
+                class="ok-code"
+                title="SessionKey"
+              >{{ activeTask.sessionKey || activeTask.sessionRef }}</code>
               <button
                 v-if="['Queued', 'Running', 'AwaitingPermission'].includes(activeTask.status ?? '')"
                 class="ok-btn ok-btn--sm ok-btn--danger"
@@ -713,6 +763,56 @@ onBeforeUnmount(() => {
           </template>
         </div>
       </div>
+    </section>
+
+    <!-- ─────────── Session / Runtime（P3） ─────────── -->
+    <section v-show="tab === 'sessions'" class="ok-panel">
+      <div class="ok-toolbar">
+        <button class="ok-btn" :disabled="loadingSessions" @click="loadRuntimeSurface">
+          {{ loadingSessions ? '加载中…' : '刷新' }}
+        </button>
+        <span class="ok-hint">Runtime {{ runtimes.length }} · Session {{ sessions.length }}</span>
+      </div>
+
+      <div class="ok-form__label">Runtime 列表</div>
+      <div v-if="!runtimes.length" class="ok-empty">暂无 Runtime 描述（登记 Agent 或启动 Worker 后刷新）。</div>
+      <ul v-else class="ok-tasklist">
+        <li v-for="(r, i) in runtimes" :key="(r.runtimeId || '') + '-' + i" class="ok-task">
+          <div class="ok-task__top">
+            <span class="ok-badge" :class="r.available ? 'ok-badge--ok' : 'ok-badge--err'">
+              {{ r.available ? '可用' : '不可用' }}
+            </span>
+            <span class="ok-task__key">{{ r.name || r.runtimeId || ('agent #' + r.agentId) }}</span>
+          </div>
+          <div class="ok-task__meta">
+            {{ r.transport || '—' }} · RuntimeId={{ r.runtimeId || '—' }}
+            <span v-if="r.unavailableReason"> · {{ r.unavailableReason }}</span>
+          </div>
+        </li>
+      </ul>
+
+      <div class="ok-form__label" style="margin-top: 16px">Session 列表（仅 SessionKey）</div>
+      <div v-if="!sessions.length" class="ok-empty">还没有持久化会话。</div>
+      <ul v-else class="ok-tasklist">
+        <li v-for="s in sessions" :key="s.sessionKey" class="ok-task">
+          <div class="ok-task__top">
+            <span class="ok-badge">{{ s.status || '—' }}</span>
+            <code class="ok-code">{{ s.sessionKey }}</code>
+          </div>
+          <div class="ok-task__meta">
+            agent #{{ s.agentId }} · {{ s.transport || '—' }} · {{ s.runtimeId || '—' }}
+            · gen {{ s.generation ?? 0 }}
+          </div>
+          <div class="ok-form__actions">
+            <button
+              class="ok-btn ok-btn--sm"
+              @click="delegate.sessionKey = s.sessionKey || ''; tab = 'delegate'"
+            >
+              用此 SessionKey 委派
+            </button>
+          </div>
+        </li>
+      </ul>
     </section>
 
     <!-- 授信对话框 -->

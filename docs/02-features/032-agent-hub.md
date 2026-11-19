@@ -2,14 +2,15 @@
 feature_key: F032
 feature_no: 032
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-11-19
 aliases: ["032-agent-hub"]
 ---
 
 # 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
-> 版本：2026-09-24（v1.0.9）· 状态：**已落地**
-> 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）
+> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider = 定案；P0–P4 ✅（当前计划终段）**
+> 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）→ 2026-11-19 OAR 定案（ADR-007）
+> OAR 架构真源：[`docs/01-architecture/agenthub-oar-runtime.md`](../01-architecture/agenthub-oar-runtime.md)
 
 ## 1. 结论先行
 
@@ -55,7 +56,35 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 - **发布坑（v1.0.9 实证）**：版本化更新（`POST /api/plugin/update`）只把新前端产物放进 `versions/<v>/web/dist`，但前端中间件解析**插件根目录 `web/dist`** → 页面仍跑旧 bundle。发布后必须补拷：`versions/<v>/web/dist/*` → 根 `web/dist/`，并 grep 新增关键词核验（见 `plugin-publish-verify` troubleshooting）。
 - **待核对**：`AgentHubAgentsController` / `AgentHubTasksController` 是否带类级 `[Authorize("ApiKeyPolicy")]`（铁律 17 遗留项，v1.0.9 未动，单独记 TODO）。
 
-## 6. 来源
+## 6. 演进：OAR Runtime Provider（2026-11-19 定案；P0 Worker 已落地）
+
+目标：在**不推翻**本节已落地能力的前提下，把 AgentHub 升级为外部 Coding Agent 的统一 Runtime Provider。
+
+| 项 | 定案 |
+| --- | --- |
+| 适配层 | AgentHub 内 Node≥24 Worker + `@botiverse/oar`（精确锁版本） |
+| Transport | 新增 `Oar`，保留 `Cli`；按 AccessPoint 选路 |
+| 跨插件契约 | 新增 `IAgentRuntime`；**保留**现有 `IAgentDelegation` |
+| Session | 独立持久化 + 对外 `SessionKey` |
+| 与本机 MAF | 正交；不违反 ADR-005 |
+
+阶段：P0 Worker 验证 → P1 契约/通信 → P2 Session/Transport → P3 Provider/UI → P4 集成与测试。  
+**P0（2026-11-19）**：`Plugins/AgentHub/RuntimeWorker` 已锁 `@botiverse/oar@0.109.0`，stdio JSON-RPC + `pnpm run smoke` 12/12（scripted）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-worker-p0/`。  
+**P1（2026-11-19）**：`ForgeSelf.Abstractions/AgentRuntimeContracts.cs`（`IAgentRuntime` + DTO）+ `Plugins/AgentHub/Services/OarWorkerClient.cs`（stdio JSON-RPC / 生命周期）；过滤测试 6/6；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p1/`。  
+
+**P2（2026-11-19）**：`IAgentTransportRegistry` + `OarTransport`；AccessPoint.`RuntimeId`；XCode `AgentHubSession` + `AgentSessionManager`（SessionKey）；`DelegationRuntime` 按 Transport 选 Cli|Oar，不破 `IAgentDelegation`；过滤测试 29/29；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p2/`。  
+
+**P3（2026-11-19）**：`AgentHubRuntimeProvider` 实现 `IAgentRuntime`（同实例 MS DI + `ctx.Register`；Effect 清理 Worker）；共享 `OarWorkerClient`；Tools/API/UI SessionKey 面（`api/agent-hub/runtimes|sessions`，`hub_ask_agent`）；过滤测试 34/34；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p3/`。  
+
+**P4（2026-11-19）**：消费者试点（`ctx.Get<IAgentRuntime>()` 每次取 + 缺席降级 + Worker 不可用时 Cli Submit）；SessionKey/OarSessionId 对外泄漏守卫；Node≥24 运维说明（架构真源 §13 + `RuntimeWorker/README`）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p4/`。当前 concurrency-plan **P0–P4 全部 ✅**，不另开 P5。  
+
+**gap-close（2026-11-19）**：补齐第一波未完项——`OarSequence` + `AgentRuntimeRecord` 最小耐久双层事件；§9 `probe`/`models`/`abort`/`records`/`stream`；`runtimes`/`sessions` 类级 ApiKeyPolicy；Session 页签插件 e2e 冒烟；pilot `docs/ai/pilot/2026-11-19-oar-runtime-gap-close/`。  
+并发计划：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md`。  
+细节与安全约束只维护在架构真源，本节不复制。
+
+## 7. 来源
 
 - 输入4 调研报告：`docs/06-research/002-cli-agent-detection-delegation.md`（MCO 探测三件套 / Forkn 路径可配 / 五元组适配器契约等落地建议）
-- 技能：`plugin-development` §四（发布闭环）· §3.2（出树构建）
+- OAR 调研与落点核对：`docs/06-research/007-oar-agenthub-runtime.md`
+- 裁决：`docs/07-decisions/007-oar-agenthub-runtime.md`
+- 技能：`plugin-development` §四（发布闭环）· §3.2（出树构建）· `architecture-design`

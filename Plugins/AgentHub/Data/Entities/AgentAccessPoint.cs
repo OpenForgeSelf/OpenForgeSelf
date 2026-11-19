@@ -47,12 +47,20 @@ public partial class AgentAccessPoint
     public String Mode { get => _Mode; set { if (OnPropertyChanging("Mode", value)) { _Mode = value; OnPropertyChanged("Mode"); } } }
 
     private String _Transport;
-    /// <summary>传输方式（Cli|Acp|Http）</summary>
-    [DisplayName("传输方式（Cli|Acp|Http）")]
-    [Description("传输方式（Cli|Acp|Http）")]
+    /// <summary>传输方式（Cli|Oar|Acp|Http）</summary>
+    [DisplayName("传输方式（Cli|Oar|Acp|Http）")]
+    [Description("传输方式（Cli|Oar|Acp|Http）")]
     [DataObjectField(false, false, false, 20)]
-    [BindColumn("Transport", "传输方式（Cli|Acp|Http）", "", DefaultValue = "Cli")]
+    [BindColumn("Transport", "传输方式（Cli|Oar|Acp|Http）", "", DefaultValue = "Cli")]
     public String Transport { get => _Transport; set { if (OnPropertyChanging("Transport", value)) { _Transport = value; OnPropertyChanged("Transport"); } } }
+
+    private String _RuntimeId;
+    /// <summary>OAR Runtime registry id（与 Vendor 独立）</summary>
+    [DisplayName("OARRuntimeregistryid（与Vendor独立）")]
+    [Description("OAR Runtime registry id（与 Vendor 独立）")]
+    [DataObjectField(false, false, true, 80)]
+    [BindColumn("RuntimeId", "OAR Runtime registry id（与 Vendor 独立）", "")]
+    public String RuntimeId { get => _RuntimeId; set { if (OnPropertyChanging("RuntimeId", value)) { _RuntimeId = value; OnPropertyChanged("RuntimeId"); } } }
 
     private String _Executable;
     /// <summary>可执行文件</summary>
@@ -195,6 +203,7 @@ public partial class AgentAccessPoint
             "AgentId" => _AgentId,
             "Mode" => _Mode,
             "Transport" => _Transport,
+            "RuntimeId" => _RuntimeId,
             "Executable" => _Executable,
             "ArgsTemplate" => _ArgsTemplate,
             "EnvJson" => _EnvJson,
@@ -221,6 +230,7 @@ public partial class AgentAccessPoint
                 case "AgentId": _AgentId = value.ToInt(); break;
                 case "Mode": _Mode = Convert.ToString(value); break;
                 case "Transport": _Transport = Convert.ToString(value); break;
+                case "RuntimeId": _RuntimeId = Convert.ToString(value); break;
                 case "Executable": _Executable = Convert.ToString(value); break;
                 case "ArgsTemplate": _ArgsTemplate = Convert.ToString(value); break;
                 case "EnvJson": _EnvJson = Convert.ToString(value); break;
@@ -301,8 +311,11 @@ public partial class AgentAccessPoint
         /// <summary>能力等级（OneShot|Sessionful）</summary>
         public static readonly Field Mode = FindByName("Mode");
 
-        /// <summary>传输方式（Cli|Acp|Http）</summary>
+        /// <summary>传输方式（Cli|Oar|Acp|Http）</summary>
         public static readonly Field Transport = FindByName("Transport");
+
+        /// <summary>OAR Runtime registry id（与 Vendor 独立）</summary>
+        public static readonly Field RuntimeId = FindByName("RuntimeId");
 
         /// <summary>可执行文件</summary>
         public static readonly Field Executable = FindByName("Executable");
@@ -367,8 +380,11 @@ public partial class AgentAccessPoint
         /// <summary>能力等级（OneShot|Sessionful）</summary>
         public const String Mode = "Mode";
 
-        /// <summary>传输方式（Cli|Acp|Http）</summary>
+        /// <summary>传输方式（Cli|Oar|Acp|Http）</summary>
         public const String Transport = "Transport";
+
+        /// <summary>OAR Runtime registry id（与 Vendor 独立）</summary>
+        public const String RuntimeId = "RuntimeId";
 
         /// <summary>可执行文件</summary>
         public const String Executable = "Executable";

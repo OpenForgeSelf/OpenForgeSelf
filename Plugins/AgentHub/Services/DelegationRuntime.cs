@@ -74,8 +74,15 @@ public class DelegationTaskDto
     /// <summary>状态</summary>
     public String Status { get; set; } = TaskStatus.Queued;
 
-    /// <summary>外部会话 id</summary>
+    /// <summary>外部会话 id（历史字段；与 <see cref="SessionKey"/> 同值）</summary>
     public String? SessionRef { get; set; }
+
+    /// <summary>对外 SessionKey（P3；读写均映射到 SessionRef，禁止暴露 OarSessionId）</summary>
+    public String? SessionKey
+    {
+        get => SessionRef;
+        set => SessionRef = value;
+    }
 
     /// <summary>权限模式</summary>
     public String PermissionMode { get; set; } = "read-only";
@@ -135,8 +142,11 @@ public class DelegationRequest
     /// <summary>权限模式（为空取 agent 默认）</summary>
     public String? PermissionMode { get; set; }
 
-    /// <summary>续接的外部会话 id</summary>
+    /// <summary>续接的外部会话 id（历史字段）</summary>
     public String? SessionRef { get; set; }
+
+    /// <summary>续接 SessionKey（P3；若同时传 SessionRef，以非空 SessionKey 优先）</summary>
+    public String? SessionKey { get; set; }
 
     /// <summary>要求的能力面（F1_Driving 等，用于选路）</summary>
     public String? Facet { get; set; }
@@ -166,7 +176,7 @@ public class DelegationRuntime
     private readonly IAgentRegistry _registry;
     private readonly ProfileLoader _profiles;
     private readonly PermissionBroker _permissions;
-    private readonly IAgentTransport _transport;
+    private readonly IAgentTransportRegistry _transports;
 
     /// <summary>正在执行的任务（taskId → 会话句柄）</summary>
     private static readonly ConcurrentDictionary<Int32, AgentSession> _running = new();
@@ -180,12 +190,12 @@ public class DelegationRuntime
         IAgentRegistry registry,
         ProfileLoader profiles,
         PermissionBroker permissions,
-        IAgentTransport transport)
+        IAgentTransportRegistry transports)
     {
         _registry = registry;
         _profiles = profiles;
         _permissions = permissions;
-        _transport = transport;
+        _transports = transports;
     }
 
     /// <summary>
@@ -277,7 +287,7 @@ public class DelegationRuntime
             Cwd = cwd,
             Status = TaskStatus.Queued,
             PermissionMode = mode,
-            SessionRef = req.SessionRef,
+            SessionRef = !req.SessionKey.IsNullOrEmpty() ? req.SessionKey : req.SessionRef,
             CreatedBy = req.CreatedBy ?? "ui"
         };
 
@@ -336,11 +346,22 @@ public class DelegationRuntime
             return ToDto(entity, agent.Name);
         }
 
+        IAgentTransport transport;
+        try
+        {
+            transport = _transports.Resolve(ap.Transport);
+        }
+        catch (Exception ex)
+        {
+            Finish(entity, TaskStatus.Failed, "transport_missing", ex.Message);
+            return ToDto(entity, agent.Name);
+        }
+
         var session = new AgentSession
         {
             TaskId = entity.Id,
             AccessPointId = ap.Id,
-            Kind = _transport.Kind,
+            Kind = transport.Kind,
             SessionRef = entity.SessionRef,
             CancelSupported = ap.CancelSupported
         };
@@ -374,7 +395,7 @@ public class DelegationRuntime
         try
         {
             using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var stream = _transport.StreamAsync(ap, runReq, session, streamCts.Token);
+            var stream = transport.StreamAsync(ap, runReq, session, streamCts.Token);
 
             await foreach (var evt in stream.WithCancellation(streamCts.Token))
             {
@@ -485,7 +506,16 @@ public class DelegationRuntime
 
         if (_running.TryGetValue(taskId, out var session))
         {
-            await _transport.CancelAsync(session);
+            try
+            {
+                var transport = _transports.Resolve(session.Kind);
+                await transport.CancelAsync(session);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("[AgentHub] 取消时解析 transport 失败: {0}", ex.Message);
+            }
+
             _permissions.CancelAll(taskId);
             AppendEvent(entity, AgentEventTypes.Meta, """{"stage":"cancelling"}""", "用户请求取消，已终止进程树");
             return true;

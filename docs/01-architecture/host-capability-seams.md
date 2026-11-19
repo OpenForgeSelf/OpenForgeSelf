@@ -135,3 +135,19 @@ L3 拦截管道（waterfall/serial，特例）
 
 1. **§7 坑 1 的复发（2026-11-04 实证，缺陷 #2/#3）**：`AddSingleton` 的单例语义是 **per-ServiceProvider** 的。AIAgent 插件 4 个 eager 块各自 `BuildServiceProvider()` + 宿主主 provider = **5 个并存「单例」注册表实例**，控制器（主 provider）/IM 派发（dispatch eager 块）/内置执行（builtin eager 块）三视图互不可见，运行期新建的 Agent 派发侧看不到。修复：全部 eager 块共享**同一个**插件级 provider + eager 产出实例以**实例单例**注册回 services（`AddSingleton<T>(instance)`，与 `IChatCompletion` 既有先例同形）→ 全局单视图。§7 坑 1 当年只在 AgentHub 记录，未扫到 AIAgent 的 eager 模式（逃逸）；守卫 `AgentRegistryCaptiveTests` 已升级为跨 provider 三同实例断言，同类复发由测试拦截。
 2. **宿主重定向日志是 GBK 编码**：`dev-stack` 起的宿主经控制台重定向写日志为 GBK；pwsh 7 `Get-Content` 默认按 UTF-8 解码，中文日志全文 mojibake、按中文关键字 grep 必得假 0 匹配。读宿主日志须显式 `[Text.Encoding]::GetEncoding(936)` 或先验编码。
+
+## 9. 第四个落地（定案 Accepted · 分阶段实现）：外部 Agent Runtime 接缝 `IAgentRuntime`（2026-11-19，ADR-007）
+
+| 项 | 内容 |
+|------|------|
+| 契约 | `ForgeSelf.Abstractions`：`IAgentRuntime` + Task/Session/Event/ControlResult 等纯 POCO（**P1 落码**；草图见 [agenthub-oar-runtime.md](agenthub-oar-runtime.md) §5） |
+| 提供方 | **插件** `agent-hub`：实现 `AgentHubRuntimeProvider`（**P3**）；**同一实例** `services.AddSingleton<IAgentRuntime>(instance)` + `ctx.Register<IAgentRuntime>(instance)`；Worker 清理由 `ctx.Effect` |
+| 消费方 | 未来 WorkflowEngine / SEMS / 其他插件；一律 `ctx.Get<IAgentRuntime>()` 每次取；null ⇒ 降级 |
+| 内部实现 | OAR Node Worker（≥24，**P0 ✅**）+ `OarWorkerClient`（**P1**）+ `OarTransport`（**P2**）；保留 `CliTransport`；权限/cwd/任务状态机仍由 AgentHub 单方持有 |
+| 与 §7 `IAgentDelegation` | **共存**：Delegation = 入队+读回薄接缝（todo-tracker 继续用）；Runtime = Session/事件/控制全集。禁止用 HTTP 直连 AgentHub 替代二者 |
+| 与 `IAgentRunDispatch` / `IAgent` | Dispatch/MAF = **本机**智能体；`IAgentRuntime` = **外部** Coding Agent。不合并 |
+| 为什么停在 L1 | 消费方可降级；实时需求用 `WatchTaskAsync` 拉取/订阅任务事件，不强制先上跨插件 L2 总线 |
+| 同实例铁律 | 复用 §7 坑1 / §8 坑1：禁止在 `Apply` 里另 `BuildServiceProvider()` 造第二份 Provider |
+| 进度 | P0 Worker ✅ · P1 契约+客户端 ✅ · P2 Session/Transport ✅ · P3 Provider/API·UI ✅ · P4 消费/打包 ✅ |
+
+完整阶段与安全约束 → [`agenthub-oar-runtime.md`](agenthub-oar-runtime.md)；裁决 → [ADR-007](../07-decisions/007-oar-agenthub-runtime.md)。

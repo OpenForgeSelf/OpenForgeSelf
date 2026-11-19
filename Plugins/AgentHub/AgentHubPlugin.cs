@@ -88,6 +88,7 @@ public class AgentHubPlugin : IPlugin
         services.AddSingleton(ResolveOarWorkerOptions);
         services.AddSingleton<OarWorkerClient>();
         services.AddSingleton<AgentSessionManager>();
+        services.AddSingleton<AgentRuntimeEventStore>();
         services.AddSingleton<OarTransport>();
         services.AddSingleton<IAgentTransportRegistry>(sp =>
         {
@@ -102,7 +103,7 @@ public class AgentHubPlugin : IPlugin
         // 运行时会话状态跨请求（工具 + SSE 都要看），必须单例
         services.AddSingleton<DelegationRuntime>();
 
-        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / TransportRegistry(Cli+Oar) / OarWorkerClient / AgentSessionManager / DelegationRuntime / AgentHubSettingsStore");
+        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / TransportRegistry(Cli+Oar) / OarWorkerClient / AgentSessionManager / AgentRuntimeEventStore / DelegationRuntime / AgentHubSettingsStore");
     }
 
     /// <summary>

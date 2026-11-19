@@ -136,6 +136,7 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
         services.AddSingleton(new OarWorkerClientOptions { WorkerEntryPath = "" });
         services.AddSingleton<OarWorkerClient>();
         services.AddSingleton<AgentSessionManager>();
+        services.AddSingleton<AgentRuntimeEventStore>();
         services.AddSingleton<CliTransport>();
         services.AddSingleton<OarTransport>();
 

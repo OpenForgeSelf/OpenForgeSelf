@@ -144,6 +144,14 @@ public partial class AgentHubSession
     [BindColumn("AgentHubSequence", "铸己匣事件序号水位", "", DefaultValue = "0")]
     public Int64 AgentHubSequence { get => _AgentHubSequence; set { if (OnPropertyChanging("AgentHubSequence", value)) { _AgentHubSequence = value; OnPropertyChanged("AgentHubSequence"); } } }
 
+    private Int64 _OarSequence;
+    /// <summary>OAR/Worker 侧序号水位</summary>
+    [DisplayName("OAR_Worker侧序号水位")]
+    [Description("OAR/Worker 侧序号水位")]
+    [DataObjectField(false, false, false, 0)]
+    [BindColumn("OarSequence", "OAR/Worker 侧序号水位", "", DefaultValue = "0")]
+    public Int64 OarSequence { get => _OarSequence; set { if (OnPropertyChanging("OarSequence", value)) { _OarSequence = value; OnPropertyChanged("OarSequence"); } } }
+
     private DateTime _CreateTime;
     /// <summary>创建时间</summary>
     [DisplayName("创建时间")]
@@ -184,6 +192,7 @@ public partial class AgentHubSession
             "Generation" => _Generation,
             "LastTaskId" => _LastTaskId,
             "AgentHubSequence" => _AgentHubSequence,
+            "OarSequence" => _OarSequence,
             "CreateTime" => _CreateTime,
             "UpdateTime" => _UpdateTime,
             _ => base[name]
@@ -207,6 +216,7 @@ public partial class AgentHubSession
                 case "Generation": _Generation = value.ToInt(); break;
                 case "LastTaskId": _LastTaskId = value.ToInt(); break;
                 case "AgentHubSequence": _AgentHubSequence = value.ToLong(); break;
+                case "OarSequence": _OarSequence = value.ToLong(); break;
                 case "CreateTime": _CreateTime = value.ToDateTime(); break;
                 case "UpdateTime": _UpdateTime = value.ToDateTime(); break;
                 default: base[name] = value; break;
@@ -349,6 +359,9 @@ public partial class AgentHubSession
         /// <summary>铸己匣事件序号水位</summary>
         public static readonly Field AgentHubSequence = FindByName("AgentHubSequence");
 
+        /// <summary>OAR/Worker 侧序号水位</summary>
+        public static readonly Field OarSequence = FindByName("OarSequence");
+
         /// <summary>创建时间</summary>
         public static readonly Field CreateTime = FindByName("CreateTime");
 
@@ -405,6 +418,9 @@ public partial class AgentHubSession
 
         /// <summary>铸己匣事件序号水位</summary>
         public const String AgentHubSequence = "AgentHubSequence";
+
+        /// <summary>OAR/Worker 侧序号水位</summary>
+        public const String OarSequence = "OarSequence";
 
         /// <summary>创建时间</summary>
         public const String CreateTime = "CreateTime";

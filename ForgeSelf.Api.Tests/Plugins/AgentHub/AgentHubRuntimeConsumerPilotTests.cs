@@ -149,6 +149,8 @@ public class AgentHubRuntimeConsumerPilotTests : IClassFixture<XCodeTestFixture>
         // 契约允许解耦：库内可同时存独立 SessionKey 与 OarSessionId；对外 DTO 只暴露 SessionKey。
         // P4 不落地独立 GUID 映射表，仅守卫此边界。
         var mgr = new AgentSessionManager();
+        // 唯一 SessionKey：共享 XCode 测试库不按用例清表，固定键会 UNIQUE 冲突（基线脆点）。
+        var publicKey = "public-" + Guid.NewGuid().ToString("N");
         var opened = mgr.Open(
             agentId: 1,
             accessPointId: 1,
@@ -157,10 +159,11 @@ public class AgentHubRuntimeConsumerPilotTests : IClassFixture<XCodeTestFixture>
             oarSessionId: "worker-inner-xyz",
             cwd: Path.GetTempPath(),
             model: null,
-            sessionKey: "public-session-key");
+            sessionKey: publicKey);
 
-        opened.SessionKey.Should().Be("public-session-key");
+        opened.SessionKey.Should().Be(publicKey);
         opened.OarSessionId.Should().Be("worker-inner-xyz");
+        opened.SessionKey.Should().NotBe(opened.OarSessionId);
 
         var dto = new SessionDto
         {
@@ -168,7 +171,7 @@ public class AgentHubRuntimeConsumerPilotTests : IClassFixture<XCodeTestFixture>
             Status = opened.Status,
             RuntimeId = opened.RuntimeId,
         };
-        dto.SessionKey.Should().Be("public-session-key");
+        dto.SessionKey.Should().Be(publicKey);
         typeof(SessionDto).GetProperty("OarSessionId").Should().BeNull();
 
         mgr.Close(opened.SessionKey);
@@ -188,6 +191,7 @@ public class AgentHubRuntimeConsumerPilotTests : IClassFixture<XCodeTestFixture>
         services.AddSingleton(new OarWorkerClientOptions { WorkerEntryPath = "" });
         services.AddSingleton<OarWorkerClient>();
         services.AddSingleton<AgentSessionManager>();
+        services.AddSingleton<AgentRuntimeEventStore>();
         services.AddSingleton<CliTransport>();
         services.AddSingleton<OarTransport>();
 

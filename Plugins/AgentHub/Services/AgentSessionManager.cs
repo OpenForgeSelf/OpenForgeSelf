@@ -44,18 +44,20 @@ public sealed class AgentSessionManager
     /// <summary>按 SessionKey 查找；不存在返回 null。</summary>
     public AgentHubSession? Find(String sessionKey) => AgentHubSession.FindBySessionKey(sessionKey);
 
-    /// <summary>回写 Worker 侧会话 id / 世代 / 最近任务。</summary>
+    /// <summary>回写 Worker 侧会话 id / 世代 / 最近任务 / 序号水位。</summary>
     public void Touch(
         AgentHubSession entity,
         String? oarSessionId = null,
         Int32? generation = null,
         Int32? lastTaskId = null,
-        Int64? agentHubSequence = null)
+        Int64? agentHubSequence = null,
+        Int64? oarSequence = null)
     {
         if (oarSessionId != null) entity.OarSessionId = oarSessionId;
         if (generation is > 0) entity.Generation = generation.Value;
         if (lastTaskId is > 0) entity.LastTaskId = lastTaskId.Value;
         if (agentHubSequence is >= 0) entity.AgentHubSequence = agentHubSequence.Value;
+        if (oarSequence is >= 0) entity.OarSequence = oarSequence.Value;
         entity.UpdateTime = DateTime.Now;
         entity.Update();
     }

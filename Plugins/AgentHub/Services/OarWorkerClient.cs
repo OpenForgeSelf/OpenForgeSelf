@@ -176,6 +176,42 @@ public sealed class OarWorkerClient : IAsyncDisposable, IDisposable
             ct).ConfigureAwait(false);
     }
 
+    /// <summary><c>runtime.installation</c>（只读探测）。</summary>
+    public async Task<JsonElement> InstallationAsync(string runtimeId, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "runtime.installation",
+            new Dictionary<string, object?> { ["runtimeId"] = runtimeId },
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary><c>runtime.auth</c>（只读；scripted 可能 not_supported）。</summary>
+    public async Task<JsonElement> AuthAsync(string runtimeId, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "runtime.auth",
+            new Dictionary<string, object?> { ["runtimeId"] = runtimeId },
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary><c>runtime.models</c>（只读；scripted 可能 not_supported）。</summary>
+    public async Task<JsonElement> ModelsAsync(string runtimeId, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "runtime.models",
+            new Dictionary<string, object?> { ["runtimeId"] = runtimeId },
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary><c>session.records</c>（Worker 侧原始审计；调用方应再脱敏落库）。</summary>
+    public async Task<JsonElement> SessionRecordsAsync(string sessionKey, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "session.records",
+            new Dictionary<string, object?> { ["sessionKey"] = sessionKey },
+            ct).ConfigureAwait(false);
+    }
+
     /// <summary>底层 JSON-RPC 请求。</summary>
     public async Task<JsonElement> RequestAsync(string method, object? parameters, CancellationToken ct = default)
     {

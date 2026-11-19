@@ -240,6 +240,8 @@ export interface SessionDto {
   status?: string
   generation?: number
   lastTaskId?: number
+  agentHubSequence?: number
+  oarSequence?: number
   createTime?: string
   updateTime?: string
 }

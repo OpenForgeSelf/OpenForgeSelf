@@ -8,6 +8,8 @@ gate3: { mode: agent, at: null }
 expected_files:
   - ForgeSelf.Abstractions/AgentRuntimeContracts.cs
   - Plugins/AgentHub/Services/AgentHubRuntimeProvider.cs
+  - Plugins/AgentHub/Controllers/AgentHubRuntimesController.cs
+  - Plugins/AgentHub/RuntimeWorker/src/registry.ts
   - Plugins/AgentHub/web/
   - Plugins/AgentHub/docs/ui-design-brief.md
   - ForgeSelf.Api.Tests/Plugins/AgentHub/

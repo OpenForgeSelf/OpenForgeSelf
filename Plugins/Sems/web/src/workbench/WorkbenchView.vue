@@ -14,31 +14,29 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ICON_SPRITE, ic } from './icons'
 import {
   store, go, toast, currentProject, isProjectRoute, routeTab, syncFromHash,
-  resetDemo, setViewMode, disposeWorkbench, projectConfigs,
+  disposeWorkbench, projectConfigs,
 } from './workbenchStore'
 import ManagerProjects from './views/ManagerProjects.vue'
 import ManagerBrowser from './views/ManagerBrowser.vue'
 import ManagerWizard from './views/ManagerWizard.vue'
 import ProjectDashboard from './views/ProjectDashboard.vue'
 import ProjectPluginsView from './views/ProjectPluginsView.vue'
-import ProjectDependenciesView from './views/ProjectDependenciesView.vue'
 import ProjectConfigurationView from './views/ProjectConfigurationView.vue'
 import ProjectTasksView from './views/ProjectTasksView.vue'
 import ProjectSpecsView from './views/ProjectSpecsView.vue'
 
 const TABS = [
   { key: 'projects', label: '项目', icon: 'list', route: '/projects' },
-  { key: 'create', label: '新建', icon: 'plus', route: '/create' },
+  { key: 'create', label: '登记', icon: 'plus', route: '/create' },
   { key: 'import', label: '导入', icon: 'download', route: '/import' },
 ] as const
 
 const NAV = [
-  { path: '/dashboard', label: '仪表盘', icon: 'grid' },
-  { path: '/plugins', label: '插件', icon: 'puzzle' },
-  { path: '/dependencies', label: '依赖', icon: 'box' },
-  { path: '/configuration', label: '配置', icon: 'sliders' },
-  { path: '/tasks', label: '任务', icon: 'tasks' },
+  { path: '/dashboard', label: '概览', icon: 'grid' },
+  { path: '/runs', label: '运行', icon: 'tasks' },
   { path: '/specs', label: '规格', icon: 'clip' },
+  { path: '/plugins', label: '插件', icon: 'puzzle' },
+  { path: '/settings', label: '设置', icon: 'sliders' },
 ] as const
 
 /** AC-D1：2 步登记向导（与 ManagerWizard.vue 的两屏一一对应）。 */
@@ -68,7 +66,7 @@ function stepClass(i: number) {
 }
 
 function onAbout() {
-  toast('Sems 项目工作台 · 功能基线来自交接包；顶栏或侧栏「切换经典视图」均可回到重构前原界面')
+  toast('SEMS 项目工作台 · 管项目、跑命令、看执行、记规格、看项目插件')
 }
 
 function closeMoreOnOutside(e: MouseEvent) {
@@ -125,9 +123,6 @@ onUnmounted(() => {
           </div>
 
           <div class="corner right">
-            <button class="wb-legacy-top" aria-label="切换经典视图" @click="setViewMode('legacy')">
-              <span v-html="ic('back', 'sm')"></span>经典视图
-            </button>
             <button aria-label="帮助" @click="onAbout"><span v-html="ic('help')"></span></button>
           </div>
         </header>
@@ -162,31 +157,24 @@ onUnmounted(() => {
             </nav>
             <div class="sidebar-spacer"></div>
             <div class="sidebar-foot">
-              <button class="wb-legacy-side" @click="setViewMode('legacy')">
-                <span v-html="ic('back', 'sm')"></span>切换经典视图
-              </button>
               <div class="more-wrap">
                 <div v-if="store.moreOpen" class="more-menu">
                   <button @click="go('/projects')">项目工作台</button>
-                  <button @click="setViewMode('legacy')">切换经典视图</button>
-                  <button @click="resetDemo(); store.moreOpen = false">恢复示例数据</button>
                   <button @click="onAbout(); store.moreOpen = false">关于</button>
                 </div>
                 <button class="btn-icon" aria-label="更多" @click.stop="store.moreOpen = !store.moreOpen">
                   <span v-html="ic('more')"></span>
                 </button>
               </div>
-              <span class="hint">经典视图 = 重构前完整原界面</span>
             </div>
           </aside>
 
           <section class="project-main">
             <ProjectDashboard v-if="store.route === '/dashboard'" />
-            <ProjectPluginsView v-else-if="store.route === '/plugins'" />
-            <ProjectDependenciesView v-else-if="store.route === '/dependencies'" />
-            <ProjectConfigurationView v-else-if="store.route === '/configuration'" />
-            <ProjectTasksView v-else-if="store.route === '/tasks'" />
+            <ProjectTasksView v-else-if="store.route === '/runs'" />
             <ProjectSpecsView v-else-if="store.route === '/specs'" />
+            <ProjectPluginsView v-else-if="store.route === '/plugins'" />
+            <ProjectConfigurationView v-else-if="store.route === '/settings'" />
           </section>
         </div>
       </template>
@@ -201,18 +189,13 @@ onUnmounted(() => {
                 aria-label="项目目录" @click="go('/projects')"><span v-html="ic('folder', 'sm')"></span></button>
         <span v-if="showPathBadge" class="status-path">{{ p ? p.path : '/workspace' }}</span>
         <button class="btn-icon" style="color:var(--el-text-color-primary);width:18px;height:18px"
-                aria-label="日志" @click="go('/tasks')"><span v-html="ic('terminal', 'sm')"></span></button>
-        <span class="info-badge">INFO</span>
+                aria-label="运行日志" @click="go('/runs')"><span v-html="ic('terminal', 'sm')"></span></button>
         <span class="wb-version-text">Sems 工作台 {{ store.version ? 'v' + store.version : '' }}</span>
-        <span class="wb-mode" :class="{ demo: store.mode === 'demo' }">
-          {{ store.mode === 'live' ? 'LIVE' : 'DEMO' }}
-        </span>
         <span v-if="store.runningCount > 0" class="wb-badge info">运行中 {{ store.runningCount }}</span>
+        <span v-if="store.error" class="wb-badge warn" :title="store.error">加载失败</span>
       </div>
       <div class="status-right">
         <span id="status-time">{{ now }}</span>
-        <span v-html="ic('moon', 'sm')"></span><span v-html="ic('globe', 'sm')"></span>
-        <span v-html="ic('bug', 'sm')"></span><span v-html="ic('refresh', 'sm')"></span>
       </div>
     </div>
 

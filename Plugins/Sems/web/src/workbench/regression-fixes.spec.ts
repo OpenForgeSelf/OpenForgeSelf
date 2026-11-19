@@ -118,3 +118,13 @@ describe('D-1 2 步向导只写回真实档案字段', () => {
     expect(JSON.stringify(body)).not.toMatch(/packageManager|preset|git|bare|commitMessage|features/)
   })
 })
+
+describe('F11 没有命令时启动全部不得空转成功', () => {
+  it('命令列表为空时不发启动请求，并说明没有可启动的命令', async () => {
+    wb.store.projects = [{ ...project, commands: [] } as never]
+    await wb.startAllTasks()
+    expect(http.apiPost).not.toHaveBeenCalled()
+    expect(wb.store.toasts.some((t) => t.text.includes('没有可启动的命令'))).toBe(true)
+    expect(wb.store.toasts.some((t) => t.text.includes('启动完成'))).toBe(false)
+  })
+})

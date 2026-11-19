@@ -110,7 +110,7 @@ watch(() => props.mode, () => { void browse() })
 
       <div class="browser-actions">
         <button v-if="isCreate" class="btn btn-primary btn-lg" :disabled="busy" @click="startWizard()">
-          <span v-html="ic('plus')"></span>在此新建项目
+          <span v-html="ic('plus')"></span>在此登记项目
         </button>
         <button v-else class="btn btn-primary btn-lg" :disabled="busy" @click="importHere()">
           <span v-html="ic('download')"></span>导入此文件夹
@@ -118,8 +118,8 @@ watch(() => props.mode, () => { void browse() })
       </div>
 
       <p class="wb-hint">
-        {{ isCreate ? '新建' : '导入' }} = 把一个已存在的目录登记为项目档案（sems 原有能力），
-        不创建文件、不执行脚手架命令；新建走 2 步向导，填写的类型 / 标签 / 描述会写回真实档案。
+        {{ isCreate ? '登记' : '导入' }} = 把一个已存在的目录登记为项目档案，
+        不创建文件、不执行脚手架命令；登记走 2 步向导，填写的类型 / 标签 / 描述会写回真实档案。
       </p>
     </div>
 

@@ -57,8 +57,8 @@ AIAgent 的「选工作目录」仍是登记触发源之一（来源记 `ai-agen
 - **状态语义统一**：服务层返回 `SemsResult<T>`（`Ok/Invalid/NotFound/Conflict/Unavailable` + `StatusCode`），HTTP 端点据此选 400/404/409/503，工具据此出 `{success,data|error}` 封套——不靠字符串嗅探分流。
 - **进程运行管理留在 sems 插件内**（`RunnerService`）：当前唯一消费方，未升格为宿主接缝；第二个消费方出现时再升 `IProcessRunner`。
 - **不引入 L2 事件**：运行列表靠请求时拉取 + 手动「检查」，无需实时推送。
-- **检测（检查）算法**：一次 WMI 查询全量 `Win32_Process`（ProcessId/Name/ExecutablePath/CommandLine）→ 对每条按「候选路径集合（exe + 命令行出现的绝对路径）是否以某项目 Root 为前缀（带分隔符边界）→ 类型二次确认（node↔frontend/fullstack、dotnet↔backend/fullstack，宁漏勿误）」归属 → 与 Launched 会话按 PID 合并。只读、不落库、每次全量重建 Detected。WMI 不可用则降级仅 Launched。
-- **启动 / 停止**：`cmd /c {script}` 在项目根执行；停止用 `taskkill /T /F /PID {pid}`（比 .NET `Kill(entireProcessTree)` 对 `cmd` 子进程树更可靠），Launched 与 Detected 统一按 PID 杀树。
+- **检测（检查）算法**：Windows 一次 WMI 查询全量 `Win32_Process`（ProcessId/Name/ExecutablePath/CommandLine）；其他系统读 `/proc/{pid}/exe`、`cmdline`、`cwd`。对每条按「候选路径集合（exe + cwd + 命令行出现的绝对路径，Windows 盘符与 Unix 至少两段的绝对路径）是否以某项目 Root 为前缀（带分隔符边界）→ 类型二次确认（node↔frontend/fullstack、dotnet/python↔backend/fullstack，Type 为空或 tool 等未知类型采信路径，宁漏勿误）」归属 → 与 Launched 会话按 PID 合并。只读、不落库、每次全量重建 Detected。检测不可用则降级仅 Launched。
+- **启动 / 停止**：在项目根执行已登记脚本。Windows 用 `cmd /c {script}`，其他系统用 `/bin/sh -c {script}`。失败原因写在 `IRunnerService.LastLaunchError`（目录不可达、脚本为空、重复启动、启动异常分开说明），HTTP 与 `sems_run_command` 在 409/失败封套里原样返回。停止：Windows 用 `taskkill /T /F /PID {pid}`（对 cmd 子进程比 `Kill(entireProcessTree)` 更可靠），其他系统用 `Process.Kill(entireProcessTree: true)`。本面板启动的会话若进程已经不在，停止算成功并摘掉会话；杀不掉且进程仍在则保留会话并返回失败。未知外部 PID 仍返回 false。
 - **移除项目 = 删档案不删盘**：`Remove` 级联删 `RunCommand` 行后删 `Project` 行，**绝不触碰磁盘目录/文件**；有本面板启动的存活会话时拒绝（409），被拒时零数据变更。
 
 ## API（实际路由；全部类级 `[Authorize("ApiKeyPolicy")]`，`api/projects/count` 例外为公开统计卡）

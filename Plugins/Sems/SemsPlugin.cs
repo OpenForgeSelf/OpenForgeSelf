@@ -22,6 +22,8 @@ public class SemsPlugin : IPlugin
         services?.AddSingleton<IRunnerService, RunnerService>();
         // 规格服务（B1）：规格文件落插件数据目录，只追加，不改数据库结构
         services?.AddScoped<ISpecService, SpecService>();
+        // 工程插件只读查询（F19）：扫描项目根 package.json，不改 22 个 sems_* 工具注册
+        services?.AddScoped<IEngineeringPluginService, EngineeringPluginService>();
 
         RegisterMenuExtensions(pluginId);
         RegisterToolExtensions(pluginId, ctx);

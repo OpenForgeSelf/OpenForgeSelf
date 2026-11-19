@@ -83,3 +83,18 @@ export function stopExternalMessage(projectName: string, commandName: string, pi
     '该进程由本机检测捕获、并非本面板启动。停止会杀整棵进程树，可能波及他人进程且不可恢复，请先确认归属。'
   )
 }
+
+/** 有运行中会话时不得直接移除：说明原因并引导先停止（F05）。 */
+export function removeBlockedByRunningMessage(name: string, runningCount = 0): string {
+  const n = runningCount > 0 ? `（当前有 ${runningCount} 个运行中会话）` : ''
+  return (
+    `项目「${name}」还有运行中的会话${n}，不能直接移除。\n\n` +
+    '请先到「运行」页停止相关命令；停干净后再移除档案和命令。磁盘上的目录与文件不会被改动。'
+  )
+}
+
+/** 后端对仍有运行中会话的移除返回 409。 */
+export function isRemoveBlockedByRunningError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e)
+  return /\(409\)/.test(msg) || /运行中会话/.test(msg)
+}

@@ -17,7 +17,7 @@ const p = computed(() => currentProject())
     <h2>项目规格</h2>
     <div class="proj-tools">
       <a class="link-btn" href="#/dashboard" @click.prevent="go('/dashboard')">
-        返回仪表盘 <span v-html="ic('external', 'sm')"></span>
+        返回概览 <span v-html="ic('external', 'sm')"></span>
       </a>
     </div>
   </div>

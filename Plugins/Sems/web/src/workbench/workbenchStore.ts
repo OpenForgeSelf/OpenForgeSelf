@@ -4,8 +4,7 @@
  * 设计约束（承接交接包 replica/architecture.md §「data 层」）：
  * - 页面只调用本文件导出的函数，不直接改数组、不直接 fetch。
  * - 真实数据源是 sems 后端（GET/POST/PUT/DELETE /api/projects、/api/commands、/api/runs、/api/specs）。
- * - 后端不可达时自动切到内置示例数据（demo 模式），保证 11 屏仍可导航 —— 与交接包
- *   「零依赖可分发 / 离线」的 NFR 一致，但不再是纯静态模拟。
+ * - 后端不可达时在当前页说明原因，不再切到面向使用的 DEMO 模式或示例项目。
  * - 收藏、向导元数据、配置开关、当前项目等纯 UI 状态落 localStorage（键 sems-workbench-v1），
  *   与后端 ProjectInfo DTO 解耦，不改动任何 C# 契约。
  *
@@ -17,8 +16,11 @@ import {
   apiGet, apiPost, apiPut, apiDelete, browseDirectories, fetchPluginVersion,
 } from '../http'
 import type {
-  ProjectInfo, ProjectsResp, RunCommandInfo, DirectoryEntry, BrowseResp, RunsResp, RunLogsResp,
+  ProjectInfo, ProjectsResp, RunCommandInfo, DirectoryEntry, BrowseResp, RunsResp, RunLogsResp, RunSession,
 } from '../types'
+import { filterEngineeringPlugins, parseEngineeringPluginsPayload, type EngineeringPlugin } from '../engineeringPlugins'
+import { listSpecs } from '../specApi'
+import { isRemoveBlockedByRunningError } from '../confirmOps'
 
 /* ------------------------------------------------------------------ *
  * 类型
@@ -26,7 +28,19 @@ import type {
 
 export type WbRoute =
   | '/projects' | '/create' | '/import' | '/create/wizard'
-  | '/dashboard' | '/plugins' | '/dependencies' | '/configuration' | '/tasks' | '/specs'
+  | '/dashboard' | '/plugins' | '/runs' | '/specs' | '/settings'
+  | '/dependencies' | '/configuration' | '/tasks'
+
+/** 旧路径别名，进入时归并到五栏导航。 */
+const ROUTE_ALIASES: Record<string, WbRoute> = {
+  '/dependencies': '/runs',
+  '/tasks': '/runs',
+  '/configuration': '/settings',
+}
+
+export function canonicalRoute(path: string): WbRoute {
+  return (ROUTE_ALIASES[path] ?? path) as WbRoute
+}
 
 /** 2 步登记向导写入档案的字段（AC-D1：只登记目录 + 写回真实后端字段，不生成脚手架）。 */
 export interface WbWizardMeta {
@@ -293,6 +307,10 @@ export const store = reactive({
   pluginFilter: '',
   depFilter: '',
   taskFilter: '',
+  engineeringPlugins: [] as EngineeringPlugin[],
+  engineeringPluginsError: '',
+  engineeringPluginsLoading: false,
+  specCount: 0,
   renameId: null as number | null,
   moreOpen: false,
   selectedTask: '' as string,
@@ -306,6 +324,7 @@ export const store = reactive({
   runHistory: readRunHistory() as Record<number, RunHistoryEntry>,
   runningCommandId: null as number | null,
   runningCount: 0,
+  runningSessions: [] as RunSession[],
   toasts: [] as { id: number; text: string }[],
   folder: {
     cwd: '' as string,
@@ -361,8 +380,8 @@ export function routeTab(): 'projects' | 'create' | 'import' {
 
 export function go(path: WbRoute) {
   store.moreOpen = false
-  store.route = path
-  if (USE_HASH) location.hash = HASH_PREFIX + path
+  store.route = canonicalRoute(path)
+  if (USE_HASH) location.hash = HASH_PREFIX + store.route
 }
 
 export function syncFromHash() {
@@ -370,7 +389,7 @@ export function syncFromHash() {
   const h = location.hash
   if (!h.startsWith(HASH_PREFIX)) return
   const p = h.slice(HASH_PREFIX.length) as WbRoute
-  if (p.startsWith('/')) store.route = p
+  if (p.startsWith('/')) store.route = canonicalRoute(p)
 }
 
 export function toast(text: string) {
@@ -383,7 +402,8 @@ export function toast(text: string) {
 }
 
 export function isProjectRoute(r: WbRoute = store.route): boolean {
-  return ['/dashboard', '/plugins', '/dependencies', '/configuration', '/tasks', '/specs'].includes(r)
+  const path = canonicalRoute(r)
+  return ['/dashboard', '/plugins', '/runs', '/specs', '/settings'].includes(path)
 }
 
 /* ------------------------------------------------------------------ *
@@ -420,22 +440,25 @@ export async function loadProjects(): Promise<void> {
       store.currentProjectId = null
     }
   } catch (e) {
-    // 后端不可达：示例数据回落，保证 11 屏可导航（不伪装成真实能力）
-    store.projects = demoProjects()
-    store.mode = 'demo'
+    store.projects = []
+    store.mode = 'live'
     store.error = e instanceof Error ? e.message : String(e)
-    if (store.currentProjectId && !store.projects.some((p) => p.id === store.currentProjectId)) {
-      store.currentProjectId = null
-    }
+    store.currentProjectId = null
+    toast('无法加载项目：' + store.error)
   } finally {
     store.loading = false
   }
   try {
     store.version = await fetchPluginVersion('sems')
   } catch {
-    store.version = store.mode === 'demo' ? '1.3.0' : ''
+    store.version = ''
   }
   await refreshRunningCount()
+  const current = currentProject()
+  if (current) {
+    void loadEngineeringPlugins(current.id)
+    void loadSpecCount(current.id)
+  }
 }
 
 export async function loadVersion(): Promise<void> {
@@ -485,10 +508,12 @@ export function projectLastRun(p: WbProject | null): { name: string; status: Tas
   return { name: best.name, status: best.status, endedAt: best.endedAt }
 }
 
-export function openProject(id: number) {
+export function openProject(id: number, route: WbRoute = '/dashboard') {
   store.currentProjectId = id
   writeMeta()
-  go('/dashboard')
+  go(canonicalRoute(route))
+  void loadEngineeringPlugins(id)
+  void loadSpecCount(id)
 }
 
 export function setFavorite(id: number) {
@@ -516,21 +541,38 @@ export async function renameProject(id: number, name: string): Promise<boolean> 
   return true
 }
 
-export async function removeProject(id: number): Promise<boolean> {
-  if (store.mode === 'live') {
-    try {
-      await apiDelete(`/api/projects/${id}`)
-    } catch (e) {
-      toast('移除失败（有运行中会话时后端会拒绝）：' + (e instanceof Error ? e.message : String(e)))
-      return false
-    }
+export type RemoveProjectResult =
+  | { ok: true }
+  | { ok: false; blockedByRunning: boolean; error: string }
+
+export async function removeProject(id: number): Promise<RemoveProjectResult> {
+  try {
+    await apiDelete(`/api/projects/${id}`)
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e)
+    return { ok: false, blockedByRunning: isRemoveBlockedByRunningError(e), error }
   }
   store.projects = store.projects.filter((p) => p.id !== id)
   if (store.currentProjectId === id) store.currentProjectId = null
   delete meta.favorites[id]
   delete meta.wizardMeta[id]
   writeMeta()
-  return true
+  return { ok: true }
+}
+
+export function runningSessionsFor(projectId: number): RunSession[] {
+  return store.runningSessions.filter((s) => s.projectId === projectId && !s.ended)
+}
+
+export function projectHasRunningSessions(p: WbProject): boolean {
+  if (runningSessionsFor(p.id).length) return true
+  return (p.commands ?? []).some((c) => taskStatusOf(c.id) === 'running')
+}
+
+export function runningSessionCountOf(p: WbProject): number {
+  const n = runningSessionsFor(p.id).length
+  if (n) return n
+  return (p.commands ?? []).filter((c) => taskStatusOf(c.id) === 'running').length
 }
 
 /** 登记目录为项目（真实 POST /api/projects；demo 模式在本地追加）。 */
@@ -573,23 +615,12 @@ export async function registerProject(root: string, name?: string, wizardMeta?: 
   return p
 }
 
-/** 目录浏览（真实 GET /api/projects/browse；demo 模式给内置目录树）。 */
+/** 目录浏览（真实 GET /api/projects/browse）。 */
 export async function browse(path?: string): Promise<void> {
   store.folder.loading = true
   store.folder.error = ''
   try {
-    let resp: BrowseResp
-    if (store.mode === 'live') {
-      resp = await browseDirectories(path || undefined)
-    } else {
-      const DEMO_DIRS = ['src', 'public', 'docs', 'packages', 'scripts', 'tests']
-      const cwd = path || '/workspace'
-      resp = {
-        path: cwd,
-        parent: cwd === '/workspace' ? null : cwd.split('/').slice(0, -1).join('/') || '/',
-        directories: DEMO_DIRS.map((d) => ({ name: d, path: cwd.replace(/\/$/, '') + '/' + d })),
-      }
-    }
+    const resp = await browseDirectories(path || undefined)
     store.folder.directories = resp.directories ?? []
     store.folder.parent = resp.parent ?? null
     if (resp.path) {
@@ -611,7 +642,8 @@ export async function refreshRunningCount(): Promise<void> {
   }
   try {
     const r = await apiGet<RunsResp>('/api/runs')
-    store.runningCount = r?.runs?.length ?? 0
+    store.runningSessions = (r?.runs ?? []).filter((s) => !s.ended)
+    store.runningCount = store.runningSessions.length
   } catch { /* 状态栏统计不阻断主流程 */ }
 }
 
@@ -733,14 +765,16 @@ export async function stopTask(commandId: number, taskName: string): Promise<voi
   }
 }
 
-/** 启动全部：跳过已在运行的任务。 */
+/** 启动全部：没有命令时直接说明，不报「启动完成」。已在运行的跳过。 */
 export async function startAllTasks(): Promise<void> {
-  if (store.mode === 'demo') {
-    toast('DEMO 模式不启动真实进程，可在 LIVE 模式下使用')
+  const cmds = currentProject()?.commands ?? []
+  if (cmds.length === 0) {
+    toast('没有可启动的命令，请先添加')
     return
   }
-  const cmds = currentProject()?.commands ?? []
   let started = 0
+  let failed = 0
+  let lastError = ''
   for (const c of cmds) {
     if (taskStatusOf(c.id) === 'running') continue
     try {
@@ -748,11 +782,16 @@ export async function startAllTasks(): Promise<void> {
       // 与详情区「运行任务」共用同一个状态入口，避免两条启动路径不同步（修 B-1）
       markTaskStarted(c.id, c.name)
       started++
-    } catch {
-      /* 409 已在运行：忽略 */
+    } catch (e) {
+      failed++
+      lastError = e instanceof Error ? e.message : String(e)
     }
   }
   await refreshRunningCount()
+  if (started === 0 && failed > 0) {
+    toast('启动失败：' + lastError)
+    return
+  }
   toast(`启动完成：新起 ${started} 个，其余已在运行或不可启动`)
 }
 
@@ -843,15 +882,6 @@ export async function runTask(commandId: number, taskName: string): Promise<void
   if (!cmd) { toast('未找到该运行命令'); return }
   markTaskStarted(commandId, taskName)
 
-  if (store.mode === 'demo') {
-    setTimeout(() => {
-      appendLogLines(commandId, ['> 编译完成', '✓ 任务 ' + taskName + ' 执行成功（示例数据）'])
-      markTaskDone(commandId)
-      toast('任务完成：' + taskName)
-    }, 1400)
-    return
-  }
-
   try {
     await apiPost(`/api/commands/${commandId}/run`, {})
     void pullTaskLogs(commandId)
@@ -867,10 +897,44 @@ export async function runTask(commandId: number, taskName: string): Promise<void
  * 派生视图数据：把 sems 真实实体映射成工作台 5 个模块页的形状
  * ------------------------------------------------------------------ */
 
-/** 插件屏：22 个已注册 sems_* 工具（插件级能力，非项目级依赖）。 */
-export function projectPlugins(): WbTool[] {
-  const q = store.pluginFilter.trim().toLowerCase()
-  return SEMS_TOOLS.filter((t) => (t.name + ' ' + t.group + ' ' + t.desc).toLowerCase().includes(q))
+export function visibleEngineeringPlugins(): EngineeringPlugin[] {
+  return filterEngineeringPlugins(store.engineeringPlugins, store.pluginFilter)
+}
+
+export async function loadEngineeringPlugins(projectId?: number): Promise<void> {
+  const id = projectId ?? store.currentProjectId
+  if (id == null) {
+    store.engineeringPlugins = []
+    store.engineeringPluginsError = ''
+    store.engineeringPluginsLoading = false
+    return
+  }
+  store.engineeringPluginsLoading = true
+  try {
+    const raw = await apiGet<unknown>(`/api/projects/${id}/engineering-plugins`)
+    const parsed = parseEngineeringPluginsPayload(raw)
+    store.engineeringPlugins = parsed.plugins
+    store.engineeringPluginsError = parsed.error
+  } catch (e) {
+    store.engineeringPlugins = []
+    store.engineeringPluginsError = e instanceof Error ? e.message : String(e)
+  } finally {
+    store.engineeringPluginsLoading = false
+  }
+}
+
+export async function loadSpecCount(projectId?: number): Promise<void> {
+  const id = projectId ?? store.currentProjectId
+  if (id == null) {
+    store.specCount = 0
+    return
+  }
+  try {
+    const specs = await listSpecs(id)
+    store.specCount = Array.isArray(specs) ? specs.length : 0
+  } catch {
+    store.specCount = 0
+  }
 }
 
 const MAIN_HINT = /(serve|dev|start|run|preview|build)/i

@@ -1,56 +1,63 @@
 <script setup lang="ts">
 /**
- * S07 插件（交接包 FR-17）
- * 交接包里这一屏是「项目已装插件」；sems 没有插件实体，但插件自身对外注册了 22 个
- * sems_* 工具（SemsPlugin.RegisterToolExtensions）。因此这里如实展示这份能力清单，
- * 版本取 /api/plugin 的 sems 版本，不编造「可安装插件市场」。
+ * 「插件」页：只读展示当前项目已声明的工程插件（需求 F19–F22）。
+ * 数据来自 GET /api/projects/{id}/engineering-plugins，不得回退为 sems_* / MCP 工具清单。
  */
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { ic } from '../icons'
-import { store, projectPlugins, toast, currentProject } from '../workbenchStore'
+import {
+  store, currentProject, visibleEngineeringPlugins, loadEngineeringPlugins,
+} from '../workbenchStore'
 
-const list = computed(() => projectPlugins())
 const p = computed(() => currentProject())
-const version = computed(() => store.version || '1.3.0')
+const list = computed(() => visibleEngineeringPlugins())
+const empty = computed(() => !store.engineeringPluginsLoading && !store.engineeringPluginsError && store.engineeringPlugins.length === 0)
+const noMatch = computed(() => !store.engineeringPluginsLoading && !empty.value && !store.engineeringPluginsError && list.value.length === 0)
 
-function onInfo(name: string) {
-  toast(`${name} 经 mcp-center 的 list_tools / universal_tool 对外调用`)
-}
+onMounted(() => { if (p.value) void loadEngineeringPlugins(p.value.id) })
+watch(() => p.value?.id, (id) => { if (id != null) void loadEngineeringPlugins(id) })
 </script>
 
 <template>
   <div class="proj-header">
-    <h2>Sems 工具（{{ list.length }} / 22）</h2>
+    <h2>插件</h2>
     <div class="proj-tools">
       <label class="search">
         <span v-html="ic('search', 'sm')"></span>
-        <input v-model="store.pluginFilter" placeholder="搜索能力 / 分组" aria-label="搜索插件" />
+        <input v-model="store.pluginFilter" placeholder="搜索名称或分组" aria-label="搜索插件" />
       </label>
-      <button class="btn-icon" aria-label="更多" @click="onInfo('sems_*')">
-        <span v-html="ic('more')"></span>
-      </button>
     </div>
   </div>
 
   <div class="proj-canvas">
-    <p class="page-section-title">已注册能力（{{ list.length }} / 22 个 sems_* 工具）</p>
-    <p class="wb-notice">
-      <strong>不是插件市场：</strong>本屏展示 Sems 插件已注册的 22 个 <code>sems_*</code> 工具
-      （来自 SemsPlugin.cs 工具注册表，与 mcp-center 的 list_tools 一致）。
-      Sems <strong>不提供插件安装 / 下载 / 依赖解析</strong>；新增工具需在后端登记并随插件发版。
-    </p>
+    <p class="page-section-title">本项目工程插件（{{ store.engineeringPlugins.length }}）</p>
+    <p class="wb-notice">只读查看当前项目根目录 <code>package.json</code> 已声明的构建、转译、代码质量或框架插件。本页不展示能力中心工具，也不安装、升级或卸载任何包。</p>
 
-    <div v-if="!list.length" class="card">没有匹配的能力</div>
-    <div v-for="t in list" :key="t.name" class="list-row wb-plugin-row">
-      <span class="row-icon"><span v-html="ic('puzzle', 'sm')"></span></span>
-      <div class="row-main">
-        <div class="row-title">{{ t.name }}</div>
-        <div class="row-sub">{{ t.desc }}</div>
-      </div>
-      <div class="row-meta">
-        <span class="badge muted">分组 {{ t.group }}</span>
-        <span class="badge muted">插件 v{{ version }}</span>
-        <a class="link-btn" href="#" @click.prevent="onInfo(t.name)">更多信息 <span v-html="ic('external', 'sm')"></span></a>
+    <div v-if="store.engineeringPluginsLoading" class="card">正在识别本项目插件…</div>
+    <div v-else-if="store.engineeringPluginsError" class="card">
+      <p>无法读取项目工程插件：{{ store.engineeringPluginsError }}</p>
+      <button type="button" class="btn btn-secondary" @click="p && loadEngineeringPlugins(p.id)">重试</button>
+    </div>
+    <div v-else-if="empty" class="empty-state">
+      <span v-html="ic('puzzle', 'lg')"></span>
+      <div>未发现本项目声明的工程插件</div>
+      <div class="es-sub">本页不展示能力中心工具。没有 package.json，或其中未声明可识别的前端工程插件时，会显示此说明。</div>
+    </div>
+    <div v-else-if="noMatch" class="empty-state">
+      <span v-html="ic('search', 'lg')"></span>
+      <div>没有匹配的插件</div>
+      <div class="es-sub">试试其他名称或分组。</div>
+    </div>
+    <div v-else>
+      <div v-for="t in list" :key="t.name" class="list-row wb-plugin-row">
+        <span class="row-icon"><span v-html="ic('puzzle', 'sm')"></span></span>
+        <div class="row-main">
+          <div class="row-title">{{ t.name }}</div>
+          <div class="row-sub">声明版本 {{ t.version || '—' }} · 来源 {{ t.source }}</div>
+        </div>
+        <div class="row-meta">
+          <span class="badge muted">{{ t.group }}</span>
+        </div>
       </div>
     </div>
   </div>

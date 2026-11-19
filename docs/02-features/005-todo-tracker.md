@@ -93,7 +93,9 @@ AI 工具函数（宿主 `universal_tool` / MCP 可调；2026-10-28 命名空间
 侧栏「待办事项」→ `/todo`（界面由插件自带 `web/dist/index.js` 远程加载）。
 典型链路：新建 → 补四栏 → 填项目路径（任意写法）→「列目录 → 勾工件 → 导入为正文」→「生成提示词」（可复制给任意 agent，或直接「交给 AgentHub 执行」）→「下发」→ agent 用 `by-key/{taskKey}/records` 回报 → 执行记录页签查看 → 按服务端允许的阶段流转到「待验收」→ 人工检查后按同一阶段流转入口进入「完成」。TodoTracker 界面不再显示独立的「标记完成/重新打开」按钮；Home 继续使用兼容 API。
 
-2026-10-24 起，`/todo` 提供阶段计数流水线、待验收/阻塞/缺项关注项、优先级筛选、列表/看板切换与分列分页。看板拖动只接受详情 DTO 中 `allowedTargets` 指定的目标；进入阻塞须填写原因，完成或取消须二次确认。任务详情固定显示可编辑标题、当前阶段和合法操作，并将工作单元、下发与委派、执行记录拆成三个页签。快捷键 `/` 聚焦搜索、`N` 聚焦新建、`Escape` 关闭详情。
+2026-10-24 起，`/todo` 提供阶段计数流水线、待验收/阻塞/缺项关注项、优先级筛选、列表/看板切换与分列分页。看板拖动只接受详情 DTO 中 `allowedTargets` 指定的目标；进入阻塞须填写原因，完成或取消须二次确认。
+
+2026-11-19 起（pilot `todotracker-drawer-progressive`）：主区为**全宽列表/看板**；点任务或创建成功后打开右侧**抽屉**（桌面 480px / 窄屏 100%，Teleport 到 body）查看与编辑同一壳。抽屉内为**概要恒显 + 分类折叠渐进披露**（基本信息 / 项目 / 工作单元四栏 / 范围权限 / 下发委派 / 执行记录），创建后分类默认收起。列表缺四栏用中性「下发前待补齐」（可点「去补齐」），不用危险色「还缺」冒充创建失败；下发/委派缺项时点名反馈并展开工作单元。快捷键 `/` 聚焦搜索、`N` 聚焦新建、`Escape` 关闭抽屉（输入框聚焦时不拦截）。
 
 界面口径两条（都是实测出来的）：
 
@@ -112,7 +114,7 @@ AI 工具函数（宿主 `universal_tool` / MCP 可调；2026-10-28 命名空间
 | `…/TodoTrackerAuthTests.cs` | 程序集内全部控制器带 `[Authorize("ApiKeyPolicy")]`（新增控制器漏登记即红） |
 | `…/TodoTrackerWebAssetTests.cs` | `entry`/导出名/vite 产物名/lockfile/宿主别名禁令 |
 | `…/Unit/TodoServiceTests.cs`、`…/Integration/TodosControllerTests.cs` | 旧 CRUD/分页 total/完成重开语义不回归 |
-| `ForgeSelf.Web/e2e/plugins/todo-tracker/todo-tracker.spec.ts` | 唯一一条插件主链路冒烟：远程加载、阶段筛选、看板流转、详情页签；后端 API 回归由 .NET 测试覆盖 |
+| `ForgeSelf.Web/e2e/plugins/todo-tracker/todo-tracker.spec.ts` | 唯一一条插件主链路冒烟：远程加载、阶段筛选、看板流转、抽屉渐进披露与缺项下发反馈；后端 API 回归由 .NET 测试覆盖 |
 | `ForgeSelf.Web/e2e/todo.spec.ts` | 仅剩首页待办面板（应用层跨插件视角） |
 
 ## 5. 已知约束

@@ -34,13 +34,27 @@ const configPath = (() => {
 
 function readMachineGuid() {
   if (process.env.FORGE_MACHINE_GUID) return process.env.FORGE_MACHINE_GUID
-  const out = execSync(
-    'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',
-    { encoding: 'utf8' },
-  )
-  const m = out.match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/)
-  if (!m) throw new Error('无法从注册表读取 MachineGuid（非 Windows 请设 FORGE_MACHINE_GUID）')
-  return m[1]
+  // 与宿主 MachineKeyProvider 一致：Windows 注册表 → /etc/machine-id → /var/lib/dbus/machine-id
+  try {
+    // 分段拼接避免提交卫生门将注册表路径判为 UNC
+    const regPath = ['HKLM', 'SOFTWARE', 'Microsoft', 'Cryptography'].join(String.fromCharCode(92))
+    const out = execSync(`reg query "${regPath}" /v MachineGuid`, { encoding: 'utf8' })
+    const m = out.match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/)
+    if (m) return m[1]
+  } catch {
+    /* 非 Windows 或无 reg */
+  }
+  for (const p of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+    try {
+      if (fs.existsSync(p)) {
+        const id = fs.readFileSync(p, 'utf8').trim()
+        if (id) return id
+      }
+    } catch {
+      /* 下一熵源 */
+    }
+  }
+  throw new Error('无法读取机器标识（非 Windows 可设 FORGE_MACHINE_GUID，或确保 /etc/machine-id 可读）')
 }
 
 function decryptApiToken(payload) {

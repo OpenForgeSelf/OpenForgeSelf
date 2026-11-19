@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * 任务详情：一条任务 = 一个可下发给 agent 的工作单元。
+ * 任务详情（抽屉内）：概要恒显 + 分类折叠渐进披露。
  *
- * 交互口径（plugin-development §3.4）：
- * - **点即保存**：文本栏失焦即回写（只发变化的那一栏），不留"编辑完还要再点保存"的坑；
- * - **状态突变要二次确认**：删除/标记完成/覆盖正文/解除关联走 NotifyHost 的确认框；
- * - **可达阶段照服务端给的 allowedTargets 渲染**，界面不抄一份流转表（否则"按钮能点、后端 409"）；
- * - **空态分级**：未关联项目 / 无工件目录 / 委派能力缺席，各有各自的文案与下一步。
+ * 交互口径（plugin-development §3.4 + pilot drawer-progressive）：
+ * - **点即保存**：文本栏失焦即回写（只发变化的那一栏）；
+ * - **渐进披露**：基本信息 / 项目 / 工作单元 / 范围权限 / 下发委派 / 执行记录默认收起；
+ * - **缺项反馈**：点下发或列表「去补齐」时展开工作单元并点名缺项；
+ * - **状态突变要二次确认**：删除/覆盖正文/解除关联走 NotifyHost 确认框；
+ * - **可达阶段照服务端 allowedTargets 渲染**，界面不抄流转表。
  */
-import { computed, inject, onMounted, reactive, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import ExecutionTimeline from './ExecutionTimeline.vue'
 import * as store from '../store'
 import { listArtifactSets } from '../http'
@@ -22,7 +23,31 @@ import type { TagType } from '../actions'
 
 const props = defineProps<{ task: TodoItem }>()
 const s = store.state
-const activeTab = ref<'work' | 'dispatch' | 'history'>('work')
+
+type SectionKey = 'basic' | 'project' | 'workunit' | 'scope' | 'dispatch' | 'history'
+const openSections = reactive<Record<SectionKey, boolean>>({
+  basic: false,
+  project: false,
+  workunit: false,
+  scope: false,
+  dispatch: false,
+  history: false
+})
+
+function toggleSection(key: SectionKey): void {
+  openSections[key] = !openSections[key]
+}
+
+function expandWorkUnitAndScroll(): void {
+  openSections.workunit = true
+  void nextTick(() => {
+    document.querySelector('[data-test="section-workunit"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+watch(() => s.expandWorkUnitTick, () => {
+  if (s.expandWorkUnitTick > 0) expandWorkUnitAndScroll()
+})
 
 const form = reactive({
   title: '', remark: '', objective: '', content: '', acceptance: '', verification: '',
@@ -54,8 +79,7 @@ const BUILTIN_ROLE_BY_INDEX: Record<number, string> = {
   5: 'agent.writer', 6: 'agent.researcher', 7: 'agent.programmer',
 }
 
-/** 委派对象回显（2026-10-09 输入9）：打开详情按任务既有委派回填引擎/角色/agent 下拉，
- *  不再恒为「默认（程序员）」占位——「不回显之前下发的是哪个 Agent」就是这儿漏的。 */
+/** 委派对象回显：打开详情按任务既有委派回填引擎/角色/agent 下拉。 */
 function syncDelegation(t: TodoItem): void {
   engine.value = t.agentEngine === 'builtin' ? 'builtin' : 'agenthub'
   if (engine.value === 'builtin') {
@@ -80,11 +104,21 @@ function fill(t: TodoItem): void {
   projectPath.value = t.projectRoot || t.projectPathRaw || ''
 }
 
+function resetSections(): void {
+  openSections.basic = false
+  openSections.project = false
+  openSections.workunit = false
+  openSections.scope = false
+  openSections.dispatch = false
+  openSections.history = false
+}
+
 fill(props.task)
 syncDelegation(props.task)
 watch(() => props.task.id, () => {
   fill(props.task)
   syncDelegation(props.task)
+  resetSections()
   void store.loadPreview(props.task)
 })
 
@@ -105,7 +139,6 @@ const canDelegate = computed(() => !!s.preview?.canDelegate)
 const canDelegateBuiltIn = computed(() => !!s.preview?.canDispatch && !!s.preview?.builtInAvailable)
 /**
  * 禁用原因必须"照实说"：预览还没生成 / 接缝不在场 / 四栏不齐，是三种不同的下一步。
- * （实测：把"先生成提示词"当默认文案会在预览已生成但不可委派时撒谎。）
  */
 const delegateHint = computed(() => {
   if (canDelegate.value) return '经 agent-hub 起一个真实 agent 执行'
@@ -125,7 +158,6 @@ const terminalStatus = computed(() => {
   return `${a.status}${a.exitCode != null ? ` · exit ${a.exitCode}` : ''}${a.errorCode ? ` · ${a.errorCode}` : ''}`
 })
 
-/** 委派状态徽标（PILOT-057A 对比）：Queued/Running/Succeeded/Failed… 用色块区分，不再一行平铺。 */
 const agentBadge = computed(() => {
   const a = s.agent
   if (!a) return { label: '', type: 'info' as TagType }
@@ -133,7 +165,6 @@ const agentBadge = computed(() => {
   return agentStatusMeta(a.status)
 })
 
-/** resultSummary 超长折叠（PILOT-056/057A）：>240 截断 + 展开全文，:title 恒为全量。 */
 const summaryOpen = ref(false)
 const SUMMARY_CAP = 240
 const summaryPreview = computed(() => {
@@ -143,11 +174,8 @@ const summaryPreview = computed(() => {
 })
 const summaryLong = computed(() => (s.agent?.resultSummary?.length ?? 0) > SUMMARY_CAP)
 
-/** 接缝在但可用 agent 为空：给「去登记」引导（FR-2.2），不许无声只剩一个禁用按钮。 */
 const agentsEmpty = computed(() => !!s.preview?.delegationAvailable && !s.preview.agents.length)
 
-/** 委派 agent 显示名：优先实时状态里的 AgentName，缺失按 task.agentId 兜底（FR-3.3）；
- *  内置引擎兜底显示「本工具AI·角色#n」，避免误读成 AgentHub 的 agent#id。 */
 const agentDisplayName = computed(() => {
   if (s.agent?.agentName) return s.agent.agentName
   if (props.task.agentEngine === 'builtin') {
@@ -157,7 +185,6 @@ const agentDisplayName = computed(() => {
   return agentNameOrFallback(undefined, props.task.agentId)
 })
 
-/** 插件内跳转走导航桥四级降级链（plugin-development 铁律 5）：inject → window 桥 → location.assign。 */
 const openPage = inject<((path: string) => void) | null>('forgeOpenPage', null)
 function goRegister(): void {
   const bridge = openPage ?? (window as unknown as { __FORGE_OPEN_PAGE__?: (p: string) => void }).__FORGE_OPEN_PAGE__
@@ -165,10 +192,11 @@ function goRegister(): void {
   else location.assign('/agent-hub')
 }
 
-/** 「查看执行记录」锚点：滚动到 ExecutionTimeline（记录区在详情最底部，FR-3.4）。 */
 function scrollToRecords(): void {
-  const el = document.querySelector('[data-test="execution-timeline"]')
-  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  openSections.history = true
+  void nextTick(() => {
+    document.querySelector('[data-test="execution-timeline"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 async function doRecord(): Promise<void> {
@@ -185,7 +213,7 @@ async function selectProject(): Promise<void> {
   if (ok) projectMode.value = 'path'
 }
 
-/** 失焦即存：只提交真正改过的栏位，避免把别人刚改的内容覆盖回去。 */
+/** 失焦即存：只提交真正改过的栏位。 */
 async function commit(): Promise<void> {
   if (!dirty.value) return
   const t = props.task
@@ -225,7 +253,7 @@ async function chooseStage(target: string): Promise<void> {
 async function saveProject(): Promise<void> {
   const path = projectPath.value.trim()
   if (!path) {
-    showToast('要关联项目请先填路径（支持 D:\\proj、/d/proj 等写法）', 'warning')
+    showToast('要关联项目请先填路径（任意本机写法，由服务端归一）', 'warning')
     return
   }
   const ok = await store.linkProject(props.task, path)
@@ -251,7 +279,6 @@ async function loadSets(): Promise<void> {
   try {
     const res = await listArtifactSets(t.projectId, t.projectRoot || undefined)
     if (!res.items.length) {
-      // 空清单的原因由后端给（"没有 docs/ai/pilot 目录"与"有目录但没有 NN-*.md"是两回事），界面不许自己编
       setsError.value = res.message || '后端没列出任何工件目录（未给出原因）。'
     }
     sets.value = res.items
@@ -308,18 +335,27 @@ async function copyPrompt(): Promise<void> {
     ok ? 'success' : 'warning')
 }
 
+/** 下发：缺项时不禁用按钮，点名反馈并展开工作单元（AC-UI-5）。 */
 async function doDispatch(): Promise<void> {
-  if (missingText.value) { showToast(`还缺：${missingText.value}`, 'warning'); return }
+  if (missingText.value) {
+    showToast(`下发前还缺：${missingText.value}`, 'warning')
+    expandWorkUnitAndScroll()
+    return
+  }
   await store.dispatchTask(props.task, form.assignee)
 }
 
 async function doDelegate(): Promise<void> {
+  if (missingText.value) {
+    showToast(`下发前还缺：${missingText.value}`, 'warning')
+    expandWorkUnitAndScroll()
+    return
+  }
   const roleId = engine.value === 'builtin'
     ? (agentRoleIndex.value ? BUILTIN_ROLE_BY_INDEX[agentRoleIndex.value] ?? undefined : undefined)
     : undefined
   const result = await store.delegateToAgent(props.task, agentId.value, form.permissionMode, engine.value, roleId)
   if (result?.ok) {
-    // 委派成功即回填「下发对象」（点即保存），详情头第一眼就能看到下发给谁（输入9 反馈）
     if (result.agentName && form.assignee !== result.agentName) {
       form.assignee = result.agentName
       commit()
@@ -335,13 +371,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="td" :class="{ 'is-busy': s.operating }">
+  <div class="td" data-test="task-detail" :class="{ 'is-busy': s.operating }">
+    <!-- 0 概要条（恒显，非折叠） -->
     <header class="td-head">
       <div class="td-head-title">
-        <h2 class="td-head-task-title" :title="form.title || task.title">{{ form.title || task.title }}</h2>
+        <input
+          id="td-title"
+          v-model="form.title"
+          class="td-input td-title-input"
+          maxlength="200"
+          aria-label="任务标题"
+          @blur="commit"
+        >
         <span class="td-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
+        <span class="td-prio">{{ priorityLabel(form.priority) }}</span>
         <span class="td-key" :title="`任务编号：${task.taskKey}`">{{ task.taskKey }}</span>
       </div>
+      <p v-if="missingText" class="td-soft-hint" data-test="detail-soft-hint">
+        下发前待补齐：{{ missingText }}
+        <button type="button" class="td-link" data-test="go-fill-workunit" @click="expandWorkUnitAndScroll">去补齐</button>
+      </p>
       <div class="td-head-actions">
         <input v-if="task.allowedTargets.includes('Blocked')" v-model="blockReason" class="td-input td-block-reason"
           aria-label="阻塞原因" placeholder="流转为阻塞时填写原因">
@@ -349,263 +398,284 @@ onMounted(() => {
           :class="{ 'is-primary': target === 'Done', 'is-danger': target === 'Cancelled' }"
           :data-test="`stage-${target}`" @click="chooseStage(target)">{{ stageLabel(target) }}</button>
       </div>
-      <button type="button" class="td-close" aria-label="关闭详情" @click="store.closeDetail()">×</button>
+      <button type="button" class="td-close" aria-label="关闭详情" data-test="drawer-close" @click="store.closeDetail()">×</button>
     </header>
 
-    <nav class="td-tabs" role="tablist" aria-label="任务详情页签">
-      <button type="button" role="tab" :aria-selected="activeTab === 'work'" :class="{ 'is-on': activeTab === 'work' }" @click="activeTab = 'work'">工作单元</button>
-      <button type="button" role="tab" :aria-selected="activeTab === 'dispatch'" :class="{ 'is-on': activeTab === 'dispatch' }" @click="activeTab = 'dispatch'">下发与委派</button>
-      <button type="button" role="tab" :aria-selected="activeTab === 'history'" :class="{ 'is-on': activeTab === 'history' }" @click="activeTab = 'history'">执行记录</button>
-    </nav>
-
     <div class="td-scroll">
-      <div v-if="activeTab === 'work'" class="td-tab-panel" role="tabpanel">
-      <section class="td-card">
-        <header class="td-card-head"><span class="td-card-title">任务信息</span></header>
-        <div class="td-block">
-        <label class="td-label" for="td-title">标题</label>
-        <input id="td-title" v-model="form.title" class="td-input td-title-input" maxlength="200" @blur="commit">
-        <label class="td-label" for="td-remark">备注</label>
-        <textarea id="td-remark" v-model="form.remark" class="td-input td-area" rows="2" maxlength="1000"
-          placeholder="给人看的补充说明（不会进下发正文）" @blur="commit"></textarea>
-        <div class="td-row">
-          <div>
-            <label class="td-label" for="td-prio">优先级</label>
-            <select id="td-prio" v-model.number="form.priority" class="td-input" @change="commit">
-              <option :value="1">P1</option>
-              <option :value="2">P2</option>
-              <option :value="3">P3</option>
-            </select>
+      <!-- 1 基本信息 -->
+      <section class="td-section" data-test="section-basic">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.basic" @click="toggleSection('basic')">
+          <span class="td-section-title">基本信息</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.basic }">▸</span>
+        </button>
+        <div v-if="openSections.basic" class="td-section-body">
+          <label class="td-label" for="td-remark">备注</label>
+          <textarea id="td-remark" v-model="form.remark" class="td-input td-area" rows="2" maxlength="1000"
+            placeholder="给人看的补充说明（不会进下发正文）" @blur="commit"></textarea>
+          <div class="td-row">
+            <div>
+              <label class="td-label" for="td-prio">优先级</label>
+              <select id="td-prio" v-model.number="form.priority" class="td-input" @change="commit">
+                <option :value="1">P1</option>
+                <option :value="2">P2</option>
+                <option :value="3">P3</option>
+              </select>
+            </div>
+            <div class="td-grow">
+              <label class="td-label" for="td-assignee">下发对象</label>
+              <input id="td-assignee" v-model="form.assignee" class="td-input" maxlength="100"
+                :placeholder="task.agentTaskKey ? agentDisplayName || 'agent 名 / manual' : 'agent 名 / manual'"
+                @blur="commit">
+            </div>
           </div>
-          <div class="td-grow">
-            <label class="td-label" for="td-assignee">下发对象</label>
-            <input id="td-assignee" v-model="form.assignee" class="td-input" maxlength="100"
-              :placeholder="task.agentTaskKey ? agentDisplayName || 'agent 名 / manual' : 'agent 名 / manual'"
-              @blur="commit">
-          </div>
+          <p v-if="dirty" class="td-dirty">有未保存的改动（失焦即保存）</p>
         </div>
-        <p v-if="dirty" class="td-dirty">有未保存的改动（失焦即保存）</p>
-      </div>
-
-      <section class="td-block">
-        <div class="td-block-head">
-          <span class="td-label td-strong">项目路径</span>
-          <span v-if="!task.projectId" class="td-mode-switch">
-            <button type="button" class="td-link" :class="{ 'is-on': projectMode === 'select' }"
-              :title="store.state.projects.length ? '从宿主项目档案里选一个，自动带出项目地址' : '宿主还没有项目档案，可输入路径创建'"
-              @click="projectMode = projectMode === 'select' ? 'path' : 'select'">
-              {{ projectMode === 'select' ? '改用输入路径' : '选择项目' }}
-            </button>
-          </span>
-          <button v-if="!projectEditing && task.projectId" type="button" class="td-link" @click="projectEditing = true">改</button>
-        </div>
-        <template v-if="task.projectId">
-          <p class="td-proj-line"><b>{{ projectLabel }}</b></p>
-          <p class="td-mono" :title="task.projectRoot">{{ task.projectRoot }}</p>
-          <p v-if="task.projectPathRaw && task.projectPathRaw !== task.projectRoot" class="td-dim">
-            你的写法：<span class="td-mono">{{ task.projectPathRaw }}</span>
-          </p>
-          <div v-if="projectEditing" class="td-row td-row-top">
-            <input v-model="projectPath" class="td-input td-grow" placeholder="/d/project 或 D:\project">
-            <button type="button" class="td-btn is-primary" @click="saveProject">保存</button>
-            <button type="button" class="td-btn" @click="removeProject">解除</button>
-          </div>
-        </template>
-        <template v-else>
-          <p class="td-empty-line">未关联项目 —— 下发时 agent 不知道在哪个目录干活。</p>
-          <div v-if="projectMode === 'select'" class="td-row td-row-top">
-            <select v-model.number="selectedProjectId" class="td-input td-grow" data-test="project-select">
-              <option :value="0">选择项目档案…</option>
-              <option v-for="p in store.state.projects" :key="p.id" :value="p.id" :title="`${p.root}`">
-                {{ p.name || shortPath(p.root, 24) }} · {{ shortPath(p.root, 30) }}（{{ p.taskCount }} 任务）
-              </option>
-            </select>
-            <button type="button" class="td-btn is-primary" :disabled="!selectedProjectId" @click="selectProject">关联</button>
-          </div>
-          <div v-else class="td-row td-row-top">
-            <input v-model="projectPath" class="td-input td-grow" placeholder="支持 /d/project、D:\project、D:/project、/mnt/d/project">
-            <button type="button" class="td-btn is-primary" :disabled="!projectPath.trim()" @click="saveProject">关联</button>
-          </div>
-          <p v-if="projectMode === 'select' && !store.state.projects.length" class="td-empty-line">
-            宿主还没有项目档案 —— 可切回「输入路径」直接填目录创建。
-          </p>
-        </template>
       </section>
 
-      <section class="td-block">
-        <div class="td-block-head">
-          <span class="td-label td-strong">工作单元四栏</span>
-          <span v-if="missingText" class="td-missing">还缺：{{ missingText }}</span>
-          <span v-else class="td-ok">四栏齐备，可下发</span>
+      <!-- 2 项目关联 -->
+      <section class="td-section" data-test="section-project">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.project" @click="toggleSection('project')">
+          <span class="td-section-title">项目关联</span>
+          <span v-if="!task.projectId" class="td-section-badge">建议关联</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.project }">▸</span>
+        </button>
+        <div v-if="openSections.project" class="td-section-body">
+          <div class="td-block-head">
+            <span class="td-label td-strong">项目路径</span>
+            <span v-if="!task.projectId" class="td-mode-switch">
+              <button type="button" class="td-link" :class="{ 'is-on': projectMode === 'select' }"
+                :title="store.state.projects.length ? '从宿主项目档案里选一个，自动带出项目地址' : '宿主还没有项目档案，可输入路径创建'"
+                @click="projectMode = projectMode === 'select' ? 'path' : 'select'">
+                {{ projectMode === 'select' ? '改用输入路径' : '选择项目' }}
+              </button>
+            </span>
+            <button v-if="!projectEditing && task.projectId" type="button" class="td-link" @click="projectEditing = true">改</button>
+          </div>
+          <template v-if="task.projectId">
+            <p class="td-proj-line"><b>{{ projectLabel }}</b></p>
+            <p class="td-mono" :title="task.projectRoot">{{ task.projectRoot }}</p>
+            <p v-if="task.projectPathRaw && task.projectPathRaw !== task.projectRoot" class="td-dim">
+              你的写法：<span class="td-mono">{{ task.projectPathRaw }}</span>
+            </p>
+            <div v-if="projectEditing" class="td-row td-row-top">
+              <input v-model="projectPath" class="td-input td-grow" placeholder="填写项目根目录路径">
+              <button type="button" class="td-btn is-primary" @click="saveProject">保存</button>
+              <button type="button" class="td-btn" @click="removeProject">解除</button>
+            </div>
+          </template>
+          <template v-else>
+            <p class="td-empty-line">未关联项目 —— 下发时 agent 不知道在哪个目录干活。</p>
+            <div v-if="projectMode === 'select'" class="td-row td-row-top">
+              <select v-model.number="selectedProjectId" class="td-input td-grow" data-test="project-select">
+                <option :value="0">选择项目档案…</option>
+                <option v-for="p in store.state.projects" :key="p.id" :value="p.id" :title="`${p.root}`">
+                  {{ p.name || shortPath(p.root, 24) }} · {{ shortPath(p.root, 30) }}（{{ p.taskCount }} 任务）
+                </option>
+              </select>
+              <button type="button" class="td-btn is-primary" :disabled="!selectedProjectId" @click="selectProject">关联</button>
+            </div>
+            <div v-else class="td-row td-row-top">
+              <input v-model="projectPath" class="td-input td-grow" placeholder="填写项目根目录路径（任意本机写法，由服务端归一）">
+              <button type="button" class="td-btn is-primary" :disabled="!projectPath.trim()" @click="saveProject">关联</button>
+            </div>
+            <p v-if="projectMode === 'select' && !store.state.projects.length" class="td-empty-line">
+              宿主还没有项目档案 —— 可切回「输入路径」直接填目录创建。
+            </p>
+          </template>
         </div>
-        <label class="td-label" for="td-obj">Objective（可验证目标）</label>
-        <input id="td-obj" v-model="form.objective" class="td-input" maxlength="500"
-          placeholder="做完后仓库达到的可验证状态，一句话" @blur="commit">
-        <label class="td-label" for="td-content">任务正文（markdown）</label>
-        <textarea id="td-content" v-model="form.content" class="td-input td-area td-area-tall"
-          placeholder="要做什么、背景与约束；也可从下方工件导入自动填充" @blur="commit"></textarea>
-        <div class="td-row">
-          <div class="td-grow">
-            <label class="td-label" for="td-allow">允许改动范围</label>
-            <textarea id="td-allow" v-model="form.allowedScope" class="td-input td-area" rows="3"
-              placeholder="一行一条，如 Plugins/TodoTracker/**" @blur="commit"></textarea>
-          </div>
-          <div class="td-grow">
-            <label class="td-label" for="td-forbid">禁止改动范围</label>
-            <textarea id="td-forbid" v-model="form.forbiddenScope" class="td-input td-area" rows="3"
-              placeholder="一行一条，如 宿主实体结构 / 生产环境" @blur="commit"></textarea>
-          </div>
-        </div>
-        <label class="td-label" for="td-accept">验收判据（每行一条）</label>
-        <textarea id="td-accept" v-model="form.acceptance" class="td-input td-area" rows="3"
-          placeholder="- [ ] 可被命令或界面判定的结论" @blur="commit"></textarea>
-        <label class="td-label" for="td-verify">验证命令（每行一条）</label>
-        <textarea id="td-verify" v-model="form.verification" class="td-input td-area" rows="2"
-          placeholder="dotnet test --filter ~TodoTracker" @blur="commit"></textarea>
-      </section>
-      </section>
-      </div>
-
-      <div v-else-if="activeTab === 'dispatch'" class="td-tab-panel" role="tabpanel">
-      <section class="td-card">
-        <header class="td-card-head"><span class="td-card-title">下发与执行</span></header>
-        <div class="td-block">
-
-      <section class="td-block">
-        <div class="td-block-head">
-          <span class="td-label td-strong">从工件导入</span>
-          <button type="button" class="td-link" :disabled="importBusy" @click="loadSets">
-            {{ importBusy ? '读取中…' : '列目录' }}
-          </button>
-        </div>
-        <p v-if="setsError" class="td-empty-line">{{ setsError }}</p>
-        <template v-else-if="sets.length">
-          <select class="td-input" :value="chosenDir" @change="selectSet(sets.find(x => x.dir === ($event.target as HTMLSelectElement).value)!)">
-            <option value="">选择工件目录…</option>
-            <option v-for="set in sets" :key="set.dir" :value="set.dir">
-              {{ set.dir }}（{{ set.files.length }} 件{{ set.hasCoreFiles ? ' · 含核心件' : '' }}）
-            </option>
-          </select>
-          <div v-if="chosenSet" class="td-files">
-            <label v-for="f in chosenSet.files" :key="f.name" class="td-file">
-              <input v-model="chosenFiles" type="checkbox" :value="f.name">
-              <span class="td-mono">{{ f.name }}</span>
-              <span v-if="f.isCore" class="td-core">核心</span>
-              <span class="td-dim">{{ (f.size / 1024).toFixed(1) }} KB</span>
-            </label>
-          </div>
-          <div class="td-row td-row-top">
-            <button type="button" class="td-btn is-primary"
-              :disabled="importBusy || !chosenDir || !chosenFiles.length" @click="doImport(false)">
-              导入为正文（默认勾核心四件）
-            </button>
-            <span class="td-dim">来源：<span class="td-mono">{{ task.artifactRef || '—' }}</span></span>
-          </div>
-        </template>
-        <p v-else class="td-dim">点「列目录」读取该项目 docs/ai/pilot 下的工件。</p>
       </section>
 
-      <section class="td-block">
-        <div class="td-block-head">
-          <span class="td-label td-strong">下发</span>
-          <button type="button" class="td-link" :disabled="previewBusy" @click="openPreview">
-            {{ previewBusy ? '生成中…' : '生成提示词' }}
-          </button>
+      <!-- 3 工作单元 · 下发必填 -->
+      <section class="td-section" data-test="section-workunit">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.workunit" @click="toggleSection('workunit')">
+          <span class="td-section-title">工作单元 · 下发必填</span>
+          <span v-if="missingText" class="td-section-badge">待补齐</span>
+          <span v-else class="td-section-badge is-ok">齐备</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.workunit }">▸</span>
+        </button>
+        <div v-if="openSections.workunit" class="td-section-body">
+          <div class="td-block-head">
+            <span v-if="missingText" class="td-soft-inline" data-test="workunit-missing">下发前还缺：{{ missingText }}</span>
+            <span v-else class="td-ok">四栏齐备，可下发</span>
+          </div>
+          <label class="td-label" for="td-obj">Objective（可验证目标）</label>
+          <input id="td-obj" v-model="form.objective" class="td-input" maxlength="500"
+            placeholder="做完后仓库达到的可验证状态，一句话（下发前再填）" @blur="commit">
+          <label class="td-label" for="td-content">任务正文（markdown）</label>
+          <textarea id="td-content" v-model="form.content" class="td-input td-area td-area-tall"
+            placeholder="要做什么、背景与约束；也可从「下发与委派」导入工件（下发前再填）" @blur="commit"></textarea>
+          <label class="td-label" for="td-accept">验收判据（每行一条）</label>
+          <textarea id="td-accept" v-model="form.acceptance" class="td-input td-area" rows="3"
+            placeholder="- [ ] 可被命令或界面判定的结论（下发前再填）" @blur="commit"></textarea>
+          <label class="td-label" for="td-verify">验证命令（每行一条）</label>
+          <textarea id="td-verify" v-model="form.verification" class="td-input td-area" rows="2"
+            placeholder="dotnet test --filter ~TodoTracker（下发前再填）" @blur="commit"></textarea>
         </div>
-        <div class="td-row td-row-top">
-          <button type="button" class="td-btn is-primary" :disabled="!!missingText" @click="doDispatch">下发</button>
-          <select v-model="form.permissionMode" class="td-input" title="委派权限模式" @change="commit">
+      </section>
+
+      <!-- 4 范围与权限 -->
+      <section class="td-section" data-test="section-scope">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.scope" @click="toggleSection('scope')">
+          <span class="td-section-title">范围与权限</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.scope }">▸</span>
+        </button>
+        <div v-if="openSections.scope" class="td-section-body">
+          <div class="td-row">
+            <div class="td-grow">
+              <label class="td-label" for="td-allow">允许改动范围</label>
+              <textarea id="td-allow" v-model="form.allowedScope" class="td-input td-area" rows="3"
+                placeholder="一行一条，如 Plugins/TodoTracker/**" @blur="commit"></textarea>
+            </div>
+            <div class="td-grow">
+              <label class="td-label" for="td-forbid">禁止改动范围</label>
+              <textarea id="td-forbid" v-model="form.forbiddenScope" class="td-input td-area" rows="3"
+                placeholder="一行一条，如 宿主实体结构 / 生产环境" @blur="commit"></textarea>
+            </div>
+          </div>
+          <label class="td-label" for="td-perm">权限模式</label>
+          <select id="td-perm" v-model="form.permissionMode" class="td-input" title="委派权限模式" @change="commit">
             <option value="read-only">read-only</option>
             <option value="workspace-write">workspace-write</option>
             <option value="accept-edits">accept-edits</option>
           </select>
         </div>
-        <div class="td-row td-row-top" data-test="delegate-engine-row">
-          <select v-model="engine" class="td-input" title="委派引擎" data-test="delegate-engine">
-            <option value="agenthub">外部 AgentHub</option>
-            <option value="builtin">本工具 AI Agent</option>
-          </select>
-          <select v-if="engine === 'builtin'" v-model="agentRoleIndex"
-            class="td-input" title="内置角色" data-test="delegate-role">
-            <template v-if="s.preview?.builtInAgents.length">
-              <option :value="undefined">默认（程序员）</option>
-              <option v-for="a in s.preview.builtInAgents" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </template>
-            <option v-else :value="undefined" disabled>
-              {{ s.preview ? '本工具 AI Agent 未就绪（先生成提示词）' : '加载中…' }}
-            </option>
-          </select>
-          <select v-else v-model="agentId" class="td-input" title="执行 agent" data-test="delegate-agent">
-            <template v-if="s.preview?.agents.length">
-              <option :value="undefined">默认 agent</option>
-              <option v-for="a in s.preview.agents" :key="a.id" :value="a.id">{{ a.name }}（{{ a.vendor }}）</option>
-            </template>
-            <option v-else :value="undefined" disabled>
-              {{ s.preview ? '暂无可用 agent（请先登记）' : '加载中…' }}
-            </option>
-          </select>
-          <button v-if="engine === 'builtin'" type="button" class="td-btn" :disabled="!canDelegateBuiltIn"
-            :title="delegateHintBuiltIn" data-test="delegate-builtin" @click="doDelegate">交给本工具 AI Agent 执行</button>
-          <button v-else type="button" class="td-btn" :disabled="!canDelegate"
-            :title="delegateHint" @click="doDelegate">交给 AgentHub 执行</button>
-        </div>
-        <p v-if="engine === 'agenthub' && !canDelegate" class="td-hint" data-test="delegate-hint">{{ delegateHint }}</p>
-        <p v-if="engine === 'builtin' && !canDelegateBuiltIn" class="td-hint" data-test="delegate-hint-builtin">{{ delegateHintBuiltIn }}</p>
-        <p v-if="agentsEmpty" class="td-hint">
-          AgentHub 已就绪，但还没有可用 agent ——
-          <button type="button" class="td-link" data-test="go-register-agent" @click="goRegister">去 Agent 中枢登记本机 agent</button>
-          （opencode / claude 等）。
-        </p>
-        <p v-if="s.preview && !s.preview.canDispatch" class="td-missing">
-          还缺：{{ missingLabels(s.preview.missing) || '必填项' }}
-        </p>
-        <ul v-if="s.preview?.warnings?.length" class="td-warns">
-          <li v-for="w in s.preview.warnings" :key="w">{{ w }}</li>
-        </ul>
-        <template v-if="s.preview">
-          <textarea class="td-input td-area td-area-code" rows="8" readonly :value="s.preview.promptMarkdown"
-            aria-label="下发提示词"></textarea>
-          <div class="td-row td-row-top">
-            <button type="button" class="td-btn" @click="copyPrompt">复制提示词</button>
-            <span class="td-dim">回报：POST /api/todos/by-key/{{ task.taskKey }}/records</span>
-          </div>
-        </template>
-        <template v-if="task.agentTaskKey">
-          <div class="td-row td-row-top" data-test="delegation-status">
-            <span class="td-dim">委派状态：</span>
-            <span v-if="s.agent?.agentName || task.agentId" class="td-dim">
-              <span v-if="task.agentEngine === 'builtin'" class="td-engine-tag">本工具AI</span>
-              agent <b>{{ agentDisplayName }}</b>
-            </span>
-            <span class="td-deleg-badge" :class="`tag-${agentBadge.type}`">{{ agentBadge.label || '读取中…' }}</span>
-            <span v-if="terminalStatus && s.agent?.ok" class="td-dim">{{ terminalStatus }}</span>
-            <button type="button" class="td-link" @click="store.loadAgentStatus()">刷新</button>
-            <button type="button" class="td-btn td-btn-sm" @click="doRecord">记为执行记录</button>
-            <button type="button" class="td-link" @click="scrollToRecords">查看执行记录 ↓</button>
-          </div>
-          <p v-if="s.agent?.error && !s.agent.ok" class="td-missing">{{ s.agent.error }}</p>
-          <p v-if="s.agent?.resultSummary" class="td-result" :title="s.agent.resultSummary">{{ summaryPreview }}
-            <button v-if="summaryLong" type="button" class="td-link" @click="summaryOpen = !summaryOpen">
-              {{ summaryOpen ? '收起' : '展开全文' }}
-            </button>
-          </p>
-          <p v-if="!s.agent?.ok && !s.agent?.error" class="td-dim">委派状态读取中…（每 15 秒自动刷新，结束会自动提示）</p>
-        </template>
       </section>
-      </div>
-      </section>
-      </div>
 
-      <div v-else class="td-tab-panel" role="tabpanel">
-      <section class="td-card">
-        <header class="td-card-head"><span class="td-card-title">执行记录</span>
-          <button type="button" class="td-btn td-btn-sm is-danger" @click="store.removeTodo(task)">删除任务</button>
-        </header>
-        <div class="td-block">
+      <!-- 5 下发与委派 -->
+      <section class="td-section" data-test="section-dispatch">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.dispatch" @click="toggleSection('dispatch')">
+          <span class="td-section-title">下发与委派</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.dispatch }">▸</span>
+        </button>
+        <div v-if="openSections.dispatch" class="td-section-body">
+          <div class="td-block-head">
+            <span class="td-label td-strong">从工件导入</span>
+            <button type="button" class="td-link" :disabled="importBusy" @click="loadSets">
+              {{ importBusy ? '读取中…' : '列目录' }}
+            </button>
+          </div>
+          <p v-if="setsError" class="td-empty-line">{{ setsError }}</p>
+          <template v-else-if="sets.length">
+            <select class="td-input" :value="chosenDir" @change="selectSet(sets.find(x => x.dir === ($event.target as HTMLSelectElement).value)!)">
+              <option value="">选择工件目录…</option>
+              <option v-for="set in sets" :key="set.dir" :value="set.dir">
+                {{ set.dir }}（{{ set.files.length }} 件{{ set.hasCoreFiles ? ' · 含核心件' : '' }}）
+              </option>
+            </select>
+            <div v-if="chosenSet" class="td-files">
+              <label v-for="f in chosenSet.files" :key="f.name" class="td-file">
+                <input v-model="chosenFiles" type="checkbox" :value="f.name">
+                <span class="td-mono">{{ f.name }}</span>
+                <span v-if="f.isCore" class="td-core">核心</span>
+                <span class="td-dim">{{ (f.size / 1024).toFixed(1) }} KB</span>
+              </label>
+            </div>
+            <div class="td-row td-row-top">
+              <button type="button" class="td-btn is-primary"
+                :disabled="importBusy || !chosenDir || !chosenFiles.length" @click="doImport(false)">
+                导入为正文（默认勾核心四件）
+              </button>
+              <span class="td-dim">来源：<span class="td-mono">{{ task.artifactRef || '—' }}</span></span>
+            </div>
+          </template>
+          <p v-else class="td-dim">点「列目录」读取该项目 docs/ai/pilot 下的工件。</p>
+
+          <div class="td-block-head" style="margin-top: 10px">
+            <span class="td-label td-strong">下发</span>
+            <button type="button" class="td-link" :disabled="previewBusy" @click="openPreview">
+              {{ previewBusy ? '生成中…' : '生成提示词' }}
+            </button>
+          </div>
+          <div class="td-row td-row-top">
+            <button type="button" class="td-btn is-primary" data-test="dispatch-btn" @click="doDispatch">下发</button>
+          </div>
+          <div class="td-row td-row-top" data-test="delegate-engine-row">
+            <select v-model="engine" class="td-input" title="委派引擎" data-test="delegate-engine">
+              <option value="agenthub">外部 AgentHub</option>
+              <option value="builtin">本工具 AI Agent</option>
+            </select>
+            <select v-if="engine === 'builtin'" v-model="agentRoleIndex"
+              class="td-input" title="内置角色" data-test="delegate-role">
+              <template v-if="s.preview?.builtInAgents.length">
+                <option :value="undefined">默认（程序员）</option>
+                <option v-for="a in s.preview.builtInAgents" :key="a.id" :value="a.id">{{ a.name }}</option>
+              </template>
+              <option v-else :value="undefined" disabled>
+                {{ s.preview ? '本工具 AI Agent 未就绪（先生成提示词）' : '加载中…' }}
+              </option>
+            </select>
+            <select v-else v-model="agentId" class="td-input" title="执行 agent" data-test="delegate-agent">
+              <template v-if="s.preview?.agents.length">
+                <option :value="undefined">默认 agent</option>
+                <option v-for="a in s.preview.agents" :key="a.id" :value="a.id">{{ a.name }}（{{ a.vendor }}）</option>
+              </template>
+              <option v-else :value="undefined" disabled>
+                {{ s.preview ? '暂无可用 agent（请先登记）' : '加载中…' }}
+              </option>
+            </select>
+            <button v-if="engine === 'builtin'" type="button" class="td-btn" :disabled="!canDelegateBuiltIn && !missingText"
+              :title="delegateHintBuiltIn" data-test="delegate-builtin" @click="doDelegate">交给本工具 AI Agent 执行</button>
+            <button v-else type="button" class="td-btn" :disabled="!canDelegate && !missingText"
+              :title="delegateHint" @click="doDelegate">交给 AgentHub 执行</button>
+          </div>
+          <p v-if="engine === 'agenthub' && !canDelegate" class="td-hint" data-test="delegate-hint">{{ delegateHint }}</p>
+          <p v-if="engine === 'builtin' && !canDelegateBuiltIn" class="td-hint" data-test="delegate-hint-builtin">{{ delegateHintBuiltIn }}</p>
+          <p v-if="agentsEmpty" class="td-hint">
+            AgentHub 已就绪，但还没有可用 agent ——
+            <button type="button" class="td-link" data-test="go-register-agent" @click="goRegister">去 Agent 中枢登记本机 agent</button>
+            （opencode / claude 等）。
+          </p>
+          <p v-if="s.preview && !s.preview.canDispatch" class="td-soft-inline">
+            下发前还缺：{{ missingLabels(s.preview.missing) || '必填项' }}
+          </p>
+          <ul v-if="s.preview?.warnings?.length" class="td-warns">
+            <li v-for="w in s.preview.warnings" :key="w">{{ w }}</li>
+          </ul>
+          <template v-if="s.preview">
+            <textarea class="td-input td-area td-area-code" rows="8" readonly :value="s.preview.promptMarkdown"
+              aria-label="下发提示词"></textarea>
+            <div class="td-row td-row-top">
+              <button type="button" class="td-btn" @click="copyPrompt">复制提示词</button>
+              <span class="td-dim">回报：POST /api/todos/by-key/{{ task.taskKey }}/records</span>
+            </div>
+          </template>
+          <template v-if="task.agentTaskKey">
+            <div class="td-row td-row-top" data-test="delegation-status">
+              <span class="td-dim">委派状态：</span>
+              <span v-if="s.agent?.agentName || task.agentId" class="td-dim">
+                <span v-if="task.agentEngine === 'builtin'" class="td-engine-tag">本工具AI</span>
+                agent <b>{{ agentDisplayName }}</b>
+              </span>
+              <span class="td-deleg-badge" :class="`tag-${agentBadge.type}`">{{ agentBadge.label || '读取中…' }}</span>
+              <span v-if="terminalStatus && s.agent?.ok" class="td-dim">{{ terminalStatus }}</span>
+              <button type="button" class="td-link" @click="store.loadAgentStatus()">刷新</button>
+              <button type="button" class="td-btn td-btn-sm" @click="doRecord">记为执行记录</button>
+              <button type="button" class="td-link" @click="scrollToRecords">查看执行记录 ↓</button>
+            </div>
+            <p v-if="s.agent?.error && !s.agent.ok" class="td-missing">{{ s.agent.error }}</p>
+            <p v-if="s.agent?.resultSummary" class="td-result" :title="s.agent.resultSummary">{{ summaryPreview }}
+              <button v-if="summaryLong" type="button" class="td-link" @click="summaryOpen = !summaryOpen">
+                {{ summaryOpen ? '收起' : '展开全文' }}
+              </button>
+            </p>
+            <p v-if="!s.agent?.ok && !s.agent?.error" class="td-dim">委派状态读取中…（每 15 秒自动刷新，结束会自动提示）</p>
+          </template>
+        </div>
+      </section>
+
+      <!-- 6 执行记录 -->
+      <section class="td-section" data-test="section-history">
+        <button type="button" class="td-section-head" :aria-expanded="openSections.history" @click="toggleSection('history')">
+          <span class="td-section-title">执行记录</span>
+          <span class="td-section-chevron" :class="{ 'is-open': openSections.history }">▸</span>
+        </button>
+        <div v-if="openSections.history" class="td-section-body">
+          <div class="td-block-head">
+            <button type="button" class="td-btn td-btn-sm is-danger" @click="store.removeTodo(task)">删除任务</button>
+          </div>
           <ExecutionTimeline :task="task" />
         </div>
       </section>
-      </div>
     </div>
   </div>
 </template>
@@ -613,30 +683,63 @@ onMounted(() => {
 <style scoped>
 .td {
   background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base, 4px);
   display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
 }
-.td-head { position: relative; padding-right: 40px; flex-wrap: wrap; align-items: flex-start; }
-.td-head-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 100%; flex-wrap: wrap; }
-.td-head-task-title { flex: 1 1 100%; min-width: 0; margin: 0; font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+.td-head { position: relative; padding: 12px 40px 12px 14px; border-bottom: 1px solid var(--el-border-color-lighter); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.td-head-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.td-title-input { flex: 1 1 100%; min-width: 0; font-size: 16px; font-weight: 600; }
 .td-head-title .td-key { max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-head-actions { display: flex; flex: 1 1 100%; align-items: center; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
-.td-head .td-close { position: absolute; top: 8px; right: 10px; }
+.td-head-actions { display: flex; align-items: center; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+.td-head .td-close { position: absolute; top: 10px; right: 10px; }
 .td-block-reason { width: 180px; }
-.td-tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--el-border-color-lighter); flex-shrink: 0; }
-.td-tabs button { padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; }
-.td-tabs button.is-on { border-bottom-color: var(--el-color-primary); color: var(--el-color-primary); font-weight: 600; }
-.td-tab-panel { display: flex; flex-direction: column; gap: 14px; }
 .td.is-busy { opacity: .82; }
-.td-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--el-border-color-lighter); flex-shrink: 0; }
 .td-stage { font-size: 11px; padding: 1px 7px; border-radius: 3px; }
-.td-key { margin: 0; font-size: 11px; font-weight: 400; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--el-text-color-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-prio { font-size: 11px; padding: 1px 5px; border-radius: 3px; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); }
+.td-key { margin: 0; font-size: 11px; font-weight: 400; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--el-text-color-secondary); }
 .td-close { border: 0; background: transparent; font-size: 18px; line-height: 1; color: var(--el-text-color-secondary); cursor: pointer; }
 
-.td-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+.td-soft-hint {
+  margin: 0; font-size: 12px; color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
+  border: 1px dashed var(--el-color-warning-light-5);
+  border-radius: var(--el-border-radius-base, 4px);
+  padding: 4px 8px; width: fit-content;
+}
+.td-soft-inline { font-size: 12px; color: var(--el-color-warning); margin: 0; }
+
+.td-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 16px; display: flex; flex-direction: column; gap: 6px; }
 .td-scroll > * { flex-shrink: 0; }
-.td-block { display: flex; flex-direction: column; gap: 5px; }
+
+.td-section {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base, 4px);
+  background: var(--el-bg-color);
+  overflow: hidden;
+}
+.td-section-head {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 0; background: var(--el-fill-color-blank, var(--el-bg-color));
+  color: var(--el-text-color-primary); cursor: pointer; text-align: left;
+}
+.td-section-head:hover { background: var(--el-fill-color-lighter); }
+.td-section-title { font-size: 13px; font-weight: 600; flex: 1; }
+.td-section-badge {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: var(--el-color-warning-light-9); color: var(--el-color-warning);
+}
+.td-section-badge.is-ok {
+  background: var(--el-color-success-light-9); color: var(--el-color-success);
+}
+.td-section-chevron {
+  font-size: 12px; color: var(--el-text-color-secondary);
+  transition: transform .15s ease;
+}
+.td-section-chevron.is-open { transform: rotate(90deg); }
+.td-section-body {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0 12px 12px; border-top: 1px solid var(--el-border-color-extra-light, var(--el-border-color-lighter));
+}
+
 .td-block-head { display: flex; align-items: center; gap: 8px; }
 .td-label { font-size: 12px; color: var(--el-text-color-secondary); }
 .td-strong { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); }
@@ -661,6 +764,8 @@ onMounted(() => {
 .td-btn.is-danger { color: var(--el-color-danger); border-color: var(--el-color-danger-light-5); }
 .td-link { border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font-size: 12px; padding: 0; }
 .td-link:disabled { color: var(--el-text-color-placeholder); cursor: not-allowed; }
+.td-mode-switch .td-link.is-on { color: var(--el-color-primary); font-weight: 600; }
+.td-mode-switch { margin-left: auto; }
 
 .td-dirty { margin: 2px 0 0; font-size: 12px; color: var(--el-color-warning); }
 .td-missing { font-size: 12px; color: var(--el-color-danger); margin: 0; }
@@ -668,35 +773,11 @@ onMounted(() => {
 .td-empty-line { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.7; }
 .td-dim { color: var(--el-text-color-secondary); font-size: 12px; }
 .td-warns { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--el-color-warning); }
-.td-result { margin: 0; font-size: 12px; color: var(--el-text-color-regular); max-height: 76px; overflow: auto; border-left: 2px solid var(--el-border-color); padding-left: 8px; }
+.td-result { margin: 0; font-size: 12px; color: var(--el-text-color-regular); max-height: 140px; overflow: auto; border-left: 2px solid var(--el-border-color); padding-left: 8px; }
 .td-hint { margin: 0; font-size: 12px; color: var(--el-color-warning); line-height: 1.7; }
-.td-mode-switch { margin-left: auto; }
-.td-mode-switch .td-link.is-on { color: var(--el-color-primary); font-weight: 600; }
-
-.td-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.td-chip { border: 1px solid var(--el-border-color); background: var(--el-bg-color); color: var(--el-color-primary); border-radius: 999px; padding: 3px 11px; font-size: 12px; cursor: pointer; }
-
-/* PILOT-057A：三卡片 + 分区标题 + 层级（CRAP：亲密性分组 / 对比分区 / 重复统一） */
-.td-card {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base, 4px);
-  padding: 12px 14px 14px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.td-card-head {
-  display: flex; align-items: center; gap: 8px;
-  padding-bottom: 8px; margin-bottom: 2px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-.td-card-title { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); letter-spacing: .02em; }
-.td-title-input { font-size: 16px; font-weight: 600; }
-.td-block-sub { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
 .td-deleg-badge { font-size: 11px; padding: 1px 8px; border-radius: 3px; white-space: nowrap; }
 .td-engine-tag { font-size: 10px; padding: 0 5px; border-radius: 3px; background: var(--el-color-primary-light-9);
   color: var(--el-color-primary); margin-right: 4px; vertical-align: 1px; }
-.td-result { max-height: 140px; }
-
 .td-files { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .td-file { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .td-core { font-size: 10px; padding: 0 5px; border-radius: 3px; background: var(--el-color-success-light-9); color: var(--el-color-success); }

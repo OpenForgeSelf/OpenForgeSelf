@@ -108,6 +108,38 @@ test.describe('起源码 dev-stack · todo-tracker 抽屉走查', () => {
     await expect(boardDrawer.locator('#td-title')).toHaveValue(title)
     await shot(page, 'tt-ac7-board-opens-drawer')
 
+    // 失焦保存：改备注 → blur → 关开抽屉 → 值仍在
+    await boardDrawer.locator('[data-test="section-basic"] .td-section-head').click()
+    const remark = `失焦保存-${Date.now()}`
+    await boardDrawer.locator('#td-remark').fill(remark)
+    await boardDrawer.locator('#td-remark').blur()
+    await page.waitForTimeout(400)
+    await shot(page, 'tt-ac8-blur-save-before-reopen')
+    await page.locator('[data-test="drawer-close"]').click()
+    await expect(page.locator('[data-test="task-drawer"]')).toHaveCount(0)
+    await page.locator('.tt-board-card', { hasText: title }).click()
+    const reopened = page.locator('[data-test="task-drawer"]')
+    await expect(reopened).toBeVisible()
+    await reopened.locator('[data-test="section-basic"] .td-section-head').click()
+    await expect(reopened.locator('#td-remark')).toHaveValue(remark)
+    await shot(page, 'tt-ac8-blur-save-persisted')
+
+    // 遮罩关闭
+    await page.locator('[data-test="task-drawer-mask"]').click({ position: { x: 8, y: 8 } })
+    await expect(page.locator('[data-test="task-drawer"]')).toHaveCount(0)
+    await shot(page, 'tt-ac9-mask-closed')
+
+    // 窄屏 100%：再开抽屉，宽度应≈视口
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.locator('.tt-view-switch').getByRole('button', { name: '列表' }).click()
+    await page.locator('.tt-item', { hasText: title }).click()
+    const narrowDrawer = page.locator('[data-test="task-drawer"]')
+    await expect(narrowDrawer).toBeVisible()
+    const narrowBox = await narrowDrawer.boundingBox()
+    expect(narrowBox?.width ?? 0).toBeGreaterThan(360)
+    expect(Math.abs((narrowBox?.width ?? 0) - 390)).toBeLessThan(24)
+    await shot(page, 'tt-ac10-narrow-fullwidth-drawer')
+
     // 清理：关抽屉后用 API 删任务（不点界面删除，避免误伤）
     await page.locator('[data-test="drawer-close"]').click()
     const idMatch = await page.evaluate(async ({ api, auth, t }) => {

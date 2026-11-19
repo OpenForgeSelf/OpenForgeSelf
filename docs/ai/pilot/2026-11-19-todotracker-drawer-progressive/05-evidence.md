@@ -87,28 +87,33 @@ Command:
 pnpm exec playwright test --config=playwright.live.config.ts e2e/plugins/todo-tracker/todo-tracker.live.spec.ts
 ```
 
-Result: PASS（来源：Verified）
+Result: PASS（来源：Verified；含补拍 ac8–ac10）
 
 ```text
-✓ AC-UI：创建仅标题、自动开抽屉、全宽列表、渐进披露、缺项反馈、Esc 关闭 (4.8s)
-1 passed (5.4s)
+✓ AC-UI：创建仅标题、自动开抽屉、全宽列表、渐进披露、缺项反馈、Esc 关闭 (9.5s)
+1 passed (10.1s)
 ```
 
 ## Screenshots
 
-| AC | 路径 |
-| --- | --- |
-| 列表全宽基线 | `/opt/cursor/artifacts/tt-ac1-list-fullwidth-before.png` |
-| 创建后抽屉概要+分类收起 | `/opt/cursor/artifacts/tt-ac2-create-drawer-summary-collapsed.png` |
-| 开抽屉列表宽度 | `/opt/cursor/artifacts/tt-ac3-list-width-with-drawer.png` |
-| 去补齐展开工作单元 | `/opt/cursor/artifacts/tt-ac4-expand-workunit-from-hint.png` |
-| 分类展开 | `/opt/cursor/artifacts/tt-ac5-sections-expanded.png` |
-| 下发缺项反馈 | `/opt/cursor/artifacts/tt-ac5b-dispatch-missing-feedback.png` |
-| Escape 关闭 | `/opt/cursor/artifacts/tt-ac6-escape-closed.png` |
-| 看板开抽屉 | `/opt/cursor/artifacts/tt-ac7-board-opens-drawer.png` |
-| 冒烟主链路 | `/opt/cursor/artifacts/todo-tracker-main-flow.png` |
+对话 artifacts 文件名（走查读图 Verified）：
 
-读图核对（Verified）：软提示为 warning 色「下发前待补齐」非危险「还缺」；抽屉 overlay；分类折叠头可见；工作单元展开含四栏；Esc 后抽屉消失。
+| AC | 文件 |
+| --- | --- |
+| 列表全宽基线 | `tt-ac1-list-fullwidth-before.png` |
+| 创建后抽屉概要+分类收起 | `tt-ac2-create-drawer-summary-collapsed.png` |
+| 开抽屉列表宽度 | `tt-ac3-list-width-with-drawer.png` |
+| 去补齐展开工作单元 | `tt-ac4-expand-workunit-from-hint.png` |
+| 分类展开 | `tt-ac5-sections-expanded.png` |
+| 下发缺项反馈 | `tt-ac5b-dispatch-missing-feedback.png` |
+| Escape 关闭 | `tt-ac6-escape-closed.png` |
+| 看板开抽屉 | `tt-ac7-board-opens-drawer.png` |
+| 失焦保存（重开仍在） | `tt-ac8-blur-save-persisted.png` |
+| 遮罩关闭 | `tt-ac9-mask-closed.png` |
+| 窄屏抽屉近全宽 | `tt-ac10-narrow-fullwidth-drawer.png` |
+| 冒烟主链路 | `todo-tracker-main-flow.png` |
+
+读图核对（Verified）：软提示「下发前待补齐」；抽屉 overlay；分类折叠；缺项点名；Esc/遮罩关闭；备注失焦后重开仍在；390 视口抽屉宽≈视口。
 
 ## Known Limitations
 

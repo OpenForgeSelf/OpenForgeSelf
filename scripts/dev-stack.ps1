@@ -43,7 +43,7 @@ $OutputEncoding           = [System.Text.UTF8Encoding]::new($false)
 
 $repo     = Split-Path -Parent $PSScriptRoot
 $web      = Join-Path $repo 'ForgeSelf.Web'
-$binDir   = Join-Path $repo 'ForgeSelf.Api/bin/Debug/net10.0-windows'
+$binDir   = Join-Path $repo 'ForgeSelf.Api/bin/Debug/net10.0'
 $hostDll  = Join-Path $binDir 'ForgeSelf.dll'
 $stateDir = Join-Path $repo '.temp'
 $statePath = Join-Path $stateDir 'dev-stack.json'
@@ -140,6 +140,11 @@ if (-not $SkipBuild) {
     Write-Host "[dev-stack] dotnet build ForgeSelf.Api (Debug)..."
     & dotnet build (Join-Path $repo 'ForgeSelf.Api/ForgeSelf.Api.csproj') -c Debug --nologo -v minimal
     if ($LASTEXITCODE -ne 0) { throw "dotnet build 失败（exit $LASTEXITCODE）" }
+    if ($IsWindows) {
+        Write-Host "[dev-stack] dotnet build ForgeSelf.Tray (Debug)..."
+        & dotnet build (Join-Path $repo 'ForgeSelf.Tray/ForgeSelf.Tray.csproj') -c Debug --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw "托盘构建失败（exit $LASTEXITCODE）" }
+    }
 }
 if (-not (Test-Path $hostDll)) { throw "宿主产物不存在: $hostDll（先跑一次不带 -SkipBuild 的启动）" }
 

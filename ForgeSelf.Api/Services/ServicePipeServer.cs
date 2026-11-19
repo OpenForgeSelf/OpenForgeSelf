@@ -5,29 +5,27 @@ using NewLife.Log;
 namespace ForgeSelf.Api.Services;
 
 /// <summary>
-/// 服务端命名管道服务器，用于服务进程与托盘辅助进程通信。
-/// 服务模式启动托盘辅助进程后，服务端通过此管道发送控制信号（如关闭）。
+/// API 与托盘进程之间的命名管道。一条双工会话：
+/// 托盘写入 <c>hello</c> 表示就绪，写入 <c>shutdown</c> 表示用户在交互模式下点了退出；
+/// API 写入 <c>shutdown</c> 表示宿主正在停止，托盘应退出。
 /// </summary>
 public sealed class ServicePipeServer : IDisposable
 {
     private readonly string _pipeName;
+    private readonly object _gate = new();
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
+    private NamedPipeServerStream? _connected;
     private bool _disposed;
 
-    /// <summary>
-    /// 初始化管道服务器。
-    /// </summary>
-    /// <param name="pipeName">管道名称，例如 "ForgeSelf-Tray-{ProcessId}"</param>
     public ServicePipeServer(string pipeName)
     {
         _pipeName = pipeName ?? throw new ArgumentNullException(nameof(pipeName));
     }
 
-    /// <summary>
-    /// 开始监听托盘辅助进程的连接。
-    /// 异步接受连接后，等待客户端发送消息。
-    /// </summary>
+    /// <summary>托盘发来 <c>shutdown</c> 时调用。交互模式下用来停掉 API。</summary>
+    public Action? OnClientShutdown { get; set; }
+
     public void Start()
     {
         if (_cts != null) return;
@@ -37,35 +35,32 @@ public sealed class ServicePipeServer : IDisposable
         XTrace.Log.Info("ServicePipeServer: 开始监听管道 '{0}'", _pipeName);
     }
 
-    /// <summary>
-    /// 发送关闭信号给托盘辅助进程（向管道写入 "shutdown"）。
-    /// </summary>
+    /// <summary>让已连接的托盘退出。</summary>
     public void SendShutdown()
     {
         if (_disposed) return;
 
-        XTrace.Log.Info("ServicePipeServer: 发送关闭信号给托盘辅助进程");
-        // 创建一个独立的客户端连接，写入 shutdown 命令
-        Task.Run(async () =>
+        NamedPipeServerStream? pipe;
+        lock (_gate) pipe = _connected;
+        if (pipe == null || !pipe.IsConnected)
         {
-            try
-            {
-                using var pipe = new NamedPipeClientStream(".", _pipeName, PipeDirection.Out);
-                await pipe.ConnectAsync(3000);
-                using var writer = new StreamWriter(pipe, Encoding.UTF8) { AutoFlush = true };
-                await writer.WriteLineAsync("shutdown");
-                XTrace.Log.Info("ServicePipeServer: 关闭信号已发送");
-            }
-            catch (Exception ex)
-            {
-                XTrace.Log.Error("ServicePipeServer: 发送关闭信号失败: {0}", ex.Message);
-            }
-        });
+            XTrace.Log.Info("ServicePipeServer: 托盘尚未连接，跳过 shutdown");
+            return;
+        }
+
+        try
+        {
+            var bytes = Encoding.UTF8.GetBytes("shutdown\n");
+            pipe.Write(bytes, 0, bytes.Length);
+            pipe.Flush();
+            XTrace.Log.Info("ServicePipeServer: 关闭信号已发送");
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("ServicePipeServer: 发送关闭信号失败: {0}", ex.Message);
+        }
     }
 
-    /// <summary>
-    /// 停止监听并释放资源。
-    /// </summary>
     public void Stop()
     {
         _cts?.Cancel();
@@ -75,7 +70,6 @@ public sealed class ServicePipeServer : IDisposable
         }
         catch (AggregateException)
         {
-            // 任务取消时的 TaskCanceledException 是预期行为
         }
         XTrace.Log.Info("ServicePipeServer: 已停止监听");
     }
@@ -88,49 +82,73 @@ public sealed class ServicePipeServer : IDisposable
         _cts?.Dispose();
     }
 
-    /// <summary>
-    /// 异步监听循环：接受一个客户端连接，读取消息后关闭管道，继续等待下一个客户端。
-    /// 当前设计中，托盘辅助进程连接后发送 "hello" 表示就绪，服务端据此确认托盘已启动。
-    /// </summary>
     private async Task ListenAsync(CancellationToken token)
     {
         try
         {
             while (!token.IsCancellationRequested)
             {
+                var options = PipeOptions.Asynchronous;
+                if (OperatingSystem.IsWindows())
+                    options |= PipeOptions.CurrentUserOnly;
+
                 await using var pipe = new NamedPipeServerStream(
                     _pipeName,
-                    PipeDirection.In,
-                    1,                // 同一时间最多一个客户端
-                    PipeTransmissionMode.Message,
-                    PipeOptions.Asynchronous);
+                    PipeDirection.InOut,
+                    1,
+                    PipeTransmissionMode.Byte,
+                    options);
 
-                XTrace.Log.Info("ServicePipeServer: 等待托盘辅助进程连接...");
-
-                // 等待客户端连接（支持取消）
+                XTrace.Log.Info("ServicePipeServer: 等待托盘连接...");
                 await pipe.WaitForConnectionAsync(token);
+                lock (_gate) _connected = pipe;
+                XTrace.Log.Info("ServicePipeServer: 托盘已连接");
 
-                XTrace.Log.Info("ServicePipeServer: 托盘辅助进程已连接");
-
-                // 读取客户端消息
-                using var reader = new StreamReader(pipe, Encoding.UTF8);
-                var message = await reader.ReadLineAsync(token);
-
-                if (!string.IsNullOrEmpty(message))
+                try
                 {
-                    XTrace.Log.Info("ServicePipeServer: 收到消息: {0}", message);
-                }
+                    while (!token.IsCancellationRequested && pipe.IsConnected)
+                    {
+                        var message = await ReadLineAsync(pipe, token);
+                        if (message == null) break;
 
-                // 客户端断开连接后，管道自动关闭，循环继续等待下一个连接
+                        XTrace.Log.Info("ServicePipeServer: 收到消息: {0}", message);
+                        if (message.Equals("shutdown", StringComparison.OrdinalIgnoreCase))
+                            OnClientShutdown?.Invoke();
+                    }
+                }
+                finally
+                {
+                    lock (_gate)
+                    {
+                        if (ReferenceEquals(_connected, pipe))
+                            _connected = null;
+                    }
+                }
             }
         }
         catch (OperationCanceledException)
         {
-            // 正常取消
         }
         catch (Exception ex)
         {
             XTrace.Log.Error("ServicePipeServer: 监听异常: {0}", ex.Message);
+        }
+    }
+
+    internal static async Task<string?> ReadLineAsync(Stream pipe, CancellationToken token)
+    {
+        var buffer = new byte[1];
+        var text = new StringBuilder();
+        while (true)
+        {
+            var read = await pipe.ReadAsync(buffer.AsMemory(0, 1), token);
+            if (read == 0)
+                return text.Length == 0 ? null : text.ToString();
+
+            if (buffer[0] == '\n')
+                return text.ToString().TrimEnd('\r');
+
+            text.Append((char)buffer[0]);
         }
     }
 }

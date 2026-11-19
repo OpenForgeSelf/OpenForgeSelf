@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using FluentAssertions;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Api.Tests;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Services;
@@ -125,7 +126,7 @@ foreach ($p in $args) {
     /// 隔离：<c>LOCALAPPDATA</c> 重定向到本次临时目录 ⇒ 代理日志与它清理的 <c>Backups</c> 都不落用户配置目录；
     /// <c>-ExeName</c> 故意给一个不存在的名字，使步骤 9 在「启动进程」前就失败，测试不会拉起任何真实程序。
     /// </summary>
-    [Fact]
+    [WindowsOnlyFact]
     public void 老宿主传错安装根时代理把新版本落到真根且不嵌套()
     {
         var sandbox = Path.Combine(Path.GetTempPath(), $"update_agent_layout_{Guid.NewGuid():N}");

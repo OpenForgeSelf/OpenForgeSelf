@@ -312,15 +312,7 @@ public static class AppBuilder
             return new UpdateService(updateChecker, serviceManager, updateConfig, serviceConfig, httpClient);
         });
 
-        // TrayIconManager — 系统托盘图标（延迟初始化，通过 StartTrayIcon 在控制台模式启动）
-        builder.Services.AddSingleton<TrayIconManager>(sp =>
-        {
-            var serviceManager = sp.GetRequiredService<IServiceManager>();
-            // 令牌解析器：惰性调用，点击托盘菜单时实时取，主密钥重新生成后自动拿到新值
-            var keyService = sp.GetRequiredService<ApiServerKeyService>();
-            var port = ForgeSetting.Current.PortNumber;
-            return new TrayIconManager(serviceManager, port, mainPageTokenResolver: () => keyService.GetActiveKeyPlain());
-        });
+        // 托盘进程不再从 API 的 DI 里创建。Windows 上由 TrayHostLauncher 拉起 ForgeSelf.Tray.exe。
 
         // ── 结束 008-tray-service-autoupdate 注册 ──
 

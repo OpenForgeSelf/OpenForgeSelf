@@ -1,5 +1,6 @@
 using FluentAssertions;
 using ForgeSelf.Api.Plugins.TodoTracker.Services;
+using ForgeSelf.Api.Tests;
 using Xunit;
 
 namespace ForgeSelf.Api.Tests.Plugins.TodoTracker;
@@ -9,13 +10,13 @@ namespace ForgeSelf.Api.Tests.Plugins.TodoTracker;
 ///
 /// 判据口径：<b>同一 Key 即同一项目</b>，反例必须不同 Key —— 只测正例等于没测
 /// （"/d/p 与 /d/p2 若被判成同一个项目，整个关联与统计就是错的，而正例照样全绿）。
-/// 本测试工程 TFM 是 net10.0-windows（<c>ForgeSelf.Api.Tests.csproj</c>），故直接断言 Windows 行为。
+/// 金样按 Windows 盘符断言。测试工程已是 net10.0，非 Windows 上整组跳过。
 /// </summary>
 public class ProjectPathCanonicalizerTests
 {
     private static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-    [Theory]
+    [WindowsOnlyTheory]
     // 同一目录 D:\project 的四种写法 + 大小写差异 ⇒ 必须归一到同一串
     [InlineData("/d/project", @"D:\project")]
     [InlineData(@"D:\project", @"D:\project")]
@@ -44,7 +45,7 @@ public class ProjectPathCanonicalizerTests
         else result.Root.Should().StartWith(Home).And.EndWith(@"code\x");
     }
 
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
@@ -61,7 +62,7 @@ public class ProjectPathCanonicalizerTests
         result.Key.Should().BeEmpty();
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void 超过列宽的路径应被拒绝()
     {
         var longPath = @"D:\" + new string('x', 600);
@@ -72,7 +73,7 @@ public class ProjectPathCanonicalizerTests
         result.Error.Should().Contain("500");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void 同一目录的四种写法应得到同一个Key()
     {
         var forms = new[] { "/d/project", @"D:\project", "D:/project/", "/mnt/d/project" };
@@ -83,13 +84,13 @@ public class ProjectPathCanonicalizerTests
         forms.Select((f, i) => (f, k: keys[i])).Should().NotContain(x => string.IsNullOrEmpty(x.k));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void 大小写不同的同一目录应判为同一个项目()
     {
         ProjectPathCanonicalizer.SameProject(@"D:\Project", @"d:\pROJECT").Should().BeTrue();
     }
 
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData("/d/project", "/d/project2")]
     [InlineData("/d/project", "/e/project")]
     [InlineData(@"D:\project", @"D:\project\sub")]
@@ -99,7 +100,7 @@ public class ProjectPathCanonicalizerTests
         ProjectPathCanonicalizer.SameProject(a, b).Should().BeFalse($"{a} 与 {b} 是两个目录，归一器不能把它们并成一条");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void 归一失败的Key不得参与同一性判定()
     {
         // 反例必须先证明前提真发生：若把"归一失败"当成 Key 相等，两个非法路径会被判成同一个项目
@@ -107,7 +108,7 @@ public class ProjectPathCanonicalizerTests
         ProjectPathCanonicalizer.KeyOf(null).Should().BeNull();
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void ResolveInside_项目内相对路径应拼成绝对路径且带Key()
     {
         var root = ProjectPathCanonicalizer.Normalize("/d/project").Root;
@@ -119,7 +120,7 @@ public class ProjectPathCanonicalizerTests
         inside.Key.Should().Be(inside.Root.ToUpperInvariant());
     }
 
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData("../../Windows/system32")]
     [InlineData("docs/../../Windows")]
     public void ResolveInside_越出项目根必须被拒(string relative)

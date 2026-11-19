@@ -83,7 +83,7 @@
 └── data/ log/ config/                                        ← 运行时生成（zip 时清理；生产态数据根 ~/.forgeself 外置：{数据根}/log 日志、{数据根}/config 配置、插件数据 {数据根}/plugins）
 ```
 启动器 = **进程拉起模式**（输入36）：读 versions/current（或 --forge-version=<v>）→ Start 子进程 `versions/<ver>/ForgeSelf.exe`（WorkingDirectory=versionDir，DOTNET_ROOT=安装根，剔除 --forge-version 透传其余参数）→ WaitForExit 转发退出码；update-agent 的 HostPid 即业务层进程。
-路径基准 = **业务层入口程序集目录**（`Path.GetDirectoryName(typeof(AppBuilder).Assembly.Location)`）：扁平=BaseDirectory、QQNT=`versions/<ver>/`（FDD 单文件下 Assembly.Location = exe 目录，实测）；`ContentRootPath` 当业务层目录含 appsettings.json 时指向该目录，否则保 CWD（保护 dotnet run）；tray `SetBasePath` 同步（`AppBuilder.cs`/`Program.cs` 批次2）。插件目录 = **两路**（2026-10-04 输入18 定，取代批次2 的「安装根 `/plugins` 单路」）：内置路 = 业务层旁边的 `versions/<ver>/plugins/`（随版本发布、可随版本回滚），用户路 = 数据根 `~/.forgeself/plugins/`；接线见 `AppBuilder.cs:317-333`（`SetPluginsDirectory` + `AddPluginRoot`），扫描只认子目录里有 `plugin.json` 者。
+路径基准 = **业务层入口程序集目录**（`Path.GetDirectoryName(typeof(AppBuilder).Assembly.Location)`）：扁平=BaseDirectory、QQNT=`versions/<ver>/`（FDD 单文件下 Assembly.Location = exe 目录，实测）；`ContentRootPath` 当业务层目录含 appsettings.json 时指向该目录，否则保 CWD（保护 dotnet run）；托盘读令牌时以 `--api-exe` 所在目录为 appsettings 基准（`ForgeSelf.Tray/Program.cs`）。插件目录 = **两路**（2026-10-04 输入18 定，取代批次2 的「安装根 `/plugins` 单路」）：内置路 = 业务层旁边的 `versions/<ver>/plugins/`（随版本发布、可随版本回滚），用户路 = 数据根 `~/.forgeself/plugins/`；接线见 `AppBuilder.cs:317-333`（`SetPluginsDirectory` + `AddPluginRoot`），扫描只认子目录里有 `plugin.json` 者。
 
 > ⚠ **单文件关键踩坑（输入36 实测 2026-09-28）**：**自包含单文件**（无论压缩与否）启动时把 bundle 解压到 `DOTNET_BUNDLE_EXTRACT_BASE_DIR` 缓存运行，`AppContext.BaseDirectory` / `Environment.ProcessPath` 均指向提取目录 → 启动器无法定位安装根 + 解压缓存长期占盘（版本变化残留）——**弃用**。**FDD 单文件**（managed-only bundle）原地直跑，BaseDirectory = exe 目录、无解压缓存；运行时由公共层 DOTNET_ROOT 结构提供（根 hostfxr app-local shim 让启动器自身解析，业务层由启动器传 DOTNET_ROOT）。
 ### 1.6 程序架构分层（输入40 沉淀 · 分程序分层，各司其职）
@@ -93,13 +93,13 @@
 | **① 公共层**（跨版本共享） | 安装根 | `ForgeSelf.exe`（根启动器 = ForgeSelf.Bootstrapper，~170KB 薄壳） | **唯一程序入口**：读 `versions/current`（或 `--forge-version=<v>`）→ Start 子进程业务层 → WaitForExit 透传退出码。**不碰业务** |
 | | | `host/` + `shared/`（.NET 公共运行时结构） | 提供 DOTNET_ROOT 运行时，全部版本共用一份 |
 | | | `update-agent.ps1`（自更新代理，独立脚本进程） | **只做更新**：下载 zip → 解压 → 写 `versions/<新ver>/` → 原子切 current → 重启根启动器 |
-| **② 版本层**（每版不可变快照） | `versions/<ver>/` | `ForgeSelf.exe`（业务层 = ForgeSelf.Api，FDD 单文件） | **全部业务所在**：① Web 宿主（Kestrel：HTTP API + wwwroot 前端）；② 后台服务（PluginManager 插件加载/生命周期、StagedUpdateService 更新检查、常驻任务）；③ 托盘（H.NotifyIcon，System.Windows.Forms——管本进程托盘交互/退出，**不拆独立程序**）；④ 数据（XCode/SQLite 初始化，落 `~/.forgeself`） |
+| **② 版本层**（每版不可变快照） | `versions/<ver>/` | `ForgeSelf.exe`（业务层 = ForgeSelf.Api，`net10.0`，FDD 单文件）与 `ForgeSelf.Tray.exe`（仅 Windows，`net10.0-windows`） | **API**：① Web 宿主（Kestrel：HTTP API + wwwroot 前端）；② 后台服务（PluginManager、StagedUpdateService、常驻任务）；③ 数据（XCode/SQLite，落 `~/.forgeself`）。**托盘**是同目录的独立程序，菜单仍是打开主界面、检查更新、安装/卸载/重启服务、关于、退出。Linux 不启动它。交互模式「退出」经管道停 API；Windows 服务模式只关托盘 |
 | **③ 插件层**（两路，2026-10-04 输入18 定） | **内置路**：`versions/<ver>/plugins/`（随每个版本一起发布、与该版本快照绑定，可随版本回滚）；**用户路**：数据根 `~/.forgeself/plugins/`（用户自行安装/更新的插件包） | 18 个内置插件（各自 `<Dir>.dll + plugin.json + web/dist`）+ 数据目录里的用户插件包 | **各管各的功能**：独立 ALC 隔离加载，控制器/服务/界面归插件；宿主启动时**两路合并扫描**（内置在前），同 Id 由版本号裁决（畸形版本视为相等⇒保留内置），每条发现日志带来源根；插件自身版本更新仍走 `plugins/<id>/versions/<ver>/ + current`。**禁止**把内置插件外置到安装根 `plugins/` 并从版本目录删除——那会让"业务层旁边扫不到插件"，2026-10-04 现场表现为升级后整台实例 0 插件 |
 | **④ 数据层**（运行时生成） | `~/.forgeself`（小写） | — | `data/`（数据库）、`config/`（配置）、`log/`（日志）、`plugins/`（**既是插件数据目录：`plugins/{插件Id}/{连接名}.db`，也是用户插件包的落位**；两者靠"子目录内是否有 `plugin.json`"区分，扫描只认带清单者）——随数据走，发布覆盖不影响 |
 
-**启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + 托盘 + PluginManager **两路合并扫描插件根**（内置 `versions/<ver>/plugins/` 在前 + 数据目录 `~/.forgeself/plugins/` 在后，同 Id 按版本号裁决；版本化 current 生效）→ 用户点「检查更新」→ 宿主调用 → update-agent.ps1 下载新 zip → 落 `versions/<新ver>/` + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
+**启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + PluginManager **两路合并扫描插件根**（内置 `versions/<ver>/plugins/` 在前 + 数据目录 `~/.forgeself/plugins/` 在后，同 Id 按版本号裁决；版本化 current 生效）。Windows 上 API 再拉起同目录的 `ForgeSelf.Tray.exe`。用户点「检查更新」→ 托盘调用 API 的 `POST /api/update/check` → update-agent.ps1 下载新 zip → 落 `versions/<新ver>/` + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
 
-**职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务/后台服务/托盘=业务层进程（托盘管的就是本进程，故不拆独立程序）；更新=update-agent 独立脚本；插件=各自隔离程序集。一层一个程序，各做各的。
+**职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务与后台服务=API 进程（`net10.0`，可在 Linux 上跑）；托盘=同版本目录的 `ForgeSelf.Tray.exe`（只在 Windows 拉起）；更新=update-agent 独立脚本；插件=各自隔离程序集。
 
 ---
 

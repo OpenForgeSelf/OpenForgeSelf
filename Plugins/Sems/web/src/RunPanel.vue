@@ -9,7 +9,7 @@
         <button class="run__btn" :disabled="checking" @click="check">
           {{ checking ? '检查中…' : '检查' }}
         </button>
-        <button class="run__btn run__btn--primary" :disabled="!hasLaunchable" @click="runAll">
+        <button class="run__btn" :class="{ 'run__btn--primary': emphasizeRunAll }" :disabled="!hasLaunchable" @click="runAll">
           启动全部
         </button>
       </div>
@@ -111,12 +111,16 @@ import { errorMessage, runWithConfirm, stopExternalMessage, stopSessionMessage }
 import { formatRunDuration } from './runDuration'
 import type { RunLogLine, RunLogsResp, RunSession, RunsResp } from './types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** 命令 id → 访问 url 映射（由上层从项目列表装配，供快捷访问图标使用）。 */
   commandUrls?: Record<number, string>
   /** 可启动命令总数（由上层装配；0 时禁用「启动全部」并切换空态文案）。 */
   launchableCount?: number
-}>()
+  /** 同一屏已有金色「启动」时关掉，避免第二枚金色主按钮（I02）。 */
+  emphasizeRunAll?: boolean
+}>(), {
+  emphasizeRunAll: true,
+})
 
 const runs = ref<RunSession[]>([])
 const checking = ref(false)

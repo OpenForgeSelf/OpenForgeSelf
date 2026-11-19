@@ -267,7 +267,10 @@ public class ProjectServiceTests
         Assert.Null(result.Data!.Path);
         // 本机至少有一个可枚举驱动器；条目必须是盘符形式
         Assert.NotEmpty(result.Data.Directories);
-        Assert.All(result.Data.Directories, d => Assert.EndsWith(@":\", d.Path));
+        if (OperatingSystem.IsWindows())
+            Assert.All(result.Data.Directories, d => Assert.EndsWith(@":\", d.Path));
+        else
+            Assert.All(result.Data.Directories, d => Assert.StartsWith("/", d.Path));
     }
 
     [Fact]

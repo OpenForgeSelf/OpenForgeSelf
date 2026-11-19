@@ -104,7 +104,9 @@
 .wb .star-btn{width:28px;height:28px;display:grid;place-items:center;color:var(--el-text-color-placeholder);border-radius:var(--radius-sm)}
 .wb .star-btn:hover{background:var(--el-bg-color)}
 .wb .star-btn.on{color:var(--el-color-primary)}
-.wb .project-info{min-width:0;flex:1;display:flex;align-items:baseline;gap:12px;cursor:pointer}
+.wb .project-info{min-width:0;flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;cursor:pointer}
+.wb .project-line{display:flex;align-items:baseline;gap:12px;min-width:0;width:100%}
+.wb .project-facts{margin:0;font-size:12px;line-height:1.45;color:var(--el-text-color-secondary);white-space:normal}
 .wb .project-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%;color:var(--el-text-color-primary)}
 .wb .project-name-input{font-weight:600;font-size:14px;border:1px solid var(--el-color-primary);border-radius:var(--radius-sm);
   padding:2px 8px;outline:0;width:220px;max-width:60%}

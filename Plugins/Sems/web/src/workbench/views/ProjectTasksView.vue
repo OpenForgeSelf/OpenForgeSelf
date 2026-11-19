@@ -109,9 +109,10 @@ onMounted(async () => {
     <h2>运行</h2>
     <div class="proj-tools">
       <span class="wb-badge info">运行中 {{ store.runningCount }}</span>
-      <button class="btn btn-secondary" @click="onRunAll()">
+      <button class="btn btn-secondary" :disabled="launchableCount === 0" @click="onRunAll()">
         <span v-html="ic('play', 'sm')"></span>启动全部
       </button>
+      <span v-if="launchableCount === 0" class="wb-hint">没有可启动的命令</span>
       <button class="btn btn-secondary" @click="onChanged()">
         <span v-html="ic('refresh', 'sm')"></span>刷新
       </button>
@@ -157,7 +158,7 @@ onMounted(async () => {
             </span>
           </div>
           <div class="task-detail-actions">
-            <button class="btn btn-primary" :disabled="status === 'running'" @click="onRun()">
+            <button class="btn btn-primary" :disabled="launchableCount === 0 || status === 'running'" @click="onRun()">
               <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '启动' }}
             </button>
             <button class="btn btn-secondary" :disabled="status !== 'running'" @click="onStop()">
@@ -185,6 +186,7 @@ onMounted(async () => {
     <div class="wb-embedded">
       <h3>运行会话（sems 原有能力：会话列表 / 停止 / 本机进程检测）</h3>
       <RunPanel ref="runPanelRef" :command-urls="commandUrls" :launchable-count="launchableCount"
+                :emphasize-run-all="false"
                 @run-all="onRunAll" @count="(n: number) => (store.runningCount = n)" />
     </div>
 

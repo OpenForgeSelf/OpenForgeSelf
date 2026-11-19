@@ -13,10 +13,15 @@ import {
   refreshRunningCount, projectHasRunningSessions, runningSessionCountOf,
 } from '../workbenchStore'
 import { removeProjectMessage, removeBlockedByRunningMessage } from '../../confirmOps'
+import { projectListFacts } from '../../projectFacts'
 
 const rows = computed(() => listProjects())
 const types = computed(() => projectTypes())
 const busyRemoveId = ref<number | null>(null)
+
+async function facts(p: (typeof rows.value)[number]) {
+  return projectListFacts(p)
+}
 
 async function guideToStop(p: (typeof rows.value)[number], runningCount = 0) {
   try {
@@ -187,12 +192,18 @@ function lastRunText(p: (typeof rows.value)[number]): string {
           </button>
 
           <div class="project-info" @click="openProject(p.id)">
-            <input v-if="store.renameId === p.id" class="project-name-input" :value="p.name"
-                   aria-label="项目名称" maxlength="80" autofocus
-                   @click.stop @keydown.enter.prevent="saveRename(p, $event)"
-                   @keydown.esc.prevent="cancelRename" @blur="saveRename(p, $event)" />
-            <span v-else class="project-name">{{ p.name }}</span>
-            <span class="project-path">{{ p.path }}</span>
+            <div class="project-line">
+              <input v-if="store.renameId === p.id" class="project-name-input" :value="p.name"
+                     aria-label="项目名称" maxlength="80" autofocus
+                     @click.stop @keydown.enter.prevent="saveRename(p, $event)"
+                     @keydown.esc.prevent="cancelRename" @blur="saveRename(p, $event)" />
+              <span v-else class="project-name">{{ p.name }}</span>
+              <span class="project-path">{{ p.path }}</span>
+            </div>
+            <p class="project-facts">
+              类型 {{ facts(p).type }} · 标签 {{ facts(p).tags }} · 描述 {{ facts(p).description }} ·
+              根目录 {{ facts(p).root }} · 来源 {{ facts(p).source }} · {{ facts(p).git }} · {{ facts(p).path }}
+            </p>
           </div>
 
           <div class="project-actions">
@@ -232,6 +243,10 @@ function lastRunText(p: (typeof rows.value)[number]): string {
           </div>
 
           <div class="project-card-path" @click="openProject(p.id)">{{ p.path }}</div>
+          <p class="project-facts">
+            类型 {{ facts(p).type }} · 标签 {{ facts(p).tags }} · 描述 {{ facts(p).description }} ·
+            根目录 {{ facts(p).root }} · 来源 {{ facts(p).source }} · {{ facts(p).git }} · {{ facts(p).path }}
+          </p>
 
           <div class="project-card-meta">
             <span class="wb-badge">{{ p.commands?.length ?? 0 }} 个运行命令</span>

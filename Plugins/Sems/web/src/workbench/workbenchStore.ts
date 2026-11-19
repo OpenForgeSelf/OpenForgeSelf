@@ -765,10 +765,16 @@ export async function stopTask(commandId: number, taskName: string): Promise<voi
   }
 }
 
-/** 启动全部：跳过已在运行的任务。 */
+/** 启动全部：没有命令时直接说明，不报「启动完成」。已在运行的跳过。 */
 export async function startAllTasks(): Promise<void> {
   const cmds = currentProject()?.commands ?? []
+  if (cmds.length === 0) {
+    toast('没有可启动的命令，请先添加')
+    return
+  }
   let started = 0
+  let failed = 0
+  let lastError = ''
   for (const c of cmds) {
     if (taskStatusOf(c.id) === 'running') continue
     try {
@@ -776,11 +782,16 @@ export async function startAllTasks(): Promise<void> {
       // 与详情区「运行任务」共用同一个状态入口，避免两条启动路径不同步（修 B-1）
       markTaskStarted(c.id, c.name)
       started++
-    } catch {
-      /* 409 已在运行：忽略 */
+    } catch (e) {
+      failed++
+      lastError = e instanceof Error ? e.message : String(e)
     }
   }
   await refreshRunningCount()
+  if (started === 0 && failed > 0) {
+    toast('启动失败：' + lastError)
+    return
+  }
   toast(`启动完成：新起 ${started} 个，其余已在运行或不可启动`)
 }
 

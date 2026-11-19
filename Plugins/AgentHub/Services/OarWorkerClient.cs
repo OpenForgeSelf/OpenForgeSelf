@@ -203,6 +203,27 @@ public sealed class OarWorkerClient : IAsyncDisposable, IDisposable
             ct).ConfigureAwait(false);
     }
 
+    /// <summary><c>runtime.installPlan</c>（只读计划；不执行安装）。</summary>
+    public async Task<JsonElement> InstallPlanAsync(string runtimeId, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "runtime.installPlan",
+            new Dictionary<string, object?> { ["runtimeId"] = runtimeId },
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary><c>runtime.install</c>（执行须由宿主确认闸门挡住；Worker 本身不自动装）。</summary>
+    public async Task<JsonElement> InstallAsync(
+        string runtimeId,
+        string? line = null,
+        CancellationToken ct = default)
+    {
+        var parameters = new Dictionary<string, object?> { ["runtimeId"] = runtimeId };
+        if (!string.IsNullOrWhiteSpace(line))
+            parameters["line"] = line;
+        return await RequestAsync("runtime.install", parameters, ct).ConfigureAwait(false);
+    }
+
     /// <summary><c>session.records</c>（Worker 侧原始审计；调用方应再脱敏落库）。</summary>
     public async Task<JsonElement> SessionRecordsAsync(string sessionKey, CancellationToken ct = default)
     {

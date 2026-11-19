@@ -20,7 +20,7 @@ aliases: ["032-agent-hub"]
 | 本机探测（不自动登记） | AgentProbeService + `GET api/agent-hub/agents/discover` | ✅ |
 | **附加扫描目录（探测时除 PATH 外额外查找）** | `AgentHubSettingsStore` + `GET\|PUT api/agent-hub/settings`（config.json 持久化） | ✅ **v1.0.9 新增** |
 | 委派执行（CLI one-shot + 事件流 + 审批台） | DelegationRuntime / CliTransport / `api/agent-hub/tasks` | ✅ |
-| 管理面鉴权 | 控制器类级 `[Authorize("ApiKeyPolicy")]`（铁律 17） | ✅ settings 端点已带；agents/tasks 端点沿用宿主侧策略（待核对清单见 §5） |
+| 管理面鉴权 | 控制器类级 `[Authorize("ApiKeyPolicy")]`（铁律 17） | ✅ settings/runtimes/sessions/agents/tasks 均已带（remaining-close） |
 
 **一句话**：探测不再是「只沿 PATH」——用户可配置附加扫描目录（每行一个，落盘 `config.json`），装在不进 PATH 的 CLI（pnpm/bun/scoop/自定义安装）也能被发现。
 
@@ -54,7 +54,7 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 - 单测 `AgentHubProbeSettingsTests`（8 个）：附加目录命中 / Windows 扩展名补全 / 绝对路径回归 / 空目录不抛 / 设置存储默认值·落盘重载·规范化·损坏文件容错。
 - e2e `ForgeSelf.Web/e2e/plugins/agent-hub/agent-hub.spec.ts`：新增「设置写往返（GET→PUT→GET 持久化）」+「扫描区配置输入 UI 交互」两用例；并修复既有标题断言（版本徽标 → 前缀匹配）。
 - **发布坑（v1.0.9 实证）**：版本化更新（`POST /api/plugin/update`）只把新前端产物放进 `versions/<v>/web/dist`，但前端中间件解析**插件根目录 `web/dist`** → 页面仍跑旧 bundle。发布后必须补拷：`versions/<v>/web/dist/*` → 根 `web/dist/`，并 grep 新增关键词核验（见 `plugin-publish-verify` troubleshooting）。
-- **待核对**：`AgentHubAgentsController` / `AgentHubTasksController` 是否带类级 `[Authorize("ApiKeyPolicy")]`（铁律 17 遗留项，v1.0.9 未动，单独记 TODO）。
+- **已闭合（2026-11-19 remaining-close）**：`AgentHubAgentsController` / `AgentHubTasksController` 类级 `[Authorize("ApiKeyPolicy")]` + `AgentHubAuthTests` 程序集守卫。
 
 ## 6. 演进：OAR Runtime Provider（2026-11-19 定案；P0 Worker 已落地）
 

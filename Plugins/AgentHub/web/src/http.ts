@@ -228,6 +228,31 @@ export interface RuntimeDescriptorDto {
   capabilities?: string[]
 }
 
+/** Runtime probe（installation / auth 分列）。 */
+export interface RuntimeProbeDto {
+  runtimeId?: string
+  installationJson?: string
+  authJson?: string
+  authError?: string
+}
+
+/** Runtime models 载荷。 */
+export interface RuntimeModelsDto {
+  runtimeId?: string
+  payloadJson?: string
+}
+
+/** install-plan / install 结果。 */
+export interface RuntimeInstallPlanDto {
+  runtimeId?: string
+  planJson?: string
+}
+
+export interface RuntimeInstallResultDto {
+  runtimeId?: string
+  resultJson?: string
+}
+
 /** Session 对外 DTO（无 OarSessionId）。 */
 export interface SessionDto {
   sessionKey?: string
@@ -244,6 +269,25 @@ export interface SessionDto {
   oarSequence?: number
   createTime?: string
   updateTime?: string
+}
+
+/** 会话控制结果。 */
+export interface AgentControlResultDto {
+  accepted?: boolean
+  code?: string
+  reason?: string
+  detail?: string
+}
+
+/** 会话 Record。 */
+export interface SessionRecordDto {
+  agentHubSequence?: number
+  oarSequence?: number
+  generation?: number
+  type?: string
+  payloadJson?: string
+  truncated?: boolean
+  timestamp?: string
 }
 
 /** 任务事件（SSE / 历史接口共用结构）。 */
@@ -326,11 +370,47 @@ export function saveSettings(body: AgentHubSettingsDto): Promise<AgentHubSetting
   return request<AgentHubSettingsDto>('/api/agent-hub/settings', { method: 'PUT', body: JSON.stringify(body) })
 }
 
-// ────────────────────────────── Runtime / Session（P3） ──────────────────────────────
+// ────────────────────────────── Runtime / Session（P3 + remaining-close） ──────────────────────────────
 
 /** 列出 Runtime / Agent 描述。 */
 export function listRuntimes(): Promise<RuntimeDescriptorDto[] | undefined> {
   return request<RuntimeDescriptorDto[]>('/api/agent-hub/runtimes')
+}
+
+/** Runtime 详情。 */
+export function getRuntime(id: string): Promise<RuntimeDescriptorDto | undefined> {
+  return request<RuntimeDescriptorDto>(`/api/agent-hub/runtimes/${encodeURIComponent(id)}`)
+}
+
+/** Runtime 安装+认证只读探测。 */
+export function probeRuntime(id: string): Promise<RuntimeProbeDto | undefined> {
+  return request<RuntimeProbeDto>(`/api/agent-hub/runtimes/${encodeURIComponent(id)}/probe`, {
+    method: 'POST',
+  })
+}
+
+/** Runtime 模型列表。 */
+export function listRuntimeModels(id: string): Promise<RuntimeModelsDto | undefined> {
+  return request<RuntimeModelsDto>(`/api/agent-hub/runtimes/${encodeURIComponent(id)}/models`)
+}
+
+/** 只读安装计划。 */
+export function getRuntimeInstallPlan(id: string): Promise<RuntimeInstallPlanDto | undefined> {
+  return request<RuntimeInstallPlanDto>(
+    `/api/agent-hub/runtimes/${encodeURIComponent(id)}/install-plan`,
+  )
+}
+
+/** 执行安装（须 confirmed=true）。 */
+export function installRuntime(
+  id: string,
+  confirmed: boolean,
+  line?: string,
+): Promise<RuntimeInstallResultDto | undefined> {
+  return request<RuntimeInstallResultDto>(`/api/agent-hub/runtimes/${encodeURIComponent(id)}/install`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed, line }),
+  })
 }
 
 /** 列出对外 Session（无 OarSessionId）。 */
@@ -338,9 +418,111 @@ export function listSessions(limit = 50): Promise<SessionDto[] | undefined> {
   return request<SessionDto[]>(`/api/agent-hub/sessions?limit=${limit}`)
 }
 
+/** Session 详情。 */
+export function getSession(sessionKey: string): Promise<SessionDto | undefined> {
+  return request<SessionDto>(`/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}`)
+}
+
+/** 向会话投递输入（Steer / 续接）。 */
+export function sendSessionInput(
+  sessionKey: string,
+  text: string,
+  mode?: string,
+): Promise<AgentControlResultDto | undefined> {
+  return request<AgentControlResultDto>(
+    `/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/input`,
+    { method: 'POST', body: JSON.stringify({ text, mode }) },
+  )
+}
+
+/** 中止会话侧当前活动。 */
+export function abortSession(sessionKey: string): Promise<AgentControlResultDto | undefined> {
+  return request<AgentControlResultDto>(
+    `/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/abort`,
+    { method: 'POST' },
+  )
+}
+
+/** 会话脱敏 Record。 */
+export function listSessionRecords(
+  sessionKey: string,
+  afterSequence = 0,
+): Promise<SessionRecordDto[] | undefined> {
+  return request<SessionRecordDto[]>(
+    `/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/records?afterSequence=${afterSequence}`,
+  )
+}
+
 /** 关闭 Session。 */
 export function closeSession(sessionKey: string): Promise<void> {
-  return request<void>(`/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/close`, { method: 'POST' })
+  return request<void>(`/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/close`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * 订阅会话 Record SSE（轮询最小面）。
+ * 与 streamTaskEvents 同套路：fetch + Authorization，不用 EventSource。
+ */
+export function streamSessionRecords(
+  sessionKey: string,
+  fromSeq: number,
+  onRecord: (rec: SessionRecordDto) => void,
+  onDone?: (payload: { sessionKey: string; status: string; lastSeq: number }) => void,
+  signal?: AbortSignal,
+): () => void {
+  const ctrl = new AbortController()
+  const onAbort = () => ctrl.abort()
+  signal?.addEventListener('abort', onAbort)
+
+  void (async () => {
+    try {
+      const res = await fetch(
+        `/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/stream?fromSeq=${fromSeq}`,
+        { headers: buildHeaders(), signal: ctrl.signal },
+      )
+      if (!res.ok || !res.body) throw new Error(`会话流连接失败（HTTP ${res.status}）`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() ?? ''
+
+        for (const frame of frames) {
+          const evtName = /^event:\s*(.+)$/m.exec(frame)?.[1]?.trim() ?? ''
+          const dataRaw = /^data:\s*(.+)$/m.exec(frame)?.[1]?.trim() ?? ''
+          if (!dataRaw) continue
+          if (evtName === 'done') {
+            try {
+              onDone?.(JSON.parse(dataRaw))
+            } catch {
+              onDone?.({ sessionKey, status: 'Unknown', lastSeq: fromSeq })
+            }
+            return
+          }
+          try {
+            onRecord(JSON.parse(dataRaw) as SessionRecordDto)
+          } catch {
+            /* 单帧坏数据忽略 */
+          }
+        }
+      }
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        onDone?.({ sessionKey, status: 'StreamError', lastSeq: fromSeq })
+      }
+    } finally {
+      signal?.removeEventListener('abort', onAbort)
+    }
+  })()
+
+  return () => ctrl.abort()
 }
 
 // ────────────────────────────── 任务接口 ──────────────────────────────

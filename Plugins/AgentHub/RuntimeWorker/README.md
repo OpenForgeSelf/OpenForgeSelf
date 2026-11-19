@@ -6,7 +6,7 @@ AgentHub 内部 Node Worker：经 **JSON-RPC / JSONL over stdio** 调用锁定�
 
 - **Node.js ≥ 24**（`engines.node`；OAR 0.109 要求）
 - 包管理：**pnpm**（在本目录执行，勿用 npm 另起 lock）
-- 不在启动时自动 `install` 第三方 Agent；只读探测可用 `runtime.installation` / `runtime.installPlan`
+- 不在启动时自动 `install` 第三方 Agent；只读探测可用 `runtime.installation` / `runtime.installPlan`；执行安装走 `runtime.install`（由宿主确认闸门调用）
 
 ## 命令
 

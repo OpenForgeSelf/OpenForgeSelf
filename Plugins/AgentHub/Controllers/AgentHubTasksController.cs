@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.AgentHub.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewLife.Log;
 using TaskStatus = ForgeSelf.Api.Plugins.AgentHub.Services.TaskStatus;
@@ -11,9 +12,11 @@ namespace ForgeSelf.Api.Plugins.AgentHub.Controllers;
 /// <summary>
 /// 委派任务接口：创建、查看、取消、事件流（SSE）、审批。
 /// 路由前缀 <c>api/agent-hub/tasks</c>。
+/// 铁律 17：类级 <c>[Authorize("ApiKeyPolicy")]</c>。
 /// </summary>
 [ApiController]
 [Route("api/agent-hub/tasks")]
+[Authorize("ApiKeyPolicy")]
 public class AgentHubTasksController : ControllerBase
 {
     private readonly DelegationRuntime _runtime;

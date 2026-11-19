@@ -57,6 +57,18 @@ public class ApiServerKeyService
         return AutoGenerateAndSave();
     }
 
+    /// <summary>
+    /// 只读解密。失败或尚未播种时返回 null，不写回配置。
+    /// 托盘进程用这个方法：解密失败时如果走 <see cref="GetActiveKeyPlain"/>，会重新生成主密钥并覆盖 API 正在用的那一份。
+    /// </summary>
+    public string? TryReadActiveKeyPlain()
+    {
+        var cipher = ForgeSetting.Current.ApiToken;
+        if (string.IsNullOrEmpty(cipher)) return null;
+        try { return _encryption.Decrypt(cipher); }
+        catch { return null; }
+    }
+
     /// <summary>生成新密钥，加密保存到 ForgeSetting，返回明文</summary>
     private string AutoGenerateAndSave()
     {

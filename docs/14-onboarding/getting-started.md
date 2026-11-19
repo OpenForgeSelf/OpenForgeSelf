@@ -9,7 +9,7 @@
 |------|------|
 | .NET | 10（后端） |
 | Node + pnpm | Node >= 20，pnpm（前端，非 npm） |
-| 操作系统 | Windows（托盘桌面应用） |
+| 操作系统 | API（`ForgeSelf.Api`，`net10.0`）可在 Windows 与 Linux 上跑。托盘 `ForgeSelf.Tray` 与安装包仍是 Windows |
 
 ### 1.1 Linux 上编不过宿主（2026-11-19 实测）
 

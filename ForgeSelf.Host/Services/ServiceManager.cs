@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.ServiceProcess;
-using Microsoft.Extensions.Options;
 using NewLife.Log;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Core;

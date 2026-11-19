@@ -76,6 +76,22 @@ try {
 $exe = Join-Path $OutputDir 'ForgeSelf.exe'
 if (-not (Test-Path $exe)) { throw "publish output missing: $exe" }
 
+# 托盘是独立的 Windows 程序，和业务层 exe 放在同一个版本目录。
+$trayProj = Join-Path $RepoRoot 'ForgeSelf.Tray/ForgeSelf.Tray.csproj'
+$trayOut = Join-Path $RepoRoot '.temp/publish-tray'
+if (Test-Path $trayOut) { Remove-Item -LiteralPath $trayOut -Recurse -Force }
+Invoke-ReleaseStep "tray: dotnet publish (win-x64, framework-dependent, single-file)" {
+    & dotnet publish $trayProj -c $Configuration -r win-x64 --self-contained false `
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false `
+        -p:IncludeAllContentForSelfExtract=false `
+        -o $trayOut `
+        -nologo -v minimal
+    Assert-ExitCode 'dotnet publish tray'
+}
+$trayExe = Join-Path $trayOut 'ForgeSelf.Tray.exe'
+if (-not (Test-Path $trayExe)) { throw "publish output missing: $trayExe" }
+Copy-Item -LiteralPath $trayExe -Destination (Join-Path $OutputDir 'ForgeSelf.Tray.exe') -Force
+
 # 输入38：System.Data.SQLite.dll 从 NuGet 缓存外置复制到发布目录。
 # XCode 12 的 SQLite provider 以「程序目录文件探测」加载 System.Data.SQLite.dll：
 # 单文件内嵌后文件不存在 → 探测回退创建 Plugins/ 并外网下载（x.newlifex.com，实测 AgentHub 初始化失败）。

@@ -164,7 +164,7 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
      ③ 插件业务要写单测时，`ForgeSelf.Api.Tests/ForgeSelf.Api.Tests.csproj` → `<ProjectReference Include="..\Plugins\<X>\<X>.csproj" />`
      （缺它 ⇒ 测试编译报 **CS0234 命名空间…中不存在类型或命名空间名**；插件业务测试的目录约定 = `ForgeSelf.Api.Tests/Plugins/<X>Tests/`）。
    - **判据必须是宿主产物，不是插件目录自建**：`cd ForgeSelf.Api && dotnet build` 后核对
-     `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<X>/<X>.dll` 存在，且与 `Plugins/<X>/bin/Debug/net10.0/<X>.dll` **md5 相同**
+     `ForgeSelf.Api/bin/Debug/net10.0/Plugins/<X>/<X>.dll` 存在，且与 `Plugins/<X>/bin/Debug/net10.0/<X>.dll` **md5 相同**
      （或按下方「查 DLL 字符串」条用 `scripts/probe-dll-string.cjs` 确认本次新增类型 FOUND）。
      ⚠ **`dotnet build Plugins/<X>/<X>.csproj` 单编插件不算数**——它证明的是插件自身可编译，证明不了它进了宿主构建图；
      A2 当时正是拿这条报了「骨架完成」，缺陷一直到 A3 才暴露。
@@ -173,10 +173,10 @@ description: 新建 / 维护 OpenForgeSelf 插件的端到端指南（后端 + �
      造成与 PluginLoadContext 的双重加载」。⇒ 插件要读宿主实体（`ChatTurn`/`SessionEventEntity` 等，都在 `ForgeSelf.Api/Entities/`）
      **只能经 Abstractions 契约 + 宿主实现 + DI**（同构先例：`IUsageStatsService` @ `Abstractions` →
      `AppBuilder.cs` 注册 → `Plugins/DevTools`/`MemorySystem`/`ScriptRunner` 消费）。插件侧**零编译宿主类型**。
-   - **net10.0 vs net10.0-windows**：插件是 `net10.0`、宿主与测试工程是 `net10.0-windows`，构建日志会出 **MSB3271** 兼容关系告警。
+   - **宿主 TFM**：`ForgeSelf.Api` 与测试工程是 `net10.0`。托盘工程 `ForgeSelf.Tray` 仍是 `net10.0-windows`，插件不引用它。
      这是既有形态、非阻断；判据看 `error` 计数与测试是否真执行，别为这条告警改 TFM。
 12c. **【插件依赖两条铁律】类库不拷 NuGet；控制器不构造注入宿主契约。** 插件总入口必读本条。条文以前写在别的文件里，开工没读到，所以同一类问题重复出现。
-   - **第三方 NuGet 必须进插件输出目录。** 插件是类库，`PackageReference` 默认不复制到 `bin`。宿主 `StageAllPlugins` 只拷插件 bin。bin 里没有那份 DLL 时，宿主 `MapControllers` 抛 `ReflectionTypeLoadException` / `FileNotFoundException`，开发栈报「后端未就绪」。修法：该插件 csproj 加 `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>`，再编宿主，核对 `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<X>/` 里 deps.json 点名的非宿主 DLL 都在。`PluginLoadContext` 的同目录回退只是兜底，不能代替复制。已发生：2026-10-09 McpCenter 缺 `ModelContextProtocol*.dll`，宿主启动即崩；2026-11-02 BrowserUse 缺 `Microsoft.Playwright.dll`，`:7301` 起不来。自动守卫：`ForgeSelf.Api.Tests/Architecture/PluginLoadDependencyGuardTests.cs`（PC-020）。
+   - **第三方 NuGet 必须进插件输出目录。** 插件是类库，`PackageReference` 默认不复制到 `bin`。宿主 `StageAllPlugins` 只拷插件 bin。bin 里没有那份 DLL 时，宿主 `MapControllers` 抛 `ReflectionTypeLoadException` / `FileNotFoundException`，开发栈报「后端未就绪」。修法：该插件 csproj 加 `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>`，再编宿主，核对 `ForgeSelf.Api/bin/Debug/net10.0/Plugins/<X>/` 里 deps.json 点名的非宿主 DLL 都在。`PluginLoadContext` 的同目录回退只是兜底，不能代替复制。已发生：2026-10-09 McpCenter 缺 `ModelContextProtocol*.dll`，宿主启动即崩；2026-11-02 BrowserUse 缺 `Microsoft.Playwright.dll`，`:7301` 起不来。自动守卫：`ForgeSelf.Api.Tests/Architecture/PluginLoadDependencyGuardTests.cs`（PC-020）。
    - **插件控制器和服务禁止构造注入宿主契约。** 插件子容器只有插件自己的服务加 `IContext`。构造函数写 `IApprovalService` / `IToolRegistry` 等，激活即 500：`Unable to resolve service for type ...`。写法：构造只收 `IContext`，用时 `_ctx.Get<T>()`，不把实例存成字段。已发生：2026-11-02 `ApprovalsController`、`ProjectController` 注入 `IApprovalService`，`CostController` 注入 `ITurnTelemetryQuery`。同条已写在 `architecture-design` 铁律 4 与 `docs/04-standards/agent-workflow/b-engineering-daily.md`。自动守卫同一测试类的「插件控制器不得构造注入宿主契约」。
 
 13. **【版本展示铁律】每个插件根视图必须在标题旁展示自身当前版本号。**
@@ -497,7 +497,7 @@ cd Plugins/<PascalCase>/web && pnpm i && pnpm run build
 >
 > **四条必知的坑（2026-10-07 todo-tracker 预览实测）**
 > - **插件 UI 是远程加载的** ⇒ 预览前必须已 `dotnet build`（把 `plugin.json` + `web/dist/*` 落进
->   `ForgeSelf.Api/bin/Debug/net10.0-windows/Plugins/<Id>/`）且插件前端 `pnpm build` 过。缺产物时页面落在
+>   `ForgeSelf.Api/bin/Debug/net10.0/Plugins/<Id>/`）且插件前端 `pnpm build` 过。缺产物时页面落在
 >   `.plugin-view-state--error`；全新 worktree 里 `Plugins/*/web/dist` **一个都没有**（gitignored，见 `e2e-testing` §失败排查）。
 > - **鉴权**：插件管理面 API 带 `[Authorize("ApiKeyPolicy")]` ⇒ 浏览器要已有 `forge_api_token`。
 >   前端 `services/authInit.ts` 首启会自动打 `GET /api/init-token` 落 localStorage，正常不用管；

@@ -141,7 +141,7 @@ public class ChatControllerInvariantTests
     [Fact]
     public void Source_NoDirectChatMessageWrites_InControllers()
     {
-        // bin/Debug/net10.0-windows → 上溯 4 级到仓库根
+        // bin/Debug/net10.0 → 上溯 4 级到仓库根
         var repoRoot = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..");
 
         foreach (var relative in new[]

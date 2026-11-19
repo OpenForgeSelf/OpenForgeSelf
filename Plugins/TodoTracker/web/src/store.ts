@@ -55,8 +55,18 @@ export const state = reactive({
   agent: null as AgentStatus | null,
   /** 列表实时徽标数据（FR-3.1）：taskId → 批量接口读回的委派状态。 */
   agentStatuses: {} as Record<number, AgentStatus>,
-  operating: false
+  operating: false,
+  /**
+   * 抽屉内「工作单元」强制展开信号（递增即触发一次）。
+   * 列表「去补齐」/ 下发缺项反馈时调用 requestExpandWorkUnit()。
+   */
+  expandWorkUnitTick: 0
 })
+
+/** 请求详情抽屉展开「工作单元 · 下发必填」分类并滚到该区。 */
+export function requestExpandWorkUnit(): void {
+  state.expandWorkUnitTick += 1
+}
 
 const STAGES: TodoStage[] = ['Draft', 'Ready', 'Dispatched', 'Running', 'Blocked', 'Review', 'Done', 'Cancelled']
 const BOARD_PAGE_SIZE = 20
@@ -290,8 +300,9 @@ export async function loadRecords(): Promise<void> {
 export async function createTodo(title: string, projectId?: number): Promise<TodoItem | null> {
   try {
     const created = await api.createTodo({ title, projectId })
-    showToast(projectId ? '已创建任务（草稿），已关联所选项目' : '已创建任务（草稿），补齐四栏后可下发', 'success')
+    showToast(projectId ? '已创建' : '已创建', 'success')
     await refreshViews()
+    // 创建后自动开抽屉（selectTodo）；概要可见、工作单元默认收起（由 TaskDetail 默认折叠态保证）
     if (created) await selectTodo(created.id)
     return created ?? null
   } catch (e) {

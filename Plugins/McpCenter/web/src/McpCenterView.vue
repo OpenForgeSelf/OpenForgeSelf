@@ -26,7 +26,8 @@ import ToolPlayground from './playground/ToolPlayground.vue'
 
 /* ── 版本徽标（铁律 13：GET /api/plugin 解包 .data 按 id 过滤） ── */
 const version = ref('')
-const activeTab = ref('tools')
+// 「网关配置」为第一个页签且默认激活（2026-11-16 用户指令：避免每次进页面都要切页签）
+const activeTab = ref('gateway')
 
 /* ── 工具管理（迁自宿主 McpToolsView 全功能） ── */
 const servers = ref<McpServerDto[]>([])
@@ -325,12 +326,13 @@ async function writeDshConfig(): Promise<void> {
   }
 }
 
-// 首次切到「网关配置」页签时拉一次 dsh 写入状态（不影响其它页签）
+// 进入「网关配置」页签时拉一次 dsh 写入状态（不影响其它页签）；
+// v2.9.1 起网关配置为默认页签 → 加 immediate，挂载即拉（否则无人切页签触发，状态永远空白）
 watch(activeTab, (tab) => {
   if (tab === 'gateway' && !dshConfig.value && !dshLoading.value) {
     loadDshConfig()
   }
-})
+}, { immediate: true })
 
 /* ── 外部服务器管理（v2.1.0：标准 MCP 客户端接入） ── */
 const externalServers = ref<McpExternalServerStateDto[]>([])
@@ -710,84 +712,7 @@ onMounted(() => {
 
       <div class="tab-area">
         <ElTabs v-model="activeTab" class="mcp-center-tabs">
-          <!-- ═══ 工具管理 ═══ -->
-          <ElTabPane label="工具管理" name="tools">
-            <div class="tool-panel">
-              <div class="filter-row">
-                <div class="search-box">
-                  <svg
-                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" class="search-icon"
-                  >
-                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    v-model="keyword" type="text" placeholder="搜索工具..." class="search-input"
-                  />
-                </div>
-                <div class="filter-tabs">
-                  <button
-                    v-for="cat in categories" :key="cat" class="filter-tab"
-                    :class="{ active: activeCategory === cat }" @click="activeCategory = cat"
-                  >
-                    {{ cat }}
-                  </button>
-                </div>
-              </div>
-
-              <div class="table-container">
-                <div class="table-header">
-                  <div class="col-name">工具名称</div>
-                  <div class="col-server">服务器</div>
-                  <div class="col-desc">描述</div>
-                  <div class="col-status">状态</div>
-                  <div class="col-actions">操作</div>
-                </div>
-
-                <div v-if="loading" class="table-empty">加载中...</div>
-                <div v-else-if="error" class="table-error">
-                  {{ error }}
-                  <button class="btn-retry" @click="loadServers">重试</button>
-                </div>
-                <div v-else-if="filteredTools.length === 0" class="table-empty">
-                  暂无工具数据
-                </div>
-
-                <div
-                  v-for="(tool, index) in filteredTools" :key="tool.id"
-                  class="table-row"
-                  :class="{ 'row-even': index % 2 === 1, 'row-disabled': !tool.isEnabled }"
-                >
-                  <div class="col-name">
-                    <span class="tool-name-text">{{ tool.name }}</span>
-                  </div>
-                  <div class="col-server">
-                    <span class="server-tag">{{ tool.serverName }}</span>
-                  </div>
-                  <div class="col-desc">
-                    <span class="tool-desc-text">{{ tool.description }}</span>
-                  </div>
-                  <div class="col-status">
-                    <ElSwitch
-                      :model-value="tool.isEnabled"
-                      :disabled="toggleLoading === tool.id"
-                      @change="handleToggle(tool)"
-                    />
-                  </div>
-                  <div class="col-actions">
-                    <button
-                      class="btn-test" :disabled="testLoading === tool.id"
-                      @click="handleTest(tool.id)"
-                    >
-                      {{ testLoading === tool.id ? '测试中...' : '测试' }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ElTabPane>
-
-          <!-- ═══ 网关配置 ═══ -->
+          <!-- ═══ 网关配置（v2.9.1 起为第一个页签且默认激活 · 2026-11-16 用户指令） ═══ -->
           <ElTabPane label="网关配置" name="gateway">
             <div class="gateway-panel">
               <div v-loading="configLoading" class="gateway-status-cards">
@@ -1005,6 +930,83 @@ onMounted(() => {
                       <ElButton size="small" @click="openEditExternal(s)">编辑</ElButton>
                       <ElButton size="small" type="danger" plain :loading="externalBusy === s.id" @click="handleDeleteExternal(s)">删除</ElButton>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ElTabPane>
+
+          <!-- ═══ 工具管理 ═══ -->
+          <ElTabPane label="工具管理" name="tools">
+            <div class="tool-panel">
+              <div class="filter-row">
+                <div class="search-box">
+                  <svg
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="search-icon"
+                  >
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    v-model="keyword" type="text" placeholder="搜索工具..." class="search-input"
+                  />
+                </div>
+                <div class="filter-tabs">
+                  <button
+                    v-for="cat in categories" :key="cat" class="filter-tab"
+                    :class="{ active: activeCategory === cat }" @click="activeCategory = cat"
+                  >
+                    {{ cat }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-container">
+                <div class="table-header">
+                  <div class="col-name">工具名称</div>
+                  <div class="col-server">服务器</div>
+                  <div class="col-desc">描述</div>
+                  <div class="col-status">状态</div>
+                  <div class="col-actions">操作</div>
+                </div>
+
+                <div v-if="loading" class="table-empty">加载中...</div>
+                <div v-else-if="error" class="table-error">
+                  {{ error }}
+                  <button class="btn-retry" @click="loadServers">重试</button>
+                </div>
+                <div v-else-if="filteredTools.length === 0" class="table-empty">
+                  暂无工具数据
+                </div>
+
+                <div
+                  v-for="(tool, index) in filteredTools" :key="tool.id"
+                  class="table-row"
+                  :class="{ 'row-even': index % 2 === 1, 'row-disabled': !tool.isEnabled }"
+                >
+                  <div class="col-name">
+                    <span class="tool-name-text">{{ tool.name }}</span>
+                  </div>
+                  <div class="col-server">
+                    <span class="server-tag">{{ tool.serverName }}</span>
+                  </div>
+                  <div class="col-desc">
+                    <span class="tool-desc-text">{{ tool.description }}</span>
+                  </div>
+                  <div class="col-status">
+                    <ElSwitch
+                      :model-value="tool.isEnabled"
+                      :disabled="toggleLoading === tool.id"
+                      @change="handleToggle(tool)"
+                    />
+                  </div>
+                  <div class="col-actions">
+                    <button
+                      class="btn-test" :disabled="testLoading === tool.id"
+                      @click="handleTest(tool.id)"
+                    >
+                      {{ testLoading === tool.id ? '测试中...' : '测试' }}
+                    </button>
                   </div>
                 </div>
               </div>

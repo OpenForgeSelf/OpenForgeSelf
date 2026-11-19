@@ -70,21 +70,22 @@ public class WindowsService : ServiceBase
 
             XTrace.Log.Info("WindowsService: Service.ShowTrayInServiceMode=true，准备启动托盘辅助进程");
 
-            // 获取端口和可执行文件路径（使用 ForgeSetting 配置的端口）
             var port = ForgeSetting.Current.PortNumber;
-            var executablePath = Environment.ProcessPath
-                ?? throw new InvalidOperationException("无法确定可执行文件路径");
+            var trayExe = TrayHostLauncher.FindTrayExecutable();
+            if (trayExe == null)
+            {
+                XTrace.Log.Warn("WindowsService: 未找到 ForgeSelf.Tray.exe，服务继续运行但不显示托盘");
+                return;
+            }
 
-            // 创建命名管道服务器（管道名称基于当前进程 ID，确保唯一性）
             var pipeName = $"ForgeSelf-Tray-{Environment.ProcessId}";
             _pipeServer = new ServicePipeServer(pipeName);
             _pipeServer.Start();
 
-            // 构建 --tray 参数
-            var arguments = TrayProcessStarter.BuildTrayArguments(port, pipeName);
+            var arguments = TrayProcessStarter.BuildTrayArguments(
+                port, pipeName, "service", TrayHostLauncher.ResolveApiExecutable());
 
-            // 在用户会话中启动托盘辅助进程
-            var started = TrayProcessStarter.StartTrayProcess(executablePath, arguments);
+            var started = TrayProcessStarter.StartTrayProcess(trayExe, arguments);
             if (started)
             {
                 XTrace.Log.Info("WindowsService: 托盘辅助进程已启动，管道名称: {0}", pipeName);

@@ -243,8 +243,8 @@ public static class TrayProcessStarter
     /// <summary>
     /// 创建启动参数：--tray --pipe-name <name> --port <port> [--service-pid <pid>]
     /// </summary>
-    public static string BuildTrayArguments(int port, string pipeName)
+    public static string BuildTrayArguments(int port, string pipeName, string role, string apiExecutable)
     {
-        return $"--tray --pipe-name \"{pipeName}\" --port {port}";
+        return $"--pipe-name \"{pipeName}\" --port {port} --role {role} --api-exe \"{apiExecutable}\"";
     }
 }

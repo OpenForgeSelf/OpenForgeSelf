@@ -1,7 +1,7 @@
 # 14-onboarding — 上手指南
 
 > 状态：已实现（2026-08-12 反向更新，端口以代码为准）
-> 最后更新：2026-08-12
+> 最后更新：2026-11-19
 
 ## 1. 环境要求
 
@@ -9,7 +9,15 @@
 |------|------|
 | .NET | 10（后端） |
 | Node + pnpm | Node >= 20，pnpm（前端，非 npm） |
-| 操作系统 | Windows（托盘桌面应用） |
+| 操作系统 | API（`ForgeSelf.Api`，`net10.0`）可在 Windows 与 Linux 上跑。托盘 `ForgeSelf.Tray` 与安装包仍是 Windows |
+
+### 1.1 Linux 上编和跑宿主（2026-11-19）
+
+当前 API 是 `net10.0`，Linux 上可以编译并跑起 Kestrel。托盘在 `ForgeSelf.Tray`（`net10.0-windows`），只在 Windows 上运行；这个工程靠 `EnableWindowsTargeting` 在 Linux 上交叉编译，不能在 Linux 上执行。根启动器 `ForgeSelf.Bootstrapper` 仍是 `win-x64`，Linux 上编不了，它是安装包入口。
+
+拆分之前的实测：API 钉在 `net10.0-windows` 并打开 `UseWindowsForms` 时，Linux 上直接 `dotnet build` 报 **NETSDK1100**。加上 `-p:EnableWindowsTargeting=true` 后，SDK 10.0.115 能编出 0 error 的 `net10.0-windows` 产物；`dotnet exec` 退出码 150，因为本机没有 `Microsoft.WindowsDesktop.App`。
+
+现行分层见 `docs/07-decisions/007-split-windows-tray.md` 与 `docs/04-standards/packaging-upgrade-backup.md` §1.6。
 
 ## 2. 一键启动
 

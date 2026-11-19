@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.ServiceProcess;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services;
+using ForgeSelf.Api.Tests;
 
 namespace ForgeSelf.Api.Tests.Services;
 
@@ -457,7 +458,7 @@ public class ServiceManagerTests : IDisposable
     // ServiceControllerWrapper 集成验证（快速冒烟）
     // ================================================================
 
-    [Fact]
+    [WindowsOnlyFact]
     public void ServiceControllerWrapper_ConstructAndDispose_DoesNotThrow()
     {
         // Act

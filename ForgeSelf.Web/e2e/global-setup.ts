@@ -31,7 +31,8 @@ const __dirname = path.dirname(__filename)
 const REPO_ROOT = path.resolve(__dirname, '..', '..') // ForgeSelf.Web/e2e -> repo root
 const PUBLISH_PROJECT = path.join(REPO_ROOT, 'ForgeSelf.Api', 'ForgeSelf.Api.csproj')
 
-const HOST_EXE = 'ForgeSelf.exe'
+/** 发布产物入口：Windows 为 ForgeSelf.exe；Linux/macOS 为无扩展 apphost `ForgeSelf`。 */
+const HOST_EXE = process.platform === 'win32' ? 'ForgeSelf.exe' : 'ForgeSelf'
 
 let hostProc: ChildProcess | null = null
 

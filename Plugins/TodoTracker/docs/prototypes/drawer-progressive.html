@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TodoTracker 原型 · 抽屉 + 渐进披露</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --text: #303133;
+      --muted: #909399;
+      --border: #e4e7ed;
+      --primary: #e6a23c;
+      --primary-text: #8a5a00;
+      --danger: #f56c6c;
+      --ok: #67c23a;
+      --soft: #fdf6ec;
+      --soft-border: #faecd8;
+      --shadow: 0 8px 24px rgba(0,0,0,.12);
+      --radius: 8px;
+      --drawer-w: 480px;
+      --font: "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: var(--font); color: var(--text);
+      background: var(--bg); min-height: 100vh;
+    }
+    .app { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--muted); margin-bottom: 12px;
+    }
+    .badge b { color: var(--primary-text); background: var(--soft); border: 1px solid var(--soft-border); padding: 2px 8px; border-radius: 999px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+    .toolbar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px; margin-bottom: 12px;
+    }
+    input, select, textarea, button {
+      font: inherit; border-radius: 6px; border: 1px solid var(--border);
+      padding: 8px 10px; background: #fff; color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--primary) 35%, white); border-color: var(--primary); }
+    .grow { flex: 1; min-width: 180px; }
+    .btn { cursor: pointer; background: #fff; }
+    .btn:hover { border-color: var(--primary); color: var(--primary-text); }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+    .btn-primary:hover { filter: brightness(.96); color: #fff; }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+    .pipeline {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    .pipe {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+      padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: default;
+    }
+    .pipe b { color: var(--text); margin-left: 6px; }
+    .pipe.on { border-color: var(--primary); color: var(--primary-text); background: var(--soft); }
+    .meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+    .list {
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .item {
+      display: grid; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background .15s;
+    }
+    .item:last-child { border-bottom: 0; }
+    .item:hover, .item.active { background: #fafafa; }
+    .item.active { box-shadow: inset 3px 0 0 var(--primary); }
+    .row1 { display: flex; gap: 8px; align-items: center; }
+    .stage {
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: #ecf5ff; color: #409eff; border: 1px solid #d9ecff;
+    }
+    .stage.draft { background: #f4f4f5; color: #909399; border-color: #e9e9eb; }
+    .prio { font-size: 11px; color: var(--muted); }
+    .title { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hint-soft {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--primary-text);
+      background: var(--soft); border: 1px dashed var(--soft-border);
+      padding: 4px 8px; border-radius: 6px; width: fit-content;
+    }
+    .hint-soft a { color: var(--primary-text); font-weight: 600; }
+    .pager {
+      display: flex; justify-content: center; gap: 12px; align-items: center;
+      padding: 12px; color: var(--muted); font-size: 13px;
+      border-top: 1px solid var(--border); background: #fcfcfd;
+    }
+    /* overlay drawer */
+    .mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.35);
+      opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40;
+    }
+    .mask.open { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed; top: 0; right: 0; height: 100vh; width: min(var(--drawer-w), 100vw);
+      background: var(--panel); box-shadow: var(--shadow); z-index: 50;
+      transform: translateX(100%); transition: transform .22s ease;
+      display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    .d-head {
+      padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+      display: grid; gap: 10px; flex-shrink: 0; background: #fff;
+    }
+    .d-top { display: flex; gap: 8px; align-items: flex-start; }
+    .d-title {
+      flex: 1; font-size: 16px; font-weight: 700; border: 1px solid transparent;
+      padding: 4px 6px; margin: -4px -6px;
+    }
+    .d-title:focus { border-color: var(--border); background: #fff; }
+    .close {
+      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+      background: #fff; cursor: pointer; font-size: 18px; line-height: 1;
+    }
+    .d-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .d-actions .btn { padding: 6px 10px; font-size: 12px; }
+    .banner {
+      display: none; font-size: 12px; padding: 8px 10px; border-radius: 6px;
+      background: #fef0f0; color: #c45656; border: 1px solid #fde2e2;
+    }
+    .banner.show { display: block; }
+    .d-scroll { flex: 1; overflow: auto; padding: 8px 12px 24px; }
+    details.cat {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: #fff; margin: 8px 0; overflow: hidden;
+    }
+    details.cat[open] { box-shadow: 0 1px 0 rgba(0,0,0,.02); }
+    summary {
+      list-style: none; cursor: pointer; padding: 12px 14px;
+      display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::before {
+      content: "▸"; color: var(--muted); width: 14px; transition: transform .15s;
+    }
+    details[open] > summary::before { transform: rotate(90deg); }
+    .chip {
+      margin-left: auto; font-size: 11px; font-weight: 500; color: var(--muted);
+      background: #f4f4f5; border-radius: 999px; padding: 2px 8px;
+    }
+    .chip.warn { background: var(--soft); color: var(--primary-text); }
+    .chip.ok { background: #f0f9eb; color: #529b2e; }
+    .cat-body { padding: 0 14px 14px; display: grid; gap: 8px; }
+    label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+    label.f span em { color: var(--danger); font-style: normal; margin-left: 4px; }
+    label.f.req-later span::after {
+      content: "下发前必填"; margin-left: 6px; font-size: 10px;
+      color: var(--primary-text); background: var(--soft); border-radius: 4px; padding: 1px 6px;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    .foot {
+      border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; flex-wrap: wrap;
+      background: #fcfcfd; flex-shrink: 0;
+    }
+    .note {
+      margin-top: 16px; font-size: 12px; color: var(--muted);
+      background: #fff; border: 1px dashed var(--border); border-radius: var(--radius); padding: 12px;
+    }
+    .shots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .shots button { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="badge">原型审阅 · <b>全宽列表 + 右侧抽屉 + 分类渐进披露</b> · 业务代码未改</div>
+    <h1>待办任务</h1>
+    <p class="sub">创建只需标题。四栏（目标 / 正文 / 验收 / 验证）放到下发前再硬校验。点任务打开抽屉，列表不被挤压。</p>
+
+    <div class="toolbar">
+      <select aria-label="项目"><option>不选项目</option><option>openforgeself</option></select>
+      <input id="newTitle" class="grow" maxlength="200" placeholder="新任务标题（回车创建）" />
+      <button class="btn btn-primary" id="btnCreate" type="button">新建</button>
+    </div>
+
+    <div class="pipeline" aria-label="阶段">
+      <span class="pipe on">全部 <b>3</b></span>
+      <span class="pipe">草稿 <b>2</b></span>
+      <span class="pipe">就绪 <b>0</b></span>
+      <span class="pipe">已下发 <b>1</b></span>
+    </div>
+
+    <div class="meta-row">
+      <span>共 <b id="totalCount">3</b> 条 · 列表全宽（无右侧分栏）</span>
+      <span>分页在列表下方</span>
+    </div>
+
+    <div class="list" id="list"></div>
+    <div class="pager">
+      <button class="btn" type="button" disabled>上一页</button>
+      <span>1 / 1</span>
+      <button class="btn" type="button" disabled>下一页</button>
+    </div>
+
+    <div class="note">
+      <b>审阅切换</b>
+      <div class="shots">
+        <button class="btn" type="button" data-scene="list">场景 A：仅列表</button>
+        <button class="btn" type="button" data-scene="drawer">场景 B：抽屉概要</button>
+        <button class="btn" type="button" data-scene="missing">场景 C：下发缺项反馈</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mask" id="mask"></div>
+  <aside class="drawer" id="drawer" aria-label="任务详情抽屉">
+    <header class="d-head">
+      <div class="d-top">
+        <input class="d-title" id="dTitle" value="" aria-label="标题" />
+        <span class="stage draft" id="dStage">草稿</span>
+        <button class="close" id="btnClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="d-actions">
+        <button class="btn" type="button">就绪</button>
+        <button class="btn" type="button">阻塞</button>
+        <button class="btn" type="button">取消</button>
+      </div>
+      <div class="banner" id="banner">下发前还缺：验收判据、验证命令</div>
+    </header>
+    <div class="d-scroll">
+      <details class="cat" open>
+        <summary>概要 <span class="chip">始终可见</span></summary>
+        <div class="cat-body">
+          <p style="margin:0;font-size:13px;color:var(--muted)" id="dSummary">快速记下的任务。下发前再补工作单元四栏。</p>
+        </div>
+      </details>
+
+      <details class="cat" id="catBasic">
+        <summary>基本信息 <span class="chip">备注 · 对象</span></summary>
+        <div class="cat-body">
+          <label class="f"><span>备注</span><textarea placeholder="给人看的补充（不进下发正文）"></textarea></label>
+          <label class="f"><span>下发对象文案</span><input placeholder="agent 名 / manual" /></label>
+        </div>
+      </details>
+
+      <details class="cat" id="catProject">
+        <summary>项目关联 <span class="chip warn" id="projChip">建议关联</span></summary>
+        <div class="cat-body">
+          <label class="f"><span>项目路径</span><input placeholder="任意写法的项目根（插件会归一）" /></label>
+        </div>
+      </details>
+
+      <details class="cat" id="catWork">
+        <summary>工作单元 · 下发必填 <span class="chip warn" id="workChip">待补齐 2</span></summary>
+        <div class="cat-body">
+          <label class="f req-later"><span>可验证目标</span><input id="fObj" value="把待办详情改成抽屉且不挤列表" /></label>
+          <label class="f req-later"><span>任务正文</span><textarea id="fContent">侧边抽屉 + 渐进披露；创建轻校验。</textarea></label>
+          <label class="f req-later"><span>验收判据</span><textarea id="fAccept" placeholder="- [ ] …"></textarea></label>
+          <label class="f req-later"><span>验证命令</span><textarea id="fVerify" placeholder="pnpm run build …"></textarea></label>
+        </div>
+      </details>
+
+      <details class="cat" id="catScope">
+        <summary>范围与权限 <span class="chip">可选</span></summary>
+        <div class="cat-body">
+          <label class="f"><span>允许改动范围</span><textarea rows="2" placeholder="Plugins/TodoTracker/**"></textarea></label>
+          <label class="f"><span>禁止改动范围</span><textarea rows="2" placeholder="生产环境 / 宿主实体结构"></textarea></label>
+        </div>
+      </details>
+
+      <details class="cat" id="catDispatch">
+        <summary>下发与委派 <span class="chip">关键动作</span></summary>
+        <div class="cat-body">
+          <p style="margin:0;font-size:12px;color:var(--muted)">工件导入 / 生成提示词 / 引擎选择放这里。点「下发」才硬校验四栏。</p>
+        </div>
+      </details>
+
+      <details class="cat" id="catHistory">
+        <summary>执行记录 <span class="chip">0</span></summary>
+        <div class="cat-body">
+          <p style="margin:0;font-size:13px;color:var(--muted)">暂无记录。下发后由 agent 回写。</p>
+        </div>
+      </details>
+    </div>
+    <footer class="foot">
+      <button class="btn btn-primary" id="btnDispatch" type="button">下发</button>
+      <button class="btn" type="button">生成提示词</button>
+      <button class="btn" type="button">交给 Agent 执行</button>
+    </footer>
+  </aside>
+
+  <script>
+    const tasks = [
+      {
+        id: 1, title: '待办抽屉与渐进披露', stage: '草稿', stageClass: 'draft',
+        soft: true, missing: ['acceptance', 'verification'],
+        objective: '把待办详情改成抽屉且不挤列表',
+        content: '侧边抽屉 + 渐进披露；创建轻校验。',
+        acceptance: '', verification: ''
+      },
+      {
+        id: 2, title: '先记一笔：周末买猫粮', stage: '草稿', stageClass: 'draft',
+        soft: true, missing: ['objective', 'content', 'acceptance', 'verification'],
+        objective: '', content: '', acceptance: '', verification: ''
+      },
+      {
+        id: 3, title: '已齐备可下发示例', stage: '就绪', stageClass: '',
+        soft: false, missing: [],
+        objective: '完成冒烟 e2e', content: '跑通 todo-tracker 主链路',
+        acceptance: '- [ ] e2e 绿', verification: 'pnpm exec playwright test e2e/plugins/todo-tracker'
+      }
+    ]
+
+    const listEl = document.getElementById('list')
+    const drawer = document.getElementById('drawer')
+    const mask = document.getElementById('mask')
+    const banner = document.getElementById('banner')
+    let selectedId = null
+
+    function missingLabel(keys) {
+      const map = { objective: '可验证目标', content: '任务正文', acceptance: '验收判据', verification: '验证命令' }
+      return keys.map(k => map[k] || k).join('、')
+    }
+
+    function renderList() {
+      listEl.innerHTML = tasks.map(t => `
+        <div class="item ${t.id === selectedId ? 'active' : ''}" data-id="${t.id}">
+          <div class="row1">
+            <span class="stage ${t.stageClass}">${t.stage}</span>
+            <span class="prio">P2</span>
+            <span class="title">${t.title}</span>
+          </div>
+          ${t.soft ? `<div class="hint-soft">下发前待补齐 · <a href="#" data-fill="${t.id}">去补齐</a></div>` : `<div style="font-size:12px;color:#67c23a">四栏齐备，可下发</div>`}
+        </div>
+      `).join('')
+    }
+
+    function openDrawer(id, expandWork = false) {
+      const t = tasks.find(x => x.id === id)
+      if (!t) return
+      selectedId = id
+      document.getElementById('dTitle').value = t.title
+      document.getElementById('dStage').textContent = t.stage
+      document.getElementById('dStage').className = 'stage ' + (t.stageClass || '')
+      document.getElementById('dSummary').textContent = t.soft
+        ? '快速记下的任务。下发前再补工作单元四栏。'
+        : '工作单元已齐备，可在底部执行下发。'
+      document.getElementById('fObj').value = t.objective
+      document.getElementById('fContent').value = t.content
+      document.getElementById('fAccept').value = t.acceptance
+      document.getElementById('fVerify').value = t.verification
+      const chip = document.getElementById('workChip')
+      if (t.missing.length) {
+        chip.textContent = '待补齐 ' + t.missing.length
+        chip.className = 'chip warn'
+      } else {
+        chip.textContent = '已齐备'
+        chip.className = 'chip ok'
+      }
+      document.getElementById('catWork').open = expandWork || t.missing.length > 0
+      banner.classList.remove('show')
+      drawer.classList.add('open')
+      mask.classList.add('open')
+      renderList()
+    }
+
+    function closeDrawer() {
+      drawer.classList.remove('open')
+      mask.classList.remove('open')
+      banner.classList.remove('show')
+      selectedId = null
+      renderList()
+    }
+
+    listEl.addEventListener('click', (e) => {
+      const fill = e.target.closest('[data-fill]')
+      if (fill) {
+        e.preventDefault()
+        openDrawer(Number(fill.dataset.fill), true)
+        return
+      }
+      const item = e.target.closest('.item')
+      if (item) openDrawer(Number(item.dataset.id))
+    })
+
+    document.getElementById('btnClose').onclick = closeDrawer
+    mask.onclick = closeDrawer
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer()
+    })
+
+    document.getElementById('btnDispatch').onclick = () => {
+      const t = tasks.find(x => x.id === selectedId)
+      if (!t) return
+      if (t.missing.length) {
+        banner.textContent = '下发前还缺：' + missingLabel(t.missing)
+        banner.classList.add('show')
+        document.getElementById('catWork').open = true
+        document.getElementById('catDispatch').open = true
+        return
+      }
+      banner.classList.remove('show')
+      alert('原型：校验通过，将调用既有下发接口（此处不发真实请求）')
+    }
+
+    document.getElementById('btnCreate').onclick = () => {
+      const input = document.getElementById('newTitle')
+      const title = input.value.trim()
+      if (!title) return
+      const id = Date.now()
+      tasks.unshift({
+        id, title, stage: '草稿', stageClass: 'draft', soft: true,
+        missing: ['objective', 'content', 'acceptance', 'verification'],
+        objective: '', content: '', acceptance: '', verification: ''
+      })
+      document.getElementById('totalCount').textContent = String(tasks.length)
+      input.value = ''
+      renderList()
+      openDrawer(id, false)
+    }
+
+    document.querySelectorAll('[data-scene]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const scene = btn.dataset.scene
+        if (scene === 'list') closeDrawer()
+        if (scene === 'drawer') openDrawer(1, false)
+        if (scene === 'missing') {
+          openDrawer(1, true)
+          setTimeout(() => document.getElementById('btnDispatch').click(), 50)
+        }
+      })
+    })
+
+    renderList()
+  </script>
+</body>
+</html>

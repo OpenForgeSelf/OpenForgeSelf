@@ -27,6 +27,9 @@ import { injectRealApiKey } from './helpers/real-auth'
 async function gotoMcpCenter(page: Page): Promise<void> {
   await page.goto('/mcp-center')
   await expect(page.getByRole('heading', { name: 'MCP 中心' })).toBeVisible()
+  // v2.9.1 起「网关配置」为第一个页签且默认激活（2026-11-16 用户指令）→ 工具管理需显式切换
+  await page.getByRole('tab', { name: '工具管理' }).click()
+  await expect(page.locator('.table-header')).toBeVisible()
 }
 
 // ============================================================

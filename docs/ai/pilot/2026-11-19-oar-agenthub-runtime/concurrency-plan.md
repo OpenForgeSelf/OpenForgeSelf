@@ -55,8 +55,8 @@ P4 ── T-ConsumerQA（试点 + 测试体系 + Node 打包）  依赖 P3 可 G
 
 ## 4. 本轮（Cloud）执行裁剪
 
-- **已完成**：P1 + P2 + P3（T-Provider + T-Surface）；pilots `…-p1` / `…-p2` / `…-p3`。  
-- **下一检查点**：P4 T-ConsumerQA（消费者试点 + Node≥24 打包说明）。  
+- **已完成**：P0–P4（含 T-ConsumerQA）；pilots `…-worker-p0` / `…-p1` / `…-p2` / `…-p3` / `…-p4`。  
+- **阶段状态**：P0 ✅ · P1 ✅ · P2 ✅ · P3 ✅ · P4 ✅（当前计划终段；**不发明 P5**）。  
 
 ## 5. 验证分档（对齐 AGENTS §5.6）
 
@@ -65,11 +65,11 @@ P4 ── T-ConsumerQA（试点 + 测试体系 + Node 打包）  依赖 P3 可 G
 | P1 | 快+相关过滤 | `dotnet build`；`dotnet test --filter` OarWorker/AgentRuntime；可选 Worker `pnpm run smoke` |
 | P2 | 快 + AgentHub Cli 过滤；碰 Model.xml 则相关集成 | CliTransport / DelegationRuntime 过滤集 |
 | P3 | 快 + 插件冒烟 e2e 1 条 | `e2e/plugins/agent-hub` 一条主链路 |
-| P4 | 中（碰宿主/脚本时） | 全量 `dotnet test` 子集 + 打包说明自检 |
+| P4 | 中（碰宿主/脚本时） | Consumer 过滤集 + Worker smoke + 打包说明自检 |
 
 ## 6. 交接清单（阶段结束）
 
-- [x] P1/P2/P3 pilot 05/06/07 齐，AC 勾选  
+- [x] P0–P4 pilot 05/06/07 齐，AC 勾选  
 - [x] 032 §6 进度句更新  
-- [x] ADR/架构真源阶段表勾选（P0–P3 ✅）  
-- [ ] P4 下一团队：消费者试点 + 中档测试 + Node≥24 打包说明  
+- [x] ADR/架构真源阶段表勾选（P0–P4 ✅）  
+- [x] P4 T-ConsumerQA：消费者试点 + 中档过滤测试 + Node≥24 打包说明（架构 §13 / RuntimeWorker README）  

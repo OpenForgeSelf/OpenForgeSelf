@@ -148,6 +148,6 @@ L3 拦截管道（waterfall/serial，特例）
 | 与 `IAgentRunDispatch` / `IAgent` | Dispatch/MAF = **本机**智能体；`IAgentRuntime` = **外部** Coding Agent。不合并 |
 | 为什么停在 L1 | 消费方可降级；实时需求用 `WatchTaskAsync` 拉取/订阅任务事件，不强制先上跨插件 L2 总线 |
 | 同实例铁律 | 复用 §7 坑1 / §8 坑1：禁止在 `Apply` 里另 `BuildServiceProvider()` 造第二份 Provider |
-| 进度 | P0 Worker ✅ · P1 契约+客户端 ✅ · P2 Session/Transport ⬜ · P3 Provider/API·UI ⬜ · P4 消费/打包 ⬜ |
+| 进度 | P0 Worker ✅ · P1 契约+客户端 ✅ · P2 Session/Transport ✅ · P3 Provider/API·UI ✅ · P4 消费/打包 ✅ |
 
 完整阶段与安全约束 → [`agenthub-oar-runtime.md`](agenthub-oar-runtime.md)；裁决 → [ADR-007](../07-decisions/007-oar-agenthub-runtime.md)。

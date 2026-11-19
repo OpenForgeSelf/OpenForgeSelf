@@ -37,7 +37,7 @@
 
 - 正面：统一外部 Agent 接入；跨插件可测的 Runtime 能力；Cli 与 Oar 并存可回退。  
 - 负面：增加 Node≥24 运维面；OAR 版本演进快需钉版本与回归；Session 表增加 AgentHub 库结构变更。  
-- 后续：P0 Worker 已落地（`Plugins/AgentHub/RuntimeWorker`，smoke 12/12）；按并发计划推进 P1→P4，每阶段独立 pilot + 验证。
+- 后续：P0–P4 已按 concurrency-plan 落地（pilots `…-worker-p0` / `…-p1`–`…-p4`）；当前计划终段，不另开 P5。
 
 ## 撤销 / 修订触发条件
 

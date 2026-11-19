@@ -6,7 +6,7 @@
 > 功能档案：[032-agent-hub.md](../02-features/032-agent-hub.md)  
 > design pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/`  
 > 并发计划：同目录 [`concurrency-plan.md`](../ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md)  
-> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`（✅）· P2 `2026-11-19-oar-runtime-p2`（✅）· P3 `2026-11-19-oar-runtime-p3`（✅）
+> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`（✅）· P2 `2026-11-19-oar-runtime-p2`（✅）· P3 `2026-11-19-oar-runtime-p3`（✅）· P4 `2026-11-19-oar-runtime-p4`（✅）
 
 本文是「外部 Coding Agent 如何经铸己匣统一运行」的**唯一架构真源**。实现与本文冲突时，先改本文或提 ADR，禁止静默分叉。
 
@@ -109,6 +109,8 @@ public interface IAgentRuntime
 
 关键字段：`SessionKey`（对外 GUID）、`AgentId`、`AccessPointId`、`Transport`、`RuntimeId`、`OarSessionId`、`Cwd`、`Model`、`Effort`、`OptionsJson`（无密钥）、`Status`、`Generation`、`LastTaskId`、时间戳。
 
+**SessionKey ≠ Worker 侧 key（映射边界）**：库内允许 `SessionKey` 与 `OarSessionId` 取不同值；对外 API/Tools/UI **只暴露 SessionKey**，禁止回传 `OarSessionId`（守卫见 P4 消费者试点测）。当前 `OarTransport` 常把 Worker 返回的 sessionKey **对齐**为对外 SessionKey（便于 cancel）；若未来需要稳定公共 GUID 与 Worker 内 id 解耦，只扩展 `AgentSessionManager` 映射，**不**改对外契约字段名。P4 不落地独立映射表、不重写 Watch SSE。
+
 关系：一个 Session 多轮 Task；Task 结束 ≠ Session 结束；恢复 Session ≠ 恢复旧进程。
 
 ### 7.2 双层事件
@@ -153,10 +155,28 @@ public interface IAgentRuntime
 | P1 | `IAgentRuntime` 契约 + `OarWorkerClient` stdio JSON-RPC / 生命周期 | `2026-11-19-oar-runtime-p1` | ✅ |
 | P2 | Transport 注册表、RuntimeId、Session、Delegation 选路 | `2026-11-19-oar-runtime-p2` | ✅ |
 | P3 | Provider 注册、工具 SessionKey、管理面/API | `2026-11-19-oar-runtime-p3` | ✅ |
-| P4 | 消费者试点、测试体系、打包/Node 检查文档 | 另开 | ⬜ |
+| P4 | 消费者试点、测试体系、打包/Node 检查文档 | `2026-11-19-oar-runtime-p4` | ✅ |
 
 详细完成标准见 pilot `02-spec.md` / 用户调研方案第九章（已采纳）。
 
 ## 12. 审慎不做
 
 见 `docs/07-decisions/not-taken-decisions.md` 条目「OAR 第一期缓做能力」。
+
+## 13. 运维与打包（Node ≥24 · RuntimeWorker）
+
+> 操作细则真源：`Plugins/AgentHub/RuntimeWorker/README.md`。本节只固化跨文档契约，禁止复制绝对路径。
+
+| 项 | 约定 |
+| --- | --- |
+| 运行时 | **Node.js ≥ 24**（`package.json` `engines.node`；OAR 0.109 要求） |
+| 包管理 | 在 `Plugins/AgentHub/RuntimeWorker` 内用 **pnpm**（与仓根一致） |
+| 锁版本 | `@botiverse/oar@0.109.0` 精确锁定；升级须另开 pilot + ADR 备注 |
+| 构建 | `pnpm install` → `pnpm run build`；产物 `dist/`（gitignore，发布随插件包或开发机现编） |
+| 探针 | `pnpm run smoke`（12 步 scripted，零第三方 Agent 二进制） |
+| 启动 | 宿主经 `OarWorkerClient` 拉起 `node <WorkerEntry>`；**禁止**启动时自动 `install` 第三方 Agent |
+| CI / Cloud | 默认镜像若仅 Node 22，须另备 Node ≥24 工具链再跑 Worker smoke/build；**不要**为此把仓根 Node 引擎整体抬到 24（宿主前端仍按仓根约定） |
+| Linux 测宿主 | 过滤/单测若碰 WindowsDesktop 宿主 `runtimeconfig`，沿用既有 strip 夹具；与 Node 版本无关 |
+| 降级 | Worker 不可用或未配置 `WorkerEntryPath` 时，`Transport=Cli` AccessPoint 仍须可 Submit（P4 消费者试点覆盖） |
+
+插件 zip / 宿主 release 链路仍走 `packaging-upgrade-backup.md`；RuntimeWorker 作为 AgentHub 插件内嵌目录随插件版本走，不单独成宿主 versions 层。

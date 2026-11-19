@@ -1,7 +1,7 @@
 # 14-onboarding — 上手指南
 
 > 状态：已实现（2026-08-12 反向更新，端口以代码为准）
-> 最后更新：2026-08-12
+> 最后更新：2026-11-19
 
 ## 1. 环境要求
 
@@ -10,6 +10,19 @@
 | .NET | 10（后端） |
 | Node + pnpm | Node >= 20，pnpm（前端，非 npm） |
 | 操作系统 | Windows（托盘桌面应用） |
+
+### 1.1 Linux 上编不过宿主（2026-11-19 实测）
+
+宿主 `ForgeSelf.Api/ForgeSelf.Api.csproj` 把 `TargetFramework` 钉成 `net10.0-windows`，并打开 `UseWindowsForms`（托盘用 H.NotifyIcon 和 `System.Windows.Forms`，见 `ForgeSelf.Api/Program.cs` 的 `StartTrayIcon`）。Linux 上直接 `dotnet build` 报 **NETSDK1100**。根启动器 `ForgeSelf.Bootstrapper` 另有 `RuntimeIdentifier=win-x64` 和 `Microsoft.WindowsDesktop.App`，同样不能在 Linux 上编。
+
+两条路，解决的不是同一件事：
+
+| 目的 | 做法 | 结果 |
+|------|------|------|
+| 只求在 Linux 上**编译出** Windows 宿主 | 构建时加 `-p:EnableWindowsTargeting=true`（或写进上述两个 csproj） | 实测 SDK 10.0.115：**0 error**。产物仍在 `bin/Debug/net10.0-windows/`，运行时框架是 `Microsoft.WindowsDesktop.App` 10.0.0 |
+| 要在 Linux 上**把 Kestrel 跑起来** | 非 Windows 构建改用 `net10.0`，关掉 `UseWindowsForms`，源码里不要引用 `System.Windows.Forms` / H.NotifyIcon | 交叉编译帮不上。`dotnet exec` 该产物退出码 150：本机只有 `Microsoft.NETCore.App` 和 `Microsoft.AspNetCore.App`，没有 WindowsDesktop，且这个框架没有 Linux 运行时 |
+
+Windows 上的发行形态不变：业务层仍是 `net10.0-windows`，托盘仍在业务层进程里（`docs/04-standards/packaging-upgrade-backup.md` §1.6「不拆独立程序」）。非 Windows 跳过托盘，走已有的 `FORGESELF_NO_TRAY=1`（`Program.cs` 的 `StartTrayIcon`）。根启动器继续只在 Windows 上编，它是安装包入口，不是开发时的 API。
 
 ## 2. 一键启动
 

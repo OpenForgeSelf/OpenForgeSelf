@@ -31,6 +31,16 @@
 | Abstractions 仍无 IAgentRuntime 源码 | `rg IAgentRuntime ForgeSelf.Abstractions` | 0（符合本批 Forbidden） | Verified |
 | 本机 Node | `node -v` | v22.23.4（&lt;24，P0 前置风险已写入 Spec） | Verified |
 
+## Acceptance Criteria Coverage
+
+| AC | 证据 | 等级 |
+| --- | --- | --- |
+| AC1 | ADR-007 / `agenthub-oar-runtime.md` / 调研 007 / pilot 00–04 / `gate1-proposal.md` 均已落盘且互相链接 | Verified |
+| AC2 | `docs/README.md` §一 新增「外部 Coding Agent / OAR / IAgentRuntime」速查行，指向架构真源与 ADR | Verified |
+| AC3 | 调研 007 §2 纠偏表 + ADR-007 决策第 5/8 条 + ADR-005 澄清句：与 `IAgent` / `IAgentDelegation` / ADR-005 边界写清 | Verified |
+| AC4 | `not-taken-decisions.md` 新增 062（第一期缓做）/ 063（禁止宿主全局依赖 OAR） | Verified |
+| AC5 | `git diff --name-only` 仅 `docs/**`；`ForgeSelf.Abstractions` 与 `Plugins/AgentHub/**/*.cs` 无本批变更 | Verified |
+
 ## Screenshots
 
 N/A（无 UI）

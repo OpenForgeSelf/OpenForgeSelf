@@ -1,6 +1,6 @@
 ---
 task_id: 2026-11-19-oar-agenthub-runtime
-feature: 032-agent-hub
+feature: 032
 risk: { level: L2, triggers: ["docs/01-architecture/", "docs/07-decisions/", "ForgeSelf.Abstractions(planned)"], raised_by_agent: true }
 gate1: { mode: user, at: null, ref: "gate1-proposal.md" }
 gate2: { mode: reviewer, at: null, decision: null }

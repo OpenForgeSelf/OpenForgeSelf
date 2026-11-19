@@ -82,6 +82,17 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 并发计划：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md`。  
 细节与安全约束只维护在架构真源，本节不复制。
 
+### 6.1 产品面诚实性与 UX（2026-11-19 · ux-real）
+
+| 规则 | 说明 |
+| --- | --- |
+| scripted 不进产品 | Worker 仍注册 `scripted` 供 smoke/协议测；`ListAgentsAsync` / UI Runtime 列表**剔除** |
+| 安装态诚实 | Worker 补充项须读 `runtime.installation`；仅 `kind=available && via=executable` → `Available=true`；`not_found` / `bundled` 原样可解释，禁止假绿 |
+| 品牌图标 | 插件前端内联 `@botiverse/oar` brands SVG；缺图标用字母 glyph，禁止统一占位 |
+| 页签分区 | 「Runtime / Session」= Runtime 库存（发现/安装真相）与 Session 操作（Steer/Abort）两节，一节一事 |
+
+真源审计样例（Cloud Agent 机）：仅 Grok 为 executable+登录；Claude/Codex/OpenCode=`not_found`。pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-ux-real/`。
+
 ## 7. 来源
 
 - 输入4 调研报告：`docs/06-research/002-cli-agent-detection-delegation.md`（MCO 探测三件套 / Forkn 路径可配 / 五元组适配器契约等落地建议）

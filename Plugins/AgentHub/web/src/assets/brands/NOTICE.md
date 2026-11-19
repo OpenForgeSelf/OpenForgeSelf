@@ -1,0 +1,63 @@
+# Runtime icons
+
+Claude Code, Codex, Kimi, Grok, Cursor, OpenCode, Qoder, CodeBuddy, DeepSeek Harness, Antigravity and Devin SVGs are from LobeHub lobe-icons, commit a94750e3f5f8fc33757b839d85030e742284e43a, packages/static-svg/icons.
+Source: https://github.com/lobehub/lobe-icons/tree/a94750e3f5f8fc33757b839d85030e742284e43a/packages/static-svg/icons
+Files: claudecode-color.svg, codex.svg, kimi-color.svg, grok.svg, cursor.svg, opencode.svg, antigravity-color.svg, qoder.svg, codebuddy.svg, deepseek.svg (as dsh.svg), devin-color.svg (as devin.svg).
+Brand names and marks belong to their respective owners.
+
+Mister Morph: `app_logo_dark.svg` from the Mister Morph website (quailyquaily/mistermorph-website, `public/`), the project's own mark. `morph-on-dark.svg` swaps its two colors (#1F1F1F and white) for dark backgrounds.
+
+Factory Droid: https://factory.com/favicon.svg (retrieved 2026-11-15), unmodified official site asset for identification. Factory branding belongs to its owner; the LobeHub MIT license below does not cover this asset. It carries its own dark background and is used on both backgrounds.
+
+Pi: https://pi.dev/logo-on-dark.svg (retrieved 2026-09-16), unmodified official site asset for identification on dark backgrounds. Pi branding belongs to its respective owner; the LobeHub MIT license below does not cover this asset.
+
+## Theme variants
+
+`light` and `dark` refer to the destination background. Claude Code, Antigravity
+and Devin retain their single color assets and use the default fallback on both
+backgrounds.
+Codex, Grok, Cursor, OpenCode, CodeBuddy and DeepSeek Harness variants replace the upstream `currentColor` with explicit black
+or white so they work in external `<img>` elements. Kimi's light variant changes
+its white foreground to black; its dark variant is unchanged. These are local
+color adaptations of the MIT-licensed LobeHub paths, not separately sourced
+official brand variants.
+
+Pi variants are unmodified https://pi.dev/logo-on-light.svg and
+https://pi.dev/logo-on-dark.svg, retrieved 2026-09-16. The two official files
+currently have identical content. Neither is covered by the LobeHub license.
+
+## LobeHub license
+
+MIT License
+
+Copyright (c) 2023 LobeHub
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+`pi-durable.svg` uses the same Pi artwork and attribution as `pi.svg`.
+
+## Qwen Code
+
+Qwen Code's sidebar icon is from QwenLM/qwen-code, commit
+ac97ce7a70d9b2ea5d62b357e3d9b0851423afc9,
+`packages/vscode-ide-companion/assets/sidebar-icon.svg`.
+Source: https://github.com/QwenLM/qwen-code/blob/ac97ce7a70d9b2ea5d62b357e3d9b0851423afc9/packages/vscode-ide-companion/assets/sidebar-icon.svg
+Copyright 2025 Qwen Team, Apache License 2.0 (see QWEN-LICENSE.txt).
+The default asset is unchanged; theme variants replace currentColor with
+black or white for standalone image rendering. Brand marks belong to their owners.

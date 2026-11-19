@@ -29,12 +29,49 @@ public sealed class AgentHubRuntimeProvider : IAgentRuntime
         if (registry == null) return [];
 
         var list = new List<AgentDescriptor>();
+        OarWorkerClient? client = null;
+        try
+        {
+            client = AgentHubDi.ResolveHost<OarWorkerClient>(_services);
+            if (client != null && !client.IsAvailable)
+                await client.EnsureStartedAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Debug("[AgentHubRuntime] Worker 启动失败: {0}", ex.Message);
+            client = null;
+        }
+
         foreach (var a in registry.List(enabledOnly: false))
         {
             var ap = a.AccessPoints.FirstOrDefault(p => p.IsDefault) ?? a.AccessPoints.FirstOrDefault();
             var transport = ap?.Transport ?? "Cli";
             var runtimeId = ap?.RuntimeId ?? String.Empty;
-            var available = a.Enabled && !String.Equals(a.Health, "Missing", StringComparison.OrdinalIgnoreCase);
+            // scripted = Worker/协议测试专用，不进产品 Runtime/Agent 投影
+            if (String.Equals(runtimeId, "scripted", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            String? kind = null;
+            String? via = null;
+            Boolean available;
+            String? reason = null;
+            if (client is { IsAvailable: true } && !runtimeId.IsNullOrEmpty()
+                && String.Equals(transport, "Oar", StringComparison.OrdinalIgnoreCase))
+            {
+                (kind, via, available, reason) = await ProbeInstallationHonestyAsync(client, runtimeId, ct)
+                    .ConfigureAwait(false);
+                if (!a.Enabled)
+                {
+                    available = false;
+                    reason = "disabled";
+                }
+            }
+            else
+            {
+                available = a.Enabled && !String.Equals(a.Health, "Missing", StringComparison.OrdinalIgnoreCase);
+                reason = available ? null : (a.Enabled ? $"health={a.Health}" : "disabled");
+            }
+
             list.Add(new AgentDescriptor
             {
                 AgentId = a.Id,
@@ -43,35 +80,41 @@ public sealed class AgentHubRuntimeProvider : IAgentRuntime
                 RuntimeId = runtimeId,
                 Transport = transport,
                 Available = available,
-                UnavailableReason = available ? null : (a.Enabled ? $"health={a.Health}" : "disabled"),
+                UnavailableReason = available ? null : reason,
+                InstallationKind = kind,
+                InstallationVia = via,
                 Capabilities = BuildCapabilities(a),
             });
         }
 
-        // 补充 Worker 侧 runtime.list（无对应 Agent 登记时仍可见 scripted 等）
+        // 补充 Worker 侧 runtime.list（产品面剔除 scripted；安装态走真实 OAR snapshot，禁止假绿）
         try
         {
-            var client = AgentHubDi.ResolveHost<OarWorkerClient>(_services);
-            if (client != null)
+            if (client is { IsAvailable: true })
             {
-                var started = client.IsAvailable || await client.EnsureStartedAsync(ct).ConfigureAwait(false);
-                if (started)
+                var known = new HashSet<String>(list.Select(x => x.RuntimeId), StringComparer.OrdinalIgnoreCase);
+                foreach (var rt in await client.ListRuntimesAsync(ct).ConfigureAwait(false))
                 {
-                    var known = new HashSet<String>(list.Select(x => x.RuntimeId), StringComparer.OrdinalIgnoreCase);
-                    foreach (var rt in await client.ListRuntimesAsync(ct).ConfigureAwait(false))
+                    if (rt.Id.IsNullOrEmpty() || known.Contains(rt.Id)) continue;
+                    // scripted = Worker 烟雾测试专用，不进消费侧 Runtime 列表 / UI
+                    if (String.Equals(rt.Id, "scripted", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var (kind, via, available, reason) = await ProbeInstallationHonestyAsync(client, rt.Id, ct)
+                        .ConfigureAwait(false);
+
+                    list.Add(new AgentDescriptor
                     {
-                        if (rt.Id.IsNullOrEmpty() || known.Contains(rt.Id)) continue;
-                        list.Add(new AgentDescriptor
-                        {
-                            AgentId = 0,
-                            Name = rt.Name.IsNullOrEmpty() ? rt.Id : rt.Name!,
-                            Vendor = String.Empty,
-                            RuntimeId = rt.Id,
-                            Transport = "Oar",
-                            Available = true,
-                            Capabilities = ["prompt", "abort", "dispose"],
-                        });
-                    }
+                        AgentId = 0,
+                        Name = rt.Name.IsNullOrEmpty() ? rt.Id : rt.Name!,
+                        Vendor = rt.Id,
+                        RuntimeId = rt.Id,
+                        Transport = "Oar",
+                        Available = available,
+                        UnavailableReason = available ? null : reason,
+                        InstallationKind = kind,
+                        InstallationVia = via,
+                        Capabilities = ["prompt", "abort", "dispose"],
+                    });
                 }
             }
         }
@@ -81,6 +124,60 @@ public sealed class AgentHubRuntimeProvider : IAgentRuntime
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// 读 OAR <c>runtime.installation</c>，仅 <c>kind=available &amp;&amp; via=executable</c> 标可用。
+    /// bundled / not_found / unsupported 一律诚实返回，禁止假绿。
+    /// </summary>
+    private static async Task<(String? Kind, String? Via, Boolean Available, String? Reason)> ProbeInstallationHonestyAsync(
+        OarWorkerClient client,
+        String runtimeId,
+        CancellationToken ct)
+    {
+        try
+        {
+            var el = await client.InstallationAsync(runtimeId, ct).ConfigureAwait(false);
+            String? kind = null;
+            String? via = null;
+            String? reason = null;
+            if (el.TryGetProperty("snapshot", out var snap) && snap.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                kind = snap.TryGetProperty("kind", out var k) ? k.GetString() : null;
+                via = snap.TryGetProperty("via", out var v) ? v.GetString() : null;
+                reason = snap.TryGetProperty("reason", out var r) ? r.GetString() : null;
+            }
+            else
+            {
+                kind = el.TryGetProperty("kind", out var k2) ? k2.GetString() : null;
+                via = el.TryGetProperty("via", out var v2) ? v2.GetString() : null;
+                reason = el.TryGetProperty("reason", out var r2) ? r2.GetString() : null;
+            }
+
+            if (String.Equals(kind, "available", StringComparison.OrdinalIgnoreCase)
+                && String.Equals(via, "executable", StringComparison.OrdinalIgnoreCase))
+            {
+                return (kind, via, true, null);
+            }
+
+            if (String.Equals(kind, "available", StringComparison.OrdinalIgnoreCase)
+                && String.Equals(via, "bundled", StringComparison.OrdinalIgnoreCase))
+            {
+                return (kind, via, false, "bundled（内置/非本机安装，不当作已装 Agent）");
+            }
+
+            if (String.Equals(kind, "not_found", StringComparison.OrdinalIgnoreCase))
+                return (kind, via, false, "not_found（本机未安装）");
+
+            if (String.Equals(kind, "unsupported", StringComparison.OrdinalIgnoreCase))
+                return (kind, via, false, reason.IsNullOrEmpty() ? "unsupported" : $"unsupported: {reason}");
+
+            return (kind, via, false, kind.IsNullOrEmpty() ? "installation 未返回 kind" : kind);
+        }
+        catch (Exception ex)
+        {
+            return (null, null, false, $"installation 探测失败: {ex.Message}");
+        }
     }
 
     /// <inheritdoc />

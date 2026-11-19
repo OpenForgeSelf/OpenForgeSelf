@@ -89,7 +89,7 @@ public class AgentHubRuntimesController : ControllerBase
         }
     }
 
-    /// <summary>列出 Runtime 模型（scripted 可能 not_supported）。</summary>
+    /// <summary>列出 Runtime 模型（未安装 / unsupported 原样返回，禁止假成功）。</summary>
     [HttpGet("{id}/models")]
     public async Task<ActionResult<ApiResponse<RuntimeModelsDto>>> Models(String id, CancellationToken ct)
     {

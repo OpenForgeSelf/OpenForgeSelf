@@ -56,17 +56,26 @@ public class AgentDescriptor
     /// <summary>厂商/profile 键（如 <c>codex</c>）；勿与 RuntimeId 混用。</summary>
     public string Vendor { get; set; } = string.Empty;
 
-    /// <summary>OAR registry id（如 <c>scripted</c> / <c>claude</c>）；独立字段。</summary>
+    /// <summary>OAR registry id（如 <c>claude</c> / <c>grok</c>）；独立字段。产品面不含测试用 <c>scripted</c>。</summary>
     public string RuntimeId { get; set; } = string.Empty;
 
     /// <summary>Transport 提示（<c>Cli</c> / <c>Oar</c> 等）。</summary>
     public string Transport { get; set; } = string.Empty;
 
-    /// <summary>是否当前可用（安装+认证+环境综合提示，细节由提供方决定）。</summary>
+    /// <summary>
+    /// 是否当前可用：仅当本机有可执行安装（OAR <c>installation.kind=available</c> 且 <c>via=executable</c>）
+    /// 或已登记 Agent 健康可用时为 true。禁止把未探测 / not_found / bundled 标成可用。
+    /// </summary>
     public bool Available { get; set; }
 
     /// <summary>不可用时的可解释原因（可空）。</summary>
     public string? UnavailableReason { get; set; }
+
+    /// <summary>OAR installation.kind（<c>available</c> / <c>not_found</c> / <c>unsupported</c> 等；可空=未探测）。</summary>
+    public string? InstallationKind { get; set; }
+
+    /// <summary>OAR installation.via（如 <c>executable</c> / <c>bundled</c>；可空）。</summary>
+    public string? InstallationVia { get; set; }
 
     /// <summary>能力标签（如 prompt/deliver/abort/resume）；以 Runtime 声明为准。</summary>
     public IReadOnlyList<string> Capabilities { get; set; } = [];

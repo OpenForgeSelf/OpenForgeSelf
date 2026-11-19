@@ -3,7 +3,10 @@ import { scriptedRuntime } from '@botiverse/oar/testing';
 
 /**
  * Build the Worker registry: OAR default runtimes plus an in-process `scripted`
- * runtime used for P0 smoke / host unit tests (no binary, no login).
+ * runtime used **only** for P0 smoke / host protocol tests (no binary, no login).
+ *
+ * Product UX (`api/agent-hub/runtimes` consumer projection) **omits** `scripted`.
+ * Do not present scripted as a normal user Agent/Runtime.
  */
 export function buildRegistry(): ReturnType<typeof createRuntimeRegistry> {
   const scripted = scriptedRuntime({

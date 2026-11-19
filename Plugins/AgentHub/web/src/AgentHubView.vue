@@ -314,6 +314,14 @@ const runtimeBusyId = ref<string | null>(null)
 /** Which runtime rows have expanded probe/models JSON (default collapsed — reduce clutter). */
 const runtimeDetailOpen = reactive<Record<string, boolean>>({})
 
+/** 一键探测全部 Runtime（前端并发调用既有 per-id probe；≠ 面板「刷新」）。 */
+type ProbeCardStatus = 'idle' | 'running' | 'ok' | 'err'
+const probingAll = ref(false)
+const probeAllProgress = ref({ done: 0, total: 0, ok: 0, err: 0 })
+const runtimeProbeStatus = reactive<Record<string, ProbeCardStatus>>({})
+const runtimeProbeErrors = reactive<Record<string, string>>({})
+const PROBE_ALL_CONCURRENCY = 3
+
 /** 安装确认对话框。 */
 const installTarget = ref<{ runtimeId: string; planJson: string } | null>(null)
 const installBusy = ref(false)
@@ -609,17 +617,89 @@ async function runRuntimeProbe(runtimeId?: string) {
     setMsg('RuntimeId 为空，无法探测', 'err')
     return
   }
+  if (probingAll.value) return
   runtimeBusyId.value = runtimeId
+  runtimeProbeStatus[runtimeId] = 'running'
+  delete runtimeProbeErrors[runtimeId]
   try {
     const r = await probeRuntime(runtimeId)
     runtimeProbeMap[runtimeId] = r
     runtimeDetailOpen[runtimeId] = true
+    runtimeProbeStatus[runtimeId] = 'ok'
     setMsg(`已探测 ${runtimeId}`)
   } catch (e) {
-    setMsg(`探测失败：${(e as Error).message}`, 'err')
+    const msg = (e as Error).message
+    runtimeProbeStatus[runtimeId] = 'err'
+    runtimeProbeErrors[runtimeId] = msg
+    setMsg(`探测失败：${msg}`, 'err')
   } finally {
     runtimeBusyId.value = null
   }
+}
+
+/**
+ * 对当前产品面 Runtime 列表一键探测：并发上限 PROBE_ALL_CONCURRENCY，
+ * 逐条复用 POST …/runtimes/{id}/probe；与「刷新」（只 list）分离。
+ */
+async function runProbeAllRuntimes() {
+  if (probingAll.value) return
+  const ids = productRuntimes.value
+    .map((r) => r.runtimeId)
+    .filter((id): id is string => !!id && id.trim().length > 0)
+  if (!ids.length) {
+    setMsg('暂无 Runtime 可探测（先刷新列表或启动 OAR Worker）', 'err')
+    return
+  }
+  probingAll.value = true
+  probeAllProgress.value = { done: 0, total: ids.length, ok: 0, err: 0 }
+  for (const id of ids) {
+    runtimeProbeStatus[id] = 'idle'
+    delete runtimeProbeErrors[id]
+  }
+
+  let cursor = 0
+  async function worker() {
+    while (cursor < ids.length) {
+      const id = ids[cursor++]
+      if (!id) continue
+      runtimeProbeStatus[id] = 'running'
+      try {
+        const r = await probeRuntime(id)
+        runtimeProbeMap[id] = r
+        runtimeDetailOpen[id] = true
+        runtimeProbeStatus[id] = 'ok'
+        probeAllProgress.value.ok += 1
+      } catch (e) {
+        const msg = (e as Error).message
+        runtimeProbeStatus[id] = 'err'
+        runtimeProbeErrors[id] = msg
+        probeAllProgress.value.err += 1
+      } finally {
+        probeAllProgress.value.done += 1
+      }
+    }
+  }
+
+  const pool = Math.min(PROBE_ALL_CONCURRENCY, ids.length)
+  await Promise.all(Array.from({ length: pool }, () => worker()))
+  probingAll.value = false
+  const { ok, err, total } = probeAllProgress.value
+  if (err === 0) {
+    setMsg(`一键探测完成：${ok}/${total} 全部成功`)
+  } else if (ok === 0) {
+    setMsg(`一键探测完成：${err}/${total} 全部失败（见各卡错误）`, 'err')
+  } else {
+    setMsg(`一键探测完成：${ok} 成功 · ${err} 失败（共 ${total}）`, 'err')
+  }
+}
+
+function probeStatusLabel(runtimeId?: string | null): string {
+  if (!runtimeId) return ''
+  const st = runtimeProbeStatus[runtimeId]
+  if (st === 'running') return '探测中…'
+  if (st === 'ok') return '已探测'
+  if (st === 'err') return '失败'
+  return ''
 }
 
 async function runRuntimeModels(runtimeId?: string) {
@@ -1045,12 +1125,34 @@ onBeforeUnmount(() => {
 
       <!-- A. Runtime 库存（发现与本机真相；不含 scripted） -->
       <div class="ok-section">
-        <div class="ok-section__head">
-          <h3 class="ok-section__title">Runtime 库存</h3>
-          <p class="ok-section__desc">
-            本机真实安装态（OAR installation）。仅 <code class="ok-code">via=executable</code> 标「已安装」；
-            未装显示 not_found，不假装成功。测试用 scripted 不在此列表。
-          </p>
+        <div class="ok-section__head ok-section__head--row">
+          <div class="ok-section__head-text">
+            <h3 class="ok-section__title">Runtime 库存</h3>
+            <p class="ok-section__desc">
+              本机真实安装态（OAR installation）。仅 <code class="ok-code">via=executable</code> 标「已安装」；
+              未装显示 not_found，不假装成功。测试用 scripted 不在此列表。
+              「一键探测」会对列表逐条真实 probe；与上方「刷新」（只重拉列表）不同。
+            </p>
+          </div>
+          <div class="ok-section__head-actions">
+            <button
+              class="ok-btn ok-btn--primary"
+              :disabled="probingAll || loadingSessions || !productRuntimes.length"
+              :title="productRuntimes.length ? '对当前列表全部 Runtime 调用 probe（并发上限 3）' : '暂无 Runtime'"
+              @click="runProbeAllRuntimes"
+            >
+              {{ probingAll
+                ? `探测中… ${probeAllProgress.done}/${probeAllProgress.total}`
+                : '一键探测' }}
+            </button>
+            <span
+              v-if="probeAllProgress.total > 0 && !probingAll"
+              class="ok-hint"
+            >
+              上次：{{ probeAllProgress.ok }} 成功
+              <template v-if="probeAllProgress.err"> · {{ probeAllProgress.err }} 失败</template>
+            </span>
+          </div>
         </div>
 
         <div v-if="!productRuntimes.length" class="ok-empty">
@@ -1062,7 +1164,11 @@ onBeforeUnmount(() => {
             v-for="(r, i) in productRuntimes"
             :key="(r.runtimeId || '') + '-' + i"
             class="ok-runtime-card"
-            :class="{ 'ok-runtime-card--ok': r.available }"
+            :class="{
+              'ok-runtime-card--ok': r.available,
+              'ok-runtime-card--probing': r.runtimeId && runtimeProbeStatus[r.runtimeId] === 'running',
+              'ok-runtime-card--probe-err': r.runtimeId && runtimeProbeStatus[r.runtimeId] === 'err',
+            }"
           >
             <div class="ok-runtime-card__head">
               <RuntimeBrandIcon
@@ -1078,23 +1184,38 @@ onBeforeUnmount(() => {
                   <span>· {{ r.transport || '—' }}</span>
                 </div>
               </div>
-              <span class="ok-badge" :class="installBadge(r).cls">{{ installBadge(r).label }}</span>
+              <div class="ok-runtime-card__badges">
+                <span
+                  v-if="r.runtimeId && probeStatusLabel(r.runtimeId)"
+                  class="ok-badge"
+                  :class="{
+                    'ok-badge--busy': runtimeProbeStatus[r.runtimeId!] === 'running',
+                    'ok-badge--ok': runtimeProbeStatus[r.runtimeId!] === 'ok',
+                    'ok-badge--err': runtimeProbeStatus[r.runtimeId!] === 'err',
+                  }"
+                >{{ probeStatusLabel(r.runtimeId) }}</span>
+                <span class="ok-badge" :class="installBadge(r).cls">{{ installBadge(r).label }}</span>
+              </div>
             </div>
             <p v-if="r.unavailableReason" class="ok-runtime-card__reason">{{ r.unavailableReason }}</p>
+            <p
+              v-if="r.runtimeId && runtimeProbeErrors[r.runtimeId]"
+              class="ok-runtime-card__reason ok-runtime-card__reason--err"
+            >{{ runtimeProbeErrors[r.runtimeId] }}</p>
             <div class="ok-runtime-card__actions">
               <button
                 class="ok-btn ok-btn--sm"
-                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+                :disabled="!r.runtimeId || probingAll || runtimeBusyId === r.runtimeId"
                 @click="runRuntimeProbe(r.runtimeId)"
               >检查</button>
               <button
                 class="ok-btn ok-btn--sm"
-                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+                :disabled="!r.runtimeId || probingAll || runtimeBusyId === r.runtimeId"
                 @click="runRuntimeModels(r.runtimeId)"
               >模型</button>
               <button
                 class="ok-btn ok-btn--sm"
-                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId || r.available"
+                :disabled="!r.runtimeId || probingAll || runtimeBusyId === r.runtimeId || r.available"
                 :title="r.available ? '已安装，无需安装' : '查看安装计划（须确认才执行）'"
                 @click="openInstallConfirm(r.runtimeId)"
               >安装</button>
@@ -1389,6 +1510,27 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 4px;
 }
+.ok-section__head--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ok-section__head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.ok-section__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
 .ok-section__title {
   margin: 0;
   font-size: 16px;
@@ -1423,6 +1565,21 @@ onBeforeUnmount(() => {
 }
 .ok-runtime-card--ok {
   border-color: color-mix(in srgb, var(--el-color-success) 35%, var(--el-border-color-light));
+}
+.ok-runtime-card--probing {
+  border-color: color-mix(in srgb, var(--el-color-primary) 40%, var(--el-border-color-light));
+}
+.ok-runtime-card--probe-err {
+  border-color: color-mix(in srgb, var(--el-color-danger) 40%, var(--el-border-color-light));
+}
+.ok-runtime-card__badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.ok-runtime-card__reason--err {
+  color: var(--el-color-danger);
 }
 .ok-runtime-card__head {
   display: flex;
@@ -1609,6 +1766,14 @@ onBeforeUnmount(() => {
 .ok-badge--bad {
   background: var(--el-color-danger-light-9);
   color: var(--el-color-danger);
+}
+.ok-badge--err {
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+.ok-badge--busy {
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 /* 附加扫描目录配置 */

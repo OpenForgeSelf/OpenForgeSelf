@@ -1,12 +1,12 @@
 # AgentHub × Open Agent Runtime（OAR）架构真源
 
-> 状态：**已定案（ADR-007 Accepted）｜实现进行中**｜2026-11-19  
+> 状态：**已定案（ADR-007 Accepted）｜P0–P4 + gap-close 主路径已落地**｜2026-11-19  
 > ADR：[007-oar-agenthub-runtime.md](../07-decisions/007-oar-agenthub-runtime.md)  
 > 调研：[007-oar-agenthub-runtime.md](../06-research/007-oar-agenthub-runtime.md)  
 > 功能档案：[032-agent-hub.md](../02-features/032-agent-hub.md)  
 > design pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/`  
 > 并发计划：同目录 [`concurrency-plan.md`](../ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md)  
-> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`（✅）· P2 `2026-11-19-oar-runtime-p2`（✅）· P3 `2026-11-19-oar-runtime-p3`（✅）· P4 `2026-11-19-oar-runtime-p4`（✅）
+> 阶段 pilots：P0 `…-worker-p0`（✅）· P1 `…-p1`（✅）· P2 `…-p2`（✅）· P3 `…-p3`（✅）· P4 `…-p4`（✅）· gap-close `2026-11-19-oar-runtime-gap-close`（✅）
 
 本文是「外部 Coding Agent 如何经铸己匣统一运行」的**唯一架构真源**。实现与本文冲突时，先改本文或提 ADR，禁止静默分叉。
 
@@ -115,9 +115,9 @@ public interface IAgentRuntime
 
 ### 7.2 双层事件
 
-- 底层 `AgentRuntimeRecord`：完整审计（含脱敏后的原始载荷）。  
-- 上层 `AgentRuntimeEvent` / 任务事件：供 UI 与插件消费。  
-- 序号：`AgentHubSequence`（全局单调）+ `OarSequence` + `Generation`（每次 open/resume +1）。
+- 底层 `AgentRuntimeRecord`：完整审计（含脱敏后的原始载荷）。**最小耐久路径（gap-close）已落地**：XCode 表 `AgentRuntimeRecord`（SessionKey / OarSequence / AgentHubSequence / Generation / Type / PayloadJson≤4000 / Truncated）；经 `AgentRuntimeEventStore.Append` 写入并回写 Session 水位。**未做**：长期留存策略、跨会话全局归档压缩、reasoning 全文可选开关（默认仍省略）。  
+- 上层任务事件：继续由 `DelegationEvent`（任务 SSE / Watch 轮询）承担；不把 OAR seq 当全局序。  
+- 序号：`AgentHubSequence`（表内全局单调）+ Session.`OarSequence` 水位 + `Generation`（每次 open/resume +1）。
 
 默认不向插件/前端暴露模型内部 reasoning 正文。
 
@@ -129,19 +129,23 @@ public interface IAgentRuntime
 - **禁止**启动时自动 `install` 第三方 Agent；只读 `installPlan` 可先做，执行须用户确认。  
 - 模型探测等工作目录必须落在受信任/白名单路径。
 
-## 9. API / UI（P3，保留现页扩展）
+## 9. API / UI（P3 + gap-close）
 
-新增（示意）：
+| 方法 | 路径 | 功能 | 状态 |
+| --- | --- | --- | --- |
+| GET | `api/agent-hub/runtimes` | Runtime 列表 | ✅ P3 |
+| GET | `api/agent-hub/runtimes/{id}` | 详情 | ✅ P3 |
+| POST | `api/agent-hub/runtimes/{id}/probe` | 安装+认证只读探测 | ✅ gap-close |
+| GET | `api/agent-hub/runtimes/{id}/models` | 模型 | ✅ gap-close |
+| GET | `api/agent-hub/sessions` | 会话列表 | ✅ P3 |
+| GET | `api/agent-hub/sessions/{key}` | 详情 | ✅ P3 |
+| POST | `api/agent-hub/sessions/{key}/input` | 投递输入 | ✅ P3 |
+| POST | `api/agent-hub/sessions/{key}/abort` | abort | ✅ gap-close |
+| GET | `api/agent-hub/sessions/{key}/records` | 脱敏 Record | ✅ gap-close |
+| GET | `api/agent-hub/sessions/{key}/stream` | Record SSE（轮询最小面） | ✅ gap-close |
+| POST | `api/agent-hub/sessions/{key}/close` | 关闭 | ✅ P3 |
 
-| 方法 | 路径 | 功能 |
-| --- | --- | --- |
-| GET | `api/agent-hub/runtimes` | Runtime 列表 |
-| GET | `api/agent-hub/runtimes/{id}` | 详情 |
-| POST | `api/agent-hub/runtimes/{id}/probe` | 安装+认证探测 |
-| GET | `api/agent-hub/runtimes/{id}/models` | 模型 |
-| POST/GET | `api/agent-hub/sessions`… | 会话 CRUD/输入/abort/records/stream |
-
-现有 `api/agent-hub/tasks` 保留。鉴权：类级 `ApiKeyPolicy`（与 032 待核对项一并闭合）。
+现有 `api/agent-hub/tasks` 保留。鉴权：`runtimes`/`sessions` 类级 `ApiKeyPolicy`（gap-close 已闭合）；agents/tasks 仍见 032 §5 待核对。
 
 ## 10. 安全约束（不可因 OAR 省略）
 
@@ -156,6 +160,7 @@ public interface IAgentRuntime
 | P2 | Transport 注册表、RuntimeId、Session、Delegation 选路 | `2026-11-19-oar-runtime-p2` | ✅ |
 | P3 | Provider 注册、工具 SessionKey、管理面/API | `2026-11-19-oar-runtime-p3` | ✅ |
 | P4 | 消费者试点、测试体系、打包/Node 检查文档 | `2026-11-19-oar-runtime-p4` | ✅ |
+| gap-close | 双层事件最小耐久 + §9 端点 + Session e2e | `2026-11-19-oar-runtime-gap-close` | ✅ |
 
 详细完成标准见 pilot `02-spec.md` / 用户调研方案第九章（已采纳）。
 

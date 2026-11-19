@@ -158,10 +158,10 @@ P3 走查绑定 `ui-ux-design` 清单 + 插件六步；本批文档交付不走 
 ### 后续实现总 AC（批准后分阶段验收）
 
 - [x] AC-R1：P0 Worker 完成 list/install/auth/models/session/prompt/events/resume/cancel/dispose 探针（`2026-11-19-oar-runtime-worker-p0`）
-- [ ] AC-R2：Cli 回归 + Oar 选路（P2）
-- [ ] AC-R3：`ctx.Get<IAgentRuntime>()` 可提交/监视/续接/取消（P3）
-- [ ] AC-R4：Session 持久化与 Sequence 单调（P2）
-- [ ] AC-R5：权限与 cwd 守卫仍有效（P2 回归）
+- [x] AC-R2：Cli 回归 + Oar 选路（P2；过滤测 Verified）
+- [x] AC-R3：`ctx.Get<IAgentRuntime>()` 可提交/监视/续接/取消（P3/P4；Watch=轮询最小面，非统一 SSE）
+- [x] AC-R4：Session 持久化与 Sequence 单调（P2 Session + gap-close：`OarSequence` + `AgentRuntimeRecord` 最小耐久路径；`2026-11-19-oar-runtime-gap-close`）
+- [x] AC-R5：权限与 cwd 守卫仍有效（P2/P3 Delegation 过滤回归）
 
 ## Unknown
 

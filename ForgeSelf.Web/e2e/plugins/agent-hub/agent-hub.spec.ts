@@ -242,6 +242,49 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     }
   })
 
+  test('Session 页签主链路冒烟（Runtime/Session API + 空态）', async ({ page }) => {
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
+
+    // 切到 Session 页签（文案「Session」）
+    const sessionTab = page.locator('.ok-tab', { hasText: 'Session' })
+    await expect(sessionTab).toBeVisible({ timeout: 15000 })
+    await sessionTab.click()
+
+    // 面板可见：Runtime 区或空态 + Session 空态文案之一
+    await expect(page.locator('.ok-panel').filter({ hasText: /Runtime|Session|会话/ })).toBeVisible({
+      timeout: 15000,
+    })
+    const emptySession = page.locator('.ok-empty', { hasText: '还没有持久化会话' })
+    const sessionList = page.locator('.ok-panel li.ok-task')
+    await expect(emptySession.or(sessionList.first())).toBeVisible({ timeout: 15000 })
+
+    // API 面：runtimes / sessions（鉴权由 fixture token）
+    const runtimesResp = await api(page, '/api/agent-hub/runtimes')
+    expect(runtimesResp.status, `GET /api/agent-hub/runtimes 非 200：status=${runtimesResp.status}`).toBe(
+      200,
+    )
+    expect(Array.isArray(runtimesResp.body?.data), 'runtimes 数据应为数组').toBe(true)
+
+    const sessionsResp = await api(page, '/api/agent-hub/sessions?limit=20')
+    expect(sessionsResp.status, `GET /api/agent-hub/sessions 非 200：status=${sessionsResp.status}`).toBe(
+      200,
+    )
+    expect(Array.isArray(sessionsResp.body?.data), 'sessions 数据应为数组').toBe(true)
+
+    // 无 OarSessionId 泄漏
+    const leaked = JSON.stringify(sessionsResp.body ?? {}).includes('oarSessionId')
+    expect(leaked, 'sessions 响应不得含 oarSessionId').toBe(false)
+
+    await page.screenshot({ path: path.join(OUT_DIR, 'agent-hub-session-tab.png'), fullPage: true })
+    dumpEvidence('agent-hub-session', evidence, [
+      `runtimes.count=${(runtimesResp.body?.data as unknown[])?.length ?? '?'}`,
+      `sessions.count=${(sessionsResp.body?.data as unknown[])?.length ?? '?'}`,
+    ])
+  })
+
   test('截图读图 + 无横向溢出（视觉检查）', async ({ page }) => {
     await page.goto(PLUGIN_ROUTE)
     await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })

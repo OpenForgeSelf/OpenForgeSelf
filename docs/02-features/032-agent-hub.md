@@ -77,6 +77,8 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 **P3（2026-11-19）**：`AgentHubRuntimeProvider` 实现 `IAgentRuntime`（同实例 MS DI + `ctx.Register`；Effect 清理 Worker）；共享 `OarWorkerClient`；Tools/API/UI SessionKey 面（`api/agent-hub/runtimes|sessions`，`hub_ask_agent`）；过滤测试 34/34；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p3/`。  
 
 **P4（2026-11-19）**：消费者试点（`ctx.Get<IAgentRuntime>()` 每次取 + 缺席降级 + Worker 不可用时 Cli Submit）；SessionKey/OarSessionId 对外泄漏守卫；Node≥24 运维说明（架构真源 §13 + `RuntimeWorker/README`）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-p4/`。当前 concurrency-plan **P0–P4 全部 ✅**，不另开 P5。  
+
+**gap-close（2026-11-19）**：补齐第一波未完项——`OarSequence` + `AgentRuntimeRecord` 最小耐久双层事件；§9 `probe`/`models`/`abort`/`records`/`stream`；`runtimes`/`sessions` 类级 ApiKeyPolicy；Session 页签插件 e2e 冒烟；pilot `docs/ai/pilot/2026-11-19-oar-runtime-gap-close/`。  
 并发计划：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md`。  
 细节与安全约束只维护在架构真源，本节不复制。
 

@@ -53,6 +53,18 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
+    public async Task ListAgentsAsync_产品面不含_scripted()
+    {
+        // Worker 入口存在时会补充 runtime.list；scripted 必须被消费投影剔除。
+        // Worker 不可用时列表仅含登记 Agent，同样不得出现 scripted。
+        var sp = BuildHost();
+        var runtime = new AgentHubRuntimeProvider(sp);
+        var list = await runtime.ListAgentsAsync();
+        list.Should().NotContain(d =>
+            String.Equals(d.RuntimeId, "scripted", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SubmitAsync_空提示词_返回Failed句柄()
     {
         var sp = BuildHost();

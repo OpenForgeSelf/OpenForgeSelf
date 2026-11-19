@@ -62,6 +62,7 @@ import {
 import AgentHubAgentCard from './AgentHubAgentCard.vue'
 import AgentHubAgentForm from './AgentHubAgentForm.vue'
 import AgentHubEventStream from './AgentHubEventStream.vue'
+import RuntimeBrandIcon from './RuntimeBrandIcon.vue'
 
 /** 当前页签。 */
 type TabKey = 'agents' | 'delegate' | 'tasks' | 'sessions'
@@ -101,10 +102,18 @@ const SCOPE_OPTIONS = [
   { value: 'network', label: '网络访问' },
 ] as const
 
+/** Hide test-only scripted AccessPoints from product Agent directory. */
+function isProductAgent(a: AgentDto): boolean {
+  const aps = a.accessPoints ?? []
+  if (!aps.length) return true
+  return !aps.some((p) => (p.runtimeId || '').toLowerCase() === 'scripted')
+}
+
 async function loadAgents() {
   loadingAgents.value = true
   try {
-    agents.value = (await listAgents()) ?? []
+    const raw = (await listAgents()) ?? []
+    agents.value = raw.filter(isProductAgent)
   } catch (e) {
     setMsg(`加载 agent 列表失败：${(e as Error).message}`, 'err')
   } finally {
@@ -302,10 +311,36 @@ const sessionBusy = ref(false)
 const runtimeProbeMap = reactive<Record<string, RuntimeProbeDto | undefined>>({})
 const runtimeModelsMap = reactive<Record<string, RuntimeModelsDto | undefined>>({})
 const runtimeBusyId = ref<string | null>(null)
+/** Which runtime rows have expanded probe/models JSON (default collapsed — reduce clutter). */
+const runtimeDetailOpen = reactive<Record<string, boolean>>({})
 
 /** 安装确认对话框。 */
 const installTarget = ref<{ runtimeId: string; planJson: string } | null>(null)
 const installBusy = ref(false)
+
+/** Product surface never lists scripted (Worker smoke-only). */
+function isProductRuntime(r: RuntimeDescriptorDto): boolean {
+  const id = (r.runtimeId || '').toLowerCase()
+  return id !== 'scripted'
+}
+
+/** Honest install badge from OAR snapshot fields (never fake green). */
+function installBadge(r: RuntimeDescriptorDto): { label: string; cls: string } {
+  const kind = (r.installationKind || '').toLowerCase()
+  const via = (r.installationVia || '').toLowerCase()
+  if (kind === 'not_found') return { label: '未安装', cls: 'ok-badge--err' }
+  if (via === 'bundled') return { label: '内置捆绑', cls: 'ok-badge--idle' }
+  if (kind === 'unsupported') return { label: '不支持', cls: 'ok-badge--idle' }
+  if (via === 'executable') return { label: '已安装', cls: 'ok-badge--ok' }
+  if (r.available) return { label: '已安装', cls: 'ok-badge--ok' }
+  if (r.unavailableReason?.includes('not_found')) return { label: '未安装', cls: 'ok-badge--err' }
+  if (r.unavailableReason) return { label: '不可用', cls: 'ok-badge--err' }
+  return { label: '未探测', cls: 'ok-badge--idle' }
+}
+
+const productRuntimes = computed(() => runtimes.value.filter(isProductRuntime))
+const installedRuntimes = computed(() => productRuntimes.value.filter((r) => r.available))
+const missingRuntimes = computed(() => productRuntimes.value.filter((r) => !r.available))
 
 /** 停止会话 Record SSE。 */
 let stopSessionStream: (() => void) | null = null
@@ -554,13 +589,19 @@ function elapsedText(ms?: number): string {
 async function loadRuntimeSurface() {
   loadingSessions.value = true
   try {
-    runtimes.value = (await listRuntimes()) ?? []
+    const raw = (await listRuntimes()) ?? []
+    // Belt-and-suspenders: never show scripted on product UI even if API regresses.
+    runtimes.value = raw.filter(isProductRuntime)
     sessions.value = (await listSessions()) ?? []
   } catch (e) {
     setMsg(`加载 Runtime/Session 失败：${(e as Error).message}`, 'err')
   } finally {
     loadingSessions.value = false
   }
+}
+
+function toggleRuntimeDetail(runtimeId: string) {
+  runtimeDetailOpen[runtimeId] = !runtimeDetailOpen[runtimeId]
 }
 
 async function runRuntimeProbe(runtimeId?: string) {
@@ -572,6 +613,7 @@ async function runRuntimeProbe(runtimeId?: string) {
   try {
     const r = await probeRuntime(runtimeId)
     runtimeProbeMap[runtimeId] = r
+    runtimeDetailOpen[runtimeId] = true
     setMsg(`已探测 ${runtimeId}`)
   } catch (e) {
     setMsg(`探测失败：${(e as Error).message}`, 'err')
@@ -589,6 +631,7 @@ async function runRuntimeModels(runtimeId?: string) {
   try {
     const r = await listRuntimeModels(runtimeId)
     runtimeModelsMap[runtimeId] = r
+    runtimeDetailOpen[runtimeId] = true
     setMsg(`已拉取模型 ${runtimeId}`)
   } catch (e) {
     setMsg(`模型失败：${(e as Error).message}`, 'err')
@@ -781,7 +824,7 @@ onBeforeUnmount(() => {
         :class="{ 'ok-tab--on': tab === 'sessions' }"
         @click="tab = 'sessions'; loadRuntimeSurface()"
       >
-        Session
+        Runtime / Session
       </button>
     </nav>
 
@@ -989,138 +1032,194 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ─────────── Session / Runtime（P3 + remaining-close） ─────────── -->
-    <section v-show="tab === 'sessions'" class="ok-panel">
+    <!-- ─────────── Runtime 库存 + Session 操作（分区 · 一节一事） ─────────── -->
+    <section v-show="tab === 'sessions'" class="ok-panel ok-panel--stack">
       <div class="ok-toolbar">
         <button class="ok-btn" :disabled="loadingSessions" @click="loadRuntimeSurface">
           {{ loadingSessions ? '加载中…' : '刷新' }}
         </button>
-        <span class="ok-hint">Runtime {{ runtimes.length }} · Session {{ sessions.length }}</span>
+        <span class="ok-hint">
+          已装 {{ installedRuntimes.length }} · 未装/不可用 {{ missingRuntimes.length }} · Session {{ sessions.length }}
+        </span>
       </div>
 
-      <div class="ok-form__label">Runtime 列表</div>
-      <div v-if="!runtimes.length" class="ok-empty">暂无 Runtime 描述（登记 Agent 或启动 Worker 后刷新）。</div>
-      <ul v-else class="ok-tasklist">
-        <li v-for="(r, i) in runtimes" :key="(r.runtimeId || '') + '-' + i" class="ok-task">
-          <div class="ok-task__top">
-            <span class="ok-badge" :class="r.available ? 'ok-badge--ok' : 'ok-badge--err'">
-              {{ r.available ? '可用' : '不可用' }}
-            </span>
-            <span class="ok-task__key">{{ r.name || r.runtimeId || ('agent #' + r.agentId) }}</span>
-          </div>
-          <div class="ok-task__meta">
-            {{ r.transport || '—' }} · RuntimeId={{ r.runtimeId || '—' }}
-            <span v-if="r.capabilities?.length"> · caps={{ r.capabilities.join(',') }}</span>
-            <span v-if="r.unavailableReason"> · {{ r.unavailableReason }}</span>
-          </div>
-          <div class="ok-form__actions">
-            <button
-              class="ok-btn ok-btn--sm"
-              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
-              @click="runRuntimeProbe(r.runtimeId)"
-            >检查</button>
-            <button
-              class="ok-btn ok-btn--sm"
-              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
-              @click="runRuntimeModels(r.runtimeId)"
-            >模型</button>
-            <button
-              class="ok-btn ok-btn--sm"
-              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
-              @click="openInstallConfirm(r.runtimeId)"
-            >安装</button>
-          </div>
-          <div v-if="r.runtimeId && runtimeProbeMap[r.runtimeId]" class="ok-result" style="margin-top: 8px">
-            <div class="ok-result__title">installation</div>
-            <pre class="ok-result__body">{{ runtimeProbeMap[r.runtimeId]?.installationJson || '—' }}</pre>
-            <div class="ok-result__title">auth</div>
-            <pre class="ok-result__body">{{
-              runtimeProbeMap[r.runtimeId]?.authError
-                ? ('错误: ' + runtimeProbeMap[r.runtimeId]?.authError)
-                : (runtimeProbeMap[r.runtimeId]?.authJson || '—')
-            }}</pre>
-          </div>
-          <div v-if="r.runtimeId && runtimeModelsMap[r.runtimeId]" class="ok-result" style="margin-top: 8px">
-            <div class="ok-result__title">models</div>
-            <pre class="ok-result__body">{{ runtimeModelsMap[r.runtimeId]?.payloadJson || '—' }}</pre>
-          </div>
-        </li>
-      </ul>
+      <!-- A. Runtime 库存（发现与本机真相；不含 scripted） -->
+      <div class="ok-section">
+        <div class="ok-section__head">
+          <h3 class="ok-section__title">Runtime 库存</h3>
+          <p class="ok-section__desc">
+            本机真实安装态（OAR installation）。仅 <code class="ok-code">via=executable</code> 标「已安装」；
+            未装显示 not_found，不假装成功。测试用 scripted 不在此列表。
+          </p>
+        </div>
 
-      <div class="ok-form__label" style="margin-top: 16px">Session 列表（仅 SessionKey）</div>
-      <div v-if="!sessions.length" class="ok-empty">还没有持久化会话。</div>
-      <div v-else class="ok-split">
-        <ul class="ok-tasklist">
+        <div v-if="!productRuntimes.length" class="ok-empty">
+          暂无 Runtime（启动 OAR Worker 后点刷新）。委派请先到「Agent 目录」登记。
+        </div>
+
+        <ul v-else class="ok-runtime-grid">
           <li
-            v-for="s in sessions"
-            :key="s.sessionKey"
-            class="ok-task"
-            :class="{ 'ok-task--on': s.sessionKey === activeSessionKey }"
-            @click="selectSession(s.sessionKey)"
+            v-for="(r, i) in productRuntimes"
+            :key="(r.runtimeId || '') + '-' + i"
+            class="ok-runtime-card"
+            :class="{ 'ok-runtime-card--ok': r.available }"
           >
-            <div class="ok-task__top">
-              <span class="ok-badge">{{ s.status || '—' }}</span>
-              <code class="ok-code">{{ s.sessionKey }}</code>
+            <div class="ok-runtime-card__head">
+              <RuntimeBrandIcon
+                :runtime-id="r.runtimeId"
+                :vendor="r.vendor"
+                :name="r.name"
+                :size="36"
+              />
+              <div class="ok-runtime-card__ident">
+                <div class="ok-runtime-card__name">{{ r.name || r.runtimeId }}</div>
+                <div class="ok-runtime-card__meta">
+                  <code class="ok-code">{{ r.runtimeId || '—' }}</code>
+                  <span>· {{ r.transport || '—' }}</span>
+                </div>
+              </div>
+              <span class="ok-badge" :class="installBadge(r).cls">{{ installBadge(r).label }}</span>
             </div>
-            <div class="ok-task__meta">
-              agent #{{ s.agentId }} · {{ s.transport || '—' }} · {{ s.runtimeId || '—' }}
-              · gen {{ s.generation ?? 0 }}
-            </div>
-            <div class="ok-form__actions">
+            <p v-if="r.unavailableReason" class="ok-runtime-card__reason">{{ r.unavailableReason }}</p>
+            <div class="ok-runtime-card__actions">
               <button
                 class="ok-btn ok-btn--sm"
-                @click.stop="delegate.sessionKey = s.sessionKey || ''; tab = 'delegate'"
-              >
-                用此 SessionKey 委派
-              </button>
+                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+                @click="runRuntimeProbe(r.runtimeId)"
+              >检查</button>
+              <button
+                class="ok-btn ok-btn--sm"
+                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+                @click="runRuntimeModels(r.runtimeId)"
+              >模型</button>
+              <button
+                class="ok-btn ok-btn--sm"
+                :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId || r.available"
+                :title="r.available ? '已安装，无需安装' : '查看安装计划（须确认才执行）'"
+                @click="openInstallConfirm(r.runtimeId)"
+              >安装</button>
+              <button
+                v-if="r.runtimeId && (runtimeProbeMap[r.runtimeId] || runtimeModelsMap[r.runtimeId])"
+                class="ok-btn ok-btn--sm"
+                @click="toggleRuntimeDetail(r.runtimeId!)"
+              >{{ runtimeDetailOpen[r.runtimeId!] ? '收起详情' : '展开详情' }}</button>
+            </div>
+            <div
+              v-if="r.runtimeId && runtimeDetailOpen[r.runtimeId] && runtimeProbeMap[r.runtimeId]"
+              class="ok-result ok-result--compact"
+            >
+              <div class="ok-result__title">installation</div>
+              <pre class="ok-result__body">{{ runtimeProbeMap[r.runtimeId]?.installationJson || '—' }}</pre>
+              <div class="ok-result__title">auth</div>
+              <pre class="ok-result__body">{{
+                runtimeProbeMap[r.runtimeId]?.authError
+                  ? ('错误: ' + runtimeProbeMap[r.runtimeId]?.authError)
+                  : (runtimeProbeMap[r.runtimeId]?.authJson || '—')
+              }}</pre>
+            </div>
+            <div
+              v-if="r.runtimeId && runtimeDetailOpen[r.runtimeId] && runtimeModelsMap[r.runtimeId]"
+              class="ok-result ok-result--compact"
+            >
+              <div class="ok-result__title">models</div>
+              <pre class="ok-result__body">{{ runtimeModelsMap[r.runtimeId]?.payloadJson || '—' }}</pre>
             </div>
           </li>
         </ul>
+      </div>
 
-        <div class="ok-detail" v-if="activeSession">
-          <div class="ok-detail__head">
-            <span class="ok-badge">{{ activeSession.status || '—' }}</span>
-            <code class="ok-code">{{ activeSession.sessionKey }}</code>
-          </div>
-          <div class="ok-hint" v-if="!activeSteer.ok">Steer 禁用：{{ activeSteer.reason }}</div>
-          <div class="ok-hint" v-if="!activeAbort.ok">Abort 禁用：{{ activeAbort.reason }}</div>
-          <div class="ok-form__row" style="margin-top: 8px">
-            <input
-              class="ok-input"
-              v-model="sessionInputText"
-              :disabled="!activeSteer.ok || sessionBusy"
-              placeholder="向会话投递输入（Steer）"
-              @keyup.enter="runSessionInput"
-            />
-          </div>
-          <div class="ok-form__actions">
-            <button
-              class="ok-btn ok-btn--sm ok-btn--primary"
-              :disabled="!activeSteer.ok || sessionBusy"
-              :title="activeSteer.reason || '发送'"
-              @click="runSessionInput"
-            >发送</button>
-            <button
-              class="ok-btn ok-btn--sm"
-              :disabled="!activeAbort.ok || sessionBusy"
-              :title="activeAbort.reason || 'Abort'"
-              @click="runSessionAbort"
-            >Abort</button>
-            <button class="ok-btn ok-btn--sm ok-btn--danger" :disabled="sessionBusy" @click="runSessionClose">关闭会话</button>
-          </div>
-          <div class="ok-form__label" style="margin-top: 12px">Records / stream</div>
-          <div v-if="!sessionRecords.length" class="ok-empty">暂无 Record（已订阅 stream 增量）。</div>
-          <ul v-else class="ok-tasklist">
-            <li v-for="rec in sessionRecords" :key="(rec.agentHubSequence ?? 0) + '-' + (rec.type || '')" class="ok-task">
+      <!-- B. Session 操作（与库存分区拉开；一节一事） -->
+      <div class="ok-section">
+        <div class="ok-section__head">
+          <h3 class="ok-section__title">Session 操作</h3>
+          <p class="ok-section__desc">
+            选会话 → Steer / Abort / 关闭。对外只展示 SessionKey，不暴露内部 OarSessionId。
+          </p>
+        </div>
+
+        <div v-if="!sessions.length" class="ok-empty">
+          还没有持久化会话。从「发起委派」对已装 Runtime（如 Grok）开新任务后会出现在这里。
+        </div>
+
+        <div v-else class="ok-split">
+          <ul class="ok-tasklist">
+            <li
+              v-for="s in sessions"
+              :key="s.sessionKey"
+              class="ok-task"
+              :class="{ 'ok-task--on': s.sessionKey === activeSessionKey }"
+              @click="selectSession(s.sessionKey)"
+            >
               <div class="ok-task__top">
-                <span class="ok-badge">#{{ rec.agentHubSequence }}</span>
-                <span class="ok-task__key">{{ rec.type || 'record' }}</span>
+                <RuntimeBrandIcon :runtime-id="s.runtimeId" :name="s.runtimeId" :size="22" />
+                <span class="ok-badge">{{ s.status || '—' }}</span>
+                <code class="ok-code">{{ s.sessionKey }}</code>
               </div>
-              <pre class="ok-result__body">{{ rec.payloadJson || '—' }}</pre>
+              <div class="ok-task__meta">
+                agent #{{ s.agentId }} · {{ s.transport || '—' }} · {{ s.runtimeId || '—' }}
+                · gen {{ s.generation ?? 0 }}
+              </div>
+              <div class="ok-form__actions">
+                <button
+                  class="ok-btn ok-btn--sm"
+                  @click.stop="delegate.sessionKey = s.sessionKey || ''; tab = 'delegate'"
+                >
+                  用此 SessionKey 委派
+                </button>
+              </div>
             </li>
           </ul>
+
+          <div class="ok-detail" v-if="activeSession">
+            <div class="ok-detail__head">
+              <RuntimeBrandIcon
+                :runtime-id="activeSession.runtimeId"
+                :name="activeSession.runtimeId"
+                :size="28"
+              />
+              <span class="ok-badge">{{ activeSession.status || '—' }}</span>
+              <code class="ok-code">{{ activeSession.sessionKey }}</code>
+            </div>
+            <div class="ok-hint" v-if="!activeSteer.ok">Steer 禁用：{{ activeSteer.reason }}</div>
+            <div class="ok-hint" v-if="!activeAbort.ok">Abort 禁用：{{ activeAbort.reason }}</div>
+            <div class="ok-form__row" style="margin-top: 8px">
+              <input
+                class="ok-input"
+                v-model="sessionInputText"
+                :disabled="!activeSteer.ok || sessionBusy"
+                placeholder="向会话投递输入（Steer）"
+                @keyup.enter="runSessionInput"
+              />
+            </div>
+            <div class="ok-form__actions">
+              <button
+                class="ok-btn ok-btn--sm ok-btn--primary"
+                :disabled="!activeSteer.ok || sessionBusy"
+                :title="activeSteer.reason || '发送'"
+                @click="runSessionInput"
+              >发送</button>
+              <button
+                class="ok-btn ok-btn--sm"
+                :disabled="!activeAbort.ok || sessionBusy"
+                :title="activeAbort.reason || 'Abort'"
+                @click="runSessionAbort"
+              >Abort</button>
+              <button class="ok-btn ok-btn--sm ok-btn--danger" :disabled="sessionBusy" @click="runSessionClose">关闭会话</button>
+            </div>
+            <div class="ok-form__label" style="margin-top: 12px">Records / stream</div>
+            <div v-if="!sessionRecords.length" class="ok-empty">暂无 Record（已订阅 stream 增量）。</div>
+            <ul v-else class="ok-tasklist">
+              <li v-for="rec in sessionRecords" :key="(rec.agentHubSequence ?? 0) + '-' + (rec.type || '')" class="ok-task">
+                <div class="ok-task__top">
+                  <span class="ok-badge">#{{ rec.agentHubSequence }}</span>
+                  <span class="ok-task__key">{{ rec.type || 'record' }}</span>
+                </div>
+                <pre class="ok-result__body">{{ rec.payloadJson || '—' }}</pre>
+              </li>
+            </ul>
+          </div>
+          <div v-else class="ok-empty">选一条会话查看详情与操作。</div>
         </div>
-        <div v-else class="ok-empty">选一条会话查看详情与操作。</div>
       </div>
     </section>
 
@@ -1166,7 +1265,8 @@ onBeforeUnmount(() => {
       <div class="ok-modal__box">
         <div class="ok-modal__title">确认安装 Runtime「{{ installTarget.runtimeId }}」</div>
         <div class="ok-modal__desc">
-          将按下方 installPlan 执行安装。未点确认不会改动本机。scripted/bundled 可能返回 not_supported。
+          将按下方 installPlan 执行安装。未点确认不会改动本机。
+          未装 Runtime 可能返回 not_found / not_supported——不会假装安装成功。
         </div>
         <pre class="ok-result__body">{{ installTarget.planJson }}</pre>
         <div class="ok-modal__actions">
@@ -1264,6 +1364,107 @@ onBeforeUnmount(() => {
   border-radius: var(--el-border-radius-lg, 12px);
   padding: 20px;
   backdrop-filter: blur(12px);
+}
+.ok-panel--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.ok-panel--stack > * {
+  flex-shrink: 0;
+}
+.ok-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+.ok-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+.ok-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ok-section__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--el-font-family-serif, Georgia, 'Times New Roman', serif);
+  color: var(--el-text-color-primary);
+  letter-spacing: 0.02em;
+}
+.ok-section__desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-secondary);
+  max-width: 720px;
+}
+.ok-runtime-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.ok-runtime-card {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--el-border-radius-base, 8px);
+  background: var(--el-fill-color-blank, var(--el-bg-color));
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ok-runtime-card--ok {
+  border-color: color-mix(in srgb, var(--el-color-success) 35%, var(--el-border-color-light));
+}
+.ok-runtime-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ok-runtime-card__ident {
+  flex: 1;
+  min-width: 0;
+}
+.ok-runtime-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.3;
+}
+.ok-runtime-card__meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.ok-runtime-card__reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
+}
+.ok-runtime-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ok-result--compact {
+  margin-top: 4px;
+}
+.ok-result--compact .ok-result__body {
+  max-height: 140px;
+  overflow: auto;
 }
 .ok-tabs {
   display: flex;

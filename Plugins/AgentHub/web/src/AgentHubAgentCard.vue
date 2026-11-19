@@ -7,11 +7,19 @@
  */
 
 import type { AgentDto } from './http'
+import RuntimeBrandIcon from './RuntimeBrandIcon.vue'
 
 const props = defineProps<{
   agent: AgentDto
   probing: boolean
 }>()
+
+/** Prefer Oar AccessPoint RuntimeId for brand icon; else vendor. */
+function brandRuntimeId(): string | undefined {
+  const aps = props.agent.accessPoints ?? []
+  const oar = aps.find((p) => (p.transport || '').toLowerCase() === 'oar' && p.runtimeId)
+  return oar?.runtimeId || props.agent.vendor || undefined
+}
 
 const emit = defineEmits<{
   edit: []
@@ -84,6 +92,12 @@ function apHealthLabel(h?: string): string {
   <article class="ok-card">
     <div class="ok-card__head">
       <div class="ok-card__ident">
+        <RuntimeBrandIcon
+          :runtime-id="brandRuntimeId()"
+          :vendor="agent.vendor"
+          :name="agent.name"
+          :size="32"
+        />
         <span class="ok-health" :class="healthClass()" :title="healthLabel()"></span>
         <span class="ok-card__name">{{ agent.name }}</span>
         <span v-if="agent.vendor" class="ok-code">{{ agent.vendor }}</span>

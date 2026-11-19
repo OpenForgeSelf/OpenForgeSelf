@@ -93,6 +93,8 @@ export interface AccessPointDto {
   vendor?: string
   mode?: string
   transport?: string
+  /** OAR registry id（如 grok / claude）；产品面不含 scripted */
+  runtimeId?: string
   executable?: string
   argsTemplate?: string
   envVars?: Record<string, string>
@@ -216,7 +218,7 @@ export interface DelegationRequest {
   wait?: boolean
 }
 
-/** Runtime 描述（api/agent-hub/runtimes）。 */
+/** Runtime 描述（api/agent-hub/runtimes）。产品面不含 scripted。 */
 export interface RuntimeDescriptorDto {
   agentId?: number
   name?: string
@@ -225,6 +227,10 @@ export interface RuntimeDescriptorDto {
   transport?: string
   available?: boolean
   unavailableReason?: string
+  /** OAR installation.kind：available / not_found / unsupported */
+  installationKind?: string
+  /** OAR installation.via：executable / bundled */
+  installationVia?: string
   capabilities?: string[]
 }
 

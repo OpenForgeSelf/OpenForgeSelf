@@ -29,3 +29,7 @@
 - `dev-stack.ps1` `-WindowStyle` 在 Linux pwsh 仍失败 → 属 PR#7，本批未改。  
 - 真实 Claude/Codex/OpenCode 会话仍 out of scope。  
 - WatchTaskAsync / session stream 仍为轮询最小面（非统一 SSE 重写）。
+
+## Follow-up CI
+
+Frontend Check on `549b08b` failed (story-linked plugin deps missing); fixed in pilot `2026-11-19-frontend-check-plugin-deps` / workflow install step.

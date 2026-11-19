@@ -44,3 +44,8 @@
 - Cloud/Linux 跑 `net10.0-windows` 测试需去掉 `Microsoft.WindowsDesktop.App` runtimeconfig 项（宿主 `UseWindowsForms`）；属环境手法，非产品代码。  
 - `AgentHubCliTransportTimeoutTests` 依赖 `powershell` 可执行文件，Linux 上失败为环境基线。  
 - P1 **未** `ctx.Register<IAgentRuntime>`（P3）。
+
+## Gate unblock (CI)
+
+- `cfbdbb6` 触发 pilot-gate「越界 diff」：`ForgeSelf.Api.Tests/Plugins/AIAgent/AgentRunDispatchTests.cs` 未列入 `04-task.md` `expected_files`（该文件为编译基线替身，同批改动）。
+- 已补入 `expected_files`；本地 `pwsh scripts/verify-pilot-gate.ps1 -Base origin/main` 应对齐 CI「门禁（pilot / risk / style）」中的 pilot 段。

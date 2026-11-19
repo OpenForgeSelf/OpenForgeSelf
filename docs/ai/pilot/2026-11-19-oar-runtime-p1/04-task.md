@@ -11,6 +11,7 @@ expected_files:
   - Plugins/AgentHub/Services/OarWorkerClientOptions.cs
   - ForgeSelf.Api.Tests/Plugins/AgentHub/OarWorkerClientTests.cs
   - ForgeSelf.Api.Tests/Plugins/AgentHub/AgentRuntimeContractsTests.cs
+  - ForgeSelf.Api.Tests/Plugins/AIAgent/AgentRunDispatchTests.cs
   - docs/02-features/032-agent-hub.md
   - docs/ai/pilot/2026-11-19-oar-runtime-p1/
 rollback: "git revert <commit>"

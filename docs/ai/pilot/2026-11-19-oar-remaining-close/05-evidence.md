@@ -47,7 +47,7 @@
 | V8 | Verified | `AgentHubSessionKeyAskTests` |
 | V11 | Verified | agents/tasks 401 |
 | V12 | Verified | AgentHub 过滤集跑过（见上；基线 4 红） |
-| V9/V10 | ⏸ | Linux 无 ForgeSelf.exe / 无 vendor 二进制 |
+| V9/V10 | ⏸ / 部分 ✅ | V9 仍 ⏸（无 ForgeSelf.exe）；V10 **Grok Build 真会话已 Verified**（见下节）；Claude/Codex/OpenCode 仍 ⏸ |
 | W1–W8 | Verified | walkthrough INDEX |
 | W9–W10 | ⏸ | 无用户 publish 实例 |
 
@@ -56,3 +56,19 @@
 - scripted installPlan=`not_supported`（预期）。
 - 短会话很快 Closed；Steer 仍可点但 Worker 可能拒。
 - 正式 playwright globalSetup exe 未跑（V9）。
+- Host `OarTransport` 在 prompt *accepted* 后约 50ms 收束 → 任务可标 Succeeded，但 EventStore 可能尚未收到 vendor `text_delta`；真 Grok 助手正文以 Worker 等待 `turn_ended` 为准（见下节）。
+
+## OAR×Grok 真实验收（2026-11-19 追加 · Verified）
+
+> 诚实结论：本 pilot 原先 W1–W8 / `oar-todo-walkthrough` **是真宿主 UI**，但 Session/prompt 走的是 **`scriptedRuntime`（echo）**，不是 vendor Grok。完整溯源见 Cursor artifacts `oar-screenshot-provenance.md`。
+
+| 项 | 结果 | 证据（Cursor artifacts `oar-grok-acceptance/`） |
+| --- | --- | --- |
+| Grok 二进制 | ✅ `grok 1.0.89` stable；OAR `installation.via=executable` | `g0-worker-probe.log` / `g27-grok-probe.png` |
+| Auth / Models | ✅ `logged_in`（grok.com）；models 含 grok-4.7 等 | `g0-api-probe.json` / `g0-api-models.json` / `g28-grok-models.png` |
+| Worker 全流程 | ✅ open→prompt→`text_delta=GROK_ACCEPTANCE_OK`→records→dispose | `g0d-worker-grok-session.json` |
+| AccessPoint | ✅ Transport=`Oar` RuntimeId=`grok`（agent `grok-build-live`） | `g0c-create-agent.json` |
+| UI 可点击清单 G0–G44 | ✅ **48/48 pass**（零 scripted 作验收 prompt） | `REPORT.md` / `results-merged.json` / `g01`–`g41` PNG |
+| 起源码栈 | ✅ `:7301` / `:7399`（未动 `:51888`） | `g43` |
+
+Steer UI：新登记 Oar agent 若未写 `F1_Driving`/`F2_Sessions`，caps 仅 `abort,oar` → Steer 禁用；本批已补 facets 后 `g35-session-steer.png` 通过。

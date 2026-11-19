@@ -1,12 +1,15 @@
 ---
 risk: { level: L3, note: 宿主进程边界与输出目录 }
 expected_files:
-  - ForgeSelf.Api/ForgeSelf.Api.csproj
-  - ForgeSelf.Api/Program.cs
-  - ForgeSelf.Host/ForgeSelf.Host.csproj
-  - ForgeSelf.Tray/ForgeSelf.Tray.csproj
-  - docs/04-standards/packaging-upgrade-backup.md
-feature: split-tray
+  - ForgeSelf.Api
+  - ForgeSelf.Host
+  - ForgeSelf.Tray
+  - ForgeSelf.Tray.Tests
+  - ForgeSelf.Api.Tests
+  - ForgeSelf.slnx
+  - scripts/dev-stack.ps1
+  - scripts/release/publish-host.ps1
+feature: "008"
 rollback: 把托盘源码移回 API，目标框架改回 net10.0-windows，并恢复 UseWindowsForms 与 H.NotifyIcon
 ---
 

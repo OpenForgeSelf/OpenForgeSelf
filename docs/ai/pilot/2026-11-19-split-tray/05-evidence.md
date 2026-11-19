@@ -82,6 +82,10 @@ HTTP/1.1 200 OK
 - AC4 Verified：`ShouldLaunch` 用例在同一通过集里。
 - AC5 Verified 编译；菜单点击 Unknown。
 
+## CI
+
+第一次推送后「门禁（pilot / risk / style）」里 pilot-gate 失败：`feature` 对不上 `docs/02-features/`，改动文件也超出 `04` 的 `expected_files`。已把 `feature` 改为 `008`，范围改成实际改过的工程目录，并回写 `docs/02-features/008-tray-service-autoupdate.md`。risk-level 与 style-tokens 那一次是通过的。
+
 ## 未验证
 
 - 托盘菜单点击、`CreateProcessAsUser`、服务安装 binPath、`publish-host.ps1` 产出的 zip。来源等级：Unknown。按本次要求留到 Windows。

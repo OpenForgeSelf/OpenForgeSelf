@@ -36,13 +36,25 @@ import {
   saveSettings,
   listRuntimes,
   listSessions,
+  probeRuntime,
+  listRuntimeModels,
+  getRuntimeInstallPlan,
+  installRuntime,
+  sendSessionInput,
+  abortSession,
+  closeSession,
+  listSessionRecords,
+  streamSessionRecords,
   type AgentDto,
   type AgentSaveRequest,
   type DiscoveredAgentDto,
   type PendingPermissionDto,
   type ProbeResultDto,
   type RuntimeDescriptorDto,
+  type RuntimeProbeDto,
+  type RuntimeModelsDto,
   type SessionDto,
+  type SessionRecordDto,
   type TaskDto,
   type TaskEventDto,
   fetchPluginVersion,
@@ -279,10 +291,56 @@ const delegate = reactive({
   sessionKey: '',
 })
 
-/** Runtime / Session 面（P3）。 */
+/** Runtime / Session 面（P3 + remaining-close）。 */
 const runtimes = ref<RuntimeDescriptorDto[]>([])
 const sessions = ref<SessionDto[]>([])
 const loadingSessions = ref(false)
+const activeSessionKey = ref<string | null>(null)
+const sessionRecords = ref<SessionRecordDto[]>([])
+const sessionInputText = ref('')
+const sessionBusy = ref(false)
+const runtimeProbeMap = reactive<Record<string, RuntimeProbeDto | undefined>>({})
+const runtimeModelsMap = reactive<Record<string, RuntimeModelsDto | undefined>>({})
+const runtimeBusyId = ref<string | null>(null)
+
+/** 安装确认对话框。 */
+const installTarget = ref<{ runtimeId: string; planJson: string } | null>(null)
+const installBusy = ref(false)
+
+/** 停止会话 Record SSE。 */
+let stopSessionStream: (() => void) | null = null
+
+function capsForRuntime(runtimeId?: string | null): string[] {
+  if (!runtimeId) return []
+  const hit = runtimes.value.find((r) => r.runtimeId === runtimeId)
+  return hit?.capabilities ?? []
+}
+
+/**
+ * Steer（会话输入）：若 Runtime summary 已声明 capabilities，则须含 session 或 prompt；
+ * 未声明（旧 Cli / 无 RuntimeId）则放行并允许尝试。
+ */
+function canSteer(runtimeId?: string | null): { ok: boolean; reason: string } {
+  if (!runtimeId) return { ok: true, reason: '' }
+  const caps = capsForRuntime(runtimeId)
+  if (!caps.length) return { ok: true, reason: '' }
+  if (caps.includes('session') || caps.includes('prompt')) return { ok: true, reason: '' }
+  return { ok: false, reason: `能力 [${caps.join(', ')}] 不支持 Steer/续接` }
+}
+
+function canAbort(runtimeId?: string | null): { ok: boolean; reason: string } {
+  if (!runtimeId) return { ok: true, reason: '' }
+  const caps = capsForRuntime(runtimeId)
+  if (!caps.length) return { ok: true, reason: '' }
+  if (caps.includes('abort')) return { ok: true, reason: '' }
+  return { ok: false, reason: `能力 [${caps.join(', ')}] 不含 abort` }
+}
+
+const activeSession = computed(() =>
+  sessions.value.find((s) => s.sessionKey === activeSessionKey.value) ?? null,
+)
+const activeSteer = computed(() => canSteer(activeSession.value?.runtimeId))
+const activeAbort = computed(() => canAbort(activeSession.value?.runtimeId))
 
 const submitting = ref(false)
 
@@ -505,6 +563,170 @@ async function loadRuntimeSurface() {
   }
 }
 
+async function runRuntimeProbe(runtimeId?: string) {
+  if (!runtimeId) {
+    setMsg('RuntimeId 为空，无法探测', 'err')
+    return
+  }
+  runtimeBusyId.value = runtimeId
+  try {
+    const r = await probeRuntime(runtimeId)
+    runtimeProbeMap[runtimeId] = r
+    setMsg(`已探测 ${runtimeId}`)
+  } catch (e) {
+    setMsg(`探测失败：${(e as Error).message}`, 'err')
+  } finally {
+    runtimeBusyId.value = null
+  }
+}
+
+async function runRuntimeModels(runtimeId?: string) {
+  if (!runtimeId) {
+    setMsg('RuntimeId 为空，无法拉模型', 'err')
+    return
+  }
+  runtimeBusyId.value = runtimeId
+  try {
+    const r = await listRuntimeModels(runtimeId)
+    runtimeModelsMap[runtimeId] = r
+    setMsg(`已拉取模型 ${runtimeId}`)
+  } catch (e) {
+    setMsg(`模型失败：${(e as Error).message}`, 'err')
+  } finally {
+    runtimeBusyId.value = null
+  }
+}
+
+async function openInstallConfirm(runtimeId?: string) {
+  if (!runtimeId) {
+    setMsg('RuntimeId 为空', 'err')
+    return
+  }
+  runtimeBusyId.value = runtimeId
+  try {
+    const plan = await getRuntimeInstallPlan(runtimeId)
+    installTarget.value = {
+      runtimeId,
+      planJson: plan?.planJson ?? JSON.stringify({ reason: 'empty_plan' }),
+    }
+  } catch (e) {
+    setMsg(`获取安装计划失败：${(e as Error).message}`, 'err')
+  } finally {
+    runtimeBusyId.value = null
+  }
+}
+
+async function confirmInstall() {
+  const target = installTarget.value
+  if (!target) return
+  installBusy.value = true
+  try {
+    const result = await installRuntime(target.runtimeId, true)
+    setMsg(`安装已执行：${(result?.resultJson ?? '').slice(0, 200)}`)
+    installTarget.value = null
+    await runRuntimeProbe(target.runtimeId)
+  } catch (e) {
+    setMsg(`安装失败：${(e as Error).message}`, 'err')
+  } finally {
+    installBusy.value = false
+  }
+}
+
+async function selectSession(sessionKey?: string) {
+  stopSessionStream?.()
+  stopSessionStream = null
+  if (!sessionKey) {
+    activeSessionKey.value = null
+    sessionRecords.value = []
+    return
+  }
+  activeSessionKey.value = sessionKey
+  sessionRecords.value = []
+  try {
+    sessionRecords.value = (await listSessionRecords(sessionKey)) ?? []
+    const from = sessionRecords.value.length
+      ? (sessionRecords.value[sessionRecords.value.length - 1].agentHubSequence ?? 0) + 1
+      : 0
+    stopSessionStream = streamSessionRecords(
+      sessionKey,
+      from,
+      (rec) => {
+        sessionRecords.value = [...sessionRecords.value, rec]
+      },
+      () => {
+        /* done / error：保留已有 records */
+      },
+    )
+  } catch (e) {
+    setMsg(`加载会话 Record 失败：${(e as Error).message}`, 'err')
+  }
+}
+
+async function runSessionInput() {
+  const key = activeSessionKey.value
+  if (!key) return
+  const steer = canSteer(activeSession.value?.runtimeId)
+  if (!steer.ok) {
+    setMsg(steer.reason || '不支持 Steer', 'err')
+    return
+  }
+  const text = sessionInputText.value.trim()
+  if (!text) {
+    setMsg('请输入要投递的内容', 'err')
+    return
+  }
+  sessionBusy.value = true
+  try {
+    const r = await sendSessionInput(key, text)
+    setMsg(r?.accepted ? `已投递（${r.code ?? 'ok'}）` : `投递被拒：${r?.reason ?? r?.code ?? 'rejected'}`, r?.accepted ? 'ok' : 'err')
+    sessionInputText.value = ''
+    sessionRecords.value = (await listSessionRecords(key)) ?? sessionRecords.value
+  } catch (e) {
+    setMsg(`投递失败：${(e as Error).message}`, 'err')
+  } finally {
+    sessionBusy.value = false
+  }
+}
+
+async function runSessionAbort() {
+  const key = activeSessionKey.value
+  if (!key) return
+  const ab = canAbort(activeSession.value?.runtimeId)
+  if (!ab.ok) {
+    setMsg(ab.reason || '不支持 abort', 'err')
+    return
+  }
+  sessionBusy.value = true
+  try {
+    const r = await abortSession(key)
+    setMsg(r?.accepted ? `已 abort（${r.code ?? 'ok'}）` : `abort 被拒：${r?.reason ?? r?.code}`, r?.accepted ? 'ok' : 'err')
+    await loadRuntimeSurface()
+  } catch (e) {
+    setMsg(`abort 失败：${(e as Error).message}`, 'err')
+  } finally {
+    sessionBusy.value = false
+  }
+}
+
+async function runSessionClose() {
+  const key = activeSessionKey.value
+  if (!key) return
+  sessionBusy.value = true
+  try {
+    await closeSession(key)
+    setMsg(`会话 ${key} 已关闭`)
+    stopSessionStream?.()
+    stopSessionStream = null
+    activeSessionKey.value = null
+    sessionRecords.value = []
+    await loadRuntimeSurface()
+  } catch (e) {
+    setMsg(`关闭失败：${(e as Error).message}`, 'err')
+  } finally {
+    sessionBusy.value = false
+  }
+}
+
 onMounted(async () => {
   pluginVersion.value = await fetchPluginVersion('agent-hub')
   await loadAgents()
@@ -516,6 +738,8 @@ onBeforeUnmount(() => {
   // 铁律：卸载必须停流，否则宿主切页后仍有一条 SSE 长连接挂着
   stopStream?.()
   stopStream = null
+  stopSessionStream?.()
+  stopSessionStream = null
 })
 </script>
 
@@ -765,7 +989,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ─────────── Session / Runtime（P3） ─────────── -->
+    <!-- ─────────── Session / Runtime（P3 + remaining-close） ─────────── -->
     <section v-show="tab === 'sessions'" class="ok-panel">
       <div class="ok-toolbar">
         <button class="ok-btn" :disabled="loadingSessions" @click="loadRuntimeSurface">
@@ -786,33 +1010,118 @@ onBeforeUnmount(() => {
           </div>
           <div class="ok-task__meta">
             {{ r.transport || '—' }} · RuntimeId={{ r.runtimeId || '—' }}
+            <span v-if="r.capabilities?.length"> · caps={{ r.capabilities.join(',') }}</span>
             <span v-if="r.unavailableReason"> · {{ r.unavailableReason }}</span>
+          </div>
+          <div class="ok-form__actions">
+            <button
+              class="ok-btn ok-btn--sm"
+              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+              @click="runRuntimeProbe(r.runtimeId)"
+            >检查</button>
+            <button
+              class="ok-btn ok-btn--sm"
+              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+              @click="runRuntimeModels(r.runtimeId)"
+            >模型</button>
+            <button
+              class="ok-btn ok-btn--sm"
+              :disabled="!r.runtimeId || runtimeBusyId === r.runtimeId"
+              @click="openInstallConfirm(r.runtimeId)"
+            >安装</button>
+          </div>
+          <div v-if="r.runtimeId && runtimeProbeMap[r.runtimeId]" class="ok-result" style="margin-top: 8px">
+            <div class="ok-result__title">installation</div>
+            <pre class="ok-result__body">{{ runtimeProbeMap[r.runtimeId]?.installationJson || '—' }}</pre>
+            <div class="ok-result__title">auth</div>
+            <pre class="ok-result__body">{{
+              runtimeProbeMap[r.runtimeId]?.authError
+                ? ('错误: ' + runtimeProbeMap[r.runtimeId]?.authError)
+                : (runtimeProbeMap[r.runtimeId]?.authJson || '—')
+            }}</pre>
+          </div>
+          <div v-if="r.runtimeId && runtimeModelsMap[r.runtimeId]" class="ok-result" style="margin-top: 8px">
+            <div class="ok-result__title">models</div>
+            <pre class="ok-result__body">{{ runtimeModelsMap[r.runtimeId]?.payloadJson || '—' }}</pre>
           </div>
         </li>
       </ul>
 
       <div class="ok-form__label" style="margin-top: 16px">Session 列表（仅 SessionKey）</div>
       <div v-if="!sessions.length" class="ok-empty">还没有持久化会话。</div>
-      <ul v-else class="ok-tasklist">
-        <li v-for="s in sessions" :key="s.sessionKey" class="ok-task">
-          <div class="ok-task__top">
-            <span class="ok-badge">{{ s.status || '—' }}</span>
-            <code class="ok-code">{{ s.sessionKey }}</code>
+      <div v-else class="ok-split">
+        <ul class="ok-tasklist">
+          <li
+            v-for="s in sessions"
+            :key="s.sessionKey"
+            class="ok-task"
+            :class="{ 'ok-task--on': s.sessionKey === activeSessionKey }"
+            @click="selectSession(s.sessionKey)"
+          >
+            <div class="ok-task__top">
+              <span class="ok-badge">{{ s.status || '—' }}</span>
+              <code class="ok-code">{{ s.sessionKey }}</code>
+            </div>
+            <div class="ok-task__meta">
+              agent #{{ s.agentId }} · {{ s.transport || '—' }} · {{ s.runtimeId || '—' }}
+              · gen {{ s.generation ?? 0 }}
+            </div>
+            <div class="ok-form__actions">
+              <button
+                class="ok-btn ok-btn--sm"
+                @click.stop="delegate.sessionKey = s.sessionKey || ''; tab = 'delegate'"
+              >
+                用此 SessionKey 委派
+              </button>
+            </div>
+          </li>
+        </ul>
+
+        <div class="ok-detail" v-if="activeSession">
+          <div class="ok-detail__head">
+            <span class="ok-badge">{{ activeSession.status || '—' }}</span>
+            <code class="ok-code">{{ activeSession.sessionKey }}</code>
           </div>
-          <div class="ok-task__meta">
-            agent #{{ s.agentId }} · {{ s.transport || '—' }} · {{ s.runtimeId || '—' }}
-            · gen {{ s.generation ?? 0 }}
+          <div class="ok-hint" v-if="!activeSteer.ok">Steer 禁用：{{ activeSteer.reason }}</div>
+          <div class="ok-hint" v-if="!activeAbort.ok">Abort 禁用：{{ activeAbort.reason }}</div>
+          <div class="ok-form__row" style="margin-top: 8px">
+            <input
+              class="ok-input"
+              v-model="sessionInputText"
+              :disabled="!activeSteer.ok || sessionBusy"
+              placeholder="向会话投递输入（Steer）"
+              @keyup.enter="runSessionInput"
+            />
           </div>
           <div class="ok-form__actions">
             <button
+              class="ok-btn ok-btn--sm ok-btn--primary"
+              :disabled="!activeSteer.ok || sessionBusy"
+              :title="activeSteer.reason || '发送'"
+              @click="runSessionInput"
+            >发送</button>
+            <button
               class="ok-btn ok-btn--sm"
-              @click="delegate.sessionKey = s.sessionKey || ''; tab = 'delegate'"
-            >
-              用此 SessionKey 委派
-            </button>
+              :disabled="!activeAbort.ok || sessionBusy"
+              :title="activeAbort.reason || 'Abort'"
+              @click="runSessionAbort"
+            >Abort</button>
+            <button class="ok-btn ok-btn--sm ok-btn--danger" :disabled="sessionBusy" @click="runSessionClose">关闭会话</button>
           </div>
-        </li>
-      </ul>
+          <div class="ok-form__label" style="margin-top: 12px">Records / stream</div>
+          <div v-if="!sessionRecords.length" class="ok-empty">暂无 Record（已订阅 stream 增量）。</div>
+          <ul v-else class="ok-tasklist">
+            <li v-for="rec in sessionRecords" :key="(rec.agentHubSequence ?? 0) + '-' + (rec.type || '')" class="ok-task">
+              <div class="ok-task__top">
+                <span class="ok-badge">#{{ rec.agentHubSequence }}</span>
+                <span class="ok-task__key">{{ rec.type || 'record' }}</span>
+              </div>
+              <pre class="ok-result__body">{{ rec.payloadJson || '—' }}</pre>
+            </li>
+          </ul>
+        </div>
+        <div v-else class="ok-empty">选一条会话查看详情与操作。</div>
+      </div>
     </section>
 
     <!-- 授信对话框 -->
@@ -848,6 +1157,23 @@ onBeforeUnmount(() => {
         <div class="ok-modal__actions">
           <button class="ok-btn ok-btn--primary" @click="submitTrust">确认授信</button>
           <button class="ok-btn" @click="trustTarget = null">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 安装确认对话框 -->
+    <div v-if="installTarget" class="ok-modal" @click.self="installTarget = null">
+      <div class="ok-modal__box">
+        <div class="ok-modal__title">确认安装 Runtime「{{ installTarget.runtimeId }}」</div>
+        <div class="ok-modal__desc">
+          将按下方 installPlan 执行安装。未点确认不会改动本机。scripted/bundled 可能返回 not_supported。
+        </div>
+        <pre class="ok-result__body">{{ installTarget.planJson }}</pre>
+        <div class="ok-modal__actions">
+          <button class="ok-btn ok-btn--primary" :disabled="installBusy" @click="confirmInstall">
+            {{ installBusy ? '安装中…' : '确认安装' }}
+          </button>
+          <button class="ok-btn" :disabled="installBusy" @click="installTarget = null">取消</button>
         </div>
       </div>
     </div>

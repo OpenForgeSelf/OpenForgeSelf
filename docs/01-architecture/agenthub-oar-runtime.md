@@ -6,7 +6,7 @@
 > 功能档案：[032-agent-hub.md](../02-features/032-agent-hub.md)  
 > design pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/`  
 > 并发计划：同目录 [`concurrency-plan.md`](../ai/pilot/2026-11-19-oar-agenthub-runtime/concurrency-plan.md)  
-> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`
+> 阶段 pilots：P0 `2026-11-19-oar-runtime-worker-p0`（✅）· P1 `2026-11-19-oar-runtime-p1`（✅）· P2 `2026-11-19-oar-runtime-p2`（✅）
 
 本文是「外部 Coding Agent 如何经铸己匣统一运行」的**唯一架构真源**。实现与本文冲突时，先改本文或提 ADR，禁止静默分叉。
 
@@ -151,7 +151,7 @@ public interface IAgentRuntime
 | --- | --- | --- | --- |
 | P0 | Worker 骨架 + OAR 探针（12 步） | `2026-11-19-oar-runtime-worker-p0` | ✅ Worker + smoke 12/12 |
 | P1 | `IAgentRuntime` 契约 + `OarWorkerClient` stdio JSON-RPC / 生命周期 | `2026-11-19-oar-runtime-p1` | ✅ |
-| P2 | Transport 注册表、RuntimeId、Session、事件、Delegation 选路 | 另开 | ⬜ |
+| P2 | Transport 注册表、RuntimeId、Session、Delegation 选路 | `2026-11-19-oar-runtime-p2` | ✅ |
 | P3 | Provider 注册、工具 SessionKey、管理面/API | 另开 | ⬜ |
 | P4 | 消费者试点、测试体系、打包/Node 检查文档 | 另开 | ⬜ |
 

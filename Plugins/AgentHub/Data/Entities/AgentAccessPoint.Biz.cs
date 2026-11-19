@@ -26,7 +26,12 @@ public partial class AgentAccessPoint : Entity<AgentAccessPoint>
         if (!HasDirty) return true;
 
         if (AgentId <= 0) throw new ArgumentNullException(nameof(AgentId), "所属 Agent 不能为空！");
-        if (Executable.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Executable), "可执行文件不能为空！");
+        // Oar 交互口不依赖本机 Executable（走 RuntimeWorker）；Cli/其它仍须可执行文件
+        var isOar = String.Equals(Transport, "Oar", StringComparison.OrdinalIgnoreCase);
+        if (!isOar && Executable.IsNullOrEmpty())
+            throw new ArgumentNullException(nameof(Executable), "可执行文件不能为空！");
+        if (isOar && RuntimeId.IsNullOrEmpty())
+            throw new ArgumentNullException(nameof(RuntimeId), "Oar 交互口必须指定 RuntimeId！");
 
         if (!base.Valid(method)) return false;
 

@@ -277,13 +277,24 @@
 
         <tr>
             <td>Transport</td>
-            <td>传输方式（Cli|Acp|Http）</td>
+            <td>传输方式（Cli|Oar|Acp|Http）</td>
             <td>String</td>
             <td>20</td>
             <td></td>
             <td></td>
             <td>N</td>
             <td></td>
+        </tr>
+
+        <tr>
+            <td>RuntimeId</td>
+            <td>OARRuntimeregistryid（与Vendor独立）</td>
+            <td>String</td>
+            <td>80</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>OAR Runtime registry id（与 Vendor 独立）</td>
         </tr>
 
         <tr>
@@ -785,6 +796,210 @@
         <tr>
             <td>Timestamp</td>
             <td>时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+<br></br>
+<h3>外部Runtime会话（对外SessionKey）（AgentHubSession）</h3>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>显示名</th>
+            <th>类型</th>
+            <th>长度</th>
+            <th>精度</th>
+            <th>主键</th>
+            <th>允许空</th>
+            <th>备注</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Id</td>
+            <td>主键</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td title="自增">AI</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>SessionKey</td>
+            <td>对外会话键（GUID）</td>
+            <td>String</td>
+            <td>40</td>
+            <td></td>
+            <td title="唯一索引">UQ</td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>AgentId</td>
+            <td>关联Agent</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>关联 Agent</td>
+        </tr>
+
+        <tr>
+            <td>AccessPointId</td>
+            <td>关联交互口</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Transport</td>
+            <td>传输方式</td>
+            <td>String</td>
+            <td>20</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>RuntimeId</td>
+            <td>OARRuntimeid</td>
+            <td>String</td>
+            <td>80</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>OAR Runtime id</td>
+        </tr>
+
+        <tr>
+            <td>OarSessionId</td>
+            <td>Worker_OAR侧会话id（不对插件暴露）</td>
+            <td>String</td>
+            <td>200</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>Worker/OAR 侧会话 id（不对插件暴露）</td>
+        </tr>
+
+        <tr>
+            <td>Cwd</td>
+            <td>工作目录</td>
+            <td>String</td>
+            <td>500</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Model</td>
+            <td>模型提示</td>
+            <td>String</td>
+            <td>100</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Effort</td>
+            <td>努力程度提示</td>
+            <td>String</td>
+            <td>40</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>OptionsJson</td>
+            <td>选项JSON（无密钥）</td>
+            <td>String</td>
+            <td>2000</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>选项 JSON（无密钥）</td>
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>状态（Open|Closed|Interrupted）</td>
+            <td>String</td>
+            <td>30</td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>Generation</td>
+            <td>世代（open_resume+1）</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td>世代（open/resume +1）</td>
+        </tr>
+
+        <tr>
+            <td>LastTaskId</td>
+            <td>最近任务主键</td>
+            <td>Int32</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>AgentHubSequence</td>
+            <td>铸己匣事件序号水位</td>
+            <td>Int64</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>N</td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>CreateTime</td>
+            <td>创建时间</td>
+            <td>DateTime</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+
+        <tr>
+            <td>UpdateTime</td>
+            <td>更新时间</td>
             <td>DateTime</td>
             <td></td>
             <td></td>

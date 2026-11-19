@@ -5,6 +5,7 @@ using ForgeSelf.Api.Plugins.AgentHub.Services;
 using ForgeSelf.Api.Plugins.AgentHub.Tools;
 using ForgeSelf.Core;
 using Microsoft.Extensions.DependencyInjection;
+using NewLife;
 using NewLife.Log;
 // B5（041）：Abstractions 新增了 Agent 运行时注册表契约 IAgentRegistry，
 // 与本插件既有的「Agent 注册中心」IAgentRegistry 同名。本文件用的是本插件的注册中心，故显式别名消歧。
@@ -73,13 +74,68 @@ public class AgentHubPlugin : IPlugin
         // 探测服务：单例（无状态）
         services.AddSingleton<IAgentProbeService, AgentProbeService>();
 
-        // transport：单例（内部用静态表跟踪运行中进程，供取消）
-        services.AddSingleton<IAgentTransport, CliTransport>();
+        // transport 注册表：按 AccessPoint.Transport 选路（Cli|Oar）；禁止再 DI 单一 IAgentTransport
+        services.AddSingleton<CliTransport>();
+        services.AddSingleton(ResolveOarWorkerOptions);
+        services.AddSingleton<AgentSessionManager>();
+        services.AddSingleton<OarTransport>();
+        services.AddSingleton<IAgentTransportRegistry>(sp =>
+        {
+            var reg = new AgentTransportRegistry();
+            reg.Register(sp.GetRequiredService<CliTransport>());
+            reg.Register(sp.GetRequiredService<OarTransport>());
+            return reg;
+        });
+        // 兼容旧解析：默认 Cli（测试/遗留注入点）
+        services.AddSingleton<IAgentTransport>(sp => sp.GetRequiredService<CliTransport>());
 
         // 运行时会话状态跨请求（工具 + SSE 都要看），必须单例
         services.AddSingleton<DelegationRuntime>();
 
-        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / CliTransport / DelegationRuntime / AgentHubSettingsStore");
+        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / TransportRegistry(Cli+Oar) / AgentSessionManager / DelegationRuntime / AgentHubSettingsStore");
+    }
+
+    /// <summary>
+    /// 解析 RuntimeWorker 启动选项：优先环境变量，其次相对插件目录的 dist/index.js。
+    /// 找不到入口时仍注册 OarTransport——调用时 Available=false，CLI 不受影响。
+    /// </summary>
+    private static OarWorkerClientOptions ResolveOarWorkerOptions(IServiceProvider _)
+    {
+        var opts = new OarWorkerClientOptions();
+        var node = Environment.GetEnvironmentVariable("FORGESELF_OAR_NODE");
+        if (!node.IsNullOrEmpty()) opts.NodeExecutable = node!;
+
+        var entry = Environment.GetEnvironmentVariable("FORGESELF_OAR_WORKER_ENTRY");
+        if (entry.IsNullOrEmpty())
+        {
+            // 开发/源码布局：Plugins/AgentHub/RuntimeWorker/dist/index.js（相对当前程序基目录向上探测）
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "RuntimeWorker", "dist", "index.js"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "AgentHub", "RuntimeWorker", "dist", "index.js"),
+            };
+            // 再向上找仓库根
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null)
+            {
+                var p = Path.Combine(dir.FullName, "Plugins", "AgentHub", "RuntimeWorker", "dist", "index.js");
+                if (File.Exists(p))
+                {
+                    entry = p;
+                    break;
+                }
+
+                dir = dir.Parent;
+            }
+
+            if (entry.IsNullOrEmpty())
+                entry = candidates.FirstOrDefault(File.Exists);
+        }
+
+        opts.WorkerEntryPath = entry ?? String.Empty;
+        if (!opts.WorkerEntryPath.IsNullOrEmpty())
+            opts.WorkingDirectory = Path.GetDirectoryName(opts.WorkerEntryPath);
+        return opts;
     }
 
     /// <summary>注册 AI 工具扩展（供 AIAgent 调用）</summary>
@@ -94,13 +150,15 @@ public class AgentHubPlugin : IPlugin
         XTrace.Log.Debug("Agent 中枢插件已注册 {0} 个工具函数", ToolExtensions.Count);
     }
 
-    /// <summary>宿主启动收尾：遗留任务标记 Interrupted（G5）</summary>
+    /// <summary>宿主启动收尾：遗留任务/会话标记 Interrupted（G5）</summary>
     private static void RecoverOrphanTasks(IServiceProvider services)
     {
         try
         {
             var runtime = services.GetService<DelegationRuntime>();
             runtime?.RecoverOrphans();
+            var sessions = services.GetService<AgentSessionManager>();
+            sessions?.InterruptOpenSessions();
         }
         catch (Exception ex)
         {

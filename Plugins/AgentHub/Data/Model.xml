@@ -70,7 +70,8 @@
         <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="主键" />
         <Column Name="AgentId" DataType="Int32" Description="所属 Agent" />
         <Column Name="Mode" DataType="String" Length="20" Nullable="False" DefaultValue="OneShot" Description="能力等级（OneShot|Sessionful）" />
-        <Column Name="Transport" DataType="String" Length="20" Nullable="False" DefaultValue="Cli" Description="传输方式（Cli|Acp|Http）" />
+        <Column Name="Transport" DataType="String" Length="20" Nullable="False" DefaultValue="Cli" Description="传输方式（Cli|Oar|Acp|Http）" />
+        <Column Name="RuntimeId" DataType="String" Length="80" Description="OAR Runtime registry id（与 Vendor 独立）" />
         <Column Name="Executable" DataType="String" Length="500" Description="可执行文件" />
         <Column Name="ArgsTemplate" DataType="String" Length="2000" Description="参数模板" />
         <Column Name="EnvJson" DataType="String" Length="1000" Description="环境变量映射 JSON（只存名）" />
@@ -133,6 +134,32 @@
       </Columns>
       <Indexes>
         <Index Columns="TaskId,Seq" />
+      </Indexes>
+    </Table>
+    <Table Name="AgentHubSession" Description="外部 Runtime 会话（对外 SessionKey）">
+      <Columns>
+        <Column Name="Id" DataType="Int32" Identity="True" PrimaryKey="True" Description="主键" />
+        <Column Name="SessionKey" DataType="String" Master="True" Length="40" Nullable="False" Description="对外会话键（GUID）" />
+        <Column Name="AgentId" DataType="Int32" DefaultValue="0" Description="关联 Agent" />
+        <Column Name="AccessPointId" DataType="Int32" DefaultValue="0" Description="关联交互口" />
+        <Column Name="Transport" DataType="String" Length="20" Nullable="False" DefaultValue="Oar" Description="传输方式" />
+        <Column Name="RuntimeId" DataType="String" Length="80" Description="OAR Runtime id" />
+        <Column Name="OarSessionId" DataType="String" Length="200" Description="Worker/OAR 侧会话 id（不对插件暴露）" />
+        <Column Name="Cwd" DataType="String" Length="500" Description="工作目录" />
+        <Column Name="Model" DataType="String" Length="100" Description="模型提示" />
+        <Column Name="Effort" DataType="String" Length="40" Description="努力程度提示" />
+        <Column Name="OptionsJson" DataType="String" Length="2000" Description="选项 JSON（无密钥）" />
+        <Column Name="Status" DataType="String" Length="30" Nullable="False" DefaultValue="Open" Description="状态（Open|Closed|Interrupted）" />
+        <Column Name="Generation" DataType="Int32" DefaultValue="1" Description="世代（open/resume +1）" />
+        <Column Name="LastTaskId" DataType="Int32" DefaultValue="0" Description="最近任务主键" />
+        <Column Name="AgentHubSequence" DataType="Int64" DefaultValue="0" Description="铸己匣事件序号水位" />
+        <Column Name="CreateTime" DataType="DateTime" Description="创建时间" />
+        <Column Name="UpdateTime" DataType="DateTime" Description="更新时间" />
+      </Columns>
+      <Indexes>
+        <Index Columns="SessionKey" Unique="True" />
+        <Index Columns="AgentId" />
+        <Index Columns="Status" />
       </Indexes>
     </Table>
   </Tables>

@@ -56,7 +56,10 @@ public class AgentHubDelegationRuntimeTests : IClassFixture<XCodeTestFixture>
         loader.LoadAll(null);
         registry = new AgentRegistry(loader);
         var broker = new PermissionBroker(registry);
-        return new DelegationRuntime(registry, loader, broker, new FakeTransport());
+        // Fake Kind 必须为 Cli：默认 profile AccessPoint.Transport=Cli，Registry 按 Kind 选路
+        var transports = new AgentTransportRegistry();
+        transports.Register(new FakeTransport());
+        return new DelegationRuntime(registry, loader, broker, transports);
     }
 
     private static String Uniq(String p) => $"{p}-{Guid.NewGuid():N}"[..16];
@@ -385,7 +388,7 @@ public class AgentHubDelegationRuntimeTests : IClassFixture<XCodeTestFixture>
     /// <summary>假 transport：不真起进程，只吐一条固定事件（本类只测前置校验与收尾）。</summary>
     private sealed class FakeTransport : IAgentTransport
     {
-        public String Kind => "Fake";
+        public String Kind => "Cli";
 
         public async IAsyncEnumerable<AgentEvent> StreamAsync(
             AgentAccessPointDto ap, AgentRunRequest req, AgentSession session,
@@ -393,6 +396,7 @@ public class AgentHubDelegationRuntimeTests : IClassFixture<XCodeTestFixture>
         {
             await Task.Yield();
             yield return AgentEvent.FromText("fake output");
+            yield return new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = 0 };
         }
 
         public Task CancelAsync(AgentSession session) => Task.CompletedTask;

@@ -166,7 +166,7 @@ public class DelegationRuntime
     private readonly IAgentRegistry _registry;
     private readonly ProfileLoader _profiles;
     private readonly PermissionBroker _permissions;
-    private readonly IAgentTransport _transport;
+    private readonly IAgentTransportRegistry _transports;
 
     /// <summary>正在执行的任务（taskId → 会话句柄）</summary>
     private static readonly ConcurrentDictionary<Int32, AgentSession> _running = new();
@@ -180,12 +180,12 @@ public class DelegationRuntime
         IAgentRegistry registry,
         ProfileLoader profiles,
         PermissionBroker permissions,
-        IAgentTransport transport)
+        IAgentTransportRegistry transports)
     {
         _registry = registry;
         _profiles = profiles;
         _permissions = permissions;
-        _transport = transport;
+        _transports = transports;
     }
 
     /// <summary>
@@ -336,11 +336,22 @@ public class DelegationRuntime
             return ToDto(entity, agent.Name);
         }
 
+        IAgentTransport transport;
+        try
+        {
+            transport = _transports.Resolve(ap.Transport);
+        }
+        catch (Exception ex)
+        {
+            Finish(entity, TaskStatus.Failed, "transport_missing", ex.Message);
+            return ToDto(entity, agent.Name);
+        }
+
         var session = new AgentSession
         {
             TaskId = entity.Id,
             AccessPointId = ap.Id,
-            Kind = _transport.Kind,
+            Kind = transport.Kind,
             SessionRef = entity.SessionRef,
             CancelSupported = ap.CancelSupported
         };
@@ -374,7 +385,7 @@ public class DelegationRuntime
         try
         {
             using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var stream = _transport.StreamAsync(ap, runReq, session, streamCts.Token);
+            var stream = transport.StreamAsync(ap, runReq, session, streamCts.Token);
 
             await foreach (var evt in stream.WithCancellation(streamCts.Token))
             {
@@ -485,7 +496,16 @@ public class DelegationRuntime
 
         if (_running.TryGetValue(taskId, out var session))
         {
-            await _transport.CancelAsync(session);
+            try
+            {
+                var transport = _transports.Resolve(session.Kind);
+                await transport.CancelAsync(session);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("[AgentHub] 取消时解析 transport 失败: {0}", ex.Message);
+            }
+
             _permissions.CancelAll(taskId);
             AppendEvent(entity, AgentEventTypes.Meta, """{"stage":"cancelling"}""", "用户请求取消，已终止进程树");
             return true;

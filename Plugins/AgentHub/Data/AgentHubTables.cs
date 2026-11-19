@@ -31,7 +31,8 @@ public static class AgentHubTables
         typeof(Entities.AgentDefinition),
         typeof(Entities.AgentAccessPoint),
         typeof(Entities.DelegationTask),
-        typeof(Entities.DelegationEvent)
+        typeof(Entities.DelegationEvent),
+        typeof(Entities.AgentHubSession),
     ];
 
     /// <summary>

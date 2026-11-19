@@ -310,7 +310,7 @@ public class SemsAddCommandToolFunction : SemsToolFunctionBase
   ""properties"": {
     ""projectId"": { ""type"": ""integer"", ""description"": ""所属项目 id"" },
     ""name"": { ""type"": ""string"", ""description"": ""命令显示名，如「前端 dev」"" },
-    ""script"": { ""type"": ""string"", ""description"": ""运行脚本（在项目根目录以 cmd /c 执行）"" },
+    ""script"": { ""type"": ""string"", ""description"": ""运行脚本（在项目根目录执行；Windows 为 cmd /c，其他系统为 /bin/sh -c）"" },
     ""url"": { ""type"": ""string"", ""description"": ""运行后访问地址（可选）"" },
     ""sort"": { ""type"": ""integer"", ""description"": ""排序，默认 0，越小越前"" }
   },
@@ -426,9 +426,9 @@ public class SemsCheckRunsToolFunction : SemsToolFunctionBase
 {
     public SemsCheckRunsToolFunction(string pluginId, IServiceProvider? services)
         : base(pluginId, "sems_check_runs",
-            "触发本机进程检测（WMI 查询 Win32_Process + 按项目根路径与类型归属判定），与存活会话合并返回。" +
+            "触发本机进程检测（Windows 查询 Win32_Process，其他系统读 /proc 的 exe、cmdline 与 cwd，再按项目根路径与类型归属判定），与存活会话合并返回。" +
             "Detected 条目的 commandId 为 0、startedAt 可能为空，停止它们须用 sems_stop_run 传 pid。" +
-            "只读、不落库。WMI 不可用时降级为仅 Launched 并在 note 说明。全部 sems 工具可用 universal_tool{\"tool\":\"list_tools\"} 枚举。",
+            "只读、不落库。检测不可用时降级为仅 Launched 并在 note 说明。全部 sems 工具可用 universal_tool{\"tool\":\"list_tools\"} 枚举。",
             @"{ ""type"": ""object"", ""properties"": {} }", services) { }
 
     protected override string Handle(IServiceProvider services, JsonElement args)
@@ -441,7 +441,7 @@ public class SemsCheckRunsToolFunction : SemsToolFunctionBase
         {
             total = runs.Count,
             runs = runs.Select(Shape).ToList(),
-            note = "Detected 条目来自 WMI 检测，commandId=0；停止请用 sems_stop_run 传 pid"
+            note = "Detected 条目来自本机进程检测，commandId=0；停止请用 sems_stop_run 传 pid"
         });
     }
 }
@@ -451,7 +451,7 @@ public class SemsRunCommandToolFunction : SemsToolFunctionBase
 {
     public SemsRunCommandToolFunction(string pluginId, IServiceProvider? services)
         : base(pluginId, "sems_run_command",
-            "启动一条**已登记**的运行命令（在项目根目录执行 cmd /c <脚本>）。commandId 必填，须先用 sems_list_commands 取得。" +
+            "启动一条**已登记**的运行命令（Windows 在项目根执行 cmd /c <脚本>，其他系统执行 /bin/sh -c <脚本>）。commandId 必填，须先用 sems_list_commands 取得。" +
             "本工具不接受任意脚本字符串。同命令已有存活会话时拒绝（重复启动）。返回 session（含 pid）。" +
             "全部 sems 工具可用 universal_tool{\"tool\":\"list_tools\"} 枚举。",
             @"{
@@ -470,7 +470,12 @@ public class SemsRunCommandToolFunction : SemsToolFunctionBase
 
         var session = runner.Launch(commandId);
         if (session == null)
-            return Fail("命令不存在或已有存活会话（重复启动被拒绝）；请先用 sems_list_commands 确认 commandId");
+        {
+            var detail = runner.LastLaunchError;
+            if (string.IsNullOrWhiteSpace(detail))
+                return Fail("命令不存在或已有存活会话（重复启动被拒绝）；请先用 sems_list_commands 确认 commandId");
+            return Fail(detail);
+        }
 
         return Ok(new { session = Shape(session) });
     }

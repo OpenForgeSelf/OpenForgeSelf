@@ -60,11 +60,6 @@
         </ul>
 
         <div class="specs__ops">
-          <label class="specs__ver">
-            <span>版本号</span>
-            <input v-model.trim="versionQuery" type="text" inputmode="numeric" placeholder="正整数" />
-          </label>
-          <button type="button" class="specs__btn" @click="readVersion">读取该版本</button>
           <button type="button" class="specs__btn" @click="openVersion">追加版本</button>
           <button type="button" class="specs__btn" @click="openLink">关联变更</button>
           <button
@@ -74,6 +69,14 @@
             :title="!viewing.criteria || viewing.criteria.length === 0 ? '这一版没有验收标准' : '登记用例标识'"
             @click="openCase"
           >登记用例</button>
+        </div>
+        <div class="specs__ops">
+          <label class="specs__ver">
+            <span>读取版本号</span>
+            <input v-model.trim="versionQuery" type="text" inputmode="numeric" placeholder="已有版本，如 1" aria-label="读取版本号" />
+          </label>
+          <button type="button" class="specs__btn" @click="readVersion">读取该版本</button>
+          <span class="specs__hint">这里只按已有版本号打开旧版。新版本点「追加版本」，commit / PR / Issue 点「关联变更」。</span>
         </div>
       </template>
     </div>
@@ -129,10 +132,6 @@
           <textarea v-model="form.criteriaText" rows="3" placeholder="每行一条：AC1 能看到标题"></textarea>
         </label>
 
-        <label v-if="dialog === 'link' || dialog === 'case'" class="specdlg__field">
-          <span>版本号 *</span>
-          <input v-model.trim="form.version" type="text" inputmode="numeric" />
-        </label>
         <label v-if="dialog === 'link'" class="specdlg__field">
           <span>类型 *</span>
           <select v-model="form.kind">
@@ -144,6 +143,10 @@
         <label v-if="dialog === 'link'" class="specdlg__field">
           <span>标识 *</span>
           <input v-model.trim="form.ref" type="text" placeholder="如 abc123 或 #12" />
+        </label>
+        <label v-if="dialog === 'link' || dialog === 'case'" class="specdlg__field">
+          <span>版本号 *</span>
+          <input v-model.trim="form.version" type="text" inputmode="numeric" />
         </label>
         <label v-if="dialog === 'case'" class="specdlg__field">
           <span>验收标准 *</span>

@@ -86,7 +86,7 @@ async function onChanged() {
 /** 维护区「启动」上报：与详情区「运行任务」共用状态入口，状态机不再只更新一条路径（修 B-1）。 */
 async function onCommandRun(id: number) {
   markTaskStarted(id)
-  toast('命令已启动，任务屏已刷新')
+  toast('命令已启动，运行页已刷新')
   void runPanelRef.value?.refresh()
   await onChanged()
 }
@@ -106,12 +106,13 @@ onMounted(async () => {
 
 <template>
   <div class="proj-header">
-    <h2>项目任务</h2>
+    <h2>运行</h2>
     <div class="proj-tools">
       <span class="wb-badge info">运行中 {{ store.runningCount }}</span>
-      <button class="btn btn-secondary" @click="onRunAll()">
+      <button class="btn btn-secondary" :disabled="launchableCount === 0" @click="onRunAll()">
         <span v-html="ic('play', 'sm')"></span>启动全部
       </button>
+      <span v-if="launchableCount === 0" class="wb-hint">没有可启动的命令</span>
       <button class="btn btn-secondary" @click="onChanged()">
         <span v-html="ic('refresh', 'sm')"></span>刷新
       </button>
@@ -125,7 +126,7 @@ onMounted(async () => {
         <div class="task-tools">
           <label class="search">
             <span v-html="ic('search', 'sm')"></span>
-            <input v-model="store.taskFilter" placeholder="搜索任务" aria-label="搜索任务" />
+            <input v-model="store.taskFilter" placeholder="搜索命令" aria-label="搜索命令" />
           </label>
           <button class="btn-icon" aria-label="刷新" @click="onChanged()">
             <span v-html="ic('refresh', 'sm')"></span>
@@ -157,8 +158,8 @@ onMounted(async () => {
             </span>
           </div>
           <div class="task-detail-actions">
-            <button class="btn btn-primary" :disabled="status === 'running'" @click="onRun()">
-              <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '运行任务' }}
+            <button class="btn btn-primary" :disabled="launchableCount === 0 || status === 'running'" @click="onRun()">
+              <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '启动' }}
             </button>
             <button class="btn btn-secondary" :disabled="status !== 'running'" @click="onStop()">
               <span v-html="ic('close', 'sm')"></span>停止
@@ -172,7 +173,7 @@ onMounted(async () => {
 
         <div ref="logBox" class="log log-box">
           <div v-if="!logs.length" class="wb-empty-inline">
-            选择左侧任务后点击「运行任务」，实时输出会持续追加到这里。
+            选择左侧命令后点击「启动」，实时输出会持续追加到这里。
           </div>
           <div v-for="(l, i) in logs" :key="i" class="log-line"
                :class="{ err: l.startsWith('[err]') || l.startsWith('✗'), ok: l.startsWith('✓') }">
@@ -185,13 +186,14 @@ onMounted(async () => {
     <div class="wb-embedded">
       <h3>运行会话（sems 原有能力：会话列表 / 停止 / 本机进程检测）</h3>
       <RunPanel ref="runPanelRef" :command-urls="commandUrls" :launchable-count="launchableCount"
+                :emphasize-run-all="false"
                 @run-all="onRunAll" @count="(n: number) => (store.runningCount = n)" />
     </div>
 
     <div v-if="p" class="wb-embedded">
       <h3>运行命令维护（sems 原有能力）</h3>
       <CommandList :project-id="p.id" :commands="p.commands" @changed="onChanged" @run="onCommandRun" />
-      <p class="wb-hint">运行会话只保存在宿主内存中，宿主重启后清空；任务完成记录与日志在前端本地留存，不会因会话消失而丢失。</p>
+      <p class="wb-hint">运行会话只保存在宿主内存中，宿主重启后清空；完成记录与日志在前端本地留存，不会因会话消失而丢失。</p>
     </div>
   </div>
 </template>

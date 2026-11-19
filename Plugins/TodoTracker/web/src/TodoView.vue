@@ -1,8 +1,9 @@
 <script setup lang="ts">
-/** 待办主界面：阶段流水线、关注项和可切换的列表/看板。 */
+/** 待办主界面：阶段流水线、关注项和可切换的列表/看板；详情走右侧抽屉。 */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import NotifyHost from './NotifyHost.vue'
 import TaskDetail from './components/TaskDetail.vue'
+import TaskDrawer from './components/TaskDrawer.vue'
 import * as store from './store'
 import { changeStage, fetchPluginVersion } from './http'
 import { confirmAction, showToast } from './notify'
@@ -98,6 +99,17 @@ function open(task: TodoItem): void {
   void store.selectTodo(task.id)
 }
 
+/** 列表/看板「去补齐」：开抽屉并展开工作单元分类。 */
+function openWorkUnit(task: TodoItem, event?: Event): void {
+  event?.stopPropagation()
+  void store.selectTodo(task.id).then(() => store.requestExpandWorkUnit())
+}
+
+const drawerOpen = computed({
+  get: () => !!s.selected,
+  set: (v: boolean) => { if (!v) store.closeDetail() }
+})
+
 async function moveStage(task: TodoItem, target: TodoStage): Promise<void> {
   let reason: string | undefined
   if (target === 'Blocked') {
@@ -139,9 +151,8 @@ async function dropStage(stage: TodoStage, event: DragEvent): Promise<void> {
 
 function onShortcut(event: KeyboardEvent): void {
   const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes((event.target as HTMLElement)?.tagName ?? '')
-  if (event.key === 'Escape' && s.selectedId) {
-    store.closeDetail()
-  } else if (event.key === '/' && !isEditing) {
+  // Escape 关抽屉由 TaskDrawer 处理（输入框聚焦时不拦截）；此处只保留 / 与 N
+  if (event.key === '/' && !isEditing) {
     event.preventDefault()
     document.querySelector<HTMLInputElement>('.tt-search')?.focus()
   }
@@ -273,7 +284,10 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
               <span v-if="task.recordCount" class="tt-dim">记录 {{ task.recordCount }}</span>
               <span class="tt-dim">{{ relativeTime(task.updatedAt) }}</span>
             </div>
-            <div v-if="task.missing?.length" class="tt-item-gap">还缺：{{ missingLabels(task.missing) }}</div>
+            <div v-if="task.missing?.length" class="tt-item-gap" data-test="list-soft-hint">
+              下发前待补齐：{{ missingLabels(task.missing) }}
+              <button type="button" class="tt-gap-link" @click="openWorkUnit(task, $event)">去补齐</button>
+            </div>
             <div v-if="task.objective" class="tt-item-obj" :title="task.objective">{{ task.objective }}</div>
             <div class="tt-item-actions" @click.stop>
               <select class="tt-input tt-select" aria-label="流转阶段" :value="''" @change="moveStage(task, ($event.target as HTMLSelectElement).value as TodoStage)">
@@ -300,7 +314,9 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
             :class="{ 'is-active': task.id === s.selectedId }" @dragstart="beginDrag(task, $event)" @dragend="draggingTask = null" @click="open(task)">
             <span class="tt-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
             <b>{{ task.title }}</b><small>{{ priorityLabel(task.priority) }} · {{ task.projectName || '未关联项目' }}</small>
-            <span v-if="task.missing?.length" class="tt-item-gap">还缺：{{ missingLabels(task.missing) }}</span>
+            <span v-if="task.missing?.length" class="tt-item-gap" data-test="board-soft-hint" @click="openWorkUnit(task, $event)">
+              下发前待补齐 · 去补齐
+            </span>
           </button>
           <button v-if="(s.boardBuckets[stage]?.items.length ?? 0) < (s.boardBuckets[stage]?.total ?? 0)"
             class="tt-btn tt-btn-sm" :disabled="s.boardBuckets[stage]?.loading" @click="store.loadBoardStage(stage)">
@@ -309,14 +325,11 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
         </section>
       </div>
 
-      <aside class="tt-detail-panel">
-        <TaskDetail v-if="s.selected" :key="s.selected.id" :task="s.selected" />
-        <div v-else class="tt-empty tt-empty-side">
-          <p class="tt-empty-title">未选中任务</p>
-          <p class="tt-empty-tip">左侧点一条任务，可编辑内容、关联项目、导入工件、下发给 agent，并查看执行记录。</p>
-        </div>
-      </aside>
     </main>
+
+    <TaskDrawer v-model="drawerOpen" :title="s.selected?.title">
+      <TaskDetail v-if="s.selected" :key="s.selected.id" :task="s.selected" />
+    </TaskDrawer>
   </div>
 </template>
 
@@ -334,16 +347,15 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
 /* 滚动容器的直接子区块必须不许被压扁（plugin-development 铁律 8） */
 .tt-body { flex: 1; min-height: 0; overflow: auto; display: flex; gap: 16px; padding-bottom: 16px; }
 .tt-body > * { flex-shrink: 0; }
-/* PILOT-057A：列表稳定 400px，详情吃满剩余主区（原 520px 固定侧边栏太挤） */
-.tt-list-panel { flex: 0 0 400px; min-width: 320px; display: flex; flex-direction: column; gap: 8px; }
-.tt-board { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1 1 auto; overflow-x: auto; }
+/* 全宽列表/看板：详情改右侧抽屉，主区不再被分栏挤压 */
+.tt-list-panel { flex: 1 1 auto; min-width: 0; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.tt-board { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1 1 auto; width: 100%; overflow-x: auto; }
 .tt-board-column { flex: 0 0 230px; min-height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--el-fill-color-lighter); border-radius: var(--el-border-radius-base, 4px); }
 .tt-board-column.is-drop-valid { outline: 2px solid var(--el-color-primary); outline-offset: -2px; background: var(--el-color-primary-light-9); }
 .tt-board-column > header { display: flex; justify-content: space-between; align-items: center; color: var(--el-text-color-primary); }
 .tt-board-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; border: 1px solid var(--el-border-color-lighter); border-radius: var(--el-border-radius-base, 4px); background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; }
 .tt-board-card.is-active { border-color: var(--el-color-primary); }
 .tt-board-card small { color: var(--el-text-color-secondary); }
-.tt-detail-panel { flex: 1 1 auto; min-width: 0; max-width: none; }
 
 .tt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-shrink: 0; }
 .tt-head-left { display: flex; align-items: baseline; gap: 8px; }
@@ -398,7 +410,17 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
 .tt-create-proj { max-width: 200px; }
 .tt-deleg { font-size: 11px; padding: 1px 7px; border-radius: 3px; }
 .tt-key { font-size: 11px; }
-.tt-item-gap { margin-top: 5px; font-size: 12px; color: var(--el-color-danger); }
+.tt-item-gap {
+  margin-top: 5px; font-size: 12px; color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
+  border: 1px dashed var(--el-color-warning-light-5);
+  border-radius: var(--el-border-radius-base, 4px);
+  padding: 4px 8px; width: fit-content;
+}
+.tt-gap-link {
+  border: 0; background: transparent; color: var(--el-color-warning);
+  font-weight: 600; cursor: pointer; padding: 0 0 0 6px; font-size: 12px;
+}
 .tt-item-obj { margin-top: 4px; font-size: 12px; color: var(--el-text-color-regular); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt-item-actions { margin-top: 6px; }
 
@@ -411,7 +433,6 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
 .tag-danger { background: var(--el-color-danger-light-9); color: var(--el-color-danger); }
 
 .tt-empty { padding: 26px 18px; text-align: center; color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.8; }
-.tt-empty-side { background: var(--el-bg-color); border: 1px dashed var(--el-border-color); border-radius: var(--el-border-radius-base, 4px); }
 .tt-empty-title { margin: 0 0 4px; font-size: 14px; color: var(--el-text-color-regular); }
 .tt-empty-tip { margin: 0; font-size: 12px; }
 
@@ -434,8 +455,4 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
 .tt-btn.is-primary { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .tt-dim { color: var(--el-text-color-secondary); }
 
-@media (max-width: 1100px) {
-  .tt-body { flex-direction: column; }
-  .tt-detail-panel { flex: 0 0 auto; max-width: none; width: 100%; }
-}
 </style>

@@ -33,7 +33,7 @@ async function openTodoPage(page: Page): Promise<void> {
 test.describe('TodoTracker 插件主链路冒烟', () => {
   test.describe.configure({ timeout: 120_000 })
 
-  test('真实宿主加载、流水线筛选、看板流转与详情页签', async ({ page }) => {
+  test('真实宿主加载、流水线筛选、看板流转与抽屉渐进披露', async ({ page }) => {
     const entry = MANIFEST.frontend.entry ?? ''
     expect(entry).toContain('web/dist/index.js')
     const fatal: string[] = []
@@ -59,6 +59,10 @@ test.describe('TodoTracker 插件主链路冒烟', () => {
 
       await page.locator('.tt-pipeline-step', { hasText: '草稿' }).click()
       await expect(page.locator('.tt-item', { hasText: title })).toBeVisible()
+      // 软提示：中性「下发前待补齐」，非危险色「还缺」冒充失败
+      await expect(page.locator('.tt-item', { hasText: title }).locator('[data-test="list-soft-hint"]')).toContainText('下发前待补齐')
+      await expect(page.locator('.tt-item', { hasText: title }).locator('[data-test="list-soft-hint"]')).not.toContainText(/^还缺/)
+
       await page.locator('.tt-view-switch').getByRole('button', { name: '列表' }).click()
       await page.locator('.tt-item', { hasText: title }).locator('select[aria-label="流转阶段"]').selectOption('Ready')
       await expect.poll(async () => (await api<{ stage: string }>(`/api/todos/${task.id}`)).stage).toBe('Ready')
@@ -69,13 +73,26 @@ test.describe('TodoTracker 插件主链路冒烟', () => {
       const card = page.locator('.tt-board-card', { hasText: title })
       await expect(card).toBeVisible()
       await card.click()
-      await expect(page.locator('#td-title')).toHaveValue(title)
-      await page.getByRole('tab', { name: '下发与委派' }).click()
-      await expect(page.locator('[data-test="delegate-engine"]')).toBeVisible()
-      await page.getByRole('tab', { name: '执行记录' }).click()
-      await expect(page.locator('[data-test="execution-timeline"]')).toBeVisible()
-      await page.getByRole('tab', { name: '工作单元' }).click()
-      await expect(page.locator('#td-obj')).toBeVisible()
+
+      const drawer = page.locator('[data-test="task-drawer"]')
+      await expect(drawer).toBeVisible()
+      await expect(drawer.locator('#td-title')).toHaveValue(title)
+      // 分类折叠头首屏可见；工作单元默认收起
+      await expect(drawer.locator('[data-test="section-basic"] .td-section-head')).toBeVisible()
+      await expect(drawer.locator('[data-test="section-workunit"] .td-section-head')).toBeVisible()
+      await expect(drawer.locator('[data-test="section-dispatch"] .td-section-head')).toBeVisible()
+      await expect(drawer.locator('[data-test="section-history"] .td-section-head')).toBeVisible()
+      await expect(drawer.locator('#td-obj')).toHaveCount(0)
+
+      // 展开下发与委派 → 点下发缺项 → 工作单元展开 + 点名
+      await drawer.locator('[data-test="section-dispatch"] .td-section-head').click()
+      await expect(drawer.locator('[data-test="delegate-engine"]')).toBeVisible()
+      await drawer.locator('[data-test="dispatch-btn"]').click()
+      await expect(drawer.locator('#td-obj')).toBeVisible()
+      await expect(drawer.locator('[data-test="workunit-missing"]')).toContainText('下发前还缺')
+
+      await drawer.locator('[data-test="section-history"] .td-section-head').click()
+      await expect(drawer.locator('[data-test="execution-timeline"]')).toBeVisible()
 
       mkdirSync(SHOTS, { recursive: true })
       await page.screenshot({ path: path.join(SHOTS, 'todo-tracker-main-flow.png'), fullPage: false })

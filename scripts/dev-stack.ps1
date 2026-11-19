@@ -189,16 +189,16 @@ $env:FORGESELF_NO_TRAY       = '1'
 $env:FORGESELF_PLUGINS_DIR   = $PluginsDir
 
 Write-Host "[dev-stack] 起宿主后端 :$bePort（--console 打头，实例 dev-stack）"
-# -WindowStyle 仅 Windows Desktop 支持；Linux/云端 pwsh 会抛参不支持（2026-11-19 实证）。
+# Linux/pwsh 无桌面窗体：-WindowStyle 不被支持；仅 Windows 传 Hidden
 $beStart = @{
-    FilePath               = 'dotnet'
-    ArgumentList           = @($hostDll, '--console', '--plugins-dir', $PluginsDir)
-    WorkingDirectory       = $binDir
-    PassThru               = $true
+    FilePath = 'dotnet'
+    ArgumentList = @($hostDll, '--console', '--plugins-dir', $PluginsDir)
+    WorkingDirectory = $binDir
+    PassThru = $true
     RedirectStandardOutput = $backendLog
-    RedirectStandardError  = "$backendLog.err"
+    RedirectStandardError = "$backendLog.err"
 }
-if ($IsWindows) { $beStart['WindowStyle'] = 'Hidden' }
+if ($IsWindows -or $env:OS -match 'Windows') { $beStart.WindowStyle = 'Hidden' }
 $beProc = Start-Process @beStart
 
 # 5) 起宿主前端 dev server（直连 vite bin，避免 npx 的 cmd 包装导致 PID 不精确）
@@ -208,14 +208,14 @@ if (-not (Test-Path $viteBin)) { throw "vite bin 不存在: $viteBin（前端依
 
 Write-Host "[dev-stack] 起宿主前端 :$fePort（代理 /api → :$bePort）"
 $feStart = @{
-    FilePath               = 'node'
-    ArgumentList           = @($viteBin, '--config', '.temp/vite.dev-host.mjs', '--port', "$fePort", '--strictPort')
-    WorkingDirectory       = $web
-    PassThru               = $true
+    FilePath = 'node'
+    ArgumentList = @($viteBin, '--config', '.temp/vite.dev-host.mjs', '--port', "$fePort", '--strictPort')
+    WorkingDirectory = $web
+    PassThru = $true
     RedirectStandardOutput = $frontendLog
-    RedirectStandardError  = "$frontendLog.err"
+    RedirectStandardError = "$frontendLog.err"
 }
-if ($IsWindows) { $feStart['WindowStyle'] = 'Hidden' }
+if ($IsWindows -or $env:OS -match 'Windows') { $feStart.WindowStyle = 'Hidden' }
 $feProc = Start-Process @feStart
 
 # 6) 探活

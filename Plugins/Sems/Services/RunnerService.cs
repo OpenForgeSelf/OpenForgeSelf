@@ -1,18 +1,18 @@
-// CA1416: 本文件 WMI 调用（System.Management）仅运行于 windows 宿主。
-// 宿主为 Windows 桌面程序（exe 发布），sems 插件 TargetFramework=net10.0（非 windows），
-// 故 WMI API 触发「仅 windows 支持」警告。WMI 进程检测本就是宿主运行时能力，运行时验收环境为 Windows，
-// 不跨平台，故在本文件作用域禁用 CA1416（不在 sems.csproj 层禁用，避免掩盖其他真问题）。
+// CA1416: WMI（System.Management）只在 Windows 分支调用。非 Windows 读 /proc，不调用 WMI。
+// sems 插件 TargetFramework=net10.0，WMI API 会触发「仅 windows 支持」警告，
+// 故在本文件作用域禁用 CA1416（不在 sems.csproj 层禁用，避免掩盖其他真问题）。
 #pragma warning disable CA1416
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Management;
+using System.Text;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
 
 namespace ForgeSelf.Api.Plugins.Sems.Services;
 
 /// <summary>
-/// 运行会话（Launched 面板启动 / Detected WMI 检测捕获）。
+/// 运行会话（Launched 面板启动 / Detected 本机进程检测捕获）。
 /// </summary>
 public class RunSession
 {
@@ -34,7 +34,7 @@ public class RunSession
     /// <summary>启动时间。</summary>
     public DateTime StartedAt { get; set; }
 
-    /// <summary>来源：Launched（本面板启动） / Detected（WMI 检测捕获）。</summary>
+    /// <summary>来源：Launched（本面板启动） / Detected（本机进程检测捕获）。</summary>
     public string Origin { get; set; } = "Launched";
 }
 
@@ -46,7 +46,13 @@ public class RunSession
 /// </summary>
 public interface IRunnerService
 {
-    /// <summary>在项目根目录执行 cmd /c &lt;script&gt;，记录会话。同 commandId 已存活则返回 null（控制器回 409）。</summary>
+    /// <summary>最近一次 <see cref="Launch"/> 失败的原因。成功或尚未调用时为 null。</summary>
+    string? LastLaunchError { get; }
+
+    /// <summary>
+    /// 在项目根目录执行已登记脚本。Windows 用 cmd.exe /c，其他系统用 /bin/sh -c。
+    /// 同 commandId 已存活、命令不存在、脚本为空、目录不可达或启动异常时返回 null，原因见 <see cref="LastLaunchError"/>。
+    /// </summary>
     RunSession? Launch(int commandId);
 
     /// <summary>停止「本面板启动」的会话（按 commandId 取 PID 杀整树）。</summary>
@@ -55,7 +61,7 @@ public interface IRunnerService
     /// <summary>停止外部捕获进程（按 PID 杀整树）。</summary>
     bool StopExternal(int pid);
 
-    /// <summary>WMI 检测 + 与 Launched 合并，返回当前运行列表。</summary>
+    /// <summary>本机进程检测（Windows：WMI；其他：/proc）+ 与 Launched 合并，返回当前运行列表。</summary>
     IReadOnlyList<RunSession> CheckAndMerge();
 
     /// <summary>当前运行列表（Launched + Detected）。</summary>
@@ -142,6 +148,9 @@ public class RunnerService : IRunnerService
     private readonly ConcurrentDictionary<int, RunLogBuffer> _logs = new();
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
+    /// <inheritdoc />
+    public string? LastLaunchError { get; private set; }
+
     public RunnerService(IContext ctx)
     {
         _ctx = ctx;
@@ -150,38 +159,72 @@ public class RunnerService : IRunnerService
     private IProjectRegistry? Registry => _ctx.Get<IProjectRegistry>();
 
     /// <summary>
-    /// 在命令所属项目根目录启动进程。返回会话（含 PID），若 commandId 已存活或找不到命令则返回 null。
+    /// 在命令所属项目根目录启动进程。失败时返回 null，并把可展示的原因写入 <see cref="LastLaunchError"/>。
     /// </summary>
     public RunSession? Launch(int commandId)
     {
-        // 重复启动拒绝
-        if (_launched.ContainsKey(commandId)) return null;
+        LastLaunchError = null;
+
+        if (_launched.TryGetValue(commandId, out var existing))
+        {
+            if (IsProcessAlive(existing.Pid))
+            {
+                LastLaunchError = "该命令已有存活会话，请先停止再启动";
+                return null;
+            }
+
+            // 进程已退出但 Exited 尚未摘掉会话时，允许重新启动。
+            _launched.TryRemove(commandId, out _);
+            if (_processes.TryRemove(commandId, out var stale))
+            {
+                try { stale.Dispose(); } catch { /* 已退出 */ }
+            }
+        }
 
         var (project, command) = FindCommand(commandId);
-        if (project == null || command == null) return null;
+        if (project == null || command == null)
+        {
+            LastLaunchError = "命令不存在";
+            return null;
+        }
 
         var script = command.Script;
-        if (string.IsNullOrWhiteSpace(script)) return null;
+        if (string.IsNullOrWhiteSpace(script))
+        {
+            LastLaunchError = "命令脚本为空，不能启动";
+            return null;
+        }
 
         var root = project.Root;
-        if (!Directory.Exists(root)) return null;
-
-        var psi = new ProcessStartInfo("cmd.exe", $"/c {script}")
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
-            WorkingDirectory = root,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+            LastLaunchError = $"项目目录不可达：{root}。请恢复该目录或编辑档案后再启动。";
+            return null;
+        }
+
+        var psi = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd.exe", "/c " + script)
+            : new ProcessStartInfo("/bin/sh");
+        if (!OperatingSystem.IsWindows())
+        {
+            psi.ArgumentList.Add("-c");
+            psi.ArgumentList.Add(script);
+        }
+
+        psi.WorkingDirectory = root;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
 
         Process process;
         try
         {
-            process = Process.Start(psi) ?? throw new InvalidOperationException("进程启动失败：Process.Start 返回 null");
+            process = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start 返回 null");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            LastLaunchError = "启动失败：" + ex.Message;
             return null;
         }
 
@@ -225,14 +268,19 @@ public class RunnerService : IRunnerService
         return buf.Snapshot(commandId, running, Math.Max(0, afterIndex));
     }
 
-    /// <summary>停止本面板启动的会话：按 commandId 取 PID，杀整树。</summary>
+    /// <summary>停止本面板启动的会话：按 commandId 取 PID，杀整树。进程已经不在也算停成功。</summary>
     public bool Stop(int commandId)
     {
         if (!_launched.TryGetValue(commandId, out var session)) return false;
-        var ok = KillTree(session.Pid);
-        // 同步移除会话（Exited 事件作为异步兜底），保证 Current() 立即反映停止状态。
+        var killed = KillTree(session.Pid);
+        if (!killed && IsProcessAlive(session.Pid)) return false;
+
         _launched.TryRemove(commandId, out _);
-        return ok;
+        if (_processes.TryRemove(commandId, out var proc))
+        {
+            try { proc.Dispose(); } catch { /* 已退出 */ }
+        }
+        return true;
     }
 
     /// <summary>停止外部捕获进程（按 PID 杀整树）。进程不存在/权限不足返回 false。</summary>
@@ -242,10 +290,10 @@ public class RunnerService : IRunnerService
         return KillTree(pid);
     }
 
-    /// <summary>WMI 检测全量进程 + 与 Launched 合并。</summary>
+    /// <summary>本机进程检测 + 与 Launched 合并。</summary>
     public IReadOnlyList<RunSession> CheckAndMerge()
     {
-        var detected = DetectViaWmi();
+        var detected = Detect();
         var merged = new List<RunSession>(_launched.Values);
         var launchedPids = new HashSet<int>(_launched.Values.Select(s => s.Pid));
         foreach (var d in detected)
@@ -339,9 +387,28 @@ public class RunnerService : IRunnerService
         return (null, null);
     }
 
-    /// <summary>杀进程整树（Windows：优先 taskkill /T /F，比 .NET Kill(entireProcessTree) 对 cmd 子进程更可靠）。</summary>
+    /// <summary>
+    /// 杀进程整树。Windows 用 taskkill /T /F（对 cmd 子进程比 Kill(entireProcessTree) 更可靠）。
+    /// 其他系统用 <see cref="Process.Kill(bool)"/>。进程已不存在返回 false，由调用方决定是否算停成功。
+    /// </summary>
     private static bool KillTree(int pid)
     {
+        if (pid <= 0) return false;
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                using var proc = Process.GetProcessById(pid);
+                if (proc.HasExited) return false;
+                proc.Kill(entireProcessTree: true);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         try
         {
             var psi = new ProcessStartInfo("taskkill", $"/T /F /PID {pid}")
@@ -354,7 +421,6 @@ public class RunnerService : IRunnerService
             using var proc = Process.Start(psi);
             if (proc == null) return false;
             proc.WaitForExit(3000);
-            // taskkill 退出码 0=成功杀树；非0（进程不存在/权限不足）视为操作未成功
             return proc.ExitCode == 0;
         }
         catch
@@ -373,6 +439,87 @@ public class RunnerService : IRunnerService
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>按平台检测本机进程。检测失败时返回空列表，调用方仍保留 Launched。</summary>
+    private List<RunSession> Detect()
+    {
+        try
+        {
+            return OperatingSystem.IsWindows() ? DetectViaWmi() : DetectViaProc();
+        }
+        catch (Exception)
+        {
+            return new List<RunSession>();
+        }
+    }
+
+    /// <summary>读 /proc/{pid}/exe、cmdline、cwd，按项目根归属判定。无 /proc 时返回空列表。</summary>
+    private List<RunSession> DetectViaProc()
+    {
+        var projects = Registry?.GetAll() ?? new List<ProjectInfo>();
+        var result = new List<RunSession>();
+        if (!Directory.Exists("/proc")) return result;
+
+        foreach (var dir in Directory.EnumerateDirectories("/proc"))
+        {
+            var name = Path.GetFileName(dir);
+            if (!int.TryParse(name, out var pid) || pid <= 0) continue;
+            try
+            {
+                var exePath = ReadProcLink(Path.Combine(dir, "exe"));
+                var cwd = ReadProcLink(Path.Combine(dir, "cwd"));
+                var cmdLine = ReadProcCmdline(Path.Combine(dir, "cmdline"));
+                var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects, cwd);
+                if (matched == null) continue;
+
+                var commandName = string.IsNullOrWhiteSpace(exePath)
+                    ? name
+                    : Path.GetFileNameWithoutExtension(exePath);
+                result.Add(new RunSession
+                {
+                    CommandId = 0,
+                    ProjectId = matched.Id,
+                    ProjectName = matched.Name,
+                    CommandName = commandName,
+                    Pid = pid,
+                    StartedAt = DateTime.MinValue,
+                    Origin = "Detected"
+                });
+            }
+            catch
+            {
+                // 进程在枚举期间退出，或无权读该 pid：跳过这一条。
+            }
+        }
+
+        return result;
+    }
+
+    private static string? ReadProcLink(string path)
+    {
+        try
+        {
+            return File.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadProcCmdline(string path)
+    {
+        try
+        {
+            var raw = File.ReadAllBytes(path);
+            if (raw.Length == 0) return null;
+            return Encoding.UTF8.GetString(raw).Replace('\0', ' ').Trim();
+        }
+        catch
+        {
+            return null;
         }
     }
 

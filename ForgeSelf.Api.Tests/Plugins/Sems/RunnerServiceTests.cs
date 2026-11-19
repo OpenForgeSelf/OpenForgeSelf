@@ -63,6 +63,33 @@ public class RunnerServiceTests : IDisposable
         });
     }
 
+    /// <summary>保持进程活过断言窗口。Windows 用 ping，其他系统用 sleep。</summary>
+    private static string HoldScript(int seconds) =>
+        OperatingSystem.IsWindows()
+            ? $"ping -n {Math.Max(2, seconds)} 127.0.0.1"
+            : $"sleep {Math.Max(2, seconds)}";
+
+    private static ProcessStartInfo HoldProcess(int seconds)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return new ProcessStartInfo("cmd.exe", $"/c {HoldScript(seconds)}")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+        }
+
+        var psi = new ProcessStartInfo("/bin/sh")
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false
+        };
+        psi.ArgumentList.Add("-c");
+        psi.ArgumentList.Add(HoldScript(seconds));
+        return psi;
+    }
+
     public void Dispose()
     {
         try { _runner.StopAll(); } catch { }
@@ -71,7 +98,7 @@ public class RunnerServiceTests : IDisposable
     [Fact]
     public void Launch_Starts_ShortLivedProcess_And_Returns_Session_With_Pid()
     {
-        var cmdId = AddCommand("ping", "ping -n 2 localhost");
+        var cmdId = AddCommand("hold", HoldScript(20));
 
         var session = _runner.Launch(cmdId);
 
@@ -90,7 +117,7 @@ public class RunnerServiceTests : IDisposable
     [Fact]
     public void Launch_Then_Stop_Removes_Session_And_Process_Exits()
     {
-        var cmdId = AddCommand("ping", "ping -n 20 localhost"); // 长一点，便于先停
+        var cmdId = AddCommand("hold", HoldScript(20));
 
         var session = _runner.Launch(cmdId);
         Assert.NotNull(session);
@@ -116,13 +143,14 @@ public class RunnerServiceTests : IDisposable
     [Fact]
     public void Launch_Duplicate_ForSameCommand_Rejected_ReturnsNull()
     {
-        var cmdId = AddCommand("ping", "ping -n 20 localhost");
+        var cmdId = AddCommand("hold", HoldScript(20));
 
         var first = _runner.Launch(cmdId);
         Assert.NotNull(first);
 
         var second = _runner.Launch(cmdId);
         Assert.Null(second);
+        Assert.Contains("存活会话", _runner.LastLaunchError);
 
         _runner.Stop(cmdId);
     }
@@ -143,11 +171,7 @@ public class RunnerServiceTests : IDisposable
     public void StopExternal_Kills_ExternalProcess()
     {
         // 启动一个外部进程（不经 RunnerService.Launch），然后用 StopExternal 杀掉
-        var psi = new ProcessStartInfo("cmd.exe", "/c ping -n 20 localhost")
-        {
-            CreateNoWindow = true,
-            UseShellExecute = false
-        };
+        var psi = HoldProcess(20);
         using var ext = Process.Start(psi)!;
         var pid = ext.Id;
         Assert.False(ext.HasExited);
@@ -181,5 +205,28 @@ public class RunnerServiceTests : IDisposable
         Assert.NotNull(snap);
         Assert.True(snap!.Lines.Count > 0);
         Assert.Contains(snap.Lines, l => l.Text.Contains("sems-log-marker", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CheckAndMerge_DetectsExternalProcess_ByWorkingDirectory()
+    {
+        if (!Directory.Exists("/proc")) return;
+
+        var project = _registry.GetAll().Single();
+        Assert.True(_registry.Update(project.Id, new ProjectUpdate { Type = "tool" }));
+
+        var psi = HoldProcess(30);
+        psi.WorkingDirectory = _projectRoot;
+        using var ext = Process.Start(psi)!;
+        try
+        {
+            Assert.False(ext.HasExited);
+            var runs = _runner.CheckAndMerge();
+            Assert.Contains(runs, s => s.Pid == ext.Id && s.Origin == "Detected" && s.ProjectId == project.Id);
+        }
+        finally
+        {
+            try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+        }
     }
 }

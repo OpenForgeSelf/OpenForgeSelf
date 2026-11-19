@@ -17,18 +17,26 @@ public static class ProcessMatcher
     private static readonly Regex AbsolutePathRegex =
         new(@"[""']?([A-Za-z]:[\\/][^""'\s]+)[""']?", RegexOptions.Compiled);
 
+    // Unix 绝对路径。至少两段，避免把 `cmd /c` 这类开关当成路径。
+    private static readonly Regex UnixAbsolutePathRegex =
+        new(@"(?<![A-Za-z0-9])(/(?:[^/\s""']+/)+[^/\s""']*)", RegexOptions.Compiled);
+
     /// <summary>
     /// 判定进程归属的项目。无命中返回 null。
     /// 步骤：
-    /// 1. 候选路径 = { exePath } ∪ CommandLine 中提取的绝对路径（归一化）；
+    /// 1. 候选路径 = { exePath, cwd } ∪ CommandLine 中提取的绝对路径（归一化）；
     /// 2. 任一候选路径以某项目 Root（归一化）为前缀且**带目录分隔符边界** → 命中该项目；
     /// 3. 类型二次确认：Type 为空直接采信；否则要求进程名/路径特征与 Type 相容。
     /// </summary>
-    public static ProjectInfo? MatchProject(string? exePath, string? commandLine, IReadOnlyList<ProjectInfo> projects)
+    public static ProjectInfo? MatchProject(
+        string? exePath,
+        string? commandLine,
+        IReadOnlyList<ProjectInfo> projects,
+        string? cwd = null)
     {
         if (projects == null || projects.Count == 0) return null;
 
-        var candidates = CollectCandidatePaths(exePath, commandLine);
+        var candidates = CollectCandidatePaths(exePath, commandLine, cwd);
         if (candidates.Count == 0) return null;
 
         foreach (var project in projects)
@@ -46,21 +54,24 @@ public static class ProcessMatcher
     }
 
     /// <summary>候选路径集合（归一化、去重、非空）。</summary>
-    private static List<string> CollectCandidatePaths(string? exePath, string? commandLine)
+    private static List<string> CollectCandidatePaths(string? exePath, string? commandLine, string? cwd)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(exePath))
+        void Add(string? raw)
         {
-            var n = Normalize(exePath);
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            var n = Normalize(raw);
             if (!string.IsNullOrEmpty(n)) set.Add(n);
         }
+
+        Add(exePath);
+        Add(cwd);
         if (!string.IsNullOrWhiteSpace(commandLine))
         {
             foreach (Match m in AbsolutePathRegex.Matches(commandLine))
-            {
-                var n = Normalize(m.Groups[1].Value);
-                if (!string.IsNullOrEmpty(n)) set.Add(n);
-            }
+                Add(m.Groups[1].Value);
+            foreach (Match m in UnixAbsolutePathRegex.Matches(commandLine))
+                Add(m.Groups[1].Value);
         }
         return set.ToList();
     }

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Plugins.Sems.Services;
 using Xunit;
@@ -12,6 +11,13 @@ namespace ForgeSelf.Api.Tests.Plugins.Sems;
 /// </summary>
 public class ProcessMatchTests
 {
+    private static string ParentOf(string path)
+    {
+        var normalized = path.Replace('/', '\\').TrimEnd('\\');
+        var slash = normalized.LastIndexOf('\\');
+        return slash <= 0 ? normalized : normalized[..slash];
+    }
+
     private static ProjectInfo MakeProject(int id, string root, string type) => new()
     {
         Id = id,
@@ -91,7 +97,8 @@ public class ProcessMatchTests
     public void MatchProject_TypeConfirmation(
         string exePath, string type, bool shouldHit)
     {
-        var projects = new[] { MakeProject(1, Path.GetDirectoryName(exePath)!, type) };
+        // Linux 上 Path.GetDirectoryName 不把 \ 当分隔符，这里按两种分隔符取父目录。
+        var projects = new[] { MakeProject(1, ParentOf(exePath), type) };
         var hit = ProcessMatcher.MatchProject(exePath, null, projects);
         if (shouldHit) Assert.NotNull(hit);
         else Assert.Null(hit);
@@ -126,5 +133,49 @@ public class ProcessMatchTests
             projects);
         Assert.NotNull(hit);
         Assert.Equal(1, hit!.Id);
+    }
+
+    [Fact]
+    public void MatchProject_UnixCwd_HitsToolAndEmptyType()
+    {
+        var tool = new[] { MakeProject(1, "/tmp/sems-proj", "tool") };
+        var hitTool = ProcessMatcher.MatchProject("/usr/bin/python3", "python3 -m http.server", tool, "/tmp/sems-proj");
+        Assert.Equal(1, hitTool!.Id);
+
+        var empty = new[] { MakeProject(2, "/tmp/sems-proj", "") };
+        var hitEmpty = ProcessMatcher.MatchProject("/usr/bin/python3", "python3 -m http.server", empty, "/tmp/sems-proj");
+        Assert.Equal(2, hitEmpty!.Id);
+    }
+
+    [Fact]
+    public void MatchProject_UnixCwd_SiblingRoot_NotHit()
+    {
+        var projects = new[] { MakeProject(1, "/tmp/sems-proj", "") };
+        var hit = ProcessMatcher.MatchProject(null, null, projects, "/tmp/sems-proj-other");
+        Assert.Null(hit);
+    }
+
+    [Fact]
+    public void MatchProject_UnixCommandLine_HitsProjectScript()
+    {
+        var projects = new[] { MakeProject(1, "/tmp/sems-proj", "") };
+        var hit = ProcessMatcher.MatchProject("/bin/sh", "sh -c /tmp/sems-proj/run.sh", projects);
+        Assert.Equal(1, hit!.Id);
+    }
+
+    [Fact]
+    public void MatchProject_CmdSwitch_IsNotUnixPath()
+    {
+        var projects = new[] { MakeProject(1, "/c", "") };
+        var hit = ProcessMatcher.MatchProject("/bin/sh", "cmd /c echo hi", projects);
+        Assert.Null(hit);
+    }
+
+    [Fact]
+    public void MatchProject_UnixCwd_FrontendRejectsPython()
+    {
+        var projects = new[] { MakeProject(1, "/tmp/sems-proj", "frontend") };
+        var hit = ProcessMatcher.MatchProject("/usr/bin/python3", "python3 -m http.server", projects, "/tmp/sems-proj");
+        Assert.Null(hit);
     }
 }

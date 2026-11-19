@@ -71,13 +71,19 @@ public class ProjectCommandsController : ControllerBase
         return Ok(new { success = true });
     }
 
-    /// <summary>启动命令（在项目根执行 cmd /c &lt;script&gt;）。路由：POST api/commands/{id}/run</summary>
+    /// <summary>启动命令（在项目根执行已登记脚本）。路由：POST api/commands/{id}/run</summary>
     [HttpPost("{id:int}/run")]
     public ActionResult<object> Run(int id)
     {
         var session = _runner.Launch(id);
         if (session == null)
-            return Conflict(new { success = false, message = "命令不存在或已有存活会话（重复启动被拒绝）" });
+        {
+            var detail = _runner.LastLaunchError;
+            var message = string.IsNullOrWhiteSpace(detail)
+                ? "命令不存在或已有存活会话（重复启动被拒绝）"
+                : detail;
+            return Conflict(new { success = false, message });
+        }
 
         return Ok(new { success = true, session });
     }

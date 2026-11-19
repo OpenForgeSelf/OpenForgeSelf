@@ -11,18 +11,13 @@
 | Node + pnpm | Node >= 20，pnpm（前端，非 npm） |
 | 操作系统 | API（`ForgeSelf.Api`，`net10.0`）可在 Windows 与 Linux 上跑。托盘 `ForgeSelf.Tray` 与安装包仍是 Windows |
 
-### 1.1 Linux 上编不过宿主（2026-11-19 实测）
+### 1.1 Linux 上编和跑宿主（2026-11-19）
 
-宿主 `ForgeSelf.Api/ForgeSelf.Api.csproj` 把 `TargetFramework` 钉成 `net10.0-windows`，并打开 `UseWindowsForms`（托盘用 H.NotifyIcon 和 `System.Windows.Forms`，见 `ForgeSelf.Api/Program.cs` 的 `StartTrayIcon`）。Linux 上直接 `dotnet build` 报 **NETSDK1100**。根启动器 `ForgeSelf.Bootstrapper` 另有 `RuntimeIdentifier=win-x64` 和 `Microsoft.WindowsDesktop.App`，同样不能在 Linux 上编。
+当前 API 是 `net10.0`，Linux 上可以编译并跑起 Kestrel。托盘在 `ForgeSelf.Tray`（`net10.0-windows`），只在 Windows 上运行；这个工程靠 `EnableWindowsTargeting` 在 Linux 上交叉编译，不能在 Linux 上执行。根启动器 `ForgeSelf.Bootstrapper` 仍是 `win-x64`，Linux 上编不了，它是安装包入口。
 
-两条路，解决的不是同一件事：
+拆分之前的实测：API 钉在 `net10.0-windows` 并打开 `UseWindowsForms` 时，Linux 上直接 `dotnet build` 报 **NETSDK1100**。加上 `-p:EnableWindowsTargeting=true` 后，SDK 10.0.115 能编出 0 error 的 `net10.0-windows` 产物；`dotnet exec` 退出码 150，因为本机没有 `Microsoft.WindowsDesktop.App`。
 
-| 目的 | 做法 | 结果 |
-|------|------|------|
-| 只求在 Linux 上**编译出** Windows 宿主 | 构建时加 `-p:EnableWindowsTargeting=true`（或写进上述两个 csproj） | 实测 SDK 10.0.115：**0 error**。产物仍在 `bin/Debug/net10.0-windows/`，运行时框架是 `Microsoft.WindowsDesktop.App` 10.0.0 |
-| 要在 Linux 上**把 Kestrel 跑起来** | 非 Windows 构建改用 `net10.0`，关掉 `UseWindowsForms`，源码里不要引用 `System.Windows.Forms` / H.NotifyIcon | 交叉编译帮不上。`dotnet exec` 该产物退出码 150：本机只有 `Microsoft.NETCore.App` 和 `Microsoft.AspNetCore.App`，没有 WindowsDesktop，且这个框架没有 Linux 运行时 |
-
-Windows 上的发行形态不变：业务层仍是 `net10.0-windows`，托盘仍在业务层进程里（`docs/04-standards/packaging-upgrade-backup.md` §1.6「不拆独立程序」）。非 Windows 跳过托盘，走已有的 `FORGESELF_NO_TRAY=1`（`Program.cs` 的 `StartTrayIcon`）。根启动器继续只在 Windows 上编，它是安装包入口，不是开发时的 API。
+现行分层见 `docs/07-decisions/007-split-windows-tray.md` 与 `docs/04-standards/packaging-upgrade-backup.md` §1.6。
 
 ## 2. 一键启动
 

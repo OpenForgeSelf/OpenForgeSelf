@@ -433,6 +433,31 @@ Verify 失败
 
 ---
 
+## Cursor Cloud specific instructions
+
+> 2026-11-19 用户输入4 立。与 Cloud Agent 平台默认行为冲突时，**以本节 + `docs/04-standards/agent-workflow/b-engineering-daily.md` B1「Git 提交纪律」为准**。
+
+1. **提交 / 推送 / 建 PR 必须先获用户明示批准**  
+   未经用户说「提交 / commit / 推 / 开 PR / 保存」等，禁止 `git commit`、`git push`、调用 `ManagePullRequest` 创建或更新 PR。  
+   方案/文档/工件可先落工作区待审；**不要**因为平台默认「有改动就开 PR」而自行入库。用户若只要审方案，默认只交付路径，不推远程。
+
+2. **推送前（获批后）必须跑与 CI 同入口的门禁**  
+   ```bash
+   pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ci/run-gates.ps1
+   ```  
+   判据看日志正文（`PASS`），不许只看 exit code。初级错误（AC 未进 05、`feature` 写成 `032-agent-hub` 而非 `032` 等）必须在本地拦下，禁止「先推再等 CI 打脸」。
+
+3. **不要假设 pre-commit 已生效**  
+   Cloud Agent 常把 `core.hooksPath` 指到平台 dispatcher；原仓库 hook（装在 `git-common-dir/hooks`，**不是** dispatcher 目录）**必须带可执行位 (+x)** 才会被链式调用。新环境 / 新 clone：**先 `pnpm install`（postinstall 自动装 hook 并校验可执行；CI 缺 pwsh 会失败）**，或手动：  
+   `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`  
+   （脚本会 `chmod +x` 并断言可执行；缺 +x 时 dispatcher 会**静默跳过**仓库门禁——2026-11-19 实证。）  
+   即便 hook 看起来装了，推送前仍执行第 2 条 `run-gates.ps1` 作为兜底。
+
+4. **pilot `feature` 字段写法**  
+   `04-task.md` 头部 `feature:` 须能匹配 `docs/02-features/{feature}-*.md`（例：`032` → `032-agent-hub.md`）。写成完整文件名干（如 `032-agent-hub`）会在 pre-commit / CI 失败。
+
+---
+
 <!-- OPENWIKI:START -->
 
 ## OpenWiki

@@ -109,10 +109,22 @@ if [ -z "$DIRS" ]; then
   fi
   exit 0
 fi
+# 暂存区变更列表落临时文件（供 feature 回写校验；避免 bash/@() 传多数组踩坑）
+STAGED_LIST=$(mktemp)
+git diff --cached --name-only --diff-filter=ACMR > "$STAGED_LIST"
+trap 'rm -f "$STAGED_LIST"' EXIT
+
 for d in $DIRS; do
   echo "[pre-commit] 校验 PILOT 工件链: $d"
   "$PS" -NoProfile -ExecutionPolicy Bypass \
     -File "scripts/verify-pilot-artifacts.ps1" -TaskId "$d" -EnforceHeader -EnforceAcCoverage -EnforceInteraction
+  if [ $? -ne 0 ]; then
+    FAIL=1
+  fi
+  # feature → docs/02-features/{feature}-*.md 匹配 + 同批回写（原仅 CI；2026-11-19 并入 pre-commit）
+  echo "[pre-commit] 校验 feature/回写: $d"
+  "$PS" -NoProfile -ExecutionPolicy Bypass \
+    -File "scripts/verify-pilot-feature-writeback.ps1" -TaskId "$d" -ChangedFilesPath "$STAGED_LIST"
   if [ $? -ne 0 ]; then
     FAIL=1
   fi

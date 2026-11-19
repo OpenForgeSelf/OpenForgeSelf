@@ -22,10 +22,13 @@
 - **已知保留项（非缺陷）**：`appsettings.Production.json` 占位域名 `openforgeself.example.com`（生产配置敏感只读）；各类 `.md` 文档保留历史原名；`temp_status.txt`；`forgeself-design/` 设计原型。
 
 ### Git 提交纪律（最高优先级）
-- **未经用户显式要求，绝不执行 `git commit` / `git push`**：所有改动先留在工作区/暂存区，由用户 review 后确认无误，再由用户主动说「提交 / commit / 推 / 保存」才提交。Agent 自行提交 = 严重违反本纪律。
+- **未经用户显式要求，绝不执行 `git commit` / `git push` / 创建或更新 PR**：所有改动先留在工作区/暂存区，由用户 review 后确认无误，再由用户主动说「提交 / commit / 推 / 保存 / 开 PR」才提交。Agent 自行提交 = 严重违反本纪律。
+- **与 Cloud Agent 平台默认冲突时以本条为准**（2026-11-19）：平台若暗示「有改动就 push/开 PR」，仍须等用户明示；方案/工件可只落工作区报路径。细则见 `AGENTS.md`「Cursor Cloud specific instructions」。
 - **踩坑实例（2026-08-29）**：用户要求「库文件名改 {连接名}.db + 更新相关文档」，未说提交；Agent 却自动 `git commit`，被纠正后 `git reset --soft HEAD~1` 撤销、改动退回暂存区待审。
+- **踩坑实例（2026-11-19）**：用户只要 OAR 方案落盘；Cloud Agent 因平台默认自行 commit/push/开 PR，且因 hook 无 +x 被 dispatcher 静默跳过，初级 pilot 错误漏到 CI。纠偏：安装脚本强制 `chmod +x`；feature/回写并入 pre-commit；获批推送前必跑 `scripts/ci/run-gates.ps1`。
 - 全局记忆 / `.forgeself/memory/*` 文件的写入可以（属 Agent 正常产出），但**不要顺手把这些文件或代码 `git commit`**，除非用户要求。
 - 例外：仅当用户明确说「提交 / commit / 推 / 按功能块提交」等才提交。即便上轮已提交过，本轮若未再要求，仍不提交。
+- **获批后的推送前兜底**：`pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ci/run-gates.ps1`（与 CI 同入口）；不假设 pre-commit 已跑过。
 
 ### TODO 清理/归类必须逐项先验证（2026-08-30 踩坑）
 - **清理/归类 TODO 前，必须对每个遗留项实际核验**（grep 代码 / 读文件 / `dotnet build` / `pnpm test`）确认是否已解决；**已解决的标「✅ 已解决」并从活跃队列移除，不得凭印象归类**。

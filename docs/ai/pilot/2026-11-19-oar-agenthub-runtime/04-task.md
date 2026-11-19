@@ -2,7 +2,7 @@
 task_id: 2026-11-19-oar-agenthub-runtime
 feature: 032
 risk: { level: L2, triggers: ["docs/01-architecture/", "docs/07-decisions/", "ForgeSelf.Abstractions(planned)"], raised_by_agent: true }
-gate1: { mode: user, at: null, ref: "gate1-proposal.md" }
+gate1: { mode: user, at: "2026-11-19T17:47+08:00", ref: "seq6 搞定上面的问题后提交一把，然后开始实现" }
 gate2: { mode: reviewer, at: null, decision: null }
 gate3: { mode: agent, at: null }
 expected_files:
@@ -15,6 +15,15 @@ expected_files:
   - docs/02-features/032-agent-hub.md
   - docs/README.md
   - docs/ai/pilot/2026-11-19-oar-agenthub-runtime/
+  - docs/04-standards/agent-workflow/
+  - AGENTS.md
+  - scripts/install-git-hooks.ps1
+  - scripts/postinstall-install-hooks.cjs
+  - scripts/verify-pilot-feature-writeback.ps1
+  - scripts/verify-pilot-gate.ps1
+  - scripts/hooks/
+  - scripts/README.md
+  - ForgeSelf.Api.Tests/RepositoryScriptTests.cs
 rollback: "git revert <commit>"
 writeback: { feature_doc: 032-agent-hub, reason: "OAR 演进节" }
 ---

@@ -125,6 +125,34 @@ public class RepositoryScriptTests
         text.Should().Contain("Package hygiene failed");
     }
 
+    /// <summary>
+    /// 2026-11-19：Cloud Agent hooksPath dispatcher 只调用带 +x 的原 hook；
+    /// 安装脚本必须 chmod +x 并断言，且 pre-commit 必须调用 feature/回写校验（与 CI 对齐）。
+    /// </summary>
+    [Fact]
+    public void GitHooksInstall_MustChmodAndPreCommitMustCheckFeatureWriteback()
+    {
+        var root = FindRepoRoot();
+        var install = File.ReadAllText(Path.Combine(root, "scripts", "install-git-hooks.ps1"));
+        install.Should().Contain("chmod +x", "安装 hook 必须设置可执行位，否则 Cloud dispatcher 静默跳过");
+        install.Should().Contain("Test-IsExecutable", "安装后必须断言可执行，防止再出现 644 假安装");
+        install.Should().Contain("git-common-dir",
+            "安装目标须用 git-common-dir/hooks，避免服从 core.hooksPath 装进 Cursor dispatcher 目录");
+        // 允许注释里提到「禁止 git-path hooks」；禁止作为赋值安装目标
+        System.Text.RegularExpressions.Regex.IsMatch(install, @"(?m)^\s*\$\w+.*=.*rev-parse --git-path hooks")
+            .Should().BeFalse("不得用 --git-path hooks 解析结果作为安装目标（会跟随 core.hooksPath）");
+
+        var preCommit = File.ReadAllText(Path.Combine(root, "scripts", "hooks", "pre-commit"));
+        preCommit.Should().Contain("verify-pilot-feature-writeback.ps1",
+            "pre-commit 必须跑 feature/回写校验，不能只靠 CI");
+
+        var writeback = Path.Combine(root, "scripts", "verify-pilot-feature-writeback.ps1");
+        File.Exists(writeback).Should().BeTrue("共享回写校验脚本必须在位");
+        var wb = File.ReadAllText(writeback);
+        wb.Should().Contain("$feat-*.md", "须按 feature 短号匹配 docs/02-features/{feature}-*.md");
+        wb.Should().Contain("ChangedFilesPath");
+    }
+
     [Fact]
     public void RootDevCommand_MustUseFullStackLauncher()
     {

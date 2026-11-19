@@ -140,44 +140,28 @@ if ($pilotDirs.Count -gt 0) {
     }
 }
 
-# ---- 3b) 回写检查：feature 文档须同区间修改；requirements 须已登记 ----
-foreach ($d in $pilotDirs) {
-    $f04 = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot "docs/ai/pilot/$d") -Filter '04-*.md' -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($f04.Count -ne 1) { continue }
-    $t04 = [System.IO.File]::ReadAllText($f04[0].FullName, [System.Text.Encoding]::UTF8)
-    if ($t04 -notmatch '(?s)^\s*---\s*?
-(.*?)?
----') { continue }
-    $fm = $Matches[1]
-    $featText = ''
-    $mF = [regex]::Match($fm, '(?m)^\s*feature\s*:\s*(\S+)')
-    if ($mF.Success) {
-        $feat = $mF.Groups[1].Value.Trim('"').Trim("'")
-        if ($feat -and $feat -ne 'none') {
-            $cand = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'docs/02-features') -Filter "$feat-*.md" -ErrorAction SilentlyContinue)
-            if ($cand.Count -eq 0) {
-                Write-Output ("  [FAIL] pilot {0} 的 04 头部 feature={1} 找不到 docs/02-features/{1}-*.md" -f $d, $feat)
+# ---- 3b) 回写检查：feature 文档须同区间修改；requirements 须已登记（与 pre-commit 共用脚本）----
+$writeback = Join-Path $PSScriptRoot 'verify-pilot-feature-writeback.ps1'
+if (-not (Test-Path -LiteralPath $writeback)) {
+    Write-Output '  [FAIL] 找不到 scripts/verify-pilot-feature-writeback.ps1'
+    $fail++
+}
+else {
+    $wbList = [System.IO.Path]::GetTempFileName()
+    try {
+        @($changed) | Set-Content -LiteralPath $wbList -Encoding utf8
+        foreach ($d in $pilotDirs) {
+            $out = & pwsh -NoProfile -ExecutionPolicy Bypass -File $writeback -RepoRoot $RepoRoot -TaskId $d -ChangedFilesPath $wbList -StrictWriteback 2>&1
+            $rc = $LASTEXITCODE
+            $out | ForEach-Object { Write-Output ("  {0}" -f $_) }
+            if ($rc -ne 0) {
+                Write-Output ("  [FAIL] pilot {0} feature/回写校验未通过" -f $d)
                 $fail++
-            } else {
-                $rel = 'docs/02-features/' + $cand[0].Name
-                $featText = [System.IO.File]::ReadAllText($cand[0].FullName, [System.Text.Encoding]::UTF8)
-                if ($changed -notcontains $rel) {
-                    Write-Output ("  [FAIL] 回写缺失：pilot {0} 声明 feature={1}，但同一区间未修改 {2}" -f $d, $feat, $rel)
-                    $fail++
-                }
             }
         }
     }
-    $mR = [regex]::Match($fm, '(?m)^\s*requirements\s*:\s*\[(.*?)\]')
-    if ($mR.Success -and $featText) {
-        foreach ($raw in ($mR.Groups[1].Value -split ',')) {
-            $id = $raw.Trim().Trim('"').Trim("'")
-            if (-not $id) { continue }
-            if ($featText -notmatch [regex]::Escape($id)) {
-                Write-Output ("  [FAIL] requirements 里的 {0} 未在功能文档登记" -f $id)
-                $fail++
-            }
-        }
+    finally {
+        Remove-Item -LiteralPath $wbList -Force -ErrorAction SilentlyContinue
     }
 }
 

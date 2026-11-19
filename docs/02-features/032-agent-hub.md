@@ -8,7 +8,7 @@ aliases: ["032-agent-hub"]
 
 # 032 · Agent 中枢（AgentHub）—— 外部 Agent 探测与委派总线
 
-> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider 演进 = 已定案待实现**
+> 版本：2026-09-24（v1.0.9；插件包现 `plugin.json` = 1.0.11）· 状态：**已落地（CLI 委派）**；**OAR Runtime Provider = 定案；P0 Worker 已落地，P1+ 待实现**
 > 来源：输入4 调研（CLI-agent 探测/委派生态）→ 输入5（探测支持附加扫描目录）→ 2026-11-19 OAR 定案（ADR-007）
 > OAR 架构真源：[`docs/01-architecture/agenthub-oar-runtime.md`](../01-architecture/agenthub-oar-runtime.md)
 
@@ -56,7 +56,7 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 - **发布坑（v1.0.9 实证）**：版本化更新（`POST /api/plugin/update`）只把新前端产物放进 `versions/<v>/web/dist`，但前端中间件解析**插件根目录 `web/dist`** → 页面仍跑旧 bundle。发布后必须补拷：`versions/<v>/web/dist/*` → 根 `web/dist/`，并 grep 新增关键词核验（见 `plugin-publish-verify` troubleshooting）。
 - **待核对**：`AgentHubAgentsController` / `AgentHubTasksController` 是否带类级 `[Authorize("ApiKeyPolicy")]`（铁律 17 遗留项，v1.0.9 未动，单独记 TODO）。
 
-## 6. 演进：OAR Runtime Provider（2026-11-19 定案，代码未落地）
+## 6. 演进：OAR Runtime Provider（2026-11-19 定案；P0 Worker 已落地）
 
 目标：在**不推翻**本节已落地能力的前提下，把 AgentHub 升级为外部 Coding Agent 的统一 Runtime Provider。
 
@@ -69,6 +69,7 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 | 与本机 MAF | 正交；不违反 ADR-005 |
 
 阶段：P0 Worker 验证 → P1 契约/通信 → P2 Session/Transport → P3 Provider/UI → P4 集成与测试。  
+**P0（2026-11-19）**：`Plugins/AgentHub/RuntimeWorker` 已锁 `@botiverse/oar@0.109.0`，stdio JSON-RPC + `pnpm run smoke` 12/12（scripted）；pilot `docs/ai/pilot/2026-11-19-oar-runtime-worker-p0/`。P1+ 未开。  
 细节与安全约束只维护在架构真源，本节不复制。
 
 ## 7. 来源

@@ -19,7 +19,7 @@ Agent 中枢：登记本机外部 Coding Agent → 委派任务 → 看任务/�
 
 | 面 | 行为 |
 | --- | --- |
-| Runtime 卡「检查」 | 拉取 installation + auth，**展开** JSON 详情 |
+| Runtime 卡「检查」 | 拉取 **该条** Runtime 的 installation + auth，**展开** JSON 详情；**无一键检查全部**（须逐卡点） |
 | Runtime 卡「模型」 | 拉取 models；失败显示原文，不假装有模型 |
 | Runtime 卡「安装」 | 先出计划确认框；取消无副作用；已装则按钮禁用 |
 | Session 行 | 选中后右侧出操作区；禁用按钮带原因 |

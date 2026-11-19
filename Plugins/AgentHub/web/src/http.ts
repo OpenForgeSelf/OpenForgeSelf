@@ -182,6 +182,8 @@ export interface TaskDto {
   prompt?: string
   cwd?: string
   status?: string
+  /** P3 对外会话键（与 sessionRef 同值） */
+  sessionKey?: string
   sessionRef?: string
   permissionMode?: string
   exitCode?: number
@@ -205,11 +207,41 @@ export interface DelegationRequest {
   accessPointId?: number
   cwd?: string
   permissionMode?: string
+  /** P3 续接 SessionKey */
+  sessionKey?: string
   sessionRef?: string
   facet?: string
   tag?: string
   createdBy?: string
   wait?: boolean
+}
+
+/** Runtime 描述（api/agent-hub/runtimes）。 */
+export interface RuntimeDescriptorDto {
+  agentId?: number
+  name?: string
+  vendor?: string
+  runtimeId?: string
+  transport?: string
+  available?: boolean
+  unavailableReason?: string
+  capabilities?: string[]
+}
+
+/** Session 对外 DTO（无 OarSessionId）。 */
+export interface SessionDto {
+  sessionKey?: string
+  agentId?: number
+  accessPointId?: number
+  transport?: string
+  runtimeId?: string
+  cwd?: string
+  model?: string
+  status?: string
+  generation?: number
+  lastTaskId?: number
+  createTime?: string
+  updateTime?: string
 }
 
 /** 任务事件（SSE / 历史接口共用结构）。 */
@@ -290,6 +322,23 @@ export function getSettings(): Promise<AgentHubSettingsDto | undefined> {
 /** 保存插件设置（点即保存落盘）。 */
 export function saveSettings(body: AgentHubSettingsDto): Promise<AgentHubSettingsDto | undefined> {
   return request<AgentHubSettingsDto>('/api/agent-hub/settings', { method: 'PUT', body: JSON.stringify(body) })
+}
+
+// ────────────────────────────── Runtime / Session（P3） ──────────────────────────────
+
+/** 列出 Runtime / Agent 描述。 */
+export function listRuntimes(): Promise<RuntimeDescriptorDto[] | undefined> {
+  return request<RuntimeDescriptorDto[]>('/api/agent-hub/runtimes')
+}
+
+/** 列出对外 Session（无 OarSessionId）。 */
+export function listSessions(limit = 50): Promise<SessionDto[] | undefined> {
+  return request<SessionDto[]>(`/api/agent-hub/sessions?limit=${limit}`)
+}
+
+/** 关闭 Session。 */
+export function closeSession(sessionKey: string): Promise<void> {
+  return request<void>(`/api/agent-hub/sessions/${encodeURIComponent(sessionKey)}/close`, { method: 'POST' })
 }
 
 // ────────────────────────────── 任务接口 ──────────────────────────────

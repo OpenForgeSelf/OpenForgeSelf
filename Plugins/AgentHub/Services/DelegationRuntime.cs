@@ -74,8 +74,15 @@ public class DelegationTaskDto
     /// <summary>状态</summary>
     public String Status { get; set; } = TaskStatus.Queued;
 
-    /// <summary>外部会话 id</summary>
+    /// <summary>外部会话 id（历史字段；与 <see cref="SessionKey"/> 同值）</summary>
     public String? SessionRef { get; set; }
+
+    /// <summary>对外 SessionKey（P3；读写均映射到 SessionRef，禁止暴露 OarSessionId）</summary>
+    public String? SessionKey
+    {
+        get => SessionRef;
+        set => SessionRef = value;
+    }
 
     /// <summary>权限模式</summary>
     public String PermissionMode { get; set; } = "read-only";
@@ -135,8 +142,11 @@ public class DelegationRequest
     /// <summary>权限模式（为空取 agent 默认）</summary>
     public String? PermissionMode { get; set; }
 
-    /// <summary>续接的外部会话 id</summary>
+    /// <summary>续接的外部会话 id（历史字段）</summary>
     public String? SessionRef { get; set; }
+
+    /// <summary>续接 SessionKey（P3；若同时传 SessionRef，以非空 SessionKey 优先）</summary>
+    public String? SessionKey { get; set; }
 
     /// <summary>要求的能力面（F1_Driving 等，用于选路）</summary>
     public String? Facet { get; set; }
@@ -277,7 +287,7 @@ public class DelegationRuntime
             Cwd = cwd,
             Status = TaskStatus.Queued,
             PermissionMode = mode,
-            SessionRef = req.SessionRef,
+            SessionRef = !req.SessionKey.IsNullOrEmpty() ? req.SessionKey : req.SessionRef,
             CreatedBy = req.CreatedBy ?? "ui"
         };
 

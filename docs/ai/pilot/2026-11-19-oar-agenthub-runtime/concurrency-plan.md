@@ -55,9 +55,8 @@ P4 ── T-ConsumerQA（试点 + 测试体系 + Node 打包）  依赖 P3 可 G
 
 ## 4. 本轮（Cloud）执行裁剪
 
-- **已完成**：P1（Contract + Client）+ P2（T-Transport ∥ T-Session → T-Delegation）；pilot `2026-11-19-oar-runtime-p1` / `2026-11-19-oar-runtime-p2`。  
-- **下一检查点**：P3 T-Provider + T-Surface（不在本批）。  
-- 不在本轮做 P4 打包正文（可预登 TODO）。
+- **已完成**：P1 + P2 + P3（T-Provider + T-Surface）；pilots `…-p1` / `…-p2` / `…-p3`。  
+- **下一检查点**：P4 T-ConsumerQA（消费者试点 + Node≥24 打包说明）。  
 
 ## 5. 验证分档（对齐 AGENTS §5.6）
 
@@ -70,7 +69,7 @@ P4 ── T-ConsumerQA（试点 + 测试体系 + Node 打包）  依赖 P3 可 G
 
 ## 6. 交接清单（阶段结束）
 
-- [x] P1/P2 pilot 05/06/07 齐，AC 勾选  
+- [x] P1/P2/P3 pilot 05/06/07 齐，AC 勾选  
 - [x] 032 §6 进度句更新  
-- [x] ADR/架构真源阶段表勾选（P0–P2 ✅）  
-- [ ] P3 下一团队：Allowed/Forbidden 文件表 + 阻塞项（Provider Register / tools SessionKey / API·UI）  
+- [x] ADR/架构真源阶段表勾选（P0–P3 ✅）  
+- [ ] P4 下一团队：消费者试点 + 中档测试 + Node≥24 打包说明  

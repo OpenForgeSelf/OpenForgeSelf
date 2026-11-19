@@ -87,6 +87,7 @@ public class ListAgentsTool : AgentHubToolBase
             {
                 p.Id,
                 p.Transport,
+                p.RuntimeId,
                 p.Mode,
                 p.Executable,
                 p.Health,
@@ -151,9 +152,13 @@ public class DelegateTaskTool : AgentHubToolBase
             "enum": ["read-only", "workspace-write", "accept-edits"],
             "description": "权限模式，默认继承该 agent 的策略（通常 read-only）"
         },
+        "sessionKey": {
+            "type": "string",
+            "description": "续接 SessionKey（P3 推荐；来自上次委派/Submit 返回的 sessionKey）"
+        },
         "sessionRef": {
             "type": "string",
-            "description": "续接某个已有外部会话（来自上次委派返回的 sessionRef）"
+            "description": "续接外部会话（历史别名，等价 sessionKey）"
         }
     },
     "required": ["prompt"]
@@ -176,13 +181,15 @@ public class DelegateTaskTool : AgentHubToolBase
         var runtime = GetService<DelegationRuntime>();
         if (runtime == null) return Fail("AgentHub 运行时不可用（插件未正确加载）");
 
+        var sessionKey = ArgString(args, "sessionKey") ?? ArgString(args, "sessionRef");
         var request = new DelegationRequest
         {
             Prompt = prompt!,
             AgentId = ArgInt(args, "agentId"),
             Cwd = ArgString(args, "cwd"),
             PermissionMode = ArgString(args, "permissionMode"),
-            SessionRef = ArgString(args, "sessionRef"),
+            SessionKey = sessionKey,
+            SessionRef = sessionKey,
             Facet = ArgString(args, "facet"),
             Tag = ArgString(args, "tag"),
             CreatedBy = "agent:delegate_task"
@@ -212,6 +219,7 @@ public class DelegateTaskTool : AgentHubToolBase
             task.AgentName,
             task.ExitCode,
             task.ElapsedMs,
+            sessionKey = task.SessionKey ?? task.SessionRef,
             task.SessionRef,
             task.ResultText,
             artifacts = task.ArtifactsJson
@@ -335,7 +343,7 @@ public class CancelTaskTool : AgentHubToolBase
     }
 }
 
-/// <summary>向某个 agent 就其已有会话追问一句（续接会话）。</summary>
+/// <summary>向某个 agent 就其已有会话追问一句（续接会话；P3 以 SessionKey 为准）。</summary>
 public class AskAgentTool : AgentHubToolBase
 {
     /// <inheritdoc />
@@ -348,6 +356,7 @@ public class AskAgentTool : AgentHubToolBase
     public override String Description =>
         "就某个 agent 的**已有会话**继续追问，复用它的上下文（不重新开始）。" +
         "适合先 delegate_task 让它做事，再多次 ask_agent 追问细节。" +
+        "优先传 sessionKey（P3）；sessionRef 为历史别名。禁止使用/回传 OarSessionId。" +
         "目标 agent 必须支持会话续接（能力矩阵 F2_Sessions 为 true）。";
 
     /// <inheritdoc />
@@ -355,9 +364,13 @@ public class AskAgentTool : AgentHubToolBase
 {
     "type": "object",
     "properties": {
+        "sessionKey": {
+            "type": "string",
+            "description": "要续接的 SessionKey（P3 推荐；来自委派/Submit 返回）"
+        },
         "sessionRef": {
             "type": "string",
-            "description": "要续接的外部会话 id（来自之前委派结果里的 sessionRef）"
+            "description": "历史别名，等价 sessionKey"
         },
         "question": {
             "type": "string",
@@ -365,10 +378,10 @@ public class AskAgentTool : AgentHubToolBase
         },
         "agentId": {
             "type": "integer",
-            "description": "目标 agent 的 Id（必须与 sessionRef 所属 agent 一致）"
+            "description": "目标 agent 的 Id（必须与会话所属 agent 一致）"
         }
     },
-    "required": ["sessionRef", "question", "agentId"]
+    "required": ["question", "agentId"]
 }
 """;
 
@@ -381,11 +394,11 @@ public class AskAgentTool : AgentHubToolBase
     public override async Task<String> ExecuteAsync(String parameters)
     {
         var args = ParseArgs(parameters);
-        var sessionRef = ArgString(args, "sessionRef");
+        var sessionKey = ArgString(args, "sessionKey") ?? ArgString(args, "sessionRef");
         var question = ArgString(args, "question");
         var agentId = ArgInt(args, "agentId");
 
-        if (sessionRef.IsNullOrEmpty()) return Fail("sessionRef 不能为空");
+        if (sessionKey.IsNullOrEmpty()) return Fail("sessionKey（或 sessionRef）不能为空");
         if (question.IsNullOrWhiteSpace()) return Fail("question 不能为空");
         if (agentId is null or <= 0) return Fail("agentId 不能为空");
 
@@ -398,13 +411,14 @@ public class AskAgentTool : AgentHubToolBase
 
         // 能力矩阵门禁：不支持会话续接的 agent 直接拒绝，别让调用方白等
         if (!agent.Capabilities.Supports(AgentFacets.Sessions))
-            return Fail($"agent「{agent.Name}」不支持会话续接（F2_Sessions = false），无法按 sessionRef 追问");
+            return Fail($"agent「{agent.Name}」不支持会话续接（F2_Sessions = false），无法按 SessionKey 追问");
 
         var task = await runtime.DelegateAsync(new DelegationRequest
         {
             Prompt = question!,
             AgentId = agentId.Value,
-            SessionRef = sessionRef,
+            SessionKey = sessionKey,
+            SessionRef = sessionKey,
             CreatedBy = "agent:ask_agent"
         });
 
@@ -414,6 +428,7 @@ public class AskAgentTool : AgentHubToolBase
         return Ok(true, "追问完成", new
         {
             task.TaskKey,
+            sessionKey = task.SessionKey ?? task.SessionRef,
             task.SessionRef,
             task.ResultText,
             task.ElapsedMs

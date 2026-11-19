@@ -51,6 +51,15 @@ public class AgentHubPlugin : IPlugin
         ctx.Register<IAgentDelegation>(new AgentDelegationProvider(ctx));
         XTrace.Log.Info("Agent 中枢插件已提供 IAgentDelegation 能力接缝");
 
+        // P3：IAgentRuntime 同实例 → 宿主 DI + ctx.Register；消费者每次 Get，禁止字段缓存。
+        // Worker 清理由 Effect：卸载时 Dispose OarWorkerClient（杀进程树）。
+        var runtimeProvider = new AgentHubRuntimeProvider(ctx);
+        services?.AddSingleton(runtimeProvider);
+        services?.AddSingleton<IAgentRuntime>(runtimeProvider);
+        ctx.Register<IAgentRuntime>(runtimeProvider);
+        ctx.Effect(() => new OarWorkerCleanup(ctx));
+        XTrace.Log.Info("Agent 中枢插件已提供 IAgentRuntime 能力接缝");
+
         // G5：宿主启动即收尾——把库里遗留的非终态任务标为 Interrupted
         RecoverOrphanTasks(ctx);
 
@@ -77,6 +86,7 @@ public class AgentHubPlugin : IPlugin
         // transport 注册表：按 AccessPoint.Transport 选路（Cli|Oar）；禁止再 DI 单一 IAgentTransport
         services.AddSingleton<CliTransport>();
         services.AddSingleton(ResolveOarWorkerOptions);
+        services.AddSingleton<OarWorkerClient>();
         services.AddSingleton<AgentSessionManager>();
         services.AddSingleton<OarTransport>();
         services.AddSingleton<IAgentTransportRegistry>(sp =>
@@ -92,7 +102,7 @@ public class AgentHubPlugin : IPlugin
         // 运行时会话状态跨请求（工具 + SSE 都要看），必须单例
         services.AddSingleton<DelegationRuntime>();
 
-        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / TransportRegistry(Cli+Oar) / AgentSessionManager / DelegationRuntime / AgentHubSettingsStore");
+        XTrace.Log.Debug("Agent 中枢插件已注册服务：ProfileLoader / AgentRegistry / PermissionBroker / AgentProbeService / TransportRegistry(Cli+Oar) / OarWorkerClient / AgentSessionManager / DelegationRuntime / AgentHubSettingsStore");
     }
 
     /// <summary>
@@ -206,4 +216,28 @@ public class AgentHubMenuExtension : IMenuExtension
     public int Order { get; set; }
     public string? ParentId { get; set; }
     public IReadOnlyList<IMenuExtension>? Children { get; set; }
+}
+
+/// <summary>插件卸载时 Dispose 共享 <see cref="OarWorkerClient"/>（杀 Worker 进程树）。</summary>
+file sealed class OarWorkerCleanup : IDisposable
+{
+    private readonly IServiceProvider _ctx;
+    private Boolean _done;
+
+    public OarWorkerCleanup(IServiceProvider ctx) => _ctx = ctx;
+
+    public void Dispose()
+    {
+        if (_done) return;
+        _done = true;
+        try
+        {
+            var client = AgentHubDi.ResolveHost<OarWorkerClient>(_ctx);
+            client?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[AgentHub] 卸载时清理 OarWorkerClient 失败: {0}", ex.Message);
+        }
+    }
 }

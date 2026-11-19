@@ -1,6 +1,6 @@
 # ADR-007：Windows 托盘独立成程序，API 改为跨平台 Web API
 
-- 状态：**Proposed**（2026-11-19 出方案，未改业务代码，待拍板后才开工）
+- 状态：**Accepted**（2026-11-19 按本方案实施。Windows 上托盘菜单的点击留到 Windows 环境验收）
 - 关联：[`04-standards/packaging-upgrade-backup.md`](../04-standards/packaging-upgrade-backup.md) §1.6（现行写「托盘不拆独立程序」，本 ADR 若接受则改这句）
 - 背景：云代理是 Linux。宿主 `ForgeSelf.Api` 的 `TargetFramework` 是 `net10.0-windows` 且 `UseWindowsForms=true`，Linux 上 `dotnet build` 报 NETSDK1100。加上 `-p:EnableWindowsTargeting=true` 可以编过（SDK 10.0.115，0 error），`dotnet exec` 退出码 150，缺 `Microsoft.WindowsDesktop.App`。该框架没有 Linux 运行时。
 

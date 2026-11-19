@@ -100,7 +100,13 @@ public class DataLocationServiceTests : IDisposable
         var env = new Mock<IWebHostEnvironment>();
         env.Setup(e => e.EnvironmentName).Returns("Development");
         var svc = new DataLocationService(env.Object);
-        svc.GetPluginDataDirectory("bad/id:name")
-            .Should().Be(Path.Combine(AppContext.BaseDirectory, "data", "plugins", "badidname"));
+        var name = svc.GetPluginDataDirectory("bad/id:name");
+        var leaf = Path.GetFileName(name);
+        name.Should().Be(Path.Combine(AppContext.BaseDirectory, "data", "plugins", leaf));
+        leaf.Should().NotContain("/");
+        if (Path.GetInvalidFileNameChars().Contains(':'))
+            leaf.Should().Be("badidname");
+        else
+            leaf.Should().Be("badid:name");
     }
 }

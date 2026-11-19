@@ -372,6 +372,13 @@ public class AgentRunDispatchTests : IClassFixture<XCodeTestFixture>
             Completed.TrySetResult();
         }
 
+        public async IAsyncEnumerable<AgentLoopEvent> ExecuteConfirmedPlanAsync(
+            RunRequest request, AgentPlan plan, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
         public async IAsyncEnumerable<AgentLoopEvent> ResumeAsync(
             long id, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
         {

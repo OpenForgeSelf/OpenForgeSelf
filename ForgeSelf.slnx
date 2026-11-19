@@ -28,6 +28,9 @@
   <Project Path="Plugins/SmartTerminal.Tests/SmartTerminal.Tests.csproj" />
   <Project Path="Plugins/DbAdminTests/DbAdminTests.csproj" />
   <Project Path="ForgeSelf.Api/ForgeSelf.Api.csproj" />
+  <Project Path="ForgeSelf.Host/ForgeSelf.Host.csproj" />
+  <Project Path="ForgeSelf.Tray/ForgeSelf.Tray.csproj" />
+  <Project Path="ForgeSelf.Tray.Tests/ForgeSelf.Tray.Tests.csproj" />
   <Project Path="Plugins/DevTools/DevTools.csproj" />
   <Project Path="Plugins/FileTools/FileTools.csproj" />
   <Project Path="Plugins/MemorySystem/MemorySystem.csproj" />

@@ -1,6 +1,6 @@
 using System.IO;
 using NewLife.Configuration;
-using ForgeSelf.Abstractions;
+using ForgeSelf.Api;
 
 namespace ForgeSelf.Api.Data;
 
@@ -21,7 +21,7 @@ public abstract class ForgeConfig<TConfig> : Config<TConfig> where TConfig : For
         if (Provider is FileConfigProvider fcp)
         {
             var name = typeof(TConfig).Name;
-            fcp.FileName = Path.Combine(DataLocationService.ResolveHostDataDirectory(), "config", name + ".config");
+            fcp.FileName = Path.Combine(HostDataRoot.ResolveFromEnvironment(), "config", name + ".config");
         }
     }
 }

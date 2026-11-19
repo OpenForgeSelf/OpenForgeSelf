@@ -71,7 +71,7 @@ aliases: ["001-ai-provider-config"]
 
 ## 4. 注意事项
 1. 运行实例无权限停止时，改提供方端点等运行期配置需**重启 exe** 才生效（端口由 `ForgeSetting.PortNumber` 决定）。视觉模型配置已退出 API。
-2. DB 位置：`ForgeSelf.Api/bin/Debug/net10.0-windows/Data/ForgeSelf.db`。
+2. DB 位置：`ForgeSelf.Api/bin/Debug/net10.0/Data/ForgeSelf.db`。
 
 ## 5. 测试覆盖
 | 测试 | 覆盖点 |

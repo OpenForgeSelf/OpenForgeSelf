@@ -1,11 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ForgeSelf</AssemblyName>
-    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\ForgeSelf.ico</ApplicationIcon>
     <!-- 版本号规则 = <major>.<minor>.<patch>.<yyMMddHHmm>（2026-10-02 修订，示例 2.3.0.2609161125）：
          正式发行的完整串由 release-local.ps1（本地）/ CI tag（GITHUB_REF_NAME）生成，经环境变量
@@ -72,7 +71,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="H.NotifyIcon" Version="2.4.1" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.6.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
@@ -102,6 +100,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ForgeSelf.Host\ForgeSelf.Host.csproj" />
     <ProjectReference Include="..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
     <ProjectReference Include="..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
     <!-- 仅建立构建顺序（插件先于 Backend 编译），不编译引用、不复制到输出根目录，
@@ -153,29 +152,23 @@
        排除顶层 ForgeSelf.* / NewLife.*（宿主共享程序集，由默认上下文解析，避免类型身份分裂）。
        deps.json 一并拷贝是必需的：缺失会导致插件 ALC 的 AssemblyDependencyResolver 无法解析
        System.Management(WMI) 等 NuGet 依赖，插件控制器会被路由表整体剔除（spec028 T10 运行时验收发现）。
-       TargetFramework 显式钉住 net10.0（插件侧），与宿主 net10.0-windows 无关。
-       实现注记：单一 glob 的 %(RecursiveDir) 只捕获 `**` 段、不含插件名，会把各插件文件拍平混拷；
-       故用链式 Replace 把源相对路径中的 \<插件>\bin\<Config>\net10.0\ 前缀改写为
-       $(OutDir)Plugins\<插件>\，达成原 Stage*Plugin「每个插件独立目录」的等价行为。 -->
+       运行时扫描的是小写 plugins/（AppBuilder）。Windows 上 Plugins 与 plugins 是同一目录；
+       Linux 上必须落到小写目录，并且 Replace 要同时认正斜杠，否则插件 DLL 不会进输出。 -->
   <Target Name="StageAllPlugins" AfterTargets="Build">
     <ItemGroup>
       <_PluginBin Include="..\Plugins\*\bin\$(Configuration)\net10.0\**\*.*"
                   Exclude="..\Plugins\*\bin\$(Configuration)\net10.0\ForgeSelf.*;..\Plugins\*\bin\$(Configuration)\net10.0\NewLife.*;..\Plugins\*\bin\$(Configuration)\net10.0\XCode.*;..\Plugins\*\bin\$(Configuration)\net10.0\MX.*" />
-      <!-- 插件清单：原先由宿主 <None Update="Plugins\**\plugin.json"> 从项目目录拷出；插件源码迁出宿主
-           范围后该规则对根 Plugins/ 不命中，staging 职责移入本目标（行为等价：清单必须随 DLL 进输出）。 -->
       <_PluginManifests Include="..\Plugins\*\plugin.json" />
-      <!-- 插件自带界面产物（spec 010）：同上，原宿主 Content glob 迁出后不再命中，移入本目标。
-           dist 由插件侧 pnpm build 生成，未构建时 glob 匹配不到，不会导致构建失败。 -->
       <_PluginWebDist Include="..\Plugins\*\web\dist\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(_PluginBin)"
-          DestinationFiles="@(_PluginBin->Replace('\bin\$(Configuration)\net10.0\','\')->Replace('..\Plugins\','$(OutDir)Plugins\'))"
+          DestinationFiles="@(_PluginBin->Replace('\bin\$(Configuration)\net10.0\','\')->Replace('/bin/$(Configuration)/net10.0/','/')->Replace('..\Plugins\','$(OutDir)plugins\')->Replace('../Plugins/','$(OutDir)plugins/'))"
           SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(_PluginManifests)"
-          DestinationFiles="@(_PluginManifests->Replace('..\Plugins\','$(OutDir)Plugins\'))"
+          DestinationFiles="@(_PluginManifests->Replace('..\Plugins\','$(OutDir)plugins\')->Replace('../Plugins/','$(OutDir)plugins/'))"
           SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(_PluginWebDist)"
-          DestinationFiles="@(_PluginWebDist->Replace('..\Plugins\','$(OutDir)Plugins\'))"
+          DestinationFiles="@(_PluginWebDist->Replace('..\Plugins\','$(OutDir)plugins\')->Replace('../Plugins/','$(OutDir)plugins/'))"
           SkipUnchangedFiles="true" />
   </Target>
 
@@ -193,10 +186,10 @@
        上面 StageAllPlugins 目标只在 Build 期拷到 $(OutDir)，故此处在 Publish 之后整体再复制一次。 -->
   <Target Name="StagePluginsToPublish" AfterTargets="Publish">
     <ItemGroup>
-      <_StagedPluginFiles Include="$(OutDir)Plugins\**\*.*" />
+      <_StagedPluginFiles Include="$(OutDir)plugins\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(_StagedPluginFiles)"
-          DestinationFiles="@(_StagedPluginFiles->'$(PublishDir)Plugins\%(RecursiveDir)%(Filename)%(Extension)')"
+          DestinationFiles="@(_StagedPluginFiles->'$(PublishDir)plugins\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 

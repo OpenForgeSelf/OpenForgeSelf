@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -88,6 +88,7 @@
   <!-- MCP 中心外部接入集成测试用 mock MCP 服务器（stdio / streamable-http / http-sse 三传输） -->
   <ItemGroup>
     <None Include="Plugins\McpCenterTests\Fixtures\mock-mcp-server.js">
+      <Link>plugins\McpCenterTests\Fixtures\mock-mcp-server.js</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -100,10 +101,10 @@
        此处从 Backend 输出按相同 Plugins/ 布局同步到测试输出，使测试宿主与真实宿主加载行为一致。 -->
   <Target Name="StagePluginDllsToTestOutput" AfterTargets="Build">
     <ItemGroup>
-      <_TestPluginDlls Include="..\ForgeSelf.Api\bin\$(Configuration)\net10.0-windows\Plugins\**\*.dll" />
+      <_TestPluginDlls Include="..\ForgeSelf.Api\bin\$(Configuration)\net10.0\plugins\**\*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(_TestPluginDlls)"
-          DestinationFiles="@(_TestPluginDlls->'$(OutDir)Plugins\%(RecursiveDir)%(Filename)%(Extension)')"
+          DestinationFiles="@(_TestPluginDlls->'$(OutDir)plugins\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 

@@ -90,7 +90,7 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 | 安装态诚实 | Worker 补充项须读 `runtime.installation`；仅 `kind=available && via=executable` → `Available=true`；无 `installation` → `not_found`（**禁止** `{available, via:bundled}` 假绿）；`bundled` 仅当 installation 原样声明 |
 | Prompt 结算诚实 | `OarTransport.RunPromptBufferedAsync` 经 `OarPromptTurnGate` 等待 `session.status` idle+turn / `turn_ended`（可超时取消）；**禁止** `Delay(50)` 后早退 `Succeeded`（PC-037） |
 | 品牌图标 | 插件前端内联 `@botiverse/oar` brands SVG；缺图标用字母 glyph，禁止统一占位 |
-| 页签分区 | 「Runtime / Session」= Runtime 库存（发现/安装真相）与 Session 操作（Steer/Abort）两节，一节一事 |
+| 页签分区 | 「Runtime 检测」与「会话」**分属两个顶栏页签**（2026-11-20）：检测页仅 Runtime 库存（发现/安装/一键探测）；会话页仅 Steer/Abort/Records，不叠长 Runtime 列表 |
 | Runtime / Agent 探测粒度 | **Runtime**：单卡「检查」+ 库存区主操作「一键探测」（对当前产品面列表并发调用既有 `POST …/runtimes/{id}/probe`，并发上限 3；每卡进度 + 聚合成功/失败；无 batch 端点）。**Agent**：仍仅单卡「探测」`POST …/agents/{id}/probe`。面板「刷新」只重拉列表（`listRuntimes`/`listSessions`），**不**触发探测。pilot：`docs/ai/pilot/2026-11-19-oar-runtime-probe-all/`（证据：`AgentHubView.vue` `runProbeAllRuntimes` / `runRuntimeProbe`） |
 
 真源审计样例（Cloud Agent 机）：仅 Grok 为 executable+登录；Claude/Codex/OpenCode=`not_found`。pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-ux-real/`。  

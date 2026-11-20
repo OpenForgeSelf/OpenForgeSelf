@@ -69,8 +69,8 @@ import AgentHubAgentForm from './AgentHubAgentForm.vue'
 import AgentHubEventStream from './AgentHubEventStream.vue'
 import RuntimeBrandIcon from './RuntimeBrandIcon.vue'
 
-/** 当前页签。 */
-type TabKey = 'agents' | 'delegate' | 'tasks' | 'sessions'
+/** 当前页签。Runtime 检测与会话分开展示，避免长列表叠会话操作。 */
+type TabKey = 'agents' | 'delegate' | 'tasks' | 'runtimes' | 'sessions'
 const tab = ref<TabKey>('agents')
 const pluginVersion = ref('')
 
@@ -892,10 +892,17 @@ onBeforeUnmount(() => {
       </button>
       <button
         class="ok-tab"
+        :class="{ 'ok-tab--on': tab === 'runtimes' }"
+        @click="tab = 'runtimes'; loadRuntimeSurface()"
+      >
+        Runtime 检测
+      </button>
+      <button
+        class="ok-tab"
         :class="{ 'ok-tab--on': tab === 'sessions' }"
         @click="tab = 'sessions'; loadRuntimeSurface()"
       >
-        Runtime / Session
+        会话
       </button>
     </nav>
 
@@ -1103,18 +1110,18 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ─────────── Runtime 库存 + Session 操作（分区 · 一节一事） ─────────── -->
-    <section v-show="tab === 'sessions'" class="ok-panel ok-panel--stack">
+    <!-- ─────────── Runtime 检测（仅库存；会话见独立页签） ─────────── -->
+    <section v-show="tab === 'runtimes'" class="ok-panel ok-panel--stack">
       <div class="ok-toolbar">
         <button class="ok-btn" :disabled="loadingSessions" @click="loadRuntimeSurface">
           {{ loadingSessions ? '加载中…' : '刷新' }}
         </button>
         <span class="ok-hint">
-          已装 {{ installedRuntimes.length }} · 未装/不可用 {{ missingRuntimes.length }} · Session {{ sessions.length }}
+          已装 {{ installedRuntimes.length }} · 未装/不可用 {{ missingRuntimes.length }}
+          · 会话请到「会话」页签（{{ sessions.length }}）
         </span>
       </div>
 
-      <!-- A. Runtime 库存（发现与本机真相；不含 scripted） -->
       <div class="ok-section">
         <div class="ok-section__head ok-section__head--row">
           <div class="ok-section__head-text">
@@ -1123,6 +1130,7 @@ onBeforeUnmount(() => {
               本机真实安装态（OAR installation）。仅 <code class="ok-code">via=executable</code> 标「已安装」；
               未装显示 not_found，不假装成功。测试用 scripted 不在此列表。
               「一键探测」会对列表逐条真实 probe；与上方「刷新」（只重拉列表）不同。
+              Steer / Abort / Records 在「会话」页签。
             </p>
           </div>
           <div class="ok-section__head-actions">
@@ -1239,11 +1247,20 @@ onBeforeUnmount(() => {
           </li>
         </ul>
       </div>
+    </section>
 
-      <!-- B. Session 操作（与库存分区拉开；一节一事） -->
+    <!-- ─────────── 会话（独立页签 · 不含 Runtime 长列表） ─────────── -->
+    <section v-show="tab === 'sessions'" class="ok-panel ok-panel--stack">
+      <div class="ok-toolbar">
+        <button class="ok-btn" :disabled="loadingSessions" @click="loadRuntimeSurface">
+          {{ loadingSessions ? '加载中…' : '刷新' }}
+        </button>
+        <span class="ok-hint">Session {{ sessions.length }} · Runtime 检测请切到「Runtime 检测」页签</span>
+      </div>
+
       <div class="ok-section">
         <div class="ok-section__head">
-          <h3 class="ok-section__title">Session 操作</h3>
+          <h3 class="ok-section__title">会话</h3>
           <p class="ok-section__desc">
             选会话 → Steer / Abort / 关闭。对外只展示 SessionKey，不暴露内部 OarSessionId。
           </p>

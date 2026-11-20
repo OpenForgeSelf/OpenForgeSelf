@@ -11,9 +11,10 @@ Agent 中枢：登记本机外部 Coding Agent → 委派任务 → 看任务/�
 1. **Agent 目录**：扫描/登记/授信/探测。每张卡带**厂商品牌图标**（互不相同）。
 2. **发起委派**：选已启用 Agent，填提示词，可选 SessionKey 续接。
 3. **任务台**：看进度、审批、取消。
-4. **Runtime / Session**（两节，一节一事）  
-   - **Runtime 库存**：本机安装真相。已装（可执行文件）/ 未装（not_found）/ 内置捆绑。不含测试用 scripted。  
-   - **Session 操作**：选会话 → 发送 / Abort / 关闭；Records 流。
+4. **Runtime 检测**（独立页签）  
+   - **Runtime 库存**：本机安装真相。已装（可执行文件）/ 未装（not_found）/ 内置捆绑。不含测试用 scripted。不叠会话操作，避免长列表过长。  
+5. **会话**（独立页签）  
+   - 选会话 → 发送 / Abort / 关闭；Records 流。不展示 Runtime 检测网格。
 
 ## 界面交互行为
 

@@ -242,21 +242,23 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     }
   })
 
-  test('Session 页签主链路冒烟（Runtime/Session API + 空态）', async ({ page }) => {
+  test('Session 页签主链路冒烟（会话独立页签 + API + 空态）', async ({ page }) => {
     mkdirSync(OUT_DIR, { recursive: true })
     const evidence = attachCollectors(page)
     await page.goto(PLUGIN_ROUTE)
     await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
 
-    // 切到 Session 页签（文案「Session」）
-    const sessionTab = page.locator('.ok-tab', { hasText: 'Session' })
+    // 会话与 Runtime 检测已分页签；本用例只进「会话」
+    const sessionTab = page.locator('.ok-tab', { hasText: '会话' })
     await expect(sessionTab).toBeVisible({ timeout: 15000 })
     await sessionTab.click()
 
-    // 面板可见：Runtime 区或空态 + Session 空态文案之一
-    await expect(page.locator('.ok-panel').filter({ hasText: /Runtime|Session|会话/ })).toBeVisible({
+    await expect(page.locator('.ok-panel').filter({ hasText: /会话|Session/ })).toBeVisible({
       timeout: 15000,
     })
+    // Runtime 长列表 / 一键探测不应出现在会话页签（v-show 隐藏，断言可见性）
+    await expect(page.getByRole('button', { name: /一键探测/ })).toBeHidden()
+    await expect(page.locator('.ok-runtime-grid')).toBeHidden()
     const emptySession = page.locator('.ok-empty', { hasText: '还没有持久化会话' })
     const sessionList = page.locator('.ok-panel li.ok-task')
     await expect(emptySession.or(sessionList.first())).toBeVisible({ timeout: 15000 })
@@ -364,9 +366,9 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     await page.goto(PLUGIN_ROUTE)
     await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
 
-    const sessionTab = page.locator('.ok-tab', { hasText: 'Session' })
-    await expect(sessionTab).toBeVisible({ timeout: 15000 })
-    await sessionTab.click()
+    const runtimesTab = page.locator('.ok-tab', { hasText: /Runtime 检测/ })
+    await expect(runtimesTab).toBeVisible({ timeout: 15000 })
+    await runtimesTab.click()
 
     // 面板「刷新」只 list，不得触发 probe
     const refreshBefore = probeUrls.length

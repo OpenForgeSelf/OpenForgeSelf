@@ -345,6 +345,85 @@ test.describe('统一 e2e（插件层）：Agent 中枢（AgentHub）界面（�
     }
   })
 
+  test('Runtime 一键探测：点击后发起 probe，刷新不发起 probe（#78）', async ({ page }) => {
+    mkdirSync(OUT_DIR, { recursive: true })
+    const evidence = attachCollectors(page)
+
+    const probeUrls: string[] = []
+    const listRuntimeUrls: string[] = []
+    page.on('request', (req) => {
+      const u = req.url()
+      if (/\/api\/agent-hub\/runtimes\/[^/]+\/probe(\?|$)/.test(u) && req.method() === 'POST') {
+        probeUrls.push(u)
+      }
+      if (/\/api\/agent-hub\/runtimes(\?|$)/.test(u) && req.method() === 'GET' && !u.includes('/probe')) {
+        listRuntimeUrls.push(u)
+      }
+    })
+
+    await page.goto(PLUGIN_ROUTE)
+    await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })
+
+    const sessionTab = page.locator('.ok-tab', { hasText: 'Session' })
+    await expect(sessionTab).toBeVisible({ timeout: 15000 })
+    await sessionTab.click()
+
+    // 面板「刷新」只 list，不得触发 probe
+    const refreshBefore = probeUrls.length
+    const refreshBtn = page.locator('.ok-panel').filter({ hasText: /Runtime/ }).locator('button', {
+      hasText: '刷新',
+    })
+    await expect(refreshBtn).toBeVisible({ timeout: 15000 })
+    await refreshBtn.click()
+    await page.waitForTimeout(800)
+    expect(probeUrls.length, '点「刷新」不得发起 /runtimes/*/probe').toBe(refreshBefore)
+
+    const probeAllBtn = page.getByRole('button', { name: /一键探测/ })
+    await expect(probeAllBtn).toBeVisible({ timeout: 15000 })
+
+    // 列表为空时按钮可能 disabled——仍须可见且与刷新分离；有 Runtime 才断言真实 probe
+    const disabled = await probeAllBtn.isDisabled()
+    if (disabled) {
+      dumpEvidence('agent-hub-probe-all-empty', evidence, [
+        '一键探测按钮可见但 disabled（暂无 Runtime）',
+        `listRuntimeHits=${listRuntimeUrls.length}`,
+        `probeHits=${probeUrls.length}`,
+        'NOTE: refresh≠probe 已断言；真实 probe 轮询需 OAR Worker 产出 Runtime 列表',
+      ])
+      await page.screenshot({
+        path: path.join(OUT_DIR, 'agent-hub-probe-all-empty.png'),
+        fullPage: true,
+      })
+      // 契约：按钮存在 + 刷新未 probe；空列表不强制发请求
+      expect(probeUrls.length).toBe(0)
+      return
+    }
+
+    const before = probeUrls.length
+    await probeAllBtn.click()
+    await expect
+      .poll(() => probeUrls.length, {
+        message: '一键探测应至少发起 1 次 POST …/runtimes/{id}/probe',
+        timeout: 60000,
+      })
+      .toBeGreaterThan(before)
+
+    // 并发上限 3：任意时刻 in-flight 难在 e2e 精确量；至少请求数 ≤ 列表规模且 >0
+    expect(probeUrls.length - before).toBeGreaterThan(0)
+
+    await expect(page.locator('.ok-alert')).toContainText(/一键探测完成/, { timeout: 120000 })
+
+    await page.screenshot({
+      path: path.join(OUT_DIR, 'agent-hub-probe-all.png'),
+      fullPage: true,
+    })
+    dumpEvidence('agent-hub-probe-all', evidence, [
+      `probeHits=${probeUrls.length - before}`,
+      `listRuntimeHits=${listRuntimeUrls.length}`,
+      'refresh≠probe Verified；一键探测触发真实 probe Verified',
+    ])
+  })
+
   test('扫描区渲染附加扫描目录配置输入并可保存（UI 交互）', async ({ page }) => {
     await page.goto(PLUGIN_ROUTE)
     await expect(page.locator('.ok-root')).toBeVisible({ timeout: 30000 })

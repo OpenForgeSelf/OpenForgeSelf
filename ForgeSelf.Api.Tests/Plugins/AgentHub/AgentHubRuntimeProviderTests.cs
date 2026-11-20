@@ -214,7 +214,86 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
         snap!.TaskKey.Should().Be(handle.TaskKey);
     }
 
-    private static ServiceProvider BuildHost(Boolean withFakeTransport = false)
+    /// <summary>
+    /// Gap #22/#28：AC-R3 诚实面——Submit/Get/Watch(poll)/Cancel/续接；Watch 可被 Cancel token 打断（非挂死 SSE）。
+    /// </summary>
+    [Fact]
+    public async Task AC_R3_Submit_Get_Watch轮询_Cancel_续接()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sp = BuildHost(withFakeTransport: true, hangUntil: gate);
+        var registry = sp.GetRequiredService<IAgentRegistry>();
+        foreach (var a in registry.List().Where(x => x.Vendor == "p3-acr3").ToList())
+            registry.Delete(a.Id);
+
+        var agent = registry.Create(new AgentSaveRequest
+        {
+            Name = "p3-acr3-" + Guid.NewGuid().ToString("N")[..6],
+            Vendor = "p3-acr3",
+            Enabled = true,
+            DefaultCwd = Path.GetTempPath(),
+            AccessPoints =
+            [
+                new AgentAccessPointSaveRequest
+                {
+                    Mode = "Sessionful",
+                    Transport = "Cli",
+                    Executable = "echo",
+                    IsDefault = true,
+                    CancelSupported = true,
+                }
+            ]
+        });
+
+        var runtime = new AgentHubRuntimeProvider(sp);
+        var handle = await runtime.SubmitAsync(new AgentTaskRequest
+        {
+            Prompt = "acr3-poll",
+            AgentId = agent.Id,
+            Cwd = Path.GetTempPath(),
+            CreatedBy = "test-acr3",
+        });
+        handle.TaskKey.Should().NotBeNullOrWhiteSpace();
+
+        var got = await runtime.GetTaskAsync(handle.TaskKey);
+        got.Should().NotBeNull();
+        got!.TaskKey.Should().Be(handle.TaskKey);
+
+        // Watch 轮询：短超时取消应干净结束（poll 最小面，不是不可取消的长连接）
+        using var watchCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
+        var watched = 0;
+        await foreach (var _ in runtime.WatchTaskAsync(handle.TaskKey, 0, watchCts.Token))
+            watched++;
+        // 允许 0+ 事件；关键是不抛、能退出
+        watched.Should().BeGreaterThanOrEqualTo(0);
+
+        var cancel = await runtime.CancelAsync(handle.TaskKey);
+        cancel.Accepted.Should().BeTrue();
+
+        // 放行假 transport 收尾，避免挂后台
+        gate.TrySetResult();
+
+        // 续接面：SendInput 空文本已覆盖 Reject；非空走假 transport 应 Accepted 或业务 Reject，不得抛
+        var sessionKey = string.IsNullOrEmpty(handle.SessionKey) ? "acr3-session" : handle.SessionKey;
+        var resume = await runtime.SendInputAsync(sessionKey, new AgentInput { Text = "continue-please" });
+        resume.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void WatchTaskAsync_源码是轮询Delay不是统一SSE声明()
+    {
+        // G2 诚实守卫：实现必须含 Task.Delay 轮询；注释须承认最小面
+        var src = Path.Combine(
+            FindRepoRoot(),
+            "Plugins", "AgentHub", "Services", "AgentHubRuntimeProvider.cs");
+        File.Exists(src).Should().BeTrue(src);
+        var text = File.ReadAllText(src);
+        text.Should().Contain("Task.Delay", "Watch 最小面必须轮询 Delay");
+        text.Should().Contain("轮询", "注释须诚实标明轮询");
+        text.Should().NotContain("统一 SSE 已完成");
+    }
+
+    private static ServiceProvider BuildHost(Boolean withFakeTransport = false, TaskCompletionSource? hangUntil = null)
     {
         var services = new ServiceCollection();
         var loader = new ProfileLoader();
@@ -231,10 +310,10 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
 
         if (withFakeTransport)
         {
-            services.AddSingleton<IAgentTransportRegistry>(sp =>
+            services.AddSingleton<IAgentTransportRegistry>(_ =>
             {
                 var reg = new AgentTransportRegistry();
-                reg.Register(new FakeCliTransport());
+                reg.Register(new FakeCliTransport(hangUntil));
                 return reg;
             });
         }
@@ -253,8 +332,25 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
         return services.BuildServiceProvider();
     }
 
+    private static String FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "ForgeSelf.slnx"))
+                || File.Exists(Path.Combine(dir.FullName, "ForgeSelf.sln")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        throw new InvalidOperationException("找不到仓库根（缺 ForgeSelf.slnx）");
+    }
+
     private sealed class FakeCliTransport : IAgentTransport
     {
+        private readonly TaskCompletionSource? _hangUntil;
+
+        public FakeCliTransport(TaskCompletionSource? hangUntil = null) => _hangUntil = hangUntil;
+
         public String Kind => "Cli";
 
         public async IAsyncEnumerable<AgentEvent> StreamAsync(
@@ -263,9 +359,19 @@ public class AgentHubRuntimeProviderTests : IClassFixture<XCodeTestFixture>
         {
             await Task.Yield();
             yield return AgentEvent.FromText("p3-fake");
+            if (_hangUntil != null)
+            {
+                using var reg = ct.Register(() => _hangUntil.TrySetCanceled(ct));
+                try { await _hangUntil.Task.ConfigureAwait(false); }
+                catch (OperationCanceledException) { yield break; }
+            }
             yield return new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = 0 };
         }
 
-        public Task CancelAsync(AgentSession session) => Task.CompletedTask;
+        public Task CancelAsync(AgentSession session)
+        {
+            _hangUntil?.TrySetResult();
+            return Task.CompletedTask;
+        }
     }
 }

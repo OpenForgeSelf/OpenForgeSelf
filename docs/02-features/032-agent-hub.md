@@ -96,6 +96,18 @@ Agent 目录 tab 工具栏下方新增「附加扫描目录」配置块：textar
 真源审计样例（Cloud Agent 机）：仅 Grok 为 executable+登录；Claude/Codex/OpenCode=`not_found`。pilot：`docs/ai/pilot/2026-11-19-oar-agenthub-ux-real/`。  
 prod-honesty 闭环：`docs/ai/pilot/2026-11-20-oar-prod-honesty/` · PC-037。
 
+### 6.2 Watch / Session stream = 轮询最小面（诚实契约 · 2026-11-20）
+
+> Gap #22 / #28；统一 Watch SSE = **#63 缓做**（`not-taken` / P4 Not-to-do）。本节约束 **已发货面**，禁止把 poll 写成「生产级 SSE 已完成」。
+
+| 面 | 实际行为 | 不是什么 |
+| --- | --- | --- |
+| `IAgentRuntime.WatchTaskAsync` | `AgentHubRuntimeProvider` **轮询** `DelegationEvent`（约 200ms）直到任务终态或 `CancellationToken`；按 `afterSequence` 增量 | **不是**统一跨任务/跨会话的生产级 SSE 总线 |
+| `GET api/agent-hub/sessions/{key}/stream` | 控制器注释明示「Record SSE（最小面：轮询 EventStore 增量）」；心跳 + Closed/Interrupted → `done` | **不是** #63「替换 Watch/session stream 为 unified SSE」 |
+| `GET api/agent-hub/tasks/{id}/stream` | 任务级 SSE（历史委派 UI）仍存在 | 不因此宣称 `IAgentRuntime.Watch*` 已统一为 SSE |
+
+**AC-R3 诚实读法**（`docs/ai/pilot/2026-11-19-oar-agenthub-runtime/02-spec.md`）：`Submit` / `GetTask` / `Watch`（poll）/ `SendInput`（续接）/ `Cancel` 可用即满足；**不得**把 AC-R3 勾成「Watch = unified SSE」。证据与守卫：`AgentHubRuntimeProviderTests`（poll/Cancel/续接）+ pilot `docs/ai/pilot/2026-11-20-oar-a-bucket-honesty/`。
+
 ## 7. 来源
 
 - 输入4 调研报告：`docs/06-research/002-cli-agent-detection-delegation.md`（MCO 探测三件套 / Forkn 路径可配 / 五元组适配器契约等落地建议）

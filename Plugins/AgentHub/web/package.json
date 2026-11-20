@@ -6,10 +6,12 @@
   "description": "Agent 中枢插件自带界面（登记外部 agent、发起委派、观察事件流、审批权限）：构建为 ESM，由宿主运行时远程加载",
   "scripts": {
     "build": "vite build",
-    "dev": "vite build --watch"
+    "dev": "vite build --watch",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
-    "vite": "^6.2.4"
+    "vite": "^6.2.4",
+    "vitest": "^3.2.4"
   }
 }

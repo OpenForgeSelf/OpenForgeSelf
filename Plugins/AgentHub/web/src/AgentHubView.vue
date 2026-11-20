@@ -17,6 +17,11 @@
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
+  PROBE_ALL_CONCURRENCY,
+  formatProbeAllMessage,
+  mapPool,
+} from './probeAllRuntimes'
+import {
   listAgents,
   createAgent,
   updateAgent,
@@ -320,7 +325,6 @@ const probingAll = ref(false)
 const probeAllProgress = ref({ done: 0, total: 0, ok: 0, err: 0 })
 const runtimeProbeStatus = reactive<Record<string, ProbeCardStatus>>({})
 const runtimeProbeErrors = reactive<Record<string, string>>({})
-const PROBE_ALL_CONCURRENCY = 3
 
 /** 安装确认对话框。 */
 const installTarget = ref<{ runtimeId: string; planJson: string } | null>(null)
@@ -657,40 +661,27 @@ async function runProbeAllRuntimes() {
     delete runtimeProbeErrors[id]
   }
 
-  let cursor = 0
-  async function worker() {
-    while (cursor < ids.length) {
-      const id = ids[cursor++]
-      if (!id) continue
-      runtimeProbeStatus[id] = 'running'
-      try {
-        const r = await probeRuntime(id)
-        runtimeProbeMap[id] = r
-        runtimeDetailOpen[id] = true
-        runtimeProbeStatus[id] = 'ok'
-        probeAllProgress.value.ok += 1
-      } catch (e) {
-        const msg = (e as Error).message
-        runtimeProbeStatus[id] = 'err'
-        runtimeProbeErrors[id] = msg
-        probeAllProgress.value.err += 1
-      } finally {
-        probeAllProgress.value.done += 1
-      }
+  await mapPool(ids, PROBE_ALL_CONCURRENCY, async (id) => {
+    runtimeProbeStatus[id] = 'running'
+    try {
+      const r = await probeRuntime(id)
+      runtimeProbeMap[id] = r
+      runtimeDetailOpen[id] = true
+      runtimeProbeStatus[id] = 'ok'
+      probeAllProgress.value.ok += 1
+    } catch (e) {
+      const msg = (e as Error).message
+      runtimeProbeStatus[id] = 'err'
+      runtimeProbeErrors[id] = msg
+      probeAllProgress.value.err += 1
+    } finally {
+      probeAllProgress.value.done += 1
     }
-  }
+  })
 
-  const pool = Math.min(PROBE_ALL_CONCURRENCY, ids.length)
-  await Promise.all(Array.from({ length: pool }, () => worker()))
   probingAll.value = false
-  const { ok, err, total } = probeAllProgress.value
-  if (err === 0) {
-    setMsg(`一键探测完成：${ok}/${total} 全部成功`)
-  } else if (ok === 0) {
-    setMsg(`一键探测完成：${err}/${total} 全部失败（见各卡错误）`, 'err')
-  } else {
-    setMsg(`一键探测完成：${ok} 成功 · ${err} 失败（共 ${total}）`, 'err')
-  }
+  const summary = formatProbeAllMessage(probeAllProgress.value)
+  setMsg(summary.text, summary.level === 'ok' ? undefined : 'err')
 }
 
 function probeStatusLabel(runtimeId?: string | null): string {

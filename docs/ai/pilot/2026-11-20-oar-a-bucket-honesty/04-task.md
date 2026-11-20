@@ -10,10 +10,15 @@ expected_files:
   - docs/ai/pilot/2026-11-19-oar-agenthub-runtime/02-spec.md
   - ForgeSelf.Api.Tests/Plugins/AgentHub/AgentHubRuntimeProviderTests.cs
   - ForgeSelf.Api.Tests/Plugins/AgentHub/AgentHubInterruptFixtureTests.cs
+  - Plugins/AgentHub/web/package.json
+  - Plugins/AgentHub/web/pnpm-lock.yaml
+  - Plugins/AgentHub/web/vitest.config.ts
   - Plugins/AgentHub/web/src/probeAllRuntimes.ts
+  - Plugins/AgentHub/web/src/probeAllRuntimes.spec.ts
   - Plugins/AgentHub/web/src/AgentHubView.vue
   - ForgeSelf.Web/e2e/plugins/agent-hub/agent-hub.spec.ts
   - docs/ai/pilot/2026-11-20-oar-a-bucket-honesty/
+
 rollback: "git revert <commit>"
 writeback: { feature_doc: 032-agent-hub, reason: "Watch poll honesty + interrupt fixtures + probe-all e2e" }
 ---

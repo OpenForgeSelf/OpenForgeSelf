@@ -44,7 +44,10 @@ Checklist #22/#28 把 Watch 标成可 DONE 的前提是：**文档与 AC 承认 
 | `docs/ai/pilot/2026-11-19-oar-agenthub-runtime/02-spec.md` | AC-R3 诚实标注强化（poll） |
 | `ForgeSelf.Api.Tests/Plugins/AgentHub/AgentHubRuntimeProviderTests.cs` | Watch poll + Submit/Get/Cancel/续接 |
 | `ForgeSelf.Api.Tests/Plugins/AgentHub/AgentHubInterruptFixtureTests.cs` | #25 crash/interrupt |
-| `Plugins/AgentHub/web/src/probeAllRuntimes.ts` (+ spec) | 并发池纯函数 + vitest |
+| `Plugins/AgentHub/web/package.json` | vitest 脚本 |
+| `Plugins/AgentHub/web/pnpm-lock.yaml` | lock 同步 |
+| `Plugins/AgentHub/web/vitest.config.ts` | 插件侧 vitest |
+| `Plugins/AgentHub/web/src/probeAllRuntimes.ts` (+ `probeAllRuntimes.spec.ts`) | 并发池纯函数 + vitest |
 | `Plugins/AgentHub/web/src/AgentHubView.vue` | 复用纯函数 |
 | `ForgeSelf.Web/e2e/plugins/agent-hub/agent-hub.spec.ts` | #78 一键探测 |
 

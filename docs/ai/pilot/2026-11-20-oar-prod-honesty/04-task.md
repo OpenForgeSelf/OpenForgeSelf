@@ -6,6 +6,7 @@ gate1: { mode: authorized-by-user, at: "2026-11-20T03:49Z", ref: "user:Critical 
 gate2: { mode: reviewer, at: null, decision: null }
 gate3: { mode: agent, at: null }
 expected_files:
+  - docs/02-features/032-agent-hub.md
   - Plugins/AgentHub/Services/OarTransport.cs
   - Plugins/AgentHub/Services/OarPromptTurnGate.cs
   - Plugins/AgentHub/Services/OarWorkerClient.cs
@@ -13,6 +14,7 @@ expected_files:
   - ForgeSelf.Api.Tests/Plugins/AgentHub/OarPromptTurnGateTests.cs
   - ForgeSelf.Api.Tests/Plugins/AgentHub/OarTransportTurnSettleTests.cs
   - ForgeSelf.Api.Tests/Plugins/AgentHub/OarHandlersHonestyGuardTests.cs
+  - ForgeSelf.Api.Tests/Plugins/AgentHub/OarWorkerClientTests.cs
   - docs/11-troubleshooting/problem-classes/PC-037-oar-honesty-without-evidence.md
   - docs/11-troubleshooting/cases/2026-11-20-oar-early-exit-and-bundled-fake.md
   - docs/ai/pilot/2026-11-20-oar-prod-honesty/

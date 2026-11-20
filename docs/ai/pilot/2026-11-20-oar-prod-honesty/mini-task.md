@@ -23,7 +23,7 @@
 
 ### Allowed / Forbidden
 
-- **Allowed**：`OarTransport`/`OarPromptTurnGate`/`OarWorkerClient`/`handlers.ts`、相关测试、PC-037/case、本 pilot。
+- **Allowed**：`docs/02-features/032-agent-hub.md`；`OarTransport`/`OarPromptTurnGate`/`OarWorkerClient`/`handlers.ts`；`OarPromptTurnGateTests`/`OarTransportTurnSettleTests`/`OarHandlersHonestyGuardTests`/`OarWorkerClientTests`；PC-037/case；本 pilot。
 - **Forbidden**：停杀用户宿主；把 scripted 推入产品 ListAgents/UI；假 Succeeded；改 csproj 版本。
 
 ## ③ 验证

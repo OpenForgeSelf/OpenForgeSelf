@@ -15,8 +15,6 @@ public sealed class OarTransport : IAgentTransport
     private readonly OarWorkerClient _client;
     private readonly AgentSessionManager _sessions;
     private readonly AgentRuntimeEventStore _eventStore;
-
-    /// <summary>运行中 taskId → worker sessionKey（供 Cancel）。</summary>
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Int32, String> _taskSessions = new();
 
     public OarTransport(OarWorkerClient client, AgentSessionManager sessions, AgentRuntimeEventStore eventStore)
@@ -26,10 +24,8 @@ public sealed class OarTransport : IAgentTransport
         _eventStore = eventStore;
     }
 
-    /// <inheritdoc />
     public String Kind => "Oar";
 
-    /// <inheritdoc />
     public async IAsyncEnumerable<AgentEvent> StreamAsync(
         AgentAccessPointDto ap,
         AgentRunRequest req,
@@ -96,7 +92,13 @@ public sealed class OarTransport : IAgentTransport
         TryAppendRecord(opened.SessionKey, "session.open", $"{{\"runtimeId\":\"{runtimeId}\"}}", session.TaskId);
 
         var buffered = await RunPromptBufferedAsync(
-                _client, _eventStore, opened.SessionKey, req.Prompt ?? String.Empty, session.TaskId, ct)
+                _client,
+                _eventStore,
+                opened.SessionKey,
+                req.Prompt ?? String.Empty,
+                session.TaskId,
+                req.TimeoutMs > 0 ? req.TimeoutMs : 600_000,
+                ct)
             .ConfigureAwait(false);
         foreach (var ev in buffered)
             yield return ev;
@@ -104,8 +106,7 @@ public sealed class OarTransport : IAgentTransport
         _taskSessions.TryRemove(session.TaskId, out _);
         try
         {
-            await _client.DisposeSessionAsync(opened.SessionKey, CancellationToken.None)
-                .ConfigureAwait(false);
+            await _client.DisposeSessionAsync(opened.SessionKey, CancellationToken.None).ConfigureAwait(false);
             _sessions.Close(opened.SessionKey);
         }
         catch (Exception ex)
@@ -116,14 +117,8 @@ public sealed class OarTransport : IAgentTransport
 
     private void TryAppendRecord(String sessionKey, String type, String? payload, Int32 taskId)
     {
-        try
-        {
-            _eventStore.Append(sessionKey, type, payload, taskId: taskId);
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[OarTransport] Record 落库失败: {0}", ex.Message);
-        }
+        try { _eventStore.Append(sessionKey, type, payload, taskId: taskId); }
+        catch (Exception ex) { XTrace.Log.Warn("[OarTransport] Record 落库失败: {0}", ex.Message); }
     }
 
     private static async Task<List<AgentEvent>> RunPromptBufferedAsync(
@@ -132,69 +127,91 @@ public sealed class OarTransport : IAgentTransport
         String sessionKey,
         String prompt,
         Int32 taskId,
+        Int32 timeoutMs,
         CancellationToken ct)
     {
         var results = new List<AgentEvent>();
         var eventQueue = new System.Collections.Concurrent.ConcurrentQueue<AgentEvent>();
+        var terminalEventSeen = 0;
         void OnSessionEvent(JsonElement payload)
         {
             try
             {
-                var type = payload.TryGetProperty("event", out var ev) && ev.TryGetProperty("type", out var t)
-                    ? t.GetString()
-                    : "oar_event";
+                String? type = null;
+                if (payload.TryGetProperty("event", out var ev) && ev.ValueKind == JsonValueKind.Object)
+                {
+                    if (ev.TryGetProperty("kind", out var kindEl)) type = kindEl.GetString();
+                    else if (ev.TryGetProperty("type", out var typeEl)) type = typeEl.GetString();
+                }
+                type ??= "oar_event";
+                if (OarPromptTurnGate.IsTerminalEventType(type))
+                    System.Threading.Interlocked.Exchange(ref terminalEventSeen, 1);
+
                 var text = payload.TryGetProperty("event", out var ev2) && ev2.TryGetProperty("text", out var tx)
                     ? tx.GetString()
                     : payload.GetRawText();
-                eventQueue.Enqueue(AgentEvent.FromText(text ?? type ?? "event"));
-                try
-                {
-                    eventStore.Append(sessionKey, type ?? "oar_event", payload.GetRawText(), taskId: taskId);
-                }
-                catch
-                {
-                    /* ignore persist errors in event callback */
-                }
+                eventQueue.Enqueue(AgentEvent.FromText(text ?? type));
+                try { eventStore.Append(sessionKey, type, payload.GetRawText(), taskId: taskId); }
+                catch { }
             }
-            catch
-            {
-                /* ignore malformed */
-            }
+            catch { }
         }
 
         client.SessionEventReceived += OnSessionEvent;
         try
         {
             var outcome = await client.PromptAsync(sessionKey, prompt, ct).ConfigureAwait(false);
-            while (eventQueue.TryDequeue(out var queued))
-                results.Add(queued);
+            while (eventQueue.TryDequeue(out var queued)) results.Add(queued);
 
             if (!outcome.Accepted)
             {
-                results.Add(AgentEvent.FromError(
-                    $"prompt 被拒: {outcome.Code} {outcome.Reason}".Trim()));
+                results.Add(AgentEvent.FromError($"prompt 被拒: {outcome.Code} {outcome.Reason}".Trim()));
                 try
                 {
                     eventStore.Append(sessionKey, "prompt.reject",
-                        $"{{\"code\":\"{outcome.Code}\",\"reason\":\"{outcome.Reason}\"}}",
-                        taskId: taskId);
+                        $"{{\"code\":\"{outcome.Code}\",\"reason\":\"{outcome.Reason}\"}}", taskId: taskId);
                 }
-                catch { /* ignore */ }
+                catch { }
+                results.Add(new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = 1 });
+                return results;
             }
-            else if (!outcome.Reason.IsNullOrEmpty())
+
+            if (!outcome.Reason.IsNullOrEmpty())
             {
                 results.Add(AgentEvent.FromText(outcome.Reason!));
-                try
-                {
-                    eventStore.Append(sessionKey, "prompt.ok", outcome.Reason, taskId: taskId);
-                }
-                catch { /* ignore */ }
+                try { eventStore.Append(sessionKey, "prompt.ok", outcome.Reason, taskId: taskId); }
+                catch { }
             }
 
-            await Task.Delay(50, ct).ConfigureAwait(false);
-            while (eventQueue.TryDequeue(out var late))
-                results.Add(late);
+            var settle = await OarPromptTurnGate.WaitUntilSettledAsync(
+                    getStatus: token => client.SessionStatusAsync(sessionKey, token),
+                    terminalEventSeen: () => System.Threading.Volatile.Read(ref terminalEventSeen) == 1,
+                    pollInterval: OarPromptTurnGate.DefaultPollInterval,
+                    timeout: TimeSpan.FromMilliseconds(Math.Max(1, timeoutMs)),
+                    ct: ct)
+                .ConfigureAwait(false);
 
+            while (eventQueue.TryDequeue(out var late)) results.Add(late);
+
+            if (!settle.Ok)
+            {
+                if (settle.Reason == OarTurnSettleReason.TimedOut)
+                {
+                    results.Add(AgentEvent.FromError($"timeout waiting for OAR turn settle after {timeoutMs}ms"));
+                    try { await client.ControlAsync(sessionKey, "abort", CancellationToken.None).ConfigureAwait(false); }
+                    catch (Exception abortEx) { XTrace.Log.Debug("[OarTransport] settle timeout abort: {0}", abortEx.Message); }
+                    results.Add(new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = -1 });
+                }
+                else
+                {
+                    results.Add(AgentEvent.FromError("cancelled"));
+                    results.Add(new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = -1 });
+                }
+                return results;
+            }
+
+            try { eventStore.Append(sessionKey, "prompt.settled", $"{{\"reason\":\"{settle.Reason}\"}}", taskId: taskId); }
+            catch { }
             results.Add(new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = 0 });
         }
         catch (OperationCanceledException)
@@ -211,25 +228,16 @@ public sealed class OarTransport : IAgentTransport
         {
             client.SessionEventReceived -= OnSessionEvent;
         }
-
         return results;
     }
 
-    /// <inheritdoc />
     public async Task CancelAsync(AgentSession session)
     {
         if (!_taskSessions.TryGetValue(session.TaskId, out var key) || key.IsNullOrEmpty())
             key = session.SessionRef;
         if (key.IsNullOrEmpty()) return;
         if (!_client.IsAvailable) return;
-
-        try
-        {
-            await _client.ControlAsync(key, "abort").ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[OarTransport] abort 失败: {0}", ex.Message);
-        }
+        try { await _client.ControlAsync(key, "abort").ConfigureAwait(false); }
+        catch (Exception ex) { XTrace.Log.Warn("[OarTransport] abort 失败: {0}", ex.Message); }
     }
 }

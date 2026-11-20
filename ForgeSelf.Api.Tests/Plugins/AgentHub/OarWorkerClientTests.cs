@@ -144,6 +144,10 @@ public class OarWorkerClientTests
         var tmp = "/tmp/node24/node-v24.11.0-linux-x64/bin/node";
         if (File.Exists(tmp)) candidates.Insert(0, tmp);
 
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var nvmNode = Path.Combine(home, ".nvm", "versions", "node", "v24.22.3", "bin", "node");
+        if (File.Exists(nvmNode)) candidates.Insert(0, nvmNode);
+
         foreach (var c in candidates.Distinct(StringComparer.Ordinal))
         {
             try

@@ -233,6 +233,15 @@ public sealed class OarWorkerClient : IAsyncDisposable, IDisposable
             ct).ConfigureAwait(false);
     }
 
+    /// <summary><c>session.status</c>（根 agent 状态 fold；用于 prompt 后等待 turn 结算）。</summary>
+    public async Task<JsonElement> SessionStatusAsync(string sessionKey, CancellationToken ct = default)
+    {
+        return await RequestAsync(
+            "session.status",
+            new Dictionary<string, object?> { ["sessionKey"] = sessionKey },
+            ct).ConfigureAwait(false);
+    }
+
     /// <summary>底层 JSON-RPC 请求。</summary>
     public async Task<JsonElement> RequestAsync(string method, object? parameters, CancellationToken ct = default)
     {

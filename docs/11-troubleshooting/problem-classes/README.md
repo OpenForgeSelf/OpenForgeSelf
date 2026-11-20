@@ -43,6 +43,7 @@
 | 设置页「测试连接（选定模型）」探针 / 成功判据 / 回复内容关键词校验 | PC-034 |
 | 会话起始目录 ~ 占位符 / startDir 解析 / 工作目录报错泄露宿主路径 | PC-035 |
 | 终端会话 cwd 跟踪 / cd 后目录不更新 / cmd 包裹命令与标记协议 / shell kind 新增 | PC-036 |
+| OAR prompt 结算 / installation 诚实 / 假 bundled / 短 sleep Exit | PC-037 |
 
 ## 台账总表
 
@@ -85,6 +86,7 @@
 | PC-034 | 插件 DI 构造服务经子容器解析宿主/跨插件契约恒 null | guarded | G1+G2 active（allowlist 空账） | 0 | [PC-034](PC-034-plugin-di-service-host-contract-miss.md) |
 | PC-035 | 会话起始目录占位符（~）未解析，报错拼接解析路径泄露宿主进程目录 | guarded | G1 active | 1（延期债到期：11-13 分诊 TODO、11-15 实测命中） | [PC-035](PC-035-tilde-startdir-unresolved-info-leak.md) |
 | PC-036 | cmd 会话执行后 cwd 采集缺失（交互式 %VAR% 解析期展开 + 响应无 cwd + 前端不回写） | guarded | G1 active（真实 cmd 进程集成测试） | 0 | [PC-036](PC-036-cmd-session-cwd-capture-missing.md) |
+| PC-037 | OAR 无证据即 available/Succeeded | guarded | G1×2+G2 active | 0 | [PC-037](PC-037-oar-honesty-without-evidence.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

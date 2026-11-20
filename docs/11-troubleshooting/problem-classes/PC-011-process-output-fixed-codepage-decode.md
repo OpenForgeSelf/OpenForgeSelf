@@ -15,6 +15,7 @@ signature:
   - {id: S5, kind: test, path: "ForgeSelf.Api.Tests/Plugins/RunTerminalCommandEncodingTests.cs"}
 allowlist:
   - {path: "Plugins/McpCenter/Services/McpClient/StdioMcpTransport.cs", reason: "协议流：MCP 规范强制 JSON-RPC over stdio 用 UTF-8，固定 UTF-8 是正确姿势（PC-010 §3 同款裁决）", expires: "2027-12-31"}
+  - {path: "Plugins/AgentHub/Services/OarWorkerClient.cs", reason: "协议流：OAR RuntimeWorker JSON-RPC/JSONL over stdio 强制 UTF-8（与 MCP stdio 同款）", expires: "2027-12-31"}
   - {path: "Plugins/ScriptRunner/Services/ScriptExecutor.cs", reason: "事件流形态待迁移（BeginOutputReadLine 按宿主码页解码=本类变体B），已挂账 TODO.md「PC-011」，迁移收口后必须移出本表", expires: "2026-12-31"}
 guards:
   - {level: G1, path: ForgeSelf.Api.Tests/Plugins/RunTerminalCommandEncodingTests.cs, status: active}

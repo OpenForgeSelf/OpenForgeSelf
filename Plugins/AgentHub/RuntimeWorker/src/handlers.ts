@@ -35,8 +35,11 @@ async function requireAvailable(
   env?: SessionOptions['env'],
 ): Promise<AvailableInstallation> {
   if (!rt.installation) {
-    // Bundled / scripted always exposes installation; treat missing probe as bundled.
-    return { kind: 'available', via: 'bundled' };
+    // Honest unavailable: missing probe ≠ bundled. scripted/vendor always expose installation.
+    throw Object.assign(new Error(`runtime ${rt.id} not installed`), {
+      code: -32003,
+      data: { kind: 'not_found' },
+    });
   }
   const snap = await rt.installation(env ? { env } : undefined);
   if (snap.kind !== 'available') {
@@ -119,7 +122,8 @@ export async function dispatch(
       const runtimeId = str(params, 'runtimeId')!;
       const rt = requireRuntime(ctx, runtimeId);
       if (!rt.installation) {
-        return { runtimeId, snapshot: { kind: 'available', via: 'bundled' } };
+        // Product honesty: never advertise bundled-as-available when there is no probe.
+        return { runtimeId, snapshot: { kind: 'not_found' } };
       }
       const snapshot = await rt.installation();
       return { runtimeId, snapshot: jsonSafe(snapshot) };

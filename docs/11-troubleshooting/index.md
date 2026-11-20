@@ -20,6 +20,7 @@
 | 手敲命令起宿主 exit 0 无端口 / vite 崩 | [PC-007](problem-classes/PC-007-manual-dev-launch-silent-trap.md)（用 `scripts/dev-stack.ps1`） |
 | 根 `pnpm dev` 需启动宿主前后端 | case [2026-11-16 根开发入口](cases/2026-11-16-dev-api-multi-instance.md) → [PC-007](problem-classes/PC-007-manual-dev-launch-silent-trap.md) |
 | Agent 委派「成功」但进程未退出/状态不一致 | [PC-004](problem-classes/PC-004-agent-report-vs-process-terminal-state.md)（候选，待定性） |
+| OAR 过早 Succeeded / 假 bundled available | case [2026-11-20](cases/2026-11-20-oar-early-exit-and-bundled-fake.md) → [PC-037](problem-classes/PC-037-oar-honesty-without-evidence.md) |
 | 外部 MCP 握手 `-32602 Invalid request parameters`、新增连接/测试失败、握手成功仍报「测试失败」、编辑不回显 | case [2026-10-17 外部 MCP 客户端合规](cases/2026-10-17-mcp-external-client-protocol.md) → [PC-008](problem-classes/PC-008-mcp-external-client-protocol.md) |
 | 外部 MCP stdio 配 `npx` 报 400「无法启动外部 MCP 进程…系统找不到指定的文件」，或进程起了但 tools/list 永远超时（服务器沉默） | case [2026-10-18 npx 三层全灭](cases/2026-10-18-mcp-stdio-npx-windows-shim.md) → [PC-010](problem-classes/PC-010-mcp-stdio-launch-and-framing.md) |
 | 子进程命令输出中文乱码（全 `?`/U+FFFD）、`run_terminal_command` 返回坏文本而 `read_file` 正常 | case [2026-10-22 固定码页解码](cases/2026-10-22-process-output-fixed-codepage-decode.md) → [PC-011](problem-classes/PC-011-process-output-fixed-codepage-decode.md) |

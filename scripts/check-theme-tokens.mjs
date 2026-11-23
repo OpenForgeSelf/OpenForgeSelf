@@ -45,8 +45,21 @@ try {
   console.error(`[check-theme-tokens] 无法读取自定义 token 白名单: ${ALLOW_FILE} (${err.message})`);
   process.exit(1);
 }
-const allowedPrefixes = Array.isArray(allowCfg.prefixes) ? allowCfg.prefixes : [];
-const allowedTokens = new Set(Array.isArray(allowCfg.tokens) ? allowCfg.tokens : []);
+const allowedPrefixes = Array.isArray(allowCfg.prefixes)
+  ? allowCfg.prefixes.map((p) => String(p.name ?? p))
+  : [];
+const allowedTokens = new Set(
+  Array.isArray(allowCfg.tokens) ? allowCfg.tokens.map((t) => String(t.name ?? t)) : [],
+);
+// 文件级豁免（W7 收口定稿，2026-11-23）：tailwind.css @theme 桥接层（R6 已批，
+// 值只引用 --el-*）、展示型开发工具（FR3 评审说明）、DesignSystem --ds-* 契约定义域。
+// 精确相对路径匹配（归一为 /），不做 glob 防宽放。
+const fileExemptions = Array.isArray(allowCfg.fileExemptions)
+  ? allowCfg.fileExemptions.map((e) => String(e.path ?? e).replaceAll('\\', '/'))
+  : [];
+function isExemptFile(rel) {
+  return fileExemptions.includes(rel.replaceAll('\\', '/'));
+}
 function isAllowedCustom(token) {
   if (allowedTokens.has(token)) return true;
   return allowedPrefixes.some((p) => token.startsWith(p));
@@ -141,6 +154,7 @@ function processFile(full) {
   if (ignore.some((p) => p.test(full))) return;
   const text = fs.readFileSync(full, 'utf8');
   const rel = path.relative(root, full);
+  if (isExemptFile(rel)) return;
   const isVue = full.endsWith(".vue");
   const isStyleFile = /\.(css|scss)$/.test(full);
   // .vue 仅在 <style> 块内检查硬编码颜色，避免误伤 <script> 里的注释 / 类型联合 / 字符串字面量（如 'blue'）
@@ -236,5 +250,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Theme token check: OK（已校验 ${elementTokens.size} 个 Element token；自定义 token 白名单 ${allowedPrefixes.length} 个命名空间 + ${allowedTokens.size} 个独立 token）`,
+  `Theme token check: OK（已校验 ${elementTokens.size} 个 Element token；自定义 token 白名单 ${allowedPrefixes.length} 个命名空间 + ${allowedTokens.size} 个独立 token；文件级豁免 ${fileExemptions.length} 个）`,
 );

@@ -75,6 +75,14 @@ if [ -n "$STYLED" ]; then
     echo "[pre-commit] 设计规范守卫 FAIL：存在新增硬编码色值 / 设计规范违反（DESIGN.md 门禁），提交已拒绝。"
     FAIL=1
   fi
+  # 主题 token 硬门禁（2026-11-23 W7 收口接线，FR6）：同触发条件下跑
+  # check-theme-tokens.mjs（--el-* 真实性 + 自定义 token 白名单 + 硬编码色；全仓 AC1=0
+  # 棘轮全拦），违反即拒绝提交。
+  echo "[pre-commit] 校验主题 token 硬门禁 (check:theme)"
+  if ! node scripts/check-theme-tokens.mjs; then
+    echo "[pre-commit] 主题 token 门禁 FAIL：未授权自定义 token / 未知 --el-* / 硬编码色（scripts/custom-tokens-allow.json 为例外登记册），提交已拒绝。"
+    FAIL=1
+  fi
 fi
 
 # 问题类台账扫描（G3 签名扫描，2026-10-17 problem-class-closure 机制）：

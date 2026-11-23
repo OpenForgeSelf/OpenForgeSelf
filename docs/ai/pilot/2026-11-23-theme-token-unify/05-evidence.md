@@ -42,6 +42,12 @@
 ### W4-FileTools 域（2026-11-23 16:5x）
 - [Verified] var 迁移 6 文件 29 处，未映射 0；硬编码 dry=0。计数：FileTools **65→36**（残余全白名单面）；全仓 3294。
 
+### W4 四小域 + 判责实验（2026-11-23 17:0x）
+- [Verified] 迁移：TodoTracker 遮罩黑 alpha 2 处（24→23）、ToolBridge var 18 处（33→19）、McpCenter var 6 处（--el-font-family-mono 未知名→--font-mono，R2→R1 换类 28→28）、AgentHub 遮罩 2 处（12→10）；四域硬编码清零、未映射 0。全仓 3294→**3293**。
+- [Verified] **e2e 判责对照实验（file-tools/tool-bridge/mcp-center/agent-hub）**：同源三轮足迹——①本批 HEAD 源 12 failed/12 passed；②bb59154 迁移前源 10 failed/14 passed（共同红 9：tb-paste 缺失/MCP 中心标题不可见/Runtime 双刷新钮 strict violation/agent-hub 会话主链/file-tools 400+零控制台）；③迁移前源复跑仅 1 failed（file-tools 232，又一不同用例）。**套件级 flaky 实锤**（真实磁盘扫描+串行链+路由注册时序主导）；失败均为 DOM/API 级，本批 diff 全为样式声明 token 换名（`git diff bb59154 HEAD` 逐行核对），结构性无关。记 TODO P2（插件 e2e 稳定化：串行链隔离+路由注册等待）。
+- [Inferred] W1 桥接映射（2918bd8）已把 AgentHub/ToolBridge/McpCenter 的未知 el（--el-font-family-mono/--el-border-radius-lg 等）映到白名单 token/字面量；本批 var apply 是其延续，方向一致性由映射表真源保证。
+- [Verified] 教训（记入日记）：域迁移完成后立即提交——对照实验的 `git checkout` 洗掉了三个未提交域的迁移（已按映射表幂等重放，计数对账一致）。
+
 ## 3. AC 覆盖（收口时逐条定稿）
 - AC1 全项目 check:theme 0 违反：未验证（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）

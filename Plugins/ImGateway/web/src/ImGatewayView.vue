@@ -729,8 +729,8 @@ async function pollThread(): Promise<void> {
 <style>
 /* 冻结模式：仅引用设计稿 token 与 --el-*（宿主级联），无裸色值、无 hex 回退。 */
 .ig-root {
-  font-family: var(--font-sans-cn, var(--el-font-family, system-ui, sans-serif));
-  color: var(--fg-primary);
+  font-family: var(--el-font-family, var(--el-font-family, system-ui, sans-serif));
+  color: var(--el-text-color-primary);
   padding: 20px;
   max-width: 1080px;
   margin: 0 auto;
@@ -752,7 +752,7 @@ async function pollThread(): Promise<void> {
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   margin-bottom: 4px;
 }
 .ig-header__row {
@@ -768,20 +768,20 @@ async function pollThread(): Promise<void> {
   height: 30px;
   padding: 0 14px;
   font-size: 12px;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 .ig-header__config:hover:not(:disabled),
 .ig-header__back:hover:not(:disabled) {
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 .ig-version {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   padding: 1px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: var(--gold-tint);
-  color: var(--bronze-500);
+  color: var(--el-color-success);
 }
 .ig-title {
   font-family: var(--font-display, serif);
@@ -789,30 +789,30 @@ async function pollThread(): Promise<void> {
   font-weight: 700;
   letter-spacing: 0.05em;
   line-height: 1.2;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .ig-subtitle {
   margin-top: 6px;
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.5;
 }
 .ig-alert {
   padding: 10px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   margin-bottom: 14px;
   font-size: 13px;
   flex-shrink: 0;
 }
 .ig-alert--ok {
-  background: color-mix(in srgb, var(--bronze-500) 14%, transparent);
+  background: color-mix(in srgb, var(--el-color-success) 14%, transparent);
   color: var(--el-color-success);
-  border: 1px solid color-mix(in srgb, var(--bronze-500) 32%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-success) 32%, transparent);
 }
 .ig-alert--err {
-  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  color: var(--cinnabar-400);
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 32%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 14%, transparent);
+  color: var(--el-color-error);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 32%, transparent);
 }
 
 /* ============ 会话视图（聊天式双栏） ============ */
@@ -847,16 +847,16 @@ async function pollThread(): Promise<void> {
 }
 .ig-chat__error {
   padding: 8px 10px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  color: var(--cinnabar-400);
+  border-radius: var(--el-border-radius-base);
+  background: color-mix(in srgb, var(--el-color-error) 14%, transparent);
+  color: var(--el-color-error);
   font-size: 12px;
   flex-shrink: 0;
   word-break: break-all;
 }
 .ig-chat__hint {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 .ig-chat__empty {
@@ -868,13 +868,13 @@ async function pollThread(): Promise<void> {
 .ig-chat__empty-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-chat__empty-desc {
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-chat__empty-btn {
   margin-top: 12px;
@@ -909,7 +909,7 @@ async function pollThread(): Promise<void> {
 }
 .ig-chat__placeholder-title {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   padding: 0 20px;
   text-align: center;
   line-height: 1.6;
@@ -944,30 +944,30 @@ async function pollThread(): Promise<void> {
   font-family: var(--font-serif-cn, serif);
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .ig-channel__desc {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-top: 2px;
 }
 .ig-badge {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   padding: 1px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-weight: 500;
 }
 .ig-badge--on {
-  background: color-mix(in srgb, var(--bronze-500) 16%, transparent);
+  background: color-mix(in srgb, var(--el-color-success) 16%, transparent);
   color: var(--el-color-success);
 }
 .ig-badge--off {
   background: var(--paper-tint);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-field,
 .ig-bind {
@@ -980,23 +980,23 @@ async function pollThread(): Promise<void> {
 .ig-field label,
 .ig-bind label {
   font-size: 13px;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 .ig-field input,
 .ig-bind input {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   box-sizing: border-box;
   outline: none;
 }
 .ig-field input:focus,
 .ig-bind input:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 /* 通道说明框（跨满两列栅格） */
@@ -1004,9 +1004,9 @@ async function pollThread(): Promise<void> {
   grid-column: 1 / -1;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--paper-tint-weak);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   padding: 8px 10px;
 }
 /* 长连接状态行 */
@@ -1019,10 +1019,10 @@ async function pollThread(): Promise<void> {
   flex-wrap: wrap;
 }
 .ig-conn__text {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-conn__msg {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   word-break: break-all;
 }
 .ig-dot {
@@ -1030,16 +1030,16 @@ async function pollThread(): Promise<void> {
   height: 8px;
   border-radius: 50%;
   flex: none;
-  background: var(--fg-muted);
+  background: var(--el-text-color-disabled);
 }
 .ig-dot--connected {
-  background: var(--bronze-500);
+  background: var(--el-color-success);
 }
 .ig-dot--connecting {
-  background: var(--gold-400);
+  background: var(--el-color-primary);
 }
 .ig-dot--failed {
-  background: var(--cinnabar-400);
+  background: var(--el-color-error);
 }
 .ig-dot--kicked {
   background: var(--el-color-warning);
@@ -1054,22 +1054,22 @@ async function pollThread(): Promise<void> {
 .ig-btn {
   height: 34px;
   padding: 0 18px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   border: 1px solid var(--el-border-color);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .ig-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .ig-btn--primary {
-  background: var(--gold-400);
-  border-color: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   font-weight: 500;
 }
-.ig-btn--primary:hover:not(:disabled) { background: var(--gold-300); }
+.ig-btn--primary:hover:not(:disabled) { background: var(--el-color-primary-light-3); }
 .ig-btn--primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -1094,11 +1094,11 @@ async function pollThread(): Promise<void> {
   padding: 0 16px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--ink-950);
-  border-color: var(--gold-400);
-  background: var(--gold-400);
+  color: var(--el-bg-color-page);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary);
 }
-.ig-btn--scan:hover:not(:disabled) { background: var(--gold-300); }
+.ig-btn--scan:hover:not(:disabled) { background: var(--el-color-primary-light-3); }
 .ig-btn--scan:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -1107,7 +1107,7 @@ async function pollThread(): Promise<void> {
 .ig-modal {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -1135,7 +1135,7 @@ async function pollThread(): Promise<void> {
   font-family: var(--font-serif-cn, serif);
   font-size: 15px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .ig-btn--close {
   height: 24px;
@@ -1143,56 +1143,56 @@ async function pollThread(): Promise<void> {
   border: none;
   background: transparent;
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-modal__body {
   padding: 16px;
   overflow-y: auto;
   font-size: 13px;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 .ig-scan-state {
   font-weight: 600;
   margin-bottom: 10px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .ig-qr {
   margin: 0 auto 10px;
   padding: 12px;
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-family: var(--font-mono, monospace);
   font-size: 10px;
   line-height: 1;
   letter-spacing: 0;
   white-space: pre;
   text-align: center;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .ig-qr-link {
   display: block;
   margin-bottom: 10px;
   font-size: 12px;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   word-break: break-all;
 }
 .ig-scan-tip {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-scan-ok {
   padding: 10px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--bronze-500) 14%, transparent);
+  border-radius: var(--el-border-radius-base);
+  background: color-mix(in srgb, var(--el-color-success) 14%, transparent);
   color: var(--el-color-success);
   font-size: 13px;
   word-break: break-all;
 }
 .ig-scan-err {
   padding: 10px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  color: var(--cinnabar-400);
+  border-radius: var(--el-border-radius-base);
+  background: color-mix(in srgb, var(--el-color-error) 14%, transparent);
+  color: var(--el-color-error);
   font-size: 13px;
   word-break: break-all;
 }
@@ -1204,7 +1204,7 @@ async function pollThread(): Promise<void> {
 }
 .ig-hint {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 /* 原生开关（无 EP 组件）：checkbox 隐藏，用 track 表现 */
 .ig-switch {
@@ -1230,7 +1230,7 @@ async function pollThread(): Promise<void> {
   position: absolute;
   inset: 0;
   background: var(--el-border-color);
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-radius-round, 9999px);
   transition: background var(--dur-fast) var(--ease-out);
 }
 .ig-switch__track::after {
@@ -1240,12 +1240,12 @@ async function pollThread(): Promise<void> {
   left: 2px;
   width: 20px;
   height: 20px;
-  background: var(--paper-white);
+  background: var(--el-bg-color);
   border-radius: 50%;
   transition: transform var(--dur-fast) var(--ease-out);
 }
 .ig-switch input:checked + .ig-switch__track {
-  background: var(--gold-400);
+  background: var(--el-color-primary);
 }
 .ig-switch input:checked + .ig-switch__track::after {
   transform: translateX(20px);
@@ -1261,7 +1261,7 @@ async function pollThread(): Promise<void> {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-tg-section::after {
   content: '';
@@ -1273,9 +1273,9 @@ async function pollThread(): Promise<void> {
   grid-column: 1 / -1;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--paper-tint-weak);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   padding: 8px 10px;
 }
 .ig-tg-approval {
@@ -1287,12 +1287,12 @@ async function pollThread(): Promise<void> {
 }
 .ig-tg-approval__label {
   font-size: 13px;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 .ig-tg-approval__desc {
   margin-top: 2px;
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-tg-agent {
   display: flex;
@@ -1307,15 +1307,15 @@ async function pollThread(): Promise<void> {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   box-sizing: border-box;
   outline: none;
 }
 .ig-select:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 .ig-select:disabled {
@@ -1333,16 +1333,16 @@ async function pollThread(): Promise<void> {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   font-family: var(--font-mono, monospace);
   box-sizing: border-box;
   outline: none;
 }
 .ig-poll__input:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 .ig-poll__input:disabled {
@@ -1351,17 +1351,17 @@ async function pollThread(): Promise<void> {
 }
 .ig-poll__unit {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono, monospace);
 }
 .ig-inline-hint {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ig-inline-err {
   grid-column: 2;
   font-size: 12px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 /* 开关禁用态：总开关 off 时子开关禁用（可见原因由分区提示行承担） */
 .ig-switch input:disabled {

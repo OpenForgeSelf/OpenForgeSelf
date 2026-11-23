@@ -91,21 +91,21 @@ function getStatusLabel(workflow: WorkflowDefinition): string {
 function getStatusColor(workflow: WorkflowDefinition): { text: string; bg: string; border: string } {
   switch (workflow.status) {
     case 'completed':
-      return { text: 'var(--el-color-success)', bg: 'color-mix(in srgb, var(--bronze-500) 12%, transparent)', border: 'var(--el-color-success)' }
+      return { text: 'var(--el-color-success)', bg: 'color-mix(in srgb, var(--el-color-success) 12%, transparent)', border: 'var(--el-color-success)' }
     case 'running':
       return { text: 'var(--el-color-primary)', bg: 'var(--el-color-primary-light-9)', border: 'var(--el-color-primary)' }
     case 'paused':
-      return { text: 'var(--fg-secondary)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
+      return { text: 'var(--el-text-color-regular)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
     case 'ready':
       return { text: 'var(--el-color-info)', bg: 'color-mix(in srgb, var(--el-color-info) 12%, transparent)', border: 'var(--el-color-info)' }
     default:
-      return { text: 'var(--fg-secondary)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
+      return { text: 'var(--el-text-color-regular)', bg: 'var(--paper-tint)', border: 'var(--border-default)' }
   }
 }
 
 function getLeftBorderColor(workflow: WorkflowDefinition): string {
   if (workflow.status === 'completed' || workflow.status === 'running') {
-    return 'var(--gold-400)'
+    return 'var(--el-color-primary)'
   }
   return 'var(--border-default)'
 }
@@ -388,7 +388,7 @@ onMounted(() => {
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
             <!-- running: animated dot -->
-            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--gold-400)' }" />
+            <div v-else-if="workflow.status === 'running'" class="pulse-dot" :style="{ background: 'var(--el-color-primary)' }" />
             <!-- paused -->
             <svg
               v-else-if="workflow.status === 'paused'"
@@ -396,7 +396,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--fg-secondary)"
+              stroke="var(--el-text-color-regular)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -438,7 +438,7 @@ onMounted(() => {
               height="16"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="var(--fg-secondary)"
+              stroke="var(--el-text-color-regular)"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -467,7 +467,7 @@ onMounted(() => {
                     'step-current': step.status === 'current',
                     'step-pending': step.status === 'pending'
                   }"
-                  :style="step.status === 'current' ? { borderColor: 'var(--gold-400)', background: 'var(--gold-tint)' } : {}"
+                  :style="step.status === 'current' ? { borderColor: 'var(--el-color-primary)', background: 'var(--gold-tint)' } : {}"
                 >
                   <svg
                     v-if="step.status === 'completed'"
@@ -482,7 +482,7 @@ onMounted(() => {
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--gold-400)' }" />
+                  <span v-else-if="step.status === 'current'" class="step-dot" :style="{ background: 'var(--el-color-primary)' }" />
                   {{ step.name }}
                 </span>
                 <svg
@@ -492,7 +492,7 @@ onMounted(() => {
                   height="12"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="var(--fg-tertiary)"
+                  stroke="var(--el-text-color-secondary)"
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -509,7 +509,7 @@ onMounted(() => {
                   class="progress-fill"
                   :style="{
                     width: getStepProgress(workflow).pct + '%',
-                    background: workflow.status === 'ready' ? 'var(--el-color-info)' : 'var(--fg-tertiary)'
+                    background: workflow.status === 'ready' ? 'var(--el-color-info)' : 'var(--el-text-color-secondary)'
                   }"
                 />
               </div>
@@ -543,7 +543,7 @@ onMounted(() => {
             <div class="meta-info">
               <span
                 class="meta-duration"
-                :style="{ color: workflow.status === 'running' ? 'var(--gold-400)' : 'var(--fg-secondary)' }"
+                :style="{ color: workflow.status === 'running' ? 'var(--el-color-primary)' : 'var(--el-text-color-regular)' }"
               >{{ formatDuration(workflow) }}</span>
               <span v-if="formatTimeInfo(workflow)" class="meta-time">{{ formatTimeInfo(workflow) }}</span>
             </div>
@@ -557,7 +557,7 @@ onMounted(() => {
                   'btn-action-resume': getActionButton(workflow).variant === 'resume'
                 }"
                 :style="getActionButton(workflow).variant === 'run' ? {} :
-                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--gold-400)', borderColor: 'var(--border-brand)' } :
+                  getActionButton(workflow).variant === 'pause' ? { color: 'var(--el-color-primary)', borderColor: 'var(--border-brand)' } :
                   { color: 'var(--el-color-info)', borderColor: 'color-mix(in srgb, var(--el-color-info) 30%, transparent)' }"
                 @click.stop="handlePauseResume(workflow)"
               >
@@ -723,7 +723,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -733,13 +733,13 @@ onMounted(() => {
   border: none;
   outline: none;
   font-size: 0.8125rem;
-  color: var(--fg-primary);
-  font-family: var(--font-sans-cn);
+  color: var(--el-text-color-primary);
+  font-family: var(--el-font-family);
   width: 180px;
 }
 
 .search-input::placeholder {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .search-clear {
@@ -750,7 +750,7 @@ onMounted(() => {
   height: 16px;
   border-radius: var(--el-border-radius-round);
   background: var(--paper-tint);
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -759,7 +759,7 @@ onMounted(() => {
 
 .search-clear:hover {
   background: var(--border-strong);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* ===================== Buttons ===================== */
@@ -770,8 +770,8 @@ onMounted(() => {
   padding: 7px 14px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--ink-950);
-  background: var(--gold-400);
+  color: var(--el-bg-color-page);
+  background: var(--el-color-primary);
   border: none;
   border-radius: var(--el-border-radius-base);
   cursor: pointer;
@@ -780,7 +780,7 @@ onMounted(() => {
 }
 
 .btn-create:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-ghost {
@@ -789,7 +789,7 @@ onMounted(() => {
   gap: 4px;
   padding: 5px 10px;
   font-size: 0.75rem;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
   border: 1px solid var(--border-default);
   border-radius: var(--el-border-radius-small);
@@ -801,7 +801,7 @@ onMounted(() => {
 .btn-ghost:hover {
   background: var(--paper-tint);
   border-color: var(--border-brand);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-ai-gen {
@@ -828,7 +828,7 @@ onMounted(() => {
 .filter-tab {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
   border: none;
   padding: 6px 12px;
@@ -840,13 +840,13 @@ onMounted(() => {
 }
 
 .filter-tab:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   background: var(--paper-tint);
 }
 
 .filter-tab.active {
-  color: var(--fg-primary);
-  border-bottom-color: var(--gold-400);
+  color: var(--el-text-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 /* ===================== Workflow Cards ===================== */
@@ -899,7 +899,7 @@ onMounted(() => {
 .card-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .card-status-label {
@@ -927,18 +927,18 @@ onMounted(() => {
 }
 
 .step-completed {
-  color: var(--bronze-500);
-  background: color-mix(in srgb, var(--bronze-500) 10%, transparent);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 10%, transparent);
 }
 
 .step-current {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
-  border: 1px solid var(--gold-400);
+  border: 1px solid var(--el-color-primary);
 }
 
 .step-pending {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   background: var(--paper-tint);
 }
 
@@ -978,7 +978,7 @@ onMounted(() => {
 
 .progress-text {
   font-size: 0.75rem;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
   white-space: nowrap;
 }
@@ -1018,7 +1018,7 @@ onMounted(() => {
 
 .meta-time {
   font-size: 0.75rem;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
   white-space: nowrap;
 }
@@ -1048,7 +1048,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border: 3px solid var(--border-default);
-  border-top-color: var(--gold-400);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -1056,7 +1056,7 @@ onMounted(() => {
 
 .loading-state p {
   font-size: 0.8125rem;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -1067,7 +1067,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--ink-950) 55%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 55%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -734,7 +734,7 @@ onMounted(() => {
 
 .category-item.active .category-count {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .nav-item {
@@ -868,7 +868,7 @@ onMounted(() => {
 }
 
 .search-bar:focus-within {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--gold-tint-strong);
 }
 
@@ -930,7 +930,7 @@ onMounted(() => {
 }
 
 .plugin-card:hover {
-  box-shadow: 0 0 0 1px var(--border-brand), 0 8px 24px color-mix(in srgb, var(--ink-950) 45%, transparent);
+  box-shadow: 0 0 0 1px var(--border-brand), 0 8px 24px color-mix(in srgb, var(--el-bg-color-page) 45%, transparent);
   transform: translateY(-1px);
 }
 
@@ -984,8 +984,8 @@ onMounted(() => {
 }
 
 .plugin-status-badge.stopped {
-  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
-  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 12%, transparent);
+  color: var(--el-text-color-regular);
 }
 
 .plugin-status-badge.error {
@@ -994,8 +994,8 @@ onMounted(() => {
 }
 
 .plugin-status-badge.notloaded {
-  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
-  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 12%, transparent);
+  color: var(--el-text-color-regular);
 }
 
 .card-body {
@@ -1112,8 +1112,8 @@ onMounted(() => {
 }
 
 .enabled-badge.off {
-  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
-  color: var(--fg-secondary);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 12%, transparent);
+  color: var(--el-text-color-regular);
 }
 
 /* 卡片 footer 操作按钮：统一尺寸（高 28px、同字号/圆角/边框），仅按角色换色 */

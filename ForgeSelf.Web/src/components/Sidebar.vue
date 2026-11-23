@@ -222,7 +222,7 @@ onMounted(() => {
     linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary) 20%, transparent), transparent 18rem),
     var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow);
   backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
@@ -322,7 +322,7 @@ onMounted(() => {
     var(--el-fill-color-light);
   border-color: var(--el-color-primary);
   color: var(--el-color-primary);
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.08);
+  box-shadow: inset 0 0 0 1px var(--gold-tint);
 }
 
 .menu-icon {
@@ -397,7 +397,7 @@ onMounted(() => {
 .theme-btn.active {
   background: var(--el-color-primary);
   color: var(--el-color-white);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .sidebar-status {

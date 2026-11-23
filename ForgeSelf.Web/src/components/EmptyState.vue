@@ -45,7 +45,7 @@ withDefaults(
   height: 52px;
   border-radius: 12px;
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -60,13 +60,13 @@ withDefaults(
 .empty-state__title {
   font-family: var(--font-serif-cn, serif);
   font-size: 14px;
-  color: color-mix(in srgb, var(--fg-primary) 70%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 70%, transparent);
 }
 
 .empty-state__sub {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  color: color-mix(in srgb, var(--fg-primary) 40%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 40%, transparent);
   letter-spacing: 0.03em;
 }
 

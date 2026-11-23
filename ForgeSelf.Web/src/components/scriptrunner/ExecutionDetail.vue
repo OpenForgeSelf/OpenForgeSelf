@@ -168,7 +168,7 @@ function handleClose(): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -178,22 +178,22 @@ function handleClose(): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #e9ecef;
-  background: #f8f9fa;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-light);
 }
 
 .detail-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .close-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #dee2e6;
-  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
@@ -201,12 +201,12 @@ function handleClose(): void {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .close-btn:hover {
-  background: #f1f3f5;
-  color: #212529;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .detail-body {
@@ -221,10 +221,10 @@ function handleClose(): void {
 .info-section h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .info-grid {
@@ -245,12 +245,12 @@ function handleClose(): void {
 
 .info-label {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .info-value {
   font-size: 14px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   font-weight: 500;
 }
 
@@ -271,19 +271,19 @@ function handleClose(): void {
 }
 
 .status-pending {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
 }
 .status-pending .status-dot {
-  background: #ffc107;
+  background: var(--el-color-warning);
 }
 
 .status-running {
-  background: #cce5ff;
-  color: #004085;
+  background: var(--el-color-info-light-8);
+  color: var(--el-color-info-dark-2);
 }
 .status-running .status-dot {
-  background: #007bff;
+  background: var(--el-color-primary);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -293,35 +293,35 @@ function handleClose(): void {
 }
 
 .status-completed {
-  background: #d4edda;
-  color: #155724;
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success-dark-2);
 }
 .status-completed .status-dot {
-  background: #28a745;
+  background: var(--el-color-success);
 }
 
 .status-failed {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--el-color-error-light-9);
+  color: var(--el-color-error-dark-2);
 }
 .status-failed .status-dot {
-  background: #dc3545;
+  background: var(--el-color-error);
 }
 
 .status-cancelled {
-  background: #e2e3e5;
-  color: #383d41;
+  background: var(--el-color-info-light-9);
+  color: var(--el-text-color-regular);
 }
 .status-cancelled .status-dot {
-  background: #6c757d;
+  background: var(--el-fill-color);
 }
 
 .status-timeout {
-  background: #ffe5d0;
-  color: #7a4a00;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
 }
 .status-timeout .status-dot {
-  background: #fd7e14;
+  background: var(--el-color-warning);
 }
 
 .parameters-list {
@@ -335,28 +335,28 @@ function handleClose(): void {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
 .param-name {
   font-size: 13px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .param-value {
   font-size: 13px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   font-family: monospace;
-  background: #fff;
+  background: var(--el-bg-color);
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 .output-box {
-  background: #1e1e1e;
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   padding: 16px;
   max-height: 300px;
@@ -365,7 +365,7 @@ function handleClose(): void {
 
 .output-box pre {
   margin: 0;
-  color: #d4d4d4;
+  color: var(--el-text-color-primary);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -374,8 +374,8 @@ function handleClose(): void {
 }
 
 .error-box {
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
   border-radius: 8px;
   padding: 16px;
   max-height: 200px;
@@ -384,7 +384,7 @@ function handleClose(): void {
 
 .error-box pre {
   margin: 0;
-  color: #742a2a;
+  color: var(--el-color-error-dark-2);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;

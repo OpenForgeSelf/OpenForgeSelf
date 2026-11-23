@@ -551,7 +551,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   font-size: 10px;
   font-weight: 600;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -571,23 +571,23 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
 }
 
 .category-item:hover,
 .filter-item:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .category-item.active,
 .filter-item.active {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .category-name {
@@ -599,7 +599,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-family: var(--font-mono);
   background: var(--paper-tint);
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
 }
 
 .importance-dot {
@@ -635,27 +635,27 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .search-box input {
   width: 100%;
   padding: 8px 12px 8px 36px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--glass-bg);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .search-box input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 /* ===== Stats chips in PageHead actions ===== */
@@ -666,13 +666,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   padding: 4px 10px;
   font-size: 11px;
   font-family: var(--font-mono);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .stat-chip strong {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -703,21 +703,21 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 15px;
   font-weight: 600;
   margin: 0;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
 }
 
 .importance-badge {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-primary);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
 .memory-content-preview {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0;
   line-height: 1.5;
   display: -webkit-box;
@@ -736,13 +736,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 11px;
   padding: 2px 8px;
   background: var(--paper-tint);
-  color: var(--fg-secondary);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-small);
 }
 
 .memory-tag-more {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .memory-card-footer {
@@ -750,7 +750,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--border-hairline);
@@ -759,7 +759,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .memory-type {
   background: var(--paper-tint);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
 }
 
 .memory-access {
@@ -783,7 +783,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .page-info {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono);
 }
 
@@ -794,16 +794,16 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .btn-page:disabled {
@@ -852,7 +852,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .modal-header h3 {
   margin: 0;
   font-size: 16px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
@@ -877,7 +877,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 6px;
 }
 
@@ -887,9 +887,9 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
@@ -897,7 +897,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .form-row {
@@ -936,7 +936,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .drawer-header h3 {
   margin: 0;
   font-size: 16px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
   padding-right: 12px;
 }
@@ -957,8 +957,8 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .detail-badge {
   font-size: 11px;
   padding: 2px 10px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-primary);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-primary);
 }
 
 .detail-type,
@@ -966,8 +966,8 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 11px;
   padding: 2px 10px;
   background: var(--paper-tint);
-  color: var(--fg-secondary);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-small);
 }
 
 .detail-tags {
@@ -979,13 +979,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .detail-content h4 {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 8px 0;
 }
 
 .detail-content p {
   font-size: 14px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -1004,11 +1004,11 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .info-label {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .info-value {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -1022,9 +1022,9 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .btn {
   padding: 8px 16px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
@@ -1038,14 +1038,14 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .btn-primary {
-  background: var(--gold-400);
-  border-color: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   font-weight: 500;
 }
 
 .btn-primary:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-primary:disabled {
@@ -1054,15 +1054,15 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .btn-danger {
-  background: var(--cinnabar-400);
-  border-color: var(--cinnabar-400);
-  color: var(--fg-primary);
+  background: var(--el-color-error);
+  border-color: var(--el-color-error);
+  color: var(--el-text-color-primary);
   width: 100%;
   justify-content: center;
 }
 
 .btn-danger:hover {
-  background: color-mix(in srgb, var(--cinnabar-400) 80%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 80%, transparent);
 }
 
 .btn-icon {
@@ -1073,15 +1073,15 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .btn-icon:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 /* ===== Responsive ===== */

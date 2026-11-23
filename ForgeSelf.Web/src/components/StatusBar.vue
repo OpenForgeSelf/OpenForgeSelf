@@ -50,7 +50,7 @@ const clockText = (): string => now.value.toLocaleTimeString('zh-CN', {
   padding: 0 16px;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   letter-spacing: 0.04em;
   z-index: 20;
 }

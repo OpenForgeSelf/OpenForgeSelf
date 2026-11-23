@@ -38,7 +38,7 @@ defineProps<{
   font-family: var(--font-mono, monospace);
   font-size: 10px;
   letter-spacing: 0.18em;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   text-transform: uppercase;
   margin-bottom: 4px;
   /* 进入动效 = --dur-base 220ms ease-out（一次性挂载） */
@@ -51,7 +51,7 @@ defineProps<{
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.2;
   /* 标题跟随 eyebrow 进入，--dur-instant 90ms 微延迟形成层级 */
   animation: page-head-in var(--dur-base) var(--ease-out) var(--dur-instant) both;

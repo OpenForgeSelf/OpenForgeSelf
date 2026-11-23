@@ -323,7 +323,7 @@ function handleClosePreview(): void {
 .template-card:hover {
   border-color: var(--el-color-primary);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .template-icon {
@@ -395,7 +395,7 @@ function handleClosePreview(): void {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--el-overlay-color-lighter);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -454,7 +454,7 @@ function handleClosePreview(): void {
   display: inline-block;
   padding: 4px 10px;
   background: var(--el-color-primary);
-  color: white;
+  color: var(--el-color-white);
   border-radius: 4px;
   font-size: 12px;
 }

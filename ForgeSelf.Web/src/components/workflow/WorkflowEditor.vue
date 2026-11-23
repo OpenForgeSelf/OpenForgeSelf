@@ -358,7 +358,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -368,13 +368,13 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .editor-header h2 {
   font-size: 18px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -394,45 +394,45 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 }
 
 .btn-primary {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  border-color: var(--el-color-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1565c0;
-  border-color: #1565c0;
+  background: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-primary-dark-2);
 }
 
 .btn-secondary {
-  background: #f8f9fa;
-  color: #495057;
-  border-color: #dee2e6;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  border-color: var(--el-border-color-light);
 }
 
 .btn-secondary:hover {
-  background: #e9ecef;
+  background: var(--el-fill-color);
 }
 
 .btn-outline {
-  background: #fff;
-  color: #1976d2;
-  border-color: #1976d2;
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .btn-outline:hover {
-  background: #f0f7ff;
+  background: var(--el-color-info-light-9);
 }
 
 .btn-text {
   background: none;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   border: none;
   padding: 4px 8px;
 }
 
 .btn-text:hover {
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .btn:disabled {
@@ -468,17 +468,17 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .form-group label {
   font-size: 13px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .form-group input,
 .form-group textarea,
 .form-group select {
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   font-size: 14px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   transition: border-color 0.2s ease;
 }
 
@@ -486,8 +486,8 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .form-group.checkbox {
@@ -504,7 +504,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .editor-tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid var(--el-border-color-lighter);
 }
 
 .tab-btn {
@@ -513,7 +513,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   border: none;
   font-size: 14px;
   font-weight: 500;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -521,12 +521,12 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 }
 
 .tab-btn:hover {
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  color: #1976d2;
-  border-bottom-color: #1976d2;
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 .steps-section,
@@ -546,8 +546,8 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .empty-variables {
   text-align: center;
   padding: 40px 20px;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
@@ -556,7 +556,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
@@ -564,31 +564,31 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 }
 
 .step-item:hover {
-  background: #f1f3f5;
+  background: var(--el-fill-color);
 }
 
 .step-item.selected {
-  border-color: #1976d2;
-  background: #f0f7ff;
+  border-color: var(--el-color-primary);
+  background: var(--el-color-info-light-9);
 }
 
 .step-number {
   width: 24px;
   height: 24px;
-  background: #dee2e6;
+  background: var(--el-fill-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 
 .step-item.selected .step-number {
-  background: #1976d2;
-  color: #fff;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .step-icon {
@@ -604,13 +604,13 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .step-name {
   font-size: 14px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin-bottom: 2px;
 }
 
 .step-type {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .step-actions {
@@ -622,8 +622,8 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .icon-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid #dee2e6;
-  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
@@ -634,13 +634,13 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 }
 
 .icon-btn:hover:not(:disabled) {
-  border-color: #1976d2;
-  color: #1976d2;
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .icon-btn.delete:hover:not(:disabled) {
-  border-color: #dc3545;
-  color: #dc3545;
+  border-color: var(--el-color-error);
+  color: var(--el-color-error);
 }
 
 .icon-btn:disabled {
@@ -655,7 +655,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 
 .step-type-selector {
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   text-align: center;
 }
@@ -663,7 +663,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .step-type-selector h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 12px 0;
 }
 
@@ -680,16 +680,16 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   align-items: center;
   gap: 6px;
   padding: 12px;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .step-type-card:hover {
-  border-color: #1976d2;
-  background: #f0f7ff;
+  border-color: var(--el-color-primary);
+  background: var(--el-color-info-light-9);
 }
 
 .type-icon {
@@ -698,7 +698,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 
 .type-label {
   font-size: 12px;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .variables-list {
@@ -712,14 +712,14 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
 .var-name {
   flex: 1;
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -727,7 +727,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .var-type {
   width: 100px;
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -735,17 +735,17 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 .var-desc {
   flex: 1;
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
 }
 
 .step-properties-panel {
   width: 320px;
-  border-left: 1px solid #e9ecef;
+  border-left: 1px solid var(--el-border-color-lighter);
   display: flex;
   flex-direction: column;
-  background: #fafbfc;
+  background: var(--el-fill-color-lighter);
 }
 
 .panel-header {
@@ -753,13 +753,13 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .panel-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -774,7 +774,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
 
 .step-type-editor {
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 

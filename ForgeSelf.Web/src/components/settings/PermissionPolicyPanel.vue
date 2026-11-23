@@ -547,7 +547,7 @@ onMounted(() => {
 
 .pp-seg-btn--active {
   background: var(--gold-tint-strong);
-  color: var(--gold-700);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -597,7 +597,7 @@ onMounted(() => {
 }
 
 .pp-card--dirty {
-  border-left: 3px solid var(--gold-400);
+  border-left: 3px solid var(--el-color-primary);
 }
 
 .pp-card-head {
@@ -609,7 +609,7 @@ onMounted(() => {
 }
 
 .pp-card-icon {
-  color: var(--gold-500);
+  color: var(--el-color-primary-dark-2);
   flex-shrink: 0;
 }
 
@@ -643,7 +643,7 @@ onMounted(() => {
 }
 
 .pp-badge--global {
-  color: var(--gold-700);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
   border-color: transparent;
 }
@@ -653,7 +653,7 @@ onMounted(() => {
 }
 
 .pp-badge--dirty {
-  color: var(--gold-700);
+  color: var(--el-color-primary);
   background: var(--gold-tint-strong);
   border-color: transparent;
 }
@@ -676,8 +676,8 @@ onMounted(() => {
 }
 
 .pp-chip[data-effect='Deny'] {
-  color: var(--cinnabar-400);
-  border-color: color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
+  color: var(--el-color-error);
+  border-color: color-mix(in srgb, var(--el-color-error) 35%, transparent);
 }
 
 .pp-chip[data-effect='Allow'] {
@@ -729,7 +729,7 @@ onMounted(() => {
 }
 
 .pp-rule[data-deny='true'] {
-  border-color: color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
+  border-color: color-mix(in srgb, var(--el-color-error) 35%, transparent);
 }
 
 .pp-rule-row {
@@ -775,13 +775,13 @@ onMounted(() => {
 
 .pp-rule-seg-btn--active {
   background: var(--gold-tint-strong);
-  color: var(--gold-700);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
 .pp-rule[data-deny='true'] .pp-rule-seg-btn--active {
-  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 14%, transparent);
+  color: var(--el-color-error);
 }
 
 /* 规则级白名单 */
@@ -840,7 +840,7 @@ onMounted(() => {
 }
 
 .pp-wl-tag-x:hover {
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .pp-wl-empty {
@@ -867,7 +867,7 @@ onMounted(() => {
 
 .pp-dirty-hint {
   font-size: 11px;
-  color: var(--gold-700);
+  color: var(--el-color-primary);
 }
 
 .pp-clean-hint {
@@ -877,7 +877,7 @@ onMounted(() => {
 
 /* 新建草稿卡 */
 .pp-card--new {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .pp-new-form {

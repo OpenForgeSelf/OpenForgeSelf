@@ -202,11 +202,11 @@ onMounted(async () => {
 .count-badge {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--paper-tint);
   border: 1px solid var(--border-default);
   padding: 2px 10px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   white-space: nowrap;
 }
 

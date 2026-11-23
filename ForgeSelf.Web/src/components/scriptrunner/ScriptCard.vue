@@ -146,8 +146,8 @@ function handleKeydown(event: KeyboardEvent): void {
 
 <style scoped>
 .script-card {
-  background: #fff;
-  border: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   padding: 16px;
   cursor: pointer;
@@ -159,14 +159,14 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .script-card:hover {
-  border-color: #1976d2;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.12);
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
   transform: translateY(-2px);
 }
 
 .script-card:focus-visible {
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .card-header {
@@ -195,7 +195,7 @@ function handleKeydown(event: KeyboardEvent): void {
 .script-name {
   font-size: 15px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,7 +224,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .favorite-btn.active {
-  color: #ffc107;
+  color: var(--el-color-warning);
 }
 
 .card-body {
@@ -233,7 +233,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 .script-description {
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -248,7 +248,7 @@ function handleKeydown(event: KeyboardEvent): void {
   justify-content: space-between;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .script-meta {
@@ -256,20 +256,20 @@ function handleKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   gap: 8px;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   align-items: center;
 }
 
 .script-category {
-  background: #f1f3f5;
+  background: var(--el-fill-color);
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
 }
 
 .script-params {
-  background: #e8f4fd;
-  color: #0369a1;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-info-dark-2);
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 11px;
@@ -284,8 +284,8 @@ function handleKeydown(event: KeyboardEvent): void {
 .action-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #e9ecef;
-  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
@@ -296,24 +296,24 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .action-btn:hover {
-  border-color: #1976d2;
-  background: #f0f7ff;
+  border-color: var(--el-color-primary);
+  background: var(--el-color-info-light-9);
 }
 
 .execute-btn {
-  background: #28a745;
-  border-color: #28a745;
-  color: #fff;
+  background: var(--el-color-success);
+  border-color: var(--el-color-success);
+  color: var(--el-color-white);
 }
 
 .execute-btn:hover {
-  background: #218838;
-  border-color: #218838;
+  background: var(--el-color-success);
+  border-color: var(--el-color-success);
 }
 
 .delete-btn:hover {
-  border-color: #dc3545;
-  background: #fff5f5;
+  border-color: var(--el-color-error);
+  background: var(--el-color-error-light-9);
 }
 
 .more-actions {

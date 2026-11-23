@@ -197,15 +197,15 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   cursor: pointer;
-  background: #fff;
+  background: var(--el-bg-color);
   transition: border-color 0.2s ease;
 }
 
 .selector-trigger:hover {
-  border-color: #1976d2;
+  border-color: var(--el-color-primary);
 }
 
 .script-icon {
@@ -215,7 +215,7 @@ onMounted(() => {
 .script-name {
   flex: 1;
   font-size: 14px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -223,21 +223,21 @@ onMounted(() => {
 
 .script-lang {
   font-size: 12px;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .placeholder {
   flex: 1;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
   font-size: 14px;
 }
 
 .arrow {
   font-size: 10px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .selector-dropdown {
@@ -246,10 +246,10 @@ onMounted(() => {
   left: 0;
   right: 0;
   margin-top: 4px;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--el-box-shadow-light);
   z-index: 1000;
   max-height: 400px;
   display: flex;
@@ -258,7 +258,7 @@ onMounted(() => {
 
 .dropdown-header {
   padding: 12px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--el-border-color-lighter);
   display: flex;
   gap: 8px;
 }
@@ -266,22 +266,22 @@ onMounted(() => {
 .search-input {
   flex: 1;
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: var(--el-color-primary);
 }
 
 .language-filter {
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
-  background: #fff;
+  background: var(--el-bg-color);
 }
 
 .script-list {
@@ -294,7 +294,7 @@ onMounted(() => {
 .empty {
   padding: 24px;
   text-align: center;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -305,15 +305,15 @@ onMounted(() => {
   padding: 10px 12px;
   cursor: pointer;
   transition: background 0.2s ease;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .script-item:hover {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .script-item.selected {
-  background: #e3f2fd;
+  background: var(--el-color-info-light-9);
 }
 
 .script-info {
@@ -324,13 +324,13 @@ onMounted(() => {
 .script-info .script-name {
   font-size: 13px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin-bottom: 2px;
 }
 
 .script-desc {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -338,8 +338,8 @@ onMounted(() => {
 
 .script-lang-badge {
   font-size: 11px;
-  color: #495057;
-  background: #f1f3f5;
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color);
   padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
@@ -347,7 +347,7 @@ onMounted(() => {
 
 .dropdown-footer {
   padding: 8px 12px;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--el-border-color-lighter);
   text-align: right;
 }
 
@@ -362,27 +362,27 @@ onMounted(() => {
 
 .btn-text {
   background: none;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .btn-text:hover {
-  color: #495057;
-  background: #f8f9fa;
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color-light);
 }
 
 .script-preview {
   margin-top: 12px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .preview-header {
   padding: 8px 12px;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   font-size: 12px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .preview-content {
@@ -397,7 +397,7 @@ onMounted(() => {
 }
 
 .preview-row .label {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   min-width: 40px;
 }
 
@@ -411,8 +411,8 @@ onMounted(() => {
 .tag {
   font-size: 11px;
   padding: 2px 6px;
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-primary);
   border-radius: 4px;
 }
 </style>

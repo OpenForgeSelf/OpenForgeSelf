@@ -126,16 +126,16 @@
       "why": "浅#F4EEDF 1:1"
     },
     "--dur-fast": {
-      "to": "--el-transition-duration-fast",
-      "why": "0.16s 1:1"
+      "to": "--dur-fast",
+      "why": "主题缺口 token（R6 白名单登记；ForgeCard/PageHead 守卫测试锁定 160ms；EP fast=0.2s 非等值）"
     },
     "--dur-base": {
-      "to": "--el-transition-duration",
-      "why": "0.22s 1:1"
+      "to": "--dur-base",
+      "why": "主题缺口 token（R6 白名单登记；守卫测试锁定 220ms；EP duration=0.3s 非等值）"
     },
     "--ease-out": {
-      "to": "--el-transition-function-fast-bezier",
-      "why": "cubic-bezier(0.22,1,0.36,1)≈EP(0.23,1,0.32,1) 近 1:1"
+      "to": "--ease-out",
+      "why": "主题缺口 token（R6 白名单登记；缓动守卫测试锁定，不用 EP bezier）"
     },
     "--radius-sm": {
       "to": "--el-border-radius-small",

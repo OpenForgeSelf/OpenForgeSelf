@@ -400,7 +400,7 @@ onUnmounted(() => {
 }
 
 .tc-updated {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   margin-right: 8px;
 }
@@ -424,7 +424,7 @@ onUnmounted(() => {
 .tc-seg-item {
   border: none;
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   padding: 4px 12px;
   cursor: pointer;
@@ -436,7 +436,7 @@ onUnmounted(() => {
 
 .tc-seg-item.active {
   background: var(--gold-tint-strong);
-  color: var(--gold-500);
+  color: var(--el-color-primary-dark-2);
   font-weight: 600;
 }
 
@@ -444,14 +444,14 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   cursor: pointer;
 }
 
 .tc-stats {
   margin-left: auto;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 
@@ -461,10 +461,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 35%, transparent);
   border-radius: var(--glass-radius);
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  color: var(--el-color-error);
 }
 
 .tc-fatal-icon {
@@ -485,7 +485,7 @@ onUnmounted(() => {
 .tc-fatal-detail {
   margin: 0;
   font-size: 12px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   word-break: break-all;
 }
 
@@ -511,7 +511,7 @@ onUnmounted(() => {
 .tc-loading {
   padding: 24px;
   text-align: center;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -524,7 +524,7 @@ onUnmounted(() => {
   border: none;
   border-bottom: 1px solid var(--border-subtle);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   text-align: left;
   font-size: 13px;
 }
@@ -544,7 +544,7 @@ onUnmounted(() => {
 .tc-source {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .tc-source[data-source='open'] {
@@ -552,7 +552,7 @@ onUnmounted(() => {
 }
 
 .tc-source[data-source='planned'] {
-  color: var(--gold-500);
+  color: var(--el-color-primary-dark-2);
 }
 
 .tc-source[data-source='scheduler'] {
@@ -575,13 +575,13 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .tc-time {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .tc-badge {
@@ -591,7 +591,7 @@ onUnmounted(() => {
   border-radius: var(--el-border-radius-small);
   border: 1px solid var(--border-default);
   background: var(--paper-tint);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .tc-badge[data-status='running'] {
@@ -603,8 +603,8 @@ onUnmounted(() => {
 .tc-badge[data-status='planning'],
 .tc-badge[data-status='pending'],
 .tc-badge[data-status='scheduled'] {
-  color: var(--gold-500);
-  border-color: var(--gold-300);
+  color: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-primary-light-3);
   background: var(--gold-tint-strong);
 }
 
@@ -615,9 +615,9 @@ onUnmounted(() => {
 }
 
 .tc-badge[data-status='failed'] {
-  color: var(--cinnabar-400);
-  border-color: color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--el-color-error);
+  border-color: color-mix(in srgb, var(--el-color-error) 35%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
 }
 
 /* T15: stuck=awaiting-human, warning orange; failed stays red; pending group stays gold */
@@ -630,7 +630,7 @@ onUnmounted(() => {
 
 .tc-badge[data-status='cancelled'],
 .tc-badge[data-status='unknown'] {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .tc-actions {
@@ -644,15 +644,15 @@ onUnmounted(() => {
   border: 1px solid var(--border-default);
   border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   padding: 4px 12px;
   cursor: pointer;
 }
 
 .tc-btn:hover:not(:disabled) {
-  border-color: var(--gold-400);
-  color: var(--gold-500);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary-dark-2);
 }
 
 .tc-btn:disabled {
@@ -662,15 +662,15 @@ onUnmounted(() => {
 
 .tc-btn-solid {
   background: var(--gold-tint-strong);
-  border-color: var(--gold-300);
-  color: var(--gold-500);
+  border-color: var(--el-color-primary-light-3);
+  color: var(--el-color-primary-dark-2);
   font-weight: 600;
 }
 
 .tc-empty-filter {
   padding: 20px;
   text-align: center;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 

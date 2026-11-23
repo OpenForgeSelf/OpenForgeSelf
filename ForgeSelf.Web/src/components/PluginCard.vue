@@ -331,7 +331,7 @@ function handleKeydown(event: KeyboardEvent): void {
   background: var(--el-bg-color);
   border-radius: 50%;
   transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .toggle-switch.active .toggle-knob {

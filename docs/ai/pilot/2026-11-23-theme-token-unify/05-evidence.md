@@ -55,6 +55,10 @@
 - [Verified] **迁移器缺陷修复（migrate-theme-tokens.mjs --prune-defs）**：原实现引用计数只扫 scope 内文件→scope 外消费点（预览面对外壳 token 的引用）不计→仍被引用的定义被当孤儿误删（W5 实证 75 定义全删、预览回退链差点断）。修复=引用计数全仓统计（宿主+全插件），scope 内按改名后文本、scope 外按原文；实测 tokens.css scope 剪 40 留 35（预览引用面存活）。
 - [Verified] 门禁②（chrome 迁移后）：vue-tsc check 0 error；**vitest 262/262**（含 skin.test.ts 令牌契约测试）；build 绿（dist 445.75 kB）。门禁③（五 spec e2e）跑中。门禁①（dotnet test DesignSystem filter）本批未触后端，待收口快档核对；④ 发布不在本批（须用户明示）。
 
+- [Verified] **判责闭环（三轮对照实证）**：基线（W5 前源码 ae0a4b0，隔离重跑 showroom+agent 两 spec）2 红=MCP list_tools（后端网关 SSE 流被 spec 当 JSON 解析=真产品缺陷，非本批）+ C2（flaky：run1 过、run2/基线红）。W5 迁移引入的确定性红=base.css `.ds-outfit` 两行——`--ds-semantic-text-1/--ds-semantic-surface-bg` 是**用户系统契约名**（注入的每件衣服投影变量），W2 映射误改为宿主色 → A1/B2/D1/V1 画布断言红。修复=映射移除全部 --ds-semantic-* 条目（14 条）+ base.css 两行还原 + dist 重建。复绿：run3 主链/A1/B2/V1 全过（30 passed），隔离重跑 showroom 17/18（唯一红=A1 向导流 `[data-wizard-done]` 30s 超时，非画布断言、时态 flake；画布断言同用例 run3 已绿）。
+- [Verified] **残余红归档（非本批引入）**：①MCP list_tools + G7——后端 MCP 网关对 list_tools 返回 SSE 流而 spec 按 JSON 解析（`SyntaxError: Unexpected token 'e', "event: mes"...`）——产品缺陷，挂 TODO（P1，插件任务需修网关或 spec 协议）；②C2/D1/C6/A1-wizard-done——页面态/超时 flake（C2 基线同红；D1 `[data-showroom]` 30s 不可见、C6 展厅 tab 120s 超时均为元素时态，非样式断言），归插件 e2e 稳定化（TODO P2 已挂）。
+- [Verified] 门禁③结论：**W5 迁移零确定性红**；DS 计数 858（=chrome 授权白名单面 + skin-canvas 契约 17 + 预览契约面）。映射 literal 双字段教训、prune 全仓计数修复、契约名三类（--ds-bg/--ds-fg-1/--ds-semantic-*）已入库迁移器与映射表。
+
 ## 3. AC 覆盖（收口时逐条定稿）
 - AC1 全项目 check:theme 0 违反：未验证（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）

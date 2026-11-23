@@ -481,62 +481,6 @@
       "to": "--el-color-success",
       "why": "成功绿 #10b981→EP success 语义（W3a opencode 分析员产出）"
     },
-    "--ds-semantic-surface-bg": {
-      "to": "--el-bg-color-page",
-      "why": "ExportService 接缝 semantic.surface-bg→--el-bg-color-page（页底）（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-surface-1": {
-      "to": "--el-bg-color",
-      "why": "ExportService 接缝 semantic.surface-1→--el-bg-color（面底）（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-surface-2": {
-      "to": "--el-bg-color-overlay",
-      "why": "ExportService 接缝 semantic.surface-2→--el-bg-color-overlay（浮层）（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-surface-3": {
-      "to": "--el-fill-color-light",
-      "why": "surface-3 填充档→EP fill 档；主题仅覆盖 fill-color-light，暗色安全（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-text-1": {
-      "to": "--el-text-color-primary",
-      "why": "ExportService 接缝 semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-text-2": {
-      "to": "--el-text-color-regular",
-      "why": "ExportService 接缝 semantic.text-2→--el-text-color-regular（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-text-3": {
-      "to": "--el-text-color-secondary",
-      "why": "ExportService 接缝 semantic.text-3→--el-text-color-secondary（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-border-1": {
-      "to": "--el-border-color",
-      "why": "ExportService 接缝 semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-brand": {
-      "to": "--el-color-primary",
-      "why": "ElColorBase semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-link": {
-      "to": "--el-color-primary",
-      "why": "链接=强调色，与 --ds-link→--el-color-primary 同口径（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-success": {
-      "to": "--el-color-success",
-      "why": "ElColorBase semantic.success→--el-color-success（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-warning": {
-      "to": "--el-color-warning",
-      "why": "ElColorBase semantic.warning→--el-color-warning（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-danger": {
-      "to": "--el-color-error",
-      "why": "ElColorBase semantic.danger→--el-color-error（W3b opencode 分析员产出）"
-    },
-    "--ds-semantic-info": {
-      "to": "--el-color-info",
-      "why": "ElColorBase semantic.info→--el-color-info（W3b opencode 分析员产出）"
-    },
     "--ds-size-body": {
       "to": "--el-font-size-base",
       "why": "ElDirect size.body→--el-font-size-base（W3b opencode 分析员产出）"

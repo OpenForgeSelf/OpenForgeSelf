@@ -207,8 +207,8 @@
 /* 展厅换肤作用域容器：底色取该件衣服自己的投影变量（由注入的 scoped <style> 定义） */
 .ds-outfit {
   display: block;
-  color: var(--el-text-color-primary);
-  background: var(--el-bg-color-page);
+  color: var(--ds-semantic-text-1);
+  background: var(--ds-semantic-surface-bg);
 }
 
 /* 尊重系统「减少动态效果」 */

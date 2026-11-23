@@ -109,7 +109,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiGet, apiPost } from './http'
 import { errorMessage, runWithConfirm, stopExternalMessage, stopSessionMessage } from './confirmOps'
 import { formatRunDuration } from './runDuration'
-import type { RunLogLine, RunLogsResp, RunSession, RunsResp } from './types'
+import type { RunLogLine, RunLogsResp, RunSession, RunsResp, StopRunResp } from './types'
 
 const props = withDefaults(defineProps<{
   /** 命令 id → 访问 url 映射（由上层从项目列表装配，供快捷访问图标使用）。 */
@@ -327,9 +327,15 @@ async function ask(message: string, title: string): Promise<boolean> {
 
 async function stopBy(r: RunSession, path: string, message: string, okText: string) {
   busyPid.value = r.pid
-  const result = await runWithConfirm({ title: '停止进程', message, confirm: ask, action: () => apiPost(path, {}) })
+  // PILOT-087：读取后端 outcome，「已不在运行」用 info 提示且不算失败（区别于真正的停止失败）
+  const result = await runWithConfirm({ title: '停止进程', message, confirm: ask, action: () => apiPost<StopRunResp>(path, {}) })
   if (result.outcome === 'done') {
-    ElMessage.success(okText)
+    const resp = result.data as StopRunResp | undefined
+    if (resp?.outcome === 'already-stopped') {
+      ElMessage.info(resp.message || '进程已不在运行，无需停止')
+    } else {
+      ElMessage.success(okText)
+    }
     await refresh()
   } else if (result.outcome === 'failed') {
     ElMessage.error(`停止失败：${result.error}`)

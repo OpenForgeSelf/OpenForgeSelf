@@ -47,6 +47,7 @@
 | MCP 网关响应中文变 \uFF08、引号变 \u0022（第三方 SDK 传输层序列化，ForgeJson 守卫不可达） | case [2026-11-09 MCP SDK 外层转义](cases/2026-11-09-mcp-sdk-outer-escaping.md) → [PC-027](problem-classes/PC-027-json-nonascii-default-escaping.md)（外层=无缝，记录不修） |
 | 工具报 `success:true` 但实际没生效（文件没写出来/进程没退/库没提交），回读验证才现形 | case [2026-10-30 write_file 零落盘](cases/2026-10-30-tool-success-without-side-effect.md) → [PC-018](problem-classes/PC-018-tool-success-without-side-effect.md) |
 | 宿主映射控制器 `FileNotFoundException` / `Could not load` 某个 NuGet 程序集；或插件接口 500 `Unable to resolve service for type` | case [2026-11-02 浏览器与审批 DI](cases/2026-11-02-browseruse-and-approval-di.md) → [PC-020](problem-classes/PC-020-plugin-dependency-unresolved.md) |
+| 本机 `pnpm install` 恒败（postinstall 报钩子不可执行）：git-bash 的 `test -x` 对 `盘符:\` Windows 路径恒 false | case [2026-11-23 发布链 install 全挂](cases/2026-11-23-release-pnpm-install-hook-fail.md) → [PC-043](problem-classes/PC-043-crossplatform-shortcircuit-before-posix.md) |
 | `/ai-agent` 主区域空白或顶栏仍写 AI Agent | case [2026-11-02 智能体页空白与旧名](cases/2026-11-02-agent-page-blank-old-name.md) → [PC-021](problem-classes/PC-021-agent-entry-blank-or-old-name.md) |
 | 执行记录里 agent 改了文件但 filesChanged 全空（「改了什么」从台账消失） | case [2026-11-02 filesChanged 断链](cases/2026-11-02-fileschanged-persistence-loss.md) → [PC-023](problem-classes/PC-023-todo-fileschanged-persistence-loss.md) |
 | 实体落库时间戳 0001-01-01 / 记忆卡片「创建时间 1/01/01」 | case [2026-11-02 记忆时间戳](cases/2026-11-02-memory-timestamp-minvalue.md) → [PC-022](problem-classes/PC-022-xcode-entity-timestamp-default.md) |

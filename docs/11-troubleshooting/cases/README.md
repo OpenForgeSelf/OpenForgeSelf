@@ -4,6 +4,8 @@
 
 | case id | 日期 | 现象一句话 | PC | 证据 | 档案 |
 |---------|------|------------|----|------|------|
+| 2026-11-23-release-pnpm-install-hook-fail | 2026-11-23 | 发布链 `pnpm install (host-web)` 全挂：git-bash `test -x` 对 Windows 路径恒 false，postinstall 钩子被误判不可执行退出 1（PC-043 首发：Windows 短路缺失） | [PC-043](../problem-classes/PC-043-crossplatform-shortcircuit-before-posix.md) | Verified | [链接](2026-11-23-release-pnpm-install-hook-fail.md) |
+| 2026-11-23-sems-stop-no-feedback | 2026-11-23 | sems 点停止无反应无提示：运行中日志 404 被无限吞错轮询致任务卡「运行中」，停止 404 又无反馈（PC-024 复发：终态分支只 return 不收敛） | [PC-024](../problem-classes/PC-024-frontend-poll-error-handling.md) | Verified | [链接](2026-11-23-sems-stop-no-feedback.md) |
 | 2026-11-20-oar-early-exit-and-bundled-fake | 2026-11-20 | OarTransport 50ms 假 Exit + handlers 假 bundled | [PC-037](../problem-classes/PC-037-oar-honesty-without-evidence.md) | Verified | [链接](2026-11-20-oar-early-exit-and-bundled-fake.md) |
 | 2026-11-16-dev-api-multi-instance | 2026-11-16 | 根 `pnpm dev` 改为复用整栈启动器，前后端均可运行 | [PC-007](../problem-classes/PC-007-manual-dev-launch-silent-trap.md) | Partial | [链接](2026-11-16-dev-api-multi-instance.md) |
 | 2026-09-24-plugin-auth-frontend-bare-fetch | 2026-09-24 | 鉴权后插件管理页裸 fetch 全 401 空态 | [PC-002](../problem-classes/PC-002-auth-frontend-bare-fetch.md) | Verified | [链接](2026-09-24-plugin-auth-frontend-bare-fetch.md) |

@@ -48,6 +48,9 @@ function Set-ExecutableBit([string]$Path) {
         if ($LASTEXITCODE -ne 0) { throw "chmod +x 失败: $Path" }
         return
     }
+    # Windows + NTFS 没有可执行位语义（git 执行 hook 不看模式位），UnixFileMode 探测只会
+    # 抛「not supported on this platform」警告噪声——静默跳过（输入5 2026-11-23）。
+    if ($IsWindows) { return }
     try {
         $item = Get-Item -LiteralPath $Path
         if ($item.PSObject.Properties.Name -contains 'UnixFileMode') {
@@ -59,12 +62,16 @@ function Set-ExecutableBit([string]$Path) {
 }
 
 function Test-IsExecutable([string]$Path) {
+    # 平台短路必须最先（输入5 2026-11-23，PC-043）：本机 bash 在 PATH（git-bash）时，
+    # 若先走 POSIX 分支，`test -x` 收到的是盘符:\... 形态的 Windows 路径，MSYS 内建 test 不识别
+    # 反斜杠路径 → 恒 false → hook 被误判「不可执行」→ postinstall 恒败 → 发布链 pnpm install 全挂。
+    # Windows 上可执行位不影响 hook 执行（dispatcher +x 是 Linux 侧关切），直接通过。
+    if ($IsWindows) { return $true }
     if (Get-Command bash -ErrorAction SilentlyContinue) {
         # 注意：POSIX test 不接受 `test -x -- path`（-- 会被当成操作数）
         & bash -lc ('test -x "{0}"' -f ($Path -replace '"', '\"'))
         return ($LASTEXITCODE -eq 0)
     }
-    if ($IsWindows) { return $true }
     try {
         $item = Get-Item -LiteralPath $Path
         if ($item.PSObject.Properties.Name -contains 'UnixFileMode') {

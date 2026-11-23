@@ -502,10 +502,14 @@ public class SemsStopCommandToolFunction : SemsToolFunctionBase
         if (runner == null) return ServiceMissing(nameof(IRunnerService));
         if (!TryGetInt(args, "commandId", out var commandId)) return MissingInt("commandId", "sems_list_runs");
 
-        if (!runner.Stop(commandId))
+        // PILOT-087：结果可区分，但对外的键与既有文案逐字不变（F25 工具语义不破坏）。
+        var result = runner.Stop(commandId);
+        if (result.Outcome == StopOutcome.Stopped)
+            return Ok(new { stopped = true, commandId });
+        if (result.Outcome == StopOutcome.AlreadyStopped)
             return Fail($"未找到本面板启动的存活会话：{commandId}（外部捕获进程请用 sems_stop_run 按 pid 停止）");
 
-        return Ok(new { stopped = true, commandId });
+        return Fail($"停止进程失败（进程仍在运行或无权限）：{commandId}（{result.Reason}）");
     }
 }
 
@@ -530,9 +534,13 @@ public class SemsStopRunToolFunction : SemsToolFunctionBase
         if (runner == null) return ServiceMissing(nameof(IRunnerService));
         if (!TryGetInt(args, "pid", out var pid)) return MissingInt("pid", "sems_check_runs");
 
-        if (!runner.StopExternal(pid))
+        // PILOT-087：结果可区分，但对外的键与既有文案逐字不变（F25 工具语义不破坏）。
+        var result = runner.StopExternal(pid);
+        if (result.Outcome == StopOutcome.Stopped)
+            return Ok(new { stopped = true, pid, note = "已杀整棵进程树，可能波及该进程的子进程" });
+        if (result.Outcome == StopOutcome.AlreadyStopped)
             return Fail($"无法停止进程（不存在或无权限）：{pid}");
 
-        return Ok(new { stopped = true, pid, note = "已杀整棵进程树，可能波及该进程的子进程" });
+        return Fail($"停止进程失败（进程仍在运行或无权限）：{pid}（{result.Reason}）");
     }
 }

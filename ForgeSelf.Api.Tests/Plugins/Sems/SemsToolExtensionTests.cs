@@ -250,7 +250,7 @@ public class SemsToolExtensionTests
         Assert.True(IsSuccess(ran));
         Assert.Equal(4242, Payload(ran).GetProperty("data").GetProperty("session").GetProperty("pid").GetInt32());
 
-        _runner.Setup(r => r.Stop(commandId)).Returns(true);
+        _runner.Setup(r => r.Stop(commandId)).Returns(StopResult.Stopped(4242));
         var stopped = await Tool("sems_stop_command").ExecuteAsync(
             JsonSerializer.Serialize(new { commandId }));
         Assert.True(IsSuccess(stopped));
@@ -323,20 +323,32 @@ public class SemsToolExtensionTests
         Assert.False(IsSuccess(launch));
         Assert.Contains("sems_list_commands", ErrorOf(launch));
 
-        _runner.Setup(r => r.Stop(It.IsAny<int>())).Returns(false);
+        // PILOT-087：工具对外文案契约逐字不变（F25）——「无存活会话」仍返回既有错误文案
+        _runner.Setup(r => r.Stop(It.IsAny<int>())).Returns(StopResult.AlreadyStopped(0, "没有存活会话"));
         var stop = await Tool("sems_stop_command").ExecuteAsync(
             JsonSerializer.Serialize(new { commandId = 5 }));
         Assert.False(IsSuccess(stop));
+        Assert.Contains($"未找到本面板启动的存活会话：5（外部捕获进程请用 sems_stop_run 按 pid 停止）", ErrorOf(stop));
 
-        _runner.Setup(r => r.StopExternal(It.IsAny<int>())).Returns(false);
+        _runner.Setup(r => r.StopExternal(It.IsAny<int>())).Returns(StopResult.AlreadyStopped(999999, "已不在运行"));
         var stopFail = await Tool("sems_stop_run").ExecuteAsync(
             JsonSerializer.Serialize(new { pid = 999999 }));
         Assert.False(IsSuccess(stopFail));
+        Assert.Contains("无法停止进程（不存在或无权限）：999999", ErrorOf(stopFail));
 
-        _runner.Setup(r => r.StopExternal(It.IsAny<int>())).Returns(true);
+        // 真失败（进程在但杀不掉）：错误文案携带原因
+        _runner.Setup(r => r.StopExternal(It.IsAny<int>())).Returns(StopResult.Failed(4321, "拒绝访问"));
+        var stopDeny = await Tool("sems_stop_run").ExecuteAsync(
+            JsonSerializer.Serialize(new { pid = 4321 }));
+        Assert.False(IsSuccess(stopDeny));
+        Assert.Contains("停止进程失败", ErrorOf(stopDeny));
+        Assert.Contains("拒绝访问", ErrorOf(stopDeny));
+
+        _runner.Setup(r => r.StopExternal(It.IsAny<int>())).Returns(StopResult.Stopped(1234));
         var stopOk = await Tool("sems_stop_run").ExecuteAsync(
             JsonSerializer.Serialize(new { pid = 1234 }));
         Assert.True(IsSuccess(stopOk));
+        Assert.Equal(1234, Payload(stopOk).GetProperty("data").GetProperty("pid").GetInt32());
     }
 
     [Fact]

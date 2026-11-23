@@ -122,8 +122,8 @@ public class RunnerServiceTests : IDisposable
         var session = _runner.Launch(cmdId);
         Assert.NotNull(session);
 
-        var ok = _runner.Stop(cmdId);
-        Assert.True(ok);
+        var result = _runner.Stop(cmdId);
+        Assert.Equal(StopOutcome.Stopped, result.Outcome);
 
         // 会话应被移除
         Assert.DoesNotContain(_runner.Current(), s => s.Pid == session!.Pid);
@@ -155,10 +155,27 @@ public class RunnerServiceTests : IDisposable
         _runner.Stop(cmdId);
     }
 
+    /// <summary>PILOT-087：会话不存在（进程早已退出 / 宿主重启过）→ AlreadyStopped，不算失败。</summary>
     [Fact]
-    public void Stop_UnknownCommand_ReturnsFalse()
+    public void Stop_UnknownCommand_ReturnsAlreadyStopped()
     {
-        Assert.False(_runner.Stop(99999));
+        var result = _runner.Stop(99999);
+        Assert.Equal(StopOutcome.AlreadyStopped, result.Outcome);
+        Assert.False(string.IsNullOrWhiteSpace(result.Reason));
+    }
+
+    /// <summary>PILOT-087：真实进程「启动→停止→再停止」第二次必须返回 AlreadyStopped（进程已不在）。</summary>
+    [Fact]
+    public void Stop_SecondCall_AfterStopped_ReturnsAlreadyStopped()
+    {
+        var cmdId = AddCommand("hold", HoldScript(20));
+        var session = _runner.Launch(cmdId);
+        Assert.NotNull(session);
+
+        Assert.Equal(StopOutcome.Stopped, _runner.Stop(cmdId).Outcome);
+        var again = _runner.Stop(cmdId);
+        Assert.Equal(StopOutcome.AlreadyStopped, again.Outcome);
+        Assert.DoesNotContain(_runner.Current(), s => s.Pid == session!.Pid);
     }
 
     [Fact]
@@ -177,18 +194,32 @@ public class RunnerServiceTests : IDisposable
         Assert.False(ext.HasExited);
 
         var ok = _runner.StopExternal(pid);
-        Assert.True(ok);
+        Assert.Equal(StopOutcome.Stopped, ok.Outcome);
 
         try { Assert.True(ext.WaitForExit(3000) || ext.HasExited); }
         finally { ext.Dispose(); }
+
+        // PILOT-087：进程已死后再停一次 → AlreadyStopped（不算失败，可区分反馈）
+        var again = _runner.StopExternal(pid);
+        Assert.Equal(StopOutcome.AlreadyStopped, again.Outcome);
     }
 
+    /// <summary>PILOT-087：不存在的 PID → AlreadyStopped（本就不在运行），而非失败。</summary>
     [Fact]
-    public void StopExternal_UnknownPid_ReturnsFalse()
+    public void StopExternal_UnknownPid_ReturnsAlreadyStopped()
     {
-        // 用一个极大 PID（几乎肯定不存在）验证失败返回 false 而非抛异常
+        // 用一个极大 PID（几乎肯定不存在）验证「已不在运行」归类而非抛异常
         var ok = _runner.StopExternal(int.MaxValue);
-        Assert.False(ok);
+        Assert.Equal(StopOutcome.AlreadyStopped, ok.Outcome);
+    }
+
+    /// <summary>PILOT-087：非法 PID → Failed 带原因（不抛异常）。</summary>
+    [Fact]
+    public void StopExternal_InvalidPid_ReturnsFailed()
+    {
+        var ok = _runner.StopExternal(-1);
+        Assert.Equal(StopOutcome.Failed, ok.Outcome);
+        Assert.False(string.IsNullOrWhiteSpace(ok.Reason));
     }
 
     [Fact]

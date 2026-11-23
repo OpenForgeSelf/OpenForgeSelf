@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 
 namespace ForgeSelf.Api.Tests;
 
@@ -208,5 +208,27 @@ public class RepositoryScriptTests
             text.Should().Contain("PadLeft(12, '0')",
                 $"{rel} 的版本比较必须补零定宽（PC-041 canonical fix），禁 System.Version/[version] 分量解析");
         }
+    }
+
+    /// <summary>
+    /// PC-043（2026-11-23 输入5）：跨平台脚本的「平台专属短路」必须先于 POSIX 探测。
+    /// 实测：Windows + git-bash 机器上 bash 在 PATH，install-git-hooks.ps1 的 Test-IsExecutable
+    /// 先走 `bash -lc 'test -x 盘符:\...'`——MSYS 内建 test 不识别反斜杠 Windows 路径 → 恒 false
+    /// → hook 被误判不可执行 → postinstall 恒败 → 发布链每个 pnpm install (host-web/plugin-web) 全挂。
+    /// 守卫：$IsWindows 短路必须出现在 bash 分支之前（顺序断言，非行为模拟）。
+    /// </summary>
+    [Fact]
+    public void 跨平台脚本平台短路必须先于POSIX探测_安装钩子()
+    {
+        var root = FindRepoRoot();
+        var text = File.ReadAllText(Path.Combine(root, "scripts", "install-git-hooks.ps1"));
+
+        var windowsShortCircuit = text.IndexOf("if ($IsWindows) { return $true }", StringComparison.Ordinal);
+        windowsShortCircuit.Should().BeGreaterThan(0, "Test-IsExecutable 必须保留 Windows 平台短路（NTFS 无可执行位语义）");
+
+        var bashProbe = text.IndexOf("& bash -lc", StringComparison.Ordinal);
+        bashProbe.Should().BeGreaterThan(0, "Test-IsExecutable 的 POSIX 探测分支必须仍在（Linux/Cloud 侧需要）");
+        windowsShortCircuit.Should().BeLessThan(bashProbe,
+            "Windows 短路必须先于 bash 探测——否则 git-bash 机器上 test -x 收到 Windows 路径恒 false（PC-043 实测发布链全挂）");
     }
 }

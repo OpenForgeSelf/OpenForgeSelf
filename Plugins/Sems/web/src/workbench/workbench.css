@@ -420,9 +420,14 @@
 
 /* ===== 插件容器内定位覆盖 =====
  * 交接包是整页应用，statusbar / toast-host 用 fixed；sems 是宿主页面里的远程视图，
- * fixed 会盖到宿主窗口底部，因此改为相对 .wb 容器的 sticky / absolute。 */
+ * fixed 会盖到宿主窗口底部，因此改为相对 .wb 容器的 sticky / absolute。
+ * PILOT-087 走查修正（2026-11-23）：toast-host 用 absolute 时锚在整页文档底部（.wb 为
+ * min-height:100vh 的相对容器），长页面里 toast 落在首屏之外＝点了没可见反馈（AC-F09-1）。
+ * 改为 sticky（与 statusbar 同机制），贴当前滚动口底部；空态不占布局，弹出时居中悬浮。 */
 .wb .statusbar{position:sticky;bottom:0;z-index:20}
-.wb__toast-host{position:absolute;bottom:48px;left:50%;transform:translateX(-50%)}
+.wb .wb__toast-host{position:sticky;bottom:48px;left:0;transform:none;z-index:100;
+  display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.wb .wb__toast-host .toast{pointer-events:auto}
 
 /* ===== 语义说明条 / 经典视图入口（评审 D1–D4：不做假能力、双入口可见） ===== */
 .wb .wb-notice{display:block;margin:0 0 16px;padding:12px 16px;

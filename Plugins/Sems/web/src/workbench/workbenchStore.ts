@@ -16,7 +16,7 @@ import {
   apiGet, apiPost, apiPut, apiDelete, browseDirectories, fetchPluginVersion,
 } from '../http'
 import type {
-  ProjectInfo, ProjectsResp, RunCommandInfo, DirectoryEntry, BrowseResp, RunsResp, RunLogsResp, RunSession,
+  ProjectInfo, ProjectsResp, RunCommandInfo, DirectoryEntry, BrowseResp, RunsResp, RunLogsResp, RunSession, StopRunResp,
 } from '../types'
 import { filterEngineeringPlugins, parseEngineeringPluginsPayload, type EngineeringPlugin } from '../engineeringPlugins'
 import { listSpecs } from '../specApi'
@@ -242,6 +242,13 @@ const logCursor: Record<number, number> = {}
  * 记下后不再对该命令轮询，直到显式启动才解除，避免反复 404 刷控制台（修 B-2）。
  */
 const logUnavailable = new Set<number>()
+
+/**
+ * 已收敛命令的「尾部补拉」登记（输入4 2026-11-23，PC-024 第4发逃逸面）：
+ * 任务进终态后日志缓冲已定，但停止/退出的后端留痕行（如「进程已退出（PID …）」）
+ * 可能晚于收敛落盘——允许恰补拉一针，拉完即清；终态任务由此彻底退出常驻轮询面。
+ */
+const tailPull = new Set<number>()
 export function isLogUnavailable(commandId: number): boolean { return logUnavailable.has(commandId) }
 function isNotFound(e: unknown): boolean {
   return /\(404\)|\b404\b/.test(e instanceof Error ? e.message : String(e))
@@ -689,6 +696,8 @@ function markTaskDone(commandId: number): void {
     writeRunHistory(store.runHistory)
   }
   if (store.runningCommandId === commandId) store.runningCommandId = null
+  // 终态后允许恰一针补拉（抓后端尾部退出留痕），由 ensureTaskPolling 消费后清登记
+  tailPull.add(commandId)
   void refreshRunningCount()
 }
 
@@ -708,7 +717,19 @@ export async function pullTaskLogs(commandId: number): Promise<void> {
   } catch (e) {
     // 启动瞬态：命令刚 POST run、后端日志缓冲区尚未建立时也可能 404，
     // 运行中命令必须继续轮询，否则实时日志会被永久停掉。
-    if (isNotFound(e) && taskStatusOf(commandId) === 'running') return
+    if (isNotFound(e) && taskStatusOf(commandId) === 'running') {
+      // PILOT-087（PC-024 lens）：404+运行中不得无限吞错轮询——向 /api/runs 核对一次。
+      // 会话确实不在（宿主/插件重启过、缓冲随之消失）→ 收敛为已结束并留痕一次、登记失效终结轮询；
+      // 会话仍在（启动瞬态）→ 维持继续轮询语义。核对失败按「仍在」处理，不误收敛。
+      const stillLive = await sessionStillLive(commandId).catch(() => true)
+      if (!stillLive) {
+        appendLogLines(commandId, ['■ 后端已无该会话（进程已退出或宿主/插件重启过，如进程仍在本机运行可用「检查」重新捕获），状态已同步为已结束'])
+        markTaskDone(commandId)
+        logUnavailable.add(commandId)
+        ensureTaskPolling()
+      }
+      return
+    }
     const bucket = bucketOf(commandId)
     const msg = '! 读取日志失败：' + (e instanceof Error ? e.message : String(e))
     if (!bucket.some((l) => l.startsWith('! 读取日志失败'))) {
@@ -722,13 +743,25 @@ export async function pullTaskLogs(commandId: number): Promise<void> {
   }
 }
 
+/** 核对该命令是否仍在本面板会话表（Launched）。仅用于 404+运行中的收敛判定。 */
+async function sessionStillLive(commandId: number): Promise<boolean> {
+  const r = await apiGet<RunsResp>('/api/runs')
+  return (r?.runs ?? []).some((s) => s.commandId === commandId && s.origin === 'Launched' && !s.ended)
+}
+
 let taskPoll: ReturnType<typeof setInterval> | undefined
 
-/** 轮询运行中任务与「日志可用」的选中任务，保证实时且不刷 404。 */
+/** 选中任务是否仍需要进轮询面：失效登记外，仅「非终态」或「待补一针尾部」入选（输入4：终态不得常驻轮询）。 */
+function selectedPollable(): boolean {
+  const sel = store.selectedTaskId
+  if (sel == null || logUnavailable.has(sel)) return false
+  return taskStatusOf(sel) !== 'done' || tailPull.has(sel)
+}
+
+/** 轮询运行中任务与「日志可用且未终态」的选中任务，保证实时且不刷 404。 */
 function ensureTaskPolling(): void {
   const hasRunning = Object.values(store.taskStatus).some((s) => s === 'running')
-  const selectedReady = store.selectedTaskId != null && !logUnavailable.has(store.selectedTaskId)
-  const need = hasRunning || selectedReady
+  const need = hasRunning || selectedPollable()
   if (!need) {
     if (taskPoll) { clearInterval(taskPoll); taskPoll = undefined }
     return
@@ -737,8 +770,11 @@ function ensureTaskPolling(): void {
   taskPoll = setInterval(async () => {
     const ids = new Set<number>()
     for (const [k, v] of Object.entries(store.taskStatus)) if (v === 'running') ids.add(Number(k))
-    if (store.selectedTaskId != null && !logUnavailable.has(store.selectedTaskId)) ids.add(store.selectedTaskId)
-    for (const id of ids) await pullTaskLogs(id)
+    if (selectedPollable()) ids.add(store.selectedTaskId!)
+    for (const id of ids) {
+      await pullTaskLogs(id)
+      if (taskStatusOf(id) === 'done') tailPull.delete(id) // 补拉一针即清，终态任务退出轮询面
+    }
     if (ids.size === 0 && taskPoll) { clearInterval(taskPoll); taskPoll = undefined }
   }, 1200)
 }
@@ -753,15 +789,54 @@ export async function selectTask(commandId: number): Promise<void> {
   ensureTaskPolling()
 }
 
-/** 停止任务：结束后保留日志与结束时间，记录不从列表消失。 */
-export async function stopTask(commandId: number, taskName: string): Promise<void> {
-  try {
-    await apiPost(`/api/commands/${commandId}/stop`, {})
-    appendLogLines(commandId, ['■ 已请求停止'])
+/** stopTask 的结果（PILOT-087：每种结果调用方都应给出可见反馈）。 */
+export interface StopTaskResult {
+  outcome: 'stopped' | 'already-stopped' | 'failed' | 'not-running'
+  message: string
+}
+
+/**
+ * 停止任务（PILOT-087，输入1 2026-11-23）：无论结果如何都有可见反馈（toast + 日志留痕），
+ * 并按结果收敛状态——已停止/已不在运行 → 已结束；失败 → 保持运行中可重试。
+ * 「已不在运行」不算失败：进程可能已自行退出或宿主/插件重启过（会话表在宿主内存）。
+ */
+export async function stopTask(commandId: number, taskName: string): Promise<StopTaskResult> {
+  if (store.mode === 'demo') {
+    // 演示模式无后端：按本地状态收敛并同样给出反馈
+    if (taskStatusOf(commandId) !== 'running') {
+      toast(`「${taskName}」当前没有运行中的进程，无需停止`)
+      return { outcome: 'not-running', message: '演示模式没有运行中的进程' }
+    }
+    appendLogLines(commandId, ['■ 已停止（演示模式）'])
     markTaskDone(commandId)
     toast('已停止：' + taskName)
+    return { outcome: 'stopped', message: 'demo' }
+  }
+
+  if (taskStatusOf(commandId) !== 'running') {
+    // 旧版此处按钮被无声禁用（点击零反馈）；现在点得动就一定给说法并同步运行数据
+    await refreshRunningCount()
+    toast(`「${taskName}」当前没有运行中的进程，无需停止`)
+    return { outcome: 'not-running', message: '当前没有运行中的进程' }
+  }
+
+  try {
+    const resp = await apiPost<StopRunResp>(`/api/commands/${commandId}/stop`, {})
+    if (resp?.outcome === 'already-stopped') {
+      appendLogLines(commandId, ['■ 已不在运行（进程可能已自行退出或宿主重启过），状态已同步为已结束'])
+      markTaskDone(commandId)
+      toast(`「${taskName}」已不在运行，无需停止`)
+      return { outcome: 'already-stopped', message: resp.message ?? '' }
+    }
+    appendLogLines(commandId, ['■ 已停止：' + (resp?.message || '进程树已终止')])
+    markTaskDone(commandId)
+    toast('已停止：' + taskName)
+    return { outcome: 'stopped', message: resp?.message ?? '' }
   } catch (e) {
-    toast('停止失败：' + (e instanceof Error ? e.message : String(e)))
+    const msg = e instanceof Error ? e.message : String(e)
+    appendLogLines(commandId, ['✗ 停止失败：' + msg + '（状态保持运行中，可重试）'])
+    toast('停止失败：' + msg)
+    return { outcome: 'failed', message: msg }
   }
 }
 

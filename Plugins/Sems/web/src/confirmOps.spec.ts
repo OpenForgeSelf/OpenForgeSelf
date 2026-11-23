@@ -32,7 +32,7 @@ describe('runWithConfirm', () => {
     expect(action).not.toHaveBeenCalled()
   })
 
-  it('用户确认 → 执行动作且只执行一次', async () => {
+  it('用户确认 → 执行动作且只执行一次，action 解析值透传为 data（PILOT-087）', async () => {
     const action = vi.fn(async () => 'ok')
     const confirm = vi.fn(async () => true)
 
@@ -43,7 +43,8 @@ describe('runWithConfirm', () => {
       action,
     })
 
-    expect(result).toEqual({ outcome: 'done' })
+    expect(result.outcome).toBe('done')
+    expect(result.data).toBe('ok')
     expect(action).toHaveBeenCalledTimes(1)
   })
 

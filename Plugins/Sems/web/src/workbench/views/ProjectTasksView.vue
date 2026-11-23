@@ -67,10 +67,18 @@ async function onRun() {
   await scrollToBottom()
 }
 
+const stopping = ref(false)
+
+/** 停止任务：不管结果如何 stopTask 内部必给反馈（toast + 日志留痕）；进行中去重（AC-F09-1/4，修 PILOT-087）。 */
 async function onStop() {
   const t = selectedTask.value
-  if (!t) return
-  await stopTask(t.id, t.name)
+  if (!t || stopping.value) return
+  stopping.value = true
+  try {
+    await stopTask(t.id, t.name)
+  } finally {
+    stopping.value = false
+  }
 }
 
 async function onRunAll() {
@@ -161,8 +169,9 @@ onMounted(async () => {
             <button class="btn btn-primary" :disabled="launchableCount === 0 || status === 'running'" @click="onRun()">
               <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '启动' }}
             </button>
-            <button class="btn btn-secondary" :disabled="status !== 'running'" @click="onStop()">
-              <span v-html="ic('close', 'sm')"></span>停止
+            <!-- 停止按钮保持可点（点得动就必有反馈：已停止/已不在运行/停止失败），仅进行中去重（AC-F09-1/4，修 PILOT-087） -->
+            <button class="btn btn-secondary" :disabled="!selectedTask || stopping" @click="onStop()">
+              <span v-html="ic('close', 'sm')"></span>{{ stopping ? '停止中…' : '停止' }}
             </button>
           </div>
         </div>

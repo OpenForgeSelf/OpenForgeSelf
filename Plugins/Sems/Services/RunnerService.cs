@@ -39,6 +39,43 @@ public class RunSession
 }
 
 /// <summary>
+/// 停止操作的可区分结果（PILOT-087，输入1 2026-11-23）：停止反馈必须能区分
+/// 「已停掉 / 本来就没在运行 / 真失败」，不允许把三者折叠成一个布尔。
+/// </summary>
+public enum StopOutcome
+{
+    /// <summary>进程树已被本次调用终止。</summary>
+    Stopped,
+
+    /// <summary>目标本就不在运行（会话不存在 / 进程已自行退出 / 宿主或插件重启过）：不算失败。</summary>
+    AlreadyStopped,
+
+    /// <summary>进程仍在运行但无法终止（权限不足等）：界面须提示原因并保留重试入口。</summary>
+    Failed
+}
+
+/// <summary>一次停止调用的结果（<see cref="IRunnerService.Stop"/> / <see cref="IRunnerService.StopExternal"/>）。</summary>
+public sealed class StopResult
+{
+    /// <summary>结果类别。</summary>
+    public StopOutcome Outcome { get; init; }
+
+    /// <summary>目标 PID（按 commandId 停止但会话不存在时为 0）。</summary>
+    public int Pid { get; init; }
+
+    /// <summary>可展示的原因：AlreadyStopped 说明为何不在运行，Failed 说明失败原因。</summary>
+    public string? Reason { get; init; }
+
+    public static StopResult Stopped(int pid) => new() { Outcome = StopOutcome.Stopped, Pid = pid };
+
+    public static StopResult AlreadyStopped(int pid, string reason) =>
+        new() { Outcome = StopOutcome.AlreadyStopped, Pid = pid, Reason = reason };
+
+    public static StopResult Failed(int pid, string reason) =>
+        new() { Outcome = StopOutcome.Failed, Pid = pid, Reason = reason };
+}
+
+/// <summary>
 /// sems 进程运行管理（design §5 / §1.2）：进程启动 / 停止 / 本机进程检测合并。
 /// 插件内服务，不进 Abstractions。经 <c>IContext.Get&lt;IProjectRegistry&gt;()</c> 读取命令与项目根，
 /// 每次使用每次解析（不缓存接缝实例为字段，符合宿主契约消费铁律）。
@@ -55,11 +92,11 @@ public interface IRunnerService
     /// </summary>
     RunSession? Launch(int commandId);
 
-    /// <summary>停止「本面板启动」的会话（按 commandId 取 PID 杀整树）。</summary>
-    bool Stop(int commandId);
+    /// <summary>停止「本面板启动」的会话（按 commandId 取 PID 杀整树）。结果可区分：已停 / 本就不在运行 / 真失败（PILOT-087）。</summary>
+    StopResult Stop(int commandId);
 
-    /// <summary>停止外部捕获进程（按 PID 杀整树）。</summary>
-    bool StopExternal(int pid);
+    /// <summary>停止外部捕获进程（按 PID 杀整树）。结果可区分：已停 / 本就不在运行 / 真失败（PILOT-087）。</summary>
+    StopResult StopExternal(int pid);
 
     /// <summary>本机进程检测（Windows：WMI；其他：/proc）+ 与 Launched 合并，返回当前运行列表。</summary>
     IReadOnlyList<RunSession> CheckAndMerge();
@@ -268,26 +305,44 @@ public class RunnerService : IRunnerService
         return buf.Snapshot(commandId, running, Math.Max(0, afterIndex));
     }
 
-    /// <summary>停止本面板启动的会话：按 commandId 取 PID，杀整树。进程已经不在也算停成功。</summary>
-    public bool Stop(int commandId)
+    /// <summary>
+    /// 停止本面板启动的会话：按 commandId 取 PID，杀整树。
+    /// PILOT-087：会话不存在（进程已自行退出 / 宿主或插件重启过）返回 <see cref="StopOutcome.AlreadyStopped"/>
+    /// （不算失败，界面据此收敛状态）；进程仍在但杀不掉才返回 <see cref="StopOutcome.Failed"/>（带原因）。
+    /// </summary>
+    public StopResult Stop(int commandId)
     {
-        if (!_launched.TryGetValue(commandId, out var session)) return false;
-        var killed = KillTree(session.Pid);
-        if (!killed && IsProcessAlive(session.Pid)) return false;
+        if (!_launched.TryGetValue(commandId, out var session))
+            return StopResult.AlreadyStopped(0, $"该命令没有存活的会话（{commandId}）：进程可能已自行退出，或宿主/插件重启过");
+
+        var (killed, error) = KillTree(session.Pid);
+        if (!killed && IsProcessAlive(session.Pid))
+            return StopResult.Failed(session.Pid, $"进程仍在运行但无法终止：PID {session.Pid}（{error ?? "权限不足或被系统保护"}）");
 
         _launched.TryRemove(commandId, out _);
         if (_processes.TryRemove(commandId, out var proc))
         {
             try { proc.Dispose(); } catch { /* 已退出 */ }
         }
-        return true;
+
+        return killed
+            ? StopResult.Stopped(session.Pid)
+            : StopResult.AlreadyStopped(session.Pid, $"进程已自行退出（PID {session.Pid}），无需停止");
     }
 
-    /// <summary>停止外部捕获进程（按 PID 杀整树）。进程不存在/权限不足返回 false。</summary>
-    public bool StopExternal(int pid)
+    /// <summary>停止外部捕获进程（按 PID 杀整树）。结果可区分：已停 / 已不在运行（不算失败）/ 真失败（带原因）。</summary>
+    public StopResult StopExternal(int pid)
     {
-        if (pid <= 0) return false;
-        return KillTree(pid);
+        if (pid <= 0) return StopResult.Failed(pid, $"非法 PID：{pid}");
+        if (!IsProcessAlive(pid))
+            return StopResult.AlreadyStopped(pid, $"进程已不在运行（PID {pid}）：可能已自行退出或宿主重启过");
+
+        var (killed, error) = KillTree(pid);
+        if (killed) return StopResult.Stopped(pid);
+        if (!IsProcessAlive(pid))
+            return StopResult.AlreadyStopped(pid, $"进程已不在运行（PID {pid}）");
+
+        return StopResult.Failed(pid, $"进程仍在运行但无法终止：PID {pid}（{error ?? "权限不足或被系统保护"}）");
     }
 
     /// <summary>本机进程检测 + 与 Launched 合并。</summary>
@@ -389,23 +444,24 @@ public class RunnerService : IRunnerService
 
     /// <summary>
     /// 杀进程整树。Windows 用 taskkill /T /F（对 cmd 子进程比 Kill(entireProcessTree) 更可靠）。
-    /// 其他系统用 <see cref="Process.Kill(bool)"/>。进程已不存在返回 false，由调用方决定是否算停成功。
+    /// 其他系统用 <see cref="Process.Kill(bool)"/>。PILOT-087：失败时回传原因（退出码/异常摘要）
+    /// 供 <see cref="StopOutcome.Failed"/> 展示；进程已不存在返回 false，由调用方归类为 AlreadyStopped。
     /// </summary>
-    private static bool KillTree(int pid)
+    private static (bool Ok, string? Error) KillTree(int pid)
     {
-        if (pid <= 0) return false;
+        if (pid <= 0) return (false, $"非法 PID：{pid}");
         if (!OperatingSystem.IsWindows())
         {
             try
             {
                 using var proc = Process.GetProcessById(pid);
-                if (proc.HasExited) return false;
+                if (proc.HasExited) return (false, "进程已退出");
                 proc.Kill(entireProcessTree: true);
-                return true;
+                return (true, null);
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                return (false, ex.Message);
             }
         }
 
@@ -419,13 +475,15 @@ public class RunnerService : IRunnerService
                 RedirectStandardError = true
             };
             using var proc = Process.Start(psi);
-            if (proc == null) return false;
+            if (proc == null) return (false, "taskkill 启动失败");
             proc.WaitForExit(3000);
-            return proc.ExitCode == 0;
+            return proc.ExitCode == 0
+                ? (true, null)
+                : (false, $"taskkill 退出码 {proc.ExitCode}（128=进程不存在，1=拒绝访问）");
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            return (false, ex.Message);
         }
     }
 

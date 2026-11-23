@@ -20,6 +20,8 @@ export interface ConfirmResult {
   outcome: ConfirmOutcome
   /** 仅 outcome==='failed' 时存在，供界面提示。 */
   error?: string
+  /** PILOT-087：action 的解析值透传（如停止响应的 outcome），供「已执行」后按结果分支反馈。 */
+  data?: unknown
 }
 
 export interface ConfirmOptions {
@@ -38,8 +40,8 @@ export async function runWithConfirm(options: ConfirmOptions): Promise<ConfirmRe
   if (!confirmed) return { outcome: 'cancelled' }
 
   try {
-    await options.action()
-    return { outcome: 'done' }
+    const data = await options.action()
+    return { outcome: 'done', data }
   } catch (e) {
     return { outcome: 'failed', error: errorMessage(e) }
   }

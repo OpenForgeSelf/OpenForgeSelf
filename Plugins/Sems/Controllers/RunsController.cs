@@ -40,12 +40,22 @@ public class RunsController : ControllerBase
         return Ok(new { success = true, total = runs.Count, runs });
     }
 
-    /// <summary>停止外部捕获进程（按 PID 杀整树）。</summary>
+    /// <summary>
+    /// 停止外部捕获进程（按 PID 杀整树）。
+    /// PILOT-087：结果可区分——stopped（已停）/ already-stopped（本就不在运行，200 成功不算失败）/ failed（409 带原因）。
+    /// </summary>
     [HttpPost("{pid}/stop")]
     public ActionResult<object> StopExternal(int pid)
     {
-        var ok = _runner.StopExternal(pid);
-        if (!ok) return NotFound(new { success = false, message = $"无法停止进程（不存在或无权限）：{pid}" });
-        return Ok(new { success = true });
+        var result = _runner.StopExternal(pid);
+        switch (result.Outcome)
+        {
+            case StopOutcome.Stopped:
+                return Ok(new { success = true, outcome = "stopped", pid = result.Pid, message = $"已停止进程树（PID {result.Pid}）" });
+            case StopOutcome.AlreadyStopped:
+                return Ok(new { success = true, outcome = "already-stopped", message = result.Reason ?? "该进程已不在运行，无需停止" });
+            default:
+                return Conflict(new { success = false, outcome = "failed", message = result.Reason ?? $"无法停止进程：{pid}" });
+        }
     }
 }

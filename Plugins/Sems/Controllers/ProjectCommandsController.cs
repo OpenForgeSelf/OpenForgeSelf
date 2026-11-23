@@ -88,13 +88,23 @@ public class ProjectCommandsController : ControllerBase
         return Ok(new { success = true, session });
     }
 
-    /// <summary>停止本面板启动的会话（按 commandId）。路由：POST api/commands/{id}/stop</summary>
+    /// <summary>
+    /// 停止本面板启动的会话（按 commandId）。路由：POST api/commands/{id}/stop
+    /// PILOT-087：结果可区分——stopped（已停）/ already-stopped（本就不在运行，200 成功不算失败）/ failed（409 带原因）。
+    /// </summary>
     [HttpPost("{id:int}/stop")]
     public ActionResult<object> Stop(int id)
     {
-        var ok = _runner.Stop(id);
-        if (!ok) return NotFound(new { success = false, message = $"未找到存活的会话：{id}" });
-        return Ok(new { success = true });
+        var result = _runner.Stop(id);
+        switch (result.Outcome)
+        {
+            case StopOutcome.Stopped:
+                return Ok(new { success = true, outcome = "stopped", pid = result.Pid, message = $"已停止进程树（PID {result.Pid}）" });
+            case StopOutcome.AlreadyStopped:
+                return Ok(new { success = true, outcome = "already-stopped", message = result.Reason ?? "该命令没有正在运行的进程，无需停止" });
+            default:
+                return Conflict(new { success = false, outcome = "failed", message = result.Reason ?? $"无法停止：{id}" });
+        }
     }
 
     /// <summary>Launched 会话输出日志（增量）。路由：GET api/commands/{id}/logs?after=0</summary>

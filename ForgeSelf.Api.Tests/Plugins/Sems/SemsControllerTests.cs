@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -325,11 +325,25 @@ public class SemsControllerTests
         ran.Status.Should().Be(200);
         ran.Body.GetProperty("session").GetProperty("pid").GetInt32().Should().Be(5150);
 
-        _runner.Setup(r => r.Stop(commandId)).Returns(true);
-        StatusOf(_commands.Stop(commandId)).Should().Be(200);
+        // PILOT-087：停止三态契约——stopped→200、already-stopped→200（成功体，不算失败）、failed→409
+        _runner.Setup(r => r.Stop(commandId)).Returns(StopResult.Stopped(5150));
+        var stopped = Decode(_commands.Stop(commandId).Result!);
+        stopped.Status.Should().Be(200);
+        stopped.Body.GetProperty("success").GetBoolean().Should().BeTrue();
+        stopped.Body.GetProperty("outcome").GetString().Should().Be("stopped");
 
-        _runner.Setup(r => r.Stop(commandId)).Returns(false);
-        StatusOf(_commands.Stop(commandId)).Should().Be(404);
+        _runner.Setup(r => r.Stop(commandId)).Returns(StopResult.AlreadyStopped(0, "该命令没有存活的会话"));
+        var again = Decode(_commands.Stop(commandId).Result!);
+        again.Status.Should().Be(200);
+        again.Body.GetProperty("outcome").GetString().Should().Be("already-stopped");
+        again.Body.GetProperty("success").GetBoolean().Should().BeTrue();
+
+        _runner.Setup(r => r.Stop(commandId)).Returns(StopResult.Failed(5150, "拒绝访问"));
+        var failedStop = Decode(_commands.Stop(commandId).Result!);
+        failedStop.Status.Should().Be(409);
+        failedStop.Body.GetProperty("success").GetBoolean().Should().BeFalse();
+        failedStop.Body.GetProperty("outcome").GetString().Should().Be("failed");
+        failedStop.Body.GetProperty("message").GetString().Should().Contain("拒绝访问");
 
         _runner.Setup(r => r.Current()).Returns(new List<RunSession>());
         StatusOf(_runs.ListRuns()).Should().Be(200);
@@ -339,10 +353,19 @@ public class SemsControllerTests
         checkedRuns.Status.Should().Be(200);
         checkedRuns.Body.GetProperty("total").GetInt32().Should().Be(0);
 
-        _runner.Setup(r => r.StopExternal(4321)).Returns(true);
-        StatusOf(_runs.StopExternal(4321)).Should().Be(200);
-        _runner.Setup(r => r.StopExternal(4321)).Returns(false);
-        StatusOf(_runs.StopExternal(4321)).Should().Be(404);
+        // PILOT-087：外部进程停止同样三态
+        _runner.Setup(r => r.StopExternal(4321)).Returns(StopResult.Stopped(4321));
+        var extStopped = Decode(_runs.StopExternal(4321).Result!);
+        extStopped.Status.Should().Be(200);
+        extStopped.Body.GetProperty("outcome").GetString().Should().Be("stopped");
+
+        _runner.Setup(r => r.StopExternal(4321)).Returns(StopResult.AlreadyStopped(4321, "进程已不在运行"));
+        var extAgain = Decode(_runs.StopExternal(4321).Result!);
+        extAgain.Status.Should().Be(200);
+        extAgain.Body.GetProperty("outcome").GetString().Should().Be("already-stopped");
+
+        _runner.Setup(r => r.StopExternal(4321)).Returns(StopResult.Failed(4321, "拒绝访问"));
+        StatusOf(_runs.StopExternal(4321)).Should().Be(409);
     }
 
     [Fact]

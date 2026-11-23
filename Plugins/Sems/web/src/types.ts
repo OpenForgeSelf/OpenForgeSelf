@@ -118,6 +118,17 @@ export interface RunsResp {
   runs: RunSession[]
 }
 
+/**
+ * 停止响应（POST /api/commands/{id}/stop、POST /api/runs/{pid}/stop）。
+ * PILOT-087：结果可区分——stopped（已停）/ already-stopped（本就不在运行，不算失败）/ failed（409 带原因）。
+ */
+export interface StopRunResp {
+  success: boolean
+  outcome?: 'stopped' | 'already-stopped' | 'failed'
+  pid?: number
+  message?: string
+}
+
 /** 单条捕获输出（GET /api/commands/{id}/logs）。 */
 export interface RunLogLine {
   index: number

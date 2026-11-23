@@ -1,4 +1,4 @@
-﻿# 问题类台账（Problem Classes）
+# 问题类台账（Problem Classes）
 
 > **本目录是「这类事为什么会再犯、怎么防」的唯一真源索引**；pilot 工件回答「任务做到哪了」，此处回答「问题被归类了吗、守卫在守吗」。
 > 模板与 front-matter schema 单一来源 = `docs/18-templates/postmortem/problem-class.tpl.md`；流程（何时建档、如何扫查/上浮）= 技能 `.agents/skills/problem-class-closure/`。
@@ -46,6 +46,9 @@
 | OAR prompt 结算 / installation 诚实 / 假 bundled / 短 sleep Exit | PC-037 |
 | Mock 配置 400 无感 / resume 被默认模型接管 | PC-039 |
 | planned 模式恒回退且无解释（组合根可选参静默漏装配） | PC-040 |
+| 主题浮层面/弹窗底与页面底不同族 / 亮暗两态表面 token 供给 | PC-042 |
+| 插件前端 SFC 用 EP 组件 / el-* 未显式 import / 预编译产物缺件 | PC-043 |
+| EP 组件自定义 class 覆盖样式 / `.x-dialog .el-dialog` 后代死规则 | PC-044 |
 
 ## 台账总表
 
@@ -92,6 +95,9 @@
 | PC-039 | Mock 提供方静默改道 / 会话模型快照缺失 | open | G1 失守待重建 | 0 | [PC-039](PC-039-mock-provider-silent-divert.md) |
 | PC-040 | 组合根构造可选参省参漏装配（静默 null 依赖） | open | G1 失守待重建 | 0 | [PC-040](PC-040-composition-root-arg-omission.md) |
 | PC-041 | 版本目录名第 4 段为 10 位时间码，[version]/System.Version 分量解析抛 OverflowException（更新保留步误报失败） | guarded | G1 active（RepositoryScriptTests 三处同源守卫 + UpdateAgentCore 单测） | 0 | [PC-041](PC-041-update-agent-version-sort-overflow.md) |
+| PC-042 | 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称（弹窗白底与内容区不统一） | guarded | G2 active（表面 token 接管 vitest）+ G3 active（主题文件签名） | 0 | [PC-042](PC-042-theme-overlay-surface-asymmetry.md) |
+| PC-043 | 插件前端 SFC 用 EP 组件未显式 import，独立预编译产物下组件缺失 | guarded | G2 active（plugin-ep-import vitest 静态扫查） | 0 | [PC-043](PC-043-plugin-ep-explicit-import.md) |
+| PC-044 | EP 组件自定义 class 落组件根元素，`.x-dialog .el-dialog` 后代选择器死规则不生效 | guarded | G3 active（check-problem-classes 签名×2） | 0 | [PC-044](PC-044-ep-custom-class-composite-selector.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

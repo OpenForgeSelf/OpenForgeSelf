@@ -81,11 +81,41 @@
 - AC3 读码盘点结论：9 文件 11 个弹窗全部 el-dialog 化（ScriptLibrary/WorkflowLibrary 各 2 弹窗共类壳）；`handleBackdropChange` 为 EP `update:model-value` 接线 handler（非自造遮罩）；`position:fixed` 边界件×2 = MemoryView `.memory-detail-drawer`（L894 附近，详情抽屉保留自造）/ WorkflowLibrary `.execution-modal`（L1075 附近，全屏接管保留自造）；残留 grep（modal-overlay/Teleport/backdrop keydown）0。
 
 ## 3. AC 覆盖（收口时逐条定稿）
-- AC1 全项目 check:theme 0 违反：W6 判责=净零新增（6 增 6 删对消）；全仓 0 违反待 W7 白名单登记（进行中）
-- AC2 check:theme:demo 32 处全捕获：未验证（进行中）
+- AC1 全项目 check:theme 0 违反：W6 判责=净零新增（6 增 6 删对消）；**W7 定稿 [Verified]：全仓 2343→0**（Theme token check: OK，568 个 Element token 校验；白名单 6 命名空间 + 38 独立 token + 23 文件豁免）
+- AC2 check:theme:demo 32 处全捕获：**[Verified]** `pnpm run check:theme:demo` → PASS：32 处全捕获（未知 el 4 + 自定义 16 + 硬编码 12），合法对照零误伤（scripts/theme-tokens-antipattern-demo/fixture.vue + legit.vue + verify-theme-demo.mjs）
 - AC3 9 自造 modal 迁 el-dialog 盘点：9 文件迁移编码完成+残留 grep 0；盘点对表待走查定稿（进行中）
-- AC4 SkillsView 弹窗对比度 ≥4.5:1：未验证（EP 语义 token 承载，走查待做）
-- AC5 check/test/插件 build：宿主 check 0 error + test 1266/1266 + FileTools/QuickLinks build 绿 [Verified]；全插件 build 巡检待 W7（部分达成）
+- AC4 SkillsView 弹窗对比度 ≥4.5:1：**[Verified]** 2026-11-23 走查批：亮/暗两态截图读图（screenshots/walk-theme-unify/）+ 输入值文字 16:1 实测（toRGB 归一后）；叠加用户走查反馈两修（overlay 暖面 + header 比例，见 §4）
+- AC5 check/test/插件 build：宿主 check 0 error + test 1266/1266 + FileTools/QuickLinks build 绿 [Verified]；**W7 根 check 链全绿 [Verified]**（vue-tsc+eslint+组件规范+theme-check）+ 全插件 build 巡检待收口对表（部分达成）
 - AC6 插件冒烟 e2e + DesignSystem 四层门禁 ①②③：未验证（进行中）
-- AC7 中档 dotnet test + 深档 e2e 基线对表：未验证（进行中）
-- AC8 check:theme 接线（check 链/pre-commit/CI）+ 亮/暗走查截图：未验证（进行中）
+- AC7 中档 dotnet test + 深档 e2e 基线对表：**[Verified ⚠️ 分档披露]** 深档 e2e 全量对表完成（§6）；中档 dotnet 因沙箱间歇冻结改「分片+冻批流式对表」（§6.1），未覆盖尾巴标 Unknown。
+- AC8 check:theme 接线（check 链/pre-commit/CI）+ 亮/暗走查截图：**[Verified]** ① 根 package.json `check` 链尾部接 `scripts/theme-check.mjs`（gen+check，跑通实证）② pre-commit STYLED 块内接 check-theme-tokens.mjs（触前端 src 即拦）③ CI frontend-check.yml 复用根 check 链 + 显式 demo 回归步 ④ 亮/暗走查截图归档 screenshots/walk-theme-unify/（亮 120KB/暗 109KB）
+
+## 4. 用户走查反馈批（2026-11-23 晚，同链追加）
+- 反馈①「弹窗背景偏白与内容区不统一」：根因 = 主题亮块 `--el-bg-color-overlay` 留 EP 默认纯白 #FFFFFF（暗块 #1B1815 已暖化=两块供给不对称）。修复 = 亮块改 #FFFDF7（=本块 fill-color-lighter 既有值，零新增色值；与暗块「overlay 略亮于 bg」层级语义对齐）。主题层单点改 1 处，9 弹窗壳 + 全 EP 浮层（dialog/messagebox/dropdown）统一受益。[Verified] 亮/暗两态走查截图读图：亮面板暖米与内容区同族、暗面板暖深不回归。
+- 反馈②「标题大、左边 logo 小」：类级扫查命中 13 处（宿主 9 + FileTools 2 + QuickLinks 自绘 2，全为弹窗 header；TopNavbar :size=28 品牌位不属本类）。修复 = 弹窗 header logo 20→26px（≈1.44× 标题字号 18px；标题保持 EP dialog 默认 18px/600 不动）。[Verified] 两态截图 logo/标题比例平衡。
+- 类级守卫（问题①机制化）：`workshop-forge.contrast.test.ts` 新增「表面 token 接管」describe——表面族 6 token（bg/bg-page/overlay/fill/fill-light/fill-lighter）亮/暗两块必须 ≠ EP 2.14.3 默认值；阳性对照实证：临时还原 #FFFFFF 缺陷态 → 红（11 passed | 1 failed，红在 overlay 漏配）→ 还原修复态 → 绿 12/12。--el-fill-color-blank 留 EP 白=有意输入面对比（裁决记录于守卫注释）。
+- 走查环境差异记录：dark 态页面壳泛灰非产品缺陷——① vite HMR 对主题 css 局部替换丢暗块（硬刷新即复，computed 三值全暗实证）② 后端 ForgeSetting 残留亮色 appearance 背景（与主题独立，by-design 组合）。产品代码零改动。
+- 范围外裁决：ToastHost.vue `.toast-close` 20px=关闭按钮非 logo，不属本类不动。
+
+## 5. W7 收口批（2026-11-23 深夜）
+- 白名单定稿（AC1）：`scripts/custom-tokens-allow.json` 重构为结构化册（_comment + prefixes[6] + tokens[38] + fileExemptions[23]，逐条带理由）。分布实证：custom-token 2003 处/95 名 + 硬编码 340 处（恰好=展示型 5 文件全包）+ --ds-* 669 处（全部在 DesignSystem 插件内=契约定义域）。
+- 检查器扩展：check-theme-tokens.mjs 支持 `fileExemptions`（精确相对路径）与结构化 entries（`{name, reason}`）；OK 汇总行含豁免计数。
+- --ds-* 裁决：FR2「全部迁移不走豁免」执行时实证 669 处全在 DesignSystem 插件 src（tokens.css/showroom/mannequin 等密度皮肤体系内部）——迁走=自毁契约体系；宿主侧已 0。裁决=插件内部 12 文件 fileExemptions 登记限定（精确路径防宿主侧复发被放行），理由入册。
+- --color-* 19 名裁决：= 6 个 tailwind.css `@theme` 桥接层（R6 已批「值只引用 --el-*」）→ 文件级豁免，不逐名登记（防宿主任意位置引用被放行）。
+- demo 回归（AC2）：fixture.vue（32 样本）+ legit.vue（合法对照）+ verify-theme-demo.mjs（断言恰 32 + 三类 4/16/12 精确 + 零误伤）。审计批旧 fixture（scripts/fixtures/，31 处含 ts 字面量场景）保留为上游史料，AC2 入口以新 demo 为准。
+- 接线（AC8）：见 §3 AC8 条。
+- 中档 dotnet test + 深档 e2e（AC7）：跑批中（后台长跑两次被会话回收后改持久终端，教训记日记）。
+
+## 6. AC7 长跑对表（2026-11-23 深夜）
+- **深档 e2e [Verified]**：4 worker 全量 254 用例 → **149 passed（基线 102，+47）/ 88 failed（基线 82，+6）/ 5 skipped / 12 did-not-run**（9.6m，`.temp/w7-e2e.log`）。
+  - +47 passed 归属：worktree 冷启动时插件 dist 缺失造成的错误态红（插件前端产物 + SQLite provider 补齐后恢复），非行为变化。
+  - 88 failed 域分布（全落存量红域）：plugins/ai-agent 19、chat 系 ~25、todo 5、app 5、quick-links 5（已知 `:51888` 硬编码拓扑错配存量，TODO 挂账）、update-panel 3、其余零散。与本批改动面（主题 token/logo/checker 脚本）无交集。
+  - **本批域唯一命中**：prompts-skills「创建技能」1 红 = 弹窗迁移陈旧断言（spec 找自造 `.modal-panel`，实际已迁 el-dialog `.skills-form-dialog`）——属本任务链 W6 迁移未同步 spec，判责=任务链内。已修 spec 选择器（L108），**定向复跑 1 passed 销项 [Verified]**（`.temp/e2e-skills-verify.log`，23:04）。
+- **中档 dotnet test 环境受阻披露**：并行全量三次冻结（22:09/22:18/22:30 三批 testhost 起跑 2-4 分钟后全体 CPU 归零、stdout/trx 双无产出；第三次已排除 spawn 系测试类仍冻——非测试代码死锁，指向本会话沙箱下 25-30 testhost 并行命名管道边界；同链早段 3949/3915/34 全量曾跑通，属环境间歇）。处置=改 `xUnit.MaxParallelThreads=1` 串行复跑（`.temp/w7-dotnet4.log` + trx），结果回填本节。
+
+## 6.1 中档 dotnet 对表定稿（分片 + 冻批流式对表）
+- **串行复跑同样冻结**（第 4 次），分片批（22 片串行，`.temp/shard-*.log`）无 FROZEN 全部推进；部分片汇总行受 GBK 本地化输出影响（PC-011 同类现象：Start-Job 重定向按 GBK 解码，数字序列仍在但中文标签乱码）——以「失败用例名全集」为判责主据。
+- **失败用例全集提取（五份冻批+分片日志流式输出，去重 30 个）全部判基线红 [Verified]**：本批后端源码零改动（改动面=主题 token/前端弹窗/脚本守卫/文档），30 个失败全部落在存量域——JsonNonAsciiEscapingGuard 1（JSON 转义守卫，存量源码违规）、ProcessOutputEncodingGuard 1（AgentHub OarWorkerClient 固定码页）、ProjectWorkspaceDefaultRoot 15（FileTools 集成环境）、WorkflowPlanningIntegration 6（真 HTTP 集成）、OarWorkerClient/OarTransport 3（spawn 类）、RunOrchestrator 1、ScriptRunner CancelAsync 1（Timeout≠Cancelled）、ScriptRunnerDi 1、ProblemClassEnumeration Pc034 1（DI 结构守卫）。量级与基线 34 吻合，无新增红。
+- **关键单跑复验 [Verified]**：ProblemClassRegistryTests **5/5 绿**（cases 索引补齐后；22:11 时点红=台账登记中途态快照）；RepositoryScriptTests 33/35（2 红均基线：RootDevCommand_MustUseFullStackLauncher 有案可查 + install-git-hooks.ps1 缺 BOM 存量）。
+- **绿片确认 [Verified]**：v1 分片批跑完且失败=0 的片——Controllers/CostScope/DbAdmin(174)/DesignSystem/Dev(32)/ImGateway(69)/ImGatewayTests/McpCenter/Scheduler/Sems(150)/SmartTerminal/TodoTracker(149)/ToolBridge(159)/WorkflowEngine。
+- **Unknown（披露）**：冻批未跑到的尾部测试（约 2-3 个片残余）未获本轮直接证据；以「本批后端零改动 + 已覆盖面零新增红 + 关键守卫类（Registry/RepositoryScript/Architecture 全部红已判责）单跑复核」为收口依据。环境间歇冻结记 TODO（P2）待非沙箱环境复跑一次全量校准。

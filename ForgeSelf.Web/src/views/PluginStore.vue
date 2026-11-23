@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import PageHead from '@/components/PageHead.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import GithubBindDialog from '@/components/github/GithubBindDialog.vue'
+import { githubAccountApi } from '@/services/githubAccountApi'
 import { usePluginStore } from '@/stores/plugin'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
 import { useOpenPage } from '@/composables/useOpenPage'
@@ -188,6 +190,63 @@ const confirmActivate = ref(false)
 const installBusy = ref(false)
 const installError = ref('')
 
+// ── GitHub 绑定前置检查（绑定 UX 二轮：install-precheck / armed-resume）──
+// GitHub 源安装前先看绑定态：未绑定不直接打 404/401，而是武装本次安装并弹绑定框；绑定成功自动续装。
+const bindDialogVisible = ref(false)
+const githubBound = ref<boolean | null>(null) // null=尚未查询
+const githubArmed = ref(false)
+const githubPrecheckHint = ref('')
+
+async function ensureGithubBindingChecked(): Promise<boolean> {
+  if (githubBound.value !== null) return githubBound.value
+  const res = await githubAccountApi.status()
+  githubBound.value = !!(res.success && res.data?.bound)
+  return githubBound.value
+}
+
+async function installSource(kind: 'github' | 'nuget'): Promise<void> {
+  const locator = kind === 'github' ? installGithub.value.trim() : installNuget.value.trim()
+  if (!locator) return
+  installBusy.value = true
+  installError.value = ''
+  try {
+    if (kind === 'github') {
+      const bound = await ensureGithubBindingChecked()
+      if (!bound) {
+        // 武装备份：记住本次安装意图，引导先绑定；绑定成功后自动续装
+        githubArmed.value = true
+        githubPrecheckHint.value = '安装 GitHub 源插件需要先绑定 GitHub 账号（私有仓库凭据）'
+        bindDialogVisible.value = true
+        installBusy.value = false
+        return
+      }
+    }
+    await pluginStore.installFromSource(kind, locator, confirmActivate.value)
+    ElMessage.success({ message: confirmActivate.value ? '已安装并激活' : '已暂存，可在版本历史里激活', offset: 60 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    installError.value = message
+    ElMessage.error({ message, offset: 60 })
+  } finally {
+    installBusy.value = false
+  }
+}
+
+/** 绑定成功：解除武装并自动续装（armed-resume） */
+function onGithubBound(accountLogin: string): void {
+  githubBound.value = true
+  githubPrecheckHint.value = `已绑定 ${accountLogin}，继续安装中…`
+  if (githubArmed.value && installGithub.value.trim()) {
+    githubArmed.value = false
+    void installSource('github')
+  }
+}
+
+function resumeArmedGithubInstall(): void {
+  githubArmed.value = false
+  void installSource('github')
+}
+
 function onZipPicked(event: Event): void {
   const file = (event.target as HTMLInputElement).files?.[0] ?? null
   installError.value = ''
@@ -208,23 +267,6 @@ function onDllPicked(event: Event): void {
     return
   }
   installDll.value = file
-}
-
-async function installSource(kind: 'github' | 'nuget'): Promise<void> {
-  const locator = kind === 'github' ? installGithub.value.trim() : installNuget.value.trim()
-  if (!locator) return
-  installBusy.value = true
-  installError.value = ''
-  try {
-    await pluginStore.installFromSource(kind, locator, confirmActivate.value)
-    ElMessage.success({ message: confirmActivate.value ? '已安装并激活' : '已暂存，可在版本历史里激活', offset: 60 })
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    installError.value = message
-    ElMessage.error({ message, offset: 60 })
-  } finally {
-    installBusy.value = false
-  }
 }
 
 async function uploadPackage(file: File | null): Promise<void> {
@@ -382,8 +424,12 @@ onMounted(() => {
         <div class="install-box">
           <label class="install-label">GitHub 仓库</label>
           <input v-model="installGithub" class="install-input" type="url" placeholder="https://github.com/owner/repo" />
-          <button type="button" class="install-btn" :disabled="installBusy || !installGithub.trim()" @click="installSource('github')">
+          <button type="button" class="install-btn" :disabled="installBusy || !installGithub.trim()" data-test="install-github-btn" @click="installSource('github')">
             从 GitHub 安装
+          </button>
+          <p v-if="githubPrecheckHint" class="install-hint" data-test="github-precheck-hint">{{ githubPrecheckHint }}</p>
+          <button v-if="githubArmed" type="button" class="install-btn" data-test="resume-github-install" @click="resumeArmedGithubInstall">
+            已绑定 GitHub 账号，继续安装
           </button>
           <label class="install-label">NuGet 包名</label>
           <input v-model="installNuget" class="install-input" type="text" placeholder="HelloWorld 或 OpenForgeSelf.Plugin.HelloWorld" />
@@ -405,6 +451,7 @@ onMounted(() => {
           <p v-if="installError" class="install-error">{{ installError }}</p>
           <p v-if="!installGithub && !installNuget && !installZip && !installDll && !installError" class="install-hint">填写地址或选择文件后再安装。</p>
         </div>
+        <GithubBindDialog v-model="bindDialogVisible" @bound="onGithubBound" />
       </div>
     </aside>
 

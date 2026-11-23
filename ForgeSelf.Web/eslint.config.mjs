@@ -21,6 +21,10 @@ export default tseslint.config(
       'playwright-report/',
       'playwright-report-published/',
       'test-results/',
+      // 仓库级临时目录（.temp\tmp 为本机 TEMP 重定向；临时探针/日志不入 lint）
+      '../.temp/',
+      '../../.temp/',
+      '.temp/',
     ],
   },
 

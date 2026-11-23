@@ -240,6 +240,10 @@ public static class AppBuilder
 
         // AI Provider 配置数据库化（001-ai-provider-config-db）
         builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
+        // GitHub 账号绑定域（PILOT-083）：设备流服务 + 绑定存取（令牌经加密落 ForgeSetting）
+        builder.Services.AddSingleton(sp => GitHubOAuthConfig.FromConfiguration(builder.Configuration));
+        builder.Services.AddSingleton<GitHubBindingStore>();
+        builder.Services.AddSingleton<GitHubAccountService>();
         builder.Services.AddScoped<IAIProviderRepository, AIProviderRepository>();
         builder.Services.AddScoped<IAIProviderService, AIProviderService>();
         builder.Services.AddScoped<IAIModelService, AIModelService>();

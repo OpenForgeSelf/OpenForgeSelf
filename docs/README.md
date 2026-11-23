@@ -362,6 +362,7 @@
 | 035 | [`02-features/035-plugin-versioned-layout.md`](02-features/035-plugin-versioned-layout.md) | 需求记录（插件版本化发布与显式升级，下期再做） |
 | 042 | [`02-features/042-network-proxy-settings.md`](02-features/042-network-proxy-settings.md) | 已实现（设置·网络设置：模型请求 HTTP/HTTPS 代理，保存即生效；关闭=显式直连忽略系统代理；SOCKS5 记 TODO） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
+| 101 | [`02-features/101-github-account.md`](02-features/101-github-account.md) | 已实现（GitHub 账号绑定：RFC 8628 设备流 + 内置 OAuth App + 插件拉取自动附凭据；PILOT-083） |
 
 > 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存已撤）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
 > 另有 `docs/chat-record-session-redesign.md` 为 010 会话聚合的**根因分析稿**（ChatRecord→ChatTurn 重构方案），已随 010 落地，其顶部"落地状态"段指向 `010-chat-session-aggregation.md`。

@@ -73,4 +73,31 @@ public class ForgeSetting : ForgeConfig<ForgeSetting>
   [Category("网络")]
   public String ProxyPasswordCipher { get; set; } = "";
   #endregion
+
+  #region GitHub账号（PILOT-083）
+  /// <summary>绑定的 GitHub 账号 login（空=未绑定）</summary>
+  [Description("绑定的 GitHub 账号 login")]
+  [Category("GitHub账号")]
+  public String GitHubAccountLogin { get; set; } = "";
+
+  /// <summary>GitHub 访问令牌密文（经 ISecretEncryptionService 加密后落盘，禁止写明文；空=未绑定）</summary>
+  [Description("GitHub 访问令牌（AES 密文存储）")]
+  [Category("GitHub账号")]
+  public String GitHubTokenCipher { get; set; } = "";
+
+  /// <summary>授权范围（设备流申请时使用的 scopes）</summary>
+  [Description("GitHub 授权范围")]
+  [Category("GitHub账号")]
+  public String GitHubScopes { get; set; } = "";
+
+  /// <summary>绑定时间。MinValue 表示从未绑定</summary>
+  [Description("GitHub 绑定时间，MinValue 表示从未绑定")]
+  [Category("GitHub账号")]
+  public DateTime GitHubBoundAt { get; set; } = DateTime.MinValue;
+
+  /// <summary>插件 GitHub 拉取（Release/克隆）是否自动附绑定凭据</summary>
+  [Description("插件 GitHub 拉取自动附凭据")]
+  [Category("GitHub账号")]
+  public Boolean GitHubAutoAttachToken { get; set; } = true;
+  #endregion
 }

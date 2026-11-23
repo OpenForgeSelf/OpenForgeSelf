@@ -29,6 +29,7 @@ import AppearancePanel from '@/components/settings/AppearancePanel.vue';
 import DataStoragePanel from '@/components/settings/DataStoragePanel.vue';
 import UpdatePanel from '@/components/settings/UpdatePanel.vue';
 import AboutPanel from '@/components/settings/AboutPanel.vue';
+import GithubAccountPanel from '@/components/settings/GithubAccountPanel.vue';
 
 type SettingsCategory =
   | 'general'
@@ -41,6 +42,7 @@ type SettingsCategory =
   | 'permission-policy'
   | 'appearance'
   | 'data'
+  | 'github-account'
   | 'update'
   | 'about';
 
@@ -67,6 +69,7 @@ const pageHeadMap: Record<SettingsCategory, { eyebrow: string; title: string }> 
   'permission-policy': { eyebrow: 'Settings · 权限策略', title: 'Agent 工具执行策略与审计' },
   appearance: { eyebrow: 'Settings · 外观', title: '主题、配色与视觉偏好' },
   data: { eyebrow: 'Settings · 数据与存储', title: '数据目录与缓存管理' },
+  'github-account': { eyebrow: 'Settings · GitHub 账号', title: '绑定 GitHub 账号，凭据加密留存' },
   update: { eyebrow: 'Settings · 版本更新', title: '检查更新与发布通道' },
   about: { eyebrow: 'Settings · 关于', title: '关于铸己匣' }
 };
@@ -88,6 +91,7 @@ const navItems: NavItem[] = [
   { key: 'permission-policy', label: '权限策略', icon: markRaw(Lock) },
   { key: 'appearance', label: '外观', icon: markRaw(Brush) },
   { key: 'data', label: '数据与存储', icon: markRaw(Coin) },
+  { key: 'github-account', label: 'GitHub 账号', icon: markRaw(Link) },
   { key: 'update', label: '版本更新', icon: markRaw(Refresh) },
   { key: 'about', label: '关于', icon: markRaw(InfoFilled) }
 ];
@@ -134,6 +138,7 @@ const navItems: NavItem[] = [
         <PermissionPolicyPanel v-show="activeCategory === 'permission-policy'" />
         <AppearancePanel v-show="activeCategory === 'appearance'" />
         <DataStoragePanel v-show="activeCategory === 'data'" />
+        <GithubAccountPanel v-show="activeCategory === 'github-account'" />
         <UpdatePanel v-show="activeCategory === 'update'" />
         <AboutPanel v-show="activeCategory === 'about'" />
       </div>

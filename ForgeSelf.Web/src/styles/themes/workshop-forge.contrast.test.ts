@@ -138,4 +138,25 @@ describe('workshop-forge 主题 token 明暗语义', () => {
     const ratio = contrast(background, foreground)
     expect(ratio, `light light-8 ${background} vs text-primary ${foreground} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
   })
+
+  // ── AC-11（2026-11-22 绑定 UX 二轮）：GitHub 绑定域自定义面 token 组合明暗两态全部 ≥4.5 ──
+  // 注：EP 内建状态横幅（error/warning/success light-9 底 + 主色字）在暗色 <4.5，属主题级既有欠账
+  // （暗色主状态色过暗），另批修（TODO：主题暗色状态色对比度），不在绑定域收敛。
+  it('AC-11 绑定域：设备码块与次要说明明暗两态对比度 ≥4.5', () => {
+    const combos: Array<{ label: string; bg: string; fg: string }> = [
+      { label: '设备码块（fill-light 底 + text-primary 字）', bg: '--el-fill-color-light', fg: '--el-text-color-primary' },
+      { label: '绑定说明（fill-lighter 底 + text-primary 字）', bg: '--el-fill-color-lighter', fg: '--el-text-color-primary' },
+      { label: '次要说明（bg 底 + text-secondary 字）', bg: '--el-bg-color', fg: '--el-text-color-secondary' },
+    ]
+    for (const themes of [['dark', darkTokens], ['light', lightTokens]] as const) {
+      const [themeName, tokens] = themes
+      for (const combo of combos) {
+        const ratio = contrast(token(tokens, combo.bg), token(tokens, combo.fg))
+        expect(
+          ratio,
+          `${themeName} ${combo.label} = ${ratio.toFixed(2)}:1（须 ≥4.5）`,
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
 })

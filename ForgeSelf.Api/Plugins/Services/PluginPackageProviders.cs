@@ -9,17 +9,29 @@ public sealed class PluginGitHubProvider
 {
     private readonly HttpClient _http;
     private readonly string _apiBase;
+    private readonly Func<string?>? _bearerTokenProvider;
 
-    public PluginGitHubProvider(HttpClient? http = null, string? apiBase = null)
+    public PluginGitHubProvider(HttpClient? http = null, string? apiBase = null, Func<string?>? bearerTokenProvider = null)
     {
         _http = http ?? new HttpClient();
         if (!_http.DefaultRequestHeaders.UserAgent.Any())
             _http.DefaultRequestHeaders.UserAgent.ParseAdd("OpenForgeSelf");
         _apiBase = string.IsNullOrWhiteSpace(apiBase) ? "https://api.github.com" : apiBase.TrimEnd('/');
+        _bearerTokenProvider = bearerTokenProvider;
+    }
+
+    /// <summary>已绑定 GitHub 账号且开关打开时，为请求附加 Bearer 凭据（私有仓库 Release 拉取）。</summary>
+    private void AttachBearerToken()
+    {
+        var token = _bearerTokenProvider?.Invoke();
+        if (string.IsNullOrWhiteSpace(token))
+            return;
+        _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
     }
 
     public async Task<(byte[] Bytes, string FileName)> DownloadLatestAsync(string repositoryUrl, CancellationToken cancellationToken)
     {
+        AttachBearerToken();
         var (owner, repo) = Parse(repositoryUrl);
         var json = await _http.GetStringAsync($"{_apiBase}/repos/{owner}/{repo}/releases/latest", cancellationToken);
         using var doc = JsonDocument.Parse(json);

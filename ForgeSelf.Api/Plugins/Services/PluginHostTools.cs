@@ -14,6 +14,7 @@ public sealed class PluginHostToolCatalog
     private readonly PluginJobStore _jobs;
     private readonly PluginBuildService _build;
     private readonly PluginSourceResolver _sources;
+    private readonly ForgeSelf.Api.Services.GitHubAccountService? _accounts;
 
     public PluginHostToolCatalog(
         IDataLocationService data,
@@ -21,7 +22,8 @@ public sealed class PluginHostToolCatalog
         PluginVersionService versions,
         PluginJobStore jobs,
         PluginBuildService build,
-        PluginSourceResolver sources)
+        PluginSourceResolver sources,
+        ForgeSelf.Api.Services.GitHubAccountService? accounts = null)
     {
         _data = data;
         _installer = installer;
@@ -29,6 +31,14 @@ public sealed class PluginHostToolCatalog
         _jobs = jobs;
         _build = build;
         _sources = sources;
+        _accounts = accounts;
+    }
+
+    /// <summary>已绑定且开关打开时返回 git -c http.extraheader 前缀（私有仓库克隆/拉取），否则空串。</summary>
+    private string GitAuthArgs()
+    {
+        var token = _accounts?.GetBearerToken();
+        return string.IsNullOrWhiteSpace(token) ? "" : $"-c http.extraheader=\"Authorization: Bearer {token}\" ";
     }
 
     public void Register(IToolRegistry registry)
@@ -75,7 +85,7 @@ public sealed class PluginHostToolCatalog
         }
         if (Directory.Exists(src))
             Directory.Delete(src, true);
-        var result = await RunAsync("git", $"clone -- \"{url}\" \"{src}\"", cancellationToken);
+        var result = await RunAsync("git", $"{GitAuthArgs()}clone -- \"{url}\" \"{src}\"", cancellationToken);
         var job = _jobs.Write(pluginDir, "clone", result.ExitCode == 0, null, result.ExitCode == 0 ? "已克隆" : "克隆失败");
         return result.ExitCode == 0 ? Ok(job, "已克隆") : Fail(job, "克隆失败");
     }
@@ -85,7 +95,7 @@ public sealed class PluginHostToolCatalog
         var id = Required(root, "pluginId");
         var pluginDir = _data.GetPluginDataDirectory(id);
         var src = PluginVersionLayout.SourceDirectory(pluginDir);
-        var result = await RunAsync("git", $"-C \"{src}\" pull --ff-only", cancellationToken);
+        var result = await RunAsync("git", $"{GitAuthArgs()}-C \"{src}\" pull --ff-only", cancellationToken);
         var job = _jobs.Write(pluginDir, "sync", result.ExitCode == 0, null, result.ExitCode == 0 ? "已同步" : "同步失败");
         return result.ExitCode == 0 ? Ok(job, "已同步") : Fail(job, "同步失败");
     }

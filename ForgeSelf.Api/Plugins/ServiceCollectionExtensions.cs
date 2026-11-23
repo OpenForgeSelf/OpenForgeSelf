@@ -39,7 +39,12 @@ public static class PluginServiceCollectionExtensions
         services.AddSingleton<PluginPackagerService>();
         services.AddSingleton<PluginInstallerService>();
         services.AddSingleton<PluginScaffolderService>();
-        services.AddSingleton<PluginGitHubProvider>();
+        services.AddSingleton(sp =>
+        {
+            // GitHub 账号绑定域（PILOT-083）：已绑定且开关打开时，Release 拉取自动附 Bearer 凭据
+            var accounts = sp.GetService<ForgeSelf.Api.Services.GitHubAccountService>();
+            return new PluginGitHubProvider(null, null, accounts == null ? null : () => accounts.GetBearerToken());
+        });
         services.AddSingleton<PluginNuGetProvider>();
         services.AddSingleton<PluginSourceResolver>();
         services.AddSingleton<PluginBuildService>();

@@ -235,6 +235,20 @@ export default async function globalSetup(_config: FullConfig) {
     },
   )
 
+  // 1.4) GitHub OAuth ClientId 置空（github-binding e2e 前置）：
+  // e2e 宿主不得外联 github.com 申请真实设备码（零外联铁律）。清掉 publish 目录里
+  // appsettings.json 的 GitHubOAuth:ClientId 后，POST /api/github-account/bind/start
+  // 走「未配置」分支（HTTP 400 + 明确错误文案），spec 断言错误透传 UX，不触真实 OAuth。
+  const publishAppsettings = path.join(publishDir, 'appsettings.json')
+  if (existsSync(publishAppsettings)) {
+    const raw = readFileSync(publishAppsettings, 'utf8')
+    if (raw.includes('"GitHubOAuth"')) {
+      const patched = raw.replace(/("GitHubOAuth"\s*:\s*\{[^}]*"ClientId"\s*:\s*")[^"]*(")/, '$1$2')
+      writeFileSync(publishAppsettings, patched, 'utf8')
+      console.log('[e2e-global-setup] 已置空 publish appsettings.json 的 GitHubOAuth:ClientId（e2e 零外联）')
+    }
+  }
+
   // 1.5) 补齐 SQLite provider（NewLife XCode 运行时依赖）：
   // dotnet publish 产物不含 System.Data.SQLite.dll（长期宿主靠 NewLife 首启自动下载落盘，
   // 临时目录联网下载在本机会被拒 → XCode 表初始化全挂 → 所有 DB API 500）。

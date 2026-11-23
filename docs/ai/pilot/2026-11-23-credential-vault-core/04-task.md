@@ -11,8 +11,12 @@ expected_files:
   - ForgeSelf.Host/Security/EnvelopeSecretCrypto.cs
   - ForgeSelf.Abstractions/SecretRef.cs
   - ForgeSelf.Api/Entities/StoredSecret.cs
+  - ForgeSelf.Api/Entities/StoredSecret.Biz.cs
   - ForgeSelf.Api/Entities/CredentialGrant.cs
+  - ForgeSelf.Api/Entities/CredentialGrant.Biz.cs
   - ForgeSelf.Api/Entities/SecretAuditEvent.cs
+  - ForgeSelf.Api/Entities/SecretAuditEvent.Biz.cs
+  - ForgeSelf.Host/ForgeSelf.Host.csproj
   - ForgeSelf.Api/Services/Vault/VaultModels.cs
   - ForgeSelf.Api/Services/Vault/ISecretStore.cs
   - ForgeSelf.Api/Services/Vault/SecretStore.cs
@@ -27,7 +31,8 @@ expected_files:
   - ForgeSelf.Api.Tests/Unit/SecretsControllerTests.cs
   - docs/README.md
   - docs/02-features/100-secret-encryption.md
-  - docs/06-research/003-agent-secret-management.md
+  - docs/06-research/008-agent-secret-management.md
+  - docs/07-decisions/not-taken-decisions.md
   - docs/08-security/credential-vault-design.md
   - docs/ai/pilot/2026-11-23-credential-vault-core/
 rollback: "整批新增文件 + AppBuilder 3 行注册，git revert <commit> 即净退；无既有表结构改动、无数据迁移"

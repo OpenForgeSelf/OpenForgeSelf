@@ -24,6 +24,7 @@ import path from 'node:path';
 
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');
+const VERBOSE = args.includes('--verbose');
 const scopeIdx = args.indexOf('--scope');
 const SCOPE = scopeIdx >= 0 ? args[scopeIdx + 1] : '';
 const exemptFiles = [];
@@ -318,6 +319,76 @@ const COLOR_RULES = {
   'border|#fff': 'var(--el-border-color-lighter)',
   'border|white': 'var(--el-border-color-lighter)',
   'border|#ffffff': 'var(--el-border-color-lighter)',
+  // —— AIAgent 插件（W4，与 token-migration-map --aiw-* 目标对齐）
+  'text|#1f2430': 'var(--el-text-color-primary)',
+  'text|#94a3b8': 'var(--el-text-color-secondary)',
+  'text|#e2e8f0': 'var(--el-text-color-primary)',
+  'text|#5b7391': 'var(--el-text-color-placeholder)',
+  'text|#98a2b3': 'var(--el-text-color-disabled)',
+  'text|#6b7280': 'var(--el-text-color-disabled)',
+  'text|#767c88': 'var(--el-text-color-secondary)',
+  'text|#a6adba': 'var(--el-text-color-disabled)',
+  'text|#1a1208': 'var(--el-color-white)',
+  'text|#92400e': 'var(--el-color-warning-dark-2)',
+  'text|#047857': 'var(--el-color-success-dark-2)',
+  'text|#b91c1c': 'var(--el-color-error-dark-2)',
+  'text|#991b1b': 'var(--el-color-error-dark-2)',
+  'text|#fca5a5': 'var(--el-color-error-light-5)',
+  'text|rgba(245, 240, 231, 0.75)': 'var(--el-text-color-regular)',
+  'bg|#1e293b': 'var(--el-fill-color)',
+  'bg|#0f172a': 'var(--el-bg-color-page)',
+  'bg|#1d222c': 'var(--el-bg-color-overlay)',
+  'bg|#2a2f3a': 'var(--el-fill-color)',
+  'bg|#dfe2ea': 'var(--el-fill-color)',
+  'bg|#d6dde6': 'var(--el-fill-color-dark)',
+  'bg|#ccd2dd': 'var(--el-border-color-lighter)',
+  'bg|#b9c0cd': 'var(--el-border-color-light)',
+  'bg|#4ade80': 'var(--el-color-success)',
+  'bg|#10b981': 'var(--el-color-success)',
+  'bg|#ea580c': 'var(--el-color-warning)',
+  'bg|#dc2626': 'var(--el-color-error)',
+  'bg|#94a3b8': 'var(--el-text-color-placeholder)',
+  'bg|#b42318': 'var(--el-color-error)',
+  'bg|#912018': 'var(--el-color-error-dark-2)',
+  'bg|#9ca3af': 'var(--el-text-color-disabled)',
+  'bg|#78350f': 'var(--el-color-warning-dark-2)',
+  'bg|#ecfdf5': 'var(--el-color-success-light-9)',
+  'bg|#fffbeb': 'var(--el-color-warning-light-9)',
+  'bg|#fffdf5': 'var(--el-color-warning-light-9)',
+  'bg|#fff8f3': 'var(--el-color-warning-light-9)',
+  'bg|#f7fefb': 'var(--el-color-success-light-9)',
+  'bg|#1a1206': 'color-mix(in srgb, var(--el-color-warning) 10%, var(--ink-950))',
+  'bg|#1f0a0a': 'color-mix(in srgb, var(--el-color-error) 9%, var(--ink-950))',
+  'bg|#122238': 'var(--ink-900)',
+  'bg|#0e1c2e': 'var(--ink-900)',
+  'bg|#0b1626': 'var(--ink-950)',
+  'bg|rgba(255, 255, 255, 0.1)': 'color-mix(in srgb, var(--el-color-white) 10%, transparent)',
+  'bg|rgba(255, 255, 255, 0.16)': 'color-mix(in srgb, var(--el-color-white) 16%, transparent)',
+  'bg|rgba(255, 255, 255, 0.18)': 'color-mix(in srgb, var(--el-color-white) 18%, transparent)',
+  'bg|rgba(255, 255, 255, 0.2)': 'color-mix(in srgb, var(--el-color-white) 20%, transparent)',
+  'bg|rgba(16, 24, 40, 0.07)': 'var(--el-fill-color)',
+  'bg|rgba(0, 0, 0, 0.06)': 'var(--el-fill-color)',
+  'bg|rgba(0, 0, 0, 0.07)': 'var(--el-fill-color)',
+  'bg|rgba(220, 38, 38, 0.07)': 'var(--el-color-error-light-9)',
+  'bg|rgba(220, 38, 38, 0.14)': 'var(--el-color-error-light-8)',
+  'bg|rgba(245, 240, 231, 0.04)': 'var(--el-fill-color-light)',
+  'bg|rgba(245, 158, 11, 0.08)': 'var(--el-color-warning-light-9)',
+  'border|#1e293b': 'var(--el-border-color)',
+  'border|#10b981': 'var(--el-color-success)',
+  'border|#dc2626': 'var(--el-color-error)',
+  'border|#ea580c': 'var(--el-color-warning)',
+  'border|#cbd2dd': 'var(--el-border-color-light)',
+  'border|#cbd5e1': 'var(--el-border-color-light)',
+  'border|#fde68a': 'var(--el-color-warning-light-5)',
+  'border|#fed7aa': 'var(--el-color-warning-light-5)',
+  'border|#a7f3d0': 'var(--el-color-success-light-5)',
+  'border|#161a22': 'var(--el-border-color-darker)',
+  'border|#78350f': 'color-mix(in srgb, var(--el-color-warning) 42%, var(--ink-950))',
+  'border|#7f1d1d': 'color-mix(in srgb, var(--el-color-error) 42%, var(--ink-950))',
+  'border|#1e3a5f': 'color-mix(in srgb, var(--el-color-info) 28%, var(--ink-950))',
+  'border|rgba(245, 240, 231, 0.10)': 'var(--el-border-color-lighter)',
+  'border|rgba(245, 158, 11, 0.4)': 'var(--el-color-warning-light-5)',
+  'border|rgba(56, 189, 248, 0.22)': 'color-mix(in srgb, var(--el-color-info) 22%, transparent)',
 };
 
 /** 整值规则（box-shadow / 渐变 / 遮罩）。key = `组|归一化整值` */
@@ -336,6 +407,17 @@ const WHOLE_RULES = {
   'shadow|0 4px 12px rgba(0, 0, 0, 0.15)': 'var(--el-box-shadow-light)',
   'shadow|0 6px 16px rgba(0, 0, 0, 0.12)': 'var(--el-box-shadow)',
   'shadow|0 8px 24px rgba(0, 0, 0, 0.15)': 'var(--el-box-shadow)',
+  // —— AIAgent 插件（W4）
+  'shadow|0 8px 24px -8px rgba(0, 0, 0, 0.18)': 'var(--el-box-shadow)',
+  'shadow|0 8px 22px -10px rgba(0, 0, 0, 0.35)': 'var(--el-box-shadow)',
+  'shadow|0 10px 26px -8px var(--aiw-primary-32), 0 4px 10px -4px rgba(16, 24, 40, 0.25)': '0 10px 26px -8px var(--aiw-primary-32), var(--el-box-shadow-light)',
+  'shadow|0 0 26px -2px var(--aiw-primary-32), 0 8px 24px -6px rgba(0, 0, 0, 0.7)': '0 0 26px -2px var(--aiw-primary-32), var(--el-box-shadow-dark)',
+  'shadow|0 0 0 2px rgba(74, 222, 128, 0.28)': '0 0 0 2px color-mix(in srgb, var(--el-color-success) 28%, transparent)',
+  'shadow|0 0 0 3px rgba(245, 158, 11, 0.15)': '0 0 0 3px var(--gold-tint)',
+  // —— AIAgent 渐变锚（大屏/按钮深锚 → 墨锚，W4）
+  'bg|linear-gradient(135deg, color-mix(in srgb, var(--el-color-primary) 85%, #000), #071120)': 'linear-gradient(135deg, color-mix(in srgb, var(--el-color-primary) 85%, var(--ink-950)), var(--ink-950))',
+  'bg|linear-gradient(140deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 70%, #101828))': 'linear-gradient(140deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 70%, var(--ink-950)))',
+  'bg|linear-gradient(135deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 62%, #0b1020))': 'linear-gradient(135deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 62%, var(--ink-950)))',
   'shadow|0 12px 30px -12px rgba(0, 0, 0, 0.45)': 'var(--el-box-shadow-dark)',
   'shadow|0 6px 18px -8px rgba(0, 0, 0, 0.5)': 'var(--el-box-shadow-dark)',
   'shadow|0 6px 16px -6px rgba(0, 0, 0, 0.3)': 'var(--el-box-shadow)',
@@ -437,7 +519,9 @@ function migrateFile(file) {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     // ① el var 兜底剥离（themes 供给齐备，hex 兜底即幻影）
-    const stripped = line.replace(/var\((--el-[\w-]+),\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|white|black)\)/g, 'var($1)');
+    const stripped = line
+      .replace(/var\((--el-[\w-]+),\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|white|black)\)/g, 'var($1)')
+      .replace(/var\((--border-default),\s*rgba?\([^)]*\)\)/g, 'var($1)');
     if (stripped !== line) { line = stripped; changed++; }
     // ② 声明扫描
     const declRe = /([-a-zA-Z]+)\s*:\s*([^;{}]+)/g;
@@ -482,8 +566,9 @@ function migrateFile(file) {
 }
 
 let files = [];
-walk(path.join(ROOT, 'ForgeSelf.Web', 'src'), files);
-// 插件域走后续批次；本次只做宿主
+const rootIdx = args.indexOf('--root');
+const WALK_ROOT = rootIdx >= 0 ? path.resolve(ROOT, args[rootIdx + 1]) : path.join(ROOT, 'ForgeSelf.Web', 'src');
+walk(WALK_ROOT, files);
 if (SCOPE) files = files.filter((f) => path.relative(ROOT, f).replace(/\\/g, '/').startsWith(SCOPE));
 files = files.filter((f) => !FILE_EXEMPT.includes(path.relative(ROOT, f).replace(/\\/g, '/')));
 for (const e of exemptFiles) files = files.filter((f) => path.resolve(f) !== path.resolve(e));
@@ -493,7 +578,10 @@ for (const f of files) migrateFile(f);
 console.log(`[hardcoded] files changed: ${report.files}, replacements: ${report.replaced}`);
 if (report.unmapped.size > 0) {
   console.log(`[hardcoded] 未映射（保留待人工/增补规则）: ${report.unmapped.size} 行`);
-  const byFile = new Map();
+  if (VERBOSE) {
+    for (const [key, decls] of report.unmapped) console.log(`  ${key}  ${decls.join(' ;; ')}`);
+  } else {
+    const byFile = new Map();
   for (const [key, decls] of report.unmapped) {
     const [f, ln] = key.split(':');
     if (!byFile.has(f)) byFile.set(f, []);
@@ -502,5 +590,6 @@ if (report.unmapped.size > 0) {
   for (const [f, items] of [...byFile.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 25)) {
     console.log(`  ${f} (${items.length})`);
     for (const it of items.slice(0, 4)) console.log(`    ${it}`);
+    }
   }
 }

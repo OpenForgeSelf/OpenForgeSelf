@@ -413,6 +413,22 @@
       "to": "--el-border-radius-round",
       "why": "999px pill 语义=EP round(9999px)（W3a opencode 分析员产出）"
     },
+    "--aiw-radius": {
+      "to": "--radius-xl",
+      "why": "面板圆角 16px→主题大圆角档 14px（delta 2；2026-11-23 W4 补映射，原表漏无后缀基名）"
+    },
+    "--aiw-radius-xl": {
+      "to": "--radius-xl",
+      "why": "18px→主题大圆角档 14px（delta 4；主题无更大档，同族收敛）"
+    },
+    "--aiw-fs-xs": {
+      "to": "--el-font-size-extra-small",
+      "why": "10.5px→EP 最小字号档 12px（角标极小标注；delta 1.5）"
+    },
+    "--aiw-fs-sm": {
+      "to": "--el-font-size-extra-small",
+      "why": "11.5px→EP 最小字号档 12px（时间戳/次要说明；delta 0.5）"
+    },
     "--aiw-fs-base": {
       "to": "--el-font-size-small",
       "why": "12.5px→EP 13px 档（delta 0.5）（W3a opencode 分析员产出）"

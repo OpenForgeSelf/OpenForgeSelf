@@ -581,15 +581,15 @@ async function onDelete() {
 /* 下拉选项行：工具名 + 来源插件徽标 + 说明（说明过长省略，title 兜底完整文案）。 */
 .aed__opt-name {
   font-size: var(--el-font-size-small, 13px);
-  color: var(--el-text-color-primary, #e5eaf3);
+  color: var(--el-text-color-primary);
 }
 
 .aed__opt-plugin {
   margin-left: 6px;
   padding: 0 5px;
   border-radius: var(--el-border-radius-round, 999px);
-  background: var(--el-fill-color-light, rgba(144, 147, 153, 0.12));
-  color: var(--el-text-color-secondary, #a3a6ad);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
   font-size: 10px;
 }
 
@@ -599,7 +599,7 @@ async function onDelete() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--el-text-color-placeholder, #8c959f);
+  color: var(--el-text-color-placeholder);
   font-size: var(--el-font-size-extra-small, 12px);
 }
 

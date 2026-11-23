@@ -145,6 +145,8 @@ function processFile(full) {
   const isStyleFile = /\.(css|scss)$/.test(full);
   // .vue 仅在 <style> 块内检查硬编码颜色，避免误伤 <script> 里的注释 / 类型联合 / 字符串字面量（如 'blue'）
   let inStyle = false;
+  // 跨行块注释状态机：注释是史料不是样式，/* */ 中间的行同样要剥（2026-11-23 W4 AIAgent 6 假阳性实证）
+  let inBlockComment = false;
   const lines = text.split(/\r?\n/);
   lines.forEach((line, i) => {
     const lineNo = i + 1;
@@ -152,10 +154,28 @@ function processFile(full) {
       if (/<style[\s>]/.test(line)) inStyle = true;
       if (/<\/style>/.test(line)) inStyle = false;
     }
+    // 剥注释：单行 /* */、未闭合到行尾、跨行块注释的中间与闭合行
+    let codeLine = "";
+    let rest = line;
+    for (let guard = 0; rest.length > 0 && guard < 64; guard++) {
+      if (inBlockComment) {
+        const end = rest.indexOf("*/");
+        if (end === -1) { rest = ""; break; }
+        inBlockComment = false;
+        rest = rest.slice(end + 2);
+      } else {
+        const start = rest.indexOf("/*");
+        if (start === -1) { codeLine += rest; rest = ""; break; }
+        codeLine += rest.slice(0, start);
+        inBlockComment = true;
+        rest = rest.slice(start + 2);
+      }
+    }
+    codeLine = codeLine.replace(/\/\/.*$/, "");
     const seen = new Set();
     let m;
     // 定义：--x:
-    while ((m = defRe.exec(line))) {
+    while ((m = defRe.exec(codeLine))) {
       const tk = m[1];
       if (!seen.has(tk)) {
         seen.add(tk);
@@ -163,7 +183,7 @@ function processFile(full) {
       }
     }
     // 用法：var(--x)
-    while ((m = useRe.exec(line))) {
+    while ((m = useRe.exec(codeLine))) {
       const tk = m[1];
       if (!seen.has(tk)) {
         seen.add(tk);
@@ -174,8 +194,8 @@ function processFile(full) {
     // 仅 .css/.scss 全文 或 .vue 的 <style> 块内检查，降低误报
     const inColorContext = isStyleFile || (isVue && inStyle);
     if (inColorContext) {
-      // 先剔除 // 与 /* */ 注释，避免误伤 SCSS 注释 / 块注释里的颜色词
-      const checkLine = line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      // 注释已统一在 codeLine 剥除（含跨行块注释与行注释）
+      const checkLine = codeLine;
       if (
         (hexOrRgb.test(checkLine) || rgbRe.test(checkLine) || namedColorRe.test(checkLine)) &&
         !allowPatterns.some((p) => p.test(checkLine))

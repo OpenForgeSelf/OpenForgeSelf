@@ -287,7 +287,7 @@ const htmlHeight = computed(() => `${props.block.height || 180}px`)
 const srcDoc = computed(() => {
   const body = props.block.html || ''
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-html,body{margin:0;padding:10px;font:13px/1.6 -apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1f2430;background:#fff}
+html,body{margin:0;padding:10px;font:13px/1.6 -apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:var(--el-text-color-primary);background:var(--el-bg-color)}
 *{box-sizing:border-box}
 </style></head><body>${body}</body></html>`
 })

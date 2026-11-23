@@ -14,29 +14,16 @@
 }
 
 .aiw-root {
-  --aiw-primary: #4f46e5;
-  --aiw-primary-08: rgba(79, 70, 229, 0.08);
-  --aiw-primary-16: rgba(79, 70, 229, 0.16);
-  --aiw-primary-32: rgba(79, 70, 229, 0.32);
-  --aiw-radius: 16px;
-  --aiw-text: #1f2430;
-  --aiw-text-soft: #6b7280;
-  --aiw-line: #e8eaf0;
-  --aiw-bg: #ffffff;
-  --aiw-bg-soft: #f6f7fb;
-  --aiw-shadow: 0 18px 48px -12px rgba(16, 24, 40, 0.22), 0 6px 16px -6px rgba(16, 24, 40, 0.12);
+  --aiw-primary-08: color-mix(in srgb, var(--el-color-primary) 8%, transparent);
+  --aiw-primary-16: color-mix(in srgb, var(--el-color-primary) 16%, transparent);
+  --aiw-primary-32: color-mix(in srgb, var(--el-color-primary) 32%, transparent);
+  --aiw-shadow: var(--el-box-shadow);
 
   /* ---------- 字号阶梯 ----------
      此前全篇硬编码 11 种字号，还夹着 10.5/11.5/12.5/13.5 这种半像素刻度 ——
      那不是设计，是逐条调出来的结果，改一个地方其它地方不会跟着动。
      这里先把**刻度**立起来（档位值取自存量里出现频次最高的那几个），
      存量 1300 行的替换单独立项：先有刻度，才能让「改成 12px」变成「改成 --aiw-fs-sm」。 */
-  --aiw-fs-xs: 10.5px;   /* 角标、极小标注 */
-  --aiw-fs-sm: 11.5px;   /* 时间戳、次要说明 */
-  --aiw-fs-base: 12.5px; /* 面板正文 */
-  --aiw-fs-md: 13.5px;   /* 气泡正文 */
-  --aiw-fs-lg: 15px;     /* 小标题 */
-  --aiw-fs-xl: 17px;     /* 面板主标题 */
 
   /* ---------- 间距台阶 ----------
      4 的倍数为主（贴合既有 8/6/4/12/16 的实际用法），2px 留给极端紧凑处。 */
@@ -47,40 +34,22 @@
   --aiw-space-5: 12px;
   --aiw-space-6: 16px;
 
-  /* ---------- 圆角分档 ----------
-     --aiw-radius 保留为「面板级」专值，其余按控件体量分档。
-     存量里 15 种圆角值（8/6/9/7/5/10/14/4/2/12/3/18/11/999）是碎片，
-     实测同一屏上气泡 14px、发送键 11px、输入框 14px —— 邻近控件三种值。 */
-  --aiw-radius-xs: 4px;
-  --aiw-radius-sm: 6px;
-  --aiw-radius-md: 10px;
-  --aiw-radius-lg: 14px;
-  --aiw-radius-xl: 18px;
-  --aiw-radius-pill: 999px;
 
   /* ---------- 动效时长与缓动 ----------
      与项目 DESIGN.md Motion 表同刻度（90/160/220/360/540），只是套在 --aiw- 命名空间下
      （组件独立发行，不能依赖宿主的 --dur-*）。
      缓动默认 ease-out（快进慢出，稳）；ease-forge（锤落回弹）只允许 logo/重点出现时刻。 */
-  --aiw-dur-instant: 90ms;
-  --aiw-dur-fast: 160ms;
-  --aiw-dur-base: 220ms;
-  --aiw-dur-slow: 360ms;
-  --aiw-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --aiw-ease-forge: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ---------- 语义色（文字级） ----------
      与 --aiw-danger / --aiw-warning（边框、填充用）**分开定义**：
      同一个色相，做边框只要 3:1 就够，做文字却要 4.5:1 ——
      共用一个值必然有一边不达标（#dc2626 在白底上只有约 4.2:1，做小字不合格）。 */
-  --aiw-text-danger: #b91c1c;  /* 白底 ≈4.9:1 */
-  --aiw-text-warning: #92400e; /* 白底 ≈5.9:1 */
 
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -98,9 +67,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #fff;
-  background: linear-gradient(140deg, var(--aiw-primary), color-mix(in srgb, var(--aiw-primary) 70%, #101828));
-  box-shadow: 0 10px 26px -8px var(--aiw-primary-32), 0 4px 10px -4px rgba(16, 24, 40, 0.25);
+  color: var(--el-color-white);
+  background: linear-gradient(140deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 70%, var(--el-bg-color-page)));
+  box-shadow: 0 10px 26px -8px var(--aiw-primary-32), var(--el-box-shadow-light);
   transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -116,7 +85,7 @@
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: var(--aiw-primary);
+  background: var(--el-color-primary);
   opacity: 0.28;
   animation: aiw-pulse 2.6s ease-out infinite;
   pointer-events: none;
@@ -137,13 +106,13 @@
   height: 20px;
   padding: 0 5px;
   border-radius: 10px;
-  background: #ef4444;
-  color: #fff;
+  background: var(--el-color-error);
+  color: var(--el-color-white);
   font-size: 11px;
   font-weight: 700;
   line-height: 20px;
   text-align: center;
-  border: 2px solid #fff;
+  border: 2px solid var(--el-border-color-lighter);
 }
 
 /* ---------------- 面板 ---------------- */
@@ -157,10 +126,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--aiw-bg);
+  background: var(--el-bg-color);
   border-radius: 18px;
   box-shadow: var(--aiw-shadow);
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
 }
 .aiw-root.aiw-right .aiw-panel { right: var(--aiw-off-x, 24px); transform-origin: bottom right; }
 .aiw-root.aiw-left .aiw-panel { left: var(--aiw-off-x, 24px); transform-origin: bottom left; }
@@ -178,8 +147,8 @@
   align-items: center;
   gap: 10px;
   padding: 14px 14px 14px 16px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--aiw-primary), color-mix(in srgb, var(--aiw-primary) 62%, #0b1020));
+  color: var(--el-color-white);
+  background: linear-gradient(135deg, var(--el-color-primary), color-mix(in srgb, var(--el-color-primary) 62%, var(--el-bg-color-page)));
   flex: 0 0 auto;
 }
 .aiw-header::after {
@@ -187,7 +156,7 @@
   position: absolute;
   inset: auto 0 0 0;
   height: 1px;
-  background: rgba(255, 255, 255, 0.16);
+  background: color-mix(in srgb, var(--el-color-white) 16%, transparent);
 }
 .aiw-header__avatar {
   width: 38px;
@@ -195,11 +164,11 @@
   flex: 0 0 38px;
   border-radius: 50%;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--el-color-white) 20%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--el-color-white);
 }
 .aiw-header__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .aiw-header__avatar svg { width: 22px; height: 22px; }
@@ -228,8 +197,8 @@
   height: 6px;
   flex: 0 0 6px;
   border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.28);
+  background: var(--el-color-success);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-success) 28%, transparent);
 }
 
 .aiw-header__actions { display: flex; gap: 2px; flex: 0 0 auto; }
@@ -239,7 +208,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #fff;
+  color: var(--el-color-white);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -247,7 +216,7 @@
   opacity: 0.82;
   transition: background 0.15s ease, opacity 0.15s ease;
 }
-.aiw-header__actions button:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
+.aiw-header__actions button:hover { background: color-mix(in srgb, var(--el-color-white) 18%, transparent); opacity: 1; }
 .aiw-header__actions svg { width: 17px; height: 17px; }
 
 /* ---------------- 消息区 ---------------- */
@@ -255,12 +224,12 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--aiw-bg-soft);
+  background: var(--el-fill-color-light);
   scrollbar-width: thin;
   scrollbar-color: #c9ced9 transparent;
 }
 .aiw-body::-webkit-scrollbar { width: 6px; }
-.aiw-body::-webkit-scrollbar-thumb { background: #ccd2dd; border-radius: 3px; }
+.aiw-body::-webkit-scrollbar-thumb { background: var(--el-border-color-lighter); border-radius: 3px; }
 .aiw-body::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------------- FR-218 用户消息刻度条 ----------------
@@ -293,13 +262,13 @@
   border: 0;
   border-radius: 2px;
   cursor: pointer;
-  background: #b9c0cd;
+  background: var(--el-border-color-light);
   opacity: 0.7;
   transition: width 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
-.aiw-rail__t:hover { width: 15px; opacity: 1; background: var(--aiw-primary); }
+.aiw-rail__t:hover { width: 15px; opacity: 1; background: var(--el-color-primary); }
 /* 当前阅读位置：更亮、更长（和参考图一致：靠「更长」而不是只靠颜色区分） */
-.aiw-rail__t.is-on { width: 17px; opacity: 1; background: var(--aiw-text); }
+.aiw-rail__t.is-on { width: 17px; opacity: 1; background: var(--el-text-color-primary); }
 /* 悬浮显示该条输入的内容 */
 .aiw-rail__tip {
   position: absolute;
@@ -313,9 +282,9 @@
   font-size: 11.5px;
   line-height: 1.45;
   text-align: left;
-  color: var(--aiw-bg);
-  background: var(--aiw-text);
-  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
+  color: var(--el-bg-color);
+  background: var(--el-text-color-primary);
+  box-shadow: var(--el-box-shadow-dark);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease;
@@ -345,10 +314,10 @@
   border-radius: 999px;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--aiw-text);
-  background: color-mix(in srgb, var(--aiw-bg) 88%, transparent);
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
-  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.35);
+  color: var(--el-text-color-primary);
+  background: color-mix(in srgb, var(--el-bg-color) 88%, transparent);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--el-box-shadow);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   pointer-events: none;
@@ -372,7 +341,7 @@
    底部负 margin 抵消输入框左内边距，让分隔线贯通整个输入框宽度。 */
 .aiw-ctxbar--inline {
   margin: 2px -6px -6px -12px;
-  border-top: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  border-top: 1px solid var(--border-default);
 }
 .aiw-ctxbar__row {
   display: flex;
@@ -393,12 +362,12 @@
   height: 30px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  border: 1px solid var(--border-default);
   background: transparent;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.aiw-ctxbtn:hover { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-ctxbtn:hover { border-color: var(--el-color-primary); background: var(--aiw-primary-16); }
 /* UX-012 [P0]：触控目标须 ≥44×44。视觉保持 30px 圆形（密度不塌），
    用伪元素把**可点区**外扩到 44×44 —— 触摸设备上不必瞄准小圆点。 */
 .aiw-ctxbtn::after,
@@ -413,8 +382,8 @@
 .aiw-ctxbtn:active,
 .aiw-accessbtn:active,
 .aiw-todoentry__btn:active { transform: scale(0.96); }
-.aiw-ctxbtn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
-.aiw-ctxbtn.is-active { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
+.aiw-ctxbtn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
+.aiw-ctxbtn.is-active { border-color: var(--el-color-primary); background: var(--aiw-primary-16); }
 .aiw-ctxbtn__ico { font-size: 14px; line-height: 1; }
 .aiw-ctxbtn__n {
   position: absolute;
@@ -427,8 +396,8 @@
   font-size: 10px;
   line-height: 15px;
   text-align: center;
-  color: #fff;
-  background: var(--aiw-primary);
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
 }
 
 /* 权限胶囊 */
@@ -441,24 +410,24 @@
   border-radius: 999px;
   font-size: 12px;
   cursor: pointer;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 .aiw-accessbtn svg { width: 13px; height: 13px; }
-.aiw-accessbtn:hover { border-color: var(--aiw-primary); }
+.aiw-accessbtn:hover { border-color: var(--el-color-primary); }
 /* 档位越宽松，色越警示（红=完全访问，琥珀=标准，绿=只读）。
    ★ UX-002 [P0] 修正：档位色**只用于边框与图标**，文字一律用正文色 ——
      实测琥珀色文字在浅底上只有 2.54:1（远低于正文 4.5:1），近乎看不清；
      边框/图标属 UI 元素，阈值 3:1，用加深一档的色相满足。
      语义不靠颜色单独承载：胶囊里始终有「只读 / 标准 / 完全访问」文字（UX-003）。 */
-.aiw-accessbtn--readonly { color: var(--aiw-text); border-color: var(--aiw-success, #10b981); }
-.aiw-accessbtn--standard { color: var(--aiw-text); border-color: var(--aiw-warning, #d97706); }
-.aiw-accessbtn--full { color: var(--aiw-text); border-color: var(--aiw-danger, #dc2626); }
-.aiw-accessbtn--readonly svg { color: var(--aiw-success, #10b981); }
-.aiw-accessbtn--standard svg { color: var(--aiw-warning, #d97706); }
-.aiw-accessbtn--full svg { color: var(--aiw-danger, #dc2626); }
+.aiw-accessbtn--readonly { color: var(--el-text-color-primary); border-color: var(--el-color-success); }
+.aiw-accessbtn--standard { color: var(--el-text-color-primary); border-color: var(--el-color-warning); }
+.aiw-accessbtn--full { color: var(--el-text-color-primary); border-color: var(--el-color-error); }
+.aiw-accessbtn--readonly svg { color: var(--el-color-success); }
+.aiw-accessbtn--standard svg { color: var(--el-color-warning); }
+.aiw-accessbtn--full svg { color: var(--el-color-error); }
 
 /* 弹出面板：挂在 .aiw-ctxitem（position:relative）下，不随 footer 滚动 */
 .aiw-ctxpop {
@@ -475,9 +444,9 @@
      （实测向下弹时 y537+302=839 > 窗口 720，底部选项点不到）。 */
   max-height: min(300px, calc(100vh - 120px));
   border-radius: 10px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
-  background: var(--aiw-bg);
-  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-default);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-dark);
   overflow: hidden;
 }
 .aiw-ctxpop--right { left: auto; right: 0; }
@@ -489,7 +458,7 @@
   margin: 0;
   padding: 12px;
   font-size: 12px;
-  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 72%, transparent);
 }
 
 .aiw-ctxmenu { display: flex; flex-direction: column; max-height: 300px; }
@@ -497,17 +466,17 @@
   padding: 8px 10px 6px;
   font-size: 11px;
   font-weight: 600;
-  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
-  border-bottom: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  color: color-mix(in srgb, var(--el-text-color-primary) 72%, transparent);
+  border-bottom: 1px solid var(--border-default);
 }
 .aiw-ctxmenu__q {
   margin: 6px 8px 2px;
   padding: 5px 8px;
   font-size: 12px;
   border-radius: 6px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
-  background: var(--aiw-bg-soft);
-  color: var(--aiw-text);
+  border: 1px solid var(--border-default);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 .aiw-ctxmenu__list { overflow-y: auto; padding: 4px; }
 .aiw-ctxmenu__row {
@@ -521,33 +490,33 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
 .aiw-ctxmenu__row:hover { background: var(--aiw-primary-16); }
-.aiw-ctxmenu__row:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: -1px; }
-.aiw-ctxmenu__row.is-on { color: var(--aiw-primary); }
+.aiw-ctxmenu__row:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -1px; }
+.aiw-ctxmenu__row.is-on { color: var(--el-color-primary); }
 .aiw-ctxmenu__body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .aiw-ctxmenu__name { font-size: 12.5px; line-height: 1.4; }
 .aiw-ctxmenu__desc {
   font-size: 11px;
   line-height: 1.4;
-  color: color-mix(in srgb, var(--aiw-text) 72%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 72%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.aiw-ctxmenu__tick { color: var(--aiw-primary); font-size: 12px; }
+.aiw-ctxmenu__tick { color: var(--el-color-primary); font-size: 12px; }
 .aiw-ctxmenu__box {
   flex: 0 0 auto;
   width: 15px; height: 15px;
   margin-top: 2px;
   border-radius: 4px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.35));
+  border: 1px solid var(--border-default);
   display: inline-flex; align-items: center; justify-content: center;
 }
-.aiw-ctxmenu__box.is-on { background: var(--aiw-primary); border-color: var(--aiw-primary); color: #fff; }
+.aiw-ctxmenu__box.is-on { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .aiw-ctxmenu__box svg { width: 11px; height: 11px; }
 
 /* ---------------- 041 输入框底行（待办入口 + 上下文图标行） ---------------- */
@@ -559,7 +528,7 @@
   /* 负 margin 抵消 .aiw-input 的内边距（6px 右 / 12px 左 / 6px 下），
      让本行的顶部淡分隔线贯通整个输入框宽度，与输入框成一体 */
   margin: 2px -6px -6px -12px;
-  border-top: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  border-top: 1px solid var(--border-default);
 }
 /* 底行内的图标行不再自带分隔线（由 .aiw-inputrow 统一提供） */
 .aiw-inputrow .aiw-ctxbar--inline {
@@ -577,19 +546,19 @@
   height: 26px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   font-size: 12px;
   cursor: pointer;
 }
-.aiw-todoentry__btn:hover, .aiw-todoentry__btn.is-on { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
-.aiw-todoentry__btn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
-.aiw-todoentry__btn svg { width: 12px; height: 12px; color: var(--aiw-primary); }
+.aiw-todoentry__btn:hover, .aiw-todoentry__btn.is-on { border-color: var(--el-color-primary); background: var(--aiw-primary-16); }
+.aiw-todoentry__btn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
+.aiw-todoentry__btn svg { width: 12px; height: 12px; color: var(--el-color-primary); }
 .aiw-todoentry__n {
   min-width: 15px; height: 15px; padding: 0 4px;
   border-radius: 8px; font-size: 10px; line-height: 15px; text-align: center;
-  color: #fff; background: var(--aiw-primary);
+  color: var(--el-color-white); background: var(--el-color-primary);
 }
 /* 待办浮层：absolute 定位，不占内容区高度 */
 .aiw-todoentry__pop {
@@ -600,32 +569,32 @@
   min-width: 260px;
   max-width: 360px;
   border-radius: 10px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
-  background: var(--aiw-bg);
-  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-default);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-dark);
   overflow: hidden;
 }
 .aiw-todopanel { display: flex; flex-direction: column; max-height: 300px; }
 .aiw-todopanel__head {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px;
-  border: 0; border-bottom: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  border: 0; border-bottom: 1px solid var(--border-default);
   background: transparent; cursor: pointer; text-align: left;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
 .aiw-todopanel__title { flex: 1 1 auto; font-size: 12px; font-weight: 600; }
-.aiw-todopanel__pct { flex: 0 0 auto; font-size: 11px; color: color-mix(in srgb, var(--aiw-text) 72%, transparent); }
-.aiw-todopanel__chev { flex: 0 0 auto; width: 13px; height: 13px; color: var(--aiw-text-2, #8b93a3); transform: rotate(-90deg); transition: transform 0.16s ease; }
+.aiw-todopanel__pct { flex: 0 0 auto; font-size: 11px; color: color-mix(in srgb, var(--el-text-color-primary) 72%, transparent); }
+.aiw-todopanel__chev { flex: 0 0 auto; width: 13px; height: 13px; color: var(--el-text-color-placeholder); transform: rotate(-90deg); transition: transform 0.16s ease; }
 .aiw-todopanel__chev.is-open { transform: rotate(0deg); }
 .aiw-todopanel__list { margin: 0; padding: 4px; list-style: none; overflow-y: auto; }
 .aiw-todopanel__list li {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 8px; font-size: 12px; line-height: 1.45;
 }
-.aiw-todopanel__list li.is-done { color: var(--aiw-text-2, #8b93a3); }
+.aiw-todopanel__list li.is-done { color: var(--el-text-color-placeholder); }
 .aiw-todopanel__list li.is-done .aiw-todopanel__txt { text-decoration: line-through; }
-.aiw-todopanel__dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--aiw-primary); }
-.aiw-todopanel__list li.is-done .aiw-todopanel__dot { background: var(--aiw-text-2, #8b93a3); }
+.aiw-todopanel__dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--el-color-primary); }
+.aiw-todopanel__list li.is-done .aiw-todopanel__dot { background: var(--el-text-color-placeholder); }
 .aiw-todopanel__txt { min-width: 0; }
 
 /* ---------------- 041 「待你动作」区（输入框上沿） ----------------
@@ -654,8 +623,8 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
-  background: var(--aiw-bg-soft);
+  border: 1px solid var(--border-default);
+  background: var(--el-fill-color-light);
 }
 .aiw-ask__badge {
   flex: 0 0 auto;
@@ -663,14 +632,14 @@
   border-radius: 999px;
   font-size: 11px;
   line-height: 1.5;
-  color: #fff;
-  background: var(--aiw-text-2, #8b93a3);
+  color: var(--el-color-white);
+  background: var(--el-text-color-placeholder);
 }
-.aiw-ask__badge--low { background: var(--aiw-success, #10b981); }
-.aiw-ask__badge--medium { background: var(--aiw-warning, #f59e0b); }
-.aiw-ask__badge--high, .aiw-ask__badge--critical { background: var(--aiw-danger, #ef4444); }
-.aiw-ask__badge--question { background: var(--aiw-primary); }
-.aiw-ask__badge--todo { background: var(--aiw-c3, #f59e0b); }
+.aiw-ask__badge--low { background: var(--el-color-success); }
+.aiw-ask__badge--medium { background: var(--el-color-warning); }
+.aiw-ask__badge--high, .aiw-ask__badge--critical { background: var(--el-color-error); }
+.aiw-ask__badge--question { background: var(--el-color-primary); }
+.aiw-ask__badge--todo { background: var(--aiw-c3, var(--el-color-primary)); }
 /* 待办折叠头：整行可点（button），右侧进度 + chevron；默认收起只露这一行 */
 .aiw-ask__head {
   flex: 1 1 auto;
@@ -683,31 +652,31 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
-.aiw-ask__head:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 2px; border-radius: 4px; }
-.aiw-ask__head-progress { flex: 0 0 auto; font-size: 11px; color: var(--aiw-text-2, #8b93a3); }
+.aiw-ask__head:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; border-radius: 4px; }
+.aiw-ask__head-progress { flex: 0 0 auto; font-size: 11px; color: var(--el-text-color-placeholder); }
 .aiw-ask__chev {
   flex: 0 0 auto;
   width: 14px; height: 14px;
-  color: var(--aiw-text-2, #8b93a3);
+  color: var(--el-text-color-placeholder);
   transform: rotate(-90deg);
   transition: transform 0.16s ease;
 }
 .aiw-ask__chev.is-open { transform: rotate(0deg); }
 .aiw-ask__body { flex: 1 1 auto; min-width: 0; }
-.aiw-ask__title { font-size: 12.5px; line-height: 1.45; color: var(--aiw-text); }
+.aiw-ask__title { font-size: 12.5px; line-height: 1.45; color: var(--el-text-color-primary); }
 .aiw-ask__detail {
   margin-top: 2px;
   font-size: 11.5px;
   line-height: 1.45;
-  color: var(--aiw-text-2, #8b93a3);
+  color: var(--el-text-color-placeholder);
 }
 .aiw-ask__args-label {
   margin-top: 6px;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--aiw-text-2);
+  color: var(--el-text-color-placeholder);
 }
 /* 完整参数：可滚动看全文，禁止 line-clamp / 摘要截断，避免用户批错命令。 */
 .aiw-ask__args {
@@ -720,7 +689,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   background: transparent;
 }
 .aiw-ask__btns { flex: 0 0 auto; display: flex; gap: 6px; }
@@ -728,21 +697,21 @@
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 6px;
-  border: 1px solid var(--aiw-soft-line, rgba(120, 130, 150, 0.28));
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
-.aiw-ask__btn:hover { border-color: var(--aiw-primary); }
-.aiw-ask__btn--ok { background: var(--aiw-primary); border-color: var(--aiw-primary); color: #fff; }
+.aiw-ask__btn:hover { border-color: var(--el-color-primary); }
+.aiw-ask__btn--ok { background: var(--el-color-primary); border-color: var(--el-color-primary); color: var(--el-color-white); }
 .aiw-ask__opts { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .aiw-ask__opt {
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
-  border: 1px solid var(--aiw-primary);
+  border: 1px solid var(--el-color-primary);
   background: var(--aiw-primary-16);
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
 .aiw-ask__todos { margin: 4px 0 0; padding: 0; list-style: none; }
@@ -752,12 +721,12 @@
   gap: 6px;
   font-size: 11.5px;
   line-height: 1.6;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
-.aiw-ask__todos li.is-done { color: var(--aiw-text-2, #8b93a3); text-decoration: line-through; }
+.aiw-ask__todos li.is-done { color: var(--el-text-color-placeholder); text-decoration: line-through; }
 .aiw-ask__tdot {
   width: 5px; height: 5px; border-radius: 50%;
-  background: var(--aiw-text-2, #8b93a3);
+  background: var(--el-text-color-placeholder);
   flex: 0 0 auto;
 }
 .aiw-ask__track {
@@ -765,10 +734,10 @@
   align-self: center;
   width: 84px; height: 4px;
   border-radius: 2px;
-  background: var(--aiw-soft-line, rgba(120, 130, 150, 0.22));
+  background: var(--border-default);
   overflow: hidden;
 }
-.aiw-ask__fill { height: 100%; background: var(--aiw-primary); }
+.aiw-ask__fill { height: 100%; background: var(--el-color-primary); }
 
 /* ---------------- FR-217 回到底部 ----------------
    零高度锚点：按钮浮在消息区底边上方，输入区高度与提示条有无都不影响它的位置
@@ -781,19 +750,19 @@
   width: 32px; height: 32px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  color: var(--aiw-primary);
-  background: var(--aiw-bg);
+  color: var(--el-color-primary);
+  background: var(--el-bg-color);
   border: 1px solid var(--aiw-primary-32);
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--el-box-shadow);
   cursor: pointer;
 }
-.aiw-jump:hover { border-color: var(--aiw-primary); }
+.aiw-jump:hover { border-color: var(--el-color-primary); }
 .aiw-jump svg { width: 18px; height: 18px; }
 .aiw-jump__n {
   position: absolute; top: -5px; right: -5px;
   min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 8px; font-size: 10px; line-height: 16px; text-align: center;
-  color: #fff; background: var(--aiw-primary);
+  color: var(--el-color-white); background: var(--el-color-primary);
 }
 
 .aiw-body__inner { padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 14px; }
@@ -808,7 +777,7 @@
   border-radius: 50%;
   overflow: hidden;
   background: var(--aiw-primary-16);
-  color: var(--aiw-primary);
+  color: var(--el-color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -827,15 +796,15 @@
   /* 渐隐只在折叠态出现：给用户「下面还有」的视觉证据，而不是硬切一刀。
      mask 只读 alpha 通道，颜色本身不可见 —— 这里用主题色 token 而不是 #000，
      免得给 style-tokens 门禁平白添两处硬编码色值。 */
-  -webkit-mask-image: linear-gradient(to bottom, var(--aiw-text) calc(100% - 46px), transparent 100%);
-  mask-image: linear-gradient(to bottom, var(--aiw-text) calc(100% - 46px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, var(--el-text-color-primary) calc(100% - 46px), transparent 100%);
+  mask-image: linear-gradient(to bottom, var(--el-text-color-primary) calc(100% - 46px), transparent 100%);
 }
 .aiw-msg__toggle {
   margin-top: 4px;
   padding: 2px 0;
   border: 0;
   background: transparent;
-  color: var(--aiw-primary);
+  color: var(--el-color-primary);
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -856,7 +825,7 @@
   border-radius: 14px;
   word-break: break-word;
   overflow-wrap: anywhere;
-  background: #fff;
+  background: var(--el-bg-color);
   font-size: 13.5px;
   line-height: 1.65;
 }
@@ -864,7 +833,7 @@
 /* 用户气泡 = 与助手气泡**同一样式**（浅底 + 深字 + 无边无影），
    输入/输出只靠**位置**区分（用户在右：.aiw-msg--user 的 row-reverse + 右对齐）。
    ★ 历史坑（2026-10-15，三次返工）：早先用户气泡是「主色底 + 白字」，
-     ① 被 `.aiw-root.aiw-inline .aiw-msg__bubble`（0,3,0）覆盖成浅灰底而 color:#fff 仍生效
+     ① 被 `.aiw-root.aiw-inline .aiw-msg__bubble`（0,3,0）覆盖成浅灰底而 color:var(--el-color-white) 仍生效
         → 白字浅灰底 1.06:1，用户输入完全不可见（P0）；
      ② 用户明确要求「输入输出统一样式、用位置区分」—— 主色底本就不该有，
         统一成浅底深字后，连带时间戳/链接/行内代码的 user 专属分支全部删除。
@@ -880,25 +849,25 @@
   align-items: center;
   gap: var(--aiw-space-3);
   margin-top: var(--aiw-space-2);
-  font-size: var(--aiw-fs-sm);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
 }
-.aiw-msg__status.is-failed { color: var(--aiw-text-danger); }
+.aiw-msg__status.is-failed { color: var(--el-color-error); }
 /* 中断**不是出错**（用户自己按的停止），保持中性色，别用红吓人 */
-.aiw-msg__status.is-stopped { color: var(--aiw-text-soft); }
+.aiw-msg__status.is-stopped { color: var(--el-text-color-secondary); }
 
 .aiw-msg__retry {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--aiw-primary);
+  color: var(--el-color-primary);
   font-family: inherit;
-  font-size: var(--aiw-fs-sm);
+  font-size: var(--el-font-size-extra-small);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
-  transition: opacity var(--aiw-dur-instant) var(--aiw-ease-out);
+  transition: opacity var(--dur-instant) var(--el-transition-function-fast-bezier);
 }
 .aiw-msg__retry:hover { opacity: 0.75; }
 
@@ -906,15 +875,15 @@
    琥珀 = 「这话别全信」（内容质量），红 = 「这事没让做」（能力被拦）。 */
 .aiw-msg__warn {
   margin-top: var(--aiw-space-2);
-  font-size: var(--aiw-fs-sm);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
 }
-.aiw-msg__warn.is-low { color: var(--aiw-text-warning); }
-.aiw-msg__warn.is-denied { color: var(--aiw-text-danger); }
+.aiw-msg__warn.is-low { color: var(--el-color-warning); }
+.aiw-msg__warn.is-denied { color: var(--el-color-error); }
 
 .aiw-msg__time {
   font-size: 11px;
-  color: #9aa1ae;
+  color: var(--el-text-color-secondary);
   margin-top: 4px;
   opacity: 0;
   transition: opacity 0.18s ease;
@@ -924,7 +893,7 @@
 /* 富文本细节 */
 .aiw-msg__bubble a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 /* 链接色输入输出统一（不再分 bot/user 两套） */
-.aiw-msg__bubble a { color: var(--aiw-primary); }
+.aiw-msg__bubble a { color: var(--el-color-primary); }
 .aiw-msg__bubble strong { font-weight: 650; }
 /* ---------- Markdown 块级排版（2026-10-26 重写渲染器后配套） ----------
    为什么每个块都显式写 margin：气泡内容要在「Shadow DOM 隔离」与「SFC 全局 CSS」
@@ -938,7 +907,7 @@
   margin: var(--aiw-space-5) 0 var(--aiw-space-3);
   font-weight: 650;
   line-height: 1.35;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
 .aiw-msg__bubble .aiw-h:first-child { margin-top: 0; }
 .aiw-msg__bubble .aiw-h1 { font-size: 1.3em; }
@@ -946,7 +915,7 @@
 .aiw-msg__bubble .aiw-h3 { font-size: 1.1em; }
 .aiw-msg__bubble .aiw-h4 { font-size: 1.04em; }
 .aiw-msg__bubble .aiw-h5,
-.aiw-msg__bubble .aiw-h6 { font-size: 1em; color: var(--aiw-text-soft); }
+.aiw-msg__bubble .aiw-h6 { font-size: 1em; color: var(--el-text-color-secondary); }
 
 .aiw-msg__bubble .aiw-ul,
 .aiw-msg__bubble .aiw-ol {
@@ -961,14 +930,14 @@
 .aiw-msg__bubble .aiw-quote {
   margin: 0 0 var(--aiw-space-4);
   padding: 2px 0 2px 10px;
-  border-left: 3px solid var(--aiw-line);
-  color: var(--aiw-text-soft);
+  border-left: 3px solid var(--el-border-color);
+  color: var(--el-text-color-secondary);
 }
 
 .aiw-msg__bubble .aiw-hr {
   margin: var(--aiw-space-5) 0;
   border: 0;
-  border-top: 1px solid var(--aiw-line);
+  border-top: 1px solid var(--el-border-color);
 }
 
 /* 表格：横向可滚。390px 手机宽度下 4 列表格必然溢出，
@@ -986,14 +955,14 @@
 .aiw-msg__bubble .aiw-table th,
 .aiw-msg__bubble .aiw-table td {
   padding: 6px 10px;
-  border-bottom: 1px solid var(--aiw-line);
+  border-bottom: 1px solid var(--el-border-color);
   text-align: left;
   vertical-align: top;
   line-height: 1.5;
 }
 .aiw-msg__bubble .aiw-table th {
   font-weight: 600;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 .aiw-msg__bubble .aiw-table tbody tr:last-child td { border-bottom: 0; }
@@ -1002,14 +971,14 @@
   font-size: 0.92em;
   padding: 1px 5px;
   border-radius: 5px;
-  background: rgba(16, 24, 40, 0.07);
+  background: var(--el-fill-color);
 }
 .aiw-code {
   margin: 7px 0;
   padding: 10px 12px;
   border-radius: 9px;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
   overflow-x: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
@@ -1030,8 +999,8 @@
   padding: 12px 14px;
   border-radius: 14px;
   border-top-left-radius: 5px;
-  background: #fff;
-  border: 1px solid var(--aiw-line);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   width: fit-content;
 }
 .aiw-typing i,
@@ -1039,7 +1008,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--aiw-primary);
+  background: var(--el-color-primary);
   opacity: 0.45;
   animation: aiw-bounce 1.2s infinite ease-in-out;
 }
@@ -1061,16 +1030,16 @@
 .aiw-empty__ico {
   width: 34px;
   height: 34px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   opacity: 0.55;
 }
 .aiw-empty__t {
-  font-size: var(--aiw-fs-md);
-  color: var(--aiw-text);
+  font-size: var(--el-font-size-base);
+  color: var(--el-text-color-primary);
 }
 .aiw-empty__d {
-  font-size: var(--aiw-fs-sm);
-  color: var(--aiw-text-soft);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-secondary);
 }
 @keyframes aiw-bounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
@@ -1085,22 +1054,22 @@
   flex-wrap: wrap;
   padding: 9px 12px;
   border-radius: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #b42318;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
+  color: var(--el-color-error);
   font-size: 12.5px;
 }
 .aiw-error button {
   border: 0;
-  background: #b42318;
-  color: #fff;
+  background: var(--el-color-error);
+  color: var(--el-color-white);
   font-size: 12px;
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
 }
-.aiw-error button:hover { background: #912018; }
+.aiw-error button:hover { background: var(--el-color-error-dark-2); }
 
 /* ---------------- 快捷问题 ---------------- */
 .aiw-quick {
@@ -1109,12 +1078,12 @@
   gap: 8px;
   padding: 0 14px 10px;
   flex-wrap: wrap;
-  background: var(--aiw-bg-soft);
+  background: var(--el-fill-color-light);
 }
 .aiw-chip {
   border: 1px solid var(--aiw-primary-16);
-  background: #fff;
-  color: var(--aiw-primary);
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
   font-family: inherit;
   font-size: 12.5px;
   padding: 6px 12px;
@@ -1129,9 +1098,9 @@
 .aiw-runstrip {
   flex: 0 0 auto;
   padding: 8px 14px 0;
-  background: var(--aiw-bg);
-  border-top: 1px solid var(--aiw-line);
-  animation: aiw-runstrip-in var(--aiw-dur-fast) var(--aiw-ease-out);
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color);
+  animation: aiw-runstrip-in var(--el-transition-duration-fast) var(--el-transition-function-fast-bezier);
 }
 @keyframes aiw-runstrip-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -1154,10 +1123,10 @@
   padding: 6px 8px;
   border: 0;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--aiw-bg-soft) 85%, transparent);
+  background: color-mix(in srgb, var(--el-fill-color-light) 85%, transparent);
   font-family: inherit;
   font-size: 12px;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   text-align: left;
   cursor: pointer;
 }
@@ -1165,12 +1134,12 @@
 .aiw-runstrip__badge {
   flex: 0 0 auto;
   font-weight: 650;
-  color: var(--aiw-primary);
+  color: var(--el-color-primary);
 }
 .aiw-runstrip__step {
   flex: 0 0 auto;
   font-size: 11px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
 }
 .aiw-runstrip__task {
   flex: 1 1 auto;
@@ -1178,7 +1147,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
 }
 .aiw-runstrip__actions {
   flex: 0 0 auto;
@@ -1188,26 +1157,26 @@
 .aiw-runstrip__btn {
   padding: 5px 10px;
   border-radius: 7px;
-  border: 1px solid var(--aiw-line);
-  background: var(--aiw-bg);
+  border: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
 }
-.aiw-runstrip__btn:hover { border-color: var(--aiw-primary); background: var(--aiw-primary-16); }
-.aiw-runstrip__btn:focus-visible { outline: 2px solid var(--aiw-primary); outline-offset: 1px; }
+.aiw-runstrip__btn:hover { border-color: var(--el-color-primary); background: var(--aiw-primary-16); }
+.aiw-runstrip__btn:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
 .aiw-runstrip__btn--primary {
   border-color: var(--aiw-primary-32);
   background: var(--aiw-primary-08);
-  color: var(--aiw-primary);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 .aiw-runstrip__hint {
   margin: 6px 8px 0;
   font-size: 11.5px;
   line-height: 1.5;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
 }
 
 /* ---------------- 状态提示条（贴输入框上方） ----------------
@@ -1220,8 +1189,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px 14px 0;
-  background: var(--aiw-bg);
-  border-top: 1px solid var(--aiw-line);
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color);
 }
 /* 提示条已自带一条分隔线，footer 不再重复画一道，两条挨一起会像双线 */
 .aiw-status + .aiw-footer { border-top: 0; padding-top: 8px; }
@@ -1245,10 +1214,10 @@
   max-height: 268px;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
-  background: var(--aiw-bg);
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.18);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow);
   overflow: hidden;
 }
 .aiw-trg__head {
@@ -1257,16 +1226,16 @@
   justify-content: space-between;
   gap: 8px;
   padding: 7px 11px 5px;
-  border-bottom: 1px solid var(--aiw-line);
+  border-bottom: 1px solid var(--el-border-color);
 }
-.aiw-trg__title { font-size: 12px; font-weight: 600; color: var(--aiw-text); }
-.aiw-trg__hint { font-size: 10.5px; color: var(--aiw-text-soft); }
+.aiw-trg__title { font-size: 12px; font-weight: 600; color: var(--el-text-color-primary); }
+.aiw-trg__hint { font-size: 10.5px; color: var(--el-text-color-secondary); }
 .aiw-trg__list { overflow-y: auto; padding: 4px; }
 .aiw-trg__grp + .aiw-trg__grp { margin-top: 4px; }
 .aiw-trg__grp-t {
   padding: 4px 7px 2px;
   font-size: 10.5px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   letter-spacing: 0.02em;
 }
 .aiw-trg__opt {
@@ -1278,7 +1247,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   font-family: inherit;
   font-size: 12.5px;
   text-align: left;
@@ -1286,7 +1255,7 @@
 }
 .aiw-trg__opt.is-on { background: var(--aiw-primary-16); }
 .aiw-trg__opt-name { font-weight: 600; white-space: nowrap; }
-.aiw-trg__opt-meta { font-size: 10.5px; color: var(--aiw-text-soft); white-space: nowrap; }
+.aiw-trg__opt-meta { font-size: 10.5px; color: var(--el-text-color-secondary); white-space: nowrap; }
 .aiw-trg__opt-desc {
   flex: 1 1 auto;
   min-width: 0;
@@ -1294,9 +1263,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
 }
-.aiw-trg__empty { padding: 12px; font-size: 12px; color: var(--aiw-text-soft); text-align: center; }
+.aiw-trg__empty { padding: 12px; font-size: 12px; color: var(--el-text-color-secondary); text-align: center; }
 
 /* 上下文 chips：有值才渲染（组件侧 v-if 已挡），贴输入框上沿 */
 .aiw-chips {
@@ -1308,16 +1277,16 @@
 .aiw-chip-ctx {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   border-radius: 999px;
-  background: var(--aiw-bg-soft);
+  background: var(--el-fill-color-light);
   overflow: hidden;
 }
 .aiw-chip-ctx__main,
 .aiw-chip-ctx__x {
   border: 0;
   background: transparent;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   font-family: inherit;
   font-size: 11.5px;
   padding: 3px 8px;
@@ -1326,16 +1295,16 @@
 .aiw-chip-ctx__main { display: inline-flex; align-items: center; gap: 4px; }
 .aiw-chip-ctx__main:disabled { cursor: default; }
 .aiw-chip-ctx__ico { font-size: 11px; }
-.aiw-chip-ctx__x { padding: 3px 7px 3px 2px; color: var(--aiw-text-soft); }
-.aiw-chip-ctx__x:hover { color: var(--aiw-primary); }
+.aiw-chip-ctx__x { padding: 3px 7px 3px 2px; color: var(--el-text-color-secondary); }
+.aiw-chip-ctx__x:hover { color: var(--el-color-primary); }
 
 /* ---------------- 底部输入 ---------------- */
 .aiw-footer {
   flex: 0 0 auto;
   position: relative; /* 041：给 .aiw-ask 浮层做定位上下文（浮层绝对定位于此，不占布局高度） */
   padding: 10px 14px 12px;
-  background: var(--aiw-bg);
-  border-top: 1px solid var(--aiw-line);
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color);
 }
 .aiw-input {
   display: flex;
@@ -1346,9 +1315,9 @@
   align-items: flex-end;
   gap: 8px;
   padding: 6px 6px 6px 12px;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   border-radius: 14px;
-  background: var(--aiw-bg);
+  background: var(--el-bg-color);
 }
 /* 041：聚焦**不再**给输入框加边框色/光环 —— 用户明确要求，且输入框是常驻交互容器，
    每次聚焦整块换色太闹。
@@ -1356,7 +1325,7 @@
      变主色承担焦点指示 —— 动的不是输入框边框，而是另一个元素，
      既满足「键盘用户看得见焦点」，又不违背「去掉输入框聚焦边框色」。 */
 .aiw-input:focus-within {
-  border-color: var(--aiw-line);
+  border-color: var(--el-border-color);
   box-shadow: none;
 }
 /* ★ 焦点指示**不引入任何颜色变化**（用户两次要求去掉聚焦边框色：
@@ -1365,7 +1334,7 @@
    形状变化同样是可见指示，且不违背「去掉聚焦边框色」。
    键盘聚焦（:focus-within 对 Tab 进入同样生效）也能看到这条线变粗。 */
 .aiw-input:focus-within .aiw-inputrow {
-  border-top-color: var(--aiw-soft-line, rgba(120, 130, 150, 0.18));
+  border-top-color: var(--border-default);
   border-top-width: 2px;
 }
 .aiw-input textarea {
@@ -1377,14 +1346,14 @@
   font-family: inherit;
   font-size: 13.5px;
   line-height: 1.55;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   max-height: 108px;
   padding: 5px 0;
   scrollbar-width: thin;
 }
 /* ★ UX-002 [P0]：placeholder 是重要引导文字，原 #a6adba 在白底实测仅 **2.26:1**
    （11~13px 小字需 ≥4.5:1），提深到 #767c88 一档；仍是明显弱于正文的次级观感。 */
-.aiw-input textarea::placeholder { color: #767c88; }
+.aiw-input textarea::placeholder { color: var(--el-text-color-secondary); }
 
 .aiw-send {
   width: 34px;
@@ -1396,8 +1365,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  background: var(--aiw-primary);
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
   transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
 .aiw-send svg { width: 17px; height: 17px; }
@@ -1405,13 +1374,13 @@
 /* ★ UX-002：禁用态图标原 #a6adba 在 #dfe2ea 底上仅约 1.9:1，几乎看不见；
    图标属 UI 元素，阈值 3:1，提深到 #6b7280（≈3.6:1）。
    「不可点」由 cursor:not-allowed + 无 hover 缩放共同表达，不依赖颜色单独承载。 */
-.aiw-send:disabled { background: #dfe2ea; color: #6b7280; cursor: not-allowed; }
+.aiw-send:disabled { background: var(--el-fill-color); color: var(--el-text-color-disabled); cursor: not-allowed; }
 
 .aiw-note {
   margin-top: 7px;
   text-align: center;
   font-size: 11px;
-  color: #a6adba;
+  color: var(--el-text-color-disabled);
   line-height: 1.4;
 }
 
@@ -1423,11 +1392,6 @@
   position: relative;
   height: 100%;
   /* 宿主（Element Plus）必提供 --el-* 变量，不写色值 fallback，守 token 单一来源红线 */
-  --aiw-bg: var(--el-bg-color);
-  --aiw-bg-soft: var(--el-fill-color-light);
-  --aiw-text: var(--el-text-color-primary);
-  --aiw-text-soft: var(--el-text-color-secondary);
-  --aiw-line: var(--el-border-color);
 }
 .aiw-root.aiw-inline .aiw-msg__bubble,
 .aiw-root.aiw-inline .aiw-typing,
@@ -1435,11 +1399,6 @@
   background: var(--el-fill-color);
 }
 .aiw-root.aiw-inline.aiw-dark {
-  --aiw-bg: var(--el-bg-color);
-  --aiw-bg-soft: var(--el-fill-color-light);
-  --aiw-text: var(--el-text-color-primary);
-  --aiw-text-soft: var(--el-text-color-secondary);
-  --aiw-line: var(--el-border-color);
 }
 .aiw-root.aiw-inline.aiw-dark .aiw-msg__bubble,
 .aiw-root.aiw-inline.aiw-dark .aiw-typing,
@@ -1450,12 +1409,12 @@
 .aiw-root.aiw-inline .aiw-send:disabled {
   background: var(--el-fill-color-dark);
   /* --el-text-color-disabled 实测在该底上仅 1.49:1，改用固定深灰保 3:1 */
-  color: #6b7280;
+  color: var(--el-text-color-disabled);
 }
 .aiw-root.aiw-inline.aiw-dark .aiw-send:disabled {
   background: var(--el-fill-color-darker);
   /* 深色底上反相：提亮到 #9aa1ae 保 3:1 */
-  color: #9aa1ae;
+  color: var(--el-text-color-secondary);
 }
 
 /* ---------------- 小屏适配 ---------------- */
@@ -1489,27 +1448,19 @@
    跟随系统偏好；内嵌宿主时由宿主主题决定 darkMode，class 需无条件应用，
    不能依赖系统偏好——宿主强制 dark 但系统为浅色时，否则会渲染成亮白面板） */
 .aiw-root.aiw-dark {
-  --aiw-text: #e7e9ee;
-  --aiw-text-soft: #9aa1ae;
-  --aiw-line: #2a2f3a;
-  --aiw-bg: #161a22;
-  --aiw-bg-soft: #101319;
-  --aiw-shadow: 0 18px 48px -12px rgba(0, 0, 0, 0.6), 0 6px 16px -6px rgba(0, 0, 0, 0.4);
-  /* 深色底上反相提亮：红/琥珀的浅色档在 #161a22 上都在 7:1 以上 */
-  --aiw-text-danger: #fca5a5;
-  --aiw-text-warning: #fcd34d;
+  --aiw-shadow: var(--el-box-shadow-dark);
 }
-.aiw-root.aiw-dark .aiw-msg__bubble { background: #1d222c; }
-.aiw-root.aiw-dark .aiw-typing { background: #1d222c; }
-.aiw-root.aiw-dark .aiw-input textarea { color: var(--aiw-text); }
-.aiw-root.aiw-dark .aiw-chip { background: #1d222c; }
-.aiw-root.aiw-dark .aiw-send:disabled { background: #2a2f3a; color: #6b7280; }
-.aiw-root.aiw-dark .aiw-launcher__badge { border-color: #161a22; }
+.aiw-root.aiw-dark .aiw-msg__bubble { background: var(--el-bg-color-overlay); }
+.aiw-root.aiw-dark .aiw-typing { background: var(--el-bg-color-overlay); }
+.aiw-root.aiw-dark .aiw-input textarea { color: var(--el-text-color-primary); }
+.aiw-root.aiw-dark .aiw-chip { background: var(--el-bg-color-overlay); }
+.aiw-root.aiw-dark .aiw-send:disabled { background: var(--el-fill-color); color: var(--el-text-color-disabled); }
+.aiw-root.aiw-dark .aiw-launcher__badge { border-color: var(--el-border-color-darker); }
 
 /* 流式期间发送键变「停止」（FR-212）：用现有 token 着色，深色模式自动跟随 */
 .aiw-send.is-stop {
-  background: var(--aiw-text);
-  color: var(--aiw-bg);
+  background: var(--el-text-color-primary);
+  color: var(--el-bg-color);
   cursor: pointer;
 }
 .aiw-send.is-stop:hover { transform: scale(1.06); }
@@ -1524,27 +1475,27 @@
   padding: 7px 10px;
   border-radius: 9px;
   font-size: 12px;
-  color: var(--aiw-text-soft);
-  background: var(--aiw-bg-soft);
-  border: 1px dashed var(--aiw-line);
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border: 1px dashed var(--el-border-color);
 }
-.aiw-fallback .aiw-retry__dot { background: #f59e0b; }
+.aiw-fallback .aiw-retry__dot { background: var(--el-color-primary); }
 
 /* ---------------- FR-804 字号档位：整体缩放 ---------------- */
 .aiw-panel,
 .aiw-launcher { zoom: var(--aiw-scale, 1); }
 
 /* ---------------- FR-801 只读模式（大屏） ---------------- */
-.aiw-root.aiw-readonly .aiw-body { border-bottom-left-radius: var(--aiw-radius); border-bottom-right-radius: var(--aiw-radius); }
+.aiw-root.aiw-readonly .aiw-body { border-bottom-left-radius: var(--radius-xl); border-bottom-right-radius: var(--radius-xl); }
 
 /* ---------------- FR-803 数据新鲜度 ---------------- */
 .aiw-fresh {
   margin-left: 7px; padding: 1px 6px; border-radius: 5px;
   font-size: 10.5px; white-space: nowrap;
-  color: var(--aiw-text-soft); background: var(--aiw-bg-soft);
-  border: 1px solid var(--aiw-line);
+  color: var(--el-text-color-secondary); background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
 }
-.aiw-fresh.is-stale { color: #b45309; background: #fffbeb; border-color: #fde68a; font-weight: 600; }
+.aiw-fresh.is-stale { color: var(--el-color-primary); background: var(--el-color-warning-light-9); border-color: var(--el-color-warning-light-5); font-weight: 600; }
 
 /* ---------------- FR-805 防烧屏 ---------------- */
 @keyframes aiw-burnin-drift {
@@ -1573,22 +1524,22 @@
   padding: 7px 10px;
   border-radius: 9px;
   font-size: 12px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   background: var(--aiw-primary-08);
   border: 1px dashed var(--aiw-primary-32);
 }
-.aiw-reconnect .aiw-retry__dot { background: var(--aiw-primary); }
+.aiw-reconnect .aiw-retry__dot { background: var(--el-color-primary); }
 .aiw-reconnect button {
   margin-left: auto;
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 11.5px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   background: transparent;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   cursor: pointer;
 }
-.aiw-reconnect button:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+.aiw-reconnect button:hover { color: var(--el-text-color-primary); border-color: var(--aiw-primary-32); }
 @media (prefers-reduced-motion: no-preference) {
   .aiw-reconnect .aiw-retry__dot { animation: aiw-reconnect-pulse 1.1s ease-in-out infinite; }
   @keyframes aiw-reconnect-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -1600,15 +1551,15 @@
   display: inline-flex; align-items: center; gap: 5px;
   margin-left: 6px; padding: 1px 7px; border-radius: 5px;
   font-size: 10.5px; white-space: nowrap; cursor: pointer;
-  color: var(--aiw-text-soft); background: var(--aiw-bg-soft);
-  border: 1px solid var(--aiw-line);
+  color: var(--el-text-color-secondary); background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
 }
-.aiw-remote__dot { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; flex: 0 0 6px; }
-.aiw-remote.is-paired { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.aiw-remote.is-paired .aiw-remote__dot { background: #10b981; }
-.aiw-remote.is-expired { color: #b45309; background: #fffbeb; border-color: #fde68a; }
-.aiw-remote.is-expired .aiw-remote__dot { background: #f59e0b; }
-.aiw-remote.is-waiting .aiw-remote__dot { background: var(--aiw-primary); animation: aiw-remote-blink 1.4s ease-in-out infinite; }
+.aiw-remote__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--el-text-color-disabled); flex: 0 0 6px; }
+.aiw-remote.is-paired { color: var(--el-color-success-dark-2); background: var(--el-color-success-light-9); border-color: var(--el-color-success-light-5); }
+.aiw-remote.is-paired .aiw-remote__dot { background: var(--el-color-success); }
+.aiw-remote.is-expired { color: var(--el-color-primary); background: var(--el-color-warning-light-9); border-color: var(--el-color-warning-light-5); }
+.aiw-remote.is-expired .aiw-remote__dot { background: var(--el-color-primary); }
+.aiw-remote.is-waiting .aiw-remote__dot { background: var(--el-color-primary); animation: aiw-remote-blink 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: no-preference) {
   @keyframes aiw-remote-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 }
@@ -1617,24 +1568,24 @@
 .aiw-pair {
   margin: 0 2px 10px; padding: 12px;
   border-radius: 12px; text-align: center;
-  background: var(--aiw-bg-soft); border: 1px solid var(--aiw-line);
+  background: var(--el-fill-color-light); border: 1px solid var(--el-border-color);
 }
-.aiw-pair__head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--aiw-text); }
-.aiw-pair__x { border: 0; background: transparent; color: var(--aiw-text-soft); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px; }
-.aiw-pair__expired { margin-top: 8px; font-size: 11.5px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 8px; }
-.aiw-pair__qr { width: 148px; height: 148px; margin: 10px auto 6px; display: block; background: #fff; padding: 6px; border-radius: 8px; }
-.aiw-pair__code { font: 700 22px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 4px; color: var(--aiw-primary); margin: 6px 0 4px; }
-.aiw-pair__url { font-size: 10.5px; color: var(--aiw-text-soft); word-break: break-all; line-height: 1.45; }
-.aiw-pair__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--aiw-text-soft); }
+.aiw-pair__head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--el-text-color-primary); }
+.aiw-pair__x { border: 0; background: transparent; color: var(--el-text-color-secondary); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.aiw-pair__expired { margin-top: 8px; font-size: 11.5px; color: var(--el-color-primary); background: var(--el-color-warning-light-9); border: 1px solid var(--el-color-warning-light-5); border-radius: 8px; padding: 6px 8px; }
+.aiw-pair__qr { width: 148px; height: 148px; margin: 10px auto 6px; display: block; background: var(--el-bg-color); padding: 6px; border-radius: 8px; }
+.aiw-pair__code { font: 700 22px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 4px; color: var(--el-color-primary); margin: 6px 0 4px; }
+.aiw-pair__url { font-size: 10.5px; color: var(--el-text-color-secondary); word-break: break-all; line-height: 1.45; }
+.aiw-pair__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--el-text-color-secondary); }
 .aiw-pair__foot span { margin-right: auto; }
-.aiw-pair__foot button { padding: 3px 9px; border-radius: 7px; font-size: 11px; cursor: pointer; color: var(--aiw-text-soft); background: transparent; border: 1px solid var(--aiw-line); }
-.aiw-pair__foot button:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+.aiw-pair__foot button { padding: 3px 9px; border-radius: 7px; font-size: 11px; cursor: pointer; color: var(--el-text-color-secondary); background: transparent; border: 1px solid var(--el-border-color); }
+.aiw-pair__foot button:hover { color: var(--el-text-color-primary); border-color: var(--aiw-primary-32); }
 
 /* 遥控来源标记：让屏前的人看出这条不是本机打的 */
 .aiw-msg__src {
   display: inline-block; margin: 0 0 4px 2px; padding: 1px 7px; border-radius: 5px;
   font-size: 10px; font-weight: 600; letter-spacing: .3px;
-  color: var(--aiw-primary); background: var(--aiw-primary-08); border: 1px solid var(--aiw-primary-16);
+  color: var(--el-color-primary); background: var(--aiw-primary-08); border: 1px solid var(--aiw-primary-16);
 }
 
 
@@ -1658,7 +1609,7 @@
 .aiw-root button:focus-visible,
 .aiw-root textarea:focus-visible,
 .aiw-root input:focus-visible {
-  outline: 2px solid var(--aiw-primary);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
 }
 /* ★ 输入框聚焦**不画 outline**（用户明确要求「输入聚焦去掉聚焦边框色」）。
@@ -1690,7 +1641,7 @@
   z-index: 6;
   display: flex;
   flex-direction: column;
-  background: var(--aiw-bg);
+  background: var(--el-bg-color);
   border-radius: inherit;
   overflow: hidden;
 }
@@ -1703,36 +1654,36 @@
   align-items: center;
   gap: 8px;
   padding: 12px 12px 10px;
-  border-bottom: 1px solid var(--aiw-line);
+  border-bottom: 1px solid var(--el-border-color);
 }
-.aiw-history__h { font-size: 13px; font-weight: 600; color: var(--aiw-text); margin-right: auto; }
+.aiw-history__h { font-size: 13px; font-weight: 600; color: var(--el-text-color-primary); margin-right: auto; }
 .aiw-history__new,
 .aiw-history__x,
 .aiw-history__clear {
   padding: 3px 9px;
   border-radius: 7px;
   font-size: 11.5px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   background: transparent;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   cursor: pointer;
 }
 .aiw-history__new:hover,
 .aiw-history__x:hover,
-.aiw-history__clear:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
+.aiw-history__clear:hover { color: var(--el-text-color-primary); border-color: var(--aiw-primary-32); }
 .aiw-history__x { font-size: 15px; line-height: 1; padding: 2px 7px; }
-.aiw-history__clear { color: #b91c1c; border-color: #fecaca; }
+.aiw-history__clear { color: var(--el-color-error-dark-2); border-color: var(--el-color-error-light-8); }
 .aiw-history__dl {
   padding: 3px 9px;
   border-radius: 7px;
   font-size: 11.5px;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   background: transparent;
-  border: 1px solid var(--aiw-line);
+  border: 1px solid var(--el-border-color);
   cursor: pointer;
 }
-.aiw-history__dl:hover { color: var(--aiw-text); border-color: var(--aiw-primary-32); }
-.aiw-history__clear:hover { color: #991b1b; border-color: #fca5a5; }
+.aiw-history__dl:hover { color: var(--el-text-color-primary); border-color: var(--aiw-primary-32); }
+.aiw-history__clear:hover { color: var(--el-color-error-dark-2); border-color: var(--el-color-error-light-7); }
 
 .aiw-history__list {
   flex: 1 1 auto;
@@ -1756,40 +1707,40 @@
   border: 1px solid transparent;
   cursor: pointer;
 }
-.aiw-history__pick:hover { background: var(--aiw-bg-soft); border-color: var(--aiw-line); }
+.aiw-history__pick:hover { background: var(--el-fill-color-light); border-color: var(--el-border-color); }
 .aiw-history__item.is-active .aiw-history__pick {
   background: var(--aiw-primary-08);
   border-color: var(--aiw-primary-32);
 }
 .aiw-history__title {
   font-size: 12.5px;
-  color: var(--aiw-text);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .aiw-history__item.is-active .aiw-history__title { font-weight: 600; }
-.aiw-history__meta { font-size: 10.5px; color: var(--aiw-text-soft); }
+.aiw-history__meta { font-size: 10.5px; color: var(--el-text-color-secondary); }
 .aiw-history__del {
   flex: 0 0 auto;
   width: 26px;
   border-radius: 8px;
   font-size: 15px;
   line-height: 1;
-  color: var(--aiw-text-soft);
+  color: var(--el-text-color-secondary);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
 }
-.aiw-history__del:hover { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.aiw-history__del:hover { color: var(--el-color-error-dark-2); background: var(--el-color-error-light-9); border-color: var(--el-color-error-light-8); }
 .aiw-history__foot {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 9px 12px;
   font-size: 11px;
-  color: var(--aiw-text-soft);
-  border-top: 1px solid var(--aiw-line);
+  color: var(--el-text-color-secondary);
+  border-top: 1px solid var(--el-border-color);
 }
 .aiw-history__foot span { margin-right: auto; }
 
@@ -1809,7 +1760,7 @@
 .aiw-todopanel__head:hover,
 .aiw-tool__head:hover,
 .aiw-grp__head:hover {
-  background: var(--aiw-bg-soft);
+  background: var(--el-fill-color-light);
 }
 
 .aiw-appr__btn:hover,
@@ -1838,6 +1789,6 @@
 .aiw-html__btn,
 .aiw-pair__x,
 .aiw-remote {
-  transition: opacity var(--aiw-dur-instant) var(--aiw-ease-out),
-    background var(--aiw-dur-instant) var(--aiw-ease-out);
+  transition: opacity var(--dur-instant) var(--el-transition-function-fast-bezier),
+    background var(--dur-instant) var(--el-transition-function-fast-bezier);
 }

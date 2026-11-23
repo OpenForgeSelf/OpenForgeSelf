@@ -206,7 +206,7 @@ function workflowStatusText(): string {
               <p v-for="(c, i) in plan.constraints" :key="i">{{ c }}</p>
             </div>
             <div v-if="revising" class="aa-art-sec">
-              <textarea v-model="reviseNote" rows="4" style="width:100%;background:transparent;color:inherit;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:8px" placeholder="说明要怎么改计划" />
+              <textarea v-model="reviseNote" rows="4" style="width:100%;background:transparent;color:inherit;border:1px solid var(--border-subtle);border-radius:var(--el-border-radius-base);padding:8px" placeholder="说明要怎么改计划" />
             </div>
           </template>
         </template>
@@ -240,7 +240,7 @@ function workflowStatusText(): string {
                 {{ text(it.title) || text(it.content) || text(it.summary) }}
               </li>
             </ul>
-            <textarea v-model="memoryDraft" rows="4" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:8px" placeholder="要写回记忆的内容" />
+            <textarea v-model="memoryDraft" rows="4" style="width:100%;margin-top:8px;background:transparent;color:inherit;border:1px solid var(--border-subtle);border-radius:var(--el-border-radius-base);padding:8px" placeholder="要写回记忆的内容" />
           </div>
         </template>
         <template v-else-if="panel === 'design'">

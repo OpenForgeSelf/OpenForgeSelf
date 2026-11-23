@@ -496,7 +496,7 @@ async function onDelete() {
 
 .aed__sec-title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
   border-bottom: 1px solid var(--el-border-color-lighter);
   padding-bottom: 6px;
@@ -546,7 +546,7 @@ async function onDelete() {
 
 .aed__label {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-text-color-regular);
 }
 
@@ -679,7 +679,7 @@ async function onDelete() {
   background: var(--el-bg-color);
   color: var(--el-text-color-primary);
   font-size: var(--el-font-size-small, 13px);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   line-height: 1.6;
   resize: vertical;
   outline: none;
@@ -742,7 +742,7 @@ async function onDelete() {
   width: 36px;
   flex-shrink: 0;
   text-align: right;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-color-primary);
 }

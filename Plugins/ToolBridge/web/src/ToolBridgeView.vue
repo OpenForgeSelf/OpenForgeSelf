@@ -609,7 +609,7 @@ onMounted(loadAll)
   border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 10px;
-  font-family: var(--el-font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 13px;
   resize: vertical;
   background: var(--el-bg-color);
@@ -622,7 +622,7 @@ onMounted(loadAll)
   border-radius: 8px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
-  font-family: var(--el-font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12.5px;
   line-height: 1.55;
   white-space: pre-wrap;

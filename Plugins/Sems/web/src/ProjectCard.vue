@@ -244,12 +244,12 @@ function fmt(v?: string): string {
   font-size: 11px;
   line-height: 16px;
   color: var(--el-color-success);
-  background: var(--el-color-success-light);
+  background: var(--el-color-success-light-3);
 }
 
 .pcard__tag--warn {
   color: var(--el-color-warning);
-  background: var(--el-color-warning-light);
+  background: var(--el-color-warning-light-3);
 }
 
 .pcard__chip {
@@ -263,7 +263,7 @@ function fmt(v?: string): string {
 
 .pcard__root {
   margin: 8px 0 0;
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--el-text-color-secondary);
   overflow: hidden;

@@ -552,7 +552,7 @@ onMounted(() => {
 .specs__content {
   margin: 0;
   white-space: pre-wrap;
-  font-family: var(--font-mono, var(--el-font-family-mono, monospace));
+  font-family: var(--font-mono, var(--font-mono, monospace));
   font-size: 12px;
   line-height: 1.5;
   color: var(--fg-regular, var(--el-text-color-regular));

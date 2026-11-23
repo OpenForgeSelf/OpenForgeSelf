@@ -1,0 +1,5 @@
+{
+  "_comment": "项目已批准的非 --el- 自定义 token 白名单（check-theme-tokens.mjs 校验用）。输入11 方案目标态：页面/组件只用 --el-* token，自定义 token 仅允许出现在主题文件（ForgeSelf.Web/src/styles/themes/*.css，已在检查器忽略清单）——审计期本白名单为空以暴露全部违反点；修复批收敛后如确需保留个别结构性 token（如 --dur-*/--ease-* 动效、--radius-* 圆角等非颜色 token），须在此登记并经用户批准。",
+  "prefixes": [],
+  "tokens": []
+}

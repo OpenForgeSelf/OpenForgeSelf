@@ -243,7 +243,7 @@ onMounted(async () => {
   border: none;
   color: var(--cinnabar-400);
   cursor: pointer;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   transition: background var(--dur-fast) var(--ease-out);
 }
 

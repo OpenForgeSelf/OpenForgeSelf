@@ -1438,7 +1438,7 @@ onBeforeUnmount(() => {
 .ok-title {
   font-size: 28px;
   font-weight: 600;
-  font-family: var(--el-font-family-serif, Georgia, 'Times New Roman', serif);
+  font-family: var(--font-serif-cn, Georgia, 'Times New Roman', serif);
   line-height: 1.2;
 }
 .ok-version {
@@ -1490,7 +1490,7 @@ onBeforeUnmount(() => {
 .ok-panel {
   background: var(--el-bg-color, rgba(255, 255, 255, 0.6));
   border: 1px solid var(--el-border-color-light, rgba(255, 255, 255, 0.15));
-  border-radius: var(--el-border-radius-lg, 12px);
+  border-radius: 12px;
   padding: 20px;
   backdrop-filter: blur(12px);
 }
@@ -1543,7 +1543,7 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  font-family: var(--el-font-family-serif, Georgia, 'Times New Roman', serif);
+  font-family: var(--font-serif-cn, Georgia, 'Times New Roman', serif);
   color: var(--el-text-color-primary);
   letter-spacing: 0.02em;
 }
@@ -1663,7 +1663,7 @@ onBeforeUnmount(() => {
   color: var(--el-text-color-secondary);
 }
 .ok-code {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
   background: var(--el-fill-color-light);
   padding: 1px 6px;
@@ -1804,7 +1804,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 .ok-scan-dirs__input {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
 }
 
@@ -1911,7 +1911,7 @@ onBeforeUnmount(() => {
   margin-bottom: 4px;
 }
 .ok-task__key {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
   color: var(--el-text-color-secondary);
   overflow: hidden;
@@ -1980,7 +1980,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .ok-approval__kind {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
   font-weight: 600;
   color: var(--el-color-warning);
@@ -2012,7 +2012,7 @@ onBeforeUnmount(() => {
   padding: 10px;
   background: var(--el-fill-color-light);
   border-radius: var(--el-border-radius-base, 6px);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
   line-height: 1.6;
   max-height: 260px;

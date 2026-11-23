@@ -1,0 +1,1107 @@
+{
+  "$schema-note": "token 统一修复批映射表 v1（docs/ai/pilot/2026-11-22-token-migrate）。rename: 引用级 token 名替换（var(--a… → var(--b…)，保留 fallback）；literal: 整个 var(--x[,fb]) 替换为字面量；deleteDef: 引用迁移后在非主题文件删除该定义行；allowPrefixes/allowTokens: EP 缺口豁免（值所有者=ForgeSelf.Web/src/styles/themes/*.css 或插件自述缺口）。",
+  "phantomEl": {
+    "--el-font-family-mono": {
+      "to": "--font-mono",
+      "why": "EP 无等宽字体 token；--font-mono 为主题自有缺口 token"
+    },
+    "--el-font-family-serif": {
+      "to": "--font-serif-cn",
+      "why": "EP 无衬线 token"
+    },
+    "--el-color-primary-light": {
+      "to": "--el-color-primary-light-3",
+      "why": "EP 为档位下标，裸 -light 无效（hover 语义）"
+    },
+    "--el-color-primary-dark": {
+      "to": "--el-color-primary-dark-2",
+      "why": "档位下标"
+    },
+    "--el-color-success-light": {
+      "to": "--el-color-success-light-3",
+      "why": "档位下标"
+    },
+    "--el-color-warning-light": {
+      "to": "--el-color-warning-light-3",
+      "why": "档位下标"
+    },
+    "--el-color-danger-light": {
+      "to": "--el-color-danger-light-3",
+      "why": "档位下标"
+    },
+    "--el-color-info-light": {
+      "to": "--el-color-info-light-3",
+      "why": "档位下标"
+    },
+    "--el-weight-medium": {
+      "to": "--el-font-weight-primary",
+      "why": "EP 字重仅 primary=500，medium=500 1:1"
+    },
+    "--el-weight-semibold": {
+      "to": "600",
+      "literal": true,
+      "why": "EP 无 600 档 token；字重非颜色，字面量合规"
+    },
+    "--el-border-round": {
+      "to": "--el-border-radius-round",
+      "why": "EP 正名"
+    },
+    "--el-border-radius-lg": {
+      "to": "12px",
+      "literal": true,
+      "why": "EP 无 large 档（实测仅 base/small/round/circle，05 审计记录有误已纠）；原用法带 12px 兜底，圆角字面量合规（禁令仅颜色）"
+    },
+    "--el-color-accent": {
+      "to": "--el-color-primary",
+      "why": "幻影 accent=品牌强调，宿主主色即强调色"
+    },
+    "--el-color-accent-teal": {
+      "to": "--el-color-success",
+      "why": "幻影 teal≈成功绿语义"
+    }
+  },
+  "rename": {
+    "--fg-primary": {
+      "to": "--el-text-color-primary",
+      "why": "暗#F4F0E7/浅#14110F 双模式 1:1"
+    },
+    "--fg-secondary": {
+      "to": "--el-text-color-regular",
+      "why": "双模式 1:1"
+    },
+    "--fg-tertiary": {
+      "to": "--el-text-color-secondary",
+      "why": "双模式 1:1"
+    },
+    "--fg-muted": {
+      "to": "--el-text-color-disabled",
+      "why": "双模式 1:1（语义 muted≈disabled 级灰）"
+    },
+    "--cinnabar-400": {
+      "to": "--el-color-error",
+      "why": "#C0392B 双模式 1:1"
+    },
+    "--bronze-500": {
+      "to": "--el-color-success",
+      "why": "浅#5A7A5A 1:1；暗#6B8E4E delta（语义=成功）"
+    },
+    "--ink-950": {
+      "to": "--el-bg-color-page",
+      "why": "暗#0B0908 1:1；浅语义翻转=主题跟随（DESIGN.md 画布联动）"
+    },
+    "--ink-900": {
+      "to": "--el-bg-color",
+      "why": "暗#14110F 1:1"
+    },
+    "--ink-850": {
+      "to": "--el-bg-color-overlay",
+      "why": "暗#1B1815 1:1；浅#FFFFFF=修复弹窗浅色不可读（输入10）"
+    },
+    "--ink-700": {
+      "to": "--el-border-color",
+      "why": "暗#322D28 1:1；浅主题跟随"
+    },
+    "--gold-400": {
+      "to": "--el-color-primary",
+      "why": "暗#F59E0B 1:1；浅#B45309=DESIGN.md 浅色收敛主色"
+    },
+    "--gold-300": {
+      "to": "--el-color-primary-light-3",
+      "why": "hover 语义档位；暗#D97706 vs #F9BC4E delta"
+    },
+    "--gold-500": {
+      "to": "--el-color-primary-dark-2",
+      "why": "按下语义；暗#D97706 1:1"
+    },
+    "--gold-700": {
+      "to": "--el-color-primary",
+      "why": "浅色主色即 gold-700#B45309；暗语义翻转（浅色语境处逐点复核）"
+    },
+    "--paper-white": {
+      "to": "--el-bg-color",
+      "why": "浅#FBF7EE 1:1"
+    },
+    "--paper-warm": {
+      "to": "--el-bg-color-page",
+      "why": "浅#F4EEDF 1:1"
+    },
+    "--dur-fast": {
+      "to": "--el-transition-duration-fast",
+      "why": "0.16s 1:1"
+    },
+    "--dur-base": {
+      "to": "--el-transition-duration",
+      "why": "0.22s 1:1"
+    },
+    "--ease-out": {
+      "to": "--el-transition-function-fast-bezier",
+      "why": "cubic-bezier(0.22,1,0.36,1)≈EP(0.23,1,0.32,1) 近 1:1"
+    },
+    "--radius-sm": {
+      "to": "--el-border-radius-small",
+      "why": "4px 1:1"
+    },
+    "--radius-md": {
+      "to": "--el-border-radius-base",
+      "why": "6px 1:1"
+    },
+    "--font-sans-cn": {
+      "to": "--el-font-family",
+      "why": "值一致"
+    },
+    "--topnav-bg": {
+      "to": "--el-bg-color",
+      "why": "App.vue 单点别名 var(--el-bg-color)，直迁"
+    },
+    "--content-bg": {
+      "to": "--el-bg-color",
+      "why": "同上"
+    },
+    "--font-family-mono": {
+      "to": "--font-mono",
+      "why": "EP 无等宽 token，落主题缺口 token"
+    },
+    "--shadow-sm": {
+      "to": "--el-box-shadow-lighter",
+      "why": "铸铁阶梯→EP 影阶梯；暗色近 1:1"
+    },
+    "--shadow-md": {
+      "to": "--el-box-shadow-light",
+      "why": "暗 1:1（0 4px 12px .45）"
+    },
+    "--shadow-lg": {
+      "to": "--el-box-shadow-dark",
+      "why": "暗 1:1（0 12px 32px .55）"
+    },
+    "--fg-regular": {
+      "to": "--el-text-color-regular",
+      "why": "别名语义直迁"
+    },
+    "--primary-light": {
+      "to": "--el-color-primary-light-3",
+      "why": "自定义主色浅档→EP hover 档位"
+    },
+    "--danger": {
+      "to": "--el-color-error",
+      "why": "插件本地 danger→EP 语义（SmartTerminal W3c 复核）"
+    },
+    "--danger-fg": {
+      "to": "--el-color-error",
+      "why": "危险文字→EP error（W3c 复核）"
+    },
+    "--ds-font-sans": {
+      "to": "--el-font-family",
+      "why": "别名链 → --font-sans-cn → --el-font-family"
+    },
+    "--ds-font-mono": {
+      "to": "--font-mono",
+      "why": "EP 无等宽 token，落主题缺口 token"
+    },
+    "--ds-num": {
+      "to": "--font-mono",
+      "why": "同上"
+    },
+    "--ds-surface-1": {
+      "to": "--el-bg-color",
+      "why": "tokens.css 即引 --el-bg-color"
+    },
+    "--ds-surface-2": {
+      "to": "--el-bg-color-overlay",
+      "why": "同上"
+    },
+    "--ds-surface-3": {
+      "to": "--el-fill-color-light",
+      "why": "同上"
+    },
+    "--ds-fg-1": {
+      "to": "--el-text-color-primary",
+      "why": "经 --fg-primary 1:1"
+    },
+    "--ds-fg-2": {
+      "to": "--el-text-color-regular",
+      "why": "经 --fg-secondary"
+    },
+    "--ds-fg-3": {
+      "to": "--el-text-color-secondary",
+      "why": "经 --fg-tertiary"
+    },
+    "--ds-fg-4": {
+      "to": "--el-text-color-disabled",
+      "why": "经 --fg-muted"
+    },
+    "--ds-link": {
+      "to": "--el-color-primary",
+      "why": "经 --gold-400"
+    },
+    "--ds-success": {
+      "to": "--el-color-success",
+      "why": "经 --bronze-500"
+    },
+    "--ds-warning": {
+      "to": "--el-color-warning",
+      "why": "EP 语义警示（原引 gold-400=主色复用，改语义正确化，delta 记录）"
+    },
+    "--ds-danger": {
+      "to": "--el-color-error",
+      "why": "经 --cinnabar-400 1:1"
+    },
+    "--ds-info": {
+      "to": "--el-color-info",
+      "why": "语义正确化（原引 gold-400）"
+    },
+    "--ds-color-primary": {
+      "to": "--el-color-primary",
+      "why": "经 --gold-400"
+    },
+    "--ds-color-primary-hover": {
+      "to": "--el-color-primary-light-3",
+      "why": "EP hover 档位"
+    },
+    "--ds-color-primary-active": {
+      "to": "--el-color-primary-dark-2",
+      "why": "EP active 档位"
+    },
+    "--ds-color-accent": {
+      "to": "--el-color-primary",
+      "why": "强调=主色"
+    },
+    "--ds-color-accent-hover": {
+      "to": "--el-color-primary-light-3",
+      "why": "同 hover"
+    },
+    "--ds-brand-mark": {
+      "to": "--el-color-primary",
+      "why": "品牌徽标=主色"
+    },
+    "--ds-brand-wordmark": {
+      "to": "--el-text-color-primary",
+      "why": "经 --fg-primary"
+    },
+    "--ds-fs-h2": {
+      "to": "--el-font-size-extra-large",
+      "why": "20px 1:1"
+    },
+    "--ds-fs-h3": {
+      "to": "--el-font-size-large",
+      "why": "18px 1:1"
+    },
+    "--ds-fs-h4": {
+      "to": "--el-font-size-base",
+      "why": "14px 1:1"
+    },
+    "--ds-fs-body": {
+      "to": "--el-font-size-base",
+      "why": "14px 1:1"
+    },
+    "--ds-fs-small": {
+      "to": "--el-font-size-extra-small",
+      "why": "12px 1:1"
+    },
+    "--ds-fw-regular": {
+      "to": "--el-font-weight-primary",
+      "why": "500 vs 400 delta？EP 仅 primary(500)；regular 语境常用 500 组件默认，逐点复核"
+    },
+    "--ds-fw-medium": {
+      "to": "--el-font-weight-primary",
+      "why": "500 1:1"
+    },
+    "--ds-radius-sm": {
+      "to": "--el-border-radius-small",
+      "why": "经 --radius-sm 4px"
+    },
+    "--ds-radius-md": {
+      "to": "--el-border-radius-base",
+      "why": "经 --radius-md 6px"
+    },
+    "--ds-shadow-sm": {
+      "to": "--el-box-shadow-lighter",
+      "why": "经 --shadow-sm；暗 1:1 近值"
+    },
+    "--ds-shadow-md": {
+      "to": "--el-box-shadow-light",
+      "why": "经 --shadow-md；暗 1:1"
+    },
+    "--ds-shadow-lg": {
+      "to": "--el-box-shadow-dark",
+      "why": "经 --shadow-lg；暗 12px32px 1:1"
+    },
+    "--ds-border-1": {
+      "to": "--border-subtle",
+      "why": "EP 无 alpha 边框 → 主题自有缺口 token（已豁免）"
+    },
+    "--ds-border-2": {
+      "to": "--border-default",
+      "why": "同上"
+    },
+    "--ds-border-3": {
+      "to": "--border-strong",
+      "why": "同上"
+    },
+    "--ds-ease-out-expo": {
+      "to": "--el-transition-function-fast-bezier",
+      "why": "经 --ease-out 近 1:1"
+    },
+    "--ds-ease-standard": {
+      "to": "--el-transition-function-fast-bezier",
+      "why": "同上"
+    },
+    "--ds-dur-fast": {
+      "to": "--el-transition-duration-fast",
+      "why": "经 --dur-fast 1:1"
+    },
+    "--ds-dur-base": {
+      "to": "--el-transition-duration",
+      "why": "经 --dur-base 1:1"
+    },
+    "--ds-dur-slow": {
+      "to": "--dur-slow",
+      "why": "EP 无 360ms → 主题缺口 token（已豁免）"
+    },
+    "--aiw-text": {
+      "to": "--el-text-color-primary",
+      "why": "文本主色 #1f2430 语义=EP 主文本（内联模式已直映）（W3a opencode 分析员产出）"
+    },
+    "--aiw-text-soft": {
+      "to": "--el-text-color-secondary",
+      "why": "次级文本 #6b7280 语义=EP 二级文本（内联模式已直映）（W3a opencode 分析员产出）"
+    },
+    "--aiw-primary": {
+      "to": "--el-color-primary",
+      "why": "品牌主色 #4f46e5，宿主主色即强调色（agentBridge 已按 --el-color-primary 映射）（W3a opencode 分析员产出）"
+    },
+    "--aiw-line": {
+      "to": "--el-border-color",
+      "why": "分隔线 #e8eaf0 语义=EP 边框色（内联模式已直映）（W3a opencode 分析员产出）"
+    },
+    "--aiw-bg": {
+      "to": "--el-bg-color",
+      "why": "面板底色 #fff 语义=EP 面底（内联模式已直映）（W3a opencode 分析员产出）"
+    },
+    "--aiw-bg-soft": {
+      "to": "--el-fill-color-light",
+      "why": "弱底色 #f6f7fb 语义=EP 浅填充（内联模式已直映）（W3a opencode 分析员产出）"
+    },
+    "--aiw-soft-line": {
+      "to": "--border-default",
+      "why": "软发丝线 alpha 0.18~0.35，EP 无 alpha 边框，落主题缺口 token --border-default(0.16) 最接近（W3a opencode 分析员产出）"
+    },
+    "--aiw-text-2": {
+      "to": "--el-text-color-placeholder",
+      "why": "三级/占位灰 #8b93a3 值最接近 EP placeholder 档（W3a opencode 分析员产出）"
+    },
+    "--aiw-ease-out": {
+      "to": "--el-transition-function-fast-bezier",
+      "why": "cubic-bezier(0.22,1,0.36,1)≈EP(0.23,1,0.32,1) 近 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-radius-xs": {
+      "to": "--el-border-radius-small",
+      "why": "4px 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-radius-sm": {
+      "to": "--el-border-radius-base",
+      "why": "6px 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-radius-md": {
+      "to": "--radius-lg",
+      "why": "10px 1:1（主题圆角档）（W3a opencode 分析员产出）"
+    },
+    "--aiw-radius-lg": {
+      "to": "--radius-xl",
+      "why": "14px 1:1（主题圆角档）（W3a opencode 分析员产出）"
+    },
+    "--aiw-radius-pill": {
+      "to": "--el-border-radius-round",
+      "why": "999px pill 语义=EP round(9999px)（W3a opencode 分析员产出）"
+    },
+    "--aiw-fs-base": {
+      "to": "--el-font-size-small",
+      "why": "12.5px→EP 13px 档（delta 0.5）（W3a opencode 分析员产出）"
+    },
+    "--aiw-fs-md": {
+      "to": "--el-font-size-base",
+      "why": "13.5px→EP 14px 档（delta 0.5）（W3a opencode 分析员产出）"
+    },
+    "--aiw-fs-lg": {
+      "to": "--el-font-size-medium",
+      "why": "15px 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-fs-xl": {
+      "to": "--el-font-size-large",
+      "why": "17px→EP 18px 档（delta 1）（W3a opencode 分析员产出）"
+    },
+    "--aiw-dur-instant": {
+      "to": "--dur-instant",
+      "why": "90ms 1:1（主题缺口 token）（W3a opencode 分析员产出）"
+    },
+    "--aiw-dur-fast": {
+      "to": "--el-transition-duration-fast",
+      "why": "160ms 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-dur-base": {
+      "to": "--el-transition-duration",
+      "why": "220ms 1:1（W3a opencode 分析员产出）"
+    },
+    "--aiw-dur-slow": {
+      "to": "--dur-slow",
+      "why": "360ms 1:1（主题缺口 token）（W3a opencode 分析员产出）"
+    },
+    "--aiw-ease-forge": {
+      "to": "--ease-forge",
+      "why": "回弹曲线 cubic-bezier(0.34,1.56,0.64,1) 1:1（主题缺口 token）（W3a opencode 分析员产出）"
+    },
+    "--aiw-text-danger": {
+      "to": "--el-color-error",
+      "why": "错误文字红 #b91c1c 语义=EP error（暗色反相由主题承担）（W3a opencode 分析员产出）"
+    },
+    "--aiw-text-warning": {
+      "to": "--el-color-warning",
+      "why": "警示文字琥珀 #92400e 语义=EP warning（W3a opencode 分析员产出）"
+    },
+    "--aiw-danger": {
+      "to": "--el-color-error",
+      "why": "边框/填充危险红 #dc2626→EP error 语义（W3a opencode 分析员产出）"
+    },
+    "--aiw-warning": {
+      "to": "--el-color-warning",
+      "why": "边框/填充警示琥珀→EP warning 语义（W3a opencode 分析员产出）"
+    },
+    "--aiw-success": {
+      "to": "--el-color-success",
+      "why": "成功绿 #10b981→EP success 语义（W3a opencode 分析员产出）"
+    },
+    "--ds-semantic-surface-bg": {
+      "to": "--el-bg-color-page",
+      "why": "ExportService 接缝 semantic.surface-bg→--el-bg-color-page（页底）（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-surface-1": {
+      "to": "--el-bg-color",
+      "why": "ExportService 接缝 semantic.surface-1→--el-bg-color（面底）（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-surface-2": {
+      "to": "--el-bg-color-overlay",
+      "why": "ExportService 接缝 semantic.surface-2→--el-bg-color-overlay（浮层）（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-surface-3": {
+      "to": "--el-fill-color-light",
+      "why": "surface-3 填充档→EP fill 档；主题仅覆盖 fill-color-light，暗色安全（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-text-1": {
+      "to": "--el-text-color-primary",
+      "why": "ExportService 接缝 semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-text-2": {
+      "to": "--el-text-color-regular",
+      "why": "ExportService 接缝 semantic.text-2→--el-text-color-regular（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-text-3": {
+      "to": "--el-text-color-secondary",
+      "why": "ExportService 接缝 semantic.text-3→--el-text-color-secondary（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-border-1": {
+      "to": "--el-border-color",
+      "why": "ExportService 接缝 semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-brand": {
+      "to": "--el-color-primary",
+      "why": "ElColorBase semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-link": {
+      "to": "--el-color-primary",
+      "why": "链接=强调色，与 --ds-link→--el-color-primary 同口径（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-success": {
+      "to": "--el-color-success",
+      "why": "ElColorBase semantic.success→--el-color-success（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-warning": {
+      "to": "--el-color-warning",
+      "why": "ElColorBase semantic.warning→--el-color-warning（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-danger": {
+      "to": "--el-color-error",
+      "why": "ElColorBase semantic.danger→--el-color-error（W3b opencode 分析员产出）"
+    },
+    "--ds-semantic-info": {
+      "to": "--el-color-info",
+      "why": "ElColorBase semantic.info→--el-color-info（W3b opencode 分析员产出）"
+    },
+    "--ds-size-body": {
+      "to": "--el-font-size-base",
+      "why": "ElDirect size.body→--el-font-size-base（W3b opencode 分析员产出）"
+    },
+    "--ds-size-small": {
+      "to": "--el-font-size-small",
+      "why": "ElDirect size.small→--el-font-size-small（W3b opencode 分析员产出）"
+    },
+    "--ds-size-caption": {
+      "to": "--el-font-size-extra-small",
+      "why": "ElDirect size.caption→--el-font-size-extra-small（W3b opencode 分析员产出）"
+    },
+    "--ds-size-code": {
+      "to": "--el-font-size-base",
+      "why": "size.code 步长=body，字号取 EP base（字族另由 --font-mono 承担）（W3b opencode 分析员产出）"
+    },
+    "--ds-size-h3": {
+      "to": "--el-font-size-extra-large",
+      "why": "ElDirect size.h3→--el-font-size-extra-large（W3b opencode 分析员产出）"
+    },
+    "--ds-size-h4": {
+      "to": "--el-font-size-large",
+      "why": "ElDirect size.h4→--el-font-size-large（W3b opencode 分析员产出）"
+    },
+    "--ds-weight-medium": {
+      "to": "--el-font-weight-primary",
+      "why": "500 1:1，EP 唯一字重档 primary=500（W3b opencode 分析员产出）"
+    },
+    "--ds-leading-body": {
+      "to": "--el-font-line-height-primary",
+      "why": "ElDirect leading.body→--el-font-line-height-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-duration-micro": {
+      "to": "--el-transition-duration-fast",
+      "why": "ElDirect duration.micro→--el-transition-duration-fast（W3b opencode 分析员产出）"
+    },
+    "--ds-border-hairline": {
+      "to": "--el-border-width",
+      "why": "ElDirect border.hairline→--el-border-width（用作描边宽，非 --border-hairline 色）（W3b opencode 分析员产出）"
+    },
+    "--ds-radius-full": {
+      "to": "--el-border-radius-circle",
+      "why": "ElDirect radius.full→--el-border-radius-circle（全圆）（W3b opencode 分析员产出）"
+    },
+    "--ds-shadow-elevation-1": {
+      "to": "--el-box-shadow-lighter",
+      "why": "ElDirect shadow.elevation-1→--el-box-shadow-lighter（W3b opencode 分析员产出）"
+    },
+    "--ds-shadow-elevation-3": {
+      "to": "--el-box-shadow",
+      "why": "ElDirect shadow.elevation-3→--el-box-shadow（W3b opencode 分析员产出）"
+    },
+    "--ds-chart-series-1": {
+      "to": "--el-color-primary",
+      "why": "chart.series-1→semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-chart-series-2": {
+      "to": "--el-color-info",
+      "why": "chart.series-2→semantic.info→--el-color-info（W3b opencode 分析员产出）"
+    },
+    "--ds-chart-series-3": {
+      "to": "--el-color-success",
+      "why": "chart.series-3→semantic.success→--el-color-success（W3b opencode 分析员产出）"
+    },
+    "--ds-chart-series-4": {
+      "to": "--el-color-warning",
+      "why": "chart.series-4→semantic.warning→--el-color-warning（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-primary-background": {
+      "to": "--el-color-primary",
+      "why": "component.button.primary.background→semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-primary-background-hover": {
+      "to": "--el-color-primary-light-3",
+      "why": "→semantic.brand-hover→EP hover 档 light-3（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-primary-foreground": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-secondary-background": {
+      "to": "--el-bg-color-overlay",
+      "why": "→semantic.surface-2→--el-bg-color-overlay（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-secondary-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-secondary-foreground": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-danger-background": {
+      "to": "--el-color-error",
+      "why": "→semantic.danger→--el-color-error（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-danger-foreground": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-button-md-min-height": {
+      "to": "--el-component-size",
+      "why": "ElDirect 控件高度 component.button.md.min-height→--el-component-size（W3b opencode 分析员产出）"
+    },
+    "--ds-component-badge-foreground": {
+      "to": "--el-color-success",
+      "why": "→semantic.success→--el-color-success（W3b opencode 分析员产出）"
+    },
+    "--ds-component-card-background": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-card-foreground": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-card-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-card-shadow": {
+      "to": "--el-box-shadow-light",
+      "why": "→shadow.elevation-2→--el-box-shadow-light（W3b opencode 分析员产出）"
+    },
+    "--ds-component-dialog-background": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-dialog-foreground": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-dialog-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-dialog-scrim": {
+      "to": "--el-overlay-color-lighter",
+      "why": "→semantic.overlay 55% 遮罩，EP overlay-lighter 50% 最接近（W3b opencode 分析员产出）"
+    },
+    "--ds-component-input-background": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-input-foreground": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-input-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-input-placeholder": {
+      "to": "--el-text-color-placeholder",
+      "why": "→semantic.text-3，占位语义取 EP placeholder 档（W3b opencode 分析员产出）"
+    },
+    "--ds-component-input-md-min-height": {
+      "to": "--el-component-size",
+      "why": "ElDirect 控件高度 component.button.md.min-height→--el-component-size（W3b opencode 分析员产出）"
+    },
+    "--ds-component-nav-item-background-active": {
+      "to": "--el-fill-color-light",
+      "why": "→semantic.surface-3→--el-fill-color-light（W3b opencode 分析员产出）"
+    },
+    "--ds-component-nav-item-background-hover": {
+      "to": "--el-bg-color-overlay",
+      "why": "→semantic.surface-2→--el-bg-color-overlay（W3b opencode 分析员产出）"
+    },
+    "--ds-component-nav-item-foreground": {
+      "to": "--el-text-color-regular",
+      "why": "→semantic.text-2→--el-text-color-regular（W3b opencode 分析员产出）"
+    },
+    "--ds-component-nav-item-foreground-active": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-nav-indicator": {
+      "to": "--el-color-primary",
+      "why": "→semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-select-background": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1→--el-bg-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-select-foreground": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-select-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-table-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-table-header-background": {
+      "to": "--el-bg-color-overlay",
+      "why": "→semantic.surface-2→--el-bg-color-overlay（W3b opencode 分析员产出）"
+    },
+    "--ds-component-table-row-background-hover": {
+      "to": "--el-bg-color-overlay",
+      "why": "→semantic.surface-2→--el-bg-color-overlay（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tabs-border": {
+      "to": "--el-border-color",
+      "why": "→semantic.border-1→--el-border-color（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tabs-tab-background-hover": {
+      "to": "--el-bg-color-overlay",
+      "why": "→semantic.surface-2→--el-bg-color-overlay（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tabs-tab-foreground": {
+      "to": "--el-text-color-regular",
+      "why": "→semantic.text-2→--el-text-color-regular（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tabs-tab-foreground-active": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1→--el-text-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tabs-indicator": {
+      "to": "--el-color-primary",
+      "why": "→semantic.brand→--el-color-primary（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tooltip-background": {
+      "to": "--el-text-color-primary",
+      "why": "→semantic.text-1（反色气泡底），与 EP tooltip 同法（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tooltip-foreground": {
+      "to": "--el-bg-color",
+      "why": "→semantic.surface-1（反色气泡字）（W3b opencode 分析员产出）"
+    },
+    "--ds-component-tooltip-shadow": {
+      "to": "--el-box-shadow-light",
+      "why": "→shadow.elevation-2→--el-box-shadow-light（W3b opencode 分析员产出）"
+    },
+    "--color-primary": {
+      "to": "--el-color-primary",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-success": {
+      "to": "--el-color-success",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-warning": {
+      "to": "--el-color-warning",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-error": {
+      "to": "--el-color-error",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-info": {
+      "to": "--el-color-info",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-bg": {
+      "to": "--el-bg-color",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-bg-page": {
+      "to": "--el-bg-color-page",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-bg-overlay": {
+      "to": "--el-bg-color-overlay",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-fill": {
+      "to": "--el-fill-color",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-fill-light": {
+      "to": "--el-fill-color-light",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-fill-lighter": {
+      "to": "--el-fill-color-lighter",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-text": {
+      "to": "--el-text-color-primary",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-text-regular": {
+      "to": "--el-text-color-regular",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-text-secondary": {
+      "to": "--el-text-color-secondary",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-text-disabled": {
+      "to": "--el-text-color-disabled",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-text-placeholder": {
+      "to": "--el-text-color-placeholder",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-border": {
+      "to": "--el-border-color",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-border-light": {
+      "to": "--el-border-color-light",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-border-dark": {
+      "to": "--el-border-color-dark",
+      "why": "桥接消费面 W2c"
+    },
+    "--color-accent": {
+      "to": "--el-color-primary",
+      "why": "桥接幻影必修 W2c"
+    },
+    "--color-teal": {
+      "to": "--el-color-success",
+      "why": "桥接消费面 W2c"
+    },
+    "--font-sans": {
+      "to": "--el-font-family",
+      "why": "桥接消费面"
+    },
+    "--font-family-base": {
+      "to": "--el-font-family",
+      "why": "宿主主题别名字段"
+    },
+    "--font-serif": {
+      "to": "--font-serif-cn",
+      "why": "SmartTerminal 衬线→主题衬线缺口 token"
+    },
+    "--radius-full": {
+      "to": "--el-border-radius-round",
+      "why": "999px pill 语义（与 --ds-radius-full 同口径）"
+    },
+    "--tab-active": {
+      "to": "--el-color-primary",
+      "why": "ComponentGallery 本地 tab→强调色"
+    },
+    "--tab-indicator": {
+      "to": "--el-color-primary",
+      "why": "本地 tab 指示条→强调色"
+    },
+    "--tab-hover-bg": {
+      "to": "--el-fill-color-light",
+      "why": "本地 tab 悬停底→EP 浅填充"
+    },
+    "--warn": {
+      "to": "--el-color-warning",
+      "why": "SmartTerminal 状态琥珀→EP warning（皮肤值经 scoped 覆写保留）"
+    },
+    "--warn-fg": {
+      "to": "--el-color-warning-light-3",
+      "why": "暗底警示文字→EP 浅档"
+    },
+    "--ok": {
+      "to": "--el-color-success",
+      "why": "SmartTerminal 状态绿→EP success"
+    },
+    "--ok-fg": {
+      "to": "--el-color-success-light-3",
+      "why": "暗底成功文字→EP 浅档"
+    },
+    "--info": {
+      "to": "--el-color-info",
+      "why": "SmartTerminal 状态蓝→EP info"
+    },
+    "--info-fg": {
+      "to": "--el-color-info-light-3",
+      "why": "暗底信息文字→EP 浅档"
+    },
+    "--subtle": {
+      "to": "--border-subtle",
+      "why": "SmartTerminal alpha 细线→主题缺口 token（皮肤值经 scoped 覆写保留）"
+    },
+    "--border": {
+      "to": "--border-default",
+      "why": "SmartTerminal alpha 边框→主题缺口 token"
+    },
+    "--ds-bg": {
+      "to": "--el-bg-color",
+      "why": "DesignSystemView 本地底色（原带 el 兜底）"
+    }
+  },
+  "allowPrefixes": {
+    "--glass-": "EP 无玻璃拟态 token（blur/saturate/复合背景），主题文件值所有者",
+    "--canvas-": "画布 12 档调色板真源（DESIGN.md 背景系统，appearance 按名消费），主题文件值所有者",
+    "--gold-glow-": "熔金光晕（shadow-brand/forge 族），EP 无光晕 token",
+    "--paper-tint": "宣纸染色 tint，EP 无染色 token",
+    "--gold-tint": "熔金染色 tint，EP 无染色 token",
+    "--bubble-": "气泡阴影（IM/会话视图），EP 无对应"
+  },
+  "allowTokens": {
+    "--border-hairline": "EP 无 alpha 边框（rgba 0.06）",
+    "--border-subtle": "EP 无 alpha 边框（0.10）",
+    "--border-default": "EP 无 alpha 边框（0.16）",
+    "--border-strong": "EP 无 alpha 边框（0.28）",
+    "--border-brand": "EP 无品牌 alpha 边框（金 0.48）",
+    "--font-display": "EP 无衬线展示字体 token",
+    "--font-serif-cn": "EP 无衬线字体 token",
+    "--font-mono": "EP 无等宽字体 token",
+    "--dur-instant": "EP 无 90ms 档",
+    "--dur-slow": "EP 无 360ms 档",
+    "--dur-slower": "EP 无 540ms 档",
+    "--ease-forge": "EP 无回弹曲线（spring overshoot）",
+    "--radius-xs": "EP 无 2px 档",
+    "--radius-lg": "EP 无 10px 档（仅 4/6/round）",
+    "--radius-xl": "EP 无 14px 档",
+    "--radius-2xl": "EP 无 18px 档",
+    "--shadow-xs": "EP 无 1px 铸铁影",
+    "--shadow-xl": "EP 无 24px/60px 深影",
+    "--shadow-brand": "EP 无品牌光晕影",
+    "--shadow-forge": "EP 无 40px 光晕",
+    "--shadow-inset": "EP 无复合 inset 影",
+    "--ink-veil": "墨纱遮罩（rgba 黑复合），EP 无对应",
+    "--hair": "SmartTerminal 发丝线别名，W3c 并入 --border-hairline 或 EP 边框",
+    "--overlay-opacity": "App.vue 运行时绑定的遮罩浓度参数（滑竿动态写值），非色值 token；默认值定义拟迁主题文件（W2b）",
+    "--ds-space-1": "EP 无间距 token，4pt 网格插件本地刻度（tokens.css）",
+    "--ds-space-2": "同上 8px",
+    "--ds-space-3": "同上 12px",
+    "--ds-space-4": "同上 16px",
+    "--ds-space-5": "同上 20px",
+    "--ds-space-6": "同上 24px",
+    "--ds-space-7": "同上 32px",
+    "--ds-space-8": "同上 48px",
+    "--ds-space-9": "同上 64px",
+    "--ds-lh-display": "EP 无行高 token（1.15）",
+    "--ds-lh-tight": "EP 无行高 token（1.2）",
+    "--ds-lh-normal": "EP 无行高 token（1.55）",
+    "--ds-lh-relaxed": "EP 无行高 token（1.75）",
+    "--ds-fs-display": "EP 无 64px 展示字号",
+    "--ds-fs-h1": "EP 无 26px 字号",
+    "--ds-fs-body-lg": "EP 无 16px 全局档",
+    "--ds-fs-micro": "EP 无 10px 档",
+    "--ds-fw-semibold": "EP 无 600 档",
+    "--ds-fw-bold": "EP 无 700 档",
+    "--ds-num-feature": "字体特性串（tnum/lnum），非色值非 EP 语义",
+    "--ds-gradient-brand": "品牌渐变，EP 无渐变 token",
+    "--ds-gradient-brand-soft": "同上",
+    "--ds-radius-xs": "经 --radius-xs（已豁免档位）",
+    "--ds-radius-lg": "经 --radius-lg（已豁免）",
+    "--ds-radius-xl": "经 --radius-xl（已豁免）",
+    "--ds-radius-2xl": "经 --radius-2xl（已豁免）",
+    "--ds-radius-pill": "EP 无 999px pill 变量",
+    "--ds-surface-0": "transparent 语义别名",
+    "--ds-surface-bg": "transparent 语义别名",
+    "--ds-dur-slow-retired": "占位（无实际条目时移除）",
+    "--aiw-primary-32": "主色 32% alpha 描边/光晕，EP 无 alpha 主色档",
+    "--aiw-primary-16": "主色 16% alpha 弱底，EP 无 alpha 主色档",
+    "--aiw-primary-08": "主色 8% alpha 极弱底，EP 无 alpha 主色档",
+    "--aiw-space-5": "12px 间距，EP 无间距 token，浮窗专属刻度",
+    "--aiw-off-x": "运行时浮窗水平偏移参数（px 动态写值），非设计 token",
+    "--aiw-off-y": "运行时浮窗垂直偏移参数，非设计 token",
+    "--aiw-panel-w": "运行时面板宽度参数，非设计 token",
+    "--aiw-panel-h": "运行时面板高度参数，非设计 token",
+    "--aiw-scale": "运行时字号缩放系数，非设计 token",
+    "--aiw-radius": "面板级 16px 专值，EP 仅 4/6/round、主题无 16 档",
+    "--aiw-radius-xl": "18px，EP/主题圆角无 18 档（主题 14/20）",
+    "--aiw-fs-xs": "10.5px，EP 最小 12px 无此档",
+    "--aiw-fs-sm": "11.5px，EP 最小 12px 无此档",
+    "--aiw-space-1": "2px 间距，EP 无间距 token",
+    "--aiw-space-2": "4px 间距，EP 无间距 token",
+    "--aiw-space-3": "6px 间距，EP 无间距 token",
+    "--aiw-space-4": "8px 间距，EP 无间距 token",
+    "--aiw-space-6": "16px 间距，EP 无间距 token",
+    "--aiw-shadow": "浮窗专属深投影（18px/48px 负扩散），EP 影阶梯无此档",
+    "--aiw-c2": "图表分类色板功能色，EP 无分类色 token",
+    "--aiw-c3": "图表分类色板功能色（兼待办徽标），EP 无分类色 token",
+    "--aiw-c4": "图表分类色板功能色，EP 无分类色 token",
+    "--aiw-c5": "图表分类色板功能色，EP 无分类色 token",
+    "--aiw-c6": "图表分类色板功能色，EP 无分类色 token",
+    "--ds-size-h1": "EP 最大字号 extra-large=20px，无 h1 档（export 未接）",
+    "--ds-size-h2": "EP 无 h2 档（export 未接，仅 h3 起有接缝）",
+    "--ds-size-display": "EP 无展示级大字号档",
+    "--ds-weight-semibold": "EP 无 600 档（幻影 --el-weight-semibold 已定 600 字面量）",
+    "--ds-weight-bold": "EP 无 700 档",
+    "--ds-leading-h1": "EP 无行高档（仅 line-height-primary）",
+    "--ds-leading-h2": "EP 无行高档（仅 line-height-primary）",
+    "--ds-border-thick": "EP 无 2px 描边宽 token（仅 --el-border-width）",
+    "--ds-component-button-radius": "圆角随 radiusStyle 轴变化（soft=md 6px，round=lg 10px），EP 无对应档",
+    "--ds-component-button-padding-block": "space.2 间距，EP 无间距 token",
+    "--ds-component-button-padding-inline": "space.4 间距，EP 无间距 token",
+    "--ds-component-button-md-padding-block": "space.2 间距，EP 无间距 token",
+    "--ds-component-button-md-padding-inline": "space.4 间距，EP 无间距 token",
+    "--ds-component-button-md-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
+    "--ds-component-badge-tint": "success 15% alpha 染色，EP 无 alpha tint token",
+    "--ds-component-badge-border": "success 30% alpha 染色边框，EP 无 alpha tint token",
+    "--ds-component-badge-radius": "圆角随 radiusStyle 轴变化（soft=pill），EP 无对应档",
+    "--ds-component-card-padding": "space.6 间距，EP 无间距 token",
+    "--ds-component-card-radius": "圆角随 radiusStyle 轴变化（soft=lg 10px），EP 无 10px 档",
+    "--ds-component-dialog-shadow": "shadow.elevation-5，EP 影阶梯最深只到 elevation-4",
+    "--ds-component-dialog-padding": "space.6 间距，EP 无间距 token",
+    "--ds-component-dialog-radius": "圆角随 radiusStyle 轴变化（soft=lg 10px），EP 无 10px 档",
+    "--ds-component-input-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
+    "--ds-component-input-md-padding-block": "space.2 间距，EP 无间距 token",
+    "--ds-component-select-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
+    "--ds-component-tooltip-padding-block": "space.1 间距，EP 无间距 token",
+    "--ds-component-tooltip-padding-inline": "space.2 间距，EP 无间距 token",
+    "--ds-component-tooltip-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
+    "--surface-sunk": "SmartTerminal 专属下沉浸面 rgba 黑（EP 无对应）",
+    "--surface-block": "SmartTerminal 代码块沉底（EP 无对应）",
+    "--surface-cmd": "SmartTerminal 命令行沉底（EP 无对应）",
+    "--overlay": "SmartTerminal 遮罩浓度皮肤值",
+    "--shadow-glass": "SmartTerminal 玻璃投影皮肤值",
+    "--shadow-pop": "SmartTerminal 弹层深投影皮肤值",
+    "--border-brand-hover": "宿主主题品牌悬停边框缺口 token",
+    "--ring-active": "宿主主题激活光圈缺口 token",
+    "--sidebar-bg": "宿主主题侧栏底缺口 token",
+    "--sidebar-border": "宿主主题侧栏边缺口 token",
+    "--card-color": "OverviewCards 运行时按卡片注入的描边/文字色（非静态设计 token）",
+    "--font-sans": "Tailwind @theme 桥接命名空间（值引 --el-font-family，供工具类生成）",
+    "--font-serif": "SmartTerminal 衬线字体皮肤值",
+    "--ds-success-soft": "DesignSystem 软色 tint（color-mix EP success，EP 无 soft 档）",
+    "--ds-warning-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
+    "--ds-danger-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
+    "--ds-info-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
+    "--x": "解析器文档示例名（非真实引用）",
+    "--ds-x": "解析器文档示例名（非真实引用）",
+    "--color-danger": "Tailwind 桥接命名空间（工具类 text-danger 生成所需），值已指 --el-color-error",
+    "--color-primary": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-success": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-warning": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-error": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-info": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-accent": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-teal": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-bg": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-bg-page": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-bg-overlay": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-fill": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-fill-light": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-fill-lighter": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-text": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-text-regular": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-text-secondary": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-text-disabled": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-text-placeholder": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-border": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-border-light": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--color-border-dark": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
+    "--radius-sm": "Tailwind 桥接圆角命名空间（值指 EP 档）",
+    "--radius-md": "Tailwind 桥接圆角命名空间（值指 EP 档）"
+  },
+  "deleteDef": [
+    "--gold-300",
+    "--gold-400",
+    "--gold-500",
+    "--gold-700",
+    "--cinnabar-400",
+    "--bronze-500",
+    "--ink-950",
+    "--ink-900",
+    "--ink-850",
+    "--ink-700",
+    "--paper-white",
+    "--paper-warm",
+    "--fg-primary",
+    "--fg-secondary",
+    "--fg-tertiary",
+    "--fg-muted",
+    "--topnav-bg",
+    "--content-bg",
+    "--dur-fast",
+    "--dur-base",
+    "--ease-out",
+    "--radius-sm",
+    "--radius-md",
+    "--font-sans-cn"
+  ],
+  "deleteDefNote": "上述 token 引用迁 --el-* 后，其在非主题文件的残留定义（如 tailwind.css 桥接、组件内定义）删除；themes/*.css 内定义按 deleteDefKeepInTheme 处理（值所有者保留直到全仓 0 引用后于 W4 收口删除）。",
+  "functionalColorExemptions": {
+    "$note": "功能色/演示色文件级豁免（硬编码规则），W2/W3 逐批登记；格式：文件路径 → 理由",
+    "ForgeSelf.Web/src/components/devtools/ColorTool.vue": "颜色工具演示数据/色板（工具本体即展示颜色，非主题色）",
+    "ForgeSelf.Web/src/components/devtools/QrCodeTool.vue": "QR 码黑白模块功能色（扫码器对比度要求，非主题色）",
+    "ForgeSelf.Web/src/components/devtools/RegexTester.vue": "正则高亮演示配色（语法高亮功能色）",
+    "ForgeSelf.Web/src/components/devtools/TimestampTool.vue": "时间轴演示配色（功能色）",
+    "ForgeSelf.Web/src/components/devtools/JwtTool.vue": "JWT 分段演示配色（功能色）"
+  }
+}

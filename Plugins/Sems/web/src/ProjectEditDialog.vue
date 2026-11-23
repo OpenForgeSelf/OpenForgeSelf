@@ -316,7 +316,7 @@ watch(typeMode, onTypeModeChange)
 }
 
 .pdlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .pdlg__btn:disabled {

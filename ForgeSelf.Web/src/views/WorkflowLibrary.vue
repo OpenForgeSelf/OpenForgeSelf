@@ -748,7 +748,7 @@ onMounted(() => {
   justify-content: center;
   width: 16px;
   height: 16px;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   background: var(--paper-tint);
   color: var(--fg-tertiary);
   border: none;
@@ -870,14 +870,14 @@ onMounted(() => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   flex-shrink: 0;
 }
 
 .pulse-dot {
   width: 10px;
   height: 10px;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   animation: fs-pulse-dot 1.5s ease-in-out infinite;
 }
 
@@ -945,7 +945,7 @@ onMounted(() => {
 .step-dot {
   width: 6px;
   height: 6px;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   animation: fs-pulse-dot 1.5s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -965,14 +965,14 @@ onMounted(() => {
   flex: 1;
   max-width: 200px;
   height: 4px;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   background: var(--paper-tint);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   transition: width var(--dur-fast) var(--ease-out);
 }
 

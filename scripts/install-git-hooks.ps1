@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   安装 OpenForgeSelf git hooks（幂等）：pre-commit + commit-msg（强制可执行位）。
 
@@ -59,12 +59,14 @@ function Set-ExecutableBit([string]$Path) {
 }
 
 function Test-IsExecutable([string]$Path) {
+    # Windows 先短路：本机常有 Git Bash，bash -lc 对 Windows 路径 test -x 恒假（2026-11-23 输入21 实证，
+    # postinstall 在每个新 worktree 都被 94 行断言炸掉）；Windows 无执行位语义，存在即可执行。
+    if ($IsWindows) { return $true }
     if (Get-Command bash -ErrorAction SilentlyContinue) {
         # 注意：POSIX test 不接受 `test -x -- path`（-- 会被当成操作数）
         & bash -lc ('test -x "{0}"' -f ($Path -replace '"', '\"'))
         return ($LASTEXITCODE -eq 0)
     }
-    if ($IsWindows) { return $true }
     try {
         $item = Get-Item -LiteralPath $Path
         if ($item.PSObject.Properties.Name -contains 'UnixFileMode') {

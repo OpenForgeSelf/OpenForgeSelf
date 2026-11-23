@@ -266,7 +266,7 @@ async function save() {
 }
 
 .clist__add:hover {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .clist__hint {
@@ -359,7 +359,7 @@ async function save() {
 .clist__script {
   display: block;
   margin-top: 2px;
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--el-text-color-secondary);
   overflow: hidden;
@@ -394,7 +394,7 @@ async function save() {
 }
 
 .clist__op--run:hover:not(:disabled) {
-  background: var(--el-color-success-light);
+  background: var(--el-color-success-light-3);
 }
 
 .clist__op--run:disabled {
@@ -491,7 +491,7 @@ async function save() {
 }
 
 .cmddlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .cmddlg__btn:disabled {

@@ -131,7 +131,7 @@ watch(() => props.pluginId, () => {
   >
     <template #header>
       <div class="modal-header">
-        <AppLogo :size="20" />
+        <AppLogo :size="26" />
         <button class="close-btn" aria-label="关闭" @click="handleClose">
           ×
         </button>

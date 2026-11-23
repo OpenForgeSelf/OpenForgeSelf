@@ -78,7 +78,7 @@ function resetGenerator(): void {
   <div class="ai-generator">
     <div class="generator-header">
       <div class="header-left">
-        <AppLogo :size="20" />
+        <AppLogo :size="26" />
         <h2>🤖 AI 工作流生成</h2>
         <p>用自然语言描述你的需求，AI 将自动生成工作流</p>
       </div>

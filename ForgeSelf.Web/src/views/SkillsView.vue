@@ -399,7 +399,7 @@ function getSkillIcon(name: string): string {
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
           </div>
           <button class="modal-close" @click="closeFormModal">

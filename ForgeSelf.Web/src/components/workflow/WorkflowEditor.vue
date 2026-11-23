@@ -162,7 +162,7 @@ function getStepTypeIcon(type: WorkflowStepType): string {
   <div class="workflow-editor">
     <div class="editor-header">
       <div class="flex items-center gap-2">
-        <AppLogo :size="20" />
+        <AppLogo :size="26" />
         <h2>{{ workflow ? '编辑工作流' : '创建工作流' }}</h2>
       </div>
       <div class="header-actions">

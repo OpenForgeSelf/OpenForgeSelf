@@ -374,7 +374,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h3>新建记忆</h3>
           </div>
           <button class="btn-icon" @click="showAddMemory = false">
@@ -443,7 +443,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h3>新建分类</h3>
           </div>
           <button class="btn-icon" @click="showAddCategory = false">

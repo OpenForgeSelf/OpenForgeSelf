@@ -105,7 +105,7 @@ function handleClose(): void {
         <button class="back-btn" aria-label="返回" @click="handleClose">
           ←
         </button>
-        <AppLogo :size="20" />
+        <AppLogo :size="26" />
         <div class="header-info">
           <h2>{{ execution?.workflowName || '工作流执行' }}</h2>
           <div class="execution-meta">

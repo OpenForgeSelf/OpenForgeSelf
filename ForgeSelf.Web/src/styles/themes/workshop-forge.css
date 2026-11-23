@@ -138,7 +138,8 @@
   /* 背景（宣纸暖） */
   --el-bg-color: #FBF7EE;
   --el-bg-color-page: #F4EEDF;
-  --el-bg-color-overlay: #FFFFFF;
+  /* 浮层面与暗块对齐「略亮于 bg 的暖面」语义；#FFFDF7=本块 fill-color-lighter 既有值 */
+  --el-bg-color-overlay: #FFFDF7;
 
   --el-fill-color: #F4EEDF;
   --el-fill-color-light: #FBF7EE;

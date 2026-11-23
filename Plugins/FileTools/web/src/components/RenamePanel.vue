@@ -484,7 +484,7 @@ function cancelExecute(): void {
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h4 class="modal-title">确认执行</h4>
           </div>
         </div>

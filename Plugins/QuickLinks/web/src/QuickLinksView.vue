@@ -705,8 +705,8 @@ onMounted(() => {
   overflow: hidden;
   border-radius: 6px;
   line-height: 0;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
 }
 
 .app-logo img {

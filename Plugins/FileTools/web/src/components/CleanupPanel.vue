@@ -338,7 +338,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h4 class="modal-title">确认清理</h4>
           </div>
         </div>

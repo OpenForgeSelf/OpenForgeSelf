@@ -459,7 +459,7 @@ onUnmounted(() => {
       <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h3>配置参数</h3>
           </div>
           <button class="modal-close" aria-label="关闭" @click="handleParameterFormCancel">

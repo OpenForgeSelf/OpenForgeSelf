@@ -160,3 +160,41 @@ describe('workshop-forge 主题 token 明暗语义', () => {
     }
   })
 })
+
+/**
+ * 表面 token 接管守卫（G2 · 2026-11-23 W6 走查实证缺陷类）。
+ *
+ * 缺陷：亮块 `--el-bg-color-overlay` 留 EP 默认纯白 #FFFFFF，暗块却是暖深 #1B1815——
+ * EP 浮层组件（el-dialog/messagebox/dropdown 等）在亮色主题下呈纯白大面板，
+ * 与宣纸暖调内容区割裂（用户走查反馈，输入23）。暗块先行接管、亮块漏配 =
+ * 「两块供给不对称」这一缺陷类的症状。
+ *
+ * 守卫：表面族 token 在亮/暗两块都必须被主题接管（值 ≠ EP 2.14.3 官方默认）。
+ * 语义裁决：--el-fill-color-blank 保留 EP 白（输入/按钮无填充底，白输入面在暖面板上
+ * 是有意的层级对比，EP 惯例）——不纳入本守卫；如需暖化另批评审。
+ */
+const EP_DEFAULT_SURFACES: Record<string, { light: string; dark: string }> = {
+  '--el-bg-color': { light: '#ffffff', dark: '#141414' },
+  '--el-bg-color-page': { light: '#f2f3f5', dark: '#0a0a0a' },
+  '--el-bg-color-overlay': { light: '#ffffff', dark: '#1d1e1f' },
+  '--el-fill-color': { light: '#f0f2f5', dark: '#303030' },
+  '--el-fill-color-light': { light: '#f5f7fa', dark: '#262727' },
+  '--el-fill-color-lighter': { light: '#fafafa', dark: '#1d1e1f' },
+}
+
+describe('workshop-forge 主题表面 token 接管（浮层面漏配缺陷类守卫）', () => {
+  for (const [name, defaults] of Object.entries(EP_DEFAULT_SURFACES)) {
+    it(`${name} 亮/暗两块都被主题接管（≠ EP 默认）`, () => {
+      const lightValue = token(lightTokens, name).toLowerCase()
+      const darkValue = token(darkTokens, name).toLowerCase()
+      expect(
+        lightValue,
+        `light ${name}=${lightValue} 仍为 EP 默认值——浮层表面漏配（参考 2026-11-23 弹窗白底缺陷）：须在亮块重定义为主题暖调面`,
+      ).not.toBe(defaults.light)
+      expect(
+        darkValue,
+        `dark ${name}=${darkValue} 仍为 EP 默认值——浮层表面漏配：须在暗块重定义为主题暖调面`,
+      ).not.toBe(defaults.dark)
+    })
+  }
+})

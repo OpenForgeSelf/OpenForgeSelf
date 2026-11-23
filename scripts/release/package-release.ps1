@@ -3,7 +3,7 @@
 #   install root (common, unchanged across versions):
 #     ForgeSelf.exe (FDD single-file launcher) + .NET runtime DOTNET_ROOT structure
 #       (host/fxr + shared frameworks, from BootDir/bootstrapper publish)
-#     update-agent.ps1
+#     update-agent.ps1 + update-agent.exe (2026-11-21 输入15: 双代理入公共层，exe 由 AgentDir 提供)
 #     (2026-10-04 输入18: bundled plugins are NOT here anymore — they live inside each version, see below)
 #   versions/<ver>/                  (business layer, FDD single-file, per release)
 #     ForgeSelf.exe (single-file: managed assemblies + satellites embedded)
@@ -22,6 +22,7 @@ param(
     [string]$Version = '0.0.0-local',
     [string]$PublishDir = '',
     [string]$BootDir = '',
+    [string]$AgentDir = '',
     [string]$OutputDir = '',
     [string]$LayoutDir = '',
     [switch]$IncludePdb,
@@ -47,6 +48,11 @@ $env:TMPDIR = $buildTemp
 $ver = Get-NormalizedVersion $Version
 if (-not (Test-Path (Join-Path $PublishDir 'ForgeSelf.exe'))) { throw "not a publish dir (business layer single-file): $PublishDir" }
 if (-not (Test-Path (Join-Path $BootDir 'ForgeSelf.exe'))) { throw "not a bootstrapper dir (common layer): $BootDir" }
+# 2026-11-21 输入15：原生更新代理目录（update-agent.exe，publish-updateagent.ps1 的产物）
+if (-not $AgentDir) { $AgentDir = Join-Path $RepoRoot '.temp/publish-updateagent/Release' }
+if (-not (Test-Path (Join-Path $AgentDir 'update-agent.exe'))) {
+    throw "not an agent dir (missing update-agent.exe): $AgentDir — 先跑 scripts/release/publish-updateagent.ps1"
+}
 # 业务层版本目录（脚本主体级，供各 Invoke-ReleaseStep 块共用；块内赋值跨块不可见——StrictMode 实测坑）
 $versionDir = Join-Path (Join-Path $LayoutDir 'versions') $ver
 
@@ -84,12 +90,14 @@ Invoke-ReleaseStep 'package: assemble QQNT layout' {
     }
     Write-Host ("package-release: bundled plugins kept inside versions/{0}/plugins (source publish: {1})" -f $ver, $pubPlugins)
 
-    # 4) 更新代理脚本（公共层）
+    # 4) 更新代理双轨入公共层（2026-11-21 输入15：exe 原生代理 + ps1 老宿主兼容回退，禁删 ps1）
     $agentSrc = Join-Path $PublishDir 'update-agent.ps1'
     if (-not (Test-Path $agentSrc)) { $agentSrc = Join-Path $RepoRoot 'scripts/update-agent.ps1' }
     if (Test-Path $agentSrc) { Copy-Item $agentSrc (Join-Path $LayoutDir 'update-agent.ps1') -Force }
+    Copy-Item (Join-Path $AgentDir 'update-agent.exe') (Join-Path $LayoutDir 'update-agent.exe') -Force
     # 业务层不重复携带（代理属于公共层）
     Remove-Item (Join-Path $versionDir 'update-agent.ps1') -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $versionDir 'update-agent.exe') -Force -ErrorAction SilentlyContinue
 }
 
 Invoke-ReleaseStep 'package: sanitize output' {

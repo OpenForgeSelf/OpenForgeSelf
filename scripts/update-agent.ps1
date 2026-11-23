@@ -1,6 +1,6 @@
 ﻿# update-agent.ps1 — OpenForgeSelf 宿主自更新代理（spec 036 + QQNT 版本化应用，2026-09-28 批次2）
-# 由宿主 StagedUpdateService 拉起：等待宿主进程退出 → 新版本落 versions/<ver>/（不动公共层旧版本）
-# → 更新 versions/current 指针 → 重启根启动器（公共层跨版本共享，无需复刻）。
+# 由宿主 StagedUpdateService 拉起：等待宿主进程退出 → 新版本业务层落 versions/<ver>/（公共层版本目录
+# 之外的同名公共件按新 zip 覆盖，versions/ 整树不动）→ 更新 versions/current 指针 → 重启根启动器。
 # 目录结构唯一真源：docs/04-standards/packaging-upgrade-backup.md §3（QQNT T1-T6）
 #   安装根（公共层，跨版本共享）：ForgeSelf.exe + .NET 运行时 + 框架 + update-agent.ps1
 #   versions/<ver>/（业务层，每次更新新增，多版本共存 = 回滚能力，不设任何备份目录）
@@ -166,7 +166,13 @@ try {
     $verOthers = @(Get-ChildItem $versionsDest -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match '^\d+(\.\d+){0,3}$' -and $_.Name -ne $newVer })
     if ($verOthers.Count -gt 0) {
-        $top = $verOthers | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+        # PC-041（2026-11-21 实锤）：发行串第 4 段 10 位时间码（如 2611211942）超 Int32.MaxValue，
+        # [version] 按分量解析必抛「值对于 Int32 太大或太小」→ 自 2026-10-02 时间码版本方案起 7 周
+        # 后版本保留步必炸（实机 agent-20261121203854.log「无法将值"2.4.22.2611131611"转换为
+        # System.Version"），且新版本已落位、current 已切——只有清理被中断+误报失败。
+        # 修复：各段补零定宽后按字符串比较（等长补零数字串的字符串序 = 数值序，任意段长无溢出），
+        # 与原生代理 ForgeSelf.UpdateAgent.UpdateAgentCore.ToSortKey 同源。
+        $top = $verOthers | Sort-Object { (($_.Name.Split('.') | ForEach-Object { $_.PadLeft(12, '0') }) -join '.') } -Descending | Select-Object -First 1
         $keep += $top.Name
     }
     foreach ($v in $verOthers) {

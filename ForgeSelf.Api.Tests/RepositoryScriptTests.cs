@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 
 namespace ForgeSelf.Api.Tests;
 
@@ -178,5 +178,35 @@ public class RepositoryScriptTests
             "整栈启动器须保留既有实例状态管理");
         new FileInfo(launcher).Length.Should().BeGreaterThan(1000,
             "启动脚本阳性对照：守卫不得因空文件或路径误配而空转");
+    }
+
+    /// <summary>仓库级守卫（2026-11-21 输入15）：原生更新代理双轨在位 + PC-041 三处同源修复在位。</summary>
+    [Fact]
+    public void 更新代理双轨随包与PC041三处同源修复必须在位()
+    {
+        var root = FindRepoRoot();
+
+        // 原生代理工程与发布入口在位（ForgeSelf.UpdateAgent / publish-updateagent.ps1）
+        File.Exists(Path.Combine(root, "ForgeSelf.UpdateAgent", "ForgeSelf.UpdateAgent.csproj"))
+            .Should().BeTrue("原生 update-agent.exe 工程（2026-11-21 输入15）必须存在");
+        File.Exists(Path.Combine(root, "scripts", "release", "publish-updateagent.ps1"))
+            .Should().BeTrue("publish-updateagent.ps1 单点发布入口必须存在");
+
+        // ps1 双轨随包：老宿主 StagedUpdateService 只认 ps1，exe 感知是未发布新代码——禁删
+        var ps1 = Path.Combine(root, "scripts", "update-agent.ps1");
+        File.Exists(ps1).Should().BeTrue("update-agent.ps1 必须继续随包分发（老宿主只认 ps1，删除=存量更新链断裂）");
+
+        // PC-041 三处同源：版本比较补零定宽（发行串第 4 段 10 位时间码 > Int32.MaxValue，禁 [version] 解析）
+        foreach (var rel in new[]
+                 {
+                     "ForgeSelf.UpdateAgent/UpdateAgentCore.cs",
+                     "scripts/update-agent.ps1",
+                     "scripts/publish-plugin.ps1",
+                 })
+        {
+            var text = File.ReadAllText(Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar)));
+            text.Should().Contain("PadLeft(12, '0')",
+                $"{rel} 的版本比较必须补零定宽（PC-041 canonical fix），禁 System.Version/[version] 分量解析");
+        }
     }
 }

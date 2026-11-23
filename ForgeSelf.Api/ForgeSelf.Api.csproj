@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -103,6 +103,8 @@
     <ProjectReference Include="..\ForgeSelf.Host\ForgeSelf.Host.csproj" />
     <ProjectReference Include="..\ForgeSelf.Core\ForgeSelf.Core.csproj" />
     <ProjectReference Include="..\ForgeSelf.Abstractions\ForgeSelf.Abstractions.csproj" />
+    <!-- 2026-11-21 输入15：原生自更新代理随宿主一起构建（打包链单点发布 publish-updateagent.ps1） -->
+    <ProjectReference Include="..\ForgeSelf.UpdateAgent\ForgeSelf.UpdateAgent.csproj" ReferenceOutputAssembly="false" />
     <!-- 仅建立构建顺序（插件先于 Backend 编译），不编译引用、不复制到输出根目录，
          避免插件类型进入默认 ALC 造成与 PluginLoadContext 的双重加载。 -->
     <ProjectReference Include="..\Plugins\MemorySystem\MemorySystem.csproj" ReferenceOutputAssembly="false" />

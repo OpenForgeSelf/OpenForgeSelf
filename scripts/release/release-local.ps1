@@ -1,6 +1,6 @@
 ﻿# release-local.ps1 - one-command release pipeline orchestrator.
 # Runs: build-frontend -> publish-host (business layer) -> publish-bootstrapper (common layer)
-#     -> package-release (assemble QQNT layout) -> make-release-notes.
+#     -> publish-updateagent (update-agent.exe, 2026-11-21 输入15) -> package-release (assemble QQNT layout) -> make-release-notes.
 # The GitHub Actions workflow calls exactly this script; everything CI does is
 # reproducible locally with the same command (local-first debugging contract).
 # QQNT layout (2026-09-28 批次2.1/输入34; 目录命名统一小写 2026-09-29 输入37): common layer at install root
@@ -128,8 +128,13 @@ if ($LASTEXITCODE -ne 0) { throw 'publish-host failed' }
 & (Join-Path $PSScriptRoot 'publish-bootstrapper.ps1') -RepoRoot $repoRoot -Version $ver -OutputDir $bootDir
 if ($LASTEXITCODE -ne 0) { throw 'publish-bootstrapper failed' }
 
+# 2026-11-21 输入15：原生更新代理单点发布（FDD 单文件 + 体积断言防误打自包含）
+$agentDir = Join-Path $OutputRoot 'updateagent'
+& pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'publish-updateagent.ps1') -Configuration Release -OutputDir $agentDir
+if ($LASTEXITCODE -ne 0) { throw 'publish-updateagent failed' }
+
 & (Join-Path $PSScriptRoot 'package-release.ps1') -RepoRoot $repoRoot -Version $ver `
-    -PublishDir $publishDir -BootDir $bootDir -LayoutDir $layoutDir -OutputDir $releaseDir -Sign:$Sign
+    -PublishDir $publishDir -BootDir $bootDir -AgentDir $agentDir -LayoutDir $layoutDir -OutputDir $releaseDir -Sign:$Sign
 if ($LASTEXITCODE -ne 0) { throw 'package-release failed' }
 
 & (Join-Path $PSScriptRoot 'make-release-notes.ps1') -RepoRoot $repoRoot -Version $ver -OutFile (Join-Path $releaseDir ("RELEASE-NOTES-{0}.md" -f $ver))

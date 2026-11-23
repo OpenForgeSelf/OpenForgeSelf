@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -41,6 +41,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ForgeSelf.Api\ForgeSelf.Api.csproj" />
+	<ProjectReference Include="..\ForgeSelf.UpdateAgent\ForgeSelf.UpdateAgent.csproj" />
     <!-- B2（040）：会话存储契约基类 SessionStoreContractTestsBase 在 Abstractions.Tests，
          需在此引用才能「同一套契约跑两个实现」（内存实现 + 持久化实现各一遍）。仅测试项目，零生产影响。 -->
     <ProjectReference Include="..\ForgeSelf.Abstractions.Tests\ForgeSelf.Abstractions.Tests.csproj" />

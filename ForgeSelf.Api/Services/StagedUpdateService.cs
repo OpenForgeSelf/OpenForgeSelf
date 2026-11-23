@@ -24,7 +24,8 @@ public class UpdateStageInfo
 /// <summary>
 /// 暂存式更新编排服务（spec 036，唯一更新链路；008 <see cref="UpdateService"/> 已冻结）。
 /// 流程：检查 → 下载+校验+解压到 %LOCALAPPDATA%\ForgeSelf\Updates\&lt;tag&gt;\（staged）→
-/// 用户点「重启并更新」→ 拉起 update-agent.ps1（QQNT 版本化应用：等本进程退出 → 新版本落
+/// 用户点「重启并更新」→ 拉起更新代理（2026-11-21 输入15 起原生 update-agent.exe 优先、
+/// update-agent.ps1 回退；QQNT 版本化应用：等本进程退出 → 新版本落
 /// versions/&lt;ver&gt;/ + current 指针 + 重启根启动器，公共层跨版本共享）→ 宿主自停。
 /// 目录结构/生命周期真源：docs/04-standards/packaging-upgrade-backup.md §3/§4。
 /// </summary>
@@ -208,7 +209,8 @@ public class StagedUpdateService
     // ======================================================================
 
     /// <summary>
-    /// 应用已暂存的更新：拉起 update-agent.ps1（等本进程退出 → 备份 → 覆盖 → 重启），
+    /// 应用已暂存的更新：拉起更新代理（2026-11-21 输入15 起：原生 update-agent.exe 优先、
+    /// update-agent.ps1 回退；老宿主只认 ps1，故 ps1 必须继续随包分发，禁删），
     /// 然后宿主自行停止。仅在 ready 状态下允许。
     /// </summary>
     /// <returns>代理已成功拉起返回 true；否则 false（状态置 failed）。</returns>
@@ -223,7 +225,7 @@ public class StagedUpdateService
             return false;
         }
 
-        // 安装根 = 公共层目录（根启动器 + update-agent.ps1 所在层）。业务层在 versions/<ver>/ 内，
+        // 安装根 = 公共层目录（根启动器 + 更新代理所在层）。业务层在 versions/<ver>/ 内，
         // 直接取自身目录会让新版本落进 versions/<ver>/versions/<new> 逐代嵌套（2026-10-04 输入19）。
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath)
             ?? throw new InvalidOperationException("无法确定应用程序目录。");
@@ -236,17 +238,39 @@ public class StagedUpdateService
 
         var extractDir = Path.Combine(current.StagedDir, "extracted");
 
-        // 代理脚本优先用 staged 新版（随包更新），回退到安装根公共层
-        var agentPath = new[]
+        // 更新代理双轨选择链（2026-11-21 输入15）：exe 优先（staged 新版随包优先，回退安装根公共层），
+        // exe 缺位/拉起失败回退 ps1；老宿主 StagedUpdateService 只认 ps1，故包内 ps1 必须继续随包分发，禁删。
+        var exeAgentPath = new[]
+            {
+                Path.Combine(extractDir, "update-agent.exe"),
+                Path.Combine(installDir, "update-agent.exe"),
+            }
+            .FirstOrDefault(File.Exists);
+        if (exeAgentPath != null && TryStartExeAgent(exeAgentPath, installDir, extractDir))
+        {
+            Set("applying", 100, "正在重启并更新，请稍候...");
+
+            // 留出响应回写窗口后自停（agent 在等待本 PID 退出）
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(1500);
+                _lifetime.StopApplication();
+            });
+            return true;
+        }
+        if (exeAgentPath != null)
+            XTrace.Log.Warn("StagedUpdate: update-agent.exe 拉起失败，回退 ps1 代理");
+
+        var ps1AgentPath = new[]
             {
                 Path.Combine(extractDir, "update-agent.ps1"),
                 Path.Combine(installDir, "update-agent.ps1"),
             }
             .FirstOrDefault(File.Exists);
 
-        if (agentPath == null)
+        if (ps1AgentPath == null)
         {
-            Set("failed", 0, "找不到 update-agent.ps1，无法自动更新");
+            Set("failed", 0, "找不到 update-agent（exe/ps1 均缺位），无法自动更新");
             return false;
         }
 
@@ -267,7 +291,7 @@ public class StagedUpdateService
             psi.ArgumentList.Add("-ExecutionPolicy");
             psi.ArgumentList.Add("Bypass");
             psi.ArgumentList.Add("-File");
-            psi.ArgumentList.Add(agentPath);
+            psi.ArgumentList.Add(ps1AgentPath);
             psi.ArgumentList.Add("-HostPid");
             psi.ArgumentList.Add(Process.GetCurrentProcess().Id.ToString());
             psi.ArgumentList.Add("-InstallDir");
@@ -297,6 +321,65 @@ public class StagedUpdateService
         {
             XTrace.Log.Error("StagedUpdate: 启动更新代理失败: {0}", ex.Message);
             Set("failed", 0, $"启动更新代理失败: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 拉起原生 update-agent.exe（2026-11-21 输入15）。exe 一律先拷
+    /// %LOCALAPPDATA%\ForgeSelf\Updates\agent-run\update-agent.exe 再拉起——不原地跑
+    /// 安装根/暂存目录里的 exe（运行中自身文件锁会挡更新；agent-run 与安装根/暂存目录
+    /// 互不重叠，落位全程无锁）。DOTNET_ROOT 指向 staged 解压目录自带的公共运行时副本
+    /// （安装根运行时马上要被 robocopy 覆盖，加载即上锁）。失败返回 false 由调用方回退 ps1。
+    /// </summary>
+    private bool TryStartExeAgent(string exeAgentPath, string installDir, string extractDir)
+    {
+        try
+        {
+            var agentRunDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ForgeSelf", "Updates", "agent-run");
+            Directory.CreateDirectory(agentRunDir);
+            var agentRunExe = Path.Combine(agentRunDir, "update-agent.exe");
+            File.Copy(exeAgentPath, agentRunExe, overwrite: true);
+
+            var exeName = GetHostExeName();
+            var hostArgs = Environment.GetCommandLineArgs().Skip(1);
+            var argList = string.Join(";", hostArgs);
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = agentRunExe,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            };
+            psi.ArgumentList.Add("--host-pid");
+            psi.ArgumentList.Add(Process.GetCurrentProcess().Id.ToString());
+            psi.ArgumentList.Add("--install-dir");
+            psi.ArgumentList.Add(installDir);
+            psi.ArgumentList.Add("--staged-dir");
+            psi.ArgumentList.Add(extractDir);
+            psi.ArgumentList.Add("--exe-name");
+            psi.ArgumentList.Add(exeName);
+            psi.ArgumentList.Add("--arg-list");
+            psi.ArgumentList.Add(argList);
+            // FDD：运行时经环境变量指向 staged 解压根的公共运行时副本（包内必有 host/fxr + shared）
+            psi.EnvironmentVariables["DOTNET_ROOT"] = extractDir;
+
+            var proc = Process.Start(psi);
+            if (proc == null)
+            {
+                XTrace.Log.Warn("StagedUpdate: update-agent.exe 进程创建失败");
+                return false;
+            }
+            XTrace.Log.Info("StagedUpdate: 原生更新代理已启动 PID={0}（agent-run={1}），宿主即将退出完成换文件",
+                proc.Id, agentRunExe);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("StagedUpdate: update-agent.exe 拉起异常: {0}", ex.Message);
             return false;
         }
     }

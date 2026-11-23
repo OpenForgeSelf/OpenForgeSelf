@@ -1,4 +1,4 @@
-# 问题类台账（Problem Classes）
+﻿# 问题类台账（Problem Classes）
 
 > **本目录是「这类事为什么会再犯、怎么防」的唯一真源索引**；pilot 工件回答「任务做到哪了」，此处回答「问题被归类了吗、守卫在守吗」。
 > 模板与 front-matter schema 单一来源 = `docs/18-templates/postmortem/problem-class.tpl.md`；流程（何时建档、如何扫查/上浮）= 技能 `.agents/skills/problem-class-closure/`。
@@ -91,6 +91,7 @@
 | PC-037 | OAR 无证据即 available/Succeeded | guarded | G1×2+G2 active | 0 | [PC-037](PC-037-oar-honesty-without-evidence.md) |
 | PC-039 | Mock 提供方静默改道 / 会话模型快照缺失 | open | G1 失守待重建 | 0 | [PC-039](PC-039-mock-provider-silent-divert.md) |
 | PC-040 | 组合根构造可选参省参漏装配（静默 null 依赖） | open | G1 失守待重建 | 0 | [PC-040](PC-040-composition-root-arg-omission.md) |
+| PC-041 | 版本目录名第 4 段为 10 位时间码，[version]/System.Version 分量解析抛 OverflowException（更新保留步误报失败） | guarded | G1 active（RepositoryScriptTests 三处同源守卫 + UpdateAgentCore 单测） | 0 | [PC-041](PC-041-update-agent-version-sort-overflow.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

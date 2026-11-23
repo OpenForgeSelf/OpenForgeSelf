@@ -1,4 +1,4 @@
-# scripts — OpenForgeSelf 项目脚本目录
+﻿# scripts — OpenForgeSelf 项目脚本目录
 
 本目录集中存放 OpenForgeSelf（铸己匣）的开发与发布脚本：插件开发/调试/发布、宿主打包发布、代码签名、自更新代理、git 门禁与内容审计等。
 
@@ -37,11 +37,12 @@
 
 | 脚本 | 功能 | 用法 |
 |---|---|---|
-| `release-local.ps1` | 一键发布编排：`build-frontend → publish-host → publish-bootstrapper → package-release → make-release-notes`；`-UpdateDir` 同时产出本地目录更新源（离线/内网更新） | `pwsh scripts/release/release-local.ps1 [-Version 2.3.0] [-SkipFrontend] [-UpdateDir <dir>] [-Sign]`；不传 `-Version`（本地）= 读 ForgeSelf.Api.csproj 版本行（三段）自动补时间码（2026-10-30 起；bump 版本行须经用户允许） |
+| `release-local.ps1` | 一键发布编排：`build-frontend → publish-host → publish-bootstrapper → publish-updateagent → package-release → make-release-notes`；`-UpdateDir` 同时产出本地目录更新源（离线/内网更新） | `pwsh scripts/release/release-local.ps1 [-Version 2.3.0] [-SkipFrontend] [-UpdateDir <dir>] [-Sign]`；不传 `-Version`（本地）= 读 ForgeSelf.Api.csproj 版本行（三段）自动补时间码（2026-10-30 起；bump 版本行须经用户允许） |
 | `build-frontend.ps1` | 构建宿主 SPA（ForgeSelf.Web → wwwroot）+ 全部插件前端（web → dist）；本机与 CI 同一入口 | `pwsh scripts/release/build-frontend.ps1 [-HostOnly] [-PluginsOnly -Plugin AIAgent]` |
 | `publish-host.ps1` | dotnet publish 宿主业务层：FDD 单文件 `ForgeSelf.exe`（托管程序集内嵌、原生/内容外置）+ 外置 `System.Data.SQLite.dll`；发行串经 `FORGESELF_RELEASE_VERSION` 注入 exe 文件版本 | `pwsh scripts/release/publish-host.ps1 [-Version 2.3.0.2609161125] [-SelfContained]` |
 | `publish-bootstrapper.ps1` | 产出安装根公共层：薄壳启动器 exe（~170KB）+ .NET 运行时 DOTNET_ROOT 结构（host/fxr + shared 三框架），跨版本共享、每版本只存一份 | `pwsh scripts/release/publish-bootstrapper.ps1 [-OutputDir artifacts/layout-root]` |
-| `package-release.ps1` | 组装 QQNT 布局发行 zip：公共层（根）+ 业务层（`versions/<ver>/`，含内置 `plugins/`）+ `versions/current` 指针 + 更新代理脚本 | `pwsh scripts/release/package-release.ps1 -Version 0.1.0` |
+| `package-release.ps1` | 组装 QQNT 布局发行 zip：公共层（根）+ 业务层（`versions/<ver>/`，含内置 `plugins/`）+ `versions/current` 指针 + 更新代理双轨（`update-agent.exe` + `update-agent.ps1` 入公共层，2026-11-21 输入15） | `pwsh scripts/release/package-release.ps1 -Version 0.1.0` |
+| `release/publish-updateagent.ps1` | 单点发布原生自更新代理 `update-agent.exe`（net10.0/win-x64 FDD 单文件、零 NuGet；体积断言防误打自包含，超 8MB 拒交付） | `pwsh scripts/release/publish-updateagent.ps1 [-OutputDir <dir>]`（`release-local.ps1` 已自动接线，一般不手动跑） |
 | `make-release-notes.ps1` | 生成 RELEASE-NOTES：tag 注释 → 上一 tag 至本 tag 的提交标题（无 tag 时取最近 20 条）；已做 UTF-8 防乱码处理 | `pwsh scripts/release/make-release-notes.ps1 -Version v0.1.0 [-OutFile <path>]` |
 | `new-version.ps1` | 版本串辅助：三段号（`2.3.0`）自动补 10 位时间码 → 完整发行串 + 可执行的 `git tag` 命令；**只打印，不做任何 git 写操作** | `pwsh scripts/release/new-version.ps1 -Version 2.3.0` |
 | `publish-release.ps1` | 用 gh CLI 创建 GitHub Release 并上传 zip + SHA256SUMS + 发布说明（本地需 gh 认证，CI 用 GITHUB_TOKEN）；版本带 `-` 后缀自动判为 prerelease | `pwsh scripts/release/publish-release.ps1 -Version v0.1.0 [-Prerelease] [-Overwrite] [-DryRun]` |
@@ -57,7 +58,7 @@
 
 | 脚本 | 功能 | 用法 |
 |---|---|---|
-| `update-agent.ps1` | 宿主自更新代理（由宿主 StagedUpdateService 拉起，不手动调用）：等宿主进程退出 → 新版本落 `versions/<ver>/` → 切 `current` 指针 → 重启根启动器；清理暂存与多余版本 | `pwsh scripts/update-agent.ps1 -HostPid <pid> -InstallDir <dir> -StagedDir <dir> -ExeName ForgeSelf.exe [-ArgList <args>]` |
+| `update-agent.ps1` | 宿主自更新代理 ps1 轨（由宿主 StagedUpdateService 拉起，不手动调用；2026-11-21 输入15 起新宿主优先原生 `update-agent.exe`、本 ps1 为老宿主兼容回退件，禁删）：等宿主进程退出 → 新版本落 `versions/<ver>/` → 切 `current` 指针 → 重启根启动器；清理暂存与多余版本 | `pwsh scripts/update-agent.ps1 -HostPid <pid> -InstallDir <dir> -StagedDir <dir> -ExeName ForgeSelf.exe [-ArgList <args>]` |
 | `install-git-hooks.ps1` | 安装 git hooks（幂等）：复制 `scripts/hooks/` 下 `pre-commit` 与 `commit-msg` 到 `.git/hooks/`；由根 postinstall 自动调用，也可手动跑（hook 源更新后重跑即同步） | `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1` |
 | `postinstall-install-hooks.cjs` | postinstall 粘合层（根与 `ForgeSelf.Web` 的 package.json postinstall 均指向它）：非 git checkout 直接跳过、pwsh 缺失时跳过并提示手动兜底、其余失败上抛 | `node scripts/postinstall-install-hooks.cjs`（由 pnpm install 自动触发，一般不手动跑） |
 | `hooks/pre-commit` | pre-commit hook 本体（sh，由 git 自动调用）：提交触碰 `docs/ai/pilot/<task>/` 时校验 00-07 八件工件，缺失拒绝提交；校验逻辑在 `verify-pilot-artifacts.ps1` | — |

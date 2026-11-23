@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- 产物名 = update-agent.exe（zip 公共层/agent-run 均以此名引用，勿改） -->
+    <AssemblyName>update-agent</AssemblyName>
+    <RootNamespace>ForgeSelf.UpdateAgent</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 发布形态：FDD（依赖框架）单文件、零 NuGet 依赖，BCL only；
+         publish 由 scripts/release/publish-updateagent.ps1 统一执行并断言大小，防止误打自包含。 -->
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">false</SelfContained>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+</Project>

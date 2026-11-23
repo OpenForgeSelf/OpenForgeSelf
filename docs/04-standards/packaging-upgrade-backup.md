@@ -1,4 +1,4 @@
--| 2026-09-29 | 输入38 SQLite 驱动正式依赖化**已实施**：①csproj 加 `XCode.SQLite` 11.24.2026.302（依赖 NewLife.XCode ≥11.25 不升级主版本；System.Data.SQLite 2.0.2 + SourceGear.sqlite3 3.53.4 传递落地）；②**根除运行态探测**——探针（XCode 12.0 + XCode.SQLite 共存、真实 SQL 建表查询）与 dev-bin 冒烟双证：本地加载零下载、不再生成 `Plugins/`；③**单文件兼容**——实测内嵌（默认 ALC 已加载）+ 落盘 LoadFrom 同 identity 冲突（FileLoadException already loaded）→ csproj Target `ExcludeSqliteFromSingleFile`（`AfterTargets=_ComputeFilesToBundle` + `BeforeTargets=GenerateSingleFileBundle`，从 `FilesToBundle` Remove `System.Data.SQLite.dll`）+ `publish-host.ps1` 从 NuGet 缓存外置复制兜底 → exe 16,424→16,036KB、外置 386KB；单文件冒烟：`[System.Data.SQLite.SQLite] 加载 ...\System.Data.SQLite.dll v2.0.2.0` + 8 库全部 `数据库连接成功 (ServerVersion=3.50.4)` + 无 Plugins/ + 7102 监听；④`package-release.ps1` 删 inject 块、仓库 `build/runtime/plugins` 移 `.trash/`；⑤文档同步 agent-workflow（L611/729/736/451）+ 本真源 §1.1；⑥全部改动未提交 git（等用户明确指令）。 |
+﻿-| 2026-09-29 | 输入38 SQLite 驱动正式依赖化**已实施**：①csproj 加 `XCode.SQLite` 11.24.2026.302（依赖 NewLife.XCode ≥11.25 不升级主版本；System.Data.SQLite 2.0.2 + SourceGear.sqlite3 3.53.4 传递落地）；②**根除运行态探测**——探针（XCode 12.0 + XCode.SQLite 共存、真实 SQL 建表查询）与 dev-bin 冒烟双证：本地加载零下载、不再生成 `Plugins/`；③**单文件兼容**——实测内嵌（默认 ALC 已加载）+ 落盘 LoadFrom 同 identity 冲突（FileLoadException already loaded）→ csproj Target `ExcludeSqliteFromSingleFile`（`AfterTargets=_ComputeFilesToBundle` + `BeforeTargets=GenerateSingleFileBundle`，从 `FilesToBundle` Remove `System.Data.SQLite.dll`）+ `publish-host.ps1` 从 NuGet 缓存外置复制兜底 → exe 16,424→16,036KB、外置 386KB；单文件冒烟：`[System.Data.SQLite.SQLite] 加载 ...\System.Data.SQLite.dll v2.0.2.0` + 8 库全部 `数据库连接成功 (ServerVersion=3.50.4)` + 无 Plugins/ + 7102 监听；④`package-release.ps1` 删 inject 块、仓库 `build/runtime/plugins` 移 `.trash/`；⑤文档同步 agent-workflow（L611/729/736/451）+ 本真源 §1.1；⑥全部改动未提交 git（等用户明确指令）。 |
 --
 规范定位: 打包·升级·备份·缓存 目录结构与生命周期规则——**唯一真源**
 状态: 真源建立（2026-09-28，输入30）；批次1（输入31）与批次2（输入34）已全部实施：插件去 _backups / 更新缓存应用后清理 / Backups 退役 / 图片缓存 TTL / 宿主 QQNT 式 versions 结构（根启动器 + 发布脚本布局 + update-agent 版本化应用 + 008 冻结）；输入36 单文件化**部分实施**：公共层 FDD 单文件启动器 + DOTNET_ROOT 结构运行时已落地并验证（启动器进程模式、退出码透传、组装 zip），业务层 FDD 单文件 publish 已于 2026-09-29 随 040-B1 收口验证；输入37 目录命名统一小写**已实施**（Plugins/Data/Log/Config → plugins/data/log/config，代码+脚本+测试+文档；update-agent 带存量目录规范化；日志外置数据根/log）；**2026-10-02 输入9/输入10：版本号规则改为「三段号 + 时间码」（§4-R10），废止输入43 双轨**
@@ -42,8 +42,9 @@
 
 | 链路 | 位置 | 备份/缓存行为 |
 |---|---|---|
-| 分阶段更新（036，现行·唯一链路） | `ForgeSelf.Api/Services/StagedUpdateService.cs` | 下载+校验+解压到 `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\`（`update.zip` + `extracted/`）→ 拉起 `update-agent.ps1` → 宿主自停。**批次2：QQNT 版本化应用**（update-agent 落 versions/<ver>/ + current 指针 + 重启根启动器） |
-| 自更新代理 | `scripts/update-agent.ps1` | **批次2（输入34）已实施 QQNT 版本化应用**：等宿主退出 → 新版本落 `versions/<ver>/`（不动公共层旧版本）→ current 指针切换 → 重启根启动器（公共层跨版本共享）。**无任何整目录备份**；扁平存量迁移清理；版本保留 current+上一版；应用后清理 staged tag + 退役 Backups 存量 |
+| 分阶段更新（036，现行·唯一链路） | `ForgeSelf.Api/Services/StagedUpdateService.cs` | 下载+校验+解压到 `%LOCALAPPDATA%\ForgeSelf\Updates\<tag>\`（`update.zip` + `extracted/`）→ 拉起更新代理（exe 优先/ps1 回退）→ 宿主自停。**批次2：QQNT 版本化应用**（update-agent 落 versions/<ver>/ + current 指针 + 重启根启动器） |
+| 自更新代理 ps1 轨 | `scripts/update-agent.ps1` | **批次2（输入34）已实施 QQNT 版本化应用**：等宿主退出 → 新版本业务层落 `versions/<ver>/` + 公共层合并（§1.8.2）→ current 指针切换 → 重启根启动器（公共层跨版本共享）。**无任何整目录备份**；扁平存量迁移清理；版本保留 current+上一版；应用后清理 staged tag + 退役 Backups 存量 |
+| 自更新代理 exe 轨（2026-11-21 输入15） | `ForgeSelf.UpdateAgent/`（产物 `update-agent.exe`） | 原生 .NET 代理替代 ps1：宿主 `StagedUpdateService.TryStartExeAgent` 先拷 `%LOCALAPPDATA%\ForgeSelf\Updates\agent-run\`（防运行中自文件锁）+ `DOTNET_ROOT`=staged 解压根（防运行时自锁）再拉起；步骤 0-9 与 ps1 同构（落位/合并/current/保留/清理/重启）；AgentLog 三重降级；版本比较 PC-041 补零定宽（`UpdateAgentCore.ToSortKey`）。**ps1 仍随包禁删**：老宿主 StagedUpdateService 只认 ps1，存量实例收编后再评估删除 |
 | Windows 服务更新（008，旧） | `ForgeSelf.Api/Services/UpdateService.cs` | **批次2（输入34）已冻结**：类头冻结声明，不再维护；全流程方法（下载/备份/服务启停/回滚）为历史保留禁止新调用；托盘检查已收敛到 036 `CheckAsync`；DI 注册保留防 WindowsService 模式引用 |
 | 检查/下载 | `ForgeSelf.Api/Services/UpdateChecker.cs` + `UpdateSettingsService.cs` | GitHub 资产 API / 本地目录更新源（038 宿主侧同款） |
 
@@ -75,7 +76,7 @@
 ├── ForgeSelf.exe                    ← 根启动器（FDD 单文件，输入36：~170KB managed-only bundle，无解压缓存）
 ├── hostfxr.dll / hostpolicy.dll     ← app-local shim（让 FDD 启动器自身解析公共运行时）
 ├── host/fxr/<ver>/ + shared/<fw>/<ver>/   ← .NET 运行时 DOTNET_ROOT 结构（NETCore+AspNetCore+WindowsDesktop，公共一份，业务层 FDD 共用；来源=发布机 dotnet 安装目录拷贝，版本取最新 10.0.x）
-├── update-agent.ps1                 ← 自更新代理（公共层）
+├── update-agent.exe / update-agent.ps1 ← 自更新代理双轨（公共层随包；2026-11-21 输入15 起 exe 优先、ps1 为老宿主兼容回退，禁删）
 ├── versions/                        ← 宿主业务层版本目录（与 plugins 并排）
 │   ├── <semver>/ForgeSelf.exe（FDD 单文件：托管程序集+satellite 内嵌）+ wwwroot/** + appsettings.json + SQLite 原生 + **plugins/**（内置插件随版本，输入18）   ← 每版不可变快照
 │   └── current                      ← 当前生效版本指针（文本 = <semver>）
@@ -92,14 +93,14 @@
 |---|---|---|---|
 | **① 公共层**（跨版本共享） | 安装根 | `ForgeSelf.exe`（根启动器 = ForgeSelf.Bootstrapper，~170KB 薄壳） | **唯一程序入口**：读 `versions/current`（或 `--forge-version=<v>`）→ Start 子进程业务层 → WaitForExit 透传退出码。**不碰业务** |
 | | | `host/` + `shared/`（.NET 公共运行时结构） | 提供 DOTNET_ROOT 运行时，全部版本共用一份 |
-| | | `update-agent.ps1`（自更新代理，独立脚本进程） | **只做更新**：下载 zip → 解压 → 写 `versions/<新ver>/` → 原子切 current → 重启根启动器 |
+| | | `update-agent.exe` + `update-agent.ps1`（自更新代理，独立进程；双轨详见 §1.2 表） | **只做更新**：下载 zip → 解压 → 写 `versions/<新ver>/` + 公共层合并（§1.8.2）→ 原子切 current → 重启根启动器 |
 | **② 版本层**（每版不可变快照） | `versions/<ver>/` | `ForgeSelf.exe`（业务层 = ForgeSelf.Api，`net10.0`，FDD 单文件）与 `ForgeSelf.Tray.exe`（仅 Windows，`net10.0-windows`） | **API**：① Web 宿主（Kestrel：HTTP API + wwwroot 前端）；② 后台服务（PluginManager、StagedUpdateService、常驻任务）；③ 数据（XCode/SQLite，落 `~/.forgeself`）。**托盘**是同目录的独立程序，菜单仍是打开主界面、检查更新、安装/卸载/重启服务、关于、退出。Linux 不启动它。交互模式「退出」经管道停 API；Windows 服务模式只关托盘 |
 | **③ 插件层**（两路，2026-10-04 输入18 定） | **内置路**：`versions/<ver>/plugins/`（随每个版本一起发布、与该版本快照绑定，可随版本回滚）；**用户路**：数据根 `~/.forgeself/plugins/`（用户自行安装/更新的插件包） | 18 个内置插件（各自 `<Dir>.dll + plugin.json + web/dist`）+ 数据目录里的用户插件包 | **各管各的功能**：独立 ALC 隔离加载，控制器/服务/界面归插件；宿主启动时**两路合并扫描**（内置在前），同 Id 由版本号裁决（畸形版本视为相等⇒保留内置），每条发现日志带来源根；插件自身版本更新仍走 `plugins/<id>/versions/<ver>/ + current`。**禁止**把内置插件外置到安装根 `plugins/` 并从版本目录删除——那会让"业务层旁边扫不到插件"，2026-10-04 现场表现为升级后整台实例 0 插件 |
 | **④ 数据层**（运行时生成） | `~/.forgeself`（小写） | — | `data/`（数据库）、`config/`（配置）、`log/`（日志）、`plugins/`（**既是插件数据目录：`plugins/{插件Id}/{连接名}.db`，也是用户插件包的落位**；两者靠"子目录内是否有 `plugin.json`"区分，扫描只认带清单者）——随数据走，发布覆盖不影响 |
 
-**启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + PluginManager **两路合并扫描插件根**（内置 `versions/<ver>/plugins/` 在前 + 数据目录 `~/.forgeself/plugins/` 在后，同 Id 按版本号裁决；版本化 current 生效）。Windows 上 API 再拉起同目录的 `ForgeSelf.Tray.exe`。用户点「检查更新」→ 托盘调用 API 的 `POST /api/update/check` → update-agent.ps1 下载新 zip → 落 `versions/<新ver>/` + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
+**启动链路**：用户双击安装根 `ForgeSelf.exe`（根启动器）→ 读 `versions/current` → Start 子进程 `versions/<ver>/ForgeSelf.exe`（DOTNET_ROOT=安装根）→ 业务层起 Kestrel + PluginManager **两路合并扫描插件根**（内置 `versions/<ver>/plugins/` 在前 + 数据目录 `~/.forgeself/plugins/` 在后，同 Id 按版本号裁决；版本化 current 生效）。Windows 上 API 再拉起同目录的 `ForgeSelf.Tray.exe`。用户点「检查更新」→ 托盘调用 API 的 `POST /api/update/check` → 更新代理（exe 优先/ps1 回退）下载新 zip → 落 `versions/<新ver>/` + 公共层合并 + 原子切 current → 重启根启动器 → 新版本生效（旧版本保留可回滚）。
 
-**职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务与后台服务=API 进程（`net10.0`，可在 Linux 上跑）；托盘=同版本目录的 `ForgeSelf.Tray.exe`（只在 Windows 拉起）；更新=update-agent 独立脚本；插件=各自隔离程序集。
+**职责边界铁律**：入口=根启动器（薄壳不碰业务）；业务与后台服务=API 进程（`net10.0`，可在 Linux 上跑）；托盘=同版本目录的 `ForgeSelf.Tray.exe`（只在 Windows 拉起）；更新=update-agent 独立进程（exe 双轨，2026-11-21 输入15）；插件=各自隔离程序集。
 
 ---
 
@@ -161,6 +162,16 @@
 
 > **2026-11-05**：用户插件安装落点与发行物契约以 **§1.9** 为准。`.forgeself-plugin` 已删除，不再生成、不再扫描。本节表格里出现的旧扩展名是 2026-11-04 读码记录。
 
+### 1.8.2 宿主更新「公共层合并」的覆盖范围（2026-11-21 输入15 读码定稿）
+
+宿主自更新（两代代理同构，exe 轨 `UpdateAgentRunner.cs:131-133` / ps1 轨 `update-agent.ps1` 同步段）步骤 4 做的是**公共层合并 robocopy**：`Robocopy(<staged 解压根>, <安装根>, /XD versions)`——
+
+| 覆盖 | 不覆盖 |
+| --- | --- |
+| staged 解压根上除 `versions/` 外的**一切同名文件/目录**覆盖到安装根：根启动器 `ForgeSelf.exe`、运行时结构（host/ + shared/）、框架依赖、`plugins/` 公共层件、`update-agent.exe` + `update-agent.ps1`（代理自身随包自更新）、wwwroot 等公共内容 | `versions/` 整树被 `/XD` 排除——**业务层版本目录永不互踩**，旧版本目录原样保留（回滚能力 = current 指针） |
+
+要点：① 业务层新版本在步骤 3 已独立落 `versions/<newVer>/`（全新目录，运行中文件不锁）；② 步骤 4 只动公共层，运行中的业务层进程在步骤 1 已退出、agent 自身在 `agent-run` 副本运行（`StagedUpdateService.TryStartExeAgent`，不原地跑安装根/暂存目录里的 exe），全链无自锁；③ 由此回答「新 zip 会不会覆盖到版本目录之外的程序」——**会**（公共层同名件全部覆盖），但 `versions/` 下旧版本目录不动。
+
 ---
 
 ## 1.9 独立插件发行契约（2026-11-05）
@@ -205,7 +216,7 @@
 安装根/
 ├── ForgeSelf.exe               # 公共/启动层（FDD 单文件，稳定，不随版本变；类似 QQ.exe，负责拉起当前版本）
 ├── hostfxr.dll / host/fxr/ / shared/   # .NET 运行时公共一份（DOTNET_ROOT 结构，业务层 FDD 共用；QQNT 的 node 框架同理）
-├── update-agent.ps1            # 自更新代理（随包分发）
+├── update-agent.exe / update-agent.ps1  # 自更新代理双轨（随包分发，2026-11-21 输入15）
 ├── versions/                   # 宿主版本目录：每次更新要动的全落这里
 │   └── <semver>/
 │       ├── ForgeSelf.exe       # 业务层 FDD 单文件（托管程序集+satellite 内嵌；wwwroot/appsettings/SQLite 原生外置）
@@ -304,3 +315,4 @@
 | 2026-10-04 | 输入10（M3 收尾）实测确认 §4-R10 ⑦：**老宿主无世代兜底 → 新规则发行串对它不可见**。为让 `:51888` 重新进入更新链，按用户选定 B 出一版**跳号包** `2.7.2.0`（四段完整、幂等原样使用、不补时间码；`release-local.ps1 -Version 2.7.2.0 -UpdateDir <更新源>`），使 `2.7.2.0 > 2.7.1.0` 在其 `System.Version` 比较下成立。同批产物：宿主整包 `2.3.0.2610041706`（含 design-system 3.1.0）与插件单包 `design-system-3.1.0.forgeself-plugin` 均在同一更新源目录。 |
 | 2026-10-04（输入19） | **新增 §4-R11 安装根解析唯一口径（禁止版本目录逐代嵌套）·已实施**：现场事实＝`:51888` 的业务层跑在 `versions\2.2.11\versions\2.2.2026.0930\versions\2.7.2.0\ForgeSelf.exe`（三层）。根因（读码定位，非推测）＝`StagedUpdateService.ApplyStaged` 把 `Path.GetDirectoryName(Environment.ProcessPath)`（业务层版本目录）当 `-InstallDir` 交给代理 ⇒ 代理把新版本落进 `versions/<ver>/versions/<new>/` 并把公共层合并进版本目录；连带：步骤 6 扁平清理误删版本目录里的 `wwwroot/appsettings.json`，步骤 9 重启的是版本目录业务层 exe（无 DOTNET_ROOT）。修法＝宿主侧新增 `ForgeSelf.Api/Services/HostInstallRoot.cs`（父目录名为 `versions` 一路上跳两级；扁平原样返回）+ 代理侧 `Resolve-ForgeInstallRoot` 同步归一化并在仍处 `versions/<ver>/` 内时**当场 throw 不动盘**——代理侧必须做，因为触发嵌套的那一次是「老宿主＋随包新代理」，老 C# 改不动。自愈：修复后下一次升级落真安装根的 `versions/<新ver>/` 并切 current、重启根启动器，嵌套实例升一次即回正（多余层为无人引用残留，清理属不可逆面另批）。判据＝`HostInstallRootTests` 13 条（含**实跑 pwsh 比对两侧归一化结果**）；反向探针：代理不上跳 + 宿主退回 ProcessPath → 两条守卫同时实红（失败 2/通过 11/总计 13），还原 13/13 绿。附带更正本文 §1.5 两处过期事实（安装根 `plugins/` 单路 → 输入18 两路；版本目录含 `plugins/`）。 |
 | 2026-10-30 | 输入3 版本行落 csproj + release-local 缺省读 csproj **已实施（PILOT-076）**：① Api csproj `VersionPrefix 2.3 → 2.4.22`（三段版本行真源，bump 须经用户允许）+ `VersionSuffix` 改纯时间码（旧 `0.` 前缀会把 Version 撑成 5 段）；② release-lib 新增 `Get-CsprojReleaseVersion`（RepoRoot/CsprojPath 二选一、解析前三段、非法显式抛错 ASCII 文案）；③ release-local 本地缺省三分支（显式 `-Version` 不变 / CI tag 原样不变 / 本地读 csproj 补时间码 + 来源提示行），`0.0.0-local` 缺省废止；④ 守卫 `RepositoryReleaseVersionTests` 9 用例红（9 失败/0 通过）→ 绿（9/9）；⑤ 文档同步本真源 §1.1/R10/变更记录 + AGENTS §2.3 + scripts/README + plugin-development SKILL；⑥ Sems 命令 6 去 `-Version`（fs 网关数据操作）。 |
+| 2026-11-21（输入15） | **原生更新代理 exe 轨 + 出站 10013 自愈 + PC-041 类级修复 ·已实施（pilot 2026-11-21-update-restart-socket-10013）**：① 新工程 `ForgeSelf.UpdateAgent`（`update-agent.exe`，net10.0/win-x64 FDD 单文件零 NuGet）替代 ps1 主轨——宿主 `StagedUpdateService.ApplyStaged` 改双轨选择链（staged exe → 安装根 exe → staged ps1 → 安装根 ps1；exe 拉起失败回退 ps1，双缺 failed），`TryStartExeAgent` 先拷 `Updates\agent-run\` + `DOTNET_ROOT`=staged 解压根防自锁；步骤 0-9 与 ps1 同构（业务层落位/公共层合并 §1.8.2/current/保留 current+上一版/扁平清理/staged+Backups 清理/重启根启动器），AgentLog 三重降级（专目录→Updates 根→纯控制台，写失败不抛）；② 10013（WSAEACCES，全机动态端口段撞 WinNAT 保留段）出站自愈：`OutboundSocketResilienceHandler`（AccessDenied 有界重试 MaxAttempts=6、150ms×attempt，耗尽抛含 `net stop winnat`/`netsh int ipv4 set dynamicport` 处置指引的中文诊断）接进 `AppBuilder.ConfigureModelProxyHttpClient` primary handler，InnerHandler 仍挂 ModelProxy 不变代理语义；③ PC-041 版本目录名排序溢出（10 位时间码第 4 段 > Int32.MaxValue）三处同源补零定宽修复：`UpdateAgentCore.ToSortKey` / `update-agent.ps1:175` / `publish-plugin.ps1:111-118`；④ 打包链：`publish-updateagent.ps1`（FDD 单文件 + 体积断言防误打自包含）→ `package-release.ps1 -AgentDir`（双代理入公共层，版本目录内防重复）→ `release-local.ps1` 接线；⑤ **ps1 仍随包禁删**（老宿主 StagedUpdateService 只认 ps1，存量收编后再评估）；测试：UpdateAgentRunnerTests（进程内全流程 E2E 等 15 例）+ OutboundSocketResilienceHandlerTests（韧性/wiring 6 例）+ RepositoryScriptTests 双轨/PC-041 守卫。 |

@@ -108,10 +108,14 @@ $versionsDir = Join-Path (Join-Path $PluginsRoot $sourceId) 'versions'
 $hasExisting = Test-Path $stagedDir
 $existingHighest = $null
 if (Test-Path $versionsDir) {
+    # PC-041 canonical fix（2026-11-21 输入15，与 update-agent.ps1 同源）：版本目录名第 4 段
+    # 是 10 位时间码（> Int32.MaxValue），[version] 解析必抛 OverflowException——
+    # 改为各段 PadLeft(12,'0') 补零定宽 + ordinal 字符串比较，无溢出、数字段按数值序。
     $existingHighest = Get-ChildItem -LiteralPath $versionsDir -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match '^\d+(\.\d+){0,3}$' } |
-        ForEach-Object { [version]$_.Name } |
-        Sort-Object -Descending |
+        Sort-Object -Property @{ Expression = {
+            ($_.Name -split '\.' | ForEach-Object { $_.PadLeft(12, '0') }) -join '|'
+        } } -Descending |
         Select-Object -First 1
 }
 

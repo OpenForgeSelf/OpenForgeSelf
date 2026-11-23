@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Net.WebSockets;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -42,11 +42,19 @@ public static class AppBuilder
     public static void ConfigureModelProxyHttpClient(IServiceCollection services)
     {
         services.AddSingleton<ModelProxy>();
+        // 2026-11-21 输入15 追加出站 10013 自愈：SocketsHttpHandler 外包一层
+        // <see cref="ForgeSelf.Api.Services.Net.OutboundSocketResilienceHandler"/>（primary handler，
+        // connect 阶段 WSAEACCES/WinNAT 保留段自动有界重试；不改变代理与回环语义）。
         services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(sp =>
-            new SocketsHttpHandler
+            new ForgeSelf.Api.Services.Net.OutboundSocketResilienceHandler(
+                sp.GetService<ILoggerFactory>()?.CreateLogger<ForgeSelf.Api.Services.Net.OutboundSocketResilienceHandler>())
             {
-                // 回环绕过在 ModelProxy.GetProxy/IsBypassed 内自处理，不依赖 handler 的本地绕过开关
-                Proxy = sp.GetRequiredService<ModelProxy>()
+                // 10013 自愈层包在 SocketsHttpHandler 外（沿 InnerHandler 链仍可找到带 ModelProxy 的终级 handler）
+                InnerHandler = new SocketsHttpHandler
+                {
+                    // 回环绕过在 ModelProxy.GetProxy/IsBypassed 内自处理，不依赖 handler 的本地绕过开关
+                    Proxy = sp.GetRequiredService<ModelProxy>()
+                }
             }));
     }
 
@@ -240,6 +248,7 @@ public static class AppBuilder
 
         // AI Provider 配置数据库化（001-ai-provider-config-db）
         builder.Services.AddSingleton<ISecretEncryptionService, AesSecretEncryptionService>();
+
         // GitHub 账号绑定域（PILOT-083）：设备流服务 + 绑定存取（令牌经加密落 ForgeSetting）
         builder.Services.AddSingleton(sp => GitHubOAuthConfig.FromConfiguration(builder.Configuration));
         builder.Services.AddSingleton<GitHubBindingStore>();

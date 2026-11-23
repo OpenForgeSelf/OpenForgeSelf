@@ -132,7 +132,7 @@ onMounted(() => {
 .dpick__mask {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
 }
 
 .dpick__box {

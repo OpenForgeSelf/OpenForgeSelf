@@ -28,6 +28,12 @@
 - [Verified] 冒烟 e2e（ai-agent.spec.ts）：**7/7 红，stash 对照（HEAD=6a7f7ba 无本批改动）同 7/7 红同报错** → 非本批引入。根因定性 [Verified]：commit 64c0cbe（2026-11-18）把 `AiAgentView` 导出合入新助手页（`AgentAssistantPage`，aa-* 类族），spec 断言仍停留在 v1.8 三栏 UI（`.agent`/`.sess/.chat/.ctx`/版本徽标）——**spec 陈旧断言债**，属全量 e2e 82 红池；已记 TODO（P2，spec 重写对齐助手页）。
 - [Inferred] 残余 185 全为白名单登记面（--font-mono 87 / --aiw-space-* 34 / --aiw-primary-alpha 档定义+引用 / --radius-lg 等），待 W7 统一登记。
 
+### W4-Sems 域（2026-11-23 16:3x）
+- [Verified] var 迁移：6 文件 109 处，未映射 0（`.temp/w4-sems-var-apply.log`）；硬编码 dry=0 处（176 全为自定义 token 白名单面）。
+- [Verified] 计数：Sems **176→82**（硬编码 0 / 未知 el 0；残余 --gold-tint 36 / --font-mono 22 / --dur-* 6 / --glass-* 5 / --font-display|serif 5 等 = W7 登记面）；全仓 **3707→3613**。
+- [Verified] 插件 build 绿（522ms，dist/index.js 169KB）。
+- [Verified] 冒烟 e2e（sems.spec.ts）：渲染用例红（三态选择器 30s 不可见）+ 串行后续 4 用例未跑。**根因定性 [Verified]：spec 陈旧断言（第二例）**——commit 900a528（2026-11-19 工作台改版）后清单唯一视图 SemsView 根类=`.sems-root`（经典 UI 降级 LegacySemsView 无入口），spec 仍断言 `.sems`/`.sems__title`/`.sems__version`；实证=证据快照显示插件页**已完整渲染**（SEMS 项目工作台 v1.3.0，frontend-manifest 200 含 sems、入口 JS 200、控制台零错误）。记 TODO（P2，与 ai-agent 同类：插件 e2e spec 随 UI 改版漂移）。
+
 ## 3. AC 覆盖（收口时逐条定稿）
 - AC1 全项目 check:theme 0 违反：未验证（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）

@@ -481,7 +481,7 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary, var(--el-text-color-primary));
+  color: var(--el-text-color-primary, var(--el-text-color-primary));
 }
 
 .specs__detail-title span,
@@ -517,7 +517,7 @@ onMounted(() => {
   width: 100%;
   text-align: left;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--el-border-radius-small, 6px);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -525,7 +525,7 @@ onMounted(() => {
 }
 
 .specs__row--on {
-  border-color: var(--gold-400, var(--el-color-primary));
+  border-color: var(--el-color-primary, var(--el-color-primary));
 }
 
 .specs__row-title,
@@ -555,16 +555,16 @@ onMounted(() => {
   font-family: var(--font-mono, var(--font-mono, monospace));
   font-size: 12px;
   line-height: 1.5;
-  color: var(--fg-regular, var(--el-text-color-regular));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 
 .specs__banner {
   margin: 0;
   padding: 6px 8px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--el-border-radius-small, 6px);
   font-size: 12px;
-  color: var(--gold-400, var(--el-color-warning));
+  color: var(--el-color-primary, var(--el-color-warning));
 }
 
 .specs__h {
@@ -588,9 +588,9 @@ onMounted(() => {
 .specdlg__field textarea,
 .specdlg__field select {
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--el-border-radius-base, 6px);
   background: transparent;
-  color: var(--fg-regular, var(--el-text-color-regular));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
   font-size: 13px;
 }
 
@@ -606,9 +606,9 @@ onMounted(() => {
 }
 
 .specs__btn--primary {
-  border-color: var(--gold-400, var(--el-color-primary));
-  background: var(--gold-400, var(--el-color-primary));
-  color: var(--ink-950, var(--el-color-white));
+  border-color: var(--el-color-primary, var(--el-color-primary));
+  background: var(--el-color-primary, var(--el-color-primary));
+  color: var(--el-bg-color-page, var(--el-color-white));
   font-weight: 600;
 }
 
@@ -644,7 +644,7 @@ onMounted(() => {
   padding: 16px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--el-border-radius-base, 8px);
   display: flex;
   flex-direction: column;
   gap: 10px;

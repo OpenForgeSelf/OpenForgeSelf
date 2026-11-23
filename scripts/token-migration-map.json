@@ -213,10 +213,6 @@
       "to": "--el-fill-color-light",
       "why": "同上"
     },
-    "--ds-fg-1": {
-      "to": "--el-text-color-primary",
-      "why": "经 --fg-primary 1:1"
-    },
     "--ds-fg-2": {
       "to": "--el-text-color-regular",
       "why": "经 --fg-secondary"
@@ -921,9 +917,156 @@
       "to": "--border-default",
       "why": "SmartTerminal alpha 边框→主题缺口 token"
     },
-    "--ds-bg": {
-      "to": "--el-bg-color",
-      "why": "DesignSystemView 本地底色（原带 el 兜底）"
+    "--ds-num-feature": {
+      "to": "'tnum' 1, 'lnum' 1",
+      "why": "字体特性串字面量（非色值非 EP 语义）",
+      "literal": true
+    },
+    "--ds-success-soft": {
+      "to": "color-mix(in srgb, var(--el-color-success) 14%, transparent)",
+      "why": "软色 tint→EP 语义组合",
+      "literal": true
+    },
+    "--ds-warning-soft": {
+      "to": "color-mix(in srgb, var(--el-color-warning) 14%, transparent)",
+      "why": "软色 tint→EP 语义组合",
+      "literal": true
+    },
+    "--ds-danger-soft": {
+      "to": "color-mix(in srgb, var(--el-color-danger) 14%, transparent)",
+      "why": "软色 tint→EP 语义组合",
+      "literal": true
+    },
+    "--ds-info-soft": {
+      "to": "color-mix(in srgb, var(--el-color-info) 12%, transparent)",
+      "why": "软色 tint→EP 语义组合",
+      "literal": true
+    },
+    "--ds-gradient-brand": {
+      "to": "linear-gradient(135deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary-dark-2) 100%)",
+      "why": "品牌渐变→EP 主色组合（03-plan W5）",
+      "literal": true
+    },
+    "--ds-gradient-brand-soft": {
+      "to": "linear-gradient(135deg, color-mix(in srgb, var(--el-color-primary-light-3) 12%, transparent) 0%, color-mix(in srgb, var(--el-color-primary-dark-2) 12%, transparent) 100%)",
+      "why": "品牌渐变弱化→EP 主色组合",
+      "literal": true
+    },
+    "--ds-fs-display": {
+      "to": "64px",
+      "why": "展示字号字面量（tokens.css 真源）",
+      "literal": true
+    },
+    "--ds-fs-h1": {
+      "to": "26px",
+      "why": "h1 字号字面量",
+      "literal": true
+    },
+    "--ds-fs-body-lg": {
+      "to": "16px",
+      "why": "body-lg 字面量",
+      "literal": true
+    },
+    "--ds-fs-micro": {
+      "to": "10px",
+      "why": "micro 字面量",
+      "literal": true
+    },
+    "--ds-fw-semibold": {
+      "to": "600",
+      "why": "字重字面量",
+      "literal": true
+    },
+    "--ds-fw-bold": {
+      "to": "700",
+      "why": "字重字面量",
+      "literal": true
+    },
+    "--ds-lh-display": {
+      "to": "1.15",
+      "why": "行高字面量",
+      "literal": true
+    },
+    "--ds-lh-tight": {
+      "to": "1.2",
+      "why": "行高字面量",
+      "literal": true
+    },
+    "--ds-lh-normal": {
+      "to": "1.55",
+      "why": "行高字面量",
+      "literal": true
+    },
+    "--ds-lh-relaxed": {
+      "to": "1.75",
+      "why": "行高字面量",
+      "literal": true
+    },
+    "--ds-space-1": {
+      "to": "4px",
+      "why": "4pt 网格字面量（03-plan W5：间距→literal）",
+      "literal": true
+    },
+    "--ds-space-2": {
+      "to": "8px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-3": {
+      "to": "12px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-4": {
+      "to": "16px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-5": {
+      "to": "20px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-6": {
+      "to": "24px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-7": {
+      "to": "32px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-8": {
+      "to": "48px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-space-9": {
+      "to": "64px",
+      "why": "间距字面量",
+      "literal": true
+    },
+    "--ds-radius-xs": {
+      "to": "var(--radius-xs)",
+      "why": "经主题 2px 档（已豁免面，保单一真源）"
+    },
+    "--ds-radius-lg": {
+      "to": "var(--radius-lg)",
+      "why": "经主题 10px 档"
+    },
+    "--ds-radius-xl": {
+      "to": "var(--radius-xl)",
+      "why": "经主题 14px 档"
+    },
+    "--ds-radius-2xl": {
+      "to": "var(--radius-2xl)",
+      "why": "经主题 20px 档"
+    },
+    "--ds-radius-pill": {
+      "to": "999px",
+      "why": "pill 字面量",
+      "literal": true
     }
   },
   "allowPrefixes": {
@@ -959,36 +1102,6 @@
     "--ink-veil": "墨纱遮罩（rgba 黑复合），EP 无对应",
     "--hair": "SmartTerminal 发丝线别名，W3c 并入 --border-hairline 或 EP 边框",
     "--overlay-opacity": "App.vue 运行时绑定的遮罩浓度参数（滑竿动态写值），非色值 token；默认值定义拟迁主题文件（W2b）",
-    "--ds-space-1": "EP 无间距 token，4pt 网格插件本地刻度（tokens.css）",
-    "--ds-space-2": "同上 8px",
-    "--ds-space-3": "同上 12px",
-    "--ds-space-4": "同上 16px",
-    "--ds-space-5": "同上 20px",
-    "--ds-space-6": "同上 24px",
-    "--ds-space-7": "同上 32px",
-    "--ds-space-8": "同上 48px",
-    "--ds-space-9": "同上 64px",
-    "--ds-lh-display": "EP 无行高 token（1.15）",
-    "--ds-lh-tight": "EP 无行高 token（1.2）",
-    "--ds-lh-normal": "EP 无行高 token（1.55）",
-    "--ds-lh-relaxed": "EP 无行高 token（1.75）",
-    "--ds-fs-display": "EP 无 64px 展示字号",
-    "--ds-fs-h1": "EP 无 26px 字号",
-    "--ds-fs-body-lg": "EP 无 16px 全局档",
-    "--ds-fs-micro": "EP 无 10px 档",
-    "--ds-fw-semibold": "EP 无 600 档",
-    "--ds-fw-bold": "EP 无 700 档",
-    "--ds-num-feature": "字体特性串（tnum/lnum），非色值非 EP 语义",
-    "--ds-gradient-brand": "品牌渐变，EP 无渐变 token",
-    "--ds-gradient-brand-soft": "同上",
-    "--ds-radius-xs": "经 --radius-xs（已豁免档位）",
-    "--ds-radius-lg": "经 --radius-lg（已豁免）",
-    "--ds-radius-xl": "经 --radius-xl（已豁免）",
-    "--ds-radius-2xl": "经 --radius-2xl（已豁免）",
-    "--ds-radius-pill": "EP 无 999px pill 变量",
-    "--ds-surface-0": "transparent 语义别名",
-    "--ds-surface-bg": "transparent 语义别名",
-    "--ds-dur-slow-retired": "占位（无实际条目时移除）",
     "--aiw-primary-32": "主色 32% alpha 描边/光晕，EP 无 alpha 主色档",
     "--aiw-primary-16": "主色 16% alpha 弱底，EP 无 alpha 主色档",
     "--aiw-primary-08": "主色 8% alpha 极弱底，EP 无 alpha 主色档",
@@ -1013,34 +1126,6 @@
     "--aiw-c4": "图表分类色板功能色，EP 无分类色 token",
     "--aiw-c5": "图表分类色板功能色，EP 无分类色 token",
     "--aiw-c6": "图表分类色板功能色，EP 无分类色 token",
-    "--ds-size-h1": "EP 最大字号 extra-large=20px，无 h1 档（export 未接）",
-    "--ds-size-h2": "EP 无 h2 档（export 未接，仅 h3 起有接缝）",
-    "--ds-size-display": "EP 无展示级大字号档",
-    "--ds-weight-semibold": "EP 无 600 档（幻影 --el-weight-semibold 已定 600 字面量）",
-    "--ds-weight-bold": "EP 无 700 档",
-    "--ds-leading-h1": "EP 无行高档（仅 line-height-primary）",
-    "--ds-leading-h2": "EP 无行高档（仅 line-height-primary）",
-    "--ds-border-thick": "EP 无 2px 描边宽 token（仅 --el-border-width）",
-    "--ds-component-button-radius": "圆角随 radiusStyle 轴变化（soft=md 6px，round=lg 10px），EP 无对应档",
-    "--ds-component-button-padding-block": "space.2 间距，EP 无间距 token",
-    "--ds-component-button-padding-inline": "space.4 间距，EP 无间距 token",
-    "--ds-component-button-md-padding-block": "space.2 间距，EP 无间距 token",
-    "--ds-component-button-md-padding-inline": "space.4 间距，EP 无间距 token",
-    "--ds-component-button-md-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
-    "--ds-component-badge-tint": "success 15% alpha 染色，EP 无 alpha tint token",
-    "--ds-component-badge-border": "success 30% alpha 染色边框，EP 无 alpha tint token",
-    "--ds-component-badge-radius": "圆角随 radiusStyle 轴变化（soft=pill），EP 无对应档",
-    "--ds-component-card-padding": "space.6 间距，EP 无间距 token",
-    "--ds-component-card-radius": "圆角随 radiusStyle 轴变化（soft=lg 10px），EP 无 10px 档",
-    "--ds-component-dialog-shadow": "shadow.elevation-5，EP 影阶梯最深只到 elevation-4",
-    "--ds-component-dialog-padding": "space.6 间距，EP 无间距 token",
-    "--ds-component-dialog-radius": "圆角随 radiusStyle 轴变化（soft=lg 10px），EP 无 10px 档",
-    "--ds-component-input-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
-    "--ds-component-input-md-padding-block": "space.2 间距，EP 无间距 token",
-    "--ds-component-select-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
-    "--ds-component-tooltip-padding-block": "space.1 间距，EP 无间距 token",
-    "--ds-component-tooltip-padding-inline": "space.2 间距，EP 无间距 token",
-    "--ds-component-tooltip-radius": "圆角随 radiusStyle 轴变化，EP 无对应档",
     "--surface-sunk": "SmartTerminal 专属下沉浸面 rgba 黑（EP 无对应）",
     "--surface-block": "SmartTerminal 代码块沉底（EP 无对应）",
     "--surface-cmd": "SmartTerminal 命令行沉底（EP 无对应）",
@@ -1054,12 +1139,7 @@
     "--card-color": "OverviewCards 运行时按卡片注入的描边/文字色（非静态设计 token）",
     "--font-sans": "Tailwind @theme 桥接命名空间（值引 --el-font-family，供工具类生成）",
     "--font-serif": "SmartTerminal 衬线字体皮肤值",
-    "--ds-success-soft": "DesignSystem 软色 tint（color-mix EP success，EP 无 soft 档）",
-    "--ds-warning-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
-    "--ds-danger-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
-    "--ds-info-soft": "DesignSystem 软色 tint（EP 无 soft 档）",
     "--x": "解析器文档示例名（非真实引用）",
-    "--ds-x": "解析器文档示例名（非真实引用）",
     "--color-danger": "Tailwind 桥接命名空间（工具类 text-danger 生成所需），值已指 --el-color-error",
     "--color-primary": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",
     "--color-success": "Tailwind 桥接命名空间（@theme 工具类生成所需，值全部指向 EP token）",

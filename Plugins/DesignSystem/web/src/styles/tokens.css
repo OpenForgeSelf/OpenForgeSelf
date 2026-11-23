@@ -12,65 +12,33 @@
  * ========================================================================== */
 :root {
 /* 字体（直接引用宿主 token） */
-  --ds-font-sans: var(--font-sans-cn);
+  --ds-font-sans: var(--el-font-family);
   --ds-font-mono: var(--font-mono);
-  --ds-num: var(--font-mono);
-  --ds-num-feature: 'tnum' 1, 'lnum' 1;
 
-/* 表面与前景（映射到宿主主题感知变量） */
-  --ds-surface-bg: transparent;
   --ds-surface-1: var(--el-bg-color);
   --ds-surface-2: var(--el-bg-color-overlay);
-  --ds-surface-3: var(--el-fill-color-light);
 
-  --ds-fg-1: var(--fg-primary);
-  --ds-fg-2: var(--fg-secondary);
-  --ds-fg-3: var(--fg-tertiary);
-  --ds-fg-4: var(--fg-muted);
-  --ds-link: var(--gold-400);
+  --ds-fg-1: var(--el-text-color-primary);
+  --ds-fg-2: var(--el-text-color-regular);
+  --ds-fg-3: var(--el-text-color-secondary);
+  --ds-fg-4: var(--el-text-color-disabled);
+  --ds-link: var(--el-color-primary);
 
 /* 语义色（熔金 / 朱砂 / 青铜绿） */
-  --ds-success: var(--bronze-500);
-  --ds-success-soft: color-mix(in srgb, var(--bronze-500) 14%, transparent);
-  --ds-warning: var(--gold-400);
-  --ds-warning-soft: color-mix(in srgb, var(--gold-400) 14%, transparent);
-  --ds-danger: var(--cinnabar-400);
-  --ds-danger-soft: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  --ds-info: var(--gold-400);
-  --ds-info-soft: color-mix(in srgb, var(--gold-400) 12%, transparent);
+  --ds-success: var(--el-color-success);
+  --ds-warning: var(--el-color-primary);
+  --ds-danger: var(--el-color-error);
 
 /* 品牌别名（熔金橙为唯一强调） */
-  --ds-color-primary: var(--gold-400);
-  --ds-color-primary-hover: var(--gold-300);
-  --ds-color-primary-active: var(--gold-500);
-  --ds-color-accent: var(--gold-400);
-  --ds-color-accent-hover: var(--gold-300);
-  --ds-gradient-brand: linear-gradient(135deg, var(--gold-400) 0%, var(--gold-500) 100%);
-  --ds-gradient-brand-soft: linear-gradient(135deg, color-mix(in srgb, var(--gold-400) 12%, transparent) 0%, color-mix(in srgb, var(--gold-500) 12%, transparent) 100%);
-  --ds-brand-mark: var(--gold-400);
-  --ds-brand-wordmark: var(--fg-primary);
-  --ds-surface-0: transparent;
+  --ds-color-primary: var(--el-color-primary);
 
-/* 类型（沿用宿主字号阶梯对应的语义） */
-  --ds-fs-display: 64px;
-  --ds-fs-h1: 26px;
-  --ds-fs-h2: 20px;
-  --ds-fs-h3: 18px;
   --ds-fs-h4: 14px;
-  --ds-fs-body-lg: 16px;
   --ds-fs-body: 14px;
   --ds-fs-small: 12px;
   --ds-fs-micro: 10px;
 
-  --ds-fw-regular: 400;
-  --ds-fw-medium: 500;
   --ds-fw-semibold: 600;
-  --ds-fw-bold: 700;
 
-  --ds-lh-display: 1.15;
-  --ds-lh-tight: 1.2;
-  --ds-lh-normal: 1.55;
-  --ds-lh-relaxed: 1.75;
 
 /* 间距（4pt 网格，保持数值不变） */
   --ds-space-1: 4px;
@@ -79,34 +47,23 @@
   --ds-space-4: 16px;
   --ds-space-5: 20px;
   --ds-space-6: 24px;
-  --ds-space-7: 32px;
   --ds-space-8: 48px;
-  --ds-space-9: 64px;
 
 /* 圆角（映射到宿主器物切角刻度；pill 仅极小 tag/chip/状态点用） */
   --ds-radius-xs: var(--radius-xs);
-  --ds-radius-sm: var(--radius-sm);
-  --ds-radius-md: var(--radius-md);
+  --ds-radius-sm: var(--el-border-radius-small);
+  --ds-radius-md: var(--el-border-radius-base);
   --ds-radius-lg: var(--radius-lg);
   --ds-radius-xl: var(--radius-xl);
-  --ds-radius-2xl: var(--radius-2xl);
   --ds-radius-pill: 999px;
 
 /* 阴影（映射到宿主铸铁阴影阶梯） */
-  --ds-shadow-sm: var(--shadow-sm);
-  --ds-shadow-md: var(--shadow-md);
-  --ds-shadow-lg: var(--shadow-lg);
+  --ds-shadow-sm: var(--el-box-shadow-lighter);
 
 /* 边框（映射到宿主边框阶梯） */
   --ds-border-1: var(--border-subtle);
   --ds-border-2: var(--border-default);
-  --ds-border-3: var(--border-strong);
 
-/* 动效（映射到宿主时长与缓动） */
-  --ds-ease-out-expo: var(--ease-out);
   --ds-ease-standard: var(--ease-out);
 
-  --ds-dur-fast: var(--dur-fast);
-  --ds-dur-base: var(--dur-base);
-  --ds-dur-slow: var(--dur-slow);
 }

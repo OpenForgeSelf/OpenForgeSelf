@@ -328,100 +328,100 @@ onMounted(() => {
 
 <style scoped>
 .tp__error {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .tp__muted {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .tp__note {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
   text-transform: none;
   letter-spacing: normal;
 }
 .tp__facts {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .tp__fact {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--ds-space-3);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-1);
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
 }
 .tp__fact-path {
-  color: var(--ds-fg-1);
+  color: var(--el-text-color-primary);
 }
 .tp__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .tp__table th {
   text-align: left;
-  color: var(--ds-fg-3);
-  font-weight: var(--ds-fw-medium);
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: var(--ds-space-2);
+  color: var(--el-text-color-secondary);
+  font-weight: var(--el-font-weight-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px;
   white-space: nowrap;
 }
 .tp__table td {
-  padding: var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 .tp__clamp {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
   max-width: 32ch;
 }
 .tp__sample {
   display: block;
-  color: var(--ds-fg-1);
-  margin-bottom: var(--ds-space-1);
+  color: var(--el-text-color-primary);
+  margin-bottom: 4px;
   overflow-wrap: anywhere;
 }
 .tp__summary {
-  color: var(--ds-fg-3);
-  font-size: var(--ds-fs-micro);
+  color: var(--el-text-color-secondary);
+  font-size: 10px;
   overflow-wrap: anywhere;
 }
 .tp__json {
-  background: var(--ds-surface-2);
+  background: var(--el-bg-color-overlay);
 }
 .tp__parts {
-  margin: var(--ds-space-2) 0;
+  margin: 8px 0;
   border-collapse: collapse;
-  font-size: var(--ds-fs-micro);
+  font-size: 10px;
 }
 .tp__parts td {
-  padding: 2px var(--ds-space-3) 2px 0;
+  padding: 2px 12px 2px 0;
   vertical-align: top;
 }
 .tp__pre {
-  margin: var(--ds-space-2) 0 0;
-  padding: var(--ds-space-3);
+  margin: 8px 0 0;
+  padding: 12px;
   overflow-x: auto;
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
 }
 .tp__ask {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-4);
+  gap: 12px;
+  padding: 16px;
 }
 .tp__strip {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .tp__sample-cell {
   display: flex;
@@ -430,31 +430,31 @@ onMounted(() => {
   min-width: 0;
 }
 .tp__swatch {
-  width: var(--ds-space-8);
-  height: var(--ds-space-4);
-  border: 1px solid var(--ds-border-2);
-  border-radius: var(--ds-radius-sm);
+  width: 48px;
+  height: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--el-border-radius-small);
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-2) var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 8px 12px;
 }
 .ds-input--narrow {
   width: 12ch;
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-color-primary);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-2);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-2) var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-default);
+  border-radius: var(--el-border-radius-small);
+  padding: 8px 16px;
   cursor: pointer;
 }
 </style>

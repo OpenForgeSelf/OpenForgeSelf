@@ -465,19 +465,19 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
 .dv {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-5);
+  gap: 20px;
 }
 .dv__head {
-  gap: var(--ds-space-1);
+  gap: 4px;
 }
 .dv__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: var(--ds-space-4);
+  gap: 16px;
   align-items: start;
 }
 .dv-card {
-  padding: var(--ds-space-5);
+  padding: 20px;
 }
 .dv-row-between {
   justify-content: space-between;
@@ -487,22 +487,22 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
   flex-wrap: wrap;
 }
 .dv-facts {
-  padding: var(--ds-space-3) var(--ds-space-4);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
+  padding: 12px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
 }
 .dv-note {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 .dv-pre {
   margin: 0;
-  padding: var(--ds-space-3) var(--ds-space-4);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-1);
+  padding: 12px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-primary);
   max-height: 260px;
   overflow: auto;
   white-space: pre-wrap;
@@ -510,12 +510,12 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
 }
 .dv-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 5px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 5px 16px;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
@@ -525,25 +525,25 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
   cursor: not-allowed;
 }
 .dv-btn--primary {
-  color: var(--ds-surface-1);
-  background: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-bg-color);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .dv-btn:focus-visible,
 .dv-switch:focus-visible,
 .dv-select:focus-visible,
 .dv-textarea:focus-visible {
-  outline: 2px solid var(--ds-color-primary);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
 }
 .dv-select,
 .dv-textarea {
   font: inherit;
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
 }
 .dv-textarea {
   resize: vertical;
@@ -562,32 +562,32 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
 .dv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .dv-table th,
 .dv-table td {
   text-align: left;
-  padding: var(--ds-space-2) var(--ds-space-3);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: top;
 }
 .dv-access {
-  padding-top: var(--ds-space-2);
+  padding-top: 8px;
 }
 .dv-switch {
   position: relative;
   inline-size: 42px;
   block-size: 24px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
   cursor: pointer;
   padding: 0;
   transition: background 0.15s ease;
 }
 .dv-switch--on {
-  background: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .dv-switch__dot {
   position: absolute;
@@ -596,18 +596,18 @@ async function copyText(key: string, text: string, el: HTMLElement | null): Prom
   inline-size: 18px;
   block-size: 18px;
   border-radius: 50%;
-  background: var(--ds-surface-1);
-  box-shadow: var(--ds-shadow-sm);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-lighter);
   transition: transform 0.15s ease;
 }
 .dv-switch--on .dv-switch__dot {
   transform: translateX(18px);
 }
 .dv-err {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
   margin: 0;
 }
 .dv-warn-text {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 </style>

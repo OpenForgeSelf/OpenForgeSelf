@@ -354,12 +354,12 @@ function submit(): void {
 .ds-start {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-4);
+  gap: 16px;
   max-width: 900px;
 }
 .ds-steps {
   display: flex;
-  gap: var(--ds-space-4);
+  gap: 16px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -367,16 +367,16 @@ function submit(): void {
 .ds-steps__item {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-3);
+  gap: 8px;
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-secondary);
 }
 .ds-steps__item--on {
-  color: var(--ds-color-primary);
-  font-weight: var(--ds-fw-semibold);
+  color: var(--el-color-primary);
+  font-weight: 600;
 }
 .ds-steps__item--done {
-  color: var(--ds-fg-2);
+  color: var(--el-text-color-regular);
 }
 .ds-steps__no {
   display: inline-flex;
@@ -384,26 +384,26 @@ function submit(): void {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  font-size: var(--ds-fs-micro);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  font-size: 10px;
 }
 .ds-steps__item--on .ds-steps__no {
-  border-color: var(--ds-color-primary);
-  background: var(--ds-color-primary);
-  color: var(--ds-surface-1);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color);
 }
 .ds-card {
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-lg);
-  box-shadow: var(--ds-shadow-sm);
-  padding: var(--ds-space-5);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--var(--radius-lg));
+  box-shadow: var(--el-box-shadow-lighter);
+  padding: 20px;
 }
 .ds-scenes {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ds-scene {
   display: flex;
@@ -411,28 +411,28 @@ function submit(): void {
   gap: 2px;
   text-align: left;
   font: inherit;
-  padding: var(--ds-space-4);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-1);
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
 .ds-scene--on {
-  border-color: var(--ds-color-primary);
-  box-shadow: var(--ds-shadow-sm);
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 .ds-scene__label {
-  font-weight: var(--ds-fw-semibold);
+  font-weight: 600;
 }
 .ds-scene__hint {
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-secondary);
 }
 .ds-presets {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ds-preset {
   display: flex;
@@ -440,40 +440,40 @@ function submit(): void {
   gap: 2px;
   text-align: left;
   font: inherit;
-  padding: var(--ds-space-4);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-1);
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
 .ds-preset--on {
-  border-color: var(--ds-color-primary);
-  box-shadow: var(--ds-shadow-sm);
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 .ds-preset__name {
-  font-weight: var(--ds-fw-semibold);
+  font-weight: 600;
 }
 .ds-preset__tagline {
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-secondary);
 }
 .ds-field {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-1);
+  gap: 4px;
 }
 .ds-field__label {
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-2);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-regular);
 }
 .ds-input {
   font: inherit;
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
 }
 .ds-textarea {
   resize: vertical;
@@ -482,21 +482,21 @@ function submit(): void {
   inline-size: 40px;
   block-size: 34px;
   padding: 0;
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-bg-color);
 }
 .ds-range {
   inline-size: 220px;
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 7px var(--ds-space-5);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 7px 20px;
   cursor: pointer;
 }
 .ds-btn:disabled {
@@ -504,23 +504,23 @@ function submit(): void {
   cursor: not-allowed;
 }
 .ds-btn--primary {
-  color: var(--ds-surface-1);
-  background: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-bg-color);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .ds-btn--primary:disabled {
-  color: var(--ds-fg-3);
-  background: var(--ds-surface-2);
-  border-color: var(--ds-border-1);
+  color: var(--el-text-color-secondary);
+  background: var(--el-bg-color-overlay);
+  border-color: var(--border-subtle);
 }
 .ds-start__nav {
   display: flex;
   justify-content: space-between;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ds-alert {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
   margin: 0;
 }
 </style>

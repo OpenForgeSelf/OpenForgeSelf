@@ -97,6 +97,30 @@ const refCounts = new Map(); // 剪定义用：全仓 var(--x) 引用计数（�
 
 // 阶段 A：内存改写 + 引用统计（不写盘）
 const staged = [];
+const refScanFiles = new Set();
+if (pruneDefs) {
+  // 剪定义的引用计数必须全仓统计：scope 外的消费点（如插件预览面对外壳 token 的
+  // 引用）不算数的话，会把仍被引用的定义当孤儿误删（2026-11-23 W5 实证）。
+  const allRoots = [path.resolve(scriptDir, '../ForgeSelf.Web/src'), ...fs.readdirSync(path.resolve(scriptDir, '../Plugins')).filter((d) => !d.startsWith('.')).map((d) => path.resolve(scriptDir, '../Plugins', d, 'web', 'src')).filter((p) => fs.existsSync(p))];
+  for (const r of allRoots) {
+    if (!fs.existsSync(r)) continue;
+    if (fs.statSync(r).isFile()) refScanFiles.add(r);
+    else for (const f of walk(r)) refScanFiles.add(f);
+  }
+}
+for (const f of targets()) refScanFiles.add(f);
+const targetSet = new Set(targets());
+for (const file of refScanFiles) {
+  const src = fs.readFileSync(file, 'utf8');
+  // scope 内文件按改名后文本计数（将被重写）；scope 外按原文计数（保持旧名）。
+  let text = src;
+  if (targetSet.has(file)) for (const r of rules) text = text.replace(r.re, (m) => r.to);
+  for (const m of text.matchAll(/var\(\s*(--[a-zA-Z][\w-]*)/g)) {
+    const t = m[1];
+    if (t.startsWith('--el-')) continue;
+    refCounts.set(t, (refCounts.get(t) || 0) + 1);
+  }
+}
 for (const file of targets()) {
   const src = fs.readFileSync(file, 'utf8');
   let text = src, repl = 0;

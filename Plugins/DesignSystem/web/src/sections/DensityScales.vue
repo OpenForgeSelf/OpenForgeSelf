@@ -346,45 +346,45 @@ onMounted(async () => {
 
 <style scoped>
 .dc__error {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .dc__dim {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .dc__small {
-  font-size: var(--ds-fs-micro);
+  font-size: 10px;
 }
 .dc__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .dc__table th {
   text-align: left;
-  color: var(--ds-fg-3);
-  font-weight: var(--ds-fw-medium);
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: var(--ds-space-2);
+  color: var(--el-text-color-secondary);
+  font-weight: var(--el-font-weight-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px;
   white-space: nowrap;
 }
 .dc__table td {
-  padding: var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 .dc__bar {
   display: block;
-  height: var(--ds-space-4);
-  background: var(--ds-color-primary);
-  border-radius: var(--ds-radius-xs);
+  height: 16px;
+  background: var(--el-color-primary);
+  border-radius: var(--var(--radius-xs));
 }
 .dc__row--diff td {
-  background: color-mix(in oklab, var(--ds-warning) 14%, transparent);
+  background: color-mix(in oklab, var(--el-color-warning) 14%, transparent);
 }
 .dc__diff {
-  color: var(--ds-warning);
-  font-weight: var(--ds-fw-medium);
+  color: var(--el-color-warning);
+  font-weight: var(--el-font-weight-primary);
 }
 .dc__radius {
   display: flex;
@@ -394,41 +394,41 @@ onMounted(async () => {
 }
 .dc__box {
   display: block;
-  width: var(--ds-space-8);
-  height: var(--ds-space-8);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-2);
+  width: 48px;
+  height: 48px;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-default);
 }
 .dc__bordered {
   display: inline-block;
-  padding: var(--ds-space-2) var(--ds-space-3);
+  padding: 8px 12px;
   border-color: currentColor;
   border-style: solid;
-  border-radius: var(--ds-radius-sm);
-  color: var(--ds-fg-2);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-regular);
 }
 .dc__two {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-2) var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 8px 12px;
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-color-primary);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-2);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-2) var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-default);
+  border-radius: var(--el-border-radius-small);
+  padding: 8px 16px;
   cursor: pointer;
 }
 </style>

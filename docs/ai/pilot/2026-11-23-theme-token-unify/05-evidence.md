@@ -48,6 +48,13 @@
 - [Inferred] W1 桥接映射（2918bd8）已把 AgentHub/ToolBridge/McpCenter 的未知 el（--el-font-family-mono/--el-border-radius-lg 等）映到白名单 token/字面量；本批 var apply 是其延续，方向一致性由映射表真源保证。
 - [Verified] 教训（记入日记）：域迁移完成后立即提交——对照实验的 `git checkout` 洗掉了三个未提交域的迁移（已按映射表幂等重放，计数对账一致）。
 
+### W5-DesignSystem 域·进行中（2026-11-23 17:3x）
+- [Verified] **架构定性（判据前提）**：DesignSystem 的 --ds-* 命名空间含两类——①外壳别名层（tokens.css→宿主主题，工作台 chrome 消费，检查器计 R1 的主体）②**用户设计系统运行时契约**（后端 export?format=css 产出 --ds-semantic-*/--ds-size-*/--ds-space-* 等注入 .ds-skin 容器/:root，mannequin 样板间/ComponentGallery/TokenShowcase 消费，skin.ts 为外壳名↔令牌路径别名表）。②是产品功能（「预览=交付同源」），字面量化会杀死展厅对比/密度演示——**不可迁**，与 5 展示工具同类（内容=产品数据）。
+- [Verified] 据此 W5 范围=**chrome 面 19 文件迁移**（1018 处）+ tokens.css 值收敛（34+4 处，值→el/主题组合）+ 真孤儿定义清理（40 条：仅 chrome 引用、全仓无消费点）；预览契约面（showroom/* 485 + ComponentGallery 111 + TokenShowcase 30 + tokens.css 42 = 668）归 **W7 fileExemptions**（值所有者文件，与 themes/*.css 同哲学）；chrome 残余 176 全为 allowTokens 已豁免面（--border-subtle/--font-display/--glass-*/--dur-*/--radius-*）。
+- [Verified] 计数：DesignSystem 1807→**844**；全仓 3293→**2330**。映射表增量 33 条（--ds-space/lh/fw/fs→字面量、soft→color-mix EP 组合、gradient→EP 主色组合、radius→var(--radius-*) 保单一真源）；allowTokens 移除 --ds-* 条目 63 条（计划字面口径）。
+- [Verified] **迁移器缺陷修复（migrate-theme-tokens.mjs --prune-defs）**：原实现引用计数只扫 scope 内文件→scope 外消费点（预览面对外壳 token 的引用）不计→仍被引用的定义被当孤儿误删（W5 实证 75 定义全删、预览回退链差点断）。修复=引用计数全仓统计（宿主+全插件），scope 内按改名后文本、scope 外按原文；实测 tokens.css scope 剪 40 留 35（预览引用面存活）。
+- [Verified] 门禁②（chrome 迁移后）：vue-tsc check 0 error；**vitest 262/262**（含 skin.test.ts 令牌契约测试）；build 绿（dist 445.75 kB）。门禁③（五 spec e2e）跑中。门禁①（dotnet test DesignSystem filter）本批未触后端，待收口快档核对；④ 发布不在本批（须用户明示）。
+
 ## 3. AC 覆盖（收口时逐条定稿）
 - AC1 全项目 check:theme 0 违反：未验证（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）

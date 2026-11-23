@@ -129,16 +129,12 @@ function handleClose(): void {
   emit('close')
 }
 
-function handleBackdropClick(event: MouseEvent): void {
-  if (event.target === event.currentTarget) {
-    handleClose()
-  }
+function handleBackdropChange(value: boolean): void {
+  if (!value) handleClose()
 }
 
+// el-dialog 原生已处理 Esc 关闭；此处只保留 Ctrl/Cmd+Enter 保存快捷键
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    handleClose()
-  }
   if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
     handleSave()
   }
@@ -189,30 +185,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div
-        v-if="visible"
-        class="modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        :aria-labelledby="modalTitle"
-        @click="handleBackdropClick"
-      >
-        <div class="modal-container" role="document">
-          <div class="modal-header">
-            <div class="header-left">
-              <span class="app-logo">
-                <img :src="logoUrl" alt="铸己匣" />
-              </span>
-              <h2 class="modal-title">{{ modalTitle }}</h2>
-            </div>
-            <button class="close-btn" aria-label="关闭" @click="handleClose">
-              ×
-            </button>
-          </div>
+  <el-dialog
+    :model-value="visible"
+    :show-close="false"
+    append-to-body
+    class="link-form-dialog"
+    @update:model-value="handleBackdropChange"
+    @close="handleClose"
+  >
+    <template #header>
+      <div class="modal-header">
+        <div class="header-left">
+          <span class="app-logo">
+            <img :src="logoUrl" alt="铸己匣" />
+          </span>
+          <h2 class="modal-title">{{ modalTitle }}</h2>
+        </div>
+        <button class="close-btn" aria-label="关闭" @click="handleClose">
+          ×
+        </button>
+      </div>
+    </template>
 
-          <form class="modal-form" @submit.prevent="handleSave">
+    <form class="modal-form" @submit.prevent="handleSave">
             <div class="form-group">
               <label for="link-name" class="form-label">
                 链接名称 <span class="required">*</span>
@@ -342,39 +337,10 @@ onUnmounted(() => {
               {{ isSaving ? '保存中...' : '保存' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </el-dialog>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--el-mask-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-container {
-  background: var(--el-bg-color);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: var(--el-box-shadow);
-}
-
 .modal-header {
   display: flex;
   align-items: center;
@@ -662,39 +628,7 @@ onUnmounted(() => {
   }
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95) translateY(-10px);
-  opacity: 0;
-}
-
 @media (max-width: 640px) {
-  .modal-overlay {
-    padding: 0;
-    align-items: stretch;
-  }
-
-  .modal-container {
-    max-width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
   .modal-form {
     padding: 16px;
   }
@@ -709,6 +643,41 @@ onUnmounted(() => {
 
   .icon-group {
     flex: none;
+  }
+}
+</style>
+
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.link-form-dialog .el-dialog {
+  --el-dialog-margin-top: 5vh;
+  width: min(480px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: var(--el-box-shadow);
+  overflow: hidden;
+}
+
+.link-form-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.link-form-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .link-form-dialog .el-dialog {
+    width: 100vw;
+    max-height: 100vh;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 0;
   }
 }
 </style>

@@ -387,65 +387,70 @@ function getSkillIcon(name: string): string {
       </div>
     </div>
 
-    <!-- ===== Create/Edit Modal（保留原交互） ===== -->
-    <Teleport to="body">
-      <div v-if="showFormModal" class="modal-overlay" @click.self="closeFormModal">
-        <div class="modal-panel">
-          <div class="modal-header">
-            <div class="flex items-center gap-2">
-              <AppLogo :size="20" />
-              <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
-            </div>
-            <button class="modal-close" @click="closeFormModal">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+    <!-- ===== Create/Edit Modal（el-dialog 承载，保留原交互） ===== -->
+    <el-dialog
+      v-model="showFormModal"
+      :show-close="false"
+      append-to-body
+      class="skills-form-dialog"
+      width="min(520px, calc(100vw - 32px))"
+      @close="closeFormModal"
+    >
+      <template #header>
+        <div class="modal-header">
+          <div class="flex items-center gap-2">
+            <AppLogo :size="20" />
+            <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
           </div>
-          <form class="modal-body" @submit.prevent="handleFormSubmit">
-            <div class="form-field">
-              <label class="form-label">名称 <span class="required">*</span></label>
-              <input v-model="formName" type="text" class="form-input" placeholder="技能名称" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">描述</label>
-              <textarea v-model="formDescription" class="form-input form-textarea" placeholder="技能描述" rows="3" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">分类</label>
-              <input v-model="formCategory" type="text" class="form-input" placeholder="如：系统、开发、数据" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">系统提示词</label>
-              <textarea v-model="formSystemPrompt" class="form-input form-textarea form-textarea--code" placeholder="系统提示词" rows="4" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">关联工具 ID</label>
-              <input v-model="formToolIds" type="text" class="form-input" placeholder="多个 ID 用逗号分隔" />
-            </div>
-
-            <div v-if="formError" class="form-error">{{ formError }}</div>
-
-            <div class="form-actions">
-              <button type="button" class="btn-cancel" @click="closeFormModal">取消</button>
-              <button type="submit" class="btn-submit" :disabled="formSubmitting">
-                {{ formSubmitting ? '提交中...' : isEditing ? '保存修改' : '创建技能' }}
-              </button>
-            </div>
-          </form>
+          <button class="modal-close" @click="closeFormModal">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-      </div>
-    </Teleport>
+      </template>
+      <form class="modal-body" @submit.prevent="handleFormSubmit">
+        <div class="form-field">
+          <label class="form-label">名称 <span class="required">*</span></label>
+          <input v-model="formName" type="text" class="form-input" placeholder="技能名称" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">描述</label>
+          <textarea v-model="formDescription" class="form-input form-textarea" placeholder="技能描述" rows="3" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">分类</label>
+          <input v-model="formCategory" type="text" class="form-input" placeholder="如：系统、开发、数据" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">系统提示词</label>
+          <textarea v-model="formSystemPrompt" class="form-input form-textarea form-textarea--code" placeholder="系统提示词" rows="4" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">关联工具 ID</label>
+          <input v-model="formToolIds" type="text" class="form-input" placeholder="多个 ID 用逗号分隔" />
+        </div>
+
+        <div v-if="formError" class="form-error">{{ formError }}</div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" @click="closeFormModal">取消</button>
+          <button type="submit" class="btn-submit" :disabled="formSubmitting">
+            {{ formSubmitting ? '提交中...' : isEditing ? '保存修改' : '创建技能' }}
+          </button>
+        </div>
+      </form>
+    </el-dialog>
   </div>
 </template>
 
@@ -773,28 +778,6 @@ function getSkillIcon(name: string): string {
 }
 
 /* ===== Modal ===== */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--el-bg-color-page) 45%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-.modal-panel {
-  background: var(--el-bg-color-overlay);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
-}
-
 .modal-header {
   display: flex;
   align-items: center;
@@ -946,5 +929,31 @@ function getSkillIcon(name: string): string {
   .skills-grid {
     grid-template-columns: 1fr;
   }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器）。
+   对比度承载：面板底 = EP 语义 --el-bg-color-overlay，文字 = --el-text-color-*（PC-025 canonical fix）。 */
+.skills-form-dialog .el-dialog {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--el-bg-color-overlay);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
+  overflow: hidden;
+}
+
+.skills-form-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.skills-form-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

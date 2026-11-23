@@ -448,8 +448,15 @@ onUnmounted(() => {
     </div>
 
     <!-- Parameter Form Modal -->
-    <div v-if="showParameterForm" class="modal-overlay" @click.self="handleParameterFormCancel">
-      <div class="modal modal-medium">
+    <el-dialog
+      v-model="showParameterForm"
+      :show-close="false"
+      append-to-body
+      class="script-dialog"
+      width="min(520px, calc(100vw - 32px))"
+      @close="handleParameterFormCancel"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
             <AppLogo :size="20" />
@@ -470,27 +477,32 @@ onUnmounted(() => {
             </svg>
           </button>
         </div>
-        <div class="modal-body">
-          <ParameterForm
-            v-if="executingScript"
-            :parameters="executingScript.parameters"
-            @submit="handleParameterFormSubmit"
-            @cancel="handleParameterFormCancel"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Execution Detail Modal -->
-    <div v-if="showExecutionDetail" class="modal-overlay" @click.self="handleExecutionDetailClose">
-      <div class="modal modal-large">
-        <ExecutionDetail
-          v-if="scriptRunnerStore.currentExecution"
-          :execution="scriptRunnerStore.currentExecution"
-          @close="handleExecutionDetailClose"
+      </template>
+      <div class="modal-body">
+        <ParameterForm
+          v-if="executingScript"
+          :parameters="executingScript.parameters"
+          @submit="handleParameterFormSubmit"
+          @cancel="handleParameterFormCancel"
         />
       </div>
-    </div>
+    </el-dialog>
+
+    <!-- Execution Detail Modal -->
+    <el-dialog
+      v-model="showExecutionDetail"
+      :show-close="false"
+      append-to-body
+      class="script-dialog script-detail-dialog"
+      width="min(700px, calc(100vw - 32px))"
+      @close="handleExecutionDetailClose"
+    >
+      <ExecutionDetail
+        v-if="scriptRunnerStore.currentExecution"
+        :execution="scriptRunnerStore.currentExecution"
+        @close="handleExecutionDetailClose"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -917,42 +929,7 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* ===== MODAL OVERLAY ===== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--el-bg-color-page) 55%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal {
-  background: var(--el-bg-color-overlay);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-xl);
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--el-box-shadow-dark);
-}
-
-.modal-medium {
-  width: 100%;
-  max-width: 520px;
-}
-
-.modal-large {
-  width: 100%;
-  max-width: 700px;
-}
-
+/* ===== MODAL ===== */
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -1011,5 +988,33 @@ onUnmounted(() => {
     border-bottom: 1px solid var(--border-subtle);
     max-height: 40%;
   }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.script-dialog .el-dialog {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--el-bg-color-overlay);
+  box-shadow: var(--el-box-shadow-dark);
+  overflow: hidden;
+}
+
+.script-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.script-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.script-detail-dialog .el-dialog__header {
+  display: none;
 }
 </style>

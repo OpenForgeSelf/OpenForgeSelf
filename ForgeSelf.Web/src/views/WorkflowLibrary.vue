@@ -661,24 +661,34 @@ onMounted(() => {
       </div>
 
       <!-- ===== MODALS ===== -->
-      <div v-if="showEditor" class="modal-overlay" @click.self="handleEditorCancel">
-        <div class="modal modal-large">
-          <WorkflowEditor
-            :workflow="editingWorkflow"
-            @save="handleEditorSave"
-            @cancel="handleEditorCancel"
-          />
-        </div>
-      </div>
+      <el-dialog
+        v-model="showEditor"
+        :show-close="false"
+        append-to-body
+        class="workflow-dialog"
+        width="min(1100px, calc(100vw - 32px))"
+        @close="handleEditorCancel"
+      >
+        <WorkflowEditor
+          :workflow="editingWorkflow"
+          @save="handleEditorSave"
+          @cancel="handleEditorCancel"
+        />
+      </el-dialog>
 
-      <div v-if="showGenerator" class="modal-overlay" @click.self="handleGeneratorClose">
-        <div class="modal modal-large">
-          <AIWorkflowGenerator
-            @close="handleGeneratorClose"
-            @confirm="handleGeneratorConfirm"
-          />
-        </div>
-      </div>
+      <el-dialog
+        v-model="showGenerator"
+        :show-close="false"
+        append-to-body
+        class="workflow-dialog"
+        width="min(1100px, calc(100vw - 32px))"
+        @close="handleGeneratorClose"
+      >
+        <AIWorkflowGenerator
+          @close="handleGeneratorClose"
+          @confirm="handleGeneratorConfirm"
+        />
+      </el-dialog>
 
       <div v-if="showExecution" class="execution-modal">
         <WorkflowExecution
@@ -1061,35 +1071,6 @@ onMounted(() => {
 }
 
 /* ===================== Modal ===================== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--el-bg-color-page) 55%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal {
-  background: var(--el-bg-color-overlay);
-  border-radius: var(--radius-xl);
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-large {
-  width: 100%;
-  max-width: 1100px;
-  height: 85vh;
-}
-
 .execution-modal {
   position: fixed;
   top: 0;
@@ -1136,16 +1117,6 @@ onMounted(() => {
     justify-content: space-between;
   }
 
-  .modal-large {
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
-  .modal-overlay {
-    padding: 0;
-  }
-
   .filter-tabs {
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -1154,6 +1125,39 @@ onMounted(() => {
   .filter-tab {
     flex-shrink: 0;
     white-space: nowrap;
+  }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.workflow-dialog .el-dialog {
+  height: min(85vh, calc(100vh - 40px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  background: var(--el-bg-color-overlay);
+  overflow: hidden;
+}
+
+.workflow-dialog .el-dialog__header {
+  display: none;
+}
+
+.workflow-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .workflow-dialog .el-dialog {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 0;
   }
 }
 </style>

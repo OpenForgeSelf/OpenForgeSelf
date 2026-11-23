@@ -364,8 +364,14 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
     </div>
 
     <!-- ===== Modals ===== -->
-    <div v-if="showAddMemory" class="modal-overlay" @click.self="showAddMemory = false">
-      <div class="modal modal-lg">
+    <el-dialog
+      v-model="showAddMemory"
+      :show-close="false"
+      append-to-body
+      class="memory-dialog"
+      width="min(600px, calc(100vw - 32px))"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
             <AppLogo :size="20" />
@@ -375,60 +381,66 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
-        <div class="modal-body">
+      </template>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>标题 *</label>
+          <input v-model="newMemory.title" type="text" placeholder="输入记忆标题" />
+        </div>
+        <div class="form-row">
           <div class="form-group">
-            <label>标题 *</label>
-            <input v-model="newMemory.title" type="text" placeholder="输入记忆标题" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>类型</label>
-              <select v-model="newMemory.type">
-                <option v-for="(label, key) in memoryTypeLabels" :key="key" :value="Number(key)">
-                  {{ label }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>重要程度</label>
-              <select v-model="newMemory.importance">
-                <option v-for="(label, key) in memoryImportanceLabels" :key="key" :value="Number(key)">
-                  {{ label }}
-                </option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>分类</label>
-              <select v-model="newMemory.categoryId">
-                <option :value="null">未分类</option>
-                <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>标签（逗号分隔）</label>
-              <input v-model="newMemory.tagsInput" type="text" placeholder="标签1, 标签2" />
-            </div>
+            <label>类型</label>
+            <select v-model="newMemory.type">
+              <option v-for="(label, key) in memoryTypeLabels" :key="key" :value="Number(key)">
+                {{ label }}
+              </option>
+            </select>
           </div>
           <div class="form-group">
-            <label>内容 *</label>
-            <textarea v-model="newMemory.content" rows="6" placeholder="输入记忆内容..." />
+            <label>重要程度</label>
+            <select v-model="newMemory.importance">
+              <option v-for="(label, key) in memoryImportanceLabels" :key="key" :value="Number(key)">
+                {{ label }}
+              </option>
+            </select>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn" @click="showAddMemory = false">取消</button>
-          <button class="btn btn-primary" :disabled="!newMemory.title || !newMemory.content" @click="handleAddMemory">
-            保存
-          </button>
+        <div class="form-row">
+          <div class="form-group">
+            <label>分类</label>
+            <select v-model="newMemory.categoryId">
+              <option :value="null">未分类</option>
+              <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>标签（逗号分隔）</label>
+            <input v-model="newMemory.tagsInput" type="text" placeholder="标签1, 标签2" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>内容 *</label>
+          <textarea v-model="newMemory.content" rows="6" placeholder="输入记忆内容..." />
         </div>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn" @click="showAddMemory = false">取消</button>
+        <button class="btn btn-primary" :disabled="!newMemory.title || !newMemory.content" @click="handleAddMemory">
+          保存
+        </button>
+      </div>
+    </el-dialog>
 
-    <div v-if="showAddCategory" class="modal-overlay" @click.self="showAddCategory = false">
-      <div class="modal">
+    <el-dialog
+      v-model="showAddCategory"
+      :show-close="false"
+      append-to-body
+      class="memory-dialog"
+      width="min(500px, calc(100vw - 32px))"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
             <AppLogo :size="20" />
@@ -438,28 +450,28 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>分类名称 *</label>
-            <input v-model="newCategory.name" type="text" placeholder="输入分类名称" />
-          </div>
-          <div class="form-group">
-            <label>描述</label>
-            <input v-model="newCategory.description" type="text" placeholder="分类描述（可选）" />
-          </div>
-          <div class="form-group">
-            <label>图标</label>
-            <input v-model="newCategory.icon" type="text" placeholder="FontAwesome 图标类名" />
-          </div>
+      </template>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>分类名称 *</label>
+          <input v-model="newCategory.name" type="text" placeholder="输入分类名称" />
         </div>
-        <div class="modal-footer">
-          <button class="btn" @click="showAddCategory = false">取消</button>
-          <button class="btn btn-primary" :disabled="!newCategory.name" @click="handleAddCategory">
-            创建
-          </button>
+        <div class="form-group">
+          <label>描述</label>
+          <input v-model="newCategory.description" type="text" placeholder="分类描述（可选）" />
+        </div>
+        <div class="form-group">
+          <label>图标</label>
+          <input v-model="newCategory.icon" type="text" placeholder="FontAwesome 图标类名" />
         </div>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn" @click="showAddCategory = false">取消</button>
+        <button class="btn btn-primary" :disabled="!newCategory.name" @click="handleAddCategory">
+          创建
+        </button>
+      </div>
+    </el-dialog>
 
     <!-- ===== Detail drawer ===== -->
     <div v-if="selectedMemory" class="memory-detail-drawer" :class="{ open: showDetail }">
@@ -812,35 +824,6 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 /* ===== Modals ===== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ink-veil);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: var(--el-bg-color-overlay);
-  border-radius: var(--glass-radius);
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-}
-
-.modal-lg {
-  max-width: 600px;
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -1094,5 +1077,28 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
     position: static;
     max-height: none;
   }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.memory-dialog .el-dialog {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border-default);
+  background: var(--el-bg-color-overlay);
+  overflow: hidden;
+}
+
+.memory-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.memory-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

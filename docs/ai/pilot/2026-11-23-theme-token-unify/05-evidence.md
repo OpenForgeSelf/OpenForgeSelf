@@ -59,12 +59,21 @@
 - [Verified] **残余红归档（非本批引入）**：①MCP list_tools + G7——后端 MCP 网关对 list_tools 返回 SSE 流而 spec 按 JSON 解析（`SyntaxError: Unexpected token 'e', "event: mes"...`）——产品缺陷，挂 TODO（P1，插件任务需修网关或 spec 协议）；②C2/D1/C6/A1-wizard-done——页面态/超时 flake（C2 基线同红；D1 `[data-showroom]` 30s 不可见、C6 展厅 tab 120s 超时均为元素时态，非样式断言），归插件 e2e 稳定化（TODO P2 已挂）。
 - [Verified] 门禁③结论：**W5 迁移零确定性红**；DS 计数 858（=chrome 授权白名单面 + skin-canvas 契约 17 + 预览契约面）。映射 literal 双字段教训、prune 全仓计数修复、契约名三类（--ds-bg/--ds-fg-1/--ds-semantic-*）已入库迁移器与映射表。
 
+### W6 九弹窗迁移域（2026-11-23 18:0x-19:0x）
+- [Verified] 9 文件弹窗迁移完成（模式统一）：PluginDetailModal（备份移植版）/ MemoryView×2 / ScriptLibrary×2（1 headerless）/ SkillsView×1 / WorkflowLibrary×2（均 headerless 子组件）/ FileTools CleanupPanel+RenamePanel×2 确认 / QuickLinks LinkFormModal+导入×2。自造 overlay/Teleport/keydown 关闭链全删，关闭=el-dialog 内建（ESC/遮罩）+ `@close` 原幂等 handler；append-to-body + `width="min(Npx, calc(100vw - 32px))"` + 640/768 移动媒体查询；残留 grep（modal-overlay/Teleport/backdrop keydown）全 0。
+- [Verified] 宿主 `pnpm run check`：**0 error**（189 warnings 全为无关文件存量；9 迁移文件 0 警告），日志 `ForgeSelf.Web/.temp/w6-host-check.log`。FileTools/QuickLinks 插件 build 绿（W6-B/C 批）。
+- [Verified] 宿主 `pnpm run test`：初跑 **27 红**（SkillsView 2 + PluginDetailModal 25）→ 修测试锚后 **1266/1266 全绿**（122 文件），日志 `.temp/w6-host-test2.log`。红因全是测试锚旧自造 DOM（`.modal-overlay`/`.modal-panel`）+ **EP dialog 懒渲染**（modelValue watch 无 immediate：挂载直传 visible=true 不渲染内容，须先 false 再 setProps(true)——与真实用法一致）→ 测试改锚 `.plugin-detail-dialog`/`.skills-form-dialog`（append-to-body 后根在 document.body）+ `mountModal` 助手（PluginDetailModal.test.ts）/ document.querySelector（SkillsView.test.ts）。
+- [Verified] **测试级联污染（本轮实证）**：遮罩/ESC 两用例在 happy-dom 走不通 EP 内部链（focus-trap 不激活 + transition-stub 下 after-leave 不触发 → EP 不 emit close）→ expect 抛错 → `wrapper.unmount()` 不执行 → **陈旧弹窗残留 document.body** → 后续 `getModalElement()`（querySelector 首匹配）命中上一用例残骸 → 「已禁用状态样式」用例假红（单跑即绿）。修法=两用例改断言**本组件接线契约**（ElDialog emit `update:modelValue(false)`→handleBackdropChange→emit close / emit close→@close→emit close），EP 内部行为归 EP 官方测试；插件组件同模式（Keydown 面板内 Ctrl/Cmd+Enter 保留）。
+- [Verified] check-theme-tokens 判责：本批**净效果 6 增 6 删完全对消**（旧自造壳→el-dialog 壳原样携带 --glass-radius/--border-default×2/--radius-xl×2/--glass-border），棘轮零新增；全仓 2344 行违规全为未触碰存量（ToolBridge/MemoryView 非弹窗区等）= W7 白名单登记面，日志 `.temp/w6-theme-tokens.log`。
+- 边界记录：WorkflowLibrary `.execution-modal` 为全屏接管（非 overlay 模式）保留未动；ConfirmHost 不在 9 弹窗清单——两者不属本批迁移面。
+- AC4（SkillsView 弹窗对比度）：迁移后面板/文字由 EP 语义 token（--el-bg-color-overlay / --el-text-color-*）承载，读图走查待 W6 收口批执行。
+
 ## 3. AC 覆盖（收口时逐条定稿）
-- AC1 全项目 check:theme 0 违反：未验证（进行中）
+- AC1 全项目 check:theme 0 违反：W6 判责=净零新增（6 增 6 删对消）；全仓 0 违反待 W7 白名单登记（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）
-- AC3 9 自造 modal 迁 el-dialog 盘点：未验证（进行中）
-- AC4 SkillsView 弹窗对比度 ≥4.5:1：未验证（进行中）
-- AC5 check/test/插件 build：未验证（进行中）
+- AC3 9 自造 modal 迁 el-dialog 盘点：9 文件迁移编码完成+残留 grep 0；盘点对表待走查定稿（进行中）
+- AC4 SkillsView 弹窗对比度 ≥4.5:1：未验证（EP 语义 token 承载，走查待做）
+- AC5 check/test/插件 build：宿主 check 0 error + test 1266/1266 + FileTools/QuickLinks build 绿 [Verified]；全插件 build 巡检待 W7（部分达成）
 - AC6 插件冒烟 e2e + DesignSystem 四层门禁 ①②③：未验证（进行中）
 - AC7 中档 dotnet test + 深档 e2e 基线对表：未验证（进行中）
 - AC8 check:theme 接线（check 链/pre-commit/CI）+ 亮/暗走查截图：未验证（进行中）

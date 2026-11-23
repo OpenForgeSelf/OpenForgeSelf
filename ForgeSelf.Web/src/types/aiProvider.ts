@@ -1,4 +1,4 @@
-export type AIProviderType = 'OpenAI' | 'OpenAIResponses' | 'Anthropic' | 'Custom' | 'Ollama' | 'LMStudio'
+export type AIProviderType = 'OpenAI' | 'OpenAIResponses' | 'Anthropic' | 'Custom' | 'Ollama' | 'LMStudio' | 'Mock'
 
 /** 按端点主机标记：回环地址为本地，其余为远程 */
 export type AIProviderDeployment = 'Local' | 'Remote'

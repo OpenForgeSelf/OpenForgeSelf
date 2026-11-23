@@ -39,12 +39,14 @@ const typeTagMap: Record<AIProviderType, 'success' | 'warning' | 'info'> = {
   Anthropic: 'warning',
   Custom: 'info',
   Ollama: 'success',
-  LMStudio: 'success'
+  LMStudio: 'success',
+  Mock: 'info'
 };
 
 const LOCAL_ENDPOINT: Partial<Record<AIProviderType, string>> = {
   Ollama: 'http://localhost:11434/v1',
-  LMStudio: 'http://localhost:1234/v1'
+  LMStudio: 'http://localhost:1234/v1',
+  Mock: 'mock://local'
 };
 
 const localMode = ref(false);
@@ -331,7 +333,7 @@ async function saveProvider() {
     formError.value = '接入地址不能为空';
     return;
   }
-  const localRuntime = form.providerType === 'Ollama' || form.providerType === 'LMStudio';
+  const localRuntime = form.providerType === 'Ollama' || form.providerType === 'LMStudio' || form.providerType === 'Mock';
   if (editingId.value == null && !form.apiKey && !localRuntime) {
     formError.value = '新增时 API Key 不能为空';
     return;
@@ -365,7 +367,7 @@ async function saveProvider() {
 }
 
 const apiKeyHint = computed(() => {
-  if (form.providerType === 'Ollama' || form.providerType === 'LMStudio') return '本地运行时可留空';
+  if (form.providerType === 'Ollama' || form.providerType === 'LMStudio' || form.providerType === 'Mock') return '本地运行时可留空';
   return editingId.value == null ? '必填' : '留空 = 保留原密钥';
 });
 
@@ -653,6 +655,7 @@ onMounted(() => {
             <el-option label="Custom" value="Custom" />
             <el-option label="Ollama（本地）" value="Ollama" />
             <el-option label="LM Studio（本地）" value="LMStudio" />
+            <el-option label="Mock（测试）" value="Mock" />
           </el-select>
         </div>
         <div>
@@ -663,6 +666,9 @@ onMounted(() => {
             v-model="form.endpoint"
             placeholder="http://localhost:11434/v1"
             class="font-mono" />
+          <p v-if="form.providerType === 'Mock'" class="mt-1 text-xs text-[var(--el-text-color-secondary)]">
+            不访问网络。请求文本里命中 config/mock-llm.json 的 key，就返回对应 content。样例是 config/mock-llm.sample.json。
+          </p>
         </div>
         <div>
           <label class="block text-sm font-medium text-[var(--el-text-color-primary)] mb-1">

@@ -27,7 +27,7 @@
 | Linux 上 API 怎么编和跑、托盘交叉编译为什么仍会碰到 **NETSDK1100** / 退出码 150 | [`14-onboarding/getting-started.md`](14-onboarding/getting-started.md) **§1.1** |
 | 判定**一个插件该设计什么功能、不多不少**（插件分类学 T0-T4 / 域判定三问 / 消费≠实现铁律 / 公共能力唯一归属 / 新功能准入流程） | [`04-standards/plugin-design-boundary.md`](04-standards/plugin-design-boundary.md)（新建插件立项、既有插件越界/缺位审计、插件合并退役的标准依据） |
 | 开发任务**必须走的 AI-Native 闭环工件链**（Repository Understanding→Intent→Spec→Plan→Task→Implement→Test→Evidence→Review） | [`04-standards/ai-native-engineering-workflow.md`](04-standards/ai-native-engineering-workflow.md)（**开发流程唯一依据，独立自含不与其他体系映射**，用户指令 seq14；模板在 [`18-templates/ai-pilot/`](18-templates/ai-pilot/)；产物落 `docs/ai/pilot/<task-id>/`；群 SOP `ai-native-engineering-loop` 已发布绑定） |
-| 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方/拉模型/加密/改端口/令牌） |
+| 做一件**具体的事**（操作步骤 SOP） | [`05-guides/add-ai-provider.md`](05-guides/add-ai-provider.md)（添加提供方，含没有真实模型时的 Mock / 拉模型 / 加密 / 改端口 / 令牌） |
 | **发布/推送仓库前**做安全终检（历史是否干净、有没有敏感内容会被提交） | [`05-guides/git-publish-final-check.md`](05-guides/git-publish-final-check.md)（push 前检查清单 + 配套审计脚本 `scripts/check-git-content.ps1`） |
 | 查**打包/升级/备份/缓存/安装目录结构**的规则（唯一真源：QQNT 式目标结构/版本保留/缓存清理） | [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) |
 | 确认**某个功能到底做成什么样 / 怎么用 / 有什么坑**（插件功能也算） | `02-features/<NNN>-<功能名>.md`（功能档案；编号总表见本页末「已归档内容」，缺项用 `ls docs/02-features/`） |

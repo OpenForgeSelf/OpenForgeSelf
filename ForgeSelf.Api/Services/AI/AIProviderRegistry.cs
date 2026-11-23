@@ -46,6 +46,12 @@ public class AIProviderRegistry : IAIProviderRegistry
         var next = new List<IAIProvider>(configs.Count);
         foreach (var cfg in configs)
         {
+            if (cfg.ProviderType == AIProviderType.Mock)
+            {
+                next.Add(new MockLlmProvider(cfg));
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(cfg.Endpoint)) continue;
             var httpClient = httpClientFactory.CreateClient();
             // FR-6：按 ProviderType 分派——OpenAIResponses 走新协议提供方，其余沿用兼容提供方（Anthropic 遗留路径在兼容方内部）

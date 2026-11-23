@@ -54,6 +54,7 @@ public static class LocalModelGate
     /// <summary>回环地址，或尚未填写地址的 Ollama / LM Studio，标为本地；其余标为远程。</summary>
     public static AIProviderDeployment ResolveDeployment(AIProviderType type, string? endpoint)
     {
+        if (type == AIProviderType.Mock) return AIProviderDeployment.Local;
         if (IsLoopback(endpoint)) return AIProviderDeployment.Local;
         if (string.IsNullOrWhiteSpace(endpoint) && type is AIProviderType.Ollama or AIProviderType.LMStudio)
             return AIProviderDeployment.Local;

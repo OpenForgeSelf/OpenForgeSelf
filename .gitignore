@@ -107,3 +107,5 @@ CONTEXT.md
 .github/prompts/
 # 本机活队列的手工备份件（如 TODO.md.bak）不入库
 /TODO.md.bak
+# 本机 mock LLM 规则。样例是 config/mock-llm.sample.json，复制后改，不入库。
+/config/mock-llm.json

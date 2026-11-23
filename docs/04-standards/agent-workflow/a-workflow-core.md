@@ -120,6 +120,10 @@
 - 一次性 `.cjs` 脚本只可作「探索期临时探针」，**不得作为验证手段提交或长期依赖**；结论必须沉淀为上述可重复测试，探针用完即删、不进 `temp/` 留存。
 - e2e 视觉检查（图标 / 间距 / 颜色 / 留白 / 对齐 / 溢出）按 `e2e-testing` 技能 Level 3 清单读图核对，截图固定落 `ForgeSelf.Web/screenshots/e2e/<插件id>/`，**不用** `temp/*.cjs` 截图。
 
+### 没有真实 LLM 时
+
+功能要调 Agent 或聊天、但本机没有可用上游时，把默认提供方设为 Mock，用 `config/mock-llm.json` 按关键字返回固定正文。格式、匹配规则和入口见 `docs/02-features/001-ai-provider-config.md` §2.4，步骤见 `docs/05-guides/add-ai-provider.md` §1.1。这是产品里的提供方，不是测试夹具里的假 HTTP。e2e 仍走真实宿主；只是上游可以是 Mock。不要再为「没有密钥」写一次性假响应。
+
 ### 前端验证（修改 `ForgeSelf.Web/` 后必须执行）
 ```bash
 cd ForgeSelf.Web

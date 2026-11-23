@@ -44,7 +44,12 @@ public enum AIProviderType
     /// <summary>
     /// LM Studio。出站走 OpenAI 兼容端点（默认 http://localhost:1234/v1/chat/completions）。
     /// </summary>
-    LMStudio
+    LMStudio,
+
+    /// <summary>
+    /// 本地模拟。不访问网络。规则在 config/mock-llm.json，请求文本命中 key 就返回 content。
+    /// </summary>
+    Mock
 }
 
 /// <summary>模型服务部署位置。按实际请求主机判断：本机回环为 Local，其余为 Remote。</summary>

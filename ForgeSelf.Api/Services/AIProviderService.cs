@@ -171,12 +171,14 @@ public class AIProviderService : IAIProviderService
         // 显式解密 ApiKey 为明文（仓储返回密文，遵循 D-4 约定：调用方按需解密）
         var config = ToConfig(entity);
         var type = config.ProviderType;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        if (type == AIProviderType.Mock)
+            return await TestMockAsync(config, id, modelId, stopwatch);
 
         // 测试连接不应长时间阻塞：取配置超时与 60s 的较小值（LM Studio 首次加载模型常慢于 15s）
         var testTimeout = Math.Min(config.TimeoutSeconds > 0 ? config.TimeoutSeconds : 120, 60);
 
         var client = _httpClientFactory.CreateClient();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
@@ -293,6 +295,38 @@ public class AIProviderService : IAIProviderService
         }
     }
 
+    private static async Task<AIProviderTestResult> TestMockAsync(
+        AIProviderConfig config,
+        long id,
+        long? modelId,
+        System.Diagnostics.Stopwatch stopwatch)
+    {
+        if (modelId.HasValue)
+        {
+            var model = AIModel.FindById(modelId.Value);
+            if (model == null)
+                return new AIProviderTestResult(false, 0, "选定的模型不存在或已被删除", null);
+            if (model.ProviderId != id)
+                return new AIProviderTestResult(false, 0, "选定的模型不属于该提供方", null);
+        }
+
+        var doc = MockLlmRules.Load();
+        stopwatch.Stop();
+        if (!doc.Found || doc.Invalid)
+            return new AIProviderTestResult(false, (int)stopwatch.ElapsedMilliseconds, doc.Error, null);
+
+        var probe = doc.Rules.Count > 0 ? doc.Rules[0].Key : "mock";
+        var provider = new MockLlmProvider(config, doc);
+        var reply = await provider.ChatAsync(new UnifiedChatRequest
+        {
+            Model = config.SupportedModels.FirstOrDefault() ?? MockLlmRules.DefaultModel,
+            Messages = new List<UnifiedChatMessage> { new() { Role = "user", Content = probe } }
+        });
+        var text = reply.Choices.FirstOrDefault()?.Content ?? string.Empty;
+        return new AIProviderTestResult(true, (int)stopwatch.ElapsedMilliseconds,
+            $"mock 规则 {doc.Rules.Count} 条，未访问网络。示例：{text}", null);
+    }
+
     /// <summary>回复是否可用（非空白即可）——测试连接成功判据（PC-034：内容不校验；PC-013：空响应仍判失败）。</summary>
     internal static bool HasUsableReply(string? content)
     {
@@ -303,6 +337,7 @@ public class AIProviderService : IAIProviderService
 
     private void ValidateForCreate(AIProviderConfig config)
     {
+        MockLlmRules.Normalize(config);
         if (string.IsNullOrWhiteSpace(config.Name))
             throw new System.ArgumentException("提供方名称不能为空。");
         if (string.IsNullOrWhiteSpace(config.Endpoint))
@@ -314,6 +349,7 @@ public class AIProviderService : IAIProviderService
 
     private void ValidateForUpdate(long id, AIProviderConfig config)
     {
+        MockLlmRules.Normalize(config);
         if (string.IsNullOrWhiteSpace(config.Name))
             throw new System.ArgumentException("提供方名称不能为空。");
         if (string.IsNullOrWhiteSpace(config.Endpoint))

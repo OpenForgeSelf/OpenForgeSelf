@@ -1,0 +1,7 @@
+{
+  "fallback": "（mock）未命中关键字",
+  "rules": [
+    { "key": "ping", "content": "pong" },
+    { "key": "列出插件", "content": "模拟结果：当前没有需要处理的插件。" }
+  ]
+}

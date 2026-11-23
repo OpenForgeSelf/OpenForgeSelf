@@ -68,13 +68,19 @@ public class AIModelService : IAIModelService
         // 解密 ApiKey 为明文（仓储返回密文，遵循调用方按需解密约定），构造运行期配置
         var config = ToConfig(provider);
 
-        var httpClient = _httpClientFactory.CreateClient();
-        var upstream = new OpenAICompatibleProvider(config, httpClient);
-
         List<ModelInfo> upstreamModels;
         try
         {
-            upstreamModels = await upstream.GetModelsAsync(cancellationToken);
+            if (config.ProviderType == AIProviderType.Mock)
+            {
+                upstreamModels = await new MockLlmProvider(config).GetModelsAsync(cancellationToken);
+            }
+            else
+            {
+                var httpClient = _httpClientFactory.CreateClient();
+                var upstream = new OpenAICompatibleProvider(config, httpClient);
+                upstreamModels = await upstream.GetModelsAsync(cancellationToken);
+            }
             _log.Info("上游 GetModelsAsync 返回 {0} 个模型", upstreamModels.Count);
         }
         catch (Exception ex)
@@ -103,7 +109,7 @@ public class AIModelService : IAIModelService
             var existing = AIModel.FindByProviderIdAndUpstreamModelId(providerId, mi.Id);
             if (existing == null)
             {
-                // 新增：默认不启用，由用户手动开启后才纳入可用模型
+                // 新增：默认不启用，由用户手动开启后才纳入可用模型。Mock 直接启用，避免默认路由被禁用记录挡住。
                 var entity = new AIModel
                 {
                     ProviderId = providerId,
@@ -111,7 +117,7 @@ public class AIModelService : IAIModelService
                     UpstreamModelId = mi.Id,
                     ChatModelId = $"{provider.Name}:{mi.Id}",
                     Owner = mi.Owner,
-                    Enabled = false,
+                    Enabled = config.ProviderType == AIProviderType.Mock,
                     LastSyncTime = now,
                     CreateTime = now,
                     UpdateTime = now

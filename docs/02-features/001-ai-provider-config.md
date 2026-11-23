@@ -2,7 +2,7 @@
 feature_key: F001
 feature_no: 001
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-11-13
 aliases: ["001-ai-provider-config"]
 ---
 
@@ -11,7 +11,7 @@ aliases: ["001-ai-provider-config"]
 > 功能编号：001
 > 状态：已实现
 > 关联：002 模型列表；003 API 服务器；004 集成；100 密钥加密（历史 specs/001 已弃用）
-> 最后更新：2026-08-12
+> 最后更新：2026-11-13
 
 ## 1. 功能需求
 
@@ -34,7 +34,7 @@ aliases: ["001-ai-provider-config"]
 | 字段 | 含义 |
 |------|------|
 | `Name` | 提供方显示名（唯一，Master） |
-| `ProviderType` | OpenAI / OpenAIResponses / Anthropic / Custom（PILOT-074 增 `OpenAIResponses`；输入9 后全类型聊天出站统一 openai-dotnet SDK，Anthropic 走官方 OpenAI 兼容层——出站分派见 004 §2.4） |
+| `ProviderType` | OpenAI / OpenAIResponses / Anthropic / Custom / Ollama / LMStudio / Mock（PILOT-074 增 `OpenAIResponses`；输入9 后除 Mock 外聊天出站统一 openai-dotnet SDK，Anthropic 走官方 OpenAI 兼容层——出站分派见 004 §2.4。Mock 不访问网络，见 §2.4） |
 | `Endpoint` | 接入地址 base URL |
 | `ApiKey` | 访问密钥（**加密存储**，返回的密文原样不解密） |
 | `SupportedModels` | 支持模型列表（逗号分隔） |
@@ -57,6 +57,33 @@ aliases: ["001-ai-provider-config"]
 | `Controllers/AIProviderController.cs` | REST（`api/ai-providers`）+ `[Authorize("ApiKeyPolicy")]` |
 | `Services/AI/AIProviderRegistry.cs` | 注册表：`GetProviderByModel` 支持 `provider:` 前缀解析 |
 | `AppBuilder.cs` | 启动 `InitializeXCodeDatabase` → `EnsureSeeded` → `ReloadAsync` 从 DB 重载 |
+| `Services/AI/Providers/MockLlmProvider.cs` | Mock 提供方：读规则文件，按 key 返回 content |
+
+## 2.4 Mock 提供方（测试用，不访问网络）
+
+类型 `Mock`。注册表不创建 HTTP 客户端。聊天、流式、Agent 的 `ChatAsync` / `ChatStreamAsync` 都走这个提供方。
+
+规则文件是 JSON 对象：
+
+- `rules`：数组。每项有 `key`（请求文本里要出现的子串）和 `content`（命中后的助手回复）。
+- `fallback`：没有任何 key 命中时的回复。
+- 空 `key` 忽略。多条同时命中时，取更长的 `key`。长度相同则保留文件里更靠前的那条。
+- 匹配范围是系统提示和各条消息的文本，按序拼接。区分大小写。
+- `usage` 的三个数字是字符数，不是上游 token。
+
+查找顺序：
+
+1. 环境变量 `FORGESELF_MOCK_LLM` 指向的文件。
+2. 当前工作目录下的 `config/mock-llm.json`。
+3. 从程序目录向上最多 8 层里的 `config/mock-llm.json`。
+
+样例是仓库里的 `config/mock-llm.sample.json`。复制成 `config/mock-llm.json` 后修改。该文件已 gitignore。每次请求重新读文件，改完保存即可，不必重启。
+
+设为默认提供方后，没写模型、或模型名对不上别的提供方时，Agent 会落到这个 Mock。显式模型用 `提供方名:mock`，默认模型名是 `mock`，所以常见写法是 `mock:mock`。设置页把该提供方设为默认即可。
+
+测试连接和拉取模型都不访问网络。拉取到的新模型默认启用。文件缺失或 JSON 无法解析时，测试连接失败，正文里写明路径。
+
+操作步骤见 `docs/05-guides/add-ai-provider.md` §1.1。开发时没有真实上游，用这一节，不要再写一次性假 HTTP。
 
 ## 3. 使用指南
 前端设置面板（`SettingsView` → AI 提供方）增删改查；提供方新增/编辑使用 Element Plus `el-dialog append-to-body`，在设置容器外以视口弹窗展示，长表单在弹窗内容区滚动；背景图模式沿用 `bg-image-mode.css` 的弹窗透明度主题规则。"测试连接"调用 `POST api/ai-providers/{id}/test`（解密后发最小探测）；"拉取模型"调用 `POST api/ai-providers/{id}/fetch-models`（见 002/004）。
@@ -78,3 +105,4 @@ aliases: ["001-ai-provider-config"]
 |------|--------|
 | `AIProviderFeatureTests`（T018/T019/T021） | 加密落库、响应掩码、往返+掩码格式 |
 | `AIProviderRegistry` 相关单测 | `GetProviderByModel` 前缀解析 |
+| `MockLlmTests` | 最长 key、缺文件与坏 JSON、空端点仍注册为默认提供方、聊天与流式返回 content |

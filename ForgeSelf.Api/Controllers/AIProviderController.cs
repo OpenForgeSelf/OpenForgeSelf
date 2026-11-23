@@ -268,7 +268,7 @@ public class AIProviderController : ControllerBase
 
     private static bool IsLocalRuntime(string? providerType)
         => Enum.TryParse<AIProviderType>(providerType, true, out var t)
-           && t is AIProviderType.Ollama or AIProviderType.LMStudio;
+           && t is AIProviderType.Ollama or AIProviderType.LMStudio or AIProviderType.Mock;
 
     private static AIProviderConfig ToConfig(AIProviderRequest request)
     {

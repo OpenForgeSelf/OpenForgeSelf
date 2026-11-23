@@ -1,6 +1,7 @@
 using ForgeSelf.Api.Models;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Services.AI;
+using ForgeSelf.Api.Services.AI.Providers;
 using Microsoft.Extensions.Configuration;
 using NewLife.Log;
 
@@ -85,6 +86,7 @@ public class ConfigurationService : IConfigurationService
                         .ToList();
                 }
 
+                MockLlmRules.Normalize(config);
                 if (!string.IsNullOrEmpty(config.Endpoint))
                 {
                     providers.Add(config);

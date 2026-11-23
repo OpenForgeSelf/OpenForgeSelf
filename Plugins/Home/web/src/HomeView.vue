@@ -505,7 +505,7 @@ onUnmounted(() => {
   font-family: var(--font-serif-cn, serif);
   font-size: 13px;
   font-weight: 500;
-  color: color-mix(in srgb, var(--fg-primary) 70%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 70%, transparent);
   margin: 10px 0 10px;
   letter-spacing: 0.04em;
   display: flex;
@@ -526,7 +526,7 @@ onUnmounted(() => {
   background: transparent;
   border: 0;
   cursor: pointer;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -536,7 +536,7 @@ onUnmounted(() => {
 
 .section-title .side-action button:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .section-title .side-action svg {
@@ -562,16 +562,16 @@ onUnmounted(() => {
 .hero-card .glyph {
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, var(--gold-400), var(--gold-500));
+  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-dark-2));
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display, serif);
-  color: var(--ink-900);
+  color: var(--el-bg-color);
   font-weight: 900;
   font-size: 15px;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--gold-400) 35%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--el-color-primary) 35%, transparent);
   align-self: center;
 }
 
@@ -581,19 +581,19 @@ onUnmounted(() => {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .hero-card .sub {
   font-size: 12px;
-  color: color-mix(in srgb, var(--fg-primary) 55%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 55%, transparent);
   margin-bottom: 14px;
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
   letter-spacing: 0.02em;
 }
 
 .hero-card .sub .num {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   font-family: var(--font-mono, monospace);
   font-weight: 500;
 }
@@ -603,7 +603,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: color-mix(in srgb, var(--ink-950) 38%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 38%, transparent);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 8px 8px 8px 14px;
@@ -616,7 +616,7 @@ onUnmounted(() => {
 
 .composer:focus-within {
   border-color: var(--border-brand);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-400) 12%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-primary) 12%, transparent);
 }
 
 .composer input {
@@ -625,33 +625,33 @@ onUnmounted(() => {
   background: transparent;
   border: 0;
   outline: none;
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
   font-size: 13.5px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .composer input::placeholder {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .composer .send {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, var(--gold-400), var(--gold-500));
+  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-dark-2));
   border: 0;
   border-radius: 7px;
-  color: var(--ink-900);
+  color: var(--el-bg-color);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--gold-400) 28%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--el-color-primary) 28%, transparent);
   transition: all 0.16s;
 }
 
 .composer .send:hover {
   transform: translateY(-1px);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--gold-400) 40%, transparent);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--el-color-primary) 40%, transparent);
 }
 
 .composer .send svg {
@@ -673,16 +673,16 @@ onUnmounted(() => {
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   font-size: 12px;
-  color: color-mix(in srgb, var(--fg-primary) 75%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 75%, transparent);
   cursor: pointer;
   transition: all 0.16s;
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
 }
 
 .suggest-chip:hover {
   background: var(--gold-tint);
   border-color: var(--border-brand);
-  color: var(--gold-300);
+  color: var(--el-color-primary-light-3);
 }
 
 /* ========== 常用功能（kit-styles.css:270） ========== */
@@ -701,14 +701,14 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: color-mix(in srgb, var(--fg-primary) 85%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 85%, transparent);
   position: relative;
   transition: color 0.16s, box-shadow 0.16s;
 }
 
 .func-tile__icon {
   display: inline-flex;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   flex: none;
 }
 
@@ -718,12 +718,12 @@ onUnmounted(() => {
 }
 
 .func-tile:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 /* 已固定入口：金左条微光（既有功能保留，hover 显形图钉） */
 .func-tile--pinned {
-  box-shadow: inset 2px 0 0 var(--gold-400), 0 0 14px color-mix(in srgb, var(--gold-400) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--el-color-primary), 0 0 14px color-mix(in srgb, var(--el-color-primary) 10%, transparent);
 }
 
 .func-tile__pin {
@@ -736,7 +736,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   opacity: 0;
   transition: opacity 0.16s, color 0.16s, background 0.16s;
 }
@@ -752,13 +752,13 @@ onUnmounted(() => {
 }
 
 .func-tile__pin:hover {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
 .func-tile--pinned .func-tile__pin {
   opacity: 1;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 /* ========== 核心看板（kit-styles.css:289） ========== */
@@ -786,10 +786,10 @@ onUnmounted(() => {
 }
 
 .board-card .h .t {
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -799,19 +799,19 @@ onUnmounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--gold-400);
+  background: var(--el-color-primary);
   box-shadow: 0 0 6px currentColor;
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
 .board-card .h .t .dot.off {
-  background: color-mix(in srgb, var(--fg-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--el-text-color-primary) 30%, transparent);
   box-shadow: none;
   animation: none;
 }
 
 .board-card .h .t .dot.green {
-  background: var(--bronze-500);
+  background: var(--el-color-success);
   box-shadow: none;
   animation: none;
 }
@@ -819,27 +819,27 @@ onUnmounted(() => {
 .board-card .status {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   letter-spacing: 0.04em;
 }
 
 .board-card .status.on {
-  color: var(--gold-300);
+  color: var(--el-color-primary-light-3);
 }
 
 .board-card .body {
   font-family: var(--font-serif-cn, serif);
   font-size: 12.5px;
-  color: color-mix(in srgb, var(--fg-primary) 60%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 60%, transparent);
   margin-top: auto;
   padding-top: 8px;
 }
 
 .board-card .body strong {
   display: block;
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
   font-size: 15px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-weight: 500;
   margin-top: 4px;
   letter-spacing: 0.02em;
@@ -868,7 +868,7 @@ onUnmounted(() => {
   gap: 10px;
   padding: 7px 0;
   font-size: 13px;
-  color: color-mix(in srgb, var(--fg-primary) 80%, transparent);
+  color: color-mix(in srgb, var(--el-text-color-primary) 80%, transparent);
   border-bottom: 1px dashed var(--border-hairline);
   cursor: pointer;
 }
@@ -880,7 +880,7 @@ onUnmounted(() => {
 .todo-item .cb {
   width: 14px;
   height: 14px;
-  border: 1.5px solid color-mix(in srgb, var(--fg-primary) 30%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--el-text-color-primary) 30%, transparent);
   border-radius: 3px;
   transition: all 0.16s;
   flex: none;
@@ -892,16 +892,16 @@ onUnmounted(() => {
 .todo-item .cb svg {
   width: 10px;
   height: 10px;
-  color: var(--ink-900);
+  color: var(--el-bg-color);
 }
 
 .todo-item .cb:hover {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .todo-item.done .cb {
-  background: var(--gold-400);
-  border-color: var(--gold-400);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .todo-item.done {
@@ -919,7 +919,7 @@ onUnmounted(() => {
   padding: 14px 0;
   text-align: center;
   font-size: 12.5px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-serif-cn, serif);
 }
 
@@ -927,20 +927,20 @@ onUnmounted(() => {
   margin-top: 10px;
   text-align: right;
   font-size: 11px;
-  color: var(--gold-300);
+  color: var(--el-color-primary-light-3);
   cursor: pointer;
-  font-family: var(--font-sans-cn, sans-serif);
+  font-family: var(--el-font-family, sans-serif);
 }
 
 .todo-list .view-all:hover {
-  color: var(--gold-300);
+  color: var(--el-color-primary-light-3);
   text-decoration: underline;
 }
 
 .activity-empty {
   padding: 28px 0;
   text-align: center;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-serif-cn, serif);
   font-size: 12.5px;
 }
@@ -961,7 +961,7 @@ onUnmounted(() => {
   height: 26px;
   border-radius: 6px;
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -975,13 +975,13 @@ onUnmounted(() => {
 
 .activity-item .meta .t {
   font-size: 12.5px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .activity-item .meta .s {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-top: 2px;
 }
 
@@ -989,13 +989,13 @@ onUnmounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--gold-400);
+  background: var(--el-color-primary);
 }
 
-.activity-dot--workflow { background: var(--gold-400); }
-.activity-dot--script { background: var(--bronze-500); }
-.activity-dot--chat { background: var(--bronze-500); }
-.activity-dot--system { background: var(--cinnabar-400); }
+.activity-dot--workflow { background: var(--el-color-primary); }
+.activity-dot--script { background: var(--el-color-success); }
+.activity-dot--chat { background: var(--el-color-success); }
+.activity-dot--system { background: var(--el-color-error); }
 
 /* ========== 内联待办弹窗 ========== */
 .todo-modal-mask {
@@ -1005,7 +1005,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--ink-950) 45%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 45%, transparent);
 }
 
 .todo-modal {
@@ -1014,7 +1014,7 @@ onUnmounted(() => {
   background: var(--el-bg-color-overlay, var(--el-bg-color));
   border: 1px solid var(--el-border-color);
   border-radius: 12px;
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.55));
+  box-shadow: var(--el-box-shadow-dark);
   display: flex;
   flex-direction: column;
   overflow: hidden;

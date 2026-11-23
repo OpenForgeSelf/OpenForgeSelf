@@ -18,7 +18,7 @@ const TYPE_COLOR_VARS = [
 
 function getTypeColor(index: number): string {
   const name = TYPE_COLOR_VARS[index % TYPE_COLOR_VARS.length]
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || 'var(--fg-muted)'
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || 'var(--el-text-color-disabled)'
 }
 
 function setDemoDirectory(): void {
@@ -184,7 +184,7 @@ function setDemoDirectory(): void {
 
 .form-input:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 
@@ -207,12 +207,12 @@ function setDemoDirectory(): void {
 }
 
 .btn-primary {
-  background-color: var(--gold-400);
-  color: var(--ink-950);
+  background-color: var(--el-color-primary);
+  color: var(--el-bg-color-page);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--gold-300);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .btn-secondary {

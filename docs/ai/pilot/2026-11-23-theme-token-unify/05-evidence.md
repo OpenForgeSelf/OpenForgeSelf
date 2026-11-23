@@ -34,6 +34,14 @@
 - [Verified] 插件 build 绿（522ms，dist/index.js 169KB）。
 - [Verified] 冒烟 e2e（sems.spec.ts）：渲染用例红（三态选择器 30s 不可见）+ 串行后续 4 用例未跑。**根因定性 [Verified]：spec 陈旧断言（第二例）**——commit 900a528（2026-11-19 工作台改版）后清单唯一视图 SemsView 根类=`.sems-root`（经典 UI 降级 LegacySemsView 无入口），spec 仍断言 `.sems`/`.sems__title`/`.sems__version`；实证=证据快照显示插件页**已完整渲染**（SEMS 项目工作台 v1.3.0，frontend-manifest 200 含 sems、入口 JS 200、控制台零错误）。记 TODO（P2，与 ai-agent 同类：插件 e2e spec 随 UI 改版漂移）。
 
+### W4-Home 域（2026-11-23 16:5x）
+- [Verified] var 迁移 63 处 + features.ts var 兜底剥离清理 43 处 + HomeView 阴影兜底剥离 1 处，未映射 0。计数：Home **107→45**（残余全白名单面）；全仓 3324→3294。
+- [Verified] 检查器第二处假阳性修复：命名色正则命中选择器类名（`.dot.green` 的 green）——lookbehind 补 `.` 排除（全仓 -2，AIAgent 185 无连带）；第三处：box-shadow 内 var 兜底色计违规——迁移器兜底剥离正则统一泛化（自造+el token，允许阴影列表前缀）。
+- [Verified] 插件 build 绿（299ms）。冒烟 e2e：首跑红=**todo-tracker dist 缺失**（Home 面板远程加载 todo-tracker 插件视图，`Failed to fetch dynamically imported module .../todo-tracker/web/dist/index.js`，§5.0 新 worktree 缺件②实证）；构建 TodoTracker/ToolBridge/McpCenter/AgentHub 四 dist 后复跑 **1 passed（44.8s）**。
+
+### W4-FileTools 域（2026-11-23 16:5x）
+- [Verified] var 迁移 6 文件 29 处，未映射 0；硬编码 dry=0。计数：FileTools **65→36**（残余全白名单面）；全仓 3294。
+
 ## 3. AC 覆盖（收口时逐条定稿）
 - AC1 全项目 check:theme 0 违反：未验证（进行中）
 - AC2 check:theme:demo 32 处全捕获：未验证（进行中）

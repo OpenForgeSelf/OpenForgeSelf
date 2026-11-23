@@ -227,6 +227,7 @@ const COLOR_RULES = {
   'bg|#e2e3e5': 'var(--el-color-info-light-9)',
   'bg|#f5f7fa': 'var(--el-fill-color-light)',
   'bg|rgba(0, 0, 0, 0.5)': 'var(--el-overlay-color-lighter)',
+  'bg|rgba(0, 0, 0, 0.35)': 'color-mix(in srgb, var(--ink-950) 35%, transparent)',
   'bg|rgba(52, 211, 153, 0.1)': 'var(--el-color-success-light-9)',
   'bg|rgba(245, 158, 11, 0.12)': 'var(--gold-tint-strong)',
   'bg|rgba(29, 78, 216, 0.12)': 'var(--el-color-info-light-9)',
@@ -521,7 +522,7 @@ function migrateFile(file) {
     // ① el var 兜底剥离（themes 供给齐备，hex 兜底即幻影）
     const stripped = line
       .replace(/var\((--el-[\w-]+),\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|white|black)\)/g, 'var($1)')
-      .replace(/var\((--border-default),\s*rgba?\([^)]*\)\)/g, 'var($1)');
+      .replace(/var\((--[\w-]+),\s*[^)]*rgba?\([^)]*\)\)/g, 'var($1)');
     if (stripped !== line) { line = stripped; changed++; }
     // ② 声明扫描
     const declRe = /([-a-zA-Z]+)\s*:\s*([^;{}]+)/g;

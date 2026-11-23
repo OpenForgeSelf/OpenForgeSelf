@@ -983,7 +983,7 @@ function cancelExecute(): void {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background-color: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

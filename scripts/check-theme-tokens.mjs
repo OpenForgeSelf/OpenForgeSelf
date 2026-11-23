@@ -114,7 +114,7 @@ const NAMED_COLORS = [
   'lime', 'limegreen', 'mediumaquamarine', 'moccasin', 'navy', 'springgreen',
 ];
 // 按长度降序排列，避免短色名误匹配长色名前缀（冗余保护，主要靠下面的前后顾）
-const namedColorRe = new RegExp('(?<![\\w-])(' + [...NAMED_COLORS].sort((a, b) => b.length - a.length).join('|') + ')(?![\\w-])');
+const namedColorRe = new RegExp('(?<![\\w.-])(' + [...NAMED_COLORS].sort((a, b) => b.length - a.length).join('|') + ')(?![\\w-])');
 // 放行清单：仅保留明确合法的来源。
 // 不再整体放行 var(--el-...) / color-mix(...)，这样它们内部的硬编码兜底色值
 // （var(--x, #fff)、var(--x, red)、color-mix(..., #fff)）也能被捕获。

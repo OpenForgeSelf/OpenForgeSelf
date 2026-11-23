@@ -10,6 +10,7 @@ using ForgeSelf.Api.Plugins.Services;
 using ForgeSelf.Api.Models;
 using ForgeSelf.Api.Services;
 using ForgeSelf.Api.Services.CostScope;
+using ForgeSelf.Api.Services.Vault;
 using Scalar.AspNetCore;
 using ForgeSelf.Api.Security;
 using ForgeSelf.Api.Services.AI;
@@ -262,6 +263,14 @@ public static class AppBuilder
 
         // API 子密钥管理（030 认证体系升级）：Scoped，请求内共享（内部依赖单例加密服务）
         builder.Services.AddScoped<ApiKeyService>();
+
+        // 凭据保险库 P1（PILOT-086；方案 docs/08-security/credential-vault-design.md）：
+        // 随机 KEK（Windows=DPAPI LocalMachine / 非 Windows=0600 文件）+ AES-256-GCM 信封 + Grant 授权 + 审计。
+        // 仅宿主内部使用，不向插件 seed（插件用凭据属 P4 Adapter 面，须过授权通道）。
+        builder.Services.AddSingleton<ISecretKeyProvider>(
+            sp => new VaultKeyProvider(Path.Combine(dataLocation.GetHostDataDirectory(), "keys")));
+        builder.Services.AddSingleton<ISecretStore, SecretStore>();
+        builder.Services.AddSingleton<ICredentialBroker, CredentialBroker>();
 
         // 端口配置管理（009-web-port-token-security）- 基于配置文件
         builder.Services.AddSingleton<IPortConfigurationService, PortConfigurationService>();

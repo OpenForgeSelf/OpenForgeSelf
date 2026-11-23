@@ -1,8 +1,8 @@
-﻿---
+---
 feature_key: F100
 feature_no: 100
 status: implemented
-last_updated: 2026-10-06
+last_updated: 2026-11-23
 aliases: ["100-secret-encryption"]
 ---
 
@@ -118,3 +118,50 @@ var masked  = encryption.Mask("sk-xxx");      // 展示：sk-****xxx
 | `Unit/AesSecretEncryptionOutputTests.cs` | 指定明文加密 + 往返解密断言 + 密文输出 |
 | `AIProviderFeatureTests.cs`（T018/T019/T021） | 加密落库、响应掩码、往返+掩码格式 |
 | `Unit/HashServiceTests.cs` | DevTools 插件 AES 加解密（独立实现，密钥来源不同） |
+
+## 6. Credential Vault（凭据保险库，PILOT-086，2026-11-23）
+
+> 方案真源：`docs/08-security/credential-vault-design.md`（xxred 提案）。与 §1-§5 的 CBC 配置加密**并存不互替**：
+> §1-§5 管「AI Provider 配置里的密钥字段」，本节管「宿主级可授权使用的独立凭据」。
+
+### 6.1 定位与数据模型
+
+宿主级凭据保险库：Agent/插件/自动化需要用 API Key、Token 等凭据时，凭据集中存宿主，使用方只拿 **SecretRef 引用**，明文永不进使用方。三张新表（ConnName=`ForgeSelf`）：
+
+| 实体 | 职责 |
+|------|------|
+| `StoredSecret` | 密文行：信封字段（KeyId/WrappedDek/WrapNonce/WrapTag/Nonce/Ciphertext/Tag/FormatVersion）+ 元数据（Name/SecretType/Provider/Owner/Status/ExpiresAt/RotationVersion） |
+| `CredentialGrant` | 授权：SubjectType/SubjectId + Operation（use/test-connection/*）+ TargetConstraint + 有效期；**默认拒绝模型的显式例外面** |
+| `SecretAuditEvent` | 脱敏审计：create/update_value/revoke/delete/grant_created/grant_revoked/use_allowed/use_denied + 结果/原因码；**Secret 删除后审计保留** |
+
+SecretRef JSON 形态（配置落盘/事件携带的唯一凭据指针）：
+
+```json
+{"source":"vault","id":"sec_<32位小写hex>","version":"current"}
+```
+
+### 6.2 加密方案（AES-256-GCM 信封）
+
+- **每条凭据随机 256-bit DEK**；DEK 用 KEK 包裹（AES-GCM，wrap AAD=`ev1|wrap|{keyId}`），数据加密 AAD=`ev1|{refId}|{ownerType}|{ownerId}|{rotationVersion}`（AAD 绑定行字段，轮换/迁移错位即解密失败）；
+- **KEK**（`VaultKeyProvider`，随机 32 字节）：Windows=DPAPI **LocalMachine** 域 + 熵（与 MachineKeyProvider 同理：宿主以桌面 + Windows 服务（LocalSystem）双形态运行，不能绑用户 SID）；非 Windows=权限 0600 密钥文件；文件落 `data/keys/vault-kek.v1.bin`；
+- **明文红线**：管理面 API（`/api/secrets`）任何端点不返回明文与信封材料；明文唯一出口 = 宿主可信代码经授权的内部通道 `ISecretStore.GetValueForHost`；审计/日志同样禁止明文与密文；
+- **Fail Closed**：吊销/过期/无授权/解密失败一律拒绝并落审计；Grant 撤销立即生效（无缓存）。
+
+### 6.3 管理面 API（`/api/secrets`，全部需 ApiKeyPolicy）
+
+`GET /`（列表）· `POST /`（创建，明文仅请求当次）· `GET /{id}` · `PATCH /{id}` · `PUT /{id}/value`（轮换：新 DEK + RotationVersion+1，不回显）· `DELETE /{id}`（连带吊销全部 Grant，审计保留）· `GET|POST /{id}/grants` · `DELETE /{id}/grants/{grantId}` · `GET /audit?secretId=&limit=`（默认 100，上限 500）。`{id}` 接受数字 Id 或 sec_ 引用；不存在 → 404 外壳；业务拒绝（类型非法/已吊销等）→ 200 + `success:false`。
+
+### 6.4 测试覆盖
+
+| 测试 | 覆盖点 |
+|------|--------|
+| `Unit/SecretRefTests.cs` | 引用生成/解析/校验（source、id 长度、小写 hex、version） |
+| `Unit/VaultKeyProviderTests.cs` | KEK 生成/加载/损坏检测、BuildKeyId |
+| `Unit/EnvelopeSecretCryptoTests.cs` | 往返、六字段篡改检测、AAD 绑定、错误 KEK |
+| `Unit/CredentialVaultStoreTests.cs` | Grant 授权矩阵、吊销/过期 Fail Closed、轮换、删除连带吊销、审计脱敏、明文不入列 |
+| `Unit/SecretsControllerTests.cs` | 类级鉴权守卫、明文红线（响应无明文/信封材料）、404/500 外壳 |
+
+### 6.5 已知边界（后续批次）
+
+- KEK 轮换、`/api/secrets` 测试连接端点、Lease（借出票据）、UI 管理页、插件 Adapter 面（插件用凭据必须经 Grant 授权通道，**不得直接 seed 保险库服务给插件**）——见设计稿 §10 排期；
+- 既有 `ISecretEncryptionService`（§1-§5，CBC v1/v2）保持原样，不迁移。

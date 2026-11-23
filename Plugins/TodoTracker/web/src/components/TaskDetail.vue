@@ -385,7 +385,8 @@ onMounted(() => {
         >
         <span class="td-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
         <span class="td-prio">{{ priorityLabel(form.priority) }}</span>
-        <span class="td-key" :title="`任务编号：${task.taskKey}`">{{ task.taskKey }}</span>
+        <span class="td-tid" data-test="td-tid" title="待办编号（agent 工具引用）">#{{ task.id }}</span>
+        <span class="td-key" :title="`任务标识（GUID）：${task.taskKey}`">{{ task.taskKey }}</span>
       </div>
       <p v-if="missingText" class="td-soft-hint" data-test="detail-soft-hint">
         下发前待补齐：{{ missingText }}
@@ -695,6 +696,8 @@ onMounted(() => {
 .td.is-busy { opacity: .82; }
 .td-stage { font-size: 11px; padding: 1px 7px; border-radius: 3px; }
 .td-prio { font-size: 11px; padding: 1px 5px; border-radius: 3px; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); }
+/* 待办编号徽标（PILOT-085）：数字 id，与 GUID 并排但样式区分 */
+.td-tid { font-size: 11px; padding: 1px 6px; border: 1px solid var(--el-border-color-lighter); border-radius: 3px; background: var(--el-fill-color-light); color: var(--el-text-color-regular); }
 .td-key { margin: 0; font-size: 11px; font-weight: 400; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--el-text-color-secondary); }
 .td-close { border: 0; background: transparent; font-size: 18px; line-height: 1; color: var(--el-text-color-secondary); cursor: pointer; }
 

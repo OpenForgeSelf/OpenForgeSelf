@@ -59,6 +59,9 @@ test.describe('TodoTracker 插件主链路冒烟', () => {
 
       await page.locator('.tt-pipeline-step', { hasText: '草稿' }).click()
       await expect(page.locator('.tt-item', { hasText: title })).toBeVisible()
+      // PILOT-085 身份锚定：列表行 #<id> 徽标与 REST 回读的 TodoDto.id 相等（agent 引用的就是该数字）
+      const listRow = page.locator('.tt-item', { hasText: title })
+      await expect(listRow.locator('.tt-tid')).toHaveText(`#${task.id}`)
       // 软提示：中性「下发前待补齐」，非危险色「还缺」冒充失败
       await expect(page.locator('.tt-item', { hasText: title }).locator('[data-test="list-soft-hint"]')).toContainText('下发前待补齐')
       await expect(page.locator('.tt-item', { hasText: title }).locator('[data-test="list-soft-hint"]')).not.toContainText(/^还缺/)
@@ -72,11 +75,15 @@ test.describe('TodoTracker 插件主链路冒烟', () => {
       await expect(page.locator('.tt-pipeline-step').filter({ hasText: '就绪' }).locator('b')).toHaveText('1')
       const card = page.locator('.tt-board-card', { hasText: title })
       await expect(card).toBeVisible()
+      // PILOT-085：看板卡同样锚定 #<id>
+      await expect(card.locator('.tt-tid')).toHaveText(`#${task.id}`)
       await card.click()
 
       const drawer = page.locator('[data-test="task-drawer"]')
       await expect(drawer).toBeVisible()
       await expect(drawer.locator('#td-title')).toHaveValue(title)
+      // PILOT-085：详情抽屉头部 #<id>（与 Guid taskKey 并排）
+      await expect(drawer.locator('[data-test="td-tid"]')).toHaveText(`#${task.id}`)
       // 分类折叠头首屏可见；工作单元默认收起
       await expect(drawer.locator('[data-test="section-basic"] .td-section-head')).toBeVisible()
       await expect(drawer.locator('[data-test="section-workunit"] .td-section-head')).toBeVisible()

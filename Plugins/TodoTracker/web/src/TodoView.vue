@@ -230,7 +230,7 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
       </button>
       <div v-if="focusItems.length" class="tt-focus-list">
         <button v-for="task in focusItems.slice(0, 3)" :key="task.id" type="button" @click="open(task)">
-          {{ task.title }} · {{ task.stageLabel }} · {{ priorityLabel(task.priority) }}
+          #{{ task.id }} · {{ task.title }} · {{ task.stageLabel }} · {{ priorityLabel(task.priority) }}
         </button>
       </div>
     </section>
@@ -265,6 +265,7 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
             <div class="tt-item-top">
               <span class="tt-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
               <span class="tt-prio" :title="`优先级 ${priorityLabel(task.priority)}`">{{ priorityLabel(task.priority) }}</span>
+              <span class="tt-tid" title="待办编号（agent 工具引用）">#{{ task.id }}</span>
               <span class="tt-item-title" :title="task.title">{{ task.title }}</span>
             </div>
             <div class="tt-item-meta">
@@ -313,7 +314,7 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
           <button v-for="task in s.boardBuckets[stage]?.items ?? []" :key="task.id" class="tt-board-card" draggable="true"
             :class="{ 'is-active': task.id === s.selectedId }" @dragstart="beginDrag(task, $event)" @dragend="draggingTask = null" @click="open(task)">
             <span class="tt-stage" :class="`tag-${stageTagType(task.stage)}`">{{ task.stageLabel }}</span>
-            <b>{{ task.title }}</b><small>{{ priorityLabel(task.priority) }} · {{ task.projectName || '未关联项目' }}</small>
+            <b>{{ task.title }}</b><small><span class="tt-tid" title="待办编号（agent 工具引用）">#{{ task.id }}</span> {{ priorityLabel(task.priority) }} · {{ task.projectName || '未关联项目' }}</small>
             <span v-if="task.missing?.length" class="tt-item-gap" data-test="board-soft-hint" @click="openWorkUnit(task, $event)">
               下发前待补齐 · 去补齐
             </span>
@@ -410,6 +411,16 @@ onUnmounted(() => window.removeEventListener('keydown', onShortcut))
 .tt-create-proj { max-width: 200px; }
 .tt-deleg { font-size: 11px; padding: 1px 7px; border-radius: 3px; }
 .tt-key { font-size: 11px; }
+/* 待办编号徽标（PILOT-085）：agent 工具引用的数字 id，与委派 run 串(#run:…)样式区分 */
+.tt-tid {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 3px;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  flex-shrink: 0;
+}
 .tt-item-gap {
   margin-top: 5px; font-size: 12px; color: var(--el-color-warning);
   background: var(--el-color-warning-light-9);

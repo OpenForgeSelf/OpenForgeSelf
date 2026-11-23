@@ -992,7 +992,7 @@ onUnmounted(() => {
 </style>
 <style>
 /* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.script-dialog .el-dialog {
+.el-dialog.script-dialog {
   max-height: 90vh;
   display: flex;
   flex-direction: column;

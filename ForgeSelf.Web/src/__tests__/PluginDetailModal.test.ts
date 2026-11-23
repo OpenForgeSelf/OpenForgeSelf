@@ -551,7 +551,6 @@ describe('渲染测试', () => {
 
       await flushPromises()
 
-      const modal = getModalElement() as HTMLElement | null
       const container = document.querySelector('.el-dialog__body') as HTMLElement | null
       container?.click()
       await flushPromises()

@@ -63,9 +63,9 @@ test.describe('记忆系统（/memory）', () => {
     await page.goto('/memory')
     await expect(page.getByRole('button', { name: '新建记忆' })).toBeVisible()
 
-    // 打开新建模态框并填写
+    // 打开新建模态框并填写（W6-A 迁移后为 el-dialog，壳类 .memory-dialog）
     await page.getByRole('button', { name: '新建记忆' }).click()
-    const modal = page.locator('.modal-overlay').filter({ hasText: '新建记忆' })
+    const modal = page.locator('.memory-dialog').filter({ hasText: '新建记忆' })
     await expect(modal).toBeVisible()
     await modal.getByPlaceholder('输入记忆标题').fill(title)
     await modal.getByPlaceholder('输入记忆内容...').fill('Playwright e2e 创建的记忆')

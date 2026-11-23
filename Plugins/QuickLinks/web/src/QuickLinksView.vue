@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+// 插件是独立预编译产物（无 unplugin 编译期注册），模板 <el-dialog> 必须显式导入
+// 才能运行时解析；element-plus 经宿主 index.html import map 共享同一实例。
+import { ElDialog } from 'element-plus'
 import type { QuickLink, QuickLinkCreateRequest, ImportMode } from './types'
 import { useQuickLinksStore } from './store'
 import { showToast } from './toast'
@@ -904,7 +907,7 @@ onMounted(() => {
 
 <style>
 /* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.import-links-dialog .el-dialog {
+.el-dialog.import-links-dialog {
   --el-dialog-margin-top: 8vh;
   width: min(440px, calc(100vw - 32px));
   max-height: 90vh;

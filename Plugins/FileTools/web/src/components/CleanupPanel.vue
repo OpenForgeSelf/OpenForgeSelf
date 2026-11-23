@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+// 插件是独立预编译产物（无 unplugin 编译期注册），模板 <el-dialog> 必须显式导入
+// 才能运行时解析；element-plus 经宿主 index.html import map 共享同一实例。
+import { ElDialog } from 'element-plus'
 import AppLogo from './AppLogo.vue'
 import { useFileToolsStore } from '../stores/fileTools'
 import { fileToolsApi } from '../services/fileToolsApi'
@@ -868,7 +871,7 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
 
 <style>
 /* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.cleanup-confirm-dialog .el-dialog {
+.el-dialog.cleanup-confirm-dialog {
   border-radius: 8px;
 }
 

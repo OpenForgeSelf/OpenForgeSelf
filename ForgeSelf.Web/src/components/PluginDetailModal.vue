@@ -631,7 +631,7 @@ watch(() => props.pluginId, () => {
 
 <style>
 /* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.plugin-detail-dialog .el-dialog {
+.el-dialog.plugin-detail-dialog {
   --el-dialog-margin-top: 5vh;
   width: min(560px, calc(100vw - 32px));
   max-height: 90vh;
@@ -654,7 +654,7 @@ watch(() => props.pluginId, () => {
 }
 
 @media (max-width: 640px) {
-  .plugin-detail-dialog .el-dialog {
+  .el-dialog.plugin-detail-dialog {
     width: 100vw;
     max-height: 100vh;
     margin-top: 0;

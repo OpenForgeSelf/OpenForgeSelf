@@ -1080,8 +1080,9 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 </style>
 <style>
-/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.memory-dialog .el-dialog {
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器；
+   自定义 class 经 $attrs 落在 .el-dialog 根元素自身，须用复合选择器） */
+.el-dialog.memory-dialog {
   max-height: 80vh;
   display: flex;
   flex-direction: column;

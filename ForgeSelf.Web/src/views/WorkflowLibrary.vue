@@ -1129,8 +1129,9 @@ onMounted(() => {
 }
 </style>
 <style>
-/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
-.workflow-dialog .el-dialog {
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器；
+   自定义 class 经 $attrs 落在 .el-dialog 根元素自身，须用复合选择器） */
+.el-dialog.workflow-dialog {
   height: min(85vh, calc(100vh - 40px));
   max-height: 90vh;
   display: flex;
@@ -1151,7 +1152,7 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .workflow-dialog .el-dialog {
+  .el-dialog.workflow-dialog {
     width: 100vw;
     height: 100vh;
     max-height: 100vh;

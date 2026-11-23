@@ -934,7 +934,7 @@ function getSkillIcon(name: string): string {
 <style>
 /* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器）。
    对比度承载：面板底 = EP 语义 --el-bg-color-overlay，文字 = --el-text-color-*（PC-025 canonical fix）。 */
-.skills-form-dialog .el-dialog {
+.el-dialog.skills-form-dialog {
   max-height: 90vh;
   display: flex;
   flex-direction: column;

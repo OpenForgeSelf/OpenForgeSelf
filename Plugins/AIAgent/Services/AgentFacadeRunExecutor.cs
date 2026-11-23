@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using ForgeSelf.Abstractions;
+using ForgeSelf.Api.Plugins.AIAgent.Entities;
 using ForgeSelf.Api.Plugins.AIAgent.Models;
 using ForgeSelf.Core;
 using NewLife.Log;
@@ -18,6 +19,7 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
     private readonly IRunOrchestratorService? _orchestrator;
     private readonly IChatModelResolver? _modelResolver;
     private readonly IAgentRegistry? _registryOverride;
+    private readonly IPlanGeneratorService? _planGenerator;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _runs = new(StringComparer.Ordinal);
 
     public AgentFacadeRunExecutor(
@@ -26,7 +28,8 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
         IAIAgentService? agentService = null,
         IRunOrchestratorService? orchestrator = null,
         IChatModelResolver? modelResolver = null,
-        IAgentRegistry? registry = null)
+        IAgentRegistry? registry = null,
+        IPlanGeneratorService? planGenerator = null)
     {
         _facade = facade;
         _ctx = ctx;
@@ -34,6 +37,7 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
         _orchestrator = orchestrator;
         _modelResolver = modelResolver;
         _registryOverride = registry;
+        _planGenerator = planGenerator;
     }
 
     public Task StartOpenAsync(string sessionId, string runId, CancellationToken cancellationToken)
@@ -109,6 +113,92 @@ public sealed class AgentFacadeRunExecutor : IAgentRunExecutor
         {
             DetachCancel(sessionId, runId, cts);
         }
+    }
+
+    /// <summary>
+    /// planned 模式规划回合（灾后按意图重实现 · PC-040 批语义恢复）：
+    /// 先经 LLM 真规划（PlanGeneratorService，submit_plan 闭环），成功 → plan.proposed 替换草稿卡；
+    /// 规划器不可用 / 失败 / 超时 → 保留草稿计划并标注「规划失败，已用回退计划」。
+    /// 静默降级禁令：任一回退路径必带 Warn 日志。
+    /// </summary>
+    public async Task StartPlanningAsync(string sessionId, string runId, CancellationToken cancellationToken)
+    {
+        var snap = _facade.GetExecution(sessionId, runId);
+        if (snap == null) return;
+        var generator = _planGenerator ?? _ctx?.Get<IPlanGeneratorService>();
+        if (generator == null)
+        {
+            XTrace.Log.Warn("[AgentFacade] 规划器不可用（组合根未装配 planGenerator），session={0} run={1}", sessionId, runId);
+            FallbackToDraft(sessionId, runId, snap);
+            return;
+        }
+
+        try
+        {
+            var modelId = await ResolveModelAsync(snap.ModelId, cancellationToken).ConfigureAwait(false);
+            // 规划用临时 Run：不落库；Id 取负随机，避免与编排器 scratch 会话（plan:{runId}）互撞。
+            var probe = new AgentRun
+            {
+                Id = -Random.Shared.Next(1, int.MaxValue),
+                AgentId = snap.AgentId ?? string.Empty,
+                TaskInput = snap.Text
+            };
+            var plan = await generator.GeneratePlanAsync(probe, 0, modelId, cancellationToken).ConfigureAwait(false);
+            if (plan == null || plan.Steps.Count == 0 || LooksLikeGeneratorFallback(plan))
+            {
+                XTrace.Log.Warn("[AgentFacade] 规划失败 session={0} run={1}: {2}", sessionId, runId, "规划器未返回有效计划");
+                FallbackToDraft(sessionId, runId, snap);
+                return;
+            }
+            _facade.UpdatePlannedPlan(sessionId, runId, ToPlanDto(plan));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // 规划超时（非用户取消）：回退草稿 + note，不中断确认流程。
+            XTrace.Log.Warn("[AgentFacade] 规划失败 session={0} run={1}: {2}", sessionId, runId, "规划回合超时");
+            FallbackToDraft(sessionId, runId, snap);
+        }
+        catch (OperationCanceledException)
+        {
+            // 用户取消：Stop 已收束状态，不写回退。
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Warn("[AgentFacade] 规划失败 session={0} run={1}: {2}", sessionId, runId, ex.Message);
+            FallbackToDraft(sessionId, runId, snap);
+        }
+    }
+
+    /// <summary>规划失败回退：保留既有草稿计划（无则单步）并标注，重新走 plan.proposed 供确认。</summary>
+    private void FallbackToDraft(string sessionId, string runId, AgentRunExecutionSnapshot snap)
+    {
+        var dto = snap.Plan ?? new AgentPlanDto
+        {
+            Goal = snap.Text,
+            Steps = { new AgentPlanStepDto { Id = "s1", Name = "完成整体任务", Objective = snap.Text } }
+        };
+        dto.Note = "规划失败，已用回退计划";
+        _facade.UpdatePlannedPlan(sessionId, runId, dto);
+    }
+
+    /// <summary>识别 PlanGeneratorService 的内置兜底（单步「完成整体任务」）——按回退语义换用会话草稿并标注。</summary>
+    private static bool LooksLikeGeneratorFallback(AgentPlan plan)
+        => plan.Steps.Count == 1
+           && string.Equals(plan.Steps[0].Name, "完成整体任务", StringComparison.Ordinal);
+
+    private static AgentPlanDto ToPlanDto(AgentPlan plan)
+    {
+        var dto = new AgentPlanDto { Goal = plan.Goal ?? string.Empty };
+        foreach (var st in plan.Steps)
+        {
+            dto.Steps.Add(new AgentPlanStepDto
+            {
+                Id = string.IsNullOrWhiteSpace(st.Id) ? $"s{dto.Steps.Count + 1}" : st.Id,
+                Name = st.Name,
+                Objective = st.Objective
+            });
+        }
+        return dto;
     }
 
     public Task ResumeAsync(string sessionId, string runId, string action, CancellationToken cancellationToken)

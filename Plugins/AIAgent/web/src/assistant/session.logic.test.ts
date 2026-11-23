@@ -63,6 +63,18 @@ describe('applyEvent', () => {
     expect(s.autoOpenPanel).toBe('plan')
     expect(s.plan?.goal).toBe('部署')
   })
+
+  it('passes through plan note (planning-fallback marker)', () => {
+    let s = emptyThreadState('running')
+    s = applyEvent(s, {
+      type: 'plan.proposed',
+      sessionId: 's1',
+      seq: 1,
+      ts: '',
+      payload: { goal: '部署', note: '规划失败，已用回退计划', steps: [{ title: '检查' }] },
+    })
+    expect(s.plan?.note).toBe('规划失败，已用回退计划')
+  })
 })
 
 describe('splitProse', () => {

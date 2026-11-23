@@ -130,6 +130,8 @@ public sealed class AgentPlanDto
     public string Goal { get; set; } = string.Empty;
     public List<AgentPlanStepDto> Steps { get; set; } = new();
     public List<string>? Constraints { get; set; }
+    /// <summary>计划卡说明（规划失败回退时=「规划失败，已用回退计划」；正常计划为空。随 plan.proposed 载荷透传前端）。</summary>
+    public string? Note { get; set; }
 }
 
 public sealed class AgentPlanStepDto

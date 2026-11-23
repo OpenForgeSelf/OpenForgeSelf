@@ -194,6 +194,7 @@ function workflowStatusText(): string {
           <div v-if="!plan" class="aa-art-sec"><p>还没有计划。选择计划任务并发送后，会在这里先确认再执行。</p></div>
           <template v-else>
             <div v-if="plan.goal" class="aa-art-sec"><h3>目标</h3><p>{{ plan.goal }}</p></div>
+            <div v-if="plan.note" class="aa-art-sec"><p class="aa-muted-line">{{ plan.note }}</p></div>
             <div v-if="plan.steps?.length" class="aa-art-sec">
               <h3>步骤</h3>
               <ol class="aa-steps">

@@ -164,7 +164,7 @@ export interface ThreadState {
   lastSeq: number
   status: AgentSessionStatus
   runId: string | null
-  plan: { goal?: string; steps?: Array<{ id?: string; title: string; detail?: string; status?: string }>; constraints?: string[] } | null
+  plan: { goal?: string; note?: string; steps?: Array<{ id?: string; title: string; detail?: string; status?: string }>; constraints?: string[] } | null
   approval: AgentApproval | null
   stuck: AgentStuck | null
   catalog: AgentWorkspaceItemStatus[]
@@ -259,6 +259,7 @@ export function applyEvent(state: ThreadState, ev: AgentEventEnvelope): ThreadSt
     case 'plan.updated': {
       s.plan = {
         goal: str(p.goal, undefined as unknown as string) || undefined,
+        note: str(p.note, undefined as unknown as string) || undefined,
         steps: Array.isArray(p.steps) ? (p.steps as ThreadState['plan'] extends infer X | null ? NonNullable<X>['steps'] : never) : [],
         constraints: Array.isArray(p.constraints) ? (p.constraints as string[]) : undefined,
       }

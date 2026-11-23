@@ -34,6 +34,8 @@ public interface IAgentRunExecutor
 {
     Task StartOpenAsync(string sessionId, string runId, CancellationToken cancellationToken);
     Task StartPlanAsync(string sessionId, string runId, CancellationToken cancellationToken);
+    /// <summary>planned 模式规划回合：先经 LLM 真规划（submit_plan 闭环），失败/超时回退草稿计划并标注（灾后按意图重实现，PC-040 批语义）。</summary>
+    Task StartPlanningAsync(string sessionId, string runId, CancellationToken cancellationToken);
     Task ResumeAsync(string sessionId, string runId, string action, CancellationToken cancellationToken);
     Task StopAsync(string sessionId, string runId);
 }

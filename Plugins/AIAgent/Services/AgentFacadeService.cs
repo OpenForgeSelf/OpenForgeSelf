@@ -149,6 +149,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             Append(s, "session.status", run.Id, new { status = s.Status });
             Append(s, "plan.proposed", run.Id, run.Plan);
             Append(s, "workspace.updated", run.Id, WorkspacePayload(s));
+            // 规划回合（灾后按意图重实现）：先经 LLM 真规划，成功→plan.proposed 替换草稿；失败→回退草稿+标注。
+            _ = SafeStart(() => _executor?.StartPlanningAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
             return (202, new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id });
         }
 
@@ -222,6 +224,22 @@ public sealed class AgentFacadeService : IAgentFacadeService
             return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
         _ = SafeStart(() => _executor?.StartPlanAsync(s.Id, run.Id, CancellationToken.None) ?? Task.CompletedTask);
         return new AcceptedRunResponse { SessionId = s.Id, RunId = run.Id };
+    }
+
+    /// <summary>
+    /// 规划回合产出回写待确认计划（真规划或回退草稿+note）。仅 awaiting_plan 且 run 匹配时生效；
+    /// 用户已确认/取消/停止则静默忽略，避免覆盖已进入执行的轮次。
+    /// </summary>
+    public bool UpdatePlannedPlan(string sessionId, string runId, AgentPlanDto plan)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return false;
+        var run = s.CurrentRun;
+        if (run == null || !string.Equals(run.Id, runId, StringComparison.Ordinal)) return false;
+        if (!string.Equals(s.Status, "awaiting_plan", StringComparison.Ordinal)) return false;
+        run.Plan = plan;
+        Touch(s);
+        Append(s, "plan.proposed", run.Id, plan);
+        return true;
     }
 
     public object? RevisePlan(string sessionId, RevisePlanRequest request)

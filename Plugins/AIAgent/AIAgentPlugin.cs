@@ -157,15 +157,18 @@ public class AIAgentPlugin : IPlugin
         IRunOrchestratorService? facadeOrch = null;
         IChatModelResolver? facadeModels = null;
         IAgentRegistryService? facadeAgents = null;
+        IPlanGeneratorService? facadePlanner = null;
         if (eagerScope != null)
         {
             facadeAgent = eagerScope.ServiceProvider.GetService<IAIAgentService>();
             facadeOrch = eagerScope.ServiceProvider.GetService<IRunOrchestratorService>();
             facadeModels = eagerScope.ServiceProvider.GetService<IChatModelResolver>();
             facadeAgents = eagerScope.ServiceProvider.GetService<IAgentRegistryService>();
+            facadePlanner = eagerScope.ServiceProvider.GetService<IPlanGeneratorService>();
         }
         var agentFacade = new AgentFacadeService(executor: null, ctx, agents: facadeAgents);
-        var agentExecutor = new AgentFacadeRunExecutor(agentFacade, ctx, facadeAgent, facadeOrch, facadeModels);
+        // PC-040（守卫回归 2026-11-23）：组合根构造全显式命名实参——可选参省参即 PC-040 形态（组合根漏传 planGenerator → 规划静默降级）。
+        var agentExecutor = new AgentFacadeRunExecutor(agentFacade, ctx, facadeAgent, facadeOrch, facadeModels, registry: null, planGenerator: facadePlanner);
         agentFacade.AttachExecutor(agentExecutor);
         services?.AddSingleton<IAgentFacadeService>(agentFacade);
         services?.AddSingleton<IAgentRunExecutor>(agentExecutor);

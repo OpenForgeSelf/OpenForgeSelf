@@ -37,7 +37,8 @@ public class DbAdminPlugin : IPlugin
         var services = ctx.Get<IServiceCollection>();
         var audit = new DbAuditWriter();
         var protector = new FileKeySecretProtector(dataDir);
-        var connections = new DbConnectionService(protector, new DefaultDriverProbe(dataDir), audit);
+        // 同形态显式化（PC-040 同类扫查回归 2026-11-23）：可选参不省参，组合根全显式。
+        var connections = new DbConnectionService(protector, new DefaultDriverProbe(dataDir), audit, systemConnNames: DbConnectionService.DefaultSystemConnNames);
         var queries = new DbQueryService(connections, new PermissionModeStore(dataDir), audit);
         // F1 收尾（0.1.2）：Apply 阶段零实体访问（对齐 AgentHub 先例）——过期清理已由
         // DbQueryService.ResolveCore/ListApprovals 首行惰性触发，此处预热在宿主登记缺失时会触发 XCode 兜底。

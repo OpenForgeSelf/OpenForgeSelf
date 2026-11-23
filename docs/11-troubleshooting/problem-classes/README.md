@@ -1,4 +1,4 @@
-﻿# 问题类台账（Problem Classes）
+# 问题类台账（Problem Classes）
 
 > **本目录是「这类事为什么会再犯、怎么防」的唯一真源索引**；pilot 工件回答「任务做到哪了」，此处回答「问题被归类了吗、守卫在守吗」。
 > 模板与 front-matter schema 单一来源 = `docs/18-templates/postmortem/problem-class.tpl.md`；流程（何时建档、如何扫查/上浮）= 技能 `.agents/skills/problem-class-closure/`。
@@ -44,6 +44,8 @@
 | 会话起始目录 ~ 占位符 / startDir 解析 / 工作目录报错泄露宿主路径 | PC-035 |
 | 终端会话 cwd 跟踪 / cd 后目录不更新 / cmd 包裹命令与标记协议 / shell kind 新增 | PC-036 |
 | OAR prompt 结算 / installation 诚实 / 假 bundled / 短 sleep Exit | PC-037 |
+| Mock 配置 400 无感 / resume 被默认模型接管 | PC-039 |
+| planned 模式恒回退且无解释（组合根可选参静默漏装配） | PC-040 |
 
 ## 台账总表
 
@@ -87,6 +89,8 @@
 | PC-035 | 会话起始目录占位符（~）未解析，报错拼接解析路径泄露宿主进程目录 | guarded | G1 active | 1（延期债到期：11-13 分诊 TODO、11-15 实测命中） | [PC-035](PC-035-tilde-startdir-unresolved-info-leak.md) |
 | PC-036 | cmd 会话执行后 cwd 采集缺失（交互式 %VAR% 解析期展开 + 响应无 cwd + 前端不回写） | guarded | G1 active（真实 cmd 进程集成测试） | 0 | [PC-036](PC-036-cmd-session-cwd-capture-missing.md) |
 | PC-037 | OAR 无证据即 available/Succeeded | guarded | G1×2+G2 active | 0 | [PC-037](PC-037-oar-honesty-without-evidence.md) |
+| PC-039 | Mock 提供方静默改道 / 会话模型快照缺失 | open | G1 失守待重建 | 0 | [PC-039](PC-039-mock-provider-silent-divert.md) |
+| PC-040 | 组合根构造可选参省参漏装配（静默 null 依赖） | open | G1 失守待重建 | 0 | [PC-040](PC-040-composition-root-arg-omission.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

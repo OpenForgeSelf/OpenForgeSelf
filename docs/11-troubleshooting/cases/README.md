@@ -1,4 +1,4 @@
-﻿# 案例档案（Cases）— 时间线索引
+# 案例档案（Cases）— 时间线索引
 
 > Case 只讲「这一次发生了什么」（一事一档）；规则/修法/守卫一律引用对应 PC，不复述。模板 = `docs/18-templates/postmortem/case.tpl.md`，新建走 `scripts/new-problem-case.ps1` 或按技能 `problem-class-closure` P6 手工建。
 
@@ -46,5 +46,7 @@
 | 2026-11-14-provider-probe-ok-keyword-false-negative | 2026-11-14 | 测试连接（选定模型）把「我无法按要求只回复指定词语。」判失败——探针判据绑定关键词 ok，连接与模型实际可用（假阴性） | [PC-034](../problem-classes/PC-034-probe-keyword-false-negative.md) | Verified | [链接](2026-11-14-provider-probe-ok-keyword-false-negative.md) |
 | 2026-11-14-plugin-di-service-host-contract-miss | 2026-11-14 | 智能终端助手/凭据恒 424「宿主对话/凭据加密模块不可用」：StHostGateway 注入 IServiceProvider 拿到插件子容器，宿主契约恒 null | [PC-034](../problem-classes/PC-034-plugin-di-service-host-contract-miss.md) | Verified | [链接](2026-11-14-plugin-di-service-host-contract-miss.md) |
 | 2026-11-15-st-ux-defects | 2026-11-15 | 智能终端三缺陷实测：`~` 起始目录 400 + 报错泄露宿主路径（PC-035 延期债到期）；GBK「目录」偶合合法 UTF-8 显示「Ŀ¼」（PC-011 **逃逸**入运行时）；cmd 会话 `cd` 后页面目录不更新（PC-036） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md)（一案三类，另见 [PC-035](../problem-classes/PC-035-tilde-startdir-unresolved-info-leak.md) / [PC-036](../problem-classes/PC-036-cmd-session-cwd-capture-missing.md)） | Verified | [链接](2026-11-15-st-ux-defects.md) |
+| 2026-11-20-mock-provider-silent-divert | 2026-11-20 | Mock 配置请求被转发管道吃掉 400 无感；resume 后被宿主默认模型静默接管（灾后码随批丢失，守卫待重建） | [PC-039](../problem-classes/PC-039-mock-provider-silent-divert.md) | Verified | [链接](2026-11-20-mock-provider-silent-divert.md) |
+| 2026-11-21-composition-root-arg-omission | 2026-11-21 | planned 模式恒「规划失败，已回退计划」且无解释：组合根漏传 planGenerator 静默降级（灾后码随批丢失，守卫待重建） | [PC-040](../problem-classes/PC-040-composition-root-arg-omission.md) | Verified | [链接](2026-11-21-composition-root-arg-omission.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

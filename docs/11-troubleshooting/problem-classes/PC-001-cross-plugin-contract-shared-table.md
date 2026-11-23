@@ -10,7 +10,7 @@ cases: [2026-10-10-workflow-engine-contract-not-registered]
 signature:
   - {id: S1, kind: test, path: ForgeSelf.Api.Tests/ProblemClassEnumerationTests.cs}
 allowlist:
-  - {path: "Plugins/Scheduler/SchedulerPlugin.cs", reason: "守卫首跑真实命中（2026-10-17 Verified，G2 红）：StopScheduler 的 ctx.Get<ISchedulerHost>() 无任何注册/seed 路径恒 null，修复属插件六步闭环另起待办「修复：Scheduler 卸载不停止调度器」；2026-11-15 续期：同文件 DI 构造面已由 PC-034 批收敛（调用点改 IContext），本条为提供侧行为缺陷（插件卸载语义）未触及，修复需独立红绿验证，TODO P1 在册", expires: 2026-11-22}
+  - {path: "Plugins/Scheduler/SchedulerPlugin.cs", reason: "守卫首跑真实命中（2026-10-17 Verified，G2 红）：StopScheduler 的 ctx.Get<ISchedulerHost>() 无任何注册/seed 路径恒 null，修复属插件六步闭环另起待办「修复：Scheduler 卸载不停止调度器」；2026-11-15 续期：同文件 DI 构造面已由 PC-034 批收敛（调用点改 IContext），本条为提供侧行为缺陷（插件卸载语义）未触及，修复需独立红绿验证，TODO P1 在册；2026-11-23 灾后续期：仓库重 clone 基线重置（9ad7c48），修复批并入灾后回迁排期（TODO 输入13 A 方案），未修复按台账规则续期", expires: 2026-12-31}
 guards:
   - {level: G1, path: ForgeSelf.Api.Tests/Plugins/WorkflowEngineTests/WorkflowEnginePluginRegistrationTests.cs, status: active}
   - {level: G2, path: ForgeSelf.Api.Tests/ProblemClassEnumerationTests.cs, status: active}

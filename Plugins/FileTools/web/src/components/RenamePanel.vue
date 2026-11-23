@@ -469,24 +469,32 @@ function cancelExecute(): void {
       </div>
     </div>
 
-    <div v-if="showConfirmDialog" class="modal-overlay" @click.self="cancelExecute">
-      <div class="modal-dialog">
+    <el-dialog
+      :model-value="showConfirmDialog"
+      :show-close="false"
+      append-to-body
+      class="rename-confirm-dialog"
+      width="min(450px, calc(100vw - 32px))"
+      @update:model-value="(v: boolean) => { if (!v) cancelExecute() }"
+      @close="cancelExecute"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
             <AppLogo :size="20" />
             <h4 class="modal-title">确认执行</h4>
           </div>
         </div>
-        <div class="modal-body">
-          <p>确定要对 <strong>{{ store.validPreviewCount }}</strong> 个文件执行重命名操作吗？</p>
-          <p class="modal-warning">⚠️ 此操作不可撤销，请确认预览结果无误。</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="cancelExecute">取消</button>
-          <button class="btn btn-primary" @click="confirmExecute">确认执行</button>
-        </div>
+      </template>
+      <div class="modal-body">
+        <p>确定要对 <strong>{{ store.validPreviewCount }}</strong> 个文件执行重命名操作吗？</p>
+        <p class="modal-warning">⚠️ 此操作不可撤销，请确认预览结果无误。</p>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="cancelExecute">取消</button>
+        <button class="btn btn-primary" @click="confirmExecute">确认执行</button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -977,27 +985,6 @@ function cancelExecute(): void {
   color: var(--el-color-danger);
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-dialog {
-  background-color: var(--el-bg-color);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: var(--shadow-xl);
-}
-
 .modal-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--el-border-color);
@@ -1055,5 +1042,21 @@ function cancelExecute(): void {
     grid-template-columns: 1fr 30px 1fr 80px;
     font-size: 12px;
   }
+}
+</style>
+
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.rename-confirm-dialog .el-dialog {
+  border-radius: 8px;
+}
+
+.rename-confirm-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.rename-confirm-dialog .el-dialog__body {
+  padding: 0;
 }
 </style>

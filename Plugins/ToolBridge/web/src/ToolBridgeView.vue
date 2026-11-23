@@ -508,8 +508,8 @@ onMounted(loadAll)
   overflow-y: auto;
   padding: 16px 18px 28px;
   box-sizing: border-box;
-  color: var(--fg-primary);
-  font-family: var(--font-sans-cn, var(--el-font-family));
+  color: var(--el-text-color-primary);
+  font-family: var(--el-font-family, var(--el-font-family));
 }
 .tb-root > * { flex-shrink: 0; }
 
@@ -519,7 +519,7 @@ onMounted(loadAll)
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   margin-bottom: 2px;
 }
 .tb-header__row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -530,17 +530,17 @@ onMounted(loadAll)
   font-weight: 700;
   letter-spacing: 0.05em;
   line-height: 1.2;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .tb-version {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
-.tb-sub { margin: 0; font-size: 13px; color: var(--fg-secondary); }
+.tb-sub { margin: 0; font-size: 13px; color: var(--el-text-color-regular); }
 
 .tb-card {
   border: var(--glass-border);
@@ -552,23 +552,23 @@ onMounted(loadAll)
   padding: 14px 16px;
 }
 .tb-card__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.tb-card__head h3 { margin: 0; font-family: var(--font-serif-cn, serif); font-size: 15px; font-weight: 600; color: var(--fg-primary); }
+.tb-card__head h3 { margin: 0; font-family: var(--font-serif-cn, serif); font-size: 15px; font-weight: 600; color: var(--el-text-color-primary); }
 
 .tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tb-btn {
-  border: 1px solid var(--gold-400);
-  background: var(--gold-400);
-  color: var(--ink-950);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
+  border-radius: var(--el-border-radius-base);
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.tb-btn:hover:not(:disabled) { background: var(--gold-300); transform: translateY(-1px); }
+.tb-btn:hover:not(:disabled) { background: var(--el-color-primary-light-3); transform: translateY(-1px); }
 .tb-btn:active:not(:disabled) { transform: translateY(1px); }
-.tb-btn--ghost { background: transparent; color: var(--gold-400); border-color: var(--border-brand); }
+.tb-btn--ghost { background: transparent; color: var(--el-color-primary); border-color: var(--border-brand); }
 .tb-btn--ghost:hover:not(:disabled) { background: var(--gold-tint); }
 .tb-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 

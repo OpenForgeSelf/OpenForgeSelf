@@ -86,7 +86,7 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--ink-950) 35%, transparent);
 }
 .tt-drawer {
   position: fixed;
@@ -98,7 +98,7 @@ onUnmounted(() => {
   flex-direction: column;
   max-width: 100vw;
   background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-dark, -8px 0 24px rgba(0, 0, 0, 0.12));
+  box-shadow: var(--el-box-shadow-dark);
   box-sizing: border-box;
 }
 </style>

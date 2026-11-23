@@ -1488,8 +1488,8 @@ onBeforeUnmount(() => {
   border: 1px solid var(--el-color-danger-light-5);
 }
 .ok-panel {
-  background: var(--el-bg-color, rgba(255, 255, 255, 0.6));
-  border: 1px solid var(--el-border-color-light, rgba(255, 255, 255, 0.15));
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 12px;
   padding: 20px;
   backdrop-filter: blur(12px);

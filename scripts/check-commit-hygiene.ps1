@@ -78,7 +78,7 @@ function Get-DenylistRules {
             $rules += ,@{ Kind = 'substring'; Value = $line; Term = $line }
         }
     }
-    return $rules
+    return ,$rules
 }
 
 function Add-Violation {
@@ -141,7 +141,7 @@ function Read-TextLines {
         for ($i = 0; $i -lt $n; $i++) { if ($buf[$i] -eq 0) { return $null } }
     }
     finally { $fs.Dispose() }
-    return [System.IO.File]::ReadAllLines($Path)
+    return ,([System.IO.File]::ReadAllLines($Path))
 }
 
 function Test-SkippableName {

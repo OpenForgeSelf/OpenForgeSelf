@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   安装 OpenForgeSelf git hooks（幂等）：pre-commit + commit-msg（强制可执行位）。
 

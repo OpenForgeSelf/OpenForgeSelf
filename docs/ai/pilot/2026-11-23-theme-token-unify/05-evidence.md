@@ -92,7 +92,7 @@
 
 ## 4. 用户走查反馈批（2026-11-23 晚，同链追加）
 - 反馈①「弹窗背景偏白与内容区不统一」：根因 = 主题亮块 `--el-bg-color-overlay` 留 EP 默认纯白 #FFFFFF（暗块 #1B1815 已暖化=两块供给不对称）。修复 = 亮块改 #FFFDF7（=本块 fill-color-lighter 既有值，零新增色值；与暗块「overlay 略亮于 bg」层级语义对齐）。主题层单点改 1 处，9 弹窗壳 + 全 EP 浮层（dialog/messagebox/dropdown）统一受益。[Verified] 亮/暗两态走查截图读图：亮面板暖米与内容区同族、暗面板暖深不回归。
-- 反馈②「标题大、左边 logo 小」：类级扫查命中 13 处（宿主 9 + FileTools 2 + QuickLinks 自绘 2，全为弹窗 header；TopNavbar :size=28 品牌位不属本类）。修复 = 弹窗 header logo 20→26px（≈1.44× 标题字号 18px；标题保持 EP dialog 默认 18px/600 不动）。[Verified] 两态截图 logo/标题比例平衡。
+- 反馈②「标题大、左边 logo 小」：类级扫查命中 **12 处**（宿主 8 + FileTools 2 + QuickLinks 自绘 2，全为弹窗 header；TopNavbar :size=28 品牌位不属本类。**2026-11-24 审查更正：走查批原记 13 处=扫查时把 QuickLinks 自绘 logo 的 width/height 两行 CSS 误计为 2 处；以 21cffea diff 实数为准：AppLogo :size="26"×10 + QuickLinks 26px×2 元素 = 12，残留 :size="20" 为 0 无漏改**）。修复 = 弹窗 header logo 20→26px（≈1.44× 标题字号 18px；标题保持 EP dialog 默认 18px/600 不动）。[Verified] 两态截图 logo/标题比例平衡。
 - 类级守卫（问题①机制化）：`workshop-forge.contrast.test.ts` 新增「表面 token 接管」describe——表面族 6 token（bg/bg-page/overlay/fill/fill-light/fill-lighter）亮/暗两块必须 ≠ EP 2.14.3 默认值；阳性对照实证：临时还原 #FFFFFF 缺陷态 → 红（11 passed | 1 failed，红在 overlay 漏配）→ 还原修复态 → 绿 12/12。--el-fill-color-blank 留 EP 白=有意输入面对比（裁决记录于守卫注释）。
 - 走查环境差异记录：dark 态页面壳泛灰非产品缺陷——① vite HMR 对主题 css 局部替换丢暗块（硬刷新即复，computed 三值全暗实证）② 后端 ForgeSetting 残留亮色 appearance 背景（与主题独立，by-design 组合）。产品代码零改动。
 - 范围外裁决：ToastHost.vue `.toast-close` 20px=关闭按钮非 logo，不属本类不动。

@@ -5,6 +5,7 @@
 ## 1. Functional Requirements
 - FR1 幻影 token 修复：删除 `--el-color-accent`/`--el-color-accent-teal` 的一切引用与主题内定义；使用点按映射表改 `--el-color-primary`/`--el-color-success`。
 - FR2 全项目 token 收敛：按映射表把非 `--el-*` 自造 token 引用改 `--el-*`（颜色语义）/ 字面量（EP 无档位的非颜色结构值）；`--ds-*` 按用户拍板**全部迁移不走豁免**（刻度/字体内联字面量、颜色/渐变改 el 组合、迁移后删孤儿定义）。
+  - **执行变更注记（2026-11-23 W7，2026-11-24 独立审查核实补记）**：`--ds-*` 执行时实证 669 处全部位于 DesignSystem 插件内部（tokens.css/showroom/mannequin 密度皮肤契约体系），迁移=自毁契约域；改判为**插件内 12 文件 fileExemptions 精确路径登记**（宿主侧 0 处、检查器同样规则复算豁免外 0），理由入 `custom-tokens-allow.json` 与 not-taken 070。原「全部迁移不走豁免」的字面要求由该实证改判收敛，属需求范围变更留痕。
 - FR3 硬编码色收敛：能映射 el token 的映射；展示型开发工具功能色（ColorTool/QrCodeTool/RegexTester/TimestampTool/JwtTool）按 DESIGN.md「展示型除外须评审说明」走**文件级登记**（检查器需支持 fileExemptions）；其余零散 hex 逐个映射或登记。
 - FR4 R6 豁免册定稿：`custom-tokens-allow.json` 按映射表 allowPrefixes/allowTokens 登记（--dur-*/--ease-*/--font-mono 等非颜色结构 token、EP 无对应档位），逐条带理由。
 - FR5 弹窗迁移：9 个自造 modal 全迁 `<el-dialog>`（保留视觉 token 引用、行为对齐 EP：ESC/遮罩关闭、焦点管理、append-to-body 与层级）；SkillsView 弹窗对比度 ≥4.5:1。

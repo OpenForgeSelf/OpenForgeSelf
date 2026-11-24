@@ -16,7 +16,7 @@
 param(
     [string]$Base = '',
     [string]$Head = 'HEAD',
-    [ValidateSet('all', 'pilot', 'risk', 'style')][string]$Only = 'all'
+    [ValidateSet('all', 'pilot', 'risk', 'style', 'engineering')][string]$Only = 'all'
 )
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
@@ -76,6 +76,9 @@ if ($Only -in 'all', 'risk') {
 }
 if ($Only -in 'all', 'style') {
     Invoke-Gate 'style-tokens' $true { node scripts/check-style-tokens.mjs }
+}
+if ($Only -in 'all', 'engineering') {
+    Invoke-Gate 'engineering-rules' $true { node scripts/check-engineering-rules.cjs }
 }
 
 Write-Output ''

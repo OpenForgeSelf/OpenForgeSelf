@@ -111,6 +111,19 @@ if [ $? -ne 0 ]; then
   FAIL=1
 fi
 
+# 工程规则守卫（第 5 道，2026-11-24 固化迁移）：temp/*.cjs 禁令 / pwsh-only / .ps1 BOM。
+# 规则下沉自 AGENTS.md 红线与 §2.3，由 scripts/check-engineering-rules.cjs 机械执行。
+if command -v node >/dev/null 2>&1; then
+  echo "[pre-commit] 校验工程规则 (check-engineering-rules)"
+  node scripts/check-engineering-rules.cjs
+  if [ $? -ne 0 ]; then
+    echo "[pre-commit] 工程规则守卫 FAIL：temp 探针 / powershell 5.1 调用 / .ps1 缺 BOM，提交已拒绝"
+    FAIL=1
+  fi
+else
+  echo "[pre-commit] 警告：未找到 node，跳过工程规则守卫（temp 探针/pwsh-only/BOM）。"
+fi
+
 if [ -z "$DIRS" ]; then
   if [ $FAIL -ne 0 ]; then
     exit 1

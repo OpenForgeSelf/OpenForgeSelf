@@ -93,6 +93,7 @@
 | PC-040 | 组合根构造可选参省参漏装配（静默 null 依赖） | open | G1 失守待重建 | 0 | [PC-040](PC-040-composition-root-arg-omission.md) |
 | PC-041 | 版本目录名第 4 段为 10 位时间码，[version]/System.Version 分量解析抛 OverflowException（更新保留步误报失败） | guarded | G1 active（RepositoryScriptTests 三处同源守卫 + UpdateAgentCore 单测） | 0 | [PC-041](PC-041-update-agent-version-sort-overflow.md) |
 | PC-043 | 跨平台脚本平台短路缺失：Windows 上 POSIX 探测抢跑（bash test -x 收 Windows 路径恒 false → postinstall 恒败 → 发布链 install 全挂） | guarded | G2 active（RepositoryScriptTests 平台短路先于 bash 分支顺序断言） | 0 | [PC-043](PC-043-crossplatform-shortcircuit-before-posix.md) |
+| PC-042 | 行内布局 hover/focus 显形图标未预留槽位，display 切换致宽度跳变 + 相邻元素位移（页签 +22px 实测） | guarded | G1 active（TopNavbar 图标槽常驻预留守卫 4 条） | 0 | [PC-042](PC-042-hover-reveal-width-jump.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

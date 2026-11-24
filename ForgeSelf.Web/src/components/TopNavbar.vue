@@ -247,8 +247,12 @@ const bgPanelOpen = ref(false)
   box-shadow: var(--gold-glow-md);
 }
 
+/* 关闭/取消钉住图标：常驻预留 16px 槽位，显隐只走 visibility/opacity ——
+   悬浮时页签宽度恒定、相邻页签零位移（2026-11-23 输入22；守卫见 TopNavbar.test.ts「图标槽常驻预留」） */
 .close-x {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 16px;
@@ -258,10 +262,19 @@ const bgPanelOpen = ref(false)
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
+  /* 悬入立即显现 + 160ms 淡入；移出延迟翻转 visibility 保证淡出完整 */
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s linear var(--dur-fast);
 }
 
-.tab-item:hover .close-x {
-  display: inline-flex;
+.tab-item:hover .close-x,
+.tab-item:focus-within .close-x {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s;
 }
 
 .close-x:hover {

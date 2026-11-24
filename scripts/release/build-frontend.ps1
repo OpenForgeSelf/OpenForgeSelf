@@ -36,7 +36,10 @@ function Invoke-PnpmBuild([string]$Dir, [string]$Label) {
     Write-Host "--- $Label : $Dir"
     Push-Location $Dir
     try {
-        & $pnpm install --frozen-lockfile
+        # 非 TTY 兼容（2026-11-24 输入34/35）：pnpm 检测到 node_modules 需重建时会弹
+        # "Proceed? (Y/n)" 交互确认；智能终端/CI 无 TTY 时直接 ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY。
+        # 显式关闭该确认 = 等价于人工按 Y，发布场景本就要干净重装，不影响 --frozen-lockfile。
+        & $pnpm install --frozen-lockfile --config.confirmModulesPurge=false
         Assert-ExitCode "pnpm install ($Label)"
         # Env workaround: the sandbox safe-delete shim blocks esbuild's Go binary from
         # deleting its temp files (inputs >1MB / outputs >buffer), aborting the build

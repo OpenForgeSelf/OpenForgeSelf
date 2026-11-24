@@ -274,4 +274,22 @@ public class ProblemClassEnumerationTests
             "PC-034 不变量违反：DI 构造的插件服务注入 IServiceProvider = 拿到插件子容器，宿主/跨插件契约恒解析为 null；" +
             "改注入 IContext（见 StHostGateway / ImGatewayRouter 正道）。确需豁免 → PC-034 front-matter allowlist（理由+到期日）");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-048：发布链 pnpm install 必须关闭 modules 清理确认（无 TTY 智能终端会 abort → 发布中断）
+    // ─────────────────────────────────────────────────────────────
+    [Fact]
+    public void Pc048_BuildFrontendPnpmInstall_MustDisablePurgeConfirm()
+    {
+        var root = FindRepoRoot();
+        var script = Path.Combine(root, "scripts", "release", "build-frontend.ps1");
+        File.Exists(script).Should().BeTrue("build-frontend.ps1 必须存在，守卫扫描面不能为空");
+
+        var text = File.ReadAllText(script);
+        text.Should().Contain("$pnpm install --frozen-lockfile", "阳性对照：确认扫描的正是发布链 install 调用");
+        text.Should().Contain("--config.confirmModulesPurge=false",
+            "PC-048 不变量违反：pnpm 检测到 node_modules 需重建时弹 Proceed?(Y/n)，智能终端/CI 无 TTY 直接 ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY，发布链中断；" +
+            "install 必须显式 --config.confirmModulesPurge=false（等价人工按 Y，不影响 --frozen-lockfile）");
+    }
+
 }

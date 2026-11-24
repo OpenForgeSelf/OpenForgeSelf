@@ -49,6 +49,7 @@
 | 主题浮层面/弹窗底与页面底不同族 / 亮暗两态表面 token 供给 | PC-044 |
 | 插件前端 SFC 用 EP 组件 / el-* 未显式 import / 预编译产物缺件 | PC-045 |
 | EP 组件自定义 class 覆盖样式 / `.x-dialog .el-dialog` 后代死规则 | PC-046 |
+| 发布链 `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | PC-048 |
 
 ## 台账总表
 
@@ -100,6 +101,7 @@
 | PC-044 | 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称（弹窗白底与内容区不统一） | guarded | G2 active（表面 token 接管 vitest）+ G3 active（主题文件签名） | 0 | [PC-044](PC-044-theme-overlay-surface-asymmetry.md) |
 | PC-045 | 插件前端 SFC 用 EP 组件未显式 import，独立预编译产物下组件缺失 | guarded | G2 active（plugin-ep-import vitest 静态扫查） | 0 | [PC-045](PC-045-plugin-ep-explicit-import.md) |
 | PC-046 | EP 组件自定义 class 落组件根元素，`.x-dialog .el-dialog` 后代选择器死规则不生效 | guarded | G3 active（check-problem-classes 签名×2） | 0 | [PC-046](PC-046-ep-custom-class-composite-selector.md) |
+| PC-048 | 发布链 pnpm install 依赖 TTY 确认，无 TTY 清 modules 提示直接 abort 中断发布 | guarded | G2 active（ProblemClassEnumerationTests 断言 install 带 confirmModulesPurge=false）+ G3 签名 | 0 | [PC-048](PC-048-pnpm-install-nontty-purge-confirm.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

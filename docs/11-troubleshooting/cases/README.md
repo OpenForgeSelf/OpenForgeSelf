@@ -53,5 +53,6 @@
 | 2026-11-21-update-agent-version-sort-overflow | 2026-11-21 | 自更新版本保留步抛「无法将值 2.4.22.2611131611 转换为 System.Version」：10 位时间码第 4 段超 Int32.MaxValue，新版本已落 | [PC-041](../problem-classes/PC-041-update-agent-version-sort-overflow.md) | Verified | [case](2026-11-21-update-agent-version-sort-overflow.md) |
 | 2026-11-23-dialog-overlay-white-mismatch | 2026-11-23 | 技能管理弹窗白底与内容区不统一：主题亮块 --el-bg-color-overlay 留 EP 默认纯白（暗块已接管=供给不对称）；随批 13 处弹窗 header logo 20→26 | [PC-044](../problem-classes/PC-044-theme-overlay-surface-asymmetry.md) | Verified | [case](2026-11-23-dialog-overlay-white-mismatch.md) |
 | 2026-11-23-plugin-dialog-elimport-missing | 2026-11-23 | 插件弹窗迁移双缺陷：SFC 用 EP 组件未显式 import（预编译产物运行时缺件）+ `.x-dialog .el-dialog` 后代选择器死规则 | [PC-045](../problem-classes/PC-045-plugin-ep-explicit-import.md) / [PC-046](../problem-classes/PC-046-ep-custom-class-composite-selector.md) | Verified | [case](2026-11-23-plugin-dialog-elimport-missing.md) |
+| 2026-11-24-release-local-pnpm-nontty-purge-confirm | 2026-11-24 | 智能终端跑 `release-local.ps1 -Sign`，pnpm 清 modules 确认在无 TTY 下直接 abort | [PC-048](../problem-classes/PC-048-pnpm-install-nontty-purge-confirm.md) | Verified | [case](2026-11-24-release-local-pnpm-nontty-purge-confirm.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

@@ -57,6 +57,7 @@
 | 前端 build 预存类型错误（T032） | 散例：非本轮回归，独立修复 |
 | `navigator.clipboard` 只读致 vitest 偶发 | 散例：环境缺陷，`Object.defineProperty`/`vi.stubGlobal` |
 | `ChatRecordRealLLMTests` 偶发红 | 散例：测试隔离性，TODO 已知 |
+| `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | case [2026-11-24 无 TTY 确认中断](cases/2026-11-24-release-local-pnpm-nontty-purge-confirm.md) → [PC-048](problem-classes/PC-048-pnpm-install-nontty-purge-confirm.md) |
 
 新报错排查后：能归入既有 PC 的补 case；成类的走技能 `problem-class-closure`（P2 归类）；确属一次性环境杂音才允许留在本表当散例。
 

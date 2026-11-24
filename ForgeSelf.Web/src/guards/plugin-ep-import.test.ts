@@ -1,9 +1,9 @@
 /**
- * PC-043 类级守卫（G2）：插件前端 SFC 用 Element Plus 组件必须显式 import。
+ * PC-045 类级守卫（G2）：插件前端 SFC 用 Element Plus 组件必须显式 import。
  *
  * 背景：插件 web 是独立预编译产物（vite lib 构建，无 unplugin 自动导入链），
  * SFC 模板里的 <el-*> 组件若未显式 `import { ElXxx } from 'element-plus'`，
- * 宿主侧构建绿、运行时才暴露组件解析失败（docs/11-troubleshooting/problem-classes/PC-043）。
+ * 宿主侧构建绿、运行时才暴露组件解析失败（docs/11-troubleshooting/problem-classes/PC-045）。
  * 本守卫静态扫查全部插件 SFC：出现 <el-dialog 用法 → 同文件源码必须含 ElDialog 具名导入。
  * 范围先锁 el-dialog（弹窗迁移 FR5 的主组件）；其余 el-* 组件按迁移批增量纳入。
  */
@@ -28,7 +28,7 @@ function collectVueFiles(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
-describe('PC-043 插件 SFC 的 Element Plus 组件显式导入守卫', () => {
+describe('PC-045 插件 SFC 的 Element Plus 组件显式导入守卫', () => {
   it('用到 <el-dialog 的插件 SFC 必须显式 import { ElDialog }', () => {
     const offenders: string[] = [];
     for (const file of collectVueFiles(pluginsWebSrc)) {

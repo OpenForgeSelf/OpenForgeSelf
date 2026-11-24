@@ -1,5 +1,5 @@
 ---
-id: PC-044
+id: PC-046
 title: Element Plus 组件自定义 class 落在组件根元素，后代选择器写法死规则不生效
 tags: [Element-Plus, 弹窗, CSS 选择器, 插件前端, 壳层覆盖]
 invariant: 给 EP 组件传自定义 class（如 class="x-dialog"）时，样式覆盖必须用复合选择器 `.el-dialog.x-dialog`（同一元素双类）；`.x-dialog .el-dialog` 后代选择器永远匹配不到
@@ -19,7 +19,7 @@ lens:
   - 需要弹窗内部（header/body/footer）样式时，用 `:deep()` 从根元素下钻，而不是造不存在的外层容器。
 ---
 
-# PC-044 Element Plus 组件自定义 class 落在组件根元素，后代选择器写法死规则不生效
+# PC-046 Element Plus 组件自定义 class 落在组件根元素，后代选择器写法死规则不生效
 
 > 本文件是「这一类问题」的唯一真源：规则、扫描方法、修法。事件经过在 case，不在这里。
 
@@ -43,4 +43,4 @@ lens:
 ## 4 关联
 
 - case: `docs/11-troubleshooting/cases/2026-11-23-plugin-dialog-elimport-missing.md`
-- 与 PC-043 同批同源：弹窗迁移（FR5）在插件预编译产物语境下的两个必守点。
+- 与 PC-045 同批同源：弹窗迁移（FR5）在插件预编译产物语境下的两个必守点。

@@ -1,5 +1,5 @@
 ---
-id: PC-042
+id: PC-044
 title: 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称
 tags: [UI, 主题, token, 弹窗, 亮暗一致性, Element-Plus]
 invariant: themes/workshop-forge.css 的表面族 token（--el-bg-color / --el-bg-color-page / --el-bg-color-overlay / --el-fill-color / --el-fill-color-light / --el-fill-color-lighter）必须在 :root 与 html.dark 两块同时显式接管且同族同语义；任一块留 EP 默认值即两态不一致
@@ -20,7 +20,7 @@ lens:
   - 单点修组件样式之前，先查主题层供给——主题层改 1 处，全部浮层受益。
 ---
 
-# PC-042 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称
+# PC-044 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称
 
 > 本文件是「这一类问题」的唯一真源：规则、扫描方法、修法。事件经过在 case，不在这里。
 

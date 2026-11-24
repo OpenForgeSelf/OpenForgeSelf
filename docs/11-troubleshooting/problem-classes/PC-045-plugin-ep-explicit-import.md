@@ -1,5 +1,5 @@
 ---
-id: PC-043
+id: PC-045
 title: 插件前端 SFC 用 Element Plus 组件未显式 import，独立预编译产物下组件缺失
 tags: [插件前端, Element-Plus, 构建产物, unplugin, 运行时崩溃]
 invariant: Plugins/<X>/web/src 的 SFC 模板用到 <el-*> 组件时必须显式 `import { ElXxx } from 'element-plus'` 并在 components 登记（或全局注册清单覆盖）；插件 web 是独立预编译产物，不享受宿主的 unplugin 自动导入
@@ -18,7 +18,7 @@ lens:
   - 迁移自造 modal → el-dialog 时，import 行是否跟模板同步落地？
 ---
 
-# PC-043 插件前端 SFC 用 Element Plus 组件未显式 import，独立预编译产物下组件缺失
+# PC-045 插件前端 SFC 用 Element Plus 组件未显式 import，独立预编译产物下组件缺失
 
 > 本文件是「这一类问题」的唯一真源：规则、扫描方法、修法。事件经过在 case，不在这里。
 
@@ -37,9 +37,9 @@ lens:
 
 ## 3 修法
 
-SFC 显式 `import { ElDialog } from 'element-plus'`（迁移的每个 EP 组件一条）；宿主壳层侧自定义 class 见 PC-044 的配套规则。
+SFC 显式 `import { ElDialog } from 'element-plus'`（迁移的每个 EP 组件一条）；宿主壳层侧自定义 class 见 PC-046 的配套规则。
 
 ## 4 关联
 
 - case: `docs/11-troubleshooting/cases/2026-11-23-plugin-dialog-elimport-missing.md`
-- 与 PC-044 是同一迁移批的两面：①组件怎么进产物（本条）②样式怎么进产物（PC-044）。
+- 与 PC-046 是同一迁移批的两面：①组件怎么进产物（本条）②样式怎么进产物（PC-046）。

@@ -150,20 +150,7 @@
 
 ## A8 speckit SDD 开发流程（**已弃用** · 由 AGENTS.md §11 AI-Native 闭环替代）
 
-> ⚠️ **废弃声明**：`specs/`（speckit SDD：`specify → plan → tasks → implement`）已进入 gitignore 不再入库，**不再作为开发流程使用**。开发类任务一律走 AGENTS.md §11 AI-Native 工程九阶段闭环，产物落 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`。本 §A8 仅作历史保留，**禁止新任务参照执行**。
-
-（历史内容）功能开发走 speckit 的规格驱动开发（SDD）流程，命令文件位于 `.codebuddy/commands/speckit.*.md`：
-```
-specify → plan → tasks → implement → （analyze/converge 一致性检查）
-```
-产物在 `specs/NNN-功能名/`（spec.md / checklists / plan.md / research.md / data-model.md / contracts/ / quickstart.md / tasks.md）。
-当前功能目录记录在 `.specify/feature.json` 的 `feature_directory` 字段。
-
-**纪律**：
-- 四步必须顺序执行，**不得跳步**：禁止出了 `spec.md` 就直接写代码
-- 以「产物是否生成」判断本步完成，再进入下一步
-- implement 步逐条执行任务，每完成一条把 `- [ ]` 改为 `- [X]`
-- **implement 阶段禁止用 `git stash` / `git checkout` / `git reset` 等会改动工作区的命令**去"验证预先存在的状态"；需要对比基线时只用只读命令：`git diff` / `git show` / `git log`。
+> ⚠️ **废弃声明**：`specs/`（speckit SDD）已弃用，**禁止新任务参照执行**。开发类任务一律走 AGENTS.md §11 AI-Native 九阶段闭环，产物落 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`。历史内容已删除，仅保留本声明。
 
 ## A9 完成判定与汇报（对应 AGENTS.md §10 详细）
 
@@ -172,7 +159,7 @@ specify → plan → tasks → implement → （analyze/converge 一致性检查
 - **所有验证结果必须区分来源等级**：Verified（亲自跑过命令/测试/构建/截图/接口拿到真实输出）/ Inferred（凭代码推断未实跑）/ Unknown（未验证或无法确认）。
 - **禁止虚构**：不得编造测试结果、截图、日志、接口响应或验证结论；存在未验证场景必须明说；存在阻塞不得宣称完成。
 - 汇报以结果为中心，不以修改文件数量为中心；重要架构/设计决策做简要说明。
-- **先审后报（2026-11-15 用户立）**：汇报必须是**自审之后的结果**——06-review 八问 / 走查完成且通过后才允许汇报完成；审出问题先修再报，修复与汇报同批交付；汇报结论写自审结果，**不再出现「建议 Code Review」**。
+- **先审后报（2026-11-15 用户立）**：汇报必须是**自审之后的结果**——06-review 九问 / 走查完成且通过后才允许汇报完成；审出问题先修再报，修复与汇报同批交付；汇报结论写自审结果，**不再出现「建议 Code Review」**。
 
 ### 任务完成前的五步自检（强制）
 1. **Requirement Check**：逐条核对用户提出的每一个需求是否都已满足（缺一条即未完）。

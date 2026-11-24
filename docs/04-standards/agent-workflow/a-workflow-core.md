@@ -97,7 +97,7 @@
 
 | 层级 | 工具 | 入口命令 | 适用 | 归口 |
 |------|------|----------|------|------|
-| 前端单测 | vitest | `cd ForgeSelf.Web && pnpm run test` | 组件渲染 / 纯函数 / 关键交互逻辑 | `ForgeSelf.Web/src/**/*.spec.ts` |
+| 前端单测 | vitest | `cd ForgeSelf.Web && pnpm run test` | 组件渲染 / 纯函数 / 关键交互逻辑 | `ForgeSelf.Web/src/**/*.test.ts` |
 | 前端 e2e | Playwright | `cd ForgeSelf.Web && pnpm run test:e2e` | 前后端集成、真实渲染、视觉检查 | `e2e-testing` 技能 + `ForgeSelf.Web/e2e/**` |
 | 后端单测/集成 | xUnit | `cd ForgeSelf.Api.Tests && dotnet test` | 服务 / 实体 / 工具逻辑 | `ForgeSelf.Api.Tests/**` |
 | 后端 HTTP 冒烟 | PowerShell | `pwsh test_all.ps1`（真实后端 `:7102`） | 已起宿主的接口联通性快检 | `test_all.ps1`（非 cjs，允许保留） |
@@ -116,7 +116,7 @@
 
 **铁律：**
 - 验证 / 截图 / 浏览器驱动类任务 → 写成 **Playwright e2e 用例**（`ForgeSelf.Web/e2e/**/*.spec.ts`），走 `e2e-testing` 技能 SOP（globalSetup 自动构建宿主 + 起 publish 宿主 + 解密真实 token，零 mock）。
-- 纯逻辑 / 组件行为 → 写成 **vitest 单测**（`src/**/*.spec.ts`）。
+- 纯逻辑 / 组件行为 → 写成 **vitest 单测**（`src/**/*.test.ts`）。
 - 一次性 `.cjs` 脚本只可作「探索期临时探针」，**不得作为验证手段提交或长期依赖**；结论必须沉淀为上述可重复测试，探针用完即删、不进 `temp/` 留存。
 - e2e 视觉检查（图标 / 间距 / 颜色 / 留白 / 对齐 / 溢出）按 `e2e-testing` 技能 Level 3 清单读图核对，截图固定落 `ForgeSelf.Web/screenshots/e2e/<插件id>/`，**不用** `temp/*.cjs` 截图。
 

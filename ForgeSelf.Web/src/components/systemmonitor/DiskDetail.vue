@@ -87,23 +87,23 @@ function isWarning(percent: number): boolean {
 
 <style scoped>
 .disk-detail {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .detail-title {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 20px 0;
 }
 
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .disk-list {
@@ -113,20 +113,20 @@ function isWarning(percent: number): boolean {
 }
 
 .disk-item {
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 10px;
   padding: 16px;
   transition: all 0.2s ease;
 }
 
 .disk-item:hover {
-  border-color: #dee2e6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-color: var(--el-border-color-light);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .disk-item.warning {
-  border-color: #ffcdd2;
-  background: #fffafa;
+  border-color: var(--el-color-error-light-8);
+  background: var(--el-color-error-light-9);
 }
 
 .disk-header {
@@ -146,18 +146,18 @@ function isWarning(percent: number): boolean {
 .disk-name {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .disk-label {
   font-size: 14px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .warning-badge {
   font-size: 12px;
-  color: #d32f2f;
-  background: #ffebee;
+  color: var(--el-color-error);
+  background: var(--el-color-error-light-9);
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
@@ -169,15 +169,15 @@ function isWarning(percent: number): boolean {
 }
 
 .disk-usage-percent.normal {
-  color: #4caf50;
+  color: var(--el-color-success);
 }
 
 .disk-usage-percent.warning {
-  color: #ff9800;
+  color: var(--el-color-warning);
 }
 
 .disk-usage-percent.danger {
-  color: #f44336;
+  color: var(--el-color-error);
 }
 
 .progress-bar-container {
@@ -186,7 +186,7 @@ function isWarning(percent: number): boolean {
 
 .progress-bar-bg {
   height: 10px;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -198,15 +198,15 @@ function isWarning(percent: number): boolean {
 }
 
 .progress-bar-fill.normal {
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  background: linear-gradient(90deg, var(--el-color-success), var(--el-color-success-dark-2));
 }
 
 .progress-bar-fill.warning {
-  background: linear-gradient(90deg, #ff9800, #ffc107);
+  background: linear-gradient(90deg, var(--el-color-warning), var(--el-color-warning-dark-2));
 }
 
 .progress-bar-fill.danger {
-  background: linear-gradient(90deg, #f44336, #e91e63);
+  background: linear-gradient(90deg, var(--el-color-error), var(--el-color-error-dark-2));
 }
 
 .disk-stats {
@@ -224,28 +224,28 @@ function isWarning(percent: number): boolean {
 
 .stat-label {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .stat-value {
   font-size: 14px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .stat-value.used {
-  color: #ff9800;
+  color: var(--el-color-warning);
 }
 
 .stat-value.free {
-  color: #4caf50;
+  color: var(--el-color-success);
 }
 
 .disk-io {
   display: flex;
   gap: 16px;
   padding-top: 12px;
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .io-item {
@@ -261,22 +261,22 @@ function isWarning(percent: number): boolean {
 
 .io-label {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .io-value {
   font-size: 13px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin-left: auto;
 }
 
 .io-item.read .io-value {
-  color: #2196f3;
+  color: var(--el-color-primary);
 }
 
 .io-item.write .io-value {
-  color: #9c27b0;
+  color: var(--el-color-info);
 }
 
 @media (max-width: 640px) {

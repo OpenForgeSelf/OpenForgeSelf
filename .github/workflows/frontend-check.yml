@@ -5,10 +5,18 @@ on:
     branches: [master, main]
     paths:
       - 'ForgeSelf.Web/**'
+      - 'scripts/check-theme-tokens.mjs'
+      - 'scripts/custom-tokens-allow.json'
+      - 'scripts/theme-tokens-antipattern-demo/**'
+      - 'scripts/verify-theme-demo.mjs'
       - '.github/workflows/frontend-check.yml'
   pull_request:
     paths:
       - 'ForgeSelf.Web/**'
+      - 'scripts/check-theme-tokens.mjs'
+      - 'scripts/custom-tokens-allow.json'
+      - 'scripts/theme-tokens-antipattern-demo/**'
+      - 'scripts/verify-theme-demo.mjs'
       - '.github/workflows/frontend-check.yml'
 
 permissions:
@@ -57,6 +65,13 @@ jobs:
           done
 
       - name: Run lint + typecheck (pnpm run check)
-        # check = vue-tsc -b && eslint . --ext .vue,.ts,.tsx
+        # check = vue-tsc -b && eslint . --ext .vue,.ts,.tsx && theme-check（主题 token 硬门禁，2026-11-23 W7 接线）
         # 任何 error 都会使构建失败，阻止合并
         run: pnpm run check
+
+      - name: Theme token antipattern demo regression (check:theme:demo)
+        # 反模式 fixture 32 处全捕获 + 合法对照零误伤（AC2）
+        # 脚本登记在根 package.json——必须显式回仓库根（defaults.working-directory
+        # 是 ForgeSelf.Web，2026-11-24 独立审查实证：继承默认目录会报缺脚本 ERR_PNPM_NO_SCRIPT）
+        working-directory: ${{ github.workspace }}
+        run: pnpm run check:theme:demo

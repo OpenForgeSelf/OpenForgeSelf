@@ -1406,7 +1406,7 @@ onMounted(async () => {
 
 .chat__title {
   font-size: var(--el-font-size-base, 14px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
@@ -1416,9 +1416,9 @@ onMounted(async () => {
   margin-left: 8px;
   padding: 1px 6px;
   font-size: var(--el-font-size-extra-small, 12px);
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border-radius: 999px;
   vertical-align: middle;
 }

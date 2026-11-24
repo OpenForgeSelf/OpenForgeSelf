@@ -129,8 +129,8 @@ watch(
   pointer-events: none;
   background-image: linear-gradient(
     180deg,
-    rgba(11, 9, 8, calc(var(--overlay-opacity, 0.55) - 0.05)) 0%,
-    rgba(11, 9, 8, var(--overlay-opacity, 0.55)) 100%
+    color-mix(in srgb, var(--ink-950) calc((var(--overlay-opacity, 0.55) - 0.05) * 100%), transparent) 0%,
+    color-mix(in srgb, var(--ink-950) calc(var(--overlay-opacity, 0.55) * 100%), transparent) 100%
   );
   transition: opacity 360ms ease-out;
 }

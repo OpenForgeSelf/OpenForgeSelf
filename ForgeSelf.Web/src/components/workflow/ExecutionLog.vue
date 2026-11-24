@@ -103,7 +103,7 @@ function getLevelLabel(level: string): string {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1e1e1e;
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -113,14 +113,14 @@ function getLevelLabel(level: string): string {
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3d3d3d;
+  background: var(--el-fill-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .log-header h4 {
   font-size: 13px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -132,22 +132,22 @@ function getLevelLabel(level: string): string {
 .toggle-btn {
   padding: 4px 10px;
   font-size: 12px;
-  background: #3d3d3d;
-  color: #b0b0b0;
-  border: 1px solid #4d4d4d;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .toggle-btn:hover {
-  background: #4d4d4d;
-  color: #e0e0e0;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
 }
 
 .toggle-btn.active {
-  color: #4fc3f7;
-  border-color: #4fc3f7;
+  color: var(--el-color-info);
+  border-color: var(--el-color-info);
 }
 
 .log-container {
@@ -162,7 +162,7 @@ function getLevelLabel(level: string): string {
 .empty-logs {
   text-align: center;
   padding: 40px 20px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .log-entry {
@@ -173,7 +173,7 @@ function getLevelLabel(level: string): string {
 }
 
 .log-time {
-  color: #888;
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -184,41 +184,41 @@ function getLevelLabel(level: string): string {
 }
 
 .log-step {
-  color: #ce93d8;
+  color: var(--el-color-info);
   flex-shrink: 0;
 }
 
 .log-message {
   flex: 1;
-  color: #e0e0e0;
+  color: var(--el-text-color-primary);
 }
 
 .log-info .log-level {
-  color: #4fc3f7;
+  color: var(--el-color-info);
 }
 
 .log-warn .log-level {
-  color: #ffb74d;
+  color: var(--el-color-warning);
 }
 
 .log-warn .log-message {
-  color: #ffe0b2;
+  color: var(--el-color-warning-light-8);
 }
 
 .log-error .log-level {
-  color: #ef5350;
+  color: var(--el-color-error);
 }
 
 .log-error .log-message {
-  color: #ffcdd2;
+  color: var(--el-color-error);
 }
 
 .log-debug .log-level {
-  color: #90a4ae;
+  color: var(--el-text-color-disabled);
 }
 
 .log-debug .log-message {
-  color: #b0bec5;
+  color: var(--el-text-color-disabled);
 }
 
 .log-container::-webkit-scrollbar {
@@ -226,15 +226,15 @@ function getLevelLabel(level: string): string {
 }
 
 .log-container::-webkit-scrollbar-track {
-  background: #2d2d2d;
+  background: var(--el-fill-color);
 }
 
 .log-container::-webkit-scrollbar-thumb {
-  background: #4d4d4d;
+  background: var(--el-fill-color);
   border-radius: 3px;
 }
 
 .log-container::-webkit-scrollbar-thumb:hover {
-  background: #5d5d5d;
+  background: var(--el-fill-color-light);
 }
 </style>

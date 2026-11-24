@@ -1309,7 +1309,7 @@ export default { name: 'McpCenterView' }
 }
 
 .gateway-address-chip {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.75rem;
   color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
@@ -1484,7 +1484,7 @@ export default { name: 'McpCenterView' }
 }
 
 .tool-name-text {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8125rem;
   color: var(--el-text-color-primary);
 }
@@ -1593,7 +1593,7 @@ export default { name: 'McpCenterView' }
 }
 
 .card-value.mono {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8125rem;
 }
 
@@ -1606,7 +1606,7 @@ export default { name: 'McpCenterView' }
 .state-off { color: var(--el-text-color-secondary); }
 
 .token-masked {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   color: var(--el-color-primary);
 }
 
@@ -1718,7 +1718,7 @@ export default { name: 'McpCenterView' }
 }
 
 .mono-inline {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.75rem;
   color: var(--el-color-primary);
   background: var(--el-fill-color-light);
@@ -1871,7 +1871,7 @@ export default { name: 'McpCenterView' }
 .external-tool-item:last-child { border-bottom: none; }
 
 .external-tool-name {
-  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--el-text-color-primary);

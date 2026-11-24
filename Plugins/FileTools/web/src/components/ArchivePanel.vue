@@ -444,8 +444,8 @@ async function handleExtract(): Promise<void> {
 
 .mode-btn.active {
   background-color: var(--glass-strong-bg);
-  color: var(--gold-400);
-  box-shadow: var(--shadow-sm);
+  color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .panel-grid {
@@ -624,7 +624,7 @@ async function handleExtract(): Promise<void> {
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 

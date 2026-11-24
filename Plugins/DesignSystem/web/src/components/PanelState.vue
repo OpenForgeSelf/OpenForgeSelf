@@ -65,19 +65,19 @@ const liveRole = computed(() => KINDS[kind.value].live)
 .ps {
   display: flex;
   align-items: flex-start;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-5);
+  gap: 12px;
+  padding: 20px;
   border: 1px dashed var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--glass-bg);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 .ps--error {
-  border-color: var(--cinnabar-400);
+  border-color: var(--el-color-error);
   border-style: solid;
 }
 .ps--unauthorized {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 .ps--loading {
   border-style: solid;
@@ -86,7 +86,7 @@ const liveRole = computed(() => KINDS[kind.value].live)
   font-family: var(--font-display);
   font-size: 28px;
   line-height: 1.2;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 .ps__title {
   font-family: var(--font-serif-cn);
@@ -94,9 +94,9 @@ const liveRole = computed(() => KINDS[kind.value].live)
   font-size: 14px;
 }
 .ps__hint {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-top: 4px;
-  font-family: var(--ds-font-sans);
+  font-family: var(--el-font-family);
   font-size: 12px;
   letter-spacing: 0.02em;
   text-transform: none;

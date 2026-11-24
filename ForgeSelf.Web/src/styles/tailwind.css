@@ -25,8 +25,6 @@
   --color-warning: var(--el-color-warning);
   --color-error: var(--el-color-error);
   --color-info: var(--el-color-info);
-  --color-accent: var(--el-color-accent);
-  --color-teal: var(--el-color-accent-teal);
 
   --color-bg: var(--el-bg-color);
   --color-bg-page: var(--el-bg-color-page);

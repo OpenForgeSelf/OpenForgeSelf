@@ -152,7 +152,7 @@ function timeText(ts?: string): string {
 }
 .ok-evt__seq {
   color: var(--el-text-color-placeholder);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   text-align: right;
 }
 .ok-evt__type {
@@ -167,7 +167,7 @@ function timeText(ts?: string): string {
 }
 .ok-evt__time {
   color: var(--el-text-color-placeholder);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   text-align: right;
 }
 .ok-evt__trunc {

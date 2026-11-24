@@ -75,10 +75,10 @@ function handleTabChange(tab: TextToolTab): void {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 25%, transparent);
-  border-radius: var(--radius-md);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 25%, transparent);
+  border-radius: var(--el-border-radius-base);
+  color: var(--el-color-error);
   flex-shrink: 0;
 }
 
@@ -91,7 +91,7 @@ function handleTabChange(tab: TextToolTab): void {
   background: none;
   border: none;
   font-size: 16px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   cursor: pointer;
   padding: 4px;
   line-height: 1;

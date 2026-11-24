@@ -55,9 +55,9 @@ const emit = defineEmits<{ (e: 'select', channelKey: string): void }>()
   width: 100%;
   padding: 9px 10px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   text-align: left;
   font-size: 13px;
@@ -78,8 +78,8 @@ const emit = defineEmits<{ (e: 'select', channelKey: string): void }>()
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--bronze-500) 20%, transparent);
-  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--el-color-success) 20%, transparent);
+  color: var(--el-color-success);
   font-weight: 600;
   font-size: 14px;
 }
@@ -98,7 +98,7 @@ const emit = defineEmits<{ (e: 'select', channelKey: string): void }>()
 }
 .ig-clist__name {
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -106,12 +106,12 @@ const emit = defineEmits<{ (e: 'select', channelKey: string): void }>()
 .ig-clist__time {
   flex: none;
   font-size: 11px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono, monospace);
 }
 .ig-clist__preview {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

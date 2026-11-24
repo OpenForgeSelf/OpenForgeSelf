@@ -236,7 +236,7 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .editor-header h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -251,24 +251,24 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 }
 
 .btn-outline {
-  background: #fff;
-  color: #1976d2;
-  border-color: #1976d2;
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .btn-outline:hover {
-  background: #f0f7ff;
+  background: var(--el-color-info-light-9);
 }
 
 .btn-text {
   background: none;
-  color: #1976d2;
+  color: var(--el-color-primary);
   border: none;
   padding: 4px 8px;
 }
 
 .btn-text:hover {
-  color: #1565c0;
+  color: var(--el-color-primary-dark-2);
 }
 
 .btn-sm {
@@ -279,8 +279,8 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .empty-params {
   text-align: center;
   padding: 30px 20px;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -292,8 +292,8 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 }
 
 .param-item {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -303,15 +303,15 @@ function removeOption(paramIndex: number, optionIndex: number): void {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .param-order {
   width: 24px;
   height: 24px;
-  background: #1976d2;
-  color: #fff;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -328,8 +328,8 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .icon-btn {
   width: 26px;
   height: 26px;
-  border: 1px solid #dee2e6;
-  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
@@ -340,13 +340,13 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 }
 
 .icon-btn:hover:not(:disabled) {
-  border-color: #1976d2;
-  color: #1976d2;
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .icon-btn.delete:hover:not(:disabled) {
-  border-color: #dc3545;
-  color: #dc3545;
+  border-color: var(--el-color-error);
+  color: var(--el-color-error);
 }
 
 .icon-btn:disabled {
@@ -376,24 +376,24 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .form-group label {
   font-size: 12px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .form-group input,
 .form-group select {
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   transition: border-color 0.2s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 2px var(--gold-tint-strong);
 }
 
 .param-options {
@@ -410,7 +410,7 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .options-label {
   font-size: 12px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .options-list {
@@ -427,7 +427,7 @@ function removeOption(paramIndex: number, optionIndex: number): void {
 .option-item input {
   flex: 1;
   padding: 6px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
 }

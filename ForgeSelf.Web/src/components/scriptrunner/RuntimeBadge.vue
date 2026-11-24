@@ -70,36 +70,36 @@ const displayVersion = computed(() => {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 .runtime-badge.available {
-  background: #f0fff4;
-  border-color: #c6f6d5;
-  color: #22543d;
+  background: var(--el-color-success-light-9);
+  border-color: var(--el-color-success-light-8);
+  color: var(--el-color-success-dark-2);
 }
 
 .runtime-badge.unavailable {
-  background: #fff5f5;
-  border-color: #fed7d7;
-  color: #742a2a;
+  background: var(--el-color-error-light-9);
+  border-color: var(--el-color-error-light-8);
+  color: var(--el-color-error-dark-2);
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #cbd5e0;
+  background: var(--el-fill-color);
 }
 
 .available .status-dot {
-  background: #38a169;
-  box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.2);
+  background: var(--el-color-success);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-success) 20%, transparent);
 }
 
 .unavailable .status-dot {
-  background: #e53e3e;
+  background: var(--el-color-error);
 }
 
 .runtime-icon {

@@ -1,4 +1,4 @@
-﻿# 案例档案（Cases）— 时间线索引
+# 案例档案（Cases）— 时间线索引
 
 > Case 只讲「这一次发生了什么」（一事一档）；规则/修法/守卫一律引用对应 PC，不复述。模板 = `docs/18-templates/postmortem/case.tpl.md`，新建走 `scripts/new-problem-case.ps1` 或按技能 `problem-class-closure` P6 手工建。
 
@@ -50,6 +50,8 @@
 | 2026-11-15-st-ux-defects | 2026-11-15 | 智能终端三缺陷实测：`~` 起始目录 400 + 报错泄露宿主路径（PC-035 延期债到期）；GBK「目录」偶合合法 UTF-8 显示「Ŀ¼」（PC-011 **逃逸**入运行时）；cmd 会话 `cd` 后页面目录不更新（PC-036） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md)（一案三类，另见 [PC-035](../problem-classes/PC-035-tilde-startdir-unresolved-info-leak.md) / [PC-036](../problem-classes/PC-036-cmd-session-cwd-capture-missing.md)） | Verified | [链接](2026-11-15-st-ux-defects.md) |
 | 2026-11-20-mock-provider-silent-divert | 2026-11-20 | Mock 配置请求被转发管道吃掉 400 无感；resume 后被宿主默认模型静默接管（灾后码随批丢失，守卫待重建） | [PC-039](../problem-classes/PC-039-mock-provider-silent-divert.md) | Verified | [链接](2026-11-20-mock-provider-silent-divert.md) |
 | 2026-11-21-composition-root-arg-omission | 2026-11-21 | planned 模式恒「规划失败，已回退计划」且无解释：组合根漏传 planGenerator 静默降级（灾后码随批丢失，守卫待重建） | [PC-040](../problem-classes/PC-040-composition-root-arg-omission.md) | Verified | [链接](2026-11-21-composition-root-arg-omission.md) |
-| 2026-11-21-update-agent-version-sort-overflow | 2026-11-21 | 自更新版本保留步抛「无法将值 2.4.22.2611131611 转换为 System.Version」：10 位时间码第 4 段超 Int32.MaxValue，新版本已落位被误报失败 | [PC-041](../problem-classes/PC-041-update-agent-version-sort-overflow.md) | Verified | [链接](2026-11-21-update-agent-version-sort-overflow.md) |
+| 2026-11-21-update-agent-version-sort-overflow | 2026-11-21 | 自更新版本保留步抛「无法将值 2.4.22.2611131611 转换为 System.Version」：10 位时间码第 4 段超 Int32.MaxValue，新版本已落 | [PC-041](../problem-classes/PC-041-update-agent-version-sort-overflow.md) | Verified | [case](2026-11-21-update-agent-version-sort-overflow.md) |
+| 2026-11-23-dialog-overlay-white-mismatch | 2026-11-23 | 技能管理弹窗白底与内容区不统一：主题亮块 --el-bg-color-overlay 留 EP 默认纯白（暗块已接管=供给不对称）；随批 13 处弹窗 header logo 20→26 | [PC-044](../problem-classes/PC-044-theme-overlay-surface-asymmetry.md) | Verified | [case](2026-11-23-dialog-overlay-white-mismatch.md) |
+| 2026-11-23-plugin-dialog-elimport-missing | 2026-11-23 | 插件弹窗迁移双缺陷：SFC 用 EP 组件未显式 import（预编译产物运行时缺件）+ `.x-dialog .el-dialog` 后代选择器死规则 | [PC-045](../problem-classes/PC-045-plugin-ep-explicit-import.md) / [PC-046](../problem-classes/PC-046-ep-custom-class-composite-selector.md) | Verified | [case](2026-11-23-plugin-dialog-elimport-missing.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

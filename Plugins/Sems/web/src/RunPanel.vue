@@ -494,7 +494,7 @@ defineExpose({ refresh, check, focusLog })
   border-radius: 10px;
   font-size: 12px;
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__ops {
@@ -523,7 +523,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__btn--stop {
@@ -532,7 +532,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--stop:hover:not(:disabled) {
-  background: var(--el-color-danger-light);
+  background: var(--el-color-danger-light-3);
 }
 
 .run__btn:disabled {
@@ -568,7 +568,7 @@ defineExpose({ refresh, check, focusLog })
 
 .run__item--focus {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary-light);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light-3);
 }
 
 .run__item--open {
@@ -612,17 +612,17 @@ defineExpose({ refresh, check, focusLog })
 
 .run__origin--launched {
   color: var(--el-color-success);
-  background: var(--el-color-success-light);
+  background: var(--el-color-success-light-3);
 }
 
 .run__origin--detected {
   color: var(--el-color-warning);
-  background: var(--el-color-warning-light);
+  background: var(--el-color-warning-light-3);
 }
 
 .run__origin--ended {
   color: var(--el-color-info);
-  background: var(--el-color-info-light);
+  background: var(--el-color-info-light-3);
 }
 
 .run__item--ended {
@@ -659,7 +659,7 @@ defineExpose({ refresh, check, focusLog })
 
 .run__icon:hover {
   border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__note {
@@ -674,7 +674,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--log-on {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border-color: var(--el-color-primary);
 }
 
@@ -691,7 +691,7 @@ defineExpose({ refresh, check, focusLog })
   border-radius: 6px;
   border: 1px solid var(--el-border-color);
   background: var(--el-bg-color);
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.45;
   color: var(--el-text-color-primary);

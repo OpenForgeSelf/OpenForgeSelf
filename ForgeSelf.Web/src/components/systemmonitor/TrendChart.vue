@@ -292,16 +292,16 @@ onUnmounted(() => {
 
 <style scoped>
 .trend-chart {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .chart-title {
   font-size: 15px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin-bottom: 12px;
 }
 

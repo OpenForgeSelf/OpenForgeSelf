@@ -73,7 +73,7 @@ const tabs: TabItem[] = [
 .tab-item.active {
   background-color: var(--el-bg-color);
   color: var(--el-color-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow-lighter);
   font-weight: 500;
 }
 

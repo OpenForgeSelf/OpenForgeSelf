@@ -141,17 +141,17 @@ onMounted(() => {
 .action-btn {
   padding: 8px 16px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .refresh-btn {
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
 }
 
@@ -161,12 +161,12 @@ onMounted(() => {
 }
 
 .update-all-btn {
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
 }
 
 .update-all-btn:hover:not(:disabled) {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 
@@ -188,7 +188,7 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border: 3px solid var(--border-default);
-  border-top-color: var(--gold-400);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -199,19 +199,19 @@ onMounted(() => {
 }
 
 .loading-state p {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0;
 }
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   cursor: pointer;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .updates-list {
@@ -243,7 +243,7 @@ onMounted(() => {
   height: 56px;
   border-radius: var(--radius-lg);
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,7 +257,7 @@ onMounted(() => {
 .plugin-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
 }
 
@@ -270,24 +270,24 @@ onMounted(() => {
 }
 
 .current-version {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .arrow {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .new-version {
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   font-weight: 500;
 }
 
 .update-btn {
   padding: 10px 24px;
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -295,11 +295,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .update-btn:hover:not(:disabled) {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 

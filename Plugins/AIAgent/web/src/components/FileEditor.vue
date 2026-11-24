@@ -95,7 +95,7 @@ watch(
   align-items: center;
   gap: 6px;
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-text-color-primary);
 }
 
@@ -132,7 +132,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-text-color-secondary);
 }
@@ -141,7 +141,7 @@ watch(
   padding: 2px 14px;
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border: 1px solid var(--el-color-primary);
   border-radius: 4px;
   cursor: pointer;
@@ -158,7 +158,7 @@ watch(
   margin: 0 12px;
   padding: 8px;
   resize: vertical;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   line-height: 1.6;
   color: var(--el-text-color-primary);

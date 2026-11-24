@@ -402,25 +402,25 @@ onMounted(() => {
 .rb {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-5);
+  gap: 20px;
 }
 .ds-section-title {
-  margin-bottom: var(--ds-space-3);
+  margin-bottom: 12px;
 }
 .rb__create,
 .rb__diff,
 .rb__snap {
-  padding: var(--ds-space-5);
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .rb__create-row,
 .rb__diff-pick,
 .rb__snap-pick {
   display: flex;
   align-items: flex-end;
-  gap: var(--ds-space-3);
+  gap: 12px;
   flex-wrap: wrap;
 }
 .rb__field {
@@ -434,61 +434,61 @@ onMounted(() => {
 .rb__create-ops {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 12px;
   flex-wrap: wrap;
 }
 .rb__tip {
-  color: var(--ds-fg-4);
+  color: var(--el-text-color-disabled);
 }
 .rb__btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 16px;
   cursor: pointer;
 }
 .rb__btn--primary {
-  color: var(--ds-surface-1);
-  background: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-bg-color);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .rb__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .rb__err {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__plain {
-  color: var(--ds-warning);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-warning);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__hint {
-  color: var(--ds-success);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-success);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__warn {
-  color: var(--ds-warning);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-warning);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__table th {
   text-align: left;
-  color: var(--ds-fg-3);
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: 6px var(--ds-space-2);
+  color: var(--el-text-color-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 8px;
 }
 .rb__table td {
-  padding: 6px var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 .rb__hash {
@@ -498,105 +498,105 @@ onMounted(() => {
   white-space: nowrap;
 }
 .rb__pill {
-  font-size: var(--ds-fs-micro);
+  font-size: 10px;
   padding: 1px 8px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
 }
 .rb__pill--ok {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 .rb__pill--no {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .rb__pill--muted {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .rb__diff-sum {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 12px;
   flex-wrap: wrap;
 }
 .rb__diff-cols {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .rb__col--wide {
   grid-column: 1 / -1;
 }
 .rb__col ul {
   margin: 0;
-  padding-left: var(--ds-space-4);
+  padding-left: 16px;
 }
 .rb__li {
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__specs {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-2);
-  margin-top: var(--ds-space-4);
-  padding-top: var(--ds-space-3);
-  border-top: 1px dashed var(--ds-border-2);
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-default);
 }
 .rb__spec-list {
   margin: 0;
-  padding-left: var(--ds-space-4);
+  padding-left: 16px;
   list-style: none;
 }
 .rb__theme {
-  color: var(--ds-fg-4);
+  color: var(--el-text-color-disabled);
   margin-right: 6px;
 }
 .rb__chg {
-  border-top: 1px solid var(--ds-border-1);
-  padding-top: var(--ds-space-1);
-  margin-top: var(--ds-space-2);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 4px;
+  margin-top: 8px;
 }
 .rb__chg-key {
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .rb__chg-line {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .rb__field-name {
-  color: var(--ds-fg-2);
+  color: var(--el-text-color-regular);
 }
 .rb__from {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .rb__to {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 .rb__snap-meta {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .rb__dtcg-title {
-  margin-top: var(--ds-space-3);
+  margin-top: 12px;
 }
 .rb__dtcg {
   margin: 0;
   max-height: 320px;
   overflow: auto;
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-3);
-  font-size: var(--ds-fs-small);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 12px;
+  font-size: var(--el-font-size-extra-small);
   white-space: pre-wrap;
   word-break: break-word;
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
 }
 .ds-input--narrow {
   width: auto;

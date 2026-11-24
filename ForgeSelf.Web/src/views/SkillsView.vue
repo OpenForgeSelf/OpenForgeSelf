@@ -387,65 +387,70 @@ function getSkillIcon(name: string): string {
       </div>
     </div>
 
-    <!-- ===== Create/Edit Modal（保留原交互） ===== -->
-    <Teleport to="body">
-      <div v-if="showFormModal" class="modal-overlay" @click.self="closeFormModal">
-        <div class="modal-panel">
-          <div class="modal-header">
-            <div class="flex items-center gap-2">
-              <AppLogo :size="20" />
-              <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
-            </div>
-            <button class="modal-close" @click="closeFormModal">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+    <!-- ===== Create/Edit Modal（el-dialog 承载，保留原交互） ===== -->
+    <el-dialog
+      v-model="showFormModal"
+      :show-close="false"
+      append-to-body
+      class="skills-form-dialog"
+      width="min(520px, calc(100vw - 32px))"
+      @close="closeFormModal"
+    >
+      <template #header>
+        <div class="modal-header">
+          <div class="flex items-center gap-2">
+            <AppLogo :size="26" />
+            <h2 class="modal-title">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
           </div>
-          <form class="modal-body" @submit.prevent="handleFormSubmit">
-            <div class="form-field">
-              <label class="form-label">名称 <span class="required">*</span></label>
-              <input v-model="formName" type="text" class="form-input" placeholder="技能名称" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">描述</label>
-              <textarea v-model="formDescription" class="form-input form-textarea" placeholder="技能描述" rows="3" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">分类</label>
-              <input v-model="formCategory" type="text" class="form-input" placeholder="如：系统、开发、数据" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">系统提示词</label>
-              <textarea v-model="formSystemPrompt" class="form-input form-textarea form-textarea--code" placeholder="系统提示词" rows="4" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">关联工具 ID</label>
-              <input v-model="formToolIds" type="text" class="form-input" placeholder="多个 ID 用逗号分隔" />
-            </div>
-
-            <div v-if="formError" class="form-error">{{ formError }}</div>
-
-            <div class="form-actions">
-              <button type="button" class="btn-cancel" @click="closeFormModal">取消</button>
-              <button type="submit" class="btn-submit" :disabled="formSubmitting">
-                {{ formSubmitting ? '提交中...' : isEditing ? '保存修改' : '创建技能' }}
-              </button>
-            </div>
-          </form>
+          <button class="modal-close" @click="closeFormModal">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-      </div>
-    </Teleport>
+      </template>
+      <form class="modal-body" @submit.prevent="handleFormSubmit">
+        <div class="form-field">
+          <label class="form-label">名称 <span class="required">*</span></label>
+          <input v-model="formName" type="text" class="form-input" placeholder="技能名称" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">描述</label>
+          <textarea v-model="formDescription" class="form-input form-textarea" placeholder="技能描述" rows="3" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">分类</label>
+          <input v-model="formCategory" type="text" class="form-input" placeholder="如：系统、开发、数据" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">系统提示词</label>
+          <textarea v-model="formSystemPrompt" class="form-input form-textarea form-textarea--code" placeholder="系统提示词" rows="4" />
+        </div>
+        <div class="form-field">
+          <label class="form-label">关联工具 ID</label>
+          <input v-model="formToolIds" type="text" class="form-input" placeholder="多个 ID 用逗号分隔" />
+        </div>
+
+        <div v-if="formError" class="form-error">{{ formError }}</div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" @click="closeFormModal">取消</button>
+          <button type="submit" class="btn-submit" :disabled="formSubmitting">
+            {{ formSubmitting ? '提交中...' : isEditing ? '保存修改' : '创建技能' }}
+          </button>
+        </div>
+      </form>
+    </el-dialog>
   </div>
 </template>
 
@@ -473,23 +478,23 @@ function getSkillIcon(name: string): string {
 
 .breadcrumb-link {
   font-size: 0.8125rem;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   text-decoration: none;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
 .breadcrumb-link:hover {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .breadcrumb-chevron {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
   flex-shrink: 0;
 }
 
 .breadcrumb-current {
   font-size: 0.8125rem;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-weight: 500;
 }
 
@@ -500,19 +505,19 @@ function getSkillIcon(name: string): string {
   gap: 8px;
   height: 32px;
   padding: 0 10px;
-  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--el-text-color-primary) 6%, transparent);
   border: 1px solid var(--glass-border);
   border-radius: var(--el-border-radius-base);
   transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .search-box:focus-within {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--gold-tint-strong);
 }
 
 .search-icon {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -521,12 +526,12 @@ function getSkillIcon(name: string): string {
   border: none;
   outline: none;
   font-size: 0.8125rem;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   width: 180px;
 }
 
 .search-input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 .btn-create {
@@ -536,8 +541,8 @@ function getSkillIcon(name: string): string {
   height: 32px;
   padding: 0 14px;
   border-radius: var(--el-border-radius-base);
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -546,7 +551,7 @@ function getSkillIcon(name: string): string {
 }
 
 .btn-create:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 
@@ -562,15 +567,15 @@ function getSkillIcon(name: string): string {
   justify-content: center;
   gap: 12px;
   padding: 64px 16px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 0.875rem;
 }
 
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid color-mix(in srgb, var(--fg-primary) 12%, transparent);
-  border-top-color: var(--gold-400);
+  border: 3px solid color-mix(in srgb, var(--el-text-color-primary) 12%, transparent);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -623,18 +628,18 @@ function getSkillIcon(name: string): string {
 
 .skill-card__icon.is-on {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .skill-card__icon.is-off {
-  background: color-mix(in srgb, var(--fg-muted) 5%, transparent);
-  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 5%, transparent);
+  color: var(--el-text-color-disabled);
 }
 
 .card-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -662,8 +667,8 @@ function getSkillIcon(name: string): string {
 }
 
 .status-badge--disabled {
-  color: var(--fg-secondary);
-  background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+  color: var(--el-text-color-regular);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 12%, transparent);
 }
 
 .status-dot {
@@ -677,12 +682,12 @@ function getSkillIcon(name: string): string {
 }
 
 .status-dot--disabled {
-  background: var(--fg-muted);
+  background: var(--el-text-color-disabled);
 }
 
 .skill-card__desc {
   font-size: 0.8125rem;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -702,7 +707,7 @@ function getSkillIcon(name: string): string {
 .skill-card__meta {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -717,9 +722,9 @@ function getSkillIcon(name: string): string {
 
 .skill-card__edit {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--fg-primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-text-color-primary) 14%, transparent);
   border-radius: var(--el-border-radius-small);
   padding: 2px 10px;
   cursor: pointer;
@@ -728,8 +733,8 @@ function getSkillIcon(name: string): string {
 }
 
 .skill-card__edit:hover {
-  color: var(--gold-400);
-  border-color: var(--gold-400);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 /* 金色小 toggle（28×15，圆钮 11px） */
@@ -737,8 +742,8 @@ function getSkillIcon(name: string): string {
   width: 28px;
   height: 15px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--fg-muted) 35%, transparent);
-  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-text-color-disabled) 35%, transparent);
+  background: color-mix(in srgb, var(--el-text-color-disabled) 18%, transparent);
   position: relative;
   cursor: pointer;
   padding: 0;
@@ -747,8 +752,8 @@ function getSkillIcon(name: string): string {
 }
 
 .skill-toggle.on {
-  background: var(--gold-400);
-  border-color: var(--gold-400);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .skill-toggle:disabled {
@@ -763,38 +768,16 @@ function getSkillIcon(name: string): string {
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--fg-primary);
+  background: var(--el-text-color-primary);
   transition: transform var(--dur-fast) var(--ease-out);
 }
 
 .skill-toggle.on .skill-toggle__knob {
   transform: translateX(13px);
-  background: var(--ink-950);
+  background: var(--el-bg-color-page);
 }
 
 /* ===== Modal ===== */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 45%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-.modal-panel {
-  background: var(--ink-850);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink-950) 60%, transparent);
-}
-
 .modal-header {
   display: flex;
   align-items: center;
@@ -806,7 +789,7 @@ function getSkillIcon(name: string): string {
 .modal-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -819,14 +802,14 @@ function getSkillIcon(name: string): string {
   border-radius: var(--el-border-radius-small);
   background: transparent;
   border: none;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .modal-close:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
@@ -841,33 +824,33 @@ function getSkillIcon(name: string): string {
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 8px;
 }
 
 .required {
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
   border-radius: var(--el-border-radius-base);
-  background: color-mix(in srgb, var(--fg-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--el-text-color-primary) 6%, transparent);
   border: 1px solid var(--glass-border);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 0.875rem;
   transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .form-input:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 2px var(--gold-tint-strong);
   outline: none;
 }
 
 .form-input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 .form-textarea {
@@ -882,10 +865,10 @@ function getSkillIcon(name: string): string {
 
 .form-error {
   padding: 8px 12px;
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 35%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 35%, transparent);
   border-radius: var(--el-border-radius-base);
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   font-size: 0.8125rem;
   margin-bottom: 16px;
 }
@@ -903,7 +886,7 @@ function getSkillIcon(name: string): string {
   border-radius: var(--el-border-radius-base);
   background: transparent;
   border: 1px solid var(--glass-border);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 0.875rem;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
@@ -911,15 +894,15 @@ function getSkillIcon(name: string): string {
 
 .btn-cancel:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-submit {
   padding: 8px 20px;
   border-radius: var(--el-border-radius-base);
-  background: var(--gold-400);
+  background: var(--el-color-primary);
   border: none;
-  color: var(--ink-950);
+  color: var(--el-bg-color-page);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -927,7 +910,7 @@ function getSkillIcon(name: string): string {
 }
 
 .btn-submit:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-submit:disabled {
@@ -946,5 +929,31 @@ function getSkillIcon(name: string): string {
   .skills-grid {
     grid-template-columns: 1fr;
   }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器）。
+   对比度承载：面板底 = EP 语义 --el-bg-color-overlay，文字 = --el-text-color-*（PC-025 canonical fix）。 */
+.el-dialog.skills-form-dialog {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--el-bg-color-overlay);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
+  overflow: hidden;
+}
+
+.skills-form-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.skills-form-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

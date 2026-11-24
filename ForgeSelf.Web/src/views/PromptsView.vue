@@ -271,7 +271,7 @@ function handleExport(): void {
   height: 100%;
   overflow-y: auto;
   padding: 24px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .page-content {
@@ -310,7 +310,7 @@ function handleExport(): void {
 .sidebar-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .btn-new-prompts {
@@ -320,10 +320,10 @@ function handleExport(): void {
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
   border: 1px solid var(--border-brand);
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out);
 }
@@ -359,20 +359,20 @@ function handleExport(): void {
 
 .prompt-item--active {
   background: var(--gold-tint);
-  border-left-color: var(--gold-400);
+  border-left-color: var(--el-color-primary);
 }
 
 .prompt-item-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--fg-muted);
+  background: var(--el-text-color-disabled);
   flex-shrink: 0;
   margin-top: 5px;
 }
 
 .prompt-item-dot--active {
-  background: var(--gold-400);
+  background: var(--el-color-primary);
 }
 
 .prompt-item-body {
@@ -386,14 +386,14 @@ function handleExport(): void {
 .prompt-item-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .prompt-item--active .prompt-item-name {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .prompt-item-meta {
@@ -409,12 +409,12 @@ function handleExport(): void {
   font-weight: 500;
   padding: 0 6px;
   line-height: 1.6;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   border: 1px solid;
 }
 
 .prompt-item-tag--system {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
   border-color: var(--border-brand);
 }
@@ -426,20 +426,20 @@ function handleExport(): void {
 }
 
 .prompt-item-tag--task {
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   background: var(--el-color-success-light-9);
-  border-color: var(--bronze-500);
+  border-color: var(--el-color-success);
 }
 
 .prompt-item-tag--assist {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   background: var(--paper-tint);
   border-color: var(--border-default);
 }
 
 .prompt-item-chars {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -476,7 +476,7 @@ function handleExport(): void {
 .editor-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
@@ -487,12 +487,12 @@ function handleExport(): void {
   font-weight: 500;
   padding: 2px 8px;
   line-height: 1.5;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   border: 1px solid;
 }
 
 .editor-tag--system {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
   border-color: var(--border-brand);
 }
@@ -504,20 +504,20 @@ function handleExport(): void {
 }
 
 .editor-tag--task {
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   background: var(--el-color-success-light-9);
-  border-color: var(--bronze-500);
+  border-color: var(--el-color-success);
 }
 
 .editor-tag--assist {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   background: var(--paper-tint);
   border-color: var(--border-default);
 }
 
 .editor-chars {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -532,8 +532,8 @@ function handleExport(): void {
   width: 100%;
   height: 100%;
   border: 1px solid var(--border-default);
-  border-left: 3px solid var(--gold-400);
-  border-radius: var(--radius-md);
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: var(--el-border-radius-base);
   overflow: hidden;
 }
 
@@ -545,7 +545,7 @@ function handleExport(): void {
   border: none;
   outline: none;
   resize: none;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.625;
@@ -553,7 +553,7 @@ function handleExport(): void {
 }
 
 .editor-textarea::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 /* Editor Footer */
@@ -575,7 +575,7 @@ function handleExport(): void {
 
 .editor-last-edited {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 

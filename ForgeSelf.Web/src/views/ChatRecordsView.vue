@@ -382,31 +382,31 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--fg-muted);
+  background: var(--el-text-color-disabled);
   transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .live-dot.active {
-  background: var(--bronze-500);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze-500) 25%, transparent);
+  background: var(--el-color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-success) 25%, transparent);
   animation: pulse 1.6s ease-in-out infinite;
 }
 
 .live-text {
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .live-time {
   font-variant-numeric: tabular-nums;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -438,12 +438,12 @@ onUnmounted(() => {
 .live-streams-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .live-streams-count {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -451,7 +451,7 @@ onUnmounted(() => {
   padding: 10px 12px;
   background: var(--paper-tint);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .live-stream-meta {
@@ -463,26 +463,26 @@ onUnmounted(() => {
 
 .live-badge {
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
   font-weight: 500;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
 .live-badge.done {
-  color: var(--bronze-500);
-  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
 .live-badge.error {
-  color: var(--cinnabar-400);
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
+  color: var(--el-color-error);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
 }
 
 .live-rid {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
 }
@@ -491,7 +491,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 120px;
@@ -522,23 +522,23 @@ onUnmounted(() => {
 .filter-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .filter-input,
 .filter-select {
   padding: 8px 12px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   background: var(--glass-bg);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .filter-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .filter-actions {
@@ -553,27 +553,27 @@ onUnmounted(() => {
   gap: 6px;
   padding: 8px 16px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .search-btn {
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
 }
 
 .search-btn:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 
 .reset-btn {
   background: var(--paper-tint);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
 }
 
@@ -611,14 +611,14 @@ onUnmounted(() => {
   justify-content: center;
   gap: 12px;
   height: 100%;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
   border: 3px solid var(--border-default);
-  border-top-color: var(--gold-400);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -638,26 +638,26 @@ onUnmounted(() => {
   padding: 12px 14px;
   background: var(--paper-tint);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 .session-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
-.session-meta b { color: var(--fg-secondary); font-weight: 600; margin-right: 4px; }
+.session-meta b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
 .session-key {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
   word-break: break-all;
 }
-.session-key b { color: var(--fg-secondary); font-weight: 600; margin-right: 4px; }
+.session-key b { color: var(--el-text-color-regular); font-weight: 600; margin-right: 4px; }
 .session-first {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* 轮次明细 */
@@ -674,20 +674,20 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   padding: 10px 12px;
 }
 .turn-head {
   font-size: 12px;
   font-weight: 600;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-hairline);
   font-family: var(--font-mono);
 }
 .empty-hint {
   font-size: 13px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   text-align: center;
   padding: 24px 0;
 }

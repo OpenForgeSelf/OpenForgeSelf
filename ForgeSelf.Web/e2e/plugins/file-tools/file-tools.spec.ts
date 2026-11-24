@@ -134,8 +134,12 @@ async function drillInto(page: Page, index: number): Promise<string> {
   return body.data.scanId
 }
 
-/** 完成判定：state==2 时面板不再渲染 `.state-tag` 徽标 */
+/** 完成判定：state==2 时面板不再渲染 `.state-tag` 徽标。
+ *  竞态防护（2026-11-23 W6 实证）：`.state-tag` 可能在本断言前尚未首次渲染
+ *  （高负载下 POST 受理先于 UI 首次轮询回包），toHaveCount(0) 会立即假绿，
+ *  随后 fetchView 撞上 state=1。先等徽标出现（快扫可跳过），再等它消失。 */
 async function waitCompleted(page: Page): Promise<void> {
+  await page.locator('.state-tag').waitFor({ state: 'visible', timeout: 2_000 }).catch(() => {})
   await expect(page.locator('.state-tag')).toHaveCount(0, { timeout: 30_000 })
 }
 

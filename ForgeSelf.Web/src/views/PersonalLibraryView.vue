@@ -459,35 +459,35 @@ watch(() => growthCurve.value, () => {
   gap: 4px;
   padding: 3px;
   background: var(--paper-tint-weak);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .range-btn {
   padding: 6px 14px;
   border: none;
   background: transparent;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .range-btn:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .range-btn.active {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .refresh-btn {
   padding: 8px 14px;
   border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--fg-secondary);
-  border-radius: var(--radius-md);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-base);
   font-size: 12px;
   cursor: pointer;
   display: flex;
@@ -498,7 +498,7 @@ watch(() => growthCurve.value, () => {
 
 .refresh-btn:hover:not(:disabled) {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .refresh-btn:disabled {
@@ -532,7 +532,7 @@ watch(() => growthCurve.value, () => {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
   flex-shrink: 0;
 }
@@ -541,13 +541,13 @@ watch(() => growthCurve.value, () => {
   font-family: var(--font-mono);
   font-size: 24px;
   font-weight: 700;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-top: 2px;
 }
 
@@ -560,14 +560,14 @@ watch(() => growthCurve.value, () => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .section-header h3 i {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   font-size: 13px;
 }
 
@@ -586,8 +586,8 @@ watch(() => growthCurve.value, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
-  color: var(--fg-tertiary);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
+  color: var(--el-text-color-secondary);
 }
 
 .rankings-grid {
@@ -616,7 +616,7 @@ watch(() => growthCurve.value, () => {
 .rank-number {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-radius-round, 9999px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -624,13 +624,13 @@ watch(() => growthCurve.value, () => {
   font-weight: 600;
   font-family: var(--font-mono);
   background: var(--paper-tint);
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
-.rank-1 { background: var(--gold-tint-strong); color: var(--gold-400); }
-.rank-2 { background: var(--paper-tint); color: var(--fg-secondary); }
-.rank-3 { background: var(--gold-tint); color: var(--gold-300); }
+.rank-1 { background: var(--gold-tint-strong); color: var(--el-color-primary); }
+.rank-2 { background: var(--paper-tint); color: var(--el-text-color-regular); }
+.rank-3 { background: var(--gold-tint); color: var(--el-color-primary-light-3); }
 
 .rank-info {
   flex: 1;
@@ -640,7 +640,7 @@ watch(() => growthCurve.value, () => {
 .rank-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -648,7 +648,7 @@ watch(() => growthCurve.value, () => {
 
 .rank-subtitle {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-top: 2px;
   font-family: var(--font-mono);
 }
@@ -656,7 +656,7 @@ watch(() => growthCurve.value, () => {
 .rank-value {
   font-size: 12px;
   font-weight: 500;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   font-family: var(--font-mono);
   flex-shrink: 0;
 }
@@ -678,7 +678,7 @@ watch(() => growthCurve.value, () => {
   font-family: var(--font-mono);
   font-size: 36px;
   font-weight: 700;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   line-height: 1;
 }
 
@@ -690,7 +690,7 @@ watch(() => growthCurve.value, () => {
 
 .time-saved-label {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-top: 6px;
 }
 
@@ -706,17 +706,17 @@ watch(() => growthCurve.value, () => {
   justify-content: space-between;
   padding: 10px 12px;
   background: var(--paper-tint-weak);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 12px;
 }
 
 .breakdown-category {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .breakdown-value {
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-mono);
 }
 
@@ -729,10 +729,10 @@ watch(() => growthCurve.value, () => {
 
 .retry-btn {
   padding: 8px 20px;
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;

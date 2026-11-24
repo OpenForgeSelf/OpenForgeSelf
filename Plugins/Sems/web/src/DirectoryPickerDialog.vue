@@ -132,7 +132,7 @@ onMounted(() => {
 .dpick__mask {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
 }
 
 .dpick__box {
@@ -244,7 +244,7 @@ onMounted(() => {
   background: var(--el-fill-color-blank);
   color: var(--el-text-color-primary);
   font-size: 13px;
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
 }
 
 .dpick__input--grow {
@@ -286,7 +286,7 @@ onMounted(() => {
 .dpick__btn--primary {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary);
-  color: var(--el-color-primary-dark);
+  color: var(--el-color-primary-dark-2);
   font-weight: 600;
 }
 

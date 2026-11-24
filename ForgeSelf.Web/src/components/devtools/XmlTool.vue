@@ -161,15 +161,15 @@ const store = useDevToolsStore()
 }
 
 .validate-result.valid {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #16a34a;
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-8);
+  color: var(--el-color-success);
 }
 
 .validate-result.invalid {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
+  color: var(--el-color-error);
 }
 
 .editors {

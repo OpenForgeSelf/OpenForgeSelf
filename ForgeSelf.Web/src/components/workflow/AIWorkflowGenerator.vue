@@ -78,7 +78,7 @@ function resetGenerator(): void {
   <div class="ai-generator">
     <div class="generator-header">
       <div class="header-left">
-        <AppLogo :size="20" />
+        <AppLogo :size="26" />
         <h2>🤖 AI 工作流生成</h2>
         <p>用自然语言描述你的需求，AI 将自动生成工作流</p>
       </div>
@@ -206,7 +206,7 @@ const examples = [
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -216,20 +216,20 @@ const examples = [
   justify-content: space-between;
   align-items: flex-start;
   padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
-  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: linear-gradient(135deg, var(--el-color-info-light-9), var(--el-color-info-light-8));
 }
 
 .header-left h2 {
   font-size: 20px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
 }
 
 .header-left p {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -237,7 +237,7 @@ const examples = [
   width: 32px;
   height: 32px;
   border: none;
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--el-bg-color) 80%, transparent);
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
@@ -248,8 +248,8 @@ const examples = [
 }
 
 .close-btn:hover {
-  background: #fff;
-  color: #dc3545;
+  background: var(--el-bg-color);
+  color: var(--el-color-error);
 }
 
 .generator-body {
@@ -275,12 +275,12 @@ const examples = [
 .form-group label {
   font-size: 14px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .description-input {
   padding: 12px 16px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 10px;
   font-size: 14px;
   line-height: 1.6;
@@ -290,18 +290,18 @@ const examples = [
 
 .description-input:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .description-input:disabled {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   cursor: not-allowed;
 }
 
 .hint {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -321,14 +321,14 @@ const examples = [
 }
 
 .btn-primary {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  border-color: var(--el-color-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1565c0;
-  border-color: #1565c0;
+  background: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-primary-dark-2);
 }
 
 .btn-primary:disabled {
@@ -337,23 +337,23 @@ const examples = [
 }
 
 .btn-secondary {
-  background: #f8f9fa;
-  color: #495057;
-  border-color: #dee2e6;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  border-color: var(--el-border-color-light);
 }
 
 .btn-secondary:hover {
-  background: #e9ecef;
+  background: var(--el-fill-color);
 }
 
 .btn-text {
   background: none;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   border: none;
 }
 
 .btn-text:hover {
-  color: #1976d2;
+  color: var(--el-color-primary);
 }
 
 .btn-large {
@@ -365,8 +365,8 @@ const examples = [
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2px solid color-mix(in srgb, var(--el-color-white) 30%, transparent);
+  border-top-color: var(--el-border-color-lighter);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-right: 8px;
@@ -379,17 +379,17 @@ const examples = [
 
 .error-message {
   padding: 12px 16px;
-  background: #fff5f5;
-  border: 1px solid #fecaca;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
   border-radius: 8px;
-  color: #dc3545;
+  color: var(--el-color-error);
   font-size: 13px;
 }
 
 .examples-section h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   margin: 0 0 12px 0;
 }
 
@@ -401,20 +401,20 @@ const examples = [
 
 .example-item {
   padding: 10px 14px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .example-item:hover:not(:disabled) {
-  background: #f0f7ff;
-  border-color: #1976d2;
-  color: #1976d2;
+  background: var(--el-color-info-light-9);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .example-item:disabled {
@@ -435,19 +435,19 @@ const examples = [
   justify-content: space-between;
   align-items: center;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .preview-header h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 4px 0;
 }
 
 .confidence {
   font-size: 13px;
-  color: #28a745;
+  color: var(--el-color-success);
   font-weight: 500;
 }
 
@@ -455,7 +455,7 @@ const examples = [
 .variables-preview h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   margin: 0 0 12px 0;
 }
 
@@ -470,15 +470,15 @@ const examples = [
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
 .step-number {
   width: 28px;
   height: 28px;
-  background: #1976d2;
-  color: #fff;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -500,13 +500,13 @@ const examples = [
 .step-name {
   font-size: 14px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin-bottom: 2px;
 }
 
 .step-type {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .variables-list {
@@ -520,29 +520,29 @@ const examples = [
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
 .var-name {
   font-size: 13px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   min-width: 100px;
 }
 
 .var-type {
   font-size: 11px;
   padding: 2px 8px;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   border-radius: 10px;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .var-desc {
   flex: 1;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .template-option {
@@ -550,7 +550,7 @@ const examples = [
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
 }
 
@@ -561,7 +561,7 @@ const examples = [
 
 .template-option label {
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -570,7 +570,7 @@ const examples = [
   justify-content: flex-end;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 @media (max-width: 768px) {

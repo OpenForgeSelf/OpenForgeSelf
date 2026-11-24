@@ -233,8 +233,8 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
               <!-- Status + Actions -->
               <div class="card-footer">
                 <div class="status-indicator">
-                  <div class="status-dot-sm" :style="{ background: 'var(--bronze-500)' }" />
-                  <span class="status-text" :style="{ color: 'var(--bronze-500)' }">已启用</span>
+                  <div class="status-dot-sm" :style="{ background: 'var(--el-color-success)' }" />
+                  <span class="status-text" :style="{ color: 'var(--el-color-success)' }">已启用</span>
                 </div>
                 <div class="card-actions" @click.stop>
                   <button
@@ -332,7 +332,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                style="color: var(--gold-400);"
+                style="color: var(--el-color-primary);"
               >
                 <path d="M12 3v12" />
                 <path d="M8 8l4 4 4-4" />
@@ -386,18 +386,18 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   gap: 8px;
   width: 280px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--glass-bg);
   padding: 6px 12px;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .search-box:focus-within {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .search-icon {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
@@ -407,11 +407,11 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   outline: none;
   flex: 1;
   font-size: 13px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .search-input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 /* ===== Filter Pills ===== */
@@ -431,9 +431,9 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   white-space: nowrap;
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
   cursor: pointer;
   transition:
@@ -444,17 +444,17 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .filter-pill:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .filter-pill--active {
-  color: var(--ink-950);
-  background: var(--gold-400);
-  border-color: var(--gold-400);
+  color: var(--el-bg-color-page);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .filter-pill--active:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 /* ===== Feature Grid ===== */
@@ -566,7 +566,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   flex-shrink: 0;
 }
 
@@ -587,7 +587,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -603,7 +603,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 500;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   width: fit-content;
 }
 
@@ -614,7 +614,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
   margin: 0 0 16px 0;
 }
@@ -633,7 +633,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .stat-item {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   white-space: nowrap;
 }
 
@@ -681,7 +681,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease-out),
@@ -690,24 +690,24 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .btn--primary {
-  color: var(--ink-950);
-  background: var(--gold-400);
+  color: var(--el-bg-color-page);
+  background: var(--el-color-primary);
   border: none;
 }
 
 .btn--primary:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn--ghost {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
   background: transparent;
 }
 
 .btn--ghost:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 /* ===== CTA Section ===== */
@@ -742,7 +742,7 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--gold-tint);
   flex-shrink: 0;
 }
@@ -754,13 +754,13 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .cta-title {
   font-size: 14px;
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .cta-subtitle {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin: 2px 0 0 0;
 }
 
@@ -773,9 +773,9 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
   cursor: pointer;
   transition:
@@ -785,6 +785,6 @@ const emptyIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .cta-btn:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 </style>

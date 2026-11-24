@@ -246,7 +246,7 @@ watch(() => props.step, (newStep) => {
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -255,13 +255,13 @@ watch(() => props.step, (newStep) => {
 .section-hint {
   font-size: 11px;
   font-weight: 400;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
 }
 
 .mode-switch {
   display: flex;
   gap: 4px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   padding: 4px;
   border-radius: 8px;
 }
@@ -273,20 +273,20 @@ watch(() => props.step, (newStep) => {
   background: transparent;
   border-radius: 6px;
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mode-btn:hover {
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .mode-btn.active {
-  background: #fff;
-  color: #1976d2;
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
   font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .form-group {
@@ -298,17 +298,17 @@ watch(() => props.step, (newStep) => {
 .form-group label {
   font-size: 12px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   padding: 8px 10px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 13px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   font-family: inherit;
 }
 
@@ -316,8 +316,8 @@ watch(() => props.step, (newStep) => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .code-editor {
@@ -329,7 +329,7 @@ watch(() => props.step, (newStep) => {
 
 .field-hint {
   font-size: 11px;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
 }
 
 .param-mappings {
@@ -347,13 +347,13 @@ watch(() => props.step, (newStep) => {
 .param-name {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 12px;
 }
 
 .mapping-arrow {
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -361,7 +361,7 @@ watch(() => props.step, (newStep) => {
 .variable-expr {
   flex: 1.5;
   padding: 6px 8px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 12px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -370,11 +370,11 @@ watch(() => props.step, (newStep) => {
 .remove-btn {
   width: 24px;
   height: 24px;
-  border: 1px solid #dee2e6;
-  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
   border-radius: 4px;
   font-size: 10px;
-  color: #dc3545;
+  color: var(--el-color-error);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -383,31 +383,31 @@ watch(() => props.step, (newStep) => {
 }
 
 .remove-btn:hover {
-  background: #fff5f5;
-  border-color: #dc3545;
+  background: var(--el-color-error-light-9);
+  border-color: var(--el-color-error);
 }
 
 .add-param-btn {
   padding: 6px 12px;
-  border: 1px dashed #dee2e6;
-  background: #f8f9fa;
+  border: 1px dashed var(--el-border-color-light);
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   text-align: left;
 }
 
 .add-param-btn:hover {
-  border-color: #1976d2;
-  color: #1976d2;
-  background: #f0f7ff;
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  background: var(--el-color-info-light-9);
 }
 
 .variable-suggestions {
   margin-top: 8px;
   padding: 8px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   border-radius: 6px;
   display: flex;
   flex-wrap: wrap;
@@ -417,21 +417,21 @@ watch(() => props.step, (newStep) => {
 
 .hint-label {
   font-size: 11px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   margin-right: 4px;
 }
 
 .var-chip {
   font-size: 11px;
   padding: 2px 6px;
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-primary);
   border-radius: 4px;
   cursor: pointer;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .var-chip:hover {
-  background: #bbdefb;
+  background: var(--el-color-info-light-8);
 }
 </style>

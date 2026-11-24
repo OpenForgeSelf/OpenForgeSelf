@@ -27,8 +27,8 @@ const cpuCard = computed<MetricCardData>(() => {
     value: cpu ? cpu.totalUsage.toFixed(1) : '0',
     unit: '%',
     percentage: cpu?.totalUsage || 0,
-    color: '#1976d2',
-    bgColor: '#e3f2fd',
+    color: 'var(--el-color-primary)',
+    bgColor: 'var(--el-color-info-light-9)',
     trend: 0,
     subtitle: cpu ? `${cpu.perCoreUsage.length} 核心` : '--'
   }
@@ -42,8 +42,8 @@ const memoryCard = computed<MetricCardData>(() => {
     value: memory ? memory.usagePercent.toFixed(1) : '0',
     unit: '%',
     percentage: memory?.usagePercent || 0,
-    color: '#9c27b0',
-    bgColor: '#f3e5f5',
+    color: 'var(--el-color-info)',
+    bgColor: 'var(--el-color-info-light-9)',
     trend: 0,
     subtitle: memory
       ? `${systemMonitorApi.formatBytes(memory.used)} / ${systemMonitorApi.formatBytes(memory.total)}`
@@ -62,8 +62,8 @@ const diskCard = computed<MetricCardData>(() => {
     value: percentage.toFixed(1),
     unit: '%',
     percentage,
-    color: '#ff9800',
-    bgColor: '#fff3e0',
+    color: 'var(--el-color-warning)',
+    bgColor: 'var(--el-color-warning-light-9)',
     trend: 0,
     subtitle: `${disks.length} 个分区`
   }
@@ -77,8 +77,8 @@ const networkCard = computed<MetricCardData>(() => {
     value: network ? systemMonitorApi.formatSpeed(network.downloadSpeed) : '0 B/s',
     unit: '',
     percentage: 0,
-    color: '#4caf50',
-    bgColor: '#e8f5e9',
+    color: 'var(--el-color-success)',
+    bgColor: 'var(--el-color-success-light-9)',
     trend: 0,
     subtitle: network ? `上行: ${systemMonitorApi.formatSpeed(network.uploadSpeed)}` : '--'
   }
@@ -150,10 +150,10 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 }
 
 .metric-card {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -162,7 +162,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 
 .metric-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--el-box-shadow);
 }
 
 .card-header {
@@ -178,7 +178,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .card-body {
@@ -200,7 +200,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 }
 
 .progress-ring-bg {
-  stroke: #f1f3f5;
+  stroke: var(--el-fill-color);
 }
 
 .progress-ring-fill {
@@ -224,7 +224,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 
 .progress-unit {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .card-info {
@@ -234,7 +234,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 40
 
 .card-subtitle {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   line-height: 1.5;
   word-break: break-all;
 }

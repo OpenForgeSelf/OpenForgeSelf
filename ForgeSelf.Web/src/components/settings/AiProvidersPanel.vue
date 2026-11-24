@@ -444,7 +444,7 @@ onMounted(() => {
         <!-- 卡片头部 -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 min-w-0">
-            <el-icon :size="18" class="text-[var(--el-color-accent)] shrink-0">
+            <el-icon :size="18" class="text-[var(--el-color-primary)] shrink-0">
               <Connection />
             </el-icon>
             <div class="min-w-0">

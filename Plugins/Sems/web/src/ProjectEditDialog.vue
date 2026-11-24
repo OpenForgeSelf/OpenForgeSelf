@@ -156,7 +156,7 @@ watch(typeMode, onTypeModeChange)
 .pdlg__mask {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
   z-index: 50;
 }
 
@@ -316,7 +316,7 @@ watch(typeMode, onTypeModeChange)
 }
 
 .pdlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .pdlg__btn:disabled {

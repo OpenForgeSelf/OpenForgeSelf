@@ -300,10 +300,10 @@ function handleClose(): void {
 .error-message {
   margin-bottom: 16px;
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-7);
   border-radius: 6px;
-  color: #ef4444;
+  color: var(--el-color-error);
   font-size: 13px;
 }
 

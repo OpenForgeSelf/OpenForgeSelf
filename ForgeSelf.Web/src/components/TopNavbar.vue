@@ -192,7 +192,7 @@ const bgPanelOpen = ref(false)
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.06em;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .tab-nav {
@@ -209,9 +209,9 @@ const bgPanelOpen = ref(false)
 
 .tab-item {
   padding: 6px 14px;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   border-radius: 5px;
   border: none;
@@ -226,7 +226,7 @@ const bgPanelOpen = ref(false)
 }
 
 .tab-item:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   background: var(--paper-tint-weak);
 }
 
@@ -258,7 +258,7 @@ const bgPanelOpen = ref(false)
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -278,7 +278,7 @@ const bgPanelOpen = ref(false)
 }
 
 .close-x:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   background: var(--border-default);
 }
 
@@ -297,7 +297,7 @@ const bgPanelOpen = ref(false)
   height: 30px;
   background: transparent;
   border: 0;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   border-radius: 5px;
   cursor: pointer;
   display: inline-flex;
@@ -308,7 +308,7 @@ const bgPanelOpen = ref(false)
 
 .actions button:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .actions button.active {

@@ -55,7 +55,22 @@ describe('PluginDetailModal', () => {
     ...overrides,
   })
 
-const getModalElement = () => document.querySelector('.modal-overlay') as HTMLElement | null
+// el-dialog append-to-body：弹窗根传送到 document.body（不再是自造 .modal-overlay）
+const getModalElement = () => document.querySelector('.plugin-detail-dialog') as HTMLElement | null
+
+// EP dialog 懒渲染：modelValue 的 watch 无 immediate，挂载时直接传 visible=true 不会渲染内容；
+// 与真实用法一致——先挂 visible:false 再 setProps(true)。
+async function mountModal(options: Record<string, unknown> = {}) {
+  const mountOptions = {
+    ...options,
+    props: { visible: false, ...((options.props as Record<string, unknown>) ?? {}) },
+    attachTo: document.body,
+  }
+  const wrapper = mount(PluginDetailModal, mountOptions)
+  await wrapper.setProps({ visible: true })
+  await flushPromises()
+  return wrapper
+}
 
 describe('渲染测试', () => {
     it('visible 为 false 时不显示弹窗', () => {
@@ -72,7 +87,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail()
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -87,7 +102,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ name: '超级工具插件' })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -103,7 +118,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ version: '2.5.0' })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -119,7 +134,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ author: '开发者小明' })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -135,7 +150,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ description: '这是一个功能强大的插件' })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -151,7 +166,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ category: '效率工具' })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -174,7 +189,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -199,7 +214,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -219,7 +234,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockReturnValue(promise)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -238,7 +253,7 @@ describe('渲染测试', () => {
     it('加载失败显示错误状态', async () => {
       vi.mocked(pluginApi.fetchPluginDetail).mockRejectedValue(new Error('加载失败'))
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -259,7 +274,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -279,7 +294,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ dependencies: [] })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -299,7 +314,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -318,7 +333,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -335,7 +350,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ permissions: [] })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -355,7 +370,7 @@ describe('渲染测试', () => {
       })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -372,7 +387,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ extensionPoints: [] })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -390,7 +405,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ isEnabled: true, state: PluginState.Running })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -408,7 +423,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ isEnabled: false, state: PluginState.Stopped })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -426,7 +441,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ state: PluginState.Error })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -444,7 +459,7 @@ describe('渲染测试', () => {
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
       vi.mocked(pluginApi.disablePlugin).mockResolvedValue(undefined)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -466,7 +481,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail()
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -486,15 +501,18 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail()
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
 
       await flushPromises()
 
-      const modal = getModalElement()
-      modal?.click()
+      // el-dialog 遮罩关闭由 EP 内部处理（useSameTarget + transition），happy-dom 下
+      // focus-trap/transition 链不完整；此处验证本组件的接线契约：EP emit
+      // update:modelValue(false) → handleBackdropChange → 组件 emit close
+      const dialogVm = wrapper.findComponent({ name: 'ElDialog' })
+      dialogVm?.vm.$emit('update:modelValue', false)
       await flushPromises()
 
       expect(wrapper.emitted('close')).toBeTruthy()
@@ -505,16 +523,18 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail()
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
 
       await flushPromises()
 
-      const event = new KeyboardEvent('keydown', { key: 'Escape' })
-      document.dispatchEvent(event)
-      await wrapper.vm.$nextTick()
+      // ESC 关闭由 EP focus-trap 内部处理，happy-dom 下 trap 不激活；此处验证本组件
+      // 的接线契约：EP emit close → @close="handleClose" → 组件 emit close
+      const dialogVm = wrapper.findComponent({ name: 'ElDialog' })
+      dialogVm?.vm.$emit('close')
+      await flushPromises()
 
       expect(wrapper.emitted('close')).toBeTruthy()
       wrapper.unmount()
@@ -524,15 +544,14 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail()
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
 
       await flushPromises()
 
-      const modal = getModalElement() as HTMLElement | null
-      const container = modal?.querySelector('.modal-container') as HTMLElement | null
+      const container = document.querySelector('.el-dialog__body') as HTMLElement | null
       container?.click()
       await flushPromises()
 
@@ -546,7 +565,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ state: PluginState.Running })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })
@@ -564,7 +583,7 @@ describe('渲染测试', () => {
       const pluginDetail = createMockPluginDetail({ state: PluginState.Stopped })
       vi.mocked(pluginApi.fetchPluginDetail).mockResolvedValue(pluginDetail)
 
-      const wrapper = mount(PluginDetailModal, {
+      const wrapper = await mountModal({
         props: { visible: true, pluginId: 'test-plugin-1' },
         attachTo: document.body,
       })

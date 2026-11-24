@@ -78,7 +78,7 @@ watch(
 .st-story-host {
   width: 960px;
   height: 640px;
-  background: var(--el-bg-color, #0f1419);
+  background: var(--el-bg-color);
   overflow: hidden;
 }
 </style>

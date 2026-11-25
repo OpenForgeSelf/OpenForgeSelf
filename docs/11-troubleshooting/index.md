@@ -57,7 +57,10 @@
 | 前端 build 预存类型错误（T032） | 散例：非本轮回归，独立修复 |
 | `navigator.clipboard` 只读致 vitest 偶发 | 散例：环境缺陷，`Object.defineProperty`/`vi.stubGlobal` |
 | `ChatRecordRealLLMTests` 偶发红 | 散例：测试隔离性，TODO 已知 |
+| 发布链报 `SAFE_DELETE_BULK_CONFIRM_REQUIRED` / 插件 build 挂 / `emptyOutDir` | case [2026-11-24 发布 zip 被拦截](cases/2026-11-24-release-local-zip-emptyoutdir.md) → [PC-047](problem-classes/PC-047-release-local-zip-emptyoutdir.md) |
 | `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | case [2026-11-24 无 TTY 确认中断](cases/2026-11-24-release-local-pnpm-nontty-purge-confirm.md) → [PC-048](problem-classes/PC-048-pnpm-install-nontty-purge-confirm.md) |
+| `NETSDK1151` / 非自包含 exe 引用自包含 exe / `SelfContained` 条件声明 / build 绿 publish 红 | case [2026-11-24 NETSDK1151](cases/2026-11-24-release-netsdk1151-selfcontained-inference.md) → [PC-049](problem-classes/PC-049-release-updateagent-selfcontained-inference.md) |
+| 更新后宿主没起来 / `~/.forgeself/log` 无更新日志 / agent 报 `System.Collections.Specialized` / `ExeName=` exe 轨 | case [2026-11-24 exe 轨未拉起](cases/2026-11-24-update-agent-exe-cleanup-before-restart.md) → [PC-050](problem-classes/PC-050-update-agent-cleanup-staged-before-restart.md)（更新代理日志在 `%LOCALAPPDATA%\ForgeSelf\Logs\`） |
 
 新报错排查后：能归入既有 PC 的补 case；成类的走技能 `problem-class-closure`（P2 归类）；确属一次性环境杂音才允许留在本表当散例。
 

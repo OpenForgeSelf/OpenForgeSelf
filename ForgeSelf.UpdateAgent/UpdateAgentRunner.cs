@@ -15,8 +15,11 @@ namespace ForgeSelf.UpdateAgent;
 ///   6 扁平残留清理（保留名单制；失败降级日志告警不中断）
 ///   6.5 目录名规范化（Plugins→plugins 等；失败降级不中断）
 ///   7 旧版本清理（按 UpdateAgentCore 补零定宽序保留 current+上一版；失败降级不中断）
-///   8 清理 staged tag 与退役 Backups 存量（失败降级不中断）
-///   9 重启根启动器（公共层；WindowStyle=Hidden，DOTNET_ROOT 指回安装根公共运行时）
+///   8 重启根启动器（公共层；WindowStyle=Hidden，DOTNET_ROOT 指回安装根公共运行时）
+///   9 清理 staged tag 与退役 Backups 存量（失败降级不中断）
+/// 步骤 8/9 顺序不可交换（PC-050）：agent 自身 DOTNET_ROOT 指向 staged 解压根（防覆盖安装根时
+/// 自锁），若先删 staged，RestartLauncher 首次访问 psi.EnvironmentVariables（StringDictionary，
+/// 位于 System.Collections.Specialized.dll）时该 DLL 已被删 → FileNotFoundException → 宿主未被拉起。
 /// 版本比较一律 UpdateAgentCore.ToSortKey 补零定宽 + ordinal（PC-041：10 位时间码第 4 段
 /// 超 Int32.MaxValue，禁 System.Version/[version] 分量解析）。
 /// </summary>
@@ -81,11 +84,15 @@ public static class UpdateAgentRunner
         // ── 7. 旧版本清理（保留 current + 补零定宽序上一版；失败降级不中断） ──
         CleanupOldVersions(versionsRoot, newVer);
 
-        // ── 8. 清理 staged tag 与退役 Backups 存量（失败降级不中断） ──
-        CleanupStagedAndBackups(o.InstallDir, o.StagedDir);
-
-        // ── 9. 重启根启动器（公共层） ──
+        // ── 8. 重启根启动器（公共层） ──
+        // PC-050：必须在清理 staged 之前重启。agent 自身 DOTNET_ROOT 指向 staged 解压根，
+        // RestartLauncher 首次访问 psi.EnvironmentVariables（StringDictionary，位于
+        // System.Collections.Specialized.dll）需要加载该 BCL；若先删 staged，DLL 已不存在 →
+        // FileNotFoundException → 宿主未被拉起（2026-11-24 15:09 真机实证）。
         RestartLauncher(o);
+
+        // ── 9. 清理 staged tag 与退役 Backups 存量（失败降级不中断） ──
+        CleanupStagedAndBackups(o.InstallDir, o.StagedDir);
 
         AgentLog.Write("更新流程完成（exit 0）");
         return 0;

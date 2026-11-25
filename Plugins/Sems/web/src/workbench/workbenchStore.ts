@@ -662,6 +662,34 @@ export async function browse(path?: string): Promise<void> {
   }
 }
 
+/**
+ * 合并 GET /api/runs 与本地已有会话。
+ * 对端若只返回本页启动的会话，不得整表覆盖检查到的进程；
+ * 检测结果保留到再次检查、停止，或对端已带回检测会话且该进程已退出。
+ */
+export function mergeRunningSessions(incoming: RunSession[], previous: RunSession[]): RunSession[] {
+  const fresh = incoming.filter((s) => !s.ended)
+  if (fresh.some((s) => s.origin === 'Detected')) return fresh
+
+  const launchedPids = new Set(fresh.map((s) => s.pid))
+  const launchedCmds = new Set(
+    fresh.filter((s) => s.commandId).map((s) => `${s.projectId}:${s.commandId}`),
+  )
+  // 本页启动会话已从对端消失（已停止或已退出）时，同 pid / 同命令的检测行一并去掉
+  const gone = previous.filter((s) =>
+    s.origin === 'Launched' && !s.ended && !fresh.some((f) => f.pid === s.pid || (s.commandId > 0 && f.commandId === s.commandId && f.projectId === s.projectId)))
+  const gonePids = new Set(gone.map((s) => s.pid))
+  const goneCmds = new Set(gone.filter((s) => s.commandId).map((s) => `${s.projectId}:${s.commandId}`))
+
+  const keptDetected = previous.filter((s) => {
+    if (s.ended || s.origin === 'Launched') return false
+    if (launchedPids.has(s.pid) || gonePids.has(s.pid)) return false
+    if (s.commandId && (launchedCmds.has(`${s.projectId}:${s.commandId}`) || goneCmds.has(`${s.projectId}:${s.commandId}`))) return false
+    return true
+  })
+  return [...fresh, ...keptDetected]
+}
+
 /** 运行中会话数（状态栏与仪表盘 widget）。 */
 export async function refreshRunningCount(): Promise<void> {
   if (store.mode !== 'live') {
@@ -670,7 +698,7 @@ export async function refreshRunningCount(): Promise<void> {
   }
   try {
     const r = await apiGet<RunsResp>('/api/runs')
-    store.runningSessions = (r?.runs ?? []).filter((s) => !s.ended)
+    store.runningSessions = mergeRunningSessions(r?.runs ?? [], store.runningSessions)
     store.runningCount = store.runningSessions.length
   } catch { /* 状态栏统计不阻断主流程 */ }
 }
@@ -701,6 +729,10 @@ export function unmatchedSessionsFor(p: WbProject | null): RunSession[] {
 /** 按本机进程标识停止（检查捕获的进程）；结束后同步运行会话与计数。 */
 export async function stopSessionByPid(pid: number): Promise<StopRunResp | undefined> {
   const resp = await apiPost<StopRunResp>(`/api/runs/${pid}/stop`, {})
+  if (resp?.outcome !== 'failed') {
+    store.runningSessions = store.runningSessions.filter((s) => s.pid !== pid)
+    store.runningCount = store.runningSessions.filter((s) => !s.ended).length
+  }
   await refreshRunningCount()
   return resp
 }
@@ -723,6 +755,14 @@ export function taskStatusOf(commandId: number): TaskStatus {
 /** 运行历史条目（含开始/结束时间）。 */
 export function taskHistoryOf(commandId: number): RunHistoryEntry | undefined {
   return store.runHistory[commandId]
+}
+
+/** 空闲且尚未在本页启动、没有可看会话的命令，不应请求日志。 */
+export function hasViewableCommandLogs(commandId: number): boolean {
+  const status = taskStatusOf(commandId)
+  if (status === 'running' || status === 'done') return true
+  if (taskHistoryOf(commandId)) return true
+  return store.runningSessions.some((s) => s.commandId === commandId && s.origin === 'Launched' && !s.ended)
 }
 
 function bucketOf(commandId: number): string[] {
@@ -806,7 +846,8 @@ let taskPoll: ReturnType<typeof setInterval> | undefined
 function selectedPollable(): boolean {
   const sel = store.selectedTaskId
   if (sel == null || logUnavailable.has(sel)) return false
-  return taskStatusOf(sel) !== 'done' || tailPull.has(sel)
+  if (taskStatusOf(sel) === 'done') return tailPull.has(sel)
+  return hasViewableCommandLogs(sel)
 }
 
 /** 轮询运行中任务与「日志可用且未终态」的选中任务，保证实时且不刷 404。 */
@@ -840,6 +881,11 @@ export async function selectTask(commandId: number): Promise<void> {
   }
   store.selectedTask = cmd.name
   store.selectedTaskId = commandId
+  // 尚未启动、没有可看会话时不请求日志，避免空闲命令写出 404 失败行
+  if (!hasViewableCommandLogs(commandId)) {
+    ensureTaskPolling()
+    return
+  }
   // 冷态已判过 404 的命令直接显示本地留存日志，不再打网络请求（修 B-2）
   if (!logUnavailable.has(commandId) || taskStatusOf(commandId) === 'running') await pullTaskLogs(commandId)
   ensureTaskPolling()

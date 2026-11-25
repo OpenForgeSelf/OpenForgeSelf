@@ -184,4 +184,29 @@ describe('v1.0.4 运行页一屏：检查到的进程并入命令列表', () => 
     expect(wb.store.runningCount).toBe(0)
     expect(wb.unmatchedSessionsFor(wb.currentProject())).toHaveLength(0)
   })
+
+  it('GET /api/runs 只有本页启动会话时，不整表覆盖检查到的进程', async () => {
+    wb.store.runningSessions = [live(11, 100), live(0, 200)] as never
+    http.apiGet.mockResolvedValue({ total: 1, runs: [live(11, 100, 'Launched')] })
+    await wb.refreshRunningCount()
+    expect(wb.liveSessionOfCommand(1, 11)?.origin).toBe('Launched')
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([200])
+    expect(wb.store.runningCount).toBe(2)
+  })
+
+  it('GET /api/runs 带回检测会话时，以对端列表为准，已退出的检测进程不再保留', async () => {
+    wb.store.runningSessions = [live(0, 200), live(0, 300)] as never
+    http.apiGet.mockResolvedValue({ total: 1, runs: [live(0, 200)] })
+    await wb.refreshRunningCount()
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([200])
+  })
+
+  it('选中尚未启动、没有可看会话的命令时不请求日志，也不写 404 失败行', async () => {
+    http.apiGet.mockRejectedValue(new Error('请求失败(404): 须由本页启动且宿主未重启'))
+    await wb.selectTask(11)
+    expect(http.apiGet).not.toHaveBeenCalled()
+    expect(wb.taskLogsOf(11).some((l) => l.includes('读取日志失败'))).toBe(false)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(http.apiGet).not.toHaveBeenCalled()
+  })
 })

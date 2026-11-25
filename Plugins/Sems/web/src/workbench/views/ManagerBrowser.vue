@@ -6,7 +6,8 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { ic } from '../icons'
-import { store, browse, go, toast, registerProject } from '../workbenchStore'
+import { store, browse, go, toast, registerProject, openProject } from '../workbenchStore'
+import { alreadyRegisteredProjectMessage } from '../../registerOps'
 import DirectoryPickerDialog from '../../DirectoryPickerDialog.vue'
 
 const props = defineProps<{ mode: 'create' | 'import' }>()
@@ -47,24 +48,32 @@ function startWizard() {
 async function importHere() {
   if (busy.value) return
   busy.value = true
-  const p = await registerProject(store.folder.cwd)
+  const result = await registerProject(store.folder.cwd)
   busy.value = false
-  if (p) {
-    toast(`已导入项目「${p.name}」`)
-    go('/projects')
+  if (!result) return
+  if (result.alreadyExisted) {
+    toast(alreadyRegisteredProjectMessage(result.project.name))
+    openProject(result.project.id)
+    return
   }
+  toast(`已导入项目「${result.project.name}」`)
+  go('/projects')
 }
 
 async function onPick(payload: { root: string; name?: string }) {
   if (busy.value) return
   busy.value = true
-  const p = await registerProject(payload.root, payload.name)
+  const result = await registerProject(payload.root, payload.name)
   busy.value = false
   picking.value = false
-  if (p) {
-    toast(`已登记项目「${p.name}」（原目录选择器）`)
-    go('/projects')
+  if (!result) return
+  if (result.alreadyExisted) {
+    toast(alreadyRegisteredProjectMessage(result.project.name))
+    openProject(result.project.id)
+    return
   }
+  toast(`已登记项目「${result.project.name}」（原目录选择器）`)
+  go('/projects')
 }
 
 onMounted(() => { void browse() })

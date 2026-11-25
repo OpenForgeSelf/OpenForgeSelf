@@ -103,11 +103,11 @@ describe('D-2 显示偏好真实落盘', () => {
 
 describe('D-1 2 步向导只写回真实档案字段', () => {
   it('POST 登记后 PUT 写回 type/tags/description，不含任何脚手架假字段', async () => {
-    http.apiPost.mockResolvedValue({ project: { id: 7, root: 'D:/verify', name: '验收项目' } })
+    http.apiPost.mockResolvedValue({ project: { id: 7, root: 'D:/new-app', name: '新项目' } })
     http.apiPut.mockResolvedValue({})
     http.apiGet.mockResolvedValue({ projects: [], total: 0 })
 
-    await wb.registerProject('D:/verify', '验收项目', {
+    await wb.registerProject('D:/new-app', '新项目', {
       type: 'frontend', tags: 'a,b', description: '说明',
     })
 
@@ -116,6 +116,19 @@ describe('D-1 2 步向导只写回真实档案字段', () => {
     expect(url).toBe('/api/projects/7')
     expect(body).toEqual({ type: 'frontend', tags: 'a,b', description: '说明' })
     expect(JSON.stringify(body)).not.toMatch(/packageManager|preset|git|bare|commitMessage|features/)
+  })
+})
+
+describe('F03 同一路径再次登记', () => {
+  it('已存在的路径不发登记或写回请求，并标 alreadyExisted', async () => {
+    const result = await wb.registerProject('D:/verify/', '新名字', {
+      type: 'tool', tags: 'x', description: '覆盖',
+    })
+    expect(result?.alreadyExisted).toBe(true)
+    expect(result?.project.id).toBe(1)
+    expect(result?.project.name).toBe('验收项目')
+    expect(http.apiPost).not.toHaveBeenCalled()
+    expect(http.apiPut).not.toHaveBeenCalled()
   })
 })
 

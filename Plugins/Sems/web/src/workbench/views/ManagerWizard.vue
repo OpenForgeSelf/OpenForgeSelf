@@ -14,6 +14,7 @@ import {
   store, go, toast, registerProject, openProject,
 } from '../workbenchStore'
 import type { WbWizardMeta } from '../workbenchStore'
+import { alreadyRegisteredProjectMessage } from '../../registerOps'
 
 const busy = ref(false)
 const error = ref('')
@@ -53,16 +54,18 @@ async function next() {
     tags: w.tags.trim(),
     description: w.description.trim(),
   }
-  const p = await registerProject(root.value, w.name.trim(), meta)
+  const result = await registerProject(root.value, w.name.trim(), meta)
   busy.value = false
-  if (!p) return
-  openProject(p.id)
+  if (!result) return
+  openProject(result.project.id)
   w.step = 0
   w.name = ''
   w.type = ''
   w.tags = ''
   w.description = ''
-  toast(`项目已登记：${p.name}`)
+  toast(result.alreadyExisted
+    ? alreadyRegisteredProjectMessage(result.project.name)
+    : `项目已登记：${result.project.name}`)
 }
 </script>
 

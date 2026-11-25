@@ -21,6 +21,7 @@ import type {
 import { filterEngineeringPlugins, parseEngineeringPluginsPayload, type EngineeringPlugin } from '../engineeringPlugins'
 import { listSpecs } from '../specApi'
 import { isRemoveBlockedByRunningError } from '../confirmOps'
+import { sameProjectRoot } from '../registerOps'
 
 /* ------------------------------------------------------------------ *
  * 类型
@@ -582,28 +583,48 @@ export function runningSessionCountOf(p: WbProject): number {
   return (p.commands ?? []).filter((c) => taskStatusOf(c.id) === 'running').length
 }
 
-/** 登记目录为项目（真实 POST /api/projects；demo 模式在本地追加）。 */
-export async function registerProject(root: string, name?: string, wizardMeta?: WbWizardMeta): Promise<WbProject | null> {
+export function findProjectByRoot(root: string): WbProject | undefined {
+  const path = root.trim()
+  if (!path) return undefined
+  return store.projects.find((p) => sameProjectRoot(p.path, path))
+}
+
+export interface RegisterProjectOutcome {
+  project: WbProject
+  alreadyExisted: boolean
+}
+
+/** 登记目录为项目（真实 POST /api/projects；demo 模式在本地追加）。同一路径已登记时不写回、不新建。 */
+export async function registerProject(root: string, name?: string, wizardMeta?: WbWizardMeta): Promise<RegisterProjectOutcome | null> {
   if (!root) return null
+  const existed = findProjectByRoot(root)
+  if (existed) {
+    return { project: existed, alreadyExisted: true }
+  }
   if (store.mode === 'live') {
     try {
+      const knownIds = new Set(store.projects.map((p) => p.id))
       const resp = await apiPost<{ project: ProjectInfo }>('/api/projects', { root, name: name || undefined })
       if (!resp?.project) throw new Error('后端未返回项目档案')
-      // 2 步向导填的档案字段写回真实后端（PUT 支持 type / tags / description）
       const id = resp.project.id
-      const update: Record<string, string> = {}
-      if (wizardMeta?.type?.trim()) update.type = wizardMeta.type.trim()
-      if (wizardMeta?.tags?.trim()) update.tags = wizardMeta.tags.trim()
-      if (wizardMeta?.description?.trim()) update.description = wizardMeta.description.trim()
-      if (Object.keys(update).length) {
-        try { await apiPut(`/api/projects/${id}`, update) } catch {
-          // BR-1：登记成功但写回失败时可独立重试（S09「编辑项目档案」是现成的重试入口）
-          toast('档案字段写回失败，可在「项目设置 → 编辑项目档案」重新填写')
+      const alreadyExisted = knownIds.has(id)
+      // 2 步向导填的档案字段只在新建时写回，避免再次登记覆盖已有名称与描述
+      if (!alreadyExisted) {
+        const update: Record<string, string> = {}
+        if (wizardMeta?.type?.trim()) update.type = wizardMeta.type.trim()
+        if (wizardMeta?.tags?.trim()) update.tags = wizardMeta.tags.trim()
+        if (wizardMeta?.description?.trim()) update.description = wizardMeta.description.trim()
+        if (Object.keys(update).length) {
+          try { await apiPut(`/api/projects/${id}`, update) } catch {
+            // BR-1：登记成功但写回失败时可独立重试（S09「编辑项目档案」是现成的重试入口）
+            toast('档案字段写回失败，可在「项目设置 → 编辑项目档案」重新填写')
+          }
         }
+        if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
       }
-      if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
       await loadProjects()
-      return store.projects.find((p) => p.id === id) ?? null
+      const project = store.projects.find((p) => p.id === id) ?? fromDto(resp.project)
+      return { project, alreadyExisted }
     } catch (e) {
       toast('登记失败：' + (e instanceof Error ? e.message : String(e)))
       return null
@@ -619,7 +640,7 @@ export async function registerProject(root: string, name?: string, wizardMeta?: 
   }
   if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
   store.projects.unshift(p)
-  return p
+  return { project: p, alreadyExisted: false }
 }
 
 /** 目录浏览（真实 GET /api/projects/browse）。 */

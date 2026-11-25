@@ -150,3 +150,38 @@ describe('F11 没有命令时启动全部不得空转成功', () => {
     expect(wb.store.toasts.some((t) => t.text.includes('启动完成'))).toBe(false)
   })
 })
+
+describe('v1.0.4 运行页一屏：检查到的进程并入命令列表', () => {
+  const live = (commandId: number, pid: number, origin = 'Detected') => ({
+    commandId, projectId: 1, projectName: '验收项目', commandName: commandId ? 'verify' : 'node', pid,
+    startedAt: '', origin,
+  })
+
+  it('没有已登记命令时「检查」仍可调用，结果只进运行会话，不写命令档案', async () => {
+    wb.store.projects = [{ ...(project as object), commands: [] } as never]
+    http.apiPost.mockResolvedValue({ total: 1, runs: [live(0, 4321)] })
+    await wb.checkRuns()
+    expect(http.apiPost).toHaveBeenCalledWith('/api/runs/check', {})
+    expect(http.apiPost).toHaveBeenCalledTimes(1)
+    expect(http.apiPut).not.toHaveBeenCalled()
+    expect(wb.currentProject()?.commands).toHaveLength(0)
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([4321])
+  })
+
+  it('对得上命令的进程只挂在该命令行，不另占一行；对不上的才单独列出', async () => {
+    http.apiPost.mockResolvedValue({ total: 2, runs: [live(11, 100), live(0, 200)] })
+    await wb.checkRuns()
+    expect(wb.liveSessionOfCommand(1, 11)?.pid).toBe(100)
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([200])
+  })
+
+  it('按进程标识停止后同步运行会话与计数', async () => {
+    wb.store.runningSessions = [live(0, 200)] as never
+    http.apiPost.mockResolvedValue({ outcome: 'stopped' })
+    http.apiGet.mockResolvedValue({ total: 0, runs: [] })
+    await wb.stopSessionByPid(200)
+    expect(http.apiPost).toHaveBeenCalledWith('/api/runs/200/stop', {})
+    expect(wb.store.runningCount).toBe(0)
+    expect(wb.unmatchedSessionsFor(wb.currentProject())).toHaveLength(0)
+  })
+})

@@ -457,3 +457,14 @@
   color:var(--el-color-primary);background:var(--gold-tint);
   border:1px solid var(--el-border-color);border-radius:var(--el-border-radius-small)}
 .wb .wb-legacy-side:hover{border-color:var(--el-color-primary)}
+
+/* 运行页一屏：列表与日志各自滚动，页面不再向下堆叠 */
+.wb .run-screen{overflow:hidden;display:flex;flex-direction:column;padding-bottom:20px}
+.wb .run-screen .task-layout{flex:1;min-height:0}
+.wb .run-screen .task-list{flex:1;min-height:0;overflow:auto}
+.wb .run-screen .task-detail{min-height:0}
+.wb .run-screen .log-box{flex:1;min-height:0;max-height:none;overflow:auto}
+.wb .run-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--el-text-color-placeholder)}
+.wb .run-dot.warn{background:var(--el-color-warning)}
+.wb .run-dot.ok{background:var(--el-color-success)}
+@media (max-width: 900px){.wb .run-screen{overflow:auto}}

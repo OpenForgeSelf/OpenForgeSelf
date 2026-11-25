@@ -675,6 +675,36 @@ export async function refreshRunningCount(): Promise<void> {
   } catch { /* 状态栏统计不阻断主流程 */ }
 }
 
+/**
+ * 运行页「检查」（F10）：捕获本机属于项目的进程，并入运行会话。
+ * 没有已登记命令时也可调用；结果只更新会话，不写入命令档案。
+ */
+export async function checkRuns(): Promise<void> {
+  if (store.mode !== 'live') return
+  const r = await apiPost<RunsResp>('/api/runs/check', {})
+  store.runningSessions = (r?.runs ?? []).filter((s) => !s.ended)
+  store.runningCount = store.runningSessions.length
+}
+
+/** 命令行对应的运行中会话（本页启动或检查捕获）；没有则 undefined。 */
+export function liveSessionOfCommand(projectId: number, commandId: number): RunSession | undefined {
+  return store.runningSessions.find((s) => s.projectId === projectId && s.commandId === commandId && !s.ended)
+}
+
+/** 对不上任何已登记命令的运行中进程：单独成行，只能停止，不读日志。 */
+export function unmatchedSessionsFor(p: WbProject | null): RunSession[] {
+  if (!p) return []
+  const ids = new Set(p.commands.map((c) => c.id))
+  return runningSessionsFor(p.id).filter((s) => !s.commandId || !ids.has(s.commandId))
+}
+
+/** 按本机进程标识停止（检查捕获的进程）；结束后同步运行会话与计数。 */
+export async function stopSessionByPid(pid: number): Promise<StopRunResp | undefined> {
+  const resp = await apiPost<StopRunResp>(`/api/runs/${pid}/stop`, {})
+  await refreshRunningCount()
+  return resp
+}
+
 /** 任务日志：按命令取，切换任务不丢。 */
 export function taskLogsOf(commandId: number | null): string[] {
   if (commandId == null) return []

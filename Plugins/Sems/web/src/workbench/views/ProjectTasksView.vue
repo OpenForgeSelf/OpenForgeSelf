@@ -1,38 +1,49 @@
 <script setup lang="ts">
 /**
- * 运行页：左栏命令列表（含添加 / 编辑 / 删除），右栏日志与启动 / 停止。
- * 「启动全部」只在页头；运行面板只保留检查和会话列表。
+ * 运行页（一屏）：页头「检查」「启动全部」；左栏命令列表（添加 / 编辑 / 删除）
+ * 并入检查到的本机进程；右栏日志与启动 / 停止。
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ic } from '../icons'
 import {
   store, currentProject, projectTasks, runTask, startAllTasks, stopTask,
   selectTask, clearSelectedTask, taskLogsOf, taskStatusOf, taskHistoryOf,
-  loadProjects, refreshRunningCount, toast,
+  loadProjects, refreshRunningCount, checkRuns, liveSessionOfCommand,
+  unmatchedSessionsFor, stopSessionByPid,
 } from '../workbenchStore'
-import RunPanel from '../../RunPanel.vue'
 import { apiPost, apiPut, apiDelete } from '../../http'
-import { deleteCommandMessage, errorMessage, runWithConfirm } from '../../confirmOps'
-import type { RunCommandAdd, RunCommandInfo, RunCommandUpdate } from '../../types'
+import {
+  deleteCommandMessage, errorMessage, runWithConfirm, stopExternalMessage,
+} from '../../confirmOps'
+import type { RunCommandAdd, RunCommandInfo, RunCommandUpdate, RunSession } from '../../types'
 
 const p = computed(() => currentProject())
 const tasks = computed(() => projectTasks(p.value))
-const runPanelRef = ref<InstanceType<typeof RunPanel> | null>(null)
 const logBox = ref<HTMLElement | null>(null)
-const commandUrls = computed<Record<number, string>>(() => {
-  const m: Record<number, string> = {}
-  for (const c of p.value?.commands ?? []) if (c.url) m[c.id] = c.url
-  return m
-})
 const launchableCount = computed(() => p.value?.commands?.length ?? 0)
-const canOperate = computed(() => launchableCount.value > 0 && !!selectedTask.value)
+const hasCommands = computed(() => launchableCount.value > 0)
+/** 对不上已登记命令的进程，单独成行。 */
+const extras = computed<RunSession[]>(() => unmatchedSessionsFor(p.value))
 
 const selectedId = computed<number | null>(() => store.selectedTaskId)
 const selectedTask = computed(() => tasks.value.find((t) => t.id === selectedId.value) ?? null)
+/** 选中的外部进程（与命令选中互斥）。 */
+const selectedPid = ref<number | null>(null)
+const selectedExtra = computed(() => extras.value.find((s) => s.pid === selectedPid.value) ?? null)
+
 const logs = computed<string[]>(() => taskLogsOf(selectedId.value))
-const status = computed(() => (selectedId.value == null ? 'idle' : taskStatusOf(selectedId.value)))
 const history = computed(() => (selectedId.value == null ? undefined : taskHistoryOf(selectedId.value)))
+
+function sessionOf(commandId: number): RunSession | undefined {
+  return p.value ? liveSessionOfCommand(p.value.id, commandId) : undefined
+}
+/** 命令行状态：本页启动的或检查捕获的进程，都只在这一行显示。 */
+function rowStatus(commandId: number): string {
+  if (taskStatusOf(commandId) === 'running' || sessionOf(commandId)) return 'running'
+  return taskStatusOf(commandId)
+}
+const status = computed(() => (selectedId.value == null ? 'idle' : rowStatus(selectedId.value)))
 
 function statusText(s: string): string {
   return s === 'running' ? '运行中' : s === 'done' ? '已完成' : '空闲'
@@ -43,23 +54,31 @@ function statusClass(s: string): string {
 function fmtTime(iso?: string): string {
   if (!iso) return '—'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
   return d.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
 async function onSelect(id: number) {
+  selectedPid.value = null
   await selectTask(id)
   await scrollToBottom()
 }
 
+function onSelectExtra(pid: number) {
+  clearSelectedTask()
+  selectedPid.value = pid
+}
+
 async function syncSelection() {
-  if (!tasks.value.length) {
-    if (selectedId.value != null) clearSelectedTask()
+  if (selectedPid.value != null && !selectedExtra.value) selectedPid.value = null
+  if (selectedPid.value != null) return
+  if (tasks.value.some((t) => t.id === selectedId.value)) return
+  if (tasks.value.length) {
+    await onSelect(tasks.value[0].id)
     return
   }
-  if (!tasks.value.some((t) => t.id === selectedId.value)) {
-    await onSelect(tasks.value[0].id)
-  }
+  if (selectedId.value != null) clearSelectedTask()
+  if (extras.value.length) onSelectExtra(extras.value[0].pid)
 }
 
 async function scrollToBottom() {
@@ -77,12 +96,54 @@ async function onRun() {
 
 const stopping = ref(false)
 
+async function confirmStop(message: string): Promise<boolean> {
+  try {
+    await ElMessageBox.confirm(message, '停止进程', {
+      type: 'warning',
+      confirmButtonText: '确认停止',
+      cancelButtonText: '取消',
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 按进程标识停止（检查捕获的进程），先确认后请求。 */
+async function stopByPid(s: RunSession) {
+  const result = await runWithConfirm({
+    title: '停止进程',
+    message: stopExternalMessage(s.projectName, s.commandName, s.pid),
+    confirm: confirmStop,
+    action: () => stopSessionByPid(s.pid),
+  })
+  if (result.outcome === 'done') {
+    const resp = result.data as { outcome?: string; message?: string } | undefined
+    if (resp?.outcome === 'already-stopped') ElMessage.info(resp.message || '进程已不在运行，无需停止')
+    else ElMessage.success(`已停止进程 PID ${s.pid}`)
+  } else if (result.outcome === 'failed') {
+    ElMessage.error(`停止失败：${result.error}`)
+  }
+}
+
 async function onStop() {
   const t = selectedTask.value
-  if (!t || stopping.value) return
+  const extra = selectedExtra.value
+  if (stopping.value || (!t && !extra)) return
   stopping.value = true
   try {
-    await stopTask(t.id, t.name)
+    if (extra) {
+      await stopByPid(extra)
+      await syncSelection()
+      return
+    }
+    const s = sessionOf(t!.id)
+    // 检查捕获、对得上命令的进程：本页没有启动记录，按进程标识停止
+    if (s && s.origin !== 'Launched' && taskStatusOf(t!.id) !== 'running') await stopByPid(s)
+    else {
+      await stopTask(t!.id, t!.name)
+      await refreshRunningCount()
+    }
   } finally {
     stopping.value = false
   }
@@ -90,7 +151,20 @@ async function onStop() {
 
 async function onRunAll() {
   await startAllTasks()
-  await runPanelRef.value?.refresh()
+}
+
+const checking = ref(false)
+async function onCheck() {
+  if (checking.value) return
+  checking.value = true
+  try {
+    await checkRuns()
+    await syncSelection()
+  } catch (e) {
+    ElMessage.error(`检查失败：${errorMessage(e)}`)
+  } finally {
+    checking.value = false
+  }
 }
 
 async function onChanged() {
@@ -101,10 +175,19 @@ async function onChanged() {
 
 watch(selectedId, async () => { await nextTick(); scrollToBottom() })
 watch(() => logs.value.length, () => { void scrollToBottom() })
+watch(() => extras.value.map((s) => s.pid).join(','), () => { void syncSelection() })
+
+/** 有进程在跑时定时同步运行会话，保证行内状态和计数一致。 */
+let sessionPoll: ReturnType<typeof setInterval> | undefined
+watch(() => store.runningSessions.length, (n) => {
+  if (n > 0 && !sessionPoll) sessionPoll = setInterval(() => { void refreshRunningCount() }, 3000)
+  if (n === 0 && sessionPoll) { clearInterval(sessionPoll); sessionPoll = undefined }
+}, { immediate: true })
+onUnmounted(() => { if (sessionPoll) clearInterval(sessionPoll) })
 
 onMounted(async () => {
-  await syncSelection()
   await refreshRunningCount()
+  await syncSelection()
 })
 
 /* ---- 左栏添加 / 编辑 / 删除 ---- */
@@ -195,18 +278,16 @@ async function removeCommand(cmd: RunCommandInfo) {
   <div class="proj-header">
     <h2>运行</h2>
     <div class="proj-tools">
-      <span class="wb-badge info">运行中 {{ store.runningCount }}</span>
-      <button class="btn btn-secondary" :disabled="launchableCount === 0" @click="onRunAll()">
-        <span v-html="ic('play', 'sm')"></span>启动全部
+      <button class="btn btn-secondary" :disabled="checking" @click="onCheck()">
+        <span v-html="ic('refresh', 'sm')"></span>{{ checking ? '检查中…' : '检查' }}
       </button>
-      <span v-if="launchableCount === 0" class="wb-hint">没有可启动的命令</span>
-      <button class="btn btn-secondary" @click="onChanged()">
-        <span v-html="ic('refresh', 'sm')"></span>刷新
+      <button class="btn btn-secondary" :disabled="!hasCommands" @click="onRunAll()">
+        <span v-html="ic('play', 'sm')"></span>启动全部
       </button>
     </div>
   </div>
 
-  <div class="proj-canvas">
+  <div class="proj-canvas run-screen">
     <div class="task-layout">
       <div class="task-panel">
         <div class="task-tools">
@@ -214,44 +295,53 @@ async function removeCommand(cmd: RunCommandInfo) {
             <span v-html="ic('search', 'sm')"></span>
             <input v-model="store.taskFilter" placeholder="搜索命令" aria-label="搜索命令" />
           </label>
-          <button class="btn btn-secondary btn-sm" :disabled="!p" @click="openAdd()">
-            添加命令
+          <button class="btn btn-sm" :class="hasCommands ? 'btn-secondary' : 'btn-primary'"
+                  :disabled="!p" @click="openAdd()">
+            添加
           </button>
         </div>
-        <div v-if="!tasks.length" class="wb-empty-inline">暂无运行命令，请在左侧添加</div>
-        <div v-for="t in tasks" :key="t.id" class="task-item" :class="{ sel: t.id === selectedId }"
-             @click="onSelect(t.id)">
-          <span class="row-icon"><span v-html="ic(t.name === 'lint' ? 'tasks' : 'play', 'sm')"></span></span>
-          <div class="row-main">
-            <div class="row-title">{{ t.name }}</div>
-            <div class="row-sub">
-              {{ statusText(t.status) }} · {{ t.description }}
+        <div class="task-list">
+          <div v-if="!hasCommands && !extras.length" class="wb-empty-inline">还没有命令，点「添加」新建一条</div>
+          <div v-for="t in tasks" :key="t.id" class="task-item" :class="{ sel: t.id === selectedId }"
+               @click="onSelect(t.id)">
+            <div class="row-main">
+              <div class="row-title">{{ t.name }}</div>
+              <div class="row-sub">
+                <span class="run-dot" :class="statusClass(rowStatus(t.id))"></span>{{ statusText(rowStatus(t.id)) }}<template v-if="sessionOf(t.id)"> · PID {{ sessionOf(t.id)!.pid }}</template>
+              </div>
+            </div>
+            <div class="task-item-ops">
+              <button class="btn-icon" aria-label="编辑" @click.stop="openEdit(t.id)">
+                <span v-html="ic('pencil', 'sm')"></span>
+              </button>
+              <button class="btn-icon danger" aria-label="删除" @click.stop="removeCommand(t)">
+                <span v-html="ic('close', 'sm')"></span>
+              </button>
             </div>
           </div>
-          <span v-if="t.status === 'running'" class="spinner"></span>
-          <span v-else-if="t.status === 'done'" class="wb-badge ok sm">完成</span>
-          <div class="task-item-ops">
-            <button class="btn-icon" aria-label="编辑" @click.stop="openEdit(t.id)">
-              <span v-html="ic('pencil', 'sm')"></span>
-            </button>
-            <button class="btn-icon danger" aria-label="删除" @click.stop="removeCommand(t)">
-              <span v-html="ic('close', 'sm')"></span>
-            </button>
+          <div v-for="s in extras" :key="`pid-${s.pid}`" class="task-item" :class="{ sel: s.pid === selectedPid }"
+               @click="onSelectExtra(s.pid)">
+            <div class="row-main">
+              <div class="row-title">{{ s.commandName }}</div>
+              <div class="row-sub"><span class="run-dot warn"></span>本机进程 · PID {{ s.pid }}</div>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="task-detail">
-        <template v-if="canOperate">
+        <template v-if="selectedTask">
           <div class="task-detail-head">
             <div class="task-detail-title">
-              <strong>{{ selectedTask?.name }}</strong>
+              <strong>{{ selectedTask.name }}</strong>
               <span class="wb-badge" :class="statusClass(status)">{{ statusText(status) }}</span>
               <span v-if="history" class="task-time">
                 起 {{ fmtTime(history.startedAt) }}<template v-if="history.endedAt"> · 止 {{ fmtTime(history.endedAt) }}</template>
               </span>
             </div>
             <div class="task-detail-actions">
+              <a v-if="selectedTask.url && status === 'running'" class="btn btn-secondary" :href="selectedTask.url"
+                 target="_blank" rel="noopener">打开</a>
               <button class="btn btn-primary" :disabled="status === 'running'" @click="onRun()">
                 <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '启动' }}
               </button>
@@ -260,37 +350,38 @@ async function removeCommand(cmd: RunCommandInfo) {
               </button>
             </div>
           </div>
-
           <div class="task-script">
-            <span v-html="ic('terminal', 'sm')"></span>{{ selectedTask?.script }}
+            <span v-html="ic('terminal', 'sm')"></span>{{ selectedTask.script }}
           </div>
-
           <div ref="logBox" class="log log-box">
-            <div v-if="!logs.length" class="wb-empty-inline">
-              选择左侧命令后点击「启动」，实时输出会持续追加到这里。
-            </div>
+            <div v-if="!logs.length" class="wb-empty-inline">点「启动」后输出显示在这里</div>
             <div v-for="(l, i) in logs" :key="i" class="log-line"
                  :class="{ err: l.startsWith('[err]') || l.startsWith('✗'), ok: l.startsWith('✓') }">
               {{ l }}
             </div>
           </div>
         </template>
-        <div v-else class="wb-empty-inline">
-          还没有运行命令。请在左侧添加一条后再启动。
-        </div>
+        <template v-else-if="selectedExtra">
+          <div class="task-detail-head">
+            <div class="task-detail-title">
+              <strong>{{ selectedExtra.commandName }}</strong>
+              <span class="wb-badge warn">运行中</span>
+              <span class="task-time">PID {{ selectedExtra.pid }}</span>
+            </div>
+            <div class="task-detail-actions">
+              <button class="btn btn-secondary" :disabled="stopping" @click="onStop()">
+                <span v-html="ic('close', 'sm')"></span>{{ stopping ? '停止中…' : '停止' }}
+              </button>
+            </div>
+          </div>
+          <div class="wb-empty-inline">检查到的本机进程，读不到输出，只能停止</div>
+        </template>
+        <div v-else class="wb-empty-inline">在左侧添加命令后即可启动</div>
       </div>
-    </div>
-
-    <div class="wb-embedded">
-      <h3>运行会话</h3>
-      <RunPanel ref="runPanelRef" :command-urls="commandUrls" :launchable-count="launchableCount"
-                :emphasize-run-all="false" :show-run-all="false"
-                @count="(n: number) => (store.runningCount = n)" />
-      <p class="wb-hint">运行会话只保存在宿主内存中，宿主重启后清空；完成记录与日志在前端本地留存，不会因会话消失而丢失。</p>
     </div>
   </div>
 
-  <div v-if="dialogOpen" class="cmd-dlg">
+<div v-if="dialogOpen" class="cmd-dlg">
     <div class="cmd-dlg-mask" @click="dialogOpen = false"></div>
     <div class="cmd-dlg-box">
       <h3>{{ editing ? '编辑命令' : '添加命令' }}</h3>

@@ -32,6 +32,7 @@
 | XCode 实体直插时间戳 / CreatedAt / UpdatedAt / 0001-01-01 | PC-022 |
 | 执行记录文件清单 / ToolCallsJson 提取 / 双编码 JSON / 留痕参数面 | PC-023 |
 | UI 主题 / 暗色对比度 / primary light-N / 选中行·标签·横幅 | PC-025 |
+| 主题跟随系统 / light-dark 实际主题枚举 / 第三主题选项 / 主题持久化迁移 | PC-051 |
 | 插件前端类名 / 宿主 Tailwind 工具类 / table display / 表头内容错列 | PC-026 |
 | JSON 序列化 / 中文转义 \uXXXX / Encoder / System.Text.Json 写出路径 | PC-027 |
 | 对外别名 PublicAlias / 网关 model 解析 / Responses 把别名发给上游 | PC-028 |
@@ -106,6 +107,7 @@
 | PC-048 | 发布链 pnpm install 依赖 TTY 确认，无 TTY 清 modules 提示直接 abort 中断发布 | guarded | G2 active（ProblemClassEnumerationTests 断言 install 带 confirmModulesPurge=false）+ G3 签名 | 0 | [PC-048](PC-048-pnpm-install-nontty-purge-confirm.md) |
 | PC-049 | 被宿主引用的 exe 条件式声明 SelfContained 求值失效 → SDK 推断自包含 → NETSDK1151 阻断 publish | guarded | G2 active（ProblemClassEnumerationTests 断言无条件显式 false）+ G3 签名 | 0 | [PC-049](PC-049-release-updateagent-selfcontained-inference.md) |
 | PC-050 | 更新代理 exe 轨先删 staged（=自身 DOTNET_ROOT）再重启，BCL 加载失败宿主未拉起 | guarded | G2 active（ProblemClassEnumerationTests 断言 restart 早于 cleanup）+ G3 签名 | 0 | [PC-050](PC-050-update-agent-cleanup-staged-before-restart.md) |
+| PC-051 | 跟随系统被建模成独立主题值与第三主题选项 | guarded | G1 active（theme/store/settings/appearance 三处守卫） | 0 | [PC-051](PC-051-theme-follow-system-as-third-mode.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

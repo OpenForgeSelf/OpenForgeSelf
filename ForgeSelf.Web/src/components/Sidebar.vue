@@ -23,7 +23,6 @@ const expandedMenus = ref<Set<string>>(new Set())
 const themeModes: Array<{ value: ThemeMode; label: string; shortLabel: string }> = [
   { value: 'light', label: '浅色模式', shortLabel: '浅' },
   { value: 'dark', label: '深色模式', shortLabel: '深' },
-  { value: 'system', label: '跟随系统', shortLabel: '随' },
 ]
 
 const menuTree = computed<MenuTreeItem[]>(() => {
@@ -201,7 +200,7 @@ onMounted(() => {
           :key="theme.value"
           type="button"
           class="theme-btn"
-          :class="{ active: themeStore.mode === theme.value }"
+          :class="{ active: themeStore.resolvedTheme === theme.value }"
           :title="theme.label"
           @click="setThemeMode(theme.value)"
         >

@@ -43,6 +43,7 @@
 
 | 前端轮询 404 反复重试/错误 toast 反复弹（会话已不存在仍轮询） | case [2026-11-05 死会话轮询](cases/2026-11-05-smart-terminal-dead-session-poll-404.md) → [PC-024](problem-classes/PC-024-frontend-poll-error-handling.md) |
 | 暗色下文字/选中行看不见（亮金底浅字），切浅色正常 | case [2026-11-06 DbAdmin 连接名](cases/2026-11-06-dbadmin-dark-connection-contrast.md) → [PC-025](problem-classes/PC-025-dark-theme-token-contrast.md) |
+| 设置页把跟随系统放成第三主题按钮或根属性持久化 system | case [2026-11-25 主题跟随策略](cases/2026-11-25-theme-system-third-mode.md) → [PC-051](problem-classes/PC-051-theme-follow-system-as-third-mode.md) |
 | 插件表格表头与内容列错位 / 表头单元格比数据宽（table 被 display:grid） | case [2026-11-06 DbAdmin 表头错列](cases/2026-11-06-dbadmin-table-header-misalign.md) → [PC-026](problem-classes/PC-026-plugin-class-tailwind-collision.md) |
 | 页签悬浮时宽度突增、后面整排页签跟着移位（hover 显形图标 display 切换挤占布局） | case [2026-11-23 页签悬浮位移](cases/2026-11-23-hover-reveal-width-jump.md) → [PC-042](problem-classes/PC-042-hover-reveal-width-jump.md) |
 | MCP 网关响应中文变 \uFF08、引号变 \u0022（第三方 SDK 传输层序列化，ForgeJson 守卫不可达） | case [2026-11-09 MCP SDK 外层转义](cases/2026-11-09-mcp-sdk-outer-escaping.md) → [PC-027](problem-classes/PC-027-json-nonascii-default-escaping.md)（外层=无缝，记录不修） |

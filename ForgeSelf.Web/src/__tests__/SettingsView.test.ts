@@ -71,7 +71,7 @@ describe('SettingsView', () => {
     expect(navItems[3].classes()).toContain('text-primary')
   })
 
-  it('外观面板渲染主题切换按钮', async () => {
+  it('外观面板只渲染浅色和深色两个主题选择', async () => {
     const wrapper = mountView()
     const navItems = wrapper.findAll('nav[aria-label="设置分类"] button')
 
@@ -80,10 +80,9 @@ describe('SettingsView', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
-    expect(buttons.length).toBe(3)
+    expect(buttons.length).toBe(2)
     expect(buttons[0].text()).toBe('浅色')
     expect(buttons[1].text()).toBe('深色')
-    expect(buttons[2].text()).toBe('跟随系统')
   })
 
   it('点击浅色按钮设置主题为浅色', async () => {
@@ -124,7 +123,7 @@ describe('SettingsView', () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
   })
 
-  it('点击跟随系统按钮设置主题为系统', async () => {
+  it('跟随系统通过独立开关控制且不再占用第三主题选项', async () => {
     const wrapper = mountView()
     const store = useThemeStore()
     store.initialize()
@@ -135,13 +134,16 @@ describe('SettingsView', () => {
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('.el-radio-button')
-    await buttons[2].find('input').trigger('change')
+    expect(wrapper.findAll('.el-switch').length).toBeGreaterThan(0)
+    expect(buttons.length).toBe(2)
+
+    store.setFollowSystem(true)
     await wrapper.vm.$nextTick()
 
-    expect(store.mode).toBe('system')
+    expect(store.isFollowingSystem).toBe(true)
     expect(store.resolvedTheme).toBe('light')
-    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('system')
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('system')
+    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('light')
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
   })
 
   it('主题按钮根据当前模式显示激活状态', async () => {

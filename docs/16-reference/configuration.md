@@ -73,14 +73,14 @@
 
 | 键 | 类型 | 默认值 | 说明 |
 |---|------|--------|------|
-| `ApiEndpoint` | string | `http://localhost:1234/v1` | LLM API 端点（兼容 OpenAI 格式） |
+| `ApiEndpoint` | string | `mock://local` | 空库播种用的接入地址。默认提供方是 Mock，不访问网络 |
 | `ApiKey` | string | `""` | API 密钥 |
-| `ModelName` | string | `llama-3.2-1b-instruct` | 默认模型名 |
+| `ModelName` | string | `mock` | 默认模型名。须能在启用模型目录里匹配，否则解析器改用目录里的第一个 |
 | `MaxTokens` | int | `4096` | 最大生成 tokens |
 | `Temperature` | double | `0.7` | 生成温度 |
 | `TimeoutSeconds` | int | `300` | HTTP 请求超时（秒） |
 
-> 注意：`AI:ModelName` 默认值 `qwythos-9b-v2` 加载失败，已改为 `llama-3.2-1b-instruct`。新建 provider 不填模型名时测试连接兜底 `gpt-3.5-turbo` 必失败（已知问题）。
+> 空库播种的默认提供方是 Mock。出厂且密钥为空的 `localhost:1234` 记录会在下次启动改成 Mock。已经改名或填了密钥的提供方保持原样。
 
 ### Update — 自动更新配置
 

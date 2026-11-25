@@ -338,11 +338,10 @@
     display: flex;
     flex-direction: column;
   }
-  .thread .col { margin-top: auto; width: min(720px, 100%); }
-  .stage.has-rail .thread .col { margin-top: 0; }
+  .thread .col { margin-top: 0; width: 100%; flex-shrink: 0; }
   .stage.empty .thread { display: none; }
   .col {
-    width: min(720px, 100%);
+    width: 100%;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -1497,7 +1496,6 @@ function render() {
   document.getElementById("eyebrow").textContent = `智能体 · ${d.modeLabel}`;
   document.getElementById("pageTitle").textContent = d.title;
   document.getElementById("stage").classList.toggle("empty", current === "empty");
-  document.getElementById("stage").classList.toggle("has-rail", true);
   renderSessions();
   renderThread();
   renderArtifact();

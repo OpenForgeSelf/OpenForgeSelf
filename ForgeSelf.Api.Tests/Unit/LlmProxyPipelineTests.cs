@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text;
 using System.Text.Json.Nodes;
 using ForgeSelf.Abstractions;
 using ForgeSelf.Api.Services.AI;
@@ -424,6 +425,172 @@ public class LlmProxyPipelineTests
         var sent = JsonNode.Parse(capture.Body!)!.AsObject();
         sent["tool_choice"]!.GetValue<string>().Should().Be("required");
         sent["tools"]!.AsArray().Count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task MockProvider_AnswersFromRulesWithoutHttp()
+    {
+        var config = new AIProviderConfig
+        {
+            Name = "mock",
+            ProviderType = AIProviderType.Mock,
+            Endpoint = "mock://local",
+            SupportedModels = ["mock"],
+            IsDefault = true
+        };
+        var provider = new MockLlmProvider(config, new MockLlmDocument
+        {
+            Found = true,
+            Rules = [new MockLlmRule("ping", "pong")],
+            Fallback = "未命中"
+        });
+        var registry = new AIProviderRegistry();
+        registry.RegisterProvider(provider);
+        var client = new LlmProxyChatClient(new LlmProxyPipeline(registry), "mock:mock");
+
+        var text = new StringBuilder();
+        await foreach (var update in client.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, [new TextContent("请 ping 一下")])]))
+        {
+            text.Append(update.Text);
+        }
+
+        text.ToString().Should().Be("pong");
+    }
+
+    [Fact]
+    public async Task MockProvider_FirstTurnEmitsToolCall_FollowUpReturnsText()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mock-cwd-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var previous = MockLlmBindings.ProjectRoot;
+        MockLlmBindings.ProjectRoot = () => root;
+        try
+        {
+            var config = new AIProviderConfig
+            {
+                Name = "mock",
+                ProviderType = AIProviderType.Mock,
+                Endpoint = "mock://local",
+                SupportedModels = ["mock"],
+                IsDefault = true
+            };
+            var provider = new MockLlmProvider(config, new MockLlmDocument
+            {
+                Found = true,
+                Fallback = "未命中",
+                Rules =
+                [
+                    new MockLlmRule(
+                        "列出当前项目根目录",
+                        "列完了。",
+                        [new MockLlmToolCall("list_files", """{"cwd":"{{cwd}}"}""")])
+                ]
+            });
+            var registry = new AIProviderRegistry();
+            registry.RegisterProvider(provider);
+            var pipeline = new LlmProxyPipeline(registry);
+
+            var first = await pipeline.ExecuteAsync(new LlmProxyRequest
+            {
+                Protocol = LlmWireProtocol.ChatCompletions,
+                BodyJson = """{"model":"mock:mock","stream":true,"messages":[{"role":"user","content":"请调用 list_files 工具列出当前项目根目录"}]}"""
+            });
+            var firstText = await new StreamReader(first.Body!).ReadToEndAsync();
+            firstText.Should().Contain("list_files");
+            firstText.Should().Contain("tool_calls");
+            firstText.Should().Contain("mock-cwd-");
+            SseText(firstText).Should().NotContain("列完了");
+
+            var second = await pipeline.ExecuteAsync(new LlmProxyRequest
+            {
+                Protocol = LlmWireProtocol.ChatCompletions,
+                BodyJson = """{"model":"mock:mock","stream":true,"messages":[{"role":"user","content":"请调用 list_files 工具列出当前项目根目录"},{"role":"tool","content":"README.md"}]}"""
+            });
+            var secondText = await new StreamReader(second.Body!).ReadToEndAsync();
+            SseText(secondText).Should().Contain("列完了");
+            secondText.Should().NotContain("list_files");
+        }
+        finally
+        {
+            MockLlmBindings.ProjectRoot = previous;
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task MockProvider_StepsWalkTextToolTextTool()
+    {
+        var provider = new MockLlmProvider(
+            new AIProviderConfig { Name = "mock", ProviderType = AIProviderType.Mock, IsDefault = true },
+            new MockLlmDocument
+            {
+                Found = true,
+                Fallback = "未命中",
+                Rules =
+                [
+                    new MockLlmRule(
+                        "多轮",
+                        "结束",
+                        Steps:
+                        [
+                            new MockLlmStep("先看目录。", [new MockLlmToolCall("list_files", "{}")]),
+                            new MockLlmStep("目录列出来了。", [new MockLlmToolCall("read_file", "{}")]),
+                            new MockLlmStep("两轮都完成了。", [new MockLlmToolCall("task_complete", """{"summary":"完成"}""")])
+                        ])
+                ]
+            });
+
+        MockLlmTurn At(params string[] roles)
+        {
+            return provider.Describe(new UnifiedChatRequest
+            {
+                Messages = roles.Select(role => new UnifiedChatMessage { Role = role, Content = "多轮" }).ToList()
+            });
+        }
+
+        var first = At("user");
+        first.Content.Should().Be("先看目录。");
+        first.ToolCalls.Select(call => call.Name).Should().Equal("list_files");
+
+        var second = At("user", "assistant", "tool");
+        second.Content.Should().Be("目录列出来了。");
+        second.ToolCalls.Select(call => call.Name).Should().Equal("read_file");
+
+        var split = At("user", "assistant", "assistant", "tool");
+        split.Content.Should().Be("目录列出来了。");
+        split.ToolCalls.Select(call => call.Name).Should().Equal("read_file");
+
+        var third = At("user", "assistant", "tool", "assistant", "tool");
+        third.Content.Should().Be("两轮都完成了。");
+        third.ToolCalls.Select(call => call.Name).Should().Equal("task_complete");
+
+        var registry = new AIProviderRegistry();
+        registry.RegisterProvider(provider);
+        var pipeline = new LlmProxyPipeline(registry);
+        var streamed = await pipeline.ExecuteAsync(new LlmProxyRequest
+        {
+            Protocol = LlmWireProtocol.ChatCompletions,
+            BodyJson = """{"model":"mock:mock","stream":true,"messages":[{"role":"user","content":"多轮"}]}"""
+        });
+        var sse = await new StreamReader(streamed.Body!).ReadToEndAsync();
+        sse.Should().Contain("list_files");
+        SseText(sse).Should().Contain("先看目录");
+    }
+
+    private static string SseText(string sse)
+    {
+        var sb = new StringBuilder();
+        foreach (var line in sse.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (!trimmed.StartsWith("data:", StringComparison.Ordinal)) continue;
+            var payload = trimmed["data:".Length..].Trim();
+            if (payload == "[DONE]") continue;
+            var content = JsonNode.Parse(payload)?["choices"]?[0]?["delta"]?["content"]?.GetValue<string>();
+            if (!string.IsNullOrEmpty(content)) sb.Append(content);
+        }
+        return sb.ToString();
     }
 
     private static (LlmProxyPipeline Pipeline, CaptureHandler Capture) CreateChat(

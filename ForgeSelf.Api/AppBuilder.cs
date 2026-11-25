@@ -601,6 +601,15 @@ public static class AppBuilder
             var providerService = seedScope.ServiceProvider.GetRequiredService<IAIProviderService>();
             var configService = seedScope.ServiceProvider.GetRequiredService<IConfigurationService>();
             providerService.EnsureSeeded(configService.GetAIProviderConfigs());
+            providerService.ReplaceStockLmStudioSeedWithMock();
+
+            var modelService = seedScope.ServiceProvider.GetRequiredService<IAIModelService>();
+            foreach (var provider in providerService.GetAll())
+            {
+                if (!string.Equals(provider.ProviderType, nameof(AIProviderType.Mock), StringComparison.OrdinalIgnoreCase))
+                    continue;
+                modelService.FetchForProviderAsync(provider.Id).GetAwaiter().GetResult();
+            }
 
             var registry = seedScope.ServiceProvider.GetRequiredService<AIProviderRegistry>();
             var httpClientFactory = seedScope.ServiceProvider.GetRequiredService<IHttpClientFactory>();

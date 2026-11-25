@@ -38,6 +38,12 @@ public interface IAIProviderService
     /// <summary>首次播种：仅当表为空时，将默认配置注入；已存在任意记录则跳过（幂等）</summary>
     void EnsureSeeded(IEnumerable<AIProviderConfig> defaults);
 
+    /// <summary>
+    /// 把尚未填写密钥、名称仍是 default、地址仍是 localhost:1234 的出厂记录改成 Mock。
+    /// 已改名或已填写密钥的提供方不动。重复调用无效果。
+    /// </summary>
+    void ReplaceStockLmStudioSeedWithMock();
+
     /// <summary>导出全部提供方为运行期配置（供 AIProviderRegistry 重载使用，ApiKey 为明文）</summary>
     List<AIProviderConfig> GetAllConfigs();
 
@@ -159,6 +165,38 @@ public class AIProviderService : IAIProviderService
         }
 
         EnsureSingleDefault();
+    }
+
+    /// <inheritdoc/>
+    public void ReplaceStockLmStudioSeedWithMock()
+    {
+        foreach (var entity in _repo.GetAll().ToList())
+        {
+            if (!IsStockLmStudioSeed(entity))
+                continue;
+
+            var config = ToConfig(entity);
+            config.ProviderType = AIProviderType.Mock;
+            config.Endpoint = MockLlmRules.DefaultEndpoint;
+            config.SupportedModels = new List<string> { MockLlmRules.DefaultModel };
+            config.ApiKey = string.Empty;
+            Update(entity.Id, config);
+        }
+    }
+
+    /// <summary>出厂种子：名字 default、空密钥、地址指向本机 1234。</summary>
+    private bool IsStockLmStudioSeed(AIProvider entity)
+    {
+        if (!string.Equals(entity.Name, "default", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (!string.Equals(entity.ProviderType, nameof(AIProviderType.OpenAI), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(entity.ProviderType, nameof(AIProviderType.LMStudio), StringComparison.OrdinalIgnoreCase))
+            return false;
+        var endpoint = entity.Endpoint?.Trim() ?? string.Empty;
+        if (endpoint.IndexOf("localhost:1234", StringComparison.OrdinalIgnoreCase) < 0
+            && endpoint.IndexOf("127.0.0.1:1234", StringComparison.OrdinalIgnoreCase) < 0)
+            return false;
+        return string.IsNullOrWhiteSpace(_encryption.Decrypt(entity.ApiKey));
     }
 
     /// <inheritdoc/>

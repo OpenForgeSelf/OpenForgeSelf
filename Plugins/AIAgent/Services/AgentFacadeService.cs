@@ -139,6 +139,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         });
 
         ApplyWorkspaceSeeds(s, run);
+        PullRelevantMemories(s, run.Text);
 
         if (s.Mode == "planned")
         {
@@ -449,8 +450,8 @@ public sealed class AgentFacadeService : IAgentFacadeService
             "snippets" => new { panel = id, items = s.Snippets, status = items.First(i => i.Id == "snippets").Status },
             "todo" => new { panel = id, items = s.Todos, status = items.First(i => i.Id == "todo").Status },
             "design" => new { panel = id, preview = s.DesignPreview, committed = s.DesignCommitted, status = items.First(i => i.Id == "design").Status },
-            "workflow" => new { panel = id, workflowId = s.WorkflowId, steps = s.WorkflowSteps, workflowStatus = s.WorkflowStatus, status = items.First(i => i.Id == "workflow").Status },
-            "project" => new { panel = id, context = s.CurrentRun?.ContextSnapshot ?? s.Context, status = items.First(i => i.Id == "project").Status },
+            "workflow" => WorkflowPanel(s, items),
+            "project" => ProjectPanel(s, items),
             "skills" => new { panel = id, attachments = s.CurrentRun?.Attachments.Where(a => a.Kind == "skill").ToList(), status = items.First(i => i.Id == "skills").Status },
             _ => new { error = "未知面板" }
         };
@@ -461,7 +462,16 @@ public sealed class AgentFacadeService : IAgentFacadeService
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
         if (string.IsNullOrWhiteSpace(request.Content))
             return new { error = "写回内容不能为空" };
-        var item = new { id = Guid.NewGuid().ToString("N"), content = request.Content.Trim(), at = DateTimeOffset.Now };
+        var content = request.Content.Trim();
+        var persistedId = TryPersistMemory(s, request.Title, content);
+        var item = new
+        {
+            id = persistedId ?? Guid.NewGuid().ToString("N"),
+            title = string.IsNullOrWhiteSpace(request.Title) ? TrimTitle(content) : request.Title.Trim(),
+            content,
+            at = DateTimeOffset.Now,
+            persisted = persistedId != null
+        };
         s.Memories.Add(item);
         Touch(s);
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
@@ -471,6 +481,9 @@ public sealed class AgentFacadeService : IAgentFacadeService
     public object? CommitDesign(string sessionId, WorkspaceWritebackRequest request)
     {
         if (!_sessions.TryGetValue(sessionId, out var s) || s.Deleted) return null;
+        var libraryError = TryCommitDesignLibrary(s, request.Content);
+        if (libraryError != null)
+            return new { error = libraryError };
         s.DesignCommitted = true;
         s.DesignPreview = request.Content ?? s.DesignPreview;
         Touch(s);
@@ -489,6 +502,12 @@ public sealed class AgentFacadeService : IAgentFacadeService
         item.At = DateTimeOffset.Now;
         Touch(s);
         Append(s, "workspace.updated", s.CurrentRun?.Id, WorkspacePayload(s));
+        if (!IsBusy(s.Status))
+        {
+            var text = string.IsNullOrWhiteSpace(item.Goal) ? item.Title : item.Goal;
+            if (!string.IsNullOrWhiteSpace(text))
+                PostMessage(sessionId, new PostAgentMessageRequest { Text = text });
+        }
         return item;
     }
 
@@ -559,6 +578,10 @@ public sealed class AgentFacadeService : IAgentFacadeService
         {
             return true;
         }
+        if (s.CurrentRun != null && type is "tool.started" or "tool.completed")
+            RememberTool(s.CurrentRun, type, payload);
+        if (s.CurrentRun?.Plan?.Steps != null && type is "step.started" or "step.completed")
+            RememberPlanStep(s.CurrentRun, type, payload);
         if (type == "run.stuck" && s.CurrentRun != null)
         {
             s.Status = "stuck";
@@ -595,6 +618,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
                 s.CurrentRun.Status = "completed";
                 s.CurrentRun.StuckReason = null;
                 s.CurrentRun.AllowedActions = null;
+                SeedFollowUps(s);
             }
         }
         if (type == "run.cancelled" && s.CurrentRun != null)
@@ -614,6 +638,12 @@ public sealed class AgentFacadeService : IAgentFacadeService
                     Content = text,
                     CreatedAt = DateTimeOffset.Now
                 });
+                if (string.IsNullOrWhiteSpace(s.DesignPreview))
+                {
+                    var preview = ExtractDesignPreview(text);
+                    if (!string.IsNullOrWhiteSpace(preview))
+                        s.DesignPreview = preview;
+                }
             }
         }
         Touch(s);
@@ -799,24 +829,18 @@ public sealed class AgentFacadeService : IAgentFacadeService
             _ => "暂无"
         };
         var plan = run?.Plan == null ? "无计划" : (s.Status == "awaiting_plan" ? "待确认" : "有计划");
-        var project = string.IsNullOrWhiteSpace((run?.ContextSnapshot ?? s.Context).Cwd)
-                      && string.IsNullOrWhiteSpace((run?.ContextSnapshot ?? s.Context).ProjectId)
-            ? "未绑定"
-            : ((run?.ContextSnapshot ?? s.Context).Title
-               ?? (run?.ContextSnapshot ?? s.Context).Cwd
-               ?? (run?.ContextSnapshot ?? s.Context).ProjectId
-               ?? "已绑定");
+        var project = ProjectLabel(s);
         return new List<AgentWorkspaceStatusDto>
         {
             Item("plan", "计划", "先看步骤，确认后再执行", plan),
             Item("records", "执行记录", "本轮步骤、工具结果与轮次", records),
-            Item("workflow", "工作流", "关联工作流的执行与控制", s.WorkflowStatus ?? "未启动"),
+            Item("workflow", "工作流", "关联工作流的执行与控制", WorkflowLabel(s)),
             Item("memory", "记忆", "本轮检索到的条目，可写回", s.Memories.Count == 0 ? "0" : s.Memories.Count.ToString()),
             Item("design", "设计", "组件与令牌预览，默认不写库", string.IsNullOrEmpty(s.DesignPreview) ? "无预览" : "有预览"),
             Item("suggest", "建议", "按最近习惯推荐下一步", s.Suggestions.Count == 0 ? "暂无" : s.Suggestions.Count.ToString()),
             Item("project", "项目", "当前工作目录、档案与命令", project),
             Item("todo", "待办", "可下发给智能体的任务", s.Todos.Count == 0 ? "0" : s.Todos.Count.ToString()),
-            Item("skills", "技能", "本智能体已启用的技能", "已启用"),
+            Item("skills", "技能", "本智能体已启用的技能", SkillLabel(run)),
             Item("tools", "工具", "本轮可见的宿主与 MCP 工具", VisibleToolsLabel(s)),
             Item("snippets", "代码片段", "本轮产出或收藏的片段", s.Snippets.Count == 0 ? "暂无" : s.Snippets.Count.ToString()),
         };
@@ -1064,11 +1088,316 @@ public sealed class AgentFacadeService : IAgentFacadeService
         }
     }
 
+    private static string WorkflowLabel(SessionState s)
+    {
+        var status = ResolveWorkflow(s).Status;
+        return string.IsNullOrWhiteSpace(status) ? "未启动" : status;
+    }
+
+    private object WorkflowPanel(SessionState s, List<AgentWorkspaceStatusDto> items)
+    {
+        var resolved = ResolveWorkflow(s);
+        return new
+        {
+            panel = "workflow",
+            workflowId = resolved.Id,
+            steps = resolved.Steps,
+            workflowStatus = resolved.Status,
+            status = items.First(i => i.Id == "workflow").Status
+        };
+    }
+
+    private readonly record struct WorkflowView(string? Id, string? Status, IReadOnlyList<AgentWorkspaceWorkflowStepDto> Steps);
+
+    private static WorkflowView ResolveWorkflow(SessionState s)
+    {
+        if (s.WorkflowSteps.Count > 0 || !string.IsNullOrWhiteSpace(s.WorkflowStatus))
+            return new WorkflowView(s.WorkflowId, s.WorkflowStatus, s.WorkflowSteps);
+        var plan = s.CurrentRun?.Plan?.Steps;
+        if (plan is not { Count: > 0 } || s.CurrentRun == null)
+            return new WorkflowView(s.WorkflowId, s.WorkflowStatus, s.WorkflowSteps);
+        var status = s.Status switch
+        {
+            "running" or "planning" or "awaiting_plan" => "running",
+            "completed" => "completed",
+            "cancelled" => "cancelled",
+            "failed" => "failed",
+            _ => "running"
+        };
+        var steps = plan.Select(step => new AgentWorkspaceWorkflowStepDto
+        {
+            Id = step.Id,
+            Name = string.IsNullOrWhiteSpace(step.Name) ? step.Title : step.Name,
+            Status = string.IsNullOrWhiteSpace(step.Status) ? "pending" : step.Status
+        }).ToList();
+        return new WorkflowView("plan-" + s.CurrentRun.Id, status, steps);
+    }
+
+    private static void SeedFollowUps(SessionState s)
+    {
+        if (s.Suggestions.Count == 0)
+        {
+            s.Suggestions.Add(new { id = "sg-memory", title = "写回记忆", action = "write_memory", detail = "把本轮要点写回记忆库" });
+            s.Suggestions.Add(new { id = "sg-records", title = "查看执行记录", action = "open_records", detail = "看本轮步骤和工具结果" });
+        }
+        var text = s.CurrentRun?.Text;
+        if (s.Todos.Count == 0 && !string.IsNullOrWhiteSpace(text))
+        {
+            s.Todos.Add(new AgentWorkspaceTodoDto
+            {
+                Id = "todo-" + s.CurrentRun!.Id,
+                Title = TrimTitle(text),
+                Goal = text.Trim(),
+                Dispatched = false
+            });
+        }
+    }
+
+    private void PullRelevantMemories(SessionState s, string query)
+    {
+        var memory = MemoryOrNull();
+        if (memory == null || string.IsNullOrWhiteSpace(query)) return;
+        try
+        {
+            var found = memory.GetRelevantMemoriesAsync(query, 5).GetAwaiter().GetResult();
+            foreach (var item in found)
+            {
+                var id = item.Id.ToString();
+                if (s.Memories.Any(existing => existing.GetType().GetProperty("id")?.GetValue(existing)?.ToString() == id))
+                    continue;
+                s.Memories.Add(new { id, title = item.Title, content = item.Content, at = item.CreatedAt });
+            }
+        }
+        catch (Exception ex)
+        {
+            NewLife.Log.XTrace.Log.Warn("[AgentFacade] 检索记忆失败: {0}", ex.Message);
+        }
+    }
+
+    private string? TryPersistMemory(SessionState s, string? title, string content)
+    {
+        var memory = MemoryOrNull();
+        if (memory == null) return null;
+        try
+        {
+            var created = memory.CreateAsync(new CreateMemoryRequest
+            {
+                Title = string.IsNullOrWhiteSpace(title) ? TrimTitle(content) : title.Trim(),
+                Content = content,
+                Source = "agent-workspace",
+                Type = MemoryType.Fact,
+                WorkspacePath = (s.CurrentRun?.ContextSnapshot ?? s.Context).Cwd
+            }).GetAwaiter().GetResult();
+            return created.Id.ToString();
+        }
+        catch (Exception ex)
+        {
+            NewLife.Log.XTrace.Log.Warn("[AgentFacade] 写回记忆库失败: {0}", ex.Message);
+            return null;
+        }
+    }
+
+    private string? TryCommitDesignLibrary(SessionState s, string? content)
+    {
+        var registry = ToolRegistryOrNull();
+        if (registry?.GetTool("design_create") == null)
+            return null;
+        var brief = string.IsNullOrWhiteSpace(content) ? s.DesignPreview : content;
+        if (string.IsNullOrWhiteSpace(brief))
+            return "没有可写入的设计预览";
+        var args = System.Text.Json.JsonSerializer.Serialize(new { name = "助手确认", brief, apply = true });
+        try
+        {
+            var raw = registry.ExecuteToolAsync("design_create", args).GetAwaiter().GetResult();
+            if (raw.Contains("\"applied\":true", StringComparison.OrdinalIgnoreCase)
+                || raw.Contains("\"success\":true", StringComparison.OrdinalIgnoreCase))
+                return null;
+            return string.IsNullOrWhiteSpace(raw) ? "设计系统没有接受这次写入" : TrimTitle(raw);
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    private IMemoryService? MemoryOrNull()
+    {
+        if (_ctx == null) return null;
+        try { return _ctx.GetService(typeof(IMemoryService)) as IMemoryService; }
+        catch { return null; }
+    }
+
+    private IToolRegistry? ToolRegistryOrNull()
+    {
+        if (_ctx == null) return null;
+        try { return _ctx.GetService(typeof(IToolRegistry)) as IToolRegistry; }
+        catch { return null; }
+    }
+
+    private static string? ExtractDesignPreview(string text)
+    {
+        const string open = "```json";
+        var start = text.IndexOf(open, StringComparison.OrdinalIgnoreCase);
+        if (start >= 0)
+        {
+            start += open.Length;
+            var end = text.IndexOf("```", start, StringComparison.Ordinal);
+            if (end > start)
+            {
+                var body = text[start..end].Trim();
+                if (body.Contains("tokens", StringComparison.OrdinalIgnoreCase))
+                    return body;
+            }
+        }
+        var trimmed = text.Trim();
+        if (trimmed.StartsWith('{') && trimmed.Contains("tokens", StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+        return null;
+    }
+
+    private static string TrimTitle(string text)
+    {
+        var trimmed = text.Trim().Replace('\r', ' ').Replace('\n', ' ');
+        return trimmed.Length <= 24 ? trimmed : trimmed[..24];
+    }
+
+    private static string SkillLabel(RunState? run)
+    {
+        var count = run?.Attachments.Count(a => string.Equals(a.Kind, "skill", StringComparison.OrdinalIgnoreCase)) ?? 0;
+        return count == 0 ? "未启用" : $"{count} 已启用";
+    }
+
+    private IProjectWorkspaceService? WorkspaceOrNull()
+    {
+        if (_ctx == null) return null;
+        try
+        {
+            return _ctx.GetService(typeof(IProjectWorkspaceService)) as IProjectWorkspaceService;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string? BoundProjectRoot()
+    {
+        var root = WorkspaceOrNull()?.ProjectRoot;
+        return string.IsNullOrWhiteSpace(root) ? null : root;
+    }
+
+    private static string FolderName(string path)
+    {
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var name = Path.GetFileName(trimmed);
+        return string.IsNullOrWhiteSpace(name) ? trimmed : name;
+    }
+
+    private string ProjectLabel(SessionState s)
+    {
+        var ctx = s.CurrentRun?.ContextSnapshot ?? s.Context;
+        var cwd = ctx.Cwd;
+        var projectId = ctx.ProjectId;
+        var title = ctx.Title;
+        if (string.IsNullOrWhiteSpace(cwd) && string.IsNullOrWhiteSpace(projectId))
+        {
+            var root = BoundProjectRoot();
+            if (!string.IsNullOrWhiteSpace(root))
+            {
+                cwd = root;
+                title ??= FolderName(root);
+            }
+        }
+        if (string.IsNullOrWhiteSpace(cwd) && string.IsNullOrWhiteSpace(projectId))
+            return "未绑定";
+        return title ?? cwd ?? projectId ?? "已绑定";
+    }
+
+    private object ProjectPanel(SessionState s, List<AgentWorkspaceStatusDto> items)
+    {
+        var ctx = s.CurrentRun?.ContextSnapshot ?? s.Context;
+        if (string.IsNullOrWhiteSpace(ctx.Cwd) && string.IsNullOrWhiteSpace(ctx.ProjectId))
+        {
+            var root = BoundProjectRoot();
+            if (!string.IsNullOrWhiteSpace(root))
+            {
+                ctx = CloneContext(ctx, s.PluginId, s.SurfaceKey);
+                ctx.Cwd = root;
+                if (string.IsNullOrWhiteSpace(ctx.Title))
+                    ctx.Title = FolderName(root);
+            }
+        }
+        return new { panel = "project", context = ctx, status = items.First(i => i.Id == "project").Status };
+    }
+
+    private static void RememberPlanStep(RunState run, string type, object? payload)
+    {
+        var steps = run.Plan?.Steps;
+        if (steps == null || steps.Count == 0) return;
+        var stepId = ReadString(payload, "stepId") ?? ReadString(payload, "id");
+        AgentPlanStepDto? step = null;
+        if (!string.IsNullOrWhiteSpace(stepId))
+            step = steps.FirstOrDefault(item => string.Equals(item.Id, stepId, StringComparison.Ordinal));
+        if (step == null && int.TryParse(ReadString(payload, "stepIndex"), out var index) && index >= 0 && index < steps.Count)
+            step = steps[index];
+        if (step == null) return;
+        step.Status = type == "step.started" ? "running" : "completed";
+        var done = steps.Count(item => item.Status == "completed");
+        if (done > run.Turn) run.Turn = done;
+    }
+
+    private static void RememberTool(RunState run, string type, object? payload)
+    {
+        var name = ReadString(payload, "name") ?? "工具";
+        var callId = ReadString(payload, "toolCallId") ?? ReadString(payload, "callId") ?? ReadString(payload, "id");
+        var summary = ReadString(payload, "summary");
+        if (type == "tool.completed")
+        {
+            var existing = run.ToolSteps.LastOrDefault(step =>
+                step.Status == "running"
+                && (string.Equals(step.Id, callId, StringComparison.Ordinal) || string.Equals(step.Name, name, StringComparison.Ordinal)));
+            if (existing != null)
+            {
+                var raw = ReadString(payload, "status");
+                existing.Status = raw == "failed" ? "failed" : "completed";
+                if (!string.IsNullOrWhiteSpace(summary)) existing.Objective = summary;
+            }
+            else
+            {
+                run.ToolSteps.Add(new AgentPlanStepDto
+                {
+                    Id = callId ?? Guid.NewGuid().ToString("N"),
+                    Name = name,
+                    Objective = summary ?? string.Empty,
+                    Status = ReadString(payload, "status") == "failed" ? "failed" : "completed"
+                });
+            }
+            var done = run.ToolSteps.Count(step => step.Status is "completed" or "failed");
+            if (done > run.Turn) run.Turn = done;
+            return;
+        }
+
+        run.ToolSteps.Add(new AgentPlanStepDto
+        {
+            Id = callId ?? Guid.NewGuid().ToString("N"),
+            Name = name,
+            Objective = summary ?? string.Empty,
+            Status = "running"
+        });
+    }
+
     private static object RecordsPanel(SessionState s, List<AgentWorkspaceStatusDto> items)
     {
         var run = s.CurrentRun;
-        var steps = run?.Plan?.Steps ?? new List<AgentPlanStepDto>();
+        var steps = new List<AgentPlanStepDto>();
+        if (run?.Plan?.Steps != null) steps.AddRange(run.Plan.Steps);
+        if (run != null) steps.AddRange(run.ToolSteps);
         var turn = run?.Turn ?? 0;
+        if (run != null)
+        {
+            var doneTools = run.ToolSteps.Count(step => step.Status is "completed" or "failed");
+            if (doneTools > turn) turn = doneTools;
+        }
         if ((s.Status == "running" || run?.Status == "running") && turn < 1)
             turn = 1;
         return new
@@ -1223,6 +1552,7 @@ public sealed class AgentFacadeService : IAgentFacadeService
         public int? InterveneStepIndex { get; set; }
         public string? FailureReason { get; set; }
         public bool Retrying { get; set; }
+        public List<AgentPlanStepDto> ToolSteps { get; } = new();
     }
 
     private sealed class ApprovalState

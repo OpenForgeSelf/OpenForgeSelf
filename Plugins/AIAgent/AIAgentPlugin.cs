@@ -31,6 +31,7 @@ public class AIAgentPlugin : IPlugin
         var workspace = new ProjectWorkspaceService();
         services?.AddSingleton<IProjectWorkspaceService>(workspace);
         ctx.Register<IProjectWorkspaceService>(workspace);
+        MockLlmBindings.ProjectRoot = () => workspace.ProjectRoot;
 
         services?.AddSingleton<IProjectSkillScannerService, ProjectSkillScannerService>();
         services?.AddSingleton<IProjectRegistryService, ProjectRegistryService>();

@@ -15,6 +15,73 @@ public class MockLlmTests
     };
 
     [Fact]
+    public void Sample_规划提示返回真实计划_步骤执行不会退回完成整体任务()
+    {
+        var path = FindUp("config", "mock-llm.sample.json");
+        var doc = MockLlmRules.Load(path);
+        doc.Found.Should().BeTrue(doc.Error);
+        var provider = new MockLlmProvider(new AIProviderConfig
+        {
+            Name = "mock",
+            ProviderType = AIProviderType.Mock,
+            IsDefault = true
+        }, doc);
+
+        var planned = provider.Describe(Req(
+            "你是计划驱动执行引擎的规划器。\n现在为用户任务生成计划并调用 submit_plan 提交。",
+            "请列一个两步计划：先看目录，再总结"));
+        planned.ToolCalls.Select(call => call.Name).Should().Equal("submit_plan");
+        using var plan = System.Text.Json.JsonDocument.Parse(planned.ToolCalls[0].ArgumentsJson);
+        var steps = plan.RootElement.GetProperty("plan").GetProperty("steps");
+        steps.GetArrayLength().Should().Be(2);
+        steps[0].GetProperty("name").GetString().Should().Be("列出项目根目录");
+        steps[1].GetProperty("name").GetString().Should().Be("根据列表写总结");
+
+        var step1 = provider.Describe(Req(
+            "- 只完成当前步骤「列出项目根目录」，不要提前执行后续步骤。\n完成后调用 complete_step 工具提交本步产出。",
+            "请列一个两步计划：先看目录，再总结"));
+        step1.ToolCalls.Select(call => call.Name).Should().Equal("list_files");
+
+        var step2 = provider.Describe(new UnifiedChatRequest
+        {
+            Messages =
+            {
+                new UnifiedChatMessage
+                {
+                    Role = "system",
+                    Content = "- 只完成当前步骤「根据列表写总结」，不要提前执行后续步骤。\n完成后调用 complete_step 工具提交本步产出。"
+                },
+                new UnifiedChatMessage { Role = "user", Content = "请列一个两步计划：先看目录，再总结" },
+                new UnifiedChatMessage { Role = "assistant", Content = "我先列出项目根目录。" },
+                new UnifiedChatMessage { Role = "tool", Content = "README.md" },
+                new UnifiedChatMessage { Role = "user", Content = "继续当前步骤" }
+            }
+        });
+        step2.ToolCalls.Select(call => call.Name).Should().Equal("complete_step");
+    }
+
+    private static UnifiedChatRequest Req(string system, string user) => new()
+    {
+        Messages =
+        {
+            new UnifiedChatMessage { Role = "system", Content = system },
+            new UnifiedChatMessage { Role = "user", Content = user }
+        }
+    };
+
+    private static string FindUp(params string[] parts)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(new[] { dir.FullName }.Concat(parts).ToArray());
+            if (File.Exists(candidate)) return candidate;
+            dir = dir.Parent;
+        }
+        throw new FileNotFoundException(string.Join("/", parts));
+    }
+
+    [Fact]
     public void Match_最长关键字优先_相同长度保留先出现的()
     {
         var doc = Doc(

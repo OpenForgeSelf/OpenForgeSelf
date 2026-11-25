@@ -2,6 +2,192 @@
   "fallback": "（mock）未命中关键字",
   "rules": [
     { "key": "ping", "content": "pong" },
-    { "key": "列出插件", "content": "模拟结果：当前没有需要处理的插件。" }
+    {
+      "key": "现在为用户任务生成计划并调用 submit_plan 提交。",
+      "content": "计划已提交。",
+      "toolCalls": [
+        {
+          "name": "submit_plan",
+          "arguments": {
+            "plan": {
+              "goal": "先列出项目根目录，再根据文件列表写总结",
+              "steps": [
+                {
+                  "id": "s1",
+                  "name": "列出项目根目录",
+                  "objective": "用 list_files 列出当前项目根目录的文件和文件夹，不要改任何文件。",
+                  "expectedOutput": "项目根目录的文件列表",
+                  "allowedTools": ["list_files"],
+                  "mandatory": true
+                },
+                {
+                  "id": "s2",
+                  "name": "根据列表写总结",
+                  "objective": "根据上一步的文件列表，用两三句话说明项目根目录里有什么。",
+                  "expectedOutput": "两三句目录总结",
+                  "allowedTools": [],
+                  "mandatory": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "- 只完成当前步骤「列出项目根目录」，不要提前执行后续步骤。",
+      "content": "目录已经列出来了。",
+      "steps": [
+        {
+          "content": "我先列出项目根目录。",
+          "toolCalls": [ { "name": "list_files", "arguments": { "cwd": "{{cwd}}" } } ]
+        },
+        {
+          "content": "列表拿到了。",
+          "toolCalls": [
+            {
+              "name": "complete_step",
+              "arguments": { "output": "项目根目录包含 README.md、ForgeSelf.Api、Plugins、docs 和 scripts。" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "- 只完成当前步骤「根据列表写总结」，不要提前执行后续步骤。",
+      "content": "总结写好了。",
+      "toolCalls": [
+        {
+          "name": "complete_step",
+          "arguments": { "output": "项目根目录包含 README.md、ForgeSelf.Api、Plugins、docs 和 scripts，分别是说明、宿主、插件、文档和脚本。" }
+        }
+      ]
+    },
+    {
+      "key": "出一个按钮预览",
+      "content": "```json\n{\"component\":\"Button\",\"tokens\":{\"color.accent\":\"#F59E0B\"}}\n```"
+    },
+    {
+      "key": "complete_step",
+      "content": "两步都已完成。",
+      "steps": [
+        { "content": "第一步做完了。", "toolCalls": [ { "name": "complete_step", "arguments": { "output": "已看过目录。" } } ] },
+        { "content": "第二步做完了。", "toolCalls": [ { "name": "complete_step", "arguments": { "output": "只读总结：目录已查看。" } } ] },
+        { "content": "计划执行结束。" }
+      ]
+    },
+    {
+      "key": "给一段可复制的代码",
+      "content": "下面是可复用片段：\n```ts\nexport const answer = 42\n```"
+    },
+    {
+      "key": "多轮模拟",
+      "content": "多轮结束。",
+      "steps": [
+        {
+          "content": "我先看一下项目根目录。",
+          "toolCalls": [ { "name": "list_files", "arguments": { "cwd": "{{cwd}}" } } ]
+        },
+        {
+          "content": "目录已经列出来了。我再列出 docs 目录。",
+          "toolCalls": [ { "name": "list_files", "arguments": { "cwd": "{{cwd}}", "path": "{{file:docs}}" } } ]
+        },
+        {
+          "content": "两轮工具都完成了。",
+          "toolCalls": [ { "name": "task_complete", "arguments": { "summary": "先列出了项目根目录，再列出了 docs。" } } ]
+        }
+      ]
+    },
+    { "key": "列出插件", "content": "模拟结果：当前没有需要处理的插件。" },
+    { "key": "用一句话回答：1+1 等于几", "content": "1+1 等于 2。" },
+    {
+      "key": "创建一个可玩的贪吃蛇游戏",
+      "content": "已创建 index.html。这是一个可玩的贪吃蛇：方向键移动，吃到食物加分，撞墙或撞到自己就结束，可以重新开始。",
+      "toolCalls": [
+        {
+          "name": "write_file",
+          "arguments": {
+            "cwd": "{{cwd}}",
+            "path": "{{file:index.html}}",
+            "content": "<!DOCTYPE html><html><body><p id=\"score\">0</p><p id=\"food\"></p><button>重新开始</button><script>document.addEventListener('keydown',function(e){var k=e.key;if(k==='ArrowUp'||k==='ArrowDown'||k==='ArrowLeft'||k==='ArrowRight'){}});</script></body></html>",
+            "start_line": 1,
+            "end_line": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "读取当前项目目录下的 index.html",
+      "content": "这个文件是一个贪吃蛇游戏。",
+      "toolCalls": [
+        { "name": "read_file", "arguments": { "cwd": "{{cwd}}", "path": "{{file:index.html}}", "start_line": 1 } }
+      ]
+    },
+    {
+      "key": "创建 hello.txt，内容为 \"tooltrace ok\"",
+      "content": "已写入 hello.txt，内容是 tooltrace ok。",
+      "toolCalls": [
+        {
+          "name": "write_file",
+          "arguments": { "cwd": "{{cwd}}", "path": "{{file:hello.txt}}", "content": "tooltrace ok", "start_line": 1, "end_line": 1 }
+        }
+      ]
+    },
+    {
+      "key": "创建 loop-proof.txt，内容为 \"autonomous loop ok\"",
+      "content": "已写入 loop-proof.txt，内容是 autonomous loop ok。",
+      "toolCalls": [
+        {
+          "name": "write_file",
+          "arguments": { "cwd": "{{cwd}}", "path": "{{file:loop-proof.txt}}", "content": "autonomous loop ok", "start_line": 1, "end_line": 1 }
+        }
+      ]
+    },
+    {
+      "key": "读取当前项目目录下的 loop-proof.txt",
+      "content": "文件内容是 autonomous loop ok。",
+      "toolCalls": [
+        { "name": "read_file", "arguments": { "cwd": "{{cwd}}", "path": "{{file:loop-proof.txt}}", "start_line": 1 } }
+      ]
+    },
+    { "key": "本任务禁止调用 finish", "content": "本轮只算了一小段，还没有结束。" },
+    {
+      "key": "请调用 list_files 工具列出当前项目根目录",
+      "content": "项目根目录里有 README.md。",
+      "toolCalls": [ { "name": "list_files", "arguments": { "cwd": "{{cwd}}" } } ]
+    },
+    {
+      "key": "分两步：先用 list_files 看项目根目录",
+      "content": "已看过项目根目录，其中有 README.md。",
+      "toolCalls": [ { "name": "list_files", "arguments": { "cwd": "{{cwd}}" } } ]
+    },
+    {
+      "key": "调用名为 calculate 的工具，计算表达式 1+2*3",
+      "content": "计算结果是 7。",
+      "toolCalls": [
+        { "name": "universal_tool", "arguments": { "tool": "calculate", "parameters": { "expression": "1+2*3" } } }
+      ]
+    },
+    {
+      "key": "调用名为 list_files 的工具，列出当前项目目录下的文件",
+      "content": "当前项目目录里有 README.md。",
+      "toolCalls": [
+        { "name": "universal_tool", "arguments": { "tool": "list_files", "parameters": { "cwd": "{{cwd}}" } } }
+      ]
+    },
+    {
+      "key": "执行命令 git status",
+      "content": "git status：On branch master，nothing to commit。",
+      "toolCalls": [
+        { "name": "run_terminal_command", "arguments": { "command": "git status", "cwd": "{{cwd}}" } }
+      ]
+    },
+    {
+      "key": "删除当前项目目录下的 publish 目录",
+      "content": "拒绝删除 publish 目录，目录保持原样。",
+      "toolCalls": [
+        { "name": "run_terminal_command", "arguments": { "command": "del publish", "cwd": "{{cwd}}" } }
+      ]
+    }
   ]
 }

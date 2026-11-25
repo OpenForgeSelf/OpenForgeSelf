@@ -488,7 +488,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const running = computed(() => thread.status === 'running')
   const empty = computed(() => thread.items.length === 0)
-  const railOpen = computed(() => workspacePanel.value !== 'catalog')
 
   watch(
     () => [opts.context()?.pluginId, opts.surfaceKey?.(), opts.context()?.surfaceKey],
@@ -524,7 +523,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     kind,
     running,
     empty,
-    railOpen,
     refreshSessions,
     loadCatalogs,
     openSession,

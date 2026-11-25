@@ -797,6 +797,7 @@ public class RunOrchestratorService : IRunOrchestratorService
                             Type = "tool_result",
                             Name = doneName,
                             Success = completed.Outcome == ToolOutcome.Ok,
+                            Result = TruncateStepText(completed.ResultJson, 4000)
                         };
                         break;
                     }

@@ -100,7 +100,7 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
         @workspace="session.panelLayer.value = 'workspace'"
       />
       <p v-if="session.error.value" class="aa-error">{{ session.error.value }}</p>
-      <div class="aa-stage" :class="{ 'is-empty': session.empty.value, 'has-rail': session.railOpen.value }">
+      <div class="aa-stage" :class="{ 'is-empty': session.empty.value }">
         <AgentEmptyState />
         <AgentThread
           :items="session.thread.items"

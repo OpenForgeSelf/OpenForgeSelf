@@ -41,11 +41,32 @@ function text(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
 
+async function copySnippet(value: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return
+    }
+  } catch {
+    // 非安全上下文没有 clipboard，改用选区复制。
+  }
+  const area = document.createElement('textarea')
+  area.value = value
+  area.setAttribute('readonly', '')
+  area.style.position = 'fixed'
+  area.style.left = '-9999px'
+  document.body.appendChild(area)
+  area.select()
+  document.execCommand('copy')
+  area.remove()
+}
+
 function suggestionPanel(it: Record<string, unknown>): AgentWorkspacePanelId | '' {
   const panel = text(it.panel)
   if (panel) return panel as AgentWorkspacePanelId
   const action = text(it.action)
   if (action === 'open_workflow') return 'workflow'
+  if (action === 'open_records') return 'records'
   if (action === 'write_memory') return 'memory'
   if (action === 'dispatch_todo') return 'todo'
   return ''
@@ -317,7 +338,7 @@ function workflowStatusText(): string {
             <div v-for="(it, i) in asList('items')" :key="i" class="aa-art-sec">
               <h3>{{ text(it.language) || text(it.title) || '片段' }}</h3>
               <pre class="aa-tool-detail">{{ text(it.content) || text(it.code) }}</pre>
-              <button type="button" class="aa-btn" @click="navigator.clipboard.writeText(text(it.content) || text(it.code))">复制</button>
+              <button type="button" class="aa-btn" @click="copySnippet(text(it.content) || text(it.code))">复制</button>
             </div>
           </div>
         </template>

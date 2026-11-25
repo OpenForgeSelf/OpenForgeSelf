@@ -609,6 +609,52 @@ public class AgentFacadeTests
         if (File.Exists(path)) File.Delete(path);
     }
 
+    [Fact]
+    public void Records_KeepToolResults_AndSkillsStartDisabled()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent"));
+        Assert.Equal("未启用", svc.GetSession(session.Id)!.Workspace.Single(w => w.Id == "skills").Status);
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "请 ping 一下" });
+        var runId = svc.GetSession(session.Id)!.CurrentRun!.Id;
+        svc.Publish(session.Id, "tool.started", new { name = "list_files", toolCallId = "c1", summary = "列目录" }, runId);
+        svc.Publish(session.Id, "tool.completed", new { name = "list_files", toolCallId = "c1", summary = "列出 2 项", status = "done" }, runId);
+        var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var rec = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "records"), jsonOpts);
+        Assert.Contains(rec.GetProperty("steps").EnumerateArray(), st =>
+            st.GetProperty("name").GetString() == "list_files" && st.GetProperty("status").GetString() == "completed");
+        Assert.True(rec.GetProperty("round").GetInt32() >= 1);
+
+        var planned = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        svc.PostMessage(planned.Id, new PostAgentMessageRequest { Text = "做一个两步计划" });
+        var planRun = svc.GetSession(planned.Id)!.CurrentRun!.Id;
+        svc.Publish(planned.Id, "step.started", new { stepId = "s1", stepIndex = 0 }, planRun);
+        svc.Publish(planned.Id, "step.completed", new { stepId = "s1", stepIndex = 0, status = "completed" }, planRun);
+        var plan = svc.GetSession(planned.Id)!.CurrentRun!.Plan;
+        Assert.NotNull(plan);
+        Assert.Equal("completed", plan!.Steps[0].Status);
+        Assert.Equal("pending", plan.Steps[1].Status);
+    }
+
+    [Fact]
+    public void CompletedPlan_FillsWorkflowSuggestAndTodo()
+    {
+        var svc = NewFacade();
+        var session = svc.CreateSession(SessionReq("ai-agent", mode: "planned"));
+        svc.PostMessage(session.Id, new PostAgentMessageRequest { Text = "做一个两步计划" });
+        svc.ConfirmPlan(session.Id);
+        var runId = svc.GetSession(session.Id)!.CurrentRun!.Id;
+        svc.Publish(session.Id, "run.completed", new { text = "做完了" }, runId);
+        var detail = svc.GetSession(session.Id)!;
+        Assert.Equal("completed", detail.Session.Status);
+        Assert.Equal("2", detail.Workspace.Single(w => w.Id == "suggest").Status);
+        Assert.Equal("1", detail.Workspace.Single(w => w.Id == "todo").Status);
+        Assert.Equal("completed", detail.Workspace.Single(w => w.Id == "workflow").Status);
+        var wf = JsonSerializer.SerializeToElement(svc.GetWorkspace(session.Id, "workflow"));
+        Assert.Equal(2, wf.GetProperty("steps").GetArrayLength());
+        Assert.StartsWith("plan-", wf.GetProperty("workflowId").GetString());
+    }
+
 
 }
 

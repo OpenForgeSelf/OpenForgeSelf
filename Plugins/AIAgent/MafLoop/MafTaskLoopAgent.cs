@@ -45,7 +45,7 @@ public sealed class MafLoopBridge
     {
         Store.Append(SessionId, new ToolResultEvent(0, SessionId, DateTimeOffset.Now, callId, toolName,
             resultJson, outcome, durationMs));
-        _frames.Enqueue(new ToolCompleted(callId, outcome, durationMs));
+        _frames.Enqueue(new ToolCompleted(callId, outcome, durationMs, resultJson));
         return Task.CompletedTask;
     }
 

@@ -152,6 +152,47 @@ public class AIProviderFeatureTests : IClassFixture<XCodeTestFixture>
         stored.IsDefault.Should().BeTrue();
     }
 
+    [Fact]
+    public void ReplaceStockLmStudioSeed_ConvertsEmptyDefaultAndLeavesKeyedProvider()
+    {
+        ClearTable();
+        var ctx = MakeCtx();
+        ctx.Service.Create(new AIProviderConfig
+        {
+            Name = "default",
+            ProviderType = AIProviderType.OpenAI,
+            Endpoint = "http://localhost:1234/v1/chat/completions",
+            ApiKey = "",
+            IsDefault = true,
+            SupportedModels = new() { "qwythos-9b-v2" }
+        });
+        ctx.Service.Create(new AIProviderConfig
+        {
+            Name = "lmstudio",
+            ProviderType = AIProviderType.LMStudio,
+            Endpoint = "http://127.0.0.1:1234/v1",
+            ApiKey = "sk-keep",
+            IsDefault = false,
+            SupportedModels = new() { "local" }
+        });
+
+        ctx.Service.ReplaceStockLmStudioSeedWithMock();
+        ctx.Service.ReplaceStockLmStudioSeedWithMock();
+
+        var rows = AIProvider.FindAll().ToList();
+        rows.Should().HaveCount(2);
+        var stock = rows.Should().ContainSingle(p => p.Name == "default").Subject;
+        stock.ProviderType.Should().Be("Mock");
+        stock.Endpoint.Should().Be("mock://local");
+        stock.SupportedModels.Should().Be("mock");
+        stock.IsDefault.Should().BeTrue();
+
+        var kept = rows.Should().ContainSingle(p => p.Name == "lmstudio").Subject;
+        kept.ProviderType.Should().Be("LMStudio");
+        kept.Endpoint.Should().Be("http://127.0.0.1:1234/v1");
+        ctx.Encryption.Decrypt(kept.ApiKey).Should().Be("sk-keep");
+    }
+
     // T021：加密往返 + 掩码格式
     [Fact]
     public void Encryption_RoundTrip_And_Mask()

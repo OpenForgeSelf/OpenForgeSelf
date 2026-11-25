@@ -112,7 +112,7 @@ public sealed record AssistantDelta(string Content) : TurnFrame;
 public sealed record ToolStarted(string CallId, string ToolName, string ArgsJson) : TurnFrame;
 
 /// <summary>工具执行结束（含四态结果与耗时）。</summary>
-public sealed record ToolCompleted(string CallId, ToolOutcome Outcome, long DurationMs) : TurnFrame;
+public sealed record ToolCompleted(string CallId, ToolOutcome Outcome, long DurationMs, string? ResultJson = null) : TurnFrame;
 
 /// <summary>步骤结束（携带步骤结束原因）。</summary>
 public sealed record StepCompleted(string StepId, StepEndReason Reason) : TurnFrame;

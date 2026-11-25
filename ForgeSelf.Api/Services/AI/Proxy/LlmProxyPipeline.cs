@@ -54,6 +54,9 @@ public sealed class LlmProxyPipeline : ILlmProxyPipeline
             outboundNode.Remove("tool_choice");
 
         var outboundJson = LlmJson.Write(outboundNode);
+        if (provider is MockLlmProvider mock)
+            return await MockCompletionAsync(mock, body, outboundJson, cancellationToken);
+
         HttpResponseMessage response;
         try
         {
@@ -117,6 +120,161 @@ public sealed class LlmProxyPipeline : ILlmProxyPipeline
             OutboundJson = outboundJson,
             Body = pipe.Reader.AsStream()
         };
+    }
+
+    private static async Task<LlmProxyResult> MockCompletionAsync(
+        MockLlmProvider mock,
+        JsonObject body,
+        string outboundJson,
+        CancellationToken cancellationToken)
+    {
+        var messages = new List<UnifiedChatMessage>();
+        if (body["messages"] is JsonArray arr)
+        {
+            foreach (var item in arr)
+            {
+                if (item is not JsonObject obj)
+                    continue;
+                messages.Add(new UnifiedChatMessage
+                {
+                    Role = LlmJson.Str(obj["role"]) ?? "user",
+                    Content = ContentText(obj["content"])
+                });
+            }
+        }
+
+        var turn = mock.Describe(new UnifiedChatRequest
+        {
+            Model = LlmJson.Str(body["model"]) ?? MockLlmRules.DefaultModel,
+            Messages = messages
+        });
+        var id = "chatcmpl-mock";
+        var sse = turn.ToolCalls.Count > 0
+            ? ToolCallSse(id, turn.Content, turn.ToolCalls)
+            : TextSse(id, turn.Content);
+        return new LlmProxyResult
+        {
+            StatusCode = 200,
+            Stream = true,
+            MediaType = "text/event-stream",
+            OutboundJson = outboundJson,
+            Body = new MemoryStream(Encoding.UTF8.GetBytes(sse))
+        };
+    }
+
+    private static string TextSse(string id, string text)
+    {
+        var chunk = new JsonObject
+        {
+            ["id"] = id,
+            ["object"] = "chat.completion.chunk",
+            ["choices"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["index"] = 0,
+                    ["delta"] = new JsonObject { ["role"] = "assistant", ["content"] = text }
+                }
+            }
+        };
+        var stop = FinishChunk(id, "stop");
+        return $"data: {chunk.ToJsonString()}\n\ndata: {stop.ToJsonString()}\n\ndata: [DONE]\n\n";
+    }
+
+    private static string ToolCallSse(string id, string content, IReadOnlyList<MockLlmToolCall> calls)
+    {
+        var sb = new StringBuilder();
+        if (!string.IsNullOrEmpty(content))
+        {
+            var text = new JsonObject
+            {
+                ["id"] = id,
+                ["object"] = "chat.completion.chunk",
+                ["choices"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["index"] = 0,
+                        ["delta"] = new JsonObject { ["role"] = "assistant", ["content"] = content }
+                    }
+                }
+            };
+            sb.Append("data: ").Append(text.ToJsonString()).Append("\n\n");
+        }
+
+        for (var index = 0; index < calls.Count; index++)
+        {
+            var call = calls[index];
+            var chunk = new JsonObject
+            {
+                ["id"] = id,
+                ["object"] = "chat.completion.chunk",
+                ["choices"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["index"] = 0,
+                        ["delta"] = new JsonObject
+                        {
+                            ["tool_calls"] = new JsonArray
+                            {
+                                new JsonObject
+                                {
+                                    ["index"] = index,
+                                    ["id"] = "call-mock-" + index,
+                                    ["type"] = "function",
+                                    ["function"] = new JsonObject
+                                    {
+                                        ["name"] = call.Name,
+                                        ["arguments"] = call.ArgumentsJson
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            sb.Append("data: ").Append(chunk.ToJsonString()).Append("\n\n");
+        }
+
+        sb.Append("data: ").Append(FinishChunk(id, "tool_calls").ToJsonString()).Append("\n\n");
+        sb.Append("data: [DONE]\n\n");
+        return sb.ToString();
+    }
+
+    private static JsonObject FinishChunk(string id, string reason) => new()
+    {
+        ["id"] = id,
+        ["choices"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["index"] = 0,
+                ["delta"] = new JsonObject(),
+                ["finish_reason"] = reason
+            }
+        }
+    };
+
+    private static string ContentText(JsonNode? node)
+    {
+        if (node is JsonValue value && value.TryGetValue<string>(out var text))
+            return text;
+        if (node is not JsonArray parts)
+            return string.Empty;
+        var sb = new StringBuilder();
+        foreach (var part in parts)
+        {
+            if (part is not JsonObject obj)
+                continue;
+            var piece = LlmJson.Str(obj["text"]);
+            if (string.IsNullOrEmpty(piece))
+                continue;
+            if (sb.Length > 0)
+                sb.Append('\n');
+            sb.Append(piece);
+        }
+        return sb.ToString();
     }
 
     private static async Task TranslateAsync(

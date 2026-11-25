@@ -285,10 +285,11 @@
 
 /* 任务页 */
 .wb .task-layout{display:flex;gap:16px;height:100%}
-.wb .task-panel{width:280px;flex:none;background:var(--el-bg-color);border-radius:var(--radius-md);padding:12px;box-shadow:var(--shadow-sm)}
-.wb .task-tools{display:flex;gap:8px;margin-bottom:12px}
-.wb .task-tools .search{flex:1;width:auto;height:28px}
-.wb .task-item{display:flex;align-items:center;gap:12px;padding:8px;border-radius:var(--radius-sm);cursor:pointer}
+.wb .task-panel{width:320px;flex:none;background:var(--el-bg-color);border-radius:var(--radius-md);padding:12px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;min-height:0}
+.wb .task-tools{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.wb .task-tools .search{flex:1;width:auto;height:28px;min-width:0}
+.wb .task-item-ops{display:flex;gap:2px;flex:none}
+.wb .task-item{display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer}
 .wb .task-item:hover{background:var(--gold-tint)}
 .wb .task-item.sel{background:var(--gold-tint)}
 .wb .task-item .row-icon{width:28px;height:28px}
@@ -307,6 +308,12 @@
 .wb .log-line{white-space:pre-wrap;word-break:break-all}
 .wb .log-line.err{color:var(--el-color-error)}
 .wb .log-line.ok{color:var(--el-color-success)}
+.wb .cmd-dlg{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center}
+.wb .cmd-dlg-mask{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.wb .cmd-dlg-box{position:relative;width:min(420px,90vw);background:var(--el-bg-color);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-lg)}
+.wb .cmd-dlg-box h3{margin:0 0 16px;font-size:16px}
+.wb .cmd-dlg-box .form-group{margin-bottom:12px}
+.wb .cmd-dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .wb .spinner{width:16px;height:16px;border:2px solid var(--el-border-color);border-top-color:var(--el-color-success);
   border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}

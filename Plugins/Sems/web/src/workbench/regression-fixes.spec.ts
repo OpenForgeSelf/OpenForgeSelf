@@ -132,6 +132,15 @@ describe('F03 同一路径再次登记', () => {
   })
 })
 
+describe('运行页没有命令时不请求日志', () => {
+  it('选中不存在的命令时清空选中，且不发日志请求', async () => {
+    wb.store.projects = [{ ...project, commands: [] } as never]
+    await wb.selectTask(11)
+    expect(wb.store.selectedTaskId).toBeNull()
+    expect(http.apiGet).not.toHaveBeenCalled()
+  })
+})
+
 describe('F11 没有命令时启动全部不得空转成功', () => {
   it('命令列表为空时不发启动请求，并说明没有可启动的命令', async () => {
     wb.store.projects = [{ ...project, commands: [] } as never]

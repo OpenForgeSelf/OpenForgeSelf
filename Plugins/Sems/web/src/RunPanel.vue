@@ -9,7 +9,7 @@
         <button class="run__btn" :disabled="checking" @click="check">
           {{ checking ? '检查中…' : '检查' }}
         </button>
-        <button class="run__btn" :class="{ 'run__btn--primary': emphasizeRunAll }" :disabled="!hasLaunchable" @click="runAll">
+        <button v-if="showRunAll" class="run__btn" :class="{ 'run__btn--primary': emphasizeRunAll }" :disabled="!hasLaunchable" @click="runAll">
           启动全部
         </button>
       </div>
@@ -18,10 +18,14 @@
     <div v-if="checking && runs.length === 0" class="run__hint">检查中…</div>
     <!-- 空态分级（§3.4-4）：无可启动命令时引导去加命令，而不是笼统「暂无数据」 -->
     <div v-else-if="runs.length === 0 && !hasLaunchable" class="run__hint">
-      还没有可运行的命令。请在下方项目卡片展开「管理命令」先添加一条，再回到这里启动或「检查」。
+      {{ showRunAll
+        ? '还没有可运行的命令。请先添加一条，再回到这里启动或「检查」。'
+        : '还没有可运行的命令。请在左侧添加一条后，再用页头「启动全部」或点「检查」。' }}
     </div>
     <div v-else-if="runs.length === 0" class="run__hint">
-      暂无运行中的进程。可点「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。
+      {{ showRunAll
+        ? '暂无运行中的进程。可点「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。'
+        : '暂无运行中的进程。可点页头「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。' }}
     </div>
 
     <ul v-else class="run__list">
@@ -118,8 +122,11 @@ const props = withDefaults(defineProps<{
   launchableCount?: number
   /** 同一屏已有金色「启动」时关掉，避免第二枚金色主按钮（I02）。 */
   emphasizeRunAll?: boolean
+  /** 工作台页头已有「启动全部」时关掉，避免第二处入口。 */
+  showRunAll?: boolean
 }>(), {
   emphasizeRunAll: true,
+  showRunAll: true,
 })
 
 const runs = ref<RunSession[]>([])

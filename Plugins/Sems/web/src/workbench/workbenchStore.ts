@@ -800,14 +800,24 @@ function ensureTaskPolling(): void {
   }, 1200)
 }
 
-/** 选中任务：切换即拉一次日志（不依赖「先点开日志按钮」）。 */
+/** 选中任务：切换即拉一次日志（不依赖「先点开日志按钮」）。命令不存在时不请求日志。 */
 export async function selectTask(commandId: number): Promise<void> {
   const cmd = currentProject()?.commands.find((c) => c.id === commandId)
-  if (cmd) store.selectedTask = cmd.name
+  if (!cmd) {
+    store.selectedTask = ''
+    store.selectedTaskId = null
+    return
+  }
+  store.selectedTask = cmd.name
   store.selectedTaskId = commandId
   // 冷态已判过 404 的命令直接显示本地留存日志，不再打网络请求（修 B-2）
   if (!logUnavailable.has(commandId) || taskStatusOf(commandId) === 'running') await pullTaskLogs(commandId)
   ensureTaskPolling()
+}
+
+export function clearSelectedTask(): void {
+  store.selectedTask = ''
+  store.selectedTaskId = null
 }
 
 /** stopTask 的结果（PILOT-087：每种结果调用方都应给出可见反馈）。 */

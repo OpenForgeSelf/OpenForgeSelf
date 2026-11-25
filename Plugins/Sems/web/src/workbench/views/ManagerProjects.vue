@@ -19,7 +19,7 @@ const rows = computed(() => listProjects())
 const types = computed(() => projectTypes())
 const busyRemoveId = ref<number | null>(null)
 
-async function facts(p: (typeof rows.value)[number]) {
+function facts(p: (typeof rows.value)[number]) {
   return projectListFacts(p)
 }
 

@@ -109,3 +109,4 @@ CONTEXT.md
 /TODO.md.bak
 # 本机 mock LLM 规则。样例是 config/mock-llm.sample.json，复制后改，不入库。
 /config/mock-llm.json
+.agents/skills/

@@ -80,19 +80,41 @@ if ($changed.Count -eq 0) {
     exit 0
 }
 
-function Test-IsDoc {
-    param([string]$P)
-    return ($P -match '^docs/' -or $P -match '^TODO\.md$' -or $P -match '^README' -or
-            $P -match '^\.forgeself/' -or $P -match '\.md$')
-}
-
 $pilotDirs = @($changed |
         Where-Object { $_ -match '^docs/ai/pilot/([^/]+)/' } |
         ForEach-Object { [regex]::Match($_, '^docs/ai/pilot/([^/]+)/').Groups[1].Value } |
         Sort-Object -Unique)
-$codeChanged = @($changed | Where-Object { -not (Test-IsDoc $_) })
-
+$codeChanged = @($changed)
 $fail = 0
+
+# 本地 commit-msg 与 CI 共用 Pilot 豁免白名单；任一未豁免文件仍走 trailer 与 expected_files 范围守卫。
+$exemptInput = [System.IO.Path]::GetTempFileName()
+$exemptOutput = [System.IO.Path]::GetTempFileName()
+try {
+    Set-Content -LiteralPath $exemptInput -Value $codeChanged -Encoding utf8
+    $exemptOut = & pwsh -NoProfile -ExecutionPolicy Bypass `
+        -File (Join-Path $RepoRoot 'scripts/check-pilot-exemption.ps1') `
+        -ChangedFilesPath $exemptInput `
+        -OutUnexemptPath $exemptOutput `
+        -RepoRoot $RepoRoot 2>&1
+    $exemptRc = $LASTEXITCODE
+    $exemptOut | ForEach-Object { Write-Output "  $_" }
+    if ($exemptRc -eq 2) {
+        $fail = 1
+        Write-Output '  [FAIL] Pilot 豁免配置缺失或非法，拒绝静默豁免'
+    }
+    elseif ($exemptRc -eq 0) {
+        $codeChanged = @()
+    }
+    elseif (Test-Path -LiteralPath $exemptOutput) {
+        $codeChanged = @(Get-Content -LiteralPath $exemptOutput |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+}
+finally {
+    Remove-Item -LiteralPath $exemptInput -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $exemptOutput -Force -ErrorAction SilentlyContinue
+}
 
 # ---- 1) 非文档改动：每个触碰代码的 commit 必须带 Pilot: <目录名> trailer ----
 if (-not $SkipTrailer -and $codeChanged.Count -gt 0) {
@@ -101,7 +123,7 @@ if (-not $SkipTrailer -and $codeChanged.Count -gt 0) {
     foreach ($sha in $commits) {
         $cFiles = @(Invoke-Git @('show', '--name-only', '--format=', '--diff-filter=ACMR', $sha) |
                 Where-Object { $_ } | ForEach-Object { $_ -replace '\\', '/' } |
-                Where-Object { -not (Test-IsDoc $_) })
+                Where-Object { $codeChanged -contains $_ })
         if ($cFiles.Count -eq 0) { continue }
         $body = (Invoke-Git @('log', '-1', '--format=%B', $sha)) -join "`n"
         $m = [regex]::Match($body, '(?m)^Pilot:\s*(\S+)\s*$')
@@ -188,13 +210,23 @@ function ConvertTo-GlobRegex {
     return $sb.ToString()
 }
 
-# ---- 3) 范围守卫：代码 diff 必须落在某个 pilot 的 04 expected_files 内 ----
+# ---- 3) 范围守卫：代码 diff 必须落在某个 pilot 的 04/mini-task expected_files 内 ----
 if (-not $SkipScope -and $codeChanged.Count -gt 0) {
     $allowed = @()
     foreach ($d in $pilotDirs) {
         $f04 = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot "docs/ai/pilot/$d") -Filter '04-*.md' -ErrorAction SilentlyContinue | Select-Object -First 1)
-        if ($f04.Count -ne 1) { continue }
-        $text = [System.IO.File]::ReadAllText($f04[0].FullName, [System.Text.Encoding]::UTF8)
+        $taskFile = $null
+        if ($f04.Count -eq 1) {
+            $taskFile = $f04[0].FullName
+        }
+        else {
+            $mini = Join-Path $RepoRoot "docs/ai/pilot/$d/mini-task.md"
+            if (Test-Path -LiteralPath $mini) {
+                $taskFile = $mini
+            }
+        }
+        if (-not $taskFile) { continue }
+        $text = [System.IO.File]::ReadAllText($taskFile, [System.Text.Encoding]::UTF8)
         $inBlock = $false
         foreach ($line in ($text -split "`r?`n")) {
             if (-not $inBlock) {
@@ -207,7 +239,7 @@ if (-not $SkipScope -and $codeChanged.Count -gt 0) {
     }
     if ($allowed.Count -eq 0) {
         $fail++
-        Write-Output '  [FAIL] 改了非文档文件，但没有任何 pilot 的 04-task.md 声明 expected_files（无法界定范围）'
+        Write-Output '  [FAIL] 改了非文档文件，但没有任何 pilot 的 04-task.md 或 mini-task.md 声明 expected_files（无法界定范围）'
     }
     else {
         foreach ($f in $codeChanged) {

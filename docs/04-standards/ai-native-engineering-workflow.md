@@ -144,6 +144,8 @@ Review
 
 裁剪不等于跳过：任何级别都必须有 Test→Evidence→Review 的真实验证与审查记录。
 
+**提交豁免白名单（非流程裁剪）**：提交是否需要 Pilot trailer 与工件链，由 `scripts/pilot-exemption-allowlist.json` 唯一决定，支持精确路径与 glob；本地 `commit-msg` 与 CI `verify-pilot-gate.ps1` 都先把全部暂存/范围内文件交给 `scripts/check-pilot-exemption.ps1`。不得在两个门禁脚本中再写死文件类别。任一未豁免文件仍走完整 Pilot 门禁；配置缺失、JSON 非法或数组格式错误时拒绝静默豁免。
+
 ## 5. 汇报格式（任务结束强制）
 
 按模板 `docs/18-templates/ai-pilot/07-final-report.tpl.md` 出报告（含 Repository Understanding、Selected Task、Changed Files、Validation、Evidence、Review、Risk、Problems Found、Process Evaluation、**问题类归档、重构提案、悬空教训清单（必须为空）** 十三节；后三节为 v1.2.0 替换旧「最重要的问题/下一步建议」自由文本——散文建议不再接受，每条教训必须落成 PC id 或 TODO id，pre-commit 对缺陷类任务机械拒缺）。载体：**markdown 正文直接发在群消息里**；仅在用户明确要求或内容超单消息上限时才用附件，且附件外必须仍有正文摘要。

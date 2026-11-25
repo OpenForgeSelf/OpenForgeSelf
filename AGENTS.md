@@ -88,6 +88,7 @@
 ### 2.3 关键约定速记
 - 包管理器：**pnpm**（不是 npm），Node >= 20
 - **脚本执行统一用 `pwsh`（PowerShell 7），禁止 `powershell` / `powershell.exe`（5.1）**；`.ps1` 文件必须带 UTF-8 BOM。机械守卫：`scripts/check-engineering-rules.cjs`（pre-commit / CI / `pnpm run check` 均挂接）。唯一例外：专门复现 5.1 缺陷时可用 `powershell`（见 `b-engineering-daily.md` §B6）。
+- **Pilot 豁免白名单**：小范围元数据/文档修改可在 `scripts/pilot-exemption-allowlist.json` 登记精确路径或 glob；commit-msg 与 CI 共用 `scripts/check-pilot-exemption.ps1`。任一未豁免文件仍要求 Pilot trailer 与工件链，配置缺失/非法不得静默放行。
 - **提交内容卫生（2026-11-14 输入1 用户立）**：所提交文档/代码/注释不得含工作区或工作区外绝对地址（盘符 / file URL 盘符 / POSIX 用户目录 / UNC）、指向具体个人的标识（人名/昵称/成员名/账号片段）、其他项目的业务信息；pre-commit 第 4 道门机械拦暂存新增行（棘轮只拦新增，存量另批清理）；规则真源与守卫用法 → agent-workflow b-engineering-platform §B13；技能 `commit-hygiene-audit`
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）

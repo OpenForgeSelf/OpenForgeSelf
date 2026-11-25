@@ -191,7 +191,7 @@ async function pollOnce(): Promise<void> {
 }
 
 .bind-hint {
-  margin-top: var(--el-margin, 8px);
+  margin-top: 8px;
   font-size: var(--el-font-size-extra-small);
   color: var(--el-text-color-secondary);
 }
@@ -199,8 +199,8 @@ async function pollOnce(): Promise<void> {
 .bind-preparing {
   display: flex;
   align-items: center;
-  gap: var(--el-margin, 8px);
-  padding: var(--el-padding, 12px) 0;
+  gap: 8px;
+  padding: 12px 0;
   color: var(--el-text-color-regular);
 }
 
@@ -212,15 +212,15 @@ async function pollOnce(): Promise<void> {
 .code-row {
   display: flex;
   align-items: center;
-  gap: var(--el-margin, 8px);
-  margin: var(--el-margin, 12px) 0;
+  gap: 8px;
+  margin: 12px 0;
 }
 
 .user-code {
   font-size: var(--el-font-size-large);
-  font-weight: var(--el-font-weight-bold, 600);
+  font-weight: 600;
   letter-spacing: 2px;
-  padding: var(--el-padding, 6px) var(--el-padding, 10px);
+  padding: 6px 10px;
   background: var(--el-fill-color-light);
   border-radius: var(--el-border-radius-base);
   color: var(--el-text-color-primary);
@@ -232,10 +232,10 @@ async function pollOnce(): Promise<void> {
 }
 
 .code-actions {
-  margin-top: var(--el-margin, 8px);
+  margin-top: 8px;
 }
 
 .error-block .retry-button {
-  margin-top: var(--el-margin, 12px);
+  margin-top: 12px;
 }
 </style>

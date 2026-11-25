@@ -11,6 +11,7 @@ import { useUsageStatsStore } from '@/stores/usageStats'
 import { usePluginManifestStore } from '@/stores/pluginManifest'
 import { mergeFeatureList } from '@/data/features'
 import { featureUsageKey } from '@/data/homeEntries'
+import { lucideIconSvg } from '@/data/featureIcons'
 import type { NavTab } from '@/stores/tabs'
 
 const router = useRouter()
@@ -62,6 +63,23 @@ function isPinnedTab(tab: NavTab): boolean {
   return pinnedPathSet.value.has(tab.path)
 }
 
+/**
+ * 页签默认 logo（2026-11-25 输入28 追加轮）：按 path 在功能单一真源（内置 + 插件清单）
+ * 里匹配 FeatureItem，用 lucide 内联 SVG（featureIcons.ts 单一源，与「所有功能」页同表）。
+ * 无匹配（如 /all-features 等工具页）返回空串，槽留空；悬浮时槽内动作图标照常互换。
+ */
+const logoByPath = computed(() => {
+  const m = new Map<string, string>()
+  for (const f of mergeFeatureList(manifestStore.menus)) {
+    if (f.path) m.set(f.path, lucideIconSvg(f.icon, 14))
+  }
+  return m
+})
+
+function tabLogo(path: string): string {
+  return logoByPath.value.get(path) ?? ''
+}
+
 function navigateTo(path: string): void {
   router.push(path)
 }
@@ -104,19 +122,23 @@ const bgPanelOpen = ref(false)
         :class="{ active: activeTab === tab.path }"
         @click="navigateTo(tab.path)"
       >
-        <span>{{ tab.label }}</span>
-        <span
-          v-if="isPinnedTab(tab)"
-          class="close-x"
-          :title="`取消钉住 ${tab.label}`"
-          @click.stop="unpin(tab.path)"
-        >📌</span>
-        <span
-          v-else-if="tab.path !== '/'"
-          class="close-x"
-          :title="`关闭 ${tab.label}`"
-          @click.stop="closeTab(tab.path)"
-        >×</span>
+        <!-- 左侧 16px 图标槽：默认 logo，悬浮同位互换动作图标（零位移，2026-11-25 输入28 v3：图标在左） -->
+        <span v-if="tab.path !== '/'" class="tab-icon-slot" aria-hidden="true">
+          <span class="tab-logo" v-html="tabLogo(tab.path)"></span>
+          <span
+            v-if="isPinnedTab(tab)"
+            class="close-x"
+            :title="`取消钉住 ${tab.label}`"
+            @click.stop="unpin(tab.path)"
+          >📌</span>
+          <span
+            v-else
+            class="close-x"
+            :title="`关闭 ${tab.label}`"
+            @click.stop="closeTab(tab.path)"
+          >×</span>
+        </span>
+        <span class="tab-label">{{ tab.label }}</span>
       </button>
     </nav>
 
@@ -192,7 +214,7 @@ const bgPanelOpen = ref(false)
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.06em;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .tab-nav {
@@ -208,10 +230,10 @@ const bgPanelOpen = ref(false)
 }
 
 .tab-item {
-  padding: 6px 14px;
-  font-family: var(--font-sans-cn);
+  padding: 6px 9px; /* 水平 14→9（2026-11-25 输入28：页签左右边距调小；相邻页签文字间距 30→20px） */
+  font-family: var(--el-font-family);
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   border-radius: 5px;
   border: none;
@@ -226,7 +248,7 @@ const bgPanelOpen = ref(false)
 }
 
 .tab-item:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   background: var(--paper-tint-weak);
 }
 
@@ -238,8 +260,8 @@ const bgPanelOpen = ref(false)
 .tab-item.active::after {
   content: '';
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 7px; /* 与 padding 9px 维持「下划线比文字宽 2px」既有关系（原 12/14） */
+  right: 7px;
   bottom: -1px;
   height: 2px;
   background: var(--el-color-primary);
@@ -247,25 +269,75 @@ const bgPanelOpen = ref(false)
   box-shadow: var(--gold-glow-md);
 }
 
-.close-x {
-  display: none;
-  align-items: center;
-  justify-content: center;
+/* 右侧 16px 图标槽：默认 logo、悬浮同位互换动作图标 ——
+   槽与两图标同一 16px 盒、盒宽恒定，显隐只走 visibility/opacity ——
+   任何状态页签宽度不变、相邻页签零位移（2026-11-23 输入22 / 2026-11-25 输入28；守卫见 TopNavbar.test.ts） */
+.tab-icon-slot {
+  position: relative;
   width: 16px;
   height: 16px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+  visibility: visible;
+  opacity: 1;
+  /* 悬出：logo 立即淡出；移回：延迟翻转 visibility 保证淡入完整 */
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s linear var(--dur-fast);
+}
+
+.tab-logo :deep(svg) {
+  display: block;
+}
+
+.tab-item:hover .tab-logo,
+.tab-item:focus-within .tab-logo {
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s;
+}
+
+.close-x {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
   border-radius: 4px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
+  /* 悬入立即显现 + 160ms 淡入；移出延迟翻转 visibility 保证淡出完整 */
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s linear var(--dur-fast);
 }
 
-.tab-item:hover .close-x {
-  display: inline-flex;
+.tab-item:hover .close-x,
+.tab-item:focus-within .close-x {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    visibility 0s;
 }
 
 .close-x:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   background: var(--border-default);
 }
 
@@ -284,7 +356,7 @@ const bgPanelOpen = ref(false)
   height: 30px;
   background: transparent;
   border: 0;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   border-radius: 5px;
   cursor: pointer;
   display: inline-flex;
@@ -295,7 +367,7 @@ const bgPanelOpen = ref(false)
 
 .actions button:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .actions button.active {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLogo from '@/components/AppLogo.vue'
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { PluginDetail } from '@/types/plugin'
 import { PluginState, PluginPermission } from '@/types/plugin'
 import { usePluginStore } from '@/stores/plugin'
@@ -102,198 +102,152 @@ async function handleToggle(): Promise<void> {
   }
 }
 
-function handleBackdropClick(event: MouseEvent): void {
-  if (event.target === event.currentTarget) {
-    handleClose()
-  }
+function handleBackdropChange(value: boolean): void {
+  if (!value) handleClose()
 }
 
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    handleClose()
-  }
-}
-
+// immediate：visible=true 首挂即拉详情（旧版 onMounted 语义），后续开关由 watch 续接
 watch(() => props.visible, (newVal) => {
   if (newVal && props.pluginId) {
     loadDetail()
   }
-})
+}, { immediate: true })
 
 watch(() => props.pluginId, () => {
   if (props.visible && props.pluginId) {
     loadDetail()
   }
 })
-
-onMounted(() => {
-  if (props.visible && props.pluginId) {
-    loadDetail()
-  }
-  document.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div
-        v-if="visible"
-        class="modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        @click="handleBackdropClick"
-      >
-        <div class="modal-container" role="document">
-          <div class="modal-header">
-            <AppLogo :size="20" />
-            <button class="close-btn" aria-label="关闭" @click="handleClose">
-              ×
-            </button>
-          </div>
+  <el-dialog
+    :model-value="visible"
+    :show-close="false"
+    append-to-body
+    class="plugin-detail-dialog"
+    @update:model-value="handleBackdropChange"
+    @close="handleClose"
+  >
+    <template #header>
+      <div class="modal-header">
+        <AppLogo :size="26" />
+        <button class="close-btn" aria-label="关闭" @click="handleClose">
+          ×
+        </button>
+      </div>
+    </template>
 
-          <div v-if="pluginStore.isLoading" class="modal-loading">
-            <div class="loading-spinner" />
-            <span>加载中...</span>
-          </div>
+    <div v-if="pluginStore.isLoading" class="modal-loading">
+      <div class="loading-spinner" />
+      <span>加载中...</span>
+    </div>
 
-          <div v-else-if="pluginStore.error" class="modal-error">
-            <span class="error-icon">⚠️</span>
-            <p>{{ pluginStore.error }}</p>
-          </div>
+    <div v-else-if="pluginStore.error" class="modal-error">
+      <span class="error-icon">⚠️</span>
+      <p>{{ pluginStore.error }}</p>
+    </div>
 
-          <div v-else-if="plugin" class="modal-content">
-            <div class="plugin-header">
-              <div class="plugin-icon-large">
-                <span v-if="plugin.iconUrl">
-                  <img :src="plugin.iconUrl" :alt="plugin.name" />
-                </span>
-                <span v-else class="icon-fallback-large">📦</span>
-              </div>
-              <div class="plugin-info">
-                <h2 class="plugin-name">{{ plugin.name }}</h2>
-                <div class="plugin-meta-row">
-                  <span class="plugin-version">版本 {{ plugin.version }}</span>
-                  <span class="plugin-author">作者: {{ plugin.author }}</span>
-                  <div class="plugin-state" :class="stateClass">
-                    <span class="state-dot" />
-                    <span class="state-text">{{ stateLabel }}</span>
-                  </div>
-                </div>
-              </div>
+    <div v-else-if="plugin" class="modal-content">
+      <div class="plugin-header">
+        <div class="plugin-icon-large">
+          <span v-if="plugin.iconUrl">
+            <img :src="plugin.iconUrl" :alt="plugin.name" />
+          </span>
+          <span v-else class="icon-fallback-large">📦</span>
+        </div>
+        <div class="plugin-info">
+          <h2 class="plugin-name">{{ plugin.name }}</h2>
+          <div class="plugin-meta-row">
+            <span class="plugin-version">版本 {{ plugin.version }}</span>
+            <span class="plugin-author">作者: {{ plugin.author }}</span>
+            <div class="plugin-state" :class="stateClass">
+              <span class="state-dot" />
+              <span class="state-text">{{ stateLabel }}</span>
             </div>
-
-            <div class="plugin-description-full">
-              <h3>插件描述</h3>
-              <p>{{ plugin.description }}</p>
-            </div>
-
-            <div class="plugin-section">
-              <h3>分类</h3>
-              <span class="category-tag">{{ plugin.category }}</span>
-            </div>
-
-            <div v-if="plugin.dependencies && plugin.dependencies.length > 0" class="plugin-section">
-              <h3>依赖插件</h3>
-              <div class="dependencies-list">
-                <span v-for="dep in plugin.dependencies" :key="dep" class="dependency-item">
-                  {{ dep }}
-                </span>
-              </div>
-            </div>
-
-            <div v-if="plugin.permissions && plugin.permissions.length > 0" class="plugin-section">
-              <h3>权限声明</h3>
-              <ul class="permissions-list">
-                <li v-for="perm in plugin.permissions" :key="perm" class="permission-item">
-                  <span class="permission-icon">🔒</span>
-                  <div class="permission-info">
-                    <span class="permission-name">{{ permissionDescriptions[perm as PluginPermission] || perm }}</span>
-                    <span class="permission-id">{{ perm }}</span>
-                  </div>
-                </li>
-              </ul>
-            </div>
-
-            <div v-if="plugin.extensionPoints && plugin.extensionPoints.length > 0" class="plugin-section">
-              <h3>扩展点贡献</h3>
-              <div class="extensions-grid">
-                <div v-for="ext in plugin.extensionPoints" :key="ext" class="extension-item">
-                  <span class="extension-label">{{ extensionTypeLabels[ext] || ext }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="plugin.usageStats" class="plugin-section">
-              <h3>使用统计</h3>
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <span class="stat-value">{{ plugin.usageStats.totalUsage }}</span>
-                  <span class="stat-label">总使用次数</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-value">{{ formattedLastUsed }}</span>
-                  <span class="stat-label">最后使用</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="modal-footer">
-              <button
-                class="toggle-btn"
-                :class="{ active: plugin.isEnabled, loading: isToggling }"
-                :disabled="isToggling || plugin.state === PluginState.Error"
-                @click="handleToggle"
-              >
-                <span v-if="isToggling" class="btn-loading" />
-                {{ isToggling ? '处理中...' : (plugin.isEnabled ? '禁用插件' : '启用插件') }}
-              </button>
-            </div>
-          </div>
-
-          <div v-else class="modal-empty">
-            <p>未找到插件信息</p>
           </div>
         </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <div class="plugin-description-full">
+        <h3>插件描述</h3>
+        <p>{{ plugin.description }}</p>
+      </div>
+
+      <div class="plugin-section">
+        <h3>分类</h3>
+        <span class="category-tag">{{ plugin.category }}</span>
+      </div>
+
+      <div v-if="plugin.dependencies && plugin.dependencies.length > 0" class="plugin-section">
+        <h3>依赖插件</h3>
+        <div class="dependencies-list">
+          <span v-for="dep in plugin.dependencies" :key="dep" class="dependency-item">
+            {{ dep }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="plugin.permissions && plugin.permissions.length > 0" class="plugin-section">
+        <h3>权限声明</h3>
+        <ul class="permissions-list">
+          <li v-for="perm in plugin.permissions" :key="perm" class="permission-item">
+            <span class="permission-icon">🔒</span>
+            <div class="permission-info">
+              <span class="permission-name">{{ permissionDescriptions[perm as PluginPermission] || perm }}</span>
+              <span class="permission-id">{{ perm }}</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div v-if="plugin.extensionPoints && plugin.extensionPoints.length > 0" class="plugin-section">
+        <h3>扩展点贡献</h3>
+        <div class="extensions-grid">
+          <div v-for="ext in plugin.extensionPoints" :key="ext" class="extension-item">
+            <span class="extension-label">{{ extensionTypeLabels[ext] || ext }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="plugin.usageStats" class="plugin-section">
+        <h3>使用统计</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-value">{{ plugin.usageStats.totalUsage }}</span>
+            <span class="stat-label">总使用次数</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ formattedLastUsed }}</span>
+            <span class="stat-label">最后使用</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          class="toggle-btn"
+          :class="{ active: plugin.isEnabled, loading: isToggling }"
+          :disabled="isToggling || plugin.state === PluginState.Error"
+          @click="handleToggle"
+        >
+          <span v-if="isToggling" class="btn-loading" />
+          {{ isToggling ? '处理中...' : (plugin.isEnabled ? '禁用插件' : '启用插件') }}
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="modal-empty">
+      <p>未找到插件信息</p>
+    </div>
+  </el-dialog>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-container {
-  background: #fff;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 560px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 12px 16px 0;
   flex-shrink: 0;
 }
@@ -302,10 +256,10 @@ onUnmounted(() => {
   width: 32px;
   height: 32px;
   border: none;
-  background: #f1f3f5;
+  background: var(--el-fill-color-lighter);
   border-radius: 8px;
   font-size: 20px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -314,14 +268,12 @@ onUnmounted(() => {
 }
 
 .close-btn:hover {
-  background: #e9ecef;
-  color: #212529;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 
 .modal-content {
   padding: 0 24px 24px;
-  overflow-y: auto;
-  flex: 1;
 }
 
 .modal-loading,
@@ -329,14 +281,14 @@ onUnmounted(() => {
 .modal-empty {
   padding: 60px 24px;
   text-align: center;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #f1f3f5;
-  border-top-color: #1976d2;
+  border: 3px solid var(--el-fill-color-lighter);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;
@@ -356,7 +308,7 @@ onUnmounted(() => {
 
 .modal-error p {
   margin: 0;
-  color: #dc3545;
+  color: var(--el-color-error);
 }
 
 .plugin-header {
@@ -364,14 +316,13 @@ onUnmounted(() => {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--el-fill-color-lighter);
 }
 
 .plugin-icon-large {
   width: 64px;
   height: 64px;
   border-radius: 14px;
-  background: #f0f7ff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,7 +348,7 @@ onUnmounted(() => {
 .plugin-name {
   font-size: 20px;
   font-weight: 600;
-  color: #212529;
+  bottom: 0;
   margin: 0 0 8px 0;
 }
 
@@ -407,12 +358,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-version,
 .plugin-author {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .plugin-state {
@@ -425,36 +376,36 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #6c757d;
+  background: var(--el-text-color-secondary);
 }
 
 .state-enabled .state-dot {
-  background: #28a745;
+  background: var(--el-color-success);
 }
 
 .state-disabled .state-dot {
-  background: #6c757d;
+  background: var(--el-text-color-secondary);
 }
 
 .state-error .state-dot {
-  background: #dc3545;
+  background: var(--el-color-error);
 }
 
 .state-installed .state-dot {
-  background: #17a2b8;
+  background: var(--el-color-info);
 }
 
 .state-text {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 
 .state-enabled .state-text {
-  color: #28a745;
+  color: var(--el-color-success);
 }
 
 .state-error .state-text {
-  color: #dc3545;
+  color: var(--el-color-error);
 }
 
 .plugin-description-full {
@@ -465,13 +416,13 @@ onUnmounted(() => {
 .plugin-section h3 {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  background: var(--el-overlay-color);
   margin: 0 0 8px 0;
 }
 
 .plugin-description-full p {
   font-size: 14px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   line-height: 1.6;
   margin: 0;
 }
@@ -482,11 +433,11 @@ onUnmounted(() => {
 
 .category-tag {
   display: inline-block;
-  background: #f1f3f5;
+  background: var(--el-fill-color-lighter);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .dependencies-list {
@@ -496,8 +447,8 @@ onUnmounted(() => {
 }
 
 .dependency-item {
-  background: #fff3cd;
-  color: #856404;
+  display: flex;
+  align-items: center;
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -517,7 +468,7 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  background: #f8f9fa;
+  justify-content: center;
   border-radius: 8px;
 }
 
@@ -534,13 +485,13 @@ onUnmounted(() => {
 
 .permission-name {
   font-size: 13px;
-  color: #212529;
+  z-index: 1000;
   font-weight: 500;
 }
 
 .permission-id {
   font-size: 11px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-family: monospace;
 }
 
@@ -555,7 +506,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 16px 8px;
-  background: #f0f7ff;
+  padding: 20px;
   border-radius: 10px;
   text-align: center;
 }
@@ -563,13 +514,13 @@ onUnmounted(() => {
 .extension-count {
   font-size: 24px;
   font-weight: 600;
-  color: #1976d2;
+  color: var(--el-color-primary);
   margin-bottom: 4px;
 }
 
 .extension-label {
   font-size: 12px;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .stats-grid {
@@ -582,25 +533,25 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--el-bg-color);
   border-radius: 10px;
 }
 
 .stat-value {
   font-size: 20px;
   font-weight: 600;
-  color: #212529;
+  border-radius: 16px;
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .modal-footer {
   padding: 16px 24px;
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid var(--el-fill-color-lighter);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -618,30 +569,29 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #e9ecef;
-  color: #495057;
+  width: 100%;
+  color: var(--el-text-color-regular);
 }
 
 .toggle-btn:hover:not(:disabled) {
-  background: #dee2e6;
+  filter: brightness(1.05);
 }
 
 .toggle-btn.active {
-  background: #dc3545;
-  color: #fff;
+  background: var(--el-color-error);
 }
 
 .toggle-btn.active:hover:not(:disabled) {
-  background: #c82333;
+  background: var(--el-color-error-dark-2);
 }
 
 .toggle-btn:not(.active) {
-  background: #28a745;
-  color: #fff;
+  background: var(--el-color-success);
+  display: flex;
 }
 
 .toggle-btn:not(.active):hover:not(:disabled) {
-  background: #218838;
+  background: var(--el-color-success-dark-2);
 }
 
 .toggle-btn:disabled {
@@ -658,39 +608,7 @@ onUnmounted(() => {
   animation: spin 0.8s linear infinite;
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95) translateY(-10px);
-  opacity: 0;
-}
-
 @media (max-width: 640px) {
-  .modal-overlay {
-    padding: 0;
-    align-items: stretch;
-  }
-
-  .modal-container {
-    max-width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
   .modal-content {
     padding: 0 16px 16px;
   }
@@ -707,6 +625,41 @@ onUnmounted(() => {
 
   .plugin-meta-row {
     justify-content: center;
+  }
+}
+</style>
+
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.el-dialog.plugin-detail-dialog {
+  --el-dialog-margin-top: 5vh;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: var(--el-box-shadow-dark);
+  overflow: hidden;
+}
+
+.plugin-detail-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.plugin-detail-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .el-dialog.plugin-detail-dialog {
+    width: 100vw;
+    max-height: 100vh;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 0;
   }
 }
 </style>

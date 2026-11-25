@@ -71,8 +71,8 @@ function toggleFavorite() {
 
 <style scoped>
 .code-snippet-card {
-  background: var(--el-bg-color, #fff);
-  border: 1px solid var(--el-border-color, #e5e7eb);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;
@@ -83,12 +83,12 @@ function toggleFavorite() {
 }
 
 .code-snippet-card:hover {
-  border-color: var(--el-color-primary, #3b82f6);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .code-snippet-card.is-favorite {
-  border-left: 3px solid #f59e0b;
+  border-left: 3px solid var(--el-color-primary);
 }
 
 .snippet-header {
@@ -102,7 +102,7 @@ function toggleFavorite() {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary, #1f2937);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -113,7 +113,7 @@ function toggleFavorite() {
   background: none;
   border: none;
   cursor: pointer;
-  color: #f59e0b;
+  color: var(--el-color-primary);
   font-size: 14px;
   padding: 2px;
 }
@@ -125,7 +125,7 @@ function toggleFavorite() {
 .snippet-description {
   margin: 0;
   font-size: 12px;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--el-text-color-regular);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -142,8 +142,8 @@ function toggleFavorite() {
 .language-tag {
   display: inline-block;
   padding: 2px 8px;
-  background: var(--primary-light, #dbeafe);
-  color: var(--el-color-primary, #3b82f6);
+  background: var(--el-color-primary-light-3);
+  color: var(--el-color-primary);
   border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
@@ -152,8 +152,8 @@ function toggleFavorite() {
 .category-tag {
   display: inline-block;
   padding: 2px 8px;
-  background: var(--el-bg-color-page, #f3f4f6);
-  color: var(--el-text-color-regular, #6b7280);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-regular);
   border-radius: 4px;
   font-size: 11px;
 }
@@ -166,7 +166,7 @@ function toggleFavorite() {
 
 .tag {
   font-size: 11px;
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--el-text-color-secondary);
 }
 
 .snippet-footer {
@@ -175,12 +175,12 @@ function toggleFavorite() {
   align-items: center;
   margin-top: auto;
   padding-top: 4px;
-  border-top: 1px solid var(--el-border-color-light, #f3f4f6);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .usage-count {
   font-size: 11px;
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--el-text-color-secondary);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -193,17 +193,17 @@ function toggleFavorite() {
 }
 
 .source-manual {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-info);
 }
 
 .source-script {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
 }
 
 .source-aigenerated {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-primary-dark-2);
 }
 </style>

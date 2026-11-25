@@ -1,14 +1,16 @@
 ﻿# UTF-8 BOM required (PS 5.1). Do not strip.
 <#
 .SYNOPSIS
-  Pilot 04 头部 feature / requirements 回写校验（pre-commit 与 CI pilot-gate 共用）。
+  Pilot 04/mini-task 头部 feature / requirements 回写校验（pre-commit 与 CI pilot-gate 共用）。
 
 .DESCRIPTION
   对单个 pilot 任务目录：
   1) feature ≠ none 时，docs/02-features/{feature}-*.md 必须存在
      （例：feature: 032 → 032-agent-hub.md；feature: 032-agent-hub → 找不到 032-agent-hub-*.md）
   2) 若传入 -ChangedFiles，则该功能文档相对路径必须出现在变更列表（回写同批）
-  3) 若 04 声明 requirements: [...]，各 id 须出现在功能文档正文
+  3) 若头部声明 requirements: [...]，各 id 须出现在功能文档正文
+  轻量任务（无 04-task.md、用 mini-task.md）同样适用：mini-task.md 若带 YAML 头部则校验；
+  无 YAML 头部的轻量任务直接放行（2026-11-24 修复对 mini-task 硬 exit 1 的假红）。
 
 .EXAMPLE
   pwsh -File scripts/verify-pilot-feature-writeback.ps1 -TaskId 2026-11-19-oar-agenthub-runtime -ChangedFiles @('docs/02-features/032-agent-hub.md')
@@ -42,15 +44,30 @@ if (-not (Test-Path -LiteralPath $pilotDir)) {
     exit 1
 }
 
+# 来源文件：优先 04-task.md；轻量任务允许 mini-task.md 承载 feature/requirements（2026-11-24 修复假红）
 $f04 = @(Get-ChildItem -LiteralPath $pilotDir -Filter '04-*.md' -ErrorAction SilentlyContinue | Select-Object -First 1)
-if ($f04.Count -ne 1) {
-    Write-Output ("FAIL: {0} 缺少 04-*.md" -f $TaskId)
+$miniPath = Join-Path $pilotDir 'mini-task.md'
+$isLite = Test-Path -LiteralPath $miniPath
+if ($f04.Count -eq 1) {
+    $srcFile = $f04[0].FullName
+    $srcLabel = '04'
+}
+elseif ($isLite) {
+    $srcFile = $miniPath
+    $srcLabel = 'mini-task'
+}
+else {
+    Write-Output ("FAIL: {0} 缺少 04-*.md 且无 mini-task.md（轻量任务须有 mini-task.md）" -f $TaskId)
     exit 1
 }
 
-$t04 = [System.IO.File]::ReadAllText($f04[0].FullName, [System.Text.Encoding]::UTF8)
+$t04 = [System.IO.File]::ReadAllText($srcFile, [System.Text.Encoding]::UTF8)
 if ($t04 -notmatch '(?s)^\s*---\s*\r?\n(.*?)\r?\n---') {
-    Write-Output ("FAIL: {0} 的 04 缺少 YAML 头部" -f $TaskId)
+    if ($srcLabel -eq 'mini-task') {
+        Write-Output ("OK: {0} 为轻量任务（mini-task.md 无 YAML 头部，跳过 feature/回写校验）" -f $TaskId)
+        exit 0
+    }
+    Write-Output ("FAIL: {0} 的 {1} 缺少 YAML 头部" -f $TaskId, $srcLabel)
     exit 1
 }
 $fm = $Matches[1]
@@ -89,7 +106,7 @@ if ($mF.Success) {
     }
 }
 else {
-    Write-Output 'WARN: 04 头部无 feature 字段（跳过）'
+    Write-Output ("WARN: {0} 头部无 feature 字段（跳过）" -f $srcLabel)
 }
 
 $mR = [regex]::Match($fm, '(?m)^\s*requirements\s*:\s*\[(.*?)\]')

@@ -1,4 +1,4 @@
-﻿# 问题类台账（Problem Classes）
+# 问题类台账（Problem Classes）
 
 > **本目录是「这类事为什么会再犯、怎么防」的唯一真源索引**；pilot 工件回答「任务做到哪了」，此处回答「问题被归类了吗、守卫在守吗」。
 > 模板与 front-matter schema 单一来源 = `docs/18-templates/postmortem/problem-class.tpl.md`；流程（何时建档、如何扫查/上浮）= 技能 `.agents/skills/problem-class-closure/`。
@@ -32,6 +32,7 @@
 | XCode 实体直插时间戳 / CreatedAt / UpdatedAt / 0001-01-01 | PC-022 |
 | 执行记录文件清单 / ToolCallsJson 提取 / 双编码 JSON / 留痕参数面 | PC-023 |
 | UI 主题 / 暗色对比度 / primary light-N / 选中行·标签·横幅 | PC-025 |
+| 主题跟随系统 / light-dark 实际主题枚举 / 第三主题选项 / 主题持久化迁移 | PC-051 |
 | 插件前端类名 / 宿主 Tailwind 工具类 / table display / 表头内容错列 | PC-026 |
 | JSON 序列化 / 中文转义 \uXXXX / Encoder / System.Text.Json 写出路径 | PC-027 |
 | 对外别名 PublicAlias / 网关 model 解析 / Responses 把别名发给上游 | PC-028 |
@@ -46,6 +47,11 @@
 | OAR prompt 结算 / installation 诚实 / 假 bundled / 短 sleep Exit | PC-037 |
 | Mock 配置 400 无感 / resume 被默认模型接管 | PC-039 |
 | planned 模式恒回退且无解释（组合根可选参静默漏装配） | PC-040 |
+| 主题浮层面/弹窗底与页面底不同族 / 亮暗两态表面 token 供给 | PC-044 |
+| 插件前端 SFC 用 EP 组件 / el-* 未显式 import / 预编译产物缺件 | PC-045 |
+| EP 组件自定义 class 覆盖样式 / `.x-dialog .el-dialog` 后代死规则 | PC-046 |
+| 插件 web 构建报 `SAFE_DELETE_BULK_CONFIRM_REQUIRED` / 发布链首插件挂 / `emptyOutDir` | PC-047 |
+| 发布链 `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | PC-048 |
 
 ## 台账总表
 
@@ -92,7 +98,16 @@
 | PC-039 | Mock 提供方静默改道 / 会话模型快照缺失 | open | G1 失守待重建 | 0 | [PC-039](PC-039-mock-provider-silent-divert.md) |
 | PC-040 | 组合根构造可选参省参漏装配（静默 null 依赖） | open | G1 失守待重建 | 0 | [PC-040](PC-040-composition-root-arg-omission.md) |
 | PC-041 | 版本目录名第 4 段为 10 位时间码，[version]/System.Version 分量解析抛 OverflowException（更新保留步误报失败） | guarded | G1 active（RepositoryScriptTests 三处同源守卫 + UpdateAgentCore 单测） | 0 | [PC-041](PC-041-update-agent-version-sort-overflow.md) |
+| PC-042 | 行内布局 hover/focus 显形图标未预留槽位，display 切换致宽度跳变 + 相邻元素位移（页签 +22px 实测） | guarded | G1 active（TopNavbar 图标槽常驻预留守卫 4 条） | 0 | [PC-042](PC-042-hover-reveal-width-jump.md) |
 | PC-043 | 跨平台脚本平台短路缺失：Windows 上 POSIX 探测抢跑（bash test -x 收 Windows 路径恒 false → postinstall 恒败 → 发布链 install 全挂） | guarded | G2 active（RepositoryScriptTests 平台短路先于 bash 分支顺序断言） | 0 | [PC-043](PC-043-crossplatform-shortcircuit-before-posix.md) |
+| PC-044 | 主题浮层面 token 只在暗块接管、亮块漏配，亮暗两态供给不对称（弹窗白底与内容区不统一） | guarded | G2 active（表面 token 接管 vitest）+ G3 active（主题文件签名） | 0 | [PC-044](PC-044-theme-overlay-surface-asymmetry.md) |
+| PC-045 | 插件前端 SFC 用 EP 组件未显式 import，独立预编译产物下组件缺失 | guarded | G2 active（plugin-ep-import vitest 静态扫查） | 0 | [PC-045](PC-045-plugin-ep-explicit-import.md) |
+| PC-046 | EP 组件自定义 class 落组件根元素，`.x-dialog .el-dialog` 后代选择器死规则不生效 | guarded | G3 active（check-problem-classes 签名×2） | 0 | [PC-046](PC-046-ep-custom-class-composite-selector.md) |
+| PC-047 | 插件 web 构建 `emptyOutDir:true` 触发沙箱 safe-delete 批量删除守卫，本地发布链首插件即中断 | guarded | G2 active（ProblemClassEnumerationTests 枚举全部插件 config）+ G3 签名 | 0 | [PC-047](PC-047-release-local-zip-emptyoutdir.md) |
+| PC-048 | 发布链 pnpm install 依赖 TTY 确认，无 TTY 清 modules 提示直接 abort 中断发布 | guarded | G2 active（ProblemClassEnumerationTests 断言 install 带 confirmModulesPurge=false）+ G3 签名 | 0 | [PC-048](PC-048-pnpm-install-nontty-purge-confirm.md) |
+| PC-049 | 被宿主引用的 exe 条件式声明 SelfContained 求值失效 → SDK 推断自包含 → NETSDK1151 阻断 publish | guarded | G2 active（ProblemClassEnumerationTests 断言无条件显式 false）+ G3 签名 | 0 | [PC-049](PC-049-release-updateagent-selfcontained-inference.md) |
+| PC-050 | 更新代理 exe 轨先删 staged（=自身 DOTNET_ROOT）再重启，BCL 加载失败宿主未拉起 | guarded | G2 active（ProblemClassEnumerationTests 断言 restart 早于 cleanup）+ G3 签名 | 0 | [PC-050](PC-050-update-agent-cleanup-staged-before-restart.md) |
+| PC-051 | 跟随系统被建模成独立主题值与第三主题选项 | guarded | G1 active（theme/store/settings/appearance 三处守卫） | 0 | [PC-051](PC-051-theme-follow-system-as-third-mode.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

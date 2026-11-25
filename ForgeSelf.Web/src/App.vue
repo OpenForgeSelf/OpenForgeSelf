@@ -5,10 +5,12 @@ import { MagicStick } from '@element-plus/icons-vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import { useAppearanceStore } from '@/stores/appearance'
+import { useThemeStore } from '@/stores/theme'
 import { useOpenPage } from '@/composables/useOpenPage'
 import { useTerminalInbox } from '@/composables/useTerminalInbox'
 
 const appearanceStore = useAppearanceStore()
+const themeStore = useThemeStore()
 const { openPage } = useOpenPage()
 useTerminalInbox()
 
@@ -28,6 +30,12 @@ watch(() => appearanceStore.backgroundImage, (val) => {
   document.body.classList.toggle('app-bg-image-mode', !!val)
   isImageBroken.value = false
 }, { immediate: true })
+
+watch(
+  () => themeStore.resolvedTheme,
+  (theme) => appearanceStore.syncBackgroundWithTheme(theme),
+  { immediate: true },
+)
 
 // 遮罩浓度挂到 <body> CSS 变量（设计稿 body::before 遮罩机制）
 // 设计稿规则（App.jsx:168）：图片模式用用户滑块值；纯色模式自动压 15%（浅米色 #F4EEDF/#FBF7EE 压 0%）
@@ -129,8 +137,8 @@ watch(
   pointer-events: none;
   background-image: linear-gradient(
     180deg,
-    rgba(11, 9, 8, calc(var(--overlay-opacity, 0.55) - 0.05)) 0%,
-    rgba(11, 9, 8, var(--overlay-opacity, 0.55)) 100%
+    color-mix(in srgb, var(--ink-950) calc((var(--overlay-opacity, 0.55) - 0.05) * 100%), transparent) 0%,
+    color-mix(in srgb, var(--ink-950) calc(var(--overlay-opacity, 0.55) * 100%), transparent) 100%
   );
   transition: opacity 360ms ease-out;
 }

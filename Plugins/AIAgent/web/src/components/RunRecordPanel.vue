@@ -790,7 +790,7 @@ defineExpose({ selectRun: openRun })
 
 .rrp__list-title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-regular);
 }
 
@@ -930,7 +930,7 @@ defineExpose({ selectRun: openRun })
 }
 
 .rrp__detail-id {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-text-color-secondary);
 }
@@ -1131,7 +1131,7 @@ defineExpose({ selectRun: openRun })
 
 .rrp__plan-title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-regular);
 }
 
@@ -1187,7 +1187,7 @@ defineExpose({ selectRun: openRun })
 
 .rrp__plan-role {
   font-size: 11px;
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-color-primary);
 }
 
@@ -1291,7 +1291,7 @@ defineExpose({ selectRun: openRun })
   flex-shrink: 0;
   border-radius: 999px;
   background: var(--el-fill-color-dark);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
   color: var(--el-text-color-secondary);
 }
@@ -1334,7 +1334,7 @@ defineExpose({ selectRun: openRun })
 
 .rrp__step-dur {
   flex-shrink: 0;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
   color: var(--el-text-color-placeholder);
 }
@@ -1373,7 +1373,7 @@ defineExpose({ selectRun: openRun })
   max-height: 140px;
   overflow-y: auto;
   font-size: var(--el-font-size-extra-small, 12px);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   line-height: 1.5;
   color: var(--el-text-color-secondary);
   white-space: pre-wrap;
@@ -1383,7 +1383,7 @@ defineExpose({ selectRun: openRun })
 .rrp__label {
   display: inline-block;
   margin-right: 6px;
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-color-primary);
 }
 

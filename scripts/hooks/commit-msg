@@ -14,16 +14,43 @@ MSG_FILE="$1"
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT" || exit 1
 
-# 本次提交暂存区里的“非文档”改动（提交过程中索引仍有效）
-CODE=$(git diff --cached --name-only --diff-filter=ACMR \
-  | grep -vE '^docs/' \
-  | grep -vE '^TODO\.md$' \
-  | grep -vE '^README' \
-  | grep -vE '^\.forgeself/' \
-  | grep -vE '\.md$' \
-  || true)
+# 本次提交暂存区里的全部变更（提交过程中索引仍有效）。
+# 是否豁免统一由 scripts/pilot-exemption-allowlist.json 判定；
+# 不再在本 hook 里写死 docs/README/.gitignore 等文件类别。
+CODE=$(git diff --cached --name-only --diff-filter=ACMR || true)
 
 [ -z "$CODE" ] && exit 0
+
+# 本次变更先走仓库级豁免白名单；白名单外的混合改动仍要求 Pilot trailer。
+# 判定真源：scripts/pilot-exemption-allowlist.json + scripts/check-pilot-exemption.ps1。
+if command -v pwsh >/dev/null 2>&1; then
+  PS=pwsh
+elif command -v powershell.exe >/dev/null 2>&1; then
+  PS=powershell.exe
+else
+  PS=""
+fi
+
+if [ -n "$PS" ]; then
+  EXEMPT_LIST=$(mktemp)
+  UNEXEMPT_LIST=$(mktemp)
+  printf '%s\n' "$CODE" > "$EXEMPT_LIST"
+  "$PS" -NoProfile -ExecutionPolicy Bypass \
+    -File "scripts/check-pilot-exemption.ps1" \
+    -ChangedFilesPath "$EXEMPT_LIST" \
+    -OutUnexemptPath "$UNEXEMPT_LIST" \
+    -RepoRoot "$ROOT"
+  EXEMPT_RC=$?
+  rm -f "$EXEMPT_LIST" "$UNEXEMPT_LIST"
+  if [ $EXEMPT_RC -eq 0 ]; then
+    echo "[commit-msg] PASS: 本次变更命中 Pilot 豁免白名单，无需 trailer。"
+    exit 0
+  fi
+  if [ $EXEMPT_RC -eq 2 ]; then
+    echo "[commit-msg] FAIL: Pilot 豁免配置缺失或非法，拒绝静默豁免。"
+    exit 1
+  fi
+fi
 
 TRAILER=$(grep -E '^Pilot:[[:space:]]*[^[:space:]]' "$MSG_FILE" | tail -1 \
   | sed 's/^Pilot:[[:space:]]*//' | tr -d '\r' | tr -d '[:space:]')

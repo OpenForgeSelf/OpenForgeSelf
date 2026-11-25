@@ -441,13 +441,13 @@ function formatDate(dateStr: string): string {
   font-family: var(--font-mono);
   font-size: 24px;
   font-weight: 700;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .profile-content {
@@ -472,7 +472,7 @@ function formatDate(dateStr: string): string {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -480,14 +480,14 @@ function formatDate(dateStr: string): string {
 }
 
 .section-header h3 svg {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .badge {
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   padding: 2px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
   font-weight: 500;
 }
@@ -495,17 +495,17 @@ function formatDate(dateStr: string): string {
 .btn-icon {
   background: none;
   border: none;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   display: flex;
   transition: background var(--dur-fast) var(--ease-out);
 }
 
 .btn-icon:hover {
   background: var(--paper-tint);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .spinning {
@@ -522,9 +522,9 @@ function formatDate(dateStr: string): string {
   align-items: center;
   gap: 8px;
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   padding: 8px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-weight: 600;
   margin-bottom: 12px;
   font-family: var(--font-serif-cn);
@@ -532,7 +532,7 @@ function formatDate(dateStr: string): string {
 
 .style-desc {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.6;
   margin: 0 0 16px 0;
 }
@@ -549,12 +549,12 @@ function formatDate(dateStr: string): string {
 }
 
 .info-label {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .info-value {
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .skills-list {
@@ -566,7 +566,7 @@ function formatDate(dateStr: string): string {
 .skill-item {
   padding: 12px;
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .skill-info {
@@ -578,7 +578,7 @@ function formatDate(dateStr: string): string {
 
 .skill-name {
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
@@ -586,8 +586,8 @@ function formatDate(dateStr: string): string {
   font-size: 12px;
   padding: 2px 8px;
   background: var(--gold-tint);
-  color: var(--gold-400);
-  border-radius: var(--radius-sm);
+  color: var(--el-color-primary);
+  border-radius: var(--el-border-radius-small);
   font-weight: 500;
 }
 
@@ -605,17 +605,17 @@ function formatDate(dateStr: string): string {
   transition: width var(--dur-base) var(--ease-out);
 }
 
-.skill-level-1 { background: var(--fg-muted); }
+.skill-level-1 { background: var(--el-text-color-disabled); }
 .skill-level-2 { background: var(--el-color-info); }
-.skill-level-3 { background: var(--bronze-500); }
-.skill-level-4 { background: var(--gold-400); }
-.skill-level-5 { background: var(--cinnabar-400); }
+.skill-level-3 { background: var(--el-color-success); }
+.skill-level-4 { background: var(--el-color-primary); }
+.skill-level-5 { background: var(--el-color-error); }
 
 .skill-stats {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -628,19 +628,19 @@ function formatDate(dateStr: string): string {
 .preference-item {
   padding: 10px 12px;
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .pref-key {
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 4px;
 }
 
 .pref-value {
   font-size: 14px;
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: 6px;
 }
 
@@ -660,13 +660,13 @@ function formatDate(dateStr: string): string {
 
 .confidence-bar-fill {
   height: 100%;
-  background: var(--bronze-500);
+  background: var(--el-color-success);
   border-radius: 2px;
 }
 
 .pref-confidence span {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   min-width: 36px;
   text-align: right;
   font-family: var(--font-mono);
@@ -680,21 +680,21 @@ function formatDate(dateStr: string): string {
 
 .suggestion-card {
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   padding: 16px;
   transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .suggestion-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .suggestion-card.priority-2 {
-  border-left: 4px solid var(--gold-500);
+  border-left: 4px solid var(--el-color-primary-dark-2);
 }
 
 .suggestion-card.priority-3 {
-  border-left: 4px solid var(--cinnabar-400);
+  border-left: 4px solid var(--el-color-error);
 }
 
 .suggestion-header {
@@ -707,12 +707,12 @@ function formatDate(dateStr: string): string {
 .suggestion-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--gold-tint);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   flex-shrink: 0;
 }
 
@@ -725,43 +725,43 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .suggestion-type {
   font-size: 11px;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .priority-badge {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: var(--paper-tint);
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   flex-shrink: 0;
 }
 
 .priority-2 .priority-badge {
   background: var(--gold-tint);
-  color: var(--gold-500);
+  color: var(--el-color-primary-dark-2);
 }
 
 .priority-3 .priority-badge {
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  color: var(--el-color-error);
 }
 
 .suggestion-desc {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
 
 .suggestion-content {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-bottom: 12px;
   line-height: 1.6;
 }
@@ -777,7 +777,7 @@ function formatDate(dateStr: string): string {
 
 .btn {
   padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -786,7 +786,7 @@ function formatDate(dateStr: string): string {
   align-items: center;
   gap: 6px;
   transition: transform var(--dur-instant) var(--ease-out);
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .btn-sm {
@@ -795,23 +795,23 @@ function formatDate(dateStr: string): string {
 }
 
 .btn-primary {
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .btn-ghost:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .patterns-list {
@@ -823,7 +823,7 @@ function formatDate(dateStr: string): string {
 .pattern-item {
   padding: 14px;
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .pattern-header {
@@ -836,7 +836,7 @@ function formatDate(dateStr: string): string {
 .pattern-icon {
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -845,27 +845,27 @@ function formatDate(dateStr: string): string {
 
 .pattern-temporal {
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .pattern-frequency {
-  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
-  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
 }
 
 .pattern-sequential {
-  background: color-mix(in srgb, var(--gold-500) 12%, transparent);
-  color: var(--gold-500);
+  background: color-mix(in srgb, var(--el-color-primary-dark-2) 12%, transparent);
+  color: var(--el-color-primary-dark-2);
 }
 
 .pattern-behavioral {
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  color: var(--el-color-error);
 }
 
 .pattern-contextual {
   background: var(--gold-tint-strong);
-  color: var(--gold-300);
+  color: var(--el-color-primary-light-3);
 }
 
 .pattern-info {
@@ -877,12 +877,12 @@ function formatDate(dateStr: string): string {
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .pattern-type {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .pattern-confidence {
@@ -894,18 +894,18 @@ function formatDate(dateStr: string): string {
   display: block;
   font-size: 16px;
   font-weight: 700;
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   font-family: var(--font-mono);
 }
 
 .confidence-label {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .pattern-desc {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 10px 0;
   line-height: 1.5;
 }
@@ -914,7 +914,7 @@ function formatDate(dateStr: string): string {
   display: flex;
   gap: 16px;
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -936,15 +936,15 @@ function formatDate(dateStr: string): string {
   gap: 12px;
   padding: 10px 12px;
   background: var(--paper-tint);
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
 }
 
 .rank {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--gold-400);
-  color: var(--ink-950);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   font-size: 12px;
   font-weight: 700;
   display: flex;
@@ -954,12 +954,12 @@ function formatDate(dateStr: string): string {
 }
 
 .top-tool-item:nth-child(2) .rank {
-  background: var(--gold-400);
+  background: var(--el-color-primary);
   opacity: 0.8;
 }
 
 .top-tool-item:nth-child(3) .rank {
-  background: var(--gold-400);
+  background: var(--el-color-primary);
   opacity: 0.6;
 }
 
@@ -967,7 +967,7 @@ function formatDate(dateStr: string): string {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 @media (max-width: 1024px) {

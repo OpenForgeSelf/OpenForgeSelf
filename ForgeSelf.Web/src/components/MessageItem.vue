@@ -75,7 +75,7 @@ const roleLabel = computed(() => {
 }
 
 .message-system {
-  background-color: rgba(217, 119, 6, 0.12);
+  background-color: var(--gold-tint-strong);
   margin: 0 40px;
 }
 
@@ -94,11 +94,11 @@ const roleLabel = computed(() => {
 }
 
 .avatar-user {
-  background-color: var(--primary-light);
+  background-color: var(--el-color-primary-light-3);
 }
 
 .avatar-assistant {
-  background-color: rgba(16, 185, 129, 0.15);
+  background-color: var(--el-color-success-light-9);
 }
 
 .message-content {

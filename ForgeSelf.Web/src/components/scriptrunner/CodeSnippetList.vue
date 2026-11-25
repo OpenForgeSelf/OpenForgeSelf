@@ -191,8 +191,8 @@ watch(() => props.filterFavorite, (val) => {
   display: flex;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
-  background: var(--el-bg-color-page, #f9fafb);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color-page);
 }
 
 .search-box {
@@ -205,30 +205,30 @@ watch(() => props.filterFavorite, (val) => {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
 .search-box input {
   width: 100%;
   padding: 8px 12px 8px 32px;
-  border: 1px solid var(--el-border-color, #d1d5db);
+  border: 1px solid var(--el-border-color);
   border-radius: 6px;
   font-size: 13px;
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-primary, #1f2937);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--el-color-primary, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .new-btn {
   padding: 8px 16px;
-  background: var(--el-color-primary, #3b82f6);
-  color: white;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -247,8 +247,8 @@ watch(() => props.filterFavorite, (val) => {
   display: flex;
   gap: 16px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
-  background: var(--el-bg-color, #fff);
+  border-bottom: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
   flex-wrap: wrap;
 }
 
@@ -260,26 +260,26 @@ watch(() => props.filterFavorite, (val) => {
 
 .filter-group label {
   font-size: 12px;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--el-text-color-regular);
 }
 
 .filter-group select {
   padding: 4px 8px;
-  border: 1px solid var(--el-border-color, #d1d5db);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   font-size: 12px;
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-primary, #1f2937);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
 
 .filter-btn {
   padding: 4px 10px;
-  border: 1px solid var(--el-border-color, #d1d5db);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
   font-size: 12px;
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-regular, #6b7280);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -287,17 +287,17 @@ watch(() => props.filterFavorite, (val) => {
 }
 
 .filter-btn.active {
-  background: #fef3c7;
-  color: #d97706;
-  border-color: #fcd34d;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-warning-light-7);
 }
 
 .list-info {
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--el-text-color-secondary, #9ca3af);
-  background: var(--el-bg-color-page, #f9fafb);
-  border-bottom: 1px solid var(--el-border-color, #e5e7eb);
+  color: var(--el-text-color-secondary);
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .snippets-grid {
@@ -316,7 +316,7 @@ watch(() => props.filterFavorite, (val) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--el-text-color-secondary);
   gap: 12px;
 }
 
@@ -336,7 +336,7 @@ watch(() => props.filterFavorite, (val) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-secondary, #9ca3af);
+  color: var(--el-text-color-secondary);
   gap: 12px;
 }
 
@@ -350,22 +350,22 @@ watch(() => props.filterFavorite, (val) => {
   justify-content: center;
   gap: 12px;
   padding: 12px;
-  border-top: 1px solid var(--el-border-color, #e5e7eb);
-  background: var(--el-bg-color, #fff);
+  border-top: 1px solid var(--el-border-color);
+  background: var(--el-bg-color);
 }
 
 .page-btn {
   padding: 6px 12px;
-  border: 1px solid var(--el-border-color, #d1d5db);
+  border: 1px solid var(--el-border-color);
   border-radius: 4px;
-  background: var(--el-bg-color, #fff);
-  color: var(--el-text-color-regular, #6b7280);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   font-size: 12px;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: var(--el-bg-color-page, #f3f4f6);
+  background: var(--el-bg-color-page);
 }
 
 .page-btn:disabled {
@@ -375,6 +375,6 @@ watch(() => props.filterFavorite, (val) => {
 
 .page-info {
   font-size: 12px;
-  color: var(--el-text-color-regular, #6b7280);
+  color: var(--el-text-color-regular);
 }
 </style>

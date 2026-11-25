@@ -149,6 +149,7 @@ description: 基于《写给大家看的设计书》（Robin Williams）的 UI/U
 - [ ] dialog 内 input/select/switch/radio 的边框和文字用 token
 - [ ] **插件弹窗**（编辑 Agent / 插件设置 / 表单 modal）背景和文字跟主题
 - [ ] 切浅色主题后 dialog 不残留暗色硬编码
+- [ ] **浮层面与页面底同族核对（2026-11-23 用户走查抓出，PC-044）**：亮/暗两态下弹窗面板与内容卡片区是同一色彩家族（暗块接管了 overlay，亮块也要接管——单块漏配=弹窗白块突兀）；弹窗 header 的 logo 与标题字号比例协调（logo ≈1.4× 标题字号，实测 20px logo vs 18px 标题显小、修 26px）
 
 ### C. 设置页/页头对齐一致性
 - [ ] PageHead（eyebrow + serif title + 副题）位置全站统一（不允许有的居中有的偏左）

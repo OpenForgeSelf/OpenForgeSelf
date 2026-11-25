@@ -105,7 +105,7 @@ function adjustHeight() {
 
 .input-container:focus-within {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px var(--el-color-primary-light-3);
 }
 
 .input-textarea {

@@ -86,9 +86,9 @@ function removeAt(index: number): void {
   max-width: 100%;
   padding: 1px 2px 1px 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   background: var(--paper-tint);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 1.4;
@@ -96,8 +96,8 @@ function removeAt(index: number): void {
 }
 /* hover 才金边金字（禁主色实心填充） */
 .ig-chip:hover {
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 .ig-chip__text {
   overflow: hidden;
@@ -122,15 +122,15 @@ function removeAt(index: number): void {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   box-sizing: border-box;
   outline: none;
 }
 .ig-tags__input:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   box-shadow: 0 0 0 3px var(--gold-tint);
 }
 .ig-tags__input:disabled {
@@ -138,6 +138,6 @@ function removeAt(index: number): void {
   opacity: 0.6;
 }
 .ig-tags__input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 </style>

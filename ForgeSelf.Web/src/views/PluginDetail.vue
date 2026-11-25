@@ -348,7 +348,7 @@ watch(() => route.params.id, (newId) => {
   gap: 4px;
   background: transparent;
   border: 1px solid var(--glass-border);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
   cursor: pointer;
   padding: 6px 12px;
@@ -358,7 +358,7 @@ watch(() => route.params.id, (newId) => {
 
 .back-btn:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .loading-state,

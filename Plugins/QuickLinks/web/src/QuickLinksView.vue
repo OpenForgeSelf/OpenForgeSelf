@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+// 插件是独立预编译产物（无 unplugin 编译期注册），模板 <el-dialog> 必须显式导入
+// 才能运行时解析；element-plus 经宿主 index.html import map 共享同一实例。
+import { ElDialog } from 'element-plus'
 import type { QuickLink, QuickLinkCreateRequest, ImportMode } from './types'
 import { useQuickLinksStore } from './store'
 import { showToast } from './toast'
@@ -209,6 +212,10 @@ function closeImportModal(): void {
   showImportModal.value = false
 }
 
+function handleImportDialogChange(value: boolean): void {
+  if (!value) closeImportModal()
+}
+
 function toggleCategoryManager(): void {
   showCategoryManager.value = !showCategoryManager.value
 }
@@ -342,29 +349,29 @@ onMounted(() => {
     <ToastHost />
     <ConfirmHost />
 
-    <Teleport to="body">
-      <Transition name="modal">
-        <div
-          v-if="showImportModal"
-          class="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          @click.self="closeImportModal"
-        >
-          <div class="modal-container import-modal">
-            <div class="modal-header">
-              <div class="header-left">
-                <span class="app-logo">
-                  <img :src="logoUrl" alt="铸己匣" />
-                </span>
-                <h2 class="modal-title">导入链接</h2>
-              </div>
-              <button class="close-btn" aria-label="关闭" @click="closeImportModal">
-                ×
-              </button>
-            </div>
+    <el-dialog
+      :model-value="showImportModal"
+      :show-close="false"
+      append-to-body
+      class="import-links-dialog"
+      @update:model-value="handleImportDialogChange"
+      @close="closeImportModal"
+    >
+      <template #header>
+        <div class="modal-header">
+          <div class="header-left">
+            <span class="app-logo">
+              <img :src="logoUrl" alt="铸己匣" />
+            </span>
+            <h2 class="modal-title">导入链接</h2>
+          </div>
+          <button class="close-btn" aria-label="关闭" @click="closeImportModal">
+            ×
+          </button>
+        </div>
+      </template>
 
-            <div class="modal-body">
+      <div class="modal-body">
               <div class="import-options">
                 <h4>导入方式</h4>
                 <div class="mode-selector">
@@ -408,10 +415,7 @@ onMounted(() => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+  </el-dialog>
   </div>
 </template>
 
@@ -684,35 +688,6 @@ onMounted(() => {
   opacity: 0.5;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--el-mask-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-container {
-  background: var(--el-bg-color);
-  border-radius: 16px;
-  width: 100%;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: var(--el-box-shadow);
-}
-
-.import-modal {
-  max-width: 440px;
-}
-
 .modal-header {
   display: flex;
   align-items: center;
@@ -730,8 +705,8 @@ onMounted(() => {
   overflow: hidden;
   border-radius: 6px;
   line-height: 0;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
 }
 
 .app-logo img {
@@ -870,27 +845,6 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .import-modal,
-.modal-leave-active .import-modal {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .import-modal,
-.modal-leave-to .import-modal {
-  transform: scale(0.95) translateY(-10px);
-  opacity: 0;
-}
-
 @media (max-width: 768px) {
   .view-header {
     padding: 12px 16px;
@@ -931,8 +885,7 @@ onMounted(() => {
   }
 
   .sidebar-enter-active,
-  .sidebar-leave-active {
-    transform: translateX(0);
+  .sidebar-leave-active {    transform: translateX(0);
   }
 
   .main-content {
@@ -949,5 +902,30 @@ onMounted(() => {
   .links-grid {
     grid-template-columns: 1fr;
   }
+}
+</style>
+
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.el-dialog.import-links-dialog {
+  --el-dialog-margin-top: 8vh;
+  width: min(440px, calc(100vw - 32px));
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: var(--el-box-shadow);
+  overflow: hidden;
+}
+
+.import-links-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.import-links-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

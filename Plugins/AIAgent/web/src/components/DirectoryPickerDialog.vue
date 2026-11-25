@@ -191,7 +191,7 @@ watch(
   margin-bottom: 8px;
   overflow-x: auto;
   white-space: nowrap;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-text-color-secondary);
   background: var(--el-fill-color);
@@ -288,7 +288,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 11px);
   color: var(--el-text-color-secondary);
 }

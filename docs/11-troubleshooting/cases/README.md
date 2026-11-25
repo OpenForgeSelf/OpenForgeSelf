@@ -1,9 +1,10 @@
-﻿# 案例档案（Cases）— 时间线索引
+# 案例档案（Cases）— 时间线索引
 
 > Case 只讲「这一次发生了什么」（一事一档）；规则/修法/守卫一律引用对应 PC，不复述。模板 = `docs/18-templates/postmortem/case.tpl.md`，新建走 `scripts/new-problem-case.ps1` 或按技能 `problem-class-closure` P6 手工建。
 
 | case id | 日期 | 现象一句话 | PC | 证据 | 档案 |
 |---------|------|------------|----|------|------|
+| 2026-11-25-theme-system-third-mode | 2026-11-25 | 设置页把跟随系统做成第三主题按钮，实际主题还曾持久化 system；修为独立开关 + light/dark 实际态 | [PC-051](../problem-classes/PC-051-theme-follow-system-as-third-mode.md) | Verified | [case](2026-11-25-theme-system-third-mode.md) |
 | 2026-11-23-release-pnpm-install-hook-fail | 2026-11-23 | 发布链 `pnpm install (host-web)` 全挂：git-bash `test -x` 对 Windows 路径恒 false，postinstall 钩子被误判不可执行退出 1（PC-043 首发：Windows 短路缺失） | [PC-043](../problem-classes/PC-043-crossplatform-shortcircuit-before-posix.md) | Verified | [链接](2026-11-23-release-pnpm-install-hook-fail.md) |
 | 2026-11-23-sems-stop-no-feedback | 2026-11-23 | sems 点停止无反应无提示：运行中日志 404 被无限吞错轮询致任务卡「运行中」，停止 404 又无反馈（PC-024 复发：终态分支只 return 不收敛） | [PC-024](../problem-classes/PC-024-frontend-poll-error-handling.md) | Verified | [链接](2026-11-23-sems-stop-no-feedback.md) |
 | 2026-11-20-oar-early-exit-and-bundled-fake | 2026-11-20 | OarTransport 50ms 假 Exit + handlers 假 bundled | [PC-037](../problem-classes/PC-037-oar-honesty-without-evidence.md) | Verified | [链接](2026-11-20-oar-early-exit-and-bundled-fake.md) |
@@ -50,6 +51,13 @@
 | 2026-11-15-st-ux-defects | 2026-11-15 | 智能终端三缺陷实测：`~` 起始目录 400 + 报错泄露宿主路径（PC-035 延期债到期）；GBK「目录」偶合合法 UTF-8 显示「Ŀ¼」（PC-011 **逃逸**入运行时）；cmd 会话 `cd` 后页面目录不更新（PC-036） | [PC-011](../problem-classes/PC-011-process-output-fixed-codepage-decode.md)（一案三类，另见 [PC-035](../problem-classes/PC-035-tilde-startdir-unresolved-info-leak.md) / [PC-036](../problem-classes/PC-036-cmd-session-cwd-capture-missing.md)） | Verified | [链接](2026-11-15-st-ux-defects.md) |
 | 2026-11-20-mock-provider-silent-divert | 2026-11-20 | Mock 配置请求被转发管道吃掉 400 无感；resume 后被宿主默认模型静默接管（灾后码随批丢失，守卫待重建） | [PC-039](../problem-classes/PC-039-mock-provider-silent-divert.md) | Verified | [链接](2026-11-20-mock-provider-silent-divert.md) |
 | 2026-11-21-composition-root-arg-omission | 2026-11-21 | planned 模式恒「规划失败，已回退计划」且无解释：组合根漏传 planGenerator 静默降级（灾后码随批丢失，守卫待重建） | [PC-040](../problem-classes/PC-040-composition-root-arg-omission.md) | Verified | [链接](2026-11-21-composition-root-arg-omission.md) |
-| 2026-11-21-update-agent-version-sort-overflow | 2026-11-21 | 自更新版本保留步抛「无法将值 2.4.22.2611131611 转换为 System.Version」：10 位时间码第 4 段超 Int32.MaxValue，新版本已落位被误报失败 | [PC-041](../problem-classes/PC-041-update-agent-version-sort-overflow.md) | Verified | [链接](2026-11-21-update-agent-version-sort-overflow.md) |
+| 2026-11-21-update-agent-version-sort-overflow | 2026-11-21 | 自更新版本保留步抛「无法将值 2.4.22.2611131611 转换为 System.Version」：10 位时间码第 4 段超 Int32.MaxValue，新版本已落 | [PC-041](../problem-classes/PC-041-update-agent-version-sort-overflow.md) | Verified | [case](2026-11-21-update-agent-version-sort-overflow.md) |
+| 2026-11-23-dialog-overlay-white-mismatch | 2026-11-23 | 技能管理弹窗白底与内容区不统一：主题亮块 --el-bg-color-overlay 留 EP 默认纯白（暗块已接管=供给不对称）；随批 13 处弹窗 header logo 20→26 | [PC-044](../problem-classes/PC-044-theme-overlay-surface-asymmetry.md) | Verified | [case](2026-11-23-dialog-overlay-white-mismatch.md) |
+| 2026-11-23-plugin-dialog-elimport-missing | 2026-11-23 | 插件弹窗迁移双缺陷：SFC 用 EP 组件未显式 import（预编译产物运行时缺件）+ `.x-dialog .el-dialog` 后代选择器死规则 | [PC-045](../problem-classes/PC-045-plugin-ep-explicit-import.md) / [PC-046](../problem-classes/PC-046-ep-custom-class-composite-selector.md) | Verified | [case](2026-11-23-plugin-dialog-elimport-missing.md) |
+| 2026-11-24-release-local-zip-emptyoutdir | 2026-11-24 | 发布本地 zip 首插件 AgentHub 构建被 safe-delete 批量删除守卫拦截（15 插件 `emptyOutDir:true` 横切遗漏，宿主早已 false） | [PC-047](../problem-classes/PC-047-release-local-zip-emptyoutdir.md) | Verified | [case](2026-11-24-release-local-zip-emptyoutdir.md) |
+| 2026-11-24-release-local-pnpm-nontty-purge-confirm | 2026-11-24 | 智能终端跑 `release-local.ps1 -Sign`，pnpm 清 modules 确认在无 TTY 下直接 abort | [PC-048](../problem-classes/PC-048-pnpm-install-nontty-purge-confirm.md) | Verified | [case](2026-11-24-release-local-pnpm-nontty-purge-confirm.md) |
+| 2026-11-23-hover-reveal-width-jump | 2026-11-23 | 悬浮显形图标未预留槽位，页签 hover 宽度跳变且相邻页签位移 | [PC-042](../problem-classes/PC-042-hover-reveal-width-jump.md) | Verified | [case](2026-11-23-hover-reveal-width-jump.md) |
+| 2026-11-24-release-netsdk1151-selfcontained-inference | 2026-11-24 | 发布 zip 走到 host publish 报 NETSDK1151：UpdateAgent 条件式 SelfContained 求值失效，SDK 推断为自包含 exe | [PC-049](../problem-classes/PC-049-release-updateagent-selfcontained-inference.md) | Verified | [case](2026-11-24-release-netsdk1151-selfcontained-inference.md) |
+| 2026-11-24-update-agent-exe-cleanup-before-restart | 2026-11-24 | exe 轨首次真机更新宿主未拉起：先删 staged（agent 自身运行时）再重启，首次加载 System.Collections.Specialized 失败 | [PC-050](../problem-classes/PC-050-update-agent-cleanup-staged-before-restart.md) | Verified | [case](2026-11-24-update-agent-exe-cleanup-before-restart.md) |
 
 **登记规则**：新 case 文件名 = `YYYY-MM-DD-<slug>.md`（id 与文件名逐字一致）；必须同时出现在本表 + 对应 PC §5 案例列表；PC-004（候选）定性后补档。未建 PC 的孤立缺陷事件不得只写 case——先归类（Registry 测试拒绝悬空 case）。

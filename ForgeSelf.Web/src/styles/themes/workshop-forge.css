@@ -135,13 +135,11 @@
   --el-color-info-light-9: #E2EDF3;
   --el-color-info-dark-2: #315C78;
 
-  --el-color-accent: #4A7A9B;
-  --el-color-accent-teal: #5A7A5A;
-
   /* 背景（宣纸暖） */
   --el-bg-color: #FBF7EE;
   --el-bg-color-page: #F4EEDF;
-  --el-bg-color-overlay: #FFFFFF;
+  /* 浮层面与暗块对齐「略亮于 bg 的暖面」语义；#FFFDF7=本块 fill-color-lighter 既有值 */
+  --el-bg-color-overlay: #FFFDF7;
 
   --el-fill-color: #F4EEDF;
   --el-fill-color-light: #FBF7EE;
@@ -226,9 +224,6 @@ html.dark {
   --el-color-info-light-8: #1F3D51;
   --el-color-info-light-9: #1A3242;
   --el-color-info-dark-2: #7FA8C8;
-
-  --el-color-accent: #7FA8C8;
-  --el-color-accent-teal: #5A7A5A;
 
   /* 背景（墨黑铸铁） */
   --el-bg-color: #14110F;

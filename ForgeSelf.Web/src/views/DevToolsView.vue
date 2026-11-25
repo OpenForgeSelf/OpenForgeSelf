@@ -225,10 +225,10 @@ onMounted(async () => {
   gap: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;
-  background: color-mix(in srgb, var(--cinnabar-400) 8%, transparent);
-  border: 1px solid var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 8%, transparent);
+  border: 1px solid var(--el-color-error);
   border-radius: var(--el-border-radius-base);
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   font-size: 0.8125rem;
 }
 
@@ -241,14 +241,14 @@ onMounted(async () => {
   height: 22px;
   background: transparent;
   border: none;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   cursor: pointer;
-  border-radius: var(--el-border-round);
+  border-radius: var(--el-border-radius-round);
   transition: background var(--dur-fast) var(--ease-out);
 }
 
 .error-close:hover {
-  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 15%, transparent);
 }
 
 /* Tabs */

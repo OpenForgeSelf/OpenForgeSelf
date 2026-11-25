@@ -216,10 +216,10 @@ function executeKill(pid: number): void {
 
 <style scoped>
 .process-list {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -237,7 +237,7 @@ function executeKill(pid: number): void {
 .list-title {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
@@ -253,7 +253,7 @@ function executeKill(pid: number): void {
 
 .search-input {
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 14px;
   width: 200px;
@@ -261,14 +261,14 @@ function executeKill(pid: number): void {
 }
 
 .search-input:focus {
-  border-color: #1976d2;
+  border-color: var(--el-color-primary);
   outline: none;
 }
 
 .refresh-btn {
   padding: 8px 16px;
-  background: #1976d2;
-  color: #fff;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -277,7 +277,7 @@ function executeKill(pid: number): void {
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: var(--el-color-primary-dark-2);
 }
 
 .refresh-btn:disabled {
@@ -301,13 +301,13 @@ function executeKill(pid: number): void {
 .process-table td {
   padding: 12px 8px;
   text-align: left;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .process-table th {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -319,7 +319,7 @@ function executeKill(pid: number): void {
 }
 
 .sortable:hover {
-  color: #1976d2;
+  color: var(--el-color-primary);
 }
 
 .sort-indicator {
@@ -329,16 +329,16 @@ function executeKill(pid: number): void {
 }
 
 .process-row:hover {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .process-name {
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .process-pid {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-family: monospace;
 }
 
@@ -352,7 +352,7 @@ function executeKill(pid: number): void {
 .usage-bar {
   flex: 1;
   height: 8px;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -364,22 +364,22 @@ function executeKill(pid: number): void {
 }
 
 .usage-fill.cpu {
-  background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+  background: linear-gradient(90deg, var(--el-color-success), var(--el-color-warning), var(--el-color-error));
 }
 
 .usage-fill.memory {
-  background: linear-gradient(90deg, #2196f3, #9c27b0);
+  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-dark-2));
 }
 
 .usage-value {
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   min-width: 70px;
   text-align: right;
 }
 
 .uptime {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -389,8 +389,8 @@ function executeKill(pid: number): void {
 
 .kill-btn {
   padding: 6px 12px;
-  background: #f44336;
-  color: #fff;
+  background: var(--el-color-error);
+  color: var(--el-color-white);
   border: none;
   border-radius: 4px;
   font-size: 13px;
@@ -399,7 +399,7 @@ function executeKill(pid: number): void {
 }
 
 .kill-btn:hover {
-  background: #d32f2f;
+  background: var(--el-color-error);
 }
 
 .confirm-actions {
@@ -417,21 +417,21 @@ function executeKill(pid: number): void {
 }
 
 .confirm-btn.yes {
-  background: #f44336;
-  color: #fff;
+  background: var(--el-color-error);
+  color: var(--el-color-white);
 }
 
 .confirm-btn.yes:hover {
-  background: #d32f2f;
+  background: var(--el-color-error);
 }
 
 .confirm-btn.no {
-  background: #e9ecef;
-  color: #495057;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .confirm-btn.no:hover {
-  background: #dee2e6;
+  background: var(--el-fill-color);
 }
 
 .loading-cell,
@@ -442,7 +442,7 @@ function executeKill(pid: number): void {
 
 .loading-text,
 .empty-text {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
 }
 

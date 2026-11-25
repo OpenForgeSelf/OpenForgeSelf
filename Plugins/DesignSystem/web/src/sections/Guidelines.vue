@@ -479,107 +479,107 @@ watch(showArchived, () => void load())
 /* 外壳一律用插件自己的 --ds-* 令牌（与 ReleaseBoard/BrandAssets 同一套），不引宿主品牌色 */
 .gl {
   display: grid;
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .gl__head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .gl__ops {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .gl__cols {
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  gap: var(--ds-space-6);
+  gap: 24px;
 }
 .gl__col {
   min-width: 0;
 }
 .gl__filters {
   display: flex;
-  gap: var(--ds-space-2);
-  margin-bottom: var(--ds-space-2);
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .gl__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--ds-space-2);
+  gap: 8px;
   max-height: 60vh;
   overflow: auto;
 }
 .gl__item {
   width: 100%;
   display: grid;
-  gap: var(--ds-space-1);
+  gap: 4px;
   text-align: left;
   font: inherit;
-  font-size: var(--ds-fs-small);
-  padding: var(--ds-space-2) var(--ds-space-3);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-1);
-  color: var(--ds-fg-1);
+  font-size: var(--el-font-size-extra-small);
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   cursor: pointer;
 }
 .gl__item--on {
-  border-color: var(--ds-color-primary);
-  background: var(--ds-surface-2);
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color-overlay);
 }
 .gl__item-title {
-  font-weight: var(--ds-fw-semibold);
-  color: var(--ds-fg-1);
+  font-weight: 600;
+  color: var(--el-text-color-primary);
 }
 .gl__item-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ds-space-1);
+  gap: 4px;
 }
 .gl__pill {
-  font-size: var(--ds-fs-micro);
-  padding: 0 var(--ds-space-2);
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  color: var(--ds-fg-3);
+  font-size: 10px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--el-text-color-secondary);
 }
 .gl__pill--muted {
   border-style: dashed;
 }
 .gl__pill--archived {
-  color: var(--ds-fg-4);
+  color: var(--el-text-color-disabled);
 }
 .gl__pill--bad {
-  color: var(--ds-danger);
-  border-color: var(--ds-danger);
+  color: var(--el-color-error);
+  border-color: var(--el-color-error);
 }
 .gl__detail {
   display: grid;
-  gap: var(--ds-space-2);
-  padding: var(--ds-space-5);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-surface-1);
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--var(--radius-lg));
+  background: var(--el-bg-color);
 }
 .gl__label {
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-fg-3);
+  font-size: 10px;
+  color: var(--el-text-color-secondary);
 }
 .gl__body {
-  font-family: var(--ds-font-mono);
+  font-family: var(--font-mono);
   resize: vertical;
 }
 .gl__rule {
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr) 34px;
-  gap: var(--ds-space-2);
+  gap: 8px;
   align-items: start;
 }
 .gl__rule-text {
@@ -588,47 +588,47 @@ watch(showArchived, () => void load())
 .gl__mini {
   font: inherit;
   padding: 4px 0;
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
 }
 .gl__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .gl__chip {
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-fs-micro);
-  padding: 2px var(--ds-space-3);
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-regular);
 }
 .gl__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-3);
-  margin-top: var(--ds-space-2);
+  gap: 12px;
+  margin-top: 8px;
 }
 .gl__btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 16px;
   cursor: pointer;
 }
 .gl__btn--primary {
-  color: var(--ds-surface-1);
-  background: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-bg-color);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .gl__btn:disabled {
   opacity: 0.5;
@@ -636,30 +636,30 @@ watch(showArchived, () => void load())
 }
 .gl__confirm {
   display: grid;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-4);
-  border: 1px dashed var(--ds-border-2);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-2);
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
 }
 .gl__note {
   margin: 0;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-secondary);
 }
 .gl__bad {
   margin: 0;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-danger);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-color-error);
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
 }
 .ds-input--narrow {
   width: auto;

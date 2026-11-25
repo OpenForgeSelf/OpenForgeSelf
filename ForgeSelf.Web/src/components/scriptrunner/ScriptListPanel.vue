@@ -254,8 +254,8 @@ function handleToggleFavorite(script: Script): void {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f8f9fa;
-  border-right: 1px solid #e9ecef;
+  background: var(--el-fill-color-light);
+  border-right: 1px solid var(--el-border-color-lighter);
 }
 
 .panel-header {
@@ -263,8 +263,8 @@ function handleToggleFavorite(script: Script): void {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .header-title {
@@ -276,13 +276,13 @@ function handleToggleFavorite(script: Script): void {
 .header-title h2 {
   font-size: 18px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .script-count {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .btn {
@@ -296,36 +296,36 @@ function handleToggleFavorite(script: Script): void {
 }
 
 .btn-primary {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  border-color: var(--el-color-primary);
 }
 
 .btn-primary:hover {
-  background: #1565c0;
-  border-color: #1565c0;
+  background: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-primary-dark-2);
 }
 
 .search-section {
   padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .search-bar {
   position: relative;
   display: flex;
   align-items: center;
-  background: #fff;
-  border: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 10px;
   padding: 0 12px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search-bar:focus-within {
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .search-icon {
@@ -340,21 +340,21 @@ function handleToggleFavorite(script: Script): void {
   border: none;
   background: transparent;
   font-size: 14px;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .search-input::placeholder {
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
 }
 
 .clear-btn {
   width: 24px;
   height: 24px;
   border: none;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   border-radius: 50%;
   font-size: 16px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -364,14 +364,14 @@ function handleToggleFavorite(script: Script): void {
 }
 
 .clear-btn:hover {
-  background: #dee2e6;
-  color: #495057;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-regular);
 }
 
 .filters-section {
   padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -386,7 +386,7 @@ function handleToggleFavorite(script: Script): void {
 .filter-tabs {
   display: flex;
   gap: 4px;
-  background: #f1f3f5;
+  background: var(--el-fill-color);
   padding: 3px;
   border-radius: 8px;
 }
@@ -397,44 +397,44 @@ function handleToggleFavorite(script: Script): void {
   border: none;
   font-size: 13px;
   font-weight: 500;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s ease;
 }
 
 .filter-tab:hover {
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .filter-tab.active {
-  background: #fff;
-  color: #1976d2;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .filter-select {
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   font-size: 13px;
-  color: #495057;
-  background: #fff;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color);
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .results-info {
   padding: 10px 20px;
   font-size: 13px;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
 }
 
 .scripts-list {
@@ -459,8 +459,8 @@ function handleToggleFavorite(script: Script): void {
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #f1f3f5;
-  border-top-color: #1976d2;
+  border: 3px solid var(--el-border-color-lighter);
+  border-top-color: var(--el-color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 12px;
@@ -473,7 +473,7 @@ function handleToggleFavorite(script: Script): void {
 }
 
 .loading-state p {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   margin: 0;
 }
@@ -486,12 +486,12 @@ function handleToggleFavorite(script: Script): void {
 .empty-state h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0 0 6px 0;
 }
 
 .empty-state p {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   margin: 0 0 20px 0;
 }

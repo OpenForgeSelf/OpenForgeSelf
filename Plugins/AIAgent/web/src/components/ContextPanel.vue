@@ -376,7 +376,7 @@ watch(
 
 .ctx__title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
@@ -400,7 +400,7 @@ watch(
   border-left: 2px solid transparent;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   transition: background 0.15s ease;
 }
 
@@ -410,7 +410,7 @@ watch(
 
 .ctx__item--active {
   border-left-color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   color: var(--el-color-primary);
 }
 
@@ -440,7 +440,7 @@ watch(
 
 .ctx__item-tag.--agents {
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .ctx__item-tag.--commands {
@@ -508,7 +508,7 @@ watch(
   padding: 3px 8px;
   font-size: var(--el-font-size-extra-small, 11px);
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border: 1px solid var(--el-color-primary);
   border-radius: 4px;
   cursor: pointer;
@@ -525,7 +525,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 11px);
   color: var(--el-text-color-secondary);
 }
@@ -620,7 +620,7 @@ watch(
 
 .ctx-item-title {
   font-size: var(--el-font-size-extra-small, 12px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -651,7 +651,7 @@ watch(
   font-size: var(--el-font-size-extra-small, 10px);
   line-height: 15px;
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .ctx-badge--cat {

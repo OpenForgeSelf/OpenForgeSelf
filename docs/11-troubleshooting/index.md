@@ -43,7 +43,9 @@
 
 | 前端轮询 404 反复重试/错误 toast 反复弹（会话已不存在仍轮询） | case [2026-11-05 死会话轮询](cases/2026-11-05-smart-terminal-dead-session-poll-404.md) → [PC-024](problem-classes/PC-024-frontend-poll-error-handling.md) |
 | 暗色下文字/选中行看不见（亮金底浅字），切浅色正常 | case [2026-11-06 DbAdmin 连接名](cases/2026-11-06-dbadmin-dark-connection-contrast.md) → [PC-025](problem-classes/PC-025-dark-theme-token-contrast.md) |
+| 设置页把跟随系统放成第三主题按钮或根属性持久化 system | case [2026-11-25 主题跟随策略](cases/2026-11-25-theme-system-third-mode.md) → [PC-051](problem-classes/PC-051-theme-follow-system-as-third-mode.md) |
 | 插件表格表头与内容列错位 / 表头单元格比数据宽（table 被 display:grid） | case [2026-11-06 DbAdmin 表头错列](cases/2026-11-06-dbadmin-table-header-misalign.md) → [PC-026](problem-classes/PC-026-plugin-class-tailwind-collision.md) |
+| 页签悬浮时宽度突增、后面整排页签跟着移位（hover 显形图标 display 切换挤占布局） | case [2026-11-23 页签悬浮位移](cases/2026-11-23-hover-reveal-width-jump.md) → [PC-042](problem-classes/PC-042-hover-reveal-width-jump.md) |
 | MCP 网关响应中文变 \uFF08、引号变 \u0022（第三方 SDK 传输层序列化，ForgeJson 守卫不可达） | case [2026-11-09 MCP SDK 外层转义](cases/2026-11-09-mcp-sdk-outer-escaping.md) → [PC-027](problem-classes/PC-027-json-nonascii-default-escaping.md)（外层=无缝，记录不修） |
 | 工具报 `success:true` 但实际没生效（文件没写出来/进程没退/库没提交），回读验证才现形 | case [2026-10-30 write_file 零落盘](cases/2026-10-30-tool-success-without-side-effect.md) → [PC-018](problem-classes/PC-018-tool-success-without-side-effect.md) |
 | 宿主映射控制器 `FileNotFoundException` / `Could not load` 某个 NuGet 程序集；或插件接口 500 `Unable to resolve service for type` | case [2026-11-02 浏览器与审批 DI](cases/2026-11-02-browseruse-and-approval-di.md) → [PC-020](problem-classes/PC-020-plugin-dependency-unresolved.md) |
@@ -56,6 +58,10 @@
 | 前端 build 预存类型错误（T032） | 散例：非本轮回归，独立修复 |
 | `navigator.clipboard` 只读致 vitest 偶发 | 散例：环境缺陷，`Object.defineProperty`/`vi.stubGlobal` |
 | `ChatRecordRealLLMTests` 偶发红 | 散例：测试隔离性，TODO 已知 |
+| 发布链报 `SAFE_DELETE_BULK_CONFIRM_REQUIRED` / 插件 build 挂 / `emptyOutDir` | case [2026-11-24 发布 zip 被拦截](cases/2026-11-24-release-local-zip-emptyoutdir.md) → [PC-047](problem-classes/PC-047-release-local-zip-emptyoutdir.md) |
+| `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | case [2026-11-24 无 TTY 确认中断](cases/2026-11-24-release-local-pnpm-nontty-purge-confirm.md) → [PC-048](problem-classes/PC-048-pnpm-install-nontty-purge-confirm.md) |
+| `NETSDK1151` / 非自包含 exe 引用自包含 exe / `SelfContained` 条件声明 / build 绿 publish 红 | case [2026-11-24 NETSDK1151](cases/2026-11-24-release-netsdk1151-selfcontained-inference.md) → [PC-049](problem-classes/PC-049-release-updateagent-selfcontained-inference.md) |
+| 更新后宿主没起来 / `~/.forgeself/log` 无更新日志 / agent 报 `System.Collections.Specialized` / `ExeName=` exe 轨 | case [2026-11-24 exe 轨未拉起](cases/2026-11-24-update-agent-exe-cleanup-before-restart.md) → [PC-050](problem-classes/PC-050-update-agent-cleanup-staged-before-restart.md)（更新代理日志在 `%LOCALAPPDATA%\ForgeSelf\Logs\`） |
 
 新报错排查后：能归入既有 PC 的补 case；成类的走技能 `problem-class-closure`（P2 归类）；确属一次性环境杂音才允许留在本表当散例。
 

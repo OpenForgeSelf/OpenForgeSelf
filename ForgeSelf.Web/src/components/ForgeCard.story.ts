@@ -10,9 +10,9 @@ import type { ComponentStory } from '../../ct/types'
  */
 const body = (title: string, sub: string) => () =>
   h('div', { style: 'display:flex;flex-direction:column;gap:4px;min-width:220px' }, [
-    h('span', { style: 'font-size:14px;color:var(--fg-primary)' }, title),
+    h('span', { style: 'font-size:14px;color:var(--el-text-color-primary)' }, title),
     h('span', {
-      style: 'font-size:10px;letter-spacing:.04em;color:var(--fg-tertiary);font-family:var(--font-mono)',
+      style: 'font-size:10px;letter-spacing:.04em;color:var(--el-text-color-secondary);font-family:var(--font-mono)',
     }, sub),
   ])
 

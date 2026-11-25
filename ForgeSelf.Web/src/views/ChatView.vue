@@ -246,17 +246,17 @@ function handleClearError() {
   padding: 4px 10px;
   font-size: 11px;
   font-family: var(--font-mono);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .status-chip.connected {
-  color: var(--bronze-500);
+  color: var(--el-color-success);
   background: var(--el-color-success-light-9);
 }
 
 .status-chip.disconnected {
-  color: var(--cinnabar-400);
-  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
+  color: var(--el-color-error);
+  background: color-mix(in srgb, var(--el-color-error) 10%, transparent);
 }
 
 .status-chip .status-dot {
@@ -269,10 +269,10 @@ function handleClearError() {
 .model-select {
   padding: 4px 10px;
   font-size: 11px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--glass-bg);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-family: var(--font-mono);
   white-space: nowrap;
   cursor: pointer;
@@ -283,7 +283,7 @@ function handleClearError() {
 
 .model-select:hover,
 .model-select:focus {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .stats-badge {
@@ -292,16 +292,16 @@ function handleClearError() {
   gap: 4px;
   padding: 4px 10px;
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-family: var(--font-mono);
   white-space: nowrap;
 }
 
 .stats-badge svg {
   flex-shrink: 0;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 /* ============================
@@ -343,18 +343,18 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .menu-button:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .menu-button svg {
@@ -365,7 +365,7 @@ function handleClearError() {
 .chat-agent-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
@@ -406,7 +406,7 @@ function handleClearError() {
   width: 280px;
   background: var(--el-bg-color-overlay);
   border-right: 1px solid var(--border-default);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--el-box-shadow-dark);
   display: flex;
   flex-direction: column;
   z-index: 101;
@@ -424,10 +424,10 @@ function handleClearError() {
   justify-content: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -435,7 +435,7 @@ function handleClearError() {
 }
 
 .new-chat-button:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .new-chat-button svg {
@@ -453,7 +453,7 @@ function handleClearError() {
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out);
   margin-bottom: 4px;
@@ -470,7 +470,7 @@ function handleClearError() {
 .conversation-title {
   flex: 1;
   font-size: 13px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -481,7 +481,7 @@ function handleClearError() {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -495,19 +495,19 @@ function handleClearError() {
 }
 
 .delete-button:hover {
-  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 15%, transparent);
 }
 
 .delete-button svg {
   width: 16px;
   height: 16px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .empty-conversations {
   text-align: center;
   padding: 40px 20px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -523,16 +523,16 @@ function handleClearError() {
   align-items: center;
   gap: 12px;
   padding: 10px 18px;
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 30%, transparent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 30%, transparent);
+  border-radius: var(--el-border-radius-base);
+  box-shadow: var(--el-box-shadow-light);
   z-index: 200;
 }
 
 .error-message {
   font-size: 13px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .error-close {
@@ -542,7 +542,7 @@ function handleClearError() {
   background: transparent;
   cursor: pointer;
   font-size: 14px;
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -551,7 +551,7 @@ function handleClearError() {
 }
 
 .error-close:hover {
-  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 15%, transparent);
 }
 
 /* ============================

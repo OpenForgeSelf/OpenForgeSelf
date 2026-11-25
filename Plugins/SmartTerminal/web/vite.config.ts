@@ -16,7 +16,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: false,
     cssCodeSplit: false,
     lib: {
       entry: fileURLToPath(new URL('./src/index.ts', import.meta.url)),

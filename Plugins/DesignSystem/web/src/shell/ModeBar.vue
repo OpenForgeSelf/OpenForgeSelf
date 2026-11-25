@@ -55,33 +55,33 @@ function move(step: number): void {
 .ds-modebar {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-1);
-  padding: 0 var(--ds-space-6);
+  gap: 4px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border-hairline);
 }
 .ds-modebar__tab {
   font: inherit;
-  font-family: var(--ds-font-sans);
-  font-size: var(--ds-fs-small);
+  font-family: var(--el-font-family);
+  font-size: var(--el-font-size-extra-small);
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--fg-secondary);
-  padding: var(--ds-space-2) var(--ds-space-4);
+  color: var(--el-text-color-regular);
+  padding: 8px 16px;
   cursor: pointer;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-radius: var(--el-border-radius-small) var(--el-border-radius-small) 0 0;
   transition: color var(--dur-fast) var(--ease-out);
 }
 .ds-modebar__tab:hover {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 .ds-modebar__tab--active {
-  color: var(--gold-300);
-  border-bottom-color: var(--gold-400);
+  color: var(--el-color-primary-light-3);
+  border-bottom-color: var(--el-color-primary);
   box-shadow: var(--gold-glow-md);
 }
 .ds-modebar__tab:focus-visible {
-  outline: 2px solid var(--gold-400);
+  outline: 2px solid var(--el-color-primary);
   outline-offset: -2px;
 }
 </style>

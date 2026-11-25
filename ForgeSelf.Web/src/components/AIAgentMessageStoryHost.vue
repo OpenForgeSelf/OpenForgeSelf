@@ -38,6 +38,6 @@ defineProps<{
 .aiw-story-host {
   width: 560px;
   padding: 16px;
-  background: var(--aiw-bg-soft);
+  background: var(--el-fill-color-light);
 }
 </style>

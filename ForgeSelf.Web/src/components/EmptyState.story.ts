@@ -15,8 +15,8 @@ const actionButton = () => () =>
   h('button', {
     type: 'button',
     style:
-      'padding:6px 14px;border-radius:var(--radius-md,8px);border:1px solid var(--border-brand);' +
-      'background:transparent;color:var(--gold-400);font-size:12px;cursor:pointer',
+      'padding:6px 14px;border-radius:var(--el-border-radius-base,8px);border:1px solid var(--border-brand);' +
+      'background:transparent;color:var(--el-color-primary);font-size:12px;cursor:pointer',
   }, '去创建')
 
 export const stories: ComponentStory[] = [

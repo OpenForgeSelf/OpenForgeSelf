@@ -35,7 +35,7 @@ onBeforeMount(() => {
 .dba-story-host {
   width: 980px;
   height: 680px;
-  background: var(--el-bg-color, #0f1419);
+  background: var(--el-bg-color);
   overflow: hidden;
 }
 </style>

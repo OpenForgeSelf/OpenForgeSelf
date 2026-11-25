@@ -652,12 +652,12 @@ const previewThemeEntries = computed(() => Object.entries(previewData.value?.the
 .pj {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-5);
+  gap: 20px;
 }
 .pj__top {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
-  gap: var(--ds-space-4);
+  gap: 16px;
   align-items: start;
 }
 @media (max-width: 1100px) {
@@ -669,40 +669,40 @@ const previewThemeEntries = computed(() => Object.entries(previewData.value?.the
 .pj__new,
 .pj__wizard,
 .pj__settings {
-  padding: var(--ds-space-4);
+  padding: 16px;
   min-width: 0;
 }
 .pj__list-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--ds-space-3);
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: var(--ds-space-3);
+  margin-bottom: 12px;
 }
 .pj__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__table th {
   text-align: left;
-  color: var(--ds-fg-3);
-  font-weight: var(--ds-fw-medium);
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: 6px var(--ds-space-2);
+  color: var(--el-text-color-secondary);
+  font-weight: var(--el-font-weight-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 8px;
   white-space: nowrap;
 }
 .pj__table td {
-  padding: 6px var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 .pj__num {
   text-align: right;
 }
 .pj__row--on td {
-  background: color-mix(in oklab, var(--ds-color-primary) 10%, transparent);
+  background: color-mix(in oklab, var(--el-color-primary) 10%, transparent);
 }
 .pj__id {
   margin-left: 4px;
@@ -712,27 +712,27 @@ const previewThemeEntries = computed(() => Object.entries(previewData.value?.the
   text-align: right;
 }
 .pj__status {
-  font-size: var(--ds-fs-micro);
+  font-size: 10px;
   padding: 1px 8px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-2);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-regular);
 }
 .pj__status--published {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 .pj__status--archived {
-  color: var(--ds-fg-4);
+  color: var(--el-text-color-disabled);
 }
 .pj__status--draft {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .pj__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--ds-space-3);
-  margin-bottom: var(--ds-space-3);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .pj__field {
   display: flex;
@@ -744,141 +744,141 @@ const previewThemeEntries = computed(() => Object.entries(previewData.value?.the
   grid-column: 1 / -1;
 }
 .pj__field-err {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__note {
-  color: var(--ds-fg-4);
+  color: var(--el-text-color-disabled);
   text-transform: none;
   letter-spacing: 0;
 }
 .pj__area {
   resize: vertical;
-  font-family: var(--ds-font-sans);
+  font-family: var(--el-font-family);
 }
 .pj__seed {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .pj__picker {
   inline-size: 34px;
   block-size: 30px;
   padding: 2px;
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-bg-color);
   cursor: pointer;
 }
 /* 种子色还不是 hex 时的占位：同一个盒子形状，虚线表示"这里还没有颜色可取" */
 .pj__picker--void {
   display: inline-block;
   border-style: dashed;
-  background: var(--ds-surface-2);
+  background: var(--el-bg-color-overlay);
   cursor: default;
 }
 .pj__themes {
-  padding: var(--ds-space-2);
-  border: 1px dashed var(--ds-border-2);
-  border-radius: var(--ds-radius-md);
+  padding: 8px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--el-border-radius-base);
 }
 .pj__check {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-2);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 .pj__check--risk {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .pj__acts {
   align-items: center;
 }
 .pj__preview,
 .pj__result {
-  margin-top: var(--ds-space-3);
-  padding: var(--ds-space-3);
+  margin-top: 12px;
+  padding: 12px;
 }
 .pj__strip {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: var(--ds-space-2) 0;
+  margin: 8px 0;
 }
 .pj__chip {
   min-width: 68px;
   height: 26px;
-  border-radius: var(--ds-radius-sm);
-  border: 1px solid var(--ds-border-2);
+  border-radius: var(--el-border-radius-small);
+  border: 1px solid var(--border-default);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .pj__chip-label {
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-fs-micro);
+  font-family: var(--font-mono);
+  font-size: 10px;
   /* 色块上的文字不能假设有底色：用后端语义前景变量，跟随换肤 */
-  color: var(--ds-fg-1);
-  background: color-mix(in oklab, var(--ds-surface-1) 70%, transparent);
+  color: var(--el-text-color-primary);
+  background: color-mix(in oklab, var(--el-bg-color) 70%, transparent);
   padding: 0 4px;
-  border-radius: var(--ds-radius-xs);
+  border-radius: var(--var(--radius-xs));
 }
 .pj__notes {
-  margin: var(--ds-space-2) 0 0;
-  padding-left: var(--ds-space-5);
-  color: var(--ds-fg-3);
-  font-size: var(--ds-fs-small);
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--el-text-color-secondary);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__gate {
-  margin-top: var(--ds-space-2);
+  margin-top: 8px;
 }
 .pj__bad {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .pj__warn-text {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .pj__error {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__warn {
-  color: var(--ds-warning);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-warning);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__hint {
-  color: var(--ds-success);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-success);
+  font-size: var(--el-font-size-extra-small);
 }
 .pj__caveat {
   margin: 0;
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
   min-width: 0;
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 16px;
   cursor: pointer;
 }
 .ds-btn--primary {
-  color: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .ds-btn:disabled,
 .ds-mini:disabled {
@@ -887,16 +887,16 @@ const previewThemeEntries = computed(() => Object.entries(previewData.value?.the
 }
 .ds-mini {
   font: inherit;
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
+  font-size: 10px;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
   padding: 2px 8px;
   margin-left: 4px;
   cursor: pointer;
 }
 .ds-mini--danger {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 </style>

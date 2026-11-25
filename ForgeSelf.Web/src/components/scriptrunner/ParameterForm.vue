@@ -201,8 +201,8 @@ function handleCancel(): void {
 .no-params {
   text-align: center;
   padding: 20px;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   font-size: 14px;
 }
@@ -222,17 +222,17 @@ function handleCancel(): void {
 .form-field label {
   font-size: 13px;
   font-weight: 500;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .required-mark {
-  color: #dc3545;
+  color: var(--el-color-error);
   margin-left: 2px;
 }
 
 .field-description {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
@@ -240,10 +240,10 @@ function handleCancel(): void {
 .field-input select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   font-size: 14px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
@@ -251,8 +251,8 @@ function handleCancel(): void {
 .field-input input:focus,
 .field-input select:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .checkbox-field {
@@ -268,22 +268,22 @@ function handleCancel(): void {
 .checkbox-label {
   margin: 0;
   font-size: 14px;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .form-field.error input,
 .form-field.error select {
-  border-color: #dc3545;
+  border-color: var(--el-color-error);
 }
 
 .form-field.error input:focus,
 .form-field.error select:focus {
-  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-error) 10%, transparent);
 }
 
 .field-error {
   font-size: 12px;
-  color: #dc3545;
+  color: var(--el-color-error);
   margin: 0;
 }
 
@@ -305,14 +305,14 @@ function handleCancel(): void {
 }
 
 .btn-primary {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  border-color: var(--el-color-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1565c0;
-  border-color: #1565c0;
+  background: var(--el-color-primary-dark-2);
+  border-color: var(--el-color-primary-dark-2);
 }
 
 .btn-primary:disabled {
@@ -321,12 +321,12 @@ function handleCancel(): void {
 }
 
 .btn-secondary {
-  background: #f8f9fa;
-  color: #495057;
-  border-color: #dee2e6;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  border-color: var(--el-border-color-light);
 }
 
 .btn-secondary:hover {
-  background: #e9ecef;
+  background: var(--el-fill-color);
 }
 </style>

@@ -98,8 +98,8 @@ public interface IProjectService
     int Count { get; }
 
     /// <summary>
-    /// 插件内部登记一个项目（来源记 <c>manual</c>）。Root 已存在则只刷新活跃时间（不覆写用户已编辑的档案）。
-    /// <paramref name="name"/> 非空时覆盖显示名。
+    /// 插件内部登记一个项目（来源记 <c>manual</c>）。Root 已存在则只刷新活跃时间，
+    /// 不覆写名称、描述、来源等已有档案；<paramref name="name"/> 仅在首次登记时可作为显示名。
     /// </summary>
     SemsResult<ProjectInfo> Register(string root, string? name = null);
 
@@ -172,12 +172,18 @@ public class ProjectService : IProjectService
         var registry = Registry;
         if (registry == null) return SemsResult<ProjectInfo>.Fail(SemsOpStatus.Unavailable, UnavailableMessage);
 
+        var already = FindByRoot(registry, root);
+
         if (!registry.Register(root, "manual", out var registerError))
             return SemsResult<ProjectInfo>.Fail(SemsOpStatus.Invalid, registerError ?? "登记失败");
 
         var project = Locate(registry, root);
         if (project == null)
             return SemsResult<ProjectInfo>.Fail(SemsOpStatus.NotFound, $"登记成功但未能读回项目：{root}");
+
+        // 路径已存在：只刷新活跃时间，不改名称、描述、来源（F06）。
+        if (already != null)
+            return SemsResult<ProjectInfo>.Ok(project);
 
         var wanted = name?.Trim();
         if (!string.IsNullOrWhiteSpace(wanted) && wanted != project.Name)
@@ -328,6 +334,23 @@ public class ProjectService : IProjectService
         }
 
         return SemsResult<DirectoryListing>.Ok(listing);
+    }
+
+    /// <summary>按根目录精确查找已有档案；没有则返回 null，不做「最近活动」退化。</summary>
+    private static ProjectInfo? FindByRoot(IProjectRegistry registry, string root)
+    {
+        string? normalized = null;
+        try
+        {
+            normalized = System.IO.Path.GetFullPath(root.Trim().Trim('"'));
+        }
+        catch
+        {
+            return null;
+        }
+
+        return registry.GetAll()
+            .FirstOrDefault(p => string.Equals(p.Root, normalized, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

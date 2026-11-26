@@ -52,6 +52,7 @@
 | EP 组件自定义 class 覆盖样式 / `.x-dialog .el-dialog` 后代死规则 | PC-046 |
 | 插件 web 构建报 `SAFE_DELETE_BULK_CONFIRM_REQUIRED` / 发布链首插件挂 / `emptyOutDir` | PC-047 |
 | 发布链 `pnpm install` 报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` / 清 modules 确认 / 无 TTY 智能终端挂 | PC-048 |
+| 运行实况列表 / 来源详情信封 / 深链是否打到当前页面 | PC-052 |
 
 ## 台账总表
 
@@ -108,6 +109,7 @@
 | PC-049 | 被宿主引用的 exe 条件式声明 SelfContained 求值失效 → SDK 推断自包含 → NETSDK1151 阻断 publish | guarded | G2 active（ProblemClassEnumerationTests 断言无条件显式 false）+ G3 签名 | 0 | [PC-049](PC-049-release-updateagent-selfcontained-inference.md) |
 | PC-050 | 更新代理 exe 轨先删 staged（=自身 DOTNET_ROOT）再重启，BCL 加载失败宿主未拉起 | guarded | G2 active（ProblemClassEnumerationTests 断言 restart 早于 cleanup）+ G3 签名 | 0 | [PC-050](PC-050-update-agent-cleanup-staged-before-restart.md) |
 | PC-051 | 跟随系统被建模成独立主题值与第三主题选项 | guarded | G1 active（theme/store/settings/appearance 三处守卫） | 0 | [PC-051](PC-051-theme-follow-system-as-third-mode.md) |
+| PC-052 | 运行实况或来源页读到的列表，不是接口注释和页面所声称的那一份 | guarded | G1 active（信封、阻塞计数、扫描留在当前列表） | 0 | [PC-052](PC-052-runtime-board-list-not-the-list-shown.md) |
 
 ## 悬空检查（每次新增/更新 PC 后核对；Registry 测试自动兜底）
 

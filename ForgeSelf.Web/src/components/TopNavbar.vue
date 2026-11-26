@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Box, Grid, Picture, Setting } from '@element-plus/icons-vue'
 import { useTabsStore } from '@/stores/tabs'
+import { useRuntimeBoardStore } from '@/stores/runtimeBoard'
 import { useOpenPage } from '@/composables/useOpenPage'
 import BackgroundPanel from '@/components/BackgroundPanel.vue'
 import AppLogo from '@/components/AppLogo.vue'
@@ -17,6 +18,7 @@ import type { NavTab } from '@/stores/tabs'
 const router = useRouter()
 const route = useRoute()
 const tabsStore = useTabsStore()
+const runtimeBoard = useRuntimeBoardStore()
 const { openPage } = useOpenPage()
 const usageStore = useUsageStatsStore()
 const manifestStore = usePluginManifestStore()
@@ -97,9 +99,15 @@ function unpin(path: string): void {
   usageStore.togglePin(path)
 }
 
+function badgeOf(tab: NavTab): number | undefined {
+  return tabsStore.tabs.find((t) => t.path === tab.path)?.badge
+}
+
 onMounted(() => {
   // 使用度 store 懒加载：进站即读一次，保证钉住标签在刷新后立即恢复
   usageStore.load()
+  // 运行实况的阻塞数字跟标签走，不依赖当前是否停在这一页
+  runtimeBoard.start()
 })
 
 // 背景设置面板开合（DESIGN.md 壳层：右上 300px glass-strong 浮层）
@@ -122,7 +130,7 @@ const bgPanelOpen = ref(false)
         :class="{ active: activeTab === tab.path }"
         @click="navigateTo(tab.path)"
       >
-        <!-- 左侧 16px 图标槽：默认 logo，悬浮同位互换动作图标（零位移，2026-11-25 输入28 v3：图标在左） -->
+        <!-- 左侧 16px 图标槽：默认 logo，悬浮同位互换动作图标。运行实况的阻塞数字跟在文字后面，不进这个槽。 -->
         <span v-if="tab.path !== '/'" class="tab-icon-slot" aria-hidden="true">
           <span class="tab-logo" v-html="tabLogo(tab.path)"></span>
           <span
@@ -139,6 +147,7 @@ const bgPanelOpen = ref(false)
           >×</span>
         </span>
         <span class="tab-label">{{ tab.label }}</span>
+        <span v-if="badgeOf(tab)" class="tab-badge">{{ badgeOf(tab) }}</span>
       </button>
     </nav>
 
@@ -269,9 +278,19 @@ const bgPanelOpen = ref(false)
   box-shadow: var(--gold-glow-md);
 }
 
-/* 右侧 16px 图标槽：默认 logo、悬浮同位互换动作图标 ——
-   槽与两图标同一 16px 盒、盒宽恒定，显隐只走 visibility/opacity ——
-   任何状态页签宽度不变、相邻页签零位移（2026-11-23 输入22 / 2026-11-25 输入28；守卫见 TopNavbar.test.ts） */
+.tab-badge {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: var(--el-border-radius-small);
+  background: var(--gold-400);
+  color: var(--ink-950);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* 左侧 16px 图标槽：默认 logo、悬浮同位互换动作图标。
+   槽与两图标同一 16px 盒、盒宽恒定，显隐只走 visibility/opacity。 */
 .tab-icon-slot {
   position: relative;
   width: 16px;

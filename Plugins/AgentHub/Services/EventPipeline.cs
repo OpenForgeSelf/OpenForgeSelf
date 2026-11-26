@@ -141,7 +141,17 @@ public class EventPipeline
 
     /// <summary>从映射表里取路径（键不存在返回 null）。</summary>
     private static String? GetPath(Dictionary<String, String> map, String key)
-        => map.TryGetValue(key, out var v) ? v : null;
+    {
+        if (map.TryGetValue(key, out var direct)) return direct;
+        // 内置 profile 用 eventType / toolName，读取端历史键名是 type / tool。两套都认，避免权限事件被当成普通文本。
+        var alias = key switch
+        {
+            "type" => "eventType",
+            "tool" => "toolName",
+            _ => null,
+        };
+        return alias != null && map.TryGetValue(alias, out var aliased) ? aliased : null;
+    }
 
     /// <summary>
     /// 极简 JSONPath 读取：支持 <c>$.a.b.c</c> 与 <c>$.a[0].b</c>。

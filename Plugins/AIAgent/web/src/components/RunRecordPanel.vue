@@ -291,6 +291,8 @@ const props = defineProps<{
   sessionId: string
   /** 当前激活 Agent id（新建执行用；空则禁用开始按钮）。 */
   activeAgentId?: string
+  /** 深链要打开的计划 Run。列表刷新完再选中，避免被刷新清掉。 */
+  initialRunId?: number
 }>()
 
 const emit = defineEmits<{
@@ -426,7 +428,10 @@ async function onLaunch() {
 watch(
   () => props.visible,
   (v) => {
-    if (v) void reloadList()
+    if (!v) return
+    void reloadList().then(() => {
+      if (props.initialRunId && props.initialRunId > 0) void openRun(props.initialRunId)
+    })
   },
 )
 

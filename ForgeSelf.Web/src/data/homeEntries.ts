@@ -46,7 +46,7 @@ const MAX_EFFECTIVE_MS = HALF_LIFE_MS * 8
 
 /**
  * 把功能列表派生为首页入口。
- * 过滤规则：必须启用 + 必须有可跳转路径（如 `scheduler` 这类无页面功能不上首页）。
+ * 过滤规则：必须启用 + 必须有可跳转路径。没有 path 的功能不上首页。
  */
 export function buildHomeEntries(features: FeatureItem[]): HomeEntry[] {
   const result: HomeEntry[] = []

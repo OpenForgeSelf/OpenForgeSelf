@@ -70,8 +70,8 @@ public class AgentHubPlugin : IPlugin
     /// <param name="dataDir">插件数据目录（设置文件等随数据走）</param>
     private static void RegisterServices(IServiceCollection services, String dataDir)
     {
-        // profile 加载器：进程级单例（读文件 + 缓存）
-        services.AddSingleton<ProfileLoader>();
+        // profile 加载器：进程级单例。必须在注册时加载，否则运行期 Get 永远是空缓存。
+        services.AddSingleton(_ => ProfileLoader.CreateLoaded(Path.Combine(dataDir, "Profiles")));
 
         // 注册表与权限中枢：单例（内部维护跨任务状态）
         services.AddSingleton<IAgentRegistry, AgentRegistry>();

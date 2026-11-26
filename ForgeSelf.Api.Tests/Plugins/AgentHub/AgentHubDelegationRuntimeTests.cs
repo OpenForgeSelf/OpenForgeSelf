@@ -371,6 +371,45 @@ public class AgentHubDelegationRuntimeTests : IClassFixture<XCodeTestFixture>
     }
 
     [Fact]
+    public async Task 权限事件_进入AwaitingPermission_裁决后才收束()
+    {
+        var loader = new ProfileLoader();
+        loader.LoadAll(null);
+        var registry = new AgentRegistry(loader);
+        var broker = new PermissionBroker(registry);
+        var transports = new AgentTransportRegistry();
+        transports.Register(new PermissionThenExitTransport());
+        var runtime = new DelegationRuntime(registry, loader, broker, transports);
+        var agentId = MakeAgent(registry, "opencode");
+
+        var created = await runtime.CreateAsync(new DelegationRequest
+        {
+            AgentId = agentId,
+            Prompt = "请批准写入",
+        });
+        created.Status.Should().Be(TaskStatus.Queued);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var running = runtime.RunAsync(created.Id, cts.Token);
+
+        IReadOnlyList<PendingPermission> pending = Array.Empty<PendingPermission>();
+        for (var i = 0; i < 50; i++)
+        {
+            pending = broker.ListPending(created.Id);
+            if (pending.Count > 0) break;
+            await Task.Delay(100);
+        }
+
+        pending.Should().NotBeEmpty("权限申请必须进生产 PermissionBroker，运行实况才能读到");
+        runtime.Get(created.Id)!.Status.Should().Be(TaskStatus.AwaitingPermission);
+        broker.Resolve(created.Id, pending[0].RequestId, true, "放行");
+
+        var done = await running;
+        done.Status.Should().Be(TaskStatus.Succeeded);
+        broker.ListPending(created.Id).Should().BeEmpty();
+    }
+
+    [Fact]
     public void Stats_包含各状态计数与总数()
     {
         var runtime = MakeRuntime(out _);
@@ -384,6 +423,28 @@ public class AgentHubDelegationRuntimeTests : IClassFixture<XCodeTestFixture>
     }
 
     // ──────────────────── 测试替身 ────────────────────
+
+    /// <summary>先发一条权限申请，等人裁决后再退出。</summary>
+    private sealed class PermissionThenExitTransport : IAgentTransport
+    {
+        public String Kind => "Cli";
+
+        public async IAsyncEnumerable<AgentEvent> StreamAsync(
+            AgentAccessPointDto ap, AgentRunRequest req, AgentSession session,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await Task.Yield();
+            yield return new AgentEvent
+            {
+                Type = AgentEventTypes.PermissionRequest,
+                Tool = "write_file",
+                Text = "写入说明",
+            };
+            yield return new AgentEvent { Type = AgentEventTypes.Exit, ExitCode = 0 };
+        }
+
+        public Task CancelAsync(AgentSession session) => Task.CompletedTask;
+    }
 
     /// <summary>假 transport：不真起进程，只吐一条固定事件（本类只测前置校验与收尾）。</summary>
     private sealed class FakeTransport : IAgentTransport

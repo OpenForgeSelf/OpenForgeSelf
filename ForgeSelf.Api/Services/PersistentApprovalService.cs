@@ -116,6 +116,32 @@ public sealed class PersistentApprovalService : IApprovalService
     }
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<ApprovalDto>> ListPendingAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        EnsureTable();
+        var now = DateTime.UtcNow;
+        lock (_writeGate)
+        {
+            foreach (var row in ToolApproval.FindAllByStatus(nameof(ApprovalStatus.Pending)))
+            {
+                if (row.ExpiresAt > now) continue;
+                row.Status = nameof(ApprovalStatus.Expired);
+                row.Update();
+                if (_waiters.TryGetValue(row.Id, out var tcs))
+                    tcs.TrySetResult(false);
+            }
+        }
+
+        var pending = ToolApproval.FindAllByStatus(nameof(ApprovalStatus.Pending))
+            .OrderBy(e => e.ExpiresAt)
+            .ThenBy(e => e.Id)
+            .Select(ToDto)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<ApprovalDto>>(pending);
+    }
+
+    /// <inheritdoc />
     public Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

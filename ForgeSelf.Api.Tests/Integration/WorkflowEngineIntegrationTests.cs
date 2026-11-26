@@ -317,7 +317,7 @@ public class WorkflowEngineIntegrationTests
             Page = 1,
             PageSize = 20
         };
-        _mockWorkflowService.Setup(s => s.GetExecutionsAsync(null, 1, 20))
+        _mockWorkflowService.Setup(s => s.GetExecutionsAsync(null, 1, 20, null))
             .ReturnsAsync(pagedResult);
 
         // Act

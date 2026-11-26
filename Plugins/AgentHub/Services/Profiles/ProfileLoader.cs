@@ -113,6 +113,17 @@ public class ProfileLoader
     }
 
     /// <summary>
+    /// 启动时加载内置 profile，再用数据目录 Profiles 覆盖。
+    /// 不调用本方法时缓存为空，CLI 的 JSONL 会被当成纯文本，权限申请进不了审批队列。
+    /// </summary>
+    public static ProfileLoader CreateLoaded(String? userProfileDir)
+    {
+        var loader = new ProfileLoader();
+        loader.LoadAll(userProfileDir);
+        return loader;
+    }
+
+    /// <summary>
     /// 加载全部 profile：先读内置，再用数据根的同名文件覆盖。
     /// </summary>
     /// <param name="userProfileDir">用户 profile 目录（数据根下 Profiles/），可为 null</param>

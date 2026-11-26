@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { workflowExecutionFromQuery } from '@/services/runtimeDeepLink'
 import PageHead from '@/components/PageHead.vue'
 import ForgeCard from '@/components/ForgeCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -274,6 +276,12 @@ function handleExecutionClose(): void {
 
 onMounted(() => {
   loadWorkflows()
+  const executionId = workflowExecutionFromQuery(useRoute().query as Record<string, unknown>)
+  if (executionId) {
+    currentExecutionId.value = executionId
+    showExecution.value = true
+    void workflowStore.loadExecution(executionId)
+  }
 })
 </script>
 

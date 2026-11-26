@@ -6,6 +6,7 @@
  * `fixture` 存在即演示模式：不发网络（CT 画廊用）。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { approvalIdFromSearch } from './deepLink'
 import { ApiError } from './http'
 import { dbAdminApi, fetchPluginVersion } from './api'
 import { classifyQueryResponse, errorReason, kindLabel, orchestrateApprove, rejectRequest } from './approvalFlow'
@@ -600,10 +601,23 @@ async function loadDatabases(id: string, force = false, openDefault = false) {
     }
   }
 }
+function approvalIdFromQuery(): string {
+  return approvalIdFromSearch(window.location.search)
+}
+
 async function refreshApprovals(autoOpen = false) {
   if (isDemo.value) return
   try {
     approvals.value = await dbAdminApi.approvals('pending')
+    const preferred = approvalIdFromQuery()
+    if (preferred) {
+      const hit = pendingApprovals.value.find(a => a.id === preferred)
+      if (hit && overlay.value === null) {
+        activeApprovalId.value = hit.id
+        openOverlay('approval')
+      }
+      return
+    }
     if (autoOpen && overlay.value === null && pendingApprovals.value.length > 0) {
       activeApprovalId.value = pendingApprovals.value[0].id
       openOverlay('approval')

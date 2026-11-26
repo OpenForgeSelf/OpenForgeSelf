@@ -593,6 +593,53 @@ public class RunnerService : IRunnerService
         }
     }
 
+    private static string CommandFallback(string? exePath, string fallbackName)
+    {
+        if (string.IsNullOrWhiteSpace(exePath)) return fallbackName;
+        var name = Path.GetFileNameWithoutExtension(exePath);
+        return string.IsNullOrWhiteSpace(name) ? fallbackName : name;
+    }
+
+    /// <summary>
+    /// 已登记项目目录下、但类型对不上项目的进程。只留 pid（ProjectId 为 0）。
+    /// 对得上项目的进程由 <see cref="ToDetectedSession"/> 写入，不走这里。
+    /// 目录之外的进程返回 null，不进列表。
+    /// </summary>
+    private static RunSession? DetectedSession(
+        int pid,
+        string commandName,
+        string? exePath,
+        string? commandLine,
+        string? cwd,
+        IReadOnlyList<ProjectInfo> projects)
+    {
+        var matched = ProcessMatcher.MatchProject(exePath, commandLine, projects, cwd);
+        if (matched != null)
+        {
+            return new RunSession
+            {
+                CommandId = 0,
+                ProjectId = matched.Id,
+                ProjectName = matched.Name,
+                CommandName = commandName,
+                Pid = pid,
+                StartedAt = DateTime.MinValue,
+                Origin = "Detected"
+            };
+        }
+        if (!ProcessMatcher.LocatedUnderRegisteredRoot(exePath, commandLine, projects, cwd)) return null;
+        return new RunSession
+        {
+            CommandId = 0,
+            ProjectId = 0,
+            ProjectName = "",
+            CommandName = commandName,
+            Pid = pid,
+            StartedAt = DateTime.MinValue,
+            Origin = "Detected"
+        };
+    }
+
     /// <summary>读 /proc/{pid}/exe、cmdline、cwd，按项目根归属判定。无 /proc 时返回空列表。</summary>
     private List<RunSession> DetectViaProc()
     {
@@ -611,9 +658,13 @@ public class RunnerService : IRunnerService
                 var cwd = ReadProcLink(Path.Combine(dir, "cwd"));
                 var cmdLine = ReadProcCmdline(Path.Combine(dir, "cmdline"));
                 var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects, cwd);
-                if (matched == null) continue;
-
-                result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                if (matched != null)
+                {
+                    result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                    continue;
+                }
+                var unmatched = DetectedSession(pid, CommandFallback(exePath, name), exePath, cmdLine, cwd, projects);
+                if (unmatched != null) result.Add(unmatched);
             }
             catch
             {
@@ -671,9 +722,13 @@ public class RunnerService : IRunnerService
                 var cmdLine = mo["CommandLine"]?.ToString();
 
                 var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects);
-                if (matched == null) continue;
-
-                result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                if (matched != null)
+                {
+                    result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                    continue;
+                }
+                var unmatched = DetectedSession(pid, Path.GetFileNameWithoutExtension(name), exePath, cmdLine, null, projects);
+                if (unmatched != null) result.Add(unmatched);
             }
         }
         catch (Exception)

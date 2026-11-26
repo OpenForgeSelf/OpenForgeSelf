@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLaunchQuery, parseLaunchQuery, scrubLaunchParamsFromUrl, stripConsumedLaunch, toCreateBody } from './launchFromQuery'
+import { isLaunchQuery, parseLaunchQuery, scrubLaunchParamsFromUrl, stripConsumedLaunch, terminalFocusFromSearch, toCreateBody } from './launchFromQuery'
 
 describe('parseLaunchQuery', () => {
   it('parses local profile + repeated step', () => {
@@ -58,6 +58,26 @@ describe('parseLaunchQuery', () => {
     expect(p!.summary).toContain('***REDACTED***')
     expect(p!.needsInteractivePassword).toBe(false)
     expect(p!.request.auth).toBe('interactive')
+  })
+})
+
+describe('terminalFocusFromSearch', () => {
+  it('主参数 id 定位会话，approvalId 定位待批', () => {
+    expect(terminalFocusFromSearch('?id=sess&approvalId=ap1')).toEqual({
+      sessionId: 'sess',
+      approvalId: 'ap1',
+    })
+  })
+
+  it('旧名 sessionId 仍能定位', () => {
+    expect(terminalFocusFromSearch('?sessionId=sess&approvalId=ap1')).toEqual({
+      sessionId: 'sess',
+      approvalId: 'ap1',
+    })
+  })
+
+  it('没有会话时不打开', () => {
+    expect(terminalFocusFromSearch('?approvalId=ap1')).toBeNull()
   })
 })
 

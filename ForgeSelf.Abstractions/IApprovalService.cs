@@ -22,6 +22,9 @@ public interface IApprovalService
     /// <summary>按会话列出审批记录（含终态）。</summary>
     Task<IReadOnlyList<ApprovalDto>> ListBySessionAsync(string sessionId, CancellationToken ct = default);
 
+    /// <summary>跨会话列出仍待人工决定的审批。已过期的记录就地标为 Expired，不出现在结果里。</summary>
+    Task<IReadOnlyList<ApprovalDto>> ListPendingAsync(CancellationToken ct = default);
+
     /// <summary>人工决策；超时已 Expired 的记录拒绝改写（fail-closed）。</summary>
     Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default);
 

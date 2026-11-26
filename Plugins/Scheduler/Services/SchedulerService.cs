@@ -20,6 +20,7 @@ public interface ISchedulerService
     Task<ScheduledTaskDto?> GetTaskAsync(long id);
     Task<ForgeSelf.Api.Plugins.Scheduler.Models.PagedResult<ScheduledTaskDto>> ListTasksAsync(string? keyword = null, ScheduledTaskStatus? status = null, int page = 1, int pageSize = 20);
     Task<ForgeSelf.Api.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20);
+    Task<IReadOnlyList<RunningScheduledTaskDto>> ListRunningAsync();
     Task<ScheduledTaskDto?> ToggleTaskStatusAsync(long id, bool enabled);
     Task<bool> RunNowAsync(long id);
     CronParseResult ParseCron(string cronExpression, int count = 5, string? timeZone = null);
@@ -237,6 +238,28 @@ public class SchedulerService : ISchedulerService
             XTrace.Log.Error("[SchedulerService] 获取定时任务列表失败: {0}", ex.Message);
             throw;
         }
+    }
+
+    public Task<IReadOnlyList<RunningScheduledTaskDto>> ListRunningAsync()
+    {
+        var logs = ScheduledTaskLogEntity.FindAll(
+            ScheduledTaskLogEntity._.Status == (int)ScheduledTaskLogStatus.Running);
+        var items = logs
+            .OrderBy(log => log.StartTime)
+            .Take(100)
+            .Select(log =>
+            {
+                var task = ScheduledTaskEntity.FindById(log.TaskId);
+                return new RunningScheduledTaskDto
+                {
+                    LogId = log.Id,
+                    TaskId = log.TaskId,
+                    Name = string.IsNullOrWhiteSpace(task?.Name) ? $"任务 {log.TaskId}" : task!.Name,
+                    StartTime = log.StartTime,
+                };
+            })
+            .ToList();
+        return Task.FromResult<IReadOnlyList<RunningScheduledTaskDto>>(items);
     }
 
     public Task<ForgeSelf.Api.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>> GetTaskLogsAsync(long taskId, int page = 1, int pageSize = 20)

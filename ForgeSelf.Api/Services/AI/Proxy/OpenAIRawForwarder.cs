@@ -11,11 +11,19 @@ namespace ForgeSelf.Api.Services.AI.Proxy;
 /// </summary>
 internal static class OpenAIRawForwarder
 {
+    private static readonly HashSet<string> ForbiddenHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization", "Cookie", "Set-Cookie", "Host", "Connection",
+        "Content-Length", "Transfer-Encoding", "Keep-Alive", "Proxy-Authorization",
+        "TE", "Trailer", "Upgrade", "Expect"
+    };
+
     public static async Task<HttpResponseMessage> PostAsync(
         IAIProvider provider,
         LlmWireProtocol outboundProtocol,
         string json,
         bool stream,
+        IReadOnlyDictionary<string, string>? extraHeaders,
         CancellationToken cancellationToken)
     {
         var (http, config) = Transport(provider);
@@ -27,8 +35,28 @@ internal static class OpenAIRawForwarder
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", OpenAISdkAdapter.ResolveApiKey(config));
         if (stream)
             request.Headers.Accept.ParseAdd("text/event-stream");
+        CopySafeHeaders(request, extraHeaders);
 
         return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+    }
+
+    internal static string EndpointOf(IAIProvider provider) => provider switch
+    {
+        OpenAICompatibleProvider chat => chat.Config.Endpoint,
+        OpenAIResponsesProvider responses => responses.Config.Endpoint,
+        _ => string.Empty
+    };
+
+    private static void CopySafeHeaders(HttpRequestMessage request, IReadOnlyDictionary<string, string>? extraHeaders)
+    {
+        if (extraHeaders == null)
+            return;
+        foreach (var pair in extraHeaders)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || ForbiddenHeaders.Contains(pair.Key))
+                continue;
+            request.Headers.TryAddWithoutValidation(pair.Key, pair.Value);
+        }
     }
 
     private static (HttpClient Http, AIProviderConfig Config) Transport(IAIProvider provider) => provider switch

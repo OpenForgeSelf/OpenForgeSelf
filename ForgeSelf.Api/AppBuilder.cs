@@ -355,8 +355,11 @@ public static class AppBuilder
         builder.Services.AddSingleton<AIProviderRegistry>(sp => new AIProviderRegistry());
         // 契约形态（Abstractions）：供插件经 ctx.Get<IAIProviderRegistry>() 消费，须与上者为同一实例。
         builder.Services.AddSingleton<IAIProviderRegistry>(sp => sp.GetRequiredService<AIProviderRegistry>());
+        builder.Services.AddSingleton<ForgeSelf.Api.Services.AI.Proxy.ILlmUpstreamAffinity, ForgeSelf.Api.Services.AI.Proxy.XaiGrokAffinity>();
         builder.Services.AddSingleton<ILlmProxyPipeline>(sp =>
-            new ForgeSelf.Api.Services.AI.Proxy.LlmProxyPipeline(sp.GetRequiredService<AIProviderRegistry>()));
+            new ForgeSelf.Api.Services.AI.Proxy.LlmProxyPipeline(
+                sp.GetRequiredService<AIProviderRegistry>(),
+                sp.GetServices<ForgeSelf.Api.Services.AI.Proxy.ILlmUpstreamAffinity>()));
 
         // 插件可变 MS DI 容器（Option A）：先注册注册表单例，使 PluginManager 可构造注入同一份实例。
         var pluginServiceRegistry = new PluginServiceRegistry();

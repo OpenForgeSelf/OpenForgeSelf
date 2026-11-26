@@ -14,10 +14,12 @@ namespace ForgeSelf.Api.Services.AI.Proxy;
 public sealed class LlmProxyPipeline : ILlmProxyPipeline
 {
     private readonly AIProviderRegistry _registry;
+    private readonly LlmUpstreamAffinityChain _affinity;
 
-    public LlmProxyPipeline(AIProviderRegistry registry)
+    public LlmProxyPipeline(AIProviderRegistry registry, IEnumerable<ILlmUpstreamAffinity>? affinities = null)
     {
         _registry = registry;
+        _affinity = new LlmUpstreamAffinityChain(affinities);
     }
 
     public async Task<LlmProxyResult> ExecuteAsync(LlmProxyRequest request, CancellationToken cancellationToken = default)
@@ -53,6 +55,17 @@ public sealed class LlmProxyPipeline : ILlmProxyPipeline
         if (outboundNode["tool_choice"] is not null && outboundNode["tools"] is not JsonArray { Count: > 0 })
             outboundNode.Remove("tool_choice");
 
+        var affinity = new LlmAffinityContext
+        {
+            ProviderName = provider.ProviderName,
+            Endpoint = OpenAIRawForwarder.EndpointOf(provider),
+            UpstreamModelId = upstreamModelId,
+            Protocol = outboundProtocol,
+            Body = outboundNode,
+            InboundHeaders = request.Headers
+        };
+        _affinity.Apply(affinity);
+
         var outboundJson = LlmJson.Write(outboundNode);
         if (provider is MockLlmProvider mock)
             return await MockCompletionAsync(mock, body, outboundJson, cancellationToken);
@@ -60,7 +73,8 @@ public sealed class LlmProxyPipeline : ILlmProxyPipeline
         HttpResponseMessage response;
         try
         {
-            response = await OpenAIRawForwarder.PostAsync(provider, outboundProtocol, outboundJson, wantStream, cancellationToken);
+            response = await OpenAIRawForwarder.PostAsync(
+                provider, outboundProtocol, outboundJson, wantStream, affinity.OutboundHeaders, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

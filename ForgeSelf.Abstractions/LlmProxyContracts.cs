@@ -20,6 +20,12 @@ public sealed class LlmProxyRequest
 
     /// <summary>原始 JSON 对象文本。管道只改 <c>model</c>，同协议其余字段原样发出。</summary>
     public required string BodyJson { get; init; }
+
+    /// <summary>
+    /// 入站 HTTP 头（可选）。上游粘滞策略只允许 allowlist 转发，不能把 Authorization 送到上游。
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>

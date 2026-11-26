@@ -27,8 +27,12 @@ public static class LlmProxyHttp
             raw = await reader.ReadToEndAsync(cancellationToken);
 
         var watch = Stopwatch.StartNew();
+        var inbound = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in http.Request.Headers)
+            inbound[header.Key] = header.Value.ToString();
+
         await using var result = await pipeline.ExecuteAsync(
-            new LlmProxyRequest { Protocol = protocol, BodyJson = raw }, cancellationToken);
+            new LlmProxyRequest { Protocol = protocol, BodyJson = raw, Headers = inbound }, cancellationToken);
 
         http.Response.StatusCode = result.StatusCode;
         http.Response.ContentType = result.Stream ? "text/event-stream" : result.MediaType;

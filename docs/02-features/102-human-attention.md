@@ -152,15 +152,15 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 | 智能体未结束回合和计划 Run | `GET /api/ai-agent/tasks-overview` | `/ai-agent?id=` 或 `/ai-agent?planId=` | AC12 |
 | 外部 Agent 未结束任务 | `GET /api/agent-hub/tasks` | `/agent-hub?id=` | AC13 |
 | 外部 Agent 待权限 | 状态为等待权限的任务 | 同一条任务链接 | AC8 |
-| 智能终端里还在跑的命令 | 会话下的块状态为 running | `/smart-terminal?sessionId=` | AC14 |
+| 智能终端里还在跑的命令 | 会话下的块状态为 running | `/smart-terminal?id=` | AC14 |
 | 工程台拉起且未结束的命令 | `GET /api/runs` | `/sems?id=&pid=` | AC15 |
-| 脚本执行中 | `GET /api/script-runner/executions?status=Running` | `/script-runner?executionId=` | AC16 |
-| 工作流正在执行 | `GET /api/workflows/executions?status=Running` | `/workflows?executionId=` | AC17 |
-| 定时任务这次触发还在跑 | `GET /api/scheduler/running` | `/scheduler?taskId=`，只读 | AC18 |
+| 脚本执行中 | `GET /api/script-runner/executions?status=Running` | `/script-runner?id=` | AC16 |
+| 工作流正在执行 | `GET /api/workflows/executions?status=Running` | `/workflows?id=` | AC17 |
+| 定时任务这次触发还在跑 | `GET /api/scheduler/running` | `/scheduler?id=`，只读 | AC18 |
 | 待触发的定时任务 | `GET /api/scheduler/tasks` | 同一只读页 | AC18 |
 | 文件工具目录扫描 | `GET /api/filetools/folders/scans` | `/file-tools?id=` | AC19 |
 | 浏览器单实例已打开 | `GET /api/browser-use/session` | `/browser-use`，只读 | AC20 |
-| 重新扫描发现、且上面还没有的进程 | `POST /api/runs/check`，只在按下按钮时 | 对上项目走工程台；只剩 pid 走 `/system-monitor?pid=` | AC21 / AC22 |
+| 重新扫描发现、且上面还没有的进程 | `POST /api/runs/check`，只在按下按钮时 | 对上项目走 `/sems?id=&pid=`；只剩 pid 走 `/system-monitor?id=` | AC21 / AC22 |
 
 这些不收进在跑，因为它们不是一次正在执行的任务或命令：快捷链接、开发者工具、时钟、设计系统、首页、费用、记忆、设置、插件库、档案、提示词、技能、代码片段、聊天记录、MCP 服务器的启用状态、IM 通道的连接状态。IM 派出去的回合已经在智能体那一行。数据库没有「查询执行中」列表，只有待批。系统监控的全机进程表不搬进这一页。
 
@@ -178,7 +178,7 @@ AC12。未结束的回合或计划 Run 应出现在在跑。对话用主参数 `
 
 ### 外部 Agent
 
-AC13。未结束的外部任务出现在在跑。待办委派出去的那一行带次链接「来自待办」，指向 `/todo?todoId=`。主点击仍打开该任务。
+AC13。未结束的外部任务出现在在跑。待办委派出去的那一行带次链接「来自待办」，指向 `/todo?id=`。主点击仍打开该任务。
 
 造出方式：登记一个以 sleep 为可执行文件的 agent，本次新建任务后状态停在 Running。运行实况有这一行，点进 `/agent-hub?id=` 打开的仍是执行中。等级：Verified。
 
@@ -190,7 +190,7 @@ AC13。未结束的外部任务出现在在跑。待办委派出去的那一行�
 
 ### 智能终端
 
-AC14。还在跑的命令出现在在跑，点击进 `/smart-terminal?sessionId=`，来源页打开该会话和这条命令。已有待批的会话不再另开在跑。
+AC14。还在跑的命令出现在在跑，点击进 `/smart-terminal?id=`，来源页打开该会话和这条命令。已有待批的会话不再另开在跑。
 
 造出方式：在终端里对一个没有写入端的管道执行读取，使块保持 running，再打开运行实况和来源页。等级：Verified。
 
@@ -202,7 +202,7 @@ AC14。还在跑的命令出现在在跑，点击进 `/smart-terminal?sessionId=
 
 ### 工程台
 
-AC15。本面板拉起且未结束的命令出现在对应项目组。点击进 `/sems?projectId=&runId=`，来源页打开该项目并标出这条命令。
+AC15。本面板拉起且未结束的命令出现在对应项目组。点击进 `/sems?id=&pid=`，来源页打开该项目并标出这条命令。
 
 造出方式：在已登记项目里运行一条长时间睡眠的命令。等级：Verified。
 
@@ -212,11 +212,11 @@ AC15。本面板拉起且未结束的命令出现在对应项目组。点击进 
 
 AC16。状态为执行中的脚本出现在在跑。点击后详情写出脚本名和「运行中」。
 
-造出方式：创建一条长时间睡眠的脚本并执行，再从运行实况点进 `/script-runner?executionId=`。等级：Verified（详情打开且状态为运行中）。宿主重启后，这条记录仍被列表标成运行中，进程已经不在。截图看到的是接口返回的状态，不是重启之后新拉起的进程。
+造出方式：创建一条长时间睡眠的脚本并执行，再从运行实况点进 `/script-runner?id=`。等级：Verified（详情打开且状态为运行中）。宿主重启后，这条记录仍被列表标成运行中，进程已经不在。截图看到的是接口返回的状态，不是重启之后新拉起的进程。
 
 ![脚本详情为运行中](../ai/pilot/2026-11-25-attention-inbox/evidence/link-script-runner-_executionId=2.png)
 
-AC17。工作流执行中的点击进 `/workflows?executionId=`，详情状态为运行中。
+AC17。工作流执行中的点击进 `/workflows?id=`，详情状态为运行中。
 
 造出方式：创建等待步骤并执行。等级：Verified，新鲜度与脚本相同。
 
@@ -224,9 +224,9 @@ AC17。工作流执行中的点击进 `/workflows?executionId=`，详情状态�
 
 ### 定时任务
 
-AC18。这次触发还在执行的任务出现在在跑。已启用、这次没在跑的任务出现在「待触发」，可以点「立即运行」，也可以点进只读页 `/scheduler?taskId=`。
+AC18。这次触发还在执行的任务出现在在跑。已启用、这次没在跑的任务出现在「待触发」，可以点「立即运行」，也可以点进只读页 `/scheduler?id=`。
 
-造出方式：建一个间隔触发、目标为长时间睡眠的系统命令，并另建一个已启用但未在跑的任务。等级：Verified。「这次还在跑」在宿主重启后仍可能留在运行列表里。只读页能按 `taskId` 打开任务。
+造出方式：建一个间隔触发、目标为长时间睡眠的系统命令，并另建一个已启用但未在跑的任务。等级：Verified。「这次还在跑」在宿主重启后仍可能留在运行列表里。只读页能按主参数 `id` 打开任务，旧名 `taskId` 仍接受。
 
 ![定时任务只读页](../ai/pilot/2026-11-25-attention-inbox/evidence/link-scheduler-_taskId=3.png)
 
@@ -254,7 +254,7 @@ AC20。浏览器单实例已打开时，在跑有一行，点击进只读页 `/b
 
 按钮旁的说明是「只查找已登记项目目录下的进程，不启动、不停止」。只有点击才调用 `POST /api/runs/check`。打开页面和 15 秒定时器不扫进程。
 
-AC21。对上登记项目、且还没有被上面来源代表的进程，出现在该项目组，来源写「进程」。点击进 `/sems?projectId=&runId=`。
+AC21。对上登记项目、且还没有被上面来源代表的进程，出现在该项目组，来源写「进程」。点击进 `/sems?id=&pid=`。
 
 造出方式：在已登记项目目录启动一个独立的长时间睡眠进程，打开运行实况后只点「重新扫描」。等级：Verified。
 

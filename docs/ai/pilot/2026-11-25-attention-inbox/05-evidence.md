@@ -39,9 +39,9 @@
 
 验证栈用 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev-stack.ps1` 拉起。页面走该栈的前端地址，请求带该栈的访问密钥。密钥和本机绝对地址不写入本文。
 
-智能体任务：`POST /api/ai-agent/runs`，正文带任务原文。响应是错误事件，内容为未找到可用对话模型。AC11、AC12 因此为 Unknown。
+智能体任务：第一次 `POST /api/ai-agent/runs` 返回错误事件，内容为未找到可用对话模型。后来启用本机 mock 与慢响应模型后，总览出现 planning、running 和 stuck，AC11、AC12 的截图见上表。
 
-重新扫描：在已登记项目目录启动独立的长时间睡眠进程，浏览器打开 `/task-center` 后只点「重新扫描」。页面出现来源为「进程」的多行，点击第一行后地址为工程台并带 `projectId` 与 `runId`。修复前，`GET /api/runs` 只返回本面板拉起的进程，扫描结果在下一次列表里消失。
+重新扫描：在已登记项目目录启动独立的长时间睡眠进程，浏览器打开 `/task-center` 后只点「重新扫描」。页面出现来源为「进程」的多行。当前点击地址是工程台的 `id` 与 `pid`。修复前，`GET /api/runs` 只返回本面板拉起的进程，扫描结果在下一次列表里消失。
 
 未启用：`POST /api/plugin/browser-use/disable` 返回成功，浏览器状态接口变为 404，页面出现「浏览器 未启用」。随后 `POST /api/plugin/browser-use/enable`，状态接口恢复 200。
 
@@ -54,7 +54,7 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1
 
 该测试断言扫描能按工作目录对上项目，并且随后的当前列表仍包含这条 Detected 进程。
 
-前端门禁、设计门禁和问题类台账的正文见下方「门禁」节，跑完才填写。没填的命令保持 Unknown。
+前端门禁、设计门禁和问题类台账的正文在下方「门禁」节，结果以该节写下的命令输出为准。
 
 ## 门禁
 

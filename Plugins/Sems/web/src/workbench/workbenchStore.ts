@@ -663,31 +663,12 @@ export async function browse(path?: string): Promise<void> {
 }
 
 /**
- * 合并 GET /api/runs 与本地已有会话。
- * 对端若只返回本页启动的会话，不得整表覆盖检查到的进程；
- * 检测结果保留到再次检查、停止，或对端已带回检测会话且该进程已退出。
+ * 以 GET /api/runs 为准同步运行会话。
+ * 后端已返回「仍在运行的本页启动会话 + 上次检查中仍存活的检测会话」，
+ * 对端没有的会话（含已自行退出的检测进程）一律去掉，不在前端残留。
  */
-export function mergeRunningSessions(incoming: RunSession[], previous: RunSession[]): RunSession[] {
-  const fresh = incoming.filter((s) => !s.ended)
-  if (fresh.some((s) => s.origin === 'Detected')) return fresh
-
-  const launchedPids = new Set(fresh.map((s) => s.pid))
-  const launchedCmds = new Set(
-    fresh.filter((s) => s.commandId).map((s) => `${s.projectId}:${s.commandId}`),
-  )
-  // 本页启动会话已从对端消失（已停止或已退出）时，同 pid / 同命令的检测行一并去掉
-  const gone = previous.filter((s) =>
-    s.origin === 'Launched' && !s.ended && !fresh.some((f) => f.pid === s.pid || (s.commandId > 0 && f.commandId === s.commandId && f.projectId === s.projectId)))
-  const gonePids = new Set(gone.map((s) => s.pid))
-  const goneCmds = new Set(gone.filter((s) => s.commandId).map((s) => `${s.projectId}:${s.commandId}`))
-
-  const keptDetected = previous.filter((s) => {
-    if (s.ended || s.origin === 'Launched') return false
-    if (launchedPids.has(s.pid) || gonePids.has(s.pid)) return false
-    if (s.commandId && (launchedCmds.has(`${s.projectId}:${s.commandId}`) || goneCmds.has(`${s.projectId}:${s.commandId}`))) return false
-    return true
-  })
-  return [...fresh, ...keptDetected]
+export function mergeRunningSessions(incoming: RunSession[], _previous: RunSession[]): RunSession[] {
+  return incoming.filter((s) => !s.ended)
 }
 
 /** 运行中会话数（状态栏与仪表盘 widget）。 */

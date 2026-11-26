@@ -4,6 +4,7 @@
 
 | case id | 日期 | 现象一句话 | PC | 证据 | 档案 |
 |---------|------|------------|----|------|------|
+| 2026-11-26-runtime-board-list-not-shown | 2026-11-26 | 重新扫描的进程在下一次列表消失，脚本和工作流详情为空，智能体深链打开新会话 | [PC-044](../problem-classes/PC-044-runtime-board-list-not-the-list-shown.md) | Verified | [链接](2026-11-26-runtime-board-list-not-shown.md) |
 | 2026-11-23-release-pnpm-install-hook-fail | 2026-11-23 | 发布链 `pnpm install (host-web)` 全挂：git-bash `test -x` 对 Windows 路径恒 false，postinstall 钩子被误判不可执行退出 1（PC-043 首发：Windows 短路缺失） | [PC-043](../problem-classes/PC-043-crossplatform-shortcircuit-before-posix.md) | Verified | [链接](2026-11-23-release-pnpm-install-hook-fail.md) |
 | 2026-11-23-sems-stop-no-feedback | 2026-11-23 | sems 点停止无反应无提示：运行中日志 404 被无限吞错轮询致任务卡「运行中」，停止 404 又无反馈（PC-024 复发：终态分支只 return 不收敛） | [PC-024](../problem-classes/PC-024-frontend-poll-error-handling.md) | Verified | [链接](2026-11-23-sems-stop-no-feedback.md) |
 | 2026-11-20-oar-early-exit-and-bundled-fake | 2026-11-20 | OarTransport 50ms 假 Exit + handlers 假 bundled | [PC-037](../problem-classes/PC-037-oar-honesty-without-evidence.md) | Verified | [链接](2026-11-20-oar-early-exit-and-bundled-fake.md) |

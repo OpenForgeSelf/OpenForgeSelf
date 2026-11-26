@@ -431,6 +431,37 @@ public class DelegationRuntime
                     errorMessage = evt.Text;
                 }
 
+                // 权限申请走生产 PermissionBroker：任务切到 AwaitingPermission，人在运行实况里逐条裁决。
+                // 等待时间不计入执行耗时。超时按拒绝，由 broker 自己返回。
+                if (evt.Type == AgentEventTypes.PermissionRequest)
+                {
+                    var waitStarted = DateTime.Now;
+                    entity.Status = TaskStatus.AwaitingPermission;
+                    entity.Update();
+                    AppendEvent(entity, evt.Type, evt.Payload?.ToJsonString(ForgeJson.Default), evt.Text, evt.Truncated, evt.ExitCode);
+                    var verdict = await _permissions.RequestAsync(
+                        entity.Id,
+                        entity.AgentId,
+                        evt.Tool.IsNullOrEmpty() ? "unknown" : evt.Tool!,
+                        evt.Text,
+                        Math.Max(1, agent.Policy.ApprovalTimeoutSeconds),
+                        streamCts.Token);
+                    approvalWaitMs += (Int64)Math.Max(0, (DateTime.Now - waitStarted).TotalMilliseconds);
+                    if (!TaskStatus.IsTerminal(entity.Status))
+                    {
+                        entity.Status = TaskStatus.Running;
+                        entity.Update();
+                    }
+                    AppendEvent(entity, AgentEventTypes.Meta, JsonSerializer.Serialize(new
+                    {
+                        stage = "permission_resolved",
+                        allowed = verdict.Allowed,
+                        source = verdict.Source,
+                        onceOnly = verdict.OnceOnly
+                    }, ForgeJson.Default), verdict.Reason);
+                    continue;
+                }
+
                 AppendEvent(entity, evt.Type, evt.Payload?.ToJsonString(ForgeJson.Default), evt.Text, evt.Truncated, evt.ExitCode);
             }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attentionCount, classifyRuntime } from '../runtimeBoard'
+import { attentionCount, blockingCount, classifyRuntime } from '../runtimeBoard'
 import type { FetchSlice, RuntimeInput } from '../runtimeBoard'
 import { monitorPidFromQuery, queryText, schedulerTaskFromQuery, scriptExecutionFromQuery } from '../runtimeDeepLink'
 
@@ -80,7 +80,16 @@ describe('classifyRuntime', () => {
     expect(hub?.link).toEqual({ path: '/agent-hub', query: { taskId: '5' } })
     const term = board.cards.find((c) => c.id === 'term-approval:ap1')
     expect(term?.note).toBe('本次宿主运行期间有效')
+    expect(term?.lane).toBe('wait')
     expect(board.cards.find((c) => c.id === 'term:sess')).toBeUndefined()
+  })
+
+  it('终端高危风险值 highRisk 进紧急，不是普通待批', () => {
+    const board = classifyRuntime({
+      ...base(),
+      terminalApprovals: ok([{ id: 'ap-rm', sessionId: 's2', command: 'rm -f out.txt', risk: 'highRisk', status: 'pending' }]),
+    })
+    expect(board.cards.find((c) => c.id === 'term-approval:ap-rm')?.lane).toBe('urgent')
   })
 
   it('工程台按 pid 去重；对上项目走工程台，对不上走系统监控', () => {
@@ -174,6 +183,18 @@ describe('classifyRuntime', () => {
     expect(card?.lane).toBe('urgent')
     expect(card?.destructive).toBe(true)
     expect(card?.link).toEqual({ path: '/db-admin', query: { approvalId: '44' } })
+  })
+})
+
+describe('blockingCount', () => {
+  it('已经写下结果的待批不再计入页头数字', () => {
+    const cards = [
+      { id: 'a', lane: 'urgent' as const, source: '智能体', project: '未归属', title: '删', detail: '', destructive: true, once: false, link: { path: '/ai-agent', query: {} } },
+      { id: 'b', lane: 'wait' as const, source: '数据库', project: '未归属', title: '写', detail: '', destructive: false, once: false, link: { path: '/db-admin', query: {} } },
+      { id: 'c', lane: 'running' as const, source: '脚本', project: '未归属', title: '跑', detail: '', destructive: false, once: false, link: { path: '/script-runner', query: {} } },
+    ]
+    expect(attentionCount(cards)).toBe(2)
+    expect(blockingCount(cards, { a: '已同意，原任务继续' })).toBe(1)
   })
 })
 

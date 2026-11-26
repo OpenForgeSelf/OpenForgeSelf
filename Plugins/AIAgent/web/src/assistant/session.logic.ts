@@ -125,6 +125,37 @@ export function statusLabel(status: AgentSessionStatus): string {
 
 export type PrimaryKind = 'new' | 'confirm-plan' | 'approve' | 'retry'
 
+/** 运行实况打开 /ai-agent?session= 时，把这条会话里还没决定的工具审批放进对话。 */
+export function toolApprovalCards(rows: unknown, sessionId: string): AgentApproval[] {
+  const list = Array.isArray(rows)
+    ? rows
+    : rows && typeof rows === 'object' && Array.isArray((rows as { data?: unknown }).data)
+      ? (rows as { data: unknown[] }).data
+      : []
+  const want = sessionId.trim()
+  const cards: AgentApproval[] = []
+  for (const row of list) {
+    if (!row || typeof row !== 'object') continue
+    const rec = row as Record<string, unknown>
+    const sid = String(rec.sessionId ?? '')
+    if (want && sid && sid !== want) continue
+    const status = String(rec.status ?? 'pending').trim().toLowerCase()
+    if (status !== 'pending') continue
+    const id = String(rec.id ?? '').trim()
+    if (!id) continue
+    const tool = String(rec.toolName ?? '').trim()
+    const description = String(rec.description ?? '').trim()
+    const risk = String(rec.riskLevel ?? '').trim()
+    cards.push({
+      id,
+      summary: [tool, description].filter(Boolean).join(' · ') || '需要确认',
+      risk: risk || undefined,
+      action: tool || undefined,
+    })
+  }
+  return cards
+}
+
 export function primaryKind(input: {
   status: AgentSessionStatus
   hasPlan: boolean

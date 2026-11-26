@@ -11,6 +11,7 @@ import type {
   PlanWorkflowResponse,
   WorkflowTemplate
 } from '@/types/workflow'
+import { dateOrUndefined, pageMeta, unwrapApiBody, workflowStatusFromApi, type PagedBody } from '@/services/apiEnvelope'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -23,11 +24,14 @@ function parseWorkflow(data: Record<string, unknown>): WorkflowDefinition {
   } as WorkflowDefinition
 }
 
-function parseExecution(data: Record<string, unknown>): WorkflowExecution {
+function parseExecution(body: unknown): WorkflowExecution {
+  const data = unwrapApiBody<Record<string, unknown>>(body)
+  const status = workflowStatusFromApi(data.status)
   return {
     ...data,
-    startTime: data.startTime ? new Date(data.startTime as string) : undefined,
-    endTime: data.endTime ? new Date(data.endTime as string) : undefined,
+    ...(status ? { status } : {}),
+    startTime: dateOrUndefined(data.startTime),
+    endTime: dateOrUndefined(data.endTime),
     steps: (data.steps as Array<Record<string, unknown>>)?.map(step => ({
       ...step,
       startTime: step.startTime ? new Date(step.startTime as string) : undefined,
@@ -210,10 +214,11 @@ export const workflowApi = {
       throw new Error(`获取执行记录失败: ${response.status}`)
     }
 
-    const data = await response.json()
+    const data = unwrapApiBody<PagedBody | unknown[]>(await response.json())
+    const rows = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
     return {
-      items: (data.items || data).map(parseExecution),
-      total: data.total ?? (data.items || data).length
+      items: rows.map((item) => parseExecution(item as Record<string, unknown>)),
+      total: pageMeta(data, rows).total,
     }
   },
 

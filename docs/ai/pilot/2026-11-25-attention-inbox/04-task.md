@@ -3,7 +3,8 @@ task_id: 2026-11-25-attention-inbox
 feature: 102
 risk: { level: L2, triggers: ["ForgeSelf.Web/src/views/TaskCenterView.vue", "ForgeSelf.Abstractions/IApprovalService.cs"], raised_by_agent: false }
 gate1: { mode: user, at: 2026-11-26, ref: "implement-the-plan" }
-gate2: { mode: reviewer, at: 2026-11-26, decision: approved }
+task_kind: defect
+gate2: { mode: reviewer, at: 2026-11-26, decision: changes_required }
 gate3: { mode: agent, at: null }
 expected_files:
   - ForgeSelf.Web/src/services/runtimeBoard.ts
@@ -34,14 +35,8 @@ writeback: { feature_doc: docs/02-features/102-human-attention.md, reason: "运�
 
 ## Acceptance Criteria
 
-- [x] AC1
-- [x] AC2
-- [x] AC3
-- [x] AC4
-- [x] AC5
-- [x] AC6
-- [x] AC7
-- [x] AC8
+- [x] AC1 至 AC10、AC13 至 AC18、AC20、AC21、AC23 至 AC26：有截图，见 102
+- [ ] AC11、AC12、AC19、AC22：本环境没有造出对应行，05 标 Unknown
 
 ## Expected Files
 

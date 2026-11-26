@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { attentionCount, classifyRuntime } from '@/services/runtimeBoard'
+import { blockingCount, classifyRuntime } from '@/services/runtimeBoard'
 import type { BoardCard, LaneNotice } from '@/services/runtimeBoard'
 import { fetchRuntimeInput, postJson, rescanProjectProcesses } from '@/services/runtimeBoardApi'
 import { resumePlannedRun } from '@/services/taskCenterApi'
@@ -28,7 +28,7 @@ export const useRuntimeBoardStore = defineStore('runtimeBoard', () => {
       if (results.value[card.id]) keep[card.id] = results.value[card.id]
     }
     results.value = keep
-    useTabsStore().setBadge('/task-center', attentionCount(nextCards))
+    useTabsStore().setBadge('/task-center', blockingCount(nextCards, results.value))
   }
 
   async function refresh(): Promise<void> {
@@ -72,6 +72,7 @@ export const useRuntimeBoardStore = defineStore('runtimeBoard', () => {
     try {
       const message = await runDecide(card, approved, confirmDestructive)
       results.value = { ...results.value, [card.id]: message }
+      useTabsStore().setBadge('/task-center', blockingCount(cards.value, results.value))
     } finally {
       const next = { ...acting.value }
       delete next[card.id]

@@ -254,6 +254,7 @@ public class RunnerServiceTests : IDisposable
             Assert.False(ext.HasExited);
             var runs = _runner.CheckAndMerge();
             Assert.Contains(runs, s => s.Pid == ext.Id && s.Origin == "Detected" && s.ProjectId == project.Id);
+            Assert.Contains(_runner.Current(), s => s.Pid == ext.Id && s.Origin == "Detected");
         }
         finally
         {

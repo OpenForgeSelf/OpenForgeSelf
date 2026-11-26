@@ -9,6 +9,11 @@ const route = useRoute()
 const layout = computed<AgentAssistantLayout>(() =>
   route.query.layout === 'panel' ? 'panel' : 'page'
 )
+const initialSession = computed(() => {
+  const raw = route.query.session
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value ? String(value) : ''
+})
 </script>
 
 <template>
@@ -16,5 +21,6 @@ const layout = computed<AgentAssistantLayout>(() =>
     :layout="layout"
     :context="{ pluginId: 'ai-agent' }"
     :tool-scope="PAGE_TOOL_SCOPE"
+    :initial-session="initialSession"
   />
 </template>

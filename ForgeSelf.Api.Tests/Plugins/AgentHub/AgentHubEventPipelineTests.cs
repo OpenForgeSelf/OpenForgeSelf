@@ -147,6 +147,31 @@ public class AgentHubEventPipelineTests
     }
 
     [Fact]
+    public void ParseLines_profile别名eventType与toolName_仍识别权限申请()
+    {
+        var pipeline = new EventPipeline(new AgentProfile
+        {
+            Id = "claude-like",
+            OutputFormat = "JsonLines",
+            OutputMapping = new Dictionary<string, string>
+            {
+                ["eventType"] = "$.type",
+                ["text"] = "$.message.content",
+                ["toolName"] = "$.name",
+            },
+        });
+
+        var events = pipeline.ParseLines([
+            """{"type":"permission_request","name":"write_file","message":{"content":"写入说明"}}""",
+        ]).ToList();
+
+        events.Should().HaveCount(1);
+        events[0].Type.Should().Be(AgentEventTypes.PermissionRequest);
+        events[0].Tool.Should().Be("write_file");
+        events[0].Text.Should().Be("写入说明");
+    }
+
+    [Fact]
     public void MapToEvent_无映射表_整体保留为Meta不丢信息()
     {
         var pipeline = new EventPipeline(new AgentProfile { OutputFormat = "Json" });
@@ -202,6 +227,31 @@ public class AgentHubEventPipelineTests
         var args = CliTransport.BuildArgs("exec\n--json\n-C\n{cwd}", req, null);
 
         args.Should().BeEquivalentTo(["exec", "--json", "-C", @"D:\proj"]);
+    }
+
+    [Fact]
+    public void 启动加载的opencode_profile能把权限行送进审批()
+    {
+        var loader = ProfileLoader.CreateLoaded(null);
+        var profile = loader.Get("opencode");
+        profile.Should().NotBeNull();
+        profile!.OutputFormat.Should().Be("JsonLines");
+
+        var evt = new EventPipeline(profile).ParseLines(
+        [
+            "{\"type\":\"permission_request\",\"tool\":\"write_file\",\"text\":\"写入说明\"}"
+        ]).Single();
+
+        evt.Type.Should().Be(AgentEventTypes.PermissionRequest);
+        evt.Tool.Should().Be("write_file");
+        evt.Text.Should().Be("写入说明");
+
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "ForgeSelf.slnx")))
+            dir = dir.Parent;
+        dir.Should().NotBeNull();
+        var plugin = File.ReadAllText(Path.Combine(dir!.FullName, "Plugins", "AgentHub", "AgentHubPlugin.cs"));
+        plugin.Should().Contain("ProfileLoader.CreateLoaded");
     }
 
     [Fact]

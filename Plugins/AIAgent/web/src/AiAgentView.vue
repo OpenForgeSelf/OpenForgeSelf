@@ -1119,6 +1119,8 @@ async function selectSession(id: string) {
   await loadHistory()
   // v1.8.0：组件 hydrate 灌入历史（内部会 emit state-changed → 左栏统计/列表刷新）
   chatRef.value?.hydrate(messages.value)
+  // 深链先切到这条会话，再拉它的待批。挂载时若先拉审批，会停在上一会话，输入框上看不到这次要处理的工具。
+  void loadApprovals()
 }
 
 /**
@@ -1369,13 +1371,13 @@ onMounted(async () => {
   }
   if (projectDir.value) rememberProject(projectDir.value)
   void loadTodos()
+  // 深链先写入 sessionId，随后的审批请求才打在这条会话上。
+  applyDeepLinkQuery()
   void loadApprovals()
   startApprovalPoll()
   startRunPoll()
   // v1.8.0：初始会话历史灌入组件（hydrate 内部 emit state-changed → 左栏统计初始化）
   chatRef.value?.hydrate(messages.value)
-  // T9 深链：带 runId/session 进入时直达执行视图/会话（挂在载尾部，依赖已就绪）
-  applyDeepLinkQuery()
 })
 </script>
 

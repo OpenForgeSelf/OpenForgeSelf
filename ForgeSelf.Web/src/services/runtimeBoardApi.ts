@@ -104,13 +104,13 @@ export async function fetchRuntimeInput(now = Date.now()): Promise<RuntimeInput>
     take('/api/db-admin/approvals?status=pending'),
     take('/api/smart-terminal/approvals?status=pending'),
     take('/api/agent-hub/tasks?limit=50'),
-    take('/api/smart-terminal/sessions'),
+    take('/api/smart-terminal/sessions').then(withTerminalBlocks),
     take('/api/runs'),
-    take('/api/script-runner/executions?status=Running&pageSize=50'),
+    take('/api/scripts/executions?status=Running&pageSize=50'),
     take('/api/workflows/executions?status=Running&pageSize=50'),
     take('/api/filetools/folders/scans'),
     take('/api/browser-use/session'),
-    take('/api/todos?status=pending&page=1&pageSize=100'),
+    take('/api/todos?status=Pending&page=1&pageSize=100'),
   ])
 
   const hubTaskRows = asList(hubTasks.json).map(mapHubTask)
@@ -146,6 +146,26 @@ export async function fetchRuntimeInput(now = Date.now()): Promise<RuntimeInput>
     scans: sliceOf(scans, (json) => asList(json).map(mapScan)),
     browser: sliceOf(browser, mapBrowser),
   }
+}
+
+/**
+ * 会话列表不含命令块。运行中的命令在 blocks 接口上，否则实况看不到还在跑的终端。
+ * 列表本身失败时不逐个再请求。
+ */
+async function withTerminalBlocks(taken: { status: number; json?: unknown; message?: string }): Promise<{ status: number; json?: unknown; message?: string }> {
+  if (taken.status < 200 || taken.status >= 300) return taken
+  const sessions = asList(taken.json)
+  const enriched = await Promise.all(sessions.map(async (row) => {
+    const rec = asRecord(row)
+    if (!rec) return row
+    if (Array.isArray(rec.blocks)) return row
+    const id = str(rec, 'id') || str(rec, 'sessionId')
+    if (!id) return row
+    const blocks = await take(`/api/smart-terminal/sessions/${encodeURIComponent(id)}/blocks`)
+    if (blocks.status < 200 || blocks.status >= 300) return row
+    return { ...rec, blocks: asList(blocks.json) }
+  }))
+  return { ...taken, json: enriched }
 }
 
 /** 只查找已登记项目目录下的进程。不启动、不停止。 */

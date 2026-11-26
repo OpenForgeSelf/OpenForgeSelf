@@ -17,6 +17,7 @@ const props = withDefaults(
     toolScope?: AgentToolScope
     surfaceKey?: string
     initialPanel?: string
+    initialSession?: string
   }>(),
   { layout: 'page' }
 )
@@ -59,9 +60,16 @@ async function onRetry() {
   await session.actStuck('retry')
 }
 
+watch(
+  () => props.initialSession,
+  (id) => { if (id) void session.openToolApprovals(id) },
+  { immediate: true },
+)
+
 onMounted(async () => {
   await session.loadCatalogs()
   await session.refreshSessions()
+  if (props.initialSession) await session.openToolApprovals(props.initialSession)
   if (props.initialPanel && props.initialPanel !== 'catalog') {
     await session.openPanel(props.initialPanel as 'plan')
   }

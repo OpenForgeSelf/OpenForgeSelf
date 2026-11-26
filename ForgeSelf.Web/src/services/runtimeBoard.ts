@@ -242,7 +242,8 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
     if (row.status && row.status !== 'pending') continue
     if (soon(row.expiresAt, now) === 'expired') continue
     terminalWaitSessions.add(row.sessionId)
-    const urgent = (row.risk ?? '').toLowerCase() === 'high' || soon(row.expiresAt, now) === 'soon'
+    const risk = (row.risk ?? '').toLowerCase()
+    const urgent = risk === 'high' || risk === 'highrisk' || soon(row.expiresAt, now) === 'soon'
     cards.push({
       id: `term-approval:${row.id}`,
       lane: urgent ? 'urgent' : 'wait',
@@ -557,6 +558,11 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
 
 export function attentionCount(cards: BoardCard[]): number {
   return cards.filter((c) => c.lane === 'urgent' || c.lane === 'wait').length
+}
+
+/** 已经写下结果的卡片还留在列表里，但不再占页头和标签的数字。 */
+export function blockingCount(cards: BoardCard[], settled: Record<string, string> = {}): number {
+  return attentionCount(cards.filter((card) => !settled[card.id]))
 }
 
 function projectForTodo(map: Map<string, { id: number; project: string; title: string }>, key: string): string {

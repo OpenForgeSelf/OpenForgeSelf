@@ -182,6 +182,7 @@ public class RunnerService : IRunnerService
     private readonly IContext _ctx;
     // Launched 会话：commandId → 会话。进程 Exited 时移除。
     private readonly ConcurrentDictionary<int, RunSession> _launched = new();
+    private List<RunSession> _lastDetected = new();
     private readonly ConcurrentDictionary<int, RunLogBuffer> _logs = new();
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
@@ -349,24 +350,27 @@ public class RunnerService : IRunnerService
     public IReadOnlyList<RunSession> CheckAndMerge()
     {
         var detected = Detect();
-        var merged = new List<RunSession>(_launched.Values);
-        var launchedPids = new HashSet<int>(_launched.Values.Select(s => s.Pid));
-        foreach (var d in detected)
-        {
-            if (launchedPids.Contains(d.Pid)) continue; // PID 相同 → 保留 Launched，不重复
-            merged.Add(d);
-        }
-        return merged;
+        _lastDetected = detected;
+        return MergeLaunched(detected);
     }
 
-    /// <summary>当前运行列表（Launched + 上次检测的 Detected 缓存）。</summary>
+    /// <summary>当前运行列表（还活着的 Launched，加上上次检测里仍活着的进程）。</summary>
     public IReadOnlyList<RunSession> Current()
     {
-        // 过滤掉已退出但事件尚未触发的 Launched（兜底）
-        var alive = _launched.Values
-            .Where(s => IsProcessAlive(s.Pid))
-            .ToList();
-        return alive.AsReadOnly();
+        return MergeLaunched(_lastDetected, dropDeadDetected: true);
+    }
+
+    private List<RunSession> MergeLaunched(IReadOnlyList<RunSession> detected, bool dropDeadDetected = false)
+    {
+        var alive = _launched.Values.Where(s => IsProcessAlive(s.Pid)).ToList();
+        var launchedPids = new HashSet<int>(alive.Select(s => s.Pid));
+        foreach (var row in detected)
+        {
+            if (launchedPids.Contains(row.Pid)) continue;
+            if (dropDeadDetected && !IsProcessAlive(row.Pid)) continue;
+            alive.Add(row);
+        }
+        return alive;
     }
 
     /// <summary>停止全部本面板启动的会话。</summary>

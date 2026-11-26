@@ -8,7 +8,7 @@ import PageHead from '@/components/PageHead.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useOpenPage } from '@/composables/useOpenPage'
 import type { BoardCard } from '@/services/runtimeBoard'
-import { attentionCount } from '@/services/runtimeBoard'
+import { blockingCount } from '@/services/runtimeBoard'
 import { useRuntimeBoardStore } from '@/stores/runtimeBoard'
 
 const board = useRuntimeBoardStore()
@@ -19,7 +19,7 @@ onMounted(() => {
   board.start()
 })
 
-const blocking = computed(() => attentionCount(board.cards))
+const blocking = computed(() => blockingCount(board.cards, board.results))
 const urgent = computed(() => board.cards.filter((c) => c.lane === 'urgent'))
 const waiting = computed(() => board.cards.filter((c) => c.lane === 'wait'))
 const resume = computed(() => board.cards.filter((c) => c.lane === 'resume'))
@@ -121,7 +121,7 @@ function confirmDestructive(): void {
                 :disabled="board.acting[card.id]"
                 @click="onApprove(card)"
               >
-                同意
+                {{ card.once ? '只放行这一次' : '同意' }}
               </button>
               <button class="rs-btn rs-btn-quiet" type="button" :disabled="board.acting[card.id]" @click="board.decide(card, false)">
                 拒绝

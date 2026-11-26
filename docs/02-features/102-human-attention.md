@@ -305,7 +305,7 @@ AC26。点一行要带着查询参数打开对应详情，而不是只改地址�
 | 数据库待批 | `id` | 写入审批对话框 | 下图 | Verified |
 | 终端在跑 | `id` | 该会话和命令 | 终端节 | Verified |
 | 终端待批 | `id` 与 `approvalId` | 高风险确认 | 终端节 | Verified |
-| 外部 Agent | `id` | 该任务 | 下图 | 打开已验证；本轮新建的任务已失败，执行中未验证 |
+| 外部 Agent | `id` | 该任务仍是执行中 | 外部 Agent 节 | Verified |
 | 待办 | `id` | 被派发的待办 | 外部 Agent 节 | Verified |
 | 工程台命令 | `id` 与 `pid` | 该项目和命令 | 工程台节 | Verified |
 | 扫描到的进程 | `id` 与 `pid` | 工程台 | 重新扫描节 | Verified |
@@ -325,9 +325,7 @@ AC26。点一行要带着查询参数打开对应详情，而不是只改地址�
 
 ![数据库审批对话框](../ai/pilot/2026-11-25-attention-inbox/evidence/44-open-db.png)
 
-外部 Agent 的主参数 `id`（旧名 `taskId` 仍接受）打开该任务。本轮新建的任务在打开时已经失败，不是执行中。等级：打开已验证，执行中未验证。
-
-![外部任务详情](../ai/pilot/2026-11-25-attention-inbox/evidence/45-open-hub-failed.png)
+外部 Agent 的主参数 `id`（旧名 `taskId` 仍接受）打开该任务。本次新建的任务在来源页仍是执行中。等级：Verified。截图见外部 Agent 节。
 
 ## 访问密钥与未启用
 

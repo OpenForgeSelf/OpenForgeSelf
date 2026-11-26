@@ -68,33 +68,44 @@ function selectorsWith(pseudo: string): Set<string> {
 }
 
 describe('设计 token：token 族完备性', () => {
-  it('字号要有阶梯 token（--aiw-fs-*），不能全篇硬编码 px', () => {
-    const has = /--aiw-fs-/.test(css)
-    expect(has, 'widget.css 缺少 --aiw-fs-* 字号 token 族').toBe(true)
+  it('字号走 EP 字号档（2026-11-23 主题统一批：--aiw-fs-* 已并入 EP 体系）', () => {
+    expect(css, '缺 EP 字号档 var(--el-font-size-*)').toContain('var(--el-font-size-')
+    expect(css, '自造字号 token --aiw-fs-* 定义应已删除').not.toMatch(/--aiw-fs[\w-]*\s*:/)
   })
 
   it('间距要有台阶 token（--aiw-space-*）', () => {
     expect(/--aiw-space-/.test(css), 'widget.css 缺少 --aiw-space-* 间距 token 族').toBe(true)
   })
 
-  it('圆角要有分档 token（--aiw-radius-*），且至少 3 档（小/中/大）', () => {
-    const radii = [...css.matchAll(/--aiw-radius(?:-([\w]+))?\s*:/g)].map((m) => m[1] || 'base')
-    expect(radii.length, `圆角 token 只有 ${radii.length} 个（${radii.join(',')}），不够分档`).toBeGreaterThanOrEqual(3)
+  it('圆角走 EP/主题档 token（2026-11-23 主题统一批：--aiw-radius-* 已并入 EP 体系）', () => {
+    expect(
+      /var\(--el-border-radius-|var\(--radius-/.test(css),
+      '缺圆角档 token（EP var(--el-border-radius-*) 或主题 var(--radius-*)）',
+    ).toBe(true)
+    expect(css, '自造圆角 token --aiw-radius-* 定义应已删除').not.toMatch(/--aiw-radius[\w-]*\s*:/)
   })
 
-  it('动效时长要有 token（--aiw-dur-*）+ 缓动 token（--aiw-ease-*）', () => {
-    expect(/--aiw-dur-/.test(css), '缺 --aiw-dur-* 时长 token').toBe(true)
-    expect(/--aiw-ease-/.test(css), '缺 --aiw-ease-* 缓动 token').toBe(true)
+  it('动效时长/缓动走 EP 过渡 token 与主题缺口档（--aiw-dur-*/--aiw-ease-* 已并入）', () => {
+    expect(css, '缺 EP 过渡时长 var(--el-transition-duration*)').toMatch(/var\(--el-transition-duration/)
+    expect(css, '缺主题动效档 var(--dur-*)').toMatch(/var\(--dur-/)
+    expect(
+      /var\(--el-transition-function-fast-bezier\)|var\(--ease-forge\)/.test(css),
+      '缺缓动 token（EP fast-bezier 或主题 --ease-forge）',
+    ).toBe(true)
+    expect(css, '自造动效 token --aiw-dur-*/--aiw-ease-* 定义应已删除').not.toMatch(/--aiw-(dur|ease)[\w-]*\s*:/)
   })
 
-  it('颜色 token 已存在（既有能力，防回归）', () => {
-    for (const v of ['--aiw-primary', '--aiw-text', '--aiw-line', '--aiw-bg']) {
-      expect(css, `缺颜色 token ${v}`).toContain(v)
+  it('颜色走 EP token（既有能力，防回归；--aiw-* 色板已并入 EP 体系）', () => {
+    for (const v of ['var(--el-color-primary)', 'var(--el-text-color-primary)', 'var(--el-border-color)', 'var(--el-bg-color)']) {
+      expect(css, `缺 EP 颜色 token ${v}`).toContain(v)
     }
+    expect(css, '自造颜色 token --aiw-* 色板定义应已删除（--aiw-primary-08/16/32 alpha 档除外，EP 无 alpha 主色档）').not.toMatch(
+      /--aiw-(primary|text|line|bg|soft-line|text-soft|text-2|bg-soft)\s*:/,
+    )
   })
 })
 
-/** 先用 token 的写法长这样，不含秒数字面量：`transition: opacity var(--aiw-dur-instant) …`。
+/** 先用 token 的写法长这样，不含秒数字面量：`transition: opacity var(--el-transition-duration-fast) …`。
     所以「出现 \d+s」就等价于「没走 token」，可以直接当计数信号用。
     注释要先剥掉：注释里讨论「以前写 0.16s」也会被算成一处，基数就不准了。 */
 function stripComments(s: string): string {
@@ -116,7 +127,7 @@ describe('设计 token：动效规范（SKILL 动效章节）', () => {
     expect(
       hits.length,
       `硬编码 transition ${hits.length} 处 > 棘轮上限 ${HARDCODED_TRANSITION_BUDGET}；` +
-        `新写的 transition 必须用 var(--aiw-dur-*)，替掉存量后把基数下调 1。样本：${hits.slice(0, 5).join(' | ')}`
+        `新写的 transition 必须用 var(--el-transition-duration*) 或主题动效档 var(--dur-*)，替掉存量后把基数下调 1。样本：${hits.slice(0, 5).join(' | ')}`
     ).toBeLessThanOrEqual(HARDCODED_TRANSITION_BUDGET)
   })
 
@@ -129,9 +140,9 @@ describe('设计 token：动效规范（SKILL 动效章节）', () => {
     ).toBeLessThanOrEqual(HARDCODED_ANIMATION_BUDGET)
   })
 
-  it('新规则一律用动效 token —— 抽查：文件里必须真的出现 var(--aiw-dur-*) 引用', () => {
-    expect(/var\(--aiw-dur-/.test(cssCode), 'token 定义了却没人用，等于没建').toBe(true)
-    expect(/var\(--aiw-ease-/.test(cssCode)).toBe(true)
+  it('新规则一律用动效 token —— 抽查：文件里必须真的出现 EP/主题动效 token 引用', () => {
+    expect(/var\(--el-transition-duration|var\(--dur-/.test(cssCode), '时长 token 定义了却没人用，等于没建').toBe(true)
+    expect(/var\(--el-transition-function-fast-bezier\)|var\(--ease-forge\)/.test(cssCode)).toBe(true)
   })
 
   it('回弹曲线（0.34,1.56,0.64,1）不得用在普通 hover 上 —— 它只属于 logo/重点出现时刻', () => {

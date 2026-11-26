@@ -394,86 +394,86 @@ onMounted(() => {
 .ec {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .ec__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ds-space-4);
+  gap: 16px;
   flex-wrap: wrap;
 }
 .ec__picker {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .ec__meta {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ec__note {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ec__note code,
 .ec__zip code {
-  color: var(--ds-fg-2);
+  color: var(--el-text-color-regular);
 }
 .ec__list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .ec__card {
-  padding: var(--ds-space-4);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ec__card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ec__ops {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .ec__dl {
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-surface-1);
-  background: var(--ds-color-primary);
-  border: 1px solid var(--ds-color-primary);
-  border-radius: var(--ds-radius-sm);
-  padding: 4px var(--ds-space-3);
+  font-size: 10px;
+  color: var(--el-bg-color);
+  background: var(--el-color-primary);
+  border: 1px solid var(--el-color-primary);
+  border-radius: var(--el-border-radius-small);
+  padding: 4px 12px;
   text-decoration: none;
   cursor: pointer;
 }
 .ec__zip {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ec__loading {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ec__err {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .ec__preview {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .ec__text {
   margin: 0;
   max-height: 220px;
   overflow: auto;
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: var(--ds-space-3);
-  font-size: var(--ds-fs-small);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 12px;
+  font-size: var(--el-font-size-extra-small);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -483,16 +483,16 @@ onMounted(() => {
 .ec__trunc {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
 }
 .ds-input--narrow {
   width: auto;
@@ -500,29 +500,29 @@ onMounted(() => {
 .ec__entities {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-4);
+  gap: 12px;
+  padding: 16px;
 }
 .ec__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .ec__table th {
   text-align: left;
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
   font-weight: 500;
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: 4px var(--ds-space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 4px 8px;
 }
 .ec__table td {
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: 4px var(--ds-space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 4px 8px;
   vertical-align: top;
   word-break: break-all;
 }
 .ec__link {
-  color: var(--ds-color-primary);
+  color: var(--el-color-primary);
   text-decoration: none;
 }
 .ec__link:hover {
@@ -532,52 +532,52 @@ onMounted(() => {
 .ec__import {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
-  margin-top: var(--ds-space-5);
-  padding: var(--ds-space-4);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
 }
 .ec__import-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .ec__import-file {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-1);
-  color: var(--ds-fg-3);
+  gap: 4px;
+  color: var(--el-text-color-secondary);
 }
 .ec__import-ow {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
-  color: var(--ds-fg-2);
+  gap: 8px;
+  color: var(--el-text-color-regular);
 }
 .ec__import-counts strong {
-  color: var(--ds-fg-1);
+  color: var(--el-text-color-primary);
 }
 .ec__import-result {
-  padding: var(--ds-space-3);
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-surface-2);
+  padding: 12px;
+  border-radius: var(--el-border-radius-small);
+  background: var(--el-bg-color-overlay);
 }
 .ec__row-reject td {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .ec__ok {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 /* 导入区的两个动作按钮：与其余 section 同一套按钮形状（scoped 样式按文件自带，classes 守卫按文件核对） */
 .ds-mini {
   font: inherit;
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
+  font-size: 10px;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
   padding: 4px 10px;
   cursor: pointer;
 }

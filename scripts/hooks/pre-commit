@@ -75,6 +75,14 @@ if [ -n "$STYLED" ]; then
     echo "[pre-commit] 设计规范守卫 FAIL：存在新增硬编码色值 / 设计规范违反（DESIGN.md 门禁），提交已拒绝。"
     FAIL=1
   fi
+  # 主题 token 硬门禁（2026-11-23 W7 收口接线，FR6）：同触发条件下跑
+  # check-theme-tokens.mjs（--el-* 真实性 + 自定义 token 白名单 + 硬编码色；全仓 AC1=0
+  # 棘轮全拦），违反即拒绝提交。
+  echo "[pre-commit] 校验主题 token 硬门禁 (check:theme)"
+  if ! node scripts/check-theme-tokens.mjs; then
+    echo "[pre-commit] 主题 token 门禁 FAIL：未授权自定义 token / 未知 --el-* / 硬编码色（scripts/custom-tokens-allow.json 为例外登记册），提交已拒绝。"
+    FAIL=1
+  fi
 fi
 
 # 问题类台账扫描（G3 签名扫描，2026-10-17 problem-class-closure 机制）：
@@ -101,6 +109,19 @@ if [ $? -ne 0 ]; then
   echo "[pre-commit] 提交内容卫生 FAIL：暂存新增行命中卫生红线（见上方清单），提交已拒绝"
   echo "[pre-commit] 修复后重试；确需紧急放行仅限 git commit --no-verify（须在当日工作日记留痕）"
   FAIL=1
+fi
+
+# 工程规则守卫（第 5 道，2026-11-24 固化迁移）：temp/*.cjs 禁令 / pwsh-only / .ps1 BOM。
+# 规则下沉自 AGENTS.md 红线与 §2.3，由 scripts/check-engineering-rules.cjs 机械执行。
+if command -v node >/dev/null 2>&1; then
+  echo "[pre-commit] 校验工程规则 (check-engineering-rules)"
+  node scripts/check-engineering-rules.cjs
+  if [ $? -ne 0 ]; then
+    echo "[pre-commit] 工程规则守卫 FAIL：temp 探针 / powershell 5.1 调用 / .ps1 缺 BOM，提交已拒绝"
+    FAIL=1
+  fi
+else
+  echo "[pre-commit] 警告：未找到 node，跳过工程规则守卫（temp 探针/pwsh-only/BOM）。"
 fi
 
 if [ -z "$DIRS" ]; then

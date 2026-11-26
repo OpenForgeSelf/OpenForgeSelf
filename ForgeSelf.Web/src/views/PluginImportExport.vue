@@ -309,22 +309,22 @@ function downloadBlob(blob: Blob, fileName: string): void {
   border: none;
   background: none;
   font-size: 14px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   font-weight: 500;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .tab-btn:hover {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .tab-btn.active {
-  color: var(--gold-400);
-  border-bottom-color: var(--gold-400);
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
 }
 
 .tab-content {
@@ -339,26 +339,26 @@ function downloadBlob(blob: Blob, fileName: string): void {
   cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   margin-bottom: 20px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .drop-zone:hover {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .drop-zone.dragging {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
 .drop-zone.has-file {
   border-style: solid;
-  border-color: var(--bronze-500);
-  background: color-mix(in srgb, var(--bronze-500) 8%, transparent);
+  border-color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 8%, transparent);
 }
 
 .drop-content .drop-icon {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   margin-bottom: 16px;
   display: flex;
   justify-content: center;
@@ -367,20 +367,20 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .drop-content h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 8px 0;
   font-family: var(--font-serif-cn);
 }
 
 .drop-content p {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 4px 0;
   font-size: 14px;
 }
 
 .format-hint {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -392,7 +392,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .file-icon {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   display: flex;
 }
 
@@ -404,12 +404,12 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 .file-name {
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .file-size {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
@@ -418,9 +418,9 @@ function downloadBlob(blob: Blob, fileName: string): void {
   height: 28px;
   border: none;
   background: var(--paper-tint);
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 18px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -435,28 +435,28 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 .install-result {
   padding: 12px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   margin-bottom: 20px;
   font-size: 14px;
 }
 
 .install-result.success {
-  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
-  color: var(--bronze-500);
-  border: 1px solid color-mix(in srgb, var(--bronze-500) 30%, transparent);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
+  border: 1px solid color-mix(in srgb, var(--el-color-success) 30%, transparent);
 }
 
 .install-result.error {
-  background: color-mix(in srgb, var(--cinnabar-400) 12%, transparent);
-  color: var(--cinnabar-400);
-  border: 1px solid color-mix(in srgb, var(--cinnabar-400) 30%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 12%, transparent);
+  color: var(--el-color-error);
+  border: 1px solid color-mix(in srgb, var(--el-color-error) 30%, transparent);
 }
 
 .install-btn {
   width: 100%;
   padding: 14px;
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   border: none;
   border-radius: var(--radius-lg);
   font-size: 15px;
@@ -467,11 +467,11 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .install-btn:hover:not(:disabled) {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 
@@ -511,7 +511,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -523,17 +523,17 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .action-btn {
   padding: 8px 20px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
 }
 
 .export-selected-btn {
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   border: 1px solid var(--border-default);
 }
 
@@ -543,12 +543,12 @@ function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 .export-all-btn {
-  background: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
 }
 
 .export-all-btn:hover:not(:disabled) {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
   transform: translateY(-1px);
 }
 
@@ -571,26 +571,26 @@ function downloadBlob(blob: Blob, fileName: string): void {
   gap: 12px;
   padding: 12px 16px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
 .plugin-item:hover {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .plugin-item.selected {
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
 .plugin-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--gold-tint);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -605,22 +605,22 @@ function downloadBlob(blob: Blob, fileName: string): void {
 .plugin-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   margin: 0 0 2px 0;
 }
 
 .plugin-version {
   font-size: 12px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   font-family: var(--font-mono);
 }
 
 .plugin-category {
   background: var(--paper-tint);
   padding: 4px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 

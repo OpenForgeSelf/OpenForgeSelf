@@ -41,8 +41,8 @@ watch(() => p.value?.id, () => loadOverviewStats())
   <template v-if="p">
     <div class="proj-header">
       <div class="proj-lead">
+        <span class="wb-eyebrow">{{ p.name }}</span>
         <h2>概览</h2>
-        <div class="es-sub">{{ p.name }} · {{ p.type || '未分类' }}</div>
       </div>
       <div class="proj-tools">
         <span class="badge muted">{{ p.source }}</span>
@@ -146,16 +146,12 @@ watch(() => p.value?.id, () => loadOverviewStats())
             </span>
             <span v-html="ic('external', 'sm')"></span>
           </a>
-          <div class="wb-note">
-            <span v-html="ic('info', 'sm')"></span>
-            <span>本页只展示 Sems 真实能力；不提供端口管理等遗留概念。</span>
-          </div>
         </section>
       </div>
 
-      <!-- 项目档案（sems 原有字段） -->
+      <!-- 项目档案 -->
       <div class="card" style="margin-top:16px;max-width:760px">
-        <h3>项目档案（sems 原有字段）</h3>
+        <h3>项目档案</h3>
         <dl class="wb-kv" style="margin-top:12px">
           <dt>根目录</dt><dd>{{ p.path }}</dd>
           <dt>类型 / 标签</dt><dd>{{ p.type || '未分类' }} / {{ p.tags || '无' }}</dd>

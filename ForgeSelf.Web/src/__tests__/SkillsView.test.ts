@@ -251,8 +251,9 @@ describe('SkillsView', () => {
       await wrapper.find('.btn-create').trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.modal-panel').exists()).toBe(true)
-      expect(wrapper.find('.modal-title').text()).toBe('创建技能')
+      // el-dialog append-to-body：弹窗根传送到 document.body，不在 wrapper 子树内
+      expect(document.querySelector('.skills-form-dialog')).not.toBeNull()
+      expect(document.querySelector('.modal-title')?.textContent).toBe('创建技能')
       wrapper.unmount()
     })
 
@@ -319,8 +320,9 @@ describe('SkillsView', () => {
       await editButtons[0].trigger('click')
       await flushPromises()
 
-      expect(wrapper.find('.modal-panel').exists()).toBe(true)
-      expect(wrapper.find('.modal-title').text()).toBe('编辑技能')
+      // el-dialog append-to-body：弹窗根传送到 document.body，不在 wrapper 子树内
+      expect(document.querySelector('.skills-form-dialog')).not.toBeNull()
+      expect(document.querySelector('.modal-title')?.textContent).toBe('编辑技能')
       expect(skillsApi.fetchSkillDetail).toHaveBeenCalledWith('skill_1')
       wrapper.unmount()
     })

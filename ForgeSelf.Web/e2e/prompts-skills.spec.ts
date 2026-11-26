@@ -105,7 +105,7 @@ test.describe('技能管理页面（/skills）', () => {
 
     // 打开创建模态框
     await page.getByRole('button', { name: /创建技能/ }).first().click()
-    const modal = page.locator('.modal-panel').filter({ hasText: '创建技能' })
+    const modal = page.locator('.skills-form-dialog').filter({ hasText: '创建技能' })
     await expect(modal).toBeVisible()
 
     // 填写表单（名称必填）

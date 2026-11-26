@@ -274,4 +274,101 @@ public class ProblemClassEnumerationTests
             "PC-034 不变量违反：DI 构造的插件服务注入 IServiceProvider = 拿到插件子容器，宿主/跨插件契约恒解析为 null；" +
             "改注入 IContext（见 StHostGateway / ImGatewayRouter 正道）。确需豁免 → PC-034 front-matter allowlist（理由+到期日）");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-047：插件 vite lib 构建不得设 emptyOutDir: true（沙箱 safe-delete 批量删除守卫会拦清空 dist → 发布链中断）
+    // ─────────────────────────────────────────────────────────────
+    [Fact]
+    public void Pc047_PluginViteConfigs_MustNotSetEmptyOutDirTrue()
+    {
+        var root = FindRepoRoot();
+        var pluginsDir = Path.Combine(root, "Plugins");
+        var configs = Directory.Exists(pluginsDir)
+            ? Directory.EnumerateFiles(pluginsDir, "vite.config.ts", SearchOption.AllDirectories)
+                .Where(f => f.Replace('\\', '/').Contains("/web/vite.config.ts"))
+                .ToList()
+            : new List<string>();
+
+        // 阳性对照：确有插件 web config 在扫描面内（防空转假绿——文件全没了也会 vacuously pass）
+        configs.Count.Should().BeGreaterThanOrEqualTo(13,
+            "插件 web vite.config 阳性对照：数量骤降说明扫描面或目录结构变更，先更新本守卫");
+
+        var offenders = configs
+            .Where(f => Regex.IsMatch(File.ReadAllText(f), @"emptyOutDir:\s*true"))
+            .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/'))
+            .ToList();
+
+        offenders.Should().BeEmpty(
+            "PC-047 不变量违反：插件 web 的 emptyOutDir:true 会让 vite 构建清空 dist，触发本机沙箱 safe-delete 批量删除守卫" +
+            "（count≥threshold → SAFE_DELETE_BULK_CONFIRM_REQUIRED），发布链首插件即中断、zip 不产出；" +
+            "统一改为 emptyOutDir:false（产物固定文件名覆盖写，与宿主 ForgeSelf.Web/vite.config.ts 一致）");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-048：发布链 pnpm install 必须关闭 modules 清理确认（无 TTY 智能终端会 abort → 发布中断）
+    // ─────────────────────────────────────────────────────────────
+    [Fact]
+    public void Pc048_BuildFrontendPnpmInstall_MustDisablePurgeConfirm()
+    {
+        var root = FindRepoRoot();
+        var script = Path.Combine(root, "scripts", "release", "build-frontend.ps1");
+        File.Exists(script).Should().BeTrue("build-frontend.ps1 必须存在，守卫扫描面不能为空");
+
+        var text = File.ReadAllText(script);
+        text.Should().Contain("$pnpm install --frozen-lockfile", "阳性对照：确认扫描的正是发布链 install 调用");
+        text.Should().Contain("--config.confirmModulesPurge=false",
+            "PC-048 不变量违反：pnpm 检测到 node_modules 需重建时弹 Proceed?(Y/n)，智能终端/CI 无 TTY 直接 ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY，发布链中断；" +
+            "install 必须显式 --config.confirmModulesPurge=false（等价人工按 Y，不影响 --frozen-lockfile）");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-049：UpdateAgent 必须无条件显式声明 SelfContained=false
+    // （条件式声明在 RID 赋值前求值不生效 → SDK 推断自包含 → NETSDK1151 阻断宿主 publish）
+    // ─────────────────────────────────────────────────────────────
+    [Fact]
+    public void Pc049_UpdateAgentCsproj_MustDeclareFddSelfContainedUnconditionally()
+    {
+        var root = FindRepoRoot();
+        var csproj = Path.Combine(root, "ForgeSelf.UpdateAgent", "ForgeSelf.UpdateAgent.csproj");
+        File.Exists(csproj).Should().BeTrue("UpdateAgent.csproj 必须存在，守卫扫描面不能为空");
+
+        var text = File.ReadAllText(csproj);
+        text.Should().Contain("<OutputType>Exe</OutputType>",
+            "阳性对照：确认扫描的正是自更新代理可执行项目（防空转假绿）");
+
+        Regex.IsMatch(text, @"<SelfContained\s+Condition\s*=").Should().BeFalse(
+            "PC-049 不变量违反：SelfContained 带 Condition 时，若写在 RuntimeIdentifier 赋值之前，" +
+            "求值阶段 RID 仍为空 → 条件不成立 → 属性不生效；宿主 publish 传全局 PublishSingleFile=true 时 " +
+            "SDK 推断 PublishSelfContained=true 并回写 SelfContained=true → NETSDK1151");
+
+        text.Should().Contain("<SelfContained>false</SelfContained>",
+            "PC-049 不变量违反：UpdateAgent 必须无条件显式声明 FDD（selfContained=false），" +
+            "使 _SelfContainedWasSpecified=true、SDK 不再推断自包含；否则宿主非自包含 publish 必失败");
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PC-050：exe 轨更新代理必须先重启宿主再清理 staged
+    // （agent 自身 DOTNET_ROOT 指向 staged；先删 staged 会让 RestartLauncher 首次加载
+    //  System.Collections.Specialized.dll 失败 → 宿主未被拉起）
+    // ─────────────────────────────────────────────────────────────
+    [Fact]
+    public void Pc050_UpdateAgentRunner_MustRestartBeforeCleanupStaged()
+    {
+        var root = FindRepoRoot();
+        var runner = Path.Combine(root, "ForgeSelf.UpdateAgent", "UpdateAgentRunner.cs");
+        File.Exists(runner).Should().BeTrue("UpdateAgentRunner.cs 必须存在，守卫扫描面不能为空");
+
+        var text = File.ReadAllText(runner);
+        text.Should().Contain("psi.EnvironmentVariables[\"DOTNET_ROOT\"]",
+            "阳性对照：确认扫描的正是 RestartLauncher 里触发 System.Collections.Specialized 首次加载的那一行（防空转假绿）");
+
+        var restartAt = text.IndexOf("RestartLauncher(o);", StringComparison.Ordinal);
+        var cleanupAt = text.IndexOf("CleanupStagedAndBackups(o.InstallDir, o.StagedDir);", StringComparison.Ordinal);
+        restartAt.Should().BeGreaterThan(-1, "必须存在重启宿主调用");
+        cleanupAt.Should().BeGreaterThan(-1, "必须存在清理 staged 调用");
+        restartAt.Should().BeLessThan(cleanupAt,
+            "PC-050 不变量违反：agent 的 DOTNET_ROOT 指向 staged；先 CleanupStaged 删除 staged 运行时后，" +
+            "RestartLauncher 首次访问 psi.EnvironmentVariables（StringDictionary，位于 System.Collections.Specialized.dll）" +
+            "时 DLL 已不存在 → FileNotFoundException → 宿主未被拉起（2026-11-24 15:09 真机实证）");
+    }
 }

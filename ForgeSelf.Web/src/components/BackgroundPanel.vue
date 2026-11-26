@@ -51,7 +51,7 @@ const emit = defineEmits<{ close: [] }>()
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   letter-spacing: 0.05em;
 }
 
@@ -61,7 +61,7 @@ const emit = defineEmits<{ close: [] }>()
   background: transparent;
   border: 0;
   cursor: pointer;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -70,6 +70,6 @@ const emit = defineEmits<{ close: [] }>()
 
 .head .close:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 </style>

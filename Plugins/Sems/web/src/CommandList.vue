@@ -52,7 +52,7 @@
         <p v-if="formError" class="cmddlg__err">{{ formError }}</p>
         <div class="cmddlg__foot">
           <button class="cmddlg__btn" @click="dialogOpen = false">取消</button>
-          <button class="cmddlg__btn cmddlg__btn--primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+          <button class="cmddlg__btn cmddlg__btn--primary" :disabled="saving || !canSave" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
         </div>
       </div>
     </div>
@@ -159,6 +159,7 @@ async function remove(cmd: RunCommandInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认删除',
+          confirmButtonClass: 'el-button--danger sems-confirm-danger',
           cancelButtonText: '取消',
         })
         return true
@@ -203,13 +204,13 @@ function openEdit(cmd: RunCommandInfo) {
   dialogOpen.value = true
 }
 
+/** 名称与脚本都有内容才可保存；空内容时按钮不可用，不弹提示、不发请求。 */
+const canSave = computed(() => !!form.value.name.trim() && !!form.value.script.trim())
+
 async function save() {
-  const name = form.value.name
-  const script = form.value.script
-  if (!name || !script) {
-    formError.value = '名称与脚本均不能为空'
-    return
-  }
+  const name = form.value.name.trim()
+  const script = form.value.script.trim()
+  if (!name || !script) return
   saving.value = true
   formError.value = ''
   try {
@@ -266,7 +267,7 @@ async function save() {
 }
 
 .clist__add:hover {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .clist__hint {
@@ -359,7 +360,7 @@ async function save() {
 .clist__script {
   display: block;
   margin-top: 2px;
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--el-text-color-secondary);
   overflow: hidden;
@@ -394,7 +395,7 @@ async function save() {
 }
 
 .clist__op--run:hover:not(:disabled) {
-  background: var(--el-color-success-light);
+  background: var(--el-color-success-light-3);
 }
 
 .clist__op--run:disabled {
@@ -411,7 +412,7 @@ async function save() {
 .cmddlg__mask {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
   z-index: 50;
 }
 
@@ -491,7 +492,7 @@ async function save() {
 }
 
 .cmddlg__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .cmddlg__btn:disabled {

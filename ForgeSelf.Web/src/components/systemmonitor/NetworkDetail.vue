@@ -33,13 +33,13 @@ const chartDatasets = computed<ChartDataset[]>(() => [
   {
     label: '下载',
     data: props.history.map(h => ({ value: h.download, timestamp: h.timestamp })),
-    color: '#2196f3',
+    color: 'var(--el-color-primary)',
     fill: true
   },
   {
     label: '上传',
     data: props.history.map(h => ({ value: h.upload, timestamp: h.timestamp })),
-    color: '#4caf50',
+    color: 'var(--el-color-success)',
     fill: true
   }
 ])
@@ -166,15 +166,15 @@ function getStateColor(state: string): string {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .speed-section {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .speed-cards {
@@ -190,15 +190,15 @@ function getStateColor(state: string): string {
   gap: 16px;
   padding: 20px;
   border-radius: 10px;
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .speed-card.download {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  background: linear-gradient(135deg, var(--el-color-info-light-9), var(--el-color-info-light-8));
 }
 
 .speed-card.upload {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  background: linear-gradient(135deg, var(--el-color-success-light-9), var(--el-color-success-light-8));
 }
 
 .speed-icon {
@@ -213,27 +213,27 @@ function getStateColor(state: string): string {
 
 .speed-label {
   font-size: 14px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .speed-value {
   font-size: 24px;
   font-weight: 700;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .chart-section {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .connections-section {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .section-header {
@@ -253,7 +253,7 @@ function getStateColor(state: string): string {
 
 .filter-input {
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 14px;
   width: 180px;
@@ -261,14 +261,14 @@ function getStateColor(state: string): string {
 }
 
 .filter-input:focus {
-  border-color: #1976d2;
+  border-color: var(--el-color-primary);
   outline: none;
 }
 
 .refresh-btn {
   padding: 8px 16px;
-  background: #1976d2;
-  color: #fff;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -277,7 +277,7 @@ function getStateColor(state: string): string {
 }
 
 .refresh-btn:hover {
-  background: #1565c0;
+  background: var(--el-color-primary-dark-2);
 }
 
 .connections-table-container {
@@ -295,31 +295,31 @@ function getStateColor(state: string): string {
 .connections-table td {
   padding: 10px 8px;
   text-align: left;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .connections-table th {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   position: sticky;
   top: 0;
   z-index: 1;
 }
 
 .connection-row:hover {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .protocol {
   font-weight: 500;
-  color: #1976d2;
+  color: var(--el-color-primary);
   font-family: monospace;
 }
 
 .address {
   font-family: monospace;
-  color: #495057;
+  color: var(--el-text-color-regular);
 }
 
 .state-badge {
@@ -331,13 +331,13 @@ function getStateColor(state: string): string {
 }
 
 .process {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .empty-cell {
   text-align: center;
   padding: 30px 20px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 @media (max-width: 768px) {

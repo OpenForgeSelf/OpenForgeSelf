@@ -138,11 +138,13 @@ Review
 
 | 级别 | 适用 | 工件要求 |
 | --- | --- | --- |
-| 全量 | 新功能、插件任务、公共接口/契约变更 | 00~06 七件齐备（`docs/ai/pilot/<task-id>/`） |
+| 全量 | 新功能、插件任务、公共接口/契约变更 | 00~07 八件齐备（`docs/ai/pilot/<task-id>/`） |
 | 轻量 | ≤3 文件的缺陷修复、边界测试补充 | Intent/Spec/Plan/Task 可合并为单文件 `mini-task.md`（含五要素），Evidence 与 Review 仍**必须单独产出** |
 | 纯问答/查状态 | 不占流程 | 无工件 |
 
 裁剪不等于跳过：任何级别都必须有 Test→Evidence→Review 的真实验证与审查记录。
+
+**提交豁免白名单（非流程裁剪）**：提交是否需要 Pilot trailer 与工件链，由 `scripts/pilot-exemption-allowlist.json` 唯一决定，支持精确路径与 glob；本地 `commit-msg` 与 CI `verify-pilot-gate.ps1` 都先把全部暂存/范围内文件交给 `scripts/check-pilot-exemption.ps1`。不得在两个门禁脚本中再写死文件类别。任一未豁免文件仍走完整 Pilot 门禁；配置缺失、JSON 非法或数组格式错误时拒绝静默豁免。
 
 ## 5. 汇报格式（任务结束强制）
 

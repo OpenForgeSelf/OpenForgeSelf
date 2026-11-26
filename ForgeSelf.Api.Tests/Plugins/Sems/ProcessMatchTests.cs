@@ -187,4 +187,66 @@ public class ProcessMatchTests
         var projects = new[] { MakeProject(1, "/tmp/sems-proj", "frontend") };
         Assert.False(ProcessMatcher.LocatedUnderRegisteredRoot("/bin/sleep", "sleep 30", projects, "/tmp"));
     }
+
+    private static RunCommandInfo MakeCommand(int id, string name, string script) => new()
+    {
+        Id = id,
+        Name = name,
+        Script = script
+    };
+
+    [Fact]
+    public void MatchCommand_PythonScript_MatchesAbsoluteInterpreterAndScriptPath()
+    {
+        var commands = new[]
+        {
+            MakeCommand(1, "web-server", "python3 web-server.py"),
+            MakeCommand(2, "worker", "python3 worker.py")
+        };
+
+        var hit = ProcessMatcher.MatchCommand(
+            "/usr/bin/python3",
+            "python3 /tmp/proj/web-server.py",
+            commands);
+
+        Assert.NotNull(hit);
+        Assert.Equal(1, hit!.Id);
+        Assert.Equal("web-server", hit.Name);
+    }
+
+    [Fact]
+    public void MatchCommand_UnrelatedProcess_ReturnsNull()
+    {
+        var commands = new[] { MakeCommand(1, "web-server", "python3 web-server.py") };
+        var hit = ProcessMatcher.MatchCommand("/bin/sleep", "sleep 30", commands);
+        Assert.Null(hit);
+    }
+
+    [Fact]
+    public void MatchCommand_PrefersMoreSpecificScript()
+    {
+        var commands = new[]
+        {
+            MakeCommand(1, "http", "python3 -m http.server"),
+            MakeCommand(2, "http-8080", "python3 -m http.server 8080")
+        };
+
+        var hit = ProcessMatcher.MatchCommand(
+            "/usr/bin/python3",
+            "python3 -m http.server 8080",
+            commands);
+
+        Assert.Equal(2, hit!.Id);
+    }
+
+    [Fact]
+    public void MatchCommand_NpmRunDev_MatchesNodeCli()
+    {
+        var commands = new[] { MakeCommand(3, "dev", "npm run dev") };
+        var hit = ProcessMatcher.MatchCommand(
+            "/usr/bin/node",
+            "node /usr/lib/node_modules/npm/bin/npm-cli.js run dev",
+            commands);
+        Assert.Equal(3, hit!.Id);
+    }
 }

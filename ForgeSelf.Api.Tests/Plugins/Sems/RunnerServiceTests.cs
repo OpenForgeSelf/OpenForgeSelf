@@ -285,4 +285,76 @@ public class RunnerServiceTests : IDisposable
             try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
         }
     }
+
+    [Fact]
+    public void CheckAndMerge_MatchingScript_FillsCommandIdAndName()
+    {
+        if (!Directory.Exists("/proc") && !OperatingSystem.IsWindows()) return;
+
+        var script = HoldScript(30);
+        var cmdId = AddCommand("web-server", script);
+        var psi = HoldProcess(30);
+        psi.WorkingDirectory = _projectRoot;
+        using var ext = Process.Start(psi)!;
+        try
+        {
+            Assert.False(ext.HasExited);
+            var runs = _runner.CheckAndMerge();
+            var hit = Assert.Single(runs, s => s.Pid == ext.Id && s.Origin == "Detected");
+            Assert.Equal(cmdId, hit.CommandId);
+            Assert.Equal("web-server", hit.CommandName);
+            Assert.Contains(_runner.Current(), s => s.Pid == ext.Id && s.CommandId == cmdId);
+        }
+        finally
+        {
+            try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+        }
+    }
+
+    [Fact]
+    public void CheckAndMerge_UnmatchedScript_KeepsCommandIdZero()
+    {
+        if (!Directory.Exists("/proc") && !OperatingSystem.IsWindows()) return;
+
+        AddCommand("web-server", "python3 web-server.py");
+        var psi = HoldProcess(30);
+        psi.WorkingDirectory = _projectRoot;
+        using var ext = Process.Start(psi)!;
+        try
+        {
+            Assert.False(ext.HasExited);
+            var hit = Assert.Single(_runner.CheckAndMerge(), s => s.Pid == ext.Id && s.Origin == "Detected");
+            Assert.Equal(0, hit.CommandId);
+        }
+        finally
+        {
+            try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+        }
+    }
+
+    [Fact]
+    public void Current_KeepsDetectedAfterCheck_AndDropsWhenProcessExits()
+    {
+        if (!Directory.Exists("/proc") && !OperatingSystem.IsWindows()) return;
+
+        var psi = HoldProcess(30);
+        psi.WorkingDirectory = _projectRoot;
+        using var ext = Process.Start(psi)!;
+        try
+        {
+            Assert.False(ext.HasExited);
+            Assert.DoesNotContain(_runner.Current(), s => s.Pid == ext.Id);
+            Assert.Contains(_runner.CheckAndMerge(), s => s.Pid == ext.Id && s.Origin == "Detected");
+            Assert.Contains(_runner.Current(), s => s.Pid == ext.Id && s.Origin == "Detected");
+        }
+        finally
+        {
+            try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+        }
+
+        try { Assert.True(ext.WaitForExit(3000) || ext.HasExited); }
+        catch { /* 已退出 */ }
+
+        Assert.DoesNotContain(_runner.Current(), s => s.Pid == ext.Id);
+    }
 }

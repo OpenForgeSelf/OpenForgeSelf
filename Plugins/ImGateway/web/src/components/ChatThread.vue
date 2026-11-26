@@ -132,8 +132,8 @@ function bubbleText(m: ChatMessageDto): string {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--bronze-500) 20%, transparent);
-  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--el-color-success) 20%, transparent);
+  color: var(--el-color-success);
   font-weight: 600;
   font-size: 12px;
 }
@@ -141,7 +141,7 @@ function bubbleText(m: ChatMessageDto): string {
   font-family: var(--font-serif-cn, serif);
   font-size: 15px;
   font-weight: 600;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,9 +149,9 @@ function bubbleText(m: ChatMessageDto): string {
 .ig-thread__error {
   margin: 10px 14px 0;
   padding: 8px 10px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--cinnabar-400) 14%, transparent);
-  color: var(--cinnabar-400);
+  border-radius: var(--el-border-radius-base);
+  background: color-mix(in srgb, var(--el-color-error) 14%, transparent);
+  color: var(--el-color-error);
   font-size: 12px;
   flex-shrink: 0;
   word-break: break-all;
@@ -176,16 +176,16 @@ function bubbleText(m: ChatMessageDto): string {
 .ig-thread__more-btn {
   height: 28px;
   padding: 0 16px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--el-border-radius-round, 9999px);
   border: 1px solid var(--el-border-color);
   background: transparent;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
   font-size: 12px;
   cursor: pointer;
 }
 .ig-thread__more-btn:hover:not(:disabled) {
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 .ig-thread__more-btn:disabled {
   opacity: 0.6;
@@ -195,7 +195,7 @@ function bubbleText(m: ChatMessageDto): string {
   margin: auto;
   text-align: center;
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   padding: 30px 10px;
 }
 .ig-msg {
@@ -215,7 +215,7 @@ function bubbleText(m: ChatMessageDto): string {
 }
 .ig-msg__meta {
   font-size: 11px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono, monospace);
   margin-bottom: 3px;
   display: flex;
@@ -223,17 +223,17 @@ function bubbleText(m: ChatMessageDto): string {
   gap: 6px;
 }
 .ig-msg__tag {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 .ig-msg__tag--error {
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 .ig-msg__bubble {
   padding: 8px 12px;
   border-radius: var(--radius-lg, 12px);
   font-size: 13px;
   line-height: 1.6;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   /* 双主题自适应底（--paper-white 固定米白曾在深色主题下浅字压浅泡=不可读）：
      浅=宣纸白同旧观感，深=主题深底配浅字；1px 浅边框与面板 fill 底区分 */
   background: var(--el-bg-color);
@@ -242,12 +242,12 @@ function bubbleText(m: ChatMessageDto): string {
   white-space: pre-wrap;
 }
 .ig-msg--out .ig-msg__bubble {
-  background: color-mix(in srgb, var(--gold-400) 16%, transparent);
-  border-color: color-mix(in srgb, var(--gold-400) 30%, transparent);
+  background: color-mix(in srgb, var(--el-color-primary) 16%, transparent);
+  border-color: color-mix(in srgb, var(--el-color-primary) 30%, transparent);
 }
 .ig-msg__bubble--error {
-  background: color-mix(in srgb, var(--cinnabar-400) 10%, transparent);
-  border-color: color-mix(in srgb, var(--cinnabar-400) 36%, transparent);
-  color: var(--cinnabar-400);
+  background: color-mix(in srgb, var(--el-color-error) 10%, transparent);
+  border-color: color-mix(in srgb, var(--el-color-error) 36%, transparent);
+  color: var(--el-color-error);
 }
 </style>

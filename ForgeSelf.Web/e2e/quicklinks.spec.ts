@@ -70,21 +70,29 @@ async function navigateToQuickLinks(page: Page): Promise<void> {
 // 测试用例
 // ============================================================
 
+/** 生成用例级唯一后缀：fullyParallel 下三个用例同毫秒启动时 Date.now() 相同，
+ *  同名数据会互串（strict mode violation），故叠加随机盐。 */
+function uniqSalt(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 test.describe('快捷链接 CRUD（真实后端）', () => {
   test.beforeEach(async ({ page }) => {
     await injectRealApiKey(page)
   })
 
   test('添加链接：创建分类 → UI 表单保存 → 列表可见', async ({ page }) => {
-    const catName = `E2E-Real-Cat-${Date.now()}`
-    const linkName = `E2E-Real-Link-${Date.now()}`
+    const salt = uniqSalt()
+    const catName = `E2E-Real-Cat-${salt}`
+    const linkName = `E2E-Real-Link-${salt}`
     const catId = await createTestCategory(catName)
     try {
       await navigateToQuickLinks(page)
 
       // 添加链接（页头按钮；空状态也有"添加链接"按钮，用 .add-btn 精确定位）
       await page.locator('.action-btn.add-btn').click()
-      const modal = page.locator('.modal-container').filter({ hasText: '添加链接' })
+      // W6 迁移后 LinkFormModal 为 el-dialog（append-to-body），壳类 .link-form-dialog
+      const modal = page.locator('.link-form-dialog').filter({ hasText: '添加链接' })
       await expect(modal).toBeVisible()
       await modal.locator('input').nth(0).fill(linkName)
       await modal.locator('input').nth(1).fill('https://example.com')
@@ -109,8 +117,9 @@ test.describe('快捷链接 CRUD（真实后端）', () => {
   })
 
   test('编辑链接：UI 编辑 → 名称更新 → 列表刷新', async ({ page }) => {
-    const catName = `E2E-Real-Cat-${Date.now()}`
-    const linkName = `E2E-Real-Link-${Date.now()}`
+    const salt = uniqSalt()
+    const catName = `E2E-Real-Cat-${salt}`
+    const linkName = `E2E-Real-Link-${salt}`
     const newName = `${linkName}-Edited`
     const catId = await createTestCategory(catName)
 
@@ -136,7 +145,8 @@ test.describe('快捷链接 CRUD（真实后端）', () => {
 
       // 点击卡片编辑按钮
       await page.getByRole('button', { name: `编辑 ${linkName}` }).click()
-      const modal = page.locator('.modal-container').filter({ hasText: '编辑链接' })
+      // W6 迁移后 LinkFormModal 为 el-dialog（append-to-body），壳类 .link-form-dialog
+      const modal = page.locator('.link-form-dialog').filter({ hasText: '编辑链接' })
       await expect(modal).toBeVisible()
 
       // 修改名称
@@ -162,8 +172,9 @@ test.describe('快捷链接 CRUD（真实后端）', () => {
   })
 
   test('删除链接：UI 删除（confirm）→ 列表移除', async ({ page }) => {
-    const catName = `E2E-Real-Cat-${Date.now()}`
-    const linkName = `E2E-Real-Link-${Date.now()}`
+    const salt = uniqSalt()
+    const catName = `E2E-Real-Cat-${salt}`
+    const linkName = `E2E-Real-Link-${salt}`
     const catId = await createTestCategory(catName)
 
     const createRes = await fetch(BACKEND, {
@@ -181,22 +192,22 @@ test.describe('快捷链接 CRUD（真实后端）', () => {
       await navigateToQuickLinks(page)
       await expect(page.getByText(linkName, { exact: true })).toBeVisible({ timeout: 10000 })
 
-      // 处理原生 confirm 弹窗
-      page.once('dialog', (dialog) => dialog.accept())
-
-      // 编辑/删除按钮是 hover 才显示（v-show="isHovered"），先悬停卡片
+      // 插件已移除原生 confirm()，删除走统一 ConfirmHost（.confirm-box .ok）
       const card = page.locator('.link-card').filter({ hasText: linkName })
       await card.hover()
 
       // 点击卡片删除按钮
       await page.getByRole('button', { name: `删除 ${linkName}` }).click()
 
-      // 等待 DELETE 真实请求完成
+      // 等待 DELETE 真实请求完成（先在自定义确认框点「删除」）
+      const confirmBox = page.locator('.confirm-box')
+      await expect(confirmBox).toBeVisible()
       const deleteResponsePromise = page.waitForResponse(
         (resp) =>
           resp.request().method() === 'DELETE' &&
           new RegExp(`/api/quicklinks/${linkId}`).test(resp.url())
       )
+      await confirmBox.locator('.btn.ok').click()
       await deleteResponsePromise
 
       // 链接从列表移除

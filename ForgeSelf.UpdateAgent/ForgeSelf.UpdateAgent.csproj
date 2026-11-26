@@ -12,7 +12,12 @@
     <!-- 发布形态：FDD（依赖框架）单文件、零 NuGet 依赖，BCL only；
          publish 由 scripts/release/publish-updateagent.ps1 统一执行并断言大小，防止误打自包含。 -->
     <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
-    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">false</SelfContained>
+    <!-- 2026-11-24：SelfContained 必须无条件显式声明为 false。
+         原先带 Condition（RID != ''）但写在 RuntimeIdentifier 赋值之前，求值时 RID 仍为空 → 属性不生效；
+         宿主 publish 传全局 PublishSingleFile=true 时，SDK 推断 PublishSelfContained=true 并回写
+         SelfContained=true（Microsoft.NET.RuntimeIdentifierInference.targets:67-89），触发 NETSDK1151
+         「非自包含宿主不能引用自包含 exe」。显式声明后 _SelfContainedWasSpecified=true，推断不再发生。 -->
+    <SelfContained>false</SelfContained>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
     <DebugType>embedded</DebugType>

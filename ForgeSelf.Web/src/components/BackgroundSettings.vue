@@ -101,7 +101,7 @@ function resetDefaults(): void {
         }"
         :style="{
           background: s.value,
-          borderColor: s.value === '#F4EEDF' || s.value === '#FBF7EE' ? 'color-mix(in srgb, var(--ink-950) 15%, transparent)' : undefined,
+          borderColor: s.value === '#F4EEDF' || s.value === '#FBF7EE' ? 'color-mix(in srgb, var(--el-bg-color-page) 15%, transparent)' : undefined,
         }"
         :title="s.label"
         @click="selectSolid(s.value)"
@@ -185,7 +185,7 @@ function resetDefaults(): void {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   text-transform: uppercase;
   margin: 10px 0 8px;
 }
@@ -249,8 +249,8 @@ function resetDefaults(): void {
   font-family: var(--font-mono);
   font-size: 9px;
   padding: 2px 6px;
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ink-950) 75%, transparent));
-  color: var(--paper-white);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--el-bg-color-page) 75%, transparent));
+  color: var(--el-bg-color);
   letter-spacing: 0.05em;
 }
 
@@ -261,9 +261,9 @@ function resetDefaults(): void {
   background: var(--paper-tint-weak);
   border: 1px dashed var(--border-default);
   border-radius: 8px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
-  font-family: var(--font-sans-cn);
+  font-family: var(--el-font-family);
   font-size: 12px;
   transition: all var(--dur-base);
   display: flex;
@@ -291,7 +291,7 @@ function resetDefaults(): void {
   background: var(--paper-tint-weak);
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-mono);
   font-size: 11px;
   outline: none;
@@ -303,7 +303,7 @@ function resetDefaults(): void {
 }
 
 .url-input::placeholder {
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .url-apply {
@@ -311,7 +311,7 @@ function resetDefaults(): void {
   background: var(--el-color-primary);
   border: 0;
   border-radius: 6px;
-  color: var(--paper-white);
+  color: var(--el-bg-color);
   font-size: 12px;
   cursor: pointer;
   transition: opacity var(--dur-base);
@@ -327,7 +327,7 @@ function resetDefaults(): void {
   background: transparent;
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 12px;
   cursor: pointer;
   transition: all var(--dur-base);
@@ -343,7 +343,7 @@ function resetDefaults(): void {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .slider-row input[type='range'] {
@@ -366,7 +366,7 @@ function resetDefaults(): void {
   background: transparent;
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 12px;
   cursor: pointer;
   transition: all var(--dur-base);

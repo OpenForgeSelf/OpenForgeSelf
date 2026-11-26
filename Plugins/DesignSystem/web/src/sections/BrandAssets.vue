@@ -287,22 +287,22 @@ const counts = computed(() => `资产 ${assets.value.length} · 字体 ${fonts.v
 .ba {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-5);
+  gap: 20px;
 }
 .ba__bar {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--ds-space-4);
+  gap: 16px;
   flex-wrap: wrap;
 }
 .ba__panel {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-5);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-lg);
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--var(--radius-lg));
 }
 .ba__list {
   list-style: none;
@@ -310,56 +310,56 @@ const counts = computed(() => `资产 ${assets.value.length} · 字体 ${fonts.v
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-2);
+  gap: 8px;
 }
 .ba__row {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 12px;
   flex-wrap: wrap;
-  padding: var(--ds-space-2) 0;
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .ba__mark {
   display: inline-flex;
-  color: var(--ds-color-primary);
+  color: var(--el-color-primary);
 }
 .ba__code {
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .ba__lic {
   padding: 1px 8px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
-  font-size: var(--ds-fs-micro);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
+  font-size: 10px;
 }
 .ba__desc {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ba__table {
   inline-size: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .ba__table th {
   text-align: start;
-  padding: var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
-  color: var(--ds-fg-3);
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--el-text-color-secondary);
   font-weight: 600;
 }
 .ba__table td {
-  padding: var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .ba__form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--ds-space-3);
+  gap: 12px;
   align-items: end;
-  padding-top: var(--ds-space-3);
-  border-top: 1px dashed var(--ds-border-2);
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-default);
 }
 .ba__field {
   display: flex;
@@ -371,29 +371,29 @@ const counts = computed(() => `资产 ${assets.value.length} · 字体 ${fonts.v
 }
 .ba__area {
   resize: vertical;
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-fs-small);
+  font-family: var(--font-mono);
+  font-size: var(--el-font-size-extra-small);
 }
 .ba__err {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 .ba__hint {
   margin: 0;
-  color: var(--ds-success);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-success);
+  font-size: var(--el-font-size-extra-small);
 }
 /* 表单控件：与其余 section 同名同值的局部类（scoped 不跨组件泄漏，必须本段自带） */
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
   min-width: 0;
 }
 .ds-input--narrow {
@@ -401,17 +401,17 @@ const counts = computed(() => `资产 ${assets.value.length} · 字体 ${fonts.v
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 16px;
   cursor: pointer;
 }
 .ds-btn--ghost {
   background: transparent;
-  color: var(--ds-fg-2);
+  color: var(--el-text-color-regular);
 }
 .ds-btn:disabled,
 .ds-input:disabled {

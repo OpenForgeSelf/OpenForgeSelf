@@ -285,12 +285,12 @@ onMounted(() => {
 }
 
 .pa-status[data-status='Ask'] {
-  color: var(--gold-700);
+  color: var(--el-color-primary);
 }
 
 .pa-status[data-status='Deny'],
 .pa-status[data-status='Denied'] {
-  color: var(--cinnabar-400);
+  color: var(--el-color-error);
 }
 
 .pa-status[data-status='Expired'],

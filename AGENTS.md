@@ -37,11 +37,7 @@
 
 ### 🚫 红线（不可逾越 · 违反即流程违规）
 
-**验证 / 截图 / 浏览器驱动类需求，禁止手写一次性 `temp/*.cjs`（或散落脚本）作为验证手段。**
-必须走 §5.0 项目唯一测试体系（Playwright e2e / vitest / dotnet test）。历史教训：spec 006 期间在 `temp/` 产 49 个一次性 `.cjs`（截图/视觉校验/浏览器驱动），验证完即废、无版本控制、无法回归；且 `temp/browser_drive/round1.cjs` 的启发式判定（`发送键可用+文本>500`）曾漏掉 agent 真实 `write_file` 调用，误导结论。
-
-- 临时探针**仅可作探索期一次性使用**：用完即删、**不进版本控制、不留存 `temp/`**，且**不得作为验证结论**（结论必须沉淀为 §5.0 的可重复测试）。
-- 任何"我手跑个脚本看看"的冲动，先查 §5.0 决策表：有对应正规入口就走正规入口。
+**验证 / 截图 / 浏览器驱动类需求，禁止手写一次性 `temp/*.cjs`（或散落脚本）作为验证手段。** 必须走 §5.0 项目唯一测试体系；临时探针仅可探索期一次性使用，用完即删、不进版本控制、不得作为验证结论。机械守卫：`scripts/check-engineering-rules.cjs`（`eng.no-temp-probe`）。
 
 **开发类任务禁止跳过 AI-Native 闭环工件直接写代码。**
 每个开发任务（新功能 / 缺陷修复 / 插件任务 / 宿主与 CI 变更）的流程**唯一依据是 §11 规范**（模板 `docs/18-templates/ai-pilot/`，产物 `docs/ai/pilot/YYYY-MM-DD-<task-id>/`；独立自含，不与其他流程体系做映射）；Evidence 或 Review 缺件即视为未完成。纯问答 / 查状态不占工件链。`specs/`/`speckit` 已弃用（见 §9），**禁止**再走 specs/speckit 流程。
@@ -91,7 +87,8 @@
 
 ### 2.3 关键约定速记
 - 包管理器：**pnpm**（不是 npm），Node >= 20
-- **脚本执行统一用 `pwsh`（PowerShell 7），禁止 `powershell` / `powershell.exe`（= Windows PowerShell 5.1）**（2026-10-04 输入12 立；本机 `pwsh` 实测 7.6.6，CI `.github/workflows/release.yml` 早已是 `shell: pwsh`）：涵盖跑仓内 `*.ps1`、从 Git Bash / Node `spawn` 调 PowerShell 的一切场景，写法 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\<某脚本>.ps1 …`。三条**实测**代价（不是风格偏好）：① 5.1 按控制台码页（GBK/936）写重定向日志并解码外部命令输出 → 中文变乱码、乱码还会被烤进交付物（2026-10-04：`release-local -Sign` 的签名段整段 GBK；更早 `make-release-notes` 把乱码写进 RELEASE-NOTES，现由脚本内 UTF-8 切码页 + 仓库级守卫 `RepositoryScriptTests` 封堵）；② 5.1 从 Node `spawn` 时**没有 `Cert:` 提供程序** → Authenticode 签名必失败（2026-10-01 实证）；③ 5.1 靠 BOM 判定 `.ps1` 编码，UTF-8 无 BOM 脚本被当 GBK 解析 → 解析期崩溃、连日志都写不出（update-agent 曾据此把 51888 实例弄下线）。**唯一保留例外**：专门复现 5.1 解析/编码行为以证明某缺陷时反而必须用 `powershell`（Core 复现不出来），见 `docs/04-standards/agent-workflow/b-engineering-daily.md` §B6；除此之外一律 `pwsh`。脚本文件自身**仍须带 UTF-8 BOM**（随包分发时可能被旧 shell 拉起）。既有偏差登记：`scripts/hooks/pre-commit` 仍在用 `powershell.exe` 调工件门禁（见 TODO）
+- **脚本执行统一用 `pwsh`（PowerShell 7），禁止 `powershell` / `powershell.exe`（5.1）**；`.ps1` 文件必须带 UTF-8 BOM。机械守卫：`scripts/check-engineering-rules.cjs`（pre-commit / CI / `pnpm run check` 均挂接）。唯一例外：专门复现 5.1 缺陷时可用 `powershell`（见 `b-engineering-daily.md` §B6）。
+- **Pilot 豁免白名单**：小范围元数据/文档修改可在 `scripts/pilot-exemption-allowlist.json` 登记精确路径或 glob；commit-msg 与 CI 共用 `scripts/check-pilot-exemption.ps1`。任一未豁免文件仍要求 Pilot trailer 与工件链，配置缺失/非法不得静默放行。
 - **提交内容卫生（2026-11-14 输入1 用户立）**：所提交文档/代码/注释不得含工作区或工作区外绝对地址（盘符 / file URL 盘符 / POSIX 用户目录 / UNC）、指向具体个人的标识（人名/昵称/成员名/账号片段）、其他项目的业务信息；pre-commit 第 4 道门机械拦暂存新增行（棘轮只拦新增，存量另批清理）；规则真源与守卫用法 → agent-workflow b-engineering-platform §B13；技能 `commit-hygiene-audit`
 - 前端样式体系：Element Plus 官方 `--el-*` 变量 + Tailwind 布局原语，不定义独立色值
 - 设计稿与前端共享 `themes/` 下的 tokens（单一来源）
@@ -108,7 +105,7 @@
 
 | 技能 | 何时用 | 关键约束 |
 |------|--------|----------|
-| `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么、**用户说"我看看效果/先别发布/本地跑一下"（→ §四 的 👀 本地预览）** | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，五步缺一不算完成；本地预览不替代任何一步；完成后复盘回写技能 |
+| `plugin-development` | **插件任务总入口**：新建插件、把宿主页面迁移成独立插件、改完插件不知还要做什么、**用户说"我看看效果/先别发布/本地跑一下"（→ §四 的 👀 本地预览）** | 改完 = 门禁 + 插件 e2e + 发布 + 隔离实例走查 + **运行实例只读复验**，六步缺一不算完成；本地预览不替代任何一步；完成后复盘回写技能 |
 | `plugin-compliance-audit` | **插件完整性/合规逐项核对**：新插件交付前自检、任意插件每次改动按「改动面矩阵」复核、用户说"核对插件/自检/门禁没查出来"、"跑起来才发现"的补查 | 每项必须有证据（Verified/Inferred/Unknown）；门禁绿≠合规；默认主题≠暗色验证；有 Unknown 且属改动面 ⇒ 不许写 PASS；发现问题必须分流（本批修/同类扫查/TODO/补守卫/回写真源） |
 | `plugin-feasibility-study` | **新建插件第一步**（先于 `plugin-development`）：调研 → 可行性报告 → 设计方案 → **命名** → 决策拍板 | 不许直接开写代码；命名在功能定稿之后，须过「名实相符三问」 |
 | `pilot-handoff` | **跨 AI 规划交接**：用户要求「只做规划、实现交别的 AI、完成后你验收」时；产出 00–07 交接包 + 预注册验收清单后停下 | 05 只留骨架/栏位；**06 验收清单必须在实现开始前写好**（防看实现定标准）；实现方不得改 06/07 结论栏；收尾不提交 git |
@@ -200,7 +197,7 @@
 - **代理**：`$env:NO_PROXY='localhost,127.0.0.1,::1'`（小写 `no_proxy` 一并设）。本机注入了 `HTTP_PROXY/HTTPS_PROXY=http://127.0.0.1:10808` 而无 `NO_PROXY` 时，Playwright 对 `localhost:<port>` 的可用性探测**走代理恒 502** ⇒ e2e 报 `Timed out waiting 120000ms from config.webServer`（此时 vite 其实早已 ready，极易误判成前端构建问题）。**不要为此改仓库配置/代码。**
 - **临时目录**：`$env:TEMP = $env:TMP = '<repo>\.temp\tmp'`。本机 `%TEMP%` 拒写，同一成因在三面各红一次：① 后端测试 `Temp\<前缀>_<guid>` 被拒 ⇒ 整片假红（形似大面积回归）；② 插件 e2e 的 vite 依赖预构建写 `node_modules/.vite/deps_temp_*` 被拒 ⇒ dev server 退出、`ERR_CONNECTION_REFUSED`；③ **本地发布链宿主前端 `vite build` 的 esbuild 临时文件清理被拒 ⇒ `build-frontend` 段整体失败**。
 - **取读数**：判据一律看**日志正文**（`*> <log>` 重定向后读），**不许拿 exit code 当证据**；PowerShell 工具**可能不回显 stdout**，没回显 ≠ 没跑（先重定向再读，别重复执行）。
-- 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow.md` §B2。
+- 三种形态的实测、控制实验与判据 → `docs/04-standards/agent-workflow/b-engineering-daily.md` §B2。
 - **全新 worktree 跑插件 UI e2e 前先补两件缺件（2026-10-07 输入2 立）**：① **SQLite provider** —— `e2e/global-setup.ts:250` 要 `System.Data.SQLite.dll` + `e_sqlite3.dll`，注释声称"仓内 `build/runtime/Plugins` 受版本控制"但**该目录不在仓库里**（`git ls-files build/runtime` 为空），新 worktree 也没有 gitignored 的 `publish/` ⇒ 直接中止。就地解封：从 `ForgeSelf.Api/bin/Debug/net10.0/`（及其 `runtimes/win-x64/native/`）复制到 `build/runtime/Plugins/`。② **各插件前端产物** —— `Plugins/*/web/dist` 是 gitignored，新 worktree 里一个都没有 ⇒ 远程加载的插件页全落在 `.plugin-view-state--error`，表现为「`menu-route-consistency` 某路由停在错误态」「首页面板没数据」，**与被测改动无关**。跑 `for d in Plugins/*/web; do (cd "$d" && pnpm install && pnpm build); done` 后再跑 e2e。两类都记入 `TODO.md` 待固化（入库 or 改 globalSetup 的候选源/加自动构建）。
 - **同源自洽的断言不算证据**：路径类断言（`归一后 == REPO_ROOT`）若两边都来自同一个可能写错的变量，错了也会绿。判据要锚在**仓库独有文件**（`ForgeSelf.slnx` 存在）或独立来源上，并加一句"前提自查"阳性对照（`existsSync(<项目根>/docs/ai/pilot/<task-id>)`）。实测：本批 e2e 的 `REPO_ROOT` 少写一层 `../` 拿到 `ForgeSelf.Web`，关联项目断言照样绿，直到工件清单接口回「该项目没有 docs\ai\pilot 目录」才暴露。
 
@@ -227,7 +224,7 @@ dotnet test
 ### 5.3 测试方式铁律（项目唯一测试体系，禁止另起炉灶）
 - **验证 / 截图 / 浏览器驱动类任务 → 写成 Playwright e2e 用例**（`ForgeSelf.Web/e2e/**/*.spec.ts`），走 `e2e-testing` 技能 SOP（globalSetup 自动构建宿主 + 起 publish 宿主 + 解密真实 token，零 mock）。
 - **e2e 后端/前端地址一律取自 `e2e/helpers/e2e-env.ts`**（`backendUrl()`/`frontendUrl()`，env → current.json → 默认回落），禁止在 spec 里硬编码 `localhost:7102/7002`（PILOT-050 起，多 worktree 动态端口）。
-- **纯逻辑 / 组件行为 → 写成 vitest 单测**（`src/**/*.spec.ts`）。
+- **纯逻辑 / 组件行为 → 写成 vitest 单测**（`src/**/*.test.ts`）。
 - 一次性 `.cjs` 脚本只可作「探索期临时探针」，**不得作为验证手段提交或长期依赖**；结论必须沉淀为可重复测试，探针用完即删、不进 `temp/` 留存。
 - e2e 视觉检查按 `e2e-testing` 技能 Level 3 清单读图核对，截图固定落 `ForgeSelf.Web/screenshots/e2e/<插件id>/`。
 - **需求 → 该跑什么的完整决策表**（含仓内工具 `scripts/get-forge-token.cjs` / `scripts/probe-dll-string.cjs` 的正规入口）→ `docs/04-standards/agent-workflow/a-workflow-core.md` §A4。
@@ -417,7 +414,7 @@ Verify 失败
 
 ## 11. AI-Native Engineering 闭环（开发任务唯一流程 · 独立自洽）
 
-> 完整规范（九阶段定义、硬性约束、闸门1/2/3 自含定义、裁剪规则、禁止事项）→ `docs/04-standards/ai-native-engineering-workflow.md`（v1.1.0，强制）
+> 完整规范（九阶段定义、硬性约束、闸门1/2/3 自含定义、裁剪规则、禁止事项）→ `docs/04-standards/ai-native-engineering-workflow.md`（v1.2.0，强制）
 > 文档模板 → `docs/18-templates/ai-pilot/`（00-repository-understanding ~ 06-review + 07-final-report）
 > 产物落点 → `docs/ai/pilot/YYYY-MM-DD-<task-id>/`（每任务一目录，日期前缀规则见规范 §0）｜群 SOP → `ai-native-engineering-loop`
 > ⚠️ **唯一开发流程**：任何开发类任务都必须走本闭环并产出 00-07 工件，禁止跳过工件直接写代码，也禁止用已弃用的 `specs/`/`speckit` 替代。
@@ -427,7 +424,7 @@ Verify 失败
 
 1. **先理解仓库再写代码**：技术栈/架构/测试方式必须从真实仓库内容确认，禁止常识推测。
 2. **工件链不得跳步**：Intent（为什么/做什么/到什么程度）→ Spec（九节，不确定点标 `Unknown`；**凡涉及用户可见 UI/交互，Spec 必含「Interaction Design（交互设计）」节**——交互规格「点什么出现什么」+ 验收标准 + 走查符合性，模板 `docs/18-templates/ai-pilot/02-spec.tpl.md`，审查用 `ui-ux-design` 技能，缺节闸门1 不通过；**所有插件任务一律必写该节（2026-10-30 用户立）**：有前端页面的插件按功能点逐条写「点什么出现什么」+ 五态（加载/空/出错/无权限/正常）+ 验收标准，并在 `Plugins/<X>/docs/ui-design-brief.md` 维护面向设计师的交互说明（设计师不读代码，只写功能、旅程、界面交互行为）；确无界面的插件也必须写「无界面交互」，说明经哪些工具/HTTP 端点操作、入参示例与错误提示，不得整节省略）→ Plan（具体到真实文件，偏差先记录再修正）→ Task（Allowed/Forbidden + 验证命令）→ 才允许 Implement。
-3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出八问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
+3. **Test/Evidence/Review 不豁免**（任何任务级别）：验证跑真实命令记真实结果；Evidence 只记实际发生（Verified/Inferred/Unknown 分级）；Review 出九问 + Final Decision（APPROVED / CHANGES_REQUIRED / BLOCKED）。
 4. **闸门（规范 §1.1 自含）**：闸门1=Intent/Spec/Plan/Task 经用户确认后开工；闸门2=Evidence+Review 齐备后交用户验收，通过前不提交代码；闸门3=验收后提交归档。放权表述只豁免过程汇报频率，不豁免闸门。**工件缺件由 pre-commit hook 硬拦**（`scripts/verify-pilot-artifacts.ps1` 校验 `docs/ai/pilot/YYYY-MM-DD-<task-id>/` 00-07 八件，缺件 `git commit` 直接失败）。
 5. **裁剪**：≤3 文件的缺陷修复可将 Intent/Spec/Plan/Task 合并为 `mini-task.md`（五要素齐备，仍占闸门1）；全量/轻量由任务协调人裁定并记录。
 

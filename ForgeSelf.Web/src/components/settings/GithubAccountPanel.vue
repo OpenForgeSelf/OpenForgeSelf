@@ -109,11 +109,11 @@ async function onAutoAttachChange(enabled: boolean): Promise<void> {
 
 <style scoped>
 .github-account-panel {
-  padding: var(--el-padding, 16px) 0;
+  padding: 16px 0;
 }
 
 .panel-title {
-  margin: 0 0 var(--el-margin, 8px);
+  margin: 0 0 8px;
   font-size: var(--el-font-size-medium);
   color: var(--el-text-color-primary);
 }
@@ -121,18 +121,18 @@ async function onAutoAttachChange(enabled: boolean): Promise<void> {
 .panel-desc {
   font-size: var(--el-font-size-small);
   color: var(--el-text-color-secondary);
-  margin-bottom: var(--el-margin, 12px);
+  margin-bottom: 12px;
 }
 
 .bound-row {
   display: flex;
   align-items: center;
-  gap: var(--el-margin, 12px);
-  margin-bottom: var(--el-margin, 12px);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .account-login {
-  font-weight: var(--el-font-weight-bold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 

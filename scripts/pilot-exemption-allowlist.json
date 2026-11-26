@@ -1,0 +1,10 @@
+{
+  "_comment": "提交 Pilot 工件豁免白名单。只豁免精确文件或 glob；源码、发布脚本、插件和未登记路径仍走 Pilot trailer。新增豁免必须人工审阅。",
+  "exemptions": [
+    { "path": ".gitignore", "reason": "仓库忽略规则元数据修改" },
+    { "path": "docs/**", "reason": "文档修改不要求 Pilot 代码工件" },
+    { "path": "README*", "reason": "仓库说明文档" },
+    { "path": "*.md", "reason": "仓库根 Markdown 文档" },
+    { "path": "scripts/pilot-exemption-allowlist.json", "reason": "豁免配置自身可直接维护" }
+  ]
+}

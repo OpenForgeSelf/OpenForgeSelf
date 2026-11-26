@@ -28,6 +28,10 @@ function setTheme(mode: ThemeMode): void {
     appearanceStore.selectSolidColor('#0B0908');
   }
 }
+
+function setFollowSystem(enabled: boolean): void {
+  themeStore.setFollowSystem(enabled);
+}
 </script>
 
 <template>
@@ -40,13 +44,20 @@ function setTheme(mode: ThemeMode): void {
           <span class="text-sm font-medium text-text">主题</span>
           <p class="text-xs text-text-secondary mt-0.5 mb-0">界面明暗模式（切换自动联动背景色）</p>
         </div>
-        <el-radio-group
-          :model-value="themeStore.mode"
-          @update:model-value="(val: ThemeMode) => setTheme(val)">
-          <el-radio-button value="light">浅色</el-radio-button>
-          <el-radio-button value="dark">深色</el-radio-button>
-          <el-radio-button value="system">跟随系统</el-radio-button>
-        </el-radio-group>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <el-switch
+              :model-value="themeStore.isFollowingSystem"
+              @update:model-value="setFollowSystem" />
+            <span class="text-xs text-text-secondary">跟随系统</span>
+          </div>
+          <el-radio-group
+            :model-value="themeStore.resolvedTheme"
+            @update:model-value="(val: ThemeMode) => setTheme(val)">
+            <el-radio-button value="light">浅色</el-radio-button>
+            <el-radio-button value="dark">深色</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
 
       <!-- 强调色 -->

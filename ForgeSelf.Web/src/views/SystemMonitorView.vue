@@ -477,7 +477,7 @@ onUnmounted(() => {
   left: 40px;
   width: 600px;
   height: 500px;
-  background: radial-gradient(ellipse at 30% 20%, rgba(245, 158, 11, 0.04) 0%, transparent 70%);
+  background: radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--el-color-primary) 4%, transparent) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -525,8 +525,8 @@ onUnmounted(() => {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--el-color-success);
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-8);
   border-radius: 999px;
 }
 
@@ -539,14 +539,14 @@ onUnmounted(() => {
 }
 
 @keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
-  50% { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--el-color-success) 50%, transparent); }
+  50% { box-shadow: 0 0 0 4px transparent; }
 }
 
 .refresh-hint {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
 }
 
 .header-right {
@@ -567,7 +567,7 @@ onUnmounted(() => {
 }
 
 .connection-status.connected {
-  background: rgba(52, 211, 153, 0.1);
+  background: var(--el-color-success-light-9);
   color: var(--el-color-success);
 }
 
@@ -581,7 +581,7 @@ onUnmounted(() => {
 .update-time {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
 }
 
 /* ===== ERROR BANNER ===== */
@@ -590,8 +590,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.2);
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
   border-radius: var(--el-border-radius-base);
   color: var(--el-color-danger);
   margin-bottom: 16px;
@@ -630,7 +630,7 @@ onUnmounted(() => {
 
 .stat-card:hover {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.06);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--el-color-primary) 6%, transparent);
 }
 
 .stat-header {
@@ -667,7 +667,7 @@ onUnmounted(() => {
 }
 
 .stat-value {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--el-text-color-primary);
@@ -675,7 +675,7 @@ onUnmounted(() => {
 }
 
 .stat-sub {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
   margin-top: 2px;
@@ -688,20 +688,20 @@ onUnmounted(() => {
 }
 
 .stat-big {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--el-text-color-primary);
 }
 
 .stat-divider {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   color: var(--el-text-color-secondary);
 }
 
 .stat-dim {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   color: var(--el-text-color-regular);
 }
@@ -730,7 +730,7 @@ onUnmounted(() => {
 .cpu-gauge-value {
   position: relative;
   z-index: 1;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 1rem;
   color: var(--el-color-primary);
@@ -754,7 +754,7 @@ onUnmounted(() => {
 .h-bar-labels {
   display: flex;
   justify-content: space-between;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
 }
@@ -770,14 +770,14 @@ onUnmounted(() => {
 .net-down-icon { color: var(--el-color-info); display: flex; }
 
 .net-up-value {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--el-color-primary);
 }
 
 .net-down-value {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 1.125rem;
   font-weight: 700;
   color: var(--el-color-info);
@@ -815,7 +815,7 @@ onUnmounted(() => {
 .section-card-badge {
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   margin-left: auto;
 }
 
@@ -844,14 +844,14 @@ onUnmounted(() => {
 
 .bar-current {
   opacity: 1;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--el-color-primary) 40%, transparent);
 }
 
 .bar-axis {
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--el-text-color-secondary);
 }
@@ -874,7 +874,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-weight: 500;
   color: var(--el-text-color-primary);
   border-radius: var(--el-border-radius-small) 0 0 var(--el-border-radius-small);
@@ -911,7 +911,7 @@ onUnmounted(() => {
 
 .legend-value {
   margin-left: auto;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--el-text-color-primary);
@@ -990,13 +990,13 @@ onUnmounted(() => {
 .process-table tbody td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--el-border-color-light);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.8125rem;
   color: var(--el-text-color-primary);
 }
 
 .process-table tbody td:first-child {
-  font-family: var(--font-family-base);
+  font-family: var(--el-font-family);
 }
 
 .cell-name {
@@ -1012,7 +1012,7 @@ onUnmounted(() => {
 }
 
 .process-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.015);
+  background: color-mix(in srgb, var(--el-color-white) 2%, transparent);
 }
 
 .process-table tbody tr.proc-focus {
@@ -1056,7 +1056,7 @@ onUnmounted(() => {
 
 .kill-btn:hover {
   color: var(--el-color-danger);
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--el-color-error-light-9);
 }
 
 .empty-cell {

@@ -290,87 +290,87 @@ function passedText(a: AuditItem): string {
 .ab {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-4);
+  gap: 16px;
 }
 .ab__rules,
 .ab__bar,
 .ab__group {
-  padding: var(--ds-space-4);
+  padding: 16px;
 }
 .ab__rules-list {
-  margin: 0 0 var(--ds-space-3);
-  padding-left: var(--ds-space-5);
-  color: var(--ds-fg-2);
-  font-size: var(--ds-fs-small);
-  line-height: var(--ds-lh-normal);
+  margin: 0 0 12px;
+  padding-left: 20px;
+  color: var(--el-text-color-regular);
+  font-size: var(--el-font-size-extra-small);
+  line-height: 1.55;
 }
 .ab__rules-list code {
-  font-family: var(--ds-font-mono);
-  font-size: var(--ds-fs-micro);
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 .ab__kindmap {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-top: 1px solid var(--ds-border-1);
-  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
 }
 .ab__kindmap-row {
   display: flex;
-  gap: var(--ds-space-3);
+  gap: 12px;
   align-items: baseline;
 }
 .ab__kind {
   min-width: 15ch;
-  color: var(--ds-fg-1);
+  color: var(--el-text-color-primary);
 }
 .ab__gate {
-  font-size: var(--ds-fs-small);
-  padding: var(--ds-space-3) var(--ds-space-4);
-  border-radius: var(--ds-radius-md);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
+  font-size: var(--el-font-size-extra-small);
+  padding: 12px 16px;
+  border-radius: var(--el-border-radius-base);
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
 }
 .ab__gate--block {
-  color: var(--ds-danger);
-  border-color: var(--ds-danger);
-  background: color-mix(in oklab, var(--ds-danger) 10%, transparent);
+  color: var(--el-color-error);
+  border-color: var(--el-color-error);
+  background: color-mix(in oklab, var(--el-color-error) 10%, transparent);
 }
 .ab__gate--pass {
-  color: var(--ds-success);
-  border-color: var(--ds-success);
-  background: color-mix(in oklab, var(--ds-success) 10%, transparent);
+  color: var(--el-color-success);
+  border-color: var(--el-color-success);
+  background: color-mix(in oklab, var(--el-color-success) 10%, transparent);
 }
 .ab__cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--ds-space-3);
+  gap: 12px;
 }
 .ab__card {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--ds-space-3);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-surface-1);
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
 }
 .ab__n {
-  font-size: var(--ds-fs-h3);
-  color: var(--ds-fg-1);
+  font-size: var(--el-font-size-large);
+  color: var(--el-text-color-primary);
 }
 .ab__ok {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 .ab__bad {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .ab__warn {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .ab__card--gate strong {
-  font-size: var(--ds-fs-body);
-  color: var(--ds-fg-2);
+  font-size: var(--el-font-size-base);
+  color: var(--el-text-color-regular);
 }
 .ab__filters {
   align-items: center;
@@ -379,32 +379,32 @@ function passedText(a: AuditItem): string {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-2);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 .ab__group-title {
-  margin-bottom: var(--ds-space-2);
+  margin-bottom: 8px;
 }
 .ab__group-desc {
-  margin-left: var(--ds-space-3);
+  margin-left: 12px;
 }
 .ab__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--ds-fs-small);
+  font-size: var(--el-font-size-extra-small);
 }
 .ab__table th {
   text-align: left;
-  color: var(--ds-fg-3);
-  font-weight: var(--ds-fw-medium);
-  border-bottom: 1px solid var(--ds-border-1);
-  padding: 6px var(--ds-space-2);
+  color: var(--el-text-color-secondary);
+  font-weight: var(--el-font-weight-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 8px;
   white-space: nowrap;
 }
 .ab__table td {
-  padding: 6px var(--ds-space-2);
-  border-bottom: 1px solid var(--ds-border-1);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: top;
 }
 .ab__num {
@@ -412,65 +412,65 @@ function passedText(a: AuditItem): string {
   white-space: nowrap;
 }
 .ab__row--fail td {
-  background: color-mix(in oklab, var(--ds-danger) 8%, transparent);
+  background: color-mix(in oklab, var(--el-color-error) 8%, transparent);
 }
 .ab__msg {
-  color: var(--ds-fg-2);
+  color: var(--el-text-color-regular);
   max-width: 46ch;
 }
 .ab__sugg {
-  color: var(--ds-fg-3);
-  font-size: var(--ds-fs-micro);
+  color: var(--el-text-color-secondary);
+  font-size: 10px;
   margin-top: 2px;
 }
 .ab__sev {
-  font-size: var(--ds-fs-micro);
+  font-size: 10px;
   padding: 1px 8px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid var(--ds-border-1);
-  background: var(--ds-surface-2);
-  color: var(--ds-fg-2);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-regular);
   white-space: nowrap;
 }
 .ab__sev--critical {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .ab__sev--warning {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .ab__sev--info {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ab__error {
-  color: var(--ds-danger);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-error);
+  font-size: var(--el-font-size-extra-small);
 }
 /* ratio 的着色只按后端给的比率分档（derive.wcagBadge 是纯展示换算） */
 .ab__r--fail {
-  color: var(--ds-danger);
+  color: var(--el-color-error);
 }
 .ab__r--large {
-  color: var(--ds-warning);
+  color: var(--el-color-warning);
 }
 .ab__r--aa,
 .ab__r--aaa {
-  color: var(--ds-success);
+  color: var(--el-color-success);
 }
 .ab__r--unknown {
-  color: var(--ds-fg-3);
+  color: var(--el-text-color-secondary);
 }
 .ab__hint {
-  color: var(--ds-success);
-  font-size: var(--ds-fs-small);
+  color: var(--el-color-success);
+  font-size: var(--el-font-size-extra-small);
 }
 .ds-input {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-1);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-3);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 12px;
   min-width: 0;
 }
 .ds-input--narrow {
@@ -478,17 +478,17 @@ function passedText(a: AuditItem): string {
 }
 .ds-btn {
   font: inherit;
-  font-size: var(--ds-fs-small);
-  color: var(--ds-fg-1);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
-  padding: 6px var(--ds-space-4);
+  font-size: var(--el-font-size-extra-small);
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
+  padding: 6px 16px;
   cursor: pointer;
 }
 .ds-btn--primary {
-  color: var(--ds-color-primary);
-  border-color: var(--ds-color-primary);
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .ds-btn:disabled,
 .ds-mini:disabled {
@@ -497,11 +497,11 @@ function passedText(a: AuditItem): string {
 }
 .ds-mini {
   font: inherit;
-  font-size: var(--ds-fs-micro);
-  color: var(--ds-fg-2);
-  background: var(--ds-surface-2);
-  border: 1px solid var(--ds-border-1);
-  border-radius: var(--ds-radius-sm);
+  font-size: 10px;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--el-border-radius-small);
   padding: 4px 10px;
   cursor: pointer;
 }

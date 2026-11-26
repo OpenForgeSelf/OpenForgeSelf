@@ -210,7 +210,7 @@ function stepStatusText(s: AgentStepStatus): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
@@ -257,7 +257,7 @@ function stepStatusText(s: AgentStepStatus): string {
 }
 
 .spc__count {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-text-color-secondary);
   white-space: nowrap;
@@ -378,7 +378,7 @@ function stepStatusText(s: AgentStepStatus): string {
   flex-shrink: 0;
   border-radius: 999px;
   background: var(--el-fill-color-dark);
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
   color: var(--el-text-color-secondary);
 }
@@ -442,7 +442,7 @@ function stepStatusText(s: AgentStepStatus): string {
 .spc__step-label {
   display: inline-block;
   margin-right: 6px;
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-color-primary);
 }
 

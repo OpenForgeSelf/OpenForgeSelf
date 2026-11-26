@@ -116,6 +116,33 @@ public class ProjectServiceTests
     }
 
     [Fact]
+    public void Register_ExistingPath_DoesNotOverwriteEditedNameDescriptionOrSource()
+    {
+        var dir = CreateProjectDir("facts");
+        Assert.True(_registry.Register(dir, "ai-agent", out _));
+        var original = _registry.GetAll().Single();
+        var svc = CreateService();
+        Assert.True(svc.UpdateProject(original.Id, new ProjectUpdate
+        {
+            Name = "手工改名",
+            Description = "手工描述"
+        }).Success);
+
+        var again = svc.Register(dir, "新传入的名字");
+
+        Assert.True(again.Success);
+        Assert.Equal(original.Id, again.Data!.Id);
+        Assert.Equal("手工改名", again.Data.Name);
+        Assert.Equal("手工描述", again.Data.Description);
+        Assert.Equal("ai-agent", again.Data.Source);
+        Assert.Single(svc.GetProjects());
+        var stored = _registry.Get(original.Id)!;
+        Assert.Equal("手工改名", stored.Name);
+        Assert.Equal("手工描述", stored.Description);
+        Assert.Equal("ai-agent", stored.Source);
+    }
+
+    [Fact]
     public void GetProjects_FillsCommands_ForEveryProject()
     {
         // 回归守卫：宿主 GetAll() 不附带 Commands，服务层必须补齐 ——

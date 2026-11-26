@@ -113,6 +113,7 @@ public class HostProjectRegistry : IProjectRegistry
         var info = ToInfo(project);
         info.Commands = RunCommand.FindAllByProjectId(id)
             .OrderBy(c => c.Sort)
+            .ThenBy(c => c.Id)
             .Select(ToCommandInfo).ToList();
         return info;
     }
@@ -200,12 +201,13 @@ public class HostProjectRegistry : IProjectRegistry
         return true;
     }
 
-    /// <summary>某项目的全部运行命令（按 Sort 升序）。</summary>
+    /// <summary>某项目的全部运行命令（按 Sort 升序，同值按 Id 升序）。</summary>
     public List<RunCommandInfo> GetCommands(int projectId)
     {
         EnsureMigrated();
         return RunCommand.FindAllByProjectId(projectId)
             .OrderBy(c => c.Sort)
+            .ThenBy(c => c.Id)
             .Select(ToCommandInfo).ToList();
     }
 

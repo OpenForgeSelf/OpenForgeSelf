@@ -16,6 +16,16 @@
 - **禁止虚构**测试结果、截图、日志、接口响应、验证结论；存在未验证场景必须明说；存在阻塞不得宣称完成。
 - **运行经济学**：时间资源有限 → 只做有意义的事；做不了/不做的选择必须记账——「审慎不做」台账 `docs/07-decisions/not-taken-decisions.md`（先 `ls` 确认编号/格式再追加，模板见该文件），避免下次重复评估/前后矛盾。
 
+### 规则固化迁移：prose 规则 → lint/CI 守卫（2026-11-24 输入28 用户确认沉淀）
+- **来源**：土豆姐（Lauren Tan @poteto，Grok Bot 客户端主力工程师）「倒置金字塔」理念——约束可靠性从底到顶为「代码库(API/架构) → 静态分析(lint/类型/CI) → 验证(运行时/形式化) → prose(Rules/Skills/AGENTS.md) → 人工 review」。她明确反对「Agent 反复犯同一种错就往 AGENTS.md 再加一条『不要这样做』」，主张改 API/架构/lint 让错误难以发生。
+- **本项目当前状态**：方向对（e2e 禁 mock + 截图取证 + 完成裁定权在核实方 + skills + 守卫脚本 = 金字塔下半层扎实），但 prose 层偏重（AGENTS.md §0–§11 + 三闸门 + 八工件 + 汇报模板），是探索性新功能阶段的合理代价，非立即删减对象。
+- **操作规则（固化迁移）**：
+  1. 每次要往 AGENTS.md / 本规则库新增一条「不要 / 必须」规则前，先问一句：**能不能做成 lint / CI 守卫 / 代码结构约束**？能则优先落地守卫，prose 只留一句指路。
+  2. 守卫落地并验证有效后，**同步删掉对应的 prose 条款或压缩为指路**，避免同规两处承载（违反 README 顶部「同一事实只允许一处承载」）。
+  3. 存量规则按「反复触发频率 × 守卫可行性」排序逐步迁移；不因理念照搬而一次性删闸门——场景差异：她的放手建立在成熟代码库 + 数千次已验证例行任务上，本项目框架仍在快速演进，高 prose + 人在回路是现阶段必要成本。
+  4. 新增守卫后，若该规则曾引发过缺陷，按 `problem-class-closure` 技能登记问题类并保留 case，守卫即「同类扫查」的落地产物。
+- **判定**：金字塔下层（确定性约束）持续变厚、上层（prose）只减不增，即流程健康；反之 prose 持续膨胀 = 流程正在变成主要工作量（2026-11-24 已观察到该信号）。
+
 ### 品牌命名（终决，2026-08-29，已落地）
 - **全量命名 = `ForgeSelf`，不含 `Open` 前缀**。目录 `OpenForgeSelf.*`→`ForgeSelf.*`（Backend→Api、Frontend→Web、sln→`ForgeSelf.sln`）；`AssemblyName`/`RootNamespace`/namespace/using/`ConnName`/`ServiceName`/appName/库名 `ForgeSelf.db`/ico/http 变量/加密密钥 `FORGESELF_ENCRYPTION_KEY` 一律 `ForgeSelf`。
 - **品牌展示也改 `ForgeSelf`**：DisplayName / Swagger 标题 / MCP 名 / AI 文案 / 关于页 / 脚本展示文案 / plugin.json Author 不再保留 `OpenForgeSelf`。中文品牌「铸己匣」不变。

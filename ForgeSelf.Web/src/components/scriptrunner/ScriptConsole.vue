@@ -232,7 +232,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1e1e1e;
+  background: var(--el-bg-color-page);
   border-radius: 8px;
   overflow: hidden;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -243,8 +243,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3e3e3e;
+  background: var(--el-fill-color);
+  border-bottom: 1px solid var(--el-border-color);
 }
 
 .console-title {
@@ -262,12 +262,12 @@ onUnmounted(() => {
 .status-text {
   font-size: 13px;
   font-weight: 500;
-  color: #d4d4d4;
+  color: var(--el-text-color-primary);
 }
 
 .script-name {
   font-size: 12px;
-  color: #888;
+  color: var(--el-text-color-secondary);
   margin-left: 8px;
 }
 
@@ -279,16 +279,16 @@ onUnmounted(() => {
 
 .duration {
   font-size: 12px;
-  color: #888;
+  color: var(--el-text-color-secondary);
   margin-right: 4px;
 }
 
 .icon-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid #3e3e3e;
-  background: #3c3c3c;
-  color: #d4d4d4;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -299,27 +299,27 @@ onUnmounted(() => {
 }
 
 .icon-btn:hover {
-  background: #4a4a4a;
-  border-color: #555;
+  background: var(--el-fill-color);
+  border-color: var(--el-border-color);
 }
 
 .icon-btn.active {
-  background: #007bff;
-  border-color: #007bff;
-  color: #fff;
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .cancel-btn:hover {
-  background: #dc3545;
-  border-color: #dc3545;
-  color: #fff;
+  background: var(--el-color-error);
+  border-color: var(--el-color-error);
+  color: var(--el-color-white);
 }
 
 .console-output {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
-  background: #1e1e1e;
+  background: var(--el-bg-color-page);
 }
 
 .console-output::-webkit-scrollbar {
@@ -327,16 +327,16 @@ onUnmounted(() => {
 }
 
 .console-output::-webkit-scrollbar-track {
-  background: #2d2d2d;
+  background: var(--el-fill-color);
 }
 
 .console-output::-webkit-scrollbar-thumb {
-  background: #555;
+  background: var(--el-fill-color-light);
   border-radius: 4px;
 }
 
 .console-output::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: var(--el-fill-color-light);
 }
 
 .console-empty {
@@ -344,7 +344,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
 }
 
@@ -363,7 +363,7 @@ onUnmounted(() => {
 }
 
 .log-time {
-  color: #6a9955;
+  color: var(--el-color-success);
   flex-shrink: 0;
   font-size: 11px;
   opacity: 0.8;
@@ -376,19 +376,19 @@ onUnmounted(() => {
 }
 
 .log-line.stdout .log-stream {
-  color: #569cd6;
+  color: var(--el-color-info-dark-2);
 }
 
 .log-line.stderr .log-stream {
-  color: #f44747;
+  color: var(--el-color-error);
 }
 
 .log-line.stdout .log-message {
-  color: #d4d4d4;
+  color: var(--el-text-color-primary);
 }
 
 .log-line.stderr .log-message {
-  color: #f44747;
+  color: var(--el-color-error);
 }
 
 .console-prompt {
@@ -396,7 +396,7 @@ onUnmounted(() => {
 }
 
 .prompt-cursor {
-  color: #d4d4d4;
+  color: var(--el-text-color-primary);
   animation: blink 1s step-end infinite;
 }
 
@@ -406,10 +406,10 @@ onUnmounted(() => {
 
 .console-footer {
   padding: 8px 14px;
-  background: #2d2d2d;
-  border-top: 1px solid #3e3e3e;
+  background: var(--el-fill-color);
+  border-top: 1px solid var(--el-border-color);
   font-size: 12px;
-  color: #888;
+  color: var(--el-text-color-secondary);
 }
 
 .exit-info {
@@ -419,12 +419,12 @@ onUnmounted(() => {
 }
 
 .exit-success {
-  color: #4ec9b0;
+  color: var(--el-color-success);
   font-weight: 600;
 }
 
 .exit-error {
-  color: #f44747;
+  color: var(--el-color-error);
   font-weight: 600;
 }
 </style>

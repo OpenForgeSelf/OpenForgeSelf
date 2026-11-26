@@ -1,0 +1,38 @@
+/* 换肤容器：仅此层套用户系统变量，外壳 header/nav 保持中性 */
+.ds-skin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+  border-radius: var(--radius-lg);
+  padding: var(--ds-space-5);
+  background: var(--ds-bg, var(--el-bg-color));
+  color: var(--ds-fg-1);
+}
+/* 画布自证条 */
+.ds-skin__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--el-bg-color-overlay);
+  font-family: var(--font-mono);
+  font-size: var(--ds-fs-small);
+}
+.ds-skin__meta-hint {
+  color: var(--fg-tertiary);
+  font-family: var(--ds-font-sans);
+}
+.ds-skinstate {
+  color: var(--fg-tertiary);
+  white-space: nowrap;
+}
+.ds-skinstate[data-skin-state='pending'],
+.ds-skinstate[data-skin-state='unloaded'] {
+  color: var(--gold-400);
+}
+.ds-skinstate[data-skin-state='unavailable'] {
+  color: var(--cinnabar-400);
+}

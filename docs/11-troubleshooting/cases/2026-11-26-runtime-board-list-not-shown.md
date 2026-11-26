@@ -1,7 +1,7 @@
 ---
 id: 2026-11-26-runtime-board-list-not-shown
 title: 运行实况声称的列表和详情，与页面实际读到的不一致
-pc: PC-044
+pc: PC-052
 severity: P1
 evidence: Verified
 ---
@@ -39,7 +39,7 @@ evidence: Verified
 
 ## 修复
 
-见 [PC-044](../problem-classes/PC-044-runtime-board-list-not-the-list-shown.md)。当前列表合并上次扫描里仍活着的进程。详情解开信封并映射状态。助手页按 `session` 放入待批。页头用排除已写结果的计数。
+见 [PC-052](../problem-classes/PC-052-runtime-board-list-not-the-list-shown.md)。当前列表合并上次扫描里仍活着的进程。详情解开信封并映射状态。助手页按 `session` 放入待批。页头用排除已写结果的计数。
 
 ## 守卫
 

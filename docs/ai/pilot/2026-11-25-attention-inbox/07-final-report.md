@@ -14,7 +14,7 @@
 
 ## 问题类归档
 
-[PC-044](../../../11-troubleshooting/problem-classes/PC-044-runtime-board-list-not-the-list-shown.md)。案例 [2026-11-26 运行实况列表与页面不一致](../../../11-troubleshooting/cases/2026-11-26-runtime-board-list-not-shown.md)。
+[PC-052](../../../11-troubleshooting/problem-classes/PC-052-runtime-board-list-not-the-list-shown.md)。案例 [2026-11-26 运行实况列表与页面不一致](../../../11-troubleshooting/cases/2026-11-26-runtime-board-list-not-shown.md)。
 
 ## 重构提案
 

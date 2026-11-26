@@ -210,6 +210,7 @@ async function removeProject(p: ProjectInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认移除',
+          confirmButtonClass: 'el-button--danger sems-confirm-danger',
           cancelButtonText: '取消',
         })
         return true
@@ -273,7 +274,7 @@ async function runAll() {
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   margin-bottom: 4px;
 }
 
@@ -291,25 +292,25 @@ async function runAll() {
   font-weight: 700;
   letter-spacing: 0.05em;
   line-height: 1.2;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .sems__badge {
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-size: 11px;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
 /* 铁律 13：根视图标题旁展示自身版本号（小字号圆角金底，不抢标题） */
 .sems__version {
   padding: 1px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 16px;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   background: var(--gold-tint);
 }
 
@@ -330,9 +331,9 @@ async function runAll() {
   height: 30px;
   padding: 0 14px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-regular, var(--fg-secondary));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
   font-size: 13px;
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
@@ -340,8 +341,8 @@ async function runAll() {
 
 .sems__btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .sems__btn:disabled {
@@ -350,15 +351,15 @@ async function runAll() {
 }
 
 .sems__btn--primary {
-  border-color: var(--gold-400);
-  background: var(--gold-400);
-  color: var(--ink-950);
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   font-weight: 600;
 }
 
 .sems__btn--primary:hover:not(:disabled) {
-  background: var(--gold-300);
-  color: var(--ink-950);
+  background: var(--el-color-primary-light-3);
+  color: var(--el-bg-color-page);
 }
 
 .sems__stats {
@@ -384,7 +385,7 @@ async function runAll() {
 .sems__stat-num {
   font-size: 30px;
   font-weight: 700;
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .sems__stat-label {

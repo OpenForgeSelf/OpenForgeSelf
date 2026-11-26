@@ -103,11 +103,11 @@ describe('D-2 显示偏好真实落盘', () => {
 
 describe('D-1 2 步向导只写回真实档案字段', () => {
   it('POST 登记后 PUT 写回 type/tags/description，不含任何脚手架假字段', async () => {
-    http.apiPost.mockResolvedValue({ project: { id: 7, root: 'D:/verify', name: '验收项目' } })
+    http.apiPost.mockResolvedValue({ project: { id: 7, root: 'D:/new-app', name: '新项目' } })
     http.apiPut.mockResolvedValue({})
     http.apiGet.mockResolvedValue({ projects: [], total: 0 })
 
-    await wb.registerProject('D:/verify', '验收项目', {
+    await wb.registerProject('D:/new-app', '新项目', {
       type: 'frontend', tags: 'a,b', description: '说明',
     })
 
@@ -119,6 +119,28 @@ describe('D-1 2 步向导只写回真实档案字段', () => {
   })
 })
 
+describe('F03 同一路径再次登记', () => {
+  it('已存在的路径不发登记或写回请求，并标 alreadyExisted', async () => {
+    const result = await wb.registerProject('D:/verify/', '新名字', {
+      type: 'tool', tags: 'x', description: '覆盖',
+    })
+    expect(result?.alreadyExisted).toBe(true)
+    expect(result?.project.id).toBe(1)
+    expect(result?.project.name).toBe('验收项目')
+    expect(http.apiPost).not.toHaveBeenCalled()
+    expect(http.apiPut).not.toHaveBeenCalled()
+  })
+})
+
+describe('运行页没有命令时不请求日志', () => {
+  it('选中不存在的命令时清空选中，且不发日志请求', async () => {
+    wb.store.projects = [{ ...project, commands: [] } as never]
+    await wb.selectTask(11)
+    expect(wb.store.selectedTaskId).toBeNull()
+    expect(http.apiGet).not.toHaveBeenCalled()
+  })
+})
+
 describe('F11 没有命令时启动全部不得空转成功', () => {
   it('命令列表为空时不发启动请求，并说明没有可启动的命令', async () => {
     wb.store.projects = [{ ...project, commands: [] } as never]
@@ -126,5 +148,66 @@ describe('F11 没有命令时启动全部不得空转成功', () => {
     expect(http.apiPost).not.toHaveBeenCalled()
     expect(wb.store.toasts.some((t) => t.text.includes('没有可启动的命令'))).toBe(true)
     expect(wb.store.toasts.some((t) => t.text.includes('启动完成'))).toBe(false)
+  })
+})
+
+describe('v1.0.4 运行页一屏：检查到的进程并入命令列表', () => {
+  const live = (commandId: number, pid: number, origin = 'Detected') => ({
+    commandId, projectId: 1, projectName: '验收项目', commandName: commandId ? 'verify' : 'node', pid,
+    startedAt: '', origin,
+  })
+
+  it('没有已登记命令时「检查」仍可调用，结果只进运行会话，不写命令档案', async () => {
+    wb.store.projects = [{ ...(project as object), commands: [] } as never]
+    http.apiPost.mockResolvedValue({ total: 1, runs: [live(0, 4321)] })
+    await wb.checkRuns()
+    expect(http.apiPost).toHaveBeenCalledWith('/api/runs/check', {})
+    expect(http.apiPost).toHaveBeenCalledTimes(1)
+    expect(http.apiPut).not.toHaveBeenCalled()
+    expect(wb.currentProject()?.commands).toHaveLength(0)
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([4321])
+  })
+
+  it('对得上命令的进程只挂在该命令行，不另占一行；对不上的才单独列出', async () => {
+    http.apiPost.mockResolvedValue({ total: 2, runs: [live(11, 100), live(0, 200)] })
+    await wb.checkRuns()
+    expect(wb.liveSessionOfCommand(1, 11)?.pid).toBe(100)
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([200])
+  })
+
+  it('按进程标识停止后同步运行会话与计数', async () => {
+    wb.store.runningSessions = [live(0, 200)] as never
+    http.apiPost.mockResolvedValue({ outcome: 'stopped' })
+    http.apiGet.mockResolvedValue({ total: 0, runs: [] })
+    await wb.stopSessionByPid(200)
+    expect(http.apiPost).toHaveBeenCalledWith('/api/runs/200/stop', {})
+    expect(wb.store.runningCount).toBe(0)
+    expect(wb.unmatchedSessionsFor(wb.currentProject())).toHaveLength(0)
+  })
+
+  it('GET /api/runs 带回检测会话时保留，命令行与单独行各归其位', async () => {
+    wb.store.runningSessions = [] as never
+    http.apiGet.mockResolvedValue({ total: 2, runs: [live(11, 100, 'Launched'), live(0, 200)] })
+    await wb.refreshRunningCount()
+    expect(wb.liveSessionOfCommand(1, 11)?.pid).toBe(100)
+    expect(wb.unmatchedSessionsFor(wb.currentProject()).map((s) => s.pid)).toEqual([200])
+    expect(wb.store.runningCount).toBe(2)
+  })
+
+  it('检测进程自行退出、对端不再返回时，前端不残留该行，计数同步', async () => {
+    wb.store.runningSessions = [live(0, 200), live(0, 300)] as never
+    http.apiGet.mockResolvedValue({ total: 0, runs: [] })
+    await wb.refreshRunningCount()
+    expect(wb.unmatchedSessionsFor(wb.currentProject())).toHaveLength(0)
+    expect(wb.store.runningCount).toBe(0)
+  })
+
+  it('选中尚未启动、没有可看会话的命令时不请求日志，也不写 404 失败行', async () => {
+    http.apiGet.mockRejectedValue(new Error('请求失败(404): 须由本页启动且宿主未重启'))
+    await wb.selectTask(11)
+    expect(http.apiGet).not.toHaveBeenCalled()
+    expect(wb.taskLogsOf(11).some((l) => l.includes('读取日志失败'))).toBe(false)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(http.apiGet).not.toHaveBeenCalled()
   })
 })

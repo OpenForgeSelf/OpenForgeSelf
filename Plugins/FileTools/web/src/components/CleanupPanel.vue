@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+// 插件是独立预编译产物（无 unplugin 编译期注册），模板 <el-dialog> 必须显式导入
+// 才能运行时解析；element-plus 经宿主 index.html import map 共享同一实例。
+import { ElDialog } from 'element-plus'
 import AppLogo from './AppLogo.vue'
 import { useFileToolsStore } from '../stores/fileTools'
 import { fileToolsApi } from '../services/fileToolsApi'
@@ -323,35 +326,43 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
       </button>
     </div>
 
-    <div v-if="showConfirmDialog" class="modal-overlay" @click.self="cancelExecute">
-      <div class="modal-dialog">
+    <el-dialog
+      :model-value="showConfirmDialog"
+      :show-close="false"
+      append-to-body
+      class="cleanup-confirm-dialog"
+      width="min(450px, calc(100vw - 32px))"
+      @update:model-value="(v: boolean) => { if (!v) cancelExecute() }"
+      @close="cancelExecute"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h4 class="modal-title">确认清理</h4>
           </div>
         </div>
-        <div class="modal-body">
-          <p>
-            确定要删除 <strong>{{ selectedCount }}</strong> 个文件
-            （共 <strong>{{ fileToolsApi.formatFileSize(store.totalCleanupSize) }}</strong>）吗？
-          </p>
-          <div class="warning-options">
-            <label class="form-checkbox">
-              <input v-model="deletePermanently" type="checkbox" />
-              永久删除（不移到回收站）
-            </label>
-          </div>
-          <p class="modal-warning">
-            ⚠️ {{ deletePermanently ? '永久删除的文件无法恢复！' : '删除的文件将移到回收站，可恢复。' }}
-          </p>
+      </template>
+      <div class="modal-body">
+        <p>
+          确定要删除 <strong>{{ selectedCount }}</strong> 个文件
+          （共 <strong>{{ fileToolsApi.formatFileSize(store.totalCleanupSize) }}</strong>）吗？
+        </p>
+        <div class="warning-options">
+          <label class="form-checkbox">
+            <input v-model="deletePermanently" type="checkbox" />
+            永久删除（不移到回收站）
+          </label>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="cancelExecute">取消</button>
-          <button class="btn btn-danger" @click="confirmExecute">确认删除</button>
-        </div>
+        <p class="modal-warning">
+          ⚠️ {{ deletePermanently ? '永久删除的文件无法恢复！' : '删除的文件将移到回收站，可恢复。' }}
+        </p>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="cancelExecute">取消</button>
+        <button class="btn btn-danger" @click="confirmExecute">确认删除</button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -788,27 +799,6 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   font-size: 12px;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: color-mix(in srgb, var(--ink-950) 60%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-dialog {
-  background-color: var(--el-bg-color);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 450px;
-  box-shadow: var(--shadow-xl);
-}
-
 .modal-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--el-border-color);
@@ -857,7 +847,6 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
     grid-template-rows: auto auto;
   }
 }
-
 @media (max-width: 640px) {
   .action-bar {
     flex-direction: column;
@@ -877,5 +866,21 @@ function getConditionOptions(filterType: CleanupFilterType): { value: string; la
   .item-reason {
     display: none;
   }
+}
+</style>
+
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器） */
+.el-dialog.cleanup-confirm-dialog {
+  border-radius: 8px;
+}
+
+.cleanup-confirm-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.cleanup-confirm-dialog .el-dialog__body {
+  padding: 0;
 }
 </style>

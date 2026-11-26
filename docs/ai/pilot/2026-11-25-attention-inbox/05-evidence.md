@@ -64,7 +64,7 @@ Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1
 - 前端测试：`pnpm exec vitest run`。`Test Files  130 passed (130)`，`Tests  1301 passed (1301)`。`pnpm run test` 在本环境会停在 vitest 监听模式，所以一次跑完用的是 `vitest run`。
 - 设计门禁：`pnpm run design:check`。`[style-tokens] PASS`，`[design-compliance] PASS`。
 - 进程列表：`dotnet test --filter FullyQualifiedName~CheckAndMerge_DetectsExternalProcess_ByWorkingDirectory`。`Passed 1`。
-- 问题类脚本：`scripts/check-problem-classes.ps1`。复跑正文是 `check-problem-classes OK：43 个 PC 签名/allowlist/guards 全部通过`。PC-044 在其中。第一次跑失败，是因为本地 TODO 被收成只剩本任务一行，PC-004、PC-009、PC-039 的 planned 守卫检索不到原文。原文已放回本地 TODO（该文件不入库）。
+- 问题类脚本：`scripts/check-problem-classes.ps1`。复跑正文是 `check-problem-classes OK：43 个 PC 签名/allowlist/guards 全部通过`。第一次跑失败，是因为本地 TODO 被收成只剩本任务一行，PC-004、PC-009、PC-039 的 planned 守卫检索不到原文。原文已放回本地 TODO（该文件不入库）。并入 main 时，主题浮层已经占用 PC-044，运行实况这条改记为 PC-052。
 - 本任务工件：`scripts/verify-pilot-artifacts.ps1 -TaskId 2026-11-25-attention-inbox -EnforceHeader -EnforceAcCoverage -EnforceInteraction`。正文 `PASS: 全部 PILOT 工件链齐全`。不带 `-TaskId` 的全库扫描会把历史目录算进失败数，那不是本任务的结论。
 - `ProblemClassRegistryTests` 在本环境失败：测试用反斜杠拼 `docs\11-troubleshooting\problem-classes`，Linux 上这个路径不存在。与本批 PC 正文无关，没有改这个测试。
 

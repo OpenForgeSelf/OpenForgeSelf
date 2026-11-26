@@ -218,10 +218,10 @@ function agentTypeName(type: number | string): string {
   padding: 2px 10px;
   font-size: 0.75rem;
   font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
-  border: 1px solid color-mix(in srgb, var(--gold-400) 40%, transparent);
+  color: var(--el-color-primary);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 40%, transparent);
   line-height: 1.5;
   font-family: var(--font-mono);
 }
@@ -235,7 +235,7 @@ function agentTypeName(type: number | string): string {
   font-weight: 500;
   font-family: inherit;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   white-space: nowrap;
   background: var(--el-color-primary);
@@ -274,10 +274,10 @@ function agentTypeName(type: number | string): string {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--gold-400) 40%, transparent);
+  border-radius: var(--el-border-radius-base);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 40%, transparent);
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   transition:
     background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
@@ -301,7 +301,7 @@ function agentTypeName(type: number | string): string {
 
 /* 启用态：金色左条（玻璃卡边框由 ForgeCard 提供，此处仅覆盖左边条） */
 .agent-card--active {
-  border-left: 3px solid var(--gold-400);
+  border-left: 3px solid var(--el-color-primary);
 }
 
 .agent-card-inner {
@@ -336,13 +336,13 @@ function agentTypeName(type: number | string): string {
 }
 
 .agent-icon--researcher {
-  color: var(--bronze-500);
-  background: color-mix(in srgb, var(--bronze-500) 15%, transparent);
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success) 15%, transparent);
 }
 
 .agent-icon--writer {
-  color: var(--cinnabar-400);
-  background: color-mix(in srgb, var(--cinnabar-400) 15%, transparent);
+  color: var(--el-color-error);
+  background: color-mix(in srgb, var(--el-color-error) 15%, transparent);
 }
 
 .agent-icon--critic {
@@ -380,19 +380,19 @@ function agentTypeName(type: number | string): string {
   padding: 2px 6px;
   font-size: 0.75rem;
   font-weight: 500;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
   flex-shrink: 0;
   line-height: 1.4;
 }
 
 .agent-tag--default {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .agent-tag--type {
-  background: color-mix(in srgb, var(--bronze-500) 12%, transparent);
-  color: var(--bronze-500);
+  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  color: var(--el-color-success);
 }
 
 .agent-desc {
@@ -458,7 +458,7 @@ function agentTypeName(type: number | string): string {
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -484,7 +484,7 @@ function agentTypeName(type: number | string): string {
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -492,13 +492,13 @@ function agentTypeName(type: number | string): string {
     border-color var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
   color: var(--el-color-primary);
-  border: 1px solid color-mix(in srgb, var(--gold-400) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 30%, transparent);
   background: transparent;
 }
 
 .btn-chat:hover {
   background: var(--gold-tint);
-  border-color: color-mix(in srgb, var(--gold-400) 50%, transparent);
+  border-color: color-mix(in srgb, var(--el-color-primary) 50%, transparent);
   transform: translateY(-1px);
 }
 </style>

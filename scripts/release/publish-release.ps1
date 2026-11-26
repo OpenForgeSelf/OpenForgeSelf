@@ -1,4 +1,4 @@
-# publish-release.ps1 - creates the GitHub Release and uploads artifacts, via gh CLI.
+﻿# publish-release.ps1 - creates the GitHub Release and uploads artifacts, via gh CLI.
 # Same entry point locally (needs gh auth + a github remote) and in CI (uses secrets.GITHUB_TOKEN).
 # Local dry run: ./publish-release.ps1 -Version 0.1.0 -DryRun
 #

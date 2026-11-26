@@ -69,11 +69,11 @@ withDefaults(
 }
 
 .forge-card--interactive:hover {
-  box-shadow: 0 0 0 1px var(--border-brand), 0 8px 24px color-mix(in srgb, var(--ink-950) 45%, transparent);
+  box-shadow: 0 0 0 1px var(--border-brand), 0 8px 24px color-mix(in srgb, var(--el-bg-color-page) 45%, transparent);
 }
 
 .forge-card--interactive:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--gold-400);
+  box-shadow: 0 0 0 2px var(--el-color-primary);
 }
 </style>

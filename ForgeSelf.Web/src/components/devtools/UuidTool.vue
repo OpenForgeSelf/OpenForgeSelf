@@ -258,8 +258,8 @@ function regenerate(): void {
 
 .settings-panel,
 .result-panel {
-  background: white;
-  border: 1px solid #dee2e6;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -275,7 +275,7 @@ function regenerate(): void {
 .panel-title {
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: var(--el-text-color-regular);
   margin: 0;
   display: flex;
   align-items: center;
@@ -283,7 +283,7 @@ function regenerate(): void {
 }
 
 .result-count {
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-weight: 400;
   font-size: 13px;
 }
@@ -297,7 +297,7 @@ function regenerate(): void {
 .input-label {
   font-size: 13px;
   font-weight: 500;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .type-options {
@@ -308,9 +308,9 @@ function regenerate(): void {
 
 .type-btn {
   padding: 10px 14px;
-  border: 1px solid #dee2e6;
-  background: white;
-  color: #495057;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
@@ -322,20 +322,20 @@ function regenerate(): void {
 }
 
 .type-btn:hover {
-  border-color: #0d6efd;
-  color: #0d6efd;
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .type-btn.active {
-  background: #0d6efd;
-  border-color: #0d6efd;
-  color: white;
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-white);
 }
 
 .text-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 14px;
   box-sizing: border-box;
@@ -344,8 +344,8 @@ function regenerate(): void {
 
 .text-input:focus {
   outline: none;
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px var(--gold-tint-strong);
 }
 
 .format-options,
@@ -360,7 +360,7 @@ function regenerate(): void {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #495057;
+  color: var(--el-text-color-regular);
   cursor: pointer;
 }
 
@@ -372,8 +372,8 @@ function regenerate(): void {
 
 .primary-btn {
   padding: 10px 20px;
-  background: #0d6efd;
-  color: white;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -387,11 +387,11 @@ function regenerate(): void {
 }
 
 .primary-btn:hover {
-  background: #0b5ed7;
+  background: var(--el-color-primary-dark-2);
 }
 
 .primary-btn:disabled {
-  background: #6c757d;
+  background: var(--el-fill-color);
   cursor: not-allowed;
 }
 
@@ -413,9 +413,9 @@ function regenerate(): void {
 
 .action-btn {
   padding: 6px 12px;
-  background: #f8f9fa;
-  color: #495057;
-  border: 1px solid #dee2e6;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -426,16 +426,16 @@ function regenerate(): void {
 }
 
 .action-btn:hover {
-  background: #e9ecef;
-  border-color: #ced4da;
+  background: var(--el-fill-color);
+  border-color: var(--el-border-color);
 }
 
 .error-message {
   padding: 12px 16px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-8);
   border-radius: 6px;
-  color: #dc2626;
+  color: var(--el-color-error);
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -449,7 +449,7 @@ function regenerate(): void {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
   gap: 12px;
 }
 
@@ -474,8 +474,8 @@ function regenerate(): void {
 
 .result-item {
   padding: 10px 12px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -490,7 +490,7 @@ function regenerate(): void {
 
 .item-index {
   font-size: 12px;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
   font-weight: 600;
   min-width: 24px;
 }
@@ -499,7 +499,7 @@ function regenerate(): void {
   flex: 1;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 13px;
-  color: #212529;
+  color: var(--el-text-color-primary);
   word-break: break-all;
 }
 
@@ -507,15 +507,15 @@ function regenerate(): void {
   padding: 4px 8px;
   background: transparent;
   border: none;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
 }
 
 .copy-icon-btn:hover {
-  background: #e9ecef;
-  color: #0d6efd;
+  background: var(--el-fill-color);
+  color: var(--el-color-primary);
 }
 
 .item-details {
@@ -527,10 +527,10 @@ function regenerate(): void {
 
 .detail-tag {
   padding: 2px 8px;
-  background: #e9ecef;
+  background: var(--el-fill-color);
   border-radius: 4px;
   font-size: 11px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   display: flex;
   align-items: center;
   gap: 4px;

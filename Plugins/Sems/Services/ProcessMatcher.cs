@@ -167,4 +167,139 @@ public static class ProcessMatcher
             return string.Empty;
         }
     }
+
+    private static readonly Regex TokenRegex =
+        new(@"[""']([^""']+)[""']|(\S+)", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 按已登记命令的脚本匹配本机进程。对得上则返回该命令（多条命中时取更具体的脚本），对不上返回 null。
+    /// 不写入命令档案，只做会话回填。
+    /// </summary>
+    public static RunCommandInfo? MatchCommand(
+        string? exePath,
+        string? commandLine,
+        IReadOnlyList<RunCommandInfo> commands)
+    {
+        if (commands == null || commands.Count == 0) return null;
+
+        var haystack = $"{exePath} {commandLine}".Trim();
+        if (string.IsNullOrWhiteSpace(haystack)) return null;
+        var haystackNorm = haystack.Replace('\\', '/');
+        var hayTokens = Tokenize(haystackNorm);
+        if (hayTokens.Count == 0) return null;
+
+        RunCommandInfo? best = null;
+        var bestScore = 0;
+        foreach (var command in commands)
+        {
+            var script = command.Script?.Trim();
+            if (string.IsNullOrWhiteSpace(script)) continue;
+            var score = ScoreScript(haystackNorm, hayTokens, script);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = command;
+            }
+        }
+
+        return best;
+    }
+
+    private static int ScoreScript(string haystackNorm, IReadOnlyList<string> hayTokens, string script)
+    {
+        var scriptNorm = script.Trim().Replace('\\', '/');
+        if (scriptNorm.Length == 0) return 0;
+
+        if (haystackNorm.IndexOf(scriptNorm, StringComparison.OrdinalIgnoreCase) >= 0)
+            return 1000 + scriptNorm.Length;
+
+        var scriptTokens = Tokenize(scriptNorm);
+        if (scriptTokens.Count == 0) return 0;
+        if (scriptTokens.Any(t => !TokenPresent(t, hayTokens))) return 0;
+        return scriptTokens.Sum(t => t.Length);
+    }
+
+    private static List<string> Tokenize(string text)
+    {
+        var tokens = new List<string>();
+        foreach (Match m in TokenRegex.Matches(text))
+        {
+            var raw = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            if (!string.IsNullOrWhiteSpace(raw))
+                tokens.Add(raw.Trim());
+        }
+        return tokens;
+    }
+
+    private static bool TokenPresent(string token, IReadOnlyList<string> hayTokens)
+    {
+        foreach (var hay in hayTokens)
+        {
+            if (hay.Equals(token, StringComparison.OrdinalIgnoreCase)) return true;
+
+            string file;
+            string stem;
+            try
+            {
+                var unified = hay.Replace('\\', '/');
+                file = Path.GetFileName(unified);
+                stem = Path.GetFileNameWithoutExtension(file);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (file.Equals(token, StringComparison.OrdinalIgnoreCase)
+                || stem.Equals(token, StringComparison.OrdinalIgnoreCase)
+                || token.Equals(file, StringComparison.OrdinalIgnoreCase)
+                || token.Equals(stem, StringComparison.OrdinalIgnoreCase)
+                || stem.StartsWith(token, StringComparison.OrdinalIgnoreCase) && token.Length >= 3)
+                return true;
+
+            // npm-cli.js 路径中的 npm 段等
+            foreach (var segment in hay.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (segment.Equals(token, StringComparison.OrdinalIgnoreCase)
+                    || Path.GetFileNameWithoutExtension(segment)
+                        .Equals(token, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            // python / python3 / python3.12 视为同一解释器
+            if (IsPythonToken(token) && IsPythonToken(stem)) return true;
+        }
+
+        // 脚本里的路径只比文件名
+        try
+        {
+            var tokenFile = Path.GetFileName(token.Replace('\\', '/'));
+            var tokenStem = Path.GetFileNameWithoutExtension(tokenFile);
+            if (!string.IsNullOrEmpty(tokenFile) && tokenFile != token)
+            {
+                foreach (var hay in hayTokens)
+                {
+                    var unified = hay.Replace('\\', '/');
+                    var file = Path.GetFileName(unified);
+                    if (file.Equals(tokenFile, StringComparison.OrdinalIgnoreCase)
+                        || Path.GetFileNameWithoutExtension(file)
+                            .Equals(tokenStem, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+        }
+        catch
+        {
+            // 非路径 token，忽略
+        }
+
+        return false;
+    }
+
+    private static bool IsPythonToken(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        return name.StartsWith("python", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("py", StringComparison.OrdinalIgnoreCase);
+    }
 }

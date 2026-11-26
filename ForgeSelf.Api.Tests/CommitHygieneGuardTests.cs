@@ -193,6 +193,23 @@ public class CommitHygieneGuardTests
     }
 
     [Fact]
+    public void SingleLineFile_DenylistTerm_IsMatchedPerLineNotPerChar()
+    {
+        // 回归守卫：Read-TextLines 曾把单行文件当成字符串逐字符扫描，导致单行内容拒绝列表不命中。
+        var dir = NewFixtureDir();
+        var denylist = Path.Combine(dir, "denylist.txt");
+        File.WriteAllLines(denylist, new[] { "示例昵称" });
+        var file = Path.Combine(dir, "single-line.md");
+        File.WriteAllText(file, "这行带 示例昵称 字样", new UTF8Encoding(false));
+
+        var run = RunGuard("-Files '" + file + "' -DenylistPath '" + denylist + "'");
+
+        run.Passed.Should().BeFalse("单行文件中的拒绝列表词条必须命中");
+        run.Fails.Should().ContainSingle();
+        run.Fails[0].Rule.Should().Be("hygiene.denylist");
+    }
+
+    [Fact]
     public void MutuallyExclusiveModeArgs_AreUsageErrors()
     {
         var dir = NewFixtureDir();

@@ -364,102 +364,114 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
     </div>
 
     <!-- ===== Modals ===== -->
-    <div v-if="showAddMemory" class="modal-overlay" @click.self="showAddMemory = false">
-      <div class="modal modal-lg">
+    <el-dialog
+      v-model="showAddMemory"
+      :show-close="false"
+      append-to-body
+      class="memory-dialog"
+      width="min(600px, calc(100vw - 32px))"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h3>新建记忆</h3>
           </div>
           <button class="btn-icon" @click="showAddMemory = false">
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
-        <div class="modal-body">
+      </template>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>标题 *</label>
+          <input v-model="newMemory.title" type="text" placeholder="输入记忆标题" />
+        </div>
+        <div class="form-row">
           <div class="form-group">
-            <label>标题 *</label>
-            <input v-model="newMemory.title" type="text" placeholder="输入记忆标题" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>类型</label>
-              <select v-model="newMemory.type">
-                <option v-for="(label, key) in memoryTypeLabels" :key="key" :value="Number(key)">
-                  {{ label }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>重要程度</label>
-              <select v-model="newMemory.importance">
-                <option v-for="(label, key) in memoryImportanceLabels" :key="key" :value="Number(key)">
-                  {{ label }}
-                </option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>分类</label>
-              <select v-model="newMemory.categoryId">
-                <option :value="null">未分类</option>
-                <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>标签（逗号分隔）</label>
-              <input v-model="newMemory.tagsInput" type="text" placeholder="标签1, 标签2" />
-            </div>
+            <label>类型</label>
+            <select v-model="newMemory.type">
+              <option v-for="(label, key) in memoryTypeLabels" :key="key" :value="Number(key)">
+                {{ label }}
+              </option>
+            </select>
           </div>
           <div class="form-group">
-            <label>内容 *</label>
-            <textarea v-model="newMemory.content" rows="6" placeholder="输入记忆内容..." />
+            <label>重要程度</label>
+            <select v-model="newMemory.importance">
+              <option v-for="(label, key) in memoryImportanceLabels" :key="key" :value="Number(key)">
+                {{ label }}
+              </option>
+            </select>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn" @click="showAddMemory = false">取消</button>
-          <button class="btn btn-primary" :disabled="!newMemory.title || !newMemory.content" @click="handleAddMemory">
-            保存
-          </button>
+        <div class="form-row">
+          <div class="form-group">
+            <label>分类</label>
+            <select v-model="newMemory.categoryId">
+              <option :value="null">未分类</option>
+              <option v-for="cat in sortedCategories" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>标签（逗号分隔）</label>
+            <input v-model="newMemory.tagsInput" type="text" placeholder="标签1, 标签2" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>内容 *</label>
+          <textarea v-model="newMemory.content" rows="6" placeholder="输入记忆内容..." />
         </div>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn" @click="showAddMemory = false">取消</button>
+        <button class="btn btn-primary" :disabled="!newMemory.title || !newMemory.content" @click="handleAddMemory">
+          保存
+        </button>
+      </div>
+    </el-dialog>
 
-    <div v-if="showAddCategory" class="modal-overlay" @click.self="showAddCategory = false">
-      <div class="modal">
+    <el-dialog
+      v-model="showAddCategory"
+      :show-close="false"
+      append-to-body
+      class="memory-dialog"
+      width="min(500px, calc(100vw - 32px))"
+    >
+      <template #header>
         <div class="modal-header">
           <div class="flex items-center gap-2">
-            <AppLogo :size="20" />
+            <AppLogo :size="26" />
             <h3>新建分类</h3>
           </div>
           <button class="btn-icon" @click="showAddCategory = false">
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>分类名称 *</label>
-            <input v-model="newCategory.name" type="text" placeholder="输入分类名称" />
-          </div>
-          <div class="form-group">
-            <label>描述</label>
-            <input v-model="newCategory.description" type="text" placeholder="分类描述（可选）" />
-          </div>
-          <div class="form-group">
-            <label>图标</label>
-            <input v-model="newCategory.icon" type="text" placeholder="FontAwesome 图标类名" />
-          </div>
+      </template>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>分类名称 *</label>
+          <input v-model="newCategory.name" type="text" placeholder="输入分类名称" />
         </div>
-        <div class="modal-footer">
-          <button class="btn" @click="showAddCategory = false">取消</button>
-          <button class="btn btn-primary" :disabled="!newCategory.name" @click="handleAddCategory">
-            创建
-          </button>
+        <div class="form-group">
+          <label>描述</label>
+          <input v-model="newCategory.description" type="text" placeholder="分类描述（可选）" />
+        </div>
+        <div class="form-group">
+          <label>图标</label>
+          <input v-model="newCategory.icon" type="text" placeholder="FontAwesome 图标类名" />
         </div>
       </div>
-    </div>
+      <div class="modal-footer">
+        <button class="btn" @click="showAddCategory = false">取消</button>
+        <button class="btn btn-primary" :disabled="!newCategory.name" @click="handleAddCategory">
+          创建
+        </button>
+      </div>
+    </el-dialog>
 
     <!-- ===== Detail drawer ===== -->
     <div v-if="selectedMemory" class="memory-detail-drawer" :class="{ open: showDetail }">
@@ -551,7 +563,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   font-size: 10px;
   font-weight: 600;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -571,23 +583,23 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-size: 13px;
 }
 
 .category-item:hover,
 .filter-item:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .category-item.active,
 .filter-item.active {
   background: var(--gold-tint-strong);
-  color: var(--gold-400);
+  color: var(--el-color-primary);
 }
 
 .category-name {
@@ -599,7 +611,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-family: var(--font-mono);
   background: var(--paper-tint);
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
 }
 
 .importance-dot {
@@ -635,27 +647,27 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .search-box input {
   width: 100%;
   padding: 8px 12px 8px 36px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--glass-bg);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .search-box input::placeholder {
-  color: var(--fg-muted);
+  color: var(--el-text-color-disabled);
 }
 
 /* ===== Stats chips in PageHead actions ===== */
@@ -666,13 +678,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   padding: 4px 10px;
   font-size: 11px;
   font-family: var(--font-mono);
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   background: var(--paper-tint);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
 }
 
 .stat-chip strong {
-  color: var(--gold-400);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -703,21 +715,21 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 15px;
   font-weight: 600;
   margin: 0;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
 }
 
 .importance-badge {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-primary);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-primary);
   white-space: nowrap;
 }
 
 .memory-content-preview {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0;
   line-height: 1.5;
   display: -webkit-box;
@@ -736,13 +748,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 11px;
   padding: 2px 8px;
   background: var(--paper-tint);
-  color: var(--fg-secondary);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-small);
 }
 
 .memory-tag-more {
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
 }
 
 .memory-card-footer {
@@ -750,7 +762,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  color: var(--fg-tertiary);
+  color: var(--el-text-color-secondary);
   margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--border-hairline);
@@ -759,7 +771,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .memory-type {
   background: var(--paper-tint);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--el-border-radius-small);
 }
 
 .memory-access {
@@ -783,7 +795,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .page-info {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   font-family: var(--font-mono);
 }
 
@@ -794,16 +806,16 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .btn-page:hover:not(:disabled) {
-  border-color: var(--gold-400);
-  color: var(--gold-400);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 
 .btn-page:disabled {
@@ -812,35 +824,6 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 /* ===== Modals ===== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ink-veil);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: var(--el-bg-color-overlay);
-  border-radius: var(--glass-radius);
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-}
-
-.modal-lg {
-  max-width: 600px;
-}
-
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -852,7 +835,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .modal-header h3 {
   margin: 0;
   font-size: 16px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 .modal-body {
@@ -877,7 +860,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: 6px;
 }
 
@@ -887,9 +870,9 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 14px;
 }
 
@@ -897,7 +880,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--gold-400);
+  border-color: var(--el-color-primary);
 }
 
 .form-row {
@@ -936,7 +919,7 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .drawer-header h3 {
   margin: 0;
   font-size: 16px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   flex: 1;
   padding-right: 12px;
 }
@@ -957,8 +940,8 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .detail-badge {
   font-size: 11px;
   padding: 2px 10px;
-  border-radius: var(--radius-sm);
-  color: var(--fg-primary);
+  border-radius: var(--el-border-radius-small);
+  color: var(--el-text-color-primary);
 }
 
 .detail-type,
@@ -966,8 +949,8 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   font-size: 11px;
   padding: 2px 10px;
   background: var(--paper-tint);
-  color: var(--fg-secondary);
-  border-radius: var(--radius-sm);
+  color: var(--el-text-color-regular);
+  border-radius: var(--el-border-radius-small);
 }
 
 .detail-tags {
@@ -979,13 +962,13 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 
 .detail-content h4 {
   font-size: 13px;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   margin: 0 0 8px 0;
 }
 
 .detail-content p {
   font-size: 14px;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -1004,11 +987,11 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .info-label {
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .info-value {
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -1022,9 +1005,9 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 .btn {
   padding: 8px 16px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   background: transparent;
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
@@ -1038,14 +1021,14 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .btn-primary {
-  background: var(--gold-400);
-  border-color: var(--gold-400);
-  color: var(--ink-950);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: var(--el-bg-color-page);
   font-weight: 500;
 }
 
 .btn-primary:hover {
-  background: var(--gold-300);
+  background: var(--el-color-primary-light-3);
 }
 
 .btn-primary:disabled {
@@ -1054,15 +1037,15 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
 }
 
 .btn-danger {
-  background: var(--cinnabar-400);
-  border-color: var(--cinnabar-400);
-  color: var(--fg-primary);
+  background: var(--el-color-error);
+  border-color: var(--el-color-error);
+  color: var(--el-text-color-primary);
   width: 100%;
   justify-content: center;
 }
 
 .btn-danger:hover {
-  background: color-mix(in srgb, var(--cinnabar-400) 80%, transparent);
+  background: color-mix(in srgb, var(--el-color-error) 80%, transparent);
 }
 
 .btn-icon {
@@ -1073,15 +1056,15 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--fg-secondary);
+  color: var(--el-text-color-regular);
   cursor: pointer;
-  border-radius: var(--radius-md);
+  border-radius: var(--el-border-radius-base);
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .btn-icon:hover {
   background: var(--paper-tint);
-  color: var(--fg-primary);
+  color: var(--el-text-color-primary);
 }
 
 /* ===== Responsive ===== */
@@ -1094,5 +1077,29 @@ const brainIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height=
     position: static;
     max-height: none;
   }
+}
+</style>
+<style>
+/* el-dialog 壳层覆盖（append-to-body 后 dialog 根在组件子树外，须用全局选择器；
+   自定义 class 经 $attrs 落在 .el-dialog 根元素自身，须用复合选择器） */
+.el-dialog.memory-dialog {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border-default);
+  background: var(--el-bg-color-overlay);
+  overflow: hidden;
+}
+
+.memory-dialog .el-dialog__header {
+  padding: 0;
+  margin-right: 0;
+}
+
+.memory-dialog .el-dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

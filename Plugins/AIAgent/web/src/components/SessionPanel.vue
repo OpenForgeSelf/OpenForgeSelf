@@ -314,7 +314,7 @@ const skillBars = computed(() => {
 /* 收起态仍显示条数，便于判断是否值得展开 */
 .sess__count {
   margin-left: auto;
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: var(--el-font-size-extra-small, 12px);
   color: var(--el-text-color-secondary);
 }
@@ -328,7 +328,7 @@ const skillBars = computed(() => {
 
 .sess__title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-semibold, 600);
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
@@ -343,8 +343,8 @@ const skillBars = computed(() => {
 
 .sess__name {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-medium, 500);
-  font-family: var(--el-font-family-mono, monospace);
+  font-weight: var(--el-font-weight-primary, 500);
+  font-family: var(--font-mono, monospace);
   color: var(--el-text-color-primary);
 }
 
@@ -386,8 +386,8 @@ const skillBars = computed(() => {
 }
 
 .sess__stat-val {
-  font-family: var(--el-font-family-mono, monospace);
-  font-weight: var(--el-weight-medium, 500);
+  font-family: var(--font-mono, monospace);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-text-color-regular);
 }
 
@@ -411,8 +411,8 @@ const skillBars = computed(() => {
 
 .sess__skill-val {
   color: var(--el-color-primary);
-  font-weight: var(--el-weight-medium, 500);
-  font-family: var(--el-font-family-mono, monospace);
+  font-weight: var(--el-font-weight-primary, 500);
+  font-family: var(--font-mono, monospace);
 }
 
 .sess__skill-track {
@@ -450,7 +450,7 @@ const skillBars = computed(() => {
 }
 
 .sess__agent--active {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border-left-color: var(--el-color-primary);
 }
 
@@ -465,7 +465,7 @@ const skillBars = computed(() => {
   flex: 1;
   min-width: 0;
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -558,7 +558,7 @@ const skillBars = computed(() => {
 }
 
 .sess__item--active {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border-left-color: var(--el-color-primary);
 }
 
@@ -572,7 +572,7 @@ const skillBars = computed(() => {
 
 .sess__item-title {
   font-size: var(--el-font-size-small, 13px);
-  font-weight: var(--el-weight-medium, 500);
+  font-weight: var(--el-font-weight-primary, 500);
   color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;

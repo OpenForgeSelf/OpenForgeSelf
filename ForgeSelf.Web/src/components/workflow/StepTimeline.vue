@@ -116,7 +116,7 @@ function handleStepClick(step: StepInfo): void {
 
 <style scoped>
 .step-timeline {
-  background: #fff;
+  background: var(--el-bg-color);
   border-radius: 8px;
   padding: 16px;
 }
@@ -131,14 +131,14 @@ function handleStepClick(step: StepInfo): void {
 .timeline-header h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
   margin: 0;
 }
 
 .step-count {
   font-size: 13px;
-  color: #6c757d;
-  background: #f1f3f5;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color);
   padding: 2px 10px;
   border-radius: 12px;
 }
@@ -157,7 +157,7 @@ function handleStepClick(step: StepInfo): void {
 }
 
 .timeline-item:hover {
-  background: #f8f9fa;
+  background: var(--el-fill-color-light);
 }
 
 .timeline-line {
@@ -172,21 +172,21 @@ function handleStepClick(step: StepInfo): void {
 .line-bottom {
   flex: 1;
   width: 2px;
-  background: #dee2e6;
+  background: var(--el-fill-color);
   min-height: 8px;
 }
 
 .line-top.filled,
 .line-bottom.filled {
-  background: #28a745;
+  background: var(--el-color-success);
 }
 
 .timeline-node {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #dee2e6;
+  background: var(--el-bg-color);
+  border: 2px solid var(--el-border-color-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,35 +197,35 @@ function handleStepClick(step: StepInfo): void {
 .node-icon {
   font-size: 10px;
   font-weight: 600;
-  color: #adb5bd;
+  color: var(--el-text-color-placeholder);
 }
 
 .timeline-node.completed {
-  border-color: #28a745;
-  background: #28a745;
+  border-color: var(--el-color-success);
+  background: var(--el-color-success);
 }
 
 .timeline-node.completed .node-icon {
-  color: #fff;
+  color: var(--el-color-white);
 }
 
 .timeline-node.running {
-  border-color: #007bff;
-  background: #fff;
+  border-color: var(--el-color-primary);
+  background: var(--el-bg-color);
   animation: pulse-node 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-node {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--el-color-primary) 40%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(0, 123, 255, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
 }
 
 .timeline-node.running .node-icon {
-  color: #007bff;
+  color: var(--el-color-primary);
   animation: spin 1s linear infinite;
 }
 
@@ -235,30 +235,30 @@ function handleStepClick(step: StepInfo): void {
 }
 
 .timeline-node.failed {
-  border-color: #dc3545;
-  background: #dc3545;
+  border-color: var(--el-color-error);
+  background: var(--el-color-error);
 }
 
 .timeline-node.failed .node-icon {
-  color: #fff;
+  color: var(--el-color-white);
 }
 
 .timeline-node.paused {
-  border-color: #ffc107;
-  background: #fff;
+  border-color: var(--el-color-warning);
+  background: var(--el-bg-color);
 }
 
 .timeline-node.paused .node-icon {
-  color: #ffc107;
+  color: var(--el-color-warning);
 }
 
 .timeline-node.cancelled {
-  border-color: #6c757d;
-  background: #6c757d;
+  border-color: var(--el-border-color-dark);
+  background: var(--el-fill-color);
 }
 
 .timeline-node.cancelled .node-icon {
-  color: #fff;
+  color: var(--el-color-white);
 }
 
 .timeline-content {
@@ -281,14 +281,14 @@ function handleStepClick(step: StepInfo): void {
 .step-name {
   font-size: 14px;
   font-weight: 500;
-  color: #212529;
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .timeline-item.active .step-name {
-  color: #007bff;
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -301,39 +301,39 @@ function handleStepClick(step: StepInfo): void {
 }
 
 .step-status.completed {
-  background: #d4edda;
-  color: #155724;
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success-dark-2);
 }
 
 .step-status.running {
-  background: #cce5ff;
-  color: #004085;
+  background: var(--el-color-info-light-8);
+  color: var(--el-color-info-dark-2);
 }
 
 .step-status.failed {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--el-color-error-light-9);
+  color: var(--el-color-error-dark-2);
 }
 
 .step-status.paused {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
 }
 
 .step-status.cancelled {
-  background: #e2e3e5;
-  color: #383d41;
+  background: var(--el-color-info-light-9);
+  color: var(--el-text-color-regular);
 }
 
 .step-status.draft,
 .step-status.ready {
-  background: #f1f3f5;
-  color: #6c757d;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
 }
 
 .step-meta {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
 
@@ -345,11 +345,11 @@ function handleStepClick(step: StepInfo): void {
 
 .step-error {
   font-size: 12px;
-  color: #dc3545;
+  color: var(--el-color-error);
   margin-top: 4px;
   padding: 6px 8px;
-  background: #fff5f5;
+  background: var(--el-color-error-light-9);
   border-radius: 4px;
-  border-left: 3px solid #dc3545;
+  border-left: 3px solid var(--el-color-error);
 }
 </style>

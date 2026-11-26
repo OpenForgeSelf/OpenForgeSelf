@@ -4,6 +4,8 @@ import {
   ROOT_THEME_ATTRIBUTE,
   ROOT_THEME_MODE_ATTRIBUTE,
   THEME_STORAGE_KEY,
+  THEME_FOLLOW_SYSTEM_KEY,
+  readFollowSystem,
   useThemeStore,
 } from '../theme'
 
@@ -68,10 +70,11 @@ describe('Theme Store', () => {
 
     store.initialize()
 
-    expect(store.mode).toBe('system')
+    expect(store.isFollowingSystem).toBe(true)
+    expect(store.mode).toBe('light')
     expect(store.resolvedTheme).toBe('light')
     expect(document.documentElement.getAttribute(ROOT_THEME_ATTRIBUTE)).toBe('light')
-    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('system')
+    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('light')
   })
 
   it('setMode 应同步更新主题标记和本地持久化值', () => {
@@ -105,21 +108,49 @@ describe('Theme Store', () => {
     expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('dark')
   })
 
+  it('legacy system 存储应迁移为跟随系统开关', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'system')
+    expect(readFollowSystem(localStorage)).toBe(true)
+
+    const store = useThemeStore()
+    store.initialize()
+
+    expect(store.isFollowingSystem).toBe(true)
+    expect(store.mode).toBe('light')
+    expect(localStorage.getItem(THEME_FOLLOW_SYSTEM_KEY)).toBe('true')
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
+  })
+
   it('system 模式下应在系统主题变化时同步更新', () => {
     const store = useThemeStore()
 
     store.initialize()
-    store.setMode('system')
+    store.setFollowSystem(true)
     matchMediaMock.dispatch(true)
 
-    expect(store.mode).toBe('system')
+    expect(store.isFollowingSystem).toBe(true)
+    expect(store.mode).toBe('dark')
     expect(store.resolvedTheme).toBe('dark')
     expect(document.documentElement.getAttribute(ROOT_THEME_ATTRIBUTE)).toBe('dark')
-    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('system')
+    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('dark')
 
     matchMediaMock.dispatch(false)
 
     expect(store.resolvedTheme).toBe('light')
     expect(document.documentElement.getAttribute(ROOT_THEME_ATTRIBUTE)).toBe('light')
+    expect(document.documentElement.getAttribute(ROOT_THEME_MODE_ATTRIBUTE)).toBe('light')
+  })
+
+  it('手动选择浅色或深色后应关闭跟随并忽略系统变化', () => {
+    const store = useThemeStore()
+
+    store.initialize()
+    store.setMode('dark')
+    matchMediaMock.dispatch(false)
+
+    expect(store.isFollowingSystem).toBe(false)
+    expect(store.mode).toBe('dark')
+    expect(store.resolvedTheme).toBe('dark')
+    expect(document.documentElement.getAttribute(ROOT_THEME_ATTRIBUTE)).toBe('dark')
   })
 })

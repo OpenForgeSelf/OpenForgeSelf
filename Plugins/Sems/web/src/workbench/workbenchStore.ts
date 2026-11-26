@@ -21,6 +21,7 @@ import type {
 import { filterEngineeringPlugins, parseEngineeringPluginsPayload, type EngineeringPlugin } from '../engineeringPlugins'
 import { listSpecs } from '../specApi'
 import { isRemoveBlockedByRunningError } from '../confirmOps'
+import { sameProjectRoot } from '../registerOps'
 
 /* ------------------------------------------------------------------ *
  * 类型
@@ -430,7 +431,7 @@ function fromDto(p: ProjectInfo): WbProject {
     pathExists: !!p.pathExists,
     openDate: p.lastActiveAt || p.updatedAt || p.createdAt || '',
     favorite: meta.favorites[p.id] ?? 0,
-    commands: (p.commands ?? []).slice().sort((a, b) => a.sort - b.sort),
+    commands: (p.commands ?? []).slice().sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.id - b.id),
     wizardMeta: meta.wizardMeta[p.id],
   }
 }
@@ -582,28 +583,48 @@ export function runningSessionCountOf(p: WbProject): number {
   return (p.commands ?? []).filter((c) => taskStatusOf(c.id) === 'running').length
 }
 
-/** 登记目录为项目（真实 POST /api/projects；demo 模式在本地追加）。 */
-export async function registerProject(root: string, name?: string, wizardMeta?: WbWizardMeta): Promise<WbProject | null> {
+export function findProjectByRoot(root: string): WbProject | undefined {
+  const path = root.trim()
+  if (!path) return undefined
+  return store.projects.find((p) => sameProjectRoot(p.path, path))
+}
+
+export interface RegisterProjectOutcome {
+  project: WbProject
+  alreadyExisted: boolean
+}
+
+/** 登记目录为项目（真实 POST /api/projects；demo 模式在本地追加）。同一路径已登记时不写回、不新建。 */
+export async function registerProject(root: string, name?: string, wizardMeta?: WbWizardMeta): Promise<RegisterProjectOutcome | null> {
   if (!root) return null
+  const existed = findProjectByRoot(root)
+  if (existed) {
+    return { project: existed, alreadyExisted: true }
+  }
   if (store.mode === 'live') {
     try {
+      const knownIds = new Set(store.projects.map((p) => p.id))
       const resp = await apiPost<{ project: ProjectInfo }>('/api/projects', { root, name: name || undefined })
       if (!resp?.project) throw new Error('后端未返回项目档案')
-      // 2 步向导填的档案字段写回真实后端（PUT 支持 type / tags / description）
       const id = resp.project.id
-      const update: Record<string, string> = {}
-      if (wizardMeta?.type?.trim()) update.type = wizardMeta.type.trim()
-      if (wizardMeta?.tags?.trim()) update.tags = wizardMeta.tags.trim()
-      if (wizardMeta?.description?.trim()) update.description = wizardMeta.description.trim()
-      if (Object.keys(update).length) {
-        try { await apiPut(`/api/projects/${id}`, update) } catch {
-          // BR-1：登记成功但写回失败时可独立重试（S09「编辑项目档案」是现成的重试入口）
-          toast('档案字段写回失败，可在「项目设置 → 编辑项目档案」重新填写')
+      const alreadyExisted = knownIds.has(id)
+      // 2 步向导填的档案字段只在新建时写回，避免再次登记覆盖已有名称与描述
+      if (!alreadyExisted) {
+        const update: Record<string, string> = {}
+        if (wizardMeta?.type?.trim()) update.type = wizardMeta.type.trim()
+        if (wizardMeta?.tags?.trim()) update.tags = wizardMeta.tags.trim()
+        if (wizardMeta?.description?.trim()) update.description = wizardMeta.description.trim()
+        if (Object.keys(update).length) {
+          try { await apiPut(`/api/projects/${id}`, update) } catch {
+            // BR-1：登记成功但写回失败时可独立重试（S09「编辑项目档案」是现成的重试入口）
+            toast('档案字段写回失败，可在「项目设置 → 编辑项目档案」重新填写')
+          }
         }
+        if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
       }
-      if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
       await loadProjects()
-      return store.projects.find((p) => p.id === id) ?? null
+      const project = store.projects.find((p) => p.id === id) ?? fromDto(resp.project)
+      return { project, alreadyExisted }
     } catch (e) {
       toast('登记失败：' + (e instanceof Error ? e.message : String(e)))
       return null
@@ -619,7 +640,7 @@ export async function registerProject(root: string, name?: string, wizardMeta?: 
   }
   if (wizardMeta) { meta.wizardMeta[id] = wizardMeta; writeMeta() }
   store.projects.unshift(p)
-  return p
+  return { project: p, alreadyExisted: false }
 }
 
 /** 目录浏览（真实 GET /api/projects/browse）。 */
@@ -641,6 +662,15 @@ export async function browse(path?: string): Promise<void> {
   }
 }
 
+/**
+ * 以 GET /api/runs 为准同步运行会话。
+ * 后端已返回「仍在运行的本页启动会话 + 上次检查中仍存活的检测会话」，
+ * 对端没有的会话（含已自行退出的检测进程）一律去掉，不在前端残留。
+ */
+export function mergeRunningSessions(incoming: RunSession[], _previous: RunSession[]): RunSession[] {
+  return incoming.filter((s) => !s.ended)
+}
+
 /** 运行中会话数（状态栏与仪表盘 widget）。 */
 export async function refreshRunningCount(): Promise<void> {
   if (store.mode !== 'live') {
@@ -649,9 +679,43 @@ export async function refreshRunningCount(): Promise<void> {
   }
   try {
     const r = await apiGet<RunsResp>('/api/runs')
-    store.runningSessions = (r?.runs ?? []).filter((s) => !s.ended)
+    store.runningSessions = mergeRunningSessions(r?.runs ?? [], store.runningSessions)
     store.runningCount = store.runningSessions.length
   } catch { /* 状态栏统计不阻断主流程 */ }
+}
+
+/**
+ * 运行页「检查」（F10）：捕获本机属于项目的进程，并入运行会话。
+ * 没有已登记命令时也可调用；结果只更新会话，不写入命令档案。
+ */
+export async function checkRuns(): Promise<void> {
+  if (store.mode !== 'live') return
+  const r = await apiPost<RunsResp>('/api/runs/check', {})
+  store.runningSessions = (r?.runs ?? []).filter((s) => !s.ended)
+  store.runningCount = store.runningSessions.length
+}
+
+/** 命令行对应的运行中会话（本页启动或检查捕获）；没有则 undefined。 */
+export function liveSessionOfCommand(projectId: number, commandId: number): RunSession | undefined {
+  return store.runningSessions.find((s) => s.projectId === projectId && s.commandId === commandId && !s.ended)
+}
+
+/** 对不上任何已登记命令的运行中进程：单独成行，只能停止，不读日志。 */
+export function unmatchedSessionsFor(p: WbProject | null): RunSession[] {
+  if (!p) return []
+  const ids = new Set(p.commands.map((c) => c.id))
+  return runningSessionsFor(p.id).filter((s) => !s.commandId || !ids.has(s.commandId))
+}
+
+/** 按本机进程标识停止（检查捕获的进程）；结束后同步运行会话与计数。 */
+export async function stopSessionByPid(pid: number): Promise<StopRunResp | undefined> {
+  const resp = await apiPost<StopRunResp>(`/api/runs/${pid}/stop`, {})
+  if (resp?.outcome !== 'failed') {
+    store.runningSessions = store.runningSessions.filter((s) => s.pid !== pid)
+    store.runningCount = store.runningSessions.filter((s) => !s.ended).length
+  }
+  await refreshRunningCount()
+  return resp
 }
 
 /** 任务日志：按命令取，切换任务不丢。 */
@@ -672,6 +736,14 @@ export function taskStatusOf(commandId: number): TaskStatus {
 /** 运行历史条目（含开始/结束时间）。 */
 export function taskHistoryOf(commandId: number): RunHistoryEntry | undefined {
   return store.runHistory[commandId]
+}
+
+/** 空闲且尚未在本页启动、没有可看会话的命令，不应请求日志。 */
+export function hasViewableCommandLogs(commandId: number): boolean {
+  const status = taskStatusOf(commandId)
+  if (status === 'running' || status === 'done') return true
+  if (taskHistoryOf(commandId)) return true
+  return store.runningSessions.some((s) => s.commandId === commandId && s.origin === 'Launched' && !s.ended)
 }
 
 function bucketOf(commandId: number): string[] {
@@ -755,7 +827,8 @@ let taskPoll: ReturnType<typeof setInterval> | undefined
 function selectedPollable(): boolean {
   const sel = store.selectedTaskId
   if (sel == null || logUnavailable.has(sel)) return false
-  return taskStatusOf(sel) !== 'done' || tailPull.has(sel)
+  if (taskStatusOf(sel) === 'done') return tailPull.has(sel)
+  return hasViewableCommandLogs(sel)
 }
 
 /** 轮询运行中任务与「日志可用且未终态」的选中任务，保证实时且不刷 404。 */
@@ -779,14 +852,29 @@ function ensureTaskPolling(): void {
   }, 1200)
 }
 
-/** 选中任务：切换即拉一次日志（不依赖「先点开日志按钮」）。 */
+/** 选中任务：切换即拉一次日志（不依赖「先点开日志按钮」）。命令不存在时不请求日志。 */
 export async function selectTask(commandId: number): Promise<void> {
   const cmd = currentProject()?.commands.find((c) => c.id === commandId)
-  if (cmd) store.selectedTask = cmd.name
+  if (!cmd) {
+    store.selectedTask = ''
+    store.selectedTaskId = null
+    return
+  }
+  store.selectedTask = cmd.name
   store.selectedTaskId = commandId
+  // 尚未启动、没有可看会话时不请求日志，避免空闲命令写出 404 失败行
+  if (!hasViewableCommandLogs(commandId)) {
+    ensureTaskPolling()
+    return
+  }
   // 冷态已判过 404 的命令直接显示本地留存日志，不再打网络请求（修 B-2）
   if (!logUnavailable.has(commandId) || taskStatusOf(commandId) === 'running') await pullTaskLogs(commandId)
   ensureTaskPolling()
+}
+
+export function clearSelectedTask(): void {
+  store.selectedTask = ''
+  store.selectedTaskId = null
 }
 
 /** stopTask 的结果（PILOT-087：每种结果调用方都应给出可见反馈）。 */
@@ -814,8 +902,7 @@ export async function stopTask(commandId: number, taskName: string): Promise<Sto
   }
 
   if (taskStatusOf(commandId) !== 'running') {
-    // 旧版此处按钮被无声禁用（点击零反馈）；现在点得动就一定给说法并同步运行数据
-    await refreshRunningCount()
+    // 点得动就一定给说法；未运行时不发任何请求（AC-F09-5）
     toast(`「${taskName}」当前没有运行中的进程，无需停止`)
     return { outcome: 'not-running', message: '当前没有运行中的进程' }
   }
@@ -950,11 +1037,34 @@ export function markTaskStarted(commandId: number, taskName?: string): void {
   void refreshRunningCount()
 }
 
+/**
+ * 启动被拒绝（如目录不可达 409）：进程没有起来，不算一次运行。
+ * 日志只留拒绝原因，状态和起止时间回到启动前，也不再去读日志。
+ */
+function markTaskStartRejected(
+  commandId: number, reason: string, prevStatus: TaskStatus | undefined, prevHistory: RunHistoryEntry | undefined,
+): void {
+  if (prevStatus) store.taskStatus[commandId] = prevStatus
+  else delete store.taskStatus[commandId]
+  if (prevHistory) store.runHistory[commandId] = prevHistory
+  else delete store.runHistory[commandId]
+  writeRunHistory(store.runHistory)
+  if (store.runningCommandId === commandId) store.runningCommandId = null
+  const bucket = bucketOf(commandId)
+  bucket.length = 0
+  bucket.push('✗ 启动失败：' + reason)
+  writeRunLogs(store.logsByCommand)
+  logUnavailable.add(commandId)
+  ensureTaskPolling()
+}
+
 /** 运行任务：真实启动命令 + 增量日志轮询（对齐 HTML 原型：日志区常驻、实时追加）。 */
 export async function runTask(commandId: number, taskName: string): Promise<void> {
   const p = currentProject()
   const cmd = p?.commands.find((c) => c.id === commandId)
   if (!cmd) { toast('未找到该运行命令'); return }
+  const prevStatus = store.taskStatus[commandId]
+  const prevHistory = store.runHistory[commandId] ? { ...store.runHistory[commandId] } : undefined
   markTaskStarted(commandId, taskName)
 
   try {
@@ -962,9 +1072,9 @@ export async function runTask(commandId: number, taskName: string): Promise<void
     void pullTaskLogs(commandId)
     await refreshRunningCount()
   } catch (e) {
-    appendLogLines(commandId, ['✗ 启动失败：' + (e instanceof Error ? e.message : String(e))])
-    markTaskDone(commandId)
-    toast('启动失败：' + (e instanceof Error ? e.message : String(e)))
+    const reason = e instanceof Error ? e.message : String(e)
+    markTaskStartRejected(commandId, reason, prevStatus, prevHistory)
+    toast('启动失败：' + reason)
   }
 }
 

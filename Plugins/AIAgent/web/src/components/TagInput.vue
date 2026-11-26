@@ -84,17 +84,17 @@ function removeAt(i: number) {
   max-width: 100%;
   padding: 5px 12px;
   border-radius: 20px;
-  background: rgba(245, 240, 231, 0.04);
-  border: 1px solid rgba(245, 240, 231, 0.10);
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
   font-size: 12px;
-  color: rgba(245, 240, 231, 0.75);
+  color: var(--el-text-color-regular);
   transition: all 0.16s;
 }
 
 .ti__chip:hover {
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: var(--el-color-warning, #f59e0b);
+  background: var(--el-color-warning-light-9);
+  border-color: var(--el-color-warning-light-5);
+  color: var(--el-color-warning);
 }
 
 .ti__chip-text {

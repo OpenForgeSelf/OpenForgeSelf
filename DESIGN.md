@@ -263,6 +263,7 @@ components:
   - `border: 1px solid rgba(245,240,231,.08)`，圆角 12px
   - `box-shadow: 0 6px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04)`
 - 浮层（弹窗/面板/菜单）：`.glass-strong`（`rgba(20,17,15,.55)` + `blur(24px) saturate(160%)`）；下拉可 `blur(32px)`（背景面板）。
+  > ⚠️ 现状注记（2026-11-20 输入10 实测）：存量弹窗两种实现并存——MemoryView/ScriptLibrary/WorkflowLibrary 与 Element Plus 弹窗用 `--el-bg-color-overlay`（随主题：浅=#FFFFFF、暗=#1B1815）；SkillsView.vue:788 唯一用固定 `--ink-850`（两主题恒黑），其内部文字用主题跟随 token ⇒ **浅色主题下弹窗内文字 1.06~1.84:1 不可读**（暗色正常）——修复任务记 `TODO.md`（P2，来源:输入10），收敛方向以本条为准。
 - 玻璃弱化：`.glass-subtle`（`.18` + `blur(14px)`）用于次级衬底。
 
 **阴影阶梯**（铸铁光影，`colors_and_type.css:111-119`，暗色）：
@@ -415,9 +416,10 @@ components:
 1. 页头必须用 `PageHead` 三件套：eyebrow（mono 10px 大写 0.18em 金）+ 标题（display 26px/700/0.05em）+ 右侧主操作 chip（金底）。
 2. 布局骨架 = `.glass` / `.glass-strong` 卡片 + `--el-*` / 设计稿 token + Tailwind 布局原语；**禁止裸 hex/rgb**（含 `style` 内联与 `tailwind.config`，展示型开发工具除外须评审说明）。
 3. 状态三件套齐全：加载态 / 空态（图标 + 一句 serif 引言 + 可选主操作）/ 错误态（留痕可见）；不留白屏。
-4. 品牌语汇：主操作每屏仅一个（金底/金描边），破坏性用朱砂 `--cinnabar-400`；无 emoji 装饰、无胶囊按钮（极小 tag/chip 例外）、无蓝紫渐变、无可爱风插画。
+4. 品牌语汇：主操作每屏仅一个（金底/金描边），破坏性用朱砂 `--cinnabar-400`；无 emoji 装饰、无胶囊按钮（极小 tag/chip 例外）、无蓝紫渐变、无可爱风插画。金底主操作按钮文字 = `--ink-950`（2026-11-20 输入10 实测全站 23 处统一，对比 9.25:1，暗色主题同样适用）。
 5. 响应式以 1440 桌面为基准；固定高度卡片 `flex-shrink-0`，日志/列表限高滚动。
 6. 交互反馈：hover = `translateY(-1px)` / opacity .85；active = `translateY(1px)` + 阴影收紧；动效取 `--dur-*`/`--ease-*`；焦点态金描边。
+   > ⚠️ 现状注记（2026-11-20 输入9 实测）：原生 `<input>`/`<select>`/checkbox 未接管浏览器 UA `:focus-visible` outline 时，聚焦会出现浏览器默认描边（浅色主题近黑 `rgb(16,16,16)`、暗色主题浅色 `rgb(238,238,238)`，颜色随底色自适应，非任何主题 token）。实测 PluginStore 全部原生控件均漏网（`ForgeSelf.Web/src/views/PluginStore.vue` 全文件无 outline 规则；search-input / install-input×4 / sort-select / checkbox 聚焦 computed outline 均 `auto 0.8px`），且与容器 `.search-bar:focus-within` 金描边叠加成双框；仓内 65+ 处组件各自 scoped `outline: none`、无全局统一规则。修复方向 = 统一 focus token（金描边）接管并保留可见焦点指示（A11y），禁裸 `outline: none`；任务与守卫候选记 `TODO.md`（P2，来源:输入9）。
 7. **双栏/列表-主内容布局**（2026-10-31 立）：侧栏固定宽（260–360px）+ 子项 `min-width:0` 铁律 + 主内容 `1fr` 占主导；长文本条目省略链必须完整（容器 `min-width:0` + 文本 `overflow:hidden` + `text-overflow:ellipsis` + `white-space:nowrap`），走查必含长文本压力数据（60+ 字符预览）实测侧栏宽度不爆。
 8. **会话/时间线类视图的方向语义**（2026-10-31 立）：谁在左谁在右（气泡方向、主次栏位）= **需求拍板项**——Spec 必须显式写明并经闸门1 用户确认，禁止按通用聊天惯例默认假定（实证：IM 网关「收左回右」按惯例写入 spec，方向反了直到用户指出）。
 

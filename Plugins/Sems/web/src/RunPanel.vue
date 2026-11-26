@@ -9,7 +9,7 @@
         <button class="run__btn" :disabled="checking" @click="check">
           {{ checking ? '检查中…' : '检查' }}
         </button>
-        <button class="run__btn" :class="{ 'run__btn--primary': emphasizeRunAll }" :disabled="!hasLaunchable" @click="runAll">
+        <button v-if="showRunAll" class="run__btn" :class="{ 'run__btn--primary': emphasizeRunAll }" :disabled="!hasLaunchable" @click="runAll">
           启动全部
         </button>
       </div>
@@ -18,10 +18,14 @@
     <div v-if="checking && runs.length === 0" class="run__hint">检查中…</div>
     <!-- 空态分级（§3.4-4）：无可启动命令时引导去加命令，而不是笼统「暂无数据」 -->
     <div v-else-if="runs.length === 0 && !hasLaunchable" class="run__hint">
-      还没有可运行的命令。请在下方项目卡片展开「管理命令」先添加一条，再回到这里启动或「检查」。
+      {{ showRunAll
+        ? '还没有可运行的命令。请先添加一条，再回到这里启动或「检查」。'
+        : '还没有可运行的命令。请在左侧添加一条后，再用页头「启动全部」或点「检查」。' }}
     </div>
     <div v-else-if="runs.length === 0" class="run__hint">
-      暂无运行中的进程。可点「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。
+      {{ showRunAll
+        ? '暂无运行中的进程。可点「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。'
+        : '暂无运行中的进程。可点页头「启动全部」调起已登记命令，或点「检查」捕获本机已在运行的项目进程。' }}
     </div>
 
     <ul v-else class="run__list">
@@ -119,8 +123,11 @@ const props = withDefaults(defineProps<{
   launchableCount?: number
   /** 同一屏已有金色「启动」时关掉，避免第二枚金色主按钮（I02）。 */
   emphasizeRunAll?: boolean
+  /** 工作台页头已有「启动全部」时关掉，避免第二处入口。 */
+  showRunAll?: boolean
 }>(), {
   emphasizeRunAll: true,
+  showRunAll: true,
 })
 
 const runs = ref<RunSession[]>([])
@@ -321,6 +328,7 @@ async function ask(message: string, title: string): Promise<boolean> {
     await ElMessageBox.confirm(message, title, {
       type: 'warning',
       confirmButtonText: '确认停止',
+      confirmButtonClass: 'el-button--danger sems-confirm-danger',
       cancelButtonText: '取消',
     })
     return true
@@ -498,7 +506,7 @@ defineExpose({ refresh, check, focusLog })
   border-radius: 10px;
   font-size: 12px;
   color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__ops {
@@ -527,7 +535,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--primary:hover:not(:disabled) {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__btn--stop {
@@ -536,7 +544,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--stop:hover:not(:disabled) {
-  background: var(--el-color-danger-light);
+  background: var(--el-color-danger-light-3);
 }
 
 .run__btn:disabled {
@@ -572,7 +580,7 @@ defineExpose({ refresh, check, focusLog })
 
 .run__item--focus {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary-light);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light-3);
 }
 
 .run__item--open {
@@ -616,17 +624,17 @@ defineExpose({ refresh, check, focusLog })
 
 .run__origin--launched {
   color: var(--el-color-success);
-  background: var(--el-color-success-light);
+  background: var(--el-color-success-light-3);
 }
 
 .run__origin--detected {
   color: var(--el-color-warning);
-  background: var(--el-color-warning-light);
+  background: var(--el-color-warning-light-3);
 }
 
 .run__origin--ended {
   color: var(--el-color-info);
-  background: var(--el-color-info-light);
+  background: var(--el-color-info-light-3);
 }
 
 .run__item--ended {
@@ -663,7 +671,7 @@ defineExpose({ refresh, check, focusLog })
 
 .run__icon:hover {
   border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
 }
 
 .run__note {
@@ -678,7 +686,7 @@ defineExpose({ refresh, check, focusLog })
 }
 
 .run__btn--log-on {
-  background: var(--el-color-primary-light);
+  background: var(--el-color-primary-light-3);
   border-color: var(--el-color-primary);
 }
 
@@ -695,7 +703,7 @@ defineExpose({ refresh, check, focusLog })
   border-radius: 6px;
   border: 1px solid var(--el-border-color);
   background: var(--el-bg-color);
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.45;
   color: var(--el-text-color-primary);

@@ -83,7 +83,7 @@ const statsItems = computed(() => [
 }
 
 .stat-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .stat-icon {

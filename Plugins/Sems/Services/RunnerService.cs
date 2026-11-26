@@ -182,7 +182,8 @@ public class RunnerService : IRunnerService
     private readonly IContext _ctx;
     // Launched 会话：commandId → 会话。进程 Exited 时移除。
     private readonly ConcurrentDictionary<int, RunSession> _launched = new();
-    private List<RunSession> _lastDetected = new();
+    // 上次 CheckAndMerge 的 Detected 会话：pid → 会话。Current() 只返回仍存活且未被 Launched 覆盖的。
+    private readonly ConcurrentDictionary<int, RunSession> _detected = new();
     private readonly ConcurrentDictionary<int, RunLogBuffer> _logs = new();
     private readonly ConcurrentDictionary<int, Process> _processes = new();
 
@@ -336,41 +337,40 @@ public class RunnerService : IRunnerService
     {
         if (pid <= 0) return StopResult.Failed(pid, $"非法 PID：{pid}");
         if (!IsProcessAlive(pid))
+        {
+            _detected.TryRemove(pid, out _);
             return StopResult.AlreadyStopped(pid, $"进程已不在运行（PID {pid}）：可能已自行退出或宿主重启过");
+        }
 
         var (killed, error) = KillTree(pid);
-        if (killed) return StopResult.Stopped(pid);
+        if (killed)
+        {
+            _detected.TryRemove(pid, out _);
+            return StopResult.Stopped(pid);
+        }
         if (!IsProcessAlive(pid))
+        {
+            _detected.TryRemove(pid, out _);
             return StopResult.AlreadyStopped(pid, $"进程已不在运行（PID {pid}）");
+        }
 
         return StopResult.Failed(pid, $"进程仍在运行但无法终止：PID {pid}（{error ?? "权限不足或被系统保护"}）");
     }
 
-    /// <summary>本机进程检测 + 与 Launched 合并。</summary>
+    /// <summary>本机进程检测 + 与 Launched 合并，并刷新 Detected 缓存供 <see cref="Current"/> 使用。</summary>
     public IReadOnlyList<RunSession> CheckAndMerge()
     {
         var detected = Detect();
-        _lastDetected = detected;
-        return MergeLaunched(detected);
+        var launched = AliveLaunched();
+        var merged = MergeDetected(launched, detected, replaceCache: true);
+        return merged;
     }
 
-    /// <summary>当前运行列表（还活着的 Launched，加上上次检测里仍活着的进程）。</summary>
+    /// <summary>当前运行列表：仍在运行的本页启动会话，加上上次检查缓存里还活着的检测会话。</summary>
     public IReadOnlyList<RunSession> Current()
     {
-        return MergeLaunched(_lastDetected, dropDeadDetected: true);
-    }
-
-    private List<RunSession> MergeLaunched(IReadOnlyList<RunSession> detected, bool dropDeadDetected = false)
-    {
-        var alive = _launched.Values.Where(s => IsProcessAlive(s.Pid)).ToList();
-        var launchedPids = new HashSet<int>(alive.Select(s => s.Pid));
-        foreach (var row in detected)
-        {
-            if (launchedPids.Contains(row.Pid)) continue;
-            if (dropDeadDetected && !IsProcessAlive(row.Pid)) continue;
-            alive.Add(row);
-        }
-        return alive;
+        var launched = AliveLaunched();
+        return MergeDetected(launched, _detected.Values.ToList(), replaceCache: true);
     }
 
     /// <summary>停止全部本面板启动的会话。</summary>
@@ -504,6 +504,82 @@ public class RunnerService : IRunnerService
         }
     }
 
+    private List<RunSession> AliveLaunched() =>
+        _launched.Values.Where(s => IsProcessAlive(s.Pid)).ToList();
+
+    /// <summary>
+    /// 把检测会话并进列表：同 PID 或已由本页启动的同一命令（commandId ≠ 0）保留 Launched。
+    /// <paramref name="replaceCache"/> 为 true 时，用并入结果重写 Detected 缓存（丢掉已退出的）。
+    /// </summary>
+    private List<RunSession> MergeDetected(
+        List<RunSession> launched,
+        IEnumerable<RunSession> detected,
+        bool replaceCache)
+    {
+        var launchedPids = new HashSet<int>(launched.Select(s => s.Pid));
+        var launchedCmdIds = new HashSet<int>(launched.Select(s => s.CommandId).Where(id => id != 0));
+        var extras = new List<RunSession>();
+        var seenPids = new HashSet<int>();
+        foreach (var d in detected)
+        {
+            if (d.Pid <= 0 || !seenPids.Add(d.Pid)) continue;
+            if (launchedPids.Contains(d.Pid)) continue;
+            if (d.CommandId != 0 && launchedCmdIds.Contains(d.CommandId)) continue;
+            if (!IsProcessAlive(d.Pid)) continue;
+            extras.Add(d);
+        }
+
+        if (replaceCache)
+        {
+            _detected.Clear();
+            foreach (var d in extras)
+                _detected[d.Pid] = d;
+        }
+
+        var merged = new List<RunSession>(launched.Count + extras.Count);
+        merged.AddRange(launched);
+        merged.AddRange(extras);
+        return merged;
+    }
+
+    /// <summary>按项目取已登记命令。GetAll() 不带 Commands，必须按项目单独取，且不改档案。</summary>
+    private Dictionary<int, List<RunCommandInfo>> LoadCommandsByProject(IReadOnlyList<ProjectInfo> projects)
+    {
+        var map = new Dictionary<int, List<RunCommandInfo>>();
+        var registry = Registry;
+        if (registry == null) return map;
+        foreach (var project in projects)
+            map[project.Id] = registry.GetCommands(project.Id);
+        return map;
+    }
+
+    private static RunSession ToDetectedSession(
+        int pid,
+        ProjectInfo project,
+        string? exePath,
+        string? cmdLine,
+        string fallbackName,
+        IReadOnlyDictionary<int, List<RunCommandInfo>> commandsByProject)
+    {
+        commandsByProject.TryGetValue(project.Id, out var commands);
+        var command = ProcessMatcher.MatchCommand(exePath, cmdLine, commands ?? new List<RunCommandInfo>());
+        var fallback = string.IsNullOrWhiteSpace(exePath)
+            ? fallbackName
+            : Path.GetFileNameWithoutExtension(exePath);
+        if (string.IsNullOrWhiteSpace(fallback))
+            fallback = fallbackName;
+        return new RunSession
+        {
+            CommandId = command?.Id ?? 0,
+            ProjectId = project.Id,
+            ProjectName = project.Name,
+            CommandName = command?.Name ?? fallback,
+            Pid = pid,
+            StartedAt = DateTime.MinValue,
+            Origin = "Detected"
+        };
+    }
+
     /// <summary>按平台检测本机进程。检测失败时返回空列表，调用方仍保留 Launched。</summary>
     private List<RunSession> Detect()
     {
@@ -517,8 +593,16 @@ public class RunnerService : IRunnerService
         }
     }
 
+    private static string CommandFallback(string? exePath, string fallbackName)
+    {
+        if (string.IsNullOrWhiteSpace(exePath)) return fallbackName;
+        var name = Path.GetFileNameWithoutExtension(exePath);
+        return string.IsNullOrWhiteSpace(name) ? fallbackName : name;
+    }
+
     /// <summary>
-    /// 已登记项目目录下的进程。对上项目带项目号；类型对不上只留 pid（ProjectId 为 0）。
+    /// 已登记项目目录下、但类型对不上项目的进程。只留 pid（ProjectId 为 0）。
+    /// 对得上项目的进程由 <see cref="ToDetectedSession"/> 写入，不走这里。
     /// 目录之外的进程返回 null，不进列表。
     /// </summary>
     private static RunSession? DetectedSession(
@@ -560,6 +644,7 @@ public class RunnerService : IRunnerService
     private List<RunSession> DetectViaProc()
     {
         var projects = Registry?.GetAll() ?? new List<ProjectInfo>();
+        var commandsByProject = LoadCommandsByProject(projects);
         var result = new List<RunSession>();
         if (!Directory.Exists("/proc")) return result;
 
@@ -572,12 +657,14 @@ public class RunnerService : IRunnerService
                 var exePath = ReadProcLink(Path.Combine(dir, "exe"));
                 var cwd = ReadProcLink(Path.Combine(dir, "cwd"));
                 var cmdLine = ReadProcCmdline(Path.Combine(dir, "cmdline"));
-                var commandName = string.IsNullOrWhiteSpace(exePath)
-                    ? name
-                    : Path.GetFileNameWithoutExtension(exePath);
-                var session = DetectedSession(pid, commandName, exePath, cmdLine, cwd, projects);
-                if (session == null) continue;
-                result.Add(session);
+                var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects, cwd);
+                if (matched != null)
+                {
+                    result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                    continue;
+                }
+                var unmatched = DetectedSession(pid, CommandFallback(exePath, name), exePath, cmdLine, cwd, projects);
+                if (unmatched != null) result.Add(unmatched);
             }
             catch
             {
@@ -619,6 +706,7 @@ public class RunnerService : IRunnerService
     {
         var registry = Registry;
         var projects = registry?.GetAll() ?? new List<ProjectInfo>();
+        var commandsByProject = LoadCommandsByProject(projects);
         var result = new List<RunSession>();
 
         try
@@ -633,9 +721,14 @@ public class RunnerService : IRunnerService
                 var exePath = mo["ExecutablePath"]?.ToString();
                 var cmdLine = mo["CommandLine"]?.ToString();
 
-                var session = DetectedSession(pid, Path.GetFileNameWithoutExtension(name), exePath, cmdLine, null, projects);
-                if (session == null) continue;
-                result.Add(session);
+                var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects);
+                if (matched != null)
+                {
+                    result.Add(ToDetectedSession(pid, matched, exePath, cmdLine, fallbackName: name, commandsByProject));
+                    continue;
+                }
+                var unmatched = DetectedSession(pid, Path.GetFileNameWithoutExtension(name), exePath, cmdLine, null, projects);
+                if (unmatched != null) result.Add(unmatched);
             }
         }
         catch (Exception)

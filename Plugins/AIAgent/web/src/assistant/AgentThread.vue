@@ -65,7 +65,7 @@ function can(stuck: AgentStuck, action: AgentStuck['allowedActions'][number]) {
                 v-if="can(item.stuck, 'continue')"
                 v-model="stuckInput"
                 class="aa-prose"
-                style="width:100%;min-height:64px;background:transparent;border:1px solid var(--border-subtle);border-radius:var(--radius-md);color:inherit;padding:8px;margin-bottom:8px"
+                style="width:100%;min-height:64px;background:transparent;border:1px solid var(--border-subtle);border-radius:var(--el-border-radius-base);color:inherit;padding:8px;margin-bottom:8px"
                 placeholder="补充信息后继续"
               />
               <div class="aa-actions">

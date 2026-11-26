@@ -100,6 +100,20 @@ describe('Appearance Store — backgroundOpacity', () => {  beforeEach(() => {
     expect(store.backgroundOpacity).toBe(30)
   })
 
+  it('纯色背景应随实际浅/深主题同步，不覆盖图片背景', () => {
+    const store = useAppearanceStore()
+
+    store.syncBackgroundWithTheme('dark')
+    expect(store.solidColor).toBe('#0B0908')
+
+    store.syncBackgroundWithTheme('light')
+    expect(store.solidColor).toBe('#F4EEDF')
+
+    store.setBackgroundImage('https://example.com/bg.jpg')
+    store.syncBackgroundWithTheme('dark')
+    expect(store.backgroundImage).toBe('https://example.com/bg.jpg')
+  })
+
   it('setBackgroundOpacity 浮点数应取整（45.7 → 46）', () => {
     const store = useAppearanceStore()
     store.setBackgroundOpacity(45.7)

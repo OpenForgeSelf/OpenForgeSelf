@@ -8,6 +8,7 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-11-24 | **规则固化迁移（输入28/29，用户拍板「记上」）**：B1 新增「规则固化迁移：prose 规则 → lint/CI 守卫」小节——源自土豆姐（Lauren Tan @poteto）倒置金字塔理念，确立「加规则前先问能否做守卫 / 守卫落地后同步删对应 prose / 存量按触发频率逐步迁移 / 不一次性删闸门」四步操作规则；记录当前流程「方向对但 prose 偏重、系探索期合理代价」的定性。 |
 | 2026-11-19 | **pre-commit / Cloud 提交纪律补强（输入3/4/6）**：① `install-git-hooks.ps1` 装到 `git-common-dir/hooks` 并强制 `chmod +x` 断言；② `verify-pilot-feature-writeback.ps1` 并入 pre-commit 与 CI；③ AGENTS「Cursor Cloud specific instructions」+ B1 提交纪律；④ postinstall 安装后校验 hook 可执行，CI 缺 pwsh 失败（防静默无钩子）。 |
 | 2026-10-04 | **PowerShell 执行口径统一（输入11/12）**：B6 新增两条铁律——① 执行脚本一律 `pwsh`（7.x）、禁止 `powershell`（5.1），唯一例外是"专门复现 5.1 专属缺陷"，并登记 `scripts/hooks/pre-commit` 的既有偏差（改法待拍板，入 TODO）；② 捕获 git 等外部命令 UTF-8 输出前必须先切 `[Console]::OutputEncoding`（乱码曾被烤进 RELEASE-NOTES，守卫 = `RepositoryScriptTests.GitLogCapturingScripts_MustSwitchConsoleToUtf8First`）。同批：签名策略定稿「本地发布必带 `-Sign`、CI 默认不签」（真源 `packaging-upgrade-backup.md` §1.1、AGENTS §2.3、`plugin-publish-verify` 同步）。 |
 | 2026-10-02 | **dotnet test 数据根自动隔离（输入4）**：修复「本地开发污染真实宿主根 `~/.forgeself`」架构缺陷——`ForgeSelf.Api.Tests` 新增 `TestDataRootIsolation`（`[ModuleInitializer]` 兜底数据根到仓库内 `.temp/dotnet-test/<ts>-<pid>` + 重定向 `XTrace.LogPath`/`Setting.LogPath`/全部已知 `Config<T>.FileName`）+ `TestDataRootIsolationGuardTests`（4 守卫）；B12 第 830 行由「手工前缀必须设 `FORGESELF_DATA_ROOT`」改为「已自动隔离，手工仅用于覆盖」。同时记录宿主侧关联缺陷（`Program.cs:38`/`AppBuilder.cs:89` 的 `Save()` 早于 `ConfigUnifier`）另立 TODO。 |

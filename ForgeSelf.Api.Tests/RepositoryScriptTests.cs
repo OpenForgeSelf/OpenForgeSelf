@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Diagnostics;
 
 namespace ForgeSelf.Api.Tests;
 
@@ -230,5 +231,112 @@ public class RepositoryScriptTests
         bashProbe.Should().BeGreaterThan(0, "Test-IsExecutable 的 POSIX 探测分支必须仍在（Linux/Cloud 侧需要）");
         windowsShortCircuit.Should().BeLessThan(bashProbe,
             "Windows 短路必须先于 bash 探测——否则 git-bash 机器上 test -x 收到 Windows 路径恒 false（PC-043 实测发布链全挂）");
+    }
+
+    [Fact]
+    public void PilotExemptionAllowlist_MustBeSharedByCommitAndCi()
+    {
+        var root = FindRepoRoot();
+        var config = Path.Combine(root, "scripts", "pilot-exemption-allowlist.json");
+        var checker = Path.Combine(root, "scripts", "check-pilot-exemption.ps1");
+        var commitMsg = File.ReadAllText(Path.Combine(root, "scripts", "hooks", "commit-msg"));
+        var pilotGate = File.ReadAllText(Path.Combine(root, "scripts", "verify-pilot-gate.ps1"));
+
+        File.Exists(config).Should().BeTrue("提交白名单必须落成可审计的仓库配置");
+        File.Exists(checker).Should().BeTrue("提交钩子与 CI 必须共用同一份豁免判定实现");
+        commitMsg.Should().Contain("check-pilot-exemption.ps1",
+            "commit-msg 必须先过滤白名单，再决定是否要求 Pilot trailer");
+        commitMsg.Should().NotContain("grep -vE '^docs/'",
+            "文档豁免不得在 commit-msg 中硬编码，应由白名单配置统一判定");
+        commitMsg.Should().NotContain("grep -vE '^TODO\\.md$'",
+            "TODO 豁免不得在 commit-msg 中硬编码");
+        pilotGate.Should().Contain("check-pilot-exemption.ps1",
+            "CI Pilot gate 必须复用本地白名单，不能出现本地绿、CI 红");
+        pilotGate.Should().NotContain("function Test-IsDoc",
+            "docs/README/.forgeself/.gitignore 等分类不得在 CI gate 中硬编码");
+
+        var changed = Path.Combine(root, ".temp", "pilot-exemption", Guid.NewGuid().ToString("N") + ".txt");
+        var unexempt = Path.Combine(root, ".temp", "pilot-exemption", Guid.NewGuid().ToString("N") + "-unexempt.txt");
+        Directory.CreateDirectory(Path.GetDirectoryName(changed)!);
+
+        try
+        {
+            File.WriteAllLines(changed, [".gitignore"]);
+
+            using (var allowed = Process.Start(new ProcessStartInfo
+                   {
+                       FileName = "pwsh",
+                       Arguments =
+                           $"-NoProfile -ExecutionPolicy Bypass -File \"{checker}\" -ChangedFilesPath \"{changed}\" -OutUnexemptPath \"{unexempt}\" -RepoRoot \"{root}\"",
+                       WorkingDirectory = root,
+                       UseShellExecute = false,
+                   }))
+            {
+                allowed.Should().NotBeNull("pwsh 必须可用");
+                allowed!.WaitForExit(30_000).Should().BeTrue("白名单判定必须在 30 秒内结束");
+                allowed.ExitCode.Should().Be(0, ".gitignore 应在默认白名单内且不需要 Pilot 工件");
+            }
+
+            File.WriteAllLines(changed, [".gitignore", "ForgeSelf.Api/Program.cs"]);
+
+            using (var mixed = Process.Start(new ProcessStartInfo
+                   {
+                       FileName = "pwsh",
+                       Arguments =
+                           $"-NoProfile -ExecutionPolicy Bypass -File \"{checker}\" -ChangedFilesPath \"{changed}\" -OutUnexemptPath \"{unexempt}\" -RepoRoot \"{root}\"",
+                       WorkingDirectory = root,
+                       UseShellExecute = false,
+                   }))
+            {
+                mixed.Should().NotBeNull("pwsh 必须可用");
+                mixed!.WaitForExit(30_000).Should().BeTrue("混合改动判定必须在 30 秒内结束");
+                mixed.ExitCode.Should().Be(1, "任一源码改动仍必须进入 Pilot trailer 与工件链");
+            }
+
+            File.Exists(unexempt).Should().BeTrue("未豁免文件清单必须落盘供本地钩子与 CI复用");
+            File.ReadAllLines(unexempt).Should().Contain("ForgeSelf.Api/Program.cs",
+                "源码改动不得被白名单误收，且未豁免清单应可审计");
+
+            var customRoot = Path.Combine(root, ".temp", "pilot-exemption", "custom-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(customRoot, "scripts"));
+            File.WriteAllText(Path.Combine(customRoot, "scripts", "pilot-exemption-allowlist.json"),
+                """
+                {
+                  "exemptions": [
+                    { "path": "TeamTool/**", "reason": "临时配置驱动用例" }
+                  ]
+                }
+                """);
+
+            try
+            {
+                File.WriteAllLines(changed, ["TeamTool/settings.txt"]);
+
+                using (var custom = Process.Start(new ProcessStartInfo
+                       {
+                           FileName = "pwsh",
+                           Arguments =
+                               $"-NoProfile -ExecutionPolicy Bypass -File \"{checker}\" -ChangedFilesPath \"{changed}\" -OutUnexemptPath \"{unexempt}\" -RepoRoot \"{customRoot}\"",
+                           WorkingDirectory = root,
+                           UseShellExecute = false,
+                       }))
+                {
+                    custom.Should().NotBeNull("pwsh 必须可用");
+                    custom!.WaitForExit(30_000).Should().BeTrue("任意配置豁免判定必须在 30 秒内结束");
+                    custom.ExitCode.Should().Be(0,
+                        "豁免判定必须由配置驱动，不能只硬编码 .gitignore");
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(customRoot))
+                    Directory.Delete(customRoot, true);
+            }
+        }
+        finally
+        {
+            File.Delete(changed);
+            File.Delete(unexempt);
+        }
     }
 }

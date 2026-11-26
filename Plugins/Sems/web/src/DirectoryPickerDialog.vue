@@ -4,7 +4,7 @@
     <div class="dpick__box">
       <h3 class="dpick__title">添加项目 · 选择目录</h3>
       <p class="dpick__hint">
-        选择一个已存在的项目根目录。sems 直接在插件内登记该项目，不依赖其他页面的动作。
+        选择一个已存在的项目根目录，直接登记为项目。
       </p>
 
       <div class="dpick__bar">
@@ -132,7 +132,7 @@ onMounted(() => {
 .dpick__mask {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--ink-950) 60%, transparent);
+  background: color-mix(in srgb, var(--el-bg-color-page) 60%, transparent);
 }
 
 .dpick__box {
@@ -244,7 +244,7 @@ onMounted(() => {
   background: var(--el-fill-color-blank);
   color: var(--el-text-color-primary);
   font-size: 13px;
-  font-family: var(--el-font-family-mono);
+  font-family: var(--font-mono);
 }
 
 .dpick__input--grow {
@@ -286,7 +286,7 @@ onMounted(() => {
 .dpick__btn--primary {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary);
-  color: var(--el-color-primary-dark);
+  color: var(--el-color-primary-dark-2);
   font-weight: 600;
 }
 

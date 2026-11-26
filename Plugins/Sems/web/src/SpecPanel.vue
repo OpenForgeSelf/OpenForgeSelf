@@ -11,9 +11,10 @@
       <p>加载失败：{{ error }}</p>
       <button type="button" class="specs__btn" @click="reload">重试</button>
     </div>
-    <div v-else-if="phase === 'empty'" class="specs__hint">
+    <div v-else-if="phase === 'empty'" class="specs__hint specs__hint--empty">
+      <svg class="specs__empty-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
       <p>还没有规格。</p>
-      <p>点「新建规格」写第一版。标题和正文必填，验收标准可以以后再补。</p>
+      <p>点「新建规格」写第一版，验收标准可以以后再补。</p>
     </div>
     <ul v-else class="specs__list">
       <li v-for="spec in specs" :key="spec.specId">
@@ -90,7 +91,7 @@
         <option value="Issue">Issue</option>
       </select>
       <input v-model.trim="findRef" type="text" aria-label="反查标识" placeholder="commit、PR 或 Issue 标识" />
-      <button type="submit" class="specs__btn" :disabled="finding">{{ finding ? '查询中…' : '反查' }}</button>
+      <button type="submit" class="specs__btn" :disabled="finding || !findRef.trim()">{{ finding ? '查询中…' : '反查' }}</button>
     </form>
     <p v-if="findError" class="specs__hint specs__hint--error">{{ findError }}</p>
     <p v-else-if="findHits && findHits.length === 0" class="specs__hint">没有匹配的关联。</p>
@@ -162,7 +163,7 @@
         <p v-if="formError" class="specdlg__err">{{ formError }}</p>
         <div class="specdlg__foot">
           <button type="button" class="specs__btn" @click="closeDialog">取消</button>
-          <button type="button" class="specs__btn specs__btn--primary" :disabled="saving" @click="submit">
+          <button type="button" class="specs__btn specs__btn--primary" :disabled="saving || !requiredFilled" @click="submit">
             {{ saving ? '保存中…' : '保存' }}
           </button>
         </div>
@@ -239,6 +240,16 @@ const dialogTitle = computed(() => {
 const coverageItems = computed(() => {
   if (coverage.value && coverage.value.version === viewing.value?.version) return coverage.value.items
   return (viewing.value?.criteria ?? []).map((c) => ({ id: c.id, text: c.text, cases: [] as string[], linked: false }))
+})
+
+/** 必填项都有内容才可保存；空内容时按钮不可用，不弹必填提示。 */
+const requiredFilled = computed(() => {
+  const f = form.value
+  if (dialog.value === 'create') return !!f.title.trim() && !!f.content.trim()
+  if (dialog.value === 'version') return !!f.content.trim()
+  if (dialog.value === 'link') return !!f.ref.trim() && !!f.version.trim()
+  if (dialog.value === 'case') return !!f.criterionId && !!f.caseRef.trim() && !!f.version.trim()
+  return false
 })
 
 function emptyForm() {
@@ -349,10 +360,7 @@ async function readVersion() {
 async function runFind() {
   findError.value = ''
   findHits.value = null
-  if (!findKind.value.trim() || !findRef.value.trim()) {
-    findError.value = 'kind 与 ref 必填'
-    return
-  }
+  if (!findKind.value.trim() || !findRef.value.trim()) return
   finding.value = true
   try {
     findHits.value = await findSpecsByRef(props.projectId, findKind.value.trim(), findRef.value.trim())
@@ -364,7 +372,8 @@ async function runFind() {
 }
 
 async function submit() {
-  if (saving.value || !dialog.value) return
+  // 必填项为空时按钮不可用；这里同样静默返回，不弹必填提示、不发请求。
+  if (saving.value || !dialog.value || !requiredFilled.value) return
   formError.value = ''
   if (dialog.value === 'create') {
     const built = buildCreateBody(form.value)
@@ -481,7 +490,7 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--fg-primary, var(--el-text-color-primary));
+  color: var(--el-text-color-primary, var(--el-text-color-primary));
 }
 
 .specs__detail-title span,
@@ -497,6 +506,25 @@ onMounted(() => {
 .specs__hint,
 .specs__meta {
   margin: 0;
+}
+
+.specs__hint--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.specs__empty-ic {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--el-color-primary);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .specs__hint--error,
@@ -517,7 +545,7 @@ onMounted(() => {
   width: 100%;
   text-align: left;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--el-border-radius-small, 6px);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -525,7 +553,7 @@ onMounted(() => {
 }
 
 .specs__row--on {
-  border-color: var(--gold-400, var(--el-color-primary));
+  border-color: var(--el-color-primary, var(--el-color-primary));
 }
 
 .specs__row-title,
@@ -552,19 +580,19 @@ onMounted(() => {
 .specs__content {
   margin: 0;
   white-space: pre-wrap;
-  font-family: var(--font-mono, var(--el-font-family-mono, monospace));
+  font-family: var(--font-mono, var(--font-mono, monospace));
   font-size: 12px;
   line-height: 1.5;
-  color: var(--fg-regular, var(--el-text-color-regular));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
 }
 
 .specs__banner {
   margin: 0;
   padding: 6px 8px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--el-border-radius-small, 6px);
   font-size: 12px;
-  color: var(--gold-400, var(--el-color-warning));
+  color: var(--el-color-primary, var(--el-color-warning));
 }
 
 .specs__h {
@@ -588,9 +616,9 @@ onMounted(() => {
 .specdlg__field textarea,
 .specdlg__field select {
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--el-border-radius-base, 6px);
   background: transparent;
-  color: var(--fg-regular, var(--el-text-color-regular));
+  color: var(--el-text-color-regular, var(--el-text-color-regular));
   font-size: 13px;
 }
 
@@ -606,9 +634,9 @@ onMounted(() => {
 }
 
 .specs__btn--primary {
-  border-color: var(--gold-400, var(--el-color-primary));
-  background: var(--gold-400, var(--el-color-primary));
-  color: var(--ink-950, var(--el-color-white));
+  border-color: var(--el-color-primary, var(--el-color-primary));
+  background: var(--el-color-primary, var(--el-color-primary));
+  color: var(--el-bg-color-page, var(--el-color-white));
   font-weight: 600;
 }
 
@@ -644,7 +672,7 @@ onMounted(() => {
   padding: 16px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--el-border-radius-base, 8px);
   display: flex;
   flex-direction: column;
   gap: 10px;

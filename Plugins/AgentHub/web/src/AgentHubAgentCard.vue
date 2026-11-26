@@ -284,7 +284,7 @@ function apHealthLabel(h?: string): string {
   color: var(--el-text-color-regular);
 }
 .ok-ap__exe {
-  font-family: var(--el-font-family-mono, monospace);
+  font-family: var(--font-mono, monospace);
   font-size: 12px;
   color: var(--el-text-color-primary);
 }

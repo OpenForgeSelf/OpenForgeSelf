@@ -168,6 +168,35 @@ public class HostProjectRegistryTests
     }
 
     [Fact]
+    public void Commands_OrderedBySortThenId_AndSortPersistsOnAddAndUpdate()
+    {
+        var dir = CreateTempProjectDir("sorted");
+        var registry = Create();
+        registry.Register(dir, out _);
+        var projectId = registry.GetAll().Single().Id;
+
+        var a = registry.AddCommand(projectId, new RunCommandInfo { Name = "a", Script = "echo a", Sort = 2 });
+        var b = registry.AddCommand(projectId, new RunCommandInfo { Name = "b", Script = "echo b", Sort = 1 });
+        var c = registry.AddCommand(projectId, new RunCommandInfo { Name = "c", Script = "echo c", Sort = 1 });
+        var d = registry.AddCommand(projectId, new RunCommandInfo { Name = "d", Script = "echo d" });
+
+        // 新增时持久化 Sort；未传默认 0；同值按 Id 升序
+        Assert.Equal(new[] { d, b, c, a }, registry.GetCommands(projectId).Select(x => x.Id).ToArray());
+        Assert.Equal(new[] { d, b, c, a }, registry.Get(projectId)!.Commands.Select(x => x.Id).ToArray());
+
+        // 编辑时持久化 Sort，列表随之重排；其他字段不受影响
+        Assert.True(registry.UpdateCommand(a, new RunCommandUpdate { Sort = 0 }));
+        Assert.True(registry.UpdateCommand(d, new RunCommandUpdate { Sort = 3 }));
+        var list = registry.GetCommands(projectId);
+        Assert.Equal(new[] { a, b, c, d }, list.Select(x => x.Id).ToArray());
+        Assert.Equal(new[] { 0, 1, 1, 3 }, list.Select(x => x.Sort).ToArray());
+        Assert.Equal("echo a", list[0].Script);
+
+        // 换新实例重新读库仍保持
+        Assert.Equal(new[] { a, b, c, d }, Create().GetCommands(projectId).Select(x => x.Id).ToArray());
+    }
+
+    [Fact]
     public void Get_Returns_Commands_Inline()
     {
         var dir = CreateTempProjectDir("inline");

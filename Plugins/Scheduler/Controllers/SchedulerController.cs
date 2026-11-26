@@ -182,6 +182,22 @@ public class SchedulerController : ControllerBase
         }
     }
 
+    /// <summary>当前日志状态仍为 Running 的触发。没有正在跑的返回空列表。</summary>
+    [HttpGet("running")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<RunningScheduledTaskDto>>>> ListRunning()
+    {
+        try
+        {
+            var items = await _schedulerService.ListRunningAsync();
+            return Ok(ApiResponse<IReadOnlyList<RunningScheduledTaskDto>>.Ok(items, "获取正在执行的定时任务成功"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[Scheduler] 获取正在执行的定时任务失败: {0}", ex.Message);
+            return StatusCode(500, ApiResponse<IReadOnlyList<RunningScheduledTaskDto>>.Error("获取正在执行的定时任务失败: " + ex.Message));
+        }
+    }
+
     [HttpGet("tasks/{id}/logs")]
     public async Task<ActionResult<ApiResponse<ForgeSelf.Api.Plugins.Scheduler.Models.PagedResult<ScheduledTaskLogDto>>>> GetTaskLogs(
         long id,

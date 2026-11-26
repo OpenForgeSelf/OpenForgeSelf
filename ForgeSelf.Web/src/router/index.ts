@@ -21,6 +21,8 @@ import SystemMonitorView from '@/views/SystemMonitorView.vue'
 import CodeSnippetsView from '@/views/CodeSnippetsView.vue'
 import WorkflowLibrary from '@/views/WorkflowLibrary.vue'
 import TaskCenterView from '@/views/TaskCenterView.vue'
+import SchedulerStatusView from '@/views/SchedulerStatusView.vue'
+import BrowserSessionView from '@/views/BrowserSessionView.vue'
 import type { PluginFrontendManifest, PluginMenuItem } from '@/types/plugin'
 import { registerPluginRoutes } from './pluginRoutes'
 import { registerManifestRoutes } from './dynamicPlugins'
@@ -89,6 +91,16 @@ const router = createRouter({
       path: '/task-center',
       name: 'task-center',
       component: TaskCenterView
+    },
+    {
+      path: '/scheduler',
+      name: 'scheduler',
+      component: SchedulerStatusView
+    },
+    {
+      path: '/browser-use',
+      name: 'browser-use',
+      component: BrowserSessionView
     },
     {
       path: '/code-snippets',

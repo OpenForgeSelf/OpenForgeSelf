@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel, toolExpandText } from './session.logic'
+import { agentFocusFromQuery, applyEvent, emptyThreadState, extractCodeFences, primaryKind, splitProse, statusLabel, toolApprovalCards, toolExpandText } from './session.logic'
+
+describe('agentFocusFromQuery', () => {
+  it('主参数 id 打开对话，planId 打开计划 Run', () => {
+    expect(agentFocusFromQuery({ id: 'sess-1', planId: '8' })).toEqual({ sessionId: 'sess-1', planId: '8' })
+  })
+
+  it('旧名 session 和 runId 仍能打开', () => {
+    expect(agentFocusFromQuery({ session: 'sess-1', runId: '8' })).toEqual({ sessionId: 'sess-1', planId: '8' })
+  })
+})
 
 describe('primaryKind', () => {
   it('yields the header button when a plan awaits confirm', () => {
@@ -13,6 +23,19 @@ describe('primaryKind', () => {
   })
   it('defaults to new session', () => {
     expect(primaryKind({ status: 'idle', hasPlan: false, approvalPending: false })).toBe('new')
+  })
+})
+
+describe('toolApprovalCards', () => {
+  it('只留下这条会话里还没决定的工具', () => {
+    const cards = toolApprovalCards([
+      { id: 3, sessionId: 'evidence-session', toolName: 'delete_file', description: '删除 evidence-delete.txt', riskLevel: 'high', status: 'Pending' },
+      { id: 4, sessionId: 'other', toolName: 'write_file', description: '别的会话', status: 'pending' },
+      { id: 5, sessionId: 'evidence-session', toolName: 'write_file', description: '已经决定', status: 'approved' },
+    ], 'evidence-session')
+    expect(cards).toEqual([
+      { id: '3', summary: 'delete_file · 删除 evidence-delete.txt', risk: 'high', action: 'delete_file' },
+    ])
   })
 })
 

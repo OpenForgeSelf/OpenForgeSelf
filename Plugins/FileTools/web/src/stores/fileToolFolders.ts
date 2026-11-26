@@ -89,6 +89,18 @@ export const useFolderScanStore = defineStore('fileToolFolders', () => {
     }
   }
 
+  /** 打开已有扫描，不另起一次。 */
+  async function focusScan(id: string): Promise<void> {
+    const scan = id.trim()
+    if (!scan) return
+    clearError()
+    scanId.value = scan
+    view.value = null
+    startPolling()
+    await pollOnce()
+    if (view.value?.rootPath) directory.value = view.value.rootPath
+  }
+
   async function startScan(target?: string): Promise<void> {
     clearError()
     const dir = (target ?? directory.value).trim()
@@ -239,6 +251,7 @@ export const useFolderScanStore = defineStore('fileToolFolders', () => {
     percentDone,
     clearError,
     startScan,
+    focusScan,
     drillInto,
     pollOnce,
     confirmCancelScan,

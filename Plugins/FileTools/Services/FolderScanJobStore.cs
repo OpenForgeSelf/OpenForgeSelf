@@ -63,6 +63,8 @@ public interface IFolderScanJobStore : IDisposable
     bool TryGet(Guid id, out ScanJob? job);
     ScanJob? Get(Guid id);
     IReadOnlyList<Models.ScanState> RunningStates();
+    /// <summary>排队中或正在扫描的任务。</summary>
+    IReadOnlyList<ScanJob> ListActive();
     /// <summary>淘汰已完成的最旧任务，使总数不超过 <see cref="MaxJobs"/>。</summary>
     int Trim(int maxJobs);
     bool Remove(Guid id);
@@ -102,6 +104,9 @@ public sealed class FolderScanJobStore : IFolderScanJobStore
     public IReadOnlyList<Models.ScanState> RunningStates() =>
         _jobs.Values.Where(j => j.State is Models.ScanState.Queued or Models.ScanState.Running)
                     .Select(j => j.State).ToList();
+
+    public IReadOnlyList<ScanJob> ListActive() =>
+        _jobs.Values.Where(j => j.State is Models.ScanState.Queued or Models.ScanState.Running).ToList();
 
     public int Trim(int maxJobs)
     {

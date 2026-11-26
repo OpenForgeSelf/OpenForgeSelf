@@ -5,6 +5,8 @@ export interface NavTab {
   key: string
   label: string
   path: string
+  /** 阻塞审批条数。0 或不写表示标签上不显示数字。 */
+  badge?: number
 }
 
 // 基础标签：默认常驻标签栏（首页不可关闭，其余可关闭隐藏）
@@ -13,7 +15,7 @@ const DEFAULT_TABS: NavTab[] = [
   { key: 'ai-agent', label: '智能体', path: '/ai-agent' },
   { key: 'skills', label: '技能管理', path: '/skills' },
   { key: 'system-monitor', label: '系统监控', path: '/system-monitor' },
-  { key: 'task-center', label: '任务中心', path: '/task-center' },
+  { key: 'task-center', label: '运行实况', path: '/task-center' },
 ]
 
 // 标签栏状态：打开页面时通过 openTab 追加，关闭时移除
@@ -38,5 +40,11 @@ export const useTabsStore = defineStore('tabs', () => {
     return tabs.value.some((t) => t.path === path)
   }
 
-  return { tabs, openTab, closeTab, hasTab }
+  function setBadge(path: string, count: number): void {
+    const tab = tabs.value.find((t) => t.path === path)
+    if (!tab) return
+    tab.badge = count > 0 ? count : undefined
+  }
+
+  return { tabs, openTab, closeTab, hasTab, setBadge }
 })

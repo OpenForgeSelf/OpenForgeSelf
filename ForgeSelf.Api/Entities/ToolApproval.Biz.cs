@@ -51,4 +51,11 @@ public partial class ToolApproval : Entity<ToolApproval>
         if (sessionId.IsNullOrEmpty()) return [];
         return FindAll(_.SessionId == sessionId).OrderBy(e => e.Id).ToList();
     }
+
+    /// <summary>列出指定状态的审批（Id 升序）。</summary>
+    public static IList<ToolApproval> FindAllByStatus(String status)
+    {
+        if (status.IsNullOrEmpty()) return [];
+        return FindAll(_.Status == status).OrderBy(e => e.Id).ToList();
+    }
 }

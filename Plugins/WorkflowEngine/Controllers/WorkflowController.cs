@@ -181,14 +181,15 @@ public class WorkflowController : ControllerBase
     public async Task<ActionResult<ApiResponse<PagedResult<WorkflowExecutionDto>>>> GetExecutions(
         [FromQuery] long? workflowId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        [FromQuery] WorkflowStatus? status = null)
     {
         try
         {
-            XTrace.Log.Info("[WorkflowController] 获取执行记录列表，workflowId={0}, page={1}, pageSize={2}",
-                workflowId, page, pageSize);
+            XTrace.Log.Info("[WorkflowController] 获取执行记录列表，workflowId={0}, page={1}, pageSize={2}, status={3}",
+                workflowId, page, pageSize, status);
 
-            var result = await _workflowService.GetExecutionsAsync(workflowId, page, pageSize);
+            var result = await _workflowService.GetExecutionsAsync(workflowId, page, pageSize, status);
             return Ok(ApiResponse<PagedResult<WorkflowExecutionDto>>.Ok(result, "获取执行记录成功"));
         }
         catch (Exception ex)

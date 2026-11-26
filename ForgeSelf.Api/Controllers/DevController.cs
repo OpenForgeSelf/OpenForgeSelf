@@ -206,6 +206,35 @@ public class DevController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 开发态调用已注册工具（与智能体工具管线同一 <see cref="IToolRegistry"/>）。
+    /// dev 总闸关闭时 404。生产宿主不暴露此入口。
+    /// </summary>
+    [HttpPost("tools/execute")]
+    public async Task<ActionResult<ApiResponse<object>>> ExecuteTool([FromBody] DevToolExecuteRequest? request)
+    {
+        if (!_devGate())
+            return NotFound();
+
+        if (request == null || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(ApiResponse<object>.Error("name 必填", 400));
+
+        var registry = HttpContext.RequestServices.GetService(typeof(IToolRegistry)) as IToolRegistry;
+        if (registry == null)
+            return StatusCode(503, ApiResponse<object>.Error("宿主未提供工具注册表", 503));
+
+        try
+        {
+            var result = await registry.ExecuteToolAsync(request.Name.Trim(), string.IsNullOrWhiteSpace(request.Parameters) ? "{}" : request.Parameters);
+            return Ok(ApiResponse<object>.Ok(new { name = request.Name.Trim(), result }, "工具已执行"));
+        }
+        catch (Exception ex)
+        {
+            XTrace.Log.Error("[dev] 执行工具失败 [{0}]: {1}", request.Name, ex.Message);
+            return StatusCode(500, ApiResponse<object>.Error("执行工具失败: " + ex.Message));
+        }
+    }
+
     /// <summary>读取当日 XTrace 日志文件尾 N 行；文件缺失/被锁时返回空列表并给 warning。</summary>
     private static List<string> ReadLogTail(int lines, out string? warning)
     {
@@ -267,6 +296,14 @@ public class DevDiagnosticsDto
     public List<string> LogTail { get; set; } = new();
 
     public string? LogTailWarning { get; set; }
+}
+
+/// <summary>开发态工具调用。</summary>
+public class DevToolExecuteRequest
+{
+    public string? Name { get; set; }
+
+    public string? Parameters { get; set; }
 }
 
 /// <summary>dev 开关状态。</summary>

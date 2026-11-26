@@ -478,6 +478,19 @@ public class FolderScanServiceTests
 
     #region Helper Methods
 
+    [Fact]
+    public void ListRunning_ReturnsQueuedAndRunning_SkipsFinished()
+    {
+        var active = _store.Create(Path.GetTempPath(), 5);
+        var finished = _store.Create(Path.GetTempPath(), 5);
+        finished.State = ScanState.Completed;
+
+        var listed = _service.ListRunning();
+
+        listed.Should().Contain(x => x.ScanId == active.Id && x.State == ScanState.Queued);
+        listed.Should().NotContain(x => x.ScanId == finished.Id);
+    }
+
     private static string NewRoot()
     {
         // 铁律10：测试临时目录只创建、不删除

@@ -16,7 +16,7 @@ describe('tabs store', () => {
     expect(store.hasTab('/ai-agent')).toBe(true)
     expect(store.tabs.find((t) => t.path === '/ai-agent')?.label).toBe('智能体')
     expect(store.hasTab('/task-center')).toBe(true)
-    expect(store.tabs.find((t) => t.path === '/task-center')?.label).toBe('任务中心')
+    expect(store.tabs.find((t) => t.path === '/task-center')?.label).toBe('运行实况')
     expect(store.hasTab('/mcp-tools')).toBe(false) // MCP 中心已迁入插件（034 v2.0.0），宿主不再内置标签
   })
 
@@ -41,6 +41,14 @@ describe('tabs store', () => {
     expect(store.hasTab('/dev-tools')).toBe(true)
     store.closeTab('/dev-tools')
     expect(store.hasTab('/dev-tools')).toBe(false)
+  })
+
+  it('阻塞审批数字只挂在运行实况标签上，0 不显示', () => {
+    const store = useTabsStore()
+    store.setBadge('/task-center', 3)
+    expect(store.tabs.find((t) => t.path === '/task-center')?.badge).toBe(3)
+    store.setBadge('/task-center', 0)
+    expect(store.tabs.find((t) => t.path === '/task-center')?.badge).toBeUndefined()
   })
 
   it('closeTab 首页不可关闭', () => {

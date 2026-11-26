@@ -359,6 +359,13 @@ public class FileToolsController : ControllerBase
         }
     }
 
+    /// <summary>进行中的目录扫描。没有则空列表。</summary>
+    [HttpGet("folders/scans")]
+    public ActionResult<ApiResponse<IReadOnlyList<RunningScanItem>>> ListRunningScans()
+    {
+        return Ok(ApiResponse<IReadOnlyList<RunningScanItem>>.Ok(_folderScanService.ListRunning(), "进行中的扫描"));
+    }
+
     /// <summary>查询扫描状态与排行；Running 期间返回截至当前的部分结果。</summary>
     [HttpGet("folders/scan/{scanId}")]
     public ActionResult<ApiResponse<ScanView>> GetFolderScan(Guid scanId)

@@ -4,11 +4,18 @@
  * 经典实现仍留在 LegacySemsView.vue 便于对照，产品界面不再提供入口。
  */
 import { onMounted } from 'vue'
-import { loadProjects } from './workbench/workbenchStore'
+import { semsFocusFromSearch } from './deepLink'
+import { go, loadProjects, openProject } from './workbench/workbenchStore'
 import WorkbenchView from './workbench/WorkbenchView.vue'
 import './workbench/workbench.css'
 
-onMounted(() => { void loadProjects() })
+onMounted(() => {
+  const focus = semsFocusFromSearch(window.location.search)
+  void loadProjects().then(() => {
+    if (focus.projectId > 0) openProject(focus.projectId)
+    if (focus.pid > 0) go('/runs')
+  })
+})
 </script>
 
 <template>

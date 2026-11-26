@@ -40,6 +40,7 @@
 | 确认 **执行中枢 MAF 是否一等 / 插件名是否为智能体 / 绿场是否做迁移** | [`07-decisions/006-maf-first-class-greenfield.md`](07-decisions/006-maf-first-class-greenfield.md)；愿景 [`00-vision/01-vision.md`](00-vision/01-vision.md)；pilot [`ai/pilot/2026-11-02-maf-first-class/`](ai/pilot/2026-11-02-maf-first-class/) |
 | 确认 **Windows 托盘是否拆成独立程序、API 能否在 Linux 上跑** | [`07-decisions/007-split-windows-tray.md`](07-decisions/007-split-windows-tray.md)（Accepted）；分层见 [`04-standards/packaging-upgrade-backup.md`](04-standards/packaging-upgrade-backup.md) §1.6 |
 | 确认**任务中心（跨入口任务总览）做成什么样/数据从哪来/为什么只有只读** | [`ai/pilot/2026-11-02-b3-taskcenter/02-spec.md`](ai/pilot/2026-11-02-b3-taskcenter/02-spec.md)（B3 批真源，commit `2c6b30c`：只读聚合 open/planned 两桶 + 前端聚合 Scheduler 桶；**不做任务创建**；宿主视图 `/task-center`） |
+| 确认**多项目多任务时人该去哪看、什么会主动叫你来批** | [`02-features/102-human-attention.md`](02-features/102-human-attention.md)（运行实况 `/task-center`：要你处理、要续跑、全量在跑、知道即可、待触发。IM 进展保持原样。工件 [`ai/pilot/2026-11-25-attention-inbox/`](ai/pilot/2026-11-25-attention-inbox/)） |
 | 确认**智能终端插件的功能/接口/错误码**（可审批命令会话；`host_module_unavailable` 424 语义与排查；宿主契约解析必须经 IContext） | [`02-features/043-smart-terminal.md`](02-features/043-smart-terminal.md) + [`Plugins/SmartTerminal/docs/03-架构与接口.md`](../Plugins/SmartTerminal/docs/03-架构与接口.md)（§1 铁律 26 精度补记 + §2/§9 错误码） |
 | 确认**本机 Agent / LocalBot 该不该另起 Runtime**（主路径是否已是 MAF、审批协议缺口、终端超时不杀进程） | [`07-decisions/005-maf-local-agent-reuse.md`](07-decisions/005-maf-local-agent-reuse.md)（Accepted；品牌口径见 006）；事实快照见 [`02-features/021-ai-agent.md`](02-features/021-ai-agent.md)「执行链路现状快照」 |
 | 确认**外部 Coding Agent / OAR / `IAgentRuntime` 怎么落**（AgentHub 升级、Node Worker、与 `IAgentDelegation`/`IAgent`/ADR-005 边界、P0–P4） | 架构真源 [`01-architecture/agenthub-oar-runtime.md`](01-architecture/agenthub-oar-runtime.md)；裁决 [`07-decisions/007-oar-agenthub-runtime.md`](07-decisions/007-oar-agenthub-runtime.md)；调研 [`06-research/007-oar-agenthub-runtime.md`](06-research/007-oar-agenthub-runtime.md)；功能档案 [`02-features/032-agent-hub.md`](02-features/032-agent-hub.md) §6；pilot [`ai/pilot/2026-11-19-oar-agenthub-runtime/`](ai/pilot/2026-11-19-oar-agenthub-runtime/) |
@@ -363,6 +364,7 @@
 | 042 | [`02-features/042-network-proxy-settings.md`](02-features/042-network-proxy-settings.md) | 已实现（设置·网络设置：模型请求 HTTP/HTTPS 代理，保存即生效；关闭=显式直连忽略系统代理；SOCKS5 记 TODO） |
 | 100 | [`02-features/100-secret-encryption.md`](02-features/100-secret-encryption.md) | 已实现 |
 | 101 | [`02-features/101-github-account.md`](02-features/101-github-account.md) | 已实现（GitHub 账号绑定：RFC 8628 设备流 + 内置 OAuth App + 插件拉取自动附凭据；PILOT-083） |
+| 102 | [`02-features/102-human-attention.md`](02-features/102-human-attention.md) | 运行实况：阻塞审批与全部在跑任务收在 `/task-center`，点击带查询参数到来源详情 |
 
 > 编号说明：001–009 与 `specs/` 同号；010/011 为无独立 spec 的能力特性（会话聚合、多模态缓存已撤）；012–021 为插件化功能（P0）；022–026 为核心/体系功能（P1）；027 为 Cordis 内核（一切皆插件运行时，已实现，剩余项见档案）；100 为早期核心安全基础设施（密钥加密）。025 为后端缺口文档，如实标注。
 > 另有 `docs/chat-record-session-redesign.md` 为 010 会话聚合的**根因分析稿**（ChatRecord→ChatTurn 重构方案），已随 010 落地，其顶部"落地状态"段指向 `010-chat-session-aggregation.md`。

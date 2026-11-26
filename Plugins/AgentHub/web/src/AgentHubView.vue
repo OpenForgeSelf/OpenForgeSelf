@@ -21,6 +21,7 @@ import {
   formatProbeAllMessage,
   mapPool,
 } from './probeAllRuntimes'
+import { taskIdFromSearch } from './deepLink'
 import {
   listAgents,
   createAgent,
@@ -846,6 +847,13 @@ onMounted(async () => {
   await loadAgents()
   await loadTasks()
   await loadScanDirs()
+  const taskId = taskIdFromSearch(window.location.search)
+  if (Number.isInteger(taskId) && taskId > 0) {
+    tab.value = 'tasks'
+    statusFilter.value = ''
+    await loadTasks()
+    await selectTask(taskId)
+  }
 })
 
 onBeforeUnmount(() => {

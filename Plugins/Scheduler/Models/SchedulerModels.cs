@@ -62,6 +62,15 @@ public class ScheduledTaskDto
     public DateTime UpdatedAt { get; set; }
 }
 
+/// <summary>当前仍在执行的一次定时任务触发。</summary>
+public class RunningScheduledTaskDto
+{
+    public long LogId { get; set; }
+    public long TaskId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime StartTime { get; set; }
+}
+
 public class ScheduledTaskLogDto
 {
     public long Id { get; set; }

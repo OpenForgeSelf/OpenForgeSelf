@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch, ref } from 'vue'
+import RunRecordPanel from '../components/RunRecordPanel.vue'
 import AgentComposer from './AgentComposer.vue'
 import AgentEmptyState from './AgentEmptyState.vue'
 import AgentPageHead from './AgentPageHead.vue'
@@ -17,6 +18,8 @@ const props = withDefaults(
     toolScope?: AgentToolScope
     surfaceKey?: string
     initialPanel?: string
+    initialSession?: string
+    initialPlanId?: string
   }>(),
   { layout: 'page' }
 )
@@ -59,12 +62,26 @@ async function onRetry() {
   await session.actStuck('retry')
 }
 
+watch(
+  () => props.initialSession,
+  (id) => { if (id) void session.openToolApprovals(id) },
+  { immediate: true },
+)
+
+const runVisible = ref(false)
+const planNumber = computed(() => {
+  const n = Number(props.initialPlanId)
+  return Number.isInteger(n) && n > 0 ? n : 0
+})
+
 onMounted(async () => {
   await session.loadCatalogs()
   await session.refreshSessions()
+  if (props.initialSession) await session.openToolApprovals(props.initialSession)
   if (props.initialPanel && props.initialPanel !== 'catalog') {
     await session.openPanel(props.initialPanel as 'plan')
   }
+  if (planNumber.value > 0) runVisible.value = true
 })
 
 watch(
@@ -156,6 +173,14 @@ defineExpose({ insertText: (text: string) => emit('insertText', text) })
       @dispatch-todo="session.dispatchTodo($event)"
       @pause-workflow="session.pauseWorkflow()"
       @cancel-workflow="session.cancelWorkflow()"
+    />
+    <RunRecordPanel
+      v-if="planNumber > 0"
+      :visible="runVisible"
+      :session-id="initialSession || ''"
+      :active-agent-id="session.agentId.value"
+      :initial-run-id="planNumber"
+      @update:visible="runVisible = $event"
     />
   </div>
 </template>

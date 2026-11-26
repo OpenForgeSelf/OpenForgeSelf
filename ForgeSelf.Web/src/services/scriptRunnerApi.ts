@@ -18,6 +18,7 @@ import type {
   SuggestScriptFixResponse,
   ScriptTemplateListParams
 } from '@/types/scriptRunner'
+import { dateOrUndefined, pageMeta, scriptStatusFromApi, unwrapApiBody, type PagedBody } from '@/services/apiEnvelope'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -30,11 +31,14 @@ function parseScript(data: Record<string, unknown>): Script {
   } as Script
 }
 
-function parseExecution(data: Record<string, unknown>): ScriptExecution {
+function parseExecution(body: unknown): ScriptExecution {
+  const data = unwrapApiBody<Record<string, unknown>>(body)
+  const status = scriptStatusFromApi(data.status)
   return {
     ...data,
-    startTime: data.startTime ? new Date(data.startTime as string) : undefined,
-    endTime: data.endTime ? new Date(data.endTime as string) : undefined,
+    ...(status ? { status } : {}),
+    startTime: dateOrUndefined(data.startTime),
+    endTime: dateOrUndefined(data.endTime),
     logs: (data.logs as Array<Record<string, unknown>>)?.map(log => ({
       ...log,
       timestamp: new Date(log.timestamp as string)
@@ -73,12 +77,14 @@ export const scriptRunnerApi = {
       throw new Error(`获取脚本列表失败: ${response.status}`)
     }
 
-    const data = await response.json()
+    const data = unwrapApiBody<PagedBody | unknown[]>(await response.json())
+    const rows = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
+    const page = pageMeta(data, rows)
     return {
-      items: (data.items || data).map(parseScript),
-      total: data.total ?? (data.items || data).length,
-      page: data.page ?? 1,
-      pageSize: data.pageSize ?? (data.items || data).length
+      items: rows.map((item) => parseScript(item as Record<string, unknown>)),
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
     }
   },
 
@@ -257,12 +263,14 @@ export const scriptRunnerApi = {
       throw new Error(`获取执行记录失败: ${response.status}`)
     }
 
-    const data = await response.json()
+    const data = unwrapApiBody<PagedBody | unknown[]>(await response.json())
+    const rows = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
+    const page = pageMeta(data, rows)
     return {
-      items: (data.items || data).map(parseExecution),
-      total: data.total ?? (data.items || data).length,
-      page: data.page ?? 1,
-      pageSize: data.pageSize ?? (data.items || data).length
+      items: rows.map((item) => parseExecution(item as Record<string, unknown>)),
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
     }
   },
 

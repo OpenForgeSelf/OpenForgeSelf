@@ -1,6 +1,7 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import * as api from './api'
-import { applyEvent, defaultCatalog, emptyThreadState, extractCodeFences, isSettledStatus, primaryKind, type ThreadState } from './session.logic'
+import { agentAuthHeaders } from './http'
+import { applyEvent, defaultCatalog, emptyThreadState, extractCodeFences, isSettledStatus, primaryKind, toolApprovalCards, type ThreadState } from './session.logic'
 import { subscribeSessionEvents } from './sse'
 import type {
   AgentAssistantLayout,
@@ -132,6 +133,29 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     })
   }
 
+  const toolApprovalIds = new Set<string>()
+
+  async function openToolApprovals(sessionId: string) {
+    const id = sessionId.trim()
+    if (!id) return
+    activeId.value = id
+    title.value = id
+    Object.assign(thread, emptyThreadState())
+    panelLayer.value = 'chat'
+    try {
+      const res = await fetch('/api/ai-agent/approvals/pending', { headers: agentAuthHeaders() })
+      const body: unknown = res.ok ? await res.json() : []
+      for (const approval of toolApprovalCards(body, id)) {
+        toolApprovalIds.add(approval.id)
+        thread.items.push({ kind: 'approval', id: approval.id, approval })
+        thread.approval = approval
+        thread.status = 'awaiting_approval'
+      }
+    } catch (e) {
+      report(e)
+    }
+  }
+
   async function openSession(id: string) {
     loading.value = true
     error.value = ''
@@ -257,6 +281,21 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   }
 
   async function decide(approvalId: string, approved: boolean) {
+    if (toolApprovalIds.has(approvalId)) {
+      try {
+        const res = await fetch(`/api/ai-agent/approvals/${encodeURIComponent(approvalId)}/decide`, {
+          method: 'POST',
+          headers: { ...agentAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approved }),
+        })
+        if (!res.ok) throw new Error(`决定没有写成（${res.status}）`)
+        const item = thread.items.find((it) => it.kind === 'approval' && it.id === approvalId)
+        if (item && item.kind === 'approval') item.approval = { ...item.approval, resolved: true, approved }
+      } catch (e) {
+        report(e)
+      }
+      return
+    }
     if (!activeId.value) return
     try {
       await api.decideApproval(activeId.value, approvalId, approved)
@@ -528,6 +567,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     refreshSessions,
     loadCatalogs,
     openSession,
+    openToolApprovals,
     newSession,
     send,
     stop,

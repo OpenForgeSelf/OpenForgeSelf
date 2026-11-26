@@ -63,7 +63,7 @@ function fmtTime(iso?: string): string {
 async function onSelect(id: number) {
   selectedPid.value = null
   await selectTask(id)
-  await scrollToBottom()
+  await scrollToBottom(true)
 }
 
 function onSelectExtra(pid: number) {
@@ -83,7 +83,18 @@ async function syncSelection() {
   if (extras.value.length) onSelectExtra(extras.value[0].pid)
 }
 
-async function scrollToBottom() {
+/** 用户是否停在日志底部；手动往上翻后不再强行拉回，回到底部后恢复跟随。 */
+const followLog = ref(true)
+function onLogScroll() {
+  const el = logBox.value
+  if (!el) return
+  followLog.value = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+}
+
+/** 滚到最新一行；force 用于切换命令、点启动，其余只在跟随时滚动。 */
+async function scrollToBottom(force = false) {
+  if (force) followLog.value = true
+  if (!followLog.value) return
   await nextTick()
   const el = logBox.value
   if (el) el.scrollTop = el.scrollHeight
@@ -93,7 +104,7 @@ async function onRun() {
   const t = selectedTask.value
   if (!t || unreachable.value) return
   await runTask(t.id, t.name)
-  await scrollToBottom()
+  await scrollToBottom(true)
 }
 
 const stopping = ref(false)
@@ -103,7 +114,7 @@ async function confirmStop(message: string): Promise<boolean> {
     await ElMessageBox.confirm(message, '停止进程', {
       type: 'warning',
       confirmButtonText: '确认停止',
-      confirmButtonClass: 'el-button--danger',
+      confirmButtonClass: 'el-button--danger sems-confirm-danger',
       cancelButtonText: '取消',
     })
     return true
@@ -177,7 +188,7 @@ async function onChanged() {
   await syncSelection()
 }
 
-watch(selectedId, async () => { await nextTick(); scrollToBottom() })
+watch(selectedId, async () => { await nextTick(); scrollToBottom(true) })
 watch(() => logs.value.length, () => { void scrollToBottom() })
 watch(() => extras.value.map((s) => s.pid).join(','), () => { void syncSelection() })
 
@@ -269,7 +280,7 @@ async function removeCommand(cmd: RunCommandInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认删除',
-          confirmButtonClass: 'el-button--danger',
+          confirmButtonClass: 'el-button--danger sems-confirm-danger',
           cancelButtonText: '取消',
         })
         return true
@@ -377,7 +388,7 @@ async function removeCommand(cmd: RunCommandInfo) {
           <div class="task-script">
             <span v-html="ic('terminal', 'sm')"></span>{{ selectedTask.script }}
           </div>
-          <div ref="logBox" class="log log-box">
+          <div ref="logBox" class="log log-box" role="log" aria-live="polite" @scroll.passive="onLogScroll">
             <div v-if="!logs.length" class="wb-empty-inline">点「启动」后输出显示在这里</div>
             <div v-for="(l, i) in logs" :key="i" class="log-line"
                  :class="{ err: l.startsWith('[err]') || l.startsWith('✗'), ok: l.startsWith('✓') }">

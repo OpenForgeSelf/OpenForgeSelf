@@ -47,7 +47,7 @@ async function onRemove(p: (typeof rows.value)[number]) {
     await ElMessageBox.confirm(
       removeProjectMessage(p.name, p.commands?.length ?? 0),
       '移除项目',
-      { type: 'warning', confirmButtonText: '确认移除', confirmButtonClass: 'el-button--danger', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '确认移除', confirmButtonClass: 'el-button--danger sems-confirm-danger', cancelButtonText: '取消' },
     )
   } catch {
     return

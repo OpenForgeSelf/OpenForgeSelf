@@ -372,7 +372,8 @@ async function runFind() {
 }
 
 async function submit() {
-  if (saving.value || !dialog.value) return
+  // 必填项为空时按钮不可用；这里同样静默返回，不弹必填提示、不发请求。
+  if (saving.value || !dialog.value || !requiredFilled.value) return
   formError.value = ''
   if (dialog.value === 'create') {
     const built = buildCreateBody(form.value)

@@ -35,7 +35,7 @@ describe('buildCreateBody', () => {
       note: '',
       criteriaText: '',
     })
-    expect(result).toEqual({ ok: false, message: 'title 必填' })
+    expect(result).toEqual({ ok: false, message: '' })
   })
 
   it('带一条验收标准', () => {
@@ -91,7 +91,7 @@ describe('buildVersionBody', () => {
       criteriaText: '',
       keepPrevious: true,
     })
-    expect(result).toEqual({ ok: false, message: 'content 必填' })
+    expect(result).toEqual({ ok: false, message: '' })
   })
 })
 

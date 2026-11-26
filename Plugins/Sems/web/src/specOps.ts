@@ -55,10 +55,10 @@ export function parseCriteria(raw: string): CriteriaResult {
   const seen = new Set<string>()
   for (const line of lines) {
     const match = /^(\S+)\s+(.+)$/.exec(line)
-    if (!match) return { ok: false, message: 'criteria 每条的 id 与 text 必填' }
+    if (!match) return { ok: false, message: '验收标准每行写成「编号 说明」，例如「AC-1 能登录」' }
     const id = match[1]
     const text = match[2].trim()
-    if (!text) return { ok: false, message: 'criteria 每条的 id 与 text 必填' }
+    if (!text) return { ok: false, message: '验收标准每行写成「编号 说明」，例如「AC-1 能登录」' }
     const key = id.toLowerCase()
     if (seen.has(key)) return { ok: false, message: `criteria 的 id 重复：${id}` }
     seen.add(key)
@@ -79,8 +79,8 @@ export function buildCreateBody(input: {
   note: string
   criteriaText: string
 }): BodyResult<CreateSpecBody> {
-  if (!input.title.trim()) return { ok: false, message: 'title 必填' }
-  if (!input.content.trim()) return { ok: false, message: 'content 必填' }
+  if (!input.title.trim()) return { ok: false, message: '' }
+  if (!input.content.trim()) return { ok: false, message: '' }
   const criteria = parseCriteria(input.criteriaText)
   if (!criteria.ok) return criteria
   return {
@@ -106,7 +106,7 @@ export function buildVersionBody(input: {
   criteriaText: string
   keepPrevious: boolean
 }): BodyResult<VersionSpecBody> {
-  if (!input.content.trim()) return { ok: false, message: 'content 必填' }
+  if (!input.content.trim()) return { ok: false, message: '' }
   const body: VersionSpecBody = {
     content: input.content,
     author: optionalText(input.author),
@@ -127,7 +127,7 @@ export function buildLinkBody(input: {
 }): BodyResult<LinkSpecBody> {
   const version = Number(input.version)
   if (!Number.isInteger(version) || version < 1) return { ok: false, message: 'version 必须是正整数' }
-  if (!input.kind.trim() || !input.ref.trim()) return { ok: false, message: 'kind 与 ref 必填' }
+  if (!input.kind.trim() || !input.ref.trim()) return { ok: false, message: '' }
   return { ok: true, body: { version, kind: input.kind.trim(), ref: input.ref.trim() } }
 }
 
@@ -139,7 +139,7 @@ export function buildCaseBody(input: {
   const version = Number(input.version)
   if (!Number.isInteger(version) || version < 1) return { ok: false, message: 'version 必须是正整数' }
   if (!input.criterionId.trim() || !input.caseRef.trim()) {
-    return { ok: false, message: 'criterionId 与 case 必填' }
+    return { ok: false, message: '' }
   }
   return {
     ok: true,

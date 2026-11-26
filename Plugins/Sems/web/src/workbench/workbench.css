@@ -521,3 +521,23 @@
 /* 项目目录不可达：启动前提示原因 */
 .wb .task-unreachable{display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:8px 10px;border-radius:6px;
   background:var(--el-fill-color);color:var(--el-color-warning);font-size:13px;word-break:break-all}
+
+/* 破坏性确认按钮：朱砂色（确认框挂在 body 下，不在 .wb 内，所以不加 .wb 前缀） */
+.el-message-box .el-button.sems-confirm-danger{
+  --el-button-text-color:#fff;
+  --el-button-bg-color:var(--cinnabar-400,#C0392B);
+  --el-button-border-color:var(--cinnabar-400,#C0392B);
+  --el-button-hover-text-color:#fff;
+  --el-button-hover-bg-color:#A93226;
+  --el-button-hover-border-color:#A93226;
+  --el-button-active-bg-color:#922B21;
+  --el-button-active-border-color:#922B21;
+  color:#fff;background-color:var(--cinnabar-400,#C0392B);border-color:var(--cinnabar-400,#C0392B)
+}
+.el-message-box .el-button.sems-confirm-danger:hover,
+.el-message-box .el-button.sems-confirm-danger:focus-visible{background-color:#A93226;border-color:#A93226;color:#fff}
+
+/* 日志框：固定高度、内部滚动，不撑高主内容区 */
+.wb .log-box, .wb .run-screen .log-box{flex:none;height:clamp(200px,48vh,520px);min-height:0;max-height:none;
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.wb .run-screen{overflow-y:auto}

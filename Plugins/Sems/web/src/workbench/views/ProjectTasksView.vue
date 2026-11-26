@@ -19,6 +19,8 @@ import {
 import type { RunCommandAdd, RunCommandInfo, RunCommandUpdate, RunSession } from '../../types'
 
 const p = computed(() => currentProject())
+/** 项目目录不可达：启动类按钮先禁用并标出原因，不发请求。 */
+const unreachable = computed(() => !!p.value && p.value.pathExists === false)
 const tasks = computed(() => projectTasks(p.value))
 const logBox = ref<HTMLElement | null>(null)
 const launchableCount = computed(() => p.value?.commands?.length ?? 0)
@@ -89,7 +91,7 @@ async function scrollToBottom() {
 
 async function onRun() {
   const t = selectedTask.value
-  if (!t) return
+  if (!t || unreachable.value) return
   await runTask(t.id, t.name)
   await scrollToBottom()
 }
@@ -151,6 +153,7 @@ async function onStop() {
 }
 
 async function onRunAll() {
+  if (unreachable.value) return
   await startAllTasks()
 }
 
@@ -292,10 +295,11 @@ async function removeCommand(cmd: RunCommandInfo) {
       <h2>运行</h2>
     </div>
     <div class="proj-tools">
+      <span v-if="unreachable" class="wb-badge warn" :title="p?.path">不可达</span>
       <button class="btn btn-secondary" :disabled="checking" @click="onCheck()">
         <span v-html="ic('refresh', 'sm')"></span>{{ checking ? '检查中…' : '检查' }}
       </button>
-      <button class="btn btn-secondary" :disabled="!hasCommands" @click="onRunAll()">
+      <button class="btn btn-secondary" :disabled="!hasCommands || unreachable" @click="onRunAll()">
         <span v-html="ic('play', 'sm')"></span>启动全部
       </button>
     </div>
@@ -315,7 +319,10 @@ async function removeCommand(cmd: RunCommandInfo) {
           </button>
         </div>
         <div class="task-list">
-          <div v-if="!hasCommands && !extras.length" class="wb-empty-inline">还没有命令，点「添加」新建一条</div>
+          <div v-if="!hasCommands && !extras.length" class="wb-empty-inline">
+            <span v-html="ic('terminal', 'lg')"></span>
+            <div>还没有命令，点「添加」新建一条</div>
+          </div>
           <div v-for="t in tasks" :key="t.id" class="task-item" :class="{ sel: t.id === selectedId }"
                @click="onSelect(t.id)">
             <div class="row-main">
@@ -356,13 +363,16 @@ async function removeCommand(cmd: RunCommandInfo) {
             <div class="task-detail-actions">
               <a v-if="selectedTask.url && status === 'running'" class="btn btn-secondary" :href="selectedTask.url"
                  target="_blank" rel="noopener">打开</a>
-              <button class="btn btn-primary" :disabled="status === 'running'" @click="onRun()">
+              <button class="btn btn-primary" :disabled="status === 'running' || unreachable" @click="onRun()">
                 <span v-html="ic('play', 'sm')"></span>{{ status === 'running' ? '运行中' : '启动' }}
               </button>
               <button class="btn btn-secondary" :disabled="stopping" @click="onStop()">
                 <span v-html="ic('close', 'sm')"></span>{{ stopping ? '停止中…' : '停止' }}
               </button>
             </div>
+          </div>
+          <div v-if="unreachable" class="task-unreachable" role="status">
+            <span v-html="ic('info', 'sm')"></span>项目目录不可达，不能启动：{{ p?.path }}
           </div>
           <div class="task-script">
             <span v-html="ic('terminal', 'sm')"></span>{{ selectedTask.script }}

@@ -51,7 +51,7 @@
 
       <div class="pdlg__foot">
         <button class="pdlg__btn" @click="$emit('close')">取消</button>
-        <button class="pdlg__btn pdlg__btn--primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+        <button class="pdlg__btn pdlg__btn--primary" :disabled="saving || !canSave" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
       </div>
     </div>
   </div>
@@ -125,12 +125,12 @@ function onTypeModeChange() {
 
 const effectiveType = computed(() => form.value.type)
 
+/** 类型有内容才可保存；空内容时按钮不可用，不弹提示、不发请求。 */
+const canSave = computed(() => !!(effectiveType.value ?? '').trim())
+
 async function save() {
   const type = effectiveType.value?.trim() ?? ''
-  if (!type) {
-    error.value = '类型不能为空（可选预设或自定义）'
-    return
-  }
+  if (!type) return
   saving.value = true
   error.value = ''
   const payload: ProjectUpdate = {

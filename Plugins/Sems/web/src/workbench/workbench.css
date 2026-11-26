@@ -514,3 +514,10 @@
 @media (max-width:420px){
   .wb .stat-row{grid-template-columns:minmax(0,1fr)}
 }
+
+/* 空态：图标 + 一句说明 */
+.wb-empty-inline{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wb .wb-empty-inline svg.ic.lg{width:28px;height:28px;color:var(--el-color-primary)}
+/* 项目目录不可达：启动前提示原因 */
+.wb .task-unreachable{display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:8px 10px;border-radius:6px;
+  background:var(--el-fill-color);color:var(--el-color-warning);font-size:13px;word-break:break-all}

@@ -52,7 +52,7 @@
         <p v-if="formError" class="cmddlg__err">{{ formError }}</p>
         <div class="cmddlg__foot">
           <button class="cmddlg__btn" @click="dialogOpen = false">取消</button>
-          <button class="cmddlg__btn cmddlg__btn--primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
+          <button class="cmddlg__btn cmddlg__btn--primary" :disabled="saving || !canSave" @click="save">{{ saving ? '保存中…' : '保存' }}</button>
         </div>
       </div>
     </div>
@@ -204,13 +204,13 @@ function openEdit(cmd: RunCommandInfo) {
   dialogOpen.value = true
 }
 
+/** 名称与脚本都有内容才可保存；空内容时按钮不可用，不弹提示、不发请求。 */
+const canSave = computed(() => !!form.value.name.trim() && !!form.value.script.trim())
+
 async function save() {
-  const name = form.value.name
-  const script = form.value.script
-  if (!name || !script) {
-    formError.value = '名称与脚本均不能为空'
-    return
-  }
+  const name = form.value.name.trim()
+  const script = form.value.script.trim()
+  if (!name || !script) return
   saving.value = true
   formError.value = ''
   try {

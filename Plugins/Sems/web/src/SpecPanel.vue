@@ -11,7 +11,8 @@
       <p>加载失败：{{ error }}</p>
       <button type="button" class="specs__btn" @click="reload">重试</button>
     </div>
-    <div v-else-if="phase === 'empty'" class="specs__hint">
+    <div v-else-if="phase === 'empty'" class="specs__hint specs__hint--empty">
+      <svg class="specs__empty-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
       <p>还没有规格。</p>
       <p>点「新建规格」写第一版，验收标准可以以后再补。</p>
     </div>
@@ -504,6 +505,25 @@ onMounted(() => {
 .specs__hint,
 .specs__meta {
   margin: 0;
+}
+
+.specs__hint--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.specs__empty-ic {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--el-color-primary);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .specs__hint--error,

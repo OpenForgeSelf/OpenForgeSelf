@@ -468,3 +468,49 @@
 .wb .run-dot.warn{background:var(--el-color-warning)}
 .wb .run-dot.ok{background:var(--el-color-success)}
 @media (max-width: 900px){.wb .run-screen{overflow:auto}}
+
+/* ===== 页头：等宽金色眉题 + 衬线 26px 标题；悬停上浮 1px ===== */
+.wb .topbar h1, .wb .manager-head h2, .wb .proj-header h2{font-family:var(--font-display);font-size:26px;line-height:1.2}
+.wb .proj-lead .wb-eyebrow{text-transform:none;letter-spacing:.12em;max-width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb .btn:hover:not(:disabled){transform:translateY(-1px)}
+.wb .btn:active:not(:disabled){transform:translateY(1px)}
+.wb .project-row, .wb .project-card, .wb .config-card, .wb .stat{transition:transform var(--dur-fast),box-shadow var(--dur-fast),background var(--dur-fast)}
+.wb .project-row:hover, .wb .project-card:hover, .wb .config-card:hover, .wb .stat:hover{transform:translateY(-1px)}
+.wb .status-path{font-family:var(--font-mono)}
+
+/* ===== 窄宽度（约 320px）：纵向排布，长文本省略，不出现横向溢出 ===== */
+.wb .stat, .wb .dash-grid > *, .wb .task-detail-title strong{min-width:0}
+@media (max-width:640px){
+  .wb .project-shell{flex-direction:column}
+  .wb .sidebar{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;
+    border-right:0;border-bottom:1px solid var(--el-border-color)}
+  .wb .project-select{width:auto;max-width:100%;margin-bottom:0;font-size:13px;gap:6px;min-width:0}
+  .wb .nav-list{flex-direction:row;flex-wrap:wrap;gap:2px;min-width:0}
+  .wb .nav-item{padding:0 8px;gap:4px;min-height:32px}
+  .wb .nav-item span{display:inline-flex}
+  .wb .nav-item.selected::before{left:6px;right:6px;top:auto;bottom:2px;width:auto;height:2px}
+  .wb .sidebar-spacer{display:none}
+  .wb .sidebar-foot{border-top:0;padding-top:0;margin-left:auto}
+  .wb .more-menu{top:34px;bottom:auto;left:auto;right:0}
+  .wb .topbar h1, .wb .manager-head h2, .wb .proj-header h2{font-size:22px}
+  .wb .proj-header{align-items:flex-start}
+  .wb .proj-lead{flex:1 1 100%}
+  .wb .proj-tools{justify-content:flex-start}
+  .wb .stat-row, .wb .dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wb .dash-grid{grid-template-columns:minmax(0,1fr)}
+  .wb .run-screen{overflow-x:hidden}
+  .wb .task-detail{padding:12px}
+  .wb .task-detail-head{flex-wrap:wrap;align-items:flex-start}
+  .wb .task-detail-title{flex:1 1 100%;flex-wrap:wrap}
+  .wb .task-detail-title strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wb .task-detail-actions{flex-wrap:wrap}
+  .wb .task-script{white-space:pre-wrap;word-break:break-all;overflow:hidden}
+  .wb .statusbar{height:auto;min-height:26px;flex-wrap:wrap;row-gap:2px;padding:3px 10px}
+  .wb .status-left{flex:1 1 auto;min-width:0}
+  .wb .status-path{flex:1 1 0;min-width:0;max-width:none}
+  .wb .status-right{flex:none}
+}
+@media (max-width:420px){
+  .wb .stat-row{grid-template-columns:minmax(0,1fr)}
+}

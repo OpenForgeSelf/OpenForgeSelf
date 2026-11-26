@@ -140,6 +140,8 @@ describe('PILOT-087 stopTask 三种结果都有反馈（AC-F09-1..6）', () => {
 
     expect(r.outcome).toBe('not-running')
     expect(http.apiPost).not.toHaveBeenCalled()
+    // AC-F09-5：不发起任何网络请求（GET /api/runs 也不发）
+    expect(http.apiGet).not.toHaveBeenCalled()
     expect(wb.store.toasts.some((t) => t.text.includes('没有运行中的进程'))).toBe(true)
     expect(wb.store.toasts.some((t) => t.text.includes('已停止'))).toBe(false)
   })
@@ -175,5 +177,20 @@ describe('输入4 终态任务必须退出常驻轮询面（PC-024 第4发 · �
     expect(logsCalls()).toBe(1)
     await vi.advanceTimersByTimeAsync(6000)
     expect(logsCalls()).toBe(1)
+  })
+})
+
+describe('启动被拒绝（目录不可达 409）：只留拒绝原因，不读日志、不显示已完成', () => {
+  it('状态回到空闲、没有起止时间，日志只有拒绝原因，之后不请求日志', async () => {
+    http.apiGet.mockResolvedValue({ total: 0, runs: [] })
+    http.apiPost.mockRejectedValue(new Error('请求失败(409): 项目目录不可达'))
+
+    await wb.runTask(11, 'dev')
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(wb.taskStatusOf(11)).toBe('idle')
+    expect(wb.taskHistoryOf(11)).toBeUndefined()
+    expect(wb.taskLogsOf(11)).toEqual(['✗ 启动失败：请求失败(409): 项目目录不可达'])
+    expect(http.apiGet.mock.calls.some((c) => String(c[0]).includes('/logs'))).toBe(false)
   })
 })

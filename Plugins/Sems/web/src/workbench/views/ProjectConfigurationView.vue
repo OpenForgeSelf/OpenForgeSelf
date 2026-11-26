@@ -40,7 +40,10 @@ async function onSaved() {
 
 <template>
   <div class="proj-header">
-    <h2>项目设置</h2>
+    <div class="proj-lead">
+      <span class="wb-eyebrow">{{ p?.name }}</span>
+      <h2>项目设置</h2>
+    </div>
     <div class="proj-tools">
       <button class="btn btn-secondary" @click="editing = true">
         <span v-html="ic('pencil', 'sm')"></span>编辑项目档案

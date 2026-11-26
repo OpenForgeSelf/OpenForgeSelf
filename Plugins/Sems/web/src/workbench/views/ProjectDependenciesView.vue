@@ -30,7 +30,10 @@ function onRun() {
 
 <template>
   <div class="proj-header">
-    <h2>运行命令</h2>
+    <div class="proj-lead">
+      <span class="wb-eyebrow">{{ p?.name }}</span>
+      <h2>运行命令</h2>
+    </div>
     <div class="proj-tools">
       <label class="search">
         <span v-html="ic('search', 'sm')"></span>
@@ -42,9 +45,7 @@ function onRun() {
   <div class="proj-canvas">
     <p class="page-section-title">运行命令清单（{{ total }} 条）</p>
     <p class="wb-notice">
-      <strong>不是依赖解析：</strong>交接包「依赖」屏在此映射为 Sems 真实实体「运行命令」——
-      期望值 = 命令脚本，更新 = 最近修改时间；不读取 package.json、<strong>不执行 npm install</strong>。
-      下方「运行命令维护」是 Sems 原有能力；新增命令会在项目目录执行脚本，请仅登记可信命令。
+      新增命令会在项目目录执行脚本，请只登记可信命令。
     </p>
 
     <template v-if="deps.main.length">
@@ -83,7 +84,7 @@ function onRun() {
     <div v-if="!total" class="card">没有匹配的命令，可在下方添加</div>
 
     <div v-if="p" class="wb-embedded">
-      <h3>运行命令维护（sems 原有能力）</h3>
+      <h3>维护运行命令</h3>
       <CommandList :project-id="p.id" :commands="p.commands" @changed="onChanged" @run="onRun" />
     </div>
   </div>

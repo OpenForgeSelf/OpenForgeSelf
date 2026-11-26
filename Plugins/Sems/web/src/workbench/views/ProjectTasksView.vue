@@ -101,6 +101,7 @@ async function confirmStop(message: string): Promise<boolean> {
     await ElMessageBox.confirm(message, '停止进程', {
       type: 'warning',
       confirmButtonText: '确认停止',
+      confirmButtonClass: 'el-button--danger',
       cancelButtonText: '取消',
     })
     return true
@@ -141,8 +142,8 @@ async function onStop() {
     // 检查捕获、对得上命令的进程：本页没有启动记录，按进程标识停止
     if (s && s.origin !== 'Launched' && taskStatusOf(t!.id) !== 'running') await stopByPid(s)
     else {
+      // stopTask 的停止路径已在收敛状态时刷新会话；未运行时不发任何请求
       await stopTask(t!.id, t!.name)
-      await refreshRunningCount()
     }
   } finally {
     stopping.value = false
@@ -195,13 +196,20 @@ const dialogOpen = ref(false)
 const editing = ref<RunCommandInfo | null>(null)
 const saving = ref(false)
 const formError = ref('')
-const form = ref({ name: '', script: '', url: '' })
-const canSave = computed(() => !!form.value.name.trim() && !!form.value.script.trim() && !saving.value)
+const form = ref({ name: '', script: '', url: '', sort: '' })
+/** 排序：整数，小的在前；留空按 0。 */
+const sortValid = computed(() => /^(-?\d{1,6})?$/.test(String(form.value.sort).trim()))
+const canSave = computed(() => !!form.value.name.trim() && !!form.value.script.trim() && sortValid.value && !saving.value)
+
+function nextSort(): number {
+  const list = p.value?.commands ?? []
+  return list.length ? Math.max(...list.map((c) => c.sort ?? 0)) + 1 : 0
+}
 
 function openAdd() {
   if (!p.value) return
   editing.value = null
-  form.value = { name: '', script: '', url: '' }
+  form.value = { name: '', script: '', url: '', sort: String(nextSort()) }
   formError.value = ''
   dialogOpen.value = true
 }
@@ -210,7 +218,7 @@ function openEdit(id: number) {
   const cmd = p.value?.commands.find((c) => c.id === id)
   if (!cmd) return
   editing.value = cmd
-  form.value = { name: cmd.name, script: cmd.script, url: cmd.url ?? '' }
+  form.value = { name: cmd.name, script: cmd.script, url: cmd.url ?? '', sort: String(cmd.sort ?? 0) }
   formError.value = ''
   dialogOpen.value = true
 }
@@ -220,18 +228,20 @@ async function saveCommand() {
   const name = form.value.name.trim()
   const script = form.value.script.trim()
   const url = form.value.url.trim() || null
+  const sort = Number(String(form.value.sort).trim() || 0)
   saving.value = true
   formError.value = ''
   const known = new Set(tasks.value.map((t) => t.id))
   try {
     if (editing.value) {
-      await apiPut(`/api/commands/${editing.value.id}`, { name, script, url } as RunCommandUpdate)
+      await apiPut(`/api/commands/${editing.value.id}`, { name, script, url, sort } as RunCommandUpdate)
     } else {
       await apiPost(`/api/projects/${p.value.id}/commands`, {
         projectId: p.value.id,
         name,
         script,
         url,
+        sort,
       } as RunCommandAdd)
     }
     dialogOpen.value = false
@@ -256,6 +266,7 @@ async function removeCommand(cmd: RunCommandInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认删除',
+          confirmButtonClass: 'el-button--danger',
           cancelButtonText: '取消',
         })
         return true
@@ -276,7 +287,10 @@ async function removeCommand(cmd: RunCommandInfo) {
 
 <template>
   <div class="proj-header">
-    <h2>运行</h2>
+    <div class="proj-lead">
+      <span class="wb-eyebrow">{{ p?.name }}</span>
+      <h2>运行</h2>
+    </div>
     <div class="proj-tools">
       <button class="btn btn-secondary" :disabled="checking" @click="onCheck()">
         <span v-html="ic('refresh', 'sm')"></span>{{ checking ? '检查中…' : '检查' }}
@@ -396,6 +410,10 @@ async function removeCommand(cmd: RunCommandInfo) {
       <div class="form-group">
         <label class="form-label">访问地址（可选）</label>
         <input v-model="form.url" class="form-control" aria-label="访问地址" placeholder="如 http://localhost:5173" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">排序</label>
+        <input v-model="form.sort" class="form-control" aria-label="排序" inputmode="numeric" placeholder="整数，小的排在前面" />
       </div>
       <p v-if="formError" class="wb-hint" style="color:var(--el-color-error)">{{ formError }}</p>
       <div class="cmd-dlg-actions">

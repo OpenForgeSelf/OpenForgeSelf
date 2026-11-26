@@ -324,6 +324,7 @@ async function ask(message: string, title: string): Promise<boolean> {
     await ElMessageBox.confirm(message, title, {
       type: 'warning',
       confirmButtonText: '确认停止',
+      confirmButtonClass: 'el-button--danger',
       cancelButtonText: '取消',
     })
     return true

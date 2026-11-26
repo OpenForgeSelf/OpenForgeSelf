@@ -4,7 +4,7 @@
     <div class="dpick__box">
       <h3 class="dpick__title">添加项目 · 选择目录</h3>
       <p class="dpick__hint">
-        选择一个已存在的项目根目录。sems 直接在插件内登记该项目，不依赖其他页面的动作。
+        选择一个已存在的项目根目录，直接登记为项目。
       </p>
 
       <div class="dpick__bar">

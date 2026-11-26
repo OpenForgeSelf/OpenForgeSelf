@@ -185,8 +185,6 @@ onUnmounted(() => {
       <div class="status-left">
         <button class="btn-icon" style="color:var(--el-text-color-primary);width:18px;height:18px"
                 aria-label="项目工作台" @click="go('/projects')"><span v-html="ic('home', 'sm')"></span></button>
-        <button class="crumb" style="color:var(--el-text-color-primary);font-size:12px;padding:0"
-                aria-label="项目目录" @click="go('/projects')"><span v-html="ic('folder', 'sm')"></span></button>
         <span v-if="showPathBadge" class="status-path">{{ p ? p.path : '/workspace' }}</span>
         <button class="btn-icon" style="color:var(--el-text-color-primary);width:18px;height:18px"
                 aria-label="运行日志" @click="go('/runs')"><span v-html="ic('terminal', 'sm')"></span></button>

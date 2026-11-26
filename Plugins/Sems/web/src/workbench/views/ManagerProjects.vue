@@ -47,7 +47,7 @@ async function onRemove(p: (typeof rows.value)[number]) {
     await ElMessageBox.confirm(
       removeProjectMessage(p.name, p.commands?.length ?? 0),
       '移除项目',
-      { type: 'warning', confirmButtonText: '确认移除', cancelButtonText: '取消' },
+      { type: 'warning', confirmButtonText: '确认移除', confirmButtonClass: 'el-button--danger', cancelButtonText: '取消' },
     )
   } catch {
     return
@@ -100,13 +100,14 @@ function lastRunText(p: (typeof rows.value)[number]): string {
     <div class="manager-inner">
       <!-- 三段式 ①：页头（标题 + 说明 + 双按钮） -->
       <div class="manager-head">
-        <div>
+        <div class="proj-lead">
+          <span class="wb-eyebrow">项目工作台</span>
           <h2>项目</h2>
           <p>登记已有目录以管理其命令与规格；登记不会创建或修改任何文件。</p>
         </div>
         <div class="proj-tools">
           <span class="wb-badge" :class="{ info: store.mode === 'live' }">
-            共 {{ store.projects.length }} 个 · 真实档案
+            共 {{ store.projects.length }} 个
           </span>
           <button class="btn btn-secondary" :disabled="store.loading" @click="loadProjects()">
             <span v-html="ic('refresh', 'sm')"></span>刷新
@@ -166,14 +167,14 @@ function lastRunText(p: (typeof rows.value)[number]): string {
       </div>
       <div v-else-if="store.mode === 'demo' && store.error && !store.projects.length" class="empty-state">
         <span v-html="ic('info', 'lg')"></span><div>加载失败：{{ store.error }}</div>
-        <button class="btn btn-primary" @click="loadProjects()">重试</button>
+        <button class="btn btn-secondary" @click="loadProjects()">重试</button>
       </div>
       <div v-else-if="!store.projects.length" class="empty-state">
         <span v-html="ic('clip', 'lg')"></span>
         <div class="es-quote">还没有登记任何项目</div>
         <div class="es-sub">登记已有目录，即可在此统一管理它的运行命令、规格与工程插件。</div>
         <div class="wb-toolbar" style="justify-content:center;margin-top:12px">
-          <button class="btn btn-primary" @click="go('/create')">登记项目</button>
+          <button class="btn btn-secondary" @click="go('/create')">登记项目</button>
           <button class="btn btn-secondary" @click="go('/import')">导入目录</button>
         </div>
       </div>
@@ -256,7 +257,7 @@ function lastRunText(p: (typeof rows.value)[number]): string {
           </div>
 
           <div class="project-card-actions">
-            <button class="btn btn-primary btn-sm" @click.stop="openProject(p.id)">
+            <button class="btn btn-secondary btn-sm" @click.stop="openProject(p.id)">
               <span v-html="ic('chevron', 'sm')"></span>进入项目
             </button>
             <button class="editor-btn" @click.stop="onEditor(p)">

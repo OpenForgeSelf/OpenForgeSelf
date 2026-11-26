@@ -210,6 +210,7 @@ async function removeProject(p: ProjectInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认移除',
+          confirmButtonClass: 'el-button--danger',
           cancelButtonText: '取消',
         })
         return true

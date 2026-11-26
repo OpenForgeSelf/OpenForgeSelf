@@ -20,7 +20,10 @@ watch(() => p.value?.id, (id) => { if (id != null) void loadEngineeringPlugins(i
 
 <template>
   <div class="proj-header">
-    <h2>插件</h2>
+    <div class="proj-lead">
+      <span class="wb-eyebrow">{{ p?.name }}</span>
+      <h2>插件</h2>
+    </div>
     <div class="proj-tools">
       <label class="search">
         <span v-html="ic('search', 'sm')"></span>

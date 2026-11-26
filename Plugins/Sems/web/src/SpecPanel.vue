@@ -13,7 +13,7 @@
     </div>
     <div v-else-if="phase === 'empty'" class="specs__hint">
       <p>还没有规格。</p>
-      <p>点「新建规格」写第一版。标题和正文必填，验收标准可以以后再补。</p>
+      <p>点「新建规格」写第一版，验收标准可以以后再补。</p>
     </div>
     <ul v-else class="specs__list">
       <li v-for="spec in specs" :key="spec.specId">
@@ -90,7 +90,7 @@
         <option value="Issue">Issue</option>
       </select>
       <input v-model.trim="findRef" type="text" aria-label="反查标识" placeholder="commit、PR 或 Issue 标识" />
-      <button type="submit" class="specs__btn" :disabled="finding">{{ finding ? '查询中…' : '反查' }}</button>
+      <button type="submit" class="specs__btn" :disabled="finding || !findRef.trim()">{{ finding ? '查询中…' : '反查' }}</button>
     </form>
     <p v-if="findError" class="specs__hint specs__hint--error">{{ findError }}</p>
     <p v-else-if="findHits && findHits.length === 0" class="specs__hint">没有匹配的关联。</p>
@@ -162,7 +162,7 @@
         <p v-if="formError" class="specdlg__err">{{ formError }}</p>
         <div class="specdlg__foot">
           <button type="button" class="specs__btn" @click="closeDialog">取消</button>
-          <button type="button" class="specs__btn specs__btn--primary" :disabled="saving" @click="submit">
+          <button type="button" class="specs__btn specs__btn--primary" :disabled="saving || !requiredFilled" @click="submit">
             {{ saving ? '保存中…' : '保存' }}
           </button>
         </div>
@@ -239,6 +239,16 @@ const dialogTitle = computed(() => {
 const coverageItems = computed(() => {
   if (coverage.value && coverage.value.version === viewing.value?.version) return coverage.value.items
   return (viewing.value?.criteria ?? []).map((c) => ({ id: c.id, text: c.text, cases: [] as string[], linked: false }))
+})
+
+/** 必填项都有内容才可保存；空内容时按钮不可用，不弹必填提示。 */
+const requiredFilled = computed(() => {
+  const f = form.value
+  if (dialog.value === 'create') return !!f.title.trim() && !!f.content.trim()
+  if (dialog.value === 'version') return !!f.content.trim()
+  if (dialog.value === 'link') return !!f.ref.trim() && !!f.version.trim()
+  if (dialog.value === 'case') return !!f.criterionId && !!f.caseRef.trim() && !!f.version.trim()
+  return false
 })
 
 function emptyForm() {
@@ -349,10 +359,7 @@ async function readVersion() {
 async function runFind() {
   findError.value = ''
   findHits.value = null
-  if (!findKind.value.trim() || !findRef.value.trim()) {
-    findError.value = 'kind 与 ref 必填'
-    return
-  }
+  if (!findKind.value.trim() || !findRef.value.trim()) return
   finding.value = true
   try {
     findHits.value = await findSpecsByRef(props.projectId, findKind.value.trim(), findRef.value.trim())

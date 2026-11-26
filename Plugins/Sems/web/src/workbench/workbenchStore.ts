@@ -431,7 +431,7 @@ function fromDto(p: ProjectInfo): WbProject {
     pathExists: !!p.pathExists,
     openDate: p.lastActiveAt || p.updatedAt || p.createdAt || '',
     favorite: meta.favorites[p.id] ?? 0,
-    commands: (p.commands ?? []).slice().sort((a, b) => a.sort - b.sort),
+    commands: (p.commands ?? []).slice().sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.id - b.id),
     wizardMeta: meta.wizardMeta[p.id],
   }
 }
@@ -902,8 +902,7 @@ export async function stopTask(commandId: number, taskName: string): Promise<Sto
   }
 
   if (taskStatusOf(commandId) !== 'running') {
-    // 旧版此处按钮被无声禁用（点击零反馈）；现在点得动就一定给说法并同步运行数据
-    await refreshRunningCount()
+    // 点得动就一定给说法；未运行时不发任何请求（AC-F09-5）
     toast(`「${taskName}」当前没有运行中的进程，无需停止`)
     return { outcome: 'not-running', message: '当前没有运行中的进程' }
   }
@@ -1038,11 +1037,34 @@ export function markTaskStarted(commandId: number, taskName?: string): void {
   void refreshRunningCount()
 }
 
+/**
+ * 启动被拒绝（如目录不可达 409）：进程没有起来，不算一次运行。
+ * 日志只留拒绝原因，状态和起止时间回到启动前，也不再去读日志。
+ */
+function markTaskStartRejected(
+  commandId: number, reason: string, prevStatus: TaskStatus | undefined, prevHistory: RunHistoryEntry | undefined,
+): void {
+  if (prevStatus) store.taskStatus[commandId] = prevStatus
+  else delete store.taskStatus[commandId]
+  if (prevHistory) store.runHistory[commandId] = prevHistory
+  else delete store.runHistory[commandId]
+  writeRunHistory(store.runHistory)
+  if (store.runningCommandId === commandId) store.runningCommandId = null
+  const bucket = bucketOf(commandId)
+  bucket.length = 0
+  bucket.push('✗ 启动失败：' + reason)
+  writeRunLogs(store.logsByCommand)
+  logUnavailable.add(commandId)
+  ensureTaskPolling()
+}
+
 /** 运行任务：真实启动命令 + 增量日志轮询（对齐 HTML 原型：日志区常驻、实时追加）。 */
 export async function runTask(commandId: number, taskName: string): Promise<void> {
   const p = currentProject()
   const cmd = p?.commands.find((c) => c.id === commandId)
   if (!cmd) { toast('未找到该运行命令'); return }
+  const prevStatus = store.taskStatus[commandId]
+  const prevHistory = store.runHistory[commandId] ? { ...store.runHistory[commandId] } : undefined
   markTaskStarted(commandId, taskName)
 
   try {
@@ -1050,9 +1072,9 @@ export async function runTask(commandId: number, taskName: string): Promise<void
     void pullTaskLogs(commandId)
     await refreshRunningCount()
   } catch (e) {
-    appendLogLines(commandId, ['✗ 启动失败：' + (e instanceof Error ? e.message : String(e))])
-    markTaskDone(commandId)
-    toast('启动失败：' + (e instanceof Error ? e.message : String(e)))
+    const reason = e instanceof Error ? e.message : String(e)
+    markTaskStartRejected(commandId, reason, prevStatus, prevHistory)
+    toast('启动失败：' + reason)
   }
 }
 

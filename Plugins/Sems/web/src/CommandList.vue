@@ -159,6 +159,7 @@ async function remove(cmd: RunCommandInfo) {
         await ElMessageBox.confirm(message, title, {
           type: 'warning',
           confirmButtonText: '确认删除',
+          confirmButtonClass: 'el-button--danger',
           cancelButtonText: '取消',
         })
         return true

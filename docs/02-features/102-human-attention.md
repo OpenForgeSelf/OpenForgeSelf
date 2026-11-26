@@ -30,18 +30,18 @@ IM 进展推送保持原样。本页不发系统通知。IM 任务网关若已�
 | AC8 | 外部 Agent 的同意是「只放行这一次」 | 有截图 |
 | AC9 | 终端待批注明「本次宿主运行期间有效」 | 有截图 |
 | AC10 | 在跑按项目名分组，全量列出，不出现「还有 N 条」 | 有截图 |
-| AC11 | 要续跑单独成组，只有「继续」 | Unknown：没有可用对话模型 |
-| AC12 | 智能体未结束回合出现在在跑 | Unknown：同一原因，没有回合行 |
+| AC11 | 要续跑单独成组，只有「继续」 | 有截图 |
+| AC12 | 智能体未结束回合出现在在跑 | 有截图：规划中与执行中 |
 | AC13 | 外部 Agent 未结束任务，委派行带「来自待办」 | 有截图 |
 | AC14 | 智能终端还在跑的会话，以及终端待批 | 有截图 |
 | AC15 | 工程台未结束命令 | 有截图 |
 | AC16 | 脚本执行中，详情能打开 | 有截图；该条记录在宿主重启后仍标运行中 |
 | AC17 | 工作流执行中，详情能打开 | 有截图；同样是重启后仍标运行中的记录 |
 | AC18 | 定时任务「这次还在跑」和「待触发」 | 有截图；「这次还在跑」同样可能是旧日志 |
-| AC19 | 文件工具扫描进行中 | Unknown：扫描在页面第一次拉取前就结束 |
+| AC19 | 文件工具扫描进行中 | 有截图：运行实况为扫描中，来源页仍是进行中 |
 | AC20 | 浏览器已打开的只读页 | 有截图 |
 | AC21 | 重新扫描后，已登记项目目录下尚未被其他来源代表的进程 | 有截图 |
-| AC22 | 对不上项目、只剩 pid 的进程进系统监控 | Unknown：扫描只收录对上项目的进程 |
+| AC22 | 对不上项目、只剩 pid 的进程进系统监控 | 有截图 |
 | AC23 | 某一路 401 只标这一路「需要访问密钥」 | 有截图；见该节的实测边界 |
 | AC24 | 插件未启用标「未启用」 | 有截图 |
 | AC25 | 亮色和暗色都走过要你处理与在跑 | 有截图 |
@@ -95,6 +95,10 @@ AC4。紧急审批排在前面。整页只有第一张紧急审批的「同意�
 
 ![亮色：金色同意与朱红拒绝](../ai/pilot/2026-11-25-attention-inbox/evidence/03-light-attention-and-running.png)
 
+不足 2 分钟、且不是破坏性工具的待批也会把第一张同意变成金色。造出方式：对 `write_file` 走生产审批，等剩余时间掉到 1 分钟再截运行实况。卡片写明 `write_file` 和剩余 1 分，同意按钮带金色填充。等级：Verified。
+
+![不足两分钟的金色同意](../ai/pilot/2026-11-25-attention-inbox/evidence/66-soon-gold.png)
+
 ![暗色：要你处理与在跑](../ai/pilot/2026-11-25-attention-inbox/evidence/04-dark-attention-and-running.png)
 
 AC5。会破坏数据的同意先打开确认。对话框说明这条会破坏数据。取消不发决定，卡片仍待批。确认按钮是朱红实心，文案是「批准」。
@@ -131,7 +135,9 @@ AC9。终端里等待批准的命令，卡片上写「本次宿主运行期间�
 
 AC11。智能体回合卡住、该会话没有待批、并且总览给出了续跑地址时，单独成组，只有「继续」。
 
-本环境没有可用对话模型。向智能体提交任务时，接口以错误事件返回「未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。」页面上没有「继续」。等级：Unknown。
+造出方式：启用本机 mock 对话模型后提交计划任务。模型回复没有调用 `complete_step`，总览把该 Run 标成 stuck，并给出续跑地址。该会话没有待批。运行实况单独成组，只有「继续」。等级：Verified。
+
+![要续跑只有继续](../ai/pilot/2026-11-25-attention-inbox/evidence/60-agent-resume.png)
 
 ## 正在跑的来源
 
@@ -143,8 +149,8 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 
 | 来源 | 列表 | 点击 | 验收 |
 | --- | --- | --- | --- |
-| 智能体未结束回合和计划 Run | `GET /api/ai-agent/tasks-overview` | `/ai-agent?id=` 或 `/ai-agent?planId=` | AC12 Unknown |
-| 外部 Agent 未结束任务 | `GET /api/agent-hub/tasks` | `/agent-hub?taskId=` | AC13 |
+| 智能体未结束回合和计划 Run | `GET /api/ai-agent/tasks-overview` | `/ai-agent?id=` 或 `/ai-agent?planId=` | AC12 |
+| 外部 Agent 未结束任务 | `GET /api/agent-hub/tasks` | `/agent-hub?id=` | AC13 |
 | 外部 Agent 待权限 | 状态为等待权限的任务 | 同一条任务链接 | AC8 |
 | 智能终端里还在跑的命令 | 会话下的块状态为 running | `/smart-terminal?sessionId=` | AC14 |
 | 工程台拉起且未结束的命令 | `GET /api/runs` | `/sems?id=&pid=` | AC15 |
@@ -152,7 +158,7 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 | 工作流正在执行 | `GET /api/workflows/executions?status=Running` | `/workflows?executionId=` | AC17 |
 | 定时任务这次触发还在跑 | `GET /api/scheduler/running` | `/scheduler?taskId=`，只读 | AC18 |
 | 待触发的定时任务 | `GET /api/scheduler/tasks` | 同一只读页 | AC18 |
-| 文件工具目录扫描 | `GET /api/filetools/folders/scans` | `/file-tools?scanId=` | AC19 Unknown |
+| 文件工具目录扫描 | `GET /api/filetools/folders/scans` | `/file-tools?id=` | AC19 |
 | 浏览器单实例已打开 | `GET /api/browser-use/session` | `/browser-use`，只读 | AC20 |
 | 重新扫描发现、且上面还没有的进程 | `POST /api/runs/check`，只在按下按钮时 | 对上项目走工程台；只剩 pid 走 `/system-monitor?pid=` | AC21 / AC22 |
 
@@ -162,13 +168,23 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 
 AC12。未结束的回合或计划 Run 应出现在在跑。对话用主参数 `id`，计划 Run 用 `planId`。当前导出页带上 `planId`（旧名 `runId` 仍接受）就打开该次执行记录。
 
-本环境提交任务被对话模型缺失拒绝，总览里没有未结束回合，运行实况也没有这一行。等级：Unknown。待批深链是另一条验收，见深链节，已经打开。
+造出方式：再登记一个指向本机慢响应接口的对话模型并启用。总览先出现 planning，随后出现 running。运行实况分别写出「规划中」和「执行中」。带 `planId` 打开的执行记录就是这一次卡住的 Run，左侧选中该条，右侧写出同一句卡住原因。等级：Verified。
+
+![计划任务规划中](../ai/pilot/2026-11-25-attention-inbox/evidence/58-agent-planning.png)
+
+![计划任务执行中](../ai/pilot/2026-11-25-attention-inbox/evidence/59-agent-running.png)
+
+![计划标识打开这一次 Run](../ai/pilot/2026-11-25-attention-inbox/evidence/61-open-plan.png)
 
 ### 外部 Agent
 
 AC13。未结束的外部任务出现在在跑。待办委派出去的那一行带次链接「来自待办」，指向 `/todo?todoId=`。主点击仍打开该任务。
 
-造出方式：建一个会持续运行的外部任务，并把一条待办派给它。等级：Verified。见亮色来源图和 AC3 的图。待办页打开后的地址带 `todoId`。
+造出方式：登记一个以 sleep 为可执行文件的 agent，本次新建任务后状态停在 Running。运行实况有这一行，点进 `/agent-hub?id=` 打开的仍是执行中。等级：Verified。
+
+![外部任务仍在执行](../ai/pilot/2026-11-25-attention-inbox/evidence/62-hub-running.png)
+
+![外部任务页仍是执行中](../ai/pilot/2026-11-25-attention-inbox/evidence/63-open-hub.png)
 
 ![来自待办打开待办详情](../ai/pilot/2026-11-25-attention-inbox/evidence/open-todo_todoId=1.png)
 
@@ -218,9 +234,13 @@ AC18。这次触发还在执行的任务出现在在跑。已启用、这次没�
 
 ### 文件工具扫描
 
-AC19。扫描进行中应出现一行，点击进 `/file-tools?scanId=`。列表只返回尚未结束的扫描。
+AC19。扫描进行中应出现一行，点击进 `/file-tools?id=`。列表只返回尚未结束的扫描。
 
-本环境对几个目录发起扫描，接口在页面完成第一次拉取之前就不再返回进行中的记录。运行实况没有扫描行，也没有 `scanId` 深链截图。等级：Unknown。文件工具的 HTTP 前缀是 `api/filetools`。
+造出方式：对一个约 250 万个空文件的目录发起扫描，在扫描结束前打开运行实况和文件工具。运行实况写「扫描中」。来源页按钮仍是「扫描中…」，状态为 Running，并写明下表是截至当前的部分结果。等级：Verified。文件工具的 HTTP 前缀是 `api/filetools`。
+
+![扫描进行中](../ai/pilot/2026-11-25-attention-inbox/evidence/64-scan-running.png)
+
+![文件工具打开该次扫描](../ai/pilot/2026-11-25-attention-inbox/evidence/65-open-scan.png)
 
 ### 浏览器
 
@@ -293,9 +313,9 @@ AC26。点一行要带着查询参数打开对应详情，而不是只改地址�
 | 工作流 | `id` | 执行详情 | 工作流节 | Verified |
 | 定时任务 | `id` | 只读任务页 | 定时任务节 | Verified |
 | 浏览器 | 无任务 id | 已打开 | 浏览器节 | Verified |
-| 文件扫描 | `id` | 该次扫描 | 无 | Unknown |
+| 文件扫描 | `id` | 该次扫描 | 文件工具扫描节 | Verified |
 | 对不上项目的进程 | `id`，值是 pid | 系统监控里的该进程 | 系统监控节 | Verified |
-| 计划 Run | `planId` | 该次执行记录 | 无 | Unknown |
+| 计划 Run | `planId` | 该次执行记录 | 智能体未结束回合节 | Verified |
 
 智能体的当前页面会读取主参数 `id`（旧名 `session` 仍接受），把该会话下仍待决定的工具审批放进对话。等级：Verified。
 

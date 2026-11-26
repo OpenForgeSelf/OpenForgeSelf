@@ -16,22 +16,22 @@
 | AC8 | Verified | `evidence/11-light-sources.png` 的按钮，`evidence/24-once-approved.png` 的结果句 |
 | AC9 | Verified | `evidence/03-light-attention-and-running.png` 的终端卡片 |
 | AC10 | Verified | `evidence/11-light-sources.png`、`evidence/27-rescan-detected-process.png` |
-| AC11 | Unknown | 提交智能体任务返回错误事件：未找到可用对话模型。页面没有「继续」 |
-| AC12 | Unknown | 同一错误，总览没有未结束回合，在跑没有智能体回合行 |
-| AC13 | 本轮新建未验证 | 本轮新建的外部任务在 36ms 内变为 Failed，errorCode 为 upstream_error。页面上仍有更早的「执行中」行，不能当作这次新建 |
+| AC11 | Verified | `evidence/60-agent-resume.png`。总览 status 为 stuck，卡片只有「继续」，原因是未调用 complete_step |
+| AC12 | Verified | `evidence/58-agent-planning.png`（规划中）、`evidence/59-agent-running.png`（执行中）。总览对应 planning 与 running |
+| AC13 | Verified | 本次新建任务停在 Running：`evidence/62-hub-running.png`、`evidence/63-open-hub.png` |
 | AC14 | Verified | 本轮 `evidence/43-open-terminal-approval.png`、`evidence/56-terminal-running.png`（`tail -f /dev/null`，文案「命令还在跑」） |
 | AC15 | Verified | 本轮 `evidence/54-launched-command.png`（PID 35163）、`evidence/57-sems-pid.png`（`/sems?id=3&pid=35163`，运行页标出该 pid） |
 | AC16 | Verified | 本轮新建执行 id 7：`evidence/35-script-row.png`、`evidence/40-open-script.png`（`/script-runner?id=7`，状态运行中，开始时间与本次执行一致） |
 | AC17 | Verified | 本轮新建执行 id 7：`evidence/36-workflow-row.png`、`evidence/41-open-workflow.png`（`/workflows?id=7`，运行中 1 分 12 秒） |
 | AC18 | Verified | 本轮 `evidence/37-scheduler-running-row.png`（「这次触发还在执行」）、`evidence/48-run-now-triggered.png`（「已触发」） |
-| AC19 | Unknown | 24 万个文件的目录扫描在 281ms 内结束，短于页面拉取。没有进行中的行 |
+| AC19 | Verified | `evidence/64-scan-running.png` 写「扫描中」；`evidence/65-open-scan.png` 来源页仍是「扫描中…」且状态 Running |
 | AC20 | Verified | `evidence/link-browser-use-.png`。来自第一次验证栈 |
 | AC21 | Verified | `evidence/27-rescan-detected-process.png`、`evidence/28-open-detected-process.png` |
 | AC22 | Verified | `evidence/34-unmatched-group.png` 未归属下的 sleep；`evidence/39-monitor-highlight.png` 高亮 pid 33819，地址 `id=33819` |
 | AC23 | Verified | `evidence/26-unauthorized.png`。定时任务、脚本、工作流以及智能体待批列表在本宿主上不要求密钥 |
 | AC24 | Verified | `evidence/29-plugin-disabled.png`。截完已重新启用浏览器插件 |
 | AC25 | Verified | `evidence/03-light-attention-and-running.png`、`evidence/04-dark-attention-and-running.png`、`evidence/11-light-sources.png`、`evidence/12-dark-sources.png` |
-| AC26 | Verified | 新主参数截图：智能体 `evidence/46-open-agent-id.png`，数据库 `evidence/44-open-db.png`，终端 `evidence/43-open-terminal-approval.png`，定时任务 `evidence/42-open-scheduler.png`，外部任务 `evidence/45-open-hub-failed.png`，工程台 `evidence/57-sems-pid.png`。计划 Run 与文件扫描仍无对应详情截图 |
+| AC26 | Verified | 计划 Run：`evidence/61-open-plan.png`（`planId=1`，右侧是这一次卡住的 Run）。文件扫描：`evidence/65-open-scan.png`。不足 2 分钟的金色同意：`evidence/66-soon-gold.png` |
 
 `evidence/20-light-terminal-and-scan.png` 当时页面上没有高风险终端行，也没有扫描行，不作为这两项的证据。`evidence/link-ai-agent-_session=evidence-session.png` 是修复前的页面，打开的是新会话；修复后的证据是 `evidence/23-open-agent-approval.png`。
 
@@ -85,6 +85,6 @@ Passed!  - Failed:     0, Passed:    21, Skipped:     0, Total:    21
 
 不足两分钟算紧急、过期不出现、知道即可最多 20 条且失败在前、同一 pid 只一条、终端待批不再另开在跑、定时任务已被智能体代表则不重复：`runtimeBoard.test.ts` 已绿。这些没有单独的页面截图。
 
-`POST /api/ai-agent/runs` 的错误原文仍是：未找到可用对话模型：请到「AI 模型」设置启用至少一个对话模型后再试。总览 items 为空，没有计划 Run 可打开。`/ai-agent?planId=1` 打开了执行记录面板，左侧没有这条 Run。
+本轮补验证没有改分类函数，也没有改业务代码。启用本机 mock 提供方并拉取模型后，`GET /api/ai-agent/tasks-overview` 出现 stuck，续跑地址为 `/api/ai-agent/runs/1/resume`。另启用一个本机慢响应的 OpenAI 兼容模型后，同一接口先后出现 planning 与 running。外部任务新建后 `GET /api/agent-hub/tasks/12` 为 Running。目录扫描在页面打开时 `state` 仍是 Running。`write_file` 待批剩余约 1 分钟时，卡片上的同意按钮带 `rs-btn-gold`。
 
-全量 `scripts/ci/run-gates.ps1` 本轮没有跑。
+全量 `scripts/ci/run-gates.ps1` 本轮没有跑。本轮没有改业务代码，没有重跑 `pnpm run check` 与 `dotnet test`。

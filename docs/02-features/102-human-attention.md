@@ -285,7 +285,7 @@ AC26。点一行要带着查询参数打开对应详情，而不是只改地址�
 | 数据库待批 | `id` | 写入审批对话框 | 下图 | Verified |
 | 终端在跑 | `id` | 该会话和命令 | 终端节 | Verified |
 | 终端待批 | `id` 与 `approvalId` | 高风险确认 | 终端节 | Verified |
-| 外部 Agent | `id` | 该任务 | 下图 | Verified |
+| 外部 Agent | `id` | 该任务 | 下图 | 打开已验证；本轮新建的任务已失败，执行中未验证 |
 | 待办 | `id` | 被派发的待办 | 外部 Agent 节 | Verified |
 | 工程台命令 | `id` 与 `pid` | 该项目和命令 | 工程台节 | Verified |
 | 扫描到的进程 | `id` 与 `pid` | 工程台 | 重新扫描节 | Verified |
@@ -297,17 +297,17 @@ AC26。点一行要带着查询参数打开对应详情，而不是只改地址�
 | 对不上项目的进程 | `id`，值是 pid | 系统监控里的该进程 | 系统监控节 | Verified |
 | 计划 Run | `planId` | 该次执行记录 | 无 | Unknown |
 
-智能体的当前页面会读取 `session`，把该会话下仍待决定的工具审批放进对话。等级：Verified。
+智能体的当前页面会读取主参数 `id`（旧名 `session` 仍接受），把该会话下仍待决定的工具审批放进对话。等级：Verified。
 
-![智能体会话打开待批](../ai/pilot/2026-11-25-attention-inbox/evidence/23-open-agent-approval.png)
+![智能体会话打开待批](../ai/pilot/2026-11-25-attention-inbox/evidence/46-open-agent-id.png)
 
-数据库的 `approvalId` 打开写入审批。破坏性语句在来源页也会标出不可恢复。等级：Verified。
+数据库的主参数 `id`（旧名 `approvalId` 仍接受）打开写入审批。破坏性语句在来源页也会标出不可恢复。等级：Verified。
 
-![数据库审批对话框](../ai/pilot/2026-11-25-attention-inbox/evidence/link-db-admin-_approvalId=3.png)
+![数据库审批对话框](../ai/pilot/2026-11-25-attention-inbox/evidence/44-open-db.png)
 
-外部 Agent 的 `taskId` 打开该任务的事件流。等级：Verified。
+外部 Agent 的主参数 `id`（旧名 `taskId` 仍接受）打开该任务。本轮新建的任务在打开时已经失败，不是执行中。等级：打开已验证，执行中未验证。
 
-![外部任务详情](../ai/pilot/2026-11-25-attention-inbox/evidence/link-agent-hub-_taskId=1.png)
+![外部任务详情](../ai/pilot/2026-11-25-attention-inbox/evidence/45-open-hub-failed.png)
 
 ## 访问密钥与未启用
 

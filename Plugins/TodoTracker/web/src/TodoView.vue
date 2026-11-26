@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import NotifyHost from './NotifyHost.vue'
 import TaskDetail from './components/TaskDetail.vue'
 import TaskDrawer from './components/TaskDrawer.vue'
+import { todoIdFromSearch } from './deepLink'
 import * as store from './store'
 import { changeStage, fetchPluginVersion } from './http'
 import { confirmAction, showToast } from './notify'
@@ -54,6 +55,8 @@ async function reload(): Promise<void> {
 onMounted(async () => {
   void store.loadProjects()
   await reload()
+  const todoId = todoIdFromSearch(window.location.search)
+  if (Number.isInteger(todoId) && todoId > 0) await store.selectTodo(todoId)
   store.startAgentStatusPolling()
   try {
     version.value = await fetchPluginVersion('todo-tracker')

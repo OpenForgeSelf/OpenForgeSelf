@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { monitorPidFromQuery } from '@/services/runtimeDeepLink'
 import PageHead from '@/components/PageHead.vue'
 import { useSystemMonitorStore } from '@/stores/systemMonitor'
 import { systemMonitorApi } from '@/services/systemMonitorApi'
 
 const store = useSystemMonitorStore()
+const route = useRoute()
+const highlightPid = computed(() => monitorPidFromQuery(route.query as Record<string, unknown>))
 const processKeyword = ref('')
 const sortField = ref<'cpuUsage' | 'memoryUsage' | 'name' | 'pid'>('cpuUsage')
 const sortDir = ref<'asc' | 'desc'>('desc')
@@ -421,7 +425,7 @@ onUnmounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="proc in filteredProcesses" :key="proc.pid">
+              <tr v-for="proc in filteredProcesses" :key="proc.pid" :class="{ 'proc-focus': highlightPid === proc.pid }">
                 <td class="cell-name">{{ proc.name }}</td>
                 <td>{{ proc.pid }}</td>
                 <td :class="{ 'cell-high': proc.cpuUsage > 5 }">{{ proc.cpuUsage.toFixed(1) }}</td>
@@ -1006,8 +1010,11 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.015);
 }
 
-.process-table tbody tr:hover {
-  background: var(--el-color-primary-light-9);
+.process-table tbody tr.proc-focus {
+  background: var(--gold-tint);
+}
+
+.process-table tbody tr:hover {  background: var(--el-color-primary-light-9);
 }
 
 /* ===== STATUS ===== */

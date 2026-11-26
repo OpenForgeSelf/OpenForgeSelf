@@ -323,6 +323,15 @@ export function toCreateBody(parsed: ParsedLaunch): LaunchApply {
   }
 }
 
+/** 运行实况打开终端：定位会话，并在有 approvalId 时停在那条待批。 */
+export function terminalFocusFromSearch(search: string): { sessionId: string; approvalId: string } | null {
+  const raw = search.startsWith('?') ? search.slice(1) : search
+  const params = new URLSearchParams(raw)
+  const sessionId = (params.get('sessionId') || params.get('st_session') || '').trim()
+  if (!sessionId) return null
+  return { sessionId, approvalId: (params.get('approvalId') || '').trim() }
+}
+
 /** 从当前地址栏移除敏感 query，并去掉一次性 launch 触发标记（避免刷新重复启动）。 */
 export function scrubLaunchParamsFromUrl(href = typeof location !== 'undefined' ? location.href : ''): string {
   try {

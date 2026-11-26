@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Box, Grid, Picture, Setting } from '@element-plus/icons-vue'
 import { useTabsStore } from '@/stores/tabs'
+import { useRuntimeBoardStore } from '@/stores/runtimeBoard'
 import { useOpenPage } from '@/composables/useOpenPage'
 import BackgroundPanel from '@/components/BackgroundPanel.vue'
 import AppLogo from '@/components/AppLogo.vue'
@@ -16,6 +17,7 @@ import type { NavTab } from '@/stores/tabs'
 const router = useRouter()
 const route = useRoute()
 const tabsStore = useTabsStore()
+const runtimeBoard = useRuntimeBoardStore()
 const { openPage } = useOpenPage()
 const usageStore = useUsageStatsStore()
 const manifestStore = usePluginManifestStore()
@@ -79,9 +81,15 @@ function unpin(path: string): void {
   usageStore.togglePin(path)
 }
 
+function badgeOf(tab: NavTab): number | undefined {
+  return tabsStore.tabs.find((t) => t.path === tab.path)?.badge
+}
+
 onMounted(() => {
   // 使用度 store 懒加载：进站即读一次，保证钉住标签在刷新后立即恢复
   usageStore.load()
+  // 运行实况的阻塞数字跟标签走，不依赖当前是否停在这一页
+  runtimeBoard.start()
 })
 
 // 背景设置面板开合（DESIGN.md 壳层：右上 300px glass-strong 浮层）
@@ -105,6 +113,7 @@ const bgPanelOpen = ref(false)
         @click="navigateTo(tab.path)"
       >
         <span>{{ tab.label }}</span>
+        <span v-if="badgeOf(tab)" class="tab-badge">{{ badgeOf(tab) }}</span>
         <span
           v-if="isPinnedTab(tab)"
           class="close-x"
@@ -245,6 +254,17 @@ const bgPanelOpen = ref(false)
   background: var(--el-color-primary);
   border-radius: 2px 2px 0 0;
   box-shadow: var(--gold-glow-md);
+}
+
+.tab-badge {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: var(--el-border-radius-small);
+  background: var(--gold-400);
+  color: var(--ink-950);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
 }
 
 .close-x {

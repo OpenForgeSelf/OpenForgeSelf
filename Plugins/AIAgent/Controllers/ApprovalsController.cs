@@ -41,6 +41,17 @@ public sealed class ApprovalsController : ControllerBase
         return Ok(list.Select(d => ToApi(d)).ToList());
     }
 
+    /// <summary>GET /api/ai-agent/approvals/pending — 跨会话仍待决定的审批。</summary>
+    [HttpGet("pending")]
+    public async Task<ActionResult<IReadOnlyList<ApprovalApiItem>>> ListPending(CancellationToken ct)
+    {
+        if (MissingApprovalService() is { } missingPending)
+            return missingPending;
+
+        var list = await _ctx.Get<IApprovalService>()!.ListPendingAsync(ct).ConfigureAwait(false);
+        return Ok(list.Select(d => ToApi(d)).ToList());
+    }
+
     /// <summary>POST /api/ai-agent/approvals/{id}/decide  body { approved, note? }</summary>
     [HttpPost("{id:long}/decide")]
     public async Task<ActionResult<ApprovalApiItem>> Decide(long id, [FromBody] DecideBody body, CancellationToken ct)

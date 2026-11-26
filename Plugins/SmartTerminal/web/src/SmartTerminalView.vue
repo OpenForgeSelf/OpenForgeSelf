@@ -23,6 +23,7 @@ import {
   parseLaunchQuery,
   rememberOpenId,
   stripConsumedLaunch,
+  terminalFocusFromSearch,
   toCreateBody,
 } from './launchFromQuery'
 import type {
@@ -657,9 +658,18 @@ async function applyLaunchSearch(search: string) {
   stripConsumedLaunch()
   if (seen) return
   if (params.get('st_secret_stripped') === '1') showToast('链接里的密码已丢弃，请在对话框重新输入。')
-  const sessionId = params.get('sessionId') || params.get('st_session')
-  if (sessionId) {
-    await focusInboundSession(sessionId)
+  const focus = terminalFocusFromSearch(raw)
+  if (focus) {
+    await focusInboundSession(focus.sessionId)
+    const approvalId = focus.approvalId
+    if (approvalId) {
+      const pending = await api.approvals(focus.sessionId)
+      const hit = (pending ?? []).find((item) => item.id === approvalId)
+      if (hit) {
+        approval.value = { ...hit, sessionId: focus.sessionId }
+        approvalSource.value = 'prompt'
+      }
+    }
     return
   }
   const parsed = parseLaunchQuery(raw)

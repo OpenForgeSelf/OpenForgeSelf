@@ -7,7 +7,7 @@ public interface IWorkflowService
     Task<bool> DeleteWorkflowAsync(long id);
     Task<WorkflowDefinitionDto?> GetWorkflowAsync(long id);
     Task<PagedResult<WorkflowDefinitionDto>> ListWorkflowsAsync(string? keyword = null, string? category = null, int page = 1, int pageSize = 20);
-    Task<PagedResult<WorkflowExecutionDto>> GetExecutionsAsync(long? workflowId = null, int page = 1, int pageSize = 20);
+    Task<PagedResult<WorkflowExecutionDto>> GetExecutionsAsync(long? workflowId = null, int page = 1, int pageSize = 20, WorkflowStatus? status = null);
     Task<WorkflowExecutionDetailDto?> GetExecutionDetailAsync(long executionId);
     Task<bool> FavoriteWorkflowAsync(long id, bool isFavorite);
     Task<bool> IncrementUsageCountAsync(long id);

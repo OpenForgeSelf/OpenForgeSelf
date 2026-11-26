@@ -8,6 +8,13 @@ namespace ForgeSelf.Api.Plugins.BrowserUse;
 /// 本机 Playwright Chromium 会话。单实例串行；卸载时关闭。
 /// 下载只落盘，不启动文件。CAPTCHA/SSO 直接返回人工接管。
 /// </summary>
+/// <summary>浏览器单实例的只读状态。</summary>
+public sealed class BrowserSessionView
+{
+    public bool Open { get; init; }
+    public string? Url { get; init; }
+}
+
 public sealed class BrowserSession
 {
     private static readonly string[] CaptchaSelectors =
@@ -31,6 +38,24 @@ public sealed class BrowserSession
     private bool _headless;
 
     public BrowserSession(string dataDir) => _dataDir = dataDir;
+
+    /// <summary>只读快照：浏览器是否仍开着，以及当前地址。不启动浏览器。</summary>
+    public BrowserSessionView Describe()
+    {
+        var browser = _browser;
+        var page = _page;
+        var open = browser != null && browser.IsConnected && page != null && !page.IsClosed;
+        string? url = null;
+        if (open)
+        {
+            try { url = page!.Url; }
+            catch (Exception ex)
+            {
+                XTrace.Log.Debug("[BrowserUse] 读取当前地址失败: {0}", ex.Message);
+            }
+        }
+        return new BrowserSessionView { Open = open, Url = string.IsNullOrWhiteSpace(url) ? null : url };
+    }
 
     public Task<string> OpenAsync(string parameters) => Gate(() => OpenCoreAsync(parameters));
     public Task<string> NavigateAsync(string parameters) => Gate(() => NavigateToolAsync(parameters));

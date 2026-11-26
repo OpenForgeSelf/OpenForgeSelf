@@ -44,6 +44,40 @@ public class PersistentApprovalServiceTests
     }
 
     [Fact]
+    public async Task ListPending_ReturnsOnlyUnexpiredPending_AcrossSessions()
+    {
+        var svc = new PersistentApprovalService();
+        var live = await svc.CreatePendingAsync(new ApprovalCreateRequest
+        {
+            SessionId = "s-a",
+            ToolName = "delete_file",
+            ArgsJson = "{}",
+            Timeout = TimeSpan.FromMinutes(5),
+        });
+        await svc.CreatePendingAsync(new ApprovalCreateRequest
+        {
+            SessionId = "s-b",
+            ToolName = "write_file",
+            ArgsJson = "{}",
+            Timeout = TimeSpan.FromMinutes(5),
+        });
+        var decided = await svc.CreatePendingAsync(new ApprovalCreateRequest
+        {
+            SessionId = "s-c",
+            ToolName = "run_terminal_command",
+            ArgsJson = "{}",
+            Timeout = TimeSpan.FromMinutes(5),
+        });
+        await svc.DecideAsync(decided.Id, approved: false, note: "no");
+
+        var pending = await svc.ListPendingAsync();
+        pending.Should().HaveCount(2);
+        pending.Select(x => x.SessionId).Should().BeEquivalentTo("s-a", "s-b");
+        pending.Should().Contain(x => x.Id == live.Id);
+        pending.Should().OnlyContain(x => x.Status == nameof(ApprovalStatus.Pending));
+    }
+
+    [Fact]
     public async Task Unapproved_AskAsync_TimesOut_FailClosed()
     {
         var svc = new PersistentApprovalService();

@@ -93,6 +93,9 @@ public class ImTaskDispatchTests : IClassFixture<XCodeTestFixture>
         public Task<IReadOnlyList<ApprovalDto>> ListBySessionAsync(string sessionId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ApprovalDto>>(Approvals.Where(a => a.SessionId == sessionId).ToList());
 
+        public Task<IReadOnlyList<ApprovalDto>> ListPendingAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ApprovalDto>>(Approvals.Where(a => a.Status == "Pending").ToList());
+
         public Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default)
         {
             DecideCalls.Add((id, approved, note));

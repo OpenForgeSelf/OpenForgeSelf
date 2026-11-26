@@ -23,6 +23,14 @@ public class FolderScanRequest
     public int Top { get; set; } = 50;
 }
 
+/// <summary>进行中的目录扫描（实况页只需要标识，不带排行）。</summary>
+public class RunningScanItem
+{
+    public Guid ScanId { get; set; }
+    public string RootPath { get; set; } = string.Empty;
+    public ScanState State { get; set; }
+}
+
 /// <summary>任务受理回执（扫描在后台跑，不同步返回结果）。</summary>
 public class ScanAccepted
 {

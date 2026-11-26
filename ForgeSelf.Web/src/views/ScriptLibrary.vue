@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { scriptExecutionFromQuery } from '@/services/runtimeDeepLink'
 import AppLogo from '@/components/AppLogo.vue'
 import PageHead from '@/components/PageHead.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -207,6 +209,13 @@ onMounted(() => {
   loadScripts()
   scriptRunnerStore.loadCategories()
   scriptRunnerStore.loadRuntimes()
+  const executionId = scriptExecutionFromQuery(useRoute().query as Record<string, unknown>)
+  if (executionId) {
+    activeTab.value = 'executions'
+    selectedExecutionId.value = executionId
+    showExecutionDetail.value = true
+    void scriptRunnerStore.loadExecution(executionId)
+  }
   scriptHub.connect({
     onOutputReceived: handleOutputReceived,
     onExecutionUpdate: handleExecutionUpdate

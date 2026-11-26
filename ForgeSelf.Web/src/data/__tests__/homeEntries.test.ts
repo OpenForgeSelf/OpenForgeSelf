@@ -44,7 +44,7 @@ describe('buildHomeEntries', () => {
     expect(entries).toEqual([{ key: '/ai-agent', label: 'AI Agent', icon: 'package', path: '/ai-agent' }])
   })
 
-  it('过滤无页面的功能（如 scheduler 的 path 为 null）', () => {
+  it('过滤没有路径的功能', () => {
     const entries = buildHomeEntries([feature(null, { name: '定时任务' }), feature('/chat')])
     expect(entries.map((e) => e.key)).toEqual(['/chat'])
   })

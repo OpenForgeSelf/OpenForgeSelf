@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useFileToolsStore } from '../stores/fileTools'
+import { useFolderScanStore } from '../stores/fileToolFolders'
+import { scanIdFromSearch } from '../deepLink'
 import type { FileToolTab } from '../types/fileTools'
 import { fileToolsApi } from '../services/fileToolsApi'
 import { fetchPluginVersion } from '../services/pluginMeta'
@@ -11,12 +13,18 @@ import StatsPanel from '../components/StatsPanel.vue'
 import FoldersPanel from '../components/FoldersPanel.vue'
 
 const store = useFileToolsStore()
+const folders = useFolderScanStore()
 
 /** 铁律13：标题旁显示**已加载**版本，走查时不必去插件管理页就能确认更新有没有生效 */
 const pluginVersion = ref('')
 
 onMounted(async () => {
   pluginVersion.value = await fetchPluginVersion('file-tools')
+  const scanId = scanIdFromSearch(window.location.search)
+  if (scanId.trim()) {
+    store.setTab('folders')
+    await folders.focusScan(String(scanId))
+  }
 })
 
 interface TabItem {

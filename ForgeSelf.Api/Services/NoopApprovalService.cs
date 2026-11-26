@@ -45,6 +45,10 @@ public sealed class NoopApprovalService : IApprovalService
         => Task.FromResult<IReadOnlyList<ApprovalDto>>(Array.Empty<ApprovalDto>());
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<ApprovalDto>> ListPendingAsync(CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ApprovalDto>>(Array.Empty<ApprovalDto>());
+
+    /// <inheritdoc />
     public Task<ApprovalDto?> DecideAsync(long id, bool approved, string? note, CancellationToken ct = default)
         => Task.FromResult<ApprovalDto?>(null);
 

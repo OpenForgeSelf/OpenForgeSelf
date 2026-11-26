@@ -29,7 +29,7 @@
         v-for="r in runs"
         :key="runKey(r)"
         class="run__item"
-        :class="{ 'run__item--open': isLogOpen(r), 'run__item--focus': focusCommandId === r.commandId && r.origin === 'Launched', 'run__item--ended': r.ended }"
+        :class="{ 'run__item--open': isLogOpen(r), 'run__item--focus': (focusCommandId === r.commandId && r.origin === 'Launched') || focusPid === r.pid, 'run__item--ended': r.ended }"
       >
         <div class="run__row">
           <div class="run__info">
@@ -106,6 +106,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { semsFocusFromSearch } from './deepLink'
 import { apiGet, apiPost } from './http'
 import { errorMessage, runWithConfirm, stopExternalMessage, stopSessionMessage } from './confirmOps'
 import { formatRunDuration } from './runDuration'
@@ -127,6 +128,7 @@ const checking = ref(false)
 const busyPid = ref<number | null>(null)
 const clock = ref(Date.now())
 const focusCommandId = ref<number | null>(null)
+const focusPid = ref<number | null>(null)
 const openLogIds = ref<Set<number>>(new Set())
 
 /* ------------------------------------------------------------------ *
@@ -247,6 +249,8 @@ function syncTimers() {
 }
 
 onMounted(async () => {
+  const focus = semsFocusFromSearch(window.location.search)
+  if (focus.runId > 0) focusPid.value = focus.runId
   await refresh()
   syncTimers()
 })

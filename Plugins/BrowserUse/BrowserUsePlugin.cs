@@ -1,11 +1,12 @@
 using ForgeSelf.Abstractions;
 using ForgeSelf.Core;
+using Microsoft.Extensions.DependencyInjection;
 using NewLife.Log;
 
 namespace ForgeSelf.Api.Plugins.BrowserUse;
 
 /// <summary>
-/// 本机浏览器插件。工具只注册在本插件，不进入 AIAgent/MafLoop。无界面，不做团队共享。
+/// 本机浏览器插件。工具只注册在本插件，不进入 AIAgent/MafLoop。宿主有只读页 /browser-use，插件内不做操作台。不做团队共享。
 /// </summary>
 public class BrowserUsePlugin : IPlugin
 {
@@ -30,22 +31,25 @@ public class BrowserUsePlugin : IPlugin
         if (string.IsNullOrEmpty(dataDir))
         {
             XTrace.Log.Error("[BrowserUse] 未取得数据目录，跳过工具注册");
-            return;
+        }
+        else
+        {
+            try
+            {
+                BrowserUseConfig.Load(dataDir);
+            }
+            catch (Exception ex)
+            {
+                XTrace.Log.Warn("[BrowserUse] 写入默认 config.json 失败: {0}", ex.Message);
+            }
         }
 
-        try
-        {
-            BrowserUseConfig.Load(dataDir);
-        }
-        catch (Exception ex)
-        {
-            XTrace.Log.Warn("[BrowserUse] 写入默认 config.json 失败: {0}", ex.Message);
-        }
-
-        var session = new BrowserSession(dataDir);
+        var session = new BrowserSession(dataDir ?? "");
+        ctx.Get<IServiceCollection>()?.AddSingleton(session);
         ctx.Effect(() => Disposable.Create(() => session.Shutdown()));
 
-        RegisterToolFunctionExtensions(pluginId, session);
+        if (!string.IsNullOrEmpty(dataDir))
+            RegisterToolFunctionExtensions(pluginId, session);
         XTrace.Log.Info("[BrowserUse] 浏览器插件初始化完成，工具 {0} 个", ToolExtensions.Count);
     }
 

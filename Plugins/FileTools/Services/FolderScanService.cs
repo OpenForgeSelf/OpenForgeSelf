@@ -23,6 +23,9 @@ public interface IFolderScanService
     /// <summary>取任务视图（Running 期间为部分结果）。任务不存在返回 null。</summary>
     ScanView? GetScan(Guid scanId);
 
+    /// <summary>排队中或正在扫描的任务。已完成的不返回。</summary>
+    IReadOnlyList<RunningScanItem> ListRunning();
+
     /// <summary>请求取消。任务不存在或已停下返回 false。</summary>
     bool CancelScan(Guid scanId);
 
@@ -356,6 +359,16 @@ public class FolderScanService : IFolderScanService
     /// <summary>取父目录统计（父在压栈前已登记，故链上必然可解析；到根即 null）。</summary>
     private static DirStat? ParentOf(ScanJob job, DirStat node) =>
         node.Parent != null && job.Dirs.TryGetValue(node.Parent, out var parent) ? parent : null;
+
+    public IReadOnlyList<RunningScanItem> ListRunning() =>
+        _store.ListActive()
+            .Select(job => new RunningScanItem
+            {
+                ScanId = job.Id,
+                RootPath = job.Root,
+                State = job.State,
+            })
+            .ToList();
 
     public ScanView? GetScan(Guid scanId)
     {

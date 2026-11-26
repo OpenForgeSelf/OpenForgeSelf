@@ -141,16 +141,21 @@ public class WorkflowService : IWorkflowService
         });
     }
 
-    public Task<PagedResult<WorkflowExecutionDto>> GetExecutionsAsync(long? workflowId = null, int page = 1, int pageSize = 20)
+    public Task<PagedResult<WorkflowExecutionDto>> GetExecutionsAsync(long? workflowId = null, int page = 1, int pageSize = 20, WorkflowStatus? status = null)
     {
-        XTrace.Log.Debug("[WorkflowService] 查询执行记录，workflowId: {0}, page: {1}, pageSize: {2}",
-            workflowId, page, pageSize);
+        XTrace.Log.Debug("[WorkflowService] 查询执行记录，workflowId: {0}, page: {1}, pageSize: {2}, status: {3}",
+            workflowId, page, pageSize, status);
 
         var exp = new WhereExpression();
 
         if (workflowId.HasValue)
         {
             exp &= WorkflowExecEntity._.WorkflowId == workflowId.Value;
+        }
+
+        if (status.HasValue)
+        {
+            exp &= WorkflowExecEntity._.Status == (int)status.Value;
         }
 
         var pageParam = new PageParameter

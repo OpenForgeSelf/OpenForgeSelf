@@ -143,11 +143,11 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 
 | 来源 | 列表 | 点击 | 验收 |
 | --- | --- | --- | --- |
-| 智能体未结束回合和计划 Run | `GET /api/ai-agent/tasks-overview` | `/ai-agent?session=` 或 `/ai-agent?runId=` | AC12 Unknown |
+| 智能体未结束回合和计划 Run | `GET /api/ai-agent/tasks-overview` | `/ai-agent?id=` 或 `/ai-agent?planId=` | AC12 Unknown |
 | 外部 Agent 未结束任务 | `GET /api/agent-hub/tasks` | `/agent-hub?taskId=` | AC13 |
 | 外部 Agent 待权限 | 状态为等待权限的任务 | 同一条任务链接 | AC8 |
 | 智能终端里还在跑的命令 | 会话下的块状态为 running | `/smart-terminal?sessionId=` | AC14 |
-| 工程台拉起且未结束的命令 | `GET /api/runs` | `/sems?projectId=&runId=`，`runId` 用 pid | AC15 |
+| 工程台拉起且未结束的命令 | `GET /api/runs` | `/sems?id=&pid=` | AC15 |
 | 脚本执行中 | `GET /api/script-runner/executions?status=Running` | `/script-runner?executionId=` | AC16 |
 | 工作流正在执行 | `GET /api/workflows/executions?status=Running` | `/workflows?executionId=` | AC17 |
 | 定时任务这次触发还在跑 | `GET /api/scheduler/running` | `/scheduler?taskId=`，只读 | AC18 |
@@ -160,7 +160,7 @@ AC10。在跑按项目名分组。对不上登记项目的放在「未归属」�
 
 ### 智能体未结束回合
 
-AC12。未结束的回合或计划 Run 应出现在在跑，点击进 `/ai-agent?session=` 或带 `runId`。
+AC12。未结束的回合或计划 Run 应出现在在跑。对话用主参数 `id`，计划 Run 用 `planId`。当前导出页带上 `planId`（旧名 `runId` 仍接受）就打开该次执行记录。
 
 本环境提交任务被对话模型缺失拒绝，总览里没有未结束回合，运行实况也没有这一行。等级：Unknown。待批深链是另一条验收，见深链节，已经打开。
 
@@ -244,7 +244,13 @@ AC21。对上登记项目、且还没有被上面来源代表的进程，出现�
 
 ![进程行打开工程台](../ai/pilot/2026-11-25-attention-inbox/evidence/28-open-detected-process.png)
 
-AC22。对不上任何登记项目、只剩 pid 的进程应进 `/system-monitor?pid=`。当前扫描只把对上项目的进程放进列表，这次没有产生 projectId 为 0 的行，也没有系统监控深链截图。等级：Unknown。
+AC22。重新扫描后，落在已登记项目目录下、但类型对不上项目、只剩 pid 的进程出现在运行实况，项目名写「未归属」。点击进 `/system-monitor?id=`，值是 pid，系统监控高亮该进程。仍只查已登记项目目录，不把全机进程表搬进来，不启动也不停止。
+
+造出方式：把项目类型改成 frontend，在该目录启动 sleep。frontend 不接受 sleep，扫描仍能看到它，列表里 projectId 为 0。等级：Verified。
+
+![对不上项目的进程](../ai/pilot/2026-11-25-attention-inbox/evidence/34-unmatched-group.png)
+
+![系统监控高亮该 pid](../ai/pilot/2026-11-25-attention-inbox/evidence/39-monitor-highlight.png)
 
 ## 知道即可
 
@@ -256,22 +262,40 @@ AC22。对不上任何登记项目、只剩 pid 的进程应进 `/system-monitor
 
 AC26。点一行要带着查询参数打开对应详情，而不是只改地址栏。
 
-| 来源 | 查询 | 打开后能看到 | 图 | 等级 |
+各来源页以前各自起参数名。智能体的 `runId` 是计划 Run，工程台的 `runId` 实际是进程 pid，同一个名字指两种东西。仓内没有一份所有页面共用的深链约定，所以打开「这一条对话 / 任务 / 项目 / 页签 / 执行」的主参数统一叫 `id`。同一页还要定位另一种东西时，用能看出种类的第二参数，不再叫 `id`。运行实况只发出新名。解析端仍接受旧名，旧链接不会失效。
+
+| 页面 | 主参数 `id` 打开什么 | 第二参数 | 仍接受的旧名 |
+| --- | --- | --- | --- |
+| `/ai-agent` | 这一条对话 | `planId`：计划 Run | `session`、`runId` |
+| `/agent-hub` | 这一条外部任务 | 无 | `taskId` |
+| `/smart-terminal` | 这一条终端会话 | `approvalId`：会话里的那条待批 | `sessionId`、`st_session` |
+| `/sems` | 这个项目 | `pid`：这次进程 | `projectId`、`runId` |
+| `/script-runner` | 这一次脚本执行 | 无 | `executionId` |
+| `/workflows` | 这一次工作流执行 | 无 | `executionId` |
+| `/scheduler` | 这一条定时任务 | 无 | `taskId` |
+| `/file-tools` | 这一次目录扫描 | 无 | `scanId` |
+| `/db-admin` | 这一条写入待批 | 无 | `approvalId` |
+| `/todo` | 这一条待办 | 无 | `todoId` |
+| `/system-monitor` | 这个进程，值是 pid | 无 | `pid` |
+| `/browser-use` | 无单独一条的标识 | 无 | 无 |
+
+| 来源 | 运行实况发出的查询 | 打开后能看到 | 图 | 等级 |
 | --- | --- | --- | --- | --- |
-| 智能体待批 | `session` | 该会话标题和待批卡片 | 下图 | Verified |
-| 数据库待批 | `approvalId` | 写入审批对话框 | 下图 | Verified |
-| 终端在跑 | `sessionId` | 该会话和命令 | 终端节 | Verified |
-| 终端待批 | `sessionId` 与 `approvalId` | 高风险确认 | 终端节 | Verified |
-| 外部 Agent | `taskId` | 该任务 | 下图 | Verified |
-| 待办 | `todoId` | 被派发的待办 | 外部 Agent 节 | Verified |
-| 工程台命令 | `projectId` 与 `runId` | 该项目和命令 | 工程台节 | Verified |
-| 扫描到的进程 | `projectId` 与 `runId` | 工程台 | 重新扫描节 | Verified |
-| 脚本 | `executionId` | 执行详情 | 脚本节 | Verified |
-| 工作流 | `executionId` | 执行详情 | 工作流节 | Verified |
-| 定时任务 | `taskId` | 只读任务页 | 定时任务节 | Verified |
+| 智能体待批 | `id` | 该会话标题和待批卡片 | 下图 | Verified |
+| 数据库待批 | `id` | 写入审批对话框 | 下图 | Verified |
+| 终端在跑 | `id` | 该会话和命令 | 终端节 | Verified |
+| 终端待批 | `id` 与 `approvalId` | 高风险确认 | 终端节 | Verified |
+| 外部 Agent | `id` | 该任务 | 下图 | Verified |
+| 待办 | `id` | 被派发的待办 | 外部 Agent 节 | Verified |
+| 工程台命令 | `id` 与 `pid` | 该项目和命令 | 工程台节 | Verified |
+| 扫描到的进程 | `id` 与 `pid` | 工程台 | 重新扫描节 | Verified |
+| 脚本 | `id` | 执行详情 | 脚本节 | Verified |
+| 工作流 | `id` | 执行详情 | 工作流节 | Verified |
+| 定时任务 | `id` | 只读任务页 | 定时任务节 | Verified |
 | 浏览器 | 无任务 id | 已打开 | 浏览器节 | Verified |
-| 文件扫描 | `scanId` | 该次扫描 | 无 | Unknown |
-| 仅 pid | `pid` | 系统监控里的该进程 | 无 | Unknown |
+| 文件扫描 | `id` | 该次扫描 | 无 | Unknown |
+| 对不上项目的进程 | `id`，值是 pid | 系统监控里的该进程 | 系统监控节 | Verified |
+| 计划 Run | `planId` | 该次执行记录 | 无 | Unknown |
 
 智能体的当前页面会读取 `session`，把该会话下仍待决定的工具审批放进对话。等级：Verified。
 

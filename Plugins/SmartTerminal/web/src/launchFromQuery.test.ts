@@ -62,7 +62,14 @@ describe('parseLaunchQuery', () => {
 })
 
 describe('terminalFocusFromSearch', () => {
-  it('带 sessionId 和 approvalId 时定位到那条待批', () => {
+  it('主参数 id 定位会话，approvalId 定位待批', () => {
+    expect(terminalFocusFromSearch('?id=sess&approvalId=ap1')).toEqual({
+      sessionId: 'sess',
+      approvalId: 'ap1',
+    })
+  })
+
+  it('旧名 sessionId 仍能定位', () => {
     expect(terminalFocusFromSearch('?sessionId=sess&approvalId=ap1')).toEqual({
       sessionId: 'sess',
       approvalId: 'ap1',

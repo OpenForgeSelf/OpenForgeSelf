@@ -395,3 +395,17 @@ export const MODE_LABEL: Record<'open' | 'planned', string> = {
   open: '开放任务',
   planned: '计划任务',
 }
+
+function queryValue(query: Record<string, unknown>, key: string): string {
+  const value = query[key]
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw == null ? '' : String(raw).trim()
+}
+
+/** 智能体页深链。主参数 id 打开对话，planId 打开计划 Run。旧名 session、runId 仍接受。 */
+export function agentFocusFromQuery(query: Record<string, unknown>): { sessionId: string; planId: string } {
+  return {
+    sessionId: queryValue(query, 'id') || queryValue(query, 'session'),
+    planId: queryValue(query, 'planId') || queryValue(query, 'runId'),
+  }
+}

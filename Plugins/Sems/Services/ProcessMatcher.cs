@@ -53,6 +53,28 @@ public static class ProcessMatcher
         return null;
     }
 
+    /// <summary>
+    /// 进程是否落在任一已登记项目目录下，不管类型是否相容。
+    /// 类型对不上的进程仍要出现在运行实况（projectId 为空），但不把项目目录之外的进程算进来。
+    /// </summary>
+    public static bool LocatedUnderRegisteredRoot(
+        string? exePath,
+        string? commandLine,
+        IReadOnlyList<ProjectInfo> projects,
+        string? cwd = null)
+    {
+        if (projects == null || projects.Count == 0) return false;
+        var candidates = CollectCandidatePaths(exePath, commandLine, cwd);
+        if (candidates.Count == 0) return false;
+        foreach (var project in projects)
+        {
+            if (string.IsNullOrWhiteSpace(project.Root)) continue;
+            var rootNorm = Normalize(project.Root);
+            if (candidates.Any(c => IsUnderRoot(c, rootNorm))) return true;
+        }
+        return false;
+    }
+
     /// <summary>候选路径集合（归一化、去重、非空）。</summary>
     private static List<string> CollectCandidatePaths(string? exePath, string? commandLine, string? cwd)
     {

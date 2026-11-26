@@ -271,6 +271,27 @@ async function getNetworkHistory(duration?: number): Promise<MonitorHistory> {
   }
 }
 
+/** 进程列表接口返回 { processes }，字段名与页面用的 pid/name 不一样。 */
+export function mapProcessList(raw: unknown): ProcessInfo[] {
+  const body = (raw ?? {}) as { processes?: unknown[] }
+  const rows = Array.isArray(raw) ? raw : Array.isArray(body.processes) ? body.processes : []
+  return rows.map(mapProcess).filter((row) => row.pid > 0)
+}
+
+export function mapProcess(row: unknown): ProcessInfo {
+  const rec = (row ?? {}) as Record<string, unknown>
+  const start = rec.startTime
+  const startTime = typeof start === 'string' ? Date.parse(start) : Number(start ?? 0)
+  return {
+    pid: Number(rec.pid ?? rec.processId ?? 0),
+    name: String(rec.name ?? rec.processName ?? ''),
+    cpuUsage: Number(rec.cpuUsage ?? rec.cpuUsagePercent ?? 0),
+    memoryUsage: Number(rec.memoryUsage ?? 0),
+    memoryBytes: Number(rec.memoryBytes ?? rec.memoryUsageBytes ?? rec.workingSetBytes ?? 0),
+    startTime: Number.isFinite(startTime) ? startTime : 0,
+  }
+}
+
 async function getProcesses(sortBy?: string, keyword?: string): Promise<ProcessInfo[]> {
   try {
     const params = new URLSearchParams()
@@ -282,7 +303,7 @@ async function getProcesses(sortBy?: string, keyword?: string): Promise<ProcessI
       : `${MONITOR_API_BASE}/processes`
     const response = await fetch(url)
     if (!response.ok) throw new Error('获取进程列表失败')
-    return unwrap<ProcessInfo[]>(response)
+    return mapProcessList(await unwrap<unknown>(response))
   } catch {
     let processes = generateMockProcesses()
     if (keyword) {
@@ -291,6 +312,17 @@ async function getProcesses(sortBy?: string, keyword?: string): Promise<ProcessI
       )
     }
     return processes
+  }
+}
+
+async function getProcess(pid: number): Promise<ProcessInfo | null> {
+  try {
+    const response = await fetch(`${MONITOR_API_BASE}/processes/${pid}`)
+    if (!response.ok) return null
+    const row = mapProcess(await unwrap<unknown>(response))
+    return row.pid > 0 ? row : null
+  } catch {
+    return null
   }
 }
 
@@ -357,6 +389,7 @@ export const systemMonitorApi = {
   getNetworkConnections,
   getNetworkHistory,
   getProcesses,
+  getProcess,
   killProcess,
   getOverview,
   formatBytes,

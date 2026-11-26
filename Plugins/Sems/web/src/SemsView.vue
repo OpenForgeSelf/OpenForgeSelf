@@ -5,7 +5,7 @@
  */
 import { onMounted } from 'vue'
 import { semsFocusFromSearch } from './deepLink'
-import { loadProjects, openProject } from './workbench/workbenchStore'
+import { go, loadProjects, openProject } from './workbench/workbenchStore'
 import WorkbenchView from './workbench/WorkbenchView.vue'
 import './workbench/workbench.css'
 
@@ -13,6 +13,7 @@ onMounted(() => {
   const focus = semsFocusFromSearch(window.location.search)
   void loadProjects().then(() => {
     if (focus.projectId > 0) openProject(focus.projectId)
+    if (focus.pid > 0) go('/runs')
   })
 })
 </script>

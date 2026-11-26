@@ -177,5 +177,14 @@ public class ProcessMatchTests
         var projects = new[] { MakeProject(1, "/tmp/sems-proj", "frontend") };
         var hit = ProcessMatcher.MatchProject("/usr/bin/python3", "python3 -m http.server", projects, "/tmp/sems-proj");
         Assert.Null(hit);
+        Assert.True(ProcessMatcher.LocatedUnderRegisteredRoot(
+            "/usr/bin/python3", "python3 -m http.server", projects, "/tmp/sems-proj"));
+    }
+
+    [Fact]
+    public void LocatedUnderRegisteredRoot_OutsideRoots_IsFalse()
+    {
+        var projects = new[] { MakeProject(1, "/tmp/sems-proj", "frontend") };
+        Assert.False(ProcessMatcher.LocatedUnderRegisteredRoot("/bin/sleep", "sleep 30", projects, "/tmp"));
     }
 }

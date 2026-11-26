@@ -327,7 +327,7 @@ export function toCreateBody(parsed: ParsedLaunch): LaunchApply {
 export function terminalFocusFromSearch(search: string): { sessionId: string; approvalId: string } | null {
   const raw = search.startsWith('?') ? search.slice(1) : search
   const params = new URLSearchParams(raw)
-  const sessionId = (params.get('sessionId') || params.get('st_session') || '').trim()
+  const sessionId = (params.get('id') || params.get('sessionId') || params.get('st_session') || '').trim()
   if (!sessionId) return null
   return { sessionId, approvalId: (params.get('approvalId') || '').trim() }
 }

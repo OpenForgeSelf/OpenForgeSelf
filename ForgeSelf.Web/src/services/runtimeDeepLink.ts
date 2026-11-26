@@ -5,19 +5,28 @@ export function queryText(query: Record<string, unknown>, key: string): string {
   return value == null ? '' : String(value)
 }
 
+/** 按顺序取第一个非空查询值。主参数在前，旧名在后。 */
+export function queryTextFirst(query: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const text = queryText(query, key).trim()
+    if (text) return text
+  }
+  return ''
+}
+
 export function scriptExecutionFromQuery(query: Record<string, unknown>): string {
-  return queryText(query, 'executionId').trim()
+  return queryTextFirst(query, ['id', 'executionId'])
 }
 
 export function workflowExecutionFromQuery(query: Record<string, unknown>): string {
-  return queryText(query, 'executionId').trim()
+  return queryTextFirst(query, ['id', 'executionId'])
 }
 
 export function schedulerTaskFromQuery(query: Record<string, unknown>): string {
-  return queryText(query, 'taskId').trim()
+  return queryTextFirst(query, ['id', 'taskId'])
 }
 
 export function monitorPidFromQuery(query: Record<string, unknown>): number {
-  const n = Number(queryText(query, 'pid'))
+  const n = Number(queryTextFirst(query, ['id', 'pid']))
   return Number.isInteger(n) && n > 0 ? n : 0
 }

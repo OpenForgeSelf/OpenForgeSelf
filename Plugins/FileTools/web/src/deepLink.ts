@@ -1,5 +1,6 @@
-/** 运行实况打开目录扫描：/file-tools?scanId= */
+/** 运行实况打开目录扫描。主参数 id，旧名 scanId 仍接受。 */
 export function scanIdFromSearch(search: string): string {
   const raw = search.startsWith('?') ? search.slice(1) : search
-  return new URLSearchParams(raw).get('scanId')?.trim() ?? ''
+  const params = new URLSearchParams(raw)
+  return (params.get('id') || params.get('scanId') || '').trim()
 }

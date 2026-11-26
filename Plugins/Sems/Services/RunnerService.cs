@@ -517,6 +517,45 @@ public class RunnerService : IRunnerService
         }
     }
 
+    /// <summary>
+    /// 已登记项目目录下的进程。对上项目带项目号；类型对不上只留 pid（ProjectId 为 0）。
+    /// 目录之外的进程返回 null，不进列表。
+    /// </summary>
+    private static RunSession? DetectedSession(
+        int pid,
+        string commandName,
+        string? exePath,
+        string? commandLine,
+        string? cwd,
+        IReadOnlyList<ProjectInfo> projects)
+    {
+        var matched = ProcessMatcher.MatchProject(exePath, commandLine, projects, cwd);
+        if (matched != null)
+        {
+            return new RunSession
+            {
+                CommandId = 0,
+                ProjectId = matched.Id,
+                ProjectName = matched.Name,
+                CommandName = commandName,
+                Pid = pid,
+                StartedAt = DateTime.MinValue,
+                Origin = "Detected"
+            };
+        }
+        if (!ProcessMatcher.LocatedUnderRegisteredRoot(exePath, commandLine, projects, cwd)) return null;
+        return new RunSession
+        {
+            CommandId = 0,
+            ProjectId = 0,
+            ProjectName = "",
+            CommandName = commandName,
+            Pid = pid,
+            StartedAt = DateTime.MinValue,
+            Origin = "Detected"
+        };
+    }
+
     /// <summary>读 /proc/{pid}/exe、cmdline、cwd，按项目根归属判定。无 /proc 时返回空列表。</summary>
     private List<RunSession> DetectViaProc()
     {
@@ -533,22 +572,12 @@ public class RunnerService : IRunnerService
                 var exePath = ReadProcLink(Path.Combine(dir, "exe"));
                 var cwd = ReadProcLink(Path.Combine(dir, "cwd"));
                 var cmdLine = ReadProcCmdline(Path.Combine(dir, "cmdline"));
-                var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects, cwd);
-                if (matched == null) continue;
-
                 var commandName = string.IsNullOrWhiteSpace(exePath)
                     ? name
                     : Path.GetFileNameWithoutExtension(exePath);
-                result.Add(new RunSession
-                {
-                    CommandId = 0,
-                    ProjectId = matched.Id,
-                    ProjectName = matched.Name,
-                    CommandName = commandName,
-                    Pid = pid,
-                    StartedAt = DateTime.MinValue,
-                    Origin = "Detected"
-                });
+                var session = DetectedSession(pid, commandName, exePath, cmdLine, cwd, projects);
+                if (session == null) continue;
+                result.Add(session);
             }
             catch
             {
@@ -604,19 +633,9 @@ public class RunnerService : IRunnerService
                 var exePath = mo["ExecutablePath"]?.ToString();
                 var cmdLine = mo["CommandLine"]?.ToString();
 
-                var matched = ProcessMatcher.MatchProject(exePath, cmdLine, projects);
-                if (matched == null) continue;
-
-                result.Add(new RunSession
-                {
-                    CommandId = 0,
-                    ProjectId = matched.Id,
-                    ProjectName = matched.Name,
-                    CommandName = Path.GetFileNameWithoutExtension(name),
-                    Pid = pid,
-                    StartedAt = DateTime.MinValue, // WMI 无精确启动时间，留空
-                    Origin = "Detected"
-                });
+                var session = DetectedSession(pid, Path.GetFileNameWithoutExtension(name), exePath, cmdLine, null, projects);
+                if (session == null) continue;
+                result.Add(session);
             }
         }
         catch (Exception)

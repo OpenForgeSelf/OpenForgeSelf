@@ -72,7 +72,12 @@ async function handleKillProcess(pid: number): Promise<void> {
 
 onMounted(() => {
   store.connect()
-  store.loadProcesses()
+  void store.loadProcesses().then(async () => {
+    const pid = highlightPid.value
+    if (pid <= 0 || store.processes.some((row) => row.pid === pid)) return
+    const one = await systemMonitorApi.getProcess(pid)
+    if (one && !store.processes.some((row) => row.pid === pid)) store.processes.unshift(one)
+  })
 })
 
 onUnmounted(() => {

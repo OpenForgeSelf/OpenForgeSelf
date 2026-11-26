@@ -250,7 +250,7 @@ function syncTimers() {
 
 onMounted(async () => {
   const focus = semsFocusFromSearch(window.location.search)
-  if (focus.runId > 0) focusPid.value = focus.runId
+  if (focus.pid > 0) focusPid.value = focus.pid
   await refresh()
   syncTimers()
 })

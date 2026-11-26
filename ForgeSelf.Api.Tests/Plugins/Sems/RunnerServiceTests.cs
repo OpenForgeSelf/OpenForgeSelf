@@ -261,4 +261,28 @@ public class RunnerServiceTests : IDisposable
             try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
         }
     }
+
+    [Fact]
+    public void CheckAndMerge_TypeMismatchUnderProjectRoot_KeepsPidOnly()
+    {
+        if (!Directory.Exists("/proc")) return;
+
+        var project = _registry.GetAll().Single();
+        Assert.True(_registry.Update(project.Id, new ProjectUpdate { Type = "frontend" }));
+
+        var psi = HoldProcess(30);
+        psi.WorkingDirectory = _projectRoot;
+        using var ext = Process.Start(psi)!;
+        try
+        {
+            Assert.False(ext.HasExited);
+            var runs = _runner.CheckAndMerge();
+            Assert.Contains(runs, s => s.Pid == ext.Id && s.Origin == "Detected" && s.ProjectId == 0);
+            Assert.Contains(_runner.Current(), s => s.Pid == ext.Id && s.ProjectId == 0);
+        }
+        finally
+        {
+            try { ext.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+        }
+    }
 }

@@ -28,8 +28,20 @@ describe('classifyRuntime', () => {
     expect(urgent.map((c) => c.id)).toEqual(['agent-approval:1'])
     expect(wait.map((c) => c.id)).toEqual(['agent-approval:2'])
     expect(urgent[0]?.sessionGroup).toBe('s1')
-    expect(urgent[0]?.link).toEqual({ path: '/ai-agent', query: { session: 's1' } })
+    expect(urgent[0]?.link).toEqual({ path: '/ai-agent', query: { id: 's1' } })
     expect(attentionCount(board.cards)).toBe(2)
+  })
+
+  it('不足两分钟的普通待批算紧急，过期的不出现', () => {
+    const board = classifyRuntime({
+      ...base(),
+      agentApprovals: ok([
+        { id: 8, sessionId: 'soon', toolName: 'write_file', description: '马上到期', expiresAt: '2026-11-26T02:01:00Z' },
+        { id: 9, sessionId: 'gone', toolName: 'write_file', description: '已经过期', expiresAt: '2026-11-26T01:59:00Z' },
+      ]),
+    })
+    expect(board.cards.map((c) => c.id)).toEqual(['agent-approval:8'])
+    expect(board.cards[0]?.lane).toBe('urgent')
   })
 
   it('同一会话已有待批时，不再另开一条在跑；卡住且没有待批才进要续跑', () => {
@@ -50,7 +62,7 @@ describe('classifyRuntime', () => {
       kind: 'resume',
       url: '/api/ai-agent/runs/4/retry',
     })
-    expect(board.cards.find((c) => c.id === 'run:plan:8')?.link.query).toEqual({ runId: '8' })
+    expect(board.cards.find((c) => c.id === 'run:plan:8')?.link.query).toEqual({ planId: '8' })
   })
 
   it('待办委派出去的外部任务只留一行，并带来自待办', () => {
@@ -62,7 +74,7 @@ describe('classifyRuntime', () => {
     const row = board.cards.find((c) => c.id === 'hub:3')
     expect(row?.lane).toBe('running')
     expect(row?.project).toBe('铸己匣')
-    expect(row?.secondaryLink).toEqual({ path: '/todo', query: { todoId: '12' }, label: '来自待办' })
+    expect(row?.secondaryLink).toEqual({ path: '/todo', query: { id: '12' }, label: '来自待办' })
     expect(board.cards.filter((c) => c.lane === 'running')).toHaveLength(1)
   })
 
@@ -77,7 +89,7 @@ describe('classifyRuntime', () => {
     const hub = board.cards.find((c) => c.id === 'hub-permission:5:req-1')
     expect(hub?.once).toBe(true)
     expect(hub?.detail).toContain('只放行这一次')
-    expect(hub?.link).toEqual({ path: '/agent-hub', query: { taskId: '5' } })
+    expect(hub?.link).toEqual({ path: '/agent-hub', query: { id: '5' } })
     const term = board.cards.find((c) => c.id === 'term-approval:ap1')
     expect(term?.note).toBe('本次宿主运行期间有效')
     expect(term?.lane).toBe('wait')
@@ -104,9 +116,9 @@ describe('classifyRuntime', () => {
     const rows = board.cards.filter((c) => c.lane === 'running')
     expect(rows.map((c) => c.id)).toEqual(['run-proc:100', 'run-proc:200'])
     expect(rows[0]?.link.path).toBe('/sems')
-    expect(rows[0]?.link.query).toEqual({ projectId: '4', runId: '100' })
+    expect(rows[0]?.link.query).toEqual({ id: '4', pid: '100' })
     expect(rows[1]?.project).toBe('未归属')
-    expect(rows[1]?.link).toEqual({ path: '/system-monitor', query: { pid: '200' } })
+    expect(rows[1]?.link).toEqual({ path: '/system-monitor', query: { id: '200' } })
   })
 
   it('智能体已经代表的定时触发不再重复；未到点的进待触发', () => {
@@ -137,10 +149,10 @@ describe('classifyRuntime', () => {
     })
     expect(board.cards.find((c) => c.id === 'script:11')?.link).toEqual({
       path: '/script-runner',
-      query: { executionId: '11' },
+      query: { id: '11' },
     })
-    expect(board.cards.find((c) => c.id === 'wf:22')?.link.query).toEqual({ executionId: '22' })
-    expect(board.cards.find((c) => c.id === 'scan:scan-9')?.link.query).toEqual({ scanId: 'scan-9' })
+    expect(board.cards.find((c) => c.id === 'wf:22')?.link.query).toEqual({ id: '22' })
+    expect(board.cards.find((c) => c.id === 'scan:scan-9')?.link.query).toEqual({ id: 'scan-9' })
     expect(board.cards.find((c) => c.id === 'browser')?.link.path).toBe('/browser-use')
   })
 
@@ -182,7 +194,7 @@ describe('classifyRuntime', () => {
     const card = board.cards[0]
     expect(card?.lane).toBe('urgent')
     expect(card?.destructive).toBe(true)
-    expect(card?.link).toEqual({ path: '/db-admin', query: { approvalId: '44' } })
+    expect(card?.link).toEqual({ path: '/db-admin', query: { id: '44' } })
   })
 })
 
@@ -200,9 +212,12 @@ describe('blockingCount', () => {
 
 describe('runtimeDeepLink', () => {
   it('带查询参数时取出要打开的详情', () => {
+    expect(scriptExecutionFromQuery({ id: '11' })).toBe('11')
     expect(scriptExecutionFromQuery({ executionId: '11' })).toBe('11')
     expect(scriptExecutionFromQuery({ executionId: ['11', '12'] })).toBe('11')
+    expect(schedulerTaskFromQuery({ id: '7' })).toBe('7')
     expect(schedulerTaskFromQuery({ taskId: '7' })).toBe('7')
+    expect(monitorPidFromQuery({ id: '200' })).toBe(200)
     expect(monitorPidFromQuery({ pid: '200' })).toBe(200)
     expect(monitorPidFromQuery({ pid: '0' })).toBe(0)
     expect(queryText({}, 'missing')).toBe('')

@@ -213,7 +213,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       destructive,
       once: false,
       sessionGroup: row.sessionId,
-      link: { path: '/ai-agent', query: { session: row.sessionId } },
+      link: { path: '/ai-agent', query: { id: row.sessionId } },
       decide: { kind: 'agent', id: row.id },
     })
   }
@@ -231,7 +231,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: row.destructive ? '会破坏数据，批准前要再确认' : '等待批准',
       destructive: !!row.destructive,
       once: false,
-      link: { path: '/db-admin', query: { approvalId: id } },
+      link: { path: '/db-admin', query: { id } },
       decide: { kind: 'db', id, destructive: !!row.destructive },
     })
   }
@@ -255,7 +255,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       once: false,
       sessionGroup: row.sessionId,
       note: '本次宿主运行期间有效',
-      link: { path: '/smart-terminal', query: { sessionId: row.sessionId, approvalId: row.id } },
+      link: { path: '/smart-terminal', query: { id: row.sessionId, approvalId: row.id } },
       decide: { kind: 'terminal', id: row.id },
     })
   }
@@ -275,9 +275,9 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '同意只放行这一次',
       destructive: false,
       once: true,
-      link: { path: '/agent-hub', query: { taskId: String(row.taskId) } },
+      link: { path: '/agent-hub', query: { id: String(row.taskId) } },
       secondaryLink: todo
-        ? { path: '/todo', query: { todoId: String(todo.id) }, label: '来自待办' }
+        ? { path: '/todo', query: { id: String(todo.id) }, label: '来自待办' }
         : undefined,
       decide: { kind: 'hub', taskId: row.taskId, requestId: row.requestId },
     })
@@ -289,10 +289,10 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
     const todo = todoByKey.get(row.source === 'planned' ? `run:${row.sourceRef}` : '')
     const project = todo?.project || '未归属'
     const link: BoardLink = row.source === 'planned'
-      ? { path: '/ai-agent', query: { runId: row.sourceRef } }
-      : { path: '/ai-agent', query: { session: row.sourceRef } }
+      ? { path: '/ai-agent', query: { planId: row.sourceRef } }
+      : { path: '/ai-agent', query: { id: row.sourceRef } }
     const secondary = todo
-      ? { path: '/todo', query: { todoId: String(todo.id) }, label: '来自待办' as const }
+      ? { path: '/todo', query: { id: String(todo.id) }, label: '来自待办' as const }
       : undefined
     if (row.status === 'stuck' && !approvalSessions.has(row.sourceRef) && row.retryUrl) {
       cards.push({
@@ -362,7 +362,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '这次触发还在执行',
       destructive: false,
       once: false,
-      link: { path: '/scheduler', query: { taskId: String(row.taskId) } },
+      link: { path: '/scheduler', query: { id: String(row.taskId) } },
     })
   }
 
@@ -379,7 +379,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
         detail: row.nextRunTime ? `下次 ${row.nextRunTime}` : '等待触发',
         destructive: false,
         once: false,
-        link: { path: '/scheduler', query: { taskId: String(row.id) } },
+        link: { path: '/scheduler', query: { id: String(row.id) } },
         decide: { kind: 'run-now', url: `/api/scheduler/tasks/${row.id}/run-now` },
       })
     } else if (row.status === 3) {
@@ -392,7 +392,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
         detail: `失败 ${row.failureCount ?? 0} 次`,
         destructive: true,
         once: false,
-        link: { path: '/scheduler', query: { taskId: String(row.id) } },
+        link: { path: '/scheduler', query: { id: String(row.id) } },
       })
     }
   }
@@ -402,9 +402,9 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
     if (hubWaiting.has(row.id)) continue
     const status = row.status ?? ''
     const todo = row.taskKey ? todoByKey.get(row.taskKey) : undefined
-    const link = { path: '/agent-hub', query: { taskId: String(row.id) } }
+    const link = { path: '/agent-hub', query: { id: String(row.id) } }
     const secondary = todo
-      ? { path: '/todo', query: { todoId: String(todo.id) }, label: '来自待办' as const }
+      ? { path: '/todo', query: { id: String(todo.id) }, label: '来自待办' as const }
       : undefined
     const title = firstLine(row.prompt) || row.taskKey || `任务 ${row.id}`
     if (status === 'AwaitingPermission' && !hubWaiting.has(row.id)) {
@@ -463,7 +463,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '命令还在跑',
       destructive: false,
       once: false,
-      link: { path: '/smart-terminal', query: { sessionId: row.id } },
+      link: { path: '/smart-terminal', query: { id: row.id } },
     })
   }
 
@@ -486,8 +486,8 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       destructive: false,
       once: false,
       link: hasProject
-        ? { path: '/sems', query: { projectId: String(row.projectId), runId: String(row.pid) } }
-        : { path: '/system-monitor', query: { pid: String(row.pid) } },
+        ? { path: '/sems', query: { id: String(row.projectId), pid: String(row.pid) } }
+        : { path: '/system-monitor', query: { id: String(row.pid) } },
     })
   }
 
@@ -502,7 +502,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '执行中',
       destructive: false,
       once: false,
-      link: { path: '/script-runner', query: { executionId: String(row.id) } },
+      link: { path: '/script-runner', query: { id: String(row.id) } },
     })
   }
 
@@ -517,7 +517,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '执行中',
       destructive: false,
       once: false,
-      link: { path: '/workflows', query: { executionId: String(row.id) } },
+      link: { path: '/workflows', query: { id: String(row.id) } },
     })
   }
 
@@ -532,7 +532,7 @@ export function classifyRuntime(input: RuntimeInput): ClassifiedBoard {
       detail: '扫描中',
       destructive: false,
       once: false,
-      link: { path: '/file-tools', query: { scanId: row.scanId } },
+      link: { path: '/file-tools', query: { id: row.scanId } },
     })
   }
 

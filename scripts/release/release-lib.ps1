@@ -90,6 +90,17 @@ function Get-ReleaseVersionInjectible {
     return $null
 }
 
+function Get-FileSha256 {
+    param([Parameter(Mandatory)][string]$Path)
+    # 用 certutil 独立子进程算 SHA256，不用 Get-FileHash——发布链是长跑 pwsh 进程，
+    # 内存压力大时 Get-FileHash 对大文件（145MB zip）曾抛 OutOfMemoryException
+    # （2026-11-26 输入1 实证）。certutil 系统自带、进程内存干净，输出为纯 64 位十六进制行。
+    if (-not (Test-Path -LiteralPath $Path)) { throw "Get-FileSha256: file not found: $Path" }
+    $lines = @(& certutil -hashfile $Path SHA256 | Where-Object { $_ -match '^[0-9a-fA-F]{64}\s*$' })
+    if ($lines.Count -ne 1) { throw "Get-FileSha256: certutil output parse failed: $Path" }
+    return ($lines[0].Trim().ToLowerInvariant())
+}
+
 function Get-CsprojReleaseVersion {
     param(
         [string]$RepoRoot = '',

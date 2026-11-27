@@ -159,7 +159,8 @@ if ($UpdateDir) {
             $expectedHash = $Matches[1].ToLowerInvariant()
             $dest = Join-Path $UpdateDir $Matches[2].Trim()
             if (-not (Test-Path $dest)) { throw ("UpdateDir verification failed: missing {0}" -f $Matches[2].Trim()) }
-            $actualHash = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLowerInvariant()
+            # Get-FileSha256：certutil 子进程算哈希（同 package-release 侧 OOM 修复，2026-11-26 输入1）
+            $actualHash = Get-FileSha256 $dest
             if ($actualHash -ne $expectedHash) { throw ("UpdateDir verification failed: SHA256 mismatch for {0}" -f $Matches[2].Trim()) }
             $verified++
         }

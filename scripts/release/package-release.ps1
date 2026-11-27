@@ -143,7 +143,8 @@ Invoke-ReleaseStep 'package: zip + sha256' {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::CreateFromDirectory($LayoutDir, $zipPath,
         [System.IO.Compression.CompressionLevel]::Optimal, $false)
-    $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()
+    # Get-FileSha256：certutil 子进程算哈希（Get-FileHash 在本长链进程曾 OOM，2026-11-26 输入1）
+    $hash = Get-FileSha256 $zipPath
     $sumsPath = Join-Path $OutputDir 'SHA256SUMS.txt'
     Set-Content -Path $sumsPath -Value ("{0}  {1}" -f $hash, (Split-Path $zipPath -Leaf)) -Encoding ascii
 }

@@ -1,6 +1,6 @@
 {
   "name": "forgeself-frontend",
-  "version": "0.0.0",
+  "version": "2.4.22",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.13.1",

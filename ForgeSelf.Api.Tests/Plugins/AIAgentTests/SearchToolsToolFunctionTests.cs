@@ -9,21 +9,22 @@ namespace ForgeSelf.Api.Tests.Plugins.AIAgentTests;
 
 /// <summary>
 /// SearchToolsToolFunction 单元测试（输入2 · 2026-10-13 万能工具搜索功能；2026-10-28 归属迁至 mcp-center）。
-/// 锁六类合约：① 定义契约（名称/描述/schema 含「先搜索、搜不到再列举」引导）；
-/// ② 打分排序（名称命中 &gt; 描述命中，同分按名称稳定序）；③ 空/缺 keyword 友好错误，
+/// 锁七类合约：① 定义契约（名称/描述/schema 含「先搜索、搜不到再列举」引导）；
+/// ② 打分排序（多面/多词命中 &gt; 单面命中，同分按名称稳定序）；③ 空/缺 keyword 友好错误，
 /// 不静默全量列举（全量是 list_tools 的职责）；④ limit 截断（默认 8、上限 20）；
-/// ⑤ registry 未挂优雅报错；⑥ UniversalTool unknown 封套的 top 建议助手。
-/// 策略：Moq 假 IToolRegistry + 假 IContext，零副作用纯逻辑单测（对齐 UniversalToolTests）。
+/// ⑤ registry 未挂优雅报错；⑥ UniversalTool unknown 封套的 top 建议助手；
+/// ⑦ 分词 + 三面（Id/Name/Description）多词检索（卡 t_20bc15cf：空白族分词 OR 合并 + Id 面命中记 "id"）。
+/// 策略：Moq 假 IToolRegistry + 假 IContext，零副作用纯逻辑单测。
 /// </summary>
 public class SearchToolsToolFunctionTests
 {
     private const string PluginId = "mcp-center";
 
-    private static IToolFunctionExtension FakeTool(string name, string description = "", string pluginId = "ai-agent")
+    private static IToolFunctionExtension FakeTool(string name, string description = "", string pluginId = "ai-agent", string? id = null)
     {
         var mock = new Mock<IToolFunctionExtension>();
         mock.SetupGet(t => t.Name).Returns(name);
-        mock.SetupGet(t => t.Id).Returns($"{pluginId}.{name}");
+        mock.SetupGet(t => t.Id).Returns(id ?? $"{pluginId}.{name}");
         mock.SetupGet(t => t.Description).Returns(description);
         mock.SetupGet(t => t.PluginId).Returns(pluginId);
         return mock.Object;
@@ -87,9 +88,9 @@ public class SearchToolsToolFunctionTests
     public async Task Search_NamePrefixMatch_RanksAboveDescriptionOnlyMatch()
     {
         var reg = MakeRegistry(
-            FakeTool("read_file", "读取项目文件内容"),          // 名称前缀命中 read → 3+1=4
-            FakeTool("readme_helper", "生成 readme"),           // 名称前缀 read → 4 + 描述含 readme → +1 = 5
-            FakeTool("format_json", "格式化 read 输出的文本")); // 仅描述命中 read → 1
+            FakeTool("read_file", "读取项目文件内容"),          // 名称前缀 read → 4 + Id(ai-agent.read_file) 包含 read → +3 = 7
+            FakeTool("readme_helper", "生成 readme"),           // 名称前缀 read → 4 + Id 包含 → +3 + 描述含 readme → +3 = 10
+            FakeTool("format_json", "格式化 read 输出的文本")); // 仅描述命中 read → 3
         var tool = CreateTool(MakeContext(reg));
 
         var result = await tool.ExecuteAsync("""{"keyword":"read"}""");
@@ -97,15 +98,16 @@ public class SearchToolsToolFunctionTests
         var root = Parse(result);
         Assert.True(root.GetProperty("success").GetBoolean());
         var tools = root.GetProperty("tools");
-        // 期望顺序：readme_helper(5) > read_file(4) > format_json(1)
+        // Id 面加入后各工具同向变化，相对排序不变：readme_helper(10) > read_file(7) > format_json(3)
         Assert.Equal("readme_helper", tools[0].GetProperty("name").GetString());
         Assert.Equal("read_file", tools[1].GetProperty("name").GetString());
         Assert.Equal("format_json", tools[2].GetProperty("name").GetString());
-        Assert.Equal(5, tools[0].GetProperty("score").GetInt32());
-        Assert.Equal(4, tools[1].GetProperty("score").GetInt32());
-        // matchedIn 记录命中面，供调用方判断可信度
-        Assert.Contains("name", tools[1].GetProperty("matchedIn").EnumerateArray()
-            .Select(x => x.GetString()!));
+        Assert.Equal(10, tools[0].GetProperty("score").GetInt32());
+        Assert.Equal(7, tools[1].GetProperty("score").GetInt32());
+        // matchedIn 记录命中面（去重 + 固定序 [id,name,description]），供调用方判断可信度
+        var readFileMatchedIn = tools[1].GetProperty("matchedIn").EnumerateArray()
+            .Select(x => x.GetString()!).ToArray();
+        Assert.Equal(new[] { "id", "name" }, readFileMatchedIn);
     }
 
     [Fact]
@@ -119,7 +121,7 @@ public class SearchToolsToolFunctionTests
         var result = await tool.ExecuteAsync("""{"keyword":"calculate"}""");
 
         var tools = Parse(result).GetProperty("tools");
-        Assert.Equal("calculate", tools[0].GetProperty("name").GetString());  // 全词等于=5 最高
+        Assert.Equal("calculate", tools[0].GetProperty("name").GetString());  // 全词等于=5 + Id 包含=3 = 8 最高
     }
 
     [Fact]
@@ -226,7 +228,7 @@ public class SearchToolsToolFunctionTests
     {
         var hints = UniversalTool.ToolSearchHints(
             () => new[] { FakeTool("read_file", "读文件"), FakeTool("write_file", "写文件") },
-            "red File");   // 打错字：red vs read —— 名称子串(大小写不敏感) miss，但 read_file 描述无 red...
+            "zzz_none");   // 任何词/任何面都不命中（原 "red File" 在 Id 面加入后会经 "file" 词命中，不再覆盖无建议分支）
 
         // 无命中时也必须给引导语（先 search_tools、再 list_tools），不能是空串
         Assert.Contains("search_tools", hints);
@@ -252,5 +254,122 @@ public class SearchToolsToolFunctionTests
             "file");
 
         Assert.Contains("search_tools", hints);   // 兜底引导语仍在，unknown 封套不被吞
+    }
+
+    // ── ⑦ 分词 + 三面（Id/Name/Description）多词检索（卡 t_20bc15cf D1-D6）──
+
+    [Fact]
+    public async Task Search_MultiWord_TokenizedOR_AggregatesScores()
+    {
+        var reg = MakeRegistry(
+            FakeTool("db_list_databases", "列出所有 database 连接与库清单"),
+            FakeTool("db_execute_sql", "在数据库上执行 sql 语句"),
+            FakeTool("calculate", "计算器"));   // 与四个词全无关 → 0 分不返回
+        var tool = CreateTool(MakeContext(reg));
+
+        var result = await tool.ExecuteAsync("""{"keyword":"database sql 数据库 执行","limit":10}""");
+
+        var root = Parse(result);
+        Assert.True(root.GetProperty("success").GetBoolean());
+        var names = root.GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetProperty("name").GetString()!).ToList();
+        Assert.True(root.GetProperty("total").GetInt32() > 0);   // 整词子串时代 total=0，分词后必须命中
+        Assert.Contains("db_list_databases", names);   // "database" 词：name/Id/描述三面命中
+        Assert.Contains("db_execute_sql", names);      // "sql"/"执行"/"数据库" 词命中
+        Assert.DoesNotContain("calculate", names);     // 0 分工具不返回
+    }
+
+    [Fact]
+    public async Task Search_SingleWord_ExistingHitsNoRegression()
+    {
+        var reg = MakeRegistry(
+            FakeTool("db_list_databases", "列出所有 database 连接与库清单"),
+            FakeTool("db_execute_sql", "在数据库上执行 sql 语句"));
+        var tool = CreateTool(MakeContext(reg));
+
+        var result = await tool.ExecuteAsync("""{"keyword":"database"}""");
+
+        var names = Parse(result).GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetProperty("name").GetString()!).ToList();
+        Assert.Contains("db_list_databases", names);   // 单词走同一条分词路径（退化为一词），原命中不回归
+    }
+
+    [Fact]
+    public async Task Search_MultiWord_AllTermsMiss_TotalZero()
+    {
+        var reg = MakeRegistry(FakeTool("calculate", "计算器"));
+        var tool = CreateTool(MakeContext(reg));
+
+        var result = await tool.ExecuteAsync("""{"keyword":"zzz_no_hit yyy_none"}""");
+
+        var root = Parse(result);
+        Assert.Equal(0, root.GetProperty("total").GetInt32());
+        Assert.Empty(root.GetProperty("tools").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Search_MultiWord_PartialHit_MergedSortedTruncated()
+    {
+        var reg = MakeRegistry(
+            FakeTool("read_file", "读取项目文件内容"),   // 双词命中：read 名称前缀4+Id3 = 7；file 3+3 = 6 → 合计 13
+            FakeTool("file_writer", "写入文件"),          // 单词 file：名称前缀 4 + Id 3 = 7
+            FakeTool("alpha_file", "no desc"),            // 单词 file：3+3 = 6
+            FakeTool("beta_file", "no desc"));            // 单词 file：3+3 = 6（同分 → 名称稳定序）
+        var tool = CreateTool(MakeContext(reg));
+
+        var result = await tool.ExecuteAsync("""{"keyword":"file read","limit":3}""");
+
+        var root = Parse(result);
+        var tools = root.GetProperty("tools");
+        // 合并去重（每工具一条）+ 总分降序 + 同分名称稳定序 + limit 截断（4 个命中 > limit 3）
+        Assert.Equal(3, root.GetProperty("total").GetInt32());
+        Assert.Equal("read_file", tools[0].GetProperty("name").GetString());
+        Assert.Equal("file_writer", tools[1].GetProperty("name").GetString());
+        Assert.Equal("alpha_file", tools[2].GetProperty("name").GetString());   // beta_file 被截断
+        // 多词命中面去重 + 固定序：read_file 两词都命中 Id+Name，去重后按 [id, name] 输出（描述未命中）
+        var matchedIn = tools[0].GetProperty("matchedIn").EnumerateArray().Select(x => x.GetString()!).ToArray();
+        Assert.Equal(new[] { "id", "name" }, matchedIn);
+    }
+
+    [Fact]
+    public async Task Search_IdOnlyMatch_MatchedInContainsId()
+    {
+        // Id 含 "mcp-center" 而 Name/描述不含（FakeTool 显式指定 Id 的重载）
+        var reg = MakeRegistry(FakeTool("find_tools", "定位工具", "mcp-center", "mcp-center.search_tools"));
+        var tool = CreateTool(MakeContext(reg));
+
+        var result = await tool.ExecuteAsync("""{"keyword":"mcp-center"}""");
+
+        var root = Parse(result);
+        var tools = root.GetProperty("tools");
+        Assert.Equal(1, root.GetProperty("total").GetInt32());
+        Assert.Equal("find_tools", tools[0].GetProperty("name").GetString());
+        Assert.Equal(4, tools[0].GetProperty("score").GetInt32());   // 仅 Id 面命中，且是前缀包含 → 3+1
+        Assert.Equal(new[] { "id" }, tools[0].GetProperty("matchedIn").EnumerateArray()
+            .Select(x => x.GetString()!).ToArray());
+    }
+
+    [Fact]
+    public async Task Search_FullWidthSpace_Tab_Nbsp_TokenizedAsSeparators()
+    {
+        var reg = MakeRegistry(
+            FakeTool("db_list_databases", "列出所有 database 连接"),
+            FakeTool("db_execute_sql", "执行 sql 语句"));
+        var tool = CreateTool(MakeContext(reg));
+
+        // 全角空格 U+3000 分隔：分词后两词各命中一个工具；若不分词整串将 0 命中
+        var fullWidth = await tool.ExecuteAsync("{\"keyword\":\"database\u3000sql\"}");
+        var names = Parse(fullWidth).GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetProperty("name").GetString()!).ToList();
+        Assert.Contains("db_list_databases", names);
+        Assert.Contains("db_execute_sql", names);
+
+        // \t 与 NBSP(U+00A0) 同属空白族分隔符（D1）
+        // 分段拼接：规避 hygiene.abs-unc 对 JSON 转义序列的 UNC 形状假阳性（t_20bc15cf 提交时发现）
+        var tab = await tool.ExecuteAsync("{\"keyword\":\"database" + "\\t" + "sql\"}");
+        Assert.Equal(2, Parse(tab).GetProperty("total").GetInt32());
+
+        var nbsp = await tool.ExecuteAsync("{\"keyword\":\"database\u00A0sql\"}");
+        Assert.Equal(2, Parse(nbsp).GetProperty("total").GetInt32());
     }
 }

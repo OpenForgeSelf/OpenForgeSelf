@@ -175,7 +175,7 @@ public class UniversalTool : IToolFunctionExtension
     }
 
     /// <summary>
-    /// 未知工具封套的 hint：用 search_tools 同款打分给出 top≤3 建议 + 引导语（输入2·2026-10-13）。
+    /// 未知工具封套的 hint：调 ToolSearchScorer（打分单源，分词 + 三面 Id/Name/Description，卡 t_20bc15cf D7）给 top≤3 建议 + 引导语（输入2·2026-10-13）。
     /// getAll 用 Func 传入，与分发路径解耦；无建议时只给引导语（先 search_tools，再 list_tools 兜底）。
     /// </summary>
     internal static string ToolSearchHints(Func<IEnumerable<IToolFunctionExtension>> getAll, string toolName)
